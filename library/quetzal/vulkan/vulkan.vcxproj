@@ -41,6 +41,7 @@
     <ClInclude Include="CommandBuffer.hpp" />
     <ClInclude Include="CommandBuffers.hpp" />
     <ClInclude Include="CommandPool.hpp" />
+    <ClInclude Include="ComputePipelineCreateInfo.hpp" />
     <ClInclude Include="DebugMessenger.hpp" />
     <ClInclude Include="debug_callback.hpp" />
     <ClInclude Include="DescriptorPool.hpp" />
