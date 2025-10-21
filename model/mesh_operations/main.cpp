@@ -3,7 +3,7 @@
 // main.cpp
 //------------------------------------------------------------------------------
 
-//#define REGRESSION_TESTS
+#define REGRESSION_TESTS
 #define DEBUG_VALIDATE_DUMP
 #define DEBUG_VISUALIZE
 
