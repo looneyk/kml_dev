@@ -1,0 +1,51 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 14
+VisualStudioVersion = 14.0.23107.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "display_matrix_controller", "display_matrix_controller.vcxproj", "{340EF551-F0CC-4640-A36D-AFF120243849}"
+	ProjectSection(ProjectDependencies) = postProject
+		{02756409-0BC4-4F9B-AC9C-25E6A33B8592} = {02756409-0BC4-4F9B-AC9C-25E6A33B8592}
+		{5DC26941-A4EE-4207-8D69-C8787CF4794E} = {5DC26941-A4EE-4207-8D69-C8787CF4794E}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "quetzal", "..\..\library\quetzal\quetzal.vcxproj", "{02756409-0BC4-4F9B-AC9C-25E6A33B8592}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "serial", "..\..\library\quetzal\serial\serial.vcxproj", "{5DC26941-A4EE-4207-8D69-C8787CF4794E}"
+	ProjectSection(ProjectDependencies) = postProject
+		{02756409-0BC4-4F9B-AC9C-25E6A33B8592} = {02756409-0BC4-4F9B-AC9C-25E6A33B8592}
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Win32 = Debug|Win32
+		Debug|x64 = Debug|x64
+		Release|Win32 = Release|Win32
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{340EF551-F0CC-4640-A36D-AFF120243849}.Debug|Win32.ActiveCfg = Debug|Win32
+		{340EF551-F0CC-4640-A36D-AFF120243849}.Debug|Win32.Build.0 = Debug|Win32
+		{340EF551-F0CC-4640-A36D-AFF120243849}.Debug|x64.ActiveCfg = Debug|Win32
+		{340EF551-F0CC-4640-A36D-AFF120243849}.Release|Win32.ActiveCfg = Release|Win32
+		{340EF551-F0CC-4640-A36D-AFF120243849}.Release|Win32.Build.0 = Release|Win32
+		{340EF551-F0CC-4640-A36D-AFF120243849}.Release|x64.ActiveCfg = Release|Win32
+		{02756409-0BC4-4F9B-AC9C-25E6A33B8592}.Debug|Win32.ActiveCfg = Debug|Win32
+		{02756409-0BC4-4F9B-AC9C-25E6A33B8592}.Debug|Win32.Build.0 = Debug|Win32
+		{02756409-0BC4-4F9B-AC9C-25E6A33B8592}.Debug|x64.ActiveCfg = Debug|Win32
+		{02756409-0BC4-4F9B-AC9C-25E6A33B8592}.Release|Win32.ActiveCfg = Release|Win32
+		{02756409-0BC4-4F9B-AC9C-25E6A33B8592}.Release|Win32.Build.0 = Release|Win32
+		{02756409-0BC4-4F9B-AC9C-25E6A33B8592}.Release|x64.ActiveCfg = Release|Win32
+		{5DC26941-A4EE-4207-8D69-C8787CF4794E}.Debug|Win32.ActiveCfg = Debug|Win32
+		{5DC26941-A4EE-4207-8D69-C8787CF4794E}.Debug|Win32.Build.0 = Debug|Win32
+		{5DC26941-A4EE-4207-8D69-C8787CF4794E}.Debug|x64.ActiveCfg = Debug|x64
+		{5DC26941-A4EE-4207-8D69-C8787CF4794E}.Debug|x64.Build.0 = Debug|x64
+		{5DC26941-A4EE-4207-8D69-C8787CF4794E}.Release|Win32.ActiveCfg = Release|Win32
+		{5DC26941-A4EE-4207-8D69-C8787CF4794E}.Release|Win32.Build.0 = Release|Win32
+		{5DC26941-A4EE-4207-8D69-C8787CF4794E}.Release|x64.ActiveCfg = Release|x64
+		{5DC26941-A4EE-4207-8D69-C8787CF4794E}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

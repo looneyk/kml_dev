@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<system_configuration>
+    <channel_bits_gs>12</channel_bits_gs>
+    <channel_bits_dc>6</channel_bits_dc>
+    <device_bits_status>192</device_bits_status>
+    <device_channels>16</device_channels>
+    <strip_devices>3</strip_devices>
+    <strips>16</strips>
+    <gpio_ser>17</gpio_ser>
+    <gpio_srclk>27</gpio_srclk>
+    <gpio_rclk>22</gpio_rclk>
+    <gpio_oe>23</gpio_oe>
+    <gpio_sin>24</gpio_sin>
+    <gpio_xlat>5</gpio_xlat>
+    <gpio_blank>6</gpio_blank>
+    <gpio_gsclk>13</gpio_gsclk>
+    <gpio_vprg>19</gpio_vprg>
+    <gpio_dcprg>26</gpio_dcprg>
+    <gpio_sout>0</gpio_sout>
+    <gpio_xerr>0</gpio_xerr>
+    <dot_correction_filename>dot_correction.xml</dot_correction_filename>
+</system_configuration>

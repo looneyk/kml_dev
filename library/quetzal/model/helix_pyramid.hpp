@@ -1,0 +1,202 @@
+#if !defined(QUETZAL_MODEL_HELIX_PYRAMID_HPP)
+#define QUETZAL_MODEL_HELIX_PYRAMID_HPP
+//------------------------------------------------------------------------------
+// model
+// helix_pyramid.hpp
+//------------------------------------------------------------------------------
+
+#include "primitives_util.hpp"
+#include "SurfaceName.hpp"
+#include "quetzal/math/math_util.hpp"
+#include <string>
+#include <cassert>
+
+namespace quetzal::model
+{
+
+    // nAzimuth is number of sides
+    template<typename M>
+    id_type create_helix_pyramid(M& mesh, const std::string& name, size_t nAzimuth, size_t nz, data_value_type<M> rBase, data_value_type<M> dz, data_value_type<M> revs);
+
+    template<typename M>
+    id_type create_helix_pyramid(M& mesh, const std::string& name, const geometry::Polygon<typename M::vector_traits>& polygon, size_t nz, data_value_type<M> dz, data_value_type<M> revs);
+
+    //--------------------------------------------------------------------------
+    template<typename M>
+    void triangulate_body_surfaces(M& mesh)
+    {
+        // WIP ...
+
+        for (auto& surface : mesh.surfaces())
+        {
+            if (!body_surface(surface))
+            {
+                continue;
+            }
+
+            auto face_ids = surface.face_ids();
+            for (const auto& face_id : face_ids)
+            {
+                if (mesh.face(face_id).halfedge_count() != 4)
+                {
+                    continue;
+                }
+
+                auto center = vertex_centroid(mesh.face(face_id));
+                triangulate_central_vertex(mesh, face_id, center); // this needs to add surfaces and calculate new face normals ...
+            }
+            
+            // model::set_surface_vertex_normals(surface);
+        }
+
+        return;
+    }
+
+} // namespace quetzal::model
+
+//------------------------------------------------------------------------------
+template<typename M>
+quetzal::id_type quetzal::model::create_helix_pyramid(M& mesh, const std::string& name, size_t nAzimuth, size_t nz, data_value_type<M> r0, data_value_type<M> dz, data_value_type<M> revs)
+{
+    using T = M::value_type;
+
+    CylinderSpecification<T> spec(nAzimuth, nz, r0, T(0), T(0), dz, T(0), revs, {{"azimuth_smooth", "false"}});
+
+    assert(nAzimuth > 2);
+    assert(nz > 0);
+    assert(r0 > T(0));
+
+    T t = T(1) / T(nz);
+
+    T r1 = spec.axis_radius_interval.lerp(t);
+
+    T z0 = spec.axis_z_interval.lower();
+    T z1 = spec.axis_z_interval.lerp(t);
+
+    T revs0 = spec.axis_azimuth_offset_interval.lower();
+    T revs1 = spec.axis_azimuth_offset_interval.lerp(t);
+
+    math::Interval azimuth(T(1));
+    math::Interval azimuth0 = shift(azimuth, revs0);
+    math::Interval azimuth1 = shift(azimuth, revs1);
+
+    auto ts0 = texture_span<T>(0, nz, false, true);
+    auto ts1 = texture_span<T>(1, nz, false, true);
+
+    auto face_count = spec.azimuth_divisions;
+
+    M m{};
+    id_type submesh_id = m.create_submesh(name);
+    id_type surface_id0 = create_section_surfaces(m, submesh_id, face_count, [](size_t i) { return surface_name(SurfaceName::BodySection, i); });
+
+    id_type j0_orig = m.halfedge_store_count();
+
+    if (nz == 1)
+    {
+        create_apex_cusp_sections(m, nAzimuth, r0, z0, z1, azimuth0, ts0, surface_id0);
+    }
+    else
+    {
+        create_band_sections(m, nAzimuth, r0, r1, z0, z1, azimuth0, azimuth1, ts0, ts1, surface_id0);
+
+        for (size_t i = 2; i < nz; ++i)
+        {
+            t = T(i) / T(nz);
+            r1 = spec.axis_radius_interval.lerp(t);
+            z1 = spec.axis_z_interval.lerp(t);
+            ts1 = texture_span<T>(i, nz, false, true);
+            revs1 = spec.axis_azimuth_offset_interval.lerp(t);
+            azimuth1 = shift(azimuth, revs1);
+
+            connect_band_sections(m, nAzimuth, r1, z1, azimuth1, ts1, surface_id0);
+        }
+
+        j0_orig = m.halfedge_store_count();
+
+        connect_apex_cusp_sections(m, nAzimuth, dz, azimuth1, surface_id0);
+    }
+
+    calculate_apex_cusp_surface_vertex_normals_sequential(m, j0_orig + 2 * face_count, face_count);
+
+    seal_cylinder(m, submesh_id, spec, false, true);
+
+    m.check();
+    mesh.insert(m);
+    return submesh_id;
+}
+
+//------------------------------------------------------------------------------
+template<typename M>
+quetzal::id_type quetzal::model::create_helix_pyramid(M& mesh, const std::string& name, const geometry::Polygon<typename M::vector_traits>& polygon, size_t nz, data_value_type<M> dz, data_value_type<M> revs)
+{
+    using T = M::value_type;
+
+    CylinderSpecification<T> spec(polygon.edge_count(), nz, T(0), T(0), T(0), dz, T(0), revs, {{"azimuth_smooth", "false"}});
+
+    auto face_count = spec.azimuth_divisions;
+    assert(face_count > 2);
+    assert(nz > 0);
+
+    T t = T(1) / T(nz);
+
+    T z0 = spec.axis_z_interval.lower();
+    T z1 = spec.axis_z_interval.lerp(t);
+
+    T revs0 = spec.axis_azimuth_offset_interval.lower();
+    T revs1 = spec.axis_azimuth_offset_interval.lerp(t);
+
+    T scale0 = T(1);
+    T scale1 = T(1) - t;
+
+    auto ts0 = texture_span<T>(0, nz, false, true);
+    auto ts1 = texture_span<T>(1, nz, false, true);
+
+    bool closed = true;
+
+    M m{};
+    id_type submesh_id = m.create_submesh(name);
+    id_type surface_id0 = create_section_surfaces(m, submesh_id, face_count, [](size_t i) { return surface_name(SurfaceName::BodySection, i); });
+
+    auto avss0 = vertices_attributes_edges<M>(polygon, z0, scale0, revs0, ts0);
+
+    id_type j0_orig = m.halfedge_store_count();
+
+    if (nz == 1)
+    {
+        auto avss1 = cusp_vertices_attributes_edges<M>(polygon, dz, ts1);
+        create_apex_cusp(m, avss0, avss1, surface_id0, closed);
+    }
+    else
+    {
+        auto avss1 = vertices_attributes_edges<M>(polygon, z1, scale1, revs1, ts1);
+        create_band(m, avss0, avss1, surface_id0, closed);
+
+        for (size_t i = 2; i < nz; ++i)
+        {
+            t = T(i) / T(nz);
+            z1 = spec.axis_z_interval.lerp(t);
+            revs1 = spec.axis_azimuth_offset_interval.lerp(t);
+            scale1 = T(1) - t;
+            ts1 = texture_span<T>(i, nz, false, true);
+
+            avss1 = vertices_attributes_edges<M>(polygon, z1, scale1, revs1, ts1);
+            connect_band(m, avss1, surface_id0, closed);
+        }
+
+        j0_orig = m.halfedge_store_count();
+
+        ts1 = texture_span<T>(nz, nz, false, true);
+        avss1 = cusp_vertices_attributes_edges<M>(polygon, dz, ts1);
+        connect_apex_cusp(m, avss1, surface_id0, closed);
+    }
+
+    calculate_apex_cusp_surface_vertex_normals_sequential(m, j0_orig + 2 * face_count, face_count);
+
+    seal_cylinder(m, submesh_id, spec, false, true);
+
+    m.check();
+    mesh.insert(m);
+    return submesh_id;
+}
+
+#endif // QUETZAL_MODEL_HELIX_PYRAMID_HPP

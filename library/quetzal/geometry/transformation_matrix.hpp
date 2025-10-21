@@ -1,0 +1,782 @@
+#if !defined(QUETZAL_GEOMETRY_TRANSFORMATION_MATRIX_HPP)
+#define QUETZAL_GEOMETRY_TRANSFORMATION_MATRIX_HPP
+//------------------------------------------------------------------------------
+// geometry
+// transformation_matrix.hpp
+//
+// Transformation matrices for pre-multiplication: v' = v * M
+// Angles in radians
+//------------------------------------------------------------------------------
+
+#include "Orientation.hpp"
+#include "OrientedPoint.hpp"
+#include "quetzal/math/Matrix.hpp"
+#include "quetzal/math/Vector.hpp"
+#include "quetzal/math/floating_point.hpp"
+#include "quetzal/math/math_util.hpp"
+#include "quetzal/math/math_xm.hpp"
+#include <concepts>
+#include <iostream>
+#include <span>
+#include <cmath>
+#include <cassert>
+
+namespace quetzal::geometry
+{
+
+    // The functions here with either zero or one T parameter are ambiguous as far as dimensionality ...
+
+    template<typename Traits> requires(Traits::dimension == 2 || Traits::dimension == 3)
+    using transformation_matrix_type = math::Matrix<typename Traits::value_type, Traits::size, Traits::size>;
+
+    // Clears any translation component of the transformation
+    template<typename A> requires A::square
+    A direction_matrix(A matrix);
+
+    template<typename Traits> requires (Traits::size == Traits::dimension + 1)
+    transformation_matrix_type<Traits> translation(const math::Vector<Traits>& v);
+
+    template<typename T>
+    math::Matrix<T, 2> translation(T tx);
+
+    template<typename T>
+    math::Matrix<T, 3> translation(T tx, T ty);
+
+    template<typename T>
+    math::Matrix<T, 4> translation(T tx, T ty, T tz);
+
+    template<typename T, size_t N = 3>
+    math::Matrix<T, N + 1> scaling(T factor);
+
+    template<typename T>
+    math::Matrix<T, 3> scaling(T sx, T sy);
+
+    template<typename T>
+    math::Matrix<T, 4> scaling(T sx, T sy, T sz);
+
+    template<typename V>
+    transformation_matrix_type<typename V::traits_type> scaling_axis(const V& axis, typename V::value_type sDirectional, typename V::value_type sTransverse);
+
+    // 2D
+    template<typename T>
+    math::Matrix<T, 3> rotation_2(T angle);
+
+    template<typename T>
+    math::Matrix<T, 4> rotation_x3(T angle);
+
+    template<typename T>
+    math::Matrix<T, 4> rotation_y3(T angle);
+
+    template<typename T>
+    math::Matrix<T, 4> rotation_z3(T angle);
+
+    // experimental ...
+    template<typename T>
+    math::Matrix<T, 4> rotation_dz(T angle);
+
+    template<typename V>
+    transformation_matrix_type<typename V::traits_type> rotation_axis(const V& axis, typename V::value_type angle);
+
+    template<typename V>
+    transformation_matrix_type<typename V::traits_type> rotation_axis_unit(const V& axis, typename V::value_type angle);
+
+    // Rotation matrix resulting from rotation of unit vector from a to b
+    template<typename V>
+    transformation_matrix_type<typename V::traits_type> slerp_unit(const V& a, const V& b, typename V::value_type t);
+
+    // Rotation matrix resulting from rotation of unit vector from a to b
+    // The given axis is used as the rotation axis and to determine which of the explementary angles formed by a and b will be traversed by t
+    template<typename V>
+    transformation_matrix_type<typename V::traits_type> slerp_unit(const V& axis, const V& a, const V& b, typename V::value_type t);
+
+    template<typename T>
+    math::Matrix<T, 2> reflection_x1();
+
+    template<typename T>
+    math::Matrix<T, 3> reflection_x2();
+
+    template<typename T>
+    math::Matrix<T, 3> reflection_y2();
+
+    template<typename T>
+    math::Matrix<T, 4> reflection_x3();
+
+    template<typename T>
+    math::Matrix<T, 4> reflection_y3();
+
+    template<typename T>
+    math::Matrix<T, 4> reflection_z3();
+
+//    template<typename Traits> requires (Traits::dimension == 2)
+//    transformation_matrix_type<Traits> reflection(const geometry::Line<Traits>& line);
+
+//    template<typename Traits> requires (Traits::dimension == 2)
+//    transformation_matrix_type<Traits> reflection(const geometry::Point<Traits>& point);
+
+//    template<typename Traits> requires (Traits::dimension == 3)
+//    transformation_matrix_type<Traits> reflection(const geometry::Plane<Traits>& plane);
+
+//    template<typename Traits> requires (Traits::dimension == 3)
+//    transformation_matrix_type<Traits> reflection(const geometry::Line<Traits>& line);
+
+//    template<typename Traits> requires (Traits::dimension == 3)
+//    transformation_matrix_type<Traits> reflection(const geometry::Point<Traits>& point);
+
+    // Transformation matrix for rotating from to coincide with to
+    // vectors need to be unit length
+    // (internally does an axis/angle rotation) ...
+    template<typename V>
+    transformation_matrix_type<typename V::traits_type> alignment(const V& from, const V& to);
+
+    // Transformation matrix for rotating from_direction and from_right to coincide with to_direction and to_right
+    // up and right vectors need to be unit length
+    template<typename V>
+    transformation_matrix_type<typename V::traits_type> alignment(const V& from_direction, V from_right, const V& to_direction, V to_right);
+
+    // Fewer operations, would expect to be more accurate ...
+    template<typename V>
+    transformation_matrix_type<typename V::traits_type> alignment2(const V& from_direction, const V& from_right, const V& to_direction, const V& to_right);
+
+    template<typename Traits>
+    transformation_matrix_type<Traits> alignment(const Orientation<Traits>& from, const Orientation<Traits>& to);
+
+    template<typename Traits>
+    transformation_matrix_type<Traits> alignment(const OrientedPoint<Traits>& from, const OrientedPoint<Traits>& to);
+
+// deprecated ...
+// enabled only until affine_mapping is implemented ...
+    // Requires dimension sets of homogeneous points (basis vectors) specified individually
+    template<typename V> requires (V::dimension == 2)
+    transformation_matrix_type<typename V::traits_type> linear_mapping(const V& a0, const V& a1, const V& b0, const V& b1);
+
+    // Requires dimension sets of homogeneous points (basis vectors)
+    template<typename P>
+    transformation_matrix_type<typename P::traits_type> linear_mapping(std::span<const P> from, std::span<const P> to);
+
+    // Requires dimension + 1 sets of homogeneous points
+    template<typename P>
+    transformation_matrix_type<typename P::traits_type> affine_mapping(std::span<const P> from, std::span<const P> to);
+
+    // Requires dimension + 2 sets of homogeneous points
+    template<typename P>
+    transformation_matrix_type<typename P::traits_type> projective_mapping(std::span<const P> from, std::span<const P> to);
+
+    // experimental ...
+    template<typename V> requires (V::dimension == 3)
+    transformation_matrix_type<typename V::traits_type> skew_symmetric_matrix(const V& axis);
+
+    // Build an M x N matrix from points where M is the number of points and N is the size of the point object
+    template<typename P, size_t M>
+    quetzal::math::Matrix<typename P::value_type, M, P::component_count> to_matrix(std::span<const P> points);
+
+    // Build a transformation (square) matrix with size appropriate for points of type P (dimension + 1 square)
+    template<typename P>
+    quetzal::geometry::transformation_matrix_type<typename P::traits_type> to_transformation_matrix(std::span<const P> points);
+
+} // namespace quetzal::geometry
+
+//------------------------------------------------------------------------------
+template<typename A> requires A::square
+A quetzal::geometry::direction_matrix(A matrix)
+{
+    // Clear last row of any translation, is this really correct? ...
+    for (size_t i = 0; i < A::cols - 1; ++i)
+    {
+        matrix(A::rows - 1, i) = A::value_type(0);
+    }
+    // cover both ways ...
+    for (size_t i = 0; i < A::rows - 1; ++i)
+    {
+        matrix(i, A::cols - 1) = A::value_type(0);
+    }
+    assert(matrix(A::rows - 1, A::cols - 1) == A::value_type(1));
+
+    return transpose(inverse(matrix));
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits> requires (Traits::size == Traits::dimension + 1)
+quetzal::geometry::transformation_matrix_type<Traits> quetzal::geometry::translation(const math::Vector<Traits>& v)
+{
+    auto matrix = transformation_matrix_type<Traits>::Identity();
+    for (size_t i = 0; i < Traits::dimension; ++i)
+    {
+        matrix(Traits::dimension, i) = v[i];
+    }
+
+    return matrix;
+}
+
+//------------------------------------------------------------------------------
+template<typename T>
+quetzal::math::Matrix<T, 2> quetzal::geometry::translation(T tx)
+{
+    math::Matrix<T, 2> matrix(1);
+    matrix(2, 0) = tx;
+    return matrix;
+}
+
+//------------------------------------------------------------------------------
+template<typename T>
+quetzal::math::Matrix<T, 3> quetzal::geometry::translation(T tx, T ty)
+{
+    math::Matrix<T, 3> matrix(1);
+    matrix(2, 0) = tx;
+    matrix(2, 1) = ty;
+    return matrix;
+}
+
+//------------------------------------------------------------------------------
+template<typename T>
+quetzal::math::Matrix<T, 4> quetzal::geometry::translation(T tx, T ty, T tz)
+{
+    math::Matrix<T, 4> matrix(1);
+    matrix(3, 0) = tx;
+    matrix(3, 1) = ty;
+    matrix(3, 2) = tz;
+    return matrix;
+}
+
+//------------------------------------------------------------------------------
+template<typename T, size_t N>
+quetzal::math::Matrix<T, N + 1> quetzal::geometry::scaling(T factor)
+{
+    auto matrix = math::Matrix<T, N + 1>::Identity();
+    for (size_t i = 0; i < N; ++i)
+    {
+        matrix(i, i) = factor;
+    }
+    return matrix;
+}
+
+//------------------------------------------------------------------------------
+template<typename T>
+quetzal::math::Matrix<T, 3> quetzal::geometry::scaling(T sx, T sy)
+{
+    math::Matrix<T, 3> matrix(1);
+    matrix(0, 0) = sx;
+    matrix(1, 1) = sy;
+    return matrix;
+}
+
+//------------------------------------------------------------------------------
+template<typename T>
+quetzal::math::Matrix<T, 4> quetzal::geometry::scaling(T sx, T sy, T sz)
+{
+    math::Matrix<T, 4> matrix(1);
+    matrix(0, 0) = sx;
+    matrix(1, 1) = sy;
+    matrix(2, 2) = sz;
+    return matrix;
+}
+
+//------------------------------------------------------------------------------
+template<typename V>
+quetzal::geometry::transformation_matrix_type<typename V::traits_type> quetzal::geometry::scaling_axis(const V& axis, typename V::value_type sDirectional, typename V::value_type sTransverse)
+{
+    assert(axis.unit());
+
+    typename V::value_type sDiff = sDirectional - sTransverse;
+
+    auto matrix = transformation_matrix_type<typename V::traits_type>::Identity();
+    matrix(0, 0) = sTransverse + sDiff * axis.x() * axis.x();
+    matrix(1, 0) = sDiff * axis.x() * axis.y();
+    matrix(2, 0) = sDiff * axis.x() * axis.z();
+    matrix(0, 1) = sDiff * axis.y() * axis.x();
+    matrix(1, 1) = sTransverse + sDiff * axis.y() * axis.y();
+    matrix(2, 1) = sDiff * axis.y() * axis.z();
+    matrix(0, 2) = sDiff * axis.z() * axis.x();
+    matrix(1, 2) = sDiff * axis.z() * axis.y();
+    matrix(2, 2) = sTransverse + sDiff * axis.z() * axis.z();
+    return matrix;
+}
+
+//------------------------------------------------------------------------------
+template<typename T>
+quetzal::math::Matrix<T, 3> quetzal::geometry::rotation_2(T angle)
+{
+    T c = cos(angle);
+    T s = sin(angle);
+
+    auto matrix = math::Matrix<T, 3>::Identity();
+    matrix(0, 0) = c;
+    matrix(0, 1) = s;
+    matrix(1, 0) = -s;
+    matrix(1, 1) = c;
+
+    return matrix;
+}
+
+//------------------------------------------------------------------------------
+template<typename T>
+quetzal::math::Matrix<T, 4> quetzal::geometry::rotation_x3(T angle)
+{
+    T c = cos(angle);
+    T s = sin(angle);
+
+    auto matrix = math::Matrix<T>::Identity();
+    matrix(1, 1) = c;
+    matrix(1, 2) = s;
+    matrix(2, 1) = -s;
+    matrix(2, 2) = c;
+
+    return matrix;
+}
+
+//------------------------------------------------------------------------------
+template<typename T>
+quetzal::math::Matrix<T, 4> quetzal::geometry::rotation_y3(T angle)
+{
+    T c = cos(angle);
+    T s = sin(angle);
+
+    auto matrix = math::Matrix<T>::Identity();
+    matrix(2, 2) = c;
+    matrix(2, 0) = s;
+    matrix(0, 2) = -s;
+    matrix(0, 0) = c;
+
+    return matrix;
+}
+
+//------------------------------------------------------------------------------
+template<typename T>
+quetzal::math::Matrix<T, 4> quetzal::geometry::rotation_z3(T angle)
+{
+    T c = cos(angle);
+    T s = sin(angle);
+
+    auto matrix = math::Matrix<T>::Identity();
+    matrix(0, 0) = c;
+    matrix(0, 1) = s;
+    matrix(1, 0) = -s;
+    matrix(1, 1) = c;
+
+    return matrix;
+}
+
+//------------------------------------------------------------------------------
+template<typename T>
+quetzal::math::Matrix<T, 4> quetzal::geometry::rotation_dz(T angle)
+{
+    T c = cos(angle);
+    T s = sin(angle);
+
+    auto matrix = math::Matrix<T>::Identity();
+    matrix(0, 0) = -s;
+    matrix(0, 1) = c;
+    matrix(1, 0) = -c;
+    matrix(1, 1) = -s;
+
+    return matrix;
+}
+
+//------------------------------------------------------------------------------
+template<typename V>
+quetzal::geometry::transformation_matrix_type<typename V::traits_type> quetzal::geometry::rotation_axis(const V& axis, typename V::value_type angle)
+{
+    return rotation_axis_unit(normalize(axis), angle);
+}
+
+//------------------------------------------------------------------------------
+template<typename V>
+quetzal::geometry::transformation_matrix_type<typename V::traits_type> quetzal::geometry::rotation_axis_unit(const V& axis, typename V::value_type angle)
+{
+    assert(axis.unit());
+
+    using matrix_type = transformation_matrix_type<typename V::traits_type>;
+
+    if constexpr (std::same_as<typename V::value_type, float>)
+    {
+        // DirectXMath is about 15 times faster. Try using SSE, Eigen ...
+        return rotation_axis_unit_xm(axis, angle);
+    }
+    else
+    {
+        // Rotation matrix using Rodrigues' rotation formula
+
+        using T = V::value_type;
+
+        matrix_type mcross =
+        {
+            T(0), axis[2], -axis[1], T(0),
+            -axis[2], T(0), axis[0], T(0),
+            axis[1], -axis[0], T(0), T(0),
+            T(0), T(0), T(0), T(0),
+        };
+
+//        matrix_type mcross = transpose(skew_symmetric_matrix(axis)); // if transpose, is skew symmetric correct for the multiplication here? ...
+
+        matrix_type mcross2 =
+        {
+            -(axis[1] * axis[1] + axis[2] * axis[2]), axis[0] * axis[1], axis[2] * axis[0], T(0),
+            axis[0] * axis[1], -(axis[2] * axis[2] + axis[0] * axis[0]), axis[1] * axis[2], T(0),
+            axis[2] * axis[0], axis[1] * axis[2], -(axis[0] * axis[0] + axis[1] * axis[1]), T(0),
+            T(0), T(0), T(0), T(0),
+        };
+
+        return matrix_type::Identity() + sin(angle) * mcross + (1 - cos(angle)) * mcross2;
+    }
+}
+
+//------------------------------------------------------------------------------
+template<typename V>
+quetzal::geometry::transformation_matrix_type<typename V::traits_type> quetzal::geometry::slerp_unit(const V& a, const V& b, typename V::value_type t)
+{
+    if (math::float_eq(a, b))
+    {
+        return transformation_matrix_type<typename V::traits_type>::Identity();
+    }
+
+    if (math::float_eq(a, -b))
+    {
+        auto axis = perpendicular_unit_vector(a);
+        return rotation_axis(axis, t * math::Pi<typename V::value_type>);
+    }
+
+    return rotation_axis(cross(a, b), t * angle_between_unit(a, b));
+}
+
+//------------------------------------------------------------------------------
+template<typename V>
+quetzal::geometry::transformation_matrix_type<typename V::traits_type> quetzal::geometry::slerp_unit(const V& axis, const V& a, const V& b, typename V::value_type t)
+{
+    if (math::float_eq(a, b))
+    {
+        return transformation_matrix_type<typename V::traits_type>::Identity();
+    }
+
+    if (math::float_eq(a, -b))
+    {
+        return rotation_axis(perpendicular_unit_vector(a), t * math::Pi<typename V::value_type>); // The selection of axis is arbitrary ...
+    }
+
+    return rotation_axis(axis, t * angle_full_unit(a, b, axis));
+}
+
+//------------------------------------------------------------------------------
+template<typename T>
+quetzal::math::Matrix<T, 2> quetzal::geometry::reflection_x1()
+{
+    math::Matrix<T, 2> matrix(1);
+    matrix(0, 0) = T(-1);
+    return matrix;
+}
+
+//------------------------------------------------------------------------------
+template<typename T>
+quetzal::math::Matrix<T, 3> quetzal::geometry::reflection_x2()
+{
+    math::Matrix<T, 3> matrix(1);
+    matrix(0, 0) = T(-1);
+    return matrix;
+}
+
+//------------------------------------------------------------------------------
+template<typename T>
+quetzal::math::Matrix<T, 3> quetzal::geometry::reflection_y2()
+{
+    math::Matrix<T, 3> matrix(1);
+    matrix(1, 1) = T(-1);
+    return matrix;
+}
+
+//------------------------------------------------------------------------------
+template<typename T>
+quetzal::math::Matrix<T, 4> quetzal::geometry::reflection_x3()
+{
+    math::Matrix<T, 4> matrix(1);
+    matrix(0, 0) = T(-1);
+    return matrix;
+}
+
+//------------------------------------------------------------------------------
+template<typename T>
+quetzal::math::Matrix<T, 4> quetzal::geometry::reflection_y3()
+{
+    math::Matrix<T, 4> matrix(1);
+    matrix(1, 1) = T(-1);
+    return matrix;
+}
+
+//------------------------------------------------------------------------------
+template<typename T>
+quetzal::math::Matrix<T, 4> quetzal::geometry::reflection_z3()
+{
+    math::Matrix<T, 4> matrix(1);
+    matrix(2, 2) = T(-1);
+    return matrix;
+}
+
+//------------------------------------------------------------------------------
+template<typename V>
+quetzal::geometry::transformation_matrix_type<typename V::traits_type> quetzal::geometry::alignment(const V& from_direction, const V& to_direction)
+{
+    assert(from_direction.unit());
+    assert(to_direction.unit());
+
+    if (math::float_eq(from_direction, to_direction))
+    {
+        return transformation_matrix_type<typename V::traits_type>::Identity();
+    }
+
+    return rotation_axis_unit(normalize(cross(from_direction, to_direction)), angle_between_unit(from_direction, to_direction));
+}
+
+//------------------------------------------------------------------------------
+template<typename V>
+quetzal::geometry::transformation_matrix_type<typename V::traits_type> quetzal::geometry::alignment(const V& from_direction, V from_right, const V& to_direction, V to_right)
+{
+    assert(from_direction.unit());
+    assert(from_right.unit());
+    assert(to_direction.unit());
+    assert(to_right.unit());
+    assert(perpendicular(from_direction, from_right));
+    assert(perpendicular(to_direction, to_right));
+
+    using T = V::value_type;
+
+    // Transformation to rotate direction and right From vectors to z-axis and x-axis respectively
+
+    T thetaFrom = angle_between_unit(from_direction, V::z_direction());
+    V axisFrom;
+    if (math::float_eq(thetaFrom, math::Pi<T>))
+    {
+        axisFrom = from_right;
+    }
+    else if (math::float_ne0(thetaFrom))
+    {
+        axisFrom = normalize(cross(from_direction, V::z_direction()));
+        from_right *= rotation_axis_unit(axisFrom, thetaFrom);
+    }
+
+    assert(math::float_eq0(from_right.z()));
+    T phiFrom = atan2(from_right.y(), from_right.x());
+
+    // Transformation to rotate direction and right To vectors to z-axis and x-axis respectively
+
+    T thetaTo = angle_between_unit(to_direction, V::z_direction());
+    V axisTo;
+    if (math::float_eq(thetaTo, math::Pi<T>))
+    {
+        axisTo = to_right;
+    }
+    else if (math::float_ne0(thetaTo))
+    {
+        axisTo = normalize(cross(to_direction, V::z_direction()));
+        to_right *= rotation_axis_unit(axisTo, thetaTo);
+    }
+
+    assert(math::float_eq0(to_right.z()));
+    T phiTo = atan2(to_right.y(), to_right.x());
+    T dphi = phiTo - phiFrom;
+
+    // Transformation matrix
+
+    auto matrix = transformation_matrix_type<typename V::traits_type>::Identity();
+
+    // Rotate From to z-axis orientation
+    if (math::float_ne0(thetaFrom))
+    {
+        matrix = geometry::rotation_axis_unit(axisFrom, thetaFrom);
+    }
+
+    // z-axis rotation
+    if (math::float_ne0(dphi))
+    {
+        matrix *= geometry::rotation_z3(dphi);
+    }
+
+    // Rotate To from z-axis orientation
+    if (math::float_ne0(thetaTo))
+    {
+        matrix *= geometry::rotation_axis_unit(axisTo, -thetaTo);
+    }
+
+    return matrix;
+}
+
+//------------------------------------------------------------------------------
+template<typename V>
+quetzal::geometry::transformation_matrix_type<typename V::traits_type> quetzal::geometry::alignment2(const V& from_direction, const V& from_right, const V& to_direction, const V& to_right)
+{
+    assert(from_direction.unit());
+    assert(from_right.unit());
+    assert(to_direction.unit());
+    assert(to_right.unit());
+    assert(perpendicular(from_direction, from_right));
+    assert(perpendicular(to_direction, to_right));
+
+    using T = V::value_type;
+
+    auto matrix = transformation_matrix_type<typename V::traits_type>::Identity();
+    V rightFromAligned = from_right;
+
+    T dtheta = angle_between_unit(from_direction, to_direction);
+    if (math::float_ne0(dtheta))
+    {
+        V axis;
+        if (math::float_eq(dtheta, math::Pi<T>))
+        {
+            axis = to_right;
+        }
+        else
+        {
+            axis = normalize(cross(from_direction, to_direction));
+        }
+
+        matrix = rotation_axis_unit(axis, dtheta);
+        rightFromAligned = normalize(from_right * matrix);
+    }
+
+//    assert(perpendicular(to_direction, rightFromAligned));
+
+    T dphi = angle_full_unit(rightFromAligned, to_right, to_direction);
+    if (math::float_ne0(dphi))
+    {
+        matrix *= rotation_axis_unit(to_direction, dphi);
+    }
+
+//    assert(math::float_eq(from_direction * matrix, to_direction));
+//    assert(math::float_eq(from_right * matrix, to_right));
+
+    return matrix;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+quetzal::geometry::transformation_matrix_type<Traits> quetzal::geometry::alignment(const Orientation<Traits>& from, const Orientation<Traits>& to)
+{
+    return alignment(from.direction(), from.right(), to.direction(), to.right());
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+quetzal::geometry::transformation_matrix_type<Traits> quetzal::geometry::alignment(const OrientedPoint<Traits>& from, const OrientedPoint<Traits>& to)
+{
+    return translation(-from.position()) * alignment(from.orientation(), to.orientation()) * translation(to.position());
+}
+
+//------------------------------------------------------------------------------
+template<typename V> requires (V::dimension == 2)
+quetzal::geometry::transformation_matrix_type<typename V::traits_type> quetzal::geometry::linear_mapping(const V& a0, const V& a1, const V& b0, const V& b1)
+{
+    // [a] X = [b]
+    // X = inverse([a]) [b]
+
+    auto d = a0.x() * a1.y() - a0.y() * a1.x();
+
+    auto m = transformation_matrix_type<typename V::traits_type>::Identity();
+    m(0, 0) = (a1.y() * b0.x() - a0.y() * b1.x()) / d;
+    m(0, 1) = (a1.y() * b0.y() - a0.y() * b1.y()) / d;
+    m(1, 0) = (a0.x() * b1.x() - a1.x() * b0.x()) / d;
+    m(1, 1) = (a0.x() * b1.y() - a1.x() * b0.y()) / d;
+
+    return m;
+}
+
+//------------------------------------------------------------------------------
+template<typename P>
+quetzal::geometry::transformation_matrix_type<typename P::traits_type> quetzal::geometry::linear_mapping(std::span<const P> from, std::span<const P> to)
+{
+    assert(from.size() >= P::dimension);
+    assert(to.size() >= P::dimension);
+
+    // [from] X = [to]
+    // X = inverse([from]) [to]
+
+    auto mapped_from = to_transformation_matrix<P>(from);
+    auto mapped_to = to_transformation_matrix<P>(to);
+
+    return inverse(mapped_from) * mapped_to;
+}
+
+//------------------------------------------------------------------------------
+template<typename P>
+quetzal::geometry::transformation_matrix_type<typename P::traits_type> quetzal::geometry::affine_mapping(std::span<const P> from, std::span<const P> to)
+{
+    assert(from.size() >= P::dimension + 1);
+    assert(to.size() >= P::dimension + 1);
+
+    // [from] X = [to]
+    // X = inverse([from]) [to]
+
+    auto mapped_from = to_transformation_matrix<P>(from);
+    auto mapped_to = to_transformation_matrix<P>(to);
+
+    return inverse(mapped_from) * mapped_to;
+}
+
+//------------------------------------------------------------------------------
+template<typename P>
+quetzal::geometry::transformation_matrix_type<typename P::traits_type> quetzal::geometry::projective_mapping(std::span<const P> from, std::span<const P> to)
+{
+    assert(from.size() >= P::dimension + 2);
+    assert(to.size() >= P::dimension + 2);
+
+    auto mapped_from = to_matrix<P, P::dimension + 2>(from);
+    auto mapped_to = to_matrix<P, P::dimension + 2>(to);
+
+    // [from] X = [to]
+    // X = inverse([from]) [to]
+
+/*
+//std::cout << "from" << std::endl << to_fixed_width(mapped_from);
+auto pif = pseudo_inverse(mapped_from);
+std::cout << "pinv(from)" << std::endl << to_fixed_width(pif);
+    return pif * mapped_to;
+*/
+    return pseudo_inverse(mapped_from) * mapped_to;
+}
+
+//------------------------------------------------------------------------------
+template<typename V> requires (V::dimension == 3)
+quetzal::geometry::transformation_matrix_type<typename V::traits_type> quetzal::geometry::skew_symmetric_matrix(const V& axis)
+{
+    using T = V::value_type;
+
+    return
+    {
+        T(0), -axis[2], axis[1],
+        axis[2], T(0), -axis[0],
+        -axis[1], axis[0], T(0),
+    };
+}
+
+//------------------------------------------------------------------------------
+template<typename P, size_t M>
+quetzal::math::Matrix<typename P::value_type, M, P::component_count> quetzal::geometry::to_matrix(std::span<const P> points)
+{
+    assert(points.size() >= M);
+
+    math::Matrix<typename P::value_type, M, P::component_count> matrix;
+    for (size_t i = 0; i < M; ++i)
+    {
+        for (size_t j = 0; j < P::component_count; ++j)
+        {
+            matrix(i, j) = points[i][j];
+        }
+    }
+
+    return matrix;
+}
+
+//------------------------------------------------------------------------------
+template<typename P>
+quetzal::geometry::transformation_matrix_type<typename P::traits_type> quetzal::geometry::to_transformation_matrix(std::span<const P> points)
+{
+    assert(points.size() >= P::component_count);
+
+    transformation_matrix_type<typename P::traits_type> matrix(1);
+    for (size_t i = 0; i < P::component_count; ++i)
+    {
+        for (size_t j = 0; j < P::component_count; ++j)
+        {
+            matrix(i, j) = points[i][j];
+        }
+    }
+
+    return matrix;
+}
+
+#endif // QUETZAL_GEOMETRY_TRANSFORMATION_MATRIX_HPP

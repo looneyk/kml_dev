@@ -1,0 +1,76 @@
+#if !defined(QUETZAL_VULKAN_TEXTURECACHE_HPP)
+#define QUETZAL_VULKAN_TEXTURECACHE_HPP
+
+#include "CommandPool.hpp"
+#include "Device.hpp"
+#include "Queue.hpp"
+#include "Texture.hpp"
+#include <filesystem>
+#include <unordered_map>
+#include <string>
+
+namespace quetzal::vulkan
+{
+
+    class TextureCache
+    {
+    public:
+
+        TextureCache(const Device& device, const std::filesystem::path& rootpath, const CommandPool& command_pool, const Queue& queue) :
+            m_device(device),
+            m_rootpath(rootpath),
+            m_command_pool(command_pool),
+            m_queue(queue),
+            m_cache()
+        {
+        }
+
+        ~TextureCache() = default;
+
+        const Texture& load(const std::string& id, const std::filesystem::path& file)
+        {
+            auto filepath = texture_filepath(m_rootpath, file);
+
+            auto [i, b] = m_cache.try_emplace(id, m_device);
+            if (b)
+            {
+                i->second.create(filepath, m_command_pool, m_queue);
+            }
+            return i->second;
+        }
+
+        const Texture& get(const std::string& id)
+        {
+            auto i = m_cache.find(id);
+            assert(i != m_cache.end());
+            return i->second;
+        }
+
+        void clear()
+        {
+            for (auto& i : m_cache)
+            {
+                i.second.destroy();
+            }
+
+            m_cache.clear();
+            return;
+        }
+
+    private:
+
+        std::filesystem::path texture_filepath(const std::filesystem::path& rootpath, const std::filesystem::path& file)
+        {
+            return rootpath / "textures" / file;
+        }
+
+        const Device& m_device;
+        std::filesystem::path m_rootpath;
+        const CommandPool& m_command_pool;
+        const Queue& m_queue;
+        std::unordered_map<std::string, Texture> m_cache;
+    };
+
+} // namespace quetzal::vulkan
+
+#endif // QUETZAL_VULKAN_TEXTURECACHE_HPP

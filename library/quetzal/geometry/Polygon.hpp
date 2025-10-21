@@ -1,0 +1,714 @@
+#if !defined(QUETZAL_GEOMETRY_POLYGON_HPP)
+#define QUETZAL_GEOMETRY_POLYGON_HPP
+//------------------------------------------------------------------------------
+// geometry
+// Polygon.hpp
+//------------------------------------------------------------------------------
+
+#include "AxisAlignedBoundingBox.hpp"
+#include "Plane.hpp"
+#include "PointRelation.hpp"
+#include "Point.hpp"
+#include "PositionAccessor.hpp"
+#include "Projection.hpp"
+#include "Segment.hpp"
+#include "spatial_properties.hpp"
+#include "transformation_matrix.hpp"
+#include "triangle_util.hpp"
+#include "quetzal/math/Interval.hpp"
+#include "quetzal/math/floating_point.hpp"
+#include <algorithm>
+#include <exception>
+#include <iterator>
+#include <ostream>
+#include <span>
+#include <vector>
+#include <cassert>
+
+namespace quetzal::geometry
+{
+
+    // Polygon is an ordered set of coplanar vertices
+    // Each sequential pair of vertices defines an edge, the last vertex wrapping around to the first
+    // edge count == vertex count
+    // Note that planarity is assumed but not often enforced
+    // Results of centroid, area, normal, and plane are only correct if the polygon is actually planar
+
+    //--------------------------------------------------------------------------
+    template<typename Traits>
+    class Polygon : public PointRelation<Traits>
+    {
+    public:
+
+        using traits_type = Traits;
+        using size_type = Traits::size_type;
+        using value_type = Traits::value_type;
+        using point_type = Point<Traits>;
+        using vector_type = point_type::vector_type;
+        using vertex_type = point_type;
+        using vertices_type = std::vector<vertex_type>;
+        using edge_type = Segment<Traits>;
+        using matrix_type = transformation_matrix_type<Traits>;
+
+        Polygon() = default;
+        explicit Polygon(size_type n);
+        explicit Polygon(std::span<point_type> points);
+        Polygon(std::initializer_list<vertex_type> points);
+        Polygon(const Polygon&) = default;
+        Polygon(Polygon&&) = default;
+        virtual ~Polygon() = default;
+
+        template<typename InputIterator>
+        Polygon(InputIterator first, InputIterator last);
+
+        Polygon& operator=(const Polygon&) = default;
+        Polygon& operator=(Polygon&&) = default;
+
+        const vertices_type& vertices() const;
+        vertices_type& vertices();
+
+        size_t vertex_count() const noexcept;
+        const vertex_type& vertex(size_type n) const;
+        vertex_type& vertex(size_type n);
+        void set_vertex(size_type n, const point_type& point);
+
+        size_t edge_count() const noexcept;
+        edge_type edge(size_type n) const;
+
+        bool planar() const;
+
+        point_type centroid() const;
+        point_type vertex_centroid() const; // The geometric mean of all vertices
+
+        value_type area() const requires (Traits::dimension == 2);
+        value_type area(const vector_type& normal) const requires (Traits::dimension == 3);
+
+        // Based on expressed or implied CCW winding order
+        value_type signed_area() const requires (Traits::dimension == 2);
+        value_type signed_area(const vector_type& normal) const requires (Traits::dimension == 3);
+
+        // Assumes CCW winding order
+        vector_type normal() const requires (Traits::dimension == 3);
+        Plane<Traits> plane() const requires (Traits::dimension == 3);
+
+        void transform(const matrix_type& matrix);
+
+        // Returns less, equivalent, greater for interior, boundary, exterior respectively
+        // Exterior is defined by the winding order
+        std::partial_ordering compare(const point_type& point) const override;
+
+        virtual void clear();
+
+        AxisAlignedBoundingBox<Traits> bounds() const;
+
+        // Point is in the region defined by the polygon
+        // Results are indeterminate if the point is on an edge
+        // integrate these into compare ...
+        bool contains_(const point_type& point) const requires (Traits::dimension == 2);
+        bool contains_(const point_type& point) const requires (Traits::dimension == 3);
+
+        // Sections allow for distinct sets of contiguous vertices
+
+        using sections_type = std::vector<size_type>;
+
+        size_t section_count() const;
+        const sections_type& sections() const;
+        sections_type& sections();
+
+    private:
+
+        vertices_type m_vertices;
+        sections_type m_sections;
+    };
+
+    template<typename Traits>
+    Polygon<Traits> transform(Polygon<Traits> polygon, const typename Polygon<Traits>::matrix_type& matrix);
+
+    // Acts on vertices leaving everything else the same
+    template<typename Traits>
+    Polygon<Traits> lerp(const Polygon<Traits>& a, const Polygon<Traits>& b, typename Polygon<Traits>::value_type t);
+
+    // Regular polygon
+    // Position generation is not symmetric
+    template<typename Traits> requires (Traits::dimension == 2)
+    Polygon<Traits> regular_polygon(size_t n, typename Traits::value_type radius);
+
+    // Regular polygon in the xy-plane
+    // Position generation is symmetric
+    template<typename Traits> requires (Traits::dimension == 3)
+    Polygon<Traits> regular_polygon(size_t n, typename Traits::value_type radius, typename Traits::value_type z = Traits::value_type(0));
+
+    // Section of a regular polygon in the xy-plane
+    // Position generation is symmetric
+    // The last edge is the connection in the case of non-unit azimuth interval
+    // In the case of a unit azimuth interval, this edge will have 0 length
+    // n is the number of reguilar polygon edges, not counting the connecting edge, so the resulting polygon section will have n + 1 vertices
+    template<typename Traits> requires (Traits::dimension == 3)
+    Polygon<Traits> regular_polygon_section(size_t n, typename Traits::value_type radius, typename Traits::value_type z = Traits::value_type(0), math::Interval<typename Traits::value_type> azimuth_interval = math::strict_unit_interval());
+
+    template<typename Traits>
+    std::ostream& operator<<(std::ostream& os, const Polygon<Traits>& polygon);
+
+    //--------------------------------------------------------------------------
+    template<typename Traits>
+    struct PositionAccessor<Polygon<Traits>>
+    {
+        using point_type = Polygon<Traits>::point_type;
+        using vector_type = point_type::vector_type;
+        using value_type = point_type::value_type;
+        static constexpr size_t dimension = point_type::dimension;
+
+        static size_t position_count(const Polygon<Traits>& t)
+        {
+            return t.vertex_count();
+        }
+
+        static point_type position(const Polygon<Traits>& t, size_t n)
+        {
+            if (n >= t.vertex_count())
+            {
+                throw std::out_of_range("PositionAccessor::range_check");
+            }
+
+            return t.vertex(n);
+        }
+    
+        static bool constant_time_acccess()
+        {
+            return true;
+        }
+    };
+
+} // namespace quetzal::geometry
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+quetzal::geometry::Polygon<Traits>::Polygon(size_type n) :
+    PointRelation<Traits>(),
+    m_vertices(n),
+    m_sections()
+{
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+quetzal::geometry::Polygon<Traits>::Polygon(std::span<point_type> points) :
+    PointRelation<Traits>(),
+    m_vertices(points.begin(), points.end()),
+    m_sections()
+{
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+quetzal::geometry::Polygon<Traits>::Polygon(std::initializer_list<vertex_type> points) :
+    PointRelation<Traits>(),
+    m_vertices(points),
+    m_sections()
+{
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+template<typename InputIterator>
+quetzal::geometry::Polygon<Traits>::Polygon(InputIterator first, InputIterator last) :
+    PointRelation<Traits>(),
+    m_vertices(),
+    m_sections()
+{
+    std::copy(first, last, std::back_inserter(m_vertices));
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+typename quetzal::geometry::Polygon<Traits>::vertices_type& quetzal::geometry::Polygon<Traits>::vertices()
+{
+    return m_vertices;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+const typename quetzal::geometry::Polygon<Traits>::vertices_type& quetzal::geometry::Polygon<Traits>::vertices() const
+{
+    return m_vertices;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+size_t quetzal::geometry::Polygon<Traits>::vertex_count() const noexcept
+{
+    return m_vertices.size();
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+typename const quetzal::geometry::Polygon<Traits>::vertex_type& quetzal::geometry::Polygon<Traits>::vertex(size_type n) const
+{
+    assert(n < m_vertices.size());
+    return m_vertices[n];
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+typename quetzal::geometry::Polygon<Traits>::vertex_type& quetzal::geometry::Polygon<Traits>::vertex(size_type n)
+{
+    assert(n < m_vertices.size());
+    return m_vertices[n];
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+void quetzal::geometry::Polygon<Traits>::set_vertex(size_type n, const point_type& point)
+{
+    assert(n < m_vertices.size());
+    m_vertices[n] = point;
+    return;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+size_t quetzal::geometry::Polygon<Traits>::edge_count() const noexcept
+{
+    return m_vertices.size();
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+typename quetzal::geometry::Polygon<Traits>::edge_type quetzal::geometry::Polygon<Traits>::edge(size_type n) const
+{
+    assert(n < m_vertices.size());
+    return {m_vertices[n], m_vertices[(n + 1) % m_vertices.size()]};
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+bool quetzal::geometry::Polygon<Traits>::planar() const
+{
+    return geometry::planar(*this);
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+typename quetzal::geometry::Polygon<Traits>::point_type quetzal::geometry::Polygon<Traits>::centroid() const
+{
+    return geometry::centroid(*this);
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+typename quetzal::geometry::Polygon<Traits>::point_type quetzal::geometry::Polygon<Traits>::vertex_centroid() const
+{
+    return geometry::vertex_centroid(*this);
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+typename quetzal::geometry::Polygon<Traits>::value_type quetzal::geometry::Polygon<Traits>::area() const requires (Traits::dimension == 2)
+{
+    return geometry::area(*this);
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+typename quetzal::geometry::Polygon<Traits>::value_type quetzal::geometry::Polygon<Traits>::area(const vector_type& normal) const requires (Traits::dimension == 3)
+{
+    return geometry::area(*this, normal);
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+typename quetzal::geometry::Polygon<Traits>::value_type quetzal::geometry::Polygon<Traits>::signed_area() const requires (Traits::dimension == 2)
+{
+    return geometry::signed_area(*this);
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+typename quetzal::geometry::Polygon<Traits>::value_type quetzal::geometry::Polygon<Traits>::signed_area(const vector_type& normal) const requires (Traits::dimension == 3)
+{
+    return geometry::signed_area(*this, normal);
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+typename quetzal::geometry::Polygon<Traits>::vector_type quetzal::geometry::Polygon<Traits>::normal() const requires (Traits::dimension == 3)
+{
+    return geometry::normal(*this);
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+quetzal::geometry::Plane<Traits> quetzal::geometry::Polygon<Traits>::plane() const requires (Traits::dimension == 3)
+{
+    return Plane<Traits>(m_vertices[0], normal());
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+void quetzal::geometry::Polygon<Traits>::transform(const matrix_type& matrix)
+{
+    for (auto& vertex : m_vertices)
+    {
+        vertex *= matrix;
+    }
+
+    return;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+std::partial_ordering quetzal::geometry::Polygon<Traits>::compare(const point_type& point) const
+{
+    for (size_t i = 0; i < edge_count(); ++i)
+    {
+        auto segment = edge(i);
+        if (segment.contains(point))
+        {
+            return std::partial_ordering::equivalent;
+        }
+    }
+
+    return contains_(point) ? std::partial_ordering::less : std::partial_ordering::greater;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+void quetzal::geometry::Polygon<Traits>::clear()
+{
+    m_vertices.clear();
+    return;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+quetzal::geometry::AxisAlignedBoundingBox<Traits> quetzal::geometry::Polygon<Traits>::bounds() const
+{
+    return AxisAlignedBoundingBox<Traits>(m_vertices);
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+bool quetzal::geometry::Polygon<Traits>::contains_(const point_type& point) const requires (Traits::dimension == 2)
+{
+    // Return >0: left, ==0: on, <0: right for p2 relative to the line through p0 and p1
+    auto left = [](point_type p0, point_type p1, point_type p2)
+    {
+        auto t = (p1.x() - p0.x()) * (p2.y() - p0.y()) - (p2.x() -  p0.x()) * (p1.y() - p0.y());
+        return math::float_compare0(t);
+    };
+
+    auto vertices = m_vertices;
+    vertices.push_back(m_vertices[0]);
+
+    size_t n = 0; // the  winding number counter
+
+    for (size_t i = 0; i < edge_count(); ++i)
+    {
+        if (math::float_le(vertices[i].y(), point.y()))
+        {
+            if (math::float_gt(vertices[i + 1].y(), point.y())) // upward crossing
+                 if (left(vertices[i], vertices[i + 1], point) > 0)
+                     ++n; // valid up intersect
+        }
+        else
+        {
+            if (math::float_le(vertices[i + 1].y(), point.y())) // downward crossing
+                 if (left(vertices[i], vertices[i + 1], point) < 0)
+                     --n; // valid down intersect
+        }
+    }
+
+    return n != 0;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+bool quetzal::geometry::Polygon<Traits>::contains_(const point_type& point) const requires (Traits::dimension == 3)
+{
+    if (!planar() || !plane().contains(point))
+    {
+        return false;
+    }
+
+    using projection_type = Projection<Traits>;
+    using projected_traits = projection_type::projected_traits;
+    using projected_type = projection_type::projected_type;
+
+    projection_type projection(normal());
+    Polygon<projected_traits> polygon_projected;
+    std::transform(m_vertices.begin(), m_vertices.end(), std::back_inserter(polygon_projected.vertices()), [&](const point_type& point) -> projected_type { return projection(point); });
+    return polygon_projected.contains_(projection(point));
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+size_t quetzal::geometry::Polygon<Traits>::section_count() const
+{
+    return m_sections.size();
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+const typename quetzal::geometry::Polygon<Traits>::sections_type& quetzal::geometry::Polygon<Traits>::sections() const
+{
+    return m_sections;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+typename quetzal::geometry::Polygon<Traits>::sections_type& quetzal::geometry::Polygon<Traits>::sections()
+{
+    return m_sections;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+quetzal::geometry::Polygon<Traits> quetzal::geometry::transform(Polygon<Traits> polygon, const typename Polygon<Traits>::matrix_type& matrix)
+{
+    polygon.transform(matrix);
+    return polygon;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+quetzal::geometry::Polygon<Traits> quetzal::geometry::lerp(const Polygon<Traits>& a, const Polygon<Traits>& b, typename Polygon<Traits>::value_type t)
+{
+    assert(a.vertex_count() == b.vertex_count());
+    assert(a.sections() == b.sections());
+
+    size_t n = a.vertex_count();
+    Polygon<Traits> polygon(n);
+    polygon.sections() = a.sections(); // add to constructor ...
+
+    for (size_t i = 0; i < n; ++i)
+    {
+        polygon.vertex(i) = lerp(a.vertex(i), b.vertex(i), t);
+    }
+
+    return polygon;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits> requires (Traits::dimension == 2)
+quetzal::geometry::Polygon<Traits> quetzal::geometry::regular_polygon(size_t n, typename Traits::value_type radius)
+{
+// this could also be done symmetrically ...
+    Polygon<Traits> polygon(n);
+    for (size_t i = 0; i < n; ++i)
+    {
+        auto phi = math::PiTwo<typename Polygon<Traits>::value_type> * i / n;
+        auto& position = polygon.vertex(i);
+        position.set_x(radius * math::denoise011(cos(phi)));
+        position.set_y(radius * math::denoise011(sin(phi)));
+    }
+
+    return polygon;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits> requires (Traits::dimension == 3)
+quetzal::geometry::Polygon<Traits> quetzal::geometry::regular_polygon(size_t n, typename Traits::value_type radius, typename Traits::value_type z)
+{
+    using T = Traits::value_type;
+
+    Polygon<Traits> polygon(n);
+    auto& vertices = polygon.vertices();
+
+    // this from vertices_attributes, fix for n rather than n + 1 positions ...
+
+    size_t n2 = n / 2;
+
+    if (math::even(n)) // Use first quadrant positions for reference
+    {
+        size_t n4 = n2 / 2;
+
+        if (math::even(n2)) // Use first octant positions for reference
+        {
+            size_t n8 = n4 / 2;
+
+            size_t i0 = 0;
+            size_t i1 = n8;
+            for (size_t i = i0; i <= i1; ++i)
+            {
+                T t = T(i) / T(n);
+                T phi = math::PiTwo<T> * t;
+                T cos_phi = math::denoise011(cos(phi));
+                T sin_phi = math::denoise011(sin(phi));
+                vertices[i] = {radius * cos_phi, radius * sin_phi, z};
+
+                size_t j = n4 - i;
+                if (j != i)
+                {
+                    vertices[j] = {vertices[i].y(), vertices[i].x(), z};
+                }
+            }
+        }
+        else
+        {
+            size_t i0 = 0;
+            size_t i1 = n4;
+            for (size_t i = i0; i <= i1; ++i)
+            {
+                T t = T(i) / T(n);
+                T phi = math::PiTwo<T> * t;
+                T cos_phi = math::denoise011(cos(phi));
+                T sin_phi = math::denoise011(sin(phi));
+                vertices[i] = {radius * cos_phi, radius * sin_phi, z};
+            }
+        }
+
+        size_t i0 = n4 + 1;
+        size_t i1 = n2;
+        for (size_t i = i0; i <= i1; ++i)
+        {
+            size_t j = n2 - i;
+            vertices[i] = {-vertices[j].x(), vertices[j].y(), z};
+        }
+
+        i0 = n2 + 1;
+        i1 = n;
+//        for (size_t i = i0; i <= i1; ++i)
+        for (size_t i = i0; i < i1; ++i)
+        {
+            size_t j = n - i;
+if (j < n)
+            vertices[i] = {vertices[j].x(), -vertices[j].y(), z};
+        }
+    }
+    else // Use first and second quadrant positions for reference
+    {
+        for (size_t i = 0; i <= n2; ++i)
+        {
+            T t = T(i) / T(n);
+            T phi = math::PiTwo<T> * t;
+            T cos_phi = math::denoise011(cos(phi));
+            T sin_phi = math::denoise011(sin(phi));
+            vertices[i] = {radius * cos_phi, radius * sin_phi, z};
+
+            size_t j = n - i;
+if (j < n)
+            vertices[j] = {vertices[i].x(), -vertices[i].y(), z};
+        }
+    }
+
+    return polygon;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits> requires (Traits::dimension == 3)
+quetzal::geometry::Polygon<Traits> quetzal::geometry::regular_polygon_section(size_t n, typename Traits::value_type radius, typename Traits::value_type z, math::Interval<typename Traits::value_type> azimuth_interval)
+{
+    using T = Traits::value_type;
+
+    Polygon<Traits> polygon(n + 1);
+    auto& vertices = polygon.vertices();
+
+    if (azimuth_interval.strict_unit())
+    {
+        size_t n2 = n / 2;
+
+        if (math::even(n)) // Use first quadrant positions for reference
+        {
+            size_t n4 = n2 / 2;
+
+            if (math::even(n2)) // Use first octant positions for reference
+            {
+                size_t n8 = n4 / 2;
+
+                size_t i0 = 0;
+                size_t i1 = n8;
+                for (size_t i = i0; i <= i1; ++i)
+                {
+                    T t = T(i) / T(n);
+                    T phi = math::PiTwo<T> * azimuth_interval.lerp(t);
+                    T cos_phi = math::denoise011(cos(phi));
+                    T sin_phi = math::denoise011(sin(phi));
+                    vertices[i] = {radius * cos_phi, radius * sin_phi, z};
+
+                    size_t j = n4 - i;
+                    if (j != i)
+                    {
+                        vertices[j] = {vertices[i].y(), vertices[i].x(), z};
+                    }
+                }
+            }
+            else
+            {
+                size_t i0 = 0;
+                size_t i1 = n4;
+                for (size_t i = i0; i <= i1; ++i)
+                {
+                    T t = T(i) / T(n);
+                    T phi = math::PiTwo<T> * azimuth_interval.lerp(t);
+                    T cos_phi = math::denoise011(cos(phi));
+                    T sin_phi = math::denoise011(sin(phi));
+                    vertices[i] = {radius * cos_phi, radius * sin_phi, z};
+                }
+            }
+
+            size_t i0 = n4 + 1;
+            size_t i1 = n2;
+            for (size_t i = i0; i <= i1; ++i)
+            {
+//                T t = T(i) / T(n);
+                size_t j = n2 - i;
+                vertices[i] = {-vertices[j].x(), vertices[j].y(), z};
+            }
+
+            i0 = n2 + 1;
+            i1 = n;
+            for (size_t i = i0; i <= i1; ++i)
+            {
+//                T t = T(i) / T(n);
+                size_t j = n - i;
+                vertices[i] = {vertices[j].x(), -vertices[j].y(), z};
+            }
+        }
+        else // Use first and second quadrant positions for reference
+        {
+            for (size_t i = 0; i <= n2; ++i)
+            {
+                T t = T(i) / T(n);
+                T phi = math::PiTwo<T> * azimuth_interval.lerp(t);
+                T cos_phi = math::denoise011(cos(phi));
+                T sin_phi = math::denoise011(sin(phi));
+                vertices[i] = {radius * cos_phi, radius * sin_phi, z};
+
+                size_t j = n - i;
+                vertices[j] = {vertices[i].x(), -vertices[i].y(), z};
+            }
+        }
+    }
+    else
+    {
+        for (size_t i = 0; i <= n; ++i)
+        {
+            T t = T(i) / T(n);
+            T phi = math::PiTwo<T> * azimuth_interval.lerp(t);
+            T cos_phi = math::denoise011(cos(phi));
+            T sin_phi = math::denoise011(sin(phi));
+            vertices[i] = {radius * cos_phi, radius * sin_phi, z};
+        }
+
+        if (azimuth_interval.unit())
+        {
+            vertices[n] = vertices[0];
+        }
+    }
+
+    return polygon;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+std::ostream& quetzal::geometry::operator<<(std::ostream& os, const Polygon<Traits>& polygon)
+{
+    for (const auto& point : polygon.vertices())
+    {
+        os << '(' << point << ")\n";
+    }
+
+    return os;
+}
+
+#endif // QUETZAL_GEOMETRY_POLYGON_HPP

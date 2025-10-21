@@ -1,0 +1,58 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 15
+VisualStudioVersion = 15.0.27130.2020
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "helix_spike", "helix_spike.vcxproj", "{78501DCC-B55E-4DFF-A336-591D3741AF91}"
+	ProjectSection(ProjectDependencies) = postProject
+		{887BA000-5E91-442C-900A-D1F5EC3B435A} = {887BA000-5E91-442C-900A-D1F5EC3B435A}
+		{02756409-0BC4-4F9B-AC9C-25E6A33B8592} = {02756409-0BC4-4F9B-AC9C-25E6A33B8592}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "direct3d11", "..\..\library\quetzal\direct3d11\direct3d11.vcxproj", "{887BA000-5E91-442C-900A-D1F5EC3B435A}"
+	ProjectSection(ProjectDependencies) = postProject
+		{02756409-0BC4-4F9B-AC9C-25E6A33B8592} = {02756409-0BC4-4F9B-AC9C-25E6A33B8592}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "quetzal", "..\..\library\quetzal\quetzal.vcxproj", "{02756409-0BC4-4F9B-AC9C-25E6A33B8592}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Debug|x86 = Debug|x86
+		Release|x64 = Release|x64
+		Release|x86 = Release|x86
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{78501DCC-B55E-4DFF-A336-591D3741AF91}.Debug|x64.ActiveCfg = Debug|x64
+		{78501DCC-B55E-4DFF-A336-591D3741AF91}.Debug|x64.Build.0 = Debug|x64
+		{78501DCC-B55E-4DFF-A336-591D3741AF91}.Debug|x86.ActiveCfg = Debug|Win32
+		{78501DCC-B55E-4DFF-A336-591D3741AF91}.Debug|x86.Build.0 = Debug|Win32
+		{78501DCC-B55E-4DFF-A336-591D3741AF91}.Release|x64.ActiveCfg = Release|x64
+		{78501DCC-B55E-4DFF-A336-591D3741AF91}.Release|x64.Build.0 = Release|x64
+		{78501DCC-B55E-4DFF-A336-591D3741AF91}.Release|x86.ActiveCfg = Release|Win32
+		{78501DCC-B55E-4DFF-A336-591D3741AF91}.Release|x86.Build.0 = Release|Win32
+		{887BA000-5E91-442C-900A-D1F5EC3B435A}.Debug|x64.ActiveCfg = Debug|x64
+		{887BA000-5E91-442C-900A-D1F5EC3B435A}.Debug|x64.Build.0 = Debug|x64
+		{887BA000-5E91-442C-900A-D1F5EC3B435A}.Debug|x86.ActiveCfg = Debug|Win32
+		{887BA000-5E91-442C-900A-D1F5EC3B435A}.Debug|x86.Build.0 = Debug|Win32
+		{887BA000-5E91-442C-900A-D1F5EC3B435A}.Release|x64.ActiveCfg = Release|x64
+		{887BA000-5E91-442C-900A-D1F5EC3B435A}.Release|x64.Build.0 = Release|x64
+		{887BA000-5E91-442C-900A-D1F5EC3B435A}.Release|x86.ActiveCfg = Release|Win32
+		{887BA000-5E91-442C-900A-D1F5EC3B435A}.Release|x86.Build.0 = Release|Win32
+		{02756409-0BC4-4F9B-AC9C-25E6A33B8592}.Debug|x64.ActiveCfg = Debug|x64
+		{02756409-0BC4-4F9B-AC9C-25E6A33B8592}.Debug|x64.Build.0 = Debug|x64
+		{02756409-0BC4-4F9B-AC9C-25E6A33B8592}.Debug|x86.ActiveCfg = Debug|Win32
+		{02756409-0BC4-4F9B-AC9C-25E6A33B8592}.Debug|x86.Build.0 = Debug|Win32
+		{02756409-0BC4-4F9B-AC9C-25E6A33B8592}.Release|x64.ActiveCfg = Release|x64
+		{02756409-0BC4-4F9B-AC9C-25E6A33B8592}.Release|x64.Build.0 = Release|x64
+		{02756409-0BC4-4F9B-AC9C-25E6A33B8592}.Release|x86.ActiveCfg = Release|Win32
+		{02756409-0BC4-4F9B-AC9C-25E6A33B8592}.Release|x86.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {A0BFC859-7374-463B-AD51-42487D86113F}
+	EndGlobalSection
+EndGlobal

@@ -1,0 +1,839 @@
+#if !defined(QUETZAL_MATH_HOMOGENEOUSTRAITS_HPP)
+#define QUETZAL_MATH_HOMOGENEOUSTRAITS_HPP
+//------------------------------------------------------------------------------
+// math
+// HomogeneousTraits.hpp
+//------------------------------------------------------------------------------
+
+#include "floating_point.hpp"
+#include "math_util.hpp"
+#include <array>
+#include <concepts>
+#include <iomanip>
+#include <iostream>
+#include <limits>
+#include <span>
+#include <cassert>
+#include <cmath>
+
+namespace quetzal::math
+{
+
+    //--------------------------------------------------------------------------
+    template<typename T, size_t N>
+    class HomogeneousTraits
+    {
+    public:
+
+        using value_type = T;
+        using size_type = size_t;
+        static constexpr size_t dimension = N;
+        static constexpr size_t size = N + 1;
+        using rep_type = std::array<value_type, size>;
+
+        template<size_t K>
+        using resized_traits = HomogeneousTraits<value_type, K>;
+
+        template<size_t S>
+        static constexpr size_t effective_dimension = S - 1;
+
+        template<size_t K>
+        static constexpr bool accepts = (K == N || K == N + 1);
+
+        template<typename U> requires std::convertible_to<U, value_type>
+        static value_type val(const U& u)
+        {
+            return static_cast<value_type>(u);
+        }
+
+        // Element access
+                
+        static const T& get(const rep_type& rep, size_t i)
+        {
+            assert(i < size);
+            return rep[i];
+        }
+                
+        static T& get(rep_type& rep, size_t i)
+        {
+            assert(i < size);
+            return rep[i];
+        }
+
+        template<size_t I> requires (I < size)
+        static const T& get(const rep_type& rep) noexcept
+        {
+            return rep[I];
+        }
+
+        template<size_t I> requires (I < size)
+        static T& get(rep_type& rep) noexcept
+        {
+            return rep[I];
+        }
+
+        template<size_t I = N> requires (I <= N)
+        static void clear(rep_type& rep);
+
+        template<size_t I = N - 1> requires (I < N)
+        static rep_type& assign(rep_type& lhs, std::span<value_type, N> rhs);
+
+        template<size_t I = N> requires (I <= N)
+        static rep_type& assign(rep_type& lhs, std::span<value_type, N + 1> rhs);
+
+        // Cover the initializer list case, unfortunately std::span does not
+        template<size_t I = N - 1> requires (I < N)
+        static rep_type& assign(rep_type& lhs, const value_type(&rhs)[N]);
+
+        // Cover the initializer list case, unfortunately std::span does not
+        template<size_t I = N> requires (I <= N)
+        static rep_type& assign(rep_type& lhs, const value_type(&rhs)[N + 1]);
+
+        // rhs should be vector (w == 0)
+        template<size_t I = N> requires (I <= N)
+        static rep_type& assign_add(rep_type& lhs, const rep_type& rhs);
+
+        // rhs should be vector (w == 0) or both points (w == 1)
+        template<size_t I = N> requires (I <= N)
+        static rep_type& assign_subtract(rep_type& lhs, const rep_type& rhs);
+
+        // Componentwise, allows for parallel operations across components
+        template<size_t I = N> requires (I <= N)
+        static rep_type& assign_multiply(rep_type& lhs, const rep_type& rhs);
+
+        template<size_t I = N - 1> requires (I < N)
+        static rep_type& assign_multiply(rep_type& lhs, const value_type& rhs);
+
+        template<size_t I = N - 1> requires (I < N)
+        static rep_type& assign_divide(rep_type& lhs, const value_type& rhs);
+
+        // Only meaningful for vector (w == 0)
+        template<size_t I = N - 1> requires (I < N)
+        static rep_type unary_minus(rep_type rep);
+
+        // Only applies to vectors (w == 0)
+        template<size_t I = N - 1> requires (I < N)
+        static T dot_product(const rep_type& lhs, const rep_type& rhs);
+
+        template<size_t I = N - 1> requires (I < N)
+        static bool valid(const rep_type& rep);
+
+        template<size_t I = N - 1> requires (I < N)
+        static bool zero(const rep_type& rep);
+
+        template<size_t I = N - 1> requires (I < N)
+        static bool equals(const rep_type& lhs, const rep_type& rhs);
+
+        // Short-circuit || operation on components starting with highest dimension
+        template<size_t I = N - 1> requires (I < N)
+        static bool priority_less(const rep_type& lhs, const rep_type& rhs);
+
+        // All components
+        template<size_t I = N - 1> requires (I < N)
+        static bool all_less(const rep_type& lhs, const rep_type& rhs);
+
+        // Any component
+        template<size_t I = N - 1> requires (I < N)
+        static bool any_less(const rep_type& lhs, const rep_type& rhs);
+
+        template<size_t I = N - 1> requires (I < N)
+        static bool float_zero(const rep_type& rep, int ulp);
+
+        template<size_t I = N - 1> requires (I < N)
+        static bool float_equals(const rep_type& lhs, const rep_type& rhs, int ulp);
+
+        // Short-circuit || operation on components starting with highest dimension
+        template<size_t I = N - 1> requires (I < N)
+        static bool float_priority_less(const rep_type& lhs, const rep_type& rhs, int ulp);
+
+        // Componentwise operations: denoise, abs, min, max
+
+        template<size_t I = N> requires (I <= N)
+        static void denoise0(rep_type& rep, int ulp);
+
+        template<size_t I = N> requires (I <= N)
+        static void denoise01(rep_type& rep, int ulp);
+
+        template<size_t I = N> requires (I <= N)
+        static void denoise011(rep_type& rep, int ulp);
+
+        template<size_t I = N - 1> requires (I < N)
+        static void set_abs(rep_type& rep);
+
+        template<size_t I = N - 1> requires (I < N)
+        static void set_lowest(rep_type& rep);
+
+        template<size_t I = N - 1> requires (I < N)
+        static void set_highest(rep_type& rep);
+
+        template<size_t I = N - 1> requires (I < N)
+        static rep_type min(const rep_type& lhs, rep_type rhs);
+
+        template<size_t I = N - 1> requires (I < N)
+        static rep_type max(const rep_type& lhs, rep_type rhs);
+
+        template<size_t I = N> requires (I <= N)
+        static std::istream& extract(std::istream& is, rep_type& rhs);
+
+        template<size_t I = N> requires (I <= N)
+        static std::ostream& insert(std::ostream& os, const rep_type& rhs);
+
+        static constexpr const T* data(const rep_type& rep) noexcept;
+        static constexpr T* data(rep_type& rep) noexcept;
+
+        // prepare: reduce, projective_divide, relative_projective_divide, ...
+        // only applies to points, and so there is no explicit check for w != 0
+        static void prepare(rep_type& rep);
+        static void prepare(const rep_type& lhs, rep_type& rhs);
+
+        template<size_t K>
+        static void conclude(rep_type& rep, value_type w);
+
+    private:
+
+        // ulp? should be exact? used where ulp not available ...
+        //static bool is_vector(const rep_type& rep, int ulp = 64);
+
+        // Reduction is projective division. In the unary and binary cases:
+        // reduced means that the last component is 1 or that they are the same, respectively
+        // reduce results in the last component being 1 or the same, respectively
+
+        // these can be done directly in prepare ...
+
+        static bool reduced(const rep_type& rep, int ulp = 64);
+        static bool reduced(const rep_type& lhs, const rep_type& rhs, int ulp = 64);
+
+        static void reduce(rep_type& rep);
+        static void reduce(const rep_type& lhs, rep_type& rhs);
+    };
+
+} // namespace quetzal::math
+
+//------------------------------------------------------------------------------
+template<typename T, size_t N>
+template<size_t I> requires (I <= N)
+void quetzal::math::HomogeneousTraits<T, N>::clear(rep_type& rep)
+{
+    if constexpr (I == 0)
+    {
+        get<0>(rep) = T(0);
+        return;
+    }
+    else
+    {
+        clear<I - 1>(rep);
+        get<I>(rep) = T(0);
+        return;
+    }
+}
+
+//------------------------------------------------------------------------------
+template<typename T, size_t N>
+template<size_t I> requires (I < N)
+typename quetzal::math::HomogeneousTraits<T, N>::rep_type& quetzal::math::HomogeneousTraits<T, N>::assign(rep_type& lhs, std::span<value_type, N> rhs)
+{
+    if constexpr (I == 0)
+    {
+        get<0>(lhs) = rhs[0];
+        return lhs;
+    }
+    else
+    {
+        get<I>(lhs) = rhs[I];
+        return assign<I - 1>(lhs, rhs);
+    }
+}
+
+//------------------------------------------------------------------------------
+template<typename T, size_t N>
+template<size_t I> requires (I <= N)
+typename quetzal::math::HomogeneousTraits<T, N>::rep_type& quetzal::math::HomogeneousTraits<T, N>::assign(rep_type& lhs, std::span<value_type, N + 1> rhs)
+{
+    if constexpr (I == 0)
+    {
+        get<0>(lhs) = rhs[0];
+        return lhs;
+    }
+    else
+    {
+        get<I>(lhs) = rhs[I];
+        return assign<I - 1>(lhs, rhs);
+    }
+}
+
+//------------------------------------------------------------------------------
+template<typename T, size_t N>
+template<size_t I> requires (I < N)
+typename quetzal::math::HomogeneousTraits<T, N>::rep_type& quetzal::math::HomogeneousTraits<T, N>::assign(rep_type& lhs, const value_type(&rhs)[N])
+{
+    if constexpr (I == 0)
+    {
+        get<0>(lhs) = rhs[0];
+        return lhs;
+    }
+    else
+    {
+        get<I>(lhs) = rhs[I];
+        return assign<I - 1>(lhs, rhs);
+    }
+}
+
+//------------------------------------------------------------------------------
+template<typename T, size_t N>
+template<size_t I> requires (I <= N)
+typename quetzal::math::HomogeneousTraits<T, N>::rep_type& quetzal::math::HomogeneousTraits<T, N>::assign(rep_type& lhs, const value_type(&rhs)[N + 1])
+{
+    if constexpr (I == 0)
+    {
+        get<0>(lhs) = rhs[0];
+        return lhs;
+    }
+    else
+    {
+        get<I>(lhs) = rhs[I];
+        return assign<I - 1>(lhs, rhs);
+    }
+}
+
+//------------------------------------------------------------------------------
+template<typename T, size_t N>
+template<size_t I> requires (I <= N)
+typename quetzal::math::HomogeneousTraits<T, N>::rep_type& quetzal::math::HomogeneousTraits<T, N>::assign_add(rep_type& lhs, const rep_type& rhs)
+{
+    if constexpr (I == 0)
+    {
+        get<0>(lhs) += get<0>(rhs);
+        return lhs;
+    }
+    else
+    {
+        get<I>(lhs) += get<I>(rhs);
+        return assign_add<I - 1>(lhs, rhs);
+    }
+}
+
+//------------------------------------------------------------------------------
+template<typename T, size_t N>
+template<size_t I> requires (I <= N)
+typename quetzal::math::HomogeneousTraits<T, N>::rep_type& quetzal::math::HomogeneousTraits<T, N>::assign_subtract(rep_type& lhs, const rep_type& rhs)
+{
+    if constexpr (I == 0)
+    {
+        get<0>(lhs) -= get<0>(rhs);
+        return lhs;
+    }
+    else
+    {
+        get<I>(lhs) -= get<I>(rhs);
+        return assign_subtract<I - 1>(lhs, rhs);
+    }
+}
+
+//------------------------------------------------------------------------------
+template<typename T, size_t N>
+template<size_t I> requires (I <= N)
+typename quetzal::math::HomogeneousTraits<T, N>::rep_type& quetzal::math::HomogeneousTraits<T, N>::assign_multiply(rep_type& lhs, const rep_type& rhs)
+{
+    if constexpr (I == 0)
+    {
+        get<0>(lhs) *= get<0>(rhs);
+        return lhs;
+    }
+    else
+    {
+        get<I>(lhs) *= get<I>(rhs);
+        return assign_multiply<I - 1>(lhs, rhs);
+    }
+}
+
+//------------------------------------------------------------------------------
+template<typename T, size_t N>
+template<size_t I> requires (I < N)
+typename quetzal::math::HomogeneousTraits<T, N>::rep_type& quetzal::math::HomogeneousTraits<T, N>::assign_multiply(rep_type& lhs, const value_type& rhs)
+{
+    if constexpr (I == 0)
+    {
+        get<0>(lhs) *= rhs;
+        return lhs;
+    }
+    else
+    {
+        get<I>(lhs) *= rhs;
+        return assign_multiply<I - 1>(lhs, rhs);
+    }
+}
+
+//------------------------------------------------------------------------------
+template<typename T, size_t N>
+template<size_t I> requires (I < N)
+typename quetzal::math::HomogeneousTraits<T, N>::rep_type& quetzal::math::HomogeneousTraits<T, N>::assign_divide(rep_type& lhs, const value_type& rhs)
+{
+    if constexpr (I == 0)
+    {
+        get<0>(lhs) /= rhs;
+        return lhs;
+    }
+    else
+    {
+        get<I>(lhs) /= rhs;
+        return assign_divide<I - 1>(lhs, rhs);
+    }
+}
+
+//------------------------------------------------------------------------------
+template<typename T, size_t N>
+template<size_t I> requires (I < N)
+typename quetzal::math::HomogeneousTraits<T, N>::rep_type quetzal::math::HomogeneousTraits<T, N>::unary_minus(rep_type rep)
+{
+    if constexpr (I == 0)
+    {
+        get<0>(rep) = -get<0>(rep);
+        return rep;
+    }
+    else
+    {
+        get<I>(rep) = -get<I>(rep);
+        return unary_minus<I - 1>(rep);
+    }
+}
+
+//------------------------------------------------------------------------------
+template<typename T, size_t N>
+template<size_t I> requires (I < N)
+T quetzal::math::HomogeneousTraits<T, N>::dot_product(const rep_type& lhs, const rep_type& rhs)
+{
+    if constexpr (I == 0)
+    {
+        return get<0>(lhs) * get<0>(rhs);
+    }
+    else
+    {
+        return get<I>(lhs) * get<I>(rhs) + dot_product<I - 1>(lhs, rhs);
+    }
+}
+
+//------------------------------------------------------------------------------
+template<typename T, size_t N>
+template<size_t I> requires (I < N)
+bool quetzal::math::HomogeneousTraits<T, N>::valid(const rep_type& rep)
+{
+    if constexpr (I == 0)
+    {
+        return math::valid(get<0>(rep));
+    }
+    else
+    {
+        if (math::valid(get<I>(rep)))
+        {
+            return valid<I - 1>(rep);
+        }
+
+        return false;
+    }
+}
+
+//------------------------------------------------------------------------------
+template<typename T, size_t N>
+template<size_t I> requires (I < N)
+bool quetzal::math::HomogeneousTraits<T, N>::zero(const rep_type& rep)
+{
+    if constexpr (I == 0)
+    {
+        return get<0>(rep) == T(0);
+    }
+    else
+    {
+        return get<I>(rep) == T(0) && zero<I - 1>(rep);
+    }
+}
+
+//------------------------------------------------------------------------------
+template<typename T, size_t N>
+template<size_t I> requires (I < N)
+bool quetzal::math::HomogeneousTraits<T, N>::equals(const rep_type& lhs, const rep_type& rhs)
+{
+    if constexpr (I == 0)
+    {
+        return get<0>(lhs) == get<0>(rhs);
+    }
+    else
+    {
+        return get<I>(lhs) == get<I>(rhs) && equals<I - 1>(lhs, rhs);
+    }
+}
+
+//------------------------------------------------------------------------------
+template<typename T, size_t N>
+template<size_t I> requires (I < N)
+bool quetzal::math::HomogeneousTraits<T, N>::priority_less(const rep_type& lhs, const rep_type& rhs)
+{
+    if constexpr (I == 0)
+    {
+        return get<0>(lhs) < get<0>(rhs);
+    }
+    else
+    {
+        if (get<I>(lhs) == get<I>(rhs))
+        {
+            return priority_less<I - 1>(lhs, rhs);
+        }
+
+        return get<I>(lhs) < get<I>(rhs);
+    }
+}
+
+//------------------------------------------------------------------------------
+template<typename T, size_t N>
+template<size_t I> requires (I < N)
+bool quetzal::math::HomogeneousTraits<T, N>::all_less(const rep_type& lhs, const rep_type& rhs)
+{
+    if constexpr (I == 0)
+    {
+        return get<0>(lhs) < get<0>(rhs);
+    }
+    else
+    {
+        return get<I>(lhs) < get<I>(rhs) && all_less<I - 1>(lhs, rhs);
+    }
+}
+
+//------------------------------------------------------------------------------
+template<typename T, size_t N>
+template<size_t I> requires (I < N)
+bool quetzal::math::HomogeneousTraits<T, N>::any_less(const rep_type& lhs, const rep_type& rhs)
+{
+    if constexpr (I == 0)
+    {
+        return get<0>(lhs) < get<0>(rhs);
+    }
+    else
+    {
+        return get<I>(lhs) < get<I>(rhs) || any_less<I - 1>(lhs, rhs);
+    }
+}
+
+//------------------------------------------------------------------------------
+template<typename T, size_t N>
+template<size_t I> requires (I < N)
+bool quetzal::math::HomogeneousTraits<T, N>::float_zero(const rep_type& rep, int ulp)
+{
+    if constexpr (I == 0)
+    {
+        return quetzal::math::float_eq0(get<0>(rep), ulp);
+    }
+    else
+    {
+        return quetzal::math::float_eq0(get<I>(rep), ulp) && float_zero<I - 1>(rep, ulp);
+    }
+}
+
+//------------------------------------------------------------------------------
+template<typename T, size_t N>
+template<size_t I> requires (I < N)
+bool quetzal::math::HomogeneousTraits<T, N>::float_equals(const rep_type& lhs, const rep_type& rhs, int ulp)
+{
+    if constexpr (I == 0)
+    {
+        return quetzal::math::float_eq(get<0>(lhs), get<0>(rhs), ulp);
+    }
+    else
+    {
+        return quetzal::math::float_eq(get<I>(lhs), get<I>(rhs), ulp) && float_equals<I - 1>(lhs, rhs, ulp);
+    }
+}
+
+//------------------------------------------------------------------------------
+template<typename T, size_t N>
+template<size_t I> requires (I < N)
+bool quetzal::math::HomogeneousTraits<T, N>::float_priority_less(const rep_type& lhs, const rep_type& rhs, int ulp)
+{
+    if constexpr (I == 0)
+    {
+        return float_lt(get<0>(lhs), get<0>(rhs), ulp);
+    }
+    else
+    {
+        if (float_eq(get<I>(lhs), get<I>(rhs), ulp))
+        {
+            return priority_less<I - 1>(lhs, rhs);
+        }
+
+        return float_lt(get<I>(lhs), get<I>(rhs), ulp);
+    }
+}
+
+//------------------------------------------------------------------------------
+template<typename T, size_t N>
+template<size_t I> requires (I <= N)
+void quetzal::math::HomogeneousTraits<T, N>::denoise0(rep_type& rep, int ulp)
+{
+    if constexpr (I == 0)
+    {
+        get<0>(rep) = math::denoise0(get<0>(rep), ulp);
+        return;
+    }
+    else
+    {
+        denoise0<I - 1>(rep, ulp);
+        get<I>(rep) = math::denoise0(get<I>(rep), ulp);
+        return;
+    }
+}
+
+//------------------------------------------------------------------------------
+template<typename T, size_t N>
+template<size_t I> requires (I <= N)
+void quetzal::math::HomogeneousTraits<T, N>::denoise01(rep_type& rep, int ulp)
+{
+    if constexpr (I == 0)
+    {
+        get<0>(rep) = math::denoise01(get<0>(rep), ulp);
+        return;
+    }
+    else
+    {
+        denoise01<I - 1>(rep, ulp);
+        get<I>(rep) = math::denoise01(get<I>(rep), ulp);
+        return;
+    }
+}
+
+//------------------------------------------------------------------------------
+template<typename T, size_t N>
+template<size_t I> requires (I <= N)
+void quetzal::math::HomogeneousTraits<T, N>::denoise011(rep_type& rep, int ulp)
+{
+    if constexpr (I == 0)
+    {
+        get<0>(rep) = math::denoise01(get<0>(rep), ulp);
+        return;
+    }
+    else
+    {
+        denoise01<I - 1>(rep, ulp);
+        get<I>(rep) = math::denoise01(get<I>(rep), ulp);
+        return;
+    }
+}
+
+//------------------------------------------------------------------------------
+template<typename T, size_t N>
+template<size_t I> requires (I < N)
+void quetzal::math::HomogeneousTraits<T, N>::set_abs(rep_type& rep)
+{
+    if constexpr (I == 0)
+    {
+        get<0>(rep) = std::abs(get<0>(rep));
+        return;
+    }
+    else
+    {
+        set_abs<I - 1>(rep);
+        get<I>(rep) = std::abs(get<I>(rep));
+        return;
+    }
+}
+
+//------------------------------------------------------------------------------
+template<typename T, size_t N>
+template<size_t I> requires (I < N)
+void quetzal::math::HomogeneousTraits<T, N>::set_lowest(rep_type& rep)
+{
+    if constexpr (I == 0)
+    {
+        get<0>(rep) = std::numeric_limits<T>::lowest();
+        return;
+    }
+    else
+    {
+        set_lowest<I - 1>(rep);
+        get<I>(rep) = std::numeric_limits<T>::lowest();
+        return;
+    }
+}
+
+//------------------------------------------------------------------------------
+template<typename T, size_t N>
+template<size_t I> requires (I < N)
+void quetzal::math::HomogeneousTraits<T, N>::set_highest(rep_type& rep)
+{
+    if constexpr (I == 0)
+    {
+        get<0>(rep) = std::numeric_limits<T>::max();
+        return;
+    }
+    else
+    {
+        set_highest<I - 1>(rep);
+        get<I>(rep) = std::numeric_limits<T>::max();
+        return;
+    }
+}
+
+//------------------------------------------------------------------------------
+template<typename T, size_t N>
+template<size_t I> requires (I < N)
+typename quetzal::math::HomogeneousTraits<T, N>::rep_type quetzal::math::HomogeneousTraits<T, N>::min(const rep_type& lhs, rep_type rhs)
+{
+    if constexpr (I == 0)
+    {
+        get<0>(rhs) = std::min(get<0>(lhs), get<0>(rhs));
+        return rhs;
+    }
+    else
+    {
+        get<I>(rhs) = std::min(get<I>(lhs), get<I>(rhs));
+        return min<I - 1>(lhs, rhs);
+    }
+}
+
+//------------------------------------------------------------------------------
+template<typename T, size_t N>
+template<size_t I> requires (I < N)
+typename quetzal::math::HomogeneousTraits<T, N>::rep_type quetzal::math::HomogeneousTraits<T, N>::max(const rep_type& lhs, rep_type rhs)
+{
+    if constexpr (I == 0)
+    {
+        get<0>(rhs) = std::max(get<0>(lhs), get<0>(rhs));
+        return rhs;
+    }
+    else
+    {
+        get<I>(rhs) = std::max(get<I>(lhs), get<I>(rhs));
+        return max<I - 1>(lhs, rhs);
+    }
+}
+
+//------------------------------------------------------------------------------
+template<typename T, size_t N>
+template<size_t I> requires (I <= N)
+std::istream& quetzal::math::HomogeneousTraits<T, N>::extract(std::istream& is, rep_type& rhs)
+{
+    if constexpr (I == 0)
+    {
+        is >> get<0>(rhs);
+        return is;
+    }
+    else
+    {
+        extract<I - 1>(is, rhs);
+        is >> get<I>(rhs);
+        return is;
+    }
+}
+
+//------------------------------------------------------------------------------
+template<typename T, size_t N>
+template<size_t I> requires (I <= N)
+std::ostream& quetzal::math::HomogeneousTraits<T, N>::insert(std::ostream& os, const rep_type& rhs)
+{
+    // Conditional expression ensures that -0 displays as 0
+
+    if constexpr (I == 0)
+    {
+//        os << (get<0>(rhs) == T(0) ? T(0) : get<0>(rhs));
+        os << std::setprecision(10) << (get<0>(rhs) == T(0) ? T(0) : get<0>(rhs));
+        return os;
+    }
+    else
+    {
+        insert<I - 1>(os, rhs);
+//        os << " " << (get<I>(rhs) == T(0) ? T(0) : get<I>(rhs));
+        os << " " << std::setprecision(10) << (get<I>(rhs) == T(0) ? T(0) : get<I>(rhs));
+        return os;
+    }
+}
+
+//------------------------------------------------------------------------------
+template<typename T, size_t N>
+constexpr const T* quetzal::math::HomogeneousTraits<T, N>::data(const rep_type& rep) noexcept
+{
+    return rep.data();
+}
+
+//------------------------------------------------------------------------------
+template<typename T, size_t N>
+constexpr T* quetzal::math::HomogeneousTraits<T, N>::data(rep_type& rep) noexcept
+{
+    return rep.data();
+}
+
+//------------------------------------------------------------------------------
+template<typename T, size_t N>
+void quetzal::math::HomogeneousTraits<T, N>::prepare(rep_type& rep)
+{
+    if (!reduced(rep))
+    {
+        reduce(rep);
+    }
+
+    return;
+}
+
+//------------------------------------------------------------------------------
+template<typename T, size_t N>
+void quetzal::math::HomogeneousTraits<T, N>::prepare(const rep_type& lhs, rep_type& rhs)
+{
+    if (!reduced(lhs, rhs))
+    {
+        reduce(lhs, rhs);
+    }
+
+    return;
+}
+
+//------------------------------------------------------------------------------
+template<typename T, size_t N>
+template<size_t K>
+void quetzal::math::HomogeneousTraits<T, N>::conclude(rep_type& rep, value_type w)
+{
+    if constexpr (K <= N)
+    {
+        get<N>(rep) = w;
+    }
+
+    return;
+}
+
+//------------------------------------------------------------------------------
+/*
+template<typename T, size_t N>
+bool quetzal::math::HomogeneousTraits<T, N>::is_vector(const rep_type& rep, int ulp)
+{
+    return quetzal::math::float_eq0(get<N>(rep), ulp);
+}
+*/
+
+//------------------------------------------------------------------------------
+template<typename T, size_t N>
+bool quetzal::math::HomogeneousTraits<T, N>::reduced(const rep_type& rep, int ulp)
+{
+    return quetzal::math::float_eq(get<N>(rep), T(1), ulp);
+}
+
+//------------------------------------------------------------------------------
+template<typename T, size_t N>
+bool quetzal::math::HomogeneousTraits<T, N>::reduced(const rep_type& lhs, const rep_type& rhs, int ulp)
+{
+    return quetzal::math::float_eq(get<N>(lhs), get<N>(rhs), ulp);
+}
+
+//------------------------------------------------------------------------------
+template<typename T, size_t N>
+void quetzal::math::HomogeneousTraits<T, N>::reduce(rep_type& rep)
+{
+    assign_divide(rep, get<N>(rep));
+    conclude<N>(rep, T(1)); // exact
+    return;
+}
+
+//------------------------------------------------------------------------------
+template<typename T, size_t N>
+void quetzal::math::HomogeneousTraits<T, N>::reduce(const rep_type& lhs, rep_type& rhs)
+{
+    assign_divide(assign_multiply(rhs, get<N>(lhs)), get<N>(rhs));
+    conclude<N>(rhs, get<N>(lhs)); // exact
+    return;
+}
+
+#endif // QUETZAL_MATH_HOMOGENEOUSTRAITS_HPP

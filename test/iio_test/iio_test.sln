@@ -1,0 +1,50 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 11.00
+# Visual C++ Express 2010
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "iio_test", "iio_test.vcxproj", "{314EF263-176A-4E64-8F9F-AD7D03DFC766}"
+	ProjectSection(ProjectDependencies) = postProject
+		{0CFF4B00-8D02-4F6C-9FBA-208DBDAF6E24} = {0CFF4B00-8D02-4F6C-9FBA-208DBDAF6E24}
+		{02756409-0BC4-4F9B-AC9C-25E6A33B8592} = {02756409-0BC4-4F9B-AC9C-25E6A33B8592}
+		{5D4B354D-E1A6-41F3-821B-D317DFA4F6A3} = {5D4B354D-E1A6-41F3-821B-D317DFA4F6A3}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "iio", "..\..\library\quetzal\iio\iio.vcxproj", "{0CFF4B00-8D02-4F6C-9FBA-208DBDAF6E24}"
+	ProjectSection(ProjectDependencies) = postProject
+		{02756409-0BC4-4F9B-AC9C-25E6A33B8592} = {02756409-0BC4-4F9B-AC9C-25E6A33B8592}
+		{5D4B354D-E1A6-41F3-821B-D317DFA4F6A3} = {5D4B354D-E1A6-41F3-821B-D317DFA4F6A3}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "io", "..\..\library\quetzal\io\io.vcxproj", "{5D4B354D-E1A6-41F3-821B-D317DFA4F6A3}"
+	ProjectSection(ProjectDependencies) = postProject
+		{02756409-0BC4-4F9B-AC9C-25E6A33B8592} = {02756409-0BC4-4F9B-AC9C-25E6A33B8592}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "quetzal", "..\..\library\quetzal\quetzal.vcxproj", "{02756409-0BC4-4F9B-AC9C-25E6A33B8592}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Win32 = Debug|Win32
+		Release|Win32 = Release|Win32
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{314EF263-176A-4E64-8F9F-AD7D03DFC766}.Debug|Win32.ActiveCfg = Debug|Win32
+		{314EF263-176A-4E64-8F9F-AD7D03DFC766}.Debug|Win32.Build.0 = Debug|Win32
+		{314EF263-176A-4E64-8F9F-AD7D03DFC766}.Release|Win32.ActiveCfg = Release|Win32
+		{314EF263-176A-4E64-8F9F-AD7D03DFC766}.Release|Win32.Build.0 = Release|Win32
+		{0CFF4B00-8D02-4F6C-9FBA-208DBDAF6E24}.Debug|Win32.ActiveCfg = Debug|Win32
+		{0CFF4B00-8D02-4F6C-9FBA-208DBDAF6E24}.Debug|Win32.Build.0 = Debug|Win32
+		{0CFF4B00-8D02-4F6C-9FBA-208DBDAF6E24}.Release|Win32.ActiveCfg = Release|Win32
+		{0CFF4B00-8D02-4F6C-9FBA-208DBDAF6E24}.Release|Win32.Build.0 = Release|Win32
+		{5D4B354D-E1A6-41F3-821B-D317DFA4F6A3}.Debug|Win32.ActiveCfg = Debug|Win32
+		{5D4B354D-E1A6-41F3-821B-D317DFA4F6A3}.Debug|Win32.Build.0 = Debug|Win32
+		{5D4B354D-E1A6-41F3-821B-D317DFA4F6A3}.Release|Win32.ActiveCfg = Release|Win32
+		{5D4B354D-E1A6-41F3-821B-D317DFA4F6A3}.Release|Win32.Build.0 = Release|Win32
+		{02756409-0BC4-4F9B-AC9C-25E6A33B8592}.Debug|Win32.ActiveCfg = Debug|Win32
+		{02756409-0BC4-4F9B-AC9C-25E6A33B8592}.Debug|Win32.Build.0 = Debug|Win32
+		{02756409-0BC4-4F9B-AC9C-25E6A33B8592}.Release|Win32.ActiveCfg = Release|Win32
+		{02756409-0BC4-4F9B-AC9C-25E6A33B8592}.Release|Win32.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
