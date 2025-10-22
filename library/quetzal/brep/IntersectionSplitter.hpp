@@ -847,7 +847,6 @@ std::cout << std::format("create_intersection_edge next create_edge_connect floa
         id_type halfedge_id = create_edge_connect(halfedge_id0, halfedge_id1);
         id_type halfedge_id_exterior = exterior_halfedge(halfedge_id, exterior_direction);
 
-        id_type face_id = m_mesh.halfedge(halfedge_id0).face_id();
         m_mesh.face(face_id).submesh().remove_hole(floating.id0);
         floating.clear();
         return {halfedge_id_exterior, nullid};
