@@ -52,7 +52,7 @@ using namespace quetzal;
 
 namespace g = quetzal::geometry;
 
-// triangulation occurs after operation, but run tests with both triangulated and non-triangulated models ...
+// triangulation occurs after operation, but run tests with both pre-triangulated and post-triangulated models ...
 
 // point vertex, interior edge point intersects vertex
 // point edge, interior edge point intersects interior other edge
