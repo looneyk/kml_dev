@@ -1,41 +1,37 @@
-# Prerequisites
-*.d
-
-# Compiled Object files
-*.slo
-*.lo
-*.o
-*.obj
-
-# Precompiled Headers
-*.gch
-*.pch
-
-# Linker files
-*.ilk
-
-# Debugger Files
-*.pdb
-
-# Compiled Dynamic libraries
-*.so
-*.dylib
-*.dll
-
-# Fortran module files
-*.mod
-*.smod
-
-# Compiled Static libraries
-*.lai
-*.la
-*.a
-*.lib
-
-# Executables
-*.exe
-*.out
-*.app
-
-# debug information files
-*.dwo
+*
+!/.gitignore
+!/application/
+!/application/**
+!/library/
+!/library/quetzal/
+!/library/quetzal/brep/
+!/library/quetzal/brep/**
+!/library/quetzal/common/
+!/library/quetzal/common/**
+!/library/quetzal/geometry/
+!/library/quetzal/geometry/**
+!/library/quetzal/math/
+!/library/quetzal/math/**
+!/library/quetzal/model/
+!/library/quetzal/model/**
+!/library/quetzal/pdf/
+!/library/quetzal/pdf/**
+!/library/quetzal/svg/
+!/library/quetzal/svg/**
+!/library/quetzal/triangulation/
+!/library/quetzal/triangulation/**
+!/library/quetzal/vulkan/
+!/library/quetzal/vulkan/**
+!/library/quetzal/wavefront_obj/
+!/library/quetzal/wavefront_obj/**
+!/library/quetzal/xml/
+!/library/quetzal/xml/**
+!/model/
+!/model/**
+!/test/
+!/test/**
+!/utility/
+!/utility/**
+**/*.user
+**/.vs
+**/target
