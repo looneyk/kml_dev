@@ -105,12 +105,12 @@ namespace quetzal::brep
         // Returns exterior, impending border halfedge id, tracer halfedge id
         // tracer is nullid unless the edge endpoint is floating or there has been a split and we know that we can continue with the partner face (probably not the or...)
         // Segment endpoints should already be denoised
-        std::array<id_type, 2> create_intersection_edge(id_type face_id, id_type halfedge_id0, id_type halfedge_id1, const segment_type& segment, Floating& floating, const vector_type& exterior_direction);
+        std::array<id_type, 2> create_intersection_edge(id_type face_id, id_type halfedge_id0, id_type halfedge_id1, const segment_type& segment, const vector_type& exterior_direction, Floating& floating);
 
         // Returns exterior, impending border halfedge id, tracer halfedge id
         // tracer is nullid unless the edge endpoint is floating or there has been a split and we know that we can continue with the partner face (probably not the or...)
         // Segment endpoints should already be denoised
-        std::array<id_type, 2> create_intersection_edge(id_type halfedge_id0, id_type halfedge_id1, const segment_type& segment, Floating& floating, const vector_type& exterior_direction);
+        std::array<id_type, 2> create_intersection_edge(id_type halfedge_id0, id_type halfedge_id1, const segment_type& segment, const vector_type& exterior_direction, Floating& floating);
 
         // Returns the ids of the halfedges at this vertex that form the next intersection point
         std::array<id_type, 2> find_next_intersection_faces(id_type halfedge_id_a, id_type halfedge_id_b, id_type vertex_id_a, id_type vertex_id_b, id_type halfedge_id_a_reject, id_type halfedge_id_b_reject);
@@ -132,7 +132,7 @@ namespace quetzal::brep
         // Endpoints are ordered by trace_direction
         // Does not support non-convex faces ...
         std::optional<std::tuple<id_type, id_type, segment_type>> face_plane_intersection(const face_type& face, const plane_type& plane, const vector_type& trace_direction);
-        std::optional<std::tuple<id_type, id_type, segment_type>> face_plane_intersection(const face_type& face, const plane_type& plane, id_type halfedge_id0, const Floating& floating, const vector_type& trace_direction);
+        std::optional<std::tuple<id_type, id_type, segment_type>> face_plane_intersection(const face_type& face, const plane_type& plane, const vector_type& trace_direction, id_type halfedge_id0, const Floating& floating);
 
         intersection_type halfedge_plane_intersection(const halfedge_type& halfedge, const plane_type& plane);
 
@@ -260,7 +260,7 @@ quetzal::brep::IntersectionSplitter<M>::IntersectionSplitter(M& m_mesh) :
 
 //------------------------------------------------------------------------------
 template<typename M>
-quetzal::brep::IntersectionSplitter<M>::connections_type quetzal::brep::IntersectionSplitter<M>::connections(id_type submesh_id_a, id_type submesh_id_b)
+quetzal::brep::IntersectionSplitter<M>::connections_type quetzal::brep::IntersectionSplitter<M>::connections(const id_type submesh_id_a, const id_type submesh_id_b)
 {
 std::array<id_type, 2> submesh_ids = {submesh_id_a, submesh_id_b};
 m_stage_count = 0;
@@ -326,7 +326,7 @@ assert(debug_log(m_mesh, std::format("model{}", m_stage_count++), submesh_ids).v
 
 //------------------------------------------------------------------------------
 template<typename M>
-std::optional<typename quetzal::brep::IntersectionSplitter<M>::connection_type> quetzal::brep::IntersectionSplitter<M>::split_intersection_trace(id_type face_id_a, id_type face_id_b)
+std::optional<typename quetzal::brep::IntersectionSplitter<M>::connection_type> quetzal::brep::IntersectionSplitter<M>::split_intersection_trace(const id_type face_id_a, const id_type face_id_b)
 {
 std::cout << std::format("split_intersection_trace fa {}, fb {}", id_string(face_id_a), id_string(face_id_b)) << std::endl;
 std::array<id_type, 2> submesh_ids = {m_mesh.face(face_id_a).submesh_id(), m_mesh.face(face_id_b).submesh_id()};
@@ -354,11 +354,11 @@ std::cout << std::format("trace_direction {}", trace_direction) << std::endl;
     const auto [halfedge_id_a0, halfedge_id_a1, halfedge_id_b0, halfedge_id_b1] = ids;
 std::cout << std::format("find_first_connection_intersection returned ha0 {}, ha1 {}, hb0 {}, hb1 {}, segment0 {}", id_string(halfedge_id_a0), id_string(halfedge_id_a1), id_string(halfedge_id_b0), id_string(halfedge_id_b1), segment0) << std::endl;
 
-    auto [halfedge_id_a_exterior, halfedge_id_a_tracer] = create_intersection_edge(face_id_a, halfedge_id_a0, halfedge_id_a1, segment0, m_floating_a, -trace_direction);
+    auto [halfedge_id_a_exterior, halfedge_id_a_tracer] = create_intersection_edge(face_id_a, halfedge_id_a0, halfedge_id_a1, segment0, -trace_direction, m_floating_a);
     id_type halfedge_id_a_interior = interior_partner(halfedge_id_a_exterior, -trace_direction);
 std::cout << std::format("create_intersection_edge first returned a ext {}, int {}, ht {}", id_string(halfedge_id_a_exterior), id_string(halfedge_id_a_interior), id_string(halfedge_id_a_tracer)) << std::endl;
 
-    auto [halfedge_id_b_exterior, halfedge_id_b_tracer] = create_intersection_edge(face_id_b, halfedge_id_b0, halfedge_id_b1, segment0, m_floating_b, trace_direction);
+    auto [halfedge_id_b_exterior, halfedge_id_b_tracer] = create_intersection_edge(face_id_b, halfedge_id_b0, halfedge_id_b1, segment0, trace_direction, m_floating_b);
     id_type halfedge_id_b_interior = interior_partner(halfedge_id_b_exterior, trace_direction);
 std::cout << std::format("create_intersection_edge first returned b ext {}, int {}, ht {}", id_string(halfedge_id_b_exterior), id_string(halfedge_id_b_interior), id_string(halfedge_id_b_tracer)) << std::endl;
 /*
@@ -413,11 +413,11 @@ std::cout << std::format("trace_direction {}", trace_direction) << std::endl;
         const auto [halfedge_id_a_next, halfedge_id_b_next, segment] = ix.value();
 std::cout << std::format("find_next_connection_intersection returned han {}, hbn {}, segment {}", id_string(halfedge_id_a_next), id_string(halfedge_id_b_next), segment) << std::endl;
 
-        std::tie(halfedge_id_a_exterior, halfedge_id_a_tracer) = create_intersection_edge(halfedge_id_a_tracer, halfedge_id_a_next, segment, m_floating_a, -trace_direction);
+        std::tie(halfedge_id_a_exterior, halfedge_id_a_tracer) = create_intersection_edge(halfedge_id_a_tracer, halfedge_id_a_next, segment, -trace_direction, m_floating_a);
         halfedge_id_a_interior = interior_partner(halfedge_id_a_exterior, -trace_direction);
 std::cout << std::format("create_intersection_edge next a returned ext {} {}, int {} {}, ht {}", id_string(halfedge_id_a_exterior), vertex_position(m_mesh.halfedge(halfedge_id_a_exterior)), id_string(halfedge_id_a_interior), vertex_position(m_mesh.halfedge(halfedge_id_a_interior)), id_string(halfedge_id_a_tracer)) << std::endl;
 
-        std::tie(halfedge_id_b_exterior, halfedge_id_b_tracer) = create_intersection_edge(halfedge_id_b_tracer, halfedge_id_b_next, segment, m_floating_b, trace_direction);
+        std::tie(halfedge_id_b_exterior, halfedge_id_b_tracer) = create_intersection_edge(halfedge_id_b_tracer, halfedge_id_b_next, segment, trace_direction, m_floating_b);
         halfedge_id_b_interior = interior_partner(halfedge_id_b_exterior, trace_direction);
 std::cout << std::format("create_intersection_edge next b returned ext {} {}, int {} {}, ht {}", id_string(halfedge_id_b_exterior), vertex_position(m_mesh.halfedge(halfedge_id_b_exterior)), id_string(halfedge_id_b_interior), vertex_position(m_mesh.halfedge(halfedge_id_b_interior)), id_string(halfedge_id_b_tracer)) << std::endl;
 
@@ -466,7 +466,7 @@ std::cout << std::format("split_intersection_trace complete") << std::endl;
 
 //------------------------------------------------------------------------------
 template<typename M>
-std::optional<std::tuple<std::array<quetzal::id_type, 4>, typename quetzal::brep::IntersectionSplitter<M>::segment_type>> quetzal::brep::IntersectionSplitter<M>::find_first_connection_intersection(id_type face_id_a, id_type face_id_b, const vector_type& trace_direction)
+std::optional<std::tuple<std::array<quetzal::id_type, 4>, typename quetzal::brep::IntersectionSplitter<M>::segment_type>> quetzal::brep::IntersectionSplitter<M>::find_first_connection_intersection(const id_type face_id_a, const id_type face_id_b, const vector_type& trace_direction)
 {
     using geometry::Locus;
 std::cout << std::format("find_first_connection_intersection fa {}, fb {}", face_id_a, face_id_b) << std::endl;
@@ -583,7 +583,7 @@ std::cout << std::format("s b1 {}", segment_b.endpoint(1)) << std::endl;
 
 //------------------------------------------------------------------------------
 template<typename M>
-std::optional<std::tuple<quetzal::id_type, quetzal::id_type, typename quetzal::brep::IntersectionSplitter<M>::segment_type>> quetzal::brep::IntersectionSplitter<M>::find_next_connection_intersection(id_type halfedge_id_a, id_type halfedge_id_b, const vector_type& trace_direction)
+std::optional<std::tuple<quetzal::id_type, quetzal::id_type, typename quetzal::brep::IntersectionSplitter<M>::segment_type>> quetzal::brep::IntersectionSplitter<M>::find_next_connection_intersection(const id_type halfedge_id_a, const id_type halfedge_id_b, const vector_type& trace_direction)
 {
     using geometry::Locus;
 
@@ -597,13 +597,13 @@ std::cout << std::format("find_next_connection_intersection ha {}, hb {}, positi
     const auto plane_a = to_plane(face_a);
     const auto plane_b = to_plane(face_b);
 
-    auto ix_a = face_plane_intersection(face_a, plane_b, halfedge_id_a, m_floating_a, trace_direction);
+    auto ix_a = face_plane_intersection(face_a, plane_b, trace_direction, halfedge_id_a, m_floating_a);
     auto [id_a0, id_a1, segment_a] = ix_a.value();
     assert(id_a0 == halfedge_id_a);
     assert(segment_a.endpoint(0) == position0);
 std::cout << std::format("face_plane_intersection a returned a0 {}, a1 {}, segment {}", id_string(id_a0), id_string(id_a1), segment_a) << std::endl;
 
-    auto ix_b = face_plane_intersection(face_b, plane_a, halfedge_id_b, m_floating_b, trace_direction);
+    auto ix_b = face_plane_intersection(face_b, plane_a, trace_direction, halfedge_id_b, m_floating_b);
     auto [id_b0, id_b1, segment_b] = ix_b.value();
     assert(id_b0 == halfedge_id_b);
     assert(segment_b.endpoint(0) == position0);
@@ -669,7 +669,7 @@ std::cout << std::format("face_plane_intersection b returned b0 {}, b1 {}, segme
 
 //------------------------------------------------------------------------------
 template<typename M>
-std::array<quetzal::id_type, 2> quetzal::brep::IntersectionSplitter<M>::create_intersection_edge(id_type face_id, id_type halfedge_id0, id_type halfedge_id1, const segment_type& segment, Floating& floating, const vector_type& exterior_direction)
+std::array<quetzal::id_type, 2> quetzal::brep::IntersectionSplitter<M>::create_intersection_edge(const id_type face_id, id_type halfedge_id0, id_type halfedge_id1, const segment_type& segment, const vector_type& exterior_direction, Floating& floating)
 {
 std::cout << std::format("create_intersection_edge first f {}, h0 {}, h1 {}, segment {}, exterior_direction {}", id_string(face_id), id_string(halfedge_id0), id_string(halfedge_id1), segment, exterior_direction) << std::endl;
     assert(halfedge_id0 == nullid || m_mesh.halfedge(halfedge_id0).face_id() == face_id);
@@ -782,7 +782,7 @@ std::cout << std::format("create_intersection_edge first split_face vv returned 
 
 //------------------------------------------------------------------------------
 template<typename M>
-std::array<quetzal::id_type, 2> quetzal::brep::IntersectionSplitter<M>::create_intersection_edge(id_type halfedge_id0, id_type halfedge_id1, const segment_type& segment, Floating& floating, const vector_type& exterior_direction)
+std::array<quetzal::id_type, 2> quetzal::brep::IntersectionSplitter<M>::create_intersection_edge(const id_type halfedge_id0, id_type halfedge_id1, const segment_type& segment, const vector_type& exterior_direction, Floating& floating)
 {
 //std::cout << std::format("create_intersection_edge next assertion hid1 {}, position1 {}, endpoint1 {}", halfedge_id1, halfedge_id1 != nullid ? vertex_position(m_mesh.halfedge(halfedge_id1)) : point_type{}, segment.endpoint(1)) << std::endl;
     assert(halfedge_id0 != nullid);
@@ -793,7 +793,7 @@ if (halfedge_id1 == 1)
 {int z = 0; z;}
     // Split face according to the type of intersection
 
-    id_type face_id = m_mesh.halfedge(halfedge_id0).face_id();
+    const id_type face_id = m_mesh.halfedge(halfedge_id0).face_id();
     assert(halfedge_id1 == nullid || m_mesh.halfedge(halfedge_id1).face_id() == face_id);
 std::cout << std::format("create_intersection_edge next f {}, h0 {}, h1 {}, segment {}, exterior_direction {}", id_string(face_id), id_string(halfedge_id0), id_string(halfedge_id1), segment, exterior_direction) << std::endl;
 
@@ -895,7 +895,7 @@ std::cout << std::format("create_intersection_edge next split_face vv returned c
 
 //------------------------------------------------------------------------------
 template<typename M>
-std::array<quetzal::id_type, 2> quetzal::brep::IntersectionSplitter<M>::find_next_intersection_faces(id_type halfedge_id_a, id_type halfedge_id_b, id_type vertex_id_a, id_type vertex_id_b, id_type halfedge_id_a_reject, id_type halfedge_id_b_reject)
+std::array<quetzal::id_type, 2> quetzal::brep::IntersectionSplitter<M>::find_next_intersection_faces(id_type halfedge_id_a, id_type halfedge_id_b, const id_type vertex_id_a, const id_type vertex_id_b, const id_type halfedge_id_a_reject, const id_type halfedge_id_b_reject)
 {
 std::cout << std::format("find_next_intersection_faces ha {}, hb {}, va {}, vb {}, reject a {}, reject b {}", id_string(halfedge_id_a), id_string(halfedge_id_b), id_string(vertex_id_a), id_string(vertex_id_b), id_string(halfedge_id_a_reject), id_string(halfedge_id_b_reject)) << std::endl;
     assert(m_mesh.vertex(vertex_id_a).attributes().position() == m_mesh.vertex(vertex_id_b).attributes().position());
@@ -928,7 +928,7 @@ std::cout << "find b" << std::endl;
 
 //------------------------------------------------------------------------------
 template<typename M>
-std::array<quetzal::id_type, 2> quetzal::brep::IntersectionSplitter<M>::find_next_intersection_faces(id_type vertex_id_a, id_type vertex_id_b, id_type halfedge_id_a_reject, id_type halfedge_id_b_reject)
+std::array<quetzal::id_type, 2> quetzal::brep::IntersectionSplitter<M>::find_next_intersection_faces(const id_type vertex_id_a, const id_type vertex_id_b, const id_type halfedge_id_a_reject, const id_type halfedge_id_b_reject)
 {
     halfedge_id_a_reject;
 std::cout << std::format("find_next_intersection_faces va {}, vb {}, reject a {}, reject b {}", id_string(vertex_id_a), id_string(vertex_id_b), id_string(halfedge_id_a_reject), id_string(halfedge_id_b_reject)) << std::endl;
@@ -966,7 +966,7 @@ std::cout << "    no face a found" << std::endl;
 
 //------------------------------------------------------------------------------
 template<typename M>
-quetzal::id_type quetzal::brep::IntersectionSplitter<M>::find_next_intersection_face(id_type vertex_id, id_type halfedge_id_other, id_type halfedge_id_reject)
+quetzal::id_type quetzal::brep::IntersectionSplitter<M>::find_next_intersection_face(const id_type vertex_id, const id_type halfedge_id_other, const id_type halfedge_id_reject)
 {
     using geometry::Locus;
 
@@ -1280,7 +1280,7 @@ std::cout << std::format("face_plane_intersection first face {} {}, plane {}, tr
 
 //------------------------------------------------------------------------------
 template<typename M>
-std::optional<std::tuple<quetzal::id_type, quetzal::id_type, typename quetzal::brep::IntersectionSplitter<M>::segment_type>> quetzal::brep::IntersectionSplitter<M>::face_plane_intersection(const face_type& face, const plane_type& plane, id_type halfedge_id0, const Floating& floating, const vector_type& trace_direction)
+std::optional<std::tuple<quetzal::id_type, quetzal::id_type, typename quetzal::brep::IntersectionSplitter<M>::segment_type>> quetzal::brep::IntersectionSplitter<M>::face_plane_intersection(const face_type& face, const plane_type& plane, const vector_type& trace_direction, const id_type halfedge_id0, const Floating& floating)
 {
     using geometry::Locus;
 std::cout << std::format("face_plane_intersection next face {} {}, plane {}, trace_direction {}", face.id(), face.attributes().normal(), plane, trace_direction) << std::endl;
@@ -1390,7 +1390,7 @@ typename quetzal::brep::IntersectionSplitter<M>::intersection_type quetzal::brep
 
 //------------------------------------------------------------------------------
 template<typename M>
-quetzal::id_type quetzal::brep::IntersectionSplitter<M>::create_edge_internal(id_type face_id, const segment_type& segment)
+quetzal::id_type quetzal::brep::IntersectionSplitter<M>::create_edge_internal(const id_type face_id, const segment_type& segment)
 {
     auto [position0, position1] = segment.endpoints();
 
@@ -1413,7 +1413,7 @@ std::cout << "    " << std::format("create_edge_internal f {} segment {} created
 
 //------------------------------------------------------------------------------
 template<typename M>
-quetzal::id_type quetzal::brep::IntersectionSplitter<M>::create_edge_partial(id_type halfedge_id0, const point_type& position1)
+quetzal::id_type quetzal::brep::IntersectionSplitter<M>::create_edge_partial(const id_type halfedge_id0, const point_type& position1)
 {
     id_type face_id = m_mesh.halfedge(halfedge_id0).face_id();
     auto normal = m_mesh.face(face_id).attributes().normal();
@@ -1437,7 +1437,7 @@ std::cout << std::format("create_edge_partial h {} p {} created {} {}", id_strin
 
 //------------------------------------------------------------------------------
 template<typename M>
-quetzal::id_type quetzal::brep::IntersectionSplitter<M>::create_edge_connect(id_type halfedge_id0, id_type halfedge_id1, bool coupled)
+quetzal::id_type quetzal::brep::IntersectionSplitter<M>::create_edge_connect(const id_type halfedge_id0, const id_type halfedge_id1, bool coupled)
 {
     id_type face_id = m_mesh.halfedge(halfedge_id0).face_id();
     assert(m_mesh.halfedge(halfedge_id1).face_id() == face_id);
@@ -1465,7 +1465,7 @@ std::cout << "    " << std::format("create_edge_connect h0 {} h1 {} created {} {
 
 //------------------------------------------------------------------------------
 template<typename M>
-void quetzal::brep::IntersectionSplitter<M>::insert_trace_intersection(id_type halfedge_id_a_exterior, id_type halfedge_id_a_interior, id_type halfedge_id_b_exterior, id_type halfedge_id_b_interior)
+void quetzal::brep::IntersectionSplitter<M>::insert_trace_intersection(const id_type halfedge_id_a_exterior, const id_type halfedge_id_a_interior, const id_type halfedge_id_b_exterior, const id_type halfedge_id_b_interior)
 {
     m_connection_halfedge_ids.insert(halfedge_id_a_exterior);
     m_connection_halfedge_ids.insert(halfedge_id_a_interior);
@@ -1480,14 +1480,14 @@ void quetzal::brep::IntersectionSplitter<M>::insert_trace_intersection(id_type h
 
 //------------------------------------------------------------------------------
 template<typename M>
-quetzal::id_type quetzal::brep::IntersectionSplitter<M>::exterior_halfedge(id_type halfedge_id, const vector_type& exterior_direction) const
+quetzal::id_type quetzal::brep::IntersectionSplitter<M>::exterior_halfedge(const id_type halfedge_id, const vector_type& exterior_direction) const
 {
     return direction_compare(direction(m_mesh.halfedge(halfedge_id)), exterior_direction) > 0 ? halfedge_id : m_mesh.halfedge(halfedge_id).partner_id();
 }
 
 //------------------------------------------------------------------------------
 template<typename M>
-quetzal::id_type quetzal::brep::IntersectionSplitter<M>::interior_partner(id_type halfedge_id_exterior, const vector_type& exterior_direction) const
+quetzal::id_type quetzal::brep::IntersectionSplitter<M>::interior_partner(const id_type halfedge_id_exterior, const vector_type& exterior_direction) const
 {
     id_type halfedge_id_interior = m_mesh.halfedge(halfedge_id_exterior).partner_id();
     assert(halfedge_id_exterior == m_mesh.halfedge(halfedge_id_interior).partner_id());
