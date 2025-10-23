@@ -8,6 +8,8 @@
 !/library/quetzal/brep/**
 !/library/quetzal/common/
 !/library/quetzal/common/**
+!/library/quetzal/game/
+!/library/quetzal/game/**
 !/library/quetzal/geometry/
 !/library/quetzal/geometry/**
 !/library/quetzal/math/
