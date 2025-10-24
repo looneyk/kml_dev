@@ -6,6 +6,7 @@
 //------------------------------------------------------------------------------
 
 #include "quetzal/geometry/Projection.hpp"
+//#include "quetzal/geometry/point_util.hpp"
 #include "quetzal/svg/Document.hpp"
 #include <filesystem>
 #include <string>
@@ -108,7 +109,6 @@ void quetzal::brep::Visualizer<M>::draw_submesh(const submesh_type& submesh)
 template<typename M>
 void quetzal::brep::Visualizer<M>::draw_face(const face_type& face)
 {
-    // draw face id ...
     using p2_type = svg::Document::point_type;
     using v2_type = svg::Document::vector_type;
   
@@ -118,6 +118,7 @@ void quetzal::brep::Visualizer<M>::draw_face(const face_type& face)
     p2_type p1 = p + v2_type{m_font_scale * 100.0, 0.0};
     auto path_text = std::format("M {} {} L {} {}", p0.x(), p0.y(), p1.x(), p1.y());
 
+    // Draw face id
     auto text = std::to_string(face.id());
     m_document.text_path(text, xml::Attribute("path", path_text), xml::Attribute("font-size", std::to_string(m_font_scale)));
     // a start, but incomplete ...
@@ -155,6 +156,7 @@ void quetzal::brep::Visualizer<M>::draw_halfedge(const halfedge_type& halfedge)
     auto left = normalize(cross(normal, forward)); // directed toward interior of face
 
     // project everything just before drawing instead? ...
+    // that would help with halfedge arrows, but still not text ...
 
     auto p0 = projection(position0);
     auto p1 = projection(position1);
@@ -238,7 +240,8 @@ template<typename M>
 quetzal::svg::Document::point_type quetzal::brep::Visualizer<M>::projection(const typename M::point_type& position) const
 {
     auto projected = m_projection(position);
-    return {-projected.x(), projected.y()}; // Should just be -y for SVG inversion, why does this work? ...
+//    return to_cartesian(projected); // vector traits are the same but not being recognized as such ...
+    return {projected.x(), projected.y()}; // Should be -y for SVG coordinate system, why not? ...
 }
 
 #endif // QUETZAL_BREP_VISUALIZER_HPP

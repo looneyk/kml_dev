@@ -29,8 +29,8 @@ namespace quetzal::svg
 
         using value_type = double;
         using vector_traits = math::CartesianTraits<value_type, 2>;
-        using vector_type = math::Vector<vector_traits>;
         using point_type = geometry::Point<vector_traits>;
+        using vector_type = point_type::vector_type;
         using size_type = vector_type;
 
         Document(const size_type& viewport_size = {800.0, 800.0});
@@ -53,6 +53,8 @@ namespace quetzal::svg
         void clear();
 
         // return Element* here instead? ...
+        // just write to document rather than exposing xml publicly? ...
+        // fine for single xml element svg elements ...
         // any need to return anything at all? not currently, except to allow for additional attributes (text args in text_path)
 
         template<typename... Args>
@@ -236,7 +238,7 @@ std::shared_ptr<quetzal::xml::Element> quetzal::svg::Document::text_path(const s
 {
     std::shared_ptr<xml::Element> pelement = m_pelement->add_element("text");
     std::shared_ptr<xml::Element> pelementPath = pelement->add_element("textPath", s);
-    set_attributes(pelementPath, args...);
+    set_attributes(pelementPath, args...); // can there be text args, not just text path args? ...
     return pelement;
 }
 

@@ -184,11 +184,11 @@ namespace quetzal::brep
 //        vector_type forward = {-0.1f, -0.5f, -1.0f};
 //        vector_type forward = {0.5f, -0.5f, -0.75f};
         point_type target = {};
-        point_type eye = {0.35f, 1.0f, 2.0f};
+        point_type eye = {-0.35f, -2.0f, 1.0f};
         auto forward = normalize(target - eye);
-        auto right = normalize(cross(forward, up));
+        auto right = normalize(cross(forward, up)); // no good for looking straight down ...
         up = normalize(cross(right, forward));
-        quetzal::geometry::Orientation<typename M::vector_traits> orientation = {up, right};
+        quetzal::geometry::Orientation<typename M::vector_traits> orientation = {forward, right};
         quetzal::geometry::Projection<typename M::vector_traits> projection(orientation);
         quetzal::brep::Visualizer<M> visualizer(projection, 0.5, 0.25);
         for (id_type submesh_id : submesh_ids)
