@@ -174,19 +174,22 @@ namespace quetzal::brep
     void dump(const M& mesh);
 
     template<typename M>
-    void dump_submesh(const typename M::submesh_type& submesh);
+    void dump_compact(const M& mesh);
 
     template<typename M>
-    void dump_compact(const M& mesh);
+    void dump_structure(const M& mesh);
+
+    template<typename M>
+    void dump_submesh(const M& mesh, id_type submesh_id);
+
+    template<typename M>
+    void dump_submeshes(const M& mesh);
 
     template<typename M>
     void dump_face(const M& mesh, id_type idFace);
 
     template<typename M>
     void dump_faces(const M& mesh);
-
-    template<typename M>
-    void dump_structure(const M& mesh);
 
     template<typename M>
     void mesh_info(const M& mesh);
@@ -1927,30 +1930,6 @@ void quetzal::brep::dump(const M& mesh)
 
 //------------------------------------------------------------------------------
 template<typename M>
-void quetzal::brep::dump_submesh(const typename M::submesh_type& submesh)
-{
-    for (const auto& face : submesh.faces())
-    {
-        write_face<M>(face, std::format("Face[{}]", face.id()));
-
-        for (const auto& halfedge : face.halfedges())
-        {
-//            std::cout << std::format("    halfedge {:>5}, v {:5}, f {:5}, {}", halfedge.id(), halfedge.vertex_id(), halfedge.face_id(), halfedge.vertex_attributes()) << eol;
-// attributes need format support ...
-            std::cout << std::format("    halfedge{:>5}, v {:5}, f {:5}, ", halfedge.id(), halfedge.vertex_id(), halfedge.face_id()) << halfedge.vertex_attributes() << eol;
-        }
-    }
-
-    for (const auto& surface : submesh.surfaces())
-    {
-        write_surface<M>(surface, std::format("Surface[{}]", surface.id()));
-    }
-
-    return;
-}
-
-//------------------------------------------------------------------------------
-template<typename M>
 void quetzal::brep::dump_compact(const M& mesh)
 {
     size_t n = 0;
@@ -2009,6 +1988,101 @@ void quetzal::brep::dump_compact(const M& mesh)
 
 //------------------------------------------------------------------------------
 template<typename M>
+void quetzal::brep::dump_structure(const M& mesh)
+{
+    size_t n = 0;
+    for (const auto& surface : mesh.surface_store())
+    {
+        write_surface<M>(surface, "Surface[" + std::to_string(n++) + ']');
+        if (surface.deleted())
+        {
+            continue;
+        }
+    }
+
+    std::cout << "Surface index" << eol;
+    for (auto i : mesh.surface_index())
+    {
+        std::cout << '\t' << i.second << '\t' << i.first << eol;
+    }
+
+    check_surfaces(mesh);
+
+    n = 0;
+    for (const auto& submesh : mesh.submesh_store())
+    {
+        write_submesh<M>(submesh, "Submesh[" + std::to_string(n++) + ']');
+        if (submesh.deleted())
+        {
+            continue;
+        }
+    }
+
+    std::cout << "Submesh index" << eol;
+    for (auto i : mesh.submesh_index())
+    {
+        std::cout << '\t' << i.second << '\t' << i.first << eol;
+    }
+
+    check_submeshes(mesh);
+    return;
+}
+
+//------------------------------------------------------------------------------
+template<typename M>
+void quetzal::brep::dump_submesh(const M& mesh, id_type id)
+{
+    const auto& submesh = mesh.submesh_store()[id];
+    write_submesh<M>(submesh, std::format("Submesh[{}]", id));
+
+    if (!submesh.deleted())
+    {
+/*
+        for (const auto& face : submesh.faces())
+        {
+            write_face<M>(face, std::format("Face[{}]", face.id()));
+
+            for (const auto& halfedge : face.halfedges())
+            {
+//                std::cout << std::format("    halfedge {:>5}, v {:5}, f {:5}, {}", halfedge.id(), halfedge.vertex_id(), halfedge.face_id(), halfedge.vertex_attributes()) << eol;
+// attributes need format support ...
+                std::cout << std::format("    halfedge{:>5}, v {:5}, f {:5}, ", halfedge.id(), halfedge.vertex_id(), halfedge.face_id()) << halfedge.vertex_attributes() << eol;
+            }
+        }
+
+        for (const auto& surface : submesh.surfaces())
+        {
+            write_surface<M>(surface, std::format("Surface[{}]", surface.id()));
+        }
+*/    
+        for (const auto& hole : submesh.holes())
+        {
+            std::cout << std::format("Hole face {} {} halfedges", hole.face_id(), hole.halfedge_count()) << eol;
+
+            for (const auto& halfedge : hole.halfedges())
+            {
+                std::cout << std::format("    halfedge{:>5}, v {:5}, f {:5}, ", halfedge.id(), halfedge.vertex_id(), halfedge.face_id()) << halfedge.vertex_attributes() << eol;
+            }
+        }
+    }
+
+    return;
+}
+
+//------------------------------------------------------------------------------
+template<typename M>
+void quetzal::brep::dump_submeshes(const M& mesh)
+{
+    for (const auto& submesh : mesh.submesh_store())
+    {
+        dump_submesh(mesh, submesh.id());
+    }
+
+    return;
+}
+
+//------------------------------------------------------------------------------
+template<typename M>
 void quetzal::brep::dump_face(const M& mesh, id_type id)
 {
     const auto& face = mesh.face_store()[id];
@@ -2047,48 +2121,6 @@ void quetzal::brep::dump_faces(const M& mesh)
         dump_face(mesh, face.id());
     }
 
-    return;
-}
-
-//------------------------------------------------------------------------------
-template<typename M>
-void quetzal::brep::dump_structure(const M& mesh)
-{
-    size_t n = 0;
-    for (const auto& surface : mesh.surface_store())
-    {
-        write_surface<M>(surface, "Surface[" + std::to_string(n++) + ']');
-        if (surface.deleted())
-        {
-            continue;
-        }
-    }
-
-    std::cout << "Surface index" << eol;
-    for (auto i : mesh.surface_index())
-    {
-        std::cout << '\t' << i.second << '\t' << i.first << eol;
-    }
-
-    check_surfaces(mesh);
-
-    n = 0;
-    for (const auto& submesh : mesh.submesh_store())
-    {
-        write_submesh<M>(submesh, "Submesh[" + std::to_string(n++) + ']');
-        if (submesh.deleted())
-        {
-            continue;
-        }
-    }
-
-    std::cout << "Submesh index" << eol;
-    for (auto i : mesh.submesh_index())
-    {
-        std::cout << '\t' << i.second << '\t' << i.first << eol;
-    }
-
-    check_submeshes(mesh);
     return;
 }
 
