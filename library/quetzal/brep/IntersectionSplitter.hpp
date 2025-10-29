@@ -177,16 +177,17 @@ namespace quetzal::brep
     //--------------------------------------------------------------------------
     // Add version with parameters for scales and eye position, target position, up vector to generate projection matrix ...
     template<typename M>
-    void visualize(const M& mesh, std::span<id_type> submesh_ids, const std::string& filename)
+    void visualize(const M& mesh, std::span<id_type> submesh_ids, const typename M::point_type& eye, const typename M::point_type& target, const std::string& filename)
     {
         using point_type = M::point_type;
-        auto up = M::vector_type::z_direction(); // maybe better to use right perpendicular to forward in the xy plane? (or an orientation quaternion?) ...
-//        vector_type forward = {-0.1f, -0.5f, -1.0f};
-//        vector_type forward = {0.5f, -0.5f, -0.75f};
-        point_type target = {};
-        point_type eye = {-0.35f, -2.0f, 1.0f};
         auto forward = normalize(target - eye);
-        auto right = normalize(cross(forward, up)); // no good for looking straight down ...
+        auto up = M::vector_type::z_direction();
+        auto right = normalize(cross(forward, up));
+        if (math::float_eq0(right.norm_squared()))
+        {
+            // brute force vertical view correction, should support continuous rotation through vertical ...
+            right = M::vector_type::x_direction();
+        }
         up = normalize(cross(right, forward));
         quetzal::geometry::Orientation<typename M::vector_traits> orientation = {forward, right};
         quetzal::geometry::Projection<typename M::vector_traits> projection(orientation);
@@ -201,6 +202,23 @@ namespace quetzal::brep
 
     //--------------------------------------------------------------------------
     template<typename M>
+    void visualize(const M& mesh, const std::string& name, std::array<id_type, 2> submesh_ids)
+    {
+        typename M::point_type target = {};
+        typename M::point_type eye = {0.5f, -2.0f, 2.0f};
+
+        std::cout << std::format("[svg: {}]", name) << std::endl;
+        auto submesh_ids_visualized = std::vector<id_type>{submesh_ids[0], submesh_ids[1]};
+        visualize(mesh, submesh_ids_visualized, eye, target, std::format("out/{}.svg", name));
+        submesh_ids_visualized = {submesh_ids[0]};
+        visualize(mesh, submesh_ids_visualized, eye, target, std::format("out/{}_a.svg", name));
+        submesh_ids_visualized = {submesh_ids[1]};
+        visualize(mesh, submesh_ids_visualized, eye, target, std::format("out/{}_b.svg", name));
+        return;
+    }
+
+    //--------------------------------------------------------------------------
+    template<typename M>
     ValidationState validate_dump(const M& mesh, const std::string& name)
     {
         std::cout << std::format("[dump: {}]", name) << std::endl;
@@ -209,21 +227,8 @@ namespace quetzal::brep
         OstreamRedirect redirect(std::cout, ofs);
         state = validate(mesh);
         dump_faces(mesh);
+        dump_submeshes(mesh);
         return state;
-    }
-
-    //--------------------------------------------------------------------------
-    template<typename M>
-    void visualize(const M& mesh, const std::string& name, std::array<id_type, 2> submesh_ids)
-    {
-        std::cout << std::format("[svg: {}]", name) << std::endl;
-        auto submesh_ids_visualized = std::vector<id_type>{submesh_ids[0], submesh_ids[1]};
-        visualize(mesh, submesh_ids_visualized, std::format("out/{}.svg", name));
-        submesh_ids_visualized = {submesh_ids[0]};
-        visualize(mesh, submesh_ids_visualized, std::format("out/{}_a.svg", name));
-        submesh_ids_visualized = {submesh_ids[1]};
-        visualize(mesh, submesh_ids_visualized, std::format("out/{}_b.svg", name));
-        return;
     }
 
     //--------------------------------------------------------------------------
@@ -840,6 +845,20 @@ std::cout << std::format("create_intersection_edge next create_edge_connect floa
         return {halfedge_id_exterior, nullid};
     }
 
+    // Intersection along the edge requires a split
+    if (segment.endpoint(1) != vertex_position(m_mesh.halfedge(halfedge_id1)))
+    {
+        assert(to_segment(m_mesh.halfedge(halfedge_id1)).contains(segment.endpoint(1)));
+std::cout << std::format("create_intersection_edge next split_edge_1 h {} {}, pos {}", halfedge_id1, to_segment(m_mesh.halfedge(halfedge_id1)), segment.endpoint(1)) << std::endl;
+        split_edge(m_mesh, halfedge_id1, segment.endpoint(1));
+auto hn = m_mesh.halfedge(halfedge_id1).next();
+auto hp = m_mesh.halfedge(halfedge_id1).partner();
+std::cout << std::format("    created next {} {}, partner {} {}", hn.id(), to_segment(hn), hp.id(), to_segment(hp)) << std::endl;
+//        halfedge_id_tracer = m_mesh.halfedge(halfedge_id1).partner_id();  // probably ok even if the intersection trace folds back into the same face (vertex position is correct) ...
+//assert(vertex_position(m_mesh.halfedge(halfedge_id_tracer)) == segment.endpoint(1));
+        halfedge_id1 = m_mesh.halfedge(halfedge_id1).next_id();
+    }
+
     if (halfedge_id0 == floating.id1)
     {
         // Add the floating section to the face
@@ -850,20 +869,6 @@ std::cout << std::format("create_intersection_edge next create_edge_connect floa
         m_mesh.face(face_id).submesh().remove_hole(floating.id0);
         floating.clear();
         return {halfedge_id_exterior, nullid};
-    }
-
-    // Intersection along the edge requires a split
-    if (segment.endpoint(1) != vertex_position(m_mesh.halfedge(halfedge_id1)))
-    {
-        assert(to_segment(m_mesh.halfedge(halfedge_id1)).contains(segment.endpoint(1)));
-std::cout << std::format("create_intersection_edge next split_edge_1 h {} {}, pos {}", halfedge_id1, to_segment(m_mesh.halfedge(halfedge_id1)), segment.endpoint(1)) << std::endl;
-        split_edge(m_mesh, halfedge_id1, segment.endpoint(1));
-auto hn = m_mesh.halfedge(halfedge_id1).next();
-auto hp = m_mesh.halfedge(halfedge_id1).partner();
-std::cout << std::format("    created next {} {}, partner {} {}", hn.id(), to_segment(hn), hp.id(), to_segment(hp)) << std::endl;
-//        halfedge_id_tracer = m_mesh.halfedge(halfedge_id1).partner_id();  // this is the possible fold back edge case ...
-//assert(vertex_position(m_mesh.halfedge(halfedge_id_tracer)) == segment.endpoint(1));
-        halfedge_id1 = m_mesh.halfedge(halfedge_id1).next_id();
     }
 
     // We now have a vertex to vertex intersection
@@ -1494,6 +1499,9 @@ quetzal::id_type quetzal::brep::IntersectionSplitter<M>::interior_partner(const 
     assert(vertex_position(m_mesh.halfedge(halfedge_id_exterior).next()) == vertex_position(m_mesh.halfedge(halfedge_id_interior)));
     assert(vertex_position(m_mesh.halfedge(halfedge_id_interior).next()) == vertex_position(m_mesh.halfedge(halfedge_id_exterior)));
     assert(direction_compare(direction(m_mesh.halfedge(halfedge_id_exterior)), exterior_direction) > 0);
+auto ve = vertex_position(m_mesh.halfedge(halfedge_id_exterior));
+auto vi = vertex_position(m_mesh.halfedge(halfedge_id_interior));
+auto zzz = direction(m_mesh.halfedge(halfedge_id_exterior));
     assert(float_eq(direction(m_mesh.halfedge(halfedge_id_exterior)), exterior_direction));
     return halfedge_id_interior;
 }
