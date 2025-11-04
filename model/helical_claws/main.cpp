@@ -344,7 +344,7 @@ check_mesh(m);
             for (size_t i = 0; i <= ntSpike; ++i)
             {
                 auto phi = phiSpikeMax * i / ntSpike;
-                auto matrix = g::rotation_z3(phi);
+                auto matrix = g::rotation_z(phi);
 
                 auto& opoint = path[i];
                 opoint.position() += positionSpikeRadial - positionSpikeOrig;
@@ -354,7 +354,7 @@ check_mesh(m);
                 auto& orientation = opoint.orientation();
 // not taking dphi (but not that simple) into account ...
 //                orientation.direction() = normalize(orientation.direction() * matrix);
-auto md = g::rotation_z3(phi * 0.5f);
+auto md = g::rotation_z(phi * 0.5f);
 orientation.direction() = normalize(orientation.direction() * md); // md, not matrix? ...
 
 //vector_type axis = {opoint.position().x(), opoint.position().y(), 0.0f};

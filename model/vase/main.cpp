@@ -183,7 +183,7 @@ r *= 20.0f;
     {
         mesh_type mn = m;
         mn.rename_submesh(mn.submesh_id(name), name + to_string(i));
-        model::transform(mn, math::rotation_z3(i * math::PiHalf<value_type>));
+        model::transform(mn, math::rotation_z(i * math::PiHalf<value_type>));
         mesh.insert(mn);
     }
 

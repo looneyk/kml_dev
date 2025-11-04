@@ -401,11 +401,11 @@ int main(int argc, char* argv[])
 //    append_instance(mesh, m, "body/facez1", "pip/end1", math::translation(0.0f, 0.25f, 0.5f));
 //    append_instance(mesh, m, "body/facez1", "pip/end1", math::translation(0.25f, 0.25f, 0.5f));
     apply_six(mesh, m, "body/facez1", "pip/end1", math::translation(0.0f, 0.0f, 0.5f));
-    apply_six(mesh, m, "body/facez0", "pip/end1", math::rotation_x3(math::Pi<value_type>) * math::translation(0.0f, 0.0f, -0.5f));
-    apply_six(mesh, m, "body/facey1", "pip/end1", math::rotation_z3(math::PiHalf<value_type>) * math::rotation_x(-math::PiHalf<value_type>) * math::translation(0.0f, 0.5f, 0.0f));
-    apply_six(mesh, m, "body/facey0", "pip/end1", math::rotation_z3(math::PiHalf<value_type>) * math::rotation_x(math::PiHalf<value_type>) * math::translation(0.0f, -0.5f, 0.0f));
-    apply_six(mesh, m, "body/facex1", "pip/end1", math::rotation_z3(math::PiHalf<value_type>) * math::rotation_y(math::PiHalf<value_type>) * math::translation(0.5f, 0.0f, 0.0f));
-    apply_six(mesh, m, "body/facex0", "pip/end1", math::rotation_z3(math::PiHalf<value_type>) * math::rotation_y(-math::PiHalf<value_type>) * math::translation(-0.5f, 0.0f, 0.0f));
+    apply_six(mesh, m, "body/facez0", "pip/end1", math::rotation_x(math::Pi<value_type>) * math::translation(0.0f, 0.0f, -0.5f));
+    apply_six(mesh, m, "body/facey1", "pip/end1", math::rotation_z(math::PiHalf<value_type>) * math::rotation_x(-math::PiHalf<value_type>) * math::translation(0.0f, 0.5f, 0.0f));
+    apply_six(mesh, m, "body/facey0", "pip/end1", math::rotation_z(math::PiHalf<value_type>) * math::rotation_x(math::PiHalf<value_type>) * math::translation(0.0f, -0.5f, 0.0f));
+    apply_six(mesh, m, "body/facex1", "pip/end1", math::rotation_z(math::PiHalf<value_type>) * math::rotation_y(math::PiHalf<value_type>) * math::translation(0.5f, 0.0f, 0.0f));
+    apply_six(mesh, m, "body/facex0", "pip/end1", math::rotation_z(math::PiHalf<value_type>) * math::rotation_y(-math::PiHalf<value_type>) * math::translation(-0.5f, 0.0f, 0.0f));
     mesh.pack();
     model::transform(mesh, math::scaling(16.0f));
     triangulate(mesh);

@@ -127,7 +127,7 @@ int main(int argc, char* argv[])
     model::create_box(mesh, "box0", 20.0f, 20.0f, 20.0f);
     m.clear();
     model::create_box(m, "box1", 20.0f, 20.0f, 20.0f);
-    model::transform(m, geometry::rotation_z3(math::PiFourth<float>) * geometry::translation(7.0f, 7.0f, 20.0f));
+    model::transform(m, geometry::rotation_z(math::PiFourth<float>) * geometry::translation(7.0f, 7.0f, 20.0f));
     mesh.insert(m);
     attach_x(mesh, "box0/top", "box1/bottom");
     triangulate(mesh);
@@ -139,7 +139,7 @@ int main(int argc, char* argv[])
     model::create_box(mesh, "box0", 20.0f, 20.0f, 20.0f);
     m.clear();
     model::create_box(m, "box1", 20.0f, 20.0f, 20.0f);
-    model::transform(m, geometry::rotation_z3(math::PiFourth<float>) * geometry::translation(13.0f, 13.0f, 20.0f));
+    model::transform(m, geometry::rotation_z(math::PiFourth<float>) * geometry::translation(13.0f, 13.0f, 20.0f));
     mesh.insert(m);
     attach_x(mesh, "box0/top", "box1/bottom");
     triangulate(mesh);
@@ -151,7 +151,7 @@ int main(int argc, char* argv[])
     model::create_box(mesh, "box0", 20.0f, 20.0f, 20.0f);
     m.clear();
     model::create_box(m, "box1", 20.0f, 20.0f, 20.0f);
-    model::transform(m, geometry::rotation_z3(math::PiFourth<float>) * geometry::translation(0.0f, 0.0f, 20.0f));
+    model::transform(m, geometry::rotation_z(math::PiFourth<float>) * geometry::translation(0.0f, 0.0f, 20.0f));
     mesh.insert(m);
     attach_x(mesh, "box0/top", "box1/bottom");
     triangulate(mesh);
@@ -163,7 +163,7 @@ int main(int argc, char* argv[])
     model::create_box(mesh, "box0", 20.0f, 20.0f, 20.0f);
     m.clear();
     model::create_box(m, "box1", 20.0f, 20.0f, 20.0f);
-    model::transform(m, geometry::rotation_z3(math::PiFourth<float>) * geometry::translation(10.0f, 10.0f, 20.0f));
+    model::transform(m, geometry::rotation_z(math::PiFourth<float>) * geometry::translation(10.0f, 10.0f, 20.0f));
     mesh.insert(m);
     attach_x(mesh, "box0/top", "box1/bottom");
     triangulate(mesh);
@@ -175,7 +175,7 @@ int main(int argc, char* argv[])
     model::create_box(mesh, "box0", 20.0f, 20.0f, 20.0f);
     m.clear();
     model::create_box(m, "box1", 20.0f, 20.0f, 20.0f);
-    model::transform(m, geometry::rotation_z3(math::PiFourth<float>) * geometry::translation(-10.0f, 10.0f, 20.0f));
+    model::transform(m, geometry::rotation_z(math::PiFourth<float>) * geometry::translation(-10.0f, 10.0f, 20.0f));
     mesh.insert(m);
     attach_x(mesh, "box0/top", "box1/bottom");
     triangulate(mesh);
@@ -187,7 +187,7 @@ int main(int argc, char* argv[])
     model::create_box(mesh, "box0", 20.0f, 20.0f, 20.0f);
     m.clear();
     model::create_box(m, "box1", 20.0f, 20.0f, 20.0f);
-    model::transform(m, geometry::rotation_z3(math::PiFourth<float>) * geometry::translation(10.0f, -4.1421356f, 20.0f));
+    model::transform(m, geometry::rotation_z(math::PiFourth<float>) * geometry::translation(10.0f, -4.1421356f, 20.0f));
     mesh.insert(m);
     attach_x(mesh, "box0/top", "box1/bottom");
     triangulate(mesh);
@@ -199,7 +199,7 @@ int main(int argc, char* argv[])
     model::create_box(mesh, "box0", 20.0f, 20.0f, 20.0f);
     m.clear();
     model::create_box(m, "box1", 20.0f, 20.0f, 20.0f);
-    model::transform(m, geometry::rotation_z3(math::PiFourth<float>) * geometry::translation(-10.0f, -4.1421356f, 20.0f));
+    model::transform(m, geometry::rotation_z(math::PiFourth<float>) * geometry::translation(-10.0f, -4.1421356f, 20.0f));
     mesh.insert(m);
     attach_x(mesh, "box0/top", "box1/bottom");
     triangulate(mesh);

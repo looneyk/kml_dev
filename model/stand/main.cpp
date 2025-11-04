@@ -142,7 +142,7 @@ dump(mStrut);
         {
             m = mStrut;
             m.rename_submesh(0, "strut_" + to_string(i));
-            matrix = math::rotation_z3(value_type(i) / value_type(nStruts) * math::PiTwo<value_type>);
+            matrix = math::rotation_z(value_type(i) / value_type(nStruts) * math::PiTwo<value_type>);
             model::transform(m, matrix);
             mesh.insert(m);
         }

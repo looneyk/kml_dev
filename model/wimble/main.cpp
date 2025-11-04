@@ -82,7 +82,7 @@ namespace
         {
             size_t n = i * nPointsFlute;
             float phi = math::PiTwo<float> * i / nFlutes;
-            auto matrix = geometry::rotation_z3(phi);
+            auto matrix = geometry::rotation_z(phi);
 
             for (size_t j = 0; j < nPointsFlute; ++j)
             {

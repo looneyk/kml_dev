@@ -139,7 +139,7 @@ namespace
 
                     value_type phi = atan2(vFaceOriented.y(), vFaceOriented.x()) + atan2(vBase.y(), vBase.x());
 
-                    model::tuskify(mSpike, axisRotationBase * math::rotation_z3(-phi), tuskification, 0.0f, dzSpike);
+                    model::tuskify(mSpike, axisRotationBase * math::rotation_z(-phi), tuskification, 0.0f, dzSpike);
                 }
 
                 // Rotate spike to align with normal and translate spike to face position

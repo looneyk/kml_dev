@@ -250,7 +250,7 @@ namespace
             for (size_t i = 0; i <= ntSpike; ++i)
             {
                 auto phi = phiSpikeMax * i / ntSpike;
-                auto matrix = g::rotation_z3(phi);
+                auto matrix = g::rotation_z(phi);
 
                 auto& op = path[i];
                 op.position() += positionSpikeRadial - positionSpikeOrig;
@@ -260,7 +260,7 @@ const auto positionOrig = op.position();
                 auto& orientation = op.orientation();
 // not taking dphi (but not that simple) into account ...
 //                orientation.direction() = normalize(orientation.direction() * matrix);
-auto md = g::rotation_z3(phi * 0.5f);
+auto md = g::rotation_z(phi * 0.5f);
 orientation.direction() = normalize(orientation.direction() * md);
 
 //vector_type axis = {op.position().x(), op.position().y(), 0.0f};
@@ -468,7 +468,7 @@ path[i] = {scale(position, dzSpike), {normalize(direction), right}};
             value_type phi = t * revs * math::PiTwo<value_type>;
             phi *= value_type(2 * nAzimuth - 1) / (2 * nAzimuth);
 
-            auto matrix = g::translation(to_vector(position)) * g::rotation_z3(phi);
+            auto matrix = g::translation(to_vector(position)) * g::rotation_z(phi);
             model::transform(mSpike, matrix);
 
             m.insert(mSpike);

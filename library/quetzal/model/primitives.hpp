@@ -1677,9 +1677,9 @@ quetzal::id_type quetzal::model::create_cylinder(M& mesh, const std::string& nam
     T a0 = fa(T(0));
     T a1 = fa(t);
 
-    auto matrix0 = geometry::scaling(r0) * geometry::rotation_z3(math::PiTwo<T> * a0);
-    auto matrix1 = geometry::scaling(r1) * geometry::rotation_z3(math::PiTwo<T> * a1);
- 
+    auto matrix0 = geometry::scaling(r0) * geometry::rotation_z(math::PiTwo<T> * a0);
+    auto matrix1 = geometry::scaling(r1) * geometry::rotation_z(math::PiTwo<T> * a1);
+
     bool cusped_lower = math::float_eq0(fr(T(0)));
     bool cusped_upper = math::float_eq0(fr(T(1)));
     assert(nz > 1 || !cusped_lower || !cusped_upper);
@@ -1725,7 +1725,7 @@ quetzal::id_type quetzal::model::create_cylinder(M& mesh, const std::string& nam
 
         r1 = fr(t);
         a1 = fa(t);
-        matrix1 = geometry::scaling(r1) * geometry::rotation_z3(math::PiTwo<T> * a1);
+        matrix1 = geometry::scaling(r1) * geometry::rotation_z(math::PiTwo<T> * a1);
 
         j0_orig = m.halfedge_store_count();
 
@@ -1968,9 +1968,9 @@ quetzal::id_type quetzal::model::create_cylinder_sections(M& mesh, const std::st
     T a0 = fa(T(0));
     T a1 = fa(t);
 
-    auto matrix0 = geometry::scaling(r0) * geometry::rotation_z3(math::PiTwo<T> * a0);
-    auto matrix1 = geometry::scaling(r1) * geometry::rotation_z3(math::PiTwo<T> * a1);
- 
+    auto matrix0 = geometry::scaling(r0) * geometry::rotation_z(math::PiTwo<T> * a0);
+    auto matrix1 = geometry::scaling(r1) * geometry::rotation_z(math::PiTwo<T> * a1);
+
     bool cusped_lower = math::float_eq0(fr(T(0)));
     bool cusped_upper = math::float_eq0(fr(T(1)));
     assert(nz > 1 || !cusped_lower || !cusped_upper);
@@ -2016,7 +2016,7 @@ quetzal::id_type quetzal::model::create_cylinder_sections(M& mesh, const std::st
 
         r1 = fr(t);
         a1 = fa(t);
-        matrix1 = geometry::scaling(r1) * geometry::rotation_z3(math::PiTwo<T> * a1);
+        matrix1 = geometry::scaling(r1) * geometry::rotation_z(math::PiTwo<T> * a1);
 
         j0_orig = m.halfedge_store_count();
 

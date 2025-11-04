@@ -52,7 +52,7 @@ namespace
 
         r *= sin(t * azimuthArc);
 
-        auto matrixRotation = geometry::rotation_z3(phi);
+        auto matrixRotation = geometry::rotation_z(phi);
         auto matrixPosition = matrixRotation * geometry::translation(r * cos(phi), r * sin(phi), 0.0f);
         auto matrixDirection = geometry::direction_matrix(matrixPosition);
 
@@ -168,7 +168,7 @@ namespace
     //--------------------------------------------------------------------------
     void position_coil(mesh_type& mesh, value_type phi)
     {
-        auto matrix = geometry::rotation_z3(phi);
+        auto matrix = geometry::rotation_z(phi);
         model::transform(mesh, matrix, matrix);
         return;
     }

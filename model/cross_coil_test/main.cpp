@@ -61,7 +61,7 @@ namespace
     //--------------------------------------------------------------------------
     void position_coil(mesh_type& mesh, float phi)
     {
-        auto matrix = math::rotation_z3(phi);
+        auto matrix = math::rotation_z(phi);
         model::transform(mesh, matrix, matrix);
         return;
     }

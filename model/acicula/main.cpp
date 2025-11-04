@@ -461,7 +461,7 @@ namespace
                 auto position = vertex.attributes().position();
                 auto t = position.z() / z1;
                 auto r = lerp(rOuter0, rOuter1, t);
-                auto matrix = g::rotation_z3(phi) * g::translation(r * cos(phi), r * sin(phi), 0.0);
+                auto matrix = g::rotation_z(phi) * g::translation(r * cos(phi), r * sin(phi), 0.0);
                 vertex.attributes().set_position(position * matrix);
             }
 
@@ -491,7 +491,7 @@ namespace
                 auto position = vertex.attributes().position();
                 auto t = position.z() / z1;
                 auto r = lerp(rPlacement0, rPlacement1, t);
-                auto matrix = g::rotation_z3(math::Pi<value_type>) * g::translation(r, 0.0, 0.0) * g::rotation_z3(phi);
+                auto matrix = g::rotation_z(math::Pi<value_type>) * g::translation(r, 0.0, 0.0) * g::rotation_z(phi);
                 vertex.attributes().set_position(position * matrix);
             }
 

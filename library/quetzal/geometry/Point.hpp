@@ -966,7 +966,8 @@ quetzal::geometry::Point<Traits> quetzal::geometry::scale(Point<Traits> point, t
 template<typename Traits>
 quetzal::geometry::Point<Traits> quetzal::geometry::projective_divide(Point<Traits> point) requires (Traits::size == Traits::dimension + 1)
 {
-    return Traits::prepare(point.rep());
+    Traits::prepare(point.rep());
+    return point;
 }
 
 //------------------------------------------------------------------------------

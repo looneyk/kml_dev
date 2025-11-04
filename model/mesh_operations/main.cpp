@@ -3,7 +3,7 @@
 // main.cpp
 //------------------------------------------------------------------------------
 
-#define REGRESSION_TESTS
+//#define REGRESSION_TESTS
 #define DEBUG_VALIDATE_DUMP
 #define DEBUG_VISUALIZE
 
@@ -95,9 +95,11 @@ namespace g = quetzal::geometry;
 #define BOX_TORUS_2
 // Both entire points intersection within a face and regular intersection, and tests multiple intersection traces in the same original faces
 //#define BOX_TORUS_3
+#define BOX_TORUS_4
 #define DISJOINT
 #define INCLUSION
 #else
+#define BOX_TORUS_3
 #define BOX_TORUS_4
 //#define BOX_BOX_FACE_FACE
 #endif
@@ -558,8 +560,8 @@ int main(int argc, char* argv[])
         string name_a = "box_a";
         string name_b = "torus_b";
         mesh.clear();
-        id_type submesh_id_a = model::create_box(mesh, name_a, 32.0f, 32.0f, 8.0f);
-        model::transform(mesh.submesh(submesh_id_a), g::translation(5.0f, 0.0f, 0.0f));
+        id_type submesh_id_a = model::create_box(mesh, name_a, 32.0f, 32.0f, 7.8f); // 8
+        model::transform(mesh.submesh(submesh_id_a), g::translation(5.1f, 0.0f, 0.0f)); // 5
         id_type submesh_id_b = model::create_torus(mesh, name_b, 24, 8, 10.0f, 2.0f);
         model::transform(mesh.submesh(submesh_id_b), g::rotation_axis(vector_type::x_direction(), -math::PiHalf<value_type>));
         return {submesh_id_a, submesh_id_b};

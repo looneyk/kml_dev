@@ -123,7 +123,7 @@ namespace
             value_type phi = math::PiTwo<value_type> * value_type(i) / value_type(nAzimuth);
 
             M m = mUpper;
-            matrix = math::rotation_z3(phi);
+            matrix = math::rotation_z(phi);
             model::transform(m, matrix);
             mesh.insert(m);
 
@@ -132,7 +132,7 @@ namespace
             mesh.insert(m);
 
             m = mSide;
-            matrix = math::rotation_z3(phi + math::Pi<value_type> / value_type(nAzimuth));
+            matrix = math::rotation_z(phi + math::Pi<value_type> / value_type(nAzimuth));
             model::transform(m, matrix);
             mesh.insert(m);
         }

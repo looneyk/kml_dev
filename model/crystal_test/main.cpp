@@ -86,7 +86,7 @@ namespace
 
                 auto matrixRotationY = math::rotation_axis(axis, theta);
                 auto matrixTranslation = math::translation(position);
-                auto matrixRotationZ = math::rotation_z3(phi);
+                auto matrixRotationZ = math::rotation_z(phi);
 
                 model::transform(m, matrixRotationY * matrixTranslation * matrixRotationZ);
                 brep::clip(m, geometry::Plane<float>({0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, -1.0f}));

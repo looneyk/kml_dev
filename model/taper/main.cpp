@@ -278,7 +278,7 @@ namespace
 
             auto phi = math::PiTwo<value_type> * i / nAzimuth;
             auto theta = atan2(zUpper, radius);
-            auto matrix = geometry::scaling(1.0f, 0.6f, 0.6f) * geometry::rotation_y(theta) * geometry::translation(radius * 0.5f, 0.0f, zUpper * 0.4f) * geometry::rotation_z3(phi);
+            auto matrix = geometry::scaling(1.0f, 0.6f, 0.6f) * geometry::rotation_y(theta) * geometry::translation(radius * 0.5f, 0.0f, zUpper * 0.4f) * geometry::rotation_z(phi);
 
             model::transform(mx, matrix);
             mesh.insert(mx);

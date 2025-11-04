@@ -26,11 +26,11 @@ namespace quetzal::math
 
         static_assert(M > 0 && N > 0);
 
-        using value_type = T;
         static constexpr size_t rows = M;
         static constexpr size_t cols = N;
         static constexpr bool square = (M == N);
 
+        using value_type = T;
         using submatrix_type = Matrix<T, M - 1, N - 1>;
 
         constexpr Matrix();
@@ -71,7 +71,7 @@ namespace quetzal::math
 
         Matrix& operator*=(const Matrix& other) requires Matrix<T, M, N>::square;
 
-        bool identity() const requires Matrix<T, M, N>::square;
+        bool identity() const;
 
         Matrix& transpose() requires Matrix<T, M, N>::square;
         Matrix& inverse() requires Matrix<T, M, N>::square;
@@ -328,8 +328,13 @@ quetzal::math::Matrix<T, M, N>& quetzal::math::Matrix<T, M, N>::operator*=(const
 
 //------------------------------------------------------------------------------
 template<typename T, size_t M, size_t N>
-bool quetzal::math::Matrix<T, M, N>::identity() const requires Matrix<T, M, N>::square
+bool quetzal::math::Matrix<T, M, N>::identity() const
 {
+    if (!Matrix<T, M, N>::square)
+    {
+        return false;
+    }
+
     size_t k = 0;
     constexpr size_t stride = rows + 1;
     for (size_t i = 0; i < m_rep.size(); ++i)
@@ -447,17 +452,7 @@ typename quetzal::math::Matrix<T, M, N>::value_type quetzal::math::Matrix<T, M, 
 template<typename T, size_t M, size_t N>
 constexpr quetzal::math::Matrix<T, M, N> quetzal::math::Matrix<T, M, N>::Identity() requires Matrix<T, M, N>::square
 {
-    Matrix<T, M, N> matrix;
-
-    size_t k = 0;
-    constexpr size_t stride = cols + 1;
-    for (size_t i = 0; i < M; ++i)
-    {
-        matrix.m_rep[k] = T(1);
-        k += stride;
-    }
-
-    return matrix;
+    return Matrix<T, M, N>(1);
 }
 
 //------------------------------------------------------------------------------

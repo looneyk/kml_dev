@@ -325,7 +325,7 @@ namespace
         vector_type t0 = {0.0f, 0.0f, 1.0f};
         vector_type c0 = math::normalize<vector_traits>({1.0f, 1.0f, 1.0f});
         auto right = normalize(cross(c0, t0));
-        auto matrix = geometry::alignment(c0, right, t0, right) * geometry::rotation_z3(3.0f * math::PiFourth<float>);
+        auto matrix = geometry::alignment(c0, right, t0, right) * geometry::rotation_z(3.0f * math::PiFourth<float>);
 
         mesh_type mc;
         float side = radius * ratio * 2.0f / sqrt(3.0f);

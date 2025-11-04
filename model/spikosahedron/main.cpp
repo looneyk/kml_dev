@@ -133,7 +133,7 @@ namespace
                 rightFaceOriented *= geometry::rotation_axis_unit(axisRotationBase, -theta); // Rotate face parallel to xy-plane
                 value_type phi = atan2(rightFaceOriented.y(), rightFaceOriented.x()) - atan2(rightSpike.y(), rightSpike.x());
 
-                model::tuskify(mSpike, axisRotationBase * geometry::rotation_z3(-phi), tuskification, 0.0f, dzSpike);
+                model::tuskify(mSpike, axisRotationBase * geometry::rotation_z(-phi), tuskification, 0.0f, dzSpike);
             }
 
             // Rotate spike to align with face normal and translate spike to face position
