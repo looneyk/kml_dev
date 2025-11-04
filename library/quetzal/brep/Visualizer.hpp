@@ -5,10 +5,10 @@
 // visualizer.hpp
 //------------------------------------------------------------------------------
 
-#include "quetzal/geometry/Projection.hpp"
 //#include "quetzal/geometry/point_util.hpp"
 #include "quetzal/svg/Document.hpp"
 #include <filesystem>
+#include <functional>
 #include <string>
 
 namespace quetzal::brep
@@ -22,7 +22,9 @@ namespace quetzal::brep
         using submesh_type = M::submesh_type;
         using face_type = M::face_type;
         using halfedge_type = M::halfedge_type;
-        using projection_type = geometry::Projection<typename M::vector_traits>;
+        using projected_traits = M::vector_traits::template resized_traits<M::vector_traits::dimension - 1>;
+        using projected_type = geometry::Point<projected_traits>;
+        using projection_type = std::function<projected_type(const typename M::point_type&)>;
 
         Visualizer(const projection_type& projection, double detail_scale, double font_scale);
         Visualizer(const Visualizer&) = default;
@@ -156,7 +158,9 @@ void quetzal::brep::Visualizer<M>::draw_halfedge(const halfedge_type& halfedge)
     auto left = normalize(cross(normal, forward)); // directed toward interior of face
 
     // project everything just before drawing instead? ...
-    // that would help with halfedge arrows, but still not text ...
+    // that might help with halfedge arrows ...
+    // use forward instead of forward2 for arrow positions, then project, and similarly for text positions ...
+    // still need a better way to orient text ...
 
     auto p0 = projection(position0);
     auto p1 = projection(position1);
