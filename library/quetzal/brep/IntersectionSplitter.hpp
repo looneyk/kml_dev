@@ -20,6 +20,7 @@
 #include "quetzal/math/floating_point.hpp"
 #include <array>
 #include <format>
+#include <optional>
 #include <set>
 #include <tuple>
 #include <vector>
@@ -32,10 +33,10 @@
 namespace quetzal::brep
 {
 
-    // A connection is a matched pair of submesh borders identified by the first border halfedges of each submesh's exterior and interior fragments
+    // A connection is a matched pair of submesh borders identified by the first border halfedges of each submesh's exterior and interior fragments.
 
     // New halfedge pairs are created coupled as normal so that all linkage is available if necessary. Then uncouple is called just before returning.
-    // Intersection points should be clamped to vertex positions when possible so that exact comparisons can be made ...
+    // Intersection points should be clamped to vertex positions wherever possible so that exact comparisons can be made.
 
     //--------------------------------------------------------------------------
     template<typename M>
@@ -175,22 +176,32 @@ namespace quetzal::brep
     };
 
     //--------------------------------------------------------------------------
-    // Add version with parameters for scales and eye position, target position, up vector to generate projection matrix ...
+    // Add parameter for right vector ...
     template<typename M>
-    void visualize(const M& mesh, std::span<id_type> submesh_ids, const typename M::point_type& eye, const typename M::point_type& target, const std::string& filename)
+    void visualize(const M& mesh, std::span<id_type> submesh_ids, const typename M::point_type& eye, const typename M::point_type& target, std::optional<typename M::value_type> fov, const std::string& filename)
     {
         using point_type = M::point_type;
+
         auto forward = normalize(target - eye);
         auto up = M::vector_type::z_direction();
         auto right = normalize(cross(forward, up));
         if (math::float_eq0(right.norm_squared()))
         {
-            // brute force vertical view correction, should support continuous rotation through vertical ...
-            right = M::vector_type::x_direction();
+            // brute force vertical view correction, should support continuous rotation through vertical, but we don't have enough information here ...
+            // should at least be perpendicular, not fixed ...
+            right = M::vector_type::x_direction(); // ...
         }
-        up = normalize(cross(right, forward));
         quetzal::geometry::Orientation<typename M::vector_traits> orientation = {forward, right};
-        quetzal::geometry::Projection<typename M::vector_traits> projection(orientation);
+        quetzal::geometry::Projection<typename M::vector_traits> projection;
+        if (fov)
+        {
+            quetzal::geometry::OrientedPoint<typename M::vector_traits> viewpoint = {eye, orientation};
+            projection.init(viewpoint, fov.value());
+        }
+        else
+        {
+            projection.init(orientation);
+        }
         quetzal::brep::Visualizer<M> visualizer(projection, 0.5, 0.25);
         for (id_type submesh_id : submesh_ids)
         {
@@ -204,16 +215,19 @@ namespace quetzal::brep
     template<typename M>
     void visualize(const M& mesh, const std::string& name, std::array<id_type, 2> submesh_ids)
     {
+        typename M::point_type eye = {0.5f, -2.0f, 1.5f};
+        eye.scale(10.0f);
         typename M::point_type target = {};
-        typename M::point_type eye = {0.5f, -2.0f, 2.0f};
+        std::optional<typename M::value_type> fov = std::nullopt;
+//        std::optional<typename M::value_type> fov = math::PiHalf<typename M::value_type>;
 
         std::cout << std::format("[svg: {}]", name) << std::endl;
         auto submesh_ids_visualized = std::vector<id_type>{submesh_ids[0], submesh_ids[1]};
-        visualize(mesh, submesh_ids_visualized, eye, target, std::format("out/{}.svg", name));
+        visualize(mesh, submesh_ids_visualized, eye, target, fov, std::format("out/{}.svg", name));
         submesh_ids_visualized = {submesh_ids[0]};
-        visualize(mesh, submesh_ids_visualized, eye, target, std::format("out/{}_a.svg", name));
+        visualize(mesh, submesh_ids_visualized, eye, target, fov, std::format("out/{}_a.svg", name));
         submesh_ids_visualized = {submesh_ids[1]};
-        visualize(mesh, submesh_ids_visualized, eye, target, std::format("out/{}_b.svg", name));
+        visualize(mesh, submesh_ids_visualized, eye, target, fov, std::format("out/{}_b.svg", name));
         return;
     }
 
@@ -297,7 +311,7 @@ assert(debug_log(m_mesh, std::format("model{}", m_stage_count++), submesh_ids).v
                 m_face_id_pairs_checked.insert({face_id_a, face_id_b});
 //std::cout << std::format("m_face_id_pairs_checked {} inserted {{{}, {}}}", m_face_id_pairs_checked.size(), id_string(face_id_a), id_string(face_id_b)) << std::endl;
 
-                // Quick but incomplete check
+                // Quick but incomprehensive bounding box check
                 if (disjoint(m_mesh.face(face_id_a).bounds(), m_mesh.face(face_id_b).bounds()))
                 {
                     continue;
@@ -349,7 +363,7 @@ std::cout << std::format("trace_direction {}", trace_direction) << std::endl;
     auto ix0 = find_first_connection_intersection(face_id_a, face_id_b, trace_direction);
     if (!ix0)
     {
-        return {}; // This is legitimate here as only an incomplete test is done above
+        return {};
     }
 
     // if the segment was discarded because of reversed direction, we can just jump to the partner and start there instead of iterating through the rest of the faces ...
