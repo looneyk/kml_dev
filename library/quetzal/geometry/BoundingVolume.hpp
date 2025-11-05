@@ -28,6 +28,8 @@ namespace quetzal::geometry
         BoundingVolume& operator=(const BoundingVolume&) = default;
         BoundingVolume& operator=(BoundingVolume&&) = default;
 
+        virtual point_type centroid() const = 0;
+
         virtual void clear() = 0;
 
         // Returns less, equivalent, greater for interior, boundary, exterior respectively

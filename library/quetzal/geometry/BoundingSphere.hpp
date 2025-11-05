@@ -40,6 +40,8 @@ namespace quetzal::geometry
 
         void set_bounds(const point_type& center, value_type radius);
 
+        point_type centroid() const override;
+
         void clear() override;
 
         // Returns -1, 0, 1: interior, boundary, exterior
@@ -109,6 +111,13 @@ void quetzal::geometry::BoundingSphere<Traits>::set_bounds(const point_type& cen
     m_center = center;
     m_radius = radius;
     return;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+typename quetzal::geometry::BoundingSphere<Traits>::point_type quetzal::geometry::BoundingSphere<Traits>::centroid() const
+{
+    return m_center;
 }
 
 //------------------------------------------------------------------------------

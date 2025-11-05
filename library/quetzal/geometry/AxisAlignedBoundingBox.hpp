@@ -54,6 +54,8 @@ namespace quetzal::geometry
         void insert(std::span<const point_type> points);
         void insert(const AxisAlignedBoundingBox& bounds);
 
+        point_type centroid() const override;
+
         void clear() override;
 
         // Returns less, equivalent, greater for interior, boundary, exterior respectively
@@ -213,6 +215,13 @@ void quetzal::geometry::AxisAlignedBoundingBox<Traits>::insert(const AxisAligned
     m_lower = min(m_lower, bounds.lower());
     m_upper = max(m_upper, bounds.upper());
     return;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+typename quetzal::geometry::AxisAlignedBoundingBox<Traits>::point_type quetzal::geometry::AxisAlignedBoundingBox<Traits>::centroid() const
+{
+    return lerp(m_lower, m_upper, Traits::val(0.5));
 }
 
 //------------------------------------------------------------------------------
