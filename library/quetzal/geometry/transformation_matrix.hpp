@@ -23,19 +23,20 @@
 
 namespace quetzal::geometry
 {
+
+    template<typename Traits>
+    concept Homogeneous = (Traits::size == Traits::dimension + 1);
+
     template<size_t N>
     concept TransformationMatrixSize = (N == 2 || N == 3 || N == 4);
 
     template<typename M>
     concept TransformationMatrix = (M::square && TransformationMatrixSize<M::rows>);
 
-    template<typename Traits>
-    concept Homogeneous = (Traits::size == Traits::dimension + 1);
-
     template<typename Traits> requires (Homogeneous<Traits> && TransformationMatrixSize<Traits::size>)
     using transformation_matrix_type = math::Matrix<typename Traits::value_type, Traits::size, Traits::size>;
 
-    template<typename M> requires (M::square)
+    template<TransformationMatrix M>
     static constexpr size_t transformation_dimension = M::rows - 1;
 
     // The functions here with either zero or one T parameter are ambiguous as far as dimensionality ...
@@ -122,19 +123,19 @@ namespace quetzal::geometry
     math::Matrix<T, 4> reflection_z3();
 
 //    template<typename Traits> requires (Traits::dimension == 2)
-//    transformation_matrix_type<Traits> reflection(const geometry::Line<Traits>& line);
+//    transformation_matrix_type<Traits> reflection(const geometry::Point<Traits>& point);
 
 //    template<typename Traits> requires (Traits::dimension == 2)
+//    transformation_matrix_type<Traits> reflection(const geometry::Line<Traits>& line);
+
+//    template<typename Traits> requires (Traits::dimension == 3)
 //    transformation_matrix_type<Traits> reflection(const geometry::Point<Traits>& point);
+
+//    template<typename Traits> requires (Traits::dimension == 3)
+//    transformation_matrix_type<Traits> reflection(const geometry::Line<Traits>& line);
 
 //    template<typename Traits> requires (Traits::dimension == 3)
 //    transformation_matrix_type<Traits> reflection(const geometry::Plane<Traits>& plane);
-
-//    template<typename Traits> requires (Traits::dimension == 3)
-//    transformation_matrix_type<Traits> reflection(const geometry::Line<Traits>& line);
-
-//    template<typename Traits> requires (Traits::dimension == 3)
-//    transformation_matrix_type<Traits> reflection(const geometry::Point<Traits>& point);
 
     // Transformation matrix for rotating from to coincide with to
     // vectors need to be unit length
@@ -161,8 +162,8 @@ namespace quetzal::geometry
     // projection plane is at z = 1 (check this) ...
     // should probably get rid of "standard" and just add viewpoint, and then clipping planes ...
     // wip ...
-    template<TransformationMatrix M> requires (M::rows == 4)
-    M standard_perspective(typename M::value_type fov);
+    template<typename T>
+    math::Matrix<T, 4> standard_perspective(T fov);
 
 // deprecated ...
 // enabled only until affine_mapping is implemented ...
@@ -688,14 +689,12 @@ quetzal::geometry::transformation_matrix_type<Traits> quetzal::geometry::alignme
 }
 
 //------------------------------------------------------------------------------
-template<quetzal::geometry::TransformationMatrix M> requires (M::rows == 4) 
-M quetzal::geometry::standard_perspective(typename M::value_type fov)
+template<typename T>
+quetzal::math::Matrix<T, 4> quetzal::geometry::standard_perspective(T fov)
 {
-    using T = M::value_type;
-
     T s = T(1) / tan(fov / T(2));
 
-    M matrix(1);
+    quetzal::math::Matrix<T, 4> matrix;
     matrix(0, 0) = s;
     matrix(1, 1) = s;
     matrix(2, 2) = T(-1);

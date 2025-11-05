@@ -5,7 +5,7 @@
 // Projection.hpp
 //------------------------------------------------------------------------------
 
-// Orthographic projection
+// Orthographic and perspective projection
 // Projects 3D points onto the 2D xy-plane
 
 #include "Orientation.hpp"
@@ -27,15 +27,20 @@ namespace quetzal::geometry
     {
     public:
 
+        using value_type = Traits::value_type;
         using point_type = Point<Traits>;
         using vector_type = point_type::vector_type;
+        using matrix_type = transformation_matrix_type<Traits>;
         using projected_traits = Traits::template resized_traits<Traits::dimension - 1>;
         using projected_type = Point<projected_traits>;
+
+        // orthographic and perspective projections have orientation in opposite directions ...
 
         Projection(); // orthographic projection onto xy-plane along z-axis
         Projection(const vector_type& normal); // orthographic projection onto the most perpendicular axis plane, then transformed to xy-plane
         Projection(const Orientation<Traits>& orientation); // orthographic projection where orientation direction and right are transformed to z-axis and x-axis respectively
         Projection(const OrientedPoint<Traits>& oriented_point); // orthographic projection as above, but centered at the oriented point position
+        Projection(const OrientedPoint<Traits>& viewpoint, value_type fov); // perspective projection, and strictly that, no clipping or scaling
         Projection(const Projection&) = default;
         Projection(Projection&&) = default;
 
@@ -45,8 +50,13 @@ namespace quetzal::geometry
         void init(const vector_type& normal);
         void init(const Orientation<Traits>& orientation);
         void init(const OrientedPoint<Traits>& oriented_point);
+        void init(const OrientedPoint<Traits>& viewpoint, value_type fov);
 
         projected_type operator()(const point_type& point) const;
+
+        // most of these already use a matrix, just store and expose it ...
+        // matrices would have to be 3D -> 2D and the static project functions would need to be converted to use matrix ...
+//        matrix_type matrix() const;
 
     private:
 
@@ -97,6 +107,14 @@ quetzal::geometry::Projection<Traits>::Projection(const OrientedPoint<Traits>& o
 
 //------------------------------------------------------------------------------
 template<typename Traits> requires (Traits::dimension == 3)
+quetzal::geometry::Projection<Traits>::Projection(const OrientedPoint<Traits>& viewpoint, value_type fov) :
+    m_project{}
+{
+    init(viewpoint, fov);
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits> requires (Traits::dimension == 3)
 void quetzal::geometry::Projection<Traits>::init(const vector_type& normal)
 {
     assert(normal.unit());
@@ -132,8 +150,7 @@ void quetzal::geometry::Projection<Traits>::init(const Orientation<Traits>& orie
     auto matrix = alignment(orientation, {});
     m_project = [matrix](const point_type& point) -> projected_type {
         auto transformed = point * matrix;
-//        assert(math::float_eq0(transformed.z()));
-//        assert(math::float_eq(transformed.w(), Traits::value_type(1)));
+        assert(math::float_eq(transformed.w(), Traits::value_type(1)));
         return {transformed.x(), transformed.y()};
     };
 
@@ -147,9 +164,28 @@ void quetzal::geometry::Projection<Traits>::init(const OrientedPoint<Traits>& or
     assert(oriented_point.orientation().direction().unit());
     assert(oriented_point.orientation().right().unit());
 
-    auto matrix = alignment(oriented_point, {}); // translation then alignment? ...
+    auto matrix = alignment(oriented_point, {});
     m_project = [matrix](const point_type& point) -> projected_type {
         auto transformed = point * matrix;
+        assert(math::float_eq(transformed.w(), Traits::value_type(1)));
+        return {transformed.x(), transformed.y()};
+    };
+
+    return;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits> requires (Traits::dimension == 3)
+void quetzal::geometry::Projection<Traits>::init(const OrientedPoint<Traits>& viewpoint, value_type fov)
+{
+    assert(viewpoint.orientation().direction().unit());
+    assert(viewpoint.orientation().right().unit());
+
+    OrientedPoint<Traits> target = {};
+    target.orientation().direction() = -vector_type::z_direction();
+    auto matrix = alignment(viewpoint, target) * standard_perspective(fov);
+    m_project = [matrix](const point_type& point) -> projected_type {
+        auto transformed = projective_divide(point * matrix);
         return {transformed.x(), transformed.y()};
     };
 
@@ -160,8 +196,6 @@ void quetzal::geometry::Projection<Traits>::init(const OrientedPoint<Traits>& or
 template<typename Traits> requires (Traits::dimension == 3)
 typename quetzal::geometry::Projection<Traits>::projected_type quetzal::geometry::Projection<Traits>::operator()(const point_type& point) const
 {
-    // projective divide, probably should not be necessary with projection ...
-
     return m_project(point);
 }
 
