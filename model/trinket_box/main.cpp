@@ -290,9 +290,7 @@ for (auto& v : polygonUpper.vertices())
 polygonLower = polygonUpper;
 for (auto& p : polygonLower.vertices())
 {
-    //p *= value_type(0.995);
-//    p = geometry::to_point(to_vector(p) * value_type(0.995));
-    p.scale(value_type(0.995));
+    p *= value_type(0.995);
     p.set_z(-dz);
 }
 

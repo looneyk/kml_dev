@@ -387,9 +387,7 @@ orientation.direction() = normalize(orientation.direction() * md); // md, not ma
                 value_type s = lerp(s0, s1, t);
                 for (auto& vertex : polygon.vertices())
                 {
-//                    vertex *= s;
-                    vertex.scale(s);
-//                    vertex = g::to_point(to_vector(vertex) * s);
+                    vertex *= s;
                 }
                 return polygon;
             };

@@ -66,12 +66,10 @@ namespace quetzal::geometry
         template<size_t M> requires Traits::template accepts<M>
         Point& operator=(std::span<value_type, M> values);
 
-//        Point operator+() const;
-//        Point operator-() const; // vector? ...
         Point& operator+=(const vector_type& other);
         Point& operator-=(const vector_type& other);
-//        Point& operator*=(value_type factor);
-//        Point& operator/=(value_type divisor);
+        Point& operator*=(value_type factor);
+        Point& operator/=(value_type divisor);
 
         value_type operator[](size_type i) const;
         value_type& operator[](size_type i);
@@ -121,7 +119,7 @@ namespace quetzal::geometry
 
         void clear();
 
-        vector_type vector() const; // vector defined by origin to point
+        vector_type vector() const; // vector defined by origin to point (now with * and / scaling, see where we can get rid of this ...)
 
         bool valid() const;
         bool zero() const;
@@ -149,8 +147,6 @@ namespace quetzal::geometry
         const rep_type& rep() const;
         rep_type& rep();
 
-        Point& scale(value_type factor);
-
         // reduce, projective_reduce, ...
         Point& projective_divide() requires (Traits::size == Traits::dimension + 1);
 
@@ -170,7 +166,7 @@ namespace quetzal::geometry
 
     template<typename Traits>
     typename Point<Traits>::vector_type operator-(Point<Traits> lhs, Point<Traits> rhs);
-/*
+
     template<typename Traits>
     Point<Traits> operator*(Point<Traits> lhs, const typename Traits::value_type& rhs);
 
@@ -179,7 +175,7 @@ namespace quetzal::geometry
 
     template<typename Traits>
     Point<Traits> operator/(Point<Traits> lhs, const typename Traits::value_type& rhs);
-*/
+
     template<typename Traits>
     bool operator==(const Point<Traits>& lhs, Point<Traits> rhs);
 
@@ -235,9 +231,6 @@ namespace quetzal::geometry
 
     template<typename Traits>
     Point<Traits> max(const Point<Traits>& lhs, Point<Traits> rhs);
-
-    template<typename Traits>
-    Point<Traits> scale(Point<Traits> point, typename Traits::value_type factor);
 
     template<typename Traits>
     Point<Traits> projective_divide(Point<Traits> point) requires (Traits::size == Traits::dimension + 1);
@@ -377,23 +370,7 @@ quetzal::geometry::Point<Traits>& quetzal::geometry::Point<Traits>::operator=(st
     Traits::conclude<M>(m_rep, value_type(1));
     return *this;
 }
-/*
-//------------------------------------------------------------------------------
-template<typename Traits>
-quetzal::geometry::Point<Traits> quetzal::geometry::Point<Traits>::operator+() const
-{
-    return *this;
-}
 
-//------------------------------------------------------------------------------
-template<typename Traits>
-quetzal::geometry::Point<Traits> quetzal::geometry::Point<Traits>::operator-() const
-{
-    auto rep = m_rep;
-    Traits::prepare(rep);
-    return Traits::unary_minus(rep);
-}
-*/
 //------------------------------------------------------------------------------
 template<typename Traits>
 quetzal::geometry::Point<Traits>& quetzal::geometry::Point<Traits>::operator+=(const vector_type& other)
@@ -411,7 +388,7 @@ quetzal::geometry::Point<Traits>& quetzal::geometry::Point<Traits>::operator-=(c
     Traits::assign_subtract(m_rep, other.rep());
     return *this;
 }
-/*
+
 //------------------------------------------------------------------------------
 template<typename Traits>
 quetzal::geometry::Point<Traits>& quetzal::geometry::Point<Traits>::operator*=(value_type factor)
@@ -427,7 +404,7 @@ quetzal::geometry::Point<Traits>& quetzal::geometry::Point<Traits>::operator/=(v
     Traits::assign_divide(m_rep, divisor);
     return *this;
 }
-*/
+
 //------------------------------------------------------------------------------
 template<typename Traits>
 typename Traits::value_type quetzal::geometry::Point<Traits>::operator[](size_type i) const
@@ -737,18 +714,6 @@ typename Traits::rep_type& quetzal::geometry::Point<Traits>::rep()
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-quetzal::geometry::Point<Traits>& quetzal::geometry::Point<Traits>::scale(value_type factor)
-{
-    Traits::prepare(m_rep);
-    for (size_t i = 0; i < dimension; ++i)
-    {
-        Traits::get(m_rep, i) *= factor;
-    }
-    return *this;
-}
-
-//------------------------------------------------------------------------------
-template<typename Traits>
 quetzal::geometry::Point<Traits>& quetzal::geometry::Point<Traits>::projective_divide() requires (Traits::size == Traits::dimension + 1)
 {
     Traits::prepare(m_rep);
@@ -785,7 +750,7 @@ typename quetzal::geometry::Point<Traits>::vector_type quetzal::geometry::operat
     Traits::assign_subtract(lhs.rep(), rhs.rep());
     return lhs.rep();
 }
-/*
+
 //------------------------------------------------------------------------------
 template<typename Traits>
 quetzal::geometry::Point<Traits> quetzal::geometry::operator*(Point<Traits> lhs, const typename Traits::value_type& rhs)
@@ -806,7 +771,7 @@ quetzal::geometry::Point<Traits> quetzal::geometry::operator/(Point<Traits> lhs,
 {
     return lhs /= rhs;
 }
-*/
+
 //------------------------------------------------------------------------------
 template<typename Traits>
 bool quetzal::geometry::operator==(const Point<Traits>& lhs, Point<Traits> rhs)
@@ -953,13 +918,6 @@ quetzal::geometry::Point<Traits> quetzal::geometry::max(const Point<Traits>& lhs
 {
     Traits::prepare(lhs.rep(), rhs.rep());
     return Traits::max(lhs.rep(), rhs.rep());
-}
-
-//------------------------------------------------------------------------------
-template<typename Traits>
-quetzal::geometry::Point<Traits> quetzal::geometry::scale(Point<Traits> point, typename Traits::value_type factor)
-{
-    return point.scale(factor);
 }
 
 //------------------------------------------------------------------------------

@@ -293,7 +293,7 @@ orientation.direction() = normalize(orientation.direction() * md);
                 value_type s = lerp(s0, s1, t);
                 for (auto& vertex : polygon.vertices())
                 {
-                    vertex.scale(s);
+                    vertex *= s;
                 }
                 return polygon;
             };
@@ -398,9 +398,7 @@ value_type t1 = 1.0f;
             vector_type tangent = curve_path.direction(t);
 //vector_type tangent = vector_type::z_direction();
             mesh_type::vector_type direction = tangent;
-//            path[i] = {position * dzSpike, {normalize(direction), right}};
-//path[i] = {geometry::to_point(to_vector(position) * dzSpike), {normalize(direction), right}};
-path[i] = {scale(position, dzSpike), {normalize(direction), right}};
+            path[i] = {position * dzSpike, {normalize(direction), right}};
         }
 
         mesh_type m;
@@ -449,13 +447,13 @@ path[i] = {scale(position, dzSpike), {normalize(direction), right}};
                 factor += 0.075f * sin(t * math::Pi<value_type> * nUndulations);
                 factor *= scale_spike_width;
                 g::OrientedPolygon<vector_traits> poly({}, opolygon.orientation());
-                std::ranges::transform(opolygon.vertices(), std::back_inserter(poly.vertices()), [factor](auto point) { return scale(point, factor); });
+                std::ranges::transform(opolygon.vertices(), std::back_inserter(poly.vertices()), [factor](auto point) { return point * factor; });
                 return poly;
             };
 
 // problem with op.position() ...
             g::Path<vector_traits> path_spike = path;
-            std::ranges::transform(path_spike, path_spike.begin(), [scale_spike](auto& op) -> g::OrientedPoint<vector_traits> { return {scale(op.position(), scale_spike), op.orientation()}; });
+            std::ranges::transform(path_spike, path_spike.begin(), [scale_spike](auto& op) -> g::OrientedPoint<vector_traits> { return {op.position() * scale_spike, op.orientation()}; });
 
             mesh_type mSpike;
             model::create_swept_volume(mSpike, nameSpike, opolygon, path_spike, scaler_width);
