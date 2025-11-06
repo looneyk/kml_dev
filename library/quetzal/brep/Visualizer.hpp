@@ -5,11 +5,9 @@
 // visualizer.hpp
 //------------------------------------------------------------------------------
 
-//#include "quetzal/geometry/point_util.hpp"
 #include "quetzal/svg/Document.hpp"
 #include <filesystem>
-#include <functional>
-#include <string>
+#include <format>
 
 namespace quetzal::brep
 {
@@ -25,7 +23,8 @@ namespace quetzal::brep
         using halfedge_type = M::halfedge_type;
         using projected_traits = M::vector_traits::template resized_traits<M::vector_traits::dimension - 1>;
         using projected_type = geometry::Point<projected_traits>;
-        using projection_type = std::function<projected_type(const typename M::point_type&)>;
+//        using projection_type = std::function<projected_type(const typename M::point_type&)>;
+        using projection_type = geometry::Projection<typename M::vector_traits>;
 
         Visualizer(const projection_type& projection, value_type detail_scale, value_type font_scale);
         Visualizer(const Visualizer&) = default;
@@ -54,6 +53,8 @@ namespace quetzal::brep
 
         // Performs the projection and converts to SVG point type
         svg::Document::point_type projection(const typename M::point_type& position) const;
+
+        value_type scale_font(value_type d) const;
 
         svg::Document m_document;
         projection_type m_projection;
@@ -143,13 +144,16 @@ void quetzal::brep::Visualizer<M>::draw_face_id(const face_type& face)
     auto position1 = position + direction * m_font_scale * value_type(100.0);
     // ideally -/+ the same large value and text centered ...
 
+    auto z = m_projection.z_scale(position);
+
     auto p0 = projection(position0);
     auto p1 = projection(position1);
     auto path_text = std::format("M {} {} L {} {}", p0.x(), p0.y(), p1.x(), p1.y());
 
     // Draw face id
-    auto text = std::to_string(face.id());
-    m_document.text_path(text, xml::Attribute("path", path_text), xml::Attribute("font-size", std::to_string(m_font_scale)));
+    auto caption = std::to_string(face.id());
+    auto font_size = scale_font(z);
+    m_document.text_path(caption, xml::Attribute("path", path_text), xml::Attribute("font-size", std::to_string(font_size)));
     return;
 }
 
@@ -157,7 +161,7 @@ void quetzal::brep::Visualizer<M>::draw_face_id(const face_type& face)
 template<typename M>
 void quetzal::brep::Visualizer<M>::draw_halfedge(const halfedge_type& halfedge, bool arrowhead_fill)
 {
-    // Half arrow
+    // Draw half arrow
 
     auto position0 = vertex_position(halfedge);
     auto position1 = vertex_position(halfedge.next());
@@ -165,7 +169,9 @@ void quetzal::brep::Visualizer<M>::draw_halfedge(const halfedge_type& halfedge, 
     auto forward = normalize(position1 - position0);
     auto left = normalize(cross(normal, forward)); // directed toward interior of face
 
-    m_document.update_size(projection(position0)); // All drawing will be within the face bounds, so just update with each halfedge original vertex position here
+    auto p = projection(position0);
+    auto z = m_projection.z_scale(position0);
+    m_document.update_size(p); // All drawing will be within the face bounds, so just update with each original vertex position here
 
     value_type detail_scale_two = m_detail_scale * value_type(2);
     value_type detail_scale_half = m_detail_scale / value_type(2);
@@ -202,7 +208,7 @@ void quetzal::brep::Visualizer<M>::draw_halfedge(const halfedge_type& halfedge, 
         m_document.polygon({p1, p2, p3}, xml::Attribute("style", "fill:black;"));
     }
 
-    // Caption
+    // Draw halfedge details
 
     indent_scale *= value_type(2);
     auto caption_position0 = position0 + left * detail_scale_half + forward * indent_scale;
@@ -214,7 +220,8 @@ void quetzal::brep::Visualizer<M>::draw_halfedge(const halfedge_type& halfedge, 
 
     size_t digit_count = 1; // 2 (with better point formatting support, no need for breaking out by components here) ...
     auto caption = std::format("{} {} ({:.{}f}, {:.{}f}, {:.{}f})", halfedge.id(), halfedge.face_id(), position0.x(), digit_count, position0.y(), digit_count, position0.z(), digit_count);
-    m_document.text_path(caption, xml::Attribute("path", path_text), xml::Attribute("font-size", std::to_string(m_font_scale)));
+    auto font_size = scale_font(z);
+    m_document.text_path(caption, xml::Attribute("path", path_text), xml::Attribute("font-size", std::to_string(font_size)));
     return;
 }
 
@@ -249,8 +256,15 @@ template<typename M>
 quetzal::svg::Document::point_type quetzal::brep::Visualizer<M>::projection(const typename M::point_type& position) const
 {
     auto projected = m_projection(position);
-//    return to_cartesian(projected); // vector traits are the same but not being recognized as such ...
-    return {projected.x(), projected.y()}; // Should be -y for SVG coordinate system, why not? ...
+    return {projected.x(), projected.y()}; // Should be -y for SVG coordinate system, why not? can't use to_cartesian, mismatched component types ...
+}
+
+//------------------------------------------------------------------------------
+template<typename M>
+typename M::value_type quetzal::brep::Visualizer<M>::scale_font(typename M::value_type d) const
+{
+    assert(d > 0.0f); // As long as eye is positioned correctly
+    return m_font_scale / d;
 }
 
 #endif // QUETZAL_BREP_VISUALIZER_HPP

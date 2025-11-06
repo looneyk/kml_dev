@@ -54,17 +54,26 @@ namespace quetzal::geometry
 
         projected_type operator()(const point_type& point) const;
 
-        // If using matrix directly, the caller is responsible for projective divide and dimension reduction
-        const matrix_type& matrix() const;
-
-        // this knows whether it is orthographic or perspective, and could track that state, but I wouldn't want the caller to have to do anything different ...
+        // This is the projection type dependent depth scale factor
+        // Provides transformed (but not projected) z value for perspective, constant for orthographic
+        // (z_order would return the z value for both)
+        value_type z_scale(const point_type& point) const;
 
     private:
 
+        // The transformed z value before projective divide and/or dimension reduction, independent of projection type
+        // Note that the sign is inverted in the perspective case as its matrix inverts sign of z for proper depth scaling due to its required model positioning
+        value_type transformed_z(const point_type& point) const;
+
         using projection_function_type = std::function<projected_type(const point_type& point)>;
+        using z_value_function_type = std::function<value_type(const point_type& point)>;
 
         matrix_type m_matrix;
         projection_function_type m_project;
+        z_value_function_type m_z_scale;
+
+        z_value_function_type m_z_scale_orthographic = [](const point_type&) { return value_type(1); };
+        z_value_function_type m_z_scale_perspective = [this](const point_type& point) { return transformed_z(point); };
 
         static matrix_type matrix_x_yz;
         static matrix_type matrix_x_zy;
@@ -149,6 +158,8 @@ void quetzal::geometry::Projection<Traits>::init(const vector_type& normal)
             assert(false);
     }
 
+    m_z_scale = m_z_scale_orthographic;
+
     return;
 }
 
@@ -165,6 +176,7 @@ void quetzal::geometry::Projection<Traits>::init(const Orientation<Traits>& orie
         assert(math::float_eq(transformed.w(), Traits::value_type(1)));
         return {transformed.x(), transformed.y()};
     };
+    m_z_scale = m_z_scale_orthographic;
 
     return;
 }
@@ -182,6 +194,7 @@ void quetzal::geometry::Projection<Traits>::init(const OrientedPoint<Traits>& or
         assert(math::float_eq(transformed.w(), Traits::value_type(1)));
         return {transformed.x(), transformed.y()};
     };
+    m_z_scale = m_z_scale_orthographic;
 
     return;
 }
@@ -193,13 +206,13 @@ void quetzal::geometry::Projection<Traits>::init(const OrientedPoint<Traits>& vi
     assert(viewpoint.orientation().direction().unit());
     assert(viewpoint.orientation().right().unit());
 
-    OrientedPoint<Traits> target = {};
-    target.orientation().direction() = -vector_type::z_direction();
+    OrientedPoint<Traits> target = {{}, {-vector_type::z_direction(), vector_type::x_direction()}};
     m_matrix = alignment(viewpoint, target) * standard_perspective(fov);
     m_project = [this](const point_type& point) -> projected_type {
         auto transformed = projective_divide(point * m_matrix);
         return {transformed.x(), transformed.y()};
     };
+    m_z_scale = m_z_scale_perspective;
 
     return;
 }
@@ -213,9 +226,17 @@ typename quetzal::geometry::Projection<Traits>::projected_type quetzal::geometry
 
 //------------------------------------------------------------------------------
 template<quetzal::geometry::Homogeneous Traits> requires (Traits::dimension == 3)
-const typename quetzal::geometry::Projection<Traits>::matrix_type& quetzal::geometry::Projection<Traits>::matrix() const
+typename quetzal::geometry::Projection<Traits>::value_type quetzal::geometry::Projection<Traits>::z_scale(const point_type& point) const
 {
-    return m_matrix;
+    return m_z_scale(point);
+}
+
+//------------------------------------------------------------------------------
+template<quetzal::geometry::Homogeneous Traits> requires (Traits::dimension == 3)
+typename quetzal::geometry::Projection<Traits>::value_type quetzal::geometry::Projection<Traits>::transformed_z(const point_type& point) const
+{
+    auto transformed = point * m_matrix;
+    return transformed.z();
 }
 
 //------------------------------------------------------------------------------

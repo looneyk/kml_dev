@@ -215,9 +215,17 @@ namespace quetzal::brep
     template<typename M>
     void visualize(const M& mesh, const std::string& name, std::array<id_type, 2> submesh_ids)
     {
-        typename M::point_type eye = {0.5f, -2.0f, 1.5f};
-        eye.scale(10.0f);
-        typename M::point_type target = {};
+        auto bounds_a = mesh.submesh(submesh_ids[0]).bounds();
+        auto bounds_b = mesh.submesh(submesh_ids[1]).bounds();
+        auto bounds = op_union(bounds_a, bounds_b);
+        auto target = bounds.centroid();
+        auto extent = bounds.extent();
+        auto extent_max = extent[extent.longest_component()];
+
+        typename M::point_type eye = {0.5f, -2.0f, 1.5f}; // norm about 2.5
+        eye *= extent_max * M::val(0.5);
+
+        // projection type selection ...
         std::optional<typename M::value_type> fov = std::nullopt;
 //        std::optional<typename M::value_type> fov = math::PiHalf<typename M::value_type>;
 
