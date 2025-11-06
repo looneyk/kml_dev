@@ -66,7 +66,7 @@ namespace polygon_util_internal
                 point[i] = Traits::val(0);
             }
         }
-        Traits::conclude(point.rep(), Traits::val(1));
+        Traits::conclude<Traits::dimension>(point.rep(), Traits::val(1));
         return point;
     }
 

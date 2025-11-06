@@ -169,7 +169,7 @@ namespace quetzal::math
         static void prepare(rep_type&);
         static void prepare(const rep_type&, rep_type&);
 
-        template<size_t M>
+        template<size_t K>
         static void conclude(rep_type&, value_type);
     };
 
@@ -684,7 +684,7 @@ void quetzal::math::CartesianTraits<T, N>::prepare(const rep_type&, rep_type&)
 
 //------------------------------------------------------------------------------
 template<typename T, size_t N>
-template<size_t M>
+template<size_t K>
 void quetzal::math::CartesianTraits<T, N>::conclude(rep_type&, value_type)
 {
     return;

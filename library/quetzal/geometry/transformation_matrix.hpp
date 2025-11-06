@@ -24,6 +24,7 @@
 namespace quetzal::geometry
 {
 
+    // this applies to more than just transformation matrices ...
     template<typename Traits>
     concept Homogeneous = (Traits::size == Traits::dimension + 1);
 
