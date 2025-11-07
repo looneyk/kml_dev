@@ -171,6 +171,7 @@
   <ItemGroup>
     <ClInclude Include="geometry.hpp" />
     <ClInclude Include="helix_anticylinder.hpp" />
+    <ClInclude Include="helix_pyramid.hpp" />
     <ClInclude Include="mesh_attributes.hpp" />
     <ClInclude Include="obj_io.hpp" />
     <ClInclude Include="primitives.hpp" />
