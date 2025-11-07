@@ -159,12 +159,22 @@ namespace quetzal::geometry
     template<typename Traits> requires (Homogeneous<Traits>)
     transformation_matrix_type<Traits> alignment(const OrientedPoint<Traits>& from, const OrientedPoint<Traits>& to);
 
+    // Transformation matrix for perspective
+    // projective divide will collapse to the x-y plane at z = 1
+    template<typename Traits> requires (Homogeneous<Traits>)
+    transformation_matrix_type<Traits> perspective(const OrientedPoint<Traits>& viewpoint, typename Traits::value_type fov);
+
+    // Transformation matrix for perspective scaled to frustrum
+    template<typename Traits> requires (Homogeneous<Traits>)
+    transformation_matrix_type<Traits> perspective(const OrientedPoint<Traits>& viewpoint, typename Traits::value_type fov, typename Traits::value_type aspect_ratio, typename Traits::value_type near, typename Traits::value_type far);
+
     // Transformation matrix for a viewpoint at the origin and directed down the negative z-axis
-    // projection plane is at z = 1 (check this) ...
-    // should probably get rid of "standard" and just add viewpoint, and then clipping planes ...
-    // wip ...
     template<typename T>
     math::Matrix<T, 4> standard_perspective(T fov);
+
+    // Transformation matrix for a viewpoint at the origin and directed down the negative z-axis scaled using the given frustrum parameters
+    template<typename T>
+    math::Matrix<T, 4> frustrum_perspective(T fov, T aspect_ratio, T near, T far);
 
 // deprecated ...
 // enabled only until affine_mapping is implemented ...
@@ -690,9 +700,43 @@ quetzal::geometry::transformation_matrix_type<Traits> quetzal::geometry::alignme
 }
 
 //------------------------------------------------------------------------------
+template<typename Traits> requires (quetzal::geometry::Homogeneous<Traits>)
+quetzal::geometry::transformation_matrix_type<Traits> quetzal::geometry::perspective(const OrientedPoint<Traits>& viewpoint, typename Traits::value_type fov)
+{
+    using vector_type = math::Vector<Traits>;
+    OrientedPoint<Traits> target = {{}, {-vector_type::z_direction(), vector_type::x_direction()}};
+    return alignment(viewpoint, target) * standard_perspective(fov);
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits> requires (quetzal::geometry::Homogeneous<Traits>)
+quetzal::geometry::transformation_matrix_type<Traits> quetzal::geometry::perspective(const OrientedPoint<Traits>& viewpoint, typename Traits::value_type fov, typename Traits::value_type aspect_ratio, typename Traits::value_type near, typename Traits::value_type far)
+{
+    using vector_type = math::Vector<Traits>;
+    OrientedPoint<Traits> target = {{}, {-vector_type::z_direction(), vector_type::x_direction()}};
+    return alignment(viewpoint, target) * frustrum_perspective(fov, aspect_ratio, near, far);
+}
+
+//------------------------------------------------------------------------------
 template<typename T>
 quetzal::math::Matrix<T, 4> quetzal::geometry::standard_perspective(T fov)
 {
+    T s = T(1) / tan(fov / T(2));
+
+    quetzal::math::Matrix<T, 4> matrix;
+    matrix(0, 0) = s;
+    matrix(1, 1) = s;
+    matrix(2, 2) = T(-1);
+    matrix(2, 3) = T(-1);
+    return matrix;
+}
+
+//------------------------------------------------------------------------------
+template<typename T>
+quetzal::math::Matrix<T, 4> quetzal::geometry::frustrum_perspective(T fov, T aspect_ratio, T near, T far)
+{
+    assert(false); // not implemented yet ...
+
     T s = T(1) / tan(fov / T(2));
 
     quetzal::math::Matrix<T, 4> matrix;

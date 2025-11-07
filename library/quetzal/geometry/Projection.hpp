@@ -167,9 +167,6 @@ void quetzal::geometry::Projection<Traits>::init(const vector_type& normal)
 template<quetzal::geometry::Homogeneous Traits> requires (Traits::dimension == 3)
 void quetzal::geometry::Projection<Traits>::init(const Orientation<Traits>& orientation)
 {
-    assert(orientation.direction().unit());
-    assert(orientation.right().unit());
-
     m_matrix = alignment(orientation, {});
     m_project = [this](const point_type& point) -> projected_type {
         auto transformed = point * m_matrix;
@@ -185,9 +182,6 @@ void quetzal::geometry::Projection<Traits>::init(const Orientation<Traits>& orie
 template<quetzal::geometry::Homogeneous Traits> requires (Traits::dimension == 3)
 void quetzal::geometry::Projection<Traits>::init(const OrientedPoint<Traits>& oriented_point)
 {
-    assert(oriented_point.orientation().direction().unit());
-    assert(oriented_point.orientation().right().unit());
-
     m_matrix = alignment(oriented_point, {});
     m_project = [this](const point_type& point) -> projected_type {
         auto transformed = point * m_matrix;
@@ -203,11 +197,9 @@ void quetzal::geometry::Projection<Traits>::init(const OrientedPoint<Traits>& or
 template<quetzal::geometry::Homogeneous Traits> requires (Traits::dimension == 3)
 void quetzal::geometry::Projection<Traits>::init(const OrientedPoint<Traits>& viewpoint, value_type fov)
 {
-    assert(viewpoint.orientation().direction().unit());
-    assert(viewpoint.orientation().right().unit());
-
-    OrientedPoint<Traits> target = {{}, {-vector_type::z_direction(), vector_type::x_direction()}};
-    m_matrix = alignment(viewpoint, target) * standard_perspective(fov);
+//    OrientedPoint<Traits> target = {{}, {-vector_type::z_direction(), vector_type::x_direction()}};
+//    m_matrix = alignment(viewpoint, target) * standard_perspective(fov);
+    m_matrix = perspective(viewpoint, fov);
     m_project = [this](const point_type& point) -> projected_type {
         auto transformed = projective_divide(point * m_matrix);
         return {transformed.x(), transformed.y()};
