@@ -46,21 +46,30 @@ int quetzal::FileValidator::report_results(std::function<void()> report_extra)
     double t = Timestamp::since(m_t0);
 
     ostringstream oss;
-    auto [difference_count, missing_count, total_count] = directory_differences();
+    auto [difference_count, unchanged_count, missing_count, unchecked_count, total_count] = directory_differences();
     int color_code = 0;
     int n = 0;
 
-    if (missing_count == 0 && difference_count == 0)
+//    if (difference_count == 0 && unchanged_count == 0 && missing_count == 0 && unchecked_count == 0)
+    if (difference_count == 0 && missing_count == 0 && unchecked_count == 0)
     {
-        color_code = 34;
-        oss << "OK: " << total_count << " files equal (" << t << " seconds)";
+        if (unchanged_count == 0)
+        {
+            color_code = 34;
+            oss << "OK: " << total_count << " files equal (" << t << " seconds)";
+        }
+        else
+        {
+            color_code = 76;
+            oss << "OK: " << total_count << " files equal, " << unchanged_count << " unchanged (" << t << " seconds)";
+        }
         n = int(total_count);
     }
     else
     {
         color_code = 196;
-        oss << "Error: " << missing_count << " missing, " << difference_count << " different, " << total_count << " files (" << t << " seconds)";
-        n = -int(difference_count);
+        oss << "Error: " << difference_count << " different, " << unchanged_count << " unchanged, " << missing_count << " missing, " << unchecked_count << " unchecked, " << total_count << " files (" << t << " seconds)";
+        n = -int(difference_count + unchanged_count + missing_count);
     }
 
     write_debug_string(oss.str() + '\n');
@@ -73,7 +82,7 @@ int quetzal::FileValidator::report_results(std::function<void()> report_extra)
 }
 
 //------------------------------------------------------------------------------
-void quetzal::FileValidator::init_directory(const std::filesystem::path& dir, bool clear)
+void quetzal::FileValidator::init_directory(const std::filesystem::path& dir, bool clear) const
 {
     if (!exists(dir))
     {
@@ -88,7 +97,7 @@ void quetzal::FileValidator::init_directory(const std::filesystem::path& dir, bo
 }
 
 //------------------------------------------------------------------------------
-void quetzal::FileValidator::clear_directory(const std::filesystem::path& dir)
+void quetzal::FileValidator::clear_directory(const std::filesystem::path& dir) const
 {
     for (const auto& entry : std::filesystem::directory_iterator(dir)) 
     {
@@ -99,10 +108,12 @@ void quetzal::FileValidator::clear_directory(const std::filesystem::path& dir)
 }
 
 //------------------------------------------------------------------------------
-std::array<size_t, 3> quetzal::FileValidator::directory_differences()
+std::array<size_t, 5> quetzal::FileValidator::directory_differences() const
 {
-    size_t missing_count = 0;
     size_t difference_count = 0;
+    size_t unchanged_count = 0;
+    size_t missing_count = 0;
+    size_t unchecked_count = 0;
     size_t total_count = 0;
 
     for (auto& reference_filepath : filesystem::directory_iterator(m_rhs))
@@ -114,21 +125,40 @@ std::array<size_t, 3> quetzal::FileValidator::directory_differences()
         }
         else
         {
-            bool b = file_equal(reference_filepath, filepath);
-            if (!b)
+            auto ts_lhs = filesystem::last_write_time(filepath);
+            auto ts_rhs = filesystem::last_write_time(reference_filepath.path());
+            if (ts_lhs == ts_rhs)
             {
-                ++difference_count;
+                ++unchanged_count;
+            }
+            else
+            {
+                bool b = file_equal(filepath, reference_filepath);
+                if (!b)
+                {
+                    ++difference_count;
+                }
             }
         }
 
         ++total_count;
     }
 
-    return {difference_count, missing_count, total_count};
+    for (auto& reference_filepath : filesystem::directory_iterator(m_lhs))
+    {
+        filesystem::path filepath = m_rhs / reference_filepath.path().filename();
+        if (!exists(filepath))
+        {
+            ++unchecked_count;
+            ++total_count;
+        }
+    }
+
+    return {difference_count, unchanged_count, missing_count, unchecked_count, total_count};
 }
 
 //------------------------------------------------------------------------------
-bool quetzal::FileValidator::file_equal(const std::filesystem::path& lhs, const std::filesystem::path& rhs)
+bool quetzal::FileValidator::file_equal(const std::filesystem::path& lhs, const std::filesystem::path& rhs) const
 {
     size_t size_remaining = static_cast<size_t>(file_size(lhs));
     if (!exists(lhs) || !exists(rhs) || size_remaining != file_size(rhs))
