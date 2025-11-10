@@ -29,7 +29,13 @@ namespace quetzal::model
     void write_obj(const M& mesh, const std::filesystem::path& filepath);
 
     template<typename U>
-    void write_obj_submesh(const U& submesh, const std::filesystem::path& filepath);
+    void write_submesh_obj(const U& submesh, const std::filesystem::path& filepath);
+
+    template<typename W, typename M>
+    void write_vertices(W& writer, const M& mesh);
+
+    template<typename W, typename M>
+    void write_faces(W& writer, const M& mesh);
 
     template<typename W, typename U>
     void write_submesh_vertices(W& writer, const U& submesh);
@@ -57,10 +63,10 @@ namespace quetzal::model
 template<typename M>
 void quetzal::model::read_obj(M& mesh, const std::filesystem::path& filepath)
 {
-    id_type idSubmesh = nullid;
-    id_type idSurface = nullid;
-    id_type idFace = nullid;
-    size_t nVertices = 0;
+    id_type submesh_id = nullid;
+    id_type surface_id = nullid;
+    id_type face_id = nullid;
+    size_t vertex_count = 0;
     std::string material;
 
     using segment_type = std::array<typename M::point_type, 2>;
@@ -70,9 +76,9 @@ void quetzal::model::read_obj(M& mesh, const std::filesystem::path& filepath)
     {
         filepath;
 
-        assert(idSubmesh == nullid);
-        assert(idSurface == nullid);
-        assert(idFace == nullid);
+        assert(submesh_id == nullid);
+        assert(surface_id == nullid);
+        assert(face_id == nullid);
         
         mesh.properties()[MaterialStandardPropertyName] = "wavefront_obj";
         return;
@@ -102,26 +108,26 @@ void quetzal::model::read_obj(M& mesh, const std::filesystem::path& filepath)
 
     auto on_object = [&](M& mesh, const std::string& name) -> void
     {
-        idSubmesh = mesh.contains_submesh(name) ? mesh.submesh(name).id() : mesh.create_submesh(name);
+        submesh_id = mesh.contains_submesh(name) ? mesh.submesh(name).id() : mesh.create_submesh(name);
         return;
     };
 
     auto on_group = [&](M& mesh, const std::string& name) -> void
     {
-        if (idSubmesh == nullid)
+        if (submesh_id == nullid)
         {
-            idSubmesh = mesh.create_submesh(wavefront_obj::ObjectNameDefault);
+            submesh_id = mesh.create_submesh(wavefront_obj::ObjectNameDefault);
         }
 
-        idSurface = mesh.get_surface_id(idSubmesh, name);
+        surface_id = mesh.get_surface_id(submesh_id, name);
 
-        if (mesh.surface(idSurface).empty() && !material.empty())
+        if (mesh.surface(surface_id).empty() && !material.empty())
         {
-            mesh.surface(idSurface).properties()[MaterialPropertyName] = material;
+            mesh.surface(surface_id).properties()[MaterialPropertyName] = material;
         }
-        else if (mesh.surface(idSurface).properties().contains(MaterialPropertyName))
+        else if (mesh.surface(surface_id).properties().contains(MaterialPropertyName))
         {
-            if (mesh.surface(idSurface).properties().at(MaterialPropertyName) != material)
+            if (mesh.surface(surface_id).properties().at(MaterialPropertyName) != material)
             {
                 // The case where an existing group is being specified in the context of a different material is not handled here ...
                 // This needs to be deferred in case the discrepancy is corrected in a subsequent material specification ...
@@ -134,22 +140,22 @@ void quetzal::model::read_obj(M& mesh, const std::filesystem::path& filepath)
 
     auto on_face_open = [&](M& mesh) -> void
     {
-        if (idSurface == nullid)
+        if (surface_id == nullid)
         {
-            if (idSubmesh == nullid)
+            if (submesh_id == nullid)
             {
-                idSubmesh = mesh.create_submesh(wavefront_obj::ObjectNameDefault);
+                submesh_id = mesh.create_submesh(wavefront_obj::ObjectNameDefault);
             }
 
-            idSurface = mesh.create_surface(idSubmesh, wavefront_obj::GroupNameDefault);
+            surface_id = mesh.create_surface(submesh_id, wavefront_obj::GroupNameDefault);
         }
         else
         {
-            assert(idSubmesh != nullid);
+            assert(submesh_id != nullid);
         }
 
-        idFace = mesh.create_face(idSurface, mesh.halfedge_store_count());
-        nVertices = 0;
+        face_id = mesh.create_face(surface_id, mesh.halfedge_store_count());
+        vertex_count = 0;
         return;
     };
 
@@ -157,8 +163,8 @@ void quetzal::model::read_obj(M& mesh, const std::filesystem::path& filepath)
     {
         id_type nh = mesh.halfedge_store_count();
         typename M::vertex_attributes_type av = {position, normal, texcoord};
-        mesh.create_halfedge_vertex(0, nh + 1, nh - 1, idFace, av);
-        ++nVertices;
+        mesh.create_halfedge_vertex(0, nh + 1, nh - 1, face_id, av);
+        ++vertex_count;
         return;
     };
 
@@ -166,26 +172,26 @@ void quetzal::model::read_obj(M& mesh, const std::filesystem::path& filepath)
     {
         // Correct prev and next for first and last halfedges respectively
         id_type nh = mesh.halfedge_store_count();
-        mesh.halfedge(nh - nVertices).set_prev_id(nh - 1);
-        mesh.halfedge(nh - 1).set_next_id(nh - nVertices);
+        mesh.halfedge(nh - vertex_count).set_prev_id(nh - 1);
+        mesh.halfedge(nh - 1).set_next_id(nh - vertex_count);
 
         // Add partner id to each halfedge in this new face
-        auto& face = mesh.face(idFace);
+        auto& face = mesh.face(face_id);
         for (auto& halfedge : face.halfedges())
         {
-            id_type idHalfedge = halfedge.id();
+            id_type halfedge_id = halfedge.id();
             const auto& position = halfedge.vertex_attributes().position();
-            const auto& positionNext = halfedge.next().vertex_attributes().position();
-            segment_type segment = {positionNext, position};
+            const auto& position_next = halfedge.next().vertex_attributes().position();
+            segment_type segment = {position_next, position};
             auto i = segments.find(segment);
             if (i == segments.end())
             {
-                segments[{position, positionNext}] = idHalfedge;
+                segments[{position, position_next}] = halfedge_id;
             }
             else
             {
                 halfedge.set_partner_id(i->second);
-                mesh.halfedge(i->second).set_partner_id(idHalfedge);
+                mesh.halfedge(i->second).set_partner_id(halfedge_id);
                 segments.erase(i);
             }
         }
@@ -211,18 +217,18 @@ void quetzal::model::read_obj(M& mesh, const std::filesystem::path& filepath)
     {
         material = name;
 
-        if (idSurface == nullid)
+        if (surface_id == nullid)
         {
             on_group(mesh, wavefront_obj::GroupNameDefault);
         }
 
-        if (mesh.surface(idSurface).empty() && !material.empty())
+        if (mesh.surface(surface_id).empty() && !material.empty())
         {
-            mesh.surface(idSurface).properties()[MaterialPropertyName] = material;
+            mesh.surface(surface_id).properties()[MaterialPropertyName] = material;
         }
-        else if (mesh.surface(idSurface).properties().contains(MaterialPropertyName))
+        else if (mesh.surface(surface_id).properties().contains(MaterialPropertyName))
         {
-            if (mesh.surface(idSurface).properties().at(MaterialPropertyName) != material)
+            if (mesh.surface(surface_id).properties().at(MaterialPropertyName) != material)
             {
                 // The case where an existing group is being specified in the context of a different material is not handled here ...
                 // Could handle this here creating surface with name group_material, store group name in properties for subsequent use, ...
@@ -254,45 +260,14 @@ void quetzal::model::write_obj(const M& mesh, const std::filesystem::path& filep
         writer.set_materials(mesh.properties().at(MaterialsPropertyName));
     }
 
-    for (const typename M::vertex_type& vertex : mesh.vertices())
-    {
-        const auto& attributes = vertex.attributes();
-        writer.set_vertex(attributes.position(), attributes.normal(), attributes.texcoord());
-    }
-
-    // Later, address the comment below to properly associate faces with objects and groups ...
-    // face output order:
-    //     no submesh
-    //     with submesh
-    // within each of those:
-    //     no surface
-    //     with surface
-    // Currently all faces should have both submesh and surface ...
-    // do this only as necessary, if face counts are incomplete ...
-
-    for (const typename M::face_type& face : mesh.faces())
-    {
-        if (face.surface_id() != nullid && face.submesh_id() != nullid)
-        {
-            continue;
-        }
-
-        // any submesh, surface information is lost, see above ...
-        write_face(writer, face);
-    }
-
-    // Write remaining faces by object and group
-    for (const typename M::submesh_type& submesh : mesh.submeshes())
-    {
-        write_submesh_faces(writer, submesh);
-    }
-
+    write_vertices(writer, mesh);
+    write_faces(writer, mesh);
     return;
 }
 
 //------------------------------------------------------------------------------
 template<typename U>
-void quetzal::model::write_obj_submesh(const U& submesh, const std::filesystem::path& filepath)
+void quetzal::model::write_submesh_obj(const U& submesh, const std::filesystem::path& filepath)
 {
     using vertex_type = U::vertex_type;
     using attributes_type = vertex_type::attributes_type;
@@ -313,6 +288,46 @@ void quetzal::model::write_obj_submesh(const U& submesh, const std::filesystem::
 }
 
 //------------------------------------------------------------------------------
+template<typename W, typename M>
+void quetzal::model::write_vertices(W& writer, const M& mesh)
+{
+    for (const typename M::vertex_type& vertex : mesh.vertices())
+    {
+        const auto& attributes = vertex.attributes();
+        writer.set_vertex(attributes.position(), attributes.normal(), attributes.texcoord());
+    }
+
+    return;
+}
+
+//------------------------------------------------------------------------------
+template<typename W, typename M>
+void quetzal::model::write_faces(W& writer, const M& mesh)
+{
+    bool b = false;
+
+    // First write mesh faces with no submesh
+    for (const typename M::face_type& face : mesh.faces())
+    {
+        if (face.submesh_id() == nullid)
+        {
+            write_face(writer, face);
+            b = true;
+        }
+    }
+
+    assert(!b); // Currently, all faces should be associated with a submesh ...
+
+    // Write remaining faces by object and group
+    for (const typename M::submesh_type& submesh : mesh.submeshes())
+    {
+        write_submesh_faces(writer, submesh);
+    }
+
+    return;
+}
+
+//------------------------------------------------------------------------------
 template<typename W, typename U>
 void quetzal::model::write_submesh_vertices(W& writer, const U& submesh)
 {
@@ -323,7 +338,7 @@ void quetzal::model::write_submesh_vertices(W& writer, const U& submesh)
         for (const auto& halfedge : face.halfedges())
         {
             const auto& attributes = halfedge.vertex_attributes();
-            writer.set_face_vertex(attributes.position(), attributes.normal(), attributes.texcoord());
+            writer.set_vertex(attributes.position(), attributes.normal(), attributes.texcoord());
         }
     }
 
@@ -337,6 +352,21 @@ void quetzal::model::write_submesh_faces(W& writer, const U& submesh)
     assert(!submesh.empty());
 
     writer.set_object(submesh.name());
+
+    bool b = false;
+
+    // First write submesh faces with no surface
+    for (const auto& face : submesh.faces())
+    {
+        if (face.surface_id() == nullid)
+        {
+            write_face(writer, face);
+            b = true;
+        }
+    }
+
+    assert(!b); // Currently, all faces should be associated with a surface ...
+
     for (const auto& surface : submesh.surfaces())
     {
         assert(!surface.empty());
