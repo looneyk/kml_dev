@@ -20,6 +20,8 @@ namespace quetzal
     // Unchecked: files exist in test output directory but not in reference directory
     // Total: total files in the union of the test output and reference directories
 
+    // Unchanged files count as identical
+
     //--------------------------------------------------------------------------
     class FileValidator
     {

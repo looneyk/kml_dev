@@ -20,6 +20,9 @@
 #include <vector>
 #include <cassert>
 
+// remove normal placeholders? ...
+// default ts parameters to x [0, 1]? see if y can be defaulted ... 
+
 namespace quetzal::model
 {
 
@@ -40,7 +43,7 @@ namespace quetzal::model
     using texture_span_type = std::array<data_value_type<M>, 3>;
 
     template<typename M>
-    using vertex_normal_type = std::function<normal_vector_type<M>(data_value_type<M>)>;
+    using vertex_normal_function_type = std::function<normal_vector_type<M>(data_value_type<M>)>;
 
     template<typename M>
 //    using vertices_attributes_type = std::vector<typename M::vertex_attributes_type>;
@@ -61,7 +64,7 @@ namespace quetzal::model
     vertices_attributes_type<M> vertices_attributes(size_t nAzimuth, data_value_type<M> radius, data_value_type<M> z, azimuth_interval_type<M> azimuth_interval, texture_span_type<M> ts);
 
     template<typename M>
-    vertices_attributes_type<M> vertices_attributes(size_t nAzimuth, data_value_type<M> radius, data_value_type<M> z, azimuth_interval_type<M> azimuth_interval, texture_span_type<M> ts, vertex_normal_type<M> vertex_normal);
+    vertices_attributes_type<M> vertices_attributes(size_t nAzimuth, data_value_type<M> radius, data_value_type<M> z, azimuth_interval_type<M> azimuth_interval, texture_span_type<M> ts, vertex_normal_function_type<M> vertex_normal);
     
     // Precalculate vertex values for a layer parallel to the xy-plane
     // Calculates normals and texture coordinates appropriate for a section of a single encompassing surface
@@ -127,7 +130,7 @@ namespace quetzal::model
     vertices_attributes_type<M> cusp_vertices_attributes(const vertices_attributes_type<M>& avs_base, data_value_type<M> z, texture_span_type<M> ts);
 
     template<typename M>
-    vertices_attributes_type<M> cusp_vertices_attributes(size_t nAzimuth, data_value_type<M> z, azimuth_interval_type<M> azimuth_interval, texture_span_type<M> ts, vertex_normal_type<M> vertex_normal);
+    vertices_attributes_type<M> cusp_vertices_attributes(size_t nAzimuth, data_value_type<M> z, azimuth_interval_type<M> azimuth_interval, texture_span_type<M> ts, vertex_normal_function_type<M> vertex_normal);
 
     // Precalculate vertex values for a base or apex cusp
     // Normals are not calculated, must be set by caller
@@ -263,7 +266,7 @@ quetzal::model::vertices_attributes_type<M> quetzal::model::vertices_attributes(
 
 //------------------------------------------------------------------------------
 template<typename M>
-quetzal::model::vertices_attributes_type<M> quetzal::model::vertices_attributes(size_t nAzimuth, data_value_type<M> radius, data_value_type<M> z, azimuth_interval_type<M> azimuth_interval, texture_span_type<M> ts, vertex_normal_type<M> vertex_normal)
+quetzal::model::vertices_attributes_type<M> quetzal::model::vertices_attributes(size_t nAzimuth, data_value_type<M> radius, data_value_type<M> z, azimuth_interval_type<M> azimuth_interval, texture_span_type<M> ts, vertex_normal_function_type<M> vertex_normal)
 {
     using T = data_value_type<M>;
     using texcoord_type = M::vertex_attributes_type::texcoord_type;
@@ -723,7 +726,7 @@ quetzal::model::vertices_attributes_type<M> quetzal::model::cusp_vertices_attrib
 
 //------------------------------------------------------------------------------
 template<typename M>
-quetzal::model::vertices_attributes_type<M> quetzal::model::cusp_vertices_attributes(size_t nAzimuth, data_value_type<M> z, azimuth_interval_type<M> azimuth_interval, texture_span_type<M> ts, vertex_normal_type<M> vertex_normal)
+quetzal::model::vertices_attributes_type<M> quetzal::model::cusp_vertices_attributes(size_t nAzimuth, data_value_type<M> z, azimuth_interval_type<M> azimuth_interval, texture_span_type<M> ts, vertex_normal_function_type<M> vertex_normal)
 {
     using T = data_value_type<M>;
 

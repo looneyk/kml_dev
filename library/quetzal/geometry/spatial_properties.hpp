@@ -31,16 +31,16 @@ namespace quetzal::geometry
     template<typename T>
     AxisAlignedBoundingBox<typename PositionAccessor<T>::point_type::traits_type> bounds(const T& points);
 
-    template<typename T> requires (PositionAccessor<T>::dimension == 2)
+    template<typename T> requires (quetzal::geometry::PositionAccessor<T>::dimension == 2)
     typename PositionAccessor<T>::value_type area(const T& points);
 
-    template<typename T> requires (PositionAccessor<T>::dimension == 3)
+    template<typename T> requires (quetzal::geometry::PositionAccessor<T>::dimension == 3)
     typename PositionAccessor<T>::value_type area(const T& points, const typename PositionAccessor<T>::vector_type& normal);
 
-    template<typename T> requires (PositionAccessor<T>::dimension == 2)
+    template<typename T> requires (quetzal::geometry::PositionAccessor<T>::dimension == 2)
     typename PositionAccessor<T>::value_type signed_area(const T& points);
 
-    template<typename T> requires (PositionAccessor<T>::dimension == 3)
+    template<typename T> requires (quetzal::geometry::PositionAccessor<T>::dimension == 3)
     typename PositionAccessor<T>::value_type signed_area(const T& points, const typename PositionAccessor<T>::vector_type& normal);
 
     // optional normal in case the normal is already known and does not need to be calculated
@@ -147,21 +147,21 @@ quetzal::geometry::AxisAlignedBoundingBox<typename quetzal::geometry::PositionAc
 }
 
 //------------------------------------------------------------------------------
-template<typename T> requires (PositionAccessor<T>::dimension == 2)
+template<typename T> requires (quetzal::geometry::PositionAccessor<T>::dimension == 2)
 typename quetzal::geometry::PositionAccessor<T>::value_type quetzal::geometry::area(const T& points)
 {
     return std::abs(signed_area(points));
 }
 
 //------------------------------------------------------------------------------
-template<typename T> requires (PositionAccessor<T>::dimension == 3)
+template<typename T> requires (quetzal::geometry::PositionAccessor<T>::dimension == 3)
 typename quetzal::geometry::PositionAccessor<T>::value_type quetzal::geometry::area(const T& points, const typename PositionAccessor<T>::vector_type& normal)
 {
     return std::abs(signed_area(points, normal));
 }
 
 //------------------------------------------------------------------------------
-template<typename T> requires (PositionAccessor<T>::dimension == 2)
+template<typename T> requires (quetzal::geometry::PositionAccessor<T>::dimension == 2)
 typename quetzal::geometry::PositionAccessor<T>::value_type quetzal::geometry::signed_area(const T& points)
 {
     size_t n = PositionAccessor<T>::position_count(points);
@@ -181,7 +181,7 @@ typename quetzal::geometry::PositionAccessor<T>::value_type quetzal::geometry::s
 }
 
 //------------------------------------------------------------------------------
-template<typename T> requires (PositionAccessor<T>::dimension == 3)
+template<typename T> requires (quetzal::geometry::PositionAccessor<T>::dimension == 3)
 typename quetzal::geometry::PositionAccessor<T>::value_type quetzal::geometry::signed_area(const T& points, const typename PositionAccessor<T>::vector_type& normal)
 {
     size_t n = PositionAccessor<T>::position_count(points);

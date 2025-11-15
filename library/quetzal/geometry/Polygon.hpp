@@ -115,10 +115,16 @@ namespace quetzal::geometry
         const sections_type& sections() const;
         sections_type& sections();
 
+        void clear_normal();
+
     private:
+
+        void set_normal();
 
         vertices_type m_vertices;
         sections_type m_sections;
+
+        mutable  std::optional<vector_type> m_normal;
     };
 
     template<typename Traits>
@@ -186,7 +192,8 @@ template<typename Traits>
 quetzal::geometry::Polygon<Traits>::Polygon(size_type n) :
     PointRelation<Traits>(),
     m_vertices(n),
-    m_sections()
+    m_sections(),
+    m_normal()
 {
 }
 
@@ -195,8 +202,10 @@ template<typename Traits>
 quetzal::geometry::Polygon<Traits>::Polygon(std::span<point_type> points) :
     PointRelation<Traits>(),
     m_vertices(points.begin(), points.end()),
-    m_sections()
+    m_sections(),
+    m_normal()
 {
+    set_normal();
 }
 
 //------------------------------------------------------------------------------
@@ -204,8 +213,10 @@ template<typename Traits>
 quetzal::geometry::Polygon<Traits>::Polygon(std::initializer_list<vertex_type> points) :
     PointRelation<Traits>(),
     m_vertices(points),
-    m_sections()
+    m_sections(),
+    m_normal()
 {
+    set_normal();
 }
 
 //------------------------------------------------------------------------------
@@ -214,15 +225,18 @@ template<typename InputIterator>
 quetzal::geometry::Polygon<Traits>::Polygon(InputIterator first, InputIterator last) :
     PointRelation<Traits>(),
     m_vertices(),
-    m_sections()
+    m_sections(),
+    m_normal()
 {
     std::copy(first, last, std::back_inserter(m_vertices));
+    set_normal();
 }
 
 //------------------------------------------------------------------------------
 template<typename Traits>
 typename quetzal::geometry::Polygon<Traits>::vertices_type& quetzal::geometry::Polygon<Traits>::vertices()
 {
+    clear_normal();
     return m_vertices;
 }
 
@@ -253,6 +267,7 @@ template<typename Traits>
 typename quetzal::geometry::Polygon<Traits>::vertex_type& quetzal::geometry::Polygon<Traits>::vertex(size_type n)
 {
     assert(n < m_vertices.size());
+    clear_normal();
     return m_vertices[n];
 }
 
@@ -262,6 +277,7 @@ void quetzal::geometry::Polygon<Traits>::set_vertex(size_type n, const point_typ
 {
     assert(n < m_vertices.size());
     m_vertices[n] = point;
+    clear_normal();
     return;
 }
 
@@ -333,7 +349,12 @@ typename quetzal::geometry::Polygon<Traits>::value_type quetzal::geometry::Polyg
 template<typename Traits>
 typename quetzal::geometry::Polygon<Traits>::vector_type quetzal::geometry::Polygon<Traits>::normal() const requires (Traits::dimension == 3)
 {
-    return geometry::normal(*this);
+    if (!m_normal)
+    {
+        m_normal = geometry::normal(*this);
+    }
+
+    return m_normal.value();
 }
 
 //------------------------------------------------------------------------------
@@ -352,6 +373,7 @@ void quetzal::geometry::Polygon<Traits>::transform(const matrix_type& matrix)
         vertex *= matrix;
     }
 
+    clear_normal();
     return;
 }
 
@@ -376,6 +398,7 @@ template<typename Traits>
 void quetzal::geometry::Polygon<Traits>::clear()
 {
     m_vertices.clear();
+    clear_normal();
     return;
 }
 
@@ -463,9 +486,26 @@ typename quetzal::geometry::Polygon<Traits>::sections_type& quetzal::geometry::P
 
 //------------------------------------------------------------------------------
 template<typename Traits>
+void quetzal::geometry::Polygon<Traits>::clear_normal()
+{
+    m_normal.reset();
+    return;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+void quetzal::geometry::Polygon<Traits>::set_normal()
+{
+    m_normal = geometry::normal(*this);
+    return;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
 quetzal::geometry::Polygon<Traits> quetzal::geometry::transform(Polygon<Traits> polygon, const typename Polygon<Traits>::matrix_type& matrix)
 {
     polygon.transform(matrix);
+    polygon.clear_normal();
     return polygon;
 }
 

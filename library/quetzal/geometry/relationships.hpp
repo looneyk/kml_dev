@@ -12,8 +12,6 @@ namespace quetzal::geometry
 {
 
     // Not used, and position can actually be several layers deep ...
-    // Point doesn't have position member, add it just for this? (A point does have a position) ...
-    // Remove this until we have a use case ...
     template<typename T>
     concept Positional = requires (T t)
     {
@@ -23,7 +21,7 @@ namespace quetzal::geometry
     template<typename T>
     concept Directional = requires (T t)
     {
-        { t.direction() }; // -> Directional
+        { t.direction() };
     };
 
     template<typename T>

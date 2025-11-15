@@ -197,8 +197,6 @@ void quetzal::geometry::Projection<Traits>::init(const OrientedPoint<Traits>& or
 template<quetzal::geometry::Homogeneous Traits> requires (Traits::dimension == 3)
 void quetzal::geometry::Projection<Traits>::init(const OrientedPoint<Traits>& viewpoint, value_type fov)
 {
-//    OrientedPoint<Traits> target = {{}, {-vector_type::z_direction(), vector_type::x_direction()}};
-//    m_matrix = alignment(viewpoint, target) * standard_perspective(fov);
     m_matrix = perspective(viewpoint, fov);
     m_project = [this](const point_type& point) -> projected_type {
         auto transformed = projective_divide(point * m_matrix);

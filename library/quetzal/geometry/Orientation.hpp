@@ -11,7 +11,7 @@
 namespace quetzal::geometry
 {
 
-    // By default, direction is the up vector
+    // By default, direction is along the z-axis and right is along the x-axis (a vertical or up orientation)
 
     //--------------------------------------------------------------------------
     template<typename Traits>
@@ -33,7 +33,7 @@ namespace quetzal::geometry
         Orientation& operator=(const Orientation&) = default;
         Orientation& operator=(Orientation&&) = default;
 
-        // Direction may have different physical interpretations depending on the use case
+        // Direction may have different physical interpretations depending on the use case (mesh (up) vs. camera (forward), for example)
         vector_type direction() const;
         vector_type& direction();
         void set_direction(const vector_type& v);

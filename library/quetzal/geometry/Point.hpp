@@ -117,6 +117,8 @@ namespace quetzal::geometry
         template<size_type I, typename U> requires (I < Traits::size) && std::convertible_to<U, typename Traits::value_type>
         void set(const U& u);
 
+        Point position() const; // For consistency with Positional concept
+
         void clear();
 
         vector_type vector() const; // vector defined by origin to point (now with * and / scaling, see where we can get rid of this ...)
@@ -576,6 +578,13 @@ void quetzal::geometry::Point<Traits>::set(const U& u)
 {
     Traits::get<I>(m_rep) = value_type(u);
     return;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+quetzal::geometry::Point<Traits> quetzal::geometry::Point<Traits>::position() const
+{
+    return *this;
 }
 
 //------------------------------------------------------------------------------

@@ -160,7 +160,7 @@ namespace quetzal::geometry
     transformation_matrix_type<Traits> alignment(const OrientedPoint<Traits>& from, const OrientedPoint<Traits>& to);
 
     // Transformation matrix for perspective
-    // projective divide will collapse to the x-y plane at z = 1
+    // projective divide will collapse to the xy-plane at z = 1
     template<typename Traits> requires (Homogeneous<Traits>)
     transformation_matrix_type<Traits> perspective(const OrientedPoint<Traits>& viewpoint, typename Traits::value_type fov);
 
