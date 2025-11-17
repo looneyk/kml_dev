@@ -17,6 +17,7 @@
 #include <concepts>
 #include <functional>
 #include <limits>
+#include <optional>
 #include <vector>
 
 #include <iostream>
@@ -40,7 +41,7 @@ namespace quetzal::model
     // Would work with Mesh, Submesh, Surface once vertex_attributes_type referencing is resolved (can't use M:: everywhere) ...
     template<typename M>
 //    void transform(M& mesh, std::function<void(typename M::vertex_attributes_type&)> fav, std::function<void(typename M::face_attributes_type&)> faf = [](typename M::face_attributes_type&) -> void {});
-    void transform(M& mesh, std::function<void(typename M::vertex_attributes_type&)> fav, std::function<void(typename M::face_attributes_type&)> faf = {});
+    void transform(M& mesh, std::function<void(typename M::vertex_attributes_type&)> fav, std::optional<std::function<void(typename M::face_attributes_type&)>> faf = std::nullopt);
 
     template<typename M>
     void transform_border_fragment_position(M& mesh, id_type idHalfedge, const typename M::matrix_type& matrix, bool bReset = true);
@@ -165,7 +166,7 @@ void quetzal::model::transform_position(U& u, const typename U::traits_type::mat
 
 //------------------------------------------------------------------------------
 template<typename M>
-void quetzal::model::transform(M& mesh, std::function<void(typename M::vertex_attributes_type&)> fav, std::function<void(typename M::face_attributes_type&)> faf)
+void quetzal::model::transform(M& mesh, std::function<void(typename M::vertex_attributes_type&)> fav, std::optional<std::function<void(typename M::face_attributes_type&)>> faf)
 {
     for (auto& face : mesh.faces())
     {
@@ -174,7 +175,10 @@ void quetzal::model::transform(M& mesh, std::function<void(typename M::vertex_at
             fav(halfedge.vertex_attributes());
         }
 
-        faf(face.attributes());
+        if (faf)
+        {
+            (*faf)(face.attributes());
+        }
     }
 
     return;
