@@ -162,169 +162,7 @@ namespace
         clip(mesh, hsUpper, "clip_upper");
         return;
     }
-/*
-    //--------------------------------------------------------------------------
-    void create_helical_claws(mesh_type& mesh, const string& name, size_t nAzimuth, value_type r, value_type z1, value_type revs1, size_t nAzimuthSpike, size_t ntSpike, value_type revsSpike)
-    {
-        value_type z0 = 0.0f;
-        value_type revs0 = 0.0f;
 
-        std::function<value_type(const value_type&)> body_contour = blob_contour<value_type>;
-//        std::function<value_type(const value_type&)> body_contour = egg_contour<value_type>;
-//        std::function<value_type(const value_type&)> body_contour = sphere_contour<value_type>;
-// need different x range for blob ...
-
-        std::function<value_type(const value_type&)> body_contour_slope = egg_contour_tangent<value_type>;
-
-        value_type tz0 = 0.0625f;
-        value_type tz1 = 0.9375f;
-
-// not z1 ...
-        mesh_type m;
-        model::create_helix_anticylinder(m, name, nAzimuth, math::scale(r, math::restrict<value_type>(tz0, tz1, body_contour)), math::restrict<value_type>(tz0, tz1, body_contour_slope), z0, z1, revs0, revs1, true);
-        truncate(m, nAzimuth);
-
-        // transform so that base is at z = 0
-        value_type z00 = m.surface(0, "clip_lower").faces().front().halfedge().vertex_attributes().position().z();
-        model::transform(m, geometry::translation(0.0f, 0.0f, -z00));
-
-        model::connect_end_round_regular(m, name, "clip_upper", "top");
-
-        // Hollow out center to save filament
-        auto mm = m;
-        for (auto& submesh : mm.submeshes())
-        {
-            submesh.set_name("inner_" + submesh.name());
-        }
-        for (auto& surface : mm.surfaces())
-        {
-            surface.set_name("inner_" + surface.name());
-        }
-        model::transform(mm, geometry::scaling(0.75f));
-        invert(mm);
-        m.insert(mm);
-        brep::attach(m, name + "/clip_lower", "inner_" + name + "/inner_clip_lower");
-
-        size_t nSpikes = static_cast<size_t>(nAzimuth * (revs1 - revs0 - 2.0f));
-        for (size_t nSpike = 0; nSpike < nSpikes; ++nSpike)
-        {
-            size_t nFace = 2 * (nAzimuth + nSpike);
-
-            auto face = m.face(nFace);
-            assert(face.halfedge_count() == 3);
-            auto normal = face.attributes().normal();
-            auto polygonFace = to_polygon(face);
-            auto [position, radius] = triangle_incenter(polygonFace.vertex(0), polygonFace.vertex(1), polygonFace.vertex(2));
-            radius *= 0.9f;
-
-            string nameSpike = "spike" + to_string(nSpike);
-            string nameSpikeBase = nameSpike + "/end0";
-
-            // Create path
-            value_type slope0 = sqrt(normal.x() * normal.x() + normal.y() * normal.y()) / normal.z();
-            value_type x0 = egg_contour_inverse_tangent(slope0);
-            value_type t0 = inverse_uniform_spacing(x0);
-            value_type t1 = 0.95f;
-            vector_type right = vector_type::y_direction();
-            value_type factor = r + (3 * r * (nSpikes - nSpike - 1)) / nSpikes; // scale factor 1..4 * r ...
-
-            g::Path<vector_traits> path(ntSpike + 1);
-            for (size_t i = 0; i <= ntSpike; ++i)
-            {
-                value_type t = lerp(t0, t1, value_type(i) / ntSpike);
-                value_type x = uniform_spacing(t);
-                value_type y = egg_contour(x);
-                point_type pos = {y, 0.0f, x};
-                value_type tangent = egg_contour_tangent(x);
-                mesh_type::vector_type direction = {tangent, 0.0f, 1.0f};
-                path[i] = {scale(pos, factor), {normalize(direction), right}};
-//path[i] = {geometry::to_point(to_vector(pos) * factor), {normalize(direction), right}};
-            }
-
-            point_type positionSpikeOrig = path[0].position();
-            point_type positionSpikeRadial = {math::azimuth_radius(position), 0.0f, 0.0f};
-
-            // Apply incremental rotation
-            value_type phiMax = math::PiTwo<value_type> * revsSpike;
-            auto phiSpikeMax = phiMax * factor / (4 * r);
-            for (size_t i = 0; i <= ntSpike; ++i)
-            {
-                auto phi = phiSpikeMax * i / ntSpike;
-                auto matrix = g::rotation_z(phi);
-
-                auto& op = path[i];
-                op.position() += positionSpikeRadial - positionSpikeOrig;
-const auto positionOrig = op.position();
-                op.position() *= matrix;
-
-                auto& orientation = op.orientation();
-// not taking dphi (but not that simple) into account ...
-//                orientation.direction() = normalize(orientation.direction() * matrix);
-auto md = g::rotation_z(phi * 0.5f);
-orientation.direction() = normalize(orientation.direction() * md);
-
-//vector_type axis = {op.position().x(), op.position().y(), 0.0f};
-//orientation.direction() = normalize(orientation.direction() * g::rotation_axis_unit(normalize(axis), -0.5f));
-
-// this the same as simple matrix multiplication
-//orientation.direction() = normalize((positionOrig + orientation.direction()) * matrix - op.position());
-
-//R' * p + R * p'
-//orientation.direction() = normalize(g::rotation_dz(phi) * to_vector(op.position()) + matrix * orientation.direction());
-
-                auto f = cross(orientation.direction(), orientation.right());
-                orientation.right() = normalize(cross(f, orientation.direction()));
-            }
-
-            // Polygonal cross section
-            g::OrientedPolygon<vector_traits> polygon(nAzimuthSpike);
-            for (size_t i = 0; i < nAzimuthSpike; ++i)
-            {
-                value_type phi = math::PiTwo<value_type> * i / value_type(nAzimuthSpike);
-                polygon.vertex(i) = {radius * cos(phi), radius * sin(phi), value_type(0)};
-            }
-
-            // Create spike
-            mesh_type mSpike;
-            auto scaler = [](g::OrientedPolygon<vector_traits> polygon, value_type t) -> g::OrientedPolygon<vector_traits>
-            {
-                value_type s0 = value_type(1);
-                value_type s1 = value_type(0.1);
-                value_type s = lerp(s0, s1, t);
-                for (auto& vertex : polygon.vertices())
-                {
-                    vertex *= s;
-                }
-                return polygon;
-            };
-
-            model::create_swept_volume(mSpike, nameSpike, polygon, path, scaler);
-            // set end0 normal to perpendicular instead of following curve ...
-            // but it really shouldn't be off that far ...
-            // that's probably why the end caps on helical_claws are not aligned properly ...
-            model::connect_end_round(mSpike, nameSpike, "end1", "top");
-
-            // Rotate spike to align with face normal and translate spike to face position
-            vector_type directionFace = normal;
-            vector_type rightFace = normalize(face.halfedge().vertex_attributes().position() - position);
-            vector_type directionSpike = path[0].orientation().direction();
-            vector_type rightSpike = normalize(cross(path[0].orientation().right(), path[0].orientation().direction()));
-            point_type positionSpike = path[0].position();
-
-//            matrix *= alignment2(directionSpike, rightSpike, directionFace, rightFace);
-            auto matrix = g::translation(-g::to_vector(positionSpike)) * g::alignment(directionSpike, rightSpike, directionFace, rightFace) * g::translation(to_vector(position));
-            model::transform(mSpike, matrix);
-
-            // Connect spike to body
-            m.insert(mSpike);
-            brep::attach(m, face.id(), m.surface(nameSpikeBase).faces().front().id());
-        }
-
-        m.pack();
-        mesh.insert(m);
-        return;
-    }
-*/
     //--------------------------------------------------------------------------
     // back and front should start and end at the same points, typically {0, 0}..{1, 0}
     // back is the part in the -y direction and front is the part in the +y direction if the curves are in the xy-plane
@@ -387,7 +225,6 @@ value_type t1 = 1.0f;
         g::CurveNURBS<point_type> curve_front(degree, control_points_front);
         g::CurveNURBS<point_type> curve_back(degree, control_points_back);
         auto polygon = create_polygon(curve_back, curve_front, nAzimuthSpike);
-        g::OrientedPolygon<vector_traits> opolygon(polygon, {vector_type::z_direction(), vector_type::x_direction()});
 
         g::CurveNURBS<point_type> curve_path(degree, control_points_path);
         g::Path<vector_traits> path(ntSpike + 1);
@@ -434,11 +271,11 @@ value_type t1 = 1.0f;
             string nameSpikeBase = nameSpike + "/end0";
 
             value_type t = value_type(nSpike) / nSpikes;
-            value_type scale_spike = 1.0f - t * 0.75f;
+            value_type spike_scale = 1.0f - t * 0.75f;
 
-            size_t nUndulations = static_cast<size_t>(15.0f * scale_spike) * 2 + 1;
+            size_t nUndulations = static_cast<size_t>(15.0f * spike_scale) * 2 + 1;
 
-            auto scaler_width = [scale_spike_width, nUndulations](const g::OrientedPolygon<vector_traits>& opolygon, value_type t) -> g::OrientedPolygon<vector_traits>
+            auto width_scaler = [scale_spike_width, nUndulations](const g::Polygon<vector_traits>& polygon, value_type t) -> g::Polygon<vector_traits>
             {
                 value_type s0 = value_type(1);
                 value_type s1 = value_type(0.01); // 0 doesn't work with swept volume ...
@@ -446,17 +283,17 @@ value_type t1 = 1.0f;
                 factor = sqrt(cos(t * math::PiHalf<value_type> * 0.98f));
                 factor += 0.075f * sin(t * math::Pi<value_type> * nUndulations);
                 factor *= scale_spike_width;
-                g::OrientedPolygon<vector_traits> poly({}, opolygon.orientation());
-                std::ranges::transform(opolygon.vertices(), std::back_inserter(poly.vertices()), [factor](auto point) { return point * factor; });
-                return poly;
+                g::Polygon<vector_traits> result;
+                std::ranges::transform(polygon.vertices(), std::back_inserter(result.vertices()), [factor](auto point) { return point * factor; });
+                return result;
             };
 
 // problem with op.position() ...
             g::Path<vector_traits> path_spike = path;
-            std::ranges::transform(path_spike, path_spike.begin(), [scale_spike](auto& op) -> g::OrientedPoint<vector_traits> { return {op.position() * scale_spike, op.orientation()}; });
+            std::ranges::transform(path_spike, path_spike.begin(), [spike_scale](auto& op) -> g::OrientedPoint<vector_traits> { return {op.position() * spike_scale, op.orientation()}; });
 
             mesh_type mSpike;
-            model::create_swept_volume(mSpike, nameSpike, opolygon, path_spike, scaler_width);
+            model::create_swept_volume(mSpike, nameSpike, polygon, path_spike, width_scaler);
             model::connect_end_round(mSpike, nameSpike, "end1", "top");
 
             auto rInner = 0.8f * r;

@@ -43,13 +43,14 @@ namespace
     static const value_type wEgg = 0.76f;
     static const value_type kEgg = 0.5f;
 
-    static const string dirOut = "out/";
-    static const string dirReference = "reference/";
+    static const filesystem::path dir_out = "out/";
+    static const filesystem::path dir_ref = "reference/";
+    static const string app_name = "helical_claws";
 
     //--------------------------------------------------------------------------
-    string to_filename(const string& name)
+    filesystem::path to_filename(const string& name)
     {
-        return dirOut + name + ".obj";
+        return dir_out / (name + ".obj");
     }
 
     //--------------------------------------------------------------------------
@@ -331,7 +332,7 @@ check_mesh(m);
                 value_type tangent = egg_contour_tangent(x);
                 mesh_type::vector_type direction = {tangent, 0.0f, 1.0f};
 //                path[i] = {pos * factor, {normalize(direction), right}};
-                path[i] = {scale(pos, factor), {normalize(direction), right}};
+                path[i] = {pos * factor, {normalize(direction), right}};
 //                path[i] = {g::to_point(to_vector(pos) * factor), {normalize(direction), right}};
             }
 
@@ -371,16 +372,9 @@ orientation.direction() = normalize(orientation.direction() * md); // md, not ma
             }
 
             // Polygonal cross section
-            g::OrientedPolygon<vector_traits> polygon(nAzimuthSpike);
-            for (size_t i = 0; i < nAzimuthSpike; ++i)
-            {
-                value_type phi = math::PiTwo<value_type> * i / value_type(nAzimuthSpike);
-                polygon.vertex(i) = {radius * cos(phi), radius * sin(phi), value_type(0)};
-            }
+            auto polygon = g::regular_polygon<vector_traits>(nAzimuthSpike, radius);
 
-            // Create spike
-            mesh_type mSpike;
-            auto scaler = [](g::OrientedPolygon<vector_traits> polygon, value_type t) -> g::OrientedPolygon<vector_traits>
+            auto scaler = [](g::Polygon<vector_traits> polygon, value_type t) -> g::Polygon<vector_traits>
             {
                 value_type s0 = value_type(1);
                 value_type s1 = value_type(0.1);
@@ -392,6 +386,8 @@ orientation.direction() = normalize(orientation.direction() * md); // md, not ma
                 return polygon;
             };
 
+            // Create spike
+            mesh_type mSpike;
             model::create_swept_volume(mSpike, nameSpike, polygon, path, scaler);
             // set end0 normal to perpendicular instead of following curve ...
             // but it really shouldn't be off that far ...
@@ -443,7 +439,7 @@ for (value_type m = 5.0f; m >= -5.0f; m -= 0.1f)
     cout << x << "\t" << mm << "\t" << m << endl;
 }
 */
-    FileValidator validator(dirOut, dirReference);
+    FileValidator validator(dir_out, dir_ref, app_name);
 
     string name;
     mesh_type mesh;
@@ -464,7 +460,6 @@ for (value_type m = 5.0f; m >= -5.0f; m -= 0.1f)
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 */
-
     // Want better row distinction/separation
     // see if increasing height of base helps, else consider helix_anticylinder with multi-helix support
 
@@ -488,7 +483,7 @@ for (value_type m = 5.0f; m >= -5.0f; m -= 0.1f)
     create_helical_claws(mesh, name, 8, 50.0f, 100.0f, 4.25f, 6, 10, 0.500f);
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
-/*
+
     name = "helical_claws_4_100_0250";
     cout << name << endl;
     mesh.clear();
@@ -516,7 +511,7 @@ for (value_type m = 5.0f; m >= -5.0f; m -= 0.1f)
     create_helical_claws(mesh, name, 8, 80.0f, 100.0f, 8.25f, 6, 10, 0.25f);
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
-*/
+
     name = "azimuth_test";
     cout << name << endl;
     mesh.clear();

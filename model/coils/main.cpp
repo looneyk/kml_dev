@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-// coil_test
+// coils
 // main.cpp
 //------------------------------------------------------------------------------
 
@@ -9,7 +9,6 @@
 #include "quetzal/brep/validation.hpp"
 #include "quetzal/common/FileValidator.hpp"
 #include "quetzal/geometry/OrientedPoint.hpp"
-#include "quetzal/geometry/OrientedPolygon.hpp"
 #include "quetzal/geometry/Point.hpp"
 #include "quetzal/geometry/Polygon.hpp"
 #include "quetzal/geometry/transformation_matrix.hpp"
@@ -30,17 +29,18 @@ namespace
     using value_type = float;
     using vector_traits = math::HomogeneousTraits<value_type, 3>;
     using mesh_type = brep::Mesh<brep::MeshTraits<vector_traits>>;
-    using vector_type = mesh_type::vector_type;
     using point_type = mesh_type::point_type;
+    using vector_type = point_type::vector_type;
     using vertex_attributes_type = mesh_type::vertex_attributes_type;
 
-    static const string dirOut = "out/";
-    static const string dirReference = "reference/";
+    static const filesystem::path dir_out = "out/";
+    static const filesystem::path dir_ref = "reference/";
+    static const string app_name = "coils";
 
     //--------------------------------------------------------------------------
-    string to_filename(const string& name)
+    filesystem::path to_filename(const string& name)
     {
-        return dirOut + name + ".obj";
+        return dir_out / (name + ".obj");
     }
 
     //--------------------------------------------------------------------------
@@ -117,7 +117,7 @@ namespace
             vector_type up = {dx, 0.0f, dz};
             vector_type right = normalize(cross(direction, up));
 
-            path[i] = {position, {math::normalize(direction), math::normalize(right)}};
+            path[i] = {position, {math::normalize(direction), right}};
         }
 
         return path;
@@ -159,7 +159,7 @@ namespace
             vector_type up = {dxx, 0.0f, dz};
             vector_type right = normalize(cross(direction, up));
 
-            path[i] = {position, {math::normalize(direction), math::normalize(right)}};
+            path[i] = {position, {math::normalize(direction), right}};
         }
 
         return path;
@@ -176,20 +176,16 @@ namespace
     //--------------------------------------------------------------------------
     void create_coils_linear(mesh_type& mesh, size_t nCoils, size_t nAzimuth, size_t nz, value_type radius)
     {
-        geometry::OrientedPolygon<vector_traits> circle(nAzimuth);
-        for (size_t i = 0; i < nAzimuth; ++i)
-        {
-            value_type phi = math::PiTwo<value_type> * i / nAzimuth;
-            circle.vertex(i) = {radius * cos(phi), radius * sin(phi), 0.0f};
-        }
+        auto circle = geometry::regular_polygon<vector_traits>(nAzimuth, radius);
+        circle.set_final();
 
         math::Interval<value_type> azimuthEven = {0.0f, 2.0f};
         math::Interval<value_type> azimuthOdd = shift(azimuthEven, 0.5f);
         geometry::Path<vector_traits> pathEven = create_coil_path_linear(nz, 20.0f, 0.25f, 30.0f, 01.5f, 0.0f, 100.0f, azimuthEven);
         geometry::Path<vector_traits> pathOdd = create_coil_path_linear(nz, 20.0f, 0.25f, 30.0f, 01.5f, 0.0f, 100.0f, azimuthOdd);
-        auto scaler = [](const geometry::OrientedPolygon<vector_traits>& in, value_type t) -> geometry::OrientedPolygon<vector_traits>
+        auto scaler = [](const geometry::Polygon<vector_traits>& in, value_type t) -> geometry::Polygon<vector_traits>
         {
-            geometry::OrientedPolygon<vector_traits> out(in.vertex_count());
+            geometry::Polygon<vector_traits> out(in.vertex_count());
             for (size_t i = 0; i < in.vertex_count(); ++i)
             {
                 out.vertex(i) = (1.0f - 0.85f * t) * in.vertex(i);
@@ -235,21 +231,17 @@ namespace
     //--------------------------------------------------------------------------
     void create_coils_parabolic(mesh_type& mesh, size_t nCoils, size_t nAzimuth, size_t nz, value_type radius)
     {
-        geometry::OrientedPolygon<vector_traits> circle(nAzimuth);
-        for (size_t i = 0; i < nAzimuth; ++i)
-        {
-            value_type phi = math::PiTwo<value_type> * i / nAzimuth;
-            circle.vertex(i) = {radius * cos(phi), radius * sin(phi), 0.0f};
-        }
+        auto circle = geometry::regular_polygon<vector_traits>(nAzimuth, radius);
+        circle.set_final();
 
         math::Interval<value_type> azimuthEven = {0.0f, 2.0f};
         math::Interval<value_type> azimuthOdd = shift(azimuthEven, 0.5f);
 
         geometry::Path<vector_traits> pathEven = create_coil_path_parabolic(nz, 1.5f, 20.0f, 20.0f, 0.0f, 150.0f, azimuthEven);
         geometry::Path<vector_traits> pathOdd = create_coil_path_parabolic(nz, 1.5f, 20.0f, 20.0f, 0.0f, 150.0f, azimuthOdd);
-        auto scaler = [](const geometry::OrientedPolygon<vector_traits>& in, value_type t) -> geometry::OrientedPolygon<vector_traits>
+        auto scaler = [](const geometry::Polygon<vector_traits>& in, value_type t) -> geometry::Polygon<vector_traits>
         {
-            geometry::OrientedPolygon<vector_traits> out(in.vertex_count());
+            geometry::Polygon<vector_traits> out(in.vertex_count());
             for (size_t i = 0; i < in.vertex_count(); ++i)
             {
                 out.vertex(i) = (1.0f - 0.75f * t) * in.vertex(i);
@@ -299,32 +291,34 @@ int main(int argc, char* argv[])
     argc;
     argv;
 
-    FileValidator validator(dirOut, dirReference);
+    FileValidator validator(dir_out, dir_ref, app_name);
 
     string name;
     mesh_type mesh;
 
-    name = "coil_cone.obj";
+    name = "coil_cone";
     cout << name << endl;
     mesh.clear();
     model::create_cylinder(mesh, "cylinder", 6, 100, 5.0f, 0.0f, -10.0f, 10.0f);
     triangulate(mesh);
     validate(mesh);
     check_normal_consistency(mesh);
-    model::transform(mesh, [](vertex_attributes_type& av)->void{coilify(av, 5.0f, math::PiTwo<value_type>, -10.0f, 10.0f, math::PiTwo<value_type>);});
-    model::write_obj(mesh, dirOut + name);
+    model::transform(mesh, [](vertex_attributes_type& av) -> void {coilify(av, 5.0f, math::PiTwo<value_type>, -10.0f, 10.0f, math::PiTwo<value_type>);});
+    model::write_obj(mesh, to_filename(name));
+validate(mesh);
 
-    name = "coil_prism.obj";
+    name = "coil_prism";
     cout << name << endl;
     mesh.clear();
 	model::create_prism(mesh, "prism", 6, 100, 5.0f, 0.0f, -10.0f, 10.0f);
     triangulate(mesh);
     validate(mesh);
     brep::check_normal_consistency(mesh);
-	model::transform(mesh, [](vertex_attributes_type& av)->void{coilify(av, 5.0f, math::PiTwo<value_type>, -10.0f, 10.0f, math::PiTwo<value_type>);});
-    model::write_obj(mesh, dirOut + name);
+	model::transform(mesh, [](vertex_attributes_type& av) -> void {coilify(av, 5.0f, math::PiTwo<value_type>, -10.0f, 10.0f, math::PiTwo<value_type>);});
+    model::write_obj(mesh, to_filename(name));
+validate(mesh);
 
-    name = "entwine_8.obj";
+    name = "entwine_8";
     cout << name << endl;
     mesh.clear();
     for (size_t i = 0; i < 8; ++i)
@@ -333,61 +327,65 @@ int main(int argc, char* argv[])
 		model::create_cylinder(m, "cylinder_" + to_string(i), 12, 100, 3.75f, 3.75f, -50.0f, 50.0f);
         value_type x = 30.0f * cos(math::PiTwo<value_type> * i / 8);
         value_type y = 30.0f * sin(math::PiTwo<value_type> * i / 8);
-		model::transform(m, [=](vertex_attributes_type& av)->void{coilify2(av, 20.0f, -50.0f, 50.0f, x, y, math::Pi<value_type> * i + math::PiTwo<value_type> * i / 8, 2.0f * math::PiTwo<value_type>);});
+		model::transform(m, [=](vertex_attributes_type& av) -> void {coilify2(av, 20.0f, -50.0f, 50.0f, x, y, math::Pi<value_type> * i + math::PiTwo<value_type> * i / 8, 2.0f * math::PiTwo<value_type>);});
         triangulate(m);
         mesh.insert(m);
     }
-    model::write_obj(mesh, dirOut + name);
+    model::write_obj(mesh, to_filename(name));
+//validate(mesh);
 
-    name = "entwine_linear_8_100.obj";
+    name = "entwine_linear_8_100";
     cout << name << endl;
     mesh.clear();
     create_coils_linear(mesh, 8, 10, 100, 3.5f);
-    model::write_obj(mesh, dirOut + name);
+    model::write_obj(mesh, to_filename(name));
+//validate(mesh);
 
-    name = "entwine_linear_10_100.obj";
+    name = "entwine_linear_10_100";
     cout << name << endl;
     mesh.clear();
     create_coils_linear(mesh, 10, 10, 100, 3.5f);
-    model::write_obj(mesh, dirOut + name);
+    model::write_obj(mesh, to_filename(name));
+//validate(mesh);
 /*
-    name = "entwine_linear_8_300.obj";
+    name = "entwine_linear_8_300";
     cout << name << endl;
     mesh.clear();
     create_coils_linear(mesh, 8, 10, 300, 3.5f);
-    model::write_obj(mesh, dirOut + name);
+    model::write_obj(mesh, to_filename(name));
 
-    name = "entwine_linear_10_300.obj";
+    name = "entwine_linear_10_300";
     cout << name << endl;
     mesh.clear();
     create_coils_linear(mesh, 10, 10, 300, 3.5f);
-    model::write_obj(mesh, dirOut + name);
+    model::write_obj(mesh, to_filename(name));
 */
-    name = "entwine_parabolic_8_100.obj";
+    name = "entwine_parabolic_8_100";
     cout << name << endl;
     mesh.clear();
     create_coils_parabolic(mesh, 8, 10, 100, 5.0f);
-    model::write_obj(mesh, dirOut + name);
+    model::write_obj(mesh, to_filename(name));
+//validate(mesh);
 
-    name = "entwine_parabolic_10_100.obj";
+    name = "entwine_parabolic_10_100";
     cout << name << endl;
     mesh.clear();
     create_coils_parabolic(mesh, 10, 10, 100, 5.0f);
-    model::write_obj(mesh, dirOut + name);
+    model::write_obj(mesh, to_filename(name));
+//validate(mesh);
 /*
-    name = "entwine_parabolic_8_300.obj";
+    name = "entwine_parabolic_8_300";
     cout << name << endl;
     mesh.clear();
     create_coils_parabolic(mesh, 8, 10, 300, 5.0f);
-    model::write_obj(mesh, dirOut + name);
+    model::write_obj(mesh, to_filename(name));
 
-    name = "entwine_parabolic_10_300.obj";
+    name = "entwine_parabolic_10_300";
     cout << name << endl;
     mesh.clear();
     create_coils_parabolic(mesh, 10, 10, 300, 5.0f);
-    model::write_obj(mesh, dirOut + name);
+    model::write_obj(mesh, to_filename(name));
 */
 
-    validator.report_results();
-    return 0;
+    return validator.report_results();
 }
