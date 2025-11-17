@@ -10,6 +10,7 @@
 #include "quetzal/math/floating_point.hpp"
 #include "quetzal/model/obj_io.hpp"
 #include <filesystem>
+#include <format>
 #include <iostream>
 #include <string>
 #include <ranges>
@@ -154,7 +155,11 @@ namespace
         }
 
         auto [n_identical, n_equivalent, n_total] = results.value();
-        assert(n_total == mesh_lhs.face_count());
+//        assert(n_total == mesh_lhs.face_count());
+        if (n_total != mesh_lhs.face_count())
+        {
+            cout << std::format("Error: total {} != face_count {}", n_total,  mesh_lhs.face_count()) << endl;
+        }
 
         if (n_identical == n_total)
         {
