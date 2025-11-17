@@ -268,8 +268,6 @@
     <ClInclude Include="Intersection.hpp" />
     <ClInclude Include="Line.hpp" />
     <ClInclude Include="Locus.hpp" />
-    <ClInclude Include="OrientedPolygon.hpp" />
-    <ClInclude Include="OrientedPolygonWithHoles.hpp" />
     <ClInclude Include="Path.hpp" />
     <ClInclude Include="PointRelation.hpp" />
     <ClInclude Include="Points.hpp" />

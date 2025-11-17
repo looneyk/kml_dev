@@ -8,7 +8,6 @@
 #include "quetzal/geometry/PositionAccessor.hpp"
 #include "quetzal/math/Interval.hpp"
 #include "quetzal/geometry/OrientedPoint.hpp"
-#include "quetzal/geometry/OrientedPolygon.hpp"
 #include "quetzal/geometry/Polygon.hpp"
 #include "quetzal/geometry/transformation_matrix.hpp"
 #include "quetzal/math/floating_point.hpp"
@@ -46,7 +45,6 @@ namespace quetzal::model
     using vertex_normal_function_type = std::function<normal_vector_type<M>(data_value_type<M>)>;
 
     template<typename M>
-//    using vertices_attributes_type = std::vector<typename M::vertex_attributes_type>;
     class vertices_attributes_type : public std::vector<typename M::vertex_attributes_type>
     {
     public:
@@ -111,9 +109,9 @@ namespace quetzal::model
 
     // Precalculate vertex values for a layer
     // Produces polygon edge_count + 1 points
-    // Polygon 3 (could be 2 since it's transformed) ...
+    // Oriented point position is really a translation vector
     template<typename M>
-    vertices_attributes_type<M> vertices_attributes(const geometry::OrientedPolygon<typename M::vector_traits>& polygon, const geometry::OrientedPoint<typename M::vector_traits>& op, texture_span_type<M> ts);
+    vertices_attributes_type<M> vertices_attributes(const geometry::Polygon<typename M::vector_traits>& polygon, const geometry::OrientedPoint<typename M::vector_traits>& op, texture_span_type<M> ts);
 
     // Precalculate vertex values for a layer parallel to the xy-plane
     // Produces a single smooth polygon section
@@ -623,17 +621,18 @@ quetzal::model::vertices_attributes_sections_type<M> quetzal::model::vertices_at
 
 //------------------------------------------------------------------------------
 template<typename M>
-quetzal::model::vertices_attributes_type<M> quetzal::model::vertices_attributes(const geometry::OrientedPolygon<typename M::vector_traits>& polygon, const geometry::OrientedPoint<typename M::vector_traits>& op, texture_span_type<M> ts)
+quetzal::model::vertices_attributes_type<M> quetzal::model::vertices_attributes(const geometry::Polygon<typename M::vector_traits>& polygon, const geometry::OrientedPoint<typename M::vector_traits>& op, texture_span_type<M> ts)
 {
     using T = data_value_type<M>;
 
     size_t edge_count = polygon.edge_count();
     vertices_attributes_type<M> avs(edge_count + 1);
 
-    auto matrix = geometry::alignment2(polygon.orientation().direction(), polygon.orientation().right(), op.orientation().direction(), op.orientation().right());
-    matrix *= geometry::translation(op.position().vector());
+    auto center = denoise0(polygon.centroid());
 
-    auto center = polygon.centroid();
+    auto matrix = geometry::translation(-center.vector());
+    matrix *= geometry::alignment2(polygon.orientation().direction(), polygon.orientation().right(), op.orientation().direction(), op.orientation().right());
+    matrix *= geometry::translation(op.position().vector());
 
     for (size_t i = 0; i < edge_count; ++i)
     {

@@ -15,7 +15,6 @@
 #include "quetzal/brep/inversion.hpp"
 #include "quetzal/brep/mesh_util.hpp"
 #include "quetzal/brep/validation.hpp"
-#include "quetzal/geometry/OrientedPolygon.hpp"
 #include "quetzal/geometry/Path.hpp"
 #include "quetzal/geometry/Polyline.hpp"
 #include "quetzal/geometry/Polygon.hpp"
@@ -377,13 +376,13 @@ namespace quetzal::model
     // Generalized cylinder
     // Surfaces: "body", "end0", "end1"
     template<typename M>
-    id_type create_swept_volume(M& mesh, const std::string& name, const geometry::OrientedPolygon<typename M::vector_traits>& polygon, const geometry::Path<typename M::vector_traits>& path, const Properties& properties = {});
+    id_type create_swept_volume(M& mesh, const std::string& name, const geometry::Polygon<typename M::vector_traits>& polygon, const geometry::Path<typename M::vector_traits>& path, const Properties& properties = {});
 
     // Create volume by sweeping polygon along points of path with parametric function applied to polygon at each point
     // Generalized cylinder
     // Surfaces: "body", "end0", "end1"
     template<typename M>
-    id_type create_swept_volume(M& mesh, const std::string& name, const geometry::OrientedPolygon<typename M::vector_traits>& polygon, const geometry::Path<typename M::vector_traits>& path, std::function<geometry::OrientedPolygon<typename M::vector_traits>(const geometry::OrientedPolygon<typename M::vector_traits>&, data_value_type<M>)> f, const Properties& properties = {});
+    id_type create_swept_volume(M& mesh, const std::string& name, const geometry::Polygon<typename M::vector_traits>& polygon, const geometry::Path<typename M::vector_traits>& path, std::function<geometry::Polygon<typename M::vector_traits>(const geometry::Polygon<typename M::vector_traits>&, data_value_type<M>)> f, const Properties& properties = {});
 
     // End polygon is parallel to the xy plane
     // Junction with body surface(s) is smooth
@@ -4037,7 +4036,7 @@ idHalfedge_upper = m.halfedge_store_count() - 2 * nAzimuth; // after last layer 
 
 //------------------------------------------------------------------------------
 template<typename M>
-quetzal::id_type quetzal::model::create_swept_volume(M& mesh, const std::string& name, const geometry::OrientedPolygon<typename M::vector_traits>& polygon, const geometry::Path<typename M::vector_traits>& path, const Properties& properties)
+quetzal::id_type quetzal::model::create_swept_volume(M& mesh, const std::string& name, const geometry::Polygon<typename M::vector_traits>& polygon, const geometry::Path<typename M::vector_traits>& path, const Properties& properties)
 {
     assert(polygon.edge_count() > 2);
     assert(path.size() > 1);
@@ -4050,6 +4049,11 @@ quetzal::id_type quetzal::model::create_swept_volume(M& mesh, const std::string&
     CylinderSpecification<T> spec(nAzimuth, nz, T(0), T(0), T(0), T(0), properties);
 
     assert(spec.azimuth_smooth); // need another version for sections ...
+    assert(spec.azimuth_interval.unit());
+    assert(spec.azimuth_divisions == polygon.edge_count());
+
+    auto face_count = spec.azimuth_divisions;
+    bool closed = true;
 
     M m{};
     id_type submesh_id = m.create_submesh(name);
@@ -4069,10 +4073,9 @@ quetzal::id_type quetzal::model::create_swept_volume(M& mesh, const std::string&
     auto avs0 = vertices_attributes<M>(polygon, path[0], ts0);
     auto avs1 = vertices_attributes<M>(polygon, path[1], ts1);
 
-    auto face_count = spec.azimuth_divisions;
     id_type j0_orig = m.halfedge_store_count();
 
-    create_band(m, avs0, avs1, surface_id0, true);
+    create_band(m, avs0, avs1, surface_id0, closed);
 
     for (size_t i = 2; i <= nz; ++i)
     {
@@ -4081,7 +4084,7 @@ quetzal::id_type quetzal::model::create_swept_volume(M& mesh, const std::string&
 
         j0_orig = m.halfedge_store_count();
 
-        connect_band(m, avs1, surface_id0, true);
+        connect_band(m, avs1, surface_id0, closed);
     }
 
     calculate_upper_surface_vertex_normals_sequential(m, j0_orig + 2 * face_count, face_count);
@@ -4097,7 +4100,7 @@ quetzal::id_type quetzal::model::create_swept_volume(M& mesh, const std::string&
 
 //------------------------------------------------------------------------------
 template<typename M>
-quetzal::id_type quetzal::model::create_swept_volume(M& mesh, const std::string& name, const geometry::OrientedPolygon<typename M::vector_traits>& polygon, const geometry::Path<typename M::vector_traits>& path, std::function<geometry::OrientedPolygon<typename M::vector_traits>(const geometry::OrientedPolygon<typename M::vector_traits>&, data_value_type<M>)> f, const Properties& properties)
+quetzal::id_type quetzal::model::create_swept_volume(M& mesh, const std::string& name, const geometry::Polygon<typename M::vector_traits>& polygon, const geometry::Path<typename M::vector_traits>& path, std::function<geometry::Polygon<typename M::vector_traits>(const geometry::Polygon<typename M::vector_traits>&, data_value_type<M>)> f, const Properties& properties)
 {
     assert(polygon.edge_count() > 2);
     assert(path.size() > 1);
@@ -4110,8 +4113,11 @@ quetzal::id_type quetzal::model::create_swept_volume(M& mesh, const std::string&
     CylinderSpecification<T> spec(nAzimuth, nz, T(0), T(0), T(0), T(0), properties);
 
     assert(spec.azimuth_smooth); // need another version for sections ...
+    assert(spec.azimuth_interval.unit());
+    assert(spec.azimuth_divisions == polygon.edge_count());
 
-    bool closed = true; // spec interval? ...
+    size_t face_count = spec.azimuth_divisions;
+    bool closed = true;
 
     M m{};
     id_type submesh_id = m.create_submesh(name);
@@ -4133,7 +4139,6 @@ quetzal::id_type quetzal::model::create_swept_volume(M& mesh, const std::string&
     auto avs0 = vertices_attributes<M>(f(polygon, T(0)), path[0], ts0);
     auto avs1 = vertices_attributes<M>(f(polygon, t), path[1], ts1);
 
-//    auto face_count = spec.azimuth_divisions;
     id_type j0_orig = m.halfedge_store_count();
 
     create_band(m, avs0, avs1, surface_id0, closed);
@@ -4149,8 +4154,7 @@ quetzal::id_type quetzal::model::create_swept_volume(M& mesh, const std::string&
         connect_band(m, avs1, surface_id0, closed);
     }
 
-// why does this modify positions in addition to normals? ...
-//    calculate_upper_surface_vertex_normals_sequential(m, j0_orig + 2 * face_count, face_count);
+    calculate_upper_surface_vertex_normals_sequential(m, j0_orig + 2 * face_count, face_count);
 
     typename M::vector_type normal_lower = math::normalize(-path.front().orientation().direction());
     typename M::vector_type normal_upper = math::normalize(path.back().orientation().direction());
