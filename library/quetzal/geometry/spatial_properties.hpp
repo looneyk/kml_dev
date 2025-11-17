@@ -19,7 +19,7 @@ namespace quetzal::geometry
     // In these functions, points refers to a container of objects, each with an embedded position
 
     // Undefined if all points are colinear
-    template<typename T>
+    template<typename T> requires (quetzal::geometry::PositionAccessor<T>::dimension == 3)
     typename PositionAccessor<T>::vector_type normal(const T& points);
 
     template<typename T>
@@ -43,14 +43,17 @@ namespace quetzal::geometry
     template<typename T> requires (quetzal::geometry::PositionAccessor<T>::dimension == 3)
     typename PositionAccessor<T>::value_type signed_area(const T& points, const typename PositionAccessor<T>::vector_type& normal);
 
+    template<typename T> requires (quetzal::geometry::PositionAccessor<T>::dimension == 2)
+    bool planar(const T& points);
+
     // optional normal in case the normal is already known and does not need to be calculated
-    template<typename T>
+    template<typename T> requires (quetzal::geometry::PositionAccessor<T>::dimension == 3)
     bool planar(const T& points, const std::optional<typename PositionAccessor<T>::vector_type>& normal = std::nullopt);
 
 } // namespace quetzal::geometry
 
 //------------------------------------------------------------------------------
-template<typename T>
+template<typename T> requires (quetzal::geometry::PositionAccessor<T>::dimension == 3)
 typename quetzal::geometry::PositionAccessor<T>::vector_type quetzal::geometry::normal(const T& points)
 {
     auto n = PositionAccessor<T>::position_count(points);
@@ -201,26 +204,30 @@ typename quetzal::geometry::PositionAccessor<T>::value_type quetzal::geometry::s
 }
 
 //------------------------------------------------------------------------------
-template<typename T>
+template<typename T> requires (quetzal::geometry::PositionAccessor<T>::dimension == 2)
+bool quetzal::geometry::planar(const T& points)
+{
+    return true;
+}
+
+//------------------------------------------------------------------------------
+template<typename T> requires (quetzal::geometry::PositionAccessor<T>::dimension == 3)
 bool quetzal::geometry::planar(const T& points, const std::optional<typename PositionAccessor<T>::vector_type>& normal)
 {
-    if constexpr (PositionAccessor<T>::dimension >= 3)
+    size_t n = PositionAccessor<T>::position_count(points);
+    if (n <= 3)
     {
-        size_t n = PositionAccessor<T>::position_count(points);
-        if (n <= 3)
-        {
-            return true;
-        }
+        return true;
+    }
 
-        Plane<typename PositionAccessor<T>::point_type::traits_type> plane(PositionAccessor<T>::position(points, 0), normal.value_or(geometry::normal(points)));
+    Plane<typename PositionAccessor<T>::point_type::traits_type> plane(PositionAccessor<T>::position(points, 0), normal.value_or(geometry::normal(points)));
 
-        for (size_t i = 0; i < n; ++i)
+    for (size_t i = 0; i < n; ++i)
+    {
+        const auto& point = PositionAccessor<T>::position(points, i);
+        if (!plane.contains(point))
         {
-            const auto& point = PositionAccessor<T>::position(points, i);
-            if (!plane.contains(point))
-            {
-                return false;
-            }
+            return false;
         }
     }
 
