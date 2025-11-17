@@ -41,6 +41,7 @@ namespace quetzal::model
 template<typename M>
 quetzal::id_type quetzal::model::create_helix_anticylinder(M& mesh, const std::string& name, size_t nAzimuth, data_value_type<M> rLower, data_value_type<M> rUpper, data_value_type<M> zLower, data_value_type<M> zUpper, data_value_type<M> revsLower, data_value_type<M> revsUpper, bool bSmooth)
 {
+    // does not provide fdr ...
     return create_helix_anticylinder(mesh, name, nAzimuth, [=](const data_value_type<M>& t) -> data_value_type<M> { return math::lerp(rLower, rUpper, t); }, zLower, zUpper, revsLower, revsUpper, bSmooth);
 }
 

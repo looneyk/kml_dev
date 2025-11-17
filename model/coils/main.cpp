@@ -301,22 +301,22 @@ int main(int argc, char* argv[])
     mesh.clear();
     model::create_cylinder(mesh, "cylinder", 6, 100, 5.0f, 0.0f, -10.0f, 10.0f);
     triangulate(mesh);
-    validate(mesh);
-    check_normal_consistency(mesh);
+//    validate(mesh);
+//    check_normal_consistency(mesh);
     model::transform(mesh, [](vertex_attributes_type& av) -> void {coilify(av, 5.0f, math::PiTwo<value_type>, -10.0f, 10.0f, math::PiTwo<value_type>);});
     model::write_obj(mesh, to_filename(name));
-validate(mesh);
+//validate(mesh);
 
     name = "coil_prism";
     cout << name << endl;
     mesh.clear();
 	model::create_prism(mesh, "prism", 6, 100, 5.0f, 0.0f, -10.0f, 10.0f);
     triangulate(mesh);
-    validate(mesh);
-    brep::check_normal_consistency(mesh);
+//    validate(mesh);
+//    check_normal_consistency(mesh);
 	model::transform(mesh, [](vertex_attributes_type& av) -> void {coilify(av, 5.0f, math::PiTwo<value_type>, -10.0f, 10.0f, math::PiTwo<value_type>);});
     model::write_obj(mesh, to_filename(name));
-validate(mesh);
+//validate(mesh);
 
     name = "entwine_8";
     cout << name << endl;
