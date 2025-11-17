@@ -2034,35 +2034,36 @@ void quetzal::brep::dump_submesh(const M& mesh, id_type id)
 {
     const auto& submesh = mesh.submesh_store()[id];
     write_submesh<M>(submesh, std::format("Submesh[{}]", id));
-
-    if (!submesh.deleted())
+    if (submesh.deleted())
     {
-/*
-        for (const auto& face : submesh.faces())
-        {
-            write_face<M>(face, std::format("Face[{}]", face.id()));
+        return;
+    }
 
-            for (const auto& halfedge : face.halfedges())
-            {
+/*
+    for (const auto& face : submesh.faces())
+    {
+        write_face<M>(face, std::format("Face[{}]", face.id()));
+
+        for (const auto& halfedge : face.halfedges())
+        {
 //                std::cout << std::format("    halfedge {:>5}, v {:5}, f {:5}, {}", halfedge.id(), halfedge.vertex_id(), halfedge.face_id(), halfedge.vertex_attributes()) << eol;
 // attributes need format support ...
-                std::cout << std::format("    halfedge{:>5}, v {:5}, f {:5}, ", halfedge.id(), halfedge.vertex_id(), halfedge.face_id()) << halfedge.vertex_attributes() << eol;
-            }
+            std::cout << std::format("    halfedge{:>5}, v {:5}, f {:5}, ", halfedge.id(), halfedge.vertex_id(), halfedge.face_id()) << halfedge.vertex_attributes() << eol;
         }
+    }
 
-        for (const auto& surface : submesh.surfaces())
-        {
-            write_surface<M>(surface, std::format("Surface[{}]", surface.id()));
-        }
+    for (const auto& surface : submesh.surfaces())
+    {
+        write_surface<M>(surface, std::format("Surface[{}]", surface.id()));
+    }
 */    
-        for (const auto& hole : submesh.holes())
-        {
-            std::cout << std::format("Hole face {} {} halfedges", hole.face_id(), hole.halfedge_count()) << eol;
+    for (const auto& hole : submesh.holes())
+    {
+        std::cout << std::format("Hole face {} {} halfedges", hole.face_id(), hole.halfedge_count()) << eol;
 
-            for (const auto& halfedge : hole.halfedges())
-            {
-                std::cout << std::format("    halfedge{:>5}, v {:5}, f {:5}, ", halfedge.id(), halfedge.vertex_id(), halfedge.face_id()) << halfedge.vertex_attributes() << eol;
-            }
+        for (const auto& halfedge : hole.halfedges())
+        {
+            std::cout << std::format("    halfedge{:>5}, v {:5}, f {:5}, ", halfedge.id(), halfedge.vertex_id(), halfedge.face_id()) << halfedge.vertex_attributes() << eol;
         }
     }
 
@@ -2087,28 +2088,28 @@ void quetzal::brep::dump_face(const M& mesh, id_type id)
 {
     const auto& face = mesh.face_store()[id];
     write_face<M>(face, std::format("Face[{}]", id));
-
-    if (!face.deleted())
+    if (face.deleted())
     {
-        for (const auto& halfedge : face.halfedges())
-        {
-            write_halfedge<M>(halfedge, "    halfedge");
-//            std::cout << "        " << halfedge.vertex_attributes();
-        }
-
-        size_t i = 0;
-        for (const auto& hole : face.holes())
-        {
-            std::cout << "    hole " << i++ << ' ' << std::setw(3) << hole.halfedge_count() << " halfedges" << eol;
-            for (const auto& halfedge : hole.halfedges())
-            {
-                write_halfedge<M>(halfedge, "    halfedge");
-            }
-        }
-
-        check_face(mesh, face);
+        return;
     }
 
+    for (const auto& halfedge : face.halfedges())
+    {
+        write_halfedge<M>(halfedge, "    halfedge");
+//        std::cout << "        " << halfedge.vertex_attributes();
+    }
+
+    size_t i = 0;
+    for (const auto& hole : face.holes())
+    {
+        std::cout << "    hole " << i++ << ' ' << std::setw(3) << hole.halfedge_count() << " halfedges" << eol;
+        for (const auto& halfedge : hole.halfedges())
+        {
+            write_halfedge<M>(halfedge, "    halfedge");
+        }
+    }
+
+    check_face(mesh, face);
     return;
 }
 
