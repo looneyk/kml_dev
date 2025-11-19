@@ -27,11 +27,11 @@ namespace quetzal
     {
     public:
 
-        // lhs is directory for generated test files, rhs is directory for reference files
-        // clear empties the lhs directory at the start for more comprehensive testing
-        // lhs: test output directory, rhs: reference directory
+        // out_path is directory for generated test files, reference_path is directory for reference files
+        // clear empties the out_path directory at the start for more comprehensive testing
+        // out_path: test output directory, reference_path: reference directory
         // get rid of obsolete clear option now that we're checking file timestamps? ...
-        FileValidator(const std::filesystem::path& lhs, const std::filesystem::path& rhs, const std::string& app_name = "", bool clear = false);
+        FileValidator(const std::filesystem::path& out_path, const std::filesystem::path& reference_path, const std::string& app_name = "", bool clear = false);
         FileValidator(const FileValidator&) = default;
         FileValidator(FileValidator&&) = default;
         ~FileValidator() = default;
@@ -51,10 +51,10 @@ namespace quetzal
         // Returns counts {different, unchanged, missing, unchecked, total}
         std::array<size_t, 5> directory_differences() const;
 
-        bool file_equal(const std::filesystem::path& lhs, const std::filesystem::path& rhs) const;
+        bool file_equal(const std::filesystem::path& out_path, const std::filesystem::path& reference_path) const;
 
-        std::filesystem::path m_lhs;
-        std::filesystem::path m_rhs;
+        std::filesystem::path m_out_path;
+        std::filesystem::path m_reference_path;
         Timestamp m_t0;
     };
 
