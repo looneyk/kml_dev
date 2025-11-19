@@ -65,6 +65,8 @@ namespace quetzal::geometry
         Polygon& operator=(const Polygon&) = default;
         Polygon& operator=(Polygon&&) = default;
 
+        Polygon clone() const; // Creates a copy that can be modified, non-final
+
         const vertices_type& vertices() const;
         vertices_type& vertices();
 
@@ -120,8 +122,8 @@ namespace quetzal::geometry
         vector_type right() const;
         Orientation<Traits> orientation() const requires (Traits::dimension == 3); // direction = normal
 
-        // Indicate that the set of vertices is fixed and no further changes will be made, so precalculated or default orientation values can be provided
-        // This has the effect of precluding the calculation of orientation entirely
+        // Indicate that the set of vertices is fixed and no further changes will be made, so precalculated values can be provided or default orientation can be used
+        // This has the effect of precluding the calculation of orientation aspects entirely, so only call this if you don't want their automatic calculation
         void set_final(const vector_type& right = vector_type::x_direction()) requires (Traits::dimension == 2);
         void set_final(const vector_type& normal = vector_type::z_direction(), const vector_type& right = vector_type::x_direction()) requires (Traits::dimension == 3);
 
@@ -136,7 +138,7 @@ namespace quetzal::geometry
 
         mutable  std::optional<vector_type> m_normal;
         mutable  std::optional<vector_type> m_right;
-        bool m_fixed;
+        bool m_final;
     };
 
     template<typename Traits>
@@ -210,7 +212,7 @@ quetzal::geometry::Polygon<Traits>::Polygon(size_type n) :
     m_sections(),
     m_normal(),
     m_right(),
-    m_fixed(false)
+    m_final(false)
 {
 }
 
@@ -222,7 +224,7 @@ quetzal::geometry::Polygon<Traits>::Polygon(std::span<point_type> points) :
     m_sections(),
     m_normal(),
     m_right(),
-    m_fixed(false)
+    m_final(false)
 {
 }
 
@@ -234,7 +236,7 @@ quetzal::geometry::Polygon<Traits>::Polygon(std::initializer_list<vertex_type> p
     m_sections(),
     m_normal(),
     m_right(),
-    m_fixed(false)
+    m_final(false)
 {
 }
 
@@ -247,9 +249,18 @@ quetzal::geometry::Polygon<Traits>::Polygon(InputIterator first, InputIterator l
     m_sections(),
     m_normal(),
     m_right(),
-    m_fixed(false)
+    m_final(false)
 {
     std::copy(first, last, std::back_inserter(m_vertices));
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+typename quetzal::geometry::Polygon<Traits> quetzal::geometry::Polygon<Traits>::clone() const
+{
+    Polygon<Traits> result = *this;
+    result.m_final = false;
+    return result;
 }
 
 //------------------------------------------------------------------------------
@@ -544,7 +555,7 @@ template<typename Traits>
 void quetzal::geometry::Polygon<Traits>::set_final(const vector_type& right) requires (Traits::dimension == 2)
 {
     m_right = right;
-    m_fixed = true;
+    m_final = true;
     return;
 }
 
@@ -554,7 +565,7 @@ void quetzal::geometry::Polygon<Traits>::set_final(const vector_type& normal, co
 {
     m_normal = normal;
     m_right = right;
-    m_fixed = true;
+    m_final = true;
     return;
 }
 
@@ -578,7 +589,7 @@ void quetzal::geometry::Polygon<Traits>::calculate_right() const
 template<typename Traits>
 void quetzal::geometry::Polygon<Traits>::clear_orientation()
 {
-    assert(!m_fixed);
+    assert(!m_final);
     m_normal.reset();
     m_right.reset();
     return;
@@ -588,15 +599,16 @@ void quetzal::geometry::Polygon<Traits>::clear_orientation()
 template<typename Traits>
 quetzal::geometry::Polygon<Traits> quetzal::geometry::transform(Polygon<Traits> polygon, const typename Polygon<Traits>::matrix_type& matrix)
 {
-    polygon.transform(matrix);
-    return polygon;
+    auto result = polygon.clone();
+    result.transform(matrix);
+    return result;
 }
 
 //------------------------------------------------------------------------------
 template<typename Traits>
 quetzal::geometry::Polygon<Traits> quetzal::geometry::scale(Polygon<Traits> polygon, typename Traits::value_type factor)
 {
-    auto result = polygon;
+    auto result = polygon.clone();
     result.scale(factor);
     return result;
 }

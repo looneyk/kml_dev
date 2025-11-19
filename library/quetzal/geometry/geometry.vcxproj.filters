@@ -63,9 +63,6 @@
     <ClInclude Include="polygon_util.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="OrientedPolygonWithHoles.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="distance.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -79,9 +76,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Locus.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="OrientedPolygon.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Points.hpp">
