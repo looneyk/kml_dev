@@ -185,12 +185,7 @@ namespace
         geometry::Path<vector_traits> pathOdd = create_coil_path_linear(nz, 20.0f, 0.25f, 30.0f, 01.5f, 0.0f, 100.0f, azimuthOdd);
         auto scaler = [](const geometry::Polygon<vector_traits>& in, value_type t) -> geometry::Polygon<vector_traits>
         {
-            geometry::Polygon<vector_traits> out(in.vertex_count());
-            for (size_t i = 0; i < in.vertex_count(); ++i)
-            {
-                out.vertex(i) = (1.0f - 0.85f * t) * in.vertex(i);
-            }
-            return out;
+            return scale(in, (1.0f - 0.85f * t));
         };
         mesh_type mEven;
         model::create_swept_volume(mEven, "coil", circle, pathEven, scaler);
@@ -241,12 +236,7 @@ namespace
         geometry::Path<vector_traits> pathOdd = create_coil_path_parabolic(nz, 1.5f, 20.0f, 20.0f, 0.0f, 150.0f, azimuthOdd);
         auto scaler = [](const geometry::Polygon<vector_traits>& in, value_type t) -> geometry::Polygon<vector_traits>
         {
-            geometry::Polygon<vector_traits> out(in.vertex_count());
-            for (size_t i = 0; i < in.vertex_count(); ++i)
-            {
-                out.vertex(i) = (1.0f - 0.75f * t) * in.vertex(i);
-            }
-            return out;
+            return scale(in, (1.0f - 0.75f * t));
         };
         mesh_type mEven;
         model::create_swept_volume(mEven, "coil", circle, pathEven, scaler);

@@ -34,6 +34,7 @@ namespace quetzal::geometry
     // edge count == vertex count
     // Note that planarity is assumed but not often enforced
     // Results of centroid, area, normal, and plane are undefined if the polygon is actually non-planar or degenerate
+    // Polygon is initialized with no sections which indicates individual edge based surfaces
 
     //--------------------------------------------------------------------------
     template<typename Traits>
@@ -103,13 +104,13 @@ namespace quetzal::geometry
 
         virtual void clear();
 
-        AxisAlignedBoundingBox<Traits> bounds() const;
-
         // Point is in the region defined by the polygon
         // Results are indeterminate if the point is on an edge
         // integrate these into compare ...
         bool contains_(const point_type& point) const requires (Traits::dimension == 2);
         bool contains_(const point_type& point) const requires (Traits::dimension == 3);
+
+        AxisAlignedBoundingBox<Traits> bounds() const;
 
         // Sections allow for distinct sets of contiguous vertices
         using sections_type = std::vector<size_type>;
@@ -126,18 +127,18 @@ namespace quetzal::geometry
         // This has the effect of precluding the calculation of orientation aspects entirely, so only call this if you don't want their automatic calculation
         void set_final(const vector_type& right = vector_type::x_direction()) requires (Traits::dimension == 2);
         void set_final(const vector_type& normal = vector_type::z_direction(), const vector_type& right = vector_type::x_direction()) requires (Traits::dimension == 3);
+        // set_final_normal, set_final_right to allow for the other to be calculated? ...
 
     private:
 
-        void calculate_normal() const requires (Traits::dimension == 3);
-        void calculate_right() const;
-        void clear_orientation();
+        void clear_cached();
 
         vertices_type m_vertices;
         sections_type m_sections;
 
-        mutable  std::optional<vector_type> m_normal;
-        mutable  std::optional<vector_type> m_right;
+        mutable std::optional<vector_type> m_normal;
+        mutable std::optional<vector_type> m_right;
+        mutable std::optional<AxisAlignedBoundingBox<Traits>> m_bounds;
         bool m_final;
     };
 
@@ -212,6 +213,7 @@ quetzal::geometry::Polygon<Traits>::Polygon(size_type n) :
     m_sections(),
     m_normal(),
     m_right(),
+    m_bounds(),
     m_final(false)
 {
 }
@@ -224,6 +226,7 @@ quetzal::geometry::Polygon<Traits>::Polygon(std::span<point_type> points) :
     m_sections(),
     m_normal(),
     m_right(),
+    m_bounds(),
     m_final(false)
 {
 }
@@ -236,6 +239,7 @@ quetzal::geometry::Polygon<Traits>::Polygon(std::initializer_list<vertex_type> p
     m_sections(),
     m_normal(),
     m_right(),
+    m_bounds(),
     m_final(false)
 {
 }
@@ -249,6 +253,7 @@ quetzal::geometry::Polygon<Traits>::Polygon(InputIterator first, InputIterator l
     m_sections(),
     m_normal(),
     m_right(),
+    m_bounds(),
     m_final(false)
 {
     std::copy(first, last, std::back_inserter(m_vertices));
@@ -267,7 +272,7 @@ typename quetzal::geometry::Polygon<Traits> quetzal::geometry::Polygon<Traits>::
 template<typename Traits>
 typename quetzal::geometry::Polygon<Traits>::vertices_type& quetzal::geometry::Polygon<Traits>::vertices()
 {
-    clear_orientation();
+    clear_cached();
     return m_vertices;
 }
 
@@ -298,7 +303,7 @@ template<typename Traits>
 typename quetzal::geometry::Polygon<Traits>::vertex_type& quetzal::geometry::Polygon<Traits>::vertex(size_type n)
 {
     assert(n < m_vertices.size());
-    clear_orientation();
+    clear_cached();
     return m_vertices[n];
 }
 
@@ -307,7 +312,7 @@ template<typename Traits>
 void quetzal::geometry::Polygon<Traits>::set_vertex(size_type n, const point_type& point)
 {
     assert(n < m_vertices.size());
-    clear_orientation();
+    clear_cached();
     m_vertices[n] = point;
     return;
 }
@@ -382,7 +387,7 @@ typename quetzal::geometry::Polygon<Traits>::vector_type quetzal::geometry::Poly
 {
     if (!m_normal)
     {
-        calculate_normal();
+        m_normal = geometry::normal(*this);
     }
 
     return m_normal.value();
@@ -399,7 +404,7 @@ quetzal::geometry::Plane<Traits> quetzal::geometry::Polygon<Traits>::plane() con
 template<typename Traits>
 void quetzal::geometry::Polygon<Traits>::transform(const matrix_type& matrix)
 {
-    clear_orientation();
+    clear_cached();
 
     for (auto& vertex : m_vertices)
     {
@@ -413,7 +418,7 @@ void quetzal::geometry::Polygon<Traits>::transform(const matrix_type& matrix)
 template<typename Traits>
 void quetzal::geometry::Polygon<Traits>::scale(value_type factor)
 {
-    clear_orientation();
+    clear_cached();
 
     for (auto& vertex : m_vertices)
     {
@@ -443,17 +448,10 @@ std::partial_ordering quetzal::geometry::Polygon<Traits>::compare(const point_ty
 template<typename Traits>
 void quetzal::geometry::Polygon<Traits>::clear()
 {
-    clear_orientation();
+    clear_cached();
     m_vertices.clear();
     m_sections.clear();
     return;
-}
-
-//------------------------------------------------------------------------------
-template<typename Traits>
-quetzal::geometry::AxisAlignedBoundingBox<Traits> quetzal::geometry::Polygon<Traits>::bounds() const
-{
-    return AxisAlignedBoundingBox<Traits>(m_vertices);
 }
 
 //------------------------------------------------------------------------------
@@ -512,6 +510,18 @@ bool quetzal::geometry::Polygon<Traits>::contains_(const point_type& point) cons
 
 //------------------------------------------------------------------------------
 template<typename Traits>
+quetzal::geometry::AxisAlignedBoundingBox<Traits> quetzal::geometry::Polygon<Traits>::bounds() const
+{
+    if (!m_bounds)
+    {
+        m_bounds = geometry::bounds(*this);
+    }
+
+    return m_bounds.value();
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
 size_t quetzal::geometry::Polygon<Traits>::section_count() const
 {
     return m_sections.size();
@@ -537,7 +547,7 @@ typename quetzal::geometry::Polygon<Traits>::vector_type quetzal::geometry::Poly
 {
     if (!m_right)
     {
-        calculate_right();
+        m_right = normalize(m_vertices[0] - geometry::centroid(*this));
     }
 
     return m_right.value();
@@ -571,27 +581,12 @@ void quetzal::geometry::Polygon<Traits>::set_final(const vector_type& normal, co
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-void quetzal::geometry::Polygon<Traits>::calculate_normal() const requires (Traits::dimension == 3)
-{
-    m_normal = geometry::normal(*this);
-    return;
-}
-
-//------------------------------------------------------------------------------
-template<typename Traits>
-void quetzal::geometry::Polygon<Traits>::calculate_right() const
-{
-    m_right = normalize(m_vertices[0] - geometry::centroid(*this));
-    return;
-}
-
-//------------------------------------------------------------------------------
-template<typename Traits>
-void quetzal::geometry::Polygon<Traits>::clear_orientation()
+void quetzal::geometry::Polygon<Traits>::clear_cached()
 {
     assert(!m_final);
     m_normal.reset();
     m_right.reset();
+    m_bounds.reset();
     return;
 }
 
