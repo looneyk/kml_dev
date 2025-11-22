@@ -81,7 +81,7 @@ namespace quetzal::model
     {
         std::string outer_name;
 
-        // primary parametric dimension - z, radius, azimuth offset (revs)
+        // primary parametric dimension - z, radius (scale), azimuth offset (revs)
         math::Interval<T> axis_z_interval;
         math::Interval<T> axis_radius_interval;
         math::Interval<T> axis_azimuth_offset_interval;
