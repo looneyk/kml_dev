@@ -264,6 +264,24 @@ namespace quetzal::model
     template<typename M>
     id_type create_cylinder(M& mesh, const std::string& name, const geometry::Polygon<typename M::vector_traits>& polygon, size_t nz, data_value_type<M> z_lower, data_value_type<M> z_upper, std::function<data_value_type<M>(data_value_type<M>)> fr, std::function<data_value_type<M>(data_value_type<M>)> fa, const Properties& properties = {});
 
+    // Create a cylinder given a cross section in the form of a simple polygon with variable scaling and rotation at each z
+    // fr - polygon radius function, scale factor
+    // fa - polygon azimuthal rotation function
+    // The nz parameter controls the degree of tessellation along with polygon
+    // Polygon vertices should be in ccw order relative to normal vector of 2D projection
+    // Surfaces: "body", "end0", "end1"
+    template<typename M>
+    id_type create_cylinder_edges(M& mesh, const std::string& name, const geometry::Polygon<typename M::vector_traits>& polygon, size_t nz, data_value_type<M> z_lower, data_value_type<M> z_upper, std::function<data_value_type<M>(data_value_type<M>)> fr, std::function<data_value_type<M>(data_value_type<M>)> fa, const Properties& properties = {});
+
+    // Create a cylinder given a cross section in the form of a simple polygon with variable scaling and rotation at each z
+    // fr - polygon radius function, scale factor
+    // fa - polygon azimuthal rotation function
+    // The nz parameter controls the degree of tessellation along with polygon
+    // Polygon vertices should be in ccw order relative to normal vector of 2D projection
+    // Surfaces: "body", "end0", "end1"
+    template<typename M>
+    id_type create_cylinder_sections(M& mesh, const std::string& name, const geometry::Polygon<typename M::vector_traits>& polygon, size_t nz, data_value_type<M> z_lower, data_value_type<M> z_upper, std::function<data_value_type<M>(data_value_type<M>)> fr, std::function<data_value_type<M>(data_value_type<M>)> fa, const Properties& properties = {});
+
     // Create a cylinder given parametric functions for radius, z, and azimuth offset based on z
     // The nAzimuth and nz parameters control the degree of tessellation
     // Surfaces: "body", and "end0", "end1", "side", "side0", "side1" depending on extents
@@ -275,15 +293,6 @@ namespace quetzal::model
     // Surfaces: "body", and "end0", "end1", "side", "side0", "side1" depending on extents
     template<typename M>
     id_type create_cylinder(M& mesh, const std::string& name, size_t nAzimuth, size_t nz, std::function<data_value_type<M>(data_value_type<M>, data_value_type<M>)> fr, std::function<data_value_type<M>(data_value_type<M>, data_value_type<M>)> fz, std::function<data_value_type<M>(data_value_type<M>, data_value_type<M>)> fa = [](){return data_value_type<M>(0);}, const Properties& properties = {});
-
-    // Create a cylinder given a cross section in the form of a simple polygon with variable scaling and rotation at each z
-    // fr - polygon radius function, scale factor
-    // fa - polygon azimuthal rotation function
-    // The nz parameter controls the degree of tessellation along with polygon
-    // Polygon vertices should be in ccw order relative to normal vector of 2D projection
-    // Surfaces: "body", "end0", "end1"
-    template<typename M>
-    id_type create_cylinder_sections(M& mesh, const std::string& name, const geometry::Polygon<typename M::vector_traits>& polygon, size_t nz, data_value_type<M> z_lower, data_value_type<M> z_upper, std::function<data_value_type<M>(data_value_type<M>)> fr, std::function<data_value_type<M>(data_value_type<M>)> fa, const Properties& properties = {});
 
     // Create a contoured cylinder given radii at a series of z positions
     // The nAzimuth and contour parameters control the degree of tessellation
@@ -1773,7 +1782,7 @@ template<typename M>
 quetzal::id_type quetzal::model::create_cylinder(M& mesh, const std::string& name, const geometry::Polygon<typename M::vector_traits>& polygon, size_t nz, data_value_type<M> z_lower, data_value_type<M> z_upper, std::function<data_value_type<M>(data_value_type<M>)> fr, std::function<data_value_type<M>(data_value_type<M>)> fa, const Properties& properties)
 {
     using T = M::value_type;
-//std::cout << "create_cylinder polygon f" << std::endl;
+//std::cout << "create_cylinder polygon ff" << std::endl;
 
     CylinderSpecification<T> spec(polygon.edge_count(), nz, T(0), T(0), z_lower, z_upper, properties);
 
@@ -1801,44 +1810,44 @@ quetzal::id_type quetzal::model::create_cylinder(M& mesh, const std::string& nam
     bool cusped_upper = math::float_eq0(fr(T(1)));
     assert(nz > 1 || !cusped_lower || !cusped_upper);
 
-    texture_span_type<M> ts0 = {T(0), T(1), T(1)};
-    texture_span_type<M> ts1 = {T(0), T(1), T(1) - t};
-
     bool closed = true;
+
+    texture_span_type<M> ts0 = texture_span<T>(0, nz, cusped_lower, cusped_upper);
+    texture_span_type<M> ts1 = texture_span<T>(1, nz, cusped_lower, cusped_upper);
 
     M m{};
     id_type submesh_id = m.create_submesh(name);
-    id_type surface_id = m.create_surface(submesh_id, SurfaceName::Body);
-
-    id_type j0_orig = m.halfedge_store_count();
+    id_type surface_id0 = m.create_surface(submesh_id, SurfaceName::Body);
 
     vertices_attributes_type<M> avs0;
     vertices_attributes_type<M> avs1;
+
+    id_type j0_orig = m.halfedge_store_count();
 
     if (cusped_lower)
     {
         avs0 = cusp_vertices_attributes<M>(polygon, z0, ts0);
         avs1 = vertices_attributes<M>(transform(polygon, matrix1), z1, ts1);
-        create_base_cusp(m, avs0, avs1, surface_id, closed);
+        create_base_cusp(m, avs0, avs1, surface_id0, closed);
     }
     else if (nz == 1 && cusped_upper)
     {
         avs0 = vertices_attributes<M>(transform(polygon, matrix0), z0, ts0);
         avs1 = cusp_vertices_attributes<M>(polygon, z1, ts1);
-        create_apex_cusp(m, avs0, avs1, surface_id, closed);
+        create_apex_cusp(m, avs0, avs1, surface_id0, closed);
     }
     else
     {
         avs0 = vertices_attributes<M>(transform(polygon, matrix0), z0, ts0);
         avs1 = vertices_attributes<M>(transform(polygon, matrix1), z1, ts1);
-        create_band(m, avs0, avs1, surface_id, closed);
+        create_band(m, avs0, avs1, surface_id0, closed);
     }
 
     for (size_t i = 2; i <= nz; ++i)
     {
         t = T(i) / T(nz);
         z1 = spec.axis_z_interval.lerp(t);
-        ts1[2] = T(1) - t;
+        ts1 = texture_span<T>(i, nz, cusped_lower, cusped_upper);
 
         r1 = fr(t);
         a1 = fa(t);
@@ -1849,12 +1858,12 @@ quetzal::id_type quetzal::model::create_cylinder(M& mesh, const std::string& nam
         if (i == nz && cusped_upper)
         {
             avs1 = cusp_vertices_attributes<M>(polygon, z1, ts1);
-            connect_apex_cusp(m, avs1, surface_id, closed);
+            connect_apex_cusp(m, avs1, surface_id0, closed);
         }
         else
         {
             avs1 = vertices_attributes<M>(transform(polygon, matrix1), z1, ts1);
-            connect_band(m, avs1, surface_id, closed);
+            connect_band(m, avs1, surface_id0, closed);
         }
     }
 
@@ -1870,6 +1879,275 @@ quetzal::id_type quetzal::model::create_cylinder(M& mesh, const std::string& nam
     else
     {
         calculate_upper_surface_vertex_normals_sequential(m, j0_orig + 2 * face_count, face_count);
+    }
+
+    seal_cylinder(m, submesh_id, spec, cusped_lower, cusped_upper);
+
+    m.check();
+    mesh.insert(m);
+    return mesh.submesh_id(name);
+}
+
+//------------------------------------------------------------------------------
+template<typename M>
+quetzal::id_type quetzal::model::create_cylinder_edges(M& mesh, const std::string& name, const geometry::Polygon<typename M::vector_traits>& polygon, size_t nz, data_value_type<M> z_lower, data_value_type<M> z_upper, std::function<data_value_type<M>(data_value_type<M>)> fr, std::function<data_value_type<M>(data_value_type<M>)> fa, const Properties& properties)
+{
+    using T = M::value_type;
+//std::cout << "create_cylinder_edges polygon ff" << std::endl;
+
+    assert(polygon.section_count() == 0);
+
+    CylinderSpecification<T> spec(polygon.edge_count(), nz, T(0), T(0), z_lower, z_upper, properties);
+
+    auto face_count = spec.azimuth_divisions;
+    assert(face_count > 2);
+
+    nz = spec.axis_divisions;
+    assert(nz > 0);
+
+    size_t section_count = face_count;
+    size_t section_face_count = 1;
+
+    assert(!spec.azimuth_smooth);
+    assert(spec.azimuth_interval.unit());
+
+    T t = T(1) / T(nz);
+
+    T z0 = spec.axis_z_interval.lower();
+    T z1 = spec.axis_z_interval.lerp(t);
+
+    T r0 = fr(T(0));
+    T r1 = fr(t);
+
+    T a0 = fa(T(0));
+    T a1 = fa(t);
+
+    auto matrix0 = geometry::scaling(r0) * geometry::rotation_z(math::PiTwo<T> * a0);
+    auto matrix1 = geometry::scaling(r1) * geometry::rotation_z(math::PiTwo<T> * a1);
+
+    bool cusped_lower = math::float_eq0(fr(T(0)));
+    bool cusped_upper = math::float_eq0(fr(T(1)));
+    assert(nz > 1 || !cusped_lower || !cusped_upper);
+
+    bool closed = true;
+
+    texture_span_type<M> ts0 = texture_span<T>(0, nz, cusped_lower, cusped_upper);
+    texture_span_type<M> ts1 = texture_span<T>(1, nz, cusped_lower, cusped_upper);
+
+    M m{};
+    id_type submesh_id = m.create_submesh(name);
+    id_type surface_id0 = create_section_surfaces(m, submesh_id, section_count, [](size_t i) { return surface_name(SurfaceName::BodySection, i); });
+
+    vertices_attributes_type<M> avss0;
+    vertices_attributes_type<M> avss1;
+
+    id_type j0_orig = m.halfedge_store_count();
+
+    if (cusped_lower)
+    {
+        avss0 = cusp_vertices_attributes<M>(polygon, z0, ts0);
+        avss1 = vertices_attributes<M>(transform(polygon, matrix1), z1, ts1);
+        create_base_cusp(m, avss0, avss1, surface_id0, closed);
+    }
+    else if (nz == 1 && cusped_upper)
+    {
+        avss0 = vertices_attributes<M>(transform(polygon, matrix0), z0, ts0);
+        avss1 = cusp_vertices_attributes<M>(polygon, z1, ts1);
+        create_apex_cusp(m, avss0, avss1, surface_id0, closed);
+    }
+    else
+    {
+        avss0 = vertices_attributes<M>(transform(polygon, matrix0), z0, ts0);
+        avss1 = vertices_attributes<M>(transform(polygon, matrix1), z1, ts1);
+        create_band(m, avss0, avss1, surface_id0, closed);
+    }
+
+    for (size_t i = 2; i <= nz; ++i)
+    {
+        t = T(i) / T(nz);
+        z1 = spec.axis_z_interval.lerp(t);
+        ts1 = texture_span<T>(i, nz, cusped_lower, cusped_upper);
+
+        r1 = fr(t);
+        a1 = fa(t);
+        matrix1 = geometry::scaling(r1) * geometry::rotation_z(math::PiTwo<T> * a1);
+
+        j0_orig = m.halfedge_store_count();
+
+        if (i == nz && cusped_upper)
+        {
+            avss1 = cusp_vertices_attributes<M>(polygon, z1, ts1);
+            connect_apex_cusp(m, avss1, surface_id0, closed);
+        }
+        else
+        {
+            avss1 = vertices_attributes<M>(transform(polygon, matrix1), z1, ts1);
+            connect_band(m, avss1, surface_id0, closed);
+        }
+    }
+
+    // Calculate normals for the upper vertices
+    size_t n = section_face_count;
+    
+    if (cusped_upper)
+    {
+        id_type id = j0_orig + 2 * face_count;
+        for (size_t i = 0; i < section_count; ++i)
+        {
+            calculate_apex_cusp_surface_vertex_normals_sequential(m, id, n);
+            id += n;
+        }
+    }
+    else if (nz == 1 && cusped_lower)
+    {
+        id_type id = j0_orig + face_count;
+        for (size_t i = 0; i < section_count; ++i)
+        {
+            calculate_upper_surface_vertex_normals_sequential(m, id, n);
+            id += n;
+        }
+    }
+    else
+    {
+        id_type id = j0_orig + 2 * face_count;
+        for (size_t i = 0; i < section_count; ++i)
+        {
+            calculate_upper_surface_vertex_normals_sequential(m, id, n);
+            id += n;
+        }
+    }
+
+    seal_cylinder(m, submesh_id, spec, cusped_lower, cusped_upper);
+
+    m.check();
+    mesh.insert(m);
+    return mesh.submesh_id(name);
+}
+
+//------------------------------------------------------------------------------
+template<typename M>
+quetzal::id_type quetzal::model::create_cylinder_sections(M& mesh, const std::string& name, const geometry::Polygon<typename M::vector_traits>& polygon, size_t nz, data_value_type<M> z_lower, data_value_type<M> z_upper, std::function<data_value_type<M>(data_value_type<M>)> fr, std::function<data_value_type<M>(data_value_type<M>)> fa, const Properties& properties)
+{
+    using T = M::value_type;
+//std::cout << "create_cylinder_sections polygon ff" << std::endl;
+
+    CylinderSpecification<T> spec(polygon.edge_count(), nz, T(0), T(0), z_lower, z_upper, properties);
+
+    size_t section_count = polygon.section_count();
+    assert(section_count > 0);
+
+    auto face_count = spec.azimuth_divisions;
+    assert(face_count > 2);
+
+    nz = spec.axis_divisions;
+    assert(nz > 0);
+
+    T t = T(1) / T(nz);
+
+    T z0 = spec.axis_z_interval.lower();
+    T z1 = spec.axis_z_interval.lerp(t);
+
+    T r0 = fr(T(0));
+    T r1 = fr(t);
+
+    T a0 = fa(T(0));
+    T a1 = fa(t);
+
+    auto matrix0 = geometry::scaling(r0) * geometry::rotation_z(math::PiTwo<T> * a0);
+    auto matrix1 = geometry::scaling(r1) * geometry::rotation_z(math::PiTwo<T> * a1);
+
+    bool cusped_lower = math::float_eq0(fr(T(0)));
+    bool cusped_upper = math::float_eq0(fr(T(1)));
+    assert(nz > 1 || !cusped_lower || !cusped_upper);
+
+    bool closed = true;
+
+    texture_span_type<M> ts0 = texture_span<T>(0, nz, cusped_lower, cusped_upper);
+    texture_span_type<M> ts1 = texture_span<T>(1, nz, cusped_lower, cusped_upper);
+
+    M m{};
+    id_type submesh_id = m.create_submesh(name);
+    id_type surface_id0 = create_section_surfaces(m, submesh_id, section_count, [](size_t i) { return surface_name(SurfaceName::BodySection, i); });
+
+    vertices_attributes_sections_type<M> avss0;
+    vertices_attributes_sections_type<M> avss1;
+
+    id_type j0_orig = m.halfedge_store_count();
+
+    if (cusped_lower)
+    {
+        avss0 = cusp_vertices_attributes_sections<M>(polygon, z0, ts0);
+        avss1 = vertices_attributes_sections<M>(transform(polygon, matrix1), z1, ts1);
+        create_base_cusp(m, avss0, avss1, surface_id0, closed);
+    }
+    else if (nz == 1 && cusped_upper)
+    {
+        avss0 = vertices_attributes_sections<M>(transform(polygon, matrix0), z0, ts0);
+        avss1 = cusp_vertices_attributes_sections<M>(polygon, z1, ts1);
+        create_apex_cusp(m, avss0, avss1, surface_id0, closed);
+    }
+    else
+    {
+        avss0 = vertices_attributes_sections<M>(transform(polygon, matrix0), z0, ts0);
+        avss1 = vertices_attributes_sections<M>(transform(polygon, matrix1), z1, ts1);
+        create_band(m, avss0, avss1, surface_id0, closed);
+    }
+
+    for (size_t i = 2; i <= nz; ++i)
+    {
+        t = T(i) / T(nz);
+        z1 = spec.axis_z_interval.lerp(t);
+        //ty1 = ty0 - t;
+        ts1 = texture_span<T>(i, nz, cusped_lower, cusped_upper);
+
+        r1 = fr(t);
+        a1 = fa(t);
+        matrix1 = geometry::scaling(r1) * geometry::rotation_z(math::PiTwo<T> * a1);
+
+        j0_orig = m.halfedge_store_count();
+
+        if (i == nz && cusped_upper)
+        {
+            avss1 = cusp_vertices_attributes_sections<M>(polygon, z1, ts1);
+            connect_apex_cusp(m, avss1, surface_id0, closed);
+        }
+        else
+        {
+            avss1 = vertices_attributes_sections<M>(transform(polygon, matrix1), z1, ts1);
+            connect_band(m, avss1, surface_id0, closed);
+        }
+    }
+
+    // Calculate normals for the upper vertices
+    if (cusped_upper)
+    {
+        id_type id = j0_orig + 2 * face_count;
+        for (size_t i = 0; i < section_count; ++i)
+        {
+            size_t n = avss1[i].size();
+            calculate_apex_cusp_surface_vertex_normals_sequential(m, id, n);
+            id += n;
+        }
+    }
+    else if (nz == 1 && cusped_lower)
+    {
+        id_type id = j0_orig + face_count;
+        for (size_t i = 0; i < section_count; ++i)
+        {
+            size_t n = avss1[i].size();
+            calculate_upper_surface_vertex_normals_sequential(m, id, n);
+            id += n;
+        }
+    }
+    else
+    {
+        id_type id = j0_orig + 2 * face_count;
+        for (size_t i = 0; i < section_count; ++i)
+        {
+            size_t n = avss1[i].size() - 1;
+            calculate_upper_surface_vertex_normals_sequential(m, id, n);
+            id += n;
+        }
     }
 
     seal_cylinder(m, submesh_id, spec, cusped_lower, cusped_upper);
@@ -2054,138 +2332,6 @@ quetzal::id_type quetzal::model::create_cylinder(M& mesh, const std::string& nam
 //std::cout << "create_cylinder polygon fff 2 params" << std::endl;
     // create_cylinder fr, fz, fa ...
     return nullid;
-}
-
-//------------------------------------------------------------------------------
-template<typename M>
-quetzal::id_type quetzal::model::create_cylinder_sections(M& mesh, const std::string& name, const geometry::Polygon<typename M::vector_traits>& polygon, size_t nz, data_value_type<M> z_lower, data_value_type<M> z_upper, std::function<data_value_type<M>(data_value_type<M>)> fr, std::function<data_value_type<M>(data_value_type<M>)> fa, const Properties& properties)
-{
-    using T = M::value_type;
-//std::cout << "create_cylinder_sections polygon ff" << std::endl;
-
-    CylinderSpecification<T> spec(polygon.edge_count(), nz, T(0), T(0), z_lower, z_upper, properties);
-
-    size_t section_count = polygon.section_count();
-    assert(section_count > 0);
-
-    auto face_count = polygon.edge_count();
-    assert(face_count > 2);
-
-    nz = spec.axis_divisions;
-    assert(nz > 0);
-
-    T t = T(1) / T(nz);
-
-    T z0 = spec.axis_z_interval.lower();
-    T z1 = spec.axis_z_interval.lerp(t);
-
-    T r0 = fr(T(0));
-    T r1 = fr(t);
-
-    T a0 = fa(T(0));
-    T a1 = fa(t);
-
-    auto matrix0 = geometry::scaling(r0) * geometry::rotation_z(math::PiTwo<T> * a0);
-    auto matrix1 = geometry::scaling(r1) * geometry::rotation_z(math::PiTwo<T> * a1);
-
-    bool cusped_lower = math::float_eq0(fr(T(0)));
-    bool cusped_upper = math::float_eq0(fr(T(1)));
-    assert(nz > 1 || !cusped_lower || !cusped_upper);
-    bool closed = true;
-
-    texture_span_type<M> ts0 = texture_span<T>(0, nz, cusped_lower, cusped_upper);
-    texture_span_type<M> ts1 = texture_span<T>(1, nz, cusped_lower, cusped_upper);
-
-    M m{};
-    id_type submesh_id = m.create_submesh(name);
-    id_type surface_id0 = create_section_surfaces(m, submesh_id, section_count, [](size_t i) { return surface_name(SurfaceName::BodySection, i); });
-
-    vertices_attributes_sections_type<M> avss0;
-    vertices_attributes_sections_type<M> avss1;
-
-    id_type j0_orig = m.halfedge_store_count();
-
-    if (cusped_lower)
-    {
-        avss0 = cusp_vertices_attributes_sections<M>(polygon, z0, ts0);
-        avss1 = vertices_attributes_sections<M>(transform(polygon, matrix1), z1, ts1);
-        create_base_cusp(m, avss0, avss1, surface_id0, closed);
-    }
-    else if (nz == 1 && cusped_upper)
-    {
-        avss0 = vertices_attributes_sections<M>(transform(polygon, matrix0), z0, ts0);
-        avss1 = cusp_vertices_attributes_sections<M>(polygon, z1, ts1);
-        create_apex_cusp(m, avss0, avss1, surface_id0, closed);
-    }
-    else
-    {
-        avss0 = vertices_attributes_sections<M>(transform(polygon, matrix0), z0, ts0);
-        avss1 = vertices_attributes_sections<M>(transform(polygon, matrix1), z1, ts1);
-        create_band(m, avss0, avss1, surface_id0, closed);
-    }
-
-    for (size_t i = 2; i <= nz; ++i)
-    {
-        t = T(i) / T(nz);
-        z1 = spec.axis_z_interval.lerp(t);
-        //ty1 = ty0 - t;
-        ts1 = texture_span<T>(i, nz, cusped_lower, cusped_upper);
-
-        r1 = fr(t);
-        a1 = fa(t);
-        matrix1 = geometry::scaling(r1) * geometry::rotation_z(math::PiTwo<T> * a1);
-
-        j0_orig = m.halfedge_store_count();
-
-        if (i == nz && cusped_upper)
-        {
-            avss1 = cusp_vertices_attributes_sections<M>(polygon, z1, ts1);
-            connect_apex_cusp(m, avss1, surface_id0, closed);
-        }
-        else
-        {
-            avss1 = vertices_attributes_sections<M>(transform(polygon, matrix1), z1, ts1);
-            connect_band(m, avss1, surface_id0, closed);
-        }
-    }
-
-    // Calculate normals for the upper vertices
-    if (cusped_upper)
-    {
-        id_type id = j0_orig + 2 * face_count;
-        for (size_t i = 0; i < section_count; ++i)
-        {
-            size_t n = avss1[i].size();
-            calculate_apex_cusp_surface_vertex_normals_sequential(m, id, n);
-            id += n;
-        }
-    }
-    else if (nz == 1 && cusped_lower)
-    {
-        id_type id = j0_orig + face_count;
-        for (size_t i = 0; i < section_count; ++i)
-        {
-            size_t n = avss1[i].size();
-            calculate_upper_surface_vertex_normals_sequential(m, id, n);
-            id += n;
-        }
-    }
-    else
-    {
-        id_type id = j0_orig + 2 * face_count;
-        for (size_t i = 0; i < section_count; ++i)
-        {
-            size_t n = avss1[i].size() - 1;
-            calculate_upper_surface_vertex_normals_sequential(m, id, n);
-            id += n;
-        }
-    }
-
-    seal_cylinder(m, submesh_id, spec, cusped_lower, cusped_upper);
-
-    m.check();
-    mesh.insert(m);
-    return mesh.submesh_id(name);
 }
 
 //------------------------------------------------------------------------------
