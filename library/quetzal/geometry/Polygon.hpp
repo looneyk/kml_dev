@@ -21,6 +21,7 @@
 #include <algorithm>
 #include <exception>
 #include <iterator>
+#include <optional>
 #include <ostream>
 #include <span>
 #include <vector>
@@ -33,8 +34,8 @@ namespace quetzal::geometry
     // Each sequential pair of vertices defines an edge, the last vertex wrapping around to the first
     // edge count == vertex count
     // Note that planarity is assumed but not often enforced
-    // Results of centroid, area, normal, and plane are undefined if the polygon is actually non-planar or degenerate
-    // Polygon is initialized with no sections which indicates individual edge based surfaces
+    // Results of centroid, area, normal, and plane are undefined if the polygon is non-planar or degenerate
+    // Sections: nullopt - smooth, empty - edge-based, otherwise sequential section start edge ids
 
     //--------------------------------------------------------------------------
     template<typename Traits>
@@ -113,9 +114,8 @@ namespace quetzal::geometry
         AxisAlignedBoundingBox<Traits> bounds() const;
 
         // Sections allow for distinct sets of contiguous vertices
-        using sections_type = std::vector<size_type>;
+        using sections_type = std::optional<std::vector<size_type>>;
 
-        size_t section_count() const;
         const sections_type& sections() const;
         sections_type& sections();
 
@@ -450,7 +450,7 @@ void quetzal::geometry::Polygon<Traits>::clear()
 {
     clear_cached();
     m_vertices.clear();
-    m_sections.clear();
+    m_sections.reset();
     return;
 }
 
@@ -518,13 +518,6 @@ quetzal::geometry::AxisAlignedBoundingBox<Traits> quetzal::geometry::Polygon<Tra
     }
 
     return m_bounds.value();
-}
-
-//------------------------------------------------------------------------------
-template<typename Traits>
-size_t quetzal::geometry::Polygon<Traits>::section_count() const
-{
-    return m_sections.size();
 }
 
 //------------------------------------------------------------------------------
@@ -617,7 +610,7 @@ quetzal::geometry::Polygon<Traits> quetzal::geometry::lerp(const Polygon<Traits>
 
     size_t n = a.vertex_count();
     Polygon<Traits> polygon(n);
-    polygon.sections() = a.sections(); // add to constructor ...
+    polygon.sections() = a.sections();
 
     for (size_t i = 0; i < n; ++i)
     {

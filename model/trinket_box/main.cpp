@@ -214,8 +214,10 @@ int main(int argc, char* argv[])
     mesh_type m;
     create_spikodecahedron(m, "outer", 1.0f, 1.1f, revsSpike, nzSpike);
     auto polygonUpperOrig = to_polygon(m.surface("outer/body11").faces().front());
+    polygonUpperOrig.sections() = std::vector<id_type>();
     model::transform(m, geometry::scaling(50.0f, 50.0f, 25.0f));
     auto polygonUpper = to_polygon(m.surface("outer/body11").faces().front());
+    polygonUpper.sections() = std::vector<id_type>();
     mesh.insert(m);
 
     // Inner surface
@@ -223,6 +225,7 @@ int main(int argc, char* argv[])
     model::create_dodecahedron(m, "inner", 1.0f);
     model::transform(m, geometry::scaling(45.0f, 45.0f, 20.0f));
     auto polygonLower = to_polygon(m.surface("inner/body11").faces().front());
+    polygonLower.sections() = std::vector<id_type>();
     invert(m);
     mesh.insert(m);
 

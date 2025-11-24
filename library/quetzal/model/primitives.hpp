@@ -1199,7 +1199,7 @@ quetzal::id_type quetzal::model::create_cylinder_auto(M& mesh, const std::string
         return create_cylinder(mesh, name, polygon, spec);
     }
 
-    if (polygon.section_count() == 0)
+    if (polygon.sections() && polygon.sections().value().empty())
     {
         return create_cylinder_edges(mesh, name, polygon, spec);
     }
@@ -1212,7 +1212,7 @@ template<typename M>
 quetzal::id_type quetzal::model::create_cylinder(M& mesh, const std::string& name, geometry::Polygon<typename M::vector_traits> polygon, size_t nz, data_value_type<M> z_lower, data_value_type<M> z_upper, const Properties& properties)
 {
 //std::cout << "create_cylinder polygon z" << std::endl;
-    polygon.sections() = {0};
+    polygon.sections().reset();
     CylinderSpecification<data_value_type<M>> spec(polygon.edge_count(), nz, M::val(1), M::val(1), z_lower, z_upper, M::val(0), M::val(0), Properties{{"azimuth_smooth", "true"}} | properties);
     return create_cylinder(mesh, name, polygon, spec);
 }
@@ -1222,7 +1222,7 @@ template<typename M>
 quetzal::id_type quetzal::model::create_cylinder(M& mesh, const std::string& name, geometry::Polygon<typename M::vector_traits> polygon, size_t nz, data_value_type<M> z_lower, data_value_type<M> z_upper, data_value_type<M> scale_lower, data_value_type<M> scale_upper, data_value_type<M> revs_lower, data_value_type<M> revs_upper, const Properties& properties)
 {
 //std::cout << "create_cylinder polygon z revs" << std::endl;
-    polygon.sections() = {0};
+    polygon.sections().reset();
     CylinderSpecification<data_value_type<M>> spec(polygon.edge_count(), nz, scale_lower, scale_upper, z_lower, z_upper, revs_lower, revs_upper, Properties{{"azimuth_smooth", "true"}} | properties);
     return create_cylinder(mesh, name, polygon, spec);
 }
@@ -1235,7 +1235,7 @@ quetzal::id_type quetzal::model::create_cylinder(M& mesh, const std::string& nam
 //std::cout << "create_cylinder polygon spec" << std::endl;
 
     assert(spec.azimuth_smooth);
-    assert(polygon.section_count() == 1 && polygon.sections()[0] == 0);
+    assert(!polygon.sections());
 
     size_t face_count = spec.azimuth_divisions;
     assert(face_count > 2);
@@ -1315,6 +1315,8 @@ template<typename M>
 quetzal::id_type quetzal::model::create_cylinder(M& mesh, const std::string& name, const geometry::Polygon<typename M::vector_traits>& polygon_lower, const geometry::Polygon<typename M::vector_traits>& polygon_upper, size_t nz, const Properties& properties)
  {
     assert(polygon_lower.vertex_count() == polygon_upper.vertex_count());
+    assert(polygon_lower.sections() == polygon_upper.sections());
+    assert(!polygon_lower.sections());
 
     using T = M::value_type;
 //std::cout << "create_cylinder polygon 2" << std::endl;
@@ -1367,7 +1369,7 @@ template<typename M>
 quetzal::id_type quetzal::model::create_cylinder_edges(M& mesh, const std::string& name, geometry::Polygon<typename M::vector_traits> polygon, size_t nz, data_value_type<M> z_lower, data_value_type<M> z_upper, const Properties& properties)
 {
 //std::cout << "create_cylinder_edges polygon z" << std::endl;
-    polygon.sections().clear();
+    polygon.sections() = std::vector<id_type>();
     CylinderSpecification<data_value_type<M>> spec(polygon.edge_count(), nz, M::val(1), M::val(1), z_lower, z_upper, M::val(0), M::val(0), Properties{{"azimuth_smooth", "false"}} | properties);
     return create_cylinder_edges(mesh, name, polygon, spec);
 }
@@ -1377,7 +1379,7 @@ template<typename M>
 quetzal::id_type quetzal::model::create_cylinder_edges(M& mesh, const std::string& name, geometry::Polygon<typename M::vector_traits> polygon, size_t nz, data_value_type<M> z_lower, data_value_type<M> z_upper, data_value_type<M> scale_lower, data_value_type<M> scale_upper, data_value_type<M> revs_lower, data_value_type<M> revs_upper, const Properties& properties)
 {
 //std::cout << "create_cylinder_edges polygon z scale revs" << std::endl;
-    polygon.sections().clear();
+    polygon.sections() = std::vector<id_type>();
     CylinderSpecification<data_value_type<M>> spec(polygon.edge_count(), nz, scale_lower, scale_upper, z_lower, z_upper, revs_lower, revs_upper, Properties{{"azimuth_smooth", "false"}} | properties);
     return create_cylinder_edges(mesh, name, polygon, spec);
 }
@@ -1390,7 +1392,7 @@ quetzal::id_type quetzal::model::create_cylinder_edges(M& mesh, const std::strin
     using T = M::value_type;
 
     assert(!spec.azimuth_smooth);
-    assert(polygon.section_count() == 0);
+    assert(polygon.sections() && polygon.sections().value().empty());
 
     auto face_count = spec.azimuth_divisions;
     assert(face_count > 2);
@@ -1513,6 +1515,8 @@ template<typename M>
 quetzal::id_type quetzal::model::create_cylinder_edges(M& mesh, const std::string& name, const geometry::Polygon<typename M::vector_traits>& polygon_lower, const geometry::Polygon<typename M::vector_traits>& polygon_upper, size_t nz, const Properties& properties)
 {
     assert(polygon_lower.vertex_count() == polygon_upper.vertex_count());
+    assert(polygon_lower.sections() == polygon_upper.sections());
+    assert(polygon_lower.sections() && polygon_lower.sections().value().empty());
 
     using T = M::value_type;
 //std::cout << "create_cylinder edges polygon 2" << std::endl;
@@ -1573,7 +1577,7 @@ template<typename M>
 quetzal::id_type quetzal::model::create_cylinder_sections(M& mesh, const std::string& name, const geometry::Polygon<typename M::vector_traits>& polygon, size_t nz, data_value_type<M> z_lower, data_value_type<M> z_upper, const Properties& properties)
 {
 //std::cout << "create_cylinder_sections polygon z" << std::endl;
-    CylinderSpecification<data_value_type<M>> spec(polygon.edge_count(), nz, M::val(1), M::val(1), z_lower, z_upper, M::val(0), M::val(0), Properties{{"azimuth_smooth", to_string(polygon.section_count() == 1)}} | properties);
+    CylinderSpecification<data_value_type<M>> spec(polygon.edge_count(), nz, M::val(1), M::val(1), z_lower, z_upper, M::val(0), M::val(0), Properties{{"azimuth_smooth", to_string(!polygon.sections())}} | properties);
     return create_cylinder_sections(mesh, name, polygon, spec);
 }
 
@@ -1582,7 +1586,7 @@ template<typename M>
 quetzal::id_type quetzal::model::create_cylinder_sections(M& mesh, const std::string& name, const geometry::Polygon<typename M::vector_traits>& polygon, size_t nz, data_value_type<M> z_lower, data_value_type<M> z_upper, data_value_type<M> scale_lower, data_value_type<M> scale_upper, data_value_type<M> revs_lower, data_value_type<M> revs_upper, const Properties& properties)
 {
 //std::cout << "create_cylinder_sections polygon z scale revs" << std::endl;
-    CylinderSpecification<data_value_type<M>> spec(polygon.edge_count(), nz, scale_lower, scale_upper, z_lower, z_upper, revs_lower, revs_upper, Properties{{"azimuth_smooth", to_string(polygon.section_count() == 1)}} | properties);
+    CylinderSpecification<data_value_type<M>> spec(polygon.edge_count(), nz, scale_lower, scale_upper, z_lower, z_upper, revs_lower, revs_upper, Properties{{"azimuth_smooth", to_string(!polygon.sections())}} | properties);
     return create_cylinder_sections(mesh, name, polygon, spec);
 }
 
@@ -1593,7 +1597,8 @@ quetzal::id_type quetzal::model::create_cylinder_sections(M& mesh, const std::st
     using T = M::value_type;
 //std::cout << "create_cylinder_sections polygon spec" << std::endl;
 
-    size_t section_count = polygon.section_count();
+    assert(polygon.sections() && !polygon.sections().value().empty());
+    size_t section_count = polygon.sections().value().size();
 
     assert(section_count == 1 && spec.azimuth_smooth || !spec.azimuth_smooth); 
     assert(section_count > 0);
@@ -1718,6 +1723,7 @@ quetzal::id_type quetzal::model::create_cylinder_sections(M& mesh, const std::st
 {
     assert(polygon_lower.vertex_count() == polygon_upper.vertex_count());
     assert(polygon_lower.sections() == polygon_upper.sections());
+    assert(polygon_lower.sections() && !polygon_lower.sections().value().empty());
 
     using T = M::value_type;
 //std::cout << "create_cylinder sections polygon 2" << std::endl;
@@ -1727,7 +1733,8 @@ quetzal::id_type quetzal::model::create_cylinder_sections(M& mesh, const std::st
     auto face_count = spec.azimuth_divisions;
     assert(face_count > 2);
 
-    size_t section_count = polygon_lower.section_count();
+    assert(polygon_lower.sections() && !polygon_lower.sections().value().empty());
+    size_t section_count = polygon_lower.sections().value().size();
     if (section_count == 0)
     {
         section_count = face_count;
@@ -1895,7 +1902,7 @@ quetzal::id_type quetzal::model::create_cylinder_edges(M& mesh, const std::strin
     using T = M::value_type;
 //std::cout << "create_cylinder_edges polygon ff" << std::endl;
 
-    assert(polygon.section_count() == 0);
+    assert(polygon.sections() && polygon.sections().value().empty());
 
     CylinderSpecification<T> spec(polygon.edge_count(), nz, T(0), T(0), z_lower, z_upper, properties);
 
@@ -2033,8 +2040,8 @@ quetzal::id_type quetzal::model::create_cylinder_sections(M& mesh, const std::st
 
     CylinderSpecification<T> spec(polygon.edge_count(), nz, T(0), T(0), z_lower, z_upper, properties);
 
-    size_t section_count = polygon.section_count();
-    assert(section_count > 0);
+    assert(polygon.sections() && !polygon.sections().value().empty());
+    size_t section_count = polygon.sections().value().size();
 
     auto face_count = spec.azimuth_divisions;
     assert(face_count > 2);
@@ -4302,7 +4309,7 @@ idHalfedge_upper = m.halfedge_store_count() - 2 * nAzimuth; // after last layer 
 template<typename M>
 quetzal::id_type quetzal::model::create_swept_volume(M& mesh, const std::string& name, const geometry::Polygon<typename M::vector_traits>& polygon, const geometry::Path<typename M::vector_traits>& path, const Properties& properties)
 {
-//std::cout << "create_cylinder polygon spec" << std::endl;
+//std::cout << "create_swept_volume polygon spec" << std::endl;
     assert(polygon.edge_count() > 2);
     assert(path.size() > 1);
 
@@ -4358,7 +4365,7 @@ quetzal::id_type quetzal::model::create_swept_volume(M& mesh, const std::string&
 template<typename M>
 quetzal::id_type quetzal::model::create_swept_volume_edges(M& mesh, const std::string& name, const geometry::Polygon<typename M::vector_traits>& polygon, const geometry::Path<typename M::vector_traits>& path, const Properties& properties)
 {
-//std::cout << "create_cylinder polygon spec" << std::endl;
+//std::cout << "create_swept_volume_edges polygon spec" << std::endl;
     assert(polygon.edge_count() > 2);
     assert(path.size() > 1);
 
@@ -4424,7 +4431,7 @@ quetzal::id_type quetzal::model::create_swept_volume_edges(M& mesh, const std::s
 template<typename M>
 quetzal::id_type quetzal::model::create_swept_volume_sections(M& mesh, const std::string& name, const geometry::Polygon<typename M::vector_traits>& polygon, const geometry::Path<typename M::vector_traits>& path, const Properties& properties)
 {
-//std::cout << "create_cylinder polygon spec" << std::endl;
+//std::cout << "create_swept_volume_sections polygon spec" << std::endl;
     assert(polygon.edge_count() > 2);
     assert(path.size() > 1);
 
@@ -4435,8 +4442,8 @@ quetzal::id_type quetzal::model::create_swept_volume_sections(M& mesh, const std
 
     CylinderSpecification<T> spec(face_count, nz, T(0), T(0), T(0), T(0), properties);
 
-    size_t section_count = polygon.section_count();
-    assert(section_count > 0);
+    assert(polygon.sections() && !polygon.sections().value().empty());
+    size_t section_count = polygon.sections().value().size();
     assert(section_count == 1 && spec.azimuth_smooth || !spec.azimuth_smooth); 
     assert(spec.azimuth_interval.unit());
 

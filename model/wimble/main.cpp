@@ -77,6 +77,7 @@ namespace
         }
 
         geometry::Polygon<vector_traits> polygon(nFlutes * nPointsFlute);
+        typename geometry::Polygon<vector_traits>::sections_type::value_type sections;
 
         for (size_t i = 0; i < nFlutes; ++i)
         {
@@ -89,10 +90,11 @@ namespace
                 polygon.vertex(n + j) = flute.vertex(j) * matrix;
             }
 
-            polygon.sections().push_back(n);
-            polygon.sections().push_back(n + nt);
+            sections.push_back(n);
+            sections.push_back(n + nt);
         }
-
+        
+        polygon.sections() = std::move(sections);
         return polygon;
     }
 
