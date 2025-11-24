@@ -109,9 +109,14 @@ namespace quetzal::model
 
     // Precalculate vertex values for a layer
     // Produces polygon edge_count + 1 points
-    // Oriented point position is really a translation vector
     template<typename M>
     vertices_attributes_type<M> vertices_attributes(const geometry::Polygon<typename M::vector_traits>& polygon, const geometry::OrientedPoint<typename M::vector_traits>& op, texture_span_type<M> ts);
+
+    template<typename M>
+    vertices_attributes_sections_type<M> vertices_attributes_edges(const geometry::Polygon<typename M::vector_traits>& polygon, const geometry::OrientedPoint<typename M::vector_traits>& op, texture_span_type<M> ts);
+
+    template<typename M>
+    vertices_attributes_sections_type<M> vertices_attributes_sections(const geometry::Polygon<typename M::vector_traits>& polygon, const geometry::OrientedPoint<typename M::vector_traits>& op, texture_span_type<M> ts);
 
     // Precalculate vertex values for a layer parallel to the xy-plane
     // Produces a single smooth polygon section
@@ -159,6 +164,18 @@ namespace quetzal::model
     // Produces separate vertex attributes for each polygon section
     template<typename M>
     vertices_attributes_sections_type<M> cusp_vertices_attributes_sections(const geometry::Polygon<typename M::vector_traits>& polygon, data_value_type<M> z, texture_span_type<M> ts);
+
+    // Precalculate vertex values for a base or apex cusp
+    // Normals are not calculated, must be set by caller
+    // Produces polygon edge_count vertex attributes
+    template<typename M>
+    vertices_attributes_type<M> cusp_vertices_attributes(const geometry::Polygon<typename M::vector_traits>& polygon, const geometry::OrientedPoint<typename M::vector_traits>& op, texture_span_type<M> ts);
+
+    template<typename M>
+    vertices_attributes_sections_type<M> cusp_vertices_attributes_edges(const geometry::Polygon<typename M::vector_traits>& polygon, const geometry::OrientedPoint<typename M::vector_traits>& op, texture_span_type<M> ts);
+
+    template<typename M>
+    vertices_attributes_sections_type<M> cusp_vertices_attributes_sections(const geometry::Polygon<typename M::vector_traits>& polygon, const geometry::OrientedPoint<typename M::vector_traits>& op, texture_span_type<M> ts);
 
     // Precalculate vertex values for a base or apex cusp
     // Normals are not calculated, must be set by caller
@@ -645,6 +662,22 @@ quetzal::model::vertices_attributes_type<M> quetzal::model::vertices_attributes(
 
 //------------------------------------------------------------------------------
 template<typename M>
+quetzal::model::vertices_attributes_sections_type<M> quetzal::model::vertices_attributes_edges(const geometry::Polygon<typename M::vector_traits>& polygon, const geometry::OrientedPoint<typename M::vector_traits>& op, texture_span_type<M> ts)
+{
+    // ...
+    return vertices_attributes_sections_type<M>(); // ...
+}
+
+//------------------------------------------------------------------------------
+template<typename M>
+quetzal::model::vertices_attributes_sections_type<M> quetzal::model::vertices_attributes_sections(const geometry::Polygon<typename M::vector_traits>& polygon, const geometry::OrientedPoint<typename M::vector_traits>& op, texture_span_type<M> ts)
+{
+    // ...
+    return vertices_attributes_sections_type<M>(); // ...
+}
+
+//------------------------------------------------------------------------------
+template<typename M>
 quetzal::model::vertices_attributes_type<M> quetzal::model::vertices_attributes_section(const geometry::Polygon<typename M::vector_traits>& polygon, size_t edge0, size_t edge_count, std::optional<data_value_type<M>> z, texture_span_type<M> ts)
 {
     using T = data_value_type<M>;
@@ -828,6 +861,43 @@ quetzal::model::vertices_attributes_sections_type<M> quetzal::model::cusp_vertic
     }
 
     return avss;
+}
+
+//------------------------------------------------------------------------------
+template<typename M>
+quetzal::model::vertices_attributes_type<M> quetzal::model::cusp_vertices_attributes(const geometry::Polygon<typename M::vector_traits>& polygon, const geometry::OrientedPoint<typename M::vector_traits>& op, texture_span_type<M> ts)
+{
+    using T = data_value_type<M>;
+
+    size_t edge_count = polygon.edge_count();
+    assert(edge_count > 2);
+
+    vertices_attributes_type<M> avs(edge_count);
+    T tx = T(0.5);
+
+    for (size_t i = 0; i < edge_count; ++i)
+    {
+        // Normal vector is a placeholder, surface vertex normal cannot be calculated at this point
+        avs[i] = {op.position(), M::vector_type::z_direction(), {tx, ts[2]}};
+    }
+
+    return avs;
+}
+
+//------------------------------------------------------------------------------
+template<typename M>
+quetzal::model::vertices_attributes_sections_type<M> quetzal::model::cusp_vertices_attributes_edges(const geometry::Polygon<typename M::vector_traits>& polygon, const geometry::OrientedPoint<typename M::vector_traits>& op, texture_span_type<M> ts)
+{
+    // ...
+    return vertices_attributes_sections_type<M>(); // ...
+}
+
+//------------------------------------------------------------------------------
+template<typename M>
+quetzal::model::vertices_attributes_sections_type<M> quetzal::model::cusp_vertices_attributes_sections(const geometry::Polygon<typename M::vector_traits>& polygon, const geometry::OrientedPoint<typename M::vector_traits>& op, texture_span_type<M> ts)
+{
+    // ...
+    return vertices_attributes_sections_type<M>(); // ...
 }
 
 //------------------------------------------------------------------------------

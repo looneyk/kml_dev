@@ -10,7 +10,9 @@
 #include "quetzal/common/FileValidator.hpp"
 #include "quetzal/geometry/CurveNURBS.hpp"
 #include "quetzal/geometry/HalfSpace.hpp"
+#include "quetzal/geometry/Path.hpp"
 #include "quetzal/geometry/Point.hpp"
+#include "quetzal/geometry/Polygon.hpp"
 #include "quetzal/geometry/transformation_matrix.hpp"
 #include "quetzal/math/HomogeneousTraits.hpp"
 #include "quetzal/math/math_util.hpp"
@@ -38,8 +40,10 @@ namespace
     using mesh_traits = brep::MeshTraits<vector_traits>;
     using mesh_type = brep::Mesh<mesh_traits>;
     using matrix_type = geometry::transformation_matrix_type<vector_traits>;
-    using vector_type = mesh_type::vector_type;
     using point_type = mesh_type::point_type;
+    using vector_type = point_type::vector_type;
+    using polygon_type = geometry::Polygon<vector_traits>;
+    using path_type = geometry::Path<vector_traits>;
 
     namespace g = quetzal::geometry;
 
@@ -81,7 +85,7 @@ namespace
         }
         else if (x == T(1))
         {
-            return -numeric_limits<T>::max(); // -infinity ...
+            return numeric_limits<T>::lowest(); // -infinity ...
         }
 
         T u = x - x * x;
@@ -187,6 +191,70 @@ namespace
     }
 
     //--------------------------------------------------------------------------
+    void create_spike(mesh_type& mesh, const polygon_type& polygon, const path_type& path, size_t nSpike, size_t nSpikes, value_type r, size_t nAzimuth, value_type revs, value_type scale_spike_width, bool tip = true)
+    {
+        string nameSpike = "spike" + to_string(nSpike);
+
+        value_type t = value_type(nSpike) / nSpikes;
+        value_type spike_scale = 1.0f - t * 0.75f;
+
+        size_t nUndulations = static_cast<size_t>(15.0f * spike_scale) * 2 + 1;
+
+        auto width_scaler = [scale_spike_width, nUndulations](const g::Polygon<vector_traits>& polygon, value_type t) -> g::Polygon<vector_traits>
+        {
+            value_type s0 = value_type(1);
+            value_type s1 = value_type(0.01); // 0 doesn't work with swept volume, does not support apex_cusp ...
+            value_type factor = lerp(s0, s1, t);
+            factor = sqrt(cos(t * math::PiHalf<value_type> * 0.98f));
+            factor += 0.075f * sin(t * math::Pi<value_type> * nUndulations);
+            factor *= scale_spike_width;
+            return scale(polygon, factor);
+        };
+
+        auto scaler = [scale_spike_width, nUndulations](value_type t) -> value_type
+        {
+            value_type s0 = value_type(1);
+            value_type s1 = value_type(0.01); // 0 doesn't work with swept volume, does not support apex_cusp ...
+            value_type factor = lerp(s0, s1, t);
+            factor = sqrt(cos(t * math::PiHalf<value_type> * 0.98f));
+            factor += 0.075f * sin(t * math::Pi<value_type> * nUndulations);
+            factor *= scale_spike_width;
+            return factor;
+        };
+
+        auto rotator = [](value_type) -> value_type { return value_type(0); };
+
+// problem with op.position() ...
+        g::Path<vector_traits> path_spike = path;
+        std::ranges::transform(path_spike, path_spike.begin(), [spike_scale](auto& op) -> g::OrientedPoint<vector_traits> { return {op.position() * spike_scale, op.orientation()}; });
+
+        // if end1 scale is 0, disable tip, is this the only reason that connect_end was used? ...
+        // with the old single callback version, it could return a tuple of polygon, degenerate flag (since it knows the scaling internally) ...
+        // in general, we still need to account for degenerate polygons at path points other than at the ends ...
+        // *** test this with s1 = 0 now ...
+
+        mesh_type mSpike;
+//        model::create_swept_volume(mSpike, nameSpike, polygon, path_spike, width_scaler);
+        model::create_swept_volume(mSpike, nameSpike, polygon, path_spike, scaler, rotator);
+        if (tip)
+        {
+            model::connect_end_round(mSpike, nameSpike, "end1", "top");
+        }
+
+        auto rInner = 0.8f * r;
+        value_type theta = t * math::PiFourth<value_type>;
+        point_type position = {rInner * cos(theta), 0.0f, rInner * sin(theta)};
+
+        value_type phi = t * revs * math::PiTwo<value_type>;
+        phi *= value_type(2 * nAzimuth - 1) / (2 * nAzimuth);
+
+        auto matrix = g::translation(to_vector(position)) * g::rotation_z(phi);
+        model::transform(mSpike, matrix);
+
+        mesh.insert(mSpike);
+    }
+
+    //--------------------------------------------------------------------------
     void create_laminaria(mesh_type& mesh, const string& name, value_type r, value_type dzSpike, size_t nAzimuth, value_type revs, size_t resolutionBase, size_t nAzimuthSpike, size_t ntSpike)
     {
         value_type scale_spike_width = 10.0f;
@@ -240,73 +308,39 @@ value_type t1 = 1.0f;
 
         mesh_type m;
 
-        model::create_geodesic_sphere(m, name, r, resolutionBase, true, true);
-        auto dzBase = r / 3.0f;
-        vector_type v {0.0f, 0.0f, dzBase};
-        model::transform(m, g::translation(v));
-        geometry::HalfSpace<vector_traits> hs({point_type::origin(), -vector_type::z_direction()});
-        clip(m, hs, "clip_lower");
-
-        // Hollow out center to save filament
-        auto mm = m;
-        for (auto& submesh : mm.submeshes())
-        {
-            submesh.set_name("inner_" + submesh.name());
-        }
-        for (auto& surface : mm.surfaces())
-        {
-            surface.set_name("inner_" + surface.name());
-        }
-        model::transform(mm, geometry::scaling(0.5f));
-        invert(mm);
-        m.insert(mm);
-        brep::attach(m, name + "/clip_lower", "inner_" + name + "/inner_clip_lower");
-
-        model::transform(m, g::translation(-v));
-
         size_t nSpikes = static_cast<size_t>(nAzimuth * revs);
+        bool single_test = nSpikes == 1;
+
+        if (!single_test)
+        {
+            model::create_geodesic_sphere(m, name, r, resolutionBase, true, true);
+            auto dzBase = r / 3.0f;
+            vector_type v {0.0f, 0.0f, dzBase};
+            model::transform(m, g::translation(v));
+            geometry::HalfSpace<vector_traits> hs({point_type::origin(), -vector_type::z_direction()});
+            clip(m, hs, "clip_lower");
+
+            // Hollow out center to save filament
+            auto mm = m;
+            for (auto& submesh : mm.submeshes())
+            {
+                submesh.set_name("inner_" + submesh.name());
+            }
+            for (auto& surface : mm.surfaces())
+            {
+                surface.set_name("inner_" + surface.name());
+            }
+            model::transform(mm, geometry::scaling(0.5f));
+            invert(mm);
+            m.insert(mm);
+            brep::attach(m, name + "/clip_lower", "inner_" + name + "/inner_clip_lower");
+
+            model::transform(m, g::translation(-v));
+        }
+
         for (size_t nSpike = 0; nSpike < nSpikes; ++nSpike)
         {
-            string nameSpike = "spike" + to_string(nSpike);
-            string nameSpikeBase = nameSpike + "/end0";
-
-            value_type t = value_type(nSpike) / nSpikes;
-            value_type spike_scale = 1.0f - t * 0.75f;
-
-            size_t nUndulations = static_cast<size_t>(15.0f * spike_scale) * 2 + 1;
-
-            auto width_scaler = [scale_spike_width, nUndulations](const g::Polygon<vector_traits>& polygon, value_type t) -> g::Polygon<vector_traits>
-            {
-                value_type s0 = value_type(1);
-                value_type s1 = value_type(0.01); // 0 doesn't work with swept volume ...
-                value_type factor = lerp(s0, s1, t);
-                factor = sqrt(cos(t * math::PiHalf<value_type> * 0.98f));
-                factor += 0.075f * sin(t * math::Pi<value_type> * nUndulations);
-                factor *= scale_spike_width;
-                g::Polygon<vector_traits> result;
-                std::ranges::transform(polygon.vertices(), std::back_inserter(result.vertices()), [factor](auto point) { return point * factor; });
-                return result;
-            };
-
-// problem with op.position() ...
-            g::Path<vector_traits> path_spike = path;
-            std::ranges::transform(path_spike, path_spike.begin(), [spike_scale](auto& op) -> g::OrientedPoint<vector_traits> { return {op.position() * spike_scale, op.orientation()}; });
-
-            mesh_type mSpike;
-            model::create_swept_volume(mSpike, nameSpike, polygon, path_spike, width_scaler);
-            model::connect_end_round(mSpike, nameSpike, "end1", "top");
-
-            auto rInner = 0.8f * r;
-            value_type theta = t * math::PiFourth<value_type>;
-            point_type position = {rInner * cos(theta), 0.0f, rInner * sin(theta)};
-
-            value_type phi = t * revs * math::PiTwo<value_type>;
-            phi *= value_type(2 * nAzimuth - 1) / (2 * nAzimuth);
-
-            auto matrix = g::translation(to_vector(position)) * g::rotation_z(phi);
-            model::transform(mSpike, matrix);
-
-            m.insert(mSpike);
+            create_spike(m, polygon, path, nSpike, nSpikes, r, nAzimuth, revs, scale_spike_width, !single_test);
         }
 
         m.pack();
@@ -468,13 +502,20 @@ c1.direction(0.0f); // ...
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 
+    name = "laminaria_10_spike_1";
+    cout << name << endl;
+    mesh.clear();
+    create_laminaria(mesh, name, 20.0f, 150.0f, 1, 1.0f, 1, 8, 10);
+    triangulate(mesh);
+    model::write_obj(mesh, to_filename(name));
+
     name = "laminaria_20";
     cout << name << endl;
     mesh.clear();
     create_laminaria(mesh, name, 20.0f, 150.0f, 8, 2.0f, 3, 8, 20);
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
-/*
+
     name = "laminaria_100";
     cout << name << endl;
     mesh.clear();
