@@ -43,6 +43,7 @@ namespace quetzal::brep
         mesh_type& mesh();
 
         id_type face_id() const;
+        void set_face_id(id_type face_id); // split_face operations can change the face
 
         const face_type& face() const;
         face_type& face();
@@ -133,6 +134,18 @@ quetzal::id_type quetzal::brep::Hole<Traits, M>::face_id() const
 {
     assert(m_pmesh != nullptr);
     return m_pmesh->halfedge(m_halfedge_id).face_id();
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits, typename M>
+void quetzal::brep::Hole<Traits, M>::set_face_id(id_type face_id)
+{
+    // Assign hole halfedges to the new face
+    for (auto& halfedge : halfedges())
+    {
+        halfedge.set_face_id(face_id);
+    }
+    return;
 }
 
 //------------------------------------------------------------------------------

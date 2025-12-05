@@ -18,6 +18,8 @@
 #include <vector>
 #include <cassert>
 
+#pragma warning(disable : 4715)
+
 namespace quetzal::brep
 {
 
@@ -90,7 +92,12 @@ namespace quetzal::brep
         const holes_type& holes() const;
         holes_type& holes();
 
+        const hole_type& hole(id_type idHalfedge) const;
+        hole_type& hole(id_type idHalfedge);
+
         hole_type& create_hole(id_type idHalfedge);
+        hole_type& insert_hole(const hole_type& hole);
+        void remove_hole(id_type idHalfedge);
 
         const attributes_type& attributes() const;
         attributes_type& attributes();
@@ -393,6 +400,36 @@ typename quetzal::brep::Face<Traits, M>::size_type quetzal::brep::Face<Traits, M
 
 //------------------------------------------------------------------------------
 template<typename Traits, typename M>
+const quetzal::brep::Face<Traits, M>::hole_type& quetzal::brep::Face<Traits, M>::hole(id_type idHalfedge) const
+{
+    for (const auto& hole : m_holes)
+    {
+        if (hole.halfedge_id() == idHalfedge)
+        {
+            return hole;
+        }
+    }
+
+    assert(false);
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits, typename M>
+quetzal::brep::Face<Traits, M>::hole_type& quetzal::brep::Face<Traits, M>::hole(id_type idHalfedge)
+{
+    for (auto& hole : m_holes)
+    {
+        if (hole.halfedge_id() == idHalfedge)
+        {
+            return hole;
+        }
+    }
+
+    assert(false);
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits, typename M>
 const typename quetzal::brep::Face<Traits, M>::holes_type& quetzal::brep::Face<Traits, M>::holes() const
 {
     return m_holes;
@@ -411,6 +448,31 @@ typename quetzal::brep::Face<Traits, M>::hole_type& quetzal::brep::Face<Traits, 
 {
     assert(m_pmesh != nullptr);
     return m_holes.emplace_back(*m_pmesh, idHalfedge);
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits, typename M>
+typename quetzal::brep::Face<Traits, M>::hole_type& quetzal::brep::Face<Traits, M>::insert_hole(const hole_type& hole)
+{
+    assert(m_pmesh != nullptr);
+    return m_holes.emplace_back(hole);
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits, typename M>
+void quetzal::brep::Face<Traits, M>::remove_hole(id_type idHalfedge)
+{
+    for (auto i = m_holes.begin(); i != m_holes.end(); ++i)
+    {
+        if (i->halfedge_id() == idHalfedge)
+        {
+            m_holes.erase(i);
+            return;
+        }
+    }
+
+    assert(false);
+    return;
 }
 
 //------------------------------------------------------------------------------

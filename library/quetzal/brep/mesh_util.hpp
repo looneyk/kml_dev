@@ -93,12 +93,16 @@ namespace quetzal::brep
     // id's are face halfedges whose vertices should be connected to produce two faces
     // Original halfedge and vertex id relationships are preserved
     // halfedge_id_a remains part of its original face
+    // Any holes in the original face are reassigned to the new face as necessary
+    // Undefined results if the split crosses a hole ...
     template<typename M>
     void split_face(M& mesh, id_type halfedge_id_a, id_type halfedge_id_b, bool coupled = true);
 
     // id's are face halfedges whose vertices should be connected to produce two faces with a succession of edges at the given positions
     // Original halfedge and vertex id relationships are preserved
     // halfedge_id_a remains part of its original face
+    // Any holes in the original face are reassigned to the new face as necessary
+    // Undefined results if the split crosses a hole ...
     template<typename M>
     void split_face(M& mesh, id_type halfedge_id_a, id_type halfedge_id_b, std::span<const typename M::point_type> positions, bool coupled = true);
 
@@ -170,6 +174,16 @@ namespace quetzal::brep
     // Internal, used by split_face
     template<typename M>
     void connect(M& mesh, id_type halfedge_id_a, id_type halfedge_id_b, std::span<const typename M::point_type> positions, bool coupled = true);
+
+    // Move any holes to their correct face after split_face
+    // Undefined results if the split crosses a hole
+    template<typename M>
+    void partition_holes(M& mesh, id_type face_id_a, id_type face_id_b);
+
+    // Move any holes in face_a to the opposite face as necessary after split_face
+    // Undefined results if the split crosses a hole
+    template<typename M>
+    void partition_face_holes(M& mesh, typename M::face_type& face_a, typename M::face_type& face_b, std::span<id_type> hole_ids_a);
 
 } // namespace quetzal::brep
 
@@ -502,6 +516,8 @@ void quetzal::brep::split_face(M& mesh, id_type halfedge_id_a, id_type halfedge_
     }
 
     connect(mesh, halfedge_id_a, halfedge_id_b, coupled);
+
+    partition_holes(mesh, face_id_a, face_id_b);
     return;
 }
 
@@ -545,6 +561,8 @@ void quetzal::brep::split_face(M& mesh, id_type halfedge_id_a, id_type halfedge_
     assert(mesh.halfedge(halfedge_id_b).face_id() == face_id_b);
 
     connect(mesh, halfedge_id_a, halfedge_id_b, positions, coupled);
+
+    partition_holes(mesh, face_id_a, face_id_b);
     return;
 }
 
@@ -1075,6 +1093,46 @@ if constexpr (false) // ...
             }
         }
 }
+    }
+
+    return;
+}
+
+//------------------------------------------------------------------------------
+template<typename M>
+void quetzal::brep::partition_holes(M& mesh, id_type face_id_a, id_type face_id_b)
+{
+    auto& face_a = mesh.face(face_id_a);
+    auto& face_b = mesh.face(face_id_b);
+
+    std::vector<id_type> hole_ids_a = face_a.holes()
+        | std::views::transform([](const Hole<typename M::traits_type>& hole) { return hole.halfedge_id(); })
+        | std::ranges::to<std::vector>();
+    std::vector<id_type> hole_ids_b = face_b.holes()
+        | std::views::transform([](const Hole<typename M::traits_type>& hole) { return hole.halfedge_id(); })
+        | std::ranges::to<std::vector>();
+
+    partition_face_holes(mesh, face_a, face_b, hole_ids_a);
+    partition_face_holes(mesh, face_b, face_a, hole_ids_b);
+    return;
+}
+
+//------------------------------------------------------------------------------
+template<typename M>
+void quetzal::brep::partition_face_holes(M& mesh, typename M::face_type& face_a, typename M::face_type& face_b, std::span<id_type> hole_ids_a)
+{
+    for (id_type hole_id_a : hole_ids_a)
+    {
+        if (face_contains(face_a, vertex_position(mesh.halfedge(hole_id_a))))
+        {
+            continue;
+        }
+
+        // Hole is no longer in face_a, so move it to face_b
+        auto hole = face_a.hole(hole_id_a);
+        face_a.remove_hole(hole_id_a);
+        hole.set_face_id(face_b.id());
+        face_b.insert_hole(hole);
     }
 
     return;
