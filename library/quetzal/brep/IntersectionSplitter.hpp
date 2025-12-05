@@ -1474,8 +1474,8 @@ quetzal::id_type quetzal::brep::IntersectionSplitter<M>::create_edge_connect(con
     id_type partner_id0 = coupled ? nh + 1 : nullid;
     id_type partner_id1 = coupled ? nh : nullid;
 
-    const auto& av0 = m_mesh.halfedge(halfedge_id0).vertex_attributes();
-    const auto& av1 = m_mesh.halfedge(halfedge_id1).vertex_attributes();
+    const auto av0 = m_mesh.halfedge(halfedge_id0).vertex_attributes();
+    const auto av1 = m_mesh.halfedge(halfedge_id1).vertex_attributes();
 
     m_mesh.create_halfedge_vertex(partner_id0, halfedge_id1, m_mesh.halfedge(halfedge_id0).prev_id(), face_id, av0);
     m_mesh.create_halfedge_vertex(partner_id1, halfedge_id0, m_mesh.halfedge(halfedge_id1).prev_id(), face_id, av1);
