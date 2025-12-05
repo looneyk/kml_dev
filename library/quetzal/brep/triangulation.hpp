@@ -190,25 +190,24 @@ void quetzal::brep::triangulate_face_cdt(M& mesh, id_type face_id)
 
     geometry::Projection<typename M::vector_traits> projection(normal);
 
-    std::vector<p2t::Point> polygon;
-    for (const auto& halfedge : face.halfedges())
+    auto to_p2t_polygon = [&projection]<typename T>(const T& t)
     {
-        const auto position = projection(halfedge.vertex_attributes().position());
-        polygon.emplace_back(halfedge.id(), position.x(), position.y());
-    }
+        std::vector<p2t::Point> polygon;
+        for (const auto& halfedge : t.halfedges())
+        {
+            const auto position = projection(halfedge.vertex_attributes().position());
+            polygon.emplace_back(halfedge.id(), position.x(), position.y());
+        }
+        return polygon;
+    };
 
+    auto polygon = to_p2t_polygon(face);
     p2t::CDT cdt(polygon);
 
     for (const auto& hole : face.holes())
     {
-        std::vector<p2t::Point> p2tHole;
-        for (const auto& halfedge : hole.halfedges())
-        {
-            const auto position = projection(halfedge.vertex_attributes().position());
-            p2tHole.emplace_back(halfedge.id(), position.x(), position.y());
-        }
-
-        cdt.AddHole(p2tHole);
+        polygon = std::move(to_p2t_polygon(hole));
+        cdt.AddHole(polygon);
     }
 
     cdt.Triangulate();

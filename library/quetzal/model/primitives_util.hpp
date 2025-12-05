@@ -2144,8 +2144,7 @@ void quetzal::model::close_side_flat(M& mesh, size_t na, size_t nb, bool cusped_
     else
     {
         typename M::vertex_attributes_type av = {mesh.halfedge(idPartnerLower1).vertex_attributes().position(), normal, {T(0), T(1)}}; // 0.5, 1 ...
-        mesh.create_halfedge(nullid, nh + 1, nh + 2, nv, face_id);
-        mesh.create_vertex(nh, av);
+        mesh.create_halfedge_vertex(nullid, nh + 1, nh + 2, face_id, av);
 
         ++nh;
         ++nv;
@@ -2154,8 +2153,7 @@ void quetzal::model::close_side_flat(M& mesh, size_t na, size_t nb, bool cusped_
     if (!cusped_upper)
     {
         typename M::vertex_attributes_type av = {mesh.halfedge(idPartnerUpper0).vertex_attributes().position(), normal, {T(1), T(0)}}; // 0.5, 0 ...
-        idUpper = mesh.create_halfedge(nullid, nh + 2 * nb - 1, nh + 2 * nb - 2, nv, face_id);
-        mesh.create_vertex(nh, av);
+        idUpper = mesh.create_halfedge_vertex(nullid, nh + 2 * nb - 1, nh + 2 * nb - 2, face_id, av);
 
         ++nh;
         ++nv;

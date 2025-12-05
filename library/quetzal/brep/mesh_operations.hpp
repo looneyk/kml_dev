@@ -94,19 +94,61 @@ namespace quetzal::brep
 
     //--------------------------------------------------------------------------
     template<typename M>
+    void validate_connection_bidirectional(const M& mesh, const std::vector<id_type>& seq_next, const std::vector<id_type>& seq_prev)
+    {
+        size_t seq_count = seq_next.size();
+        assert(seq_prev.size() == seq_count);
+
+        for (size_t i_next = 0; i_next < seq_count; ++i_next)
+        {
+            id_type i_prev = (seq_count - i_next) % seq_count;
+            assert(seq_next[i_next] == seq_prev[i_prev]);
+            assert(vertex_position(mesh.halfedge(seq_next[i_next])) == vertex_position(mesh.halfedge(seq_prev[i_prev])));
+        }
+
+        return;
+    }
+
+    //--------------------------------------------------------------------------
+    template<typename M>
+    void validate_connection_positions(const M& mesh, const std::vector<id_type>& seq_ext, const std::vector<id_type>& seq_int, int offset)
+    {
+        size_t seq_count = seq_ext.size();
+        assert(seq_int.size() == seq_count);
+
+        for (size_t i_ext = 0; i_ext < seq_count; ++i_ext)
+        {
+            id_type i_int = (seq_count + offset - i_ext) % seq_count;
+            std::cout << std::format("        ext {} {}  int {} {}  {:20}  {:20}", i_ext, id_string(seq_ext[i_ext]), i_int, id_string(seq_int[i_int]), vertex_position(mesh.halfedge(seq_ext[i_ext])), vertex_position(mesh.halfedge(seq_int[i_int]))) << std::endl;
+            assert(vertex_position(mesh.halfedge(seq_ext[i_ext])) == vertex_position(mesh.halfedge(seq_int[i_int])));
+//            assert(float_eq(vertex_position(mesh.halfedge(seq_ext[i_ext])), vertex_position(mesh.halfedge(seq_int[i_int]))));
+        }
+
+        return;
+    }
+
+    //--------------------------------------------------------------------------
+    template<typename M>
     void validate_connection(const M& mesh, const typename IntersectionSplitter<M>::connection_type& connection)
     {
         auto [id_a_ext, id_a_int, id_b_ext, id_b_int] = connection;
+        std::vector<id_type> seq_next_id_a_ext;
+        std::vector<id_type> seq_next_id_a_int;
+        std::vector<id_type> seq_next_id_b_ext;
+        std::vector<id_type> seq_next_id_b_int;
 
-//        std::cout << "    next_border_halfedge_id" << std::endl;
+std::cout << "    next_border_halfedge_id" << std::endl;
         do
         {
+            seq_next_id_a_ext.push_back(id_a_ext);
+            seq_next_id_a_int.push_back(id_a_int);
+            seq_next_id_b_ext.push_back(id_b_ext);
+            seq_next_id_b_int.push_back(id_b_int);
             auto pos_a_ext = vertex_position(mesh.halfedge(id_a_ext));
             auto pos_a_int = vertex_position(mesh.halfedge(id_a_int));
             auto pos_b_ext = vertex_position(mesh.halfedge(id_b_ext));
             auto pos_b_int = vertex_position(mesh.halfedge(id_b_int));
-//            std::println("    a_ext {}  a_int {}  b_ext {}  b_int {}  {:20}  {:20}  {:20}  {:20}", id_string(id_a_ext), id_string(id_a_int), id_string(id_b_ext), id_string(id_b_int), pos_a_ext, pos_a_int, pos_b_ext, pos_b_int);
-//            std::cout << std::flush;
+std::cout << std::format("    a_ext {}  a_int {}  b_ext {}  b_int {}  {:20}  {:20}  {:20}  {:20}", id_string(id_a_ext), id_string(id_a_int), id_string(id_b_ext), id_string(id_b_int), pos_a_ext, pos_a_int, pos_b_ext, pos_b_int) << std::endl;
             validate_border_id(mesh, id_a_ext);
             validate_border_id(mesh, id_a_int);
             validate_border_id(mesh, id_b_ext);
@@ -120,15 +162,23 @@ namespace quetzal::brep
         assert(id_b_ext == connection[2]);
         assert(id_b_int == connection[3]);
  
-//        std::cout << "    prev_border_halfedge_id" << std::endl;
+        std::vector<id_type> seq_prev_id_a_ext;
+        std::vector<id_type> seq_prev_id_a_int;
+        std::vector<id_type> seq_prev_id_b_ext;
+        std::vector<id_type> seq_prev_id_b_int;
+
+std::cout << "    prev_border_halfedge_id" << std::endl;
         do
         {
+            seq_prev_id_a_ext.push_back(id_a_ext);
+            seq_prev_id_a_int.push_back(id_a_int);
+            seq_prev_id_b_ext.push_back(id_b_ext);
+            seq_prev_id_b_int.push_back(id_b_int);
             auto pos_a_ext = vertex_position(mesh.halfedge(id_a_ext));
             auto pos_a_int = vertex_position(mesh.halfedge(id_a_int));
             auto pos_b_ext = vertex_position(mesh.halfedge(id_b_ext));
             auto pos_b_int = vertex_position(mesh.halfedge(id_b_int));
-//            std::println("    a_ext {}  a_int {}  b_ext {}  b_int {}  {:20}  {:20}  {:20}  {:20}", id_string(id_a_ext), id_string(id_a_int), id_string(id_b_ext), id_string(id_b_int), pos_a_ext, pos_a_int, pos_b_ext, pos_b_int);
-//            std::cout << std::flush;
+std::cout << std::format("    a_ext {}  a_int {}  b_ext {}  b_int {}  {:20}  {:20}  {:20}  {:20}", id_string(id_a_ext), id_string(id_a_int), id_string(id_b_ext), id_string(id_b_int), pos_a_ext, pos_a_int, pos_b_ext, pos_b_int) << std::endl;
             validate_border_id(mesh, id_a_ext);
             validate_border_id(mesh, id_a_int);
             validate_border_id(mesh, id_b_ext);
@@ -142,6 +192,16 @@ namespace quetzal::brep
         assert(id_b_ext == connection[2]);
         assert(id_b_int == connection[3]);
 
+        // These checks assume that ext and int are partners or in partner orientation and that a and b are coincident
+
+        validate_connection_bidirectional(mesh, seq_prev_id_a_ext, seq_next_id_a_ext);
+        validate_connection_bidirectional(mesh, seq_prev_id_a_int, seq_next_id_a_int);
+        validate_connection_bidirectional(mesh, seq_prev_id_b_ext, seq_next_id_b_ext);
+        validate_connection_bidirectional(mesh, seq_prev_id_b_int, seq_next_id_b_int);
+
+        validate_connection_positions(mesh, seq_next_id_a_ext, seq_next_id_a_int, 1);
+        validate_connection_positions(mesh, seq_prev_id_b_ext, seq_prev_id_b_int, -1);
+
         return;
     }
 
@@ -149,10 +209,10 @@ namespace quetzal::brep
     template<typename M>
     void validate_connections(const M& mesh, const typename IntersectionSplitter<M>::connections_type& connections)
     {
-//        size_t i = 0;
+size_t i = 0;
         for (const auto& connection : connections)
         {
-//            std::println("connection {}", i++);
+std::cout << std::format("connection {}", i++) << std::endl;;
             validate_connection(mesh, connection);
         }
         return;
@@ -300,6 +360,7 @@ std::vector<quetzal::id_type> quetzal::brep::mesh_identity(Mesh<Traits>& mesh, i
 {
     connect_function_type<Traits> connect = [&](Mesh<Traits>& mesh, id_type halfedge_id_a_exterior, id_type halfedge_id_a_interior, id_type halfedge_id_b_exterior, id_type halfedge_id_b_interior) -> std::vector<id_type>
     {
+ std::cout << std::format("connect {} {} {} {}", id_string(halfedge_id_a_exterior), id_string(halfedge_id_a_interior), id_string(halfedge_id_b_exterior), id_string(halfedge_id_b_interior)) << std::endl;
         connect_border_fragments(mesh, halfedge_id_a_exterior, halfedge_id_a_interior);
         connect_border_fragments(mesh, halfedge_id_b_exterior, halfedge_id_b_interior);
         return {submesh_id_a, submesh_id_b};
@@ -336,7 +397,7 @@ std::vector<quetzal::id_type> quetzal::brep::mesh_operation(Mesh<Traits>& mesh, 
 
     IntersectionSplitter intersection_splitter(mesh);
     auto connections = intersection_splitter.connections(submesh_id_a, submesh_id_b);
-validate_connections(mesh, connections);
+    validate_connections(mesh, connections);
 
     std::vector<id_type> submesh_ids;
 

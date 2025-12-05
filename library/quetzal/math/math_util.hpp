@@ -100,6 +100,8 @@ namespace quetzal::math
     template<typename V> requires (V::dimension == 2)
     typename V::value_type angle_full_unit(const V& from, const V& to);
 
+    // axis here should be the +/- unit vector cross product of from and to
+
     // Angle from from to to around axis
     template<typename V> requires (V::dimension == 3)
     typename V::value_type angle_full(const V& from, const V& to, const V& axis);
@@ -108,13 +110,21 @@ namespace quetzal::math
     template<typename V> requires (V::dimension == 3)
     typename V::value_type angle_full_unit(const V& from, const V& to, const V& axis);
 /*
-    // Axis and angle between a and b
+    // Axis and angle between from and to
     template<typename V>
-    typename V::value_type axis_angle(const V& a, const V& b);
+    std::tuple<V, typename V::value_type> axis_angle(const V& from, const V& to);
 
-    // Axis and angle between a and b
+    // Axis and angle between from and to where all vectors are unit vectors
     template<typename V>
-    typename V::value_type axis_angle_unit(const V& a, const V& b);
+    std::tuple<V, typename V::value_type> axis_angle_unit(const V& from, const V& to);
+
+    // Quaternion for rotation between from and to
+    template<typename V>
+    std::tuple<V, typename V::value_type> quaternion(const V& from, const V& to);
+
+    // Quaternion for rotation between from and to
+    template<typename V>
+    std::tuple<V, typename V::value_type> quaternion_full(const V& from, const V& to, const V& axis);
 */
     template<typename V>
     typename V::value_type azimuth_radius(const V& v);
@@ -268,6 +278,9 @@ typename V::value_type quetzal::math::angle_full(const V& from, const V& to, con
 template<typename V> requires (V::dimension == 3)
 typename V::value_type quetzal::math::angle_full_unit(const V& from, const V& to, const V& axis)
 {
+    assert(from.unit());
+    assert(to.unit());
+
     typename V::value_type theta = angle_between_unit(from, to);
     return dot(cross(from, to), axis) < typename V::value_type(0) ? math::PiTwo<typename V::value_type> - theta : theta;
 }

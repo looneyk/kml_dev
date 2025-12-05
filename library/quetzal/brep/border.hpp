@@ -305,7 +305,7 @@ void quetzal::brep::connect_border_fragments(M& mesh, id_type halfedge_id_a, id_
     assert(vertex_position(mesh.halfedge(id_a).next()) == vertex_position(mesh.halfedge(next_border_halfedge_id(mesh, id_a))));
     assert(vertex_position(mesh.halfedge(id_b).next()) == vertex_position(mesh.halfedge(next_border_halfedge_id(mesh, id_b))));
 
-    while (!float_eq(vertex_position(mesh.halfedge(id_a)), vertex_position(mesh.halfedge(id_b).next())))
+    while (vertex_position(mesh.halfedge(id_a)) != vertex_position(mesh.halfedge(id_b).next()))
     {
         id_b = next_border_halfedge_id(mesh, id_b);
     }

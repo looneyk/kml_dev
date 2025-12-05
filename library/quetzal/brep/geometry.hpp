@@ -24,6 +24,7 @@
 #include "quetzal/geometry/triangle_util.hpp"
 #include "quetzal/math/floating_point.hpp"
 #include <algorithm>
+#include <compare>
 #include <ranges>
 #include <vector>
 
@@ -42,7 +43,7 @@ namespace quetzal::brep
     // The angle at this halfedge vertex with its next and prev vertices
     // Requires a valid vertex normal for reference
     template<typename Traits> requires (Traits::dimension >= 2 && Traits::dimension <= 3)
-    int orientation(const Halfedge<Traits>& halfedge);
+    std::partial_ordering orientation(const Halfedge<Traits>& halfedge);
 
     // The angle at this halfedge with its next and prev
     template<typename Traits>
@@ -55,6 +56,10 @@ namespace quetzal::brep
     // The angle at this halfedge with its next and prev
     template<typename Traits>
     bool reflex(const Halfedge<Traits>& halfedge);
+
+    // The value of the angle at this halfedge with its next and prev
+    template<typename Traits>
+    bool angle(const Halfedge<Traits>& halfedge);
 
     // The triangle at this halfedge with its next and prev
     template<typename Traits>
@@ -110,6 +115,9 @@ namespace quetzal::brep
     auto to_polygon(const Face<Traits>& face, const geometry::Projection<typename Traits::vector_traits>& projection) -> geometry::Polygon<typename geometry::Projection<typename Traits::vector_traits>::projected_traits>;
 
     template<typename Traits>
+    geometry::Polygon<typename Traits::vector_traits> to_polygon(const Hole<Traits>& hole);
+
+    template<typename Traits>
     geometry::Plane<typename Traits::vector_traits> to_plane(const Surface<Traits>& face);
 
     template<typename Traits>
@@ -143,7 +151,7 @@ Instead of this, add optional or default identity projection to the functions ab
 
     // Returns -1, 0, 1: interior, boundary, exterior
     template<typename Traits>
-    int face_compare(const Face<Traits>& face, const typename Traits::point_type& point);
+    std::partial_ordering face_compare(const Face<Traits>& face, const typename Traits::point_type& point);
 
     template<typename Traits>
     bool face_contains(const Face<Traits>& face, const typename Traits::point_type& point);
@@ -152,7 +160,7 @@ Instead of this, add optional or default identity projection to the functions ab
     // Assumes surface is planar
     // No, the way it's currently written, each face in the surface needs to be planar
     template<typename U>
-    int surface_compare(const U& u, const typename U::attributes_type::point_type& point);
+    std::partial_ordering surface_compare(const U& u, const typename U::attributes_type::point_type& point);
 
     // Works with Surface, Submesh, and Mesh
     template<typename U>
@@ -163,7 +171,7 @@ Instead of this, add optional or default identity projection to the functions ab
     // Returns -1, 0, 1: interior, boundary, exterior
     // Works with Submesh and Mesh
     template<typename U>
-    int solid_compare(const U& u, const typename U::attributes_type::point_type& point, bool bConvex = true);
+    std::partial_ordering solid_compare(const U& u, const typename U::attributes_type::point_type& point, bool bConvex = true);
 
     // Works with Submesh and Mesh
     template<typename U>
@@ -199,11 +207,11 @@ typename Traits::vector_type quetzal::brep::face_normal(const Halfedge<Traits>& 
 
 //------------------------------------------------------------------------------
 template<typename Traits> requires (Traits::dimension >= 2 && Traits::dimension <= 3)
-int quetzal::brep::orientation(const Halfedge<Traits>& halfedge)
+std::partial_ordering quetzal::brep::orientation(const Halfedge<Traits>& halfedge)
 {
     if (colinear(halfedge))
     {
-        return 0;
+        return std::partial_ordering::equivalent;
     }
 
     const auto& a = halfedge.prev().vertex_attributes().position();
@@ -213,11 +221,11 @@ int quetzal::brep::orientation(const Halfedge<Traits>& halfedge)
     if constexpr (Traits::dimension == 3)
     {
         const auto& normal = halfedge.vertex_attributes().normal();
-        return float_compare0(dot(c - b, cross(normal, b - a)));
+        return math::float_compare0(dot(c - b, cross(normal, b - a)));
     }
     else if constexpr (Traits::dimension == 2)
     {
-        return float_compare0(dot(c - b, perp(b - a)));
+        return math::float_compare0(dot(c - b, perp(b - a)));
     }
 }
 
@@ -247,6 +255,16 @@ bool quetzal::brep::reflex(const Halfedge<Traits>& halfedge)
 
 //------------------------------------------------------------------------------
 template<typename Traits>
+bool quetzal::brep::angle(const Halfedge<Traits>& halfedge)
+{
+    const auto& a = halfedge.prev().vertex_attributes().position();
+    const auto& b = halfedge.vertex_attributes().position();
+    const auto& c = halfedge.next().vertex_attributes().position();
+    return angle_full(c - b, a - b, halfedge.vertex_attributes().normal());
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
 bool quetzal::brep::ear(const Halfedge<Traits>& halfedge)
 {
     if (!convex(halfedge))
@@ -254,7 +272,6 @@ bool quetzal::brep::ear(const Halfedge<Traits>& halfedge)
         return false;
     }
 
-    id_type idHalfedgeNext = halfedge.next_id();
     id_type idHalfedgePrev = halfedge.prev_id();
 
     const auto& position0 = halfedge.prev().vertex_attributes().position();
@@ -438,6 +455,21 @@ auto quetzal::brep::to_polygon(const Face<Traits>& face, const geometry::Project
 
 //------------------------------------------------------------------------------
 template<typename Traits>
+quetzal::geometry::Polygon<typename Traits::vector_traits> quetzal::brep::to_polygon(const Hole<Traits>& hole)
+{
+    geometry::Polygon<typename Traits::vector_traits> polygon(hole.halfedge_count());
+
+    size_t i = 0;
+    for (const auto& halfedge : hole.halfedges())
+    {
+        polygon.set_vertex(i++, halfedge.vertex_attributes().position());
+    }
+
+    return polygon;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
 quetzal::geometry::Plane<typename Traits::vector_traits> quetzal::brep::to_plane(const Surface<Traits>& surface)
 {
     return {surface.faces().front().halfedge().vertex_attributes().position(), surface.attributes().normal()};
@@ -545,7 +577,7 @@ typename U::value_type quetzal::brep::surface_area(const U& u)
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-int quetzal::brep::face_compare(const Face<Traits>& face, const typename Traits::point_type& point)
+std::partial_ordering quetzal::brep::face_compare(const Face<Traits>& face, const typename Traits::point_type& point)
 {
     assert(!face.deleted());
     assert(face.halfedge_count() >= 3);
@@ -558,7 +590,7 @@ int quetzal::brep::face_compare(const Face<Traits>& face, const typename Traits:
 
     if (!to_polygon(face).planar() || !to_plane(face).contains(point))
     {
-        return 1;
+        return std::partial_ordering::greater;
     }
 
     geometry::Projection<typename Traits::vector_traits> projection(face.attributes().normal());
@@ -574,19 +606,19 @@ bool quetzal::brep::face_contains(const Face<Traits>& face, const typename Trait
 
 //------------------------------------------------------------------------------
 template<typename U>
-int quetzal::brep::surface_compare(const U& u, const typename U::attributes_type::point_type& point)
+std::partial_ordering quetzal::brep::surface_compare(const U& u, const typename U::attributes_type::point_type& point)
 {
     // Or do polygon_compare with surface seam ...
 
     for (const auto& face : u.faces())
     {
         auto c = face_compare(face, point);
-        if (c == 1)
+        if (c == std::partial_ordering::greater)
         {
             continue;
         }
 
-        if (c == 0)
+        if (c == std::partial_ordering::equivalent)
         {
             // check intersecting edge, if not on edge of surface, c = 0 ...
             // redo intersection tests for face edges or face_compare, polygon_compare that rerurns halfedge_id, i ...
@@ -595,7 +627,7 @@ int quetzal::brep::surface_compare(const U& u, const typename U::attributes_type
         return c;
     }
 
-    return 1;
+    return std::partial_ordering::greater;
 }
 
 //------------------------------------------------------------------------------
@@ -615,7 +647,7 @@ bool quetzal::brep::surface_contains(const U& u, const typename U::attributes_ty
 
 //------------------------------------------------------------------------------
 template<typename U>
-int quetzal::brep::solid_compare(const U& u, const typename U::attributes_type::point_type& point, bool bConvex)
+std::partial_ordering quetzal::brep::solid_compare(const U& u, const typename U::attributes_type::point_type& point, bool bConvex)
 {
     if (bConvex)
     {
@@ -630,11 +662,11 @@ int quetzal::brep::solid_compare(const U& u, const typename U::attributes_type::
             }
             else if (d < U::val(0))
             {
-                return 1;
+                return std::partial_ordering::greater;
             }
         }
 
-        return bBoundary ? 0 : -1;
+        return bBoundary ? std::partial_ordering::equivalent : std::partial_ordering::less;
     }
 
 // neeed better algorithm, like one that works ...
@@ -682,7 +714,7 @@ int quetzal::brep::solid_compare(const U& u, const typename U::attributes_type::
         }
     }
 
-    return math::odd(n);
+    return math::odd(n) ? std::partial_ordering::less : std::partial_ordering::greater;
 }
 
 //------------------------------------------------------------------------------

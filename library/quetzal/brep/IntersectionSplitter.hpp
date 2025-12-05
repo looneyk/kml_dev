@@ -36,7 +36,7 @@ namespace quetzal::brep
     // A connection is a matched pair of submesh borders identified by the first border halfedges of each submesh's exterior and interior fragments.
 
     // New halfedge pairs are created coupled as normal so that all linkage is available if necessary. Then uncouple is called just before returning.
-    // Intersection points should be clamped to vertex positions wherever possible so that exact comparisons can be made.
+    // Intersection points are clamped to vertex positions wherever possible so that exact comparisons can be made.
 
     //--------------------------------------------------------------------------
     template<typename M>
@@ -226,8 +226,8 @@ namespace quetzal::brep
         eye *= extent_max * M::val(0.5);
 
         // projection type selection ...
-        std::optional<typename M::value_type> fov = std::nullopt;
-//        std::optional<typename M::value_type> fov = math::PiHalf<typename M::value_type>;
+//        std::optional<typename M::value_type> fov = std::nullopt;
+        std::optional<typename M::value_type> fov = math::PiHalf<typename M::value_type>;
 
         std::cout << std::format("[svg: {}]", name) << std::endl;
         auto submesh_ids_visualized = std::vector<id_type>{submesh_ids[0], submesh_ids[1]};
@@ -816,8 +816,7 @@ std::array<quetzal::id_type, 2> quetzal::brep::IntersectionSplitter<M>::create_i
     assert(halfedge_id1 == nullid || to_segment(m_mesh.halfedge(halfedge_id1)).contains(segment.endpoint(1)));
     assert(vertex_position(m_mesh.halfedge(halfedge_id0)) == segment.endpoint(0));
     assert(halfedge_id1 == nullid || !float_eq(vertex_position(m_mesh.halfedge(halfedge_id1)), segment.endpoint(1)) || vertex_position(m_mesh.halfedge(halfedge_id1)) == segment.endpoint(1));
-if (halfedge_id1 == 1)
-{int z = 0; z;}
+
     // Split face according to the type of intersection
 
     const id_type face_id = m_mesh.halfedge(halfedge_id0).face_id();
@@ -850,7 +849,9 @@ std::cout << "create_intersection_edge next floating" << std::endl;
         // Add a hole with an uncoupled face
 std::cout << std::format("create_intersection_edge next create_edge_connect floating f {} h0 {} h1 {} -> {} {}", face_id, id_string(halfedge_id0), id_string(halfedge_id1), m_mesh.halfedge(halfedge_id0).prev_id(), m_mesh.halfedge(halfedge_id1).prev_id()) << std::endl;
         id_type halfedge_id = create_edge_connect(halfedge_id0, halfedge_id1);
+assert(vertex_position(m_mesh.halfedge(halfedge_id).partner()) == vertex_position(m_mesh.halfedge(halfedge_id).next()));
         id_type halfedge_id_exterior = exterior_halfedge(halfedge_id, exterior_direction);
+std::cout << std::format("create_intersection_edge next partial h {} e {} {} {}", id_string(halfedge_id), id_string(halfedge_id_exterior), vertex_position(m_mesh.halfedge(halfedge_id)), vertex_position(m_mesh.halfedge(halfedge_id_exterior))) << std::endl;
 
         id_type face_halfedge_id = m_mesh.halfedge(halfedge_id_exterior).partner_id();
         id_type hole_halfedge_id = halfedge_id_exterior;
@@ -910,8 +911,8 @@ std::cout << "create_intersection_edge next vv intersection prev edge" << std::e
     else // Intersection requires a vertex to vertex connection
     {
 std::cout << std::format("create_intersection_edge next split_face vv f {}, h0 {}, h1 {}", face_id, halfedge_id0, halfedge_id1) << std::endl;
-validate(m_mesh);
-dump_faces(m_mesh);
+//validate(m_mesh);
+//dump_faces(m_mesh);
         split_face(m_mesh, halfedge_id0, halfedge_id1);
 std::cout << std::format("create_intersection_edge next split_face vv returned created h0p {}, h1p {}", m_mesh.halfedge(halfedge_id0).prev_id(), m_mesh.halfedge(halfedge_id1).prev_id()) << std::endl;
         halfedge_id_exterior = exterior_halfedge(m_mesh.halfedge(halfedge_id1).prev_id(), exterior_direction);
@@ -1466,6 +1467,7 @@ std::cout << std::format("create_edge_partial h {} p {} created {} {}", id_strin
 template<typename M>
 quetzal::id_type quetzal::brep::IntersectionSplitter<M>::create_edge_connect(const id_type halfedge_id0, const id_type halfedge_id1, bool coupled)
 {
+std::cout << std::format("create_edge_connect {} {} {} {}", id_string(halfedge_id0), id_string(halfedge_id1), vertex_position(m_mesh.halfedge(halfedge_id0)), vertex_position(m_mesh.halfedge(halfedge_id1))) << std::endl;
     id_type face_id = m_mesh.halfedge(halfedge_id0).face_id();
     assert(m_mesh.halfedge(halfedge_id1).face_id() == face_id);
 
@@ -1517,13 +1519,15 @@ template<typename M>
 quetzal::id_type quetzal::brep::IntersectionSplitter<M>::interior_partner(const id_type halfedge_id_exterior, const vector_type& exterior_direction) const
 {
     id_type halfedge_id_interior = m_mesh.halfedge(halfedge_id_exterior).partner_id();
+auto ve = vertex_position(m_mesh.halfedge(halfedge_id_exterior));
+auto vi = vertex_position(m_mesh.halfedge(halfedge_id_interior));
+auto ven = vertex_position(m_mesh.halfedge(halfedge_id_exterior).next());
+auto vin = vertex_position(m_mesh.halfedge(halfedge_id_interior).next());
+auto zzz = direction(m_mesh.halfedge(halfedge_id_exterior));
     assert(halfedge_id_exterior == m_mesh.halfedge(halfedge_id_interior).partner_id());
     assert(vertex_position(m_mesh.halfedge(halfedge_id_exterior).next()) == vertex_position(m_mesh.halfedge(halfedge_id_interior)));
     assert(vertex_position(m_mesh.halfedge(halfedge_id_interior).next()) == vertex_position(m_mesh.halfedge(halfedge_id_exterior)));
     assert(direction_compare(direction(m_mesh.halfedge(halfedge_id_exterior)), exterior_direction) > 0);
-auto ve = vertex_position(m_mesh.halfedge(halfedge_id_exterior));
-auto vi = vertex_position(m_mesh.halfedge(halfedge_id_interior));
-auto zzz = direction(m_mesh.halfedge(halfedge_id_exterior));
     assert(float_eq(direction(m_mesh.halfedge(halfedge_id_exterior)), exterior_direction));
     return halfedge_id_interior;
 }

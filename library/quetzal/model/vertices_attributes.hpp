@@ -22,6 +22,11 @@
 // remove normal placeholders? ...
 // default ts parameters to x [0, 1]? see if y can be defaulted ... 
 
+// nAzimuth here refers to the number of edges and nAzimuth + 1 attributes ard produced in most cases here so that we will have the starting and ending attributes for each face generated from this without the need to deal with the seam edge case 
+// The first and last attributes will have the same position and possibly normal, but the texcoord will be different for the seam
+// texcoords are calculated linearly distributed along the curve, and not for a polygonal surface section
+// texcoords for that case or for the single face/surface per edge case can easily be calulated after
+
 namespace quetzal::model
 {
 

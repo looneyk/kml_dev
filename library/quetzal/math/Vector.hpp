@@ -658,14 +658,11 @@ template<typename Traits>
 void quetzal::math::Vector<Traits>::normalize()
 {
     *this /= norm();
-//    denoise0(1000);
-/*
+    /* periodically verify ...
     auto denominator = norm();
-    if (!float_eq0(denominator))
-    {
-        *this /= denominator;
-    }
-*/
+    assert(!float_eq0(denominator));
+    *this /= denominator;
+    */
     return;
 }
 

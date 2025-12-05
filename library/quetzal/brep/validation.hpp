@@ -8,6 +8,7 @@
 #include "border.hpp"
 #include "geometry.hpp"
 #include "mesh_util.hpp"
+#include "id.hpp"
 #include "normal.hpp"
 #include "quetzal/geometry/Attributes.hpp"
 #include "quetzal/geometry/coordinate_system.hpp"
@@ -145,6 +146,21 @@ namespace quetzal::brep
 
     template<typename M>
     ValidationState check_attributes(const M& mesh);
+
+    template<typename T>
+    std::string halfedge_string(const T& halfedge);
+
+    template<typename T>
+    std::string vertex_string(const T& vertex);
+
+    template<typename T>
+    std::string face_string(const T& face);
+
+    template<typename T>
+    std::string surface_string(const T& surface);
+
+    template<typename T>
+    std::string submesh_string(const T& submesh);
 
     template<typename M>
     void write_halfedge(const typename M::halfedge_type& halfedge, const std::string& label = "");
@@ -721,7 +737,7 @@ quetzal::brep::ValidationState quetzal::brep::check_face(const M& mesh, const ty
         std::cout << "Bad: face " << face.id() << " not included in surface " << face.surface_id() << ' ' << face.surface().name()<< eol;
         state.set_bad();
     }
-    else if (face.submesh_id() !=  face.surface().submesh_id())
+    else if (face.submesh_id() != face.surface().submesh_id())
     {
         std::cout << "Bad: face " << face.id() << " submesh " << face.submesh_id() << " does not match face surface " << face.surface_id() << " submesh " << face.surface().submesh_id()<< eol;
         state.set_bad();
@@ -1560,29 +1576,133 @@ quetzal::brep::ValidationState quetzal::brep::check_attributes(const M& mesh)
 }
 
 //--------------------------------------------------------------------------
-template<typename M>
-void quetzal::brep::write_halfedge(const typename M::halfedge_type& halfedge, const std::string& label)
+template<typename T>
+std::string quetzal::brep::halfedge_string(const T& halfedge)
 {
-    std::cout << std::setw(16) << std::left << label;
-    std::cout << ' ' << static_cast<const Flags&>(halfedge);
-    std::cout << ' ' << std::right << std::setw(5) << halfedge.id();
+    std::ostringstream oss;
+    oss << static_cast<const Flags&>(halfedge);
+    oss << ' ' << std::right << std::setw(5) << halfedge.id();
     if (!halfedge.deleted())
     {
-        if (halfedge.partner_id() != nullid)
+        oss << ' ' << std::setw(5) << partner_id_string(halfedge.partner_id());
+        oss << ' ' << std::setw(5) << id_string(halfedge.next_id());
+        oss << ' ' << std::setw(5) << id_string(halfedge.prev_id());
+        oss << ' ' << std::setw(5) << id_string(halfedge.vertex_id());
+        oss << ' ' << std::setw(5) << id_string(halfedge.face_id());
+//        oss << " (" << halfedge.vertex_attributes().position() << ')' << " (" << math::cartesian_to_spherical(halfedge.vertex_attributes().position()) << ')';
+        oss << " (" << halfedge.vertex_attributes().position() << ')';
+    }
+    return oss.str();
+}
+
+//--------------------------------------------------------------------------
+template<typename T>
+std::string quetzal::brep::vertex_string(const T& vertex)
+{
+    std::ostringstream oss;
+    oss << static_cast<const Flags&>(vertex);
+    oss << std::right << std::setw(5) << vertex.id();
+    if (!vertex.deleted())
+    {
+        oss << ' ' << std::setw(5) << vertex.halfedge_id();
+        if (vertex.halfedge().border())
         {
-            std::cout << ' ' << std::setw(5) << halfedge.partner_id() << ' ';
+            oss << " border halfedge";
         }
         else
         {
-            std::cout << " border";
+//            oss << ' ' << std::setw(3) << vertex.halfedge_count() << " halfedges";
         }
-        std::cout << ' ' << std::setw(5) << halfedge.next_id();
-        std::cout << ' ' << std::setw(5) << halfedge.prev_id();
-        std::cout << ' ' << std::setw(5) << halfedge.vertex_id();
-        std::cout << ' ' << std::setw(5) << halfedge.face_id();
-//        std::cout << " (" << halfedge.vertex_attributes().position() << ')' << " (" << math::cartesian_to_spherical(halfedge.vertex_attributes().position()) << ')';
-        std::cout << " (" << halfedge.vertex_attributes().position() << ')';
+        oss << ' ' << vertex.attributes();
     }
+    return oss.str();
+}
+
+//--------------------------------------------------------------------------
+template<typename T>
+std::string quetzal::brep::face_string(const T& face)
+{
+    std::ostringstream oss;
+    oss << static_cast<const Flags&>(face);
+    oss << ' ' << std::right << std::setw(5) << face.id();
+    if (!face.deleted())
+    {
+        oss << ' ' << std::setw(5) << face.halfedge_id();
+        oss << ' ' << std::setw(3) << face.halfedge_count() << " edges";
+        oss << ' ' << std::setw(3) << face.hole_count() << " holes";
+
+        oss << ", s " << id_string(face.surface_id());
+        if (face.surface_id() != nullid)
+        {
+            oss << ' ' << face.surface().name();
+        }
+
+        oss << ", o " << id_string(face.submesh_id());
+        if (face.submesh_id() != nullid)
+        {
+            oss << ' ' << face.submesh().name();
+        }
+        oss << ' ' << face.attributes();
+    }
+    return oss.str();
+}
+
+//--------------------------------------------------------------------------
+template<typename T>
+std::string quetzal::brep::surface_string(const T& surface)
+{
+    std::ostringstream oss;
+    oss << static_cast<const Flags&>(surface);
+    oss << ' ' << std::right << std::setw(5) << surface.id();
+    if (!surface.deleted())
+    {
+        oss << ' ' << surface.name();
+
+        oss << ", o " << id_string(surface.submesh_id());
+        if (surface.submesh_id() != nullid)
+        {
+            oss << ' ' << surface.submesh().name();
+        }
+
+        oss << ", " << surface.face_count() << " faces";
+        for (id_type idFace : surface.face_ids())
+        {
+            oss << ' ' << idFace;
+        }
+    }
+    return oss.str();
+}
+
+//--------------------------------------------------------------------------
+template<typename T>
+std::string quetzal::brep::submesh_string(const T& submesh)
+{
+    std::ostringstream oss;
+    oss << static_cast<const Flags&>(submesh);
+    oss << ' ' << std::right << std::setw(5) << submesh.id();
+    if (!submesh.deleted())
+    {
+        oss << ' ' << submesh.name();
+        oss << "\n\t" << submesh.face_count() << " faces";
+        for (id_type idFace : submesh.face_ids())
+        {
+            oss << ' ' << idFace;
+        }
+        oss << "\n\t" << submesh.surface_count() << " surfaces";
+        for (id_type idSurface : submesh.surface_ids())
+        {
+            oss << ' ' << idSurface;
+        }
+    }
+    return oss.str();
+}
+
+//--------------------------------------------------------------------------
+template<typename M>
+void quetzal::brep::write_halfedge(const typename M::halfedge_type& halfedge, const std::string& label)
+{
+    std::cout << std::setw(16) << std::left << label << ' ';
+    std::cout << halfedge_string(halfedge);
     std::cout << eol;
     return;
 }
@@ -1591,24 +1711,8 @@ void quetzal::brep::write_halfedge(const typename M::halfedge_type& halfedge, co
 template<typename M>
 void quetzal::brep::write_vertex(const typename M::vertex_type& vertex, const std::string& label)
 {
-    std::cout << std::setw(16) << std::left << label;
-    std::cout << ' ' << static_cast<const Flags&>(vertex);
-    std::cout << ' ' << std::right << std::setw(5) << vertex.id();
-    if (!vertex.deleted())
-    {
-        std::cout << ' ' << std::setw(5) << vertex.halfedge_id();
-        if (vertex.halfedge().border())
-        {
-            std::cout << " border halfedge";
-        }
-        else
-        {
-//            std::cout << ' ' << std::setw(3) << vertex.halfedge_count() << " halfedges";
-        }
-//        std::cout << " [" << vertex.attributes().position() << ']' << " (" << math::cartesian_to_spherical(vertex.attributes().position()) << ')';
-//        std::cout << " [" << vertex.attributes().normal() << ']' << " (" << math::cartesian_to_spherical(vertex.attributes().normal()) << ')';
-        std::cout << ' ' << vertex.attributes();
-    }
+    std::cout << std::setw(16) << std::left << label << ' ';
+    std::cout << vertex_string(vertex);
     std::cout << eol;
     return;
 }
@@ -1617,38 +1721,8 @@ void quetzal::brep::write_vertex(const typename M::vertex_type& vertex, const st
 template<typename M>
 void quetzal::brep::write_face(const typename M::face_type& face, const std::string& label)
 {
-    std::cout << std::setw(16) << std::left << label;
-    std::cout << ' ' << static_cast<const Flags&>(face);
-    std::cout << ' ' << std::right << std::setw(5) << face.id();
-    if (!face.deleted())
-    {
-        std::cout << ' ' << std::setw(5) << face.halfedge_id();
-        std::cout << ' ' << std::setw(3) << face.halfedge_count() << " edges";
-        std::cout << ' ' << std::setw(3) << face.hole_count() << " holes";
-
-        std::cout << ", s ";
-        if (face.surface_id() != nullid)
-        {
-            std::cout << face.surface_id() << ' ' << face.surface().name();
-        }
-        else
-        {
-            std::cout << "nullid";
-        }
-
-        std::cout << ", o ";
-        if (face.submesh_id() != nullid)
-        {
-            std::cout << face.submesh_id() << ' ' << face.submesh().name();
-        }
-        else
-        {
-            std::cout << "nullid";
-        }
-
-//        std::cout << " [" << face.attributes().normal() << ']' << " (" << math::cartesian_to_spherical(face.attributes().normal()) << ')';
-        std::cout << ' ' << face.attributes();
-    }
+    std::cout << std::setw(16) << std::left << label << ' ';
+    std::cout << face_string(face);
     std::cout << eol;
     return;
 }
@@ -1662,14 +1736,10 @@ void quetzal::brep::write_face_vertices(const M& mesh, id_type idHalfedge)
 
     const auto normal = face.attributes().normal();
 
-    std::cout << "Face " << '\t' << face.id() << " of " << mesh.face_store_count() << '\t' << face.halfedge_count() << " edges, surface ";
+    std::cout << "Face " << '\t' << face.id() << " of " << mesh.face_store_count() << '\t' << face.halfedge_count() << " edges, surface " << id_string(face.surface_id());
     if (face.surface_id() != nullid)
     {
-        std::cout << face.surface_id() << ' ' << face.surface().name();
-    }
-    else
-    {
-        std::cout << "nullid";
+        std::cout << ' ' << face.surface().name();
     }
     std::cout << " [" << normal << ']' << " (" << geometry::cartesian_to_spherical(normal) << ')';
     std::cout << '\t' << face.halfedge_count() << " halfedges";
@@ -1708,7 +1778,7 @@ void quetzal::brep::write_hole_vertices(const M& mesh, id_type idHalfedge)
 
     const auto normal = face.attributes().normal();
 
-    std::cout << "Hole " << idHalfedge << ", face " << face.id();
+    std::cout << "    hole " << idHalfedge << ", face " << face.id();
     std::cout << eol;
 
 // hole halfedge iterator? ...
@@ -1721,20 +1791,18 @@ void quetzal::brep::write_hole_vertices(const M& mesh, id_type idHalfedge)
         
         const auto& halfedge = mesh.halfedge(id);
         check_halfedge(mesh, halfedge);
-        const auto& position = halfedge.vertex_attributes().position();
-        const auto& positionNext = halfedge.next().vertex_attributes().position();
-        const auto& positionPrev = halfedge.prev().vertex_attributes().position();
-        typename M::value_type angle = angle_unit(positionNext - position, positionPrev - position, normal);
-        bool bConvex = convex_triad(position, positionNext, positionPrev, normal);
-        bool bColinear = colinear(position, positionNext, positionPrev);
-        bool bReflex = reflex_triad(position, positionNext, positionPrev, normal);
-        bool bEarVertex = ear(halfedge);
-        std::cout << '\t' << n++ << '\t' << id << '\t' << halfedge.partner_id() << '\t' << halfedge.next_id() << '\t' << halfedge.prev_id() << '\t' << halfedge.face_id() << '\t' << angle;
-        std::cout << '\t' << vertex_orientation(mesh, id);
+//        typename M::value_type angle_ = angle(halfedge); // wrong ...
+        bool bConvex = convex(halfedge);
+        bool bColinear = colinear(halfedge);
+        bool bReflex = reflex(halfedge);
+        bool bEar = ear(halfedge);
+//        std::cout << '\t' << n++ << '\t' << id << '\t' << halfedge.partner_id() << '\t' << halfedge.next_id() << '\t' << halfedge.prev_id() << '\t' << halfedge.face_id() << '\t' << angle_;
+        std::cout << '\t' << n++ << '\t' << halfedge_string(halfedge);
+//        std::cout << '\t' << orientation(halfedge);
         std::cout << '\t' << (bConvex ? "convex" : "      ");
         std::cout << "  " << (bColinear ? "colinear" : "        ");
         std::cout << "  " << (bReflex ? "reflex" : "      ");
-        std::cout << '\t' << (bEarVertex ? "ear" : " - ");
+        std::cout << '\t' << (bEar ? "ear" : " - ");
         std::cout << eol;
 
         id = idHalfedgeNext;
@@ -1747,31 +1815,9 @@ void quetzal::brep::write_hole_vertices(const M& mesh, id_type idHalfedge)
 template<typename M>
 void quetzal::brep::write_surface(const typename M::surface_type& surface, const std::string& label)
 {
-    std::cout << std::setw(16) << std::left << label;
-    std::cout << ' ' << static_cast<const Flags&>(surface);
-    std::cout << ' ' << std::right << std::setw(5) << surface.id();
-    if (!surface.deleted())
-    {
-        std::cout << ' ' << surface.name();
-
-        std::cout << ", o ";
-        if (surface.submesh_id() != nullid)
-        {
-            std::cout << surface.submesh_id() << ' ' << surface.submesh().name();
-        }
-        else
-        {
-            std::cout << "nullid";
-        }
-
-        std::cout << ", " << surface.face_count() << " faces";
-        for (id_type idFace : surface.face_ids())
-        {
-            std::cout << ' ' << idFace;
-        }
-    }
+    std::cout << std::setw(16) << std::left << label << ' ';
+    std::cout << surface_string(surface);
     std::cout << eol;
-
     return;
 }
 
@@ -1779,25 +1825,9 @@ void quetzal::brep::write_surface(const typename M::surface_type& surface, const
 template<typename M>
 void quetzal::brep::write_submesh(const typename M::submesh_type& submesh, const std::string& label)
 {
-    std::cout << std::setw(16) << std::left << label;
-    std::cout << ' ' << static_cast<const Flags&>(submesh);
-    std::cout << ' ' << std::right << std::setw(5) << submesh.id();
-    if (!submesh.deleted())
-    {
-        std::cout << ' ' << submesh.name();
-        std::cout << "\n\t" << submesh.face_count() << " faces";
-        for (id_type idFace : submesh.face_ids())
-        {
-            std::cout << ' ' << idFace;
-        }
-        std::cout << "\n\t" << submesh.surface_count() << " surfaces";
-        for (id_type idSurface : submesh.surface_ids())
-        {
-            std::cout << ' ' << idSurface;
-        }
-    }
+    std::cout << std::setw(16) << std::left << label << ' ';
+    std::cout << submesh_string(submesh);
     std::cout << eol;
-
     return;
 }
 
@@ -1847,7 +1877,7 @@ void quetzal::brep::dump(const M& mesh)
             std::cout << "    halfedge " << std::right << std::setw(5) << halfedge.id();
             std::cout << ", v " << std::setw(5) << halfedge.vertex_id();
             std::cout << ", vh " << std::setw(5) << halfedge.vertex().halfedge_id();
-            std::cout << " [" << halfedge.vertex_attributes().position() << "] [" << halfedge.vertex_attributes().normal() << ']';
+            std::cout << " (" << halfedge.vertex_attributes().position() << ") (" << halfedge.vertex_attributes().normal() << ')';
             std::cout << ' ' << (float_eq(halfedge.vertex_attributes().position(), position, v_ulp) ? "OK" : "Bad");
             std::cout << eol;
 
@@ -1870,6 +1900,8 @@ void quetzal::brep::dump(const M& mesh)
         }
 
 // need this check in check_face, but n is not always available to pass in ...
+// not true, split_face can change face ids ...
+// if that's true, then split_face should be fixed ...
 /*
         if (face.id() != n)
         {
@@ -1879,11 +1911,25 @@ void quetzal::brep::dump(const M& mesh)
 */
         for (const auto& halfedge : face.halfedges())
         {
+//            write_halfedge<M>(halfedge, "    halfedge"); // ...
             std::cout << "    halfedge " << std::right << std::setw(5) << halfedge.id();
             std::cout << ", v " << std::setw(5) << halfedge.vertex_id();
             std::cout << ", f " << std::setw(5) << halfedge.face_id();
             std::cout << ' ' << halfedge.vertex_attributes();
             std::cout << eol;
+        }
+
+        //size_t i = 0;
+        for (const auto& hole : face.holes())
+        {
+            write_hole_vertices<M>(mesh, hole.halfedge_id());
+            /*
+            std::cout << "    hole " << i++ << ' ' << std::setw(3) << hole.halfedge_count() << " halfedges" << eol;
+            for (const auto& halfedge : hole.halfedges())
+            {
+                write_halfedge<M>(halfedge, "    halfedge");
+            }
+            */
         }
 
         check_face(mesh, face);
@@ -2102,11 +2148,14 @@ void quetzal::brep::dump_face(const M& mesh, id_type id)
     size_t i = 0;
     for (const auto& hole : face.holes())
     {
+        /*
         std::cout << "    hole " << i++ << ' ' << std::setw(3) << hole.halfedge_count() << " halfedges" << eol;
         for (const auto& halfedge : hole.halfedges())
         {
             write_halfedge<M>(halfedge, "    halfedge");
         }
+        */
+        write_hole_vertices<M>(mesh, hole.halfedge_id());
     }
 
     check_face(mesh, face);
@@ -2570,7 +2619,7 @@ std::map<typename M::value_type, size_t> quetzal::brep::count_edge_lengths(const
     using value_type = M::value_type;
     using point_type = M::point_type;
 
-    std::map<value_type, size_t> m;
+    std::map<value_type, size_t> lengths;
 
     for (const auto& face : mesh.faces())
     {
@@ -2581,19 +2630,19 @@ std::map<typename M::value_type, size_t> quetzal::brep::count_edge_lengths(const
         const point_type& pos2 = halfedge.prev().vertex_attributes().position();
 
         value_type length = norm(pos0 - pos1);
-        m[length]++;
+        lengths[length]++;
 //        std::cout << (i + 0) << '\t' << (i + 1) << '\t' << length << eol;
 
         length = norm(pos1 - pos2);
-        m[length]++;
+        lengths[length]++;
 //        std::cout << (i + 1) << '\t' << (i + 2) << '\t' << length << eol;
 
         length = norm(pos2 - pos0);
-        m[length]++;
+        lengths[length]++;
 //        std::cout << (i + 2) << '\t' << (i + 0) << '\t' << length << eol;
     }
 
-    return m;
+    return lengths;
 }
 
 #endif // QUETZAL_BREP_VALIDATION_HPP

@@ -19,6 +19,7 @@ namespace quetzal::brep
     std::string id_string(id_type id, const T& container);
 
     std::string id_string(id_type id);
+    std::string partner_id_string(id_type id);
 
 } // namespace quetzal::brep
 
@@ -57,6 +58,17 @@ std::string quetzal::brep::id_string(id_type id)
     if (id == nullid)
     {
         return "nullid";
+    }
+
+    return std::to_string(id);
+}
+
+//------------------------------------------------------------------------------
+std::string quetzal::brep::partner_id_string(id_type id)
+{
+    if (id == nullid)
+    {
+        return "border";
     }
 
     return std::to_string(id);

@@ -8,6 +8,7 @@
 #include "Plane.hpp"
 #include "Projection.hpp"
 #include "Segment.hpp"
+#include <compare>
 #include <tuple>
 #include <cmath>
 
@@ -18,7 +19,7 @@ namespace quetzal::geometry
     // Exterior is defined by the direction of the normal as defined by the winding order
     // This is more accurate than contains for points on the polygon edges
     template<typename P>
-    int triangle_compare(const P& a, const P& b, const P& c, const P& point);
+    std::partial_ordering triangle_compare(const P& a, const P& b, const P& c, const P& point);
 
     // Point is in the region defined by the triangle
     // For points on triangle edges, containment is not defined
@@ -70,22 +71,22 @@ namespace internal
 
 //------------------------------------------------------------------------------
 template<typename P>
-int quetzal::geometry::triangle_compare(const P& a, const P& b, const P& c, const P& point)
+std::partial_ordering quetzal::geometry::triangle_compare(const P& a, const P& b, const P& c, const P& point)
 {
     using segment_type = Segment<typename P::traits_type>;
     if (segment_type(a, b).contains(point) || segment_type(b, c).contains(point) || segment_type(c, a).contains(point))
     {
-        return 0;
+        return std::partial_ordering::equivalent;
     }
 
     if (triangle_degenerate(a, b, c))
     {
-        return 1;
+        return std::partial_ordering::greater;
     }
 
     if constexpr (P::dimension == 2)
     {
-        return internal::triangle_region_contains(a, b, c, point) ? -1 : 1;
+        return internal::triangle_region_contains(a, b, c, point) ? std::partial_ordering::less : std::partial_ordering::greater;
     }
     else if constexpr (P::dimension == 3)
     {
@@ -95,11 +96,11 @@ int quetzal::geometry::triangle_compare(const P& a, const P& b, const P& c, cons
         Plane<typename P::traits_type> plane(a, normal);
         if (!plane.contains(point))
         {
-            return 1;
+            return std::partial_ordering::greater;
         }
 
         Projection<typename P::traits_type> projection(normal);
-        return internal::triangle_region_contains(projection(a), projection(b), projection(c), projection(point)) ? -1 : 1;
+        return internal::triangle_region_contains(projection(a), projection(b), projection(c), projection(point)) ? std::partial_ordering::less : std::partial_ordering::greater;
     }
 }
 
