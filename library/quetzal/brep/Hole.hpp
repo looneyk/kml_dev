@@ -62,6 +62,8 @@ namespace quetzal::brep
         const Properties& properties() const;
         Properties& properties();
 
+        void reset_all() const override; // Flags
+
         bool check() const;
 
         // Internal use
@@ -230,6 +232,20 @@ template<typename Traits, typename M>
 typename quetzal::Properties& quetzal::brep::Hole<Traits, M>::properties()
 {
     return m_properties;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits, typename M>
+void quetzal::brep::Hole<Traits, M>::reset_all() const
+{
+    for (auto& halfedge : m_halfedges)
+    {
+        halfedge.reset();
+        halfedge.vertex().reset();
+    }
+
+    Flags::reset();
+    return;
 }
 
 //------------------------------------------------------------------------------

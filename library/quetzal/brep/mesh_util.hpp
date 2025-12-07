@@ -94,7 +94,7 @@ namespace quetzal::brep
     // Original halfedge and vertex id relationships are preserved
     // halfedge_id_a remains part of its original face
     // Any holes in the original face are reassigned to the new face as necessary
-    // Undefined results if the split crosses a hole ...
+    // Undefined results if the split crosses a hole, but this can only happen in the general case, it will never occur with IntersectionSplitter, no need to fix right away? ...
     template<typename M>
     void split_face(M& mesh, id_type halfedge_id_a, id_type halfedge_id_b, bool coupled = true);
 
@@ -102,7 +102,7 @@ namespace quetzal::brep
     // Original halfedge and vertex id relationships are preserved
     // halfedge_id_a remains part of its original face
     // Any holes in the original face are reassigned to the new face as necessary
-    // Undefined results if the split crosses a hole ...
+    // Undefined results if the split crosses a hole, but this can only happen in the general case, it will never occur with IntersectionSplitter, no need to fix right away? ...
     template<typename M>
     void split_face(M& mesh, id_type halfedge_id_a, id_type halfedge_id_b, std::span<const typename M::point_type> positions, bool coupled = true);
 
@@ -1105,127 +1105,37 @@ void quetzal::brep::partition_holes(M& mesh, id_type face_id_a, id_type face_id_
     auto& face_a = mesh.face(face_id_a);
     auto& face_b = mesh.face(face_id_b);
 
-    std::vector<id_type> hole_ids_a = face_a.holes()
+    std::vector<id_type> hole_halfedge_ids_a = face_a.holes()
         | std::views::transform([](const Hole<typename M::traits_type>& hole) { return hole.halfedge_id(); })
         | std::ranges::to<std::vector>();
-    std::vector<id_type> hole_ids_b = face_b.holes()
+    std::vector<id_type> hole_halfedge_ids_b = face_b.holes()
         | std::views::transform([](const Hole<typename M::traits_type>& hole) { return hole.halfedge_id(); })
         | std::ranges::to<std::vector>();
 
-    partition_face_holes(mesh, face_a, face_b, hole_ids_a);
-    partition_face_holes(mesh, face_b, face_a, hole_ids_b);
+    partition_face_holes(mesh, face_a, face_b, hole_halfedge_ids_a);
+    partition_face_holes(mesh, face_b, face_a, hole_halfedge_ids_b);
     return;
 }
 
 //------------------------------------------------------------------------------
 template<typename M>
-void quetzal::brep::partition_face_holes(M& mesh, typename M::face_type& face_a, typename M::face_type& face_b, std::span<id_type> hole_ids_a)
+void quetzal::brep::partition_face_holes(M& mesh, typename M::face_type& face_a, typename M::face_type& face_b, std::span<id_type> hole_halfedge_ids_a)
 {
-    for (id_type hole_id_a : hole_ids_a)
+    for (id_type hole_halfedge_id_a : hole_halfedge_ids_a)
     {
-        if (face_contains(face_a, vertex_position(mesh.halfedge(hole_id_a))))
+        if (face_contains(face_a, vertex_position(mesh.halfedge(hole_halfedge_id_a))))
         {
             continue;
         }
 
         // Hole is no longer in face_a, so move it to face_b
-        auto hole = face_a.hole(hole_id_a);
-        face_a.remove_hole(hole_id_a);
+        auto hole = face_a.halfedge_hole(hole_halfedge_id_a);
+        face_a.remove_halfedge_hole(hole_halfedge_id_a);
         hole.set_face_id(face_b.id());
         face_b.insert_hole(hole);
     }
 
     return;
 }
-/*
-deprecated unused functions for reference, to be deleted ...
-
-//------------------------------------------------------------------------------
-template<typename M>
-void quetzal::model::unify_vertex_positions(M& mesh)
-{
-    mesh.reset_all();
-
-    for (auto& vertex : mesh.vertices())
-    {
-        if (vertex.marked())
-        {
-            continue;
-        }
-
-        unify_vertex_position(vertex, vertex.attributes().position());
-    }
-
-    return;
-}
-
-//------------------------------------------------------------------------------
-template<typename V>
-void quetzal::model::unify_vertex_position(V& vertex, const typename V::mesh_type::point_type& position)
-{
-    for (auto& halfedge : vertex.halfedges())
-    {
-        assert(float_eq(halfedge.vertex_attributes().position(), position, 1000)); // 1000 ...
-        halfedge.vertex_attributes().set_position(position);
-        halfedge.vertex().set_marked();
-    }
-
-    return;
-}
-
-//------------------------------------------------------------------------------
-template<typename M>
-void quetzal::model::unify_vertex_pairs(M& mesh, id_type idHalfedgeA, id_type idHalfedgeB)
-{
-    auto& faceA = mesh.halfedge(idHalfedgeA).face();
-    auto& faceB = mesh.halfedge(idHalfedgeB).face();
-    assert(faceA.halfedge_count() == faceB.halfedge_count());
-
-    size_t n = faceA.halfedge_count();
-    for (size_t i = 0; i < n; ++i)
-    {
-        auto position = mesh.halfedge(idHalfedgeA).vertex_attributes().position();
-
-        unify_vertex_position(mesh.halfedge(idHalfedgeA).vertex(), position);
-        unify_vertex_position(mesh.halfedge(idHalfedgeB).next().vertex(), position);
-
-        idHalfedgeA = mesh.halfedge(idHalfedgeA).next_id();
-        idHalfedgeB = mesh.halfedge(idHalfedgeB).prev_id();
-    }
-
-    return;
-}
-
-//------------------------------------------------------------------------------
-template<typename M>
-quetzal::id_type quetzal::model::adjust_matching_face(M& mesh, id_type idFaceA, id_type idFaceB)
-{
-    auto& faceA = mesh.face(idFaceA);
-    auto& faceB = mesh.face(idFaceB);
-
-    const auto idHalfedges = brep::find_partner_halfedges(faceA, faceB);
-    assert(idHalfedges[0] != nullid && idHalfedges[1] != nullid);
-    assert(idHalfedges[0] == faceA.halfedge_id());
-
-    id_type idHalfedgeB = idHalfedges[1];
-    id_type halfedge_id = idHalfedgeB;
-
-    // Adjust both face A and face B positions to exactly match face A halfedge vertex position
-    for (auto& halfedgeA : faceA.halfedges())
-    {
-        const auto position = halfedgeA.vertex_attributes().position();
-        auto& halfedgeB = mesh.halfedge(halfedge_id);
-
-//        unify_vertex_position(halfedgeA.vertex(), position);
-//        unify_vertex_position(halfedgeB.next().vertex(), position);
-        set_vertex_position(halfedgeA.vertex(), position);
-        set_vertex_position(halfedgeB.next().vertex(), position);
-
-        halfedge_id = halfedgeB.prev_id();
-    }
-
-    return idHalfedgeB;
-}
-*/
 
 #endif // QUETZAL_BREP_MESH_UTIL_HPP
