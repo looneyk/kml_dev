@@ -665,6 +665,7 @@ void quetzal::brep::Face<Traits, M>::set_id(id_type id)
 {
     m_id = id;
     m_halfedges.set_id(id);
+    m_halfedges_ext.set_id(id);
     return;
 }
 
@@ -754,12 +755,14 @@ template<typename Traits, typename M>
 typename quetzal::brep::Face<Traits, M>::halfedges_ext_type::size_function_type quetzal::brep::Face<Traits, M>::m_halfedges_ext_size = [](const mesh_type& mesh, id_type id) -> size_t
 {
     const auto& halfedges = mesh.face(id).halfedges();
-    const auto& holes = mesh.face(id).holes();
     size_t n = std::distance(halfedges.begin(), halfedges.end());
+
+    const auto& holes = mesh.face(id).holes();
     for (const auto& hole : holes)
     {
         n += hole.halfedges().size();
     }
+
     return n;
 };
 

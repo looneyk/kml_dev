@@ -33,6 +33,50 @@
 namespace quetzal::brep
 {
 
+    //--------------------------------------------------------------------------
+    template<typename F>
+    void test_halfege_face_iteration(const F& face)
+    {
+        std::cout << "test_halfedge_face_iteration face id " << face.id() << std::endl;
+        const auto& halfedges = face.halfedges();
+        std::cout << "    forward iterator" << std::endl;
+        for (auto i = halfedges.begin(); i != halfedges.end(); ++i)
+        {
+            const auto& halfedge = *i;
+            std::cout << "        " << halfedge.id() << " " << vertex_position(halfedge) << std::endl;
+        }
+        std::cout << "    reverse iterator" << std::endl;
+        for (auto i = halfedges.rbegin(); i != halfedges.rend(); ++i)
+        {
+            const auto& halfedge = *i;
+            std::cout << "        " << halfedge.id() << " " << vertex_position(halfedge) << std::endl;
+        }
+        std::cout << "    range for" << std::endl;
+        for (const auto& halfedge : halfedges)
+        {
+            std::cout << "        " << halfedge.id() << " " << vertex_position(halfedge) << std::endl;
+        }
+        const auto& halfedges_ext = face.halfedges_ext();
+        auto j = halfedges_ext.begin();
+        std::cout << "    ext forward iterator" << std::endl;
+        for (auto i = halfedges_ext.begin(); i != halfedges_ext.end(); ++i)
+        {
+            const auto& halfedge = *i;
+            std::cout << "        " << halfedge.id() << " " << vertex_position(halfedge) << std::endl;
+        }
+        std::cout << "    ext reverse iterator" << std::endl;
+        for (auto i = halfedges_ext.rbegin(); i != halfedges_ext.rend(); ++i)
+        {
+            const auto& halfedge = *i;
+            std::cout << "        " << halfedge.id() << " " << vertex_position(halfedge) << std::endl;
+        }
+        std::cout << "    ext range for" << std::endl;
+        for (const auto& halfedge : halfedges_ext)
+        {
+            std::cout << "        " << halfedge.id() << " " << vertex_position(halfedge) << std::endl;
+        }
+    }
+
     // A connection is a matched pair of submesh borders identified by the first border halfedges of each submesh's exterior and interior fragments.
 
     // New halfedge pairs are created coupled as normal so that all linkage is available if necessary. Then uncouple is called just before returning.
@@ -231,11 +275,11 @@ namespace quetzal::brep
 
         std::cout << std::format("[svg: {}]", name) << std::endl;
         auto submesh_ids_visualized = std::vector<id_type>{submesh_ids[0], submesh_ids[1]};
-        visualize(mesh, submesh_ids_visualized, eye, target, fov, std::format("out/{}.svg", name));
+        visualize(mesh, submesh_ids_visualized, eye, target, fov, std::format("debug/{}.svg", name));
         submesh_ids_visualized = {submesh_ids[0]};
-        visualize(mesh, submesh_ids_visualized, eye, target, fov, std::format("out/{}_a.svg", name));
+        visualize(mesh, submesh_ids_visualized, eye, target, fov, std::format("debug/{}_a.svg", name));
         submesh_ids_visualized = {submesh_ids[1]};
-        visualize(mesh, submesh_ids_visualized, eye, target, fov, std::format("out/{}_b.svg", name));
+        visualize(mesh, submesh_ids_visualized, eye, target, fov, std::format("debug/{}_b.svg", name));
         return;
     }
 
@@ -244,7 +288,7 @@ namespace quetzal::brep
     ValidationState validate_dump(const M& mesh, const std::string& name)
     {
         std::cout << std::format("[dump: {}]", name) << std::endl;
-        std::ofstream ofs(std::format("out/{}.txt", name), std::ios_base::binary);
+        std::ofstream ofs(std::format("debug/{}.txt", name), std::ios_base::binary);
         ValidationState state(true);
         OstreamRedirect redirect(std::cout, ofs);
         state = validate(mesh);
@@ -319,7 +363,7 @@ assert(debug_log(m_mesh, std::format("model{}", m_stage_count++), submesh_ids).v
                 m_face_id_pairs_checked.insert({face_id_a, face_id_b});
 //std::cout << std::format("m_face_id_pairs_checked {} inserted {{{}, {}}}", m_face_id_pairs_checked.size(), id_string(face_id_a), id_string(face_id_b)) << std::endl;
 
-                // Quick but incomprehensive bounding box check
+                // Quickly but inconclusively reject if bounding boxes do not intersect
                 if (disjoint(m_mesh.face(face_id_a).bounds(), m_mesh.face(face_id_b).bounds()))
                 {
                     continue;
@@ -427,9 +471,6 @@ std::cout << std::format("find_next_intersection_faces returned ha {}, hb {}, fa
     for (bool complete = false; !complete; )
     {
 std::cout << "next " << m_stage_count << std::endl;
-        m_face_id_pairs_checked.insert({m_mesh.halfedge(halfedge_id_a_tracer).face_id(), m_mesh.halfedge(halfedge_id_b_tracer).face_id()});
-//std::cout << std::format("m_face_id_pairs_checked {} inserted {{{}, {}}}", m_face_id_pairs_checked.size(), id_string(m_mesh.halfedge(halfedge_id_a_tracer).face_id()), id_string(m_mesh.halfedge(halfedge_id_b_tracer).face_id())) << std::endl;
-
         assert(vertex_position(m_mesh.halfedge(halfedge_id_a_tracer)) == vertex_position(m_mesh.halfedge(halfedge_id_b_tracer)));
         trace_direction = normalize(cross(m_mesh.halfedge(halfedge_id_a_tracer).face_attributes().normal(), m_mesh.halfedge(halfedge_id_b_tracer).face_attributes().normal()));
 std::cout << std::format("trace_direction {}", trace_direction) << std::endl;
@@ -1014,8 +1055,10 @@ std::cout << std::format("find_next_intersection_face v {}, h other {}, f other 
     {
 std::cout << std::format("    fnif loop h {}, f {}, f other {}", id_string(halfedge.id()), id_string(halfedge.face_id()), face_other.id()) << std::endl;
         assert(vertex_position(halfedge) == position0);
-if (face_other.id() == 7)
-{ int z = 0; z; }
+
+        // doing it both ways, don't know which way here, this should be fixed ...
+        m_face_id_pairs_checked.insert({halfedge.face_id(), face_other.id()});
+        m_face_id_pairs_checked.insert({face_other.id(), halfedge.face_id()});
 
         const auto& face = halfedge.face();
         if (!intersects(polygon_other, to_plane(face))) // quick rejection
@@ -1235,8 +1278,11 @@ std::cout << std::format("face_plane_intersection first face {} {}, plane {}, tr
         return false;
     };
 
+//test_halfege_face_iteration(face);
+
     std::vector<std::tuple<id_type, intersection_type>> intersections;
-    for (const auto& halfedge : face.halfedges())
+//    for (const auto& halfedge : face.halfedges())
+    for (const auto& halfedge : face.halfedges_ext())
     {
         if (m_connection_halfedge_ids.contains(halfedge.id())) // Reject any portion of an earlier connection
 //if (connection_contains(vertex_position(halfedge)) || connection_contains(vertex_position(halfedge.next()))) // Reject any portion of an earlier connection
@@ -1327,7 +1373,8 @@ std::cout << std::format("face_plane_intersection next face {} {}, plane {}, tra
     }
 
     std::vector<std::tuple<id_type, intersection_type>> intersections;
-    for (const auto& halfedge : face.halfedges())
+//    for (const auto& halfedge : face.halfedges())
+    for (const auto& halfedge : face.halfedges_ext())
     {
         auto ix = halfedge_plane_intersection(halfedge, plane);
 //std::cout << std::format("halfedge_plane_intersection returned hid {}, segment {}, ix {}", halfedge.id(), to_segment(halfedge), ix) << std::endl;
@@ -1500,10 +1547,16 @@ void quetzal::brep::IntersectionSplitter<M>::insert_trace_intersection(const id_
     m_connection_halfedge_ids.insert(halfedge_id_a_interior);
     m_connection_halfedge_ids.insert(halfedge_id_b_exterior);
     m_connection_halfedge_ids.insert(halfedge_id_b_interior);
+    
     m_connection_positions.insert(vertex_position(m_mesh.halfedge(halfedge_id_a_exterior)));
     m_connection_positions.insert(vertex_position(m_mesh.halfedge(halfedge_id_a_interior)));
     m_connection_positions.insert(vertex_position(m_mesh.halfedge(halfedge_id_b_exterior)));
     m_connection_positions.insert(vertex_position(m_mesh.halfedge(halfedge_id_b_interior)));
+
+    m_face_id_pairs_checked.insert({m_mesh.halfedge(halfedge_id_a_exterior).face_id(), m_mesh.halfedge(halfedge_id_b_exterior).face_id()});
+    m_face_id_pairs_checked.insert({m_mesh.halfedge(halfedge_id_a_exterior).face_id(), m_mesh.halfedge(halfedge_id_b_interior).face_id()});
+    m_face_id_pairs_checked.insert({m_mesh.halfedge(halfedge_id_a_interior).face_id(), m_mesh.halfedge(halfedge_id_b_exterior).face_id()});
+    m_face_id_pairs_checked.insert({m_mesh.halfedge(halfedge_id_a_interior).face_id(), m_mesh.halfedge(halfedge_id_b_interior).face_id()});
     return;
 }
 
