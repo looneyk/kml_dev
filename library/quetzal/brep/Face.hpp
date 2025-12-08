@@ -704,7 +704,7 @@ typename quetzal::brep::Face<Traits, M>::halfedges_type::terminal_function_type 
 template<typename Traits, typename M>
 typename quetzal::brep::Face<Traits, M>::halfedges_type::terminal_function_type quetzal::brep::Face<Traits, M>::m_halfedges_last = [](const mesh_type& mesh, id_type id) -> id_type
 {
-    return mesh.face_store()[id].halfedge().prev_id();
+    return mesh.face_store()[id].halfedge_id() != nullid ? mesh.face_store()[id].halfedge().prev_id() : nullid;
 };
 
 //------------------------------------------------------------------------------
@@ -720,16 +720,16 @@ typename quetzal::brep::Face<Traits, M>::halfedges_type::terminal_function_type 
 template<typename Traits, typename M>
 typename quetzal::brep::Face<Traits, M>::halfedges_type::iterate_function_type quetzal::brep::Face<Traits, M>::m_halfedges_forward = [](const mesh_type& mesh, id_type id, id_type i) -> id_type
 {
-    i = mesh.halfedge_store()[i].next_id();
-    return i != m_halfedges_first(mesh, id) ? i : nullid;
+    id_type halfedge_id_next = mesh.halfedge_store()[i].next_id();
+    return halfedge_id_next != m_halfedges_first(mesh, id) ? halfedge_id_next : nullid;
 };
 
 //------------------------------------------------------------------------------
 template<typename Traits, typename M>
 typename quetzal::brep::Face<Traits, M>::halfedges_type::iterate_function_type quetzal::brep::Face<Traits, M>::m_halfedges_reverse = [](const mesh_type& mesh, id_type id, id_type i) -> id_type
 {
-    i = mesh.halfedge_store()[i].prev_id();
-    return i != m_halfedges_last(mesh, id) ? i : nullid;
+    id_type halfedge_id_prev = mesh.halfedge_store()[i].prev_id();
+    return halfedge_id_prev != m_halfedges_last(mesh, id) ? halfedge_id_prev : nullid;
 };
 
 //------------------------------------------------------------------------------
@@ -780,10 +780,10 @@ typename quetzal::brep::Face<Traits, M>::halfedges_ext_type::terminal_function_t
     const auto& holes = mesh.face(id).holes();
     if (holes.empty())
     {
-        return {std::nullopt, mesh.face_store()[id].halfedge().prev_id()};
+        return {std::nullopt, mesh.face_store()[id].halfedge_id() != nullid ? mesh.face_store()[id].halfedge().prev_id() : nullid};
     }
 
-    return {holes.size() - 1, holes.back().halfedge().prev_id()};
+    return {holes.size() - 1, holes.back().halfedge_id() != nullid ? holes.back().halfedge().prev_id() : nullid};
 };
 
 //------------------------------------------------------------------------------
