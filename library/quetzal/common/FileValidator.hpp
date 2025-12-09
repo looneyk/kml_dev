@@ -9,6 +9,7 @@
 #include <array>
 #include <filesystem>
 #include <functional>
+#include <map>
 
 namespace quetzal
 {
@@ -45,8 +46,10 @@ namespace quetzal
 
     private:
 
-        void init_directory(const std::filesystem::path& dir, bool clear) const;
+        void init_directory(const std::filesystem::path& dir, bool clear = false) const;
         void clear_directory(const std::filesystem::path& dir) const;
+
+        void store_out_file_timestamps();
 
         // Returns counts {different, unchanged, missing, unchecked, total}
         std::array<size_t, 5> directory_differences() const;
@@ -55,6 +58,7 @@ namespace quetzal
 
         std::filesystem::path m_out_path;
         std::filesystem::path m_reference_path;
+        std::map<std::string, std::filesystem::file_time_type> m_out_file_timestamps;
         Timestamp m_t0;
     };
 
