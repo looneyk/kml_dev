@@ -43,9 +43,6 @@ namespace quetzal::brep
         using index_type = mesh_type::index_type;
         using attributes_type = mesh_type::submesh_attributes_type;
 
-        using hole_type = Hole<Traits, M>;
-        using holes_type = std::vector<hole_type>;
-
         // Deprecated, use from Traits ...
         template<typename U>
         static constexpr value_type val(const U& u)
@@ -54,7 +51,7 @@ namespace quetzal::brep
         }
 
         Submesh();
-        Submesh(mesh_type& mesh, id_type id, const std::string& name, const attributes_type& attributes, const Properties& properties = {});
+        Submesh(mesh_type& mesh, id_type id, const std::string& name, const attributes_type& attributes = {}, const Properties& properties = {});
         Submesh(const Submesh&) = default;
         Submesh(Submesh&&) noexcept = default;
         ~Submesh() = default;
@@ -119,15 +116,6 @@ namespace quetzal::brep
 
         void regenerate_surface_index(); // Surfaces with the same name should have already been coalesced
 
-        // holes used temporarily for isolated halfedge sequences that are not yet associated with a face, vertices unreachable from the set of submesh faces ...
-        // a bit of a kluge, they don't have an independent identity (no id) ...
-        size_type hole_count() const;
-        const holes_type& holes() const;
-        holes_type& holes();
-
-        hole_type& create_hole(id_type idHalfedge);
-        void remove_hole(id_type idHalfedge);
-
         const attributes_type& attributes() const;
         attributes_type& attributes();
         void set_attributes(const attributes_type& attributes);
@@ -160,8 +148,6 @@ namespace quetzal::brep
         surface_ids_type m_surface_ids;
         surfaces_type m_surfaces;
         index_type m_surface_index;
-
-        holes_type m_holes;
 
         attributes_type m_attributes;
         Properties m_properties;
@@ -540,54 +526,6 @@ void quetzal::brep::Submesh<Traits, M>::regenerate_surface_index()
         m_surface_index[surface.name()] = surface.id();
     }
 
-    return;
-}
-
-//------------------------------------------------------------------------------
-template<typename Traits, typename M>
-typename quetzal::brep::Submesh<Traits, M>::size_type quetzal::brep::Submesh<Traits, M>::hole_count() const
-{
-    return m_holes.size();
-}
-
-//------------------------------------------------------------------------------
-template<typename Traits, typename M>
-const typename quetzal::brep::Submesh<Traits, M>::holes_type& quetzal::brep::Submesh<Traits, M>::holes() const
-{
-    return m_holes;
-}
-
-//------------------------------------------------------------------------------
-template<typename Traits, typename M>
-typename quetzal::brep::Submesh<Traits, M>::holes_type& quetzal::brep::Submesh<Traits, M>::holes()
-{
-    return m_holes;
-}
-
-//------------------------------------------------------------------------------
-template<typename Traits, typename M>
-typename quetzal::brep::Submesh<Traits, M>::hole_type& quetzal::brep::Submesh<Traits, M>::create_hole(id_type idHalfedge)
-{
-    assert(m_pmesh != nullptr);
-    return m_holes.emplace_back(*m_pmesh, idHalfedge);
-}
-
-//------------------------------------------------------------------------------
-template<typename Traits, typename M>
-void quetzal::brep::Submesh<Traits, M>::remove_hole(id_type idHalfedge)
-{
-    assert(m_pmesh != nullptr);
-
-    for (auto i = m_holes.begin(); i != m_holes.end(); ++i)
-    {
-        if (i->halfedge_id() == idHalfedge)
-        {
-            m_holes.erase(i);
-            return;
-        }
-    }
-
-    assert(false); // halfedge is not the start of any hole ...
     return;
 }
 

@@ -761,7 +761,7 @@ std::cout << "create_intersection_edge first floating" << std::endl;
 //std::cout << std::format("create_intersection_edge first floating h {} {}", id_string(halfedge_id), to_segment(m_mesh.halfedge(halfedge_id))) << std::endl;
 //std::cout << std::format("create_intersection_edge first floating p {} {}", id_string(partner_id), to_segment(m_mesh.halfedge(partner_id))) << std::endl;
 //std::cout << std::format("create_intersection_edge first floating e {} {}", id_string(halfedge_id_exterior), to_segment(m_mesh.halfedge(halfedge_id_exterior))) << std::endl;
-        m_mesh.face(face_id).submesh().create_hole(halfedge_id);
+        m_mesh.face(face_id).create_hole(halfedge_id);
 //        id_type halfedge_id_tracer = partner_id; // correct, there is no other halfedge at this vertex ...
 //        return {halfedge_id_exterior, halfedge_id_tracer};
         return {halfedge_id_exterior, nullid};
@@ -904,7 +904,7 @@ std::cout << std::format("create_intersection_edge next partial h {} e {} {} {}"
         }
 
         m_mesh.face(face_id).create_hole(hole_halfedge_id);
-        m_mesh.face(face_id).submesh().remove_hole(floating.id0);
+        m_mesh.face(face_id).remove_hole(floating.id0);
         floating.clear();
         return {halfedge_id_exterior, nullid};
     }
@@ -930,7 +930,7 @@ std::cout << std::format("    created next {} {}, partner {} {}", hn.id(), to_se
         id_type halfedge_id = create_edge_connect(halfedge_id0, halfedge_id1);
         id_type halfedge_id_exterior = exterior_halfedge(halfedge_id, exterior_direction);
 
-        m_mesh.face(face_id).submesh().remove_hole(floating.id0);
+        m_mesh.face(face_id).remove_hole(floating.id0);
         floating.clear();
         return {halfedge_id_exterior, nullid};
     }
@@ -1281,8 +1281,8 @@ std::cout << std::format("face_plane_intersection first face {} {}, plane {}, tr
 //test_halfege_face_iteration(face);
 
     std::vector<std::tuple<id_type, intersection_type>> intersections;
-//    for (const auto& halfedge : face.halfedges())
-    for (const auto& halfedge : face.halfedges_ext())
+    for (const auto& halfedge : face.halfedges())
+//    for (const auto& halfedge : face.halfedges_ext())
     {
         if (m_connection_halfedge_ids.contains(halfedge.id())) // Reject any portion of an earlier connection
 //if (connection_contains(vertex_position(halfedge)) || connection_contains(vertex_position(halfedge.next()))) // Reject any portion of an earlier connection
@@ -1373,8 +1373,8 @@ std::cout << std::format("face_plane_intersection next face {} {}, plane {}, tra
     }
 
     std::vector<std::tuple<id_type, intersection_type>> intersections;
-//    for (const auto& halfedge : face.halfedges())
-    for (const auto& halfedge : face.halfedges_ext())
+    for (const auto& halfedge : face.halfedges())
+//    for (const auto& halfedge : face.halfedges_ext())
     {
         auto ix = halfedge_plane_intersection(halfedge, plane);
 //std::cout << std::format("halfedge_plane_intersection returned hid {}, segment {}, ix {}", halfedge.id(), to_segment(halfedge), ix) << std::endl;

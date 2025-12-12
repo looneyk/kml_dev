@@ -1130,7 +1130,7 @@ void quetzal::brep::partition_face_holes(M& mesh, typename M::face_type& face_a,
 
         // Hole is no longer in face_a, so move it to face_b
         auto hole = face_a.halfedge_hole(hole_halfedge_id_a);
-        face_a.remove_halfedge_hole(hole_halfedge_id_a);
+        face_a.remove_hole(hole_halfedge_id_a);
         hole.set_face_id(face_b.id());
         face_b.insert_hole(hole);
     }

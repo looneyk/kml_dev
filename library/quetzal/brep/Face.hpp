@@ -110,9 +110,10 @@ namespace quetzal::brep
         const hole_type& halfedge_hole(id_type hole_halfedge_id) const;
         hole_type& halfedge_hole(id_type hole_halfedge_id);
 
+        // These invalidate halfedge_ext and hole iterators
         hole_type& create_hole(id_type hole_halfedge_id);
+        void remove_hole(id_type hole_halfedge_id);
         hole_type& insert_hole(const hole_type& hole);
-        void remove_halfedge_hole(id_type hole_halfedge_id);
 
         const attributes_type& attributes() const;
         attributes_type& attributes();
@@ -516,15 +517,7 @@ typename quetzal::brep::Face<Traits, M>::hole_type& quetzal::brep::Face<Traits, 
 
 //------------------------------------------------------------------------------
 template<typename Traits, typename M>
-typename quetzal::brep::Face<Traits, M>::hole_type& quetzal::brep::Face<Traits, M>::insert_hole(const hole_type& hole)
-{
-    assert(m_pmesh != nullptr);
-    return m_holes.emplace_back(hole);
-}
-
-//------------------------------------------------------------------------------
-template<typename Traits, typename M>
-void quetzal::brep::Face<Traits, M>::remove_halfedge_hole(id_type hole_halfedge_id)
+void quetzal::brep::Face<Traits, M>::remove_hole(id_type hole_halfedge_id)
 {
     for (auto i = m_holes.begin(); i != m_holes.end(); ++i)
     {
@@ -537,6 +530,14 @@ void quetzal::brep::Face<Traits, M>::remove_halfedge_hole(id_type hole_halfedge_
 
     assert(false);
     return;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits, typename M>
+typename quetzal::brep::Face<Traits, M>::hole_type& quetzal::brep::Face<Traits, M>::insert_hole(const hole_type& hole)
+{
+    assert(m_pmesh != nullptr);
+    return m_holes.emplace_back(hole);
 }
 
 //------------------------------------------------------------------------------

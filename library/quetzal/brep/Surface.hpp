@@ -46,7 +46,7 @@ namespace quetzal::brep
         using attributes_type = mesh_type::surface_attributes_type;
 
         Surface();
-        Surface(mesh_type& mesh, id_type id, const std::string& name, id_type submesh_id, const attributes_type& attributes, const Properties& properties = {});
+        Surface(mesh_type& mesh, id_type id, const std::string& name, id_type submesh_id, const attributes_type& attributes = {}, const Properties& properties = {});
         Surface(const Surface&) = default;
         Surface(Surface&&) noexcept = default;
         ~Surface() = default;
