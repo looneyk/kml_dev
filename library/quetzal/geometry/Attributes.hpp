@@ -321,6 +321,65 @@ namespace quetzal::geometry
 
     //--------------------------------------------------------------------------
     template<typename Traits>
+    class PositionNormalTangent : public Attributes<Traits>
+    {
+    public:
+
+        using typename Attributes<Traits>::value_type;
+        using typename Attributes<Traits>::point_type;
+        using typename Attributes<Traits>::vector_type;
+        using typename Attributes<Traits>::texcoord_type;
+        using typename Attributes<Traits>::matrix_type;
+        using typename Attributes<Traits>::transform_texcoord_type;
+        using Attributes<Traits>::transform_texcoord_identity;
+
+        PositionNormalTangent() = default;
+        PositionNormalTangent(const point_type& position, const vector_type& normal, const vector_type& tangent);
+        PositionNormalTangent(const PositionNormalTangent&) = default;
+        PositionNormalTangent(PositionNormalTangent&&) = default;
+        ~PositionNormalTangent() = default;
+
+        PositionNormalTangent& operator=(const PositionNormalTangent&) = default;
+        PositionNormalTangent& operator=(PositionNormalTangent&&) = default;
+
+        point_type position() const;
+        point_type& position();
+        void set_position(const point_type& position);
+
+        vector_type normal() const;
+        vector_type& normal();
+        void set_normal(const vector_type& normal);
+
+        vector_type tangent() const;
+        vector_type& tangent();
+        void set_tangent(const vector_type& tangent);
+
+        void set(const point_type& position, const vector_type& normal, const vector_type& tangent);
+
+        virtual void transform(const matrix_type& matrix) override;
+        virtual void transform(const matrix_type& matrixPosition, const matrix_type& matrixDirection) override;
+        virtual void transform_position(const matrix_type& matrix) override;
+        virtual void invert(transform_texcoord_type transform_texcoord = transform_texcoord_identity) override;
+        virtual bool validate() const override;
+        virtual bool validate(std::string& errors) const override;
+
+        static constexpr bool contains(AttributesFlags components);
+
+    private:
+
+        point_type m_position;
+        vector_type m_normal;
+        vector_type m_tangent;
+    };
+
+    template<typename Traits>
+    PositionNormalTangent<Traits> lerp(const PositionNormalTangent<Traits>& a, const PositionNormalTangent<Traits>& b, typename Traits::value_type t);
+
+    template<typename Traits>
+    std::ostream& operator<<(std::ostream& os, const PositionNormalTangent<Traits>& a);
+
+    //--------------------------------------------------------------------------
+    template<typename Traits>
     class PositionNormalTextureTangent : public Attributes<Traits>
     {
     public:
@@ -1160,6 +1219,187 @@ std::ostream& quetzal::geometry::operator<<(std::ostream& os, const PositionNorm
     os << "(" << a.position() << ")";
     os << " (" << a.normal() << ")";
     os << " (" << a.texcoord() << ")";
+    return os;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+quetzal::geometry::PositionNormalTangent<Traits>::PositionNormalTangent(const point_type& position, const vector_type& normal, const vector_type& tangent) :
+    Attributes<Traits>(),
+    m_position(position),
+    m_normal(normal),
+    m_tangent(tangent)
+{
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+typename quetzal::geometry::PositionNormalTangent<Traits>::point_type quetzal::geometry::PositionNormalTangent<Traits>::position() const
+{
+    return m_position;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+typename quetzal::geometry::PositionNormalTangent<Traits>::point_type& quetzal::geometry::PositionNormalTangent<Traits>::position()
+{
+    return m_position;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+void quetzal::geometry::PositionNormalTangent<Traits>::set_position(const point_type& position)
+{
+    m_position = position;
+    return;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+typename quetzal::geometry::PositionNormalTangent<Traits>::vector_type quetzal::geometry::PositionNormalTangent<Traits>::normal() const
+{
+    return m_normal;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+typename quetzal::geometry::PositionNormalTangent<Traits>::vector_type& quetzal::geometry::PositionNormalTangent<Traits>::normal()
+{
+    return m_normal;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+void quetzal::geometry::PositionNormalTangent<Traits>::set_normal(const vector_type& normal)
+{
+    assert(normal.unit());
+    m_normal = normal;
+    return;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+typename quetzal::geometry::PositionNormalTangent<Traits>::vector_type quetzal::geometry::PositionNormalTangent<Traits>::tangent() const
+{
+    return m_tangent;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+typename quetzal::geometry::PositionNormalTangent<Traits>::vector_type& quetzal::geometry::PositionNormalTangent<Traits>::tangent()
+{
+    return m_tangent;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+void quetzal::geometry::PositionNormalTangent<Traits>::set_tangent(const vector_type& tangent)
+{
+    m_tangent = tangent;
+    return;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+void quetzal::geometry::PositionNormalTangent<Traits>::set(const point_type& position, const vector_type& normal, const vector_type& tangent)
+{
+    m_position = position;
+    m_normal = normal;
+    m_tangent = tangent;
+    return;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+void quetzal::geometry::PositionNormalTangent<Traits>::transform(const matrix_type& matrix)
+{
+    transform(matrix, direction_matrix(matrix));
+    return;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+void quetzal::geometry::PositionNormalTangent<Traits>::transform(const matrix_type& matrixPosition, const matrix_type& matrixDirection)
+{
+    m_position *= matrixPosition;
+    m_normal = normalize(m_normal * matrixDirection);
+    m_tangent = normalize(m_tangent * matrixDirection);
+    return;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+void quetzal::geometry::PositionNormalTangent<Traits>::transform_position(const matrix_type& matrix)
+{
+    m_position *= matrix;
+    return;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+void quetzal::geometry::PositionNormalTangent<Traits>::invert(transform_texcoord_type transform_texcoord)
+{
+    m_normal = -m_normal;
+    m_tangent = -m_tangent;
+    return;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+bool quetzal::geometry::PositionNormalTangent<Traits>::validate() const
+{
+    return m_normal.unit() && m_tangent.unit();
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+bool quetzal::geometry::PositionNormalTangent<Traits>::validate(std::string& errors) const
+{
+    std::string error;
+    bool bOK = true;
+
+    if (!Attributes<Traits>::validate_direction(m_normal, "normal", error))
+    {
+        errors = error;
+        bOK = false;
+    }
+
+    if (!Attributes<Traits>::validate_direction(m_tangent, "tangent", error))
+    {
+        if (!errors.empty())
+        {
+            errors += "; ";
+        }
+
+        errors += error;
+        bOK = false;
+    }
+
+    return bOK;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+constexpr bool quetzal::geometry::PositionNormalTangent<Traits>::contains(AttributesFlags components)
+{
+    constexpr AttributesFlags contained = AttributesFlags::Position | AttributesFlags::Normal | AttributesFlags::Tangent;
+    return (contained & components) == components;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+quetzal::geometry::PositionNormalTangent<Traits> quetzal::geometry::lerp(const PositionNormalTangent<Traits>& a, const PositionNormalTangent<Traits>& b, typename Traits::value_type t)
+{
+    return {lerp(a.position(), b.position(), t), normalize(a.normal() * slerp_unit(a.normal(), b.normal(), t)), normalize(a.tangent() * slerp_unit(a.tangent(), b.tangent(), t))};
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+std::ostream& quetzal::geometry::operator<<(std::ostream& os, const PositionNormalTangent<Traits>& a)
+{
+    os << "(" << a.position() << ")";
+    os << " (" << a.normal() << ")";
+    os << " (" << a.tangent() << ")";
     return os;
 }
 
