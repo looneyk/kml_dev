@@ -31,6 +31,7 @@ namespace
     using mesh_type = brep::Mesh<brep::MeshTraits<vector_traits>>;
     using point_type = mesh_type::point_type;
     using vector_type = point_type::vector_type;
+    using vertex_type = mesh_type::vertex_type;
     using vertex_attributes_type = mesh_type::vertex_attributes_type;
 
     static const filesystem::path dir_out = "out/";
@@ -293,7 +294,7 @@ int main(int argc, char* argv[])
     triangulate(mesh);
 //    validate(mesh);
 //    check_normal_consistency(mesh);
-    model::transform(mesh, [](vertex_attributes_type& av) -> void {coilify(av, 5.0f, math::PiTwo<value_type>, -10.0f, 10.0f, math::PiTwo<value_type>);});
+    model::transform(mesh, [](vertex_type& v) -> void {coilify(v.attributes(), 5.0f, math::PiTwo<value_type>, -10.0f, 10.0f, math::PiTwo<value_type>);});
     model::write_obj(mesh, to_filename(name));
 //validate(mesh);
 
@@ -304,7 +305,7 @@ int main(int argc, char* argv[])
     triangulate(mesh);
 //    validate(mesh);
 //    check_normal_consistency(mesh);
-	model::transform(mesh, [](vertex_attributes_type& av) -> void {coilify(av, 5.0f, math::PiTwo<value_type>, -10.0f, 10.0f, math::PiTwo<value_type>);});
+	model::transform(mesh, [](vertex_type& v) -> void {coilify(v.attributes(), 5.0f, math::PiTwo<value_type>, -10.0f, 10.0f, math::PiTwo<value_type>);});
     model::write_obj(mesh, to_filename(name));
 //validate(mesh);
 
@@ -317,7 +318,7 @@ int main(int argc, char* argv[])
 		model::create_cylinder(m, "cylinder_" + to_string(i), 12, 100, 3.75f, 3.75f, -50.0f, 50.0f);
         value_type x = 30.0f * cos(math::PiTwo<value_type> * i / 8);
         value_type y = 30.0f * sin(math::PiTwo<value_type> * i / 8);
-		model::transform(m, [=](vertex_attributes_type& av) -> void {coilify2(av, 20.0f, -50.0f, 50.0f, x, y, math::Pi<value_type> * i + math::PiTwo<value_type> * i / 8, 2.0f * math::PiTwo<value_type>);});
+		model::transform(m, [=](vertex_type& v) -> void {coilify2(v.attributes(), 20.0f, -50.0f, 50.0f, x, y, math::Pi<value_type> * i + math::PiTwo<value_type> * i / 8, 2.0f * math::PiTwo<value_type>);});
         triangulate(m);
         mesh.insert(m);
     }

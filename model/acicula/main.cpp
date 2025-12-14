@@ -188,27 +188,26 @@ namespace
             point.set_z(zUpper2);
         }
 
-        mesh_type m;
-        id_type submesh_id = m.create_submesh("head");
+        id_type submesh_id = mesh.create_submesh("head");
         std::string surface_base_name = model::SurfaceName::BodySection;
 
         for (size_t i = 0; i < nAzimuth; ++i)
         {
-            append_facet(m, submesh_id, surface_base_name, {base, polygon1.vertex(i), polygon2.vertex(i), polygon1.vertex((i + nAzimuth - 1) % nAzimuth)});
+            append_facet(mesh, submesh_id, surface_base_name, {base, polygon1.vertex(i), polygon2.vertex(i), polygon1.vertex((i + nAzimuth - 1) % nAzimuth)});
         }
 
         for (size_t i = 0; i < nAzimuth; ++i)
         {
-            append_facet(m, submesh_id, surface_base_name, {polygon1.vertex(i), polygon3.vertex(i), polygon2.vertex(i)});
-            append_facet(m, submesh_id, surface_base_name, {polygon1.vertex(i), polygon2.vertex((i + 1) % nAzimuth), polygon3.vertex(i)});
+            append_facet(mesh, submesh_id, surface_base_name, {polygon1.vertex(i), polygon3.vertex(i), polygon2.vertex(i)});
+            append_facet(mesh, submesh_id, surface_base_name, {polygon1.vertex(i), polygon2.vertex((i + 1) % nAzimuth), polygon3.vertex(i)});
         }
 
         for (size_t i = 0; i < nAzimuth; ++i)
         {
-            append_facet(m, submesh_id, surface_base_name, {polygon2.vertex(i), polygon3.vertex(i), apex, polygon3.vertex((i + nAzimuth - 1) % nAzimuth)});
+            append_facet(mesh, submesh_id, surface_base_name, {polygon2.vertex(i), polygon3.vertex(i), apex, polygon3.vertex((i + nAzimuth - 1) % nAzimuth)});
         }
 
-        connect_partners(m);
+        connect_partners(mesh);
 
         if (clipped)
         {
@@ -217,21 +216,20 @@ namespace
                 auto phi = math::PiTwo<value_type> * i / nAzimuth;
                 vector_type normal = {cos(phi), sin(phi), 0.0};
                 geometry::HalfSpace<vector_traits> hs({normal * (r * 0.75), normal});
-                clip(m, hs, "clip" + to_string(i));
+                clip(mesh, hs, "clip" + to_string(i));
             }
         }
 
         geometry::HalfSpace<vector_traits> hsLower({{0.0, 0.0, 0.75 * zLower}, {0.0, 0.0, -1.0}});
-        clip(m, hsLower, "end0");
+        clip(mesh, hsLower, "end0");
 
-        model::create_cylinder_edges(m, "stem", 6, 1, 0.5 * r2, 0.5 * r2, 1.25 * zLower, 0.75 * zLower, 0.5 / nAzimuth, 1.0 + 0.5 / nAzimuth);
-        brep::weld(m, "head/end0", "stem/end1");
+        model::create_cylinder_edges(mesh, "stem", 6, 1, 0.5 * r2, 0.5 * r2, 1.25 * zLower, 0.75 * zLower, 0.5 / nAzimuth, 1.0 + 0.5 / nAzimuth);
+        brep::weld(mesh, "head/end0", "stem/end1");
 
-        model::create_cylinder_edges(m, "base", 6, 1, 1.0 * r2, 0.5 * r2, 1.5 * zLower, 1.25 * zLower, 0.5 / nAzimuth, 1.0 + 0.5 / nAzimuth);
-        brep::weld(m, "stem/end0", "base/end1");
+        model::create_cylinder_edges(mesh, "base", 6, 1, 1.0 * r2, 0.5 * r2, 1.5 * zLower, 1.25 * zLower, 0.5 / nAzimuth, 1.0 + 0.5 / nAzimuth);
+        brep::weld(mesh, "stem/end0", "base/end1");
 
-        m.pack();
-        mesh.insert(m);
+        mesh.pack();
         return;
     }
 
@@ -275,30 +273,29 @@ namespace
 
         brep::MeshBuilder<mesh_type> builder;
 
-        mesh_type m;
-        builder.set_mesh(m);
+        builder.set_mesh(mesh);
         id_type submesh_id = builder.submesh("head");
         std::vector<point_type> points;
 
         for (size_t i = 0; i < nAzimuth; ++i)
         {
             points = {base, polygon1.vertex(i), polygon2.vertex(i), polygon1.vertex((i + nAzimuth - 1) % nAzimuth)};
-            builder.surface_face(submesh_id, next_surface_name(m), geometry::normal(points), points);
+            builder.surface_face(submesh_id, next_surface_name(mesh), geometry::normal(points), points);
         }
 
         for (size_t i = 0; i < nAzimuth; ++i)
         {
             points = {polygon1.vertex(i), polygon3.vertex(i), polygon2.vertex(i)};
-            builder.surface_face(submesh_id, next_surface_name(m), geometry::normal(points), points);
+            builder.surface_face(submesh_id, next_surface_name(mesh), geometry::normal(points), points);
 
             points = {polygon1.vertex(i), polygon2.vertex((i + 1) % nAzimuth), polygon3.vertex(i)};
-            builder.surface_face(submesh_id, next_surface_name(m), geometry::normal(points), points);
+            builder.surface_face(submesh_id, next_surface_name(mesh), geometry::normal(points), points);
         }
 
         for (size_t i = 0; i < nAzimuth; ++i)
         {
             points = {polygon2.vertex(i), polygon3.vertex(i), apex, polygon3.vertex((i + nAzimuth - 1) % nAzimuth)};
-            builder.surface_face(submesh_id, next_surface_name(m), geometry::normal(points), points);
+            builder.surface_face(submesh_id, next_surface_name(mesh), geometry::normal(points), points);
         }
 
         if (clipped)
@@ -308,21 +305,20 @@ namespace
                 auto phi = math::PiTwo<value_type> * i / nAzimuth;
                 vector_type normal = {cos(phi), sin(phi), 0.0};
                 geometry::HalfSpace<vector_traits> hs({normal * (r * 0.75), normal});
-                clip(m, hs, "clip" + to_string(i));
+                clip(mesh, hs, "clip" + to_string(i));
             }
         }
 
         geometry::HalfSpace<vector_traits> hsLower({{0.0, 0.0, 0.75 * zLower}, {0.0, 0.0, -1.0}});
-        clip(m, hsLower, "end0");
+        clip(mesh, hsLower, "end0");
 
-        model::create_cylinder_edges(m, "stem", 6, 1, 0.5 * r2, 0.5 * r2, 1.25 * zLower, 0.75 * zLower, 0.5 / nAzimuth, 1.0 + 0.5 / nAzimuth);
-        brep::weld(m, "head/end0", "stem/end1");
+        model::create_cylinder_edges(mesh, "stem", 6, 1, 0.5 * r2, 0.5 * r2, 1.25 * zLower, 0.75 * zLower, 0.5 / nAzimuth, 1.0 + 0.5 / nAzimuth);
+        brep::weld(mesh, "head/end0", "stem/end1");
 
-        model::create_cylinder_edges(m, "base", 6, 1, 1.0 * r2, 0.5 * r2, 1.5 * zLower, 1.25 * zLower, 0.5 / nAzimuth, 1.0 + 0.5 / nAzimuth);
-        brep::weld(m, "stem/end0", "base/end1");
+        model::create_cylinder_edges(mesh, "base", 6, 1, 1.0 * r2, 0.5 * r2, 1.5 * zLower, 1.25 * zLower, 0.5 / nAzimuth, 1.0 + 0.5 / nAzimuth);
+        brep::weld(mesh, "stem/end0", "base/end1");
 
-        m.pack();
-        mesh.insert(m);
+        mesh.pack();
         return;
     }
 
@@ -393,28 +389,27 @@ namespace
             polygon01.vertex(i).set_z(z0);
         }
 
-        mesh_type m;
-        id_type submesh_id = m.create_submesh("head");
+        id_type submesh_id = mesh.create_submesh("head");
         std::string surface_base_name = model::SurfaceName::BodySection;
 
         for (size_t i = 0; i < nAzimuth; ++i)
         {
-            append_facet(m, submesh_id, surface_base_name, {apex, polygon2.vertex((i + nAzimuth - 1) % nAzimuth), polygon3.vertex(i)});
-//            append_facet(m, submesh_id, surface_base_name, {polygon2.vertex((i + nAzimuth - 1) % nAzimuth), polygon1.vertex(i), polygon3.vertex(i)});
+            append_facet(mesh, submesh_id, surface_base_name, {apex, polygon2.vertex((i + nAzimuth - 1) % nAzimuth), polygon3.vertex(i)});
+//            append_facet(mesh, submesh_id, surface_base_name, {polygon2.vertex((i + nAzimuth - 1) % nAzimuth), polygon1.vertex(i), polygon3.vertex(i)});
 
-            append_facet(m, submesh_id, surface_base_name, {apex, polygon3.vertex(i), polygon2.vertex(i)});
-//            append_facet(m, submesh_id, surface_base_name, {polygon3.vertex(i), polygon1.vertex(i), polygon2.vertex(i)});
+            append_facet(mesh, submesh_id, surface_base_name, {apex, polygon3.vertex(i), polygon2.vertex(i)});
+//            append_facet(mesh, submesh_id, surface_base_name, {polygon3.vertex(i), polygon1.vertex(i), polygon2.vertex(i)});
 
             // single face replacing the two above
             // use the above without the polygon3 adjustment for the interesting difference
-            append_facet(m, submesh_id, surface_base_name, {polygon1.vertex(i), polygon2.vertex(i), polygon3.vertex(i), polygon2.vertex((i + nAzimuth - 1) % nAzimuth)});
+            append_facet(mesh, submesh_id, surface_base_name, {polygon1.vertex(i), polygon2.vertex(i), polygon3.vertex(i), polygon2.vertex((i + nAzimuth - 1) % nAzimuth)});
 
-            append_facet(m, submesh_id, surface_base_name, {polygon1.vertex(i), polygon1.vertex((i + 1) % nAzimuth), polygon2.vertex(i)});
+            append_facet(mesh, submesh_id, surface_base_name, {polygon1.vertex(i), polygon1.vertex((i + 1) % nAzimuth), polygon2.vertex(i)});
         }
 
-        auto ids = connect_partners(m);
-        id_type surface_id_base = m.create_surface(submesh_id, "end0");
-        create_border_face(m, ids[0], {0.0, 0.0, -1.0}, surface_id_base);
+        auto ids = connect_partners(mesh);
+        id_type surface_id_base = mesh.create_surface(submesh_id, "end0");
+        create_border_face(mesh, ids[0], {0.0, 0.0, -1.0}, surface_id_base);
 
         for (size_t i = 0; i < nAzimuth; ++i)
         {
@@ -424,49 +419,57 @@ namespace
                 vector_type normal = {cos(phi), sin(phi), 0.0};
                 normal.normalize();
                 geometry::HalfSpace<vector_traits> hs({normal * (r3 * 0.75), normal});
-                clip(m, hs, "side" + to_string(i));
+                clip(mesh, hs, "side" + to_string(i));
             }
 /*
             normal.set_z(2.0);
             normal.normalize();
             hs.set_plane({normal * (2.3 * r3), normal});
-            clip(m, hs, "peak" + to_string(i));
+            clip(mesh, hs, "peak" + to_string(i));
 */
         }
 
-        model::create_cylinder(m, "stem", 6, 1, r1, r1, 0.1 * z, 0.3 * z);
-        brep::weld(m, "head/end0", "stem/end1");
+        model::create_cylinder(mesh, "stem", 6, 1, r1, r1, 0.1 * z, 0.3 * z);
+        brep::weld(mesh, "head/end0", "stem/end1");
 
-        model::create_cylinder(m, "base", 6, 1, 1.5 * r1, r1, 0.0, 0.1 * z);
-        brep::weld(m, "stem/end0", "base/end1");
+        model::create_cylinder(mesh, "base", 6, 1, 1.5 * r1, r1, 0.0, 0.1 * z);
+        brep::weld(mesh, "stem/end0", "base/end1");
 
-        m.pack();
-        mesh.insert(m);
+        mesh.pack();
         return;
     }
 
     //--------------------------------------------------------------------------
     void create_pyramid_arrangement(mesh_type& mesh, const string& name, size_t nAzimuthOuter, value_type rOuter0, value_type rOuter1, size_t nAzimuthInner, value_type rInner, value_type z1)
     {
-        mesh_type m0;
-        model::create_cylinder(m0, name, nAzimuthInner, 1, rInner, 0.0, 0.0, z1);
+        mesh_type m;
+        id_type submesh_id0 = model::create_cylinder(m, "proto", nAzimuthInner, 1, rInner, 0.0, 0.0, z1);
 
         for (size_t i = 0; i < nAzimuthOuter; ++i)
         {
-            auto m1 = m0;
-            auto phi = math::PiTwo<value_type> * (value_type(i) / nAzimuthOuter);
+            id_type submesh_id = mesh.insert(m, submesh_id0, std::format("{}_{}", name, i));
+            auto submesh = mesh.submesh(submesh_id);
 
-            for (auto& vertex : m1.vertices())
-            {
+            auto phi = math::PiTwo<value_type> * (value_type(i) / nAzimuthOuter);
+            model::transform(submesh, [rOuter0, rOuter1, z1, phi](typename mesh_type::vertex_type& vertex) {
+                if (vertex.marked())
+                {
+                    return;
+                }
                 auto position = vertex.attributes().position();
                 auto t = position.z() / z1;
                 auto r = lerp(rOuter0, rOuter1, t);
                 auto matrix = g::rotation_z(phi) * g::translation(r * cos(phi), r * sin(phi), 0.0);
-                vertex.attributes().set_position(position * matrix);
-            }
+                position *= matrix;
+                for (auto& halfedge : vertex.halfedges())
+                {
+                    halfedge.vertex_attributes().set_position(position);
+                    halfedge.vertex().set_marked();
+                }
+                return;
+            });
 
-            // not just append, but union ...
-            mesh.insert(m1);
+            // union? ...
         }
 
         return;
@@ -477,26 +480,35 @@ namespace
     {
         model::create_cylinder(mesh, name, nAzimuthOuter, 1, rOuter0, rOuter1, 0.0, z1);
 
-        mesh_type m0;
         auto revs = bRevs ? value_type(1) / (2 * nAzimuthInner) : value_type(0);
-        model::create_cylinder(m0, name, nAzimuthInner, 1, rInner0, rInner1, 0.0, z1, revs, revs);
+        mesh_type m;
+        id_type submesh_id0 = model::create_cylinder(m, "proto", nAzimuthInner, 1, rInner0, rInner1, 0.0, z1, revs, revs);
 
         for (size_t i = 0; i < nAzimuthOuter; ++i)
         {
-            auto m1 = m0;
-            auto phi = math::PiTwo<value_type> * (value_type(2 * i + 1) / (2 * nAzimuthOuter));
+            id_type submesh_id = mesh.insert(m, submesh_id0, std::format("{}_{}", name, i));
+            auto submesh = mesh.submesh(submesh_id);
 
-            for (auto& vertex : m1.vertices())
-            {
+            auto phi = math::PiTwo<value_type> * (value_type(2 * i + 1) / (2 * nAzimuthOuter));
+            model::transform(submesh, [rPlacement0, rPlacement1, z1, phi](typename mesh_type::vertex_type& vertex) {
+                if (vertex.marked())
+                {
+                    return;
+                }
                 auto position = vertex.attributes().position();
                 auto t = position.z() / z1;
                 auto r = lerp(rPlacement0, rPlacement1, t);
                 auto matrix = g::rotation_z(math::Pi<value_type>) * g::translation(r, 0.0, 0.0) * g::rotation_z(phi);
-                vertex.attributes().set_position(position * matrix);
-            }
+                position *= matrix;
+                for (auto& halfedge : vertex.halfedges())
+                {
+                    halfedge.vertex_attributes().set_position(position);
+                    halfedge.vertex().set_marked();
+                }
+                return;
+            });
 
-            // not just append, but union ...
-            mesh.insert(m1);
+            // union? ...
         }
 
         return;

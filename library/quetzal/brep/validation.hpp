@@ -10,6 +10,8 @@
 #include "mesh_util.hpp"
 #include "id.hpp"
 #include "normal.hpp"
+#include "quetzal/brep/Mesh.hpp"
+#include "quetzal/brep/Submesh.hpp"
 #include "quetzal/geometry/Attributes.hpp"
 #include "quetzal/geometry/coordinate_system.hpp"
 #include "quetzal/math/floating_point.hpp"
@@ -254,8 +256,11 @@ namespace quetzal::brep
     template<typename M>
     ValidationState check_outward_normals(const M& mesh);
 
-    template<typename M>
-    ValidationState check_spherical(const M& mesh, typename M::value_type radius);
+    template<typename Traits>
+    ValidationState check_spherical(const Mesh<Traits>& mesh, typename Traits::value_type radius);
+
+    template<typename Traits>
+    ValidationState check_spherical(const Submesh<Traits>& submesh, typename Traits::value_type radius);
 
     template<typename M>
     std::map<typename M::value_type, size_t> count_edge_lengths(const M& mesh); // Returns count of each distinct length
@@ -2471,6 +2476,8 @@ quetzal::brep::ValidationState quetzal::brep::check_face_angles(const M& mesh)
 template<typename M>
 quetzal::brep::ValidationState quetzal::brep::check_face_angles(const M& mesh, const typename M::face_type& face)
 {
+    mesh;
+
     ValidationState state;
     if (face.deleted())
     {
@@ -2486,13 +2493,18 @@ quetzal::brep::ValidationState quetzal::brep::check_face_angles(const M& mesh, c
     {
         const auto& av = halfedge.vertex_attributes();
 
-        T a = angle(halfedge.next().vertex_attributes().position() - av.position(), halfedge.prev().vertex_attributes().position() - av.position());
+        T a = angle_between(halfedge.next().vertex_attributes().position() - av.position(), halfedge.prev().vertex_attributes().position() - av.position());
         bool bColinear = colinear(halfedge);
         bool bConvex = convex(halfedge);
         bool bReflex = reflex(halfedge);
         if (bReflex)
         {
             a = math::PiTwo<T> - a;
+        }
+
+        if (bReflex)
+        {
+            std::cout << "Warn: bReflex : " << face.id() << ' ' << halfedge.id() << eol;
         }
 
         if (bColinear && bConvex)
@@ -2595,17 +2607,41 @@ quetzal::brep::ValidationState quetzal::brep::check_outward_normals(const M& mes
 }
 
 //------------------------------------------------------------------------------
-template<typename M>
-quetzal::brep::ValidationState quetzal::brep::check_spherical(const M& mesh, typename M::value_type radius)
+template<typename Traits>
+quetzal::brep::ValidationState quetzal::brep::check_spherical(const Mesh<Traits>& mesh, typename Traits::value_type radius)
 {
     ValidationState state;
+    auto r_squared = radius * radius;
 
     for (const auto& vertex : mesh.vertices())
     {
-        if (math::float_ne(vertex.attributes().position().vector().norm_squared(), radius * radius))
+        if (math::float_ne(vertex.attributes().position().vector().norm_squared(), r_squared))
         {
-            std::cout << "Bad: vertex.attributes().position().vector().norm_squared() != radius * radius : " << vertex.id() << "  " << vertex.attributes().position() << "  " << radius << eol;
+            std::cout << "Bad: vertex.attributes().position().vector().norm_squared() != radius * radius : " << vertex.id() << "  " << vertex.attributes().position() << " " << vertex.attributes().position().vector().norm_squared() << "  " << radius << " " << r_squared << eol;
             state.set_bad();
+        }
+    }
+
+    return state;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+quetzal::brep::ValidationState quetzal::brep::check_spherical(const Submesh<Traits>& submesh, typename Traits::value_type radius)
+{
+    ValidationState state;
+    auto r_squared = radius * radius;
+
+    for (const auto& face : submesh.faces())
+    {
+        for (const auto& halfedge : face.halfedges())
+        {
+            const auto& vertex = halfedge.vertex();
+            if (math::float_ne(vertex.attributes().position().vector().norm_squared(), r_squared))
+            {
+                std::cout << "Bad: vertex.attributes().position().vector().norm_squared() != radius * radius : " << vertex.id() << "  " << vertex.attributes().position() << " " << vertex.attributes().position().vector().norm_squared() << "  " << radius << " " << r_squared << eol;
+                state.set_bad();
+            }
         }
     }
 

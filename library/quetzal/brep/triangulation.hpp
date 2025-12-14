@@ -9,6 +9,8 @@
 #include "geometry.hpp"
 #include "mesh_util.hpp"
 #include "normal.hpp"
+#include "quetzal/brep/Mesh.hpp"
+#include "quetzal/brep/Submesh.hpp"
 #include "quetzal/geometry/Point.hpp"
 #include "quetzal/geometry/Projection.hpp"
 #include "quetzal/triangulation/triangulation.hpp"
@@ -19,8 +21,11 @@ namespace quetzal::brep
 {
 
     // Uses only existing vertex positions
-    template<typename M>
-    void triangulate(M& mesh);
+    template<typename Traits>
+    void triangulate(Mesh<Traits>& mesh);
+
+    template<typename Traits>
+    void triangulate(Submesh<Traits>& submesh);
 
     template<typename M>
     void triangulate_face_quad(M& mesh, id_type face_id);
@@ -79,8 +84,8 @@ namespace quetzal::brep
 } // namespace quetzal::brep
 
 //------------------------------------------------------------------------------
-template<typename M>
-void quetzal::brep::triangulate(M& mesh)
+template<typename Traits>
+void quetzal::brep::triangulate(Mesh<Traits>& mesh)
 {
     size_t face_count_orig = mesh.face_store_count();
     for (size_t i = 0; i < face_count_orig; ++i)
@@ -91,18 +96,40 @@ void quetzal::brep::triangulate(M& mesh)
             continue;
         }
 
-        bool concave = true; // assume the worst unless there's a simple way to calculate ...
-concave = false; // bad assumption above ...
-        if (face.halfedge_count() == 4 && face.hole_count() == 0 && !concave)
+        if (face.halfedge_count() == 4 && face.hole_count() == 0)
         {
-            // triangulate_face_quad should actually work fine when concave ...
             triangulate_face_quad(mesh, i);
             continue;
         }
 
-        // other simplifications for efficiency? ...
-
         triangulate_face_cdt(mesh, i);
+    }
+
+    return;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+void quetzal::brep::triangulate(Submesh<Traits>& submesh)
+{
+    auto mesh = submesh.mesh(); // ...
+
+    auto face_ids = submesh.face_ids();
+    for (id_type face_id : face_ids)
+    {
+        const auto& face = mesh.face_store()[face_id];
+        if (face.deleted() || (face.halfedge_count() == 3 && face.hole_count() == 0))
+        {
+            continue;
+        }
+
+        if (face.halfedge_count() == 4 && face.hole_count() == 0)
+        {
+            triangulate_face_quad(mesh, face_id);
+            continue;
+        }
+
+        triangulate_face_cdt(mesh, face_id);
     }
 
     return;
@@ -116,13 +143,21 @@ void quetzal::brep::triangulate_face_quad(M& mesh, id_type face_id)
     assert(face.halfedge_count() == 4);
     assert(face.hole_count() == 0);
 
+/* this should fix concave splits, but looks like there is still a problem with reflex_vertex ...
+    auto reflex_halfedge_id = reflex_vertex(face);
+    if (reflex_halfedge_id)
+    {
+        id_type halfedge_id = *reflex_halfedge_id;
+        split_face(mesh, halfedge_id, mesh.halfedge(halfedge_id).next().next_id());
+        return;
+    }
+*/
     id_type halfedge_ids[4];
     typename M::point_type positions[4];
 
     for (const auto& e : std::views::zip(face.halfedges(), halfedge_ids, positions))
     {
         const auto& halfedge = get<0>(e);
-        // how is this working with e const? ...
         get<1>(e) = halfedge.id();
         get<2>(e) = halfedge.vertex_attributes().position();
     }

@@ -25,6 +25,7 @@
 #include "quetzal/math/floating_point.hpp"
 #include <algorithm>
 #include <compare>
+#include <optional>
 #include <ranges>
 #include <vector>
 
@@ -90,6 +91,10 @@ namespace quetzal::brep
 
     template<typename Traits>
     bool convex(const Face<Traits>& face);
+
+    // Returns the halfedge id of the first reflex vertex found
+    template<typename Traits>
+    std::optional<id_type> reflex_vertex(const Face<Traits>& face);
 
     template<typename Traits>
     bool degenerate(const Face<Traits>& face);
@@ -357,6 +362,22 @@ bool quetzal::brep::convex(const Face<Traits>& face)
     }
 
     return true;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+std::optional<quetzal::id_type> quetzal::brep::reflex_vertex(const Face<Traits>& face)
+{
+    // this needs to take face normal into account, but is that even reliable in the concave face case? ...
+    for (const auto& halfedge : face.halfedges())
+    {
+        if (reflex(halfedge))
+        {
+            return halfedge.id();
+        }
+    }
+
+    return std::nullopt;
 }
 
 //------------------------------------------------------------------------------

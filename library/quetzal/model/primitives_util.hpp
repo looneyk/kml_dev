@@ -178,15 +178,15 @@ namespace quetzal::model
 
     // Close off all open extents
     template<typename M>
-    void seal_cylinder(M& mesh, id_type submesh_id, const CylinderSpecification<data_value_type<M>>& spec, bool cusped_lower, bool cusped_upper, normal_vector_type<M> normal_lower = -normal_vector_type<M>::z_direction(), normal_vector_type<M> normal_upper = normal_vector_type<M>::z_direction());
+    void seal_cylinder(M& mesh, id_type submesh_id, const CylinderSpecification<data_value_type<M>>& spec, id_type halfedge_id0, bool cusped_lower, bool cusped_upper, normal_vector_type<M> normal_lower = -normal_vector_type<M>::z_direction(), normal_vector_type<M> normal_upper = normal_vector_type<M>::z_direction());
 
     // Close off all open extents
     template<typename M>
-    void seal_sphere(M& mesh, id_type submesh_id, const SphereSpecification<data_value_type<M>>& spec, bool cusped_lower, bool cusped_upper);
+    void seal_sphere(M& mesh, id_type submesh_id, const SphereSpecification<data_value_type<M>>& spec, id_type halfedge_id0, bool cusped_lower, bool cusped_upper);
 
     // Close off all open extents
     template<typename M>
-    void seal_torus(M& mesh, id_type submesh_id, const TorusSpecification<data_value_type<M>>& spec, bool cusped_lower, bool cusped_upper, data_value_type<M> rMajor);
+    void seal_torus(M& mesh, id_type submesh_id, const TorusSpecification<data_value_type<M>>& spec, id_type halfedge_id0, bool cusped_lower, bool cusped_upper, data_value_type<M> rMajor);
 
     // Triangulate a triangle with segmented edges to produce a uniform triangulation
     // With rows arranged with the largest across the bottom and getting successively shorter as you go up:
@@ -2345,7 +2345,7 @@ void quetzal::model::close_side_center(M& mesh, size_t na, size_t nb, bool cuspe
 
 //------------------------------------------------------------------------------
 template<typename M>
-void quetzal::model::seal_cylinder(M& mesh, id_type submesh_id, const CylinderSpecification<data_value_type<M>>& spec, bool cusped_lower, bool cusped_upper, normal_vector_type<M> normal_lower, normal_vector_type<M> normal_upper)
+void quetzal::model::seal_cylinder(M& mesh, id_type submesh_id, const CylinderSpecification<data_value_type<M>>& spec, id_type halfedge_id0, bool cusped_lower, bool cusped_upper, normal_vector_type<M> normal_lower, normal_vector_type<M> normal_upper)
 {
     using T = data_value_type<M>;
 
@@ -2353,8 +2353,8 @@ void quetzal::model::seal_cylinder(M& mesh, id_type submesh_id, const CylinderSp
     size_t nz = spec.axis_divisions;
 
     // Save halfedge id's before potential side closure
-    id_type idLowerFirst = 0;
-    id_type idUpperFirst = mesh.halfedge_store_count() - 2 * nAzimuth;
+    id_type idLowerFirst = halfedge_id0;
+    id_type idUpperFirst = mesh.halfedge_store_count() - 2 * nAzimuth; // should have halfedge_id1 too, but should be fine in the current use case ...
 
     bool bOpenSide = !spec.azimuth_interval.unit();
     if (bOpenSide)
@@ -2435,7 +2435,7 @@ void quetzal::model::seal_cylinder(M& mesh, id_type submesh_id, const CylinderSp
 
 //------------------------------------------------------------------------------
 template<typename M>
-void quetzal::model::seal_sphere(M& mesh, id_type submesh_id, const SphereSpecification<data_value_type<M>>& spec, bool cusped_lower, bool cusped_upper)
+void quetzal::model::seal_sphere(M& mesh, id_type submesh_id, const SphereSpecification<data_value_type<M>>& spec, id_type halfedge_id0, bool cusped_lower, bool cusped_upper)
 {
     using T = data_value_type<M>;
 
@@ -2443,8 +2443,8 @@ void quetzal::model::seal_sphere(M& mesh, id_type submesh_id, const SphereSpecif
     size_t nElevation = spec.elevation_divisions;
 
     // Save halfedge id's before potential side closure
-    id_type idLowerFirst = 0;
-    id_type idUpperFirst = mesh.halfedge_store_count() - 2 * nAzimuth;
+    id_type idLowerFirst = halfedge_id0;
+    id_type idUpperFirst = mesh.halfedge_store_count() - 2 * nAzimuth; // should have halfedge_id1 too, but should be fine in the current use case ...
 
     bool bOpenSide = !spec.azimuth_interval.unit();
     if (bOpenSide) // Elevation TerminationStyle::Center will affect side generation ...
@@ -2539,7 +2539,7 @@ void quetzal::model::seal_sphere(M& mesh, id_type submesh_id, const SphereSpecif
 
 //------------------------------------------------------------------------------
 template<typename M>
-void quetzal::model::seal_torus(M& mesh, id_type submesh_id, const TorusSpecification<data_value_type<M>>& spec, bool cusped_lower, bool cusped_upper, data_value_type<M> rMajor)
+void quetzal::model::seal_torus(M& mesh, id_type submesh_id, const TorusSpecification<data_value_type<M>>& spec, id_type halfedge_id0, bool cusped_lower, bool cusped_upper, data_value_type<M> rMajor)
 {
     using T = data_value_type<M>;
 
@@ -2548,9 +2548,12 @@ void quetzal::model::seal_torus(M& mesh, id_type submesh_id, const TorusSpecific
     size_t nMajor = spec.major_divisions;
     size_t nMinor = spec.minor_divisions;
 
+    // why not rMajor from spec? ...
+    //data_value_type<M> rMajor = spec.major_radius_interval ... assert constant? ...
+
     // Save halfedge id's before potential side closure
-    id_type idLowerFirst = 0;
-    id_type idUpperFirst = mesh.halfedge_store_count() - 2 * nMinor;
+    id_type idLowerFirst = halfedge_id0;
+    id_type idUpperFirst = mesh.halfedge_store_count() - 2 * nMinor; // should have halfedge_id1 too, but should be fine in the current use case ...
     size_t idSideFirst = mesh.halfedge_store_count();
 
     bool bOpenMajor = !spec.major_azimuth_interval.unit();

@@ -201,17 +201,15 @@ namespace
 
         brep::MeshBuilder<mesh_type> builder;
 
-        mesh_type m;
-        builder.set_mesh(m);
+        builder.set_mesh(mesh);
         id_type submesh_id = builder.submesh(name);
 
         for (const auto& face_def : face_definitions)
         {
             std::span<const point_type> points{&face_positions[face_def.start], face_def.count};
-            builder.surface_face(submesh_id, next_surface_name(m), geometry::normal(points), points);
+            builder.surface_face(submesh_id, next_surface_name(mesh), geometry::normal(points), points);
         }
 
-        mesh.insert(m);
         return submesh_id;
     }
 
@@ -222,8 +220,7 @@ namespace
         value_type h1 = r1 + h0 / 3.0f;
         value_type z0 = sqrt(h1 * h1 - h0 * h0);
 
-        mesh_type m;
-        id_type submesh_id = create_base(m, name, r0, r1);
+        id_type submesh_id = create_base(mesh, name, r0, r1);
 
         if (tuskification != 0.0f && bAdjustTuskification)
         {
@@ -232,9 +229,9 @@ namespace
 
         for (size_t i = 0; i < nBars; ++i)
         {
-            size_t nAzimuth = m.face(i).halfedge_count();
-            point_type center = geometry::centroid(m.face(i));
-            vector_type normal = geometry::normal(m.face(i)); // upFace
+            size_t nAzimuth = mesh.face(i).halfedge_count();
+            point_type center = geometry::centroid(mesh.face(i));
+            vector_type normal = geometry::normal(mesh.face(i)); // upFace
 
             // Axis and angle between face normal and positive z-axis
             vector_type axis = normalize(cross({0.0f, 0.0f, 1.0f}, normal));
@@ -242,7 +239,7 @@ namespace
             assert(theta >= 0.0f);
 
             // Spike base radius
-            vector_type rightFace = m.face(i).halfedge().vertex_attributes().position() - center;
+            vector_type rightFace = mesh.face(i).halfedge().vertex_attributes().position() - center;
             value_type rBase = rightFace.norm();
 
             // Spike length
@@ -271,16 +268,16 @@ namespace
             }
 
             // Apply final transformation matrix to spike
-			model::transform(mSpike, matrixPosition, matrixDirection);
+//			model::transform(mSpike, matrixPosition, matrixDirection);
+			model::transform(mSpike.submesh(0), matrixPosition, matrixDirection);
 
-            idSpikeBase += m.halfedge_count();
-            m.insert(mSpike);
-            brep::weld(m, i, m.surface(std::format("{}/{}", spike_name, model::SurfaceName::End0)).faces().front().id());
+            idSpikeBase += mesh.halfedge_count();
+            mesh.insert(mSpike);
+            brep::weld(mesh, i, mesh.surface(std::format("{}/{}", spike_name, model::SurfaceName::End0)).faces().front().id());
         }
 
-        m.pack();
-        m.check();
-        mesh.insert(m);
+        mesh.pack();
+        mesh.check();
 
         return submesh_id;
     }
@@ -298,6 +295,7 @@ int main(int argc, char* argv[])
     string name;
     mesh_type mesh;
     mesh_type m;
+    id_type submesh_id = nullid;
 
     name = "base_spike_6";
     std::cout << name << std::endl;
@@ -337,10 +335,14 @@ int main(int argc, char* argv[])
     mesh.clear();
     create_cage(mesh, name, 30.0f, 60.0f, 6, 250, 0.0f, math::Pi<value_type>);
     triangulate_convex(mesh);
+    /*
     m.clear();
 	model::create_geodesic_sphere(m, "orb", 26.0f, 6);
     model::transform(m, geometry::translation(0.0f, 0.0f, 55.0f));
     mesh.insert(m);
+    */
+	submesh_id = model::create_geodesic_sphere(mesh, "orb", 26.0f, 6);
+    model::transform(mesh.submesh(submesh_id), geometry::translation(0.0f, 0.0f, 55.0f));
     model::write_obj(mesh, to_filename(name));
 
     name = "tuskified_swirled_cage_6_sphere";

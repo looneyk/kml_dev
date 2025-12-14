@@ -85,19 +85,20 @@ quetzal::id_type quetzal::model::create_helix_pyramid(M& mesh, const std::string
 
     auto face_count = spec.azimuth_divisions;
 
-    M m{};
-    id_type submesh_id = m.create_submesh(name);
-    id_type surface_id0 = create_section_surfaces(m, submesh_id, face_count, [](size_t i) { return surface_name(SurfaceName::BodySection, i); });
+    id_type halfedge_id0 = mesh.halfedge_store_count();
 
-    id_type j0_orig = m.halfedge_store_count();
+    id_type submesh_id = mesh.create_submesh(name);
+    id_type surface_id0 = create_section_surfaces(mesh, submesh_id, face_count, [](size_t i) { return surface_name(SurfaceName::BodySection, i); });
+
+    id_type j0_orig = mesh.halfedge_store_count();
 
     if (nz == 1)
     {
-        create_apex_cusp_sections(m, nAzimuth, r0, z0, z1, azimuth0, ts0, surface_id0);
+        create_apex_cusp_sections(mesh, nAzimuth, r0, z0, z1, azimuth0, ts0, surface_id0);
     }
     else
     {
-        create_band_sections(m, nAzimuth, r0, r1, z0, z1, azimuth0, azimuth1, ts0, ts1, surface_id0);
+        create_band_sections(mesh, nAzimuth, r0, r1, z0, z1, azimuth0, azimuth1, ts0, ts1, surface_id0);
 
         for (size_t i = 2; i < nz; ++i)
         {
@@ -108,20 +109,16 @@ quetzal::id_type quetzal::model::create_helix_pyramid(M& mesh, const std::string
             revs1 = spec.axis_azimuth_offset_interval.lerp(t);
             azimuth1 = shift(azimuth, revs1);
 
-            connect_band_sections(m, nAzimuth, r1, z1, azimuth1, ts1, surface_id0);
+            connect_band_sections(mesh, nAzimuth, r1, z1, azimuth1, ts1, surface_id0);
         }
 
-        j0_orig = m.halfedge_store_count();
+        j0_orig = mesh.halfedge_store_count();
 
-        connect_apex_cusp_sections(m, nAzimuth, dz, azimuth1, surface_id0);
+        connect_apex_cusp_sections(mesh, nAzimuth, dz, azimuth1, surface_id0);
     }
 
-    calculate_apex_cusp_surface_vertex_normals_sequential(m, j0_orig + 2 * face_count, face_count);
-
-    seal_cylinder(m, submesh_id, spec, false, true);
-
-    m.check();
-    mesh.insert(m);
+    calculate_apex_cusp_surface_vertex_normals_sequential(mesh, j0_orig + 2 * face_count, face_count);
+    seal_cylinder(mesh, submesh_id, spec, halfedge_id0, false, true);
     return submesh_id;
 }
 
@@ -153,23 +150,24 @@ quetzal::id_type quetzal::model::create_helix_pyramid(M& mesh, const std::string
 
     bool closed = true;
 
-    M m{};
-    id_type submesh_id = m.create_submesh(name);
-    id_type surface_id0 = create_section_surfaces(m, submesh_id, face_count, [](size_t i) { return surface_name(SurfaceName::BodySection, i); });
+    id_type halfedge_id0 = mesh.halfedge_store_count();
+
+    id_type submesh_id = mesh.create_submesh(name);
+    id_type surface_id0 = create_section_surfaces(mesh, submesh_id, face_count, [](size_t i) { return surface_name(SurfaceName::BodySection, i); });
 
     auto avss0 = vertices_attributes_edges<M>(polygon, z0, scale0, revs0, ts0);
 
-    id_type j0_orig = m.halfedge_store_count();
+    id_type j0_orig = mesh.halfedge_store_count();
 
     if (nz == 1)
     {
         auto avss1 = cusp_vertices_attributes_edges<M>(polygon, dz, ts1);
-        create_apex_cusp(m, avss0, avss1, surface_id0, closed);
+        create_apex_cusp(mesh, avss0, avss1, surface_id0, closed);
     }
     else
     {
         auto avss1 = vertices_attributes_edges<M>(polygon, z1, scale1, revs1, ts1);
-        create_band(m, avss0, avss1, surface_id0, closed);
+        create_band(mesh, avss0, avss1, surface_id0, closed);
 
         for (size_t i = 2; i < nz; ++i)
         {
@@ -180,22 +178,18 @@ quetzal::id_type quetzal::model::create_helix_pyramid(M& mesh, const std::string
             ts1 = texture_span<T>(i, nz, false, true);
 
             avss1 = vertices_attributes_edges<M>(polygon, z1, scale1, revs1, ts1);
-            connect_band(m, avss1, surface_id0, closed);
+            connect_band(mesh, avss1, surface_id0, closed);
         }
 
-        j0_orig = m.halfedge_store_count();
+        j0_orig = mesh.halfedge_store_count();
 
         ts1 = texture_span<T>(nz, nz, false, true);
         avss1 = cusp_vertices_attributes_edges<M>(polygon, dz, ts1);
-        connect_apex_cusp(m, avss1, surface_id0, closed);
+        connect_apex_cusp(mesh, avss1, surface_id0, closed);
     }
 
-    calculate_apex_cusp_surface_vertex_normals_sequential(m, j0_orig + 2 * face_count, face_count);
-
-    seal_cylinder(m, submesh_id, spec, false, true);
-
-    m.check();
-    mesh.insert(m);
+    calculate_apex_cusp_surface_vertex_normals_sequential(mesh, j0_orig + 2 * face_count, face_count);
+    seal_cylinder(mesh, submesh_id, spec, halfedge_id0, false, true);
     return submesh_id;
 }
 

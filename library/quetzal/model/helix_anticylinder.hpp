@@ -58,28 +58,28 @@ quetzal::id_type quetzal::model::create_helix_anticylinder(M& mesh, const std::s
     T revs = revsUpper - revsLower;
     size_t nPanels = static_cast<size_t>(round(abs(nAzimuth * revs)));
     size_t n = nPanels + nAzimuth;
-std::cout << "n " << n << std::endl;
+//std::cout << "n " << n << std::endl;
 
-    M m;
-    id_type idSubmesh = m.create_submesh(name);
+    id_type idSurface0 = mesh.surface_store_count();
 
-    id_type idSurface0 = nullid;
+    size_t nh = mesh.halfedge_store_count();
+    size_t ns = idSurface0;
+
+    id_type idSubmesh = mesh.create_submesh(name);
+
     if (bSmooth)
     {
-        idSurface0 = m.create_surface(idSubmesh, SurfaceName::Body);
+        mesh.create_surface(idSubmesh, SurfaceName::Body);
     }
     else
     {
         size_t nSurfaces = 2 * nPanels;
-        idSurface0 = m.surface_store_count();
         for (size_t i = 0; i < nSurfaces; ++i)
         {
-            m.create_surface(idSubmesh, std::format("{}{}", SurfaceName::BodySection, i));
+            mesh.create_surface(idSubmesh, std::format("{}{}", SurfaceName::BodySection, i));
         }
     }
 
-    size_t nh = 0;
-    size_t ns = 0;
     vertices_attributes_type<M> avs0(nAzimuth + 1); // store bottom most vertices before any connection is possible
     vertices_attributes_type<M> avs1(nAzimuth + 1); // store top most vertex attributes to use when closing top
 
@@ -92,7 +92,7 @@ assert(r > 0);
         T z = math::lerp(zLower, zUpper, t);
         T rev = math::lerp(revsLower, revsUpper + T(1), t) * (T(1) - T(1) / T(2 * nAzimuth)); // scale is an approximation ...
         T phi = rev * math::PiTwo<T>;
-std::cout << "t " << t << " r " << r << " z " << z << " rev " << rev << std::endl;
+//std::cout << "t " << t << " r " << r << " z " << z << " rev " << rev << std::endl;
 
         // assuming smooth here ...
         typename M::point_type position = {r * cos(phi), r * sin(phi), z};
@@ -119,29 +119,29 @@ std::cout << "t " << t << " r " << r << " z " << z << " rev " << rev << std::end
             // First face pair, no external connection
 
             id_type idSurface = bSmooth ? idSurface0 : ns++;
-            id_type idFace = m.create_face(idSurface, nh);
-            m.create_halfedge_vertex(nh + 5, nh + 1, nh + 2, idFace, avs0[0]);
-            m.create_halfedge_vertex(nullid, nh + 2, nh + 0, idFace, av);
-            m.create_halfedge_vertex(nullid, nh + 0, nh + 1, idFace, avs0[nAzimuth]);
+            id_type idFace = mesh.create_face(idSurface, nh);
+            mesh.create_halfedge_vertex(nh + 5, nh + 1, nh + 2, idFace, avs0[0]);
+            mesh.create_halfedge_vertex(nullid, nh + 2, nh + 0, idFace, av);
+            mesh.create_halfedge_vertex(nullid, nh + 0, nh + 1, idFace, avs0[nAzimuth]);
 
-            auto normal = geometry::normal(m.face(idFace));
-            m.face(idFace).attributes().set_normal(normal);
+            auto normal = geometry::normal(mesh.face(idFace));
+            mesh.face(idFace).attributes().set_normal(normal);
             if (!bSmooth)
             {
-                m.surface(idSurface).attributes().set_normal(normal);
+                mesh.surface(idSurface).attributes().set_normal(normal);
             }
 
             idSurface = bSmooth ? idSurface0 : ns++;
-            idFace = m.create_face(idSurface, nh + 3);
-            m.create_halfedge_vertex(nullid, nh + 4, nh + 5, idFace, avs0[0]);
-            m.create_halfedge_vertex(nullid, nh + 5, nh + 3, idFace, avs0[1]);
-            m.create_halfedge_vertex(nh + 0, nh + 3, nh + 4, idFace, av);
+            idFace = mesh.create_face(idSurface, nh + 3);
+            mesh.create_halfedge_vertex(nullid, nh + 4, nh + 5, idFace, avs0[0]);
+            mesh.create_halfedge_vertex(nullid, nh + 5, nh + 3, idFace, avs0[1]);
+            mesh.create_halfedge_vertex(nh + 0, nh + 3, nh + 4, idFace, av);
 
-            normal = geometry::normal(m.face(idFace));
-            m.face(idFace).attributes().set_normal(normal);
+            normal = geometry::normal(mesh.face(idFace));
+            mesh.face(idFace).attributes().set_normal(normal);
             if (!bSmooth)
             {
-                m.surface(idSurface).attributes().set_normal(normal);
+                mesh.surface(idSurface).attributes().set_normal(normal);
             }
         }
         else if (i <= 2 * nAzimuth)
@@ -149,30 +149,30 @@ std::cout << "t " << t << " r " << r << " z " << z << " rev " << rev << std::end
             // First layer, connection on left only
 
             id_type idSurface = bSmooth ? idSurface0 : ns++;
-            id_type idFace = m.create_face(idSurface, nh);
-            m.create_halfedge_vertex(nh + 5, nh + 1, nh + 2, idFace, m.halfedge(nh - 2).vertex_attributes());
-            m.create_halfedge_vertex(nullid, nh + 2, nh + 0, idFace, av);
-            m.create_halfedge_vertex(nh - 2, nh + 0, nh + 1, idFace, m.halfedge(nh - 1).vertex_attributes());
-            m.halfedge(nh - 2).set_partner_id(nh + 2);
+            id_type idFace = mesh.create_face(idSurface, nh);
+            mesh.create_halfedge_vertex(nh + 5, nh + 1, nh + 2, idFace, mesh.halfedge(nh - 2).vertex_attributes());
+            mesh.create_halfedge_vertex(nullid, nh + 2, nh + 0, idFace, av);
+            mesh.create_halfedge_vertex(nh - 2, nh + 0, nh + 1, idFace, mesh.halfedge(nh - 1).vertex_attributes());
+            mesh.halfedge(nh - 2).set_partner_id(nh + 2);
 
-            auto normal = geometry::normal(m.face(idFace));
-            m.face(idFace).attributes().set_normal(normal);
+            auto normal = geometry::normal(mesh.face(idFace));
+            mesh.face(idFace).attributes().set_normal(normal);
             if (!bSmooth)
             {
-                m.surface(idSurface).attributes().set_normal(normal);
+                mesh.surface(idSurface).attributes().set_normal(normal);
             }
 
             idSurface = bSmooth ? idSurface0 : ns++;
-            idFace = m.create_face(idSurface, nh + 3);
-            m.create_halfedge_vertex(nullid, nh + 4, nh + 5, idFace, m.halfedge(nh - 2).vertex_attributes());
-            m.create_halfedge_vertex(nullid, nh + 5, nh + 3, idFace, avs0[i - nAzimuth]);
-            m.create_halfedge_vertex(nh + 0, nh + 3, nh + 4, idFace, av);
+            idFace = mesh.create_face(idSurface, nh + 3);
+            mesh.create_halfedge_vertex(nullid, nh + 4, nh + 5, idFace, mesh.halfedge(nh - 2).vertex_attributes());
+            mesh.create_halfedge_vertex(nullid, nh + 5, nh + 3, idFace, avs0[i - nAzimuth]);
+            mesh.create_halfedge_vertex(nh + 0, nh + 3, nh + 4, idFace, av);
 
-            normal = geometry::normal(m.face(idFace));
-            m.face(idFace).attributes().set_normal(normal);
+            normal = geometry::normal(mesh.face(idFace));
+            mesh.face(idFace).attributes().set_normal(normal);
             if (!bSmooth)
             {
-                m.surface(idSurface).attributes().set_normal(normal);
+                mesh.surface(idSurface).attributes().set_normal(normal);
             }
         }
         else
@@ -180,31 +180,31 @@ std::cout << "t " << t << " r " << r << " z " << z << " rev " << rev << std::end
             // Subsequent layers, connection on both left and bottom
 
             id_type idSurface = bSmooth ? idSurface0 : ns++;
-            id_type idFace = m.create_face(idSurface, nh);
-            m.create_halfedge_vertex(nh + 5, nh + 1, nh + 2, idFace, m.halfedge(nh - 2).vertex_attributes());
-            m.create_halfedge_vertex(nullid, nh + 2, nh + 0, idFace, av);
-            m.create_halfedge_vertex(nh - 2, nh + 0, nh + 1, idFace, m.halfedge(nh - 1).vertex_attributes());
-            m.halfedge(nh - 2).set_partner_id(nh + 2);
+            id_type idFace = mesh.create_face(idSurface, nh);
+            mesh.create_halfedge_vertex(nh + 5, nh + 1, nh + 2, idFace, mesh.halfedge(nh - 2).vertex_attributes());
+            mesh.create_halfedge_vertex(nullid, nh + 2, nh + 0, idFace, av);
+            mesh.create_halfedge_vertex(nh - 2, nh + 0, nh + 1, idFace, mesh.halfedge(nh - 1).vertex_attributes());
+            mesh.halfedge(nh - 2).set_partner_id(nh + 2);
 
-            auto normal = geometry::normal(m.face(idFace));
-            m.face(idFace).attributes().set_normal(normal);
+            auto normal = geometry::normal(mesh.face(idFace));
+            mesh.face(idFace).attributes().set_normal(normal);
             if (!bSmooth)
             {
-                m.surface(idSurface).attributes().set_normal(normal);
+                mesh.surface(idSurface).attributes().set_normal(normal);
             }
 
             idSurface = bSmooth ? idSurface0 : ns++;
-            idFace = m.create_face(idSurface, nh + 3);
-            m.create_halfedge_vertex(nh - 6 * nAzimuth + 1, nh + 4, nh + 5, idFace, m.halfedge(nh - 2).vertex_attributes());
-            m.create_halfedge_vertex(nullid, nh + 5, nh + 3, idFace, m.halfedge(nh - 6 * nAzimuth + 1).vertex_attributes());
-            m.create_halfedge_vertex(nh + 0, nh + 3, nh + 4, idFace, av);
-            m.halfedge(nh - 6 * nAzimuth + 1).set_partner_id(nh + 3);
+            idFace = mesh.create_face(idSurface, nh + 3);
+            mesh.create_halfedge_vertex(nh - 6 * nAzimuth + 1, nh + 4, nh + 5, idFace, mesh.halfedge(nh - 2).vertex_attributes());
+            mesh.create_halfedge_vertex(nullid, nh + 5, nh + 3, idFace, mesh.halfedge(nh - 6 * nAzimuth + 1).vertex_attributes());
+            mesh.create_halfedge_vertex(nh + 0, nh + 3, nh + 4, idFace, av);
+            mesh.halfedge(nh - 6 * nAzimuth + 1).set_partner_id(nh + 3);
 
-            normal = geometry::normal(m.face(idFace));
-            m.face(idFace).attributes().set_normal(normal);
+            normal = geometry::normal(mesh.face(idFace));
+            mesh.face(idFace).attributes().set_normal(normal);
             if (!bSmooth)
             {
-                m.surface(idSurface).attributes().set_normal(normal);
+                mesh.surface(idSurface).attributes().set_normal(normal);
             }
         }
 
@@ -215,13 +215,13 @@ std::cout << "t " << t << " r " << r << " z " << z << " rev " << rev << std::end
 
     for (size_t i = 6 * nAzimuth - 2; i < 6 * nPanels; i += 6 * nAzimuth)
     {
-        assert(m.halfedge(i).vertex_attributes().texcoord().x() == T(0));
-        assert(m.halfedge(i + 1).vertex_attributes().texcoord().x() == T(0));
-        assert(m.halfedge(i - 3).vertex_attributes().texcoord().x() == T(0));
+        assert(mesh.halfedge(i).vertex_attributes().texcoord().x() == T(0));
+        assert(mesh.halfedge(i + 1).vertex_attributes().texcoord().x() == T(0));
+        assert(mesh.halfedge(i - 3).vertex_attributes().texcoord().x() == T(0));
 
-        m.halfedge(i).vertex_attributes().texcoord().set_x(T(1));
-        m.halfedge(i + 1).vertex_attributes().texcoord().set_x(T(1));
-        m.halfedge(i - 3).vertex_attributes().texcoord().set_x(T(1));
+        mesh.halfedge(i).vertex_attributes().texcoord().set_x(T(1));
+        mesh.halfedge(i + 1).vertex_attributes().texcoord().set_x(T(1));
+        mesh.halfedge(i - 3).vertex_attributes().texcoord().set_x(T(1));
     }
 
     if (revs < T(1))
@@ -235,66 +235,63 @@ std::cout << "t " << t << " r " << r << " z " << z << " rev " << rev << std::end
     size_t nhBody0 = nh;
     typename M::point_type center = {T(0), T(0), zLower + dz / (T(2) * revs)};
 
-    id_type idSurface = m.create_surface(idSubmesh, SurfaceName::End0 + "_0");
-    id_type idFace = m.create_face(idSurface, nh);
-    m.create_halfedge_vertex(nh + 5, nh + 1, nh + 2, idFace, {center, {}, {T(0.5), T(0)}});
-    m.create_halfedge_vertex(2, nh + 2, nh + 0, idFace, {avs0[0].position(), {}, {T(0), T(1)}});
-    m.create_halfedge_vertex(nh + 3 * nAzimuth, nh + 0, nh + 1, idFace, {avs0[nAzimuth].position(), {}, {T(1), T(1)}});
-    m.halfedge(2).set_partner_id(nh + 1);
+    id_type idSurface = mesh.create_surface(idSubmesh, SurfaceName::End0 + "_0");
+    id_type idFace = mesh.create_face(idSurface, nh);
+    mesh.create_halfedge_vertex(nh + 5, nh + 1, nh + 2, idFace, {center, {}, {T(0.5), T(0)}});
+    mesh.create_halfedge_vertex(2, nh + 2, nh + 0, idFace, {avs0[0].position(), {}, {T(0), T(1)}});
+    mesh.create_halfedge_vertex(nh + 3 * nAzimuth, nh + 0, nh + 1, idFace, {avs0[nAzimuth].position(), {}, {T(1), T(1)}});
+    mesh.halfedge(2).set_partner_id(nh + 1);
 
-    set_facet_normal(m.face(idFace));
+    set_facet_normal(mesh.face(idFace));
 
     nh += 3;
 
     auto normal = -M::vector_type::z_direction();
 
-    idSurface = m.create_surface(idSubmesh, SurfaceName::End0 + "_1", {normal});
+    idSurface = mesh.create_surface(idSubmesh, SurfaceName::End0 + "_1", {normal});
     for (size_t i = 0; i < nAzimuth; ++i)
     {
-        idFace = m.create_face(idSurface, nh, {normal});
-        m.create_halfedge_vertex((i == nAzimuth - 1 ? nhBody0 + 2 : nh + 5), nh + 1, nh + 2, idFace, {center, normal, {}});
-        m.create_halfedge_vertex(6 * i + 3, nh + 2, nh + 0, idFace, {avs0[i + 1].position(), normal, {}});
-        m.create_halfedge_vertex((i == 0 ? nhBody0 : nh - 3), nh + 0, nh + 1, idFace, {avs0[i].position(), normal, {}});
-        m.halfedge(6 * i + 3).set_partner_id(nh + 1);
+        idFace = mesh.create_face(idSurface, nh, {normal});
+        mesh.create_halfedge_vertex((i == nAzimuth - 1 ? nhBody0 + 2 : nh + 5), nh + 1, nh + 2, idFace, {center, normal, {}});
+        mesh.create_halfedge_vertex(6 * i + 3, nh + 2, nh + 0, idFace, {avs0[i + 1].position(), normal, {}});
+        mesh.create_halfedge_vertex((i == 0 ? nhBody0 : nh - 3), nh + 0, nh + 1, idFace, {avs0[i].position(), normal, {}});
+        mesh.halfedge(6 * i + 3).set_partner_id(nh + 1);
 
         nh += 3;
     }
 
-    calculate_surface_texcoords(m, idSurface);
+    calculate_surface_texcoords(mesh, idSurface);
 
     // Close top
 
     center = {T(0), T(0), zUpper - dz / (T(2) * revs)};
 
-    idSurface = m.create_surface(idSubmesh, SurfaceName::End1 + "_0");
-    idFace = m.create_face(idSurface, nh);
-    m.create_halfedge_vertex(nh + 3 * nAzimuth + 2, nh + 1, nh + 2, idFace, {center, {}, {T(0.5), T(0)}});
-    m.create_halfedge_vertex(nhBody0 - 2, nh + 2, nh + 0, idFace, {avs1[nAzimuth].position(), {}, {T(0), T(1)}});
-    m.create_halfedge_vertex(nh + 3, nh + 0, nh + 1, idFace, {avs1[0].position(), {}, {T(1), T(1)}});
-    m.halfedge(nhBody0 - 2).set_partner_id(nh + 1);
+    idSurface = mesh.create_surface(idSubmesh, SurfaceName::End1 + "_0");
+    idFace = mesh.create_face(idSurface, nh);
+    mesh.create_halfedge_vertex(nh + 3 * nAzimuth + 2, nh + 1, nh + 2, idFace, {center, {}, {T(0.5), T(0)}});
+    mesh.create_halfedge_vertex(nhBody0 - 2, nh + 2, nh + 0, idFace, {avs1[nAzimuth].position(), {}, {T(0), T(1)}});
+    mesh.create_halfedge_vertex(nh + 3, nh + 0, nh + 1, idFace, {avs1[0].position(), {}, {T(1), T(1)}});
+    mesh.halfedge(nhBody0 - 2).set_partner_id(nh + 1);
 
-    set_facet_normal(m.face(idFace));
+    set_facet_normal(mesh.face(idFace));
 
     nh += 3;
 
     normal = M::vector_type::z_direction();
 
-    idSurface = m.create_surface(idSubmesh, SurfaceName::End1 + "_1", {normal});
+    idSurface = mesh.create_surface(idSubmesh, SurfaceName::End1 + "_1", {normal});
     for (size_t i = 0; i < nAzimuth; ++i)
     {
-        idFace = m.create_face(idSurface, nh, {normal});
-        m.create_halfedge_vertex(nh - 1, nh + 1, nh + 2, idFace, {center, normal, {}});
-        m.create_halfedge_vertex(nhBody0 - 6 * (nAzimuth - i) + 1, nh + 2, nh + 0, idFace, {avs1[i].position(), normal, {}});
-        m.create_halfedge_vertex((i == nAzimuth - 1 ? nh - 3 * nAzimuth : nh + 3), nh + 0, nh + 1, idFace, {avs1[i + 1].position(), normal, {}});
-        m.halfedge(nhBody0 - 6 * (nAzimuth - i) + 1).set_partner_id(nh + 1);
+        idFace = mesh.create_face(idSurface, nh, {normal});
+        mesh.create_halfedge_vertex(nh - 1, nh + 1, nh + 2, idFace, {center, normal, {}});
+        mesh.create_halfedge_vertex(nhBody0 - 6 * (nAzimuth - i) + 1, nh + 2, nh + 0, idFace, {avs1[i].position(), normal, {}});
+        mesh.create_halfedge_vertex((i == nAzimuth - 1 ? nh - 3 * nAzimuth : nh + 3), nh + 0, nh + 1, idFace, {avs1[i + 1].position(), normal, {}});
+        mesh.halfedge(nhBody0 - 6 * (nAzimuth - i) + 1).set_partner_id(nh + 1);
 
         nh += 3;
     }
 
-    calculate_surface_texcoords(m, idSurface);
-
-    m.check();
-    mesh.insert(m);
+    calculate_surface_texcoords(mesh, idSurface);
     return idSubmesh;
 }
 
