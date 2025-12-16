@@ -107,25 +107,24 @@ namespace
     //--------------------------------------------------------------------------
     void create_spoctahedron(mesh_type& mesh, float radius, float scale, size_t nLevels)
     {
-        mesh_type m;
-        model::create_octahedron(m, "body", radius, false);
+        id_type body_id = model::create_octahedron(mesh, "body", radius, false);
+        auto& body = mesh.submesh(body_id);
 
-        float zBottom = m.surface(0).faces().front().halfedge().vertex_attributes().position().z();
-        float zTop = m.surface(6).faces().front().halfedge().vertex_attributes().position().z();
-        model::transform(m, geometry::translation(0.0f, 0.0f, zTop - 2.0f * zBottom));
+        float zBottom = body.surface("body0").faces().front().halfedge().vertex_attributes().position().z();
+        float zTop = body.surface("body6").faces().front().halfedge().vertex_attributes().position().z();
+        model::transform(body, geometry::translation(0.0f, 0.0f, zTop - 2.0f * zBottom));
 
-        size_t nf = m.face_store_count();
-        for (size_t idFace = 1; idFace < nf; ++idFace)
+        auto face_ids = body.face_ids();
+        for (id_type face_id : face_ids | std::views::drop(1))
         {
-            subdivide_spike(m, idFace, scale, nLevels);
+            subdivide_spike(mesh, face_id, scale, nLevels);
         }
 
-        mesh.insert(m);
+        // just a test, but better not to use an octahedron for base ...
+        id_type base_id = model::create_octahedron(mesh, "base", radius, false);
+        auto& base = mesh.submesh(base_id);
 
-        m.clear();
-        model::create_octahedron(m, "base", radius, false);
-
-        for (auto& vertex : m.vertices())
+        model::transform(base, [](typename mesh_type::vertex_type& vertex) -> void
         {
             auto& position = vertex.attributes().position();
             if (position.z() > 0.0f)
@@ -133,19 +132,16 @@ namespace
                 position.set_x(position.x() * 0.49f);
                 position.set_y(position.y() * 0.49f);
             }
-        }
+        });
 
         auto zz = zTop - zBottom;
-        zBottom = m.surface(0).faces().front().halfedge().vertex_attributes().position().z();
-        assert(zz == m.surface(6).faces().front().halfedge().vertex_attributes().position().z() - zBottom);
-        model::transform(m, geometry::translation(0.0f, 0.0f, -zBottom));
-        assert(zz == m.surface(6).faces().front().halfedge().vertex_attributes().position().z());
-        mesh.insert(m);
+        zBottom = base.surface("body0").faces().front().halfedge().vertex_attributes().position().z();
+        assert(zz == base.surface("body6").faces().front().halfedge().vertex_attributes().position().z() - zBottom);
+        model::transform(base, geometry::translation(0.0f, 0.0f, -zBottom));
+        assert(zz == base.surface("body6").faces().front().halfedge().vertex_attributes().position().z());
 
-        // fix attach so that I don't need to do the scaling above ...
-        id_type idFaceA = mesh.surface("body/body0").faces().front().id();
-        id_type idFaceB = mesh.surface("base/body6").faces().front().id();
-        attach(mesh, idFaceA, idFaceB);
+        // fix attach so that I don't need to do the scaling above (edge intersections?) ...
+        attach(mesh, "body/body0", "base/body6");
 
         mesh.pack();
         mesh.check();
@@ -155,28 +151,22 @@ namespace
     //--------------------------------------------------------------------------
     void create_spectrahedron(mesh_type& mesh, float radius, float scale, size_t nLevels)
     {
-        mesh_type mBody;
-        model::create_tetrahedron(mBody, "body", radius);
+        id_type body_id = model::create_tetrahedron(mesh, "body", radius);
+        auto& body = mesh.submesh(body_id);
 
-        float z_body_bottom = mBody.surface(0).faces().front().halfedge().vertex_attributes().position().z();
+        float z_body_bottom = body.surface(0).faces().front().halfedge().vertex_attributes().position().z();
 
-        size_t nf = mBody.face_store_count();
-        for (size_t idFace = 1; idFace < nf; ++idFace)
+        auto face_ids = body.face_ids();
+        for (id_type face_id : face_ids | std::views::drop(1))
         {
-            subdivide_spike(mBody, idFace, scale, nLevels);
+            subdivide_spike(mesh, face_id, scale, nLevels);
         }
 
-        mesh_type mBase;
         value_type z_base_top = radius * 0.75f;
-        model::create_anticylinder(mBase, "base", 3, 1, radius * 0.5f, radius * 0.25f, 0.0f, z_base_top);
-        model::transform(mBody, geometry::translation(0.0f, 0.0f, z_base_top - z_body_bottom));
+        model::transform(body, geometry::translation(0.0f, 0.0f, z_base_top - z_body_bottom));
 
-        mesh.insert(mBody);
-        mesh.insert(mBase);
-
-        id_type idFaceA = mesh.surface("body/body0").faces().front().id();
-        id_type idFaceB = mesh.surface("base/end1").faces().front().id();
-        attach(mesh, idFaceA, idFaceB);
+        model::create_anticylinder(mesh, "base", 3, 1, radius * 0.5f, radius * 0.25f, 0.0f, z_base_top);
+        attach(mesh, "body/body0", "base/end1");
 
         mesh.pack();
         mesh.check();
@@ -186,16 +176,14 @@ namespace
     //--------------------------------------------------------------------------
     void create_octahedron_cube(mesh_type& mesh, float radius, float scale)
     {
-        mesh_type m;
-        model::create_octahedron(m, "body", radius, true);
+        id_type body_id = model::create_octahedron(mesh, "body", radius, true);
 
-        size_t nf = m.face_store_count();
-        for (size_t idFace = 0; idFace < nf; ++idFace)
+        auto face_ids = mesh.submesh(body_id).face_ids();
+        for (id_type face_id : face_ids)
         {
-            subdivide_spike(m, idFace, scale, 1);
+            subdivide_spike(mesh, face_id, scale, 1);
         }
 
-        mesh.insert(m);
         mesh.check();
         return;
     }
@@ -203,13 +191,12 @@ namespace
     //--------------------------------------------------------------------------
     void create_stellated_octahedron(mesh_type& mesh, float radius, bool bVertex = true)
     {
-        mesh_type m;
-        model::create_octahedron(m, "body", radius, !bVertex);
+        id_type body_id = model::create_octahedron(mesh, "body", radius, !bVertex);
 
-        size_t nFaces = m.faces().size();
-        for (size_t n = 0; n < nFaces; ++n)
+        auto face_ids = mesh.submesh(body_id).face_ids();
+        for (id_type face_id : face_ids)
         {
-            const auto& face = m.face(n);
+            const auto& face = mesh.face(face_id);
 
             point_type position;
             for (const auto& halfedge : face.halfedges())
@@ -217,10 +204,9 @@ namespace
                 position += to_vector(halfedge.vertex_attributes().position());
             }
 
-            triangulate_central_vertex(m, face.id(), position, false);
+            triangulate_central_vertex(mesh, face.id(), position, false);
         }
 
-        mesh.insert(m);
         mesh.check();
         return;
     }
@@ -228,18 +214,16 @@ namespace
     //--------------------------------------------------------------------------
     void create_stellated_octahedron(mesh_type& mesh, float radius, float d, bool bVertex = true)
     {
-        mesh_type m;
-        model::create_octahedron(m, "body", radius, !bVertex);
+        id_type body_id = model::create_octahedron(mesh, "body", radius, !bVertex);
 
-        size_t nFaces = m.faces().size();
-        for (size_t n = 0; n < nFaces; ++n)
+        auto face_ids = mesh.submesh(body_id).face_ids();
+        for (id_type face_id : face_ids)
         {
-            const auto& face = m.face(n);
+            const auto& face = mesh.face(face_id);
             point_type position = centroid(face) + d * face.attributes().normal();
-            triangulate_central_vertex(m, face.id(), position, false);
+            triangulate_central_vertex(mesh, face.id(), position, false);
         }
 
-        mesh.insert(m);
         mesh.check();
         return;
     }
@@ -247,38 +231,40 @@ namespace
     //--------------------------------------------------------------------------
     void create_spiketahedron(mesh_type& mesh, float radius)
     {
-        mesh_type m;
-        model::create_octahedron(m, "body", radius, false);
+        size_t nf_octahedron = mesh.face_count();
+        size_t face_count = 8;
+        model::create_octahedron(mesh, "body", radius, false);
 
         float s3 = sqrt(3.0f);
         float a = radius * sqrt(2.0f);
         float ri = radius / s3;
         point_type bottom;
 
-        size_t nFaces = m.faces().size();
-        for (size_t n = 0; n < nFaces; ++n)
+        for (size_t i = 0; i < face_count; ++i) // octahedron.face_ids(), need descriptive octahedron surface names first ...
         {
-            if (n == 0) // base
+            id_type face_id = nf_octahedron + i;
+            const auto& face = mesh.face(face_id);
+
+            if (i == 0) // base (octahedron surface names?) ...
             {
-                bottom = m.face(n).halfedges().front().vertex_attributes().position();
+                bottom = face.halfedges().front().vertex_attributes().position();
                 continue;
             }
 
             point_type position;
-            if (n == 6) // top
+            if (i == 6) // top (octahedron surface names?) ...
             {
-                const auto& face = m.face(n);
                 position = centroid(face) + face.attributes().normal() * a * s3;
             }
             else
             {
-                for (const auto& halfedge : m.face(n).halfedges())
+                for (const auto& halfedge : face.halfedges())
                 {
                     position += to_vector(halfedge.vertex_attributes().position());
                 }
             }
 
-            triangulate_central_vertex(m, n, position, false);
+            triangulate_central_vertex(mesh, face_id, position, false);
         }
 
         float h = ri * 2.0f;
@@ -287,14 +273,10 @@ namespace
         float r1 = to_vector(bottom).norm();
         float r0 = r1 * (1 + h / (a * s3));
 
-        mesh_type mBase;
-        model::create_cylinder(mBase, "base", 3, 1, r0, r1, z0 - h, z0);
-        m.insert(mBase);
+        model::create_cylinder(mesh, "base", 3, 1, r0, r1, z0 - h, z0);
+        weld(mesh, "body/body0", "base/end1"); // bottom face of octahedron body and top face of base
 
-        weld(m, 0, m.face_store_count() - 1); // bottom face of octahedron body and top face of base
-        m.pack();
-
-        mesh.insert(m);
+        mesh.pack();
         mesh.check();
         return;
     }
@@ -302,16 +284,14 @@ namespace
     //--------------------------------------------------------------------------
     void create_snowflake(mesh_type& mesh, float radius, float scale, unsigned int nLevels)
     {
-        mesh_type m;
-        model::create_tetrahedron(m, "body", radius);
+        id_type body_id = model::create_tetrahedron(mesh, "body", radius);
 
-        size_t nFaces = m.faces().size();
-        for (size_t n = 0; n < nFaces; ++n)
+        auto face_ids = mesh.submesh(body_id).face_ids();
+        for (id_type face_id : face_ids)
         {
-            subdivide_spike(m, n, scale, nLevels);
+            subdivide_spike(mesh, face_id, scale, nLevels);
         }
 
-        mesh.insert(m);
         mesh.check();
         return;
     }
@@ -319,21 +299,17 @@ namespace
     //--------------------------------------------------------------------------
     void create_hollow_tetrahedron(mesh_type& mesh, float radius, float ratio)
     {
-        mesh_type mt;
-        model::create_tetrahedron(mt, "tetrahedron", radius);
+        model::create_tetrahedron(mesh, "tetrahedron", radius);
 
         vector_type t0 = {0.0f, 0.0f, 1.0f};
         vector_type c0 = math::normalize<vector_traits>({1.0f, 1.0f, 1.0f});
         auto right = normalize(cross(c0, t0));
         auto matrix = geometry::alignment(c0, right, t0, right) * geometry::rotation_z(3.0f * math::PiFourth<float>);
 
-        mesh_type mc;
         float side = radius * ratio * 2.0f / sqrt(3.0f);
-        model::create_box(mc, "cube", side, side, side);
-        model::transform(mc, matrix);
+        id_type cube_id = model::create_box(mesh, "cube", side, side, side);
+        model::transform(mesh.submesh(cube_id), matrix);
 
-        mesh.insert(mt);
-        mesh.insert(mc);
         mesh.check();
         return;
     }
