@@ -1952,7 +1952,7 @@ void quetzal::brep::dump(const M& mesh)
     }
 
     std::cout << "Surface index" << eol;
-    for (auto i : mesh.surface_index())
+    for (const auto& i : mesh.surface_index())
     {
         std::cout << '\t' << i.second << '\t' << i.first << eol;
     }
@@ -1970,7 +1970,7 @@ void quetzal::brep::dump(const M& mesh)
     }
 
     std::cout << "Submesh index" << eol;
-    for (auto i : mesh.submesh_index())
+    for (const auto& i : mesh.submesh_index())
     {
         std::cout << '\t' << i.second << '\t' << i.first << eol;
     }
@@ -2108,15 +2108,6 @@ void quetzal::brep::dump_submesh(const M& mesh, id_type id)
         write_surface<M>(surface, std::format("Surface[{}]", surface.id()));
     }
 */    
-    for (const auto& hole : submesh.holes())
-    {
-        std::cout << std::format("Hole face {} {} halfedges", hole.face_id(), hole.halfedge_count()) << eol;
-
-        for (const auto& halfedge : hole.halfedges())
-        {
-            std::cout << std::format("    halfedge{:>5}, v {:5}, f {:5}, ", halfedge.id(), halfedge.vertex_id(), halfedge.face_id()) << halfedge.vertex_attributes() << eol;
-        }
-    }
 
     return;
 }
