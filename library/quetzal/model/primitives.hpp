@@ -861,7 +861,7 @@ quetzal::id_type quetzal::model::create_box(M& mesh, const std::string& name, da
 
     for (size_t i = 0; i < 24; ++i)
     {
-        mesh.create_vertex(nv + i, avs[i]);
+        mesh.create_vertex(nh + i, avs[i]);
         auto hd = halfedge_descriptors[i];
         mesh.create_halfedge(nh + hd[0], nh + hd[1], nh + hd[2], nv + hd[3], nf + hd[4]);
     }
@@ -3397,7 +3397,7 @@ quetzal::id_type quetzal::model::create_tetrahedron(M& mesh, const std::string& 
 
     for (size_t i = 0; i < 12; ++i) // One vertex per halfedge
     {
-        mesh.create_vertex(nv + i, avs[i]);
+        mesh.create_vertex(nh + i, avs[i]);
         auto hd = halfedge_descriptors[i];
         mesh.create_halfedge(nh + hd[0], nh + hd[1], nh + hd[2], nv + hd[3], nf + hd[4]);
     }
@@ -3406,7 +3406,7 @@ quetzal::id_type quetzal::model::create_tetrahedron(M& mesh, const std::string& 
     {
         typename M::vector_type normal = avs[3 * i].normal();
         id_type surface_id = mesh.create_surface(submesh_id, surface_name(SurfaceName::BodySection, i), {normal});
-        mesh.create_face(surface_id, nf + 3 * i, {normal});
+        mesh.create_face(surface_id, nh + 3 * i, {normal});
     }
 
     return submesh_id;
@@ -3558,7 +3558,7 @@ quetzal::id_type quetzal::model::create_octahedron(M& mesh, const std::string& n
 
     for (size_t i = 0; i < 24; ++i)
     {
-        mesh.create_vertex(nv + i, avs[i]);
+        mesh.create_vertex(nh + i, avs[i]);
         auto hd = halfedge_descriptors[i];
         mesh.create_halfedge(nh + hd[0], nh + hd[1], nh + hd[2], nv + hd[3], nf + hd[4]);
     }
@@ -3567,7 +3567,7 @@ quetzal::id_type quetzal::model::create_octahedron(M& mesh, const std::string& n
     {
         typename M::vector_type normal = avs[3 * i].normal();
         id_type surface_id = mesh.create_surface(submesh_id, surface_name(SurfaceName::BodySection, i), {normal});
-        mesh.create_face(surface_id, nf + 3 * i, {normal});
+        mesh.create_face(surface_id, nh + 3 * i, {normal});
     }
 
     return submesh_id;
@@ -3741,7 +3741,7 @@ quetzal::id_type quetzal::model::create_dodecahedron(M& mesh, const std::string&
     for (size_t i = 0; i < 60; ++i)
     {
         typename M::vertex_attributes_type av {positions[vertex_position_ids[i]], {}, texcoords[i % 5]};
-        mesh.create_vertex(nv + i, av);
+        mesh.create_vertex(nh + i, av);
         auto hd = halfedge_descriptors[i];
         mesh.create_halfedge(nh + hd[0], nh + hd[1], nh + hd[2], nv + hd[3], nf + hd[4]);
     }
@@ -3749,7 +3749,7 @@ quetzal::id_type quetzal::model::create_dodecahedron(M& mesh, const std::string&
     for (size_t i = 0; i < 12; ++i)
     {
         id_type surface_id = mesh.create_surface(submesh_id, surface_name(SurfaceName::BodySection, i));
-        id_type face_id = mesh.create_face(surface_id, nf + 5 * i);
+        id_type face_id = mesh.create_face(surface_id, nh + 5 * i);
         set_facet_normal(mesh.face(face_id));
     }
 
@@ -4048,7 +4048,7 @@ quetzal::id_type quetzal::model::create_icosahedron(M& mesh, const std::string& 
             };
             auto normal = direction(vertex_centroid(points)); // geometry::normal(points) ...
             id_type surface_id = mesh.create_surface(submesh_id, surface_name(SurfaceName::BodySection, i), {normal});
-            id_type face_id = mesh.create_face(surface_id, nf + j, {normal});
+            id_type face_id = mesh.create_face(surface_id, nh + j, {normal});
 
             size_t k = 0;
             for (auto& halfedge : mesh.face(face_id).halfedges())
