@@ -447,27 +447,33 @@ namespace
 
         for (size_t i = 0; i < nAzimuthOuter; ++i)
         {
-            id_type submesh_id = mesh.insert(m, submesh_id0, std::format("{}_{}", name, i));
-            auto submesh = mesh.submesh(submesh_id);
-
+            std::map<id_type, point_type> vertex_positions;
             auto phi = math::PiTwo<value_type> * (value_type(i) / nAzimuthOuter);
-            model::transform(submesh, [rOuter0, rOuter1, z1, phi](typename mesh_type::vertex_type& vertex) {
-                if (vertex.marked())
+            mesh.insert(m, submesh_id0, std::format("{}_{}", name, i), [rOuter0, rOuter1, z1, phi, &vertex_positions](const typename mesh_type::vertex_type& vertex) -> typename mesh_type::vertex_type {
+                auto v = vertex;
+                if (vertex_positions.contains(v.id()))
                 {
-                    return;
+                    v.attributes().set_position(vertex_positions[v.id()]);
+                    vertex_positions.erase(v.id());
+                    return v;
                 }
-                auto position = vertex.attributes().position();
+                auto position = v.attributes().position();
                 auto t = position.z() / z1;
                 auto r = lerp(rOuter0, rOuter1, t);
                 auto matrix = g::rotation_z(phi) * g::translation(r * cos(phi), r * sin(phi), 0.0);
                 position *= matrix;
-                for (auto& halfedge : vertex.halfedges())
+                v.attributes().set_position(position);
+                for (auto& halfedge : v.halfedges())
                 {
-                    halfedge.vertex_attributes().set_position(position);
-                    halfedge.vertex().set_marked();
+                    if (halfedge.vertex_id() != v.id())
+                    {
+                        vertex_positions[halfedge.vertex_id()] = position;
+                    }
                 }
-                return;
+                return v;
             });
+
+            assert(vertex_positions.empty());
 
             // union? ...
         }
@@ -486,27 +492,33 @@ namespace
 
         for (size_t i = 0; i < nAzimuthOuter; ++i)
         {
-            id_type submesh_id = mesh.insert(m, submesh_id0, std::format("{}_{}", name, i));
-            auto submesh = mesh.submesh(submesh_id);
-
+            std::map<id_type, point_type> vertex_positions;
             auto phi = math::PiTwo<value_type> * (value_type(2 * i + 1) / (2 * nAzimuthOuter));
-            model::transform(submesh, [rPlacement0, rPlacement1, z1, phi](typename mesh_type::vertex_type& vertex) {
-                if (vertex.marked())
+            mesh.insert(m, submesh_id0, std::format("{}_{}", name, i), [rPlacement0, rPlacement1, z1, phi, &vertex_positions](const typename mesh_type::vertex_type& vertex) -> typename mesh_type::vertex_type {
+                auto v = vertex;
+                if (vertex_positions.contains(v.id()))
                 {
-                    return;
+                    v.attributes().set_position(vertex_positions[v.id()]);
+                    vertex_positions.erase(v.id());
+                    return v;
                 }
-                auto position = vertex.attributes().position();
+                auto position = v.attributes().position();
                 auto t = position.z() / z1;
                 auto r = lerp(rPlacement0, rPlacement1, t);
                 auto matrix = g::rotation_z(math::Pi<value_type>) * g::translation(r, 0.0, 0.0) * g::rotation_z(phi);
                 position *= matrix;
-                for (auto& halfedge : vertex.halfedges())
+                v.attributes().set_position(position);
+                for (auto& halfedge : v.halfedges())
                 {
-                    halfedge.vertex_attributes().set_position(position);
-                    halfedge.vertex().set_marked();
+                    if (halfedge.vertex_id() != v.id())
+                    {
+                        vertex_positions[halfedge.vertex_id()] = position;
+                    }
                 }
-                return;
+                return v;
             });
+
+            assert(vertex_positions.empty());
 
             // union? ...
         }

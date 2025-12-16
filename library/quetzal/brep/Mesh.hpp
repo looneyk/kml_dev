@@ -71,8 +71,8 @@ namespace quetzal::brep
         using submeshes_type = Elements<Mesh<Traits>, submesh_type, id_type>;
         using id_set_type = std::set<id_type>;
         using index_type = std::map<std::string, id_type>;
-        using transform_vertex_type = std::function<void(vertex_type&)>;
-        using transform_face_type = std::function<void(face_type&)>;
+        using transform_vertex_type = std::function<vertex_type(const vertex_type&)>;
+        using transform_face_type = std::function<face_type(const face_type&)>;
 
         template<typename U>
         static constexpr value_type val(const U& u)
@@ -235,15 +235,17 @@ namespace quetzal::brep
         void link_face_submesh(id_type idFace, id_type idSubmesh);
         void link_surface_submesh(id_type idSurface, id_type idSubmesh);
 
+        // Copy a submesh already existing within this mesh
         // Submesh with name should not already exist, surface names are preserved within the new submesh
-        id_type copy(id_type submesh_id, const std::string& name);
-//        id_type copy(id_type submesh_id, const std::string& name, std::optional<transform_vertex_type> transform_vertex, std::optional<transform_face_type> transform_face);
+        id_type copy(id_type submesh_id, const std::string& name, std::optional<transform_vertex_type> transform_vertex = std::nullopt, std::optional<transform_face_type> transform_face = std::nullopt);
 
         // Merges submeshes and surfaces with the same name
         void insert(const Mesh& mesh); // deprecated ...
+
+        // Copy a submesh from different mesh
         // Submesh with name should not already exist, surface names are preserved within the new submesh
-        id_type insert(const Mesh& other, id_type submesh_id, const std::string& name);
-//        id_type insert(const Submesh<Traits>& submesh, const std::string& name, std::optional<transform_vertex_type> transform_vertex, std::optional<transform_face_type> transform_face);
+        // (shouldn't need to be different though, test this ...)
+        id_type insert(const Mesh& other, id_type submesh_id, const std::string& name, std::optional<transform_vertex_type> transform_vertex = std::nullopt, std::optional<transform_face_type> transform_face = std::nullopt);
 
         void pack();
 
@@ -1748,13 +1750,13 @@ void quetzal::brep::Mesh<Traits>::link_surface_submesh(id_type idSurface, id_typ
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-quetzal::id_type quetzal::brep::Mesh<Traits>::copy(id_type submesh_id, const std::string& name)
+quetzal::id_type quetzal::brep::Mesh<Traits>::copy(id_type submesh_id, const std::string& name, std::optional<transform_vertex_type> transform_vertex, std::optional<transform_face_type> transform_face)
 {
     assert(!submesh_index().contains(name));
 
     Mappings mappings;
 
-    // Construct an exact copy of all mesh elements mapping each original id to the its replacement
+    // Construct an exact copy of all mesh elements mapping each original id to its replacement
     // This assumes a 1-1 halfedge to vertex relationship
 
     mappings.submesh_index[submesh_id] = submesh_count();
@@ -1766,13 +1768,13 @@ quetzal::id_type quetzal::brep::Mesh<Traits>::copy(id_type submesh_id, const std
         for (id_type face_id : surface(surface_id).face_ids())
         {
             mappings.face_index[face_id] = face_count();
-            m_face_store.push_back(face(face_id));
+            m_face_store.push_back(transform_face ? (*transform_face)(face(face_id)) : face(face_id));
             for (const auto& halfedge : face(face_id).halfedges())
             {
                 mappings.halfedge_index[halfedge.id()] = halfedge_count();
                 m_halfedge_store.push_back(halfedge);
                 mappings.vertex_index[halfedge.vertex_id()] = vertex_count();
-                m_vertex_store.push_back(halfedge.vertex());
+                m_vertex_store.push_back(transform_vertex ? (*transform_vertex)(halfedge.vertex()) : halfedge.vertex());
                 for (const auto& hole : face(face_id).holes())
                 {
                     for (const auto& hole_halfedge : hole.halfedges())
@@ -1780,7 +1782,7 @@ quetzal::id_type quetzal::brep::Mesh<Traits>::copy(id_type submesh_id, const std
                         mappings.halfedge_index[hole_halfedge.id()] = halfedge_count();
                         m_halfedge_store.push_back(hole_halfedge);
                         mappings.vertex_index[hole_halfedge.vertex_id()] = vertex_count();
-                        m_vertex_store.push_back(hole_halfedge.vertex());
+                        m_vertex_store.push_back(transform_vertex ? (*transform_vertex)(hole_halfedge.vertex()) : hole_halfedge.vertex());
                     }
                 }
             }
@@ -1925,13 +1927,13 @@ void quetzal::brep::Mesh<Traits>::insert(const Mesh& mesh)
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-quetzal::id_type quetzal::brep::Mesh<Traits>::insert(const Mesh<Traits>& other, id_type submesh_id, const std::string& name)
+quetzal::id_type quetzal::brep::Mesh<Traits>::insert(const Mesh<Traits>& other, id_type submesh_id, const std::string& name, std::optional<transform_vertex_type> transform_vertex, std::optional<transform_face_type> transform_face)
 {
     assert(!submesh_index().contains(name));
 
     Mappings mappings;
 
-    // Construct an exact copy of all mesh elements mapping each original id to the its replacement
+    // Construct an exact copy of all mesh elements mapping each original id to its replacement
     // This assumes a 1-1 halfedge to vertex relationship
 
     const auto& submesh = other.submesh(submesh_id);
@@ -1946,7 +1948,7 @@ quetzal::id_type quetzal::brep::Mesh<Traits>::insert(const Mesh<Traits>& other, 
         for (const auto& face : surface.faces())
         {
             mappings.face_index[face.id()] = face_count();
-            m_face_store.push_back(face);
+            m_face_store.push_back(transform_face ? (*transform_face)(face) : face);
             m_face_store.back().set_mesh(*this);
             for (const auto& halfedge : face.halfedges())
             {
@@ -1954,7 +1956,7 @@ quetzal::id_type quetzal::brep::Mesh<Traits>::insert(const Mesh<Traits>& other, 
                 m_halfedge_store.push_back(halfedge);
                 m_halfedge_store.back().set_mesh(*this);
                 mappings.vertex_index[halfedge.vertex_id()] = vertex_count();
-                m_vertex_store.push_back(halfedge.vertex());
+                m_vertex_store.push_back(transform_vertex ? (*transform_vertex)(halfedge.vertex()) : halfedge.vertex());
                 m_vertex_store.back().set_mesh(*this);
                 for (const auto& hole : face.holes())
                 {
@@ -1964,7 +1966,7 @@ quetzal::id_type quetzal::brep::Mesh<Traits>::insert(const Mesh<Traits>& other, 
                         m_halfedge_store.push_back(hole_halfedge);
                         m_halfedge_store.back().set_mesh(*this);
                         mappings.vertex_index[hole_halfedge.vertex_id()] = vertex_count();
-                        m_vertex_store.push_back(hole_halfedge.vertex());
+                        m_vertex_store.push_back(transform_vertex ? (*transform_vertex)(hole_halfedge.vertex()) : hole_halfedge.vertex());
                         m_vertex_store.back().set_mesh(*this);
                     }
                 }
