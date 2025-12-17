@@ -247,6 +247,10 @@ namespace quetzal::brep
         // (shouldn't need to be different though, test this ...)
         id_type insert(const Mesh& other, id_type submesh_id, const std::string& name, std::optional<transform_vertex_type> transform_vertex = std::nullopt, std::optional<transform_face_type> transform_face = std::nullopt);
 
+        // Move a submesh into a diffrent mesh
+        // Submesh with name in other should not already exist, surface names are preserved within the new submesh
+        id_type move(id_type submesh_id, Mesh& other, const std::string& name);
+
         void pack();
 
         bool empty() const;
@@ -1759,29 +1763,29 @@ quetzal::id_type quetzal::brep::Mesh<Traits>::copy(id_type submesh_id, const std
     // Construct an exact copy of all mesh elements mapping each original id to its replacement
     // This assumes a 1-1 halfedge to vertex relationship
 
-    mappings.submesh_index[submesh_id] = submesh_count();
+    mappings.submesh_index[submesh_id] = submesh_store_count();
     m_submesh_store.push_back(submesh(submesh_id));
     for (id_type surface_id : submesh(submesh_id).surface_ids())
     {
-        mappings.surface_index[surface_id] = surface_count();
+        mappings.surface_index[surface_id] = surface_store_count();
         m_surface_store.push_back(surface(surface_id));
         for (id_type face_id : surface(surface_id).face_ids())
         {
-            mappings.face_index[face_id] = face_count();
+            mappings.face_index[face_id] = face_store_count();
             m_face_store.push_back(transform_face ? (*transform_face)(face(face_id)) : face(face_id));
             for (const auto& halfedge : face(face_id).halfedges())
             {
-                mappings.halfedge_index[halfedge.id()] = halfedge_count();
+                mappings.halfedge_index[halfedge.id()] = halfedge_store_count();
                 m_halfedge_store.push_back(halfedge);
-                mappings.vertex_index[halfedge.vertex_id()] = vertex_count();
+                mappings.vertex_index[halfedge.vertex_id()] = vertex_store_count();
                 m_vertex_store.push_back(transform_vertex ? (*transform_vertex)(halfedge.vertex()) : halfedge.vertex());
                 for (const auto& hole : face(face_id).holes())
                 {
                     for (const auto& hole_halfedge : hole.halfedges())
                     {
-                        mappings.halfedge_index[hole_halfedge.id()] = halfedge_count();
+                        mappings.halfedge_index[hole_halfedge.id()] = halfedge_store_count();
                         m_halfedge_store.push_back(hole_halfedge);
-                        mappings.vertex_index[hole_halfedge.vertex_id()] = vertex_count();
+                        mappings.vertex_index[hole_halfedge.vertex_id()] = vertex_store_count();
                         m_vertex_store.push_back(transform_vertex ? (*transform_vertex)(hole_halfedge.vertex()) : hole_halfedge.vertex());
                     }
                 }
@@ -1816,7 +1820,12 @@ quetzal::id_type quetzal::brep::Mesh<Traits>::copy(id_type submesh_id, const std
         remap_vertex(vertex.second, mappings);
     }
 
-    return mappings.submesh_index[submesh_id];
+    regenerate_surface_index();
+    regenerate_submesh_index();
+
+    auto& result = submesh(name);
+    result.regenerate_surface_index();
+    return result.id();
 }
 
 //------------------------------------------------------------------------------
@@ -1936,36 +1945,36 @@ quetzal::id_type quetzal::brep::Mesh<Traits>::insert(const Mesh<Traits>& other, 
     // Construct an exact copy of all mesh elements mapping each original id to its replacement
     // This assumes a 1-1 halfedge to vertex relationship
 
-    const auto& submesh = other.submesh(submesh_id);
-    mappings.submesh_index[submesh_id] = submesh_count();
-    m_submesh_store.push_back(submesh);
+    const auto& submesh_other = other.submesh(submesh_id);
+    mappings.submesh_index[submesh_id] = submesh_store_count();
+    m_submesh_store.push_back(submesh_other);
     m_submesh_store.back().set_mesh(*this);
-    for (const auto& surface : submesh.surfaces())
+    for (const auto& surface : submesh_other.surfaces())
     {
-        mappings.surface_index[surface.id()] = surface_count();
+        mappings.surface_index[surface.id()] = surface_store_count();
         m_surface_store.push_back(surface);
         m_surface_store.back().set_mesh(*this);
         for (const auto& face : surface.faces())
         {
-            mappings.face_index[face.id()] = face_count();
+            mappings.face_index[face.id()] = face_store_count();
             m_face_store.push_back(transform_face ? (*transform_face)(face) : face);
             m_face_store.back().set_mesh(*this);
             for (const auto& halfedge : face.halfedges())
             {
-                mappings.halfedge_index[halfedge.id()] = halfedge_count();
+                mappings.halfedge_index[halfedge.id()] = halfedge_store_count();
                 m_halfedge_store.push_back(halfedge);
                 m_halfedge_store.back().set_mesh(*this);
-                mappings.vertex_index[halfedge.vertex_id()] = vertex_count();
+                mappings.vertex_index[halfedge.vertex_id()] = vertex_store_count();
                 m_vertex_store.push_back(transform_vertex ? (*transform_vertex)(halfedge.vertex()) : halfedge.vertex());
                 m_vertex_store.back().set_mesh(*this);
                 for (const auto& hole : face.holes())
                 {
                     for (const auto& hole_halfedge : hole.halfedges())
                     {
-                        mappings.halfedge_index[hole_halfedge.id()] = halfedge_count();
+                        mappings.halfedge_index[hole_halfedge.id()] = halfedge_store_count();
                         m_halfedge_store.push_back(hole_halfedge);
                         m_halfedge_store.back().set_mesh(*this);
-                        mappings.vertex_index[hole_halfedge.vertex_id()] = vertex_count();
+                        mappings.vertex_index[hole_halfedge.vertex_id()] = vertex_store_count();
                         m_vertex_store.push_back(transform_vertex ? (*transform_vertex)(hole_halfedge.vertex()) : hole_halfedge.vertex());
                         m_vertex_store.back().set_mesh(*this);
                     }
@@ -2001,8 +2010,23 @@ quetzal::id_type quetzal::brep::Mesh<Traits>::insert(const Mesh<Traits>& other, 
         remap_vertex(vertex.second, mappings);
     }
 
-    return mappings.submesh_index[submesh.id()];
+    regenerate_submesh_index();
+    regenerate_surface_index();
+
+    auto& result = submesh(name);
+    result.regenerate_surface_index();
+    return result.id();
 }
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+quetzal::id_type  quetzal::brep::Mesh<Traits>::move(id_type submesh_id, Mesh<Traits>& other, const std::string& name)
+{
+    id_type submesh_id_other = other.insert(*this, submesh_id, name);
+    delete_submesh(submesh_id);
+    return submesh_id_other;
+}
+
 
 //------------------------------------------------------------------------------
 template<typename Traits>

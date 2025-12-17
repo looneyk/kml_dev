@@ -42,7 +42,8 @@ namespace
         return dir_out / (name + ".obj");
     }
 
-    void check_vertexes(mesh_type& mesh)
+    //--------------------------------------------------------------------------
+    void check_vertices(mesh_type& mesh)
     {
 //mesh;
         for (const auto& vertex : mesh.vertices())
@@ -54,114 +55,46 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    void iterate(mesh_type& mesh, value_type size)
+    void iterate(mesh_type& mesh, id_type submesh_id, value_type size)
     {
-        assert(mesh.submesh_count() == 1);
-        string name = mesh.submesh(0).name();
-
-        mesh_type mCell = move(mesh);
-        mesh.clear();
+        string name = mesh.submesh(submesh_id).name();
         mesh_type m;
+        id_type cell_id = mesh.move(submesh_id, m, name);
 
-        m = mCell;
-        m.rename_submesh(0, "cell_0");
-        model::transform_position(m, g::translation(-size, -size, -size));
-        mesh.insert(m);
+        struct CellPlacement
+        {
+            string name;
+            typename mesh_type::vector_type offset;
+        };
 
-        m = mCell;
-        m.rename_submesh(0, "cell_1");
-        model::transform_position(m, g::translation(0.0f, -size, -size));
-        mesh.insert(m);
+        std::vector<CellPlacement> placements =
+        {
+            {"cell_0", {-size, -size, -size}},
+            {"cell_1", {0.0f, -size, -size}},
+            {"cell_2", {size, -size, -size}},
+            {"cell_3", {-size, 0.0f, -size}},
+            {"cell_4", {size, 0.0f, -size}},
+            {"cell_5", {-size, size, -size}},
+            {"cell_6", {0.0f, size, -size}},
+            {"cell_7", {size, size, -size}},
+            {"cell_8", {-size, -size, 0.0f}},
+            {"cell_9", {size, -size, 0.0f}},
+            {"cell_10", {-size, size, 0.0f}},
+            {"cell_11", {size, size, 0.0f}},
+            {"cell_12", {-size, -size, size}},
+            {"cell_13", {0.0f, -size, size}},
+            {"cell_14", {size, -size, size}},
+            {"cell_15", {-size, 0.0f, size}},
+            {"cell_16", {size, 0.0f, size}},
+            {"cell_17", {-size, size, size}},
+            {"cell_18", {0.0f, size, size}},
+            {"cell_19", {size, size, size}},
+        };
 
-        m = mCell;
-        m.rename_submesh(0, "cell_2");
-        model::transform_position(m, g::translation(size, -size, -size));
-        mesh.insert(m);
-
-        m = mCell;
-        m.rename_submesh(0, "cell_3");
-        model::transform_position(m, g::translation(-size, 0.0f, -size));
-        mesh.insert(m);
-
-        m = mCell;
-        m.rename_submesh(0, "cell_4");
-        model::transform_position(m, g::translation(size, 0.0f, -size));
-        mesh.insert(m);
-
-        m = mCell;
-        m.rename_submesh(0, "cell_5");
-        model::transform_position(m, g::translation(-size, size, -size));
-        mesh.insert(m);
-
-        m = mCell;
-        m.rename_submesh(0, "cell_6");
-        model::transform_position(m, g::translation(0.0f, size, -size));
-        mesh.insert(m);
-
-        m = mCell;
-        m.rename_submesh(0, "cell_7");
-        model::transform_position(m, g::translation(size, size, -size));
-        mesh.insert(m);
-
-        m = mCell;
-        m.rename_submesh(0, "cell_8");
-        model::transform_position(m, g::translation(-size, -size, 0.0f));
-        mesh.insert(m);
-
-        m = mCell;
-        m.rename_submesh(0, "cell_9");
-        model::transform_position(m, g::translation(size, -size, 0.0f));
-        mesh.insert(m);
-
-        m = mCell;
-        m.rename_submesh(0, "cell_10");
-        model::transform_position(m, g::translation(-size, size, 0.0f));
-        mesh.insert(m);
-
-        m = mCell;
-        m.rename_submesh(0, "cell_11");
-        model::transform_position(m, g::translation(size, size, 0.0f));
-        mesh.insert(m);
-
-        m = mCell;
-        m.rename_submesh(0, "cell_12");
-        model::transform_position(m, g::translation(-size, -size, size));
-        mesh.insert(m);
-
-        m = mCell;
-        m.rename_submesh(0, "cell_13");
-        model::transform_position(m, g::translation(0.0f, -size, size));
-        mesh.insert(m);
-
-        m = mCell;
-        m.rename_submesh(0, "cell_14");
-        model::transform_position(m, g::translation(size, -size, size));
-        mesh.insert(m);
-
-        m = mCell;
-        m.rename_submesh(0, "cell_15");
-        model::transform_position(m, g::translation(-size, 0.0f, size));
-        mesh.insert(m);
-
-        m = mCell;
-        m.rename_submesh(0, "cell_16");
-        model::transform_position(m, g::translation(size, 0.0f, size));
-        mesh.insert(m);
-
-        m = mCell;
-        m.rename_submesh(0, "cell_17");
-        model::transform_position(m, g::translation(-size, size, size));
-        mesh.insert(m);
-
-        m = mCell;
-        m.rename_submesh(0, "cell_18");
-        model::transform_position(m, g::translation(0.0f, size, size));
-        mesh.insert(m);
-
-        m = mCell;
-        m.rename_submesh(0, "cell_19");
-        model::transform_position(m, g::translation(size, size, size));
-        mesh.insert(m);
+        for (const auto& placement : placements)
+        {
+            mesh.insert(m, cell_id, placement.name, [&placement](typename mesh_type::vertex_type vertex) -> typename mesh_type::vertex_type { vertex.attributes().position() *= g::translation(placement.offset); return vertex; });
+        }
 
         // weld makes no changes to surface and submesh membership, so it is left in an inconsistent state
         // necessary so that cell addressing will continue to work
@@ -192,32 +125,32 @@ namespace
 
         // Reassign all interior surfaces to internal surface of primary submesh
 
-        std::string nameSurfaceInternal = name + "/internal";
+        std::string surface_name_internal = name + "/internal";
 
-        mesh.move_surface("cell_1/front", nameSurfaceInternal);
-        mesh.move_surface("cell_1/top", nameSurfaceInternal);
-        mesh.move_surface("cell_3/right", nameSurfaceInternal);
-        mesh.move_surface("cell_3/top", nameSurfaceInternal);
-        mesh.move_surface("cell_4/left", nameSurfaceInternal);
-        mesh.move_surface("cell_4/top", nameSurfaceInternal);
-        mesh.move_surface("cell_6/back", nameSurfaceInternal);
-        mesh.move_surface("cell_6/top", nameSurfaceInternal);
-        mesh.move_surface("cell_8/right", nameSurfaceInternal);
-        mesh.move_surface("cell_8/front", nameSurfaceInternal);
-        mesh.move_surface("cell_9/front", nameSurfaceInternal);
-        mesh.move_surface("cell_9/left", nameSurfaceInternal);
-        mesh.move_surface("cell_10/right", nameSurfaceInternal);
-        mesh.move_surface("cell_10/back", nameSurfaceInternal);
-        mesh.move_surface("cell_11/left", nameSurfaceInternal);
-        mesh.move_surface("cell_11/back", nameSurfaceInternal);
-        mesh.move_surface("cell_13/bottom", nameSurfaceInternal);
-        mesh.move_surface("cell_13/front", nameSurfaceInternal);
-        mesh.move_surface("cell_15/bottom", nameSurfaceInternal);
-        mesh.move_surface("cell_15/right", nameSurfaceInternal);
-        mesh.move_surface("cell_16/bottom", nameSurfaceInternal);
-        mesh.move_surface("cell_16/left", nameSurfaceInternal);
-        mesh.move_surface("cell_18/bottom", nameSurfaceInternal);
-        mesh.move_surface("cell_18/back", nameSurfaceInternal);
+        mesh.move_surface("cell_1/front", surface_name_internal);
+        mesh.move_surface("cell_1/top", surface_name_internal);
+        mesh.move_surface("cell_3/right", surface_name_internal);
+        mesh.move_surface("cell_3/top", surface_name_internal);
+        mesh.move_surface("cell_4/left", surface_name_internal);
+        mesh.move_surface("cell_4/top", surface_name_internal);
+        mesh.move_surface("cell_6/back", surface_name_internal);
+        mesh.move_surface("cell_6/top", surface_name_internal);
+        mesh.move_surface("cell_8/right", surface_name_internal);
+        mesh.move_surface("cell_8/front", surface_name_internal);
+        mesh.move_surface("cell_9/front", surface_name_internal);
+        mesh.move_surface("cell_9/left", surface_name_internal);
+        mesh.move_surface("cell_10/right", surface_name_internal);
+        mesh.move_surface("cell_10/back", surface_name_internal);
+        mesh.move_surface("cell_11/left", surface_name_internal);
+        mesh.move_surface("cell_11/back", surface_name_internal);
+        mesh.move_surface("cell_13/bottom", surface_name_internal);
+        mesh.move_surface("cell_13/front", surface_name_internal);
+        mesh.move_surface("cell_15/bottom", surface_name_internal);
+        mesh.move_surface("cell_15/right", surface_name_internal);
+        mesh.move_surface("cell_16/bottom", surface_name_internal);
+        mesh.move_surface("cell_16/left", surface_name_internal);
+        mesh.move_surface("cell_18/bottom", surface_name_internal);
+        mesh.move_surface("cell_18/back", surface_name_internal);
 
         // Ensure that all surfaces are part of the main submesh
 
@@ -236,21 +169,19 @@ namespace
     //--------------------------------------------------------------------------
     void create_menger_sponge(mesh_type& mesh, const string& name, size_t nLevel, value_type scale)
     {
-        mesh_type m;
         value_type size = 1.0f;
-        model::create_box(m, name, size, size, size);
+        id_type submesh_id = model::create_box(mesh, name, size, size, size);
 
         for (size_t i = 0; i < nLevel; ++i)
         {
             cout << "Level " << i << " size " << size << endl;
-            iterate(m, size);
+            iterate(mesh, submesh_id, size);
             size *= 3.0f;
         }
-check_vertexes(m);
+check_vertices(mesh);
 
-        model::transform_position(m, g::scaling(scale / size));
-check_vertexes(m);
-        mesh.insert(m);
+        model::transform_position(mesh, g::scaling(scale / size));
+check_vertices(mesh);
         return;
     }
 
@@ -281,16 +212,16 @@ int main(int argc, char* argv[])
     cout << name << endl;
     mesh.clear();
     create_menger_sponge(mesh, name, 0, 100.0f);
-check_vertexes(mesh);
+check_vertices(mesh);
     triangulate(mesh);
-check_vertexes(mesh);
+check_vertices(mesh);
     model::write_obj(mesh, to_filename(name));
 
     name = "menger_sponge_0_diagonal";
     cout << name << endl;
-check_vertexes(mesh);
+check_vertices(mesh);
     model::transform(mesh, matrix);
-check_vertexes(mesh);
+check_vertices(mesh);
     model::write_obj(mesh, to_filename(name));
 
     mesh_diagonal = mesh;
@@ -298,7 +229,7 @@ check_vertexes(mesh);
     name = "menger_sponge_0_diagonal_half";
     cout << name << endl;
     brep::clip(mesh_diagonal, planeUpper, "slice");
-check_vertexes(mesh_diagonal);
+check_vertices(mesh_diagonal);
     mesh_diagonal.pack();
     triangulate(mesh_diagonal);
     model::write_obj(mesh_diagonal, to_filename(name));
@@ -408,13 +339,14 @@ check_vertexes(mesh_diagonal);
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 //validate(mesh);
-/*
+
     name = "menger_sponge_3";
     cout << name << endl;
     mesh.clear();
     create_menger_sponge(mesh, name, 3, 100.0f);
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
+//validate(mesh);
 
     name = "menger_sponge_3_diagonal";
     cout << name << endl;
