@@ -189,6 +189,14 @@ int main(int argc, char* argv[])
     model::write_obj(mesh, to_filename(name));
     check_consistency(mesh);
 
+    name = "helix_pyramid_3_10";
+    cout << name << endl;
+    mesh.clear();
+    model::create_helix_pyramid(mesh, name, 3, 10, 15.0f, 60.0f, 0.25f);
+    triangulate(mesh);
+    model::write_obj(mesh, to_filename(name));
+    check_consistency(mesh);
+
     name = "helix_pyramid_3_100";
     cout << name << endl;
     mesh.clear();
@@ -217,6 +225,14 @@ int main(int argc, char* argv[])
     cout << name << endl;
     mesh.clear();
     model::create_helix_pyramid(mesh, name, 5, 3, 20.0f, 60.0f, 0.25f);
+    triangulate(mesh);
+    model::write_obj(mesh, to_filename(name));
+    check_consistency(mesh);
+
+    name = "helix_pyramid_5_10";
+    cout << name << endl;
+    mesh.clear();
+    model::create_helix_pyramid(mesh, name, 5, 10, 20.0f, 60.0f, 0.25f);
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
     check_consistency(mesh);
