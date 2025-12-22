@@ -9,8 +9,9 @@
 #include "geometry.hpp"
 #include "mesh_util.hpp"
 #include "normal.hpp"
-#include "quetzal/brep/Mesh.hpp"
-#include "quetzal/brep/Submesh.hpp"
+#include "texcoord.hpp"
+#include "Mesh.hpp"
+#include "Submesh.hpp"
 #include "quetzal/geometry/Point.hpp"
 #include "quetzal/geometry/Projection.hpp"
 #include "quetzal/triangulation/triangulation.hpp"
@@ -46,18 +47,22 @@ namespace quetzal::brep
     template<typename M>
     void triangulate_surface(M& mesh, id_type surface_id);
 
-    // Uses only existing vertex positions
-    // Simplification that only works when it is known that all faces in the mesh are convex
-    template<typename M>
-    void triangulate_convex(M& mesh);
+    // Adds a central vertex to each non-triangular face and a new face for each edge
+    // Assumes faces are convex polygons
+    // This should be a better way of triangulating non-planar faces than simple triangulation
+    // Works with Surface and Submesh
+    template<typename U>
+    void triangulate_central_vertex_positions(U& u);
 
-    // Uses only existing vertex positions
-    // Simplification that only works when it is known that the face is convex
+    // Adds a central vertex and a face for each edge
+    // Assumes face is a convex polygon
     template<typename M>
-    void triangulate_face_convex(M& mesh, id_type face_id);
+    void triangulate_central_vertex_position(M& mesh, id_type face_id);
 
     // instead of smooth parameter, pass in an optional surface0, if nullopt, then use face surface (smooth), otherwise, surface per face ...
     // should surfaces be a list instead of a numerical sequence start? ...
+
+    // remainder deprecated, change to U versions ...
 
     // Adds a central vertex and a face for each edge
     // Assumes faces are regular polygons
@@ -118,7 +123,7 @@ void quetzal::brep::triangulate(Submesh<Traits>& submesh)
     for (id_type face_id : face_ids)
     {
         const auto& face = mesh.face_store()[face_id];
-        if (face.deleted() || (face.halfedge_count() == 3 && face.hole_count() == 0))
+        if (face.halfedge_count() == 3 && face.hole_count() == 0)
         {
             continue;
         }
@@ -369,19 +374,20 @@ void quetzal::brep::triangulate_surface(M& mesh, id_type surface_id)
 }
 
 //------------------------------------------------------------------------------
-template<typename M>
-void quetzal::brep::triangulate_convex(M& mesh)
+template<typename U>
+void quetzal::brep::triangulate_central_vertex_positions(U& u)
 {
-    size_t face_count_orig = mesh.face_store_count();
-    for (size_t i = 0; i < face_count_orig; ++i)
+    auto& mesh = u.mesh();
+
+    auto face_ids = u.face_ids();
+    for (const auto& face_id : face_ids)
     {
-        const auto& face = mesh.face_store()[i];
-        if (face.deleted() || face.halfedge_count() == 3)
+        if (mesh.face(face_id).halfedge_count() == 3)
         {
             continue;
         }
 
-        triangulate_face_convex(mesh, i);
+        triangulate_central_vertex_position(mesh, face_id);
     }
 
     return;
@@ -389,24 +395,46 @@ void quetzal::brep::triangulate_convex(M& mesh)
 
 //------------------------------------------------------------------------------
 template<typename M>
-void quetzal::brep::triangulate_face_convex(M& mesh, id_type face_id)
+void quetzal::brep::triangulate_central_vertex_position(M& mesh, id_type face_id)
 {
     const auto& face = mesh.face(face_id);
-    assert(face.halfedge_count() > 3);
-    assert(face.hole_count() == 0);
-
+    auto surface_id = face.surface_id();
+    auto position = vertex_centroid(face);
+    auto texcoord = texcoord_vertex_centroid(face);
+    typename M::vertex_attributes_type av = {position, {}, texcoord}; // vertex normals must be calculated after all triangulation complete
+    auto af = face.attributes();
+    size_t n = face.halfedge_count();
     id_type halfedge_id = face.halfedge_id();
-    while (mesh.halfedge(halfedge_id).face().halfedge_count() > 3)
-    {
-//        id_type halfedge_id_next = mesh.halfedge(halfedge_id).next_id();
-        // Advancing twice prevents cases where all triangulated faces share the same vertex
-        id_type halfedge_id_next = mesh.halfedge(halfedge_id).next().next_id();
 
-        split_face(mesh, mesh.halfedge(halfedge_id).prev_id(), mesh.halfedge(halfedge_id).next_id());
+    for (id_type j = 0; j < n; ++j)
+    {
+        id_type nh = mesh.halfedge_store_count();
+        id_type halfedge_id_next = mesh.halfedge(halfedge_id).next_id();
+
+        auto av0 = mesh.halfedge(halfedge_id).vertex_attributes();
+        auto av1 = mesh.halfedge(halfedge_id).next().vertex_attributes();
+
+        id_type triangle_face_id = mesh.create_face(surface_id, halfedge_id, af);
+        id_type halfedge_id0 = mesh.create_halfedge_vertex((j == 0 ? nh - 1 + 2 * n : nh - 1), halfedge_id, nh + 1, triangle_face_id, av);
+        id_type halfedge_id1 = mesh.create_halfedge_vertex((j == n - 1 ? nh + 2 - 2 * n : nh + 2), nh, halfedge_id, triangle_face_id, av1);
+
+        mesh.halfedge(halfedge_id).set_next_id(halfedge_id1);
+        mesh.halfedge(halfedge_id).set_prev_id(halfedge_id0);
+        mesh.halfedge(halfedge_id).set_face_id(triangle_face_id);
+
+        auto& triangle_face = mesh.face(triangle_face_id);
+        auto normal = geometry::normal(triangle_face);
+        if (float_eq(normal, af.normal()))
+        {
+            normal = af.normal();
+        }
+        triangle_face.attributes().set_normal(normal);
 
         halfedge_id = halfedge_id_next;
     }
 
+    mesh.unlink_face(face_id);
+    mesh.face(face_id).set_deleted();
     return;
 }
 
@@ -450,20 +478,11 @@ void quetzal::brep::triangulate_central_vertex(M& mesh, id_type face_id, const t
         if (smooth)
         {
 /*
-            // Should be more accurate, but precision seems worse ...
+            // Should be more accurate, but precision seems worse, should at least match position calculation (centroid) ...
             auto mapping = position_texcoord_mapping(face);
             texcoord = mapping(position);
 */        
-            // given face, should be texcoord_vertex_centroid or texcoord_centroid (same as the vertex position counterpart) ...
-            // or pass it in since only the caller knows how position was calculated, doesn't matter if not smooth ...
-            // optional calculate_texcoord ...
-            size_t n = face.halfedge_count();
-            typename M::vertex_attributes_type::texcoord_type::vector_type v;
-            for (const auto& halfedge : face.halfedges())
-            {
-                v += halfedge.vertex_attributes().texcoord().vector();
-            }
-            texcoord = v / M::val(n);
+            texcoord = texcoord_vertex_centroid(face);
         }
 
         av.set_texcoord(texcoord);
@@ -546,7 +565,8 @@ void quetzal::brep::triangulate_central_vertex(M& mesh, id_type face_id, typenam
 
     if (smooth) // but not planar, make sure that duplicates are checked for if it is in fact planar ...
     {
-        calculate_surface_vertex_normals(mesh.surface(surface_id0));
+// deferring this as this is only a face operation ...
+//        calculate_surface_vertex_normals(mesh.surface(surface_id0));
     }
 
     // All of original face's halfedges and vertices have been repurposed

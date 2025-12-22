@@ -29,7 +29,7 @@ using namespace DirectX;
 namespace
 {
 
-	using value_type = float;
+    using value_type = float;
     using vector_traits = math::HomogeneousTraits<value_type, 3>;
     using mesh_type = brep::Mesh<brep::MeshTraits<vector_traits>>;
     using point_type = mesh_type::point_type;
@@ -269,7 +269,7 @@ namespace
 
             // Apply final transformation matrix to spike
 //			model::transform(mSpike, matrixPosition, matrixDirection);
-			model::transform(mSpike.submesh(0), matrixPosition, matrixDirection);
+            model::transform(mSpike.submesh(0), matrixPosition, matrixDirection);
 
             idSpikeBase += mesh.halfedge_count();
             mesh.insert(mSpike);
@@ -295,7 +295,7 @@ int main(int argc, char* argv[])
     string name;
     mesh_type mesh;
     mesh_type m;
-    id_type submesh_id = nullid;
+//    id_type submesh_id = nullid;
 
     name = "base_spike_6";
     std::cout << name << std::endl;
@@ -308,51 +308,48 @@ int main(int argc, char* argv[])
     std::cout << name << std::endl;
     mesh.clear();
     create_cage(mesh, name, 30.0f, 60.0f, 6, 250, 0.0f, math::Pi<value_type>);
-//create_cage(mesh, name, 30.0f, 60.0f, 6, 5, 0.0f, math::Pi<value_type>);
-//check_convex(mesh);
-    triangulate_convex(mesh);
+    triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
-//return 0;
 
     name = "tuskified_swirled_cage_6";
     std::cout << name << std::endl;
     mesh.clear();
     create_cage(mesh, name, 30.0f, 60.0f, 6, 250, 0.0f, math::Pi<value_type>);
-    triangulate_convex(mesh);
-	model::swirl(mesh, math::Pi<value_type>);
+    model::swirl(mesh, math::Pi<value_type>);
+    triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 
     name = "tuskified_swirled_cage_6_model";
     std::cout << name << std::endl;
     mesh.clear();
     create_cage(mesh, name, 30.0f, 60.0f, 6, 20, 0.0f, math::Pi<value_type>);
-    triangulate_convex(mesh);
-	model::swirl(mesh, math::Pi<value_type>);
+    model::swirl(mesh, math::Pi<value_type>);
+    triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 
     name = "tuskified_cage_6_sphere";
     std::cout << name << std::endl;
     mesh.clear();
     create_cage(mesh, name, 30.0f, 60.0f, 6, 250, 0.0f, math::Pi<value_type>);
-    triangulate_convex(mesh);
-    /*
-    m.clear();
-	model::create_geodesic_sphere(m, "orb", 26.0f, 6);
+    triangulate(mesh);
+
+    model::create_geodesic_sphere(m, "orb", 26.0f, 6);
     model::transform(m, geometry::translation(0.0f, 0.0f, 55.0f));
     mesh.insert(m);
-    */
-	submesh_id = model::create_geodesic_sphere(mesh, "orb", 26.0f, 6);
+//dump(mesh);
+/*
+    submesh_id = model::create_geodesic_sphere(mesh, "orb", 26.0f, 2); // 2 ...
     model::transform(mesh.submesh(submesh_id), geometry::translation(0.0f, 0.0f, 55.0f));
     model::write_obj(mesh, to_filename(name));
-
+*/
     name = "tuskified_swirled_cage_6_sphere";
     std::cout << name << std::endl;
     mesh.clear();
     create_cage(mesh, name, 30.0f, 60.0f, 6, 250, 0.0f, math::Pi<value_type>);
-    triangulate_convex(mesh);
-	model::swirl(mesh, math::Pi<value_type>);
+    model::swirl(mesh, math::Pi<value_type>);
+    triangulate(mesh);
     m.clear();
-	model::create_geodesic_sphere(m, "orb", 26.0f, 6);
+    model::create_geodesic_sphere(m, "orb", 26.0f, 6);
     model::transform(m, geometry::translation(0.0f, 0.0f, 55.0f));
     mesh.insert(m);
     model::write_obj(mesh, to_filename(name));
@@ -361,32 +358,32 @@ int main(int argc, char* argv[])
     std::cout << name << std::endl;
     mesh.clear();
     create_cage(mesh, name, 30.0f, 60.0f, 6, 250, math::Pi<value_type>, math::Pi<value_type>);
-    triangulate_convex(mesh);
+    triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 
     name = "tuskified_swirled_twisted_cage_6";
     std::cout << name << std::endl;
     mesh.clear();
     create_cage(mesh, name, 30.0f, 60.0f, 6, 250, math::Pi<value_type>, math::Pi<value_type>);
-    triangulate_convex(mesh);
-	model::swirl(mesh, math::Pi<value_type>);
+    model::swirl(mesh, math::Pi<value_type>);
+    triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 
     name = "tuskified_swirled_twisted_cage_6_model";
     std::cout << name << std::endl;
     mesh.clear();
     create_cage(mesh, name, 30.0f, 60.0f, 6, 20, math::Pi<value_type>, math::Pi<value_type>);
-    triangulate_convex(mesh);
-	model::swirl(mesh, math::Pi<value_type>);
+    model::swirl(mesh, math::Pi<value_type>);
+    triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 
     name = "tuskified_twisted_cage_6_sphere";
     std::cout << name << std::endl;
     mesh.clear();
     create_cage(mesh, name, 30.0f, 60.0f, 6, 250, math::Pi<value_type>, math::Pi<value_type>);
-    triangulate_convex(mesh);
+    triangulate(mesh);
     m.clear();
-	model::create_geodesic_sphere(m, "orb", 26.0f, 6);
+    model::create_geodesic_sphere(m, "orb", 26.0f, 6);
     model::transform(m, geometry::translation(0.0f, 0.0f, 55.0f));
     mesh.insert(m);
     model::write_obj(mesh, to_filename(name));
@@ -395,35 +392,19 @@ int main(int argc, char* argv[])
     std::cout << name << std::endl;
     mesh.clear();
     create_cage(mesh, name, 30.0f, 60.0f, 6, 300, math::Pi<value_type>, math::Pi<value_type>);
-    triangulate_convex(mesh);
 
     m.clear();
-	model::create_cylinder(m, "rod", 48, 30, 5.0f, 5.0f, -15.0f, 15.0f);
+    model::create_cylinder(m, "rod", 48, 30, 5.0f, 5.0f, -15.0f, 15.0f);
     model::transform(m, geometry::translation(0.0f, 0.0f, 16.0f));
-    triangulate_convex(m);
     mesh.insert(m);
+    triangulate(mesh);
 
-	model::swirl(mesh, math::Pi<value_type>);
+    model::swirl(mesh, math::Pi<value_type>);
 //swirler(mesh, math::Pi<value_type>, math::PiHalf<value_type>, 60.0f);
     m.clear();
-	model::create_geodesic_sphere(m, "orb", 25.0f, 6);
+    model::create_geodesic_sphere(m, "orb", 25.0f, 6);
     model::transform(m, geometry::translation(0.0f, 0.0f, 55.0f));
     mesh.insert(m);
-
-//    m.clear();
-//    create_cylinder(m, 30, 15.0f, 5.0f, 10.0f);
-//    model::transform, m(math::translation(0.0f, 0.0f, 26.0f));
-//    mesh.insert(m);
-//
-//    m.clear();
-//    create_cylinder(m, 6, 1, 2.0f, 2.0f, 5.0f);
-//    model::transform, m(math::translation(10.0f, 0.0f, 26.0f));
-//    mesh.insert(m);
-//
-//    m.clear();
-//    create_cylinder(m, 6, 1, 2.0f, 2.0f, 5.0f);
-//    model::transform, m(math::translation(-10.0f, 0.0f, 26.0f));
-//    mesh.insert(m);
 
     model::write_obj(mesh, to_filename(name));
 
