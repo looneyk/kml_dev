@@ -46,6 +46,12 @@ namespace
     }
 
     //--------------------------------------------------------------------------
+    vector<size_t> section_sequence(size_t n)
+    {
+        return std::views::iota(0u, n) | std::ranges::to<vector<size_t>>();
+    }
+
+    //--------------------------------------------------------------------------
     template<typename M>
     void check_consistency(M& mesh)
     {
@@ -68,95 +74,7 @@ int main(int argc, char* argv[])
 
     string name;
     mesh_type mesh;
-/*
-    name = "helix_cone_3_1";
-    cout << name << endl;
-    mesh.clear();
-    model::create_helix_cone(mesh, name, 3, 1, 20.0f, 60.0f, 0.25f);
-    triangulate(mesh);
-    model::write_obj(mesh, to_filename(name));
-    check_consistency(mesh);
 
-    name = "helix_cone_3_2";
-    cout << name << endl;
-    mesh.clear();
-    model::create_helix_cone(mesh, name, 3, 2, 20.0f, 60.0f, 0.25f);
-    triangulate(mesh);
-    model::write_obj(mesh, to_filename(name));
-    check_consistency(mesh);
-
-    name = "helix_cone_3_3";
-    cout << name << endl;
-    mesh.clear();
-    model::create_helix_cone(mesh, name, 3, 3, 20.0f, 60.0f, 0.25f);
-    triangulate(mesh);
-    model::write_obj(mesh, to_filename(name));
-    check_consistency(mesh);
-
-    name = "helix_cone_3_4";
-    cout << name << endl;
-    mesh.clear();
-    model::create_helix_cone(mesh, name, 3, 4, 15.0f, 60.0f, 0.25f);
-    triangulate(mesh);
-    model::write_obj(mesh, to_filename(name));
-    check_consistency(mesh);
-
-    name = "helix_cone_3_100";
-    cout << name << endl;
-    mesh.clear();
-    model::create_helix_cone(mesh, name, 3, 100, 20.0f, 60.0f, 0.25f);
-    triangulate(mesh);
-    model::write_obj(mesh, to_filename(name));
-    check_consistency(mesh);
-
-    name = "helix_cone_5_1";
-    cout << name << endl;
-    mesh.clear();
-    model::create_helix_cone(mesh, name, 5, 1, 20.0f, 60.0f, 0.25f);
-    triangulate(mesh);
-    model::write_obj(mesh, to_filename(name));
-    check_consistency(mesh);
-
-    name = "helix_cone_5_2";
-    cout << name << endl;
-    mesh.clear();
-    model::create_helix_cone(mesh, name, 5, 2, 20.0f, 60.0f, 0.25f);
-    triangulate(mesh);
-    model::write_obj(mesh, to_filename(name));
-    check_consistency(mesh);
-
-    name = "helix_cone_5_3";
-    cout << name << endl;
-    mesh.clear();
-    model::create_helix_cone(mesh, name, 5, 3, 20.0f, 60.0f, 0.25f);
-    triangulate(mesh);
-    model::write_obj(mesh, to_filename(name));
-    check_consistency(mesh);
-
-    name = "helix_cone_5_100";
-    cout << name << endl;
-    mesh.clear();
-    model::create_helix_cone(mesh, name, 5, 100, 20.0f, 60.0f, 0.25f);
-    triangulate(mesh);
-    model::write_obj(mesh, to_filename(name));
-    check_consistency(mesh);
-
-    name = "helix_cone_6_4";
-    cout << name << endl;
-    mesh.clear();
-    model::create_helix_cone(mesh, name, 6, 4, 20.0f, 60.0f, 0.25f);
-    triangulate(mesh);
-    model::write_obj(mesh, to_filename(name));
-    check_consistency(mesh);
-
-    name = "helix_cone_3_200_3";
-    cout << name << endl;
-    mesh.clear();
-    model::create_helix_cone(mesh, name, 3, 200, 20.0f, 60.0f, 3.0f);
-    triangulate(mesh);
-    model::write_obj(mesh, to_filename(name));
-    check_consistency(mesh);
-*/
     name = "helix_pyramid_3_1";
     cout << name << endl;
     mesh.clear();
@@ -442,9 +360,9 @@ int main(int argc, char* argv[])
     model::write_obj(mesh, to_filename(name));
     check_consistency(mesh);
 
-    std::vector<size_t> sections3{0, 1, 2};
-    std::vector<size_t> sections5{0, 1, 2, 3, 4};
-    std::vector<size_t> sections6{0, 1, 2, 3, 4, 5};
+    auto sections3 = section_sequence(3);
+    auto sections5 = section_sequence(5);
+    auto sections6 = section_sequence(6);
     polygon_3_20.sections() = sections3;
     polygon_3_15.sections() = sections3;
     polygon_5_20.sections() = sections5;
