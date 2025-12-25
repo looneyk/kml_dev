@@ -1,0 +1,10 @@
+* text=auto eol=lf
+
+*.sln text eol=crlf
+*.vsproj text eol=crlf
+*.vsproj.filters text eol=crlf
+*.vsproj.user text eol=crlf
+
+*.ps1 text eol=lf
+*.bat text eol=crlf
+*.cmd text eol=crlf
