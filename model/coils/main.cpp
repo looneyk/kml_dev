@@ -225,7 +225,6 @@ namespace
         // Pinnacle
         m.clear();
         model::create_geodesic_sphere(m, "pinnacle", 3.2f, 5);
-        clip(m, geometry::Plane<vector_traits>({0.0f, 0.0f, -2.4f}, {0.0f, 0.0f, -1.0f}));
         model::transform(m, geometry::scaling(0.75f, 0.75f, 1.0f) * geometry::translation(0.0f, 0.0f, 99.0f));
         triangulate(m);
         mesh.insert(m);
