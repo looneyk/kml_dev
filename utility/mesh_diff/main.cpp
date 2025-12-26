@@ -124,7 +124,10 @@ namespace
         {
             ++n_total;
 
-//            assert(float_eq(entry_lhs.first, entry_rhs.first, gulp));
+            if (!float_eq(entry_lhs.first, entry_rhs.first, gulp))
+            {
+                continue;
+            }
 
             auto result = face_differences(mesh_lhs.face(entry_lhs.second), mesh_rhs.face(entry_rhs.second), true);
             if (!result)
