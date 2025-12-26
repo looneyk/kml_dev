@@ -12,12 +12,12 @@
 #include "quetzal/geometry/Polygon.hpp"
 #include "quetzal/geometry/Projection.hpp"
 #include "quetzal/geometry/transformation_matrix.hpp"
-#include <iterator>
 #include <ranges>
 
 /*
 Note that for these functions, the verttex attributes texcoord check should be done by the caller:
     if constexpr (M::vertex_attributes_type::contains(geometry::AttributesFlags::Texcoord0))
+    and/or add constraints here ...
 */
 
 namespace quetzal::brep
@@ -26,15 +26,15 @@ namespace quetzal::brep
     // Surface is unfolded onto a plane
     // not implemented, uses calculate_planar_surface_texcoords instead ...
     template<typename M>
-    void calculate_surface_texcoords(M& mesh, id_type idSurface);
+    void calculate_surface_texcoords(M& mesh, id_type surface_id);
 
     // Assumes that all vertices in the surface are coplanar (or already projected onto a plane)
-    // the direct uses of planar can be replaced with texcoord assignment from opposide ...
+    // the direct uses of planar can be replaced with texcoord assignment from opposite (?) ...
     template<typename M>
-    void calculate_planar_surface_texcoords(M& mesh, id_type idSurface);
+    void calculate_planar_surface_texcoords(M& mesh, id_type surface_id);
 
     template<typename M>
-    void calculate_face_texcoords(M& mesh, id_type idFace);
+    void calculate_face_texcoords(M& mesh, id_type face_id);
 
     template<typename M>
     void set_triangular_texcoords(M& mesh, id_type face_id);
@@ -42,6 +42,9 @@ namespace quetzal::brep
     // Calculate texcoords for face or hole by interpolating from texcoords of reference
     template<typename F, typename FH>
     void interpolate_texcoords(const F& reference, FH& target);
+
+    template<typename F>
+    typename F::traits_type::vertex_attributes_type::texcoord_type texcoord_vertex_centroid(const F& face);
 
     // Calculate mapping from positions to texcoords of face
     // This assumes that the set of positions is coplanar in 3D space and thus can be reduced to a planar projection
@@ -52,20 +55,20 @@ namespace quetzal::brep
 
 //------------------------------------------------------------------------------
 template<typename M>
-void quetzal::brep::calculate_surface_texcoords(M& mesh, id_type idSurface)
+void quetzal::brep::calculate_surface_texcoords(M& mesh, id_type surface_id)
 {
-    calculate_planar_surface_texcoords(mesh, idSurface);
+    calculate_planar_surface_texcoords(mesh, surface_id);
     return;
 }
 
 //------------------------------------------------------------------------------
 template<typename M>
-void quetzal::brep::calculate_planar_surface_texcoords(M& mesh, id_type idSurface)
+void quetzal::brep::calculate_planar_surface_texcoords(M& mesh, id_type surface_id)
 {
     using value_type = M::value_type;
     using texcoord_type = M::vertex_attributes_type::texcoord_type;
 
-    auto& surface = mesh.surface(idSurface);
+    auto& surface = mesh.surface(surface_id);
     geometry::Projection<typename M::vector_traits> projection(surface.attributes().normal());
 
     std::vector<texcoord_type> points;
@@ -106,12 +109,12 @@ void quetzal::brep::calculate_planar_surface_texcoords(M& mesh, id_type idSurfac
 
 //------------------------------------------------------------------------------
 template<typename M>
-void quetzal::brep::calculate_face_texcoords(M& mesh, id_type idFace)
+void quetzal::brep::calculate_face_texcoords(M& mesh, id_type face_id)
 {
     using value_type = M::value_type;
     using texcoord_type = M::vertex_attributes_type::texcoord_type;
 
-    auto& face = mesh.face(idFace);
+    auto& face = mesh.face(face_id);
     geometry::Projection<typename M::vector_traits> projection(face.attributes().normal());
 
     std::vector<texcoord_type> points;
@@ -184,6 +187,21 @@ void quetzal::brep::interpolate_texcoords(const F& reference, FH& target)
     }
 
     return;
+}
+
+//------------------------------------------------------------------------------
+template<typename F>
+typename F::traits_type::vertex_attributes_type::texcoord_type quetzal::brep::texcoord_vertex_centroid(const F& face)
+{
+    typename F::traits_type::vertex_attributes_type::texcoord_type::vector_type total{};
+    auto n = face.halfedge_count();
+
+    for (const auto& halfedge : face.halfedges())
+    {
+        total += halfedge.vertex_attributes().texcoord().vector();
+    }
+
+    return total / F::traits_type::val(n);
 }
 
 //------------------------------------------------------------------------------

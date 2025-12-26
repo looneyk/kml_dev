@@ -88,6 +88,7 @@ namespace quetzal::brep
         const surface_ids_type& surface_ids() const;
         surface_ids_type& surface_ids();
 
+        // these should be submesh local, not mesh based, should we even have these? ...
         const surface_type& surface(id_type id) const;
         surface_type& surface(id_type id);
 

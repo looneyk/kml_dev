@@ -2141,7 +2141,7 @@ void quetzal::brep::dump_face(const M& mesh, id_type id)
 //        std::cout << "        " << halfedge.vertex_attributes();
     }
 
-    size_t i = 0;
+//    size_t i = 0;
     for (const auto& hole : face.holes())
     {
         /*

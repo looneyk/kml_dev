@@ -66,20 +66,24 @@ namespace quetzal::brep
 
         const halfedge_type& halfedge(id_type id) const;
         halfedge_type& halfedge(id_type id);
-/*
-        size_type halfedge_count(id_type surface_id) const;
-
-        const halfedges_type& halfedges(id_type surface_id) const;
-        halfedges_type& halfedges(id_type surface_id);
-*/
-        // the following functions are here for future use, and may change before being implemented ...
-        // eventually there should be a 1-1 mapping between halfedges() and halfedge_ids(), and they should encompass all coincident halfedge vertices irrespective of surface or border presence ...
 
         const halfedge_ids_type& halfedge_ids() const;
         halfedge_ids_type& halfedge_ids();
 
-        const halfedge_ids_type& halfedge_ids(id_type surface_id) const;
-        halfedge_ids_type& halfedge_ids(id_type surface_id);
+        // Count/enumerate the surfaces that meet at this vertex
+//        size_type surface_count() const;
+//        surface_ids_type surface_ids() const;
+
+        // Count/enumerate the halfedges that are part of the surface associated with this vertex's halfedge
+        size_type surface_halfedge_count() const;
+        halfedge_ids_type surface_halfedge_ids() const;
+
+        // Count/enumerate the halfedges that are part of the referenced surface
+        size_type halfedge_count(id_type surface_id) const;
+        halfedge_ids_type halfedge_ids(id_type surface_id) const;
+
+        // the following functions are here for future use, and may change before being implemented ...
+        // eventually there should be a 1-1 mapping between halfedges() and halfedge_ids(), and they should encompass all coincident halfedge vertices irrespective of surface or border presence ...
 
         bool contains_halfedge(id_type id) const;
         void insert_halfedge(id_type id); // add halfedge to list
@@ -263,18 +267,64 @@ typename quetzal::brep::Vertex<Traits, M>::halfedge_ids_type& quetzal::brep::Ver
 
 //------------------------------------------------------------------------------
 template<typename Traits, typename M>
-const typename quetzal::brep::Vertex<Traits, M>::halfedge_ids_type& quetzal::brep::Vertex<Traits, M>::halfedge_ids(id_type surface_id) const
+typename quetzal::brep::Vertex<Traits, M>::size_type quetzal::brep::Vertex<Traits, M>::surface_halfedge_count() const
 {
-    assert(false); // ...
-    return m_halfedge_ids;
+    id_type surface_id = halfedge().surface_id();
+    size_t n = 0;
+    for (const auto& halfedge : halfedges())
+    {
+        if (halfedge.surface_id() == surface_id)
+        {
+            ++n;
+        }
+    }
+    return n;
 }
 
 //------------------------------------------------------------------------------
 template<typename Traits, typename M>
-typename quetzal::brep::Vertex<Traits, M>::halfedge_ids_type& quetzal::brep::Vertex<Traits, M>::halfedge_ids(id_type surface_id)
+typename quetzal::brep::Vertex<Traits, M>::halfedge_ids_type quetzal::brep::Vertex<Traits, M>::surface_halfedge_ids() const
 {
-    assert(false); // ...
-    return m_halfedge_ids;
+    id_type surface_id = halfedge().surface_id();
+    halfedge_ids_type halfedge_ids;
+    for (const auto& halfedge : halfedges())
+    {
+        if (halfedge.surface_id() == surface_id)
+        {
+            halfedge_ids.insert(halfedge.id());
+        }
+    }
+    return halfedge_ids;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits, typename M>
+typename quetzal::brep::Vertex<Traits, M>::size_type quetzal::brep::Vertex<Traits, M>::halfedge_count(id_type surface_id) const
+{
+    size_t n = 0;
+    for (const auto& halfedge : halfedges())
+    {
+        if (halfedge.surface_id() == surface_id)
+        {
+            ++n;
+        }
+    }
+    return n;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits, typename M>
+typename quetzal::brep::Vertex<Traits, M>::halfedge_ids_type quetzal::brep::Vertex<Traits, M>::halfedge_ids(id_type surface_id) const
+{
+    halfedge_ids_type halfedge_ids;
+    for (const auto& halfedge : halfedges())
+    {
+        if (halfedge.surface_id() == surface_id)
+        {
+            halfedge_ids.insert(halfedge.id());
+        }
+    }
+    return halfedge_ids;
 }
 
 //------------------------------------------------------------------------------

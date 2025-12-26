@@ -65,19 +65,20 @@ typename quetzal::geometry::PositionAccessor<T>::vector_type quetzal::geometry::
     }
 
     typename PositionAccessor<T>::vector_type sum{};
-    for (size_t i = 0; i < n; ++i)
+    for (size_t i0 = 0; i0 < n; ++i0)
     {
-        size_t i1 = i == n - 1 ? 0 : i + 1;
-        auto p0 = PositionAccessor<T>::position(points, i);
+        size_t i1 = i0 == n - 1 ? 0 : i0 + 1;
+        auto p0 = PositionAccessor<T>::position(points, i0);
         auto p1 = PositionAccessor<T>::position(points, i1);
 
+        // Optimized Newell's method
         sum.x() += (p0.y() - p1.y()) * (p0.z() + p1.z());
         sum.y() += (p0.z() - p1.z()) * (p0.x() + p1.x());
         sum.z() += (p0.x() - p1.x()) * (p0.y() + p1.y());
     }
 
 // just for trinket_box_cover, fix it there ...
-// reconsider this, is there a better way to handle this edge case? ...
+// reconsider this, is there a better way to handle this edge case? why is it even happening? ...
 if (math::float_eq0(sum.norm_squared()))
 {
 //assert(false);

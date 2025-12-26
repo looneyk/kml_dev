@@ -12,8 +12,9 @@
 namespace quetzal::model
 {
 
-    template<typename M>
-    void tuskify(M& mesh, const typename M::vector_type& axis, typename M::value_type angle, typename M::value_type z0, typename M::value_type z1);
+    // Works with Mesh and Submesh
+    template<typename U>
+    void tuskify(U& u, const typename U::traits_type::vector_type& axis, typename U::value_type angle, typename U::value_type z0, typename U::value_type z1);
 
     template<typename M>
     void tuskify(M& mesh, const typename M::vector_type& axis, typename M::value_type angle);
@@ -33,20 +34,22 @@ namespace quetzal::model
 } // namespace quetzal::model
 
 //------------------------------------------------------------------------------
-template<typename M>
-void quetzal::model::tuskify(M& mesh, const typename M::vector_type& axis, typename M::value_type angle, typename M::value_type z0, typename M::value_type z1)
+template<typename U>
+void quetzal::model::tuskify(U& u, const typename U::traits_type::vector_type& axis, typename U::value_type angle, typename U::value_type z0, typename U::value_type z1)
 {
-    typename M::value_type dz = z1 - z0;
+    auto dz = z1 - z0;
 
-    for (auto& vertex : mesh.vertices())
-    {
-        auto& position = vertex.attributes().position();
-        auto theta = -angle * (M::val(0.5) * position.z() - z0) / dz;
-        auto matrix = geometry::rotation_axis_unit(axis, theta);
-        position *= matrix;
-    }
+    transform(u,
+        [axis, angle, z0, dz](const U::traits_type::point_type& position) -> U::traits_type::point_type
+        {
+            auto theta = -angle * (U::traits_type::val(0.5) * position.z() - z0) / dz;
+            auto matrix = geometry::rotation_axis_unit(axis, theta);
+            return position * matrix;
+        });
 
-    for (auto& surface : mesh.surfaces())
+    // defer this so that triangulation can be done first ...
+    // with this, normals before and after triangulation should be float_eq ...
+    for (auto& surface : u.surfaces())
     {
         calculate_normals(surface); // face and then vertex normals
     }

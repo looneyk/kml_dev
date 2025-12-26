@@ -1307,7 +1307,7 @@ template<typename Traits>
 const typename quetzal::brep::Mesh<Traits>::submesh_type& quetzal::brep::Mesh<Traits>::submesh(const std::string& name) const
 {
     assert(contains_submesh(name));
-    return submesh(m_submesh_index[name]);
+    return submesh(m_submesh_index.at(name));
 }
 
 //------------------------------------------------------------------------------
@@ -1315,7 +1315,7 @@ template<typename Traits>
 typename quetzal::brep::Mesh<Traits>::submesh_type& quetzal::brep::Mesh<Traits>::submesh(const std::string& name)
 {
     assert(contains_submesh(name));
-    return submesh(m_submesh_index[name]);
+    return submesh(m_submesh_index.at(name));
 }
 
 //------------------------------------------------------------------------------

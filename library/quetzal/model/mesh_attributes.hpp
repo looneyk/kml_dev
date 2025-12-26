@@ -36,11 +36,36 @@ namespace quetzal::model
     // For use with translation and/or uniform scaling only when there is no need to transform normals
     // Works with Mesh, Submesh, Surface
     template<typename U>
-    void transform_position(U& u, const typename U::traits_type::matrix_type& matrix);
+    void transform_positions(U& u, const typename U::traits_type::matrix_type& matrix);
 
     // Works with Mesh, Submesh, Surface
     template<typename U>
     void transform(U& u, std::function<void(typename U::vertex_type&)> fv, std::optional<std::function<void(typename U::face_type&)>> ff = std::nullopt);
+
+    // Works only with Mesh
+    // Function f calculates new vertex attributes
+    // No optimization, no surface or seam cognizance, deprecated ...
+    template<typename U>
+    void transform_vertices(U& u, std::function<typename U::traits_type::vertex_attributes_type(const typename U::traits_type::vertex_attributes_type&)> f);
+
+    // Works with Mesh, Submesh, Surface
+    // Function f calculates new vertex positions
+    // Once all those are set, then new face and surface vertex normals are calculated
+    // Reduces calculations for coincident vertices in the same surface
+    template<typename U>
+    void transform(U& u, std::function<typename U::traits_type::point_type(const typename U::traits_type::point_type&)> f);
+
+    // Works with Mesh, Submesh, Surface
+    // Function f calculates new vertex positions
+    // Reduces calculations for coincident vertices in the same surface
+    template<typename U>
+    void transform_positions(U& u, std::function<typename U::traits_type::point_type(const typename U::traits_type::point_type&)> f);
+
+    // Works with Mesh, Submesh, Surface
+    // Function f calculates new vertex normals
+    // Reduces calculations for coincident vertices in the same surface
+    template<typename U>
+    void recalculate_normals(U& u);
 
     template<typename M>
     void transform_border_fragment_position(M& mesh, id_type idHalfedge, const typename M::matrix_type& matrix, bool bReset = true);
@@ -124,7 +149,7 @@ void quetzal::model::transform(U& u, const typename U::traits_type::matrix_type&
 
 //------------------------------------------------------------------------------
 template<typename U>
-void quetzal::model::transform_position(U& u, const typename U::traits_type::matrix_type& matrix)
+void quetzal::model::transform_positions(U& u, const typename U::traits_type::matrix_type& matrix)
 {
     if constexpr (std::same_as<U, brep::Mesh<typename U::traits_type>>) // separate functions ...
     {
@@ -177,6 +202,94 @@ void quetzal::model::transform(U& u, std::function<void(typename U::vertex_type&
         if (ff)
         {
             (*ff)(face);
+        }
+    }
+
+    return;
+}
+
+//------------------------------------------------------------------------------
+template<typename U>
+void quetzal::model::transform_vertices(U& u, std::function<typename U::traits_type::vertex_attributes_type(const typename U::traits_type::vertex_attributes_type&)> f)
+{
+    for (auto& face : u.faces())
+    {
+        for (auto& halfedge : face.halfedges())
+        {
+            auto& vertex = halfedge.vertex();
+            vertex.set_attributes(f(vertex.attributes()));
+        }
+    }
+
+    return;
+}
+
+//------------------------------------------------------------------------------
+template<typename U>
+void quetzal::model::transform(U& u, std::function<typename U::traits_type::point_type(const typename U::traits_type::point_type&)> f)
+{
+    transform_positions(u, f);
+    recalculate_normals(u);
+    return;
+}
+
+//------------------------------------------------------------------------------
+template<typename U>
+void quetzal::model::transform_positions(U& u, std::function<typename U::traits_type::point_type(const typename U::traits_type::point_type&)> f)
+{
+    u.reset_all();
+    for (auto& face : u.faces())
+    {
+        for (auto& halfedge : face.halfedges())
+        {
+            auto& vertex = halfedge.vertex();
+            if (vertex.marked())
+            {
+                continue;
+            }
+
+            auto position = f(vertex.attributes().position());
+
+            for (auto& h : vertex.halfedges())
+            {
+                auto& v = h.vertex();
+                v.attributes().set_position(position);
+                v.set_marked();
+            }
+        }
+    }
+
+    return;
+}
+
+//------------------------------------------------------------------------------
+template<typename U>
+void quetzal::model::recalculate_normals(U& u)
+{
+    u.reset_all();
+    for (auto& face : u.faces())
+    {
+        face.set_attributes({geometry::normal(face)});
+
+        for (auto& halfedge : face.halfedges())
+        {
+            auto& vertex = halfedge.vertex();
+            if (vertex.marked())
+            {
+                continue;
+            }
+
+            auto normal = surface_normal(vertex);
+
+            for (auto& h : vertex.halfedges())
+            {
+                if (h.surface_id() == halfedge.surface_id())
+                {
+                    auto& v = h.vertex();
+                    v.attributes().set_normal(normal);
+                    v.set_marked();
+                }
+            }
         }
     }
 
