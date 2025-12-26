@@ -7,6 +7,7 @@
 #include "quetzal/brep/MeshTraits.hpp"
 #include "quetzal/brep/texcoord.hpp"
 #include "quetzal/brep/mesh_util.hpp"
+#include "quetzal/brep/normal.hpp"
 #include "quetzal/brep/triangulation.hpp"
 #include "quetzal/common/FileValidator.hpp"
 #include "quetzal/math/HomogeneousTraits.hpp"
@@ -44,23 +45,23 @@ namespace
     template<typename M>
     void create_disk_test(M& mesh, const string& name, size_t nAzimuth, size_t nRadial, value_type radius, const math::Interval<value_type>& intervalAzimuth = math::Interval(value_type(0), value_type(1)))
     {
-        M m{};
-        model::create_disk(m, name, nAzimuth, nRadial, radius, intervalAzimuth);
+        id_type submesh_id = model::create_disk(mesh, name, nAzimuth, nRadial, radius, intervalAzimuth);
 
-        for (auto& vertex : m.vertices())
+        model::transform(mesh.submesh(submesh_id), [radius](typename M::traits_type::point_type position) -> typename M::traits_type::point_type
         {
-            auto& position = vertex.attributes().position();
             position.set_z(radius - to_vector(position).norm());
-            // normal here, or calculate surface normals below ...
-        }
+            return position;
+        });
+
+        // not correct at apex, cannot be calculated the same way there ...
+        brep::calculate_surface_vertex_normals(mesh.submesh(submesh_id).surface(0));
 
         // Bottom
         typename M::vector_type normal = {0.0f, 0.0f, -1.0f};
-        id_type idSurface = m.create_surface(m.submesh_id(name), "bottom", {normal});
-        create_border_face(m, 0, normal, idSurface);
-        calculate_surface_texcoords(m, idSurface);
+        id_type idSurface = mesh.create_surface(mesh.submesh_id(name), "bottom", {normal});
+        create_border_face(mesh, 0, normal, idSurface);
+        calculate_surface_texcoords(mesh, idSurface);
 
-        mesh.insert(m);
         mesh.check();
         return;
     }

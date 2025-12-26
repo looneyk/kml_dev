@@ -180,7 +180,7 @@ namespace
         }
 check_vertices(mesh);
 
-        model::transform_position(mesh, g::scaling(scale / size));
+        model::transform_positions(mesh, g::scaling(scale / size));
 check_vertices(mesh);
         return;
     }
@@ -247,7 +247,6 @@ check_vertices(mesh_diagonal);
     cout << name << endl;
     brep::split(mesh, planeUpper, "slice");
     model::transform(mesh.submesh("menger_sponge_0_0"), g::translation(0.0f, 0.0f, 10.0f));
-    mesh.pack();
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 
@@ -290,7 +289,6 @@ check_vertices(mesh_diagonal);
     cout << name << endl;
     brep::split(mesh, planeUpper, "slice");
     model::transform(mesh.submesh("menger_sponge_1_0"), g::translation(0.0f, 0.0f, 10.0f));
-    mesh.pack();
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 //validate(mesh);
@@ -335,7 +333,6 @@ check_vertices(mesh_diagonal);
     cout << name << endl;
     brep::split(mesh, planeUpper, "slice");
     model::transform(mesh.submesh("menger_sponge_2_0"), g::translation(0.0f, 0.0f, 10.0f));
-    mesh.pack();
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 //validate(mesh);
@@ -377,7 +374,6 @@ check_vertices(mesh_diagonal);
     cout << name << endl;
     brep::split(mesh, planeUpper, "slice");
     model::transform(mesh.submesh("menger_sponge_3_0"), g::translation(0.0f, 0.0f, 10.0f));
-    mesh.pack();
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 //validate(mesh);

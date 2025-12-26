@@ -11,6 +11,7 @@
 #include "quetzal/geometry/points_util.hpp"
 #include "quetzal/geometry/transformation_matrix.hpp"
 #include "quetzal/math/HomogeneousTraits.hpp"
+#include "quetzal/model/mesh_attributes.hpp"
 #include "quetzal/model/obj_io.hpp"
 #include "quetzal/model/primitives.hpp"
 #include <filesystem>
@@ -124,14 +125,16 @@ namespace
         id_type base_id = model::create_octahedron(mesh, "base", radius, false);
         auto& base = mesh.submesh(base_id);
 
-        model::transform(base, [](typename mesh_type::vertex_type& vertex) -> void
+        model::transform(base, [](const typename mesh_type::vertex_type& vertex) -> typename mesh_type::vertex_attributes_type
         {
-            auto& position = vertex.attributes().position();
+            auto av = vertex.attributes();
+            auto& position = av.position();
             if (position.z() > 0.0f)
             {
                 position.set_x(position.x() * 0.49f);
                 position.set_y(position.y() * 0.49f);
             }
+            return av;
         });
 
         auto zz = zTop - zBottom;

@@ -3,7 +3,7 @@
 // main.cpp
 //------------------------------------------------------------------------------
 
-//#define REGRESSION_TESTS
+#define REGRESSION_TESTS
 #define DEBUG_VALIDATE_DUMP
 #define DEBUG_VISUALIZE
 
@@ -248,7 +248,7 @@ namespace
         name;
         model_ids;
         assert(mesh.submesh_count() == 2);
-        model::transform_position(mesh.submesh(1), g::translation(separation));
+        model::transform_positions(mesh.submesh(1), g::translation(separation));
         return {}; // the result is ultimately ignored ...
     };
 
@@ -261,7 +261,6 @@ namespace
         model_ids = operation(mesh, model_name, model_ids);
         brep::triangulate(mesh);
         model::write_obj(mesh, to_filename(file_name));
-//validate(mesh);
         return model_ids;
     }
 
@@ -325,11 +324,9 @@ int main(int argc, char* argv[])
     // Comprehensive set of test operations for use in most test cases
     test_operations_type test_operations =
     {
-//#if defined(REGRESSION_TESTS)
         {"noop", "noop", no_operation},
         {"identity_ab", "identity_ab", identity_ab_operation},
         {"identity_ab_separated", "", separate_operation, false},
-//#endif // REGRESSION_TESTS
         {"identity_ba", "identity_ba", identity_ba_operation},
         {"union_ab", "union_ab", union_ab_operation},
         {"union_ab_clipped", "", clip_operation, false},
@@ -367,7 +364,7 @@ int main(int argc, char* argv[])
         mesh.clear();
         id_type submesh_id_a = model::create_box(mesh, name_a, 20.0f, 20.0f, 20.0f);
         id_type submesh_id_b = model::create_box(mesh, name_b, 20.0f, 20.0f, 20.0f);
-        model::transform_position(mesh.submesh(name_b), g::translation(10.0f, 10.0f, 10.0f));
+        model::transform_positions(mesh.submesh(name_b), g::translation(10.0f, 10.0f, 10.0f));
         return {submesh_id_a, submesh_id_b};
     };
 
@@ -488,7 +485,7 @@ int main(int argc, char* argv[])
         mesh.clear();
         id_type submesh_id_a = model::create_box(mesh, name_a, 20.0f, 20.0f, 20.0f);
         id_type submesh_id_b = model::create_box(mesh, name_b, 10.0f, 10.0f, 10.0f);
-        model::transform_position(mesh.submesh(name_b), g::translation(0.0f, 0.0f, 10.0f));
+        model::transform_positions(mesh.submesh(name_b), g::translation(0.0f, 0.0f, 10.0f));
         return {submesh_id_a, submesh_id_b};
     };
 
@@ -594,7 +591,7 @@ int main(int argc, char* argv[])
         mesh.clear();
         id_type submesh_id_a = model::create_box(mesh, name_a, 20.0f, 20.0f, 20.0f);
         id_type submesh_id_b = model::create_octahedron(mesh, name_b, 9.0f);
-        model::transform_position(mesh.submesh(name_b), g::translation(20.0f, 0.0f, 0.0f));
+        model::transform_positions(mesh.submesh(name_b), g::translation(20.0f, 0.0f, 0.0f));
         return {submesh_id_a, submesh_id_b};
     };
 
@@ -657,8 +654,8 @@ int main(int argc, char* argv[])
     mesh.clear();
     submesh_id_a = model::create_sphere(mesh, name_a, 12, 6, 10.0f);
     submesh_id_b = model::create_icosahedron(mesh, name_b, 7.5f);
-    model::transform_position(mesh.submesh(name_a), g::translation(10.0f, 0.0f, 0.0f));
-    model::transform_position(mesh.submesh(name_b), g::translation(-10.0f, 0.0f, 0.0f));
+    model::transform_positions(mesh.submesh(name_a), g::translation(10.0f, 0.0f, 0.0f));
+    model::transform_positions(mesh.submesh(name_b), g::translation(-10.0f, 0.0f, 0.0f));
     brep::triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 //validate(mesh);

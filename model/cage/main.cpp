@@ -246,16 +246,15 @@ namespace
             value_type dzSpike = 2.0f * r1 - r0; // ...
 
             // Create spike
-            mesh_type mSpike;
             std::string spike_name = surface_name(model::SurfaceName::BodySection, i);
-            model::create_helix_pyramid(mSpike, spike_name, nAzimuth, nz, rBase, dzSpike, twist);
+            id_type spike_id = model::create_helix_pyramid(mesh, spike_name, nAzimuth, nz, rBase, dzSpike, twist);
 
             // Rotate spike to align with normal
 
             rightFace *= geometry::rotation_axis_unit(axis, -theta); // Face right vector rotated using same matrix that would rotate face parallel to xy-plane
             assert(math::float_eq0(rightFace.z()));
-            id_type idSpikeBase = mSpike.halfedge_count() - nAzimuth;
-            point_type rightBase = mSpike.halfedge(idSpikeBase).vertex_attributes().position();
+            id_type face_id_spike_base = mesh.submesh(spike_id).surface(model::SurfaceName::End0).faces().front().id();
+            point_type rightBase = mesh.face(face_id_spike_base).halfedge().vertex_attributes().position();
             value_type phi = atan2(rightFace.y(), rightFace.x()) + atan2(rightBase.y(), rightBase.x());
 
             auto matrixDirection = geometry::rotation_axis_unit(vector_type::z_direction(), phi); // Rotate base around z-axis to align with face
@@ -264,16 +263,12 @@ namespace
 
             if (tuskification != 0.0f)
             {
-                model::tuskify(mSpike, axis * geometry::rotation_axis_unit(vector_type::z_direction(), -phi), tuskification, 0.0f, dzSpike);
+                model::tuskify(mesh.submesh(spike_id), axis * geometry::rotation_axis_unit(vector_type::z_direction(), -phi), tuskification, 0.0f, dzSpike);
             }
 
             // Apply final transformation matrix to spike
-//			model::transform(mSpike, matrixPosition, matrixDirection);
-            model::transform(mSpike.submesh(0), matrixPosition, matrixDirection);
-
-            idSpikeBase += mesh.halfedge_count();
-            mesh.insert(mSpike);
-            brep::weld(mesh, i, mesh.surface(std::format("{}/{}", spike_name, model::SurfaceName::End0)).faces().front().id());
+            model::transform(mesh.submesh(spike_id), matrixPosition, matrixDirection);
+            brep::weld(mesh, i, face_id_spike_base);
         }
 
         mesh.pack();

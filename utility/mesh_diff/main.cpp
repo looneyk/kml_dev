@@ -60,28 +60,45 @@ namespace
             return nullopt;
         }
 
-        for (const auto& [halfedge_lhs, halfedge_rhs] : views::zip(face_lhs.halfedges(), face_rhs.halfedges()))
+        id_type halfedge_id_rhs = nullid;
+
+        for (const auto& halfedge_rhs : face_rhs.halfedges())
+        {
+            if (float_eq(halfedge_rhs.vertex_attributes().position(), face_lhs.halfedge().vertex_attributes().position()))
+            {
+                halfedge_id_rhs = halfedge_rhs.id();
+                break;
+            }
+        }
+
+        assert(halfedge_id_rhs != nullid);
+
+//        for (const auto& [halfedge_lhs, halfedge_rhs] : views::zip(face_lhs.halfedges(), face_rhs.halfedges()))
+        for (const auto& halfedge_lhs : face_lhs.halfedges())
         {
             const auto& va_lhs = halfedge_lhs.vertex_attributes();
-            const auto& va_rhs = halfedge_rhs.vertex_attributes();
+//            const auto& va_rhs = halfedge_rhs.vertex_attributes();
+            const auto& va_rhs = face_rhs.mesh().halfedge(halfedge_id_rhs).vertex_attributes();
 
             if (exact ? va_lhs.position() != va_rhs.position() : !float_eq(va_lhs.position(), va_rhs.position(), gulp))
             {
                 ++differences[0];
-                if (verbose && !exact) cout << halfedge_lhs.id() << " " << halfedge_rhs.id() << " p " << va_lhs.position() << " != " << va_rhs.position() << endl;
+                if (verbose && !exact) cout << halfedge_lhs.id() << " " << halfedge_id_rhs << " p " << va_lhs.position() << " != " << va_rhs.position() << endl;
             }
 
             if (exact ? va_lhs.normal() != va_rhs.normal() : !float_eq(va_lhs.normal(), va_rhs.normal(), gulp))
             {
                 ++differences[1];
-                if (verbose && !exact) cout << halfedge_lhs.id() << " " << halfedge_rhs.id() << " n " << va_lhs.normal() << " != " << va_rhs.normal() << endl;
+                if (verbose && !exact) cout << halfedge_lhs.id() << " " << halfedge_id_rhs << " n " << va_lhs.normal() << " != " << va_rhs.normal() << endl;
             }
 
             if (exact ? va_lhs.texcoord() != va_rhs.texcoord() : !float_eq(va_lhs.texcoord(), va_rhs.texcoord(), gulp))
             {
                 ++differences[2];
-                if (verbose && !exact) cout << halfedge_lhs.id() << " " << halfedge_rhs.id() << " t " << va_lhs.texcoord() << " != " << va_rhs.texcoord() << endl;
+                if (verbose && !exact) cout << halfedge_lhs.id() << " " << halfedge_id_rhs << " t " << va_lhs.texcoord() << " != " << va_rhs.texcoord() << endl;
             }
+
+            halfedge_id_rhs = face_rhs.mesh().halfedge(halfedge_id_rhs).next_id();
         }
 
         return differences;
@@ -106,6 +123,8 @@ namespace
         for (const auto& [entry_lhs, entry_rhs, i] : views::zip(index_lhs, index_rhs, views::iota(0)))
         {
             ++n_total;
+
+//            assert(float_eq(entry_lhs.first, entry_rhs.first, gulp));
 
             auto result = face_differences(mesh_lhs.face(entry_lhs.second), mesh_rhs.face(entry_rhs.second), true);
             if (!result)

@@ -63,15 +63,32 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    void coilify2(vertex_attributes_type& av, value_type r, value_type z0, value_type z1, value_type x, value_type y, value_type azimuth0, value_type azimuthArc)
+    vertex_attributes_type coilify_(vertex_attributes_type av, value_type r, value_type dphi, value_type z0, value_type z1, value_type azimuthArc)
     {
         value_type dz = z1 - z0;
         value_type t = (av.position().z() - z0) / dz;
+        value_type phi = t * dphi;
+
+        r *= sin(t * azimuthArc);
+
+        auto matrixRotation = geometry::rotation_z(phi);
+        auto matrixPosition = matrixRotation * geometry::translation(r * cos(phi), r * sin(phi), 0.0f);
+        auto matrixDirection = geometry::direction_matrix(matrixPosition);
+
+        av.position() *= matrixPosition;
+        av.normal() *= matrixDirection;
+        return av;
+    }
+
+    //--------------------------------------------------------------------------
+    point_type coilify_position(const point_type&position, value_type r, value_type z0, value_type z1, value_type x, value_type y, value_type azimuth0, value_type azimuthArc)
+    {
+        value_type dz = z1 - z0;
+        value_type t = (position.z() - z0) / dz;
         value_type phi = azimuth0 + t * azimuthArc;
 
         auto matrix = geometry::translation(x + r * cos(phi), y + r * sin(phi), 0.0f);
-        av.position() *= matrix;
-        return;
+        return position * matrix;
     }
 
     //--------------------------------------------------------------------------
@@ -207,17 +224,17 @@ namespace
 
         // Pinnacle
         m.clear();
-    	model::create_geodesic_sphere(m, "pinnacle", 3.2f, 5);
+        model::create_geodesic_sphere(m, "pinnacle", 3.2f, 5);
         clip(m, geometry::Plane<vector_traits>({0.0f, 0.0f, -2.4f}, {0.0f, 0.0f, -1.0f}));
-    	model::transform(m, geometry::scaling(0.75f, 0.75f, 1.0f) * geometry::translation(0.0f, 0.0f, 99.0f));
+        model::transform(m, geometry::scaling(0.75f, 0.75f, 1.0f) * geometry::translation(0.0f, 0.0f, 99.0f));
         triangulate(m);
         mesh.insert(m);
 
         // Base
         m.clear();
-    	model::create_geodesic_sphere(m, "base", 60.0f, 5);
+        model::create_geodesic_sphere(m, "base", 60.0f, 5);
         clip(m, geometry::Plane<vector_traits>({0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, -1.0f}));
-    	model::transform(m, geometry::scaling(1.0f, 1.0f, 0.1f));
+        model::transform(m, geometry::scaling(1.0f, 1.0f, 0.1f));
         triangulate(m);
         mesh.insert(m);
 
@@ -258,16 +275,16 @@ namespace
 
         // Pinnacle
         m.clear();
-    	model::create_geodesic_sphere(m, "pinnacle", 3.2f, 5);
-    	model::transform(m, geometry::scaling(0.75f, 0.75f, 1.0f) * geometry::translation(0.0f, 0.0f, 149.0f));
+        model::create_geodesic_sphere(m, "pinnacle", 3.2f, 5);
+        model::transform(m, geometry::scaling(0.75f, 0.75f, 1.0f) * geometry::translation(0.0f, 0.0f, 149.0f));
         triangulate(m);
         mesh.insert(m);
 
         // Base
         m.clear();
-    	model::create_geodesic_sphere(m, "base", 70.0f, 5);
+        model::create_geodesic_sphere(m, "base", 70.0f, 5);
         clip(m, geometry::Plane<vector_traits>({0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, -1.0f}));
-    	model::transform(m, geometry::scaling(1.0f, 1.0f, 0.1f));
+        model::transform(m, geometry::scaling(1.0f, 1.0f, 0.1f));
         triangulate(m);
         mesh.insert(m);
 
@@ -294,18 +311,18 @@ int main(int argc, char* argv[])
     triangulate(mesh);
 //    validate(mesh);
 //    check_normal_consistency(mesh);
-    model::transform(mesh, [](vertex_type& v) -> void {coilify(v.attributes(), 5.0f, math::PiTwo<value_type>, -10.0f, 10.0f, math::PiTwo<value_type>);});
+    model::transform_vertices(mesh, [](vertex_attributes_type av) -> vertex_attributes_type { return coilify_(av, 5.0f, math::PiTwo<value_type>, -10.0f, 10.0f, math::PiTwo<value_type>); });
     model::write_obj(mesh, to_filename(name));
 //validate(mesh);
 
     name = "coil_prism";
     cout << name << endl;
     mesh.clear();
-	model::create_prism(mesh, "prism", 6, 100, 5.0f, 0.0f, -10.0f, 10.0f);
+    model::create_prism(mesh, "prism", 6, 100, 5.0f, 0.0f, -10.0f, 10.0f);
     triangulate(mesh);
 //    validate(mesh);
 //    check_normal_consistency(mesh);
-	model::transform(mesh, [](vertex_type& v) -> void {coilify(v.attributes(), 5.0f, math::PiTwo<value_type>, -10.0f, 10.0f, math::PiTwo<value_type>);});
+    model::transform_vertices(mesh, [](vertex_attributes_type av) -> vertex_attributes_type { return coilify_(av, 5.0f, math::PiTwo<value_type>, -10.0f, 10.0f, math::PiTwo<value_type>); });
     model::write_obj(mesh, to_filename(name));
 //validate(mesh);
 
@@ -315,10 +332,10 @@ int main(int argc, char* argv[])
     for (size_t i = 0; i < 8; ++i)
     {
         mesh_type m;
-		model::create_cylinder(m, "cylinder_" + to_string(i), 12, 100, 3.75f, 3.75f, -50.0f, 50.0f);
+        model::create_cylinder(m, "cylinder_" + to_string(i), 12, 100, 3.75f, 3.75f, -50.0f, 50.0f);
         value_type x = 30.0f * cos(math::PiTwo<value_type> * i / 8);
         value_type y = 30.0f * sin(math::PiTwo<value_type> * i / 8);
-		model::transform(m, [=](vertex_type& v) -> void {coilify2(v.attributes(), 20.0f, -50.0f, 50.0f, x, y, math::Pi<value_type> * i + math::PiTwo<value_type> * i / 8, 2.0f * math::PiTwo<value_type>);});
+        model::transform_positions(m, [=](const point_type& position) -> point_type { return coilify_position(position, 20.0f, -50.0f, 50.0f, x, y, math::Pi<value_type> * i + math::PiTwo<value_type> * i / 8, 2.0f * math::PiTwo<value_type>);});
         triangulate(m);
         mesh.insert(m);
     }

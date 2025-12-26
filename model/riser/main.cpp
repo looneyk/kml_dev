@@ -118,13 +118,13 @@ namespace
 
         mesh_type m;
         model::create_box(m, "a", 6.0f, 6.5f, 6.5f);
-        model::transform_position(m, math::translation(x0 + 3.05f, y2, z1 + 3.25f));
+        model::transform_positions(m, math::translation(x0 + 3.05f, y2, z1 + 3.25f));
         mesh.append(m);
         attach(mesh, name + "/end1", "a/bottom");
 
         m.clear();
         model::create_box(m, "b", 6.0f, 6.5f, 6.5f);
-        model::transform_position(m, math::translation(x5 - 3.05f, y2, z1 + 3.25f));
+        model::transform_positions(m, math::translation(x5 - 3.05f, y2, z1 + 3.25f));
         mesh.append(m);
         attach(mesh, name + "/end1", "b/bottom");
 

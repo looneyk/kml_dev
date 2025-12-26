@@ -68,7 +68,7 @@ namespace
         m.clear();
         model::create_torus(m, "top", nMajorTop, nMinorTop, rMajorTop, rMinorTop);
         matrix = math::translation(0.0f, 0.0f, dzStrut * sqrt(3.0f) / 2.0f);
-        model::transform_position(m, matrix);
+        model::transform_positions(m, matrix);
         mesh.insert(m);
 
         M mStrut;
@@ -78,7 +78,7 @@ dump(mStrut);
         matrix = math::rotation_axis(axis_y, -1.0f / 12.0f * math::PiTwo<value_type>); // pi ...
         model::transform(mStrut, matrix);
         matrix = math::translation(rMajorBottom, 0.0f, 0.0f);
-        model::transform_position(mStrut, matrix);
+        model::transform_positions(mStrut, matrix);
 
         for (size_t i = 0; i < nStruts; ++i)
         {
@@ -124,7 +124,7 @@ dump(mStrut);
         m.clear();
         model::create_torus(m, "top", nMajorTop, nMinorTop, rMajorTop, rMinorTop);
         matrix = math::translation(0.0f, 0.0f, height);
-        model::transform_position(m, matrix);
+        model::transform_positions(m, matrix);
         mesh.insert(m);
 
         typename M::vector_type vStrutBottom = {rMajorBottom, 0.0f, 0.0f};

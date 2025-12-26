@@ -56,100 +56,100 @@ namespace
 
         m = mCell;
         m.rename_submesh(0, "cell_0");
-        model::transform_position(m, g::translation(0.0f, -size, -size));
+        model::transform_positions(m, g::translation(0.0f, -size, -size));
         mesh.insert(m);
 
         m = mCell;
         m.rename_submesh(0, "cell_1");
-        model::transform_position(m, g::translation(-size, 0.0f, -size));
+        model::transform_positions(m, g::translation(-size, 0.0f, -size));
         mesh.insert(m);
 
         m = mCell;
         m.rename_submesh(0, "cell_2");
-        model::transform_position(m, g::translation(0.0f, 0.0f, -size));
+        model::transform_positions(m, g::translation(0.0f, 0.0f, -size));
         mesh.insert(m);                                 
 
         m = mCell;
         m.rename_submesh(0, "cell_3");
-        model::transform_position(m, g::translation(size, 0.0f, -size));
+        model::transform_positions(m, g::translation(size, 0.0f, -size));
         mesh.insert(m);
 
         m = mCell;
         m.rename_submesh(0, "cell_4");
-        model::transform_position(m, g::translation(0.0f, size, -size));
+        model::transform_positions(m, g::translation(0.0f, size, -size));
         mesh.insert(m);
 
         m = mCell;
         m.rename_submesh(0, "cell_5");
-        model::transform_position(m, g::translation(-size, -size, 0.0f));
+        model::transform_positions(m, g::translation(-size, -size, 0.0f));
         mesh.insert(m);
 
         m = mCell;
         m.rename_submesh(0, "cell_6");
-        model::transform_position(m, g::translation(0.0f, -size, 0.0f));
+        model::transform_positions(m, g::translation(0.0f, -size, 0.0f));
         mesh.insert(m);
 
         m = mCell;
         m.rename_submesh(0, "cell_7");
-        model::transform_position(m, g::translation(size, -size, 0.0f));
+        model::transform_positions(m, g::translation(size, -size, 0.0f));
         mesh.insert(m);
 
         m = mCell;
         m.rename_submesh(0, "cell_8");
-        model::transform_position(m, g::translation(-size, 0.0f, 0.0f));
+        model::transform_positions(m, g::translation(-size, 0.0f, 0.0f));
         mesh.insert(m);
 
         if (bHeavy)
         {
             m = mCell;
             m.rename_submesh(0, "cell_9");
-            model::transform_position(m, g::translation(0.0f, 0.0f, 0.0f));
+            model::transform_positions(m, g::translation(0.0f, 0.0f, 0.0f));
             mesh.insert(m);
         }
 
         m = mCell;
         m.rename_submesh(0, "cell_10");
-        model::transform_position(m, g::translation(size, 0.0f, 0.0f));
+        model::transform_positions(m, g::translation(size, 0.0f, 0.0f));
         mesh.insert(m);
 
         m = mCell;
         m.rename_submesh(0, "cell_11");
-        model::transform_position(m, g::translation(-size, size, 0.0f));
+        model::transform_positions(m, g::translation(-size, size, 0.0f));
         mesh.insert(m);
 
         m = mCell;
         m.rename_submesh(0, "cell_12");
-        model::transform_position(m, g::translation(0.0f, size, 0.0f));
+        model::transform_positions(m, g::translation(0.0f, size, 0.0f));
         mesh.insert(m);
 
         m = mCell;
         m.rename_submesh(0, "cell_13");
-        model::transform_position(m, g::translation(size, size, 0.0f));
+        model::transform_positions(m, g::translation(size, size, 0.0f));
         mesh.insert(m);
 
         m = mCell;
         m.rename_submesh(0, "cell_14");
-        model::transform_position(m, g::translation(0.0f, -size, size));
+        model::transform_positions(m, g::translation(0.0f, -size, size));
         mesh.insert(m);
 
         m = mCell;
         m.rename_submesh(0, "cell_15");
-        model::transform_position(m, g::translation(-size, 0.0f, size));
+        model::transform_positions(m, g::translation(-size, 0.0f, size));
         mesh.insert(m);
 
         m = mCell;
         m.rename_submesh(0, "cell_16");
-        model::transform_position(m, g::translation(0.0f, 0.0f, size));
+        model::transform_positions(m, g::translation(0.0f, 0.0f, size));
         mesh.insert(m);
 
         m = mCell;
         m.rename_submesh(0, "cell_17");
-        model::transform_position(m, g::translation(size, 0.0f, size));
+        model::transform_positions(m, g::translation(size, 0.0f, size));
         mesh.insert(m);
 
         m = mCell;
         m.rename_submesh(0, "cell_18");
-        model::transform_position(m, g::translation(0.0f, size, size));
+        model::transform_positions(m, g::translation(0.0f, size, size));
         mesh.insert(m);
 
         weld(mesh, "cell_0/front", "cell_2/back");
@@ -263,7 +263,7 @@ namespace
             size *= 3.0f;
         }
 
-        model::transform_position(m, g::scaling(scale / size));
+        model::transform_positions(m, g::scaling(scale / size));
         mesh.insert(m);
         return;
     }

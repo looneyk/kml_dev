@@ -44,6 +44,19 @@ namespace
     }
 
     //--------------------------------------------------------------------------
+    void validate_normals(mesh_type& mesh)
+    {
+        for (const auto& vertex : mesh.vertices())
+        {
+            auto normal = surface_normal(vertex);
+            if (!float_eq(vertex.attributes().normal(), normal))
+            {
+                std::cout << std::format("mismatch id {} vertex {} surface {} face {} face calc {}", vertex.id(), vertex.attributes().normal(), normal, vertex.halfedge().face_attributes().normal(), geometry::normal(vertex.halfedge().face())) << std::endl;
+            }
+        }
+    }
+
+    //--------------------------------------------------------------------------
     void create_spikosahedron(mesh_type& mesh, const string& name, value_type r0, value_type r1, value_type z1, size_t nzSpikeMax, value_type revsSpikeMax, value_type tuskification = 0.0f, value_type undulation = 0.0f)
     {
         assert(nzSpikeMax > 0);
@@ -93,7 +106,12 @@ namespace
 
             if (nLevel == 1 || nzSpikeMax == 1) // Replace face with pyramidal projection
             {
-                triangulate_central_vertex(m, n, upFace * r, false);
+                auto apex = upFace * r;
+                if (nLevel == 1) // First level must be at exactly base height
+                {
+//                    apex.set_z(zBase);
+                }
+                triangulate_central_vertex(m, n, apex, false);
                 continue;
             }
 
@@ -155,6 +173,7 @@ namespace
 
         m.pack();
 
+// now handled at level 1, assuming that is the only level where this might occur ...
         // Ensure that nothing projects below the bottom face
         for (auto& vertex : m.vertices())
         {
@@ -165,6 +184,7 @@ namespace
         }
 
         mesh.insert(m);
+//validate_normals(mesh);
         return;
     }
 
@@ -193,13 +213,16 @@ int main(int argc, char* argv[])
 
     name = "spikosahedron";
     cout << name << endl;
+    mesh.clear();
     create_spikosahedron(mesh, name, 29.0f, 58.0f, 31.1688f, 1, 0.0f); // Not swirled, not twisted, single section spike
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 check(mesh);
 
+    // this is so we have extra material to carve a sharp point at the tip, the tip was not printing cleanly
     name = "spikosahedron_tip";
     cout << name << endl;
+    mesh.clear();
     create_spikosahedron(mesh, name, 29.0f, 58.0f, 31.1688f, 1, 0.0f); // Not swirled, not twisted, single section spike
 
     float z_max = 0.0f;
@@ -213,6 +236,7 @@ check(mesh);
     }
     model::create_cylinder(mesh, "tip_tip", 3, 1, 2.0f, 0.0f, z_max - 1.0f, z_max, 0.5f, 0.5f);
     model::create_cylinder(mesh, "tip_body", 3, 1, 2.0f, 2.0f, z_max - 10.0f, z_max - 1.0f, 0.5f, 0.5f);
+    weld(mesh, "tip_body/end1", "tip_tip/end0");
 
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
@@ -225,6 +249,7 @@ check(mesh);
     create_spikosahedron(mesh, "spikosahedron", 72.471f, 144.942f, 77.8858f, 1, 0.0f); // Not swirled, not twisted, single section spike
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
+//dump(mesh);
 check(mesh);
 
     // dimensions for stained glass model without base pane
@@ -232,11 +257,8 @@ check(mesh);
     cout << name << endl;
     mesh.clear();
     create_spikosahedron(mesh, "spikosahedron", 72.471f, 144.942f, 77.8858f, 1, 0.0f); // Not swirled, not twisted, single section spike
-//validate(mesh);
     mesh.delete_face(0);
-//validate(mesh);
     triangulate(mesh);
-//validate(mesh);
     model::write_obj(mesh, to_filename(name));
 /*
 for (const auto& halfedge : mesh.halfedge_store())
