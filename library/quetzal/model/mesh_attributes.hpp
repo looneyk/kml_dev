@@ -33,20 +33,16 @@ namespace quetzal::model
     template<typename U>
     void transform(U& u, const typename U::traits_type::matrix_type& matrixPosition, const typename U::traits_type::matrix_type& matrixDirection);
 
-    // For use with translation and/or uniform scaling only when there is no need to transform normals
     // Works with Mesh, Submesh, Surface
     template<typename U>
     void transform_positions(U& u, const typename U::traits_type::matrix_type& matrix);
 
-    // Works with Mesh, Submesh, Surface
-    template<typename U>
-    void transform(U& u, std::function<void(typename U::vertex_type&)> fv, std::optional<std::function<void(typename U::face_type&)>> ff = std::nullopt);
-
-    // Works only with Mesh
+    // Works with Mesh, Submesh
     // Function f calculates new vertex attributes
-    // No optimization, no surface or seam cognizance, deprecated ...
+    // No optimization, no surface or seam cognizance, not terribly useful as is, just used in one set of test cases which themselves can be deprecated
+    // deprecated ...
     template<typename U>
-    void transform_vertices(U& u, std::function<typename U::traits_type::vertex_attributes_type(const typename U::traits_type::vertex_attributes_type&)> f);
+    void transform_vertices(U& u, std::function<typename U::traits_type::vertex_attributes_type(typename U::traits_type::vertex_attributes_type)> f);
 
     // Works with Mesh, Submesh, Surface
     // Function f calculates new vertex positions
@@ -151,7 +147,7 @@ void quetzal::model::transform(U& u, const typename U::traits_type::matrix_type&
 template<typename U>
 void quetzal::model::transform_positions(U& u, const typename U::traits_type::matrix_type& matrix)
 {
-    if constexpr (std::same_as<U, brep::Mesh<typename U::traits_type>>) // separate functions ...
+    if constexpr (std::same_as<U, brep::Mesh<typename U::traits_type>>) // separate functions, or just get rid of this case, doesn't handle coincident vertex positions ...
     {
         for (auto& vertex : u.vertices())
         {
@@ -190,27 +186,7 @@ void quetzal::model::transform_positions(U& u, const typename U::traits_type::ma
 
 //------------------------------------------------------------------------------
 template<typename U>
-void quetzal::model::transform(U& u, std::function<void(typename U::vertex_type&)> fv, std::optional<std::function<void(typename U::face_type&)>> ff)
-{
-    for (auto& face : u.faces())
-    {
-        for (auto& halfedge : face.halfedges())
-        {
-            fv(halfedge.vertex());
-        }
-
-        if (ff)
-        {
-            (*ff)(face);
-        }
-    }
-
-    return;
-}
-
-//------------------------------------------------------------------------------
-template<typename U>
-void quetzal::model::transform_vertices(U& u, std::function<typename U::traits_type::vertex_attributes_type(const typename U::traits_type::vertex_attributes_type&)> f)
+void quetzal::model::transform_vertices(U& u, std::function<typename U::traits_type::vertex_attributes_type(typename U::traits_type::vertex_attributes_type)> f)
 {
     for (auto& face : u.faces())
     {

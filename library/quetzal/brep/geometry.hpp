@@ -318,7 +318,7 @@ typename Traits::value_type quetzal::brep::length(const Halfedge<Traits>& halfed
 template<typename Traits>
 typename Traits::vector_type quetzal::brep::direction(const Halfedge<Traits>& halfedge)
 {
-    return normalize(to_vector(halfedge));
+    return normalize(denoise0(to_vector(halfedge)));
 }
 
 //------------------------------------------------------------------------------

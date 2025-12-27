@@ -38,8 +38,8 @@ namespace
     using mesh_traits = brep::MeshTraits<vector_traits>;
     using mesh_type = brep::Mesh<mesh_traits>;
     using matrix_type = geometry::transformation_matrix_type<vector_traits>;
-    using vector_type = mesh_type::vector_type;
     using point_type = mesh_type::point_type;
+    using vector_type = point_type::vector_type;
 
     namespace g = quetzal::geometry;
 
@@ -172,14 +172,14 @@ namespace
         for (size_t i = 0; i < nAzimuth; ++i)
         {
             auto phi = math::PiTwo<value_type> * (2 * i + 1) / (2 * nAzimuth);
-            polygon1.vertex(i) = {r2 * cos(phi), r2 * sin(phi), zLower2};
+            polygon1.vertex(i) = denoise0(point_type{r2 * cos(phi), r2 * sin(phi), zLower2});
         }
 
         g::Polygon<vector_traits> polygon2(nAzimuth);
         for (size_t i = 0; i < nAzimuth; ++i)
         {
             auto phi = math::PiTwo<value_type> * i / nAzimuth;
-            polygon2.vertex(i) = {r * cos(phi), r * sin(phi), 0.0};
+            polygon2.vertex(i) = denoise0(point_type{r * cos(phi), r * sin(phi), 0.0});
         }
 
         g::Polygon<vector_traits> polygon3 = polygon1;
@@ -255,14 +255,14 @@ namespace
         for (size_t i = 0; i < nAzimuth; ++i)
         {
             auto phi = math::PiTwo<value_type> * (2 * i + 1) / (2 * nAzimuth);
-            polygon1.vertex(i) = {r2 * cos(phi), r2 * sin(phi), zLower2};
+            polygon1.vertex(i) = denoise0(point_type{r2 * cos(phi), r2 * sin(phi), zLower2});
         }
 
         g::Polygon<vector_traits> polygon2(nAzimuth);
         for (size_t i = 0; i < nAzimuth; ++i)
         {
             auto phi = math::PiTwo<value_type> * i / nAzimuth;
-            polygon2.vertex(i) = {r * cos(phi), r * sin(phi), 0.0};
+            polygon2.vertex(i) = denoise0(point_type{r * cos(phi), r * sin(phi), 0.0});
         }
 
         g::Polygon<vector_traits> polygon3 = polygon1;
@@ -351,21 +351,21 @@ namespace
         for (size_t i = 0; i < nAzimuth; ++i)
         {
             auto phi = math::PiTwo<value_type> * i / nAzimuth;
-            polygon1.vertex(i) = {r1 * cos(phi), r1 * sin(phi), z1};
+            polygon1.vertex(i) = denoise0(point_type{r1 * cos(phi), r1 * sin(phi), z1});
         }
 
         g::Polygon<vector_traits> polygon2(nAzimuth);
         for (size_t i = 0; i < nAzimuth; ++i)
         {
             auto phi = math::PiTwo<value_type> * (2 * i + 1) / (2 * nAzimuth);
-            polygon2.vertex(i) = {r2 * cos(phi), r2 * sin(phi), z2};
+            polygon2.vertex(i) = denoise0(point_type{r2 * cos(phi), r2 * sin(phi), z2});
         }
 
         g::Polygon<vector_traits> polygon3(nAzimuth);
         for (size_t i = 0; i < nAzimuth; ++i)
         {
             auto phi = math::PiTwo<value_type> * i / nAzimuth;
-            polygon3.vertex(i) = {r3 * cos(phi), r3 * sin(phi), z3};
+            polygon3.vertex(i) = denoise0(point_type{r3 * cos(phi), r3 * sin(phi), z3});
 //            polygon3.vertex(i) = {r3 * cos(phi), r3 * sin(phi), z3 * (0.75 + 0.25 * i / (nAzimuth - 1))}; // helix height ...
 
             // adjust polygon3 point so that the points defining the face are coplanar
@@ -380,7 +380,7 @@ namespace
 //            polygon3.vertex(i) = line.point() + line.direction() * t * 1.3;
 
             assert(intersection_point.locus() == g::Locus::Point);
-            polygon3.vertex(i) = intersection_point.point();
+            polygon3.vertex(i) = denoise0(intersection_point.point());
         }
 
         auto polygon01 = polygon1;

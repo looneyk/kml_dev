@@ -16,8 +16,11 @@ namespace quetzal::model
     template<typename U>
     void tuskify(U& u, const typename U::traits_type::vector_type& axis, typename U::value_type angle, typename U::value_type z0, typename U::value_type z1);
 
-    template<typename M>
-    void tuskify(M& mesh, const typename M::vector_type& axis, typename M::value_type angle);
+    // unused ...
+    template<typename U>
+    void tuskify(U& u, const typename U::traits_type::vector_type& axis, typename U::value_type angle);
+
+    // add support for submesh for the rest ...
 
     template<typename M>
     void undulate(M& mesh, typename M::value_type amplitude, typename M::value_type period, typename M::value_type z0, typename M::value_type z1);
@@ -58,28 +61,10 @@ void quetzal::model::tuskify(U& u, const typename U::traits_type::vector_type& a
 }
 
 //------------------------------------------------------------------------------
-template<typename M>
-void quetzal::model::tuskify(M& mesh, const typename M::vector_type& axis, typename M::value_type angle)
-{
-    // Find lowest and highest points in mesh
-    typename M::value_type z0 = mesh.vertex(0).attributes().position().z();
-    typename M::value_type z1 = z0;
-
-    for (const auto& vertex : mesh.vertices())
-    {
-        const auto& av = vertex.attributes();
-
-        if (av.position().z() < z0)
-        {
-            z0 = av.position().z();
-        }
-        else if (av.position().z() > z1)
-        {
-            z1 = av.position().z();
-        }
-    }
-
-    tuskify(mesh, axis, angle, z0, z1);
+template<typename U>
+void quetzal::model::tuskify(U& u, const typename U::traits_type::vector_type& axis, typename U::value_type angle){
+    auto bounds = u.bounds();
+    tuskify(u, axis, angle, bounds.lower().z(), bounds.upper().z());
     return;
 }
 

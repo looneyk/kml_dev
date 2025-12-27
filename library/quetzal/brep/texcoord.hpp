@@ -125,11 +125,7 @@ void quetzal::brep::calculate_face_texcoords(M& mesh, id_type face_id)
 
     geometry::AxisAlignedBoundingBox<typename texcoord_type::traits_type> bounds(points);
     auto extent = bounds.extent();
-//    auto to_texcoord = [&](const texcoord_type& position) -> texcoord_type { auto bounded = position - bounds.lower(); return {bounded.x() / extent.x(), value_type(1) - bounded.y() / extent.y()}; };
     auto to_texcoord = [&](const texcoord_type& position) -> texcoord_type { return denoise01(texcoord_type{(position.x() - bounds.lower().x()) / extent.x(), (bounds.upper().y() - position.y()) / extent.y()}); };
-//    auto ex = value_type(1) / extent.x();
-//    auto ey = value_type(1) / extent.y();
-//    auto to_texcoord = [&](const texcoord_type& position) -> texcoord_type { return {(position.x() - lower.x()) * ex, (upper.y() - position.y()) * ey}; };
 
     size_t i = 0;
     for (auto& halfedge : face.halfedges())

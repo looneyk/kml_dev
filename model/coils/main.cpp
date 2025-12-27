@@ -45,25 +45,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    void coilify(vertex_attributes_type& av, value_type r, value_type dphi, value_type z0, value_type z1, value_type azimuthArc)
-    {
-        value_type dz = z1 - z0;
-        value_type t = (av.position().z() - z0) / dz;
-        value_type phi = t * dphi;
-
-        r *= sin(t * azimuthArc);
-
-        auto matrixRotation = geometry::rotation_z(phi);
-        auto matrixPosition = matrixRotation * geometry::translation(r * cos(phi), r * sin(phi), 0.0f);
-        auto matrixDirection = geometry::direction_matrix(matrixPosition);
-
-        av.position() *= matrixPosition;
-        av.normal() *= matrixDirection;
-        return;
-    }
-
-    //--------------------------------------------------------------------------
-    vertex_attributes_type coilify_(vertex_attributes_type av, value_type r, value_type dphi, value_type z0, value_type z1, value_type azimuthArc)
+    vertex_attributes_type coilify(vertex_attributes_type av, value_type r, value_type dphi, value_type z0, value_type z1, value_type azimuthArc)
     {
         value_type dz = z1 - z0;
         value_type t = (av.position().z() - z0) / dz;
@@ -225,6 +207,8 @@ namespace
         // Pinnacle
         m.clear();
         model::create_geodesic_sphere(m, "pinnacle", 3.2f, 5);
+// this needed for printing, but incorporate in a better way ...
+//        clip(m, geometry::Plane<vector_traits>({0.0f, 0.0f, -2.4f}, {0.0f, 0.0f, -1.0f}));
         model::transform(m, geometry::scaling(0.75f, 0.75f, 1.0f) * geometry::translation(0.0f, 0.0f, 99.0f));
         triangulate(m);
         mesh.insert(m);
@@ -310,7 +294,7 @@ int main(int argc, char* argv[])
     triangulate(mesh);
 //    validate(mesh);
 //    check_normal_consistency(mesh);
-    model::transform_vertices(mesh, [](vertex_attributes_type av) -> vertex_attributes_type { return coilify_(av, 5.0f, math::PiTwo<value_type>, -10.0f, 10.0f, math::PiTwo<value_type>); });
+    model::transform_vertices(mesh, [](vertex_attributes_type av) -> vertex_attributes_type { return coilify(av, 5.0f, math::PiTwo<value_type>, -10.0f, 10.0f, math::PiTwo<value_type>); });
     model::write_obj(mesh, to_filename(name));
 //validate(mesh);
 
@@ -321,7 +305,7 @@ int main(int argc, char* argv[])
     triangulate(mesh);
 //    validate(mesh);
 //    check_normal_consistency(mesh);
-    model::transform_vertices(mesh, [](vertex_attributes_type av) -> vertex_attributes_type { return coilify_(av, 5.0f, math::PiTwo<value_type>, -10.0f, 10.0f, math::PiTwo<value_type>); });
+    model::transform_vertices(mesh, [](vertex_attributes_type av) -> vertex_attributes_type { return coilify(av, 5.0f, math::PiTwo<value_type>, -10.0f, 10.0f, math::PiTwo<value_type>); });
     model::write_obj(mesh, to_filename(name));
 //validate(mesh);
 

@@ -125,16 +125,14 @@ namespace
         id_type base_id = model::create_octahedron(mesh, "base", radius, false);
         auto& base = mesh.submesh(base_id);
 
-        model::transform(base, [](const typename mesh_type::vertex_type& vertex) -> typename mesh_type::vertex_attributes_type
+        model::transform_positions(base, [](typename mesh_type::traits_type::point_type position) -> typename mesh_type::traits_type::point_type
         {
-            auto av = vertex.attributes();
-            auto& position = av.position();
             if (position.z() > 0.0f)
             {
                 position.set_x(position.x() * 0.49f);
                 position.set_y(position.y() * 0.49f);
             }
-            return av;
+            return position;
         });
 
         auto zz = zTop - zBottom;

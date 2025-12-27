@@ -15,17 +15,22 @@ namespace quetzal::brep
 
     // The normal vector taking into account only the single face containing that vertex
     template<typename Traits>
-    typename Traits::vector_type vertex_normal(const Vertex<Traits>& vertex);
+    typename Traits::vector_type vertex_normal(const Halfedge<Traits>& halfedge);
+
+    // The normal vector taking into account only the single face containing that vertex
+    template<typename Traits>
+    std::tuple<typename Traits::vector_type, typename Traits::value_type> vertex_normal_angle(const Halfedge<Traits>& halfedge);
 
     // The normal vector taking into account all of the faces that meet at that vertex and that are in the vertex's surface
     template<typename Traits>
     typename Traits::vector_type surface_normal(const Vertex<Traits>& vertex);
 
-    // Calculate face normals for each face in the surface
-    template<typename Traits>
-    void calculate_face_normals(Surface<Traits>& surface);
+    // Calculate normals for each face
+    // Works with Mesh, Submesh, Surface
+    template<typename U>
+    void calculate_face_normals(U& u);
 
-    // Calculate vertex normals for the each face in each surface in the mesh/submesh
+    // Calculate vertex normals for each face in each surface in the mesh/submesh
     // Works with Mesh, Submesh
     template<typename U>
     void calculate_surface_vertex_normals(U& u);
@@ -36,12 +41,16 @@ namespace quetzal::brep
     template<typename Traits>
     void calculate_surface_vertex_normals(Surface<Traits>& surface);
 
-    // Calculates all face normals and then all smooth surface vertex normals
-    // add Mesh/Submesh version of this as above? ...
-    template<typename S>
-    void calculate_normals(S& surface);
+    // Works with Mesh, Submesh, Surface
+    // The above without precalculated face normal optimizations and denoising, does not require or calculate face normal ...
+    template<typename U>
+    void calculate_surface_vertex_normals_(U& u);
 
-    // Set the face, surface, and vertex normals to the common value given for a face that is the sole face in a surface
+    // Calculates all face normals and then all smooth surface vertex normals
+    template<typename U>
+    void calculate_normals(U& u);
+
+    // Set the surface, face, and vertex normals to the common value given for a face that is the sole face in a surface
     // Calculate it if it is not given
     template<typename F>
     void set_facet_normal(F& face, const std::optional<const typename F::attributes_type::vector_type>& normal = std::nullopt);
@@ -50,20 +59,27 @@ namespace quetzal::brep
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-typename Traits::vector_type quetzal::brep::vertex_normal(const Vertex<Traits>& vertex)
+typename Traits::vector_type quetzal::brep::vertex_normal(const Halfedge<Traits>& halfedge)
 {
-    const auto& halfedge = vertex.halfedge();
-    const auto& position = halfedge.vertex_attributes().position();
-    const auto& position_next = halfedge.next().vertex_attributes().position();
-    const auto& position_prev = halfedge.prev().vertex_attributes().position();
-    return normalize(denoise0(cross(position_next - position, position_prev - position)));
+    auto v_next = direction(halfedge);
+    auto v_prev = -direction(halfedge.prev());
+    return normalize(denoise0(cross(v_next, v_prev)));
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+std::tuple<typename Traits::vector_type, typename Traits::value_type> quetzal::brep::vertex_normal_angle(const Halfedge<Traits>& halfedge)
+{
+    auto v_next = direction(halfedge);
+    auto v_prev = -direction(halfedge.prev());
+    return { normalize(denoise0(cross(v_next, v_prev))), angle_between_unit(v_next, v_prev)};
 }
 
 //----------------------------------------------------------------------------------
 template<typename Traits>
 typename Traits::vector_type quetzal::brep::surface_normal(const Vertex<Traits>& vertex)
 {
-    id_type idSurface = vertex.halfedge().surface_id();
+    id_type surface_id = vertex.halfedge().surface_id();
 
     auto position = vertex.attributes().position();
     typename Traits::vector_type weighted_sum;
@@ -74,7 +90,7 @@ typename Traits::vector_type quetzal::brep::surface_normal(const Vertex<Traits>&
 //        assert(float_eq(halfedge.vertex_attributes().position(), position));
         assert(halfedge.vertex_attributes().position() == position);
 
-        if (halfedge.surface_id() != idSurface)
+        if (halfedge.surface_id() != surface_id)
         {
             continue;
         }
@@ -97,10 +113,10 @@ typename Traits::vector_type quetzal::brep::surface_normal(const Vertex<Traits>&
 }
 
 //------------------------------------------------------------------------------
-template<typename Traits>
-void quetzal::brep::calculate_face_normals(Surface<Traits>& surface)
+template<typename U>
+void quetzal::brep::calculate_face_normals(U& u)
 {
-    for (auto& face : surface.faces())
+    for (auto& face : u.faces())
     {
         face.attributes().set_normal(geometry::normal(face));
     }
@@ -159,7 +175,7 @@ void quetzal::brep::calculate_surface_vertex_normals(Surface<Traits>& surface)
 
             for (auto& h : vertex.halfedges())
             {
-                if (h.face().surface_id() != surface.id())
+                if (h.surface_id() != surface.id())
                 {
                     continue;
                 }
@@ -174,11 +190,43 @@ void quetzal::brep::calculate_surface_vertex_normals(Surface<Traits>& surface)
 }
 
 //------------------------------------------------------------------------------
-template<typename S>
-void quetzal::brep::calculate_normals(S& surface)
+template<typename U>
+void quetzal::brep::calculate_surface_vertex_normals_(U& u)
 {
-    calculate_face_normals(surface);
-    calculate_surface_vertex_normals(surface);
+    u.reset_all();
+    for (auto& face : u.faces())
+    {
+        for (auto& halfedge : face.halfedges())
+        {
+            auto& vertex = halfedge.vertex();
+            if (vertex.marked())
+            {
+                continue;
+            }
+
+            auto normal = surface_normal(vertex);
+            for (auto& h : vertex.halfedges())
+            {
+                if (h.surface_id() != halfedge.surface.id())
+                {
+                    continue;
+                }
+
+                h.vertex_attributes().set_normal(normal);
+                h.vertex().set_marked();
+            }
+        }
+    }
+
+    return;
+}
+
+//------------------------------------------------------------------------------
+template<typename U>
+void quetzal::brep::calculate_normals(U& u)
+{
+    calculate_face_normals(u);
+    calculate_surface_vertex_normals(u);
     return;
 }
 

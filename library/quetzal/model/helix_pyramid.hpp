@@ -15,38 +15,35 @@ namespace quetzal::model
 {
 
     // nAzimuth is number of sides
+    // Surfaces: per side "body<i>", "end0"
     template<typename M>
     id_type create_helix_pyramid(M& mesh, const std::string& name, size_t nAzimuth, size_t nz, data_value_type<M> rBase, data_value_type<M> dz, data_value_type<M> revs);
 
+    // polygon is the base of the pyramid
+    // Surfaces: per side "body<i>", "end0"
     template<typename M>
     id_type create_helix_pyramid(M& mesh, const std::string& name, const geometry::Polygon<typename M::vector_traits>& polygon, size_t nz, data_value_type<M> dz, data_value_type<M> revs);
 
     //--------------------------------------------------------------------------
-    template<typename M>
-    void triangulate_body_surfaces(M& mesh)
+    template<typename Traits>
+    bool body_surface(const brep::Surface<Traits>& surface)
     {
-        // WIP ...
+        return surface.name().starts_with("body");
+    }
 
-        for (auto& surface : mesh.surfaces())
+    //--------------------------------------------------------------------------
+    template<typename Traits>
+    void triangulate_body_surfaces(brep::Submesh<Traits>& submesh)
+    {
+        for (auto& surface : submesh.surfaces())
         {
             if (!body_surface(surface))
             {
                 continue;
             }
 
-            auto face_ids = surface.face_ids();
-            for (const auto& face_id : face_ids)
-            {
-                if (mesh.face(face_id).halfedge_count() != 4)
-                {
-                    continue;
-                }
-
-                auto center = vertex_centroid(mesh.face(face_id));
-                triangulate_central_vertex(mesh, face_id, center); // this needs to add surfaces and calculate new face normals ...
-            }
-            
-            // model::set_surface_vertex_normals(surface);
+            triangulate_central_vertex_positions(surface);
+            calculate_surface_vertex_normals(surface);
         }
 
         return;
@@ -119,6 +116,8 @@ quetzal::id_type quetzal::model::create_helix_pyramid(M& mesh, const std::string
 
     calculate_apex_cusp_surface_vertex_normals_sequential(mesh, j0_orig + 2 * face_count, face_count);
     seal_cylinder(mesh, submesh_id, spec, halfedge_id0, false, true);
+
+//    triangulate_body_surfaces(mesh.submesh(submesh_id));
     return submesh_id;
 }
 
@@ -190,6 +189,8 @@ quetzal::id_type quetzal::model::create_helix_pyramid(M& mesh, const std::string
 
     calculate_apex_cusp_surface_vertex_normals_sequential(mesh, j0_orig + 2 * face_count, face_count);
     seal_cylinder(mesh, submesh_id, spec, halfedge_id0, false, true);
+
+//    triangulate_body_surfaces(mesh.submesh(submesh_id));
     return submesh_id;
 }
 
