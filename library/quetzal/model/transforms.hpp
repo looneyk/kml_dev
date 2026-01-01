@@ -20,19 +20,17 @@ namespace quetzal::model
     template<typename U>
     void tuskify(U& u, const typename U::traits_type::vector_type& axis, typename U::value_type angle);
 
-    // add support for submesh for the rest ...
+    template<typename U>
+    void undulate(U& u, typename U::value_type amplitude, typename U::value_type period, typename U::value_type z0, typename U::value_type z1);
 
-    template<typename M>
-    void undulate(M& mesh, typename M::value_type amplitude, typename M::value_type period, typename M::value_type z0, typename M::value_type z1);
+    template<typename U>
+    void swirl(U& u, typename U::value_type angle, typename U::value_type z0, typename U::value_type z1);
 
-    template<typename M>
-    void swirl(M& mesh, typename M::value_type angle, typename M::value_type z0, typename M::value_type z1);
+    template<typename U>
+    void swirl(U& u, typename U::value_type angle);
 
-    template<typename M>
-    void swirl(M& mesh, typename M::value_type angle);
-
-    template<typename M>
-    void swirler(M& mesh, typename M::value_type angle_z, typename M::value_type angle_r, typename M::value_type r_max);
+    template<typename U>
+    void swirler(U& u, typename U::value_type angle_z, typename U::value_type angle_r, typename U::value_type r_max);
 
 } // namespace quetzal::model
 
@@ -69,15 +67,15 @@ void quetzal::model::tuskify(U& u, const typename U::traits_type::vector_type& a
 }
 
 //------------------------------------------------------------------------------
-template<typename M>
-void quetzal::model::undulate(M& mesh, typename M::value_type amplitude, typename M::value_type period, typename M::value_type z0, typename M::value_type z1)
+template<typename U>
+void quetzal::model::undulate(U& u, typename U::value_type amplitude, typename U::value_type period, typename U::value_type z0, typename U::value_type z1)
 {
     period;
 
-    using T = M::value_type;
+    using T = U::value_type;
 
-    T dz = z1 - z0;
-
+    auto dz = z1 - z0;
+/*
     for (auto& vertex : mesh.vertices())
     {
         size_t nLevel = 2; // needs to be passed in (or as a function of dz) ...
@@ -93,7 +91,7 @@ void quetzal::model::undulate(M& mesh, typename M::value_type amplitude, typenam
         auto matrix = geometry::scaling(rScale, rScale, T(1));
 
         vertex.attributes().position() *= matrix;
-
+*/
 /* better? ...
         T tz = (vertex.attributes().position().z() - z0) / dz;
         T xyScale = T(1) - T(0.5) * amplitude * cos(tz * period);
@@ -106,93 +104,69 @@ void quetzal::model::undulate(M& mesh, typename M::value_type amplitude, typenam
             vertex.attributes().position() *= matrixPosition;
             vertex.attributes().normal() *= matrixDirection;
         }
+    }
 */
-    }
+    model::transform_positions(u, [&amplitude, z0, dz](const U::traits_type::point_type& position) -> U::traits_type::point_type
+    {
+        size_t nLevel = 2; // needs to be passed in (or as a function of dz) ...
+        if (nLevel == 3) amplitude *= T(0.6666667);
+        if (nLevel == 2) amplitude *= T(0.3333333);
+
+        auto zRelative = (position.z() - z0) / dz;
+        auto rScale = sin(zRelative * amplitude); // PI? ...
+        rScale *= T(1) - zRelative;
+        rScale = T(1) - T(0.5) * rScale;
+        auto matrix = geometry::scaling(rScale, rScale, T(1));
+        return position * matrix;
+    });
 
     return;
 }
 
 //------------------------------------------------------------------------------
-template<typename M>
-void quetzal::model::swirl(M& mesh, typename M::value_type angle, typename M::value_type z0, typename M::value_type z1)
+template<typename U>
+void quetzal::model::swirl(U& u, typename U::value_type angle, typename U::value_type z0, typename U::value_type z1)
 {
-    using T = M::value_type;
+    auto dz = z1 - z0;
+    auto axis = U::traits_type::vector_type::z_direction();
 
-    T dz = z1 - z0;
-    auto axis = M::vector_type::z_direction();
-
-    for (auto& vertex : mesh.vertices())
+    model::transform_positions(u, [axis, angle, z0, dz](const U::traits_type::point_type& position) -> U::traits_type::point_type
     {
-        T phi = angle * (vertex.attributes().position().z() - z0) / dz;
-
-        vertex.attributes().position() *= geometry::rotation_axis_unit(axis, phi); // Rotate an amount proportional to z position from z0 to z1
-    }
+        auto phi = angle * (position.z() - z0) / dz;
+        auto matrix = geometry::rotation_axis_unit(axis, phi);
+        return position * matrix;
+    });
 
     return;
 }
 
 //------------------------------------------------------------------------------
-template<typename M>
-void quetzal::model::swirl(M& mesh, typename M::value_type angle)
+template<typename U>
+void quetzal::model::swirl(U& u, typename U::value_type angle)
 {
-    using T = M::value_type;
-
-    // Find lowest and highest points in mesh
-    T z0 = mesh.vertex(0).attributes().position().z();
-    T z1 = z0;
-
-    for (const auto& vertex : mesh.vertices())
-    {
-        const auto& av = vertex.attributes();
-
-        if (av.position().z() < z0)
-        {
-            z0 = av.position().z();
-        }
-        else if (av.position().z() > z1)
-        {
-            z1 = av.position().z();
-        }
-    }
-
-    swirl(mesh, angle, z0, z1);
+    auto bounds = u.bounds();
+    swirl(u, angle, bounds.lower().z(), bounds.upper().z());
     return;
 }
 
 //------------------------------------------------------------------------------
-template<typename M>
-void quetzal::model::swirler(M& mesh, typename M::value_type angle_z, typename M::value_type angle_r, typename M::value_type r_max)
+template<typename U>
+void quetzal::model::swirler(U& u, typename U::value_type angle_z, typename U::value_type angle_r, typename U::value_type r_max)
 {
-    using T = M::value_type;
+    auto bounds = u.bounds();
+    auto z0 = bounds.lower().z();
+    auto z1 = bounds.upper().z();
 
-    // Find lowest and highest points in mesh
-    T z0 = mesh.vertex(0).attributes().position().z();
-    T z1 = z0;
+    auto dz = z1 - z0;
+    auto axis = typename U::vector_type::z_direction();
 
-    for (const auto& vertex : mesh.vertices())
+    model::transform_positions(u, [axis, angle_z, angle_r, z0, dz, r_max](const U::traits_type::point_type& position) -> U::traits_type::point_type
     {
-        const auto& av = vertex.attributes();
-
-        if (av.position().z() < z0)
-        {
-            z0 = av.position().z();
-        }
-        else if (av.position().z() > z1)
-        {
-            z1 = av.position().z();
-        }
-    }
-
-    T dz = z1 - z0;
-    auto axis = typename M::vector_type::z_direction();
-
-    for (auto& vertex : mesh.vertices())
-    {
-        T r = sqrt(vertex.attributes().position().x() * vertex.attributes().position().x() + vertex.attributes().position().y() * vertex.attributes().position().y());
-        T phi = angle_z * (vertex.attributes().position().z() - z0) / dz + angle_r * r / r_max;
-
-        vertex.attributes().position() *= rotation_axis_unit(axis, phi);
-    }
+        auto r = sqrt(position.x() * position.x() + position.y() * position.y());
+        auto phi = angle_z * (position.z() - z0) / dz + angle_r * r / r_max;
+        auto matrix = geometry::rotation_axis_unit(axis, phi);
+        return position * matrix;
+    });
 
     return;
 }

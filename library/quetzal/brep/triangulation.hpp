@@ -117,7 +117,7 @@ void quetzal::brep::triangulate(Mesh<Traits>& mesh)
 template<typename Traits>
 void quetzal::brep::triangulate(Submesh<Traits>& submesh)
 {
-    auto mesh = submesh.mesh(); // ...
+    auto& mesh = submesh.mesh();
 
     auto face_ids = submesh.face_ids();
     for (id_type face_id : face_ids)

@@ -1632,7 +1632,7 @@ const quetzal::geometry::AxisAlignedBoundingBox<typename quetzal::brep::Mesh<Tra
 {
     if (!m_bounds)
     {
-        geometry::AxisAlignedBoundingBox bounds = {};
+        geometry::AxisAlignedBoundingBox<vector_traits> bounds;
         std::ranges::for_each(submeshes(), [&bounds](auto& submesh) { bounds.insert(submesh.bounds()); });
         m_bounds = bounds;
     }

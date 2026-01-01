@@ -52,12 +52,6 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    std::string next_surface_name(mesh_type& mesh, const std::string& base_name = model::SurfaceName::BodySection)
-    {
-        return surface_name(base_name, mesh.surface_store_count());
-    }
-
-    //--------------------------------------------------------------------------
     id_type create_base(mesh_type& mesh, const std::string& name, value_type r0, value_type r1)
     {
         value_type h0 = r0 * sqrt(3.0f) / 2.0f;
@@ -170,44 +164,43 @@ namespace
             positions[0],
         };
 
-        struct FaceDefinition
+        struct FacetDefinition
         {
             id_type start;
             size_t count;
+            std::string name;
         };
 
-        std::vector<FaceDefinition> face_definitions =
+        std::vector<FacetDefinition> facet_definitions =
         {
-            {0, 3},
-            {3, 3},
-            {6, 3},
-            {9, 3},
-            {12, 3},
-            {15, 3},
-            {18, 3},
-            {21, 3},
-            {24, 3},
-            {27, 3},
-            {30, 3},
-            {33, 3},
-            {36, 3},
-            {39, 3},
-            {42, 3},
-            {45, 3},
-            {48, 3},
-            {51, 3},
-            {54, 6},
+            {0, 3, "base_face0"},
+            {3, 3, "base_face1"},
+            {6, 3, "base_face2"},
+            {9, 3, "base_face3"},
+            {12, 3, "base_face4"},
+            {15, 3, "base_face5"},
+            {18, 3, "base_body0"},
+            {21, 3, "base_body1"},
+            {24, 3, "base_body2"},
+            {27, 3, "base_body3"},
+            {30, 3, "base_body4"},
+            {33, 3, "base_body5"},
+            {36, 3, "base_body6"},
+            {39, 3, "base_body7"},
+            {42, 3, "base_body8"},
+            {45, 3, "base_body9"},
+            {48, 3, "base_body10"},
+            {51, 3, "base_body11"},
+            {54, 6, "base_end0"},
         };
 
-        brep::MeshBuilder<mesh_type> builder;
-
-        builder.set_mesh(mesh);
+        brep::MeshBuilder<mesh_type> builder(mesh);
         id_type submesh_id = builder.submesh(name);
 
-        for (const auto& face_def : face_definitions)
+        for (const auto& facet_def : facet_definitions)
         {
-            std::span<const point_type> points{&face_positions[face_def.start], face_def.count};
-            builder.surface_face(submesh_id, next_surface_name(mesh), geometry::normal(points), points);
+            std::span<const point_type> points{&face_positions[facet_def.start], facet_def.count};
+            builder.surface_face(submesh_id, facet_def.name, geometry::normal(points), points);
         }
 
         return submesh_id;
@@ -227,6 +220,8 @@ namespace
             tuskification -= atan2(h0, z0);
         }
 
+        // this only supports spikes with regular polygon bases (assuming the base is changed), just use the face polygon for the spike base? ...
+
         for (size_t i = 0; i < nBars; ++i)
         {
             size_t nAzimuth = mesh.face(i).halfedge_count();
@@ -242,12 +237,8 @@ namespace
             vector_type rightFace = mesh.face(i).halfedge().vertex_attributes().position() - center;
             value_type rBase = rightFace.norm();
 
-            // Spike length
-            value_type dzSpike = 2.0f * r1 - r0; // ...
-
-            // Create spike
-            std::string spike_name = surface_name(model::SurfaceName::BodySection, i);
-            id_type spike_id = model::create_helix_pyramid(mesh, spike_name, nAzimuth, nz, rBase, dzSpike, twist);
+            value_type dz = 2.0f * r1 - r0; // ...
+            id_type spike_id = model::create_helix_pyramid(mesh, "spike", nAzimuth, nz, rBase, dz, twist);
 
             // Rotate spike to align with normal
 
@@ -263,12 +254,18 @@ namespace
 
             if (tuskification != 0.0f)
             {
-                model::tuskify(mesh.submesh(spike_id), axis * geometry::rotation_axis_unit(vector_type::z_direction(), -phi), tuskification, 0.0f, dzSpike);
+                model::tuskify(mesh.submesh(spike_id), axis * geometry::rotation_axis_unit(vector_type::z_direction(), -phi), tuskification, 0.0f, dz);
             }
 
-            // Apply final transformation matrix to spike
+            // should swirl be done here too, just to the spikes, not the base? ...
+
+            // Apply final transformation matrix to spike, connect, and merge into main submesh
             model::transform(mesh.submesh(spike_id), matrixPosition, matrixDirection);
-            brep::weld(mesh, i, face_id_spike_base);
+            brep::weld(mesh, std::format("{}/base_face{}", name, i), "spike/end0");
+            mesh.rename_submesh_surfaces(spike_id, [i](const std::string& name_orig) {
+                return std::format("spike{}_{}", i, name_orig);
+            });
+            mesh.rename_submesh("spike", name);
         }
 
         mesh.pack();
@@ -289,118 +286,106 @@ int main(int argc, char* argv[])
 
     string name;
     mesh_type mesh;
-    mesh_type m;
-//    id_type submesh_id = nullid;
+    id_type submesh_id = nullid;
 
     name = "base_spike_6";
     std::cout << name << std::endl;
     mesh.clear();
-    create_cage(mesh, name, 30.0f, 60.0f, 6, 1, 0.0f, 0.0f);
-    triangulate(mesh);
+    submesh_id = create_cage(mesh, name, 30.0f, 60.0f, 6, 1, 0.0f, 0.0f);
+    triangulate(mesh.submesh(submesh_id));
     model::write_obj(mesh, to_filename(name));
 
     name = "tuskified_cage_6";
     std::cout << name << std::endl;
     mesh.clear();
-    create_cage(mesh, name, 30.0f, 60.0f, 6, 250, 0.0f, math::Pi<value_type>);
-    triangulate(mesh);
+    submesh_id = create_cage(mesh, name, 30.0f, 60.0f, 6, 250, 0.0f, math::Pi<value_type>);
+    triangulate(mesh.submesh(submesh_id));
     model::write_obj(mesh, to_filename(name));
 
     name = "tuskified_swirled_cage_6";
     std::cout << name << std::endl;
     mesh.clear();
-    create_cage(mesh, name, 30.0f, 60.0f, 6, 250, 0.0f, math::Pi<value_type>);
-    model::swirl(mesh, math::Pi<value_type>);
-    triangulate(mesh);
+    submesh_id = create_cage(mesh, name, 30.0f, 60.0f, 6, 250, 0.0f, math::Pi<value_type>);
+    model::swirl(mesh.submesh(submesh_id), math::Pi<value_type>);
+    triangulate(mesh.submesh(submesh_id));
     model::write_obj(mesh, to_filename(name));
 
     name = "tuskified_swirled_cage_6_model";
     std::cout << name << std::endl;
     mesh.clear();
-    create_cage(mesh, name, 30.0f, 60.0f, 6, 20, 0.0f, math::Pi<value_type>);
-    model::swirl(mesh, math::Pi<value_type>);
-    triangulate(mesh);
+    submesh_id = create_cage(mesh, name, 30.0f, 60.0f, 6, 20, 0.0f, math::Pi<value_type>);
+    model::swirl(mesh.submesh(submesh_id), math::Pi<value_type>);
+    triangulate(mesh.submesh(submesh_id));
     model::write_obj(mesh, to_filename(name));
 
     name = "tuskified_cage_6_sphere";
     std::cout << name << std::endl;
     mesh.clear();
-    create_cage(mesh, name, 30.0f, 60.0f, 6, 250, 0.0f, math::Pi<value_type>);
-    triangulate(mesh);
+    submesh_id = create_cage(mesh, name, 30.0f, 60.0f, 6, 250, 0.0f, math::Pi<value_type>);
+    triangulate(mesh.submesh(submesh_id));
 
-    model::create_geodesic_sphere(m, "orb", 26.0f, 6);
-    model::transform(m, geometry::translation(0.0f, 0.0f, 55.0f));
-    mesh.insert(m);
-//dump(mesh);
-/*
-    submesh_id = model::create_geodesic_sphere(mesh, "orb", 26.0f, 2); // 2 ...
+    submesh_id = model::create_geodesic_sphere(mesh, "orb", 26.0f, 6);
     model::transform(mesh.submesh(submesh_id), geometry::translation(0.0f, 0.0f, 55.0f));
     model::write_obj(mesh, to_filename(name));
-*/
+
     name = "tuskified_swirled_cage_6_sphere";
     std::cout << name << std::endl;
     mesh.clear();
-    create_cage(mesh, name, 30.0f, 60.0f, 6, 250, 0.0f, math::Pi<value_type>);
-    model::swirl(mesh, math::Pi<value_type>);
-    triangulate(mesh);
-    m.clear();
-    model::create_geodesic_sphere(m, "orb", 26.0f, 6);
-    model::transform(m, geometry::translation(0.0f, 0.0f, 55.0f));
-    mesh.insert(m);
+    submesh_id = create_cage(mesh, name, 30.0f, 60.0f, 6, 250, 0.0f, math::Pi<value_type>);
+    model::swirl(mesh.submesh(submesh_id), math::Pi<value_type>);
+    triangulate(mesh.submesh(submesh_id));
+
+    submesh_id = model::create_geodesic_sphere(mesh, "orb", 26.0f, 6);
+    model::transform(mesh.submesh(submesh_id), geometry::translation(0.0f, 0.0f, 55.0f));
     model::write_obj(mesh, to_filename(name));
 
     name = "tuskified_twisted_cage_6";
     std::cout << name << std::endl;
     mesh.clear();
-    create_cage(mesh, name, 30.0f, 60.0f, 6, 250, math::Pi<value_type>, math::Pi<value_type>);
-    triangulate(mesh);
+    submesh_id = create_cage(mesh, name, 30.0f, 60.0f, 6, 250, math::Pi<value_type>, math::Pi<value_type>);
+    triangulate(mesh.submesh(submesh_id));
     model::write_obj(mesh, to_filename(name));
 
     name = "tuskified_swirled_twisted_cage_6";
     std::cout << name << std::endl;
     mesh.clear();
-    create_cage(mesh, name, 30.0f, 60.0f, 6, 250, math::Pi<value_type>, math::Pi<value_type>);
-    model::swirl(mesh, math::Pi<value_type>);
-    triangulate(mesh);
+    submesh_id = create_cage(mesh, name, 30.0f, 60.0f, 6, 250, math::Pi<value_type>, math::Pi<value_type>);
+    model::swirl(mesh.submesh(submesh_id), math::Pi<value_type>);
+    triangulate(mesh.submesh(submesh_id));
     model::write_obj(mesh, to_filename(name));
 
     name = "tuskified_swirled_twisted_cage_6_model";
     std::cout << name << std::endl;
     mesh.clear();
-    create_cage(mesh, name, 30.0f, 60.0f, 6, 20, math::Pi<value_type>, math::Pi<value_type>);
-    model::swirl(mesh, math::Pi<value_type>);
-    triangulate(mesh);
+    submesh_id = create_cage(mesh, name, 30.0f, 60.0f, 6, 20, math::Pi<value_type>, math::Pi<value_type>);
+    model::swirl(mesh.submesh(submesh_id), math::Pi<value_type>);
+    triangulate(mesh.submesh(submesh_id));
     model::write_obj(mesh, to_filename(name));
 
     name = "tuskified_twisted_cage_6_sphere";
     std::cout << name << std::endl;
     mesh.clear();
-    create_cage(mesh, name, 30.0f, 60.0f, 6, 250, math::Pi<value_type>, math::Pi<value_type>);
-    triangulate(mesh);
-    m.clear();
-    model::create_geodesic_sphere(m, "orb", 26.0f, 6);
-    model::transform(m, geometry::translation(0.0f, 0.0f, 55.0f));
-    mesh.insert(m);
+    submesh_id = create_cage(mesh, name, 30.0f, 60.0f, 6, 250, math::Pi<value_type>, math::Pi<value_type>);
+    triangulate(mesh.submesh(submesh_id));
+
+    submesh_id = model::create_geodesic_sphere(mesh, "orb", 26.0f, 6);
+    model::transform(mesh.submesh(submesh_id), geometry::translation(0.0f, 0.0f, 55.0f));
     model::write_obj(mesh, to_filename(name));
 
     name = "tuskified_swirled_twisted_cage_6_sphere";
     std::cout << name << std::endl;
     mesh.clear();
-    create_cage(mesh, name, 30.0f, 60.0f, 6, 300, math::Pi<value_type>, math::Pi<value_type>);
+    submesh_id = create_cage(mesh, name, 30.0f, 60.0f, 6, 300, math::Pi<value_type>, math::Pi<value_type>);
+    triangulate(mesh.submesh(submesh_id));
 
-    m.clear();
-    model::create_cylinder(m, "rod", 48, 30, 5.0f, 5.0f, -15.0f, 15.0f);
-    model::transform(m, geometry::translation(0.0f, 0.0f, 16.0f));
-    mesh.insert(m);
-    triangulate(mesh);
-
+    submesh_id = model::create_cylinder(mesh, "rod", 48, 30, 5.0f, 5.0f, -15.0f, 15.0f);
+    model::transform(mesh.submesh(submesh_id), geometry::translation(0.0f, 0.0f, 16.0f));
+    triangulate(mesh.submesh(submesh_id));
     model::swirl(mesh, math::Pi<value_type>);
 //swirler(mesh, math::Pi<value_type>, math::PiHalf<value_type>, 60.0f);
-    m.clear();
-    model::create_geodesic_sphere(m, "orb", 25.0f, 6);
-    model::transform(m, geometry::translation(0.0f, 0.0f, 55.0f));
-    mesh.insert(m);
 
+    submesh_id = model::create_geodesic_sphere(mesh, "orb", 25.0f, 6);
+    model::transform(mesh.submesh(submesh_id), geometry::translation(0.0f, 0.0f, 55.0f));
     model::write_obj(mesh, to_filename(name));
 
     return validator.report_results();

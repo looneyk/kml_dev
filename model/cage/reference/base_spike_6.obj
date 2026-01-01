@@ -72,74 +72,68 @@ vn 0.232658 -0.402976 -0.885144
 
 # Faces
 o base_spike_6
-g body6
+g base_body0
 f 1/1/1 2/2/1 3/3/1
-g body7
+g base_body1
 f 3/4/2 4/5/2 1/6/2
-g body8
+g base_body2
 f 5/1/3 6/7/3 3/3/3
-g body9
+g base_body3
 f 3/4/4 2/8/4 5/6/4
-g body10
+g base_body4
 f 7/1/5 8/9/5 3/3/5
-g body11
+g base_body5
 f 3/4/6 6/10/6 7/6/6
-g body12
+g base_body6
 f 9/1/7 10/2/7 3/3/7
-g body13
+g base_body7
 f 3/4/8 8/5/8 9/6/8
-g body14
+g base_body8
 f 11/1/9 12/7/9 3/3/9
-g body15
+g base_body9
 f 3/4/10 10/8/10 11/6/10
-g body16
+g base_body10
 f 13/1/11 4/9/11 3/3/11
-g body17
+g base_body11
 f 3/4/12 12/10/12 13/6/12
-g body18
+g base_end0
 f 5/15/13 1/16/13 13/11/13
 f 11/12/13 5/15/13 13/11/13
 f 7/14/13 5/15/13 11/12/13
 f 11/12/13 9/13/13 7/14/13
-o body0
-g body0
+g spike0_body0
 f 1/6/14 4/1/14 14/15/14
-g body1
+g spike0_body1
 f 4/6/15 13/1/15 14/15/15
-g body2
+g spike0_body2
 f 13/6/16 1/1/16 14/15/16
-o body1
-g body0
+g spike1_body0
 f 5/6/17 2/1/17 15/15/17
-g body1
+g spike1_body1
 f 2/6/18 1/1/18 15/15/18
-g body2
+g spike1_body2
 f 1/6/19 5/1/19 15/15/19
-o body2
-g body0
+g spike2_body0
 f 7/6/20 6/1/20 16/15/20
-g body1
+g spike2_body1
 f 6/6/21 5/1/21 16/15/21
-g body2
+g spike2_body2
 f 5/6/22 7/1/22 16/15/22
-o body3
-g body0
+g spike3_body0
 f 9/6/23 8/1/23 17/15/23
-g body1
+g spike3_body1
 f 8/6/24 7/1/24 17/15/24
-g body2
+g spike3_body2
 f 7/6/25 9/1/25 17/15/25
-o body4
-g body0
+g spike4_body0
 f 11/6/26 10/1/26 18/15/26
-g body1
+g spike4_body1
 f 10/6/27 9/1/27 18/15/27
-g body2
+g spike4_body2
 f 9/6/28 11/1/28 18/15/28
-o body5
-g body0
+g spike5_body0
 f 13/6/29 12/1/29 19/15/29
-g body1
+g spike5_body1
 f 12/6/30 11/1/30 19/15/30
-g body2
+g spike5_body2
 f 11/6/31 13/1/31 19/15/31
