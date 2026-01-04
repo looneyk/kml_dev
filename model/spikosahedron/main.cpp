@@ -57,20 +57,26 @@ namespace
     }
 
     //--------------------------------------------------------------------------
+    // might be more generally useful ...
+    std::string strip_base_name(const std::string& name)
+    {
+        return name | std::views::drop_while([](char c) { return !isdigit(c); }) | std::ranges::to<std::string>();
+    }
+
+    //--------------------------------------------------------------------------
     void create_spikosahedron(mesh_type& mesh, const string& name, value_type r0, value_type r1, value_type z1, size_t nzSpikeMax, value_type revsSpikeMax, value_type tuskification = 0.0f, value_type undulation = 0.0f)
     {
         assert(nzSpikeMax > 0);
 
-        mesh_type m;
-        model::create_icosahedron(m, name, r0, false);
+        id_type submesh_id = model::create_icosahedron(mesh, name, r0, false);
 
         value_type zBase = 0;
 
-        size_t nFaces = m.faces().size();
-        for (size_t n = 0; n < nFaces; ++n)
+        auto face_ids = mesh.submesh(submesh_id).face_ids();
+        for (const auto& face_id : face_ids)
         {
             mesh_type::vector_type upSpike = {0.0f, 0.0f, 1.0f};
-            mesh_type::vector_type upFace = m.face(n).attributes().normal();
+            mesh_type::vector_type upFace = mesh.face(face_id).attributes().normal();
 
             // Angle to rotate face so that it is perpendicular to z-axis
             value_type theta = math::angle_between_unit(upSpike, upFace);
@@ -98,48 +104,48 @@ namespace
                 r = r1 + z1;
             }
 
+            std::string spike_name = std::format("spike{}", strip_base_name(mesh.face(face_id).surface().name())); // replace base name but retain surface counter, virtual submesh for lower levels
+
             if (nLevel == 0) // Bottom face, just record base z coordinate
             {
-                zBase = m.face(n).halfedge().vertex_attributes().position().z();
+                zBase = mesh.face(face_id).halfedge().vertex_attributes().position().z();
+                mesh.rename_surface(mesh.face(face_id).surface_id(), spike_name);
                 continue;
             }
 
             if (nLevel == 1 || nzSpikeMax == 1) // Replace face with pyramidal projection
             {
                 auto apex = upFace * r;
-                if (nLevel == 1) // First level must be at exactly base height
+                if (nLevel == 1) // First level must be at exactly base height, this is a specific requirement for printing with this spikosahedron algorithm
                 {
-//                    apex.set_z(zBase);
+                    apex.set_z(zBase);
                 }
-                triangulate_central_vertex(m, n, apex, false);
+                mesh.rename_surface(mesh.face(face_id).surface_id(), spike_name);
+                triangulate_central_vertex(mesh, face_id, apex, false);
                 continue;
             }
 
-            size_t nAzimuth = m.face(n).halfedges().size();
+            size_t nAzimuth = mesh.face(face_id).halfedges().size();
             size_t nz = nzSpikeMax * (nLevel - 1) / (s_nLevels - 2);
             value_type dzSpike = r - r0;
             value_type revs = revsSpikeMax * (nLevel - 1) / (s_nLevels - 2);
 
-            string nameSpike = "spike" + to_string(n);
-            string nameSpikeBase = nameSpike + "/end0";
-
             // Body face position and orientation
-            mesh_type::point_type position = centroid(m.face(n));
-            mesh_type::vector_type vFace = m.face(n).halfedge().vertex_attributes().position() - position;
+            mesh_type::point_type position = centroid(mesh.face(face_id));
+            mesh_type::vector_type vFace = mesh.face(face_id).halfedge().vertex_attributes().position() - position;
             mesh_type::vector_type rightFace = normalize(vFace);
             value_type rBase = vFace.norm();
 
             // Spike and orientation
-            mesh_type mSpike;
-            model::create_helix_pyramid(mSpike, nameSpike, nAzimuth, nz, rBase, dzSpike, revs);
-            mesh_type::vector_type rightSpike = normalize(to_vector(mSpike.surface(nameSpikeBase).faces().front().halfedge().vertex_attributes().position()));
+            id_type spike_id = model::create_helix_pyramid(mesh, spike_name, nAzimuth, nz, rBase, dzSpike, revs);
+            mesh_type::vector_type rightSpike = normalize(to_vector(mesh.surface(spike_name + "/end0").faces().front().halfedge().vertex_attributes().position()));
             assert(math::float_eq0(rightSpike.z()));
 
             // Apply spike transformations
 
             if (undulation != 0)
             {
-                model::undulate(mSpike, undulation, 3.0f, 0.0f, dzSpike);
+                model::undulate(mesh.submesh(spike_id), undulation, 3.0f, 0.0f, dzSpike);
             }
 
             if (tuskification != 0 && theta != 0)
@@ -151,39 +157,36 @@ namespace
                 rightFaceOriented *= geometry::rotation_axis_unit(axisRotationBase, -theta); // Rotate face parallel to xy-plane
                 value_type phi = atan2(rightFaceOriented.y(), rightFaceOriented.x()) - atan2(rightSpike.y(), rightSpike.x());
 
-                model::tuskify(mSpike, axisRotationBase * geometry::rotation_z(-phi), tuskification, 0.0f, dzSpike);
+                model::tuskify(mesh.submesh(spike_id), axisRotationBase * geometry::rotation_z(-phi), tuskification, 0.0f, dzSpike);
             }
 
             // Rotate spike to align with face normal and translate spike to face position
 //            matrix_type matrix = alignment2(upSpike, rightSpike, upFace, rightFace) * translation(position);
             matrix_type matrix = geometry::alignment(upSpike, rightSpike, upFace, rightFace) * geometry::translation(to_vector(position));
-            model::transform(mSpike, matrix);
+            model::transform(mesh.submesh(spike_id), matrix);
 
-            // Connect spike to body
-            m.insert(mSpike);
-
-            // Accuracy suffers without this ...
-            // But disabling this can be used to test alignment transform accuracy ...
-//            id_type idHalfedgeA = m.face(n).halfedge_id();
-//            id_type idHalfedgeB = m.surface(nameSpikeBase).faces().front().halfedge().prev_id();
-//            model::unify_vertex_pairs(m, idHalfedgeA, idHalfedgeB);
-
-            brep::weld(m, m.face(n).surface().extended_name(), nameSpikeBase);
+            brep::weld(mesh, mesh.face(face_id).surface().extended_name(), spike_name + "/end0");
+            mesh.rename_submesh_surfaces(spike_id, [spike_name](const std::string& surface_name) {
+                return std::format("{}_{}", spike_name, strip_base_name(surface_name));
+            });
+            mesh.rename_submesh(spike_name, name);
         }
 
-        m.pack();
+        mesh.pack();
 
-// now handled at level 1, assuming that is the only level where this might occur ...
+// this is only for screwed_spikosahedron, probaly should be a erparate operation and with normal recalculation added ...
+// to use this here, we need to recalculate normals at each vertex where the position was changed (for_each_vertex with position and normal stages?) ...
         // Ensure that nothing projects below the bottom face
-        for (auto& vertex : m.vertices())
+        model::transform_positions(mesh.submesh(submesh_id), [zBase](const mesh_type::traits_type::point_type& position) -> mesh_type::traits_type::point_type
         {
-            if (vertex.attributes().position().z() < zBase)
+            auto result = position;
+            if (math::float_le(position.z(), zBase))
             {
-                vertex.attributes().position().set_z(zBase);
+                result.set_z(zBase);
             }
-        }
+            return result;
+        });
 
-        mesh.insert(m);
 //validate_normals(mesh);
         return;
     }
@@ -273,7 +276,7 @@ for (const auto& halfedge : mesh.halfedge_store())
     }
 }
 */
-    // For glass, may be better off not twisted, but still with divisions ...
+    // For glass, may be better off not twisted, but still with divisions, but maybe more interesting divisions ...
 check(mesh);
 
     name = "spikosahedron_glass";
