@@ -20,6 +20,7 @@
 #include <algorithm>
 #include <array>
 #include <filesystem>
+#include <format>
 #include <iostream>
 #include <string>
 #include <cassert>
@@ -47,15 +48,21 @@ namespace
     }
 
     //--------------------------------------------------------------------------
+    // move to common module ...
+    std::string strip_root_name(const std::string& name)
+    {
+        return name | std::views::drop_while([](char c) { return !isdigit(c); }) | std::ranges::to<std::string>();
+    }
+
+    //--------------------------------------------------------------------------
     void create_spinward(mesh_type& mesh, const string& name, size_t nSubdivisions, value_type r0, value_type r1, value_type scaleInner = value_type(1))
     {
-        mesh_type m;
-        model::create_geodesic_sphere(m, name, r0, nSubdivisions, false, false);
+        id_type submesh_id = model::create_geodesic_sphere(mesh, name, r0, nSubdivisions, false, false);
 
-        size_t nFaces = m.faces().size();
-        for (size_t n = 0; n < nFaces; ++n)
+        auto face_ids = mesh.submesh(submesh_id).face_ids();
+        for (auto face_id : face_ids)
         {
-            auto face = m.face(n);
+            auto face = mesh.face(face_id);
             auto center = centroid(face);
 
             vector_type upFace = face.attributes().normal();
@@ -71,66 +78,66 @@ namespace
             polygon.transform(matrix);
 
             // Spike
-            string nameSpike = format("spike{}", n);
-            string nameSpikeBase = format("{}/end0", nameSpike);
-
-            mesh_type mSpike;
-            model::create_cylinder_edges(mSpike, nameSpike, polygon, 1, 0.0f, r1 - r0, 1.0f, 0.0f, 0.0f, 0.0f);
+            string spike_name = "spike";
+            string spike_name_base = brep::extended_surface_name(spike_name, "end0");
+            id_type spike_id = model::create_cylinder_edges(mesh, spike_name, polygon, 1, 0.0f, r1 - r0, 1.0f, 0.0f, 0.0f, 0.0f);
 
             // Rotate spike back to align with face normal and translate spike to face position
             matrix = geometry::alignment(upSpike, rightSpike, upFace, rightFace); // alignment2 ...
             matrix *= geometry::translation(to_vector(center));
-            model::transform(mSpike, matrix);
+            model::transform(mesh.submesh(spike_id), matrix);
 
             // Connect spike to body
-            m.insert(mSpike);
+            std::string body_name = face.surface().name();
             if (scaleInner == 1.0f)
             {
-                brep::weld(m, face.surface().extended_name(), nameSpikeBase);
+                brep::weld(mesh, face.surface().extended_name(), spike_name_base);
             }
             else
             {
-                brep::attach(m, face.surface().extended_name(), nameSpikeBase);
+                brep::attach(mesh, face.surface().extended_name(), spike_name_base);
             }
+
+            mesh.rename_submesh_surfaces(spike_id, [body_name](const std::string& surface_name) {
+                return std::format("{}_{}", body_name, strip_root_name(surface_name));
+            });
+            mesh.rename_submesh(spike_name, name);
         }
 
-        m.pack();
-        mesh.insert(m);
+        mesh.pack();
         return;
     }
 
     //--------------------------------------------------------------------------
     void create_spinward_flush(mesh_type& mesh, const string& name, size_t nSubdivisions, value_type r0, value_type r1, value_type scaleInner)
     {
-        mesh_type m;
-        model::create_geodesic_sphere(m, name, r0, nSubdivisions, false, false);
+        id_type submesh_id = model::create_geodesic_sphere(mesh, name, r0, nSubdivisions, false, false);
 
-        size_t nFaces = m.faces().size();
-        for (size_t n = 0; n < nFaces; ++n)
+        auto face_ids = mesh.submesh(submesh_id).face_ids();
+        for (auto face_id : face_ids)
         {
-            auto face = m.face(n);
+            auto face = mesh.face(face_id);
             auto center = centroid(face);
+            auto radial_vector = face.halfedge().vertex_attributes().position() - center;
 
             vector_type upFace = face.attributes().normal();
-            vector_type rightFace = normalize(face.halfedge().vertex_attributes().position() - center);
+            vector_type rightFace = normalize(radial_vector);
             vector_type upSpike = vector_type::z_direction();
             vector_type rightSpike = vector_type::x_direction();
 
             auto polygon = to_polygon(face);
             auto matrix = geometry::translation(-to_vector(center));
             matrix *= geometry::alignment(upFace, rightFace, upSpike, rightSpike);
-            matrix *= geometry::scaling(scaleInner, scaleInner, 0.0f); // simple projection ...
+            matrix *= geometry::scaling(scaleInner, scaleInner, 0.0f);
             polygon.transform(matrix);
 
             // Spike
-            string nameSpike = format("spike{}", n);
-            string nameSpikeBase = format("{}/end0", nameSpike);
-
-            mesh_type mSpike;
-            model::create_cylinder_edges(mSpike, nameSpike, polygon, 1, 0.0f, r1 - r0, 1.0f, 0.0f, 0.0f, 0.0f);
+            string spike_name = "spike";
+            string spike_name_base = brep::extended_surface_name(spike_name, "end0");
+            id_type spike_id = model::create_cylinder_edges(mesh, spike_name, polygon, 1, 0.0f, r1 - r0, 1.0f, 0.0f, 0.0f, 0.0f);
 
             value_type h = to_vector(center).norm();
-            value_type r = (face.halfedge().vertex_attributes().position() - center).norm() / 2.0f;
+            value_type r = radial_vector.norm() / 2.0f;
 //                value_type r = (
 //                    (face.halfedge().vertex_attributes().position() - center).norm() +
 //                    (face.halfedge().next().vertex_attributes().position() - center).norm() +
@@ -138,26 +145,34 @@ namespace
 //                    ) / 6.0f;
             value_type q = scaleInner * r;
             value_type d = r * (r - q) / h;
-if (nSubdivisions == 2) d = 0.35f;
+if (nSubdivisions == 2)
+{
+    d = 0.35f;
+}
 //cout << "c " << c << " h " << h << " r " << r << " q " << q << " d " << d << endl;
             matrix = geometry::translation(0.0f, 0.0f, d);
 
             // Rotate spike back to align with face normal and translate spike to face position
             matrix *= geometry::alignment(upSpike, rightSpike, upFace, rightFace); // alignment2 ...
             matrix *= geometry::translation(to_vector(center));
-            model::transform(mSpike, matrix);
+            model::transform(mesh.submesh(spike_id), matrix);
 
             // Connect
-            m.insert(mSpike);
-            brep::attach(m, face.surface().extended_name(), nameSpikeBase, false);
-            brep::connect_non_planar(m, face.id(), false);
+            std::string body_name = face.surface().name();
+            brep::attach(mesh, face.surface().extended_name(), spike_name_base, false);
+            brep::connect_non_planar(mesh, face.id(), false);
+
+            mesh.rename_submesh_surfaces(spike_id, [body_name](const std::string& surface_name) {
+                return std::format("{}_{}", body_name, strip_root_name(surface_name));
+            });
+            mesh.rename_submesh(spike_name, name);
         }
 
         // now merge adjacent flush edges into the same surface ...
         // create list above, for each, find its partner in the list, remove both, assign surface of one to the other ...
+        // or just generate differently such that there is only one surface produced ...
 
-        m.pack();
-        mesh.insert(m);
+        mesh.pack();
         return;
     }
 

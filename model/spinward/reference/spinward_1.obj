@@ -100,143 +100,124 @@ vn 0.331173 0.214109 0.918957
 vn 0.167917 -0.983712 0.0641388
 
 # Faces
-o spike0
-g body0
+o spinward_1
+g body0_0
 f 1/1/1 2/2/1 4/3/1
-g body1
+g body0_1
 f 2/1/2 3/2/2 4/3/2
-g body2
+g body0_2
 f 3/1/3 1/2/3 4/3/3
-o spike1
-g body0
+g body1_0
 f 1/1/4 5/2/4 6/3/4
-g body1
+g body1_1
 f 5/1/5 2/2/5 6/3/5
-g body2
+g body1_2
 f 2/1/6 1/2/6 6/3/6
-o spike2
-g body0
+g body2_0
 f 1/1/7 7/2/7 8/3/7
-g body1
+g body2_1
 f 7/1/8 5/2/8 8/3/8
-g body2
+g body2_2
 f 5/1/9 1/2/9 8/3/9
-o spike3
-g body0
+g body3_0
 f 1/1/10 9/2/10 10/3/10
-g body1
+g body3_1
 f 9/1/11 7/2/11 10/3/11
-g body2
+g body3_2
 f 7/1/12 1/2/12 10/3/12
-o spike4
-g body0
+g body4_0
 f 1/1/13 3/2/13 11/3/13
-g body1
+g body4_1
 f 3/1/14 9/2/14 11/3/14
-g body2
+g body4_2
 f 9/1/15 1/2/15 11/3/15
-o spike5
-g body0
+g body5_0
 f 2/1/16 12/2/16 13/3/16
-g body1
+g body5_1
 f 12/1/17 3/2/17 13/3/17
-g body2
+g body5_2
 f 3/1/18 2/2/18 13/3/18
-o spike6
-g body0
+g body6_0
 f 5/1/19 14/2/19 15/3/19
-g body1
+g body6_1
 f 14/1/20 2/2/20 15/3/20
-g body2
+g body6_2
 f 2/1/21 5/2/21 15/3/21
-o spike7
-g body0
+g body7_0
 f 7/1/22 16/2/22 17/3/22
-g body1
+g body7_1
 f 16/1/23 5/2/23 17/3/23
-g body2
+g body7_2
 f 5/1/24 7/2/24 17/3/24
-o spike8
-g body0
+g body8_0
 f 9/1/25 18/2/25 19/3/25
-g body1
+g body8_1
 f 18/1/26 7/2/26 19/3/26
-g body2
+g body8_2
 f 7/1/27 9/2/27 19/3/27
-o spike9
-g body0
+g body9_0
 f 3/1/28 20/2/28 21/3/28
-g body1
+g body9_1
 f 20/1/29 9/2/29 21/3/29
-g body2
+g body9_2
 f 9/1/30 3/2/30 21/3/30
-o spike10
-g body0
+g body10_0
 f 12/1/31 2/2/31 22/3/31
-g body1
+g body10_1
 f 2/1/32 14/2/32 22/3/32
-g body2
+g body10_2
 f 14/1/33 12/2/33 22/3/33
-o spike11
-g body0
+g body11_0
 f 14/1/34 5/2/34 23/3/34
-g body1
+g body11_1
 f 5/1/35 16/2/35 23/3/35
-g body2
+g body11_2
 f 16/1/36 14/2/36 23/3/36
-o spike12
-g body0
+g body12_0
 f 16/1/37 7/2/37 24/3/37
-g body1
+g body12_1
 f 7/1/38 18/2/38 24/3/38
-g body2
+g body12_2
 f 18/1/39 16/2/39 24/3/39
-o spike13
-g body0
+g body13_0
 f 18/1/40 9/2/40 25/3/40
-g body1
+g body13_1
 f 9/1/41 20/2/41 25/3/41
-g body2
+g body13_2
 f 20/1/42 18/2/42 25/3/42
-o spike14
-g body0
+g body14_0
 f 20/1/43 3/2/43 26/3/43
-g body1
+g body14_1
 f 3/1/44 12/2/44 26/3/44
-g body2
+g body14_2
 f 12/1/45 20/2/45 26/3/45
-o spike15
-g body0
+g body15_0
 f 27/1/46 12/2/46 28/3/46
-g body1
+g body15_1
 f 12/1/47 14/2/47 28/3/47
-g body2
+g body15_2
 f 14/1/48 27/2/48 28/3/48
-o spike16
-g body0
+g body16_0
 f 27/1/49 14/2/49 29/3/49
-g body1
+g body16_1
 f 14/1/50 16/2/50 29/3/50
-g body2
+g body16_2
 f 16/1/51 27/2/51 29/3/51
-o spike17
-g body0
+g body17_0
 f 27/1/52 16/2/52 30/3/52
-g body1
+g body17_1
 f 16/1/53 18/2/53 30/3/53
-g body2
+g body17_2
 f 18/1/54 27/2/54 30/3/54
-o spike18
-g body0
+g body18_0
 f 27/1/55 18/2/55 31/3/55
-g body1
+g body18_1
 f 18/1/56 20/2/56 31/3/56
-g body2
+g body18_2
 f 20/1/57 27/2/57 31/3/57
-o spike19
-g body0
+g body19_0
 f 27/1/58 20/2/58 32/3/58
-g body1
+g body19_1
 f 20/1/59 12/2/59 32/3/59
-g body2
+g body19_2
 f 12/1/60 27/2/60 32/3/60

@@ -236,7 +236,7 @@ template<typename Traits, typename M>
 std::string quetzal::brep::Surface<Traits, M>::extended_name() const
 {
     assert(m_pmesh != nullptr);
-    return m_pmesh->surface_extended_name(m_submesh_id, m_name);
+    return m_pmesh->extended_surface_name(m_submesh_id, m_name);
 }
 
 //------------------------------------------------------------------------------

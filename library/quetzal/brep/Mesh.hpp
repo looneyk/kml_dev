@@ -16,6 +16,7 @@
 #include "quetzal/common/Flags.hpp"
 #include "quetzal/common/Properties.hpp"
 #include "quetzal/geometry/AxisAlignedBoundingBox.hpp"
+#include <array>
 #include <functional>
 #include <map>
 #include <ranges>
@@ -276,11 +277,9 @@ namespace quetzal::brep
 
         friend void swap<Traits>(Mesh& lhs, Mesh& rhs);
 
-        std::string surface_extended_name(id_type idSubmesh, const std::string& name) const;
+        std::string extended_surface_name(id_type idSubmesh, const std::string& surface_name) const;
 
     private:
-
-        std::array<std::string, 2> split_surface_name(const std::string& name);
 
         using Mapping = std::map<id_type, id_type>;
 
@@ -371,6 +370,9 @@ namespace quetzal::brep
         static submeshes_type::element_function_type m_submeshes_element;
         static submeshes_type::const_element_function_type m_submeshes_const_element;
     };
+
+    std::string extended_surface_name(const std::string& submesh_name, const std::string& surface_name);
+    std::array<std::string, 2> split_extended_surface_name(const std::string& name);
 
     //--------------------------------------------------------------------------
     template<typename Traits>
@@ -879,7 +881,7 @@ void quetzal::brep::Mesh<Traits>::move_face(id_type idFace, id_type idSurface)
 template<typename Traits>
 quetzal::id_type quetzal::brep::Mesh<Traits>::surface_id(id_type idSubmesh, const std::string& name) const
 {
-    auto i = m_surface_index.find(surface_extended_name(idSubmesh, name));
+    auto i = m_surface_index.find(extended_surface_name(idSubmesh, name));
     if (i != m_surface_index.end())
     {
         assert(submesh(idSubmesh).contains_surface(name));
@@ -896,7 +898,7 @@ const typename quetzal::brep::Mesh<Traits>::surface_type& quetzal::brep::Mesh<Tr
 {
     assert(contains_surface(idSubmesh, name));
 
-    id_type idSurface = m_surface_index[surface_extended_name(idSubmesh, name)];
+    id_type idSurface = m_surface_index[extended_surface_name(idSubmesh, name)];
     return surface(idSurface);
 }
 
@@ -906,7 +908,7 @@ typename quetzal::brep::Mesh<Traits>::surface_type& quetzal::brep::Mesh<Traits>:
 {
     assert(contains_surface(idSubmesh, name));
 
-    id_type idSurface = m_surface_index[surface_extended_name(idSubmesh, name)];
+    id_type idSurface = m_surface_index[extended_surface_name(idSubmesh, name)];
     return surface(idSurface);
 }
 
@@ -993,8 +995,8 @@ typename quetzal::brep::Mesh<Traits>::index_type& quetzal::brep::Mesh<Traits>::s
 template<typename Traits>
 bool quetzal::brep::Mesh<Traits>::contains_surface(id_type idSubmesh, const std::string& name) const
 {
-    assert(submesh(idSubmesh).contains_surface(name) == m_surface_index.contains(surface_extended_name(idSubmesh, name)));
-    return m_surface_index.contains(surface_extended_name(idSubmesh, name));
+    assert(submesh(idSubmesh).contains_surface(name) == m_surface_index.contains(extended_surface_name(idSubmesh, name)));
+    return m_surface_index.contains(extended_surface_name(idSubmesh, name));
 }
 
 //------------------------------------------------------------------------------
@@ -1132,7 +1134,7 @@ void quetzal::brep::Mesh<Traits>::rename_surface(id_type idSurface, const std::s
     }
 
     s.submesh().rename_surface(idSurface, replacement);
-    m_surface_index[surface_extended_name(s.submesh_id(), replacement)] = s.id();
+    m_surface_index[extended_surface_name(s.submesh_id(), replacement)] = s.id();
     return;
 }
 
@@ -1209,7 +1211,7 @@ void quetzal::brep::Mesh<Traits>::move_surface(id_type idSurfaceFrom, const std:
 {
     surface_type& surfaceFrom = surface(idSurfaceFrom);
 
-    auto [nameSubmeshTo, nameSurfaceTo] = split_surface_name(destination);
+    auto [nameSubmeshTo, nameSurfaceTo] = split_extended_surface_name(destination);
     assert(!nameSubmeshTo.empty());
     if (nameSurfaceTo.empty())
     {
@@ -2424,22 +2426,9 @@ void quetzal::brep::swap(Mesh<Traits>& lhs, Mesh<Traits>& rhs)
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-std::string quetzal::brep::Mesh<Traits>::surface_extended_name(id_type idSubmesh, const std::string& name) const
+std::string quetzal::brep::Mesh<Traits>::extended_surface_name(id_type idSubmesh, const std::string& surface_name) const
 {
-    return format("{}/{}", (idSubmesh != nullid ? submesh(idSubmesh).name() : ""), name);
-}
-
-//------------------------------------------------------------------------------
-template<typename Traits>
-std::array<std::string, 2> quetzal::brep::Mesh<Traits>::split_surface_name(const std::string& name)
-{
-    auto pos = name.find_first_of('/');
-    if (pos != std::string::npos)
-    {
-        return {name.substr(0, pos), name.substr(pos + 1)};
-    }
-
-    return {name, ""};
+    return brep::extended_surface_name(idSubmesh != nullid ? submesh(idSubmesh).name() : "", surface_name);
 }
 
 //------------------------------------------------------------------------------
@@ -2566,6 +2555,24 @@ quetzal::brep::Mesh<Traits>::index_type quetzal::brep::Mesh<Traits>::remap_index
         result[i.first] = mapping.at(i.second);
     }
     return result;
+}
+
+//------------------------------------------------------------------------------
+std::string quetzal::brep::extended_surface_name(const std::string& submesh_name, const std::string& surface_name)
+{
+    return format("{}/{}", submesh_name, surface_name);
+}
+
+//------------------------------------------------------------------------------
+std::array<std::string, 2> quetzal::brep::split_extended_surface_name(const std::string& name)
+{
+    auto pos = name.find_first_of('/');
+    if (pos != std::string::npos)
+    {
+        return {name.substr(0, pos), name.substr(pos + 1)};
+    }
+
+    return {name, ""};
 }
 
 //------------------------------------------------------------------------------
