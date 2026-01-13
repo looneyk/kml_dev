@@ -52,61 +52,72 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    void create_spikodecahedron(mesh_type& mesh, const string& name, value_type r0, value_type r1, value_type revsSpike, size_t nzSpike)
+    // move to common module ...
+    std::string strip_root_name(const std::string& name)
+    {
+        return name | std::views::drop_while([](char c) { return !isdigit(c); }) | std::ranges::to<std::string>();
+    }
+
+    //--------------------------------------------------------------------------
+    id_type create_spikodecahedron(mesh_type& mesh, const string& name, value_type r0, value_type r1, value_type revsSpike, size_t nzSpike)
     {
         assert(nzSpike > 0);
 
-        mesh_type m;
-        model::create_dodecahedron(m, name, r0);
+        id_type submesh_id = model::create_dodecahedron(mesh, name, r0);
 
         value_type dzSpike = r1 - dodecahedron_insphere_radius(r0); // Length of spike
-        value_type zBase = m.face(0).halfedge().vertex_attributes().position().z();
+        value_type z0 = mesh.submesh(submesh_id).bounds().lower().z();
 
-        size_t nFaces = m.faces().size();
-        for (size_t n = 1; n < nFaces - 1; ++n)
+        auto face_ids = mesh.submesh(submesh_id).face_ids()
+            | std::views::filter([&mesh](id_type face_id) { const auto& surface_name = mesh.face(face_id).surface().name(); return surface_name != "body0" && surface_name != "body11"; })
+            | std::ranges::to<std::vector>();
+        for (id_type face_id : face_ids)
         {
-            size_t nAzimuth = m.face(n).halfedges().size();
-
-            string nameSpike = "spike" + to_string(n);
-            string nameSpikeBase = nameSpike + "/end0";
+            size_t nAzimuth = mesh.face(face_id).halfedges().size();
+            string spike_name = "spike" + strip_root_name(mesh.face(face_id).surface().name());
+            string spike_name_base = brep::extended_surface_name(spike_name, "end0");
 
             // Body face position and orientation
-            mesh_type::point_type position = centroid(m.face(n));
-            mesh_type::vector_type upFace = m.face(n).attributes().normal();
-            mesh_type::vector_type vFace = m.face(n).halfedge().vertex_attributes().position() - position;
+            const auto& face = mesh.face(face_id);
+            mesh_type::point_type position = centroid(face);
+            mesh_type::vector_type upFace = face.attributes().normal();
+            mesh_type::vector_type vFace = face.halfedge().vertex_attributes().position() - position;
             mesh_type::vector_type rightFace = normalize(vFace);
             value_type rBase = vFace.norm();
 
             // Spike and orientation
-            mesh_type mSpike;
-            model::create_helix_pyramid(mSpike, nameSpike, nAzimuth, nzSpike, rBase, dzSpike, revsSpike);
+            id_type spike_id = model::create_helix_pyramid(mesh, spike_name, nAzimuth, nzSpike, rBase, dzSpike, revsSpike);
             mesh_type::vector_type upSpike = {0.0f, 0.0f, 1.0f};
-            mesh_type::vector_type rightSpike = normalize(to_vector(mSpike.surface(nameSpikeBase).faces().front().halfedge().vertex_attributes().position()));
+            mesh_type::vector_type rightSpike = normalize(to_vector(mesh.surface(spike_name_base).faces().front().halfedge().vertex_attributes().position()));
             assert(math::float_eq0(rightSpike.z()));
 
             // Rotate spike to align with face normal and translate spike to face position
             matrix_type matrix = geometry::alignment(upSpike, rightSpike, upFace, rightFace) * geometry::translation(to_vector(position));
-            model::transform(mSpike, matrix);
+            model::transform(mesh.submesh(spike_id), matrix);
 
             // Connect spike to body
-            m.insert(mSpike);
-
-            brep::weld(m, n, m.surface(nameSpikeBase).faces().front().id()); // surface names ...
+            brep::weld(mesh, mesh.face(face_id).surface().extended_name(), spike_name_base);
+            mesh.rename_submesh_surfaces(spike_id, [spike_name](const std::string& surface_name)
+            {
+                return std::format("{}_{}", spike_name, strip_root_name(surface_name));
+            });
+            mesh.rename_submesh(spike_name, name);
         }
 
-        m.pack();
+        mesh.pack(); // still? ...
 
         // Ensure that nothing projects below the bottom face
-        for (auto& vertex : m.vertices())
+        // redo this, try for_each_vertex? ...
+        // for each vertex position change, normals need to be recalculated ...
+        for (auto& vertex : mesh.vertices())
         {
-            if (vertex.attributes().position().z() < zBase)
+            if (vertex.attributes().position().z() < z0)
             {
-                vertex.attributes().position().set_z(zBase);
+                vertex.attributes().position().set_z(z0);
             }
         }
 
-        mesh.insert(m);
-        return;
+        return submesh_id;
     }
 
     //--------------------------------------------------------------------------
@@ -211,61 +222,76 @@ int main(int argc, char* argv[])
     mesh.clear();
 
     // Outer surface
-    mesh_type m;
-    create_spikodecahedron(m, "outer", 1.0f, 1.1f, revsSpike, nzSpike);
-    auto polygonUpperOrig = to_polygon(m.surface("outer/body11").faces().front());
+    id_type outer_id = create_spikodecahedron(mesh, "outer", 1.0f, 1.1f, revsSpike, nzSpike);
+    auto polygonUpperOrig = to_polygon(mesh.surface("outer/body11").faces().front());
     polygonUpperOrig.sections() = std::vector<id_type>();
-    model::transform(m, geometry::scaling(50.0f, 50.0f, 25.0f));
-    auto polygonUpper = to_polygon(m.surface("outer/body11").faces().front());
-    polygonUpper.sections() = std::vector<id_type>();
-    mesh.insert(m);
+    model::transform(mesh.submesh(outer_id), geometry::scaling(50.0f, 50.0f, 25.0f));
+    auto polygonUpper = to_polygon(mesh.surface("outer/body11").faces().front());
+    polygonUpper.sections() = std::vector<id_type>(); // this should have better semantics, could also be = {}, .clear(), something that indicates what missing sections means ...
 
     // Inner surface
-    m.clear();
-    model::create_dodecahedron(m, "inner", 1.0f);
-    model::transform(m, geometry::scaling(45.0f, 45.0f, 20.0f));
-    auto polygonLower = to_polygon(m.surface("inner/body11").faces().front());
+    id_type inner_id = model::create_dodecahedron(mesh, "inner", 1.0f);
+    model::transform(mesh.submesh(inner_id), geometry::scaling(45.0f, 45.0f, 20.0f));
+    auto polygonLower = to_polygon(mesh.surface("inner/body11").faces().front());
     polygonLower.sections() = std::vector<id_type>();
-    invert(m);
-    mesh.insert(m);
+    invert(mesh.submesh(inner_id));
 
     // Neck
-    m.clear();
-    model::create_cylinder_edges(m, "neck", polygonLower, polygonUpper, 3);
+    size_t nh = mesh.halfedge_count();
+    id_type neck_id = model::create_cylinder_edges(mesh, "neck", polygonLower, polygonUpper, 3);
 
     size_t n = polygonLower.vertex_count();
     size_t nBodyVertices = 3 * n * 4;
-    value_type z = (m.vertex(0).attributes().position().z() + m.vertex(nBodyVertices - n).attributes().position().z()) * value_type(0.5);
+    value_type z = (mesh.vertex(nh + 0).attributes().position().z() + mesh.vertex(nh + nBodyVertices - n).attributes().position().z()) * value_type(0.5);
     for (size_t i = 0; i < n; ++i)
     {
-        size_t j = 4 * n + i;
+        size_t j = nh + 4 * n + i;
+        size_t k = nh + nBodyVertices - n + i;
+        size_t l = nh + nBodyVertices - 4 * n + i;
 
-        typename mesh_type::point_type pointLower = m.vertex(i).attributes().position();
+        typename mesh_type::point_type pointLower = mesh.vertex(nh + i).attributes().position();
         pointLower.set_z(z);
 
-        for (auto& halfedge : m.vertex(j).halfedges())
+        for (auto& halfedge : mesh.vertex(j).halfedges())
         {
             halfedge.vertex_attributes().set_position(pointLower);
         }
 
-        size_t k = nBodyVertices - n + i;
-        size_t l = nBodyVertices - 4 * n + i;
-
-        typename mesh_type::point_type pointUpper = m.vertex(k).attributes().position();
+        typename mesh_type::point_type pointUpper = mesh.vertex(k).attributes().position();
         pointUpper.set_z(z);
 
-        for (auto& halfedge : m.vertex(l).halfedges())
+        for (auto& halfedge : mesh.vertex(l).halfedges())
         {
             halfedge.vertex_attributes().set_position(pointUpper);
         }
     }
 
-    invert(m);
-    mesh.insert(m);
+    invert(mesh.submesh(neck_id));
 
     // Connect outer and inner surfaces with neck
-    weld(mesh, mesh.surface("outer/body11").faces().front().id(), mesh.surface("neck/end1").faces().front().id());
-    weld(mesh, mesh.surface("inner/body11").faces().front().id(), mesh.surface("neck/end0").faces().front().id());
+    weld(mesh, "outer/body11", "neck/end1");
+    weld(mesh, "inner/body11", "neck/end0");
+
+    std::string submesh_name = mesh.submesh(outer_id).name();
+    mesh.rename_submesh_surfaces(outer_id, [submesh_name](const std::string& surface_name)
+    {
+        return brep::extended_surface_name(submesh_name, surface_name);
+    });
+    mesh.rename_submesh(submesh_name, name);
+
+    submesh_name = mesh.submesh(inner_id).name();
+    mesh.rename_submesh_surfaces(inner_id, [submesh_name](const std::string& surface_name)
+    {
+        return brep::extended_surface_name(submesh_name, surface_name);
+    });
+    mesh.rename_submesh(submesh_name, name);
+
+    submesh_name = mesh.submesh(neck_id).name();
+    mesh.rename_submesh_surfaces(neck_id, [submesh_name](const std::string& surface_name)
+    {
+        return brep::extended_surface_name(submesh_name, surface_name);
+    });
+    mesh.rename_submesh(submesh_name, name);
 
     triangulate(mesh);
 //unify_vertices(mesh);
@@ -278,12 +304,9 @@ int main(int argc, char* argv[])
     cout << name << endl;
     mesh.clear();
 
-    m.clear();
-    model::create_helix_pyramid(m, "external", polygonUpperOrig, nzSpike, dzSpike, revsSpike);
-    model::transform(m, geometry::scaling(50.0f, 50.0f, 25.0f));
-    mesh.insert(m);
+    id_type external_id = model::create_helix_pyramid(mesh, "external", polygonUpperOrig, nzSpike, dzSpike, revsSpike);
+    model::transform(mesh.submesh(external_id), geometry::scaling(50.0f, 50.0f, 25.0f));
 
-    m.clear();
     value_type dz = polygonUpper.vertex(0).z() - z;
 //    model::create_cylinder(m, "internal", polygonUpper, 1, -dz, value_type(0.0), {{"azimuth_smooth", "false"}});
 for (auto& v : polygonUpper.vertices())
@@ -297,10 +320,9 @@ for (auto& p : polygonLower.vertices())
     p.set_z(-dz);
 }
 
-    model::create_cylinder_edges(m, "internal", polygonLower, polygonUpper, 1);
-    mesh.insert(m);
+    model::create_cylinder_edges(mesh, "internal", polygonLower, polygonUpper, 1);
 
-    weld(mesh, mesh.surface("external/end0").faces().front().id(), mesh.surface("internal/end1").faces().front().id());
+    weld(mesh, "external/end0", "internal/end1");
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 //validate(mesh);
