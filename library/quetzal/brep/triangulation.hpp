@@ -62,23 +62,25 @@ namespace quetzal::brep
     // instead of smooth parameter, pass in an optional surface0, if nullopt, then use face surface (smooth), otherwise, surface per face ...
     // should surfaces be a list instead of a numerical sequence start? ...
 
-    // remainder deprecated, change to U versions ...
-
-    // Adds a central vertex and a face for each edge
-    // Assumes faces are regular polygons
+    // Adds a central vertex and a face for each edge for each face in the object
+    // Assumes faces are convex polygons
     // Undefined results if the face is not convex
-    template<typename M>
-    void triangulate_central_vertex(M& mesh, bool smooth = true);
+    // Works with Surface and Submesh
+    template<typename U>
+    void triangulate_central_vertex(U& u, bool smooth = true);
+
+    template<typename Traits>
+    void triangulate_central_vertex(Mesh<Traits>& mesh, bool smooth = true);
 
     // Adds a central vertex and a face for each edge
-    // Assumes face is a regular polygon
+    // Assumes face is a convex polygon
     // Undefined results if the face is not convex
     template<typename M>
     void triangulate_central_vertex(M& mesh, id_type face_id, bool smooth = true);
 
     // Adds a new vertex at position and a face for each edge
     template<typename M>
-    void triangulate_central_vertex(M& mesh, id_type face_id, const typename M::point_type& position, bool smooth = true);
+    void triangulate_central_vertex(M& mesh, id_type face_id, typename M::point_type position, bool smooth = true);
 
     // Adds a new vertex with the given vertex attributes and a face for each edge
     // av should have position set, and interpolated texcoord if smooth
@@ -439,8 +441,21 @@ void quetzal::brep::triangulate_central_vertex_position(M& mesh, id_type face_id
 }
 
 //------------------------------------------------------------------------------
-template<typename M>
-void quetzal::brep::triangulate_central_vertex(M& mesh, bool smooth)
+template<typename U>
+void quetzal::brep::triangulate_central_vertex(U& u, bool smooth)
+{
+    auto face_ids = u.face_ids();
+    for (const auto& face_id : face_ids)
+    {
+        triangulate_central_vertex(u.mesh(), face_id, smooth);
+    }
+
+    return;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+void quetzal::brep::triangulate_central_vertex(Mesh<Traits>& mesh, bool smooth)
 {
     id_type face_count_orig = mesh.face_store_count();
     for (id_type id = 0; id < face_count_orig; ++id)
@@ -464,11 +479,12 @@ void quetzal::brep::triangulate_central_vertex(M& mesh, id_type face_id, bool sm
 
 //------------------------------------------------------------------------------
 template<typename M>
-void quetzal::brep::triangulate_central_vertex(M& mesh, id_type face_id, const typename M::point_type& position, bool smooth)
+void quetzal::brep::triangulate_central_vertex(M& mesh, id_type face_id, typename M::point_type position, bool smooth)
 {
     const auto& face = mesh.face(face_id);
 
     typename M::vertex_attributes_type av;
+    position.denoise0();
     av.set_position(position);
     av.set_normal(face.attributes().normal());
 
@@ -478,7 +494,8 @@ void quetzal::brep::triangulate_central_vertex(M& mesh, id_type face_id, const t
         if (smooth)
         {
 /*
-            // Should be more accurate, but precision seems worse, should at least match position calculation (centroid) ...
+            // Should be more accurate, but precision seems worse, makes sense? more calculations? ...
+            // Should at least match position calculation (both happen to be vertex_centroid, but should ensure that) ...
             auto mapping = position_texcoord_mapping(face);
             texcoord = mapping(position);
 */        

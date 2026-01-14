@@ -199,13 +199,6 @@ namespace
             // Connect spike to body
             m.insert(mSpike);
 
-            // Accuracy suffers without this ...
-            // But disabling this can be used to test alignment transform accuracy ...
-// weld should just do this ...
-//            id_type idHalfedgeA = face.halfedge_id();
-//            id_type idHalfedgeB = m.surface(nameSpikeBase).faces().front().halfedge().prev_id();
-//            model::unify_vertex_pairs(m, idHalfedgeA, idHalfedgeB);
-
             brep::weld(m, face.surface().extended_name(), nameSpikeBase);
         }
 

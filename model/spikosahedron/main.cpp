@@ -57,8 +57,8 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // might be more generally useful ...
-    std::string strip_base_name(const std::string& name)
+    // move to common module ...
+    std::string strip_root_name(const std::string& name)
     {
         return name | std::views::drop_while([](char c) { return !isdigit(c); }) | std::ranges::to<std::string>();
     }
@@ -104,7 +104,7 @@ namespace
                 r = r1 + z1;
             }
 
-            std::string spike_name = std::format("spike{}", strip_base_name(mesh.face(face_id).surface().name())); // replace base name but retain surface counter, virtual submesh for lower levels
+            std::string spike_name = std::format("spike{}", strip_root_name(mesh.face(face_id).surface().name())); // replace base name but retain surface counter, virtual submesh for lower levels
 
             if (nLevel == 0) // Bottom face, just record base z coordinate
             {
@@ -167,7 +167,7 @@ namespace
 
             brep::weld(mesh, mesh.face(face_id).surface().extended_name(), spike_name + "/end0");
             mesh.rename_submesh_surfaces(spike_id, [spike_name](const std::string& surface_name) {
-                return std::format("{}_{}", spike_name, strip_base_name(surface_name));
+                return std::format("{}_{}", spike_name, strip_root_name(surface_name));
             });
             mesh.rename_submesh(spike_name, name);
         }

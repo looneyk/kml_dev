@@ -449,7 +449,8 @@ namespace
         {
             std::map<id_type, point_type> vertex_positions;
             auto phi = math::PiTwo<value_type> * (value_type(i) / nAzimuthOuter);
-            mesh.insert(m, submesh_id0, std::format("{}_{}", name, i), [rOuter0, rOuter1, z1, phi, &vertex_positions](const typename mesh_type::vertex_type& vertex) -> typename mesh_type::vertex_type {
+            mesh.insert(m, submesh_id0, std::format("{}_{}", name, i), [rOuter0, rOuter1, z1, phi, &vertex_positions](const typename mesh_type::vertex_type& vertex) -> typename mesh_type::vertex_type
+            {
                 auto v = vertex;
                 if (vertex_positions.contains(v.id()))
                 {
@@ -494,7 +495,8 @@ namespace
         {
             std::map<id_type, point_type> vertex_positions;
             auto phi = math::PiTwo<value_type> * (value_type(2 * i + 1) / (2 * nAzimuthOuter));
-            mesh.insert(m, submesh_id0, std::format("{}_{}", name, i), [rPlacement0, rPlacement1, z1, phi, &vertex_positions](const typename mesh_type::vertex_type& vertex) -> typename mesh_type::vertex_type {
+            mesh.insert(m, submesh_id0, std::format("{}_{}", name, i), [rPlacement0, rPlacement1, z1, phi, &vertex_positions](const typename mesh_type::vertex_type& vertex) -> typename mesh_type::vertex_type
+            {
                 auto v = vertex;
                 if (vertex_positions.contains(v.id()))
                 {

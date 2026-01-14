@@ -87,7 +87,7 @@ namespace
 
             // Spike and orientation
             id_type spike_id = model::create_helix_pyramid(mesh, spike_name, nAzimuth, nzSpike, rBase, dzSpike, revsSpike);
-            mesh_type::vector_type upSpike = {0.0f, 0.0f, 1.0f};
+            mesh_type::vector_type upSpike = mesh_type::vector_type::z_direction();
             mesh_type::vector_type rightSpike = normalize(to_vector(mesh.surface(spike_name_base).faces().front().halfedge().vertex_attributes().position()));
             assert(math::float_eq0(rightSpike.z()));
 
@@ -104,7 +104,7 @@ namespace
             mesh.rename_submesh(spike_name, name);
         }
 
-        mesh.pack(); // still? ...
+        mesh.pack();
 
         // Ensure that nothing projects below the bottom face
         // redo this, try for_each_vertex? ...
