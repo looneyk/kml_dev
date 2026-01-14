@@ -5,17 +5,18 @@
 
 #include "quetzal/brep/Mesh.hpp"
 #include "quetzal/brep/MeshTraits.hpp"
-#include "quetzal/brep/mesh_util.hpp"
+#include "quetzal/brep/connection.hpp"
+#include "quetzal/brep/triangulation.hpp"
 #include "quetzal/common/FileValidator.hpp"
-#include "quetzal/math/CartesianTraits.hpp"
-#include "quetzal/math/Matrix.hpp"
+#include "quetzal/math/HomogeneousTraits.hpp"
+#include "quetzal/geometry/transformation_matrix.hpp"
 #include "quetzal/model/helix_pyramid.hpp"
 #include "quetzal/model/mesh_attributes.hpp"
 #include "quetzal/model/obj_io.hpp"
 #include "quetzal/model/primitives.hpp"
-#include "quetzal/model/transforms.hpp"
-#include <string>
+#include <filesystem>
 #include <iostream>
+#include <string>
 #include <cassert>
 
 using namespace std;
@@ -25,7 +26,7 @@ namespace
 {
 
     using value_type = float;
-    using vector_traits = math::CartesianTraits<value_type, 3>;
+    using vector_traits = math::HomogeneousTraits<value_type, 3>;
     using mesh_type = brep::Mesh<brep::MeshTraits<vector_traits>>;
     using matrix_type = math::Matrix<value_type>;
 
@@ -35,13 +36,21 @@ namespace
     const bool s_bTwistLow = true;
     const bool s_bTwistHigh = true;
 
-    static const string dirOut = "out/";
-    static const string dirReference = "reference/";
+    static const filesystem::path dir_out = "out/";
+    static const filesystem::path dir_ref = "reference/";
+    static const string app_name = "spikodecahedron";
 
     //--------------------------------------------------------------------------
-    string to_filename(const string& name)
+    filesystem::path to_filename(const string& name)
     {
-        return dirOut + name + ".obj";
+        return dir_out / (name + ".obj");
+    }
+
+    //--------------------------------------------------------------------------
+    // move to common module ...
+    std::string strip_root_name(const std::string& name)
+    {
+        return name | std::views::drop_while([](char c) { return !isdigit(c); }) | std::ranges::to<std::string>();
     }
 
 } // namespace
@@ -50,33 +59,31 @@ namespace
 {
 
     //--------------------------------------------------------------------------
-    void create_spikodecahedron(mesh_type& mesh, const string& name, value_type r0, value_type r1, value_type z1, value_type revsSpikeMin, value_type revsSpikeMax, size_t nzSpikeMax)
+    id_type create_spikodecahedron(mesh_type& mesh, const string& name, value_type r0, value_type r1, value_type z1, value_type revsSpikeMin, value_type revsSpikeMax, size_t nzSpikeMax)
     {
         assert(nzSpikeMax > 0);
 
-        mesh_type m;
-        model::create_dodecahedron(m, name, r0);
+        id_type submesh_id = model::create_dodecahedron(mesh, name, r0);
 
-        value_type zBase = 0;
+        value_type z0 = mesh.submesh(submesh_id).bounds().lower().z();
 
-        size_t nFaces = m.faces().size();
-        for (size_t n = 0; n < nFaces; ++n)
+        auto face_ids = mesh.submesh(submesh_id).face_ids();
+        for (auto face_id : face_ids)
         {
-            mesh_type::vector_type upSpike = {0.0f, 0.0f, 1.0f};
-            mesh_type::vector_type upFace = m.face(n).attributes().normal();
+            mesh_type::vector_type upSpike = mesh_type::vector_type::z_direction();
+            mesh_type::vector_type upFace = mesh.face(face_id).attributes().normal();
 
             // Angle to rotate face so that it is perpendicular to z-axis
-            value_type theta = math::angle_unit(upSpike, upFace);
+            value_type theta = math::angle_between_unit(upSpike, upFace);
 
             size_t nLevel = 0; // Controls detail and rotation
             value_type r = 0; // Length of spike
 
-            if (math::float_eq(theta, math::Pi<value_type>)) // Bottom face
+            if (math::float_eq(theta, math::Pi<value_type>)) // Bottom face, no spike
             {
-                nLevel = 0;
-                r = r0;
+                continue;
             }
-            else if (math::float_ne(theta, value_type(0)))
+            else if (math::float_ne0(theta))
             {
                 nLevel = (math::PiHalf<value_type> - theta) > 0 ? 2 : 1;
 
@@ -91,66 +98,60 @@ namespace
                 r = r1 + z1;
             }
 
-            if (nLevel == 0) // Bottom face, just record base z coordinate
-            {
-                zBase = m.face(n).halfedge().vertex_attributes().position().z();
-                continue;
-            }
-
             if ((!s_bTwistLow && nLevel == 1) || (!s_bTwistHigh && nLevel > 1) || (revsSpikeMin == 0.0f && revsSpikeMax == 0.0f) || nzSpikeMax  == 1) // Replace face with pyramidal projection
             {
-                triangulate_central_vertex(m, n, upFace * r, false);
+                triangulate_central_vertex(mesh, face_id, upFace * r, false);
                 continue;
             }
 
-            size_t nAzimuth = m.face(n).halfedges().size();
+            size_t nAzimuth = mesh.face(face_id).halfedges().size();
             size_t nz = nzSpikeMax * nLevel / (s_nLevels - 1);
-            value_type dzSpike = r - r0;
+            value_type dz = r - r0;
             value_type revs = revsSpikeMin + (revsSpikeMax - revsSpikeMin) * nLevel / (s_nLevels - 1); // lerp? ...
 
-            string nameSpike = "spike" + to_string(n);
-            string nameSpikeBase = nameSpike + "/end0";
+            string spike_name = "spike" + strip_root_name(mesh.face(face_id).surface().name());
+            string spike_name_base = brep::extended_surface_name(spike_name, "end0");
 
             // Body face position and orientation
-            mesh_type::point_type position = centroid(m.face(n));
-            mesh_type::vector_type vFace = m.face(n).halfedge().vertex_attributes().position() - position;
+            const auto& face = mesh.face(face_id);
+            mesh_type::point_type position = centroid(face);
+//            mesh_type::vector_type upFace = face.attributes().normal();
+            mesh_type::vector_type vFace = face.halfedge().vertex_attributes().position() - position;
             mesh_type::vector_type rightFace = normalize(vFace);
             value_type rBase = vFace.norm();
 
             // Spike and orientation
-            mesh_type mSpike;
-            model::create_helix_cone(mSpike, nameSpike, nAzimuth, nz, rBase, dzSpike, revs);
-            mesh_type::vector_type rightSpike = normalize(mSpike.surface(nameSpikeBase).faces().front().halfedge().vertex_attributes().position());
+            id_type spike_id = model::create_helix_pyramid(mesh, spike_name, nAzimuth, nz, rBase, dz, revs);
+            mesh_type::vector_type rightSpike = normalize(to_vector(mesh.surface(spike_name_base).faces().front().halfedge().vertex_attributes().position()));
             assert(math::float_eq0(rightSpike.z()));
 
             // Rotate spike to align with face normal and translate spike to face position
-            matrix_type matrix = alignment(upSpike, rightSpike, upFace, rightFace) * translation(position);
-            model::transform(mSpike, matrix);
+            matrix_type matrix = geometry::alignment(upSpike, rightSpike, upFace, rightFace) * geometry::translation(to_vector(position));
+            model::transform(mesh.submesh(spike_id), matrix);
 
             // Connect spike to body
-            m.insert(mSpike);
-
-//            brep::id_type idHalfedgeA = m.face(n).halfedge_id();
-//            brep::id_type idHalfedgeB = m.surface(nameSpikeBase).faces().front().halfedge().prev_id();
-
-//            model::unify_vertex_pairs(m, idHalfedgeA, idHalfedgeB);
-//            brep::weld(m, idHalfedgeA, idHalfedgeB);
-            brep::weld(m, n, m.surface(nameSpikeBase).faces().front().id()); // surface names? less overhead if we know we have a single face surface ...
+            brep::weld(mesh, mesh.face(face_id).surface().extended_name(), spike_name_base);
+            mesh.rename_submesh_surfaces(spike_id, [spike_name](const std::string& surface_name)
+            {
+                return std::format("{}_{}", spike_name, strip_root_name(surface_name));
+            });
+            mesh.rename_submesh(spike_name, name);
         }
 
-        m.pack();
+        mesh.pack();
 
         // Ensure that nothing projects below the bottom face
-        for (auto& vertex : m.vertices())
+        // redo this, try for_each_vertex? ...
+        // for each vertex position change, normals need to be recalculated ...
+        for (auto& vertex : mesh.vertices())
         {
-            if (vertex.attributes().position().z() < zBase)
+            if (vertex.attributes().position().z() < z0)
             {
-                vertex.attributes().position().set_z(zBase);
+                vertex.attributes().position().set_z(z0);
             }
         }
 
-        mesh.insert(m);
-        return;
+        return submesh_id;
     }
 
 } // namespace
@@ -161,47 +162,46 @@ int main(int argc, char* argv[])
     argc;
     argv;
 
-    FileValidator validator(dirOut, dirReference);
+    FileValidator validator(dir_out, dir_ref);
 
     string name;
     mesh_type mesh;
 
-    name = "spiked_dodecahedron.obj";
+    name = "spiked_dodecahedron";
     cout << name << endl;
     mesh.clear();
     create_spikodecahedron(mesh, "spikodecahedon", 29.0f, 58.0f, 31.1688f, 0.0f, 0.0f, 1);
     triangulate(mesh);
-    model::write_obj(mesh, dirOut + name);
+    model::write_obj(mesh, to_filename(name));
 
-    name = "twisted_dodecahedron.obj";
+    name = "twisted_dodecahedron";
     cout << name << endl;
     mesh.clear();
     create_spikodecahedron(mesh, "spikodecahedon", 29.0f, 58.0f, 31.1688f, 0.0f, 0.5f, 100);
     triangulate(mesh);
-    model::write_obj(mesh, dirOut + name);
+    model::write_obj(mesh, to_filename(name));
 
-    name = "twisted_dodecahedron_ball.obj";
+    name = "twisted_dodecahedron_ball";
     cout << name << endl;
     mesh.clear();
     create_spikodecahedron(mesh, "spikodecahedon", 30.0f, 36.0f, 0.0f, 0.25f, 0.25f, 100);
     triangulate(mesh);
-    model::write_obj(mesh, dirOut + name);
+    model::write_obj(mesh, to_filename(name));
 
-    name = "twisted_dodecahedron_cactus.obj";
+    name = "twisted_dodecahedron_cactus";
     cout << name << endl;
     mesh.clear();
     create_spikodecahedron(mesh, "spikodecahedon", 45.0f, 54.0f, 0.0f, 0.25f, 0.25f, 100);
-    model::transform(mesh, math::scaling(1.0f, 1.0f, 0.666f));
+    model::transform(mesh, geometry::scaling(1.0f, 1.0f, 0.666f));
     triangulate(mesh);
-    model::write_obj(mesh, dirOut + name);
+    model::write_obj(mesh, to_filename(name));
 
-    // glass may be better off not twisted at all ...
-    name = "twisted_dodecahedron_glass.obj";
+    name = "twisted_dodecahedron_faceted";
     cout << name << endl;
     mesh.clear();
     create_spikodecahedron(mesh, "spikodecahedon", 29.0f, 58.0f, 31.1688f, 0.0f, 0.25f, 3);
     triangulate(mesh);
-    model::write_obj(mesh, dirOut + name);
+    model::write_obj(mesh, to_filename(name));
 
     validator.report_results();
     return 0;
