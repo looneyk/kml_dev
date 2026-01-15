@@ -453,7 +453,7 @@ quetzal::model::vertices_attributes_type<M> quetzal::model::vertices_attributes(
         avs[i].set_position(polygon.vertex(i));
         if (z)
         {
-            avs[i].position().set_z(z.value());
+            avs[i].position().set_z(*z);
         }
         avs[i].set_normal(M::vector_type::z_direction()); // placeholder, surface vertex normal cannot be calculated at this point
         avs[i].set_texcoord({math::lerp(ts[0], ts[1], t), ts[2]});
@@ -695,7 +695,7 @@ quetzal::model::vertices_attributes_type<M> quetzal::model::vertices_attributes_
         auto position = internal::polygon_vertex<M>(polygon, edge0 + i);
         if (z)
         {
-            position.set_z(z.value());
+            position.set_z(*z);
         }
         avs[i].set_position(position);
         avs[i].set_normal(M::vector_type::z_direction()); // placeholder, surface vertex normal cannot be calculated at this point

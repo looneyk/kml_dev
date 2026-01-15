@@ -390,7 +390,7 @@ typename quetzal::geometry::Polygon<Traits>::vector_type quetzal::geometry::Poly
         m_normal = geometry::normal(*this);
     }
 
-    return m_normal.value();
+    return *m_normal;
 }
 
 //------------------------------------------------------------------------------
@@ -517,7 +517,7 @@ quetzal::geometry::AxisAlignedBoundingBox<Traits> quetzal::geometry::Polygon<Tra
         m_bounds = geometry::bounds(*this);
     }
 
-    return m_bounds.value();
+    return *m_bounds;
 }
 
 //------------------------------------------------------------------------------
@@ -543,7 +543,7 @@ typename quetzal::geometry::Polygon<Traits>::vector_type quetzal::geometry::Poly
         m_right = normalize(m_vertices[0] - geometry::centroid(*this));
     }
 
-    return m_right.value();
+    return *m_right;
 }
 
 //------------------------------------------------------------------------------

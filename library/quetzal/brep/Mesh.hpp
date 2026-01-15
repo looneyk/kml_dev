@@ -1639,7 +1639,7 @@ const quetzal::geometry::AxisAlignedBoundingBox<typename quetzal::brep::Mesh<Tra
         m_bounds = bounds;
     }
 
-    return m_bounds.value();
+    return *m_bounds;
 }
 
 //------------------------------------------------------------------------------

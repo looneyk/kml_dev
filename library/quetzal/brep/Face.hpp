@@ -585,7 +585,7 @@ const quetzal::geometry::AxisAlignedBoundingBox<typename M::vector_traits>& quet
         m_bounds = geometry::bounds(*this);
     }
 
-    return m_bounds.value();
+    return *m_bounds;
 }
 
 //------------------------------------------------------------------------------
@@ -828,7 +828,7 @@ typename quetzal::brep::Face<Traits, M>::halfedges_ext_type::iterate_function_ty
         return {std::nullopt, nullid};
     }
 
-    size_t hole_id = hole_id_opt.value();
+    size_t hole_id = *hole_id_opt;
 
     // handle last values of holes other than the last
     if (halfedge_id == mesh.face(id).hole(hole_id).halfedge().prev_id())
@@ -873,7 +873,7 @@ typename quetzal::brep::Face<Traits, M>::halfedges_ext_type::iterate_function_ty
         return {std::nullopt, mesh.face(id).halfedge().prev_id()};
     }
 
-    size_t hole_id = hole_id_opt.value();
+    size_t hole_id = *hole_id_opt;
 
     // handle first values of holes other than the first
     if (halfedge_id == mesh.face(id).hole(hole_id).halfedge_id())

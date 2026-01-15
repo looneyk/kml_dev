@@ -186,7 +186,7 @@ typename quetzal::geometry::Segment<Traits>::vector_type quetzal::geometry::Segm
         m_direction = normalize(m_endpoints[1] - m_endpoints[0]);
     }
      
-    return m_direction.value();
+    return *m_direction;
 }
 
 //------------------------------------------------------------------------------

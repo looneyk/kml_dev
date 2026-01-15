@@ -240,7 +240,7 @@ namespace quetzal::brep
         if (fov)
         {
             quetzal::geometry::OrientedPoint<typename M::vector_traits> viewpoint = {eye, orientation};
-            projection.init(viewpoint, fov.value());
+            projection.init(viewpoint, *fov);
         }
         else
         {
@@ -372,7 +372,7 @@ assert(debug_log(m_mesh, std::format("model{}", m_stage_count++), submesh_ids).v
                 auto connection = split_intersection_trace(face_id_a, face_id_b);
                 if (connection)
                 {
-                    m_connections.push_back(connection.value());
+                    m_connections.push_back(*connection);
                 }
             }
         }
@@ -421,7 +421,7 @@ std::cout << std::format("trace_direction {}", trace_direction) << std::endl;
     // if the segment was discarded because of reversed direction, we can just jump to the partner and start there instead of iterating through the rest of the faces ...
     // this would have to make changes in face_plane_intersection however ...
 
-    const auto [ids, segment0] = ix0.value();
+    const auto [ids, segment0] = *ix0;
     const auto [halfedge_id_a0, halfedge_id_a1, halfedge_id_b0, halfedge_id_b1] = ids;
 std::cout << std::format("find_first_connection_intersection returned ha0 {}, ha1 {}, hb0 {}, hb1 {}, segment0 {}", id_string(halfedge_id_a0), id_string(halfedge_id_a1), id_string(halfedge_id_b0), id_string(halfedge_id_b1), segment0) << std::endl;
 
@@ -478,7 +478,7 @@ std::cout << std::format("trace_direction {}", trace_direction) << std::endl;
         auto ix = find_next_connection_intersection(halfedge_id_a_tracer, halfedge_id_b_tracer, trace_direction);
         assert(ix); // Only in certain degenerate cases (not handled yet) would this fail here ...
 
-        const auto [halfedge_id_a_next, halfedge_id_b_next, segment] = ix.value();
+        const auto [halfedge_id_a_next, halfedge_id_b_next, segment] = *ix;
 std::cout << std::format("find_next_connection_intersection returned han {}, hbn {}, segment {}", id_string(halfedge_id_a_next), id_string(halfedge_id_b_next), segment) << std::endl;
 
         std::tie(halfedge_id_a_exterior, halfedge_id_a_tracer) = create_intersection_edge(halfedge_id_a_tracer, halfedge_id_a_next, segment, -trace_direction, m_floating_a);
@@ -552,7 +552,7 @@ std::cout << "face_plane_intersection a returned nullopt" << std::endl;
         return {};
     }
 
-    auto [id_a0, id_a1, segment_a] = ix_a.value();
+    auto [id_a0, id_a1, segment_a] = *ix_a;
 std::cout << std::format("face_plane_intersection a returned a0 {}, a1 {}, segment {}", id_string(id_a0), id_string(id_a1), segment_a) << std::endl;
 
     auto ix_b = face_plane_intersection(face_b, plane_a, trace_direction);
@@ -562,7 +562,7 @@ std::cout << "face_plane_intersection b returned nullopt" << std::endl;
         return {};
     }
 
-    auto [id_b0, id_b1, segment_b] = ix_b.value();
+    auto [id_b0, id_b1, segment_b] = *ix_b;
 std::cout << std::format("face_plane_intersection b returned b0 {}, b1 {}, segment {}", id_string(id_b0), id_string(id_b1), segment_b) << std::endl;
 
     // how does this even happen? ...
@@ -666,13 +666,13 @@ std::cout << std::format("find_next_connection_intersection ha {}, hb {}, positi
     const auto plane_b = to_plane(face_b);
 
     auto ix_a = face_plane_intersection(face_a, plane_b, trace_direction, halfedge_id_a, m_floating_a);
-    auto [id_a0, id_a1, segment_a] = ix_a.value();
+    auto [id_a0, id_a1, segment_a] = *ix_a;
     assert(id_a0 == halfedge_id_a);
     assert(segment_a.endpoint(0) == position0);
 std::cout << std::format("face_plane_intersection a returned a0 {}, a1 {}, segment {}", id_string(id_a0), id_string(id_a1), segment_a) << std::endl;
 
     auto ix_b = face_plane_intersection(face_b, plane_a, trace_direction, halfedge_id_b, m_floating_b);
-    auto [id_b0, id_b1, segment_b] = ix_b.value();
+    auto [id_b0, id_b1, segment_b] = *ix_b;
     assert(id_b0 == halfedge_id_b);
     assert(segment_b.endpoint(0) == position0);
 std::cout << std::format("face_plane_intersection b returned b0 {}, b1 {}, segment {}", id_string(id_b0), id_string(id_b1), segment_b) << std::endl;
@@ -1248,7 +1248,7 @@ for (const auto ix : ixs) std::cout << std::format("    ix {}", ix) << std::endl
     }
     assert(n_lt0 == 0 || n_gt0 == 0);
 
-    auto segment = segment_type(position0, position_closest.value());
+    auto segment = segment_type(position0, *position_closest);
 
     // Check that the resulting segment is inside the polygons
     // Because the segment is constructed from the closest point, there can be no intervening interior/exterior transitions

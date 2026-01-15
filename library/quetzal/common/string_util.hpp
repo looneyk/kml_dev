@@ -49,7 +49,7 @@ namespace quetzal
     template<typename T>
     std::string opt_string(const std::optional<T>& opt)
     {
-        return opt ? to_string(opt.value()) : "nullopt";
+        return opt ? to_string(*opt) : "nullopt";
     }
 
 // to_utf8 ...

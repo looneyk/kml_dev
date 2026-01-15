@@ -577,7 +577,7 @@ const quetzal::geometry::AxisAlignedBoundingBox<typename M::vector_traits>& quet
         m_bounds = bounds;
     }
 
-    return m_bounds.value();
+    return *m_bounds;
 }
 
 //------------------------------------------------------------------------------
