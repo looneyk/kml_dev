@@ -498,7 +498,7 @@ quetzal::model::vertices_attributes_type<M> quetzal::model::vertices_attributes(
 template<typename M>
 quetzal::model::vertices_attributes_sections_type<M> quetzal::model::vertices_attributes_sections(const geometry::Polygon<typename M::vector_traits>& polygon, std::optional<data_value_type<M>> z, texture_span_type<M> ts)
 {
-    assert(polygon.sections() && !polygon.sections().value().empty());
+    assert(polygon.sections_full());
     size_t section_count = polygon.sections().value().size();
 
     vertices_attributes_sections_type<M> avss(section_count);
@@ -523,7 +523,7 @@ quetzal::model::vertices_attributes_sections_type<M> quetzal::model::vertices_at
 template<typename M>
 quetzal::model::vertices_attributes_sections_type<M> quetzal::model::vertices_attributes_sections(const geometry::Polygon<typename M::vector_traits>& polygon, std::optional<data_value_type<M>> z, data_value_type<M> scale, data_value_type<M> revs, texture_span_type<M> ts)
 {
-    assert(polygon.sections() && !polygon.sections().value().empty());
+    assert(polygon.sections_full());
     size_t section_count = polygon.sections().value().size();
 
     vertices_attributes_sections_type<M> avss(section_count);
@@ -607,7 +607,7 @@ quetzal::model::vertices_attributes_sections_type<M> quetzal::model::vertices_at
 template<typename M>
 quetzal::model::vertices_attributes_sections_type<M> quetzal::model::vertices_attributes_edges(const geometry::Polygon<typename M::vector_traits>& polygon, std::optional<data_value_type<M>> z, texture_span_type<M> ts)
 {
-    assert(polygon.sections() && polygon.sections().value().empty());
+    assert(polygon.sections_edges());
 
     size_t section_count = polygon.edge_count();
     vertices_attributes_sections_type<M> avss(section_count);
@@ -624,7 +624,7 @@ quetzal::model::vertices_attributes_sections_type<M> quetzal::model::vertices_at
 template<typename M>
 quetzal::model::vertices_attributes_sections_type<M> quetzal::model::vertices_attributes_edges(const geometry::Polygon<typename M::vector_traits>& polygon, std::optional<data_value_type<M>> z, data_value_type<M> scale, data_value_type<M> revs, texture_span_type<M> ts)
 {
-    assert(polygon.sections() && polygon.sections().value().empty());
+    assert(polygon.sections_edges());
 
     size_t section_count = polygon.edge_count();
     vertices_attributes_sections_type<M> avss(section_count);
@@ -854,7 +854,7 @@ quetzal::model::vertices_attributes_sections_type<M> quetzal::model::cusp_vertic
 template<typename M>
 quetzal::model::vertices_attributes_sections_type<M> quetzal::model::cusp_vertices_attributes_sections(const geometry::Polygon<typename M::vector_traits>& polygon, data_value_type<M> z, texture_span_type<M> ts)
 {
-    assert(polygon.sections() && !polygon.sections().value().empty());
+    assert(polygon.sections_full());
     size_t section_count = polygon.sections().value().size();
 
     vertices_attributes_sections_type<M> avss(section_count);

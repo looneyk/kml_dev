@@ -114,10 +114,26 @@ namespace quetzal::geometry
         AxisAlignedBoundingBox<Traits> bounds() const;
 
         // Sections allow for distinct sets of contiguous vertices
+        // sections nullopt indicates a smooth polygon
+        // sections empty indicates that each edge is a section
+        // otherwise sections indicates the starting edge number of each section sequentially starting with section 0
+        // Note that single (no sections) and sections with a single section of 0 are equivalent, but use separate code paths
         using sections_type = std::optional<std::vector<size_type>>;
 
         const sections_type& sections() const;
         sections_type& sections();
+
+        // Single smooth section
+        bool sections_single() const;
+        void set_sections_single();
+
+        // Edge based sections
+        bool sections_edges() const;
+        void set_sections_edges();
+
+        // Fully specified sections
+        bool sections_full() const;
+        void set_sections_full(); // Initializes to a single section starting at edge 0
 
         // Orientation, lazy evaluation
         vector_type right() const;
@@ -139,7 +155,7 @@ namespace quetzal::geometry
         mutable std::optional<vector_type> m_normal;
         mutable std::optional<vector_type> m_right;
         mutable std::optional<AxisAlignedBoundingBox<Traits>> m_bounds;
-        bool m_final;
+        bool m_final = false;
     };
 
     template<typename Traits>
@@ -532,6 +548,51 @@ template<typename Traits>
 typename quetzal::geometry::Polygon<Traits>::sections_type& quetzal::geometry::Polygon<Traits>::sections()
 {
     return m_sections;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+bool quetzal::geometry::Polygon<Traits>::sections_single() const
+{
+    return !m_sections;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+void quetzal::geometry::Polygon<Traits>::set_sections_single()
+{
+    m_sections.reset();
+    return;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+bool quetzal::geometry::Polygon<Traits>::sections_edges() const
+{
+    return m_sections && m_sections.value().empty();
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+void quetzal::geometry::Polygon<Traits>::set_sections_edges()
+{
+    m_sections.emplace();
+    return;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+bool quetzal::geometry::Polygon<Traits>::sections_full() const
+{
+    return m_sections && !m_sections.value().empty();
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+void quetzal::geometry::Polygon<Traits>::set_sections_full()
+{
+    m_sections.emplace(0);
+    return;
 }
 
 //------------------------------------------------------------------------------

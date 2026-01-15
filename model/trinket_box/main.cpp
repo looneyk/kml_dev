@@ -224,16 +224,16 @@ int main(int argc, char* argv[])
     // Outer surface
     id_type outer_id = create_spikodecahedron(mesh, "outer", 1.0f, 1.1f, revsSpike, nzSpike);
     auto polygonUpperOrig = to_polygon(mesh.surface("outer/body11").faces().front());
-    polygonUpperOrig.sections() = std::vector<id_type>();
+    polygonUpperOrig.set_sections_edges();
     model::transform(mesh.submesh(outer_id), geometry::scaling(50.0f, 50.0f, 25.0f));
     auto polygonUpper = to_polygon(mesh.surface("outer/body11").faces().front());
-    polygonUpper.sections() = std::vector<id_type>(); // this should have better semantics, could also be = {}, .clear(), something that indicates what missing sections means ...
+    polygonUpper.set_sections_edges();
 
     // Inner surface
     id_type inner_id = model::create_dodecahedron(mesh, "inner", 1.0f);
     model::transform(mesh.submesh(inner_id), geometry::scaling(45.0f, 45.0f, 20.0f));
     auto polygonLower = to_polygon(mesh.surface("inner/body11").faces().front());
-    polygonLower.sections() = std::vector<id_type>();
+    polygonLower.set_sections_edges();
     invert(mesh.submesh(inner_id));
 
     // Neck
