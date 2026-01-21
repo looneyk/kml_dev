@@ -4073,7 +4073,7 @@ quetzal::id_type quetzal::model::create_geodesic_sphere(M& mesh, const std::stri
     // Approximate a sphere by tessellating an icosahedron
 
     M m{};
-    create_icosahedron(m, name, radius, bVertex, bSmooth);
+    id_type submesh_id = create_icosahedron(m, name, radius, bVertex, bSmooth);
     if (nSubdivisions == 1)
     {
         mesh.insert(m);
@@ -4111,7 +4111,7 @@ quetzal::id_type quetzal::model::create_geodesic_sphere(M& mesh, const std::stri
         triangulate_rows(m, m.face(i).halfedge_id(), nSubdivisions);
     }
 
-    project_vertices(m.vertices().begin(), m.vertices().end(), radius);
+    project_vertices(m.submesh(submesh_id), radius);
 
     if (bSmooth)
     {

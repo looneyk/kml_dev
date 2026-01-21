@@ -196,11 +196,12 @@ namespace quetzal::model
     template<typename M>
     void triangulate_rows(M& mesh, id_type idHalfedge, size_t n);
 
-    // Project vertices onto sphere and calculate normals and texture coordinates
+    // Project vertices onto sphere and calculate vertex attributes
     // Internally used for geodesic sphere
-    // ForwardIterator specifies vertex range
-    template<typename ForwardIterator>
-    void project_vertices(ForwardIterator first, ForwardIterator last, typename ForwardIterator::value_type::attributes_type::value_type radius);
+    // Works with Submesh and Mesh
+    // Works with Surface, Submesh, and Mesh? ...
+    template<typename U>
+    void project_vertices(U& u, typename U::value_type radius);
 
     std::string surface_name(const std::string& base, size_t n);
 
@@ -2717,36 +2718,43 @@ void quetzal::model::triangulate_rows(M& mesh, id_type idHalfedge, size_t n)
 }
 
 //------------------------------------------------------------------------------
-template<typename ForwardIterator>
-void quetzal::model::project_vertices(ForwardIterator first, ForwardIterator last, typename ForwardIterator::value_type::attributes_type::value_type radius)
+template<typename U>
+void quetzal::model::project_vertices(U& u, typename U::value_type radius)
 {
-    using T = ForwardIterator::value_type::attributes_type::value_type;
-    using texcoord_type = ForwardIterator::value_type::attributes_type::texcoord_type;
+    using T = typename U::value_type;
+    using vertex_attributes_type = U::traits_type::vertex_attributes_type;
+    using texcoord_type = vertex_attributes_type::texcoord_type;
 
-    for (auto i = first; i != last; ++i)
-    {
-        auto& av = i->attributes();
-        auto normal = direction(av.position());
-
-//        av.set_position(geometry::to_point(normal * radius));
-        av.set_position(normal * radius);
-        av.set_normal(normal);
-
-        // Derive texture coordinates from spherical coordinates of position
-        T phi = azimuth_angle(av.position());
-        if (errno == EDOM) // Both x and y are 0
+    vertex_attributes_type av;
+    for_each_vertex(u,
+        [&av, radius](const auto& vertex)
         {
-            phi = math::Pi<T>;
-        }
-        if (phi < T(0))
-        {
-            phi += math::PiTwo<T>;
-        }
+            auto normal = direction(vertex.attributes().position());
+            av.set_position(normal * radius);
+            av.set_normal(normal);
 
-        // theta [0, Pi] -> texcoord [0, 1]
-        T theta = acos(std::clamp(av.position().z() / radius, T(-1), T(1)));
-        av.set_texcoord(denoise01(texcoord_type({phi / math::PiTwo<T>, theta / math::Pi<T>})));
-    }
+            // Derive texture coordinates from spherical coordinates of position
+            T phi = azimuth_angle(av.position());
+            if (errno == EDOM) // Both x and y are 0
+            {
+                phi = math::Pi<T>;
+            }
+            if (phi < T(0))
+            {
+                phi += math::PiTwo<T>;
+            }
+
+            // theta [0, Pi] -> texcoord [0, 1]
+            T theta = acos(std::clamp(av.position().z() / radius, T(-1), T(1)));
+            av.set_texcoord(denoise01(texcoord_type({phi / math::PiTwo<T>, theta / math::Pi<T>})));
+            return;
+        },
+        [&av](auto& vertex)
+        {
+            vertex.set_attributes(av);
+            return;
+        }
+    );
 
     return;
 }

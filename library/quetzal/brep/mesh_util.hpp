@@ -141,8 +141,15 @@ namespace quetzal::brep
     template<typename M>
     void prepare_face_vertices(M& mesh);
 
-    // Add extra template parameter to support mixed face/hole parameters ...
+    // Call an init function at each vertex, then call an apply function for all coincident vertices
+    // Captures can be used to transfer state between init and apply
+    // Works with Surface, Submesh, and Mesh
+    template<typename U>
+    void for_each_vertex(U& u, std::function<void(const typename U::vertex_type&)> f_init, std::function<void(typename U::vertex_type&)> f_apply);
 
+    // Add extra template parameter or use halfedge iterators to support mixed face/hole parameters ...
+
+    // this should set position of all vertices at each position, not just the two face vertices ...
     template<typename F>
     std::vector<std::array<id_type, 2>> unify_vertex_positions(F& face_a, F& face_b);
 
@@ -150,7 +157,7 @@ namespace quetzal::brep
     template<typename F>
     std::array<id_type, 2> find_partner_halfedges(const F& face_a, const F& face_b);
 
-    // deprecated once shared vertices are available ...
+    // propagates position to all coincident vertices, deprecated once shared vertices are available ...
     template<typename Traits>
     void set_vertex_position(Vertex<Traits>& vertex, const typename Traits::point_type& position);
 
@@ -899,6 +906,40 @@ void quetzal::brep::prepare_face_vertices(M& mesh)
         for (auto& halfedge : face.halfedges())
         {
             halfedge.set_vertex_id(mesh.create_vertex(halfedge.id(), vertices_orig[halfedge.vertex_id()].vertex_attributes()));
+        }
+    }
+
+    return;
+}
+
+//------------------------------------------------------------------------------
+template<typename U>
+void quetzal::brep::for_each_vertex(U& u, std::function<void(const typename U::vertex_type&)> f_init, std::function<void(typename U::vertex_type&)> f_apply)
+{
+    u.reset_all();
+
+    for (auto& face : u.faces())
+    {
+        for (auto& halfedge : face.halfedges())
+        {
+            auto& vertex = halfedge.vertex();
+            if (vertex.visited())
+            {
+                continue;
+            }
+
+            f_init(vertex);
+
+            for (auto& h : vertex.halfedges())
+            {
+                if (h.surface_id() != halfedge.surface_id()) // Respect surface boundaries
+                {
+                    continue;
+                }
+
+                f_apply(h.vertex());
+                h.vertex().set_visited();
+            }
         }
     }
 
