@@ -7,6 +7,7 @@
 #include "quetzal/brep/MeshTraits.hpp"
 #include "quetzal/brep/connection.hpp"
 #include "quetzal/brep/geometry.hpp"
+#include "quetzal/brep/mesh_util.hpp"
 #include "quetzal/brep/triangulation.hpp"
 #include "quetzal/common/FileValidator.hpp"
 #include "quetzal/math/HomogeneousTraits.hpp"
@@ -107,15 +108,7 @@ namespace
         mesh.pack();
 
         // Ensure that nothing projects below the bottom face
-        // redo this, try for_each_vertex? ...
-        // for each vertex position change, normals need to be recalculated ...
-        for (auto& vertex : mesh.vertices())
-        {
-            if (vertex.attributes().position().z() < z0)
-            {
-                vertex.attributes().position().set_z(z0);
-            }
-        }
+        clip_base(mesh.submesh(submesh_id), {0.0f, 0.0f, z0}, "clip_base");
 
         return submesh_id;
     }

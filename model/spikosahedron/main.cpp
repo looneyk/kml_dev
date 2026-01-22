@@ -6,6 +6,7 @@
 #include "quetzal/brep/Mesh.hpp"
 #include "quetzal/brep/MeshTraits.hpp"
 #include "quetzal/brep/connection.hpp"
+#include "quetzal/brep/mesh_util.hpp"
 #include "quetzal/brep/validation.hpp"
 #include "quetzal/common/FileValidator.hpp"
 #include "quetzal/geometry/transformation_matrix.hpp"
@@ -16,6 +17,7 @@
 #include "quetzal/model/primitives.hpp"
 #include "quetzal/model/transforms.hpp"
 #include <array>
+#include <filesystem>
 #include <iostream>
 #include <string>
 #include <cassert>
@@ -64,13 +66,13 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    void create_spikosahedron(mesh_type& mesh, const string& name, value_type r0, value_type r1, value_type z1, size_t nzSpikeMax, value_type revsSpikeMax, value_type tuskification = 0.0f, value_type undulation = 0.0f)
+    id_type create_spikosahedron(mesh_type& mesh, const string& name, value_type r0, value_type r1, value_type z1, size_t nzSpikeMax, value_type revsSpikeMax, value_type tuskification = 0.0f, value_type undulation = 0.0f)
     {
         assert(nzSpikeMax > 0);
 
         id_type submesh_id = model::create_icosahedron(mesh, name, r0, false);
 
-        value_type zBase = 0;
+        value_type z0 = 0;
 
         auto face_ids = mesh.submesh(submesh_id).face_ids();
         for (const auto& face_id : face_ids)
@@ -108,7 +110,7 @@ namespace
 
             if (nLevel == 0) // Bottom face, just record base z coordinate
             {
-                zBase = mesh.face(face_id).halfedge().vertex_attributes().position().z();
+                z0 = mesh.face(face_id).halfedge().vertex_attributes().position().z();
                 mesh.rename_surface(mesh.face(face_id).surface_id(), spike_name);
                 continue;
             }
@@ -118,7 +120,7 @@ namespace
                 auto apex = upFace * r;
                 if (nLevel == 1) // First level must be at exactly base height, this is a specific requirement for printing with this spikosahedron algorithm
                 {
-                    apex.set_z(zBase);
+                    apex.set_z(z0);
                 }
                 mesh.rename_surface(mesh.face(face_id).surface_id(), spike_name);
                 triangulate_central_vertex(mesh, face_id, apex, false);
@@ -134,11 +136,12 @@ namespace
             mesh_type::point_type position = centroid(mesh.face(face_id));
             mesh_type::vector_type vFace = mesh.face(face_id).halfedge().vertex_attributes().position() - position;
             mesh_type::vector_type rightFace = normalize(vFace);
+//            auto rightFace = to_polygon(mesh.face(face_id)).right(); // really need a single function to return the magnitude and direction for a vector ...
             value_type rBase = vFace.norm();
 
             // Spike and orientation
             id_type spike_id = model::create_helix_pyramid(mesh, spike_name, nAzimuth, nz, rBase, dzSpike, revs);
-            mesh_type::vector_type rightSpike = normalize(to_vector(mesh.surface(spike_name + "/end0").faces().front().halfedge().vertex_attributes().position()));
+            mesh_type::vector_type rightSpike = normalize(to_vector(mesh.surface(brep::extended_surface_name(spike_name, "end0")).faces().front().halfedge().vertex_attributes().position()));
             assert(math::float_eq0(rightSpike.z()));
 
             // Apply spike transformations
@@ -174,21 +177,10 @@ namespace
 
         mesh.pack();
 
-// this is only for screwed_spikosahedron, probaly should be a erparate operation and with normal recalculation added ...
-// to use this here, we need to recalculate normals at each vertex where the position was changed (for_each_vertex with position and normal stages?) ...
         // Ensure that nothing projects below the bottom face
-        model::transform_positions(mesh.submesh(submesh_id), [zBase](const mesh_type::traits_type::point_type& position) -> mesh_type::traits_type::point_type
-        {
-            auto result = position;
-            if (math::float_le(position.z(), zBase))
-            {
-                result.set_z(zBase);
-            }
-            return result;
-        });
-
+        clip_base(mesh.submesh(submesh_id), {0.0f, 0.0f, z0}, "clip_base");
 //validate_normals(mesh);
-        return;
+        return submesh_id;
     }
 
     //--------------------------------------------------------------------------
@@ -209,8 +201,8 @@ int main(int argc, char* argv[])
 
     FileValidator validator(dir_out, dir_ref, app_name);
 
-    string name;
     mesh_type mesh;
+    string name;
 
     // Make sure that z1 is large enough that lower spikes don't extend below base
 
@@ -227,18 +219,9 @@ check(mesh);
     cout << name << endl;
     mesh.clear();
     create_spikosahedron(mesh, name, 29.0f, 58.0f, 31.1688f, 1, 0.0f); // Not swirled, not twisted, single section spike
-
-    float z_max = 0.0f;
-    for (const auto& vertex : mesh.vertices())
-    {
-        auto z = vertex.attributes().position().z();
-        if (z_max < z)
-        {
-            z_max = z;
-        }
-    }
-    model::create_cylinder(mesh, "tip_tip", 3, 1, 2.0f, 0.0f, z_max - 1.0f, z_max, 0.5f, 0.5f);
-    model::create_cylinder(mesh, "tip_body", 3, 1, 2.0f, 2.0f, z_max - 10.0f, z_max - 1.0f, 0.5f, 0.5f);
+    float z1 = mesh.bounds().upper().z();
+    model::create_cylinder(mesh, "tip_tip", 3, 1, 2.0f, 0.0f, z1 - 1.0f, z1, 0.5f, 0.5f);
+    model::create_cylinder(mesh, "tip_body", 3, 1, 2.0f, 2.0f, z1 - 10.0f, z1 - 1.0f, 0.5f, 0.5f);
     weld(mesh, "tip_body/end1", "tip_tip/end0");
 
     triangulate(mesh);

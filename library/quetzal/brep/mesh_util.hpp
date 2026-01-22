@@ -13,6 +13,7 @@
 #include "quetzal/geometry/Point.hpp"
 #include "quetzal/geometry/Polygon.hpp"
 #include "quetzal/geometry/Projection.hpp"
+#include "quetzal/math/floating_point.hpp"
 #include "quetzal/math/math_util.hpp"
 #include <array>
 #include <functional>
@@ -143,9 +144,10 @@ namespace quetzal::brep
 
     // Call an init function at each vertex, then call an apply function for all coincident vertices
     // Captures can be used to transfer state between init and apply
+    // This uses the visited flag; the caller should define the flags context and call reset_all on u at some point before calling this
     // Works with Surface, Submesh, and Mesh
     template<typename U>
-    void for_each_vertex(U& u, std::function<void(const typename U::vertex_type&)> f_init, std::function<void(typename U::vertex_type&)> f_apply);
+    void for_each_vertex(U& u, std::function<bool(const typename U::vertex_type&)> f_init, std::function<void(typename U::vertex_type&)> f_apply);
 
     // Add extra template parameter or use halfedge iterators to support mixed face/hole parameters ...
 
@@ -191,6 +193,12 @@ namespace quetzal::brep
     // Undefined results if the split crosses a hole
     template<typename M>
     void partition_face_holes(M& mesh, typename M::face_type& face_a, typename M::face_type& face_b, std::span<id_type> hole_ids_a);
+
+    // should be in model/mesh_util.hpp but there is none ...
+    // needs to either be changed over to just use clip (preferable and correct) or manually recalculate normals, either of which will result in reference model changes ...
+    // as is just replaces the current (erroneous) behavior exactly ...
+    template<typename U>
+    void clip_base(U& u, const typename U::traits_type::point_type& base_position, const std::string& name);
 
 } // namespace quetzal::brep
 
@@ -914,7 +922,7 @@ void quetzal::brep::prepare_face_vertices(M& mesh)
 
 //------------------------------------------------------------------------------
 template<typename U>
-void quetzal::brep::for_each_vertex(U& u, std::function<void(const typename U::vertex_type&)> f_init, std::function<void(typename U::vertex_type&)> f_apply)
+void quetzal::brep::for_each_vertex(U& u, std::function<bool(const typename U::vertex_type&)> f_init, std::function<void(typename U::vertex_type&)> f_apply)
 {
     u.reset_all();
 
@@ -928,7 +936,10 @@ void quetzal::brep::for_each_vertex(U& u, std::function<void(const typename U::v
                 continue;
             }
 
-            f_init(vertex);
+            if (!f_init(vertex))
+            {
+                continue;
+            }
 
             for (auto& h : vertex.halfedges())
             {
@@ -1176,6 +1187,41 @@ void quetzal::brep::partition_face_holes(M& mesh, typename M::face_type& face_a,
         face_b.insert_hole(hole);
     }
 
+    return;
+}
+
+//------------------------------------------------------------------------------
+template<typename U>
+void quetzal::brep::clip_base(U& u, const typename U::traits_type::point_type& base_position, const std::string& name)
+{
+    u.reset_all();
+
+    std::set<id_type> face_ids;
+    for_each_vertex(u,
+        [base_position](const auto& vertex) -> bool
+        {
+            return math::float_le(vertex.attributes().position().z(), base_position.z());
+        },
+        [base_position, &face_ids](auto& vertex)
+        {
+            vertex.attributes().position().set_z(base_position.z());
+            face_ids.insert(vertex.halfedge().face_id());
+        }
+    );
+/*
+    u.reset_all();
+
+    for each face in surface name
+        auto normal = geometry::normal(face);
+        face.set_normal(normal);
+    for_each_vertex(u.surface(name)
+        init calculate vertex normal
+        apply vertex_normal
+*/
+// the better way ...
+//    geometry::HalfSpace<vector_traits> hs({pase_position, -vector_type::z_direction()});
+//    clip(mesh.submesh(submesh_id), hs, "base");
+name;
     return;
 }
 

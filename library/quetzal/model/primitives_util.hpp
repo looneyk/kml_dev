@@ -2725,9 +2725,11 @@ void quetzal::model::project_vertices(U& u, typename U::value_type radius)
     using vertex_attributes_type = U::traits_type::vertex_attributes_type;
     using texcoord_type = vertex_attributes_type::texcoord_type;
 
+    u.reset_all();
+
     vertex_attributes_type av;
     for_each_vertex(u,
-        [&av, radius](const auto& vertex)
+        [&av, radius](const auto& vertex) -> bool
         {
             auto normal = direction(vertex.attributes().position());
             av.set_position(normal * radius);
@@ -2747,7 +2749,7 @@ void quetzal::model::project_vertices(U& u, typename U::value_type radius)
             // theta [0, Pi] -> texcoord [0, 1]
             T theta = acos(std::clamp(av.position().z() / radius, T(-1), T(1)));
             av.set_texcoord(denoise01(texcoord_type({phi / math::PiTwo<T>, theta / math::Pi<T>})));
-            return;
+            return true;
         },
         [&av](auto& vertex)
         {
