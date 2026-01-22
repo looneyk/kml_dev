@@ -68,7 +68,7 @@ namespace quetzal::brep
         const Face& partner() const;
         Face& partner();
 
-		// The halfedge exposed here is an arbitrary halfedge in the face and must not be expected be consistent between calls
+        // The halfedge exposed here is an arbitrary halfedge in the face and should not be expected to be consistent between calls
 
         id_type halfedge_id() const;
         void set_halfedge_id(id_type idHalfedge);
@@ -188,7 +188,7 @@ namespace quetzal::brep
 
         static size_t position_count(const brep::Face<Traits>& t)
         {
-            return t.halfedges().size();
+            return t.halfedge_count();
         }
 
         static point_type position(const brep::Face<Traits>& t, size_t n)
@@ -207,7 +207,7 @@ namespace quetzal::brep
 
         static bool constant_time_acccess()
         {
-            return false;
+            return false; // fix this ...
         }
     };
 
@@ -317,6 +317,7 @@ template<typename Traits, typename M>
 void quetzal::brep::Face<Traits, M>::set_halfedge_id(id_type idHalfedge)
 {
     m_idHalfedge = idHalfedge;
+    m_bounds.reset();
     return;
 }
 
@@ -592,7 +593,7 @@ const quetzal::geometry::AxisAlignedBoundingBox<typename M::vector_traits>& quet
 template<typename Traits, typename M>
 void quetzal::brep::Face<Traits, M>::reset_bounds() const
 {
-    m_bounds = std::nullopt;
+    m_bounds.reset();
     return;
 }
 

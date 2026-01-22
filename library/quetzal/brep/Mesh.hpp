@@ -298,8 +298,8 @@ namespace quetzal::brep
         void remap_vertex(id_type vertex_id, const Mappings& mappings);
         void remap_halfedge(id_type halfedge_id, const Mappings& mappings);
 
-        id_set_type remap_set(const id_set_type id_set, const Mapping& mapping);
-        index_type remap_index(const index_type index, const Mapping& mapping);
+        id_set_type remap_set(const id_set_type& id_set, const Mapping& mapping);
+        index_type remap_index(const index_type& index, const Mapping& mapping);
 
         id_type m_id;
         std::string m_name;
@@ -1635,7 +1635,7 @@ const quetzal::geometry::AxisAlignedBoundingBox<typename quetzal::brep::Mesh<Tra
     if (!m_bounds)
     {
         geometry::AxisAlignedBoundingBox<vector_traits> bounds;
-        std::ranges::for_each(submeshes(), [&bounds](auto& submesh) { bounds.insert(submesh.bounds()); });
+        std::ranges::for_each(submeshes(), [&bounds](const auto& submesh) { bounds.insert(submesh.bounds()); });
         m_bounds = bounds;
     }
 
@@ -1646,7 +1646,7 @@ const quetzal::geometry::AxisAlignedBoundingBox<typename quetzal::brep::Mesh<Tra
 template<typename Traits>
 void quetzal::brep::Mesh<Traits>::reset_bounds() const
 {
-    m_bounds = std::nullopt;
+    m_bounds.reset();
     std::ranges::for_each(submeshes(), [](auto& submesh) { submesh.reset_bounds(); });
     return;
 }
@@ -1727,6 +1727,7 @@ void quetzal::brep::Mesh<Traits>::link_face_surface(id_type idFace, id_type idSu
 
     face(idFace).set_surface_id(idSurface);
     surface(idSurface).face_ids().insert(idFace);
+    m_bounds.reset();
     return;
 }
 
@@ -1739,6 +1740,7 @@ void quetzal::brep::Mesh<Traits>::link_face_submesh(id_type idFace, id_type idSu
 
     face(idFace).set_submesh_id(idSubmesh);
     submesh(idSubmesh).face_ids().insert(idFace);
+    m_bounds.reset();
     return;
 }
 
@@ -1751,6 +1753,7 @@ void quetzal::brep::Mesh<Traits>::link_surface_submesh(id_type idSurface, id_typ
 
     surface(idSurface).set_submesh_id(idSubmesh);
     submesh(idSubmesh).surface_ids().insert(idSurface);
+    m_bounds.reset();
     return;
 }
 
@@ -1933,6 +1936,8 @@ void quetzal::brep::Mesh<Traits>::insert(const Mesh& mesh)
         }
     }
 
+    m_bounds.reset();
+
     return;
 }
 
@@ -2014,6 +2019,7 @@ quetzal::id_type quetzal::brep::Mesh<Traits>::insert(const Mesh<Traits>& other, 
 
     regenerate_submesh_index();
     regenerate_surface_index();
+    m_bounds.reset();
 
     auto& result = submesh(name);
     result.regenerate_surface_index();
@@ -2243,6 +2249,7 @@ void quetzal::brep::Mesh<Traits>::clear()
     m_surface_index.clear();
     m_submesh_store.clear();
     m_submesh_index.clear();
+    m_bounds.reset();
     return;
 }
 
@@ -2535,7 +2542,7 @@ void quetzal::brep::Mesh<Traits>::remap_halfedge(id_type halfedge_id, const Mapp
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-quetzal::brep::Mesh<Traits>::id_set_type quetzal::brep::Mesh<Traits>::remap_set(const id_set_type id_set, const Mapping& mapping)
+quetzal::brep::Mesh<Traits>::id_set_type quetzal::brep::Mesh<Traits>::remap_set(const id_set_type& id_set, const Mapping& mapping)
 {
     id_set_type result;
     for (const id_type id : id_set)
@@ -2547,7 +2554,7 @@ quetzal::brep::Mesh<Traits>::id_set_type quetzal::brep::Mesh<Traits>::remap_set(
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-quetzal::brep::Mesh<Traits>::index_type quetzal::brep::Mesh<Traits>::remap_index(const index_type index, const Mapping& mapping)
+quetzal::brep::Mesh<Traits>::index_type quetzal::brep::Mesh<Traits>::remap_index(const index_type& index, const Mapping& mapping)
 {
     index_type result;
     for (const auto& i : index)

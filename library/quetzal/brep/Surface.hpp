@@ -335,6 +335,7 @@ void quetzal::brep::Surface<Traits, M>::insert_face(id_type id)
     assert(!m_face_ids.contains(id));
     m_face_ids.insert(id);
     set_regenerate_seams();
+    m_bounds.reset();
     return;
 }
 
@@ -360,6 +361,7 @@ void quetzal::brep::Surface<Traits, M>::unlink_face(id_type id)
     m_pmesh->face(id).set_surface_id(nullid);
 
     set_regenerate_seams();
+    m_bounds.reset();
     return;
 }
 
@@ -469,8 +471,8 @@ const quetzal::geometry::AxisAlignedBoundingBox<typename M::vector_traits>& quet
 {
     if (!m_bounds)
     {
-        geometry::AxisAlignedBoundingBox<typename M::vector_traits>  bounds = {};
-        std::ranges::for_each(faces(), [&bounds](auto& face) { bounds.insert(face.bounds()); });
+        geometry::AxisAlignedBoundingBox<typename M::vector_traits>  bounds;
+        std::ranges::for_each(faces(), [&bounds](const auto& face) { bounds.insert(face.bounds()); });
         m_bounds = bounds;
     }
 
@@ -481,7 +483,7 @@ const quetzal::geometry::AxisAlignedBoundingBox<typename M::vector_traits>& quet
 template<typename Traits, typename M>
 void quetzal::brep::Surface<Traits, M>::reset_bounds() const
 {
-    m_bounds = std::nullopt;
+    m_bounds.reset();
     std::ranges::for_each(faces(), [](auto& face) { face.reset_bounds(); });
     return;
 }
@@ -501,6 +503,7 @@ void quetzal::brep::Surface<Traits, M>::clear()
     m_face_ids.clear();
     m_seams.clear();
     m_regenerate_seams = false;
+    m_bounds.reset();
     return;
 }
 
