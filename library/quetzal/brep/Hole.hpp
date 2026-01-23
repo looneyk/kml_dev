@@ -9,7 +9,9 @@
 #include "quetzal/common/ElementsDirect.hpp"
 #include "quetzal/common/Flags.hpp"
 #include "quetzal/common/Properties.hpp"
-#include <iostream>
+#include <ostream>
+#include <ranges>
+#include <vector>
 #include <cassert>
 
 namespace quetzal::brep
@@ -58,6 +60,8 @@ namespace quetzal::brep
         size_type halfedge_count() const;
         const halfedges_type& halfedges() const;
         halfedges_type& halfedges();
+
+        std::vector<quetzal::id_type> halfedge_ids() const;
 
         const Properties& properties() const;
         Properties& properties();
@@ -222,6 +226,16 @@ typename quetzal::brep::Hole<Traits, M>::halfedges_type& quetzal::brep::Hole<Tra
 
 //------------------------------------------------------------------------------
 template<typename Traits, typename M>
+std::vector<quetzal::id_type> quetzal::brep::Hole<Traits, M>::halfedge_ids() const
+{
+    m_halfedges.set_source(*this);
+    return std::ranges::transform_view(m_halfedges, [](const auto& halfedge) {
+        return halfedge.id();
+    }) | std::ranges::to<std::vector>();
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits, typename M>
 typename const quetzal::Properties& quetzal::brep::Hole<Traits, M>::properties() const
 {
     return m_properties;
@@ -238,6 +252,7 @@ typename quetzal::Properties& quetzal::brep::Hole<Traits, M>::properties()
 template<typename Traits, typename M>
 void quetzal::brep::Hole<Traits, M>::reset_all() const
 {
+    m_halfedges.set_source(*this);
     for (auto& halfedge : m_halfedges)
     {
         halfedge.reset();
@@ -266,6 +281,7 @@ template<typename Traits, typename M>
 void quetzal::brep::Hole<Traits, M>::set_mesh(mesh_type& mesh)
 {
     m_pmesh = &mesh;
+    m_halfedges.set_source(*this);
     return;
 }
 
@@ -274,6 +290,7 @@ template<typename Traits, typename M>
 void quetzal::brep::Hole<Traits, M>::check_mesh(const mesh_type* const pmesh) const
 {
     assert(m_pmesh == pmesh);
+//    assert(m_halfedges.source() == pmesh); // ...
     return;
 }
 

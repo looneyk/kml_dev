@@ -200,10 +200,11 @@ void quetzal::brep::attach(M& mesh, id_type idFaceA, id_type idFaceB, bool bSmoo
     }
 
     size_t i = n;
-    for (const auto& hole : mesh.face(idFaceB).holes())
+    auto hole_ids = faceB.hole_ids();
+    for (id_type hole_id : hole_ids)
     {
         id_type idSurface = bSmooth ? idSurface0 : mesh.create_surface(idSubmesh, format("{}_{}", nameSurface, i), as);
-        id_type idFace = mesh.create_face(idSurface, hole.halfedge_id(), af);
+        id_type idFace = mesh.create_face(idSurface, hole_id, af);
         auto& face = mesh.face(idFace);
 
         for (auto& halfedge : face.halfedges())
@@ -227,7 +228,7 @@ void quetzal::brep::attach(M& mesh, id_type idFaceA, id_type idFaceB, bool bSmoo
         ++i;
     }
 
-    // All of faceB's halfedges and vertices have been repurposed
+    // All of faceB's halfedges and vertices have been repurposed, so just bookkeeping here
     mesh.unlink_face(idFaceB);
     mesh.face(idFaceB).set_deleted();
     return;

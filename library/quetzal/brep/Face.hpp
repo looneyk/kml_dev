@@ -16,6 +16,7 @@
 #include <exception>
 #include <optional>
 #include <ostream>
+#include <ranges>
 #include <tuple>
 #include <vector>
 #include <cassert>
@@ -86,6 +87,8 @@ namespace quetzal::brep
         const halfedges_ext_type& halfedges_ext() const;
         halfedges_ext_type& halfedges_ext();
 
+        std::vector<id_type> halfedge_ids() const;
+
         id_type surface_id() const;
         void set_surface_id(id_type idSurface);
 
@@ -101,6 +104,8 @@ namespace quetzal::brep
         size_type hole_count() const;
         const holes_type& holes() const;
         holes_type& holes();
+
+        std::vector<id_type> hole_ids() const;
 
         // Holes identified sequentially
         const hole_type& hole(id_type idHole) const;
@@ -381,6 +386,15 @@ typename quetzal::brep::Face<Traits, M>::halfedges_ext_type& quetzal::brep::Face
 
 //------------------------------------------------------------------------------
 template<typename Traits, typename M>
+std::vector<quetzal::id_type> quetzal::brep::Face<Traits, M>::halfedge_ids() const
+{
+    return std::ranges::transform_view(m_halfedges, [](const auto& halfedge) {
+        return halfedge.id();
+    }) | std::ranges::to<std::vector>();
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits, typename M>
 quetzal::id_type quetzal::brep::Face<Traits, M>::surface_id() const
 {
     return m_idSurface;
@@ -460,6 +474,15 @@ template<typename Traits, typename M>
 typename quetzal::brep::Face<Traits, M>::holes_type& quetzal::brep::Face<Traits, M>::holes()
 {
     return m_holes;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits, typename M>
+std::vector<quetzal::id_type> quetzal::brep::Face<Traits, M>::hole_ids() const
+{
+    return std::ranges::transform_view(m_holes, [](const auto& hole) {
+        return hole.halfedge_id();
+    }) | std::ranges::to<std::vector>();
 }
 
 //------------------------------------------------------------------------------

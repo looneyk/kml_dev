@@ -23,6 +23,7 @@
 #include "quetzal/model/primitives.hpp"
 #include <algorithm>
 #include <array>
+#include <format>
 #include <iostream>
 #include <limits>
 #include <ranges>
@@ -53,6 +54,7 @@ namespace
 
     static const filesystem::path dir_out = "out/";
     static const filesystem::path dir_ref = "reference/";
+//    static const filesystem::path dir_ref = "out - Copy/";
     static const string app_name = "laminaria";
 
     //--------------------------------------------------------------------------
@@ -144,7 +146,7 @@ namespace
     template<typename T>
     T inverse_uniform_spacing(const T& x)
     {
-        return acos(T(1) - T(2) * x) / math::Pi<T>;
+        return acos(T(1) - T(2) * x) / math::Pi<T>; // denoise ...
     }
 
     //--------------------------------------------------------------------------
@@ -152,19 +154,6 @@ namespace
     T blob_contour(const T& t)
     {
         return T(1.0) * sqrt(pow(t, T(0.1)) - t * t);
-    }
-
-    //--------------------------------------------------------------------------
-    template<typename M>
-    void truncate(M& mesh, size_t nAzimuth)
-    {
-        id_type idLower = 2;
-        id_type idUpper = mesh.halfedge_count() - 6 * (nAzimuth + 1) - 2;
-        geometry::HalfSpace<vector_traits> hsLower({mesh.vertex(idLower).attributes().position(), -vector_type::z_direction()});
-        geometry::HalfSpace<vector_traits> hsUpper({mesh.vertex(idUpper).attributes().position(), vector_type::z_direction()});
-        clip(mesh, hsLower, "clip_lower");
-        clip(mesh, hsUpper, "clip_upper");
-        return;
     }
 
     //--------------------------------------------------------------------------
@@ -191,9 +180,91 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    void create_spike(mesh_type& mesh, const polygon_type& polygon, const path_type& path, size_t nSpike, size_t nSpikes, value_type r, size_t nAzimuth, value_type revs, value_type scale_spike_width, bool tip = true)
+    g::Polygon<vector_traits> create_laminaria_cross_section(size_t nAzimuthSpike)
     {
-        string nameSpike = "spike" + to_string(nSpike);
+        size_t degree = 3;
+        vector_type right = vector_type::y_direction();
+
+        vector<point_type> control_points_front =
+        {
+            {-0.5f, 0.0f, 0.0f},
+            {-0.25f, 0.4f, 0.0f},
+            {0.0f, 0.1f, 0.0f},
+            {0.25f, 0.4f, 0.0f},
+            {0.5f, 0.0f, 0.0f},
+        };
+
+        vector<point_type> control_points_back =
+        {
+            {-0.5f, 0.0f, 0.0f},
+            {-0.25f, -0.2f, 0.0f},
+            {0.0f, -0.3f, 0.0f},
+            {0.25f, -0.2f, 0.0f},
+            {0.5f, 0.0f, 0.0f},
+        };
+
+        g::CurveNURBS<point_type> curve_front(degree, control_points_front);
+        g::CurveNURBS<point_type> curve_back(degree, control_points_back);
+        return create_polygon(curve_back, curve_front, nAzimuthSpike);
+    }
+    
+    //--------------------------------------------------------------------------
+    g::Path<vector_traits> create_spike_path(value_type dzSpike, size_t ntSpike)
+    {
+        size_t degree = 3;
+        vector_type right = vector_type::y_direction();
+        vector<point_type> control_points =
+        {
+            {0.0f, 0.0f, 0.0f},
+            {0.5f, 0.0f, 0.33f},
+            {-0.1f, 0.0f, 0.67f},
+            {0.25f, 0.0f, 1.0f},
+        };
+
+value_type t0 = 0.0f;
+value_type t1 = 1.0f;
+
+        g::CurveNURBS<point_type> curve_path(degree, control_points);
+        g::Path<vector_traits> path(ntSpike + 1);
+        for (size_t i = 0; i <= ntSpike; ++i)
+        {
+            value_type t = lerp(t0, t1, value_type(i) / ntSpike);
+            point_type position = curve_path(t);
+            vector_type tangent = curve_path.direction(t);
+//vector_type tangent = vector_type::z_direction();
+            mesh_type::vector_type direction = tangent;
+            path[i] = {position * dzSpike, {normalize(direction), right}};
+        }
+
+        return path;
+    }
+
+    //--------------------------------------------------------------------------
+    id_type create_stone(mesh_type& mesh, const string& name, value_type r, size_t resolution)
+    {
+        id_type submesh_id = model::create_geodesic_sphere(mesh, name, r, resolution, true, true);
+        auto dzBase = r / 3.0f;
+        vector_type v {0.0f, 0.0f, dzBase};
+        model::transform(mesh.submesh(submesh_id), g::translation(v));
+        geometry::HalfSpace<vector_traits> hs({point_type::origin(), -vector_type::z_direction()});
+        clip(mesh.submesh(submesh_id), hs, "clip_lower");
+
+        // Hollow out center to save filament
+        std::string inner_name = "inner_" + name;
+        id_type inner_id = mesh.copy(submesh_id, inner_name, [](const auto& vertex) { auto v = vertex; v.attributes().position() *= 0.5f; return v; });
+        mesh.rename_surface(mesh.surface_id(submesh_id, "body"), "inner_body");
+        invert(mesh.submesh(inner_id));
+        brep::attach(mesh, brep::extended_surface_name(name, "clip_lower"), brep::extended_surface_name(inner_name, "clip_lower"));
+        mesh.rename_submesh(inner_name, name);
+
+        model::transform(mesh.submesh(submesh_id), g::translation(-v));
+        return submesh_id;
+    }
+
+    //--------------------------------------------------------------------------
+    id_type create_spike(mesh_type& mesh, const polygon_type& polygon, const path_type& path, size_t nSpike, size_t nSpikes, value_type r, size_t nAzimuth, value_type revs, value_type scale_spike_width, bool tip = true)
+    {
+        string spike_name = std::format("spike{}", nSpike);
 
         value_type t = value_type(nSpike) / nSpikes;
         value_type spike_scale = 1.0f - t * 0.75f;
@@ -235,10 +306,10 @@ namespace
 
         mesh_type mSpike;
 //        model::create_swept_volume(mSpike, nameSpike, polygon, path_spike, width_scaler);
-        model::create_swept_volume(mSpike, nameSpike, polygon, path_spike, scaler, rotator);
+        id_type submesh_id = model::create_swept_volume(mSpike, spike_name, polygon, path_spike, scaler, rotator);
         if (tip)
         {
-            model::connect_end_round(mSpike, nameSpike, "end1", "top");
+            model::connect_end_round(mSpike, spike_name, "end1", "top");
         }
 
         auto rInner = 0.8f * r;
@@ -252,100 +323,38 @@ namespace
         model::transform(mSpike, matrix);
 
         mesh.insert(mSpike);
+        return submesh_id;
     }
 
     //--------------------------------------------------------------------------
-    void create_laminaria(mesh_type& mesh, const string& name, value_type r, value_type dzSpike, size_t nAzimuth, value_type revs, size_t resolutionBase, size_t nAzimuthSpike, size_t ntSpike)
+    id_type create_laminaria_spike(mesh_type& mesh, const string& name, value_type r, value_type dzSpike, size_t nAzimuthSpike, size_t ntSpike)
     {
+        name; // ...
+
+        auto polygon = create_laminaria_cross_section(nAzimuthSpike);
+        auto path = create_spike_path(dzSpike, ntSpike);
+
         value_type scale_spike_width = 10.0f;
-        size_t degree = 3;
-        vector_type right = vector_type::y_direction();
+        return create_spike(mesh, polygon, path, 0, 1, r, 1, 0.0f, scale_spike_width, false);
+    }
 
-        vector<point_type> control_points_front =
-        {
-            {-0.5f, 0.0f, 0.0f},
-            {-0.25f, 0.4f, 0.0f},
-            {0.0f, 0.1f, 0.0f},
-            {0.25f, 0.4f, 0.0f},
-            {0.5f, 0.0f, 0.0f},
-        };
+    //--------------------------------------------------------------------------
+    id_type create_laminaria(mesh_type& mesh, const string& name, value_type r, value_type dzSpike, size_t nAzimuth, value_type revs, size_t resolutionBase, size_t nAzimuthSpike, size_t ntSpike)
+    {
+        auto polygon = create_laminaria_cross_section(nAzimuthSpike);
+        auto path = create_spike_path(dzSpike, ntSpike);
+        id_type submesh_id = create_stone(mesh, name, r, resolutionBase);
 
-        vector<point_type> control_points_back =
-        {
-            {-0.5f, 0.0f, 0.0f},
-            {-0.25f, -0.2f, 0.0f},
-            {0.0f, -0.3f, 0.0f},
-            {0.25f, -0.2f, 0.0f},
-            {0.5f, 0.0f, 0.0f},
-        };
-
-        vector<point_type> control_points_path =
-        {
-            {0.0f, 0.0f, 0.0f},
-            {0.5f, 0.0f, 0.33f},
-            {-0.1f, 0.0f, 0.67f},
-            {0.25f, 0.0f, 1.0f},
-        };
-
-value_type t0 = 0.0f;
-value_type t1 = 1.0f;
-
-        g::CurveNURBS<point_type> curve_front(degree, control_points_front);
-        g::CurveNURBS<point_type> curve_back(degree, control_points_back);
-        auto polygon = create_polygon(curve_back, curve_front, nAzimuthSpike);
-
-        g::CurveNURBS<point_type> curve_path(degree, control_points_path);
-        g::Path<vector_traits> path(ntSpike + 1);
-        for (size_t i = 0; i <= ntSpike; ++i)
-        {
-            value_type t = lerp(t0, t1, value_type(i) / ntSpike);
-            point_type position = curve_path(t);
-            vector_type tangent = curve_path.direction(t);
-//vector_type tangent = vector_type::z_direction();
-            mesh_type::vector_type direction = tangent;
-            path[i] = {position * dzSpike, {normalize(direction), right}};
-        }
-
-        mesh_type m;
-
+        value_type scale_spike_width = 10.0f;
         size_t nSpikes = static_cast<size_t>(nAzimuth * revs);
-        bool single_test = nSpikes == 1;
-
-        if (!single_test)
-        {
-            model::create_geodesic_sphere(m, name, r, resolutionBase, true, true);
-            auto dzBase = r / 3.0f;
-            vector_type v {0.0f, 0.0f, dzBase};
-            model::transform(m, g::translation(v));
-            geometry::HalfSpace<vector_traits> hs({point_type::origin(), -vector_type::z_direction()});
-            clip(m, hs, "clip_lower");
-
-            // Hollow out center to save filament
-            auto mm = m;
-            for (auto& submesh : mm.submeshes())
-            {
-                submesh.set_name("inner_" + submesh.name());
-            }
-            for (auto& surface : mm.surfaces())
-            {
-                surface.set_name("inner_" + surface.name());
-            }
-            model::transform(mm, geometry::scaling(0.5f));
-            invert(mm);
-            m.insert(mm);
-            brep::attach(m, name + "/clip_lower", "inner_" + name + "/inner_clip_lower");
-
-            model::transform(m, g::translation(-v));
-        }
-
         for (size_t nSpike = 0; nSpike < nSpikes; ++nSpike)
         {
-            create_spike(m, polygon, path, nSpike, nSpikes, r, nAzimuth, revs, scale_spike_width, !single_test);
+            create_spike(mesh, polygon, path, nSpike, nSpikes, r, nAzimuth, revs, scale_spike_width, true);
+            // in this case, there is no connect, spikes are separate submeshes ...
         }
 
-        m.pack();
-        mesh.insert(m);
-        return;
+        mesh.pack(); // submesh id's may change after pack ...
+        return submesh_id;
     }
 
 } // namespace
@@ -505,7 +514,7 @@ c1.direction(0.0f); // ...
     name = "laminaria_10_spike_1";
     cout << name << endl;
     mesh.clear();
-    create_laminaria(mesh, name, 20.0f, 150.0f, 1, 1.0f, 1, 8, 10);
+    create_laminaria_spike(mesh, name, 20.0f, 150.0f, 8, 10);
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 
