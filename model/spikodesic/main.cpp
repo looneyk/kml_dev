@@ -34,15 +34,23 @@ namespace
     using mesh_type = brep::Mesh<brep::MeshTraits<vector_traits>>;
     using matrix_type = math::Matrix<value_type>;
 
-    static const mesh_type::vector_type down {0.0f, 0.0f, -1.0f};
+    static const mesh_type::vector_type down = -mesh_type::vector_type::z_direction();
 
-    static const string dirOut = "out/";
-    static const string dirReference = "reference/";
+    static const filesystem::path dir_out = "out/";
+    static const filesystem::path dir_ref = "reference/";
+    static const string app_name = "spikodesic";
 
     //--------------------------------------------------------------------------
-    string to_filename(const string& name)
+    filesystem::path to_filename(const string& name)
     {
-        return dirOut + name + ".obj";
+        return dir_out / (name + ".obj");
+    }
+
+    //--------------------------------------------------------------------------
+    // move to common module ...
+    std::string strip_root_name(const std::string& name)
+    {
+        return name | std::views::drop_while([](char c) { return !isdigit(c); }) | std::ranges::to<std::string>();
     }
 
     //--------------------------------------------------------------------------
@@ -60,9 +68,9 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    id_type select_base_face(const mesh_type& mesh)
+    id_type select_base_face(const mesh_type& mesh, id_type submesh_id)
     {
-        for (const auto& face : mesh.faces())
+        for (const auto& face : mesh.submesh(submesh_id).faces())
         {
             assert(face.halfedges().size() == 3);
 
@@ -89,75 +97,75 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    id_type orient_vertical(mesh_type& mesh)
+    id_type orient_vertical(mesh_type& mesh, id_type submesh_id)
     {
-        id_type idFace0 = select_base_face(mesh);
-        auto face = mesh.face(idFace0);
+        id_type face_id0 = select_base_face(mesh, submesh_id);
+        auto face = mesh.face(face_id0);
 
         matrix_type matrix = geometry::alignment(face.attributes().normal(), down);
-        model::transform(mesh, matrix);
+        model::transform(mesh.submesh(submesh_id), matrix);
 
-        value_type zBase = centroid(face).z();
+        value_type z0 = centroid(face).z();
 
         for (auto& halfedge : face.halfedges())
         {
             auto position = halfedge.vertex_attributes().position();
-            position.set_z(zBase);
+            position.set_z(z0);
 
 // this won't work until select_base_face is completed, but it seems that normals might not be calculated right ...
 //            model::unify_vertex_position(halfedge.vertex(), position);
         }
 
-        return idFace0;
+        return face_id0;
     }
 
     //--------------------------------------------------------------------------
-    void create_spikodesic(mesh_type& mesh, const string& name, value_type r0, size_t nSubdivisions, std::function<value_type(value_type)> radius, size_t nzSpikeMax, value_type revsSpikeMax)
+    id_type create_spikodesic(mesh_type& mesh, const string& name, value_type r0, size_t nSubdivisions, std::function<value_type(value_type)> radius, size_t nzSpikeMax, value_type revsSpikeMax)
     {
         assert(nzSpikeMax > 0);
 
-        mesh_type m;
-        model::create_geodesic_sphere(m, name, r0, nSubdivisions, false, false);
+        id_type submesh_id = model::create_geodesic_sphere(mesh, name, r0, nSubdivisions, false, false);
 
-        id_type idFace0 = orient_vertical(m);
-        value_type zBase = m.face(idFace0).halfedges().front().vertex_attributes().position().z();
+        id_type face_id0 = orient_vertical(mesh, submesh_id);
+        value_type z0 = mesh.submesh(submesh_id).bounds().lower().z();
 
         // Base plane
-        geometry::Plane<mesh_type::vector_traits> plane({0.0f, 0.0f, zBase}, {0.0f, 0.0f, -1.0f});
+        geometry::Plane<mesh_type::vector_traits> plane({0.0f, 0.0f, z0}, down);
 
-        size_t nFaces = m.faces().size();
-        for (size_t n = 0; n < nFaces; ++n)
+        auto face_ids = mesh.submesh(submesh_id).face_ids();
+        for (const auto& face_id : face_ids)
         {
-            if (n == idFace0) // Bottom face
+            if (face_id == face_id0) // Bottom face
             {
                 continue;
             }
 
-            auto face = m.face(n);
+            const auto& face = mesh.face(face_id);
             mesh_type::vector_type upFace = face.attributes().normal();
 
-            if (adjacent_faces(m, idFace0, n)) // First level, replace face with pyramidal projection to be flush with base
+            if (adjacent_faces(mesh, face_id0, face_id)) // First level, replace face with pyramidal projection to be flush with base
             {
-                geometry::Line<mesh_type::vector_traits> line(centroid(face), face.attributes().normal());
+                geometry::Line<mesh_type::vector_traits> line(centroid(face), upFace);
                 auto inter = intersection(line, plane);
                 assert(inter.locus() == geometry::Locus::Point);
                 auto p = inter.point();
-                assert(math::float_eq(p.z(), zBase));
-                p.set_z(zBase);
+                assert(math::float_eq(p.z(), z0));
+                p.set_z(z0);
 
                 // maybe just set nz to 1 here and use clip at end? ...
-                // maybe do that for any apex below zBase? ...
+                // maybe do that for any apex below z0? ...
 
-                triangulate_central_vertex(m, n, p, false);
+                triangulate_central_vertex(mesh, face_id, p, false);
                 continue;
             }
 
             mesh_type::point_type position = centroid(face);
             mesh_type::vector_type rightFace = normalize(face.halfedge().vertex_attributes().position() - position);
-            mesh_type::vector_type upSpike = {0.0f, 0.0f, 1.0f};
-            mesh_type::vector_type rightSpike = {1.0f, 0.0f, 0.0f};
+            mesh_type::vector_type upSpike = mesh_type::vector_type::z_direction();
+            mesh_type::vector_type rightSpike = mesh_type::vector_type::x_direction();
 
             geometry::Polygon<mesh_type::vector_traits> polygon = to_polygon(face);
+            polygon.set_sections_edges();
             matrix_type matrix = geometry::translation(-position.vector()) * geometry::alignment(upFace, rightFace, upSpike, rightSpike);
             polygon.transform(matrix);
 
@@ -178,36 +186,39 @@ namespace
             assert(dz >= 0.0f);
             value_type revs = revsSpikeMax * t;
 
-            string nameSpike = "spike" + to_string(n);
-            string nameSpikeBase = nameSpike + "/end0";
+            string spike_name = std::format("spike{}", strip_root_name(mesh.face(face_id).surface().name())); // replace base name but retain surface counter, virtual submesh for lower levels
+            string spike_name_base = brep::extended_surface_name(spike_name, "end0");
 
             // Spike and orientation
-            mesh_type mSpike;
-            model::create_helix_cone(mSpike, nameSpike, polygon, nz, dz, revs);
+            id_type spike_id = model::create_helix_pyramid(mesh, spike_name, polygon, nz, dz, revs);
 
             // Rotate spike to align with face normal and translate spike to face position
-//            matrix_type matrix = alignment2(upSpike, rightSpike, upFace, rightFace) * translation(position);
+//            matrix = alignment2(upSpike, rightSpike, upFace, rightFace) * translation(position);
             matrix = geometry::alignment(upSpike, rightSpike, upFace, rightFace) * geometry::translation(position.vector());
-            model::transform(mSpike, matrix);
+            model::transform(mesh.submesh(spike_id), matrix);
 
             // this may actually be more efficient, but a single clip at the end should work too ...
-            if ((centroid(face) + upFace * dz).z() < zBase)
+            if ((position + upFace * dz).z() < z0)
             {
-                brep::clip(mSpike, plane);
+                brep::clip(mesh.submesh(spike_id), plane);
             }
 
             // Connect spike to body
-            m.insert(mSpike);
-
-            brep::weld(m, face.surface().extended_name(), nameSpikeBase);
+            brep::weld(mesh, mesh.face(face_id).surface().extended_name(), spike_name_base);
+            mesh.rename_submesh_surfaces(spike_id, [spike_name](const std::string& surface_name) {
+                return std::format("{}_{}", spike_name, strip_root_name(surface_name));
+            });
+            mesh.rename_submesh(spike_name, name);
         }
 
-// should work here ...
-//        clip(m, plane);
+// should work here once instead of separately above ...
+// but seems like a problem likely because there is a face in the clip plane ...
+// test this separately ...
+// 
+//        brep::clip(mesh.submesh(submesh_id), plane);
 
-        m.pack();
-        mesh.insert(m);
-        return;
+        mesh.pack();
+        return submesh_id;
     }
 
 } // namespace
@@ -218,10 +229,10 @@ int main(int argc, char* argv[])
     argc;
     argv;
 
-    FileValidator validator(dirOut, dirReference);
+    FileValidator validator(dir_out, dir_ref, app_name);
 
-    string name;
     mesh_type mesh;
+    string name;
 
     value_type r0 = 30.0f;
     size_t nSubdivisions = 2;
