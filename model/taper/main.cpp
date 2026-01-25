@@ -346,7 +346,7 @@ namespace
 } // namespace
 
 //------------------------------------------------------------------------------
-int main(int argc, char* argv[]
+int main(int argc, char* argv[])
 {
     argc;
     argv;

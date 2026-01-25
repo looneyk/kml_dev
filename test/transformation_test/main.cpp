@@ -1005,7 +1005,7 @@ static_assert(projected_type::component_count == 3);
 } // namespace
 
 //------------------------------------------------------------------------------
-int main(int argc, char* argv[]
+int main(int argc, char* argv[])
 {
     argc;
     argv;

@@ -26,7 +26,7 @@ void test(Parser& parser, const SymbolTable& st, const string& str, float answer
 }
 
 //------------------------------------------------------------------------------
-int main(int argc, char* argv[]
+int main(int argc, char* argv[])
 {
     argc;
     argv;

@@ -148,7 +148,7 @@ unsigned int f(unsigned state, unsigned int state_available)
     return (state_available & state) == state;
 }
 
-int main(int argc, char* argv[]
+int main(int argc, char* argv[])
 {
     cout << setw(6) << "" << "state_available" << endl;
 

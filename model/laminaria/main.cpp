@@ -54,7 +54,6 @@ namespace
 
     static const filesystem::path dir_out = "out/";
     static const filesystem::path dir_ref = "reference/";
-//    static const filesystem::path dir_ref = "out - Copy/";
     static const string app_name = "laminaria";
 
     //--------------------------------------------------------------------------

@@ -3,7 +3,7 @@
 
 using namespace std;
 
-int main(int argc, char* argv[]
+int main(int argc, char* argv[])
 {
     ifstream ifs("c:\\kml\\download\\nuclide\\color_scale.ppm", ios_base::binary);
     ofstream ofs("c:\\kml\\download\\nuclide\\color_scale");
