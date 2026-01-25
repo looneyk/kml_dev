@@ -38,6 +38,8 @@ namespace quetzal::brep
     template<typename Traits>
     void invert_border_fragment_internal(Mesh<Traits>& mesh, id_type halfedge_id, transform_texcoord_type<Traits> transform_texcoord = geometry::Attributes<typename Traits::vector_traits>::transform_texcoord_reflect_u);
 
+    // The face halfedge_id and halfedge partners are not changed, but the halfedge now references a different vertex
+    // This does not reverse the winding order of holes
     template<typename Traits>
     void reverse_winding_order(Face<Traits>& face);
 

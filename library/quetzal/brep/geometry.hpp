@@ -186,7 +186,7 @@ Instead of this, add optional or default identity projection to the functions ab
     template<typename Traits>
     geometry::AxisAlignedBoundingBox<typename Traits::vector_traits> bounds(const Halfedge<Traits>& halfedge);
 
-    // deprecated, now supported by spatial_properties, but this is more performant, fix spatial_properties for Face ...
+    // deprecated, now supported by spatial_properties, but this is more performant, fix PositionAccessor for Face to be constant_time_access ...
     template<typename Traits>
     geometry::AxisAlignedBoundingBox<typename Traits::vector_traits> bounds(const Face<Traits>& face);
 

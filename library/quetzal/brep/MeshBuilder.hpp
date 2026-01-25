@@ -72,7 +72,6 @@ quetzal::brep::MeshBuilder<M>::MeshBuilder(mesh_type& mesh) :
     m_pmesh(&mesh),
     m_borders()
 {
-    assert(m_pmesh != nullptr);
     find_borders();
 }
 

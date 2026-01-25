@@ -5,8 +5,11 @@
 // Flags.hpp
 //
 // This is intended to be used as invisible metadata, in cases where its state has no impact on the constness of the class it is a part of and vice versa.
-// Thus, all methods are const and the data is mutable so that it can be used even in the const context.
-// Note that when setting deleted true, the state of the other flags is undefined should it subsequently revert to false other than through clear or reset.
+// These methods are logically const as they do not modify the observable state of the parent object.
+// Thus, all methods are const and the data is mutable so that it can be used in the const context.
+// Note that when deleted is set, the state of the other flags is undefined.
+//
+// Flags can track multiple states, but can only be used together in the same context as defined by calls to clear_all/reset_all.
 //
 //------------------------------------------------------------------------------
 
@@ -52,7 +55,7 @@ namespace quetzal
         void clear() const;
         virtual void clear_all() const; // Override in parent class for deep clear
 
-        // Preserves deleted state
+        // Recognizes and preserves deleted state
         bool unset() const; // If deleted, returns true and other flags are ignored, otherwise same as empty
         void reset() const;
         virtual void reset_all() const; // Override in parent class for deep reset

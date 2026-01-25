@@ -235,7 +235,9 @@ T quetzal::math::denoise0(T t, int ulp)
 template<typename T> requires std::floating_point<T>
 T quetzal::math::denoise01(T t, int ulp)
 {
-    return float_eq0(t, ulp) ? T(0) : float_eq(t, T(1)) ? T(1) : t;
+    if (float_eq0(t, ulp)) return T(0);
+    if (float_eq(t, T(1), ulp)) return T(1);
+    return t;
 }
 
 //------------------------------------------------------------------------------
