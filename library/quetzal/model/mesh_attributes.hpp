@@ -31,7 +31,7 @@ namespace quetzal::model
 
     // Works with Mesh, Submesh, Surface
     template<typename U>
-    void transform(U& u, const typename U::traits_type::matrix_type& matrixPosition, const typename U::traits_type::matrix_type& matrixDirection);
+    void transform(U& u, const typename U::traits_type::matrix_type& matrix_position, const typename U::traits_type::matrix_type& matrix_direction);
 
     // Works with Mesh, Submesh, Surface
     template<typename U>
@@ -64,8 +64,9 @@ namespace quetzal::model
     void recalculate_normals(U& u);
 
     template<typename M>
-    void transform_border_fragment_position(M& mesh, id_type idHalfedge, const typename M::matrix_type& matrix, bool bReset = true);
+    void transform_border_fragment_position(M& mesh, id_type halfedge_id, const typename M::matrix_type& matrix, bool reset = true);
 
+    // Change to U& u ...
     template<typename M>
     void calculate_spherical_normals(M& mesh, const typename M::point_type& center = {});
 
@@ -74,6 +75,7 @@ namespace quetzal::model
     typename M::vertex_attributes_type::texcoord_type calculate_spherical_texcoord(const typename M::vector_type& normal);
 
     // Calculate texcoords to wrap a sphere where the vertex normals have already been calculated
+    // Change to U& u ...
     template<typename M>
     void calculate_spherical_texcoords(M& mesh);
 
@@ -82,7 +84,8 @@ namespace quetzal::model
     template<typename F>
     void fix_spherical_texcoords(F& face);
 
-    // this does arbitrary orientation, take an up vector to align textures? then fit triangles to unit square? ...
+    // this does arbitrary orientation, take a tangent vector to align textures? then fit triangles to unit square? ...
+    // Change to U& u ...
     template<typename M>
     void apply_triangular_face_texcoords(M& mesh);
 
@@ -98,46 +101,103 @@ void quetzal::model::transform(U& u, const typename U::traits_type::matrix_type&
 
 //------------------------------------------------------------------------------
 template<typename U>
-void quetzal::model::transform(U& u, const typename U::traits_type::matrix_type& matrixPosition, const typename U::traits_type::matrix_type& matrixDirection)
+void quetzal::model::transform(U& u, const typename U::traits_type::matrix_type& matrix_position, const typename U::traits_type::matrix_type& matrix_direction)
 {
-    if constexpr (std::same_as<U, brep::Mesh<typename U::traits_type>>) // separate functions ...
+    if constexpr (std::same_as<U, brep::Mesh<typename U::traits_type>>) // separate functions, better identification of Mesh, less overhead if doing for entire Mesh, should be deprecated, might be useful for model manipulation for printing (but transform otherwise for rendering) ...
     {
         for (auto& vertex : u.vertices())
         {
-            vertex.attributes().transform(matrixPosition, matrixDirection);
+            vertex.attributes().transform(matrix_position, matrix_direction);
         }
 
         for (auto& face : u.faces())
         {
-            face.attributes().transform(matrixPosition, matrixDirection);
+            face.attributes().transform(matrix_position, matrix_direction);
         }
     }
     else
     {
-        u.reset_all();
+// this recalculates normals that have already been calculated, but results should be the same, another consequence of menger_sponge internal surface? ...
+// this is the original functionality, but had problems with surface specificity (below), that's the real fix ...
+        typename U::traits_type::point_type position_orig;
+        typename U::traits_type::point_type position;
 
-        for (auto& face : u.faces())
-        {
-            for (auto& halfedgeFace : face.halfedges())
+        for_each_vertex_position(u,
+            [&](const auto& vertex) -> bool
             {
-                auto& vertex = halfedgeFace.vertex();
+                position_orig = vertex.attributes().position();
+                position = position_orig * matrix_position;
+                return true;
+            },
+            [&](auto& vertex) -> void
+            {
+                assert(float_eq(vertex.attributes().position(), position_orig));
+                vertex.attributes().set_position(position);
+                vertex.attributes().set_normal(normalize(vertex.attributes().normal() * matrix_direction));
+                return;
+            },
+            [&](auto& face) -> void
+            {
+                face.attributes().transform(matrix_position, matrix_direction);
+                return;
+            }
+        );
+/*
+        typename U::traits_type::point_type position_orig;
+        typename U::traits_type::point_type position;
+        typename U::traits_type::vector_type normal_orig;
+        typename U::traits_type::vector_type normal;
+        id_type surface_id = nullid;
+
+        for_each_vertex_universal(u,
+            [&](const auto& vertex) -> bool
+            {
                 if (vertex.marked())
                 {
-                    continue;
+                    return true;
                 }
 
-                auto position = vertex.attributes().position() * matrixPosition;
-
-                for (auto& halfedge : vertex.halfedges())
+                if (!vertex.visited())
                 {
-                    halfedge.vertex_attributes().set_position(position);
-                    halfedge.vertex_attributes().set_normal(normalize(halfedge.vertex_attributes().normal() * matrixDirection));
-                    halfedge.vertex().set_marked();
+                    position_orig = vertex.attributes().position();
+                    position = position_orig * matrix_position;
                 }
-            }
 
-            face.attributes().transform(matrixPosition, matrixDirection);
-        }
+                normal_orig = vertex.attributes().normal();
+                normal = normalize(normal_orig * matrix_direction);
+                surface_id = vertex.halfedge().surface_id();
+                return true;
+            },
+            [&](auto& vertex) -> void
+            {
+                if (vertex.marked())
+                {
+                    return;
+                }
+
+                if (!vertex.visited())
+                {
+                    assert(float_eq(vertex.attributes().position(), position_orig));
+                    vertex.attributes().set_position(position);
+                    vertex.set_visited();
+                }
+
+                if (vertex.halfedge().surface_id() == surface_id)
+                {
+// good assertion, but menger_sponge internal is not a planar surface, need to fix that ...
+//                    assert(float_eq(vertex.attributes().normal(), normal_orig));
+                    vertex.attributes().set_normal(normal);
+                    vertex.set_marked();
+                }
+                return;
+            },
+            [&](auto& face) -> void
+            {
+                face.attributes().transform(matrix_position, matrix_direction);
+                return;
+            }
+        );
+*/
     }
 
     return;
@@ -156,29 +216,23 @@ void quetzal::model::transform_positions(U& u, const typename U::traits_type::ma
     }
     else
     {
-        u.reset_all();
+        typename U::traits_type::point_type position_orig;
+        typename U::traits_type::point_type position;
 
-        for (auto& face : u.faces())
-        {
-            for (auto& halfedgeFace : face.halfedges())
+        for_each_vertex_position(u,
+            [&](const auto& vertex) -> bool
             {
-                auto& vertex = halfedgeFace.vertex();
-                if (vertex.marked())
-                {
-                    continue;
-                }
-
-                auto positionOrig = vertex.attributes().position();
-                auto position = vertex.attributes().position() * matrix;
-
-                for (auto& halfedge : vertex.halfedges())
-                {
-                    assert(float_eq(halfedge.vertex_attributes().position(), positionOrig));
-                    halfedge.vertex_attributes().set_position(position);
-                    halfedge.vertex().set_marked();
-                }
+                position_orig = vertex.attributes().position();
+                position = position_orig * matrix;
+                return true;
+            },
+            [&](auto& vertex)
+            {
+                assert(float_eq(vertex.attributes().position(), position_orig));
+                vertex.attributes().set_position(position);
+                return;
             }
-        }
+        );
     }
 
     return;
@@ -213,27 +267,23 @@ void quetzal::model::transform(U& u, std::function<typename U::traits_type::poin
 template<typename U>
 void quetzal::model::transform_positions(U& u, std::function<typename U::traits_type::point_type(const typename U::traits_type::point_type&)> f)
 {
-    u.reset_all();
-    for (auto& face : u.faces())
-    {
-        for (auto& halfedge : face.halfedges())
+    typename U::traits_type::point_type position_orig;
+    typename U::traits_type::point_type position;
+
+    for_each_vertex_position(u,
+        [&](const auto& vertex) -> bool
         {
-            auto& vertex = halfedge.vertex();
-            if (vertex.marked())
-            {
-                continue;
-            }
-
-            auto position = f(vertex.attributes().position());
-
-            for (auto& h : vertex.halfedges())
-            {
-                auto& v = h.vertex();
-                v.attributes().set_position(position);
-                v.set_marked();
-            }
+            position_orig = vertex.attributes().position();
+            position = f(position_orig);
+            return true;
+        },
+        [&](auto& vertex)
+        {
+            assert(float_eq(vertex.attributes().position(), position_orig));
+            vertex.attributes().set_position(position);
+            return;
         }
-    }
+    );
 
     return;
 }
@@ -242,52 +292,45 @@ void quetzal::model::transform_positions(U& u, std::function<typename U::traits_
 template<typename U>
 void quetzal::model::recalculate_normals(U& u)
 {
-    u.reset_all();
-    for (auto& face : u.faces())
-    {
-        face.set_attributes({geometry::normal(face)});
+    typename U::traits_type::vector_type normal;
 
-        for (auto& halfedge : face.halfedges())
+    for_each_surface_vertex(u,
+        [&](const auto& vertex) -> bool
         {
-            auto& vertex = halfedge.vertex();
-            if (vertex.marked())
-            {
-                continue;
-            }
-
-            auto normal = surface_normal(vertex);
-
-            for (auto& h : vertex.halfedges())
-            {
-                if (h.surface_id() == halfedge.surface_id())
-                {
-                    auto& v = h.vertex();
-                    v.attributes().set_normal(normal);
-                    v.set_marked();
-                }
-            }
+            normal = surface_normal(vertex);
+            return true;
+        },
+        [&](auto& vertex) -> void
+        {
+            vertex.attributes().set_normal(normal);
+            return;
+        },
+        [](auto& face) -> void
+        {
+            face.set_attributes({geometry::normal(face)});
+            return;
         }
-    }
+    );
 
     return;
 }
 
 //------------------------------------------------------------------------------
 template<typename M>
-void quetzal::model::transform_border_fragment_position(M& mesh, id_type idHalfedge, const typename M::matrix_type& matrix, bool bReset)
+void quetzal::model::transform_border_fragment_position(M& mesh, id_type halfedge_id, const typename M::matrix_type& matrix, bool reset)
 {
-    if (bReset)
+    if (reset)
     {
         mesh.reset_all();
     }
 
-    auto& face = mesh.halfedge(idHalfedge).face();
-    if (face.marked())
+    auto& face = mesh.halfedge(halfedge_id).face();
+    if (face.visited())
     {
         return;
     }
 
-    face.set_marked();
+    face.set_visited();
 
     for (auto& halfedge : face.halfedges())
     {
@@ -306,27 +349,25 @@ void quetzal::model::transform_border_fragment_position(M& mesh, id_type idHalfe
 template<typename M>
 void quetzal::model::calculate_spherical_normals(M& mesh, const typename M::point_type& center)
 {
-    mesh.reset_all();
+    typename M::traits_type::vector_type normal;
 
-    for (auto& vertex : mesh.vertices())
-    {
-        if (vertex.marked())
+    for_each_surface_vertex(mesh,
+        [&](const auto& vertex) -> bool
         {
-            continue;
-        }
-
-        auto normal = normalize(vertex.attributes().position() - center);
-        for (auto halfedge : vertex.halfedges())
+            normal = normalize(vertex.attributes().position() - center);
+            return true;
+        },
+        [&](auto& vertex) -> void
         {
-            halfedge.vertex_attributes().set_normal(normal);
-            halfedge.vertex().set_marked();
+            vertex.attributes().set_normal(normal);
+            return;
+        },
+        [&](auto& face) -> void
+        {
+            face.attributes().set_normal(normalize(centroid(face) - center));
+            return;
         }
-    }
-
-    for (auto& face : mesh.faces())
-    {
-        face.attributes().set_normal(normalize(centroid(face) - center));
-    }
+    );
 
     return;
 }
@@ -352,28 +393,29 @@ typename M::vertex_attributes_type::texcoord_type quetzal::model::calculate_sphe
 template<typename M>
 void quetzal::model::calculate_spherical_texcoords(M& mesh)
 {
-    using T = M::value_type;
+    typename M::vertex_attributes_type::texcoord_type texcoord;
 
-    mesh.reset_all();
-
-    for (auto& vertex : mesh.vertices())
-    {
-        if (vertex.marked())
+    for_each_surface_vertex(mesh,
+        [&](const auto& vertex) -> bool
         {
-            continue;
-        }
-
-        auto texcoord = calculate_spherical_texcoord<M>(vertex.attributes().normal());
-        for (auto halfedge : vertex.halfedges())
+            texcoord = calculate_spherical_texcoord<M>(vertex.attributes().normal());
+            return true;
+        },
+        [&](auto& vertex) -> void
         {
-            halfedge.vertex_attributes().set_texcoord(texcoord);
-            halfedge.vertex().set_marked();
+            vertex.attributes().set_texcoord(texcoord);
+            return;
+        },
+        [](auto& face) -> void
+        {
+            face.set_attributes({geometry::normal(face)});
+            return;
         }
+    );
 
-        // Handle the crossover case here ...
-    }
-
+    // Handle the crossover case here (geodesic sphere) ...
     // Check for texcoord space edge crossing, needs refinement/generalization ...
+    // This must be done after all texcoords are calculated (can't use for_each_vertex with face) ...
     for (auto& face : mesh.faces())
     {
         fix_spherical_texcoords(face);
@@ -388,22 +430,22 @@ void quetzal::model::fix_spherical_texcoords(F& face)
 {
     using T = F::mesh_type::value_type;
 
-    bool bLow = false;
-    bool bHigh = false;
+    bool low = false;
+    bool high = false;
     for (auto& halfedge : face.halfedges())
     {
         const auto& texcoord = halfedge.vertex_attributes().texcoord();
         if (texcoord.x() < T(0.25))
         {
-            bLow = true;
+            low = true;
         }
         if (texcoord.x() > T(0.75))
         {
-            bHigh = true;
+            high = true;
         }
     }
 
-    if (bLow && bHigh)
+    if (low && high)
     {
         for (auto& halfedge : face.halfedges())
         {                

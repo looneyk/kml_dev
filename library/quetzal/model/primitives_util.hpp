@@ -2751,7 +2751,7 @@ void quetzal::model::project_vertices(U& u, typename U::value_type radius)
             av.set_texcoord(denoise01(texcoord_type({phi / math::PiTwo<T>, theta / math::Pi<T>})));
             return true;
         },
-        [&av](auto& vertex)
+        [&av](auto& vertex) -> void
         {
             vertex.set_attributes(av);
             return;
