@@ -66,10 +66,10 @@ namespace quetzal::geometry
         template<size_t M> requires Traits::template accepts<M>
         Point& operator=(std::span<value_type, M> values);
 
-        Point& operator+=(const vector_type& other);
-        Point& operator-=(const vector_type& other);
-        Point& operator*=(value_type factor);
-        Point& operator/=(value_type divisor);
+        Point& operator+=(const vector_type& other); // Translation shorthand
+        Point& operator-=(const vector_type& other); // Translation shorthand
+        Point& operator*=(value_type factor); // Scaling shorthand
+        Point& operator/=(value_type divisor); // Scaling shorthand
 
         value_type operator[](size_type i) const;
         value_type& operator[](size_type i);
@@ -117,7 +117,7 @@ namespace quetzal::geometry
         template<size_type I, typename U> requires (I < Traits::size) && std::convertible_to<U, typename Traits::value_type>
         void set(const U& u);
 
-        Point position() const; // For consistency with Positional concept
+        Point position() const; // For compatibility with Positional concept
 
         void clear();
 
@@ -969,18 +969,9 @@ bool quetzal::geometry::float_priority_less(const Point<Traits>& lhs, const Poin
 template<typename Traits>
 std::string quetzal::geometry::to_string(const Point<Traits>& point)
 {
+    // insert/extract now handle typical formatting scenarios
     std::ostringstream oss;
-/*
-this should support floating point formatting for the components, separator string, enclosing parentheses or other ...
-operator>> can use this formatting info to remove all but the separator whitespace? ...
-
     oss << point;
-    auto s = oss.str() | std::views::split(' ') | std::views::join_with(", ") | std::ranges::to<std::string>();
-    oss.str("");
-    oss << '(' << s << ')';
-*/
-    oss << '(' << point << ')'; // use Traits::insert directly here, then use to_string in operator<< ...
-//    oss << '(' << Traits::insert(oss, point.rep()) << ')'; // why not? ...
     return oss.str();
 }
 
@@ -988,16 +979,14 @@ operator>> can use this formatting info to remove all but the separator whitespa
 template<typename Traits>
 std::istream& quetzal::geometry::operator>>(std::istream& is, Point<Traits>& point)
 {
-    return Traits::extract(is, point.rep());
+    return Traits::extract(is, point.rep()); // add provision for specific format, as is should infer format ...
 }
 
 //------------------------------------------------------------------------------
 template<typename Traits>
 std::ostream& quetzal::geometry::operator<<(std::ostream& os, const Point<Traits>& point)
 {
-// the former respects stream formatting, the latter doesn't ...
-    return Traits::insert(os, point.rep());
-//    return to_string(point);
+    return Traits::insert(os, point.rep()); // add provision for specific format ...
 }
 
 //------------------------------------------------------------------------------

@@ -13,6 +13,7 @@
 #include <iostream>
 #include <limits>
 #include <span>
+#include <vector>
 #include <cassert>
 #include <cmath>
 
@@ -134,6 +135,9 @@ namespace quetzal::math
         // denoise, abs, min, max are componentwise
 
         template<size_t I = N - 1> requires (I < N)
+
+        // Componentwise operations: denoise, abs, min, max
+
         static void denoise0(rep_type& rep, int ulp);
 
         template<size_t I = N - 1> requires (I < N)
@@ -157,11 +161,17 @@ namespace quetzal::math
         template<size_t I = N - 1> requires (I < N)
         static rep_type max(const rep_type& lhs, rep_type rhs);
 
+        // For now, just checks that the pattern appears between elements with preceding and succeeding whitespace ignored ...
+        // element_delimiter_pattern optional as well, and with object_delimiters should be inferred from parsing ...
+        // this should just have two vertsions, one with known delimiters, and one with none that infers format ...
+        // extract may not be a good candidate for template metaprogramming ...
         template<size_t I = N - 1> requires (I < N)
-        static std::istream& extract(std::istream& is, rep_type& rhs);
+//        static std::istream& extract(std::istream& is, rep_type& rep, const std::string& element_delimiter_pattern = ",", const std::optional<std::pair<char, char>>& object_delimiters = std::make_optional(std::pair<char, char>{'(', ')'}));
+        static std::istream& extract(std::istream& is, rep_type& rep, const std::string& element_delimiter_pattern = "", const std::optional<std::pair<char, char>>& object_delimiters = std::nullopt);
 
         template<size_t I = N - 1> requires (I < N)
-        static std::ostream& insert(std::ostream& os, const rep_type& rhs);
+//        static std::ostream& insert(std::ostream& os, const rep_type& rep, const std::string& element_delimiter = ", ", const std::optional<std::pair<char, char>>& object_delimiters = std::make_optional(std::pair<char, char>{'(', ')'}));
+        static std::ostream& insert(std::ostream& os, const rep_type& rep, const std::string& element_delimiter = " ", const std::optional<std::pair<char, char>>& object_delimiters = std::nullopt);
 
         static constexpr const T* data(const rep_type& rep) noexcept;
         static constexpr T* data(rep_type& rep) noexcept;
@@ -171,6 +181,18 @@ namespace quetzal::math
 
         template<size_t K>
         static void conclude(rep_type&, value_type);
+
+    private:
+    
+        // refactor these out ...
+        std::istream& skip_object_delimiter(std::istream& is, char delimiter);
+        std::istream& skip_element_delimiter(std::istream& is, const std::string& delimiter_pattern);
+
+        // move these elsewhere if they are needed at all ...
+        // traits should not need to know anything about formatting, this should come in through parameters, not stored here ...
+        // and extract would need to know what to parse for too ...
+//        static constexpr std::string_view element_delimiters = " ,\t"; // regex for read, simple value for write, regex constructed? ...
+//        static constexpr std::vector<std::pair<char, char>> object_delimiter_pairs = {{'(', ')'}, {'[', ']'}, {'{', '}'}, {'<', '>'}};
     };
 
 } // namespace quetzal::math
@@ -619,17 +641,27 @@ typename quetzal::math::CartesianTraits<T, N>::rep_type quetzal::math::Cartesian
 //------------------------------------------------------------------------------
 template<typename T, size_t N>
 template<size_t I> requires (I < N)
-std::istream& quetzal::math::CartesianTraits<T, N>::extract(std::istream& is, rep_type& rhs)
+std::istream& quetzal::math::CartesianTraits<T, N>::extract(std::istream& is, rep_type& rep, const std::string& element_delimiter_pattern, const std::optional<std::pair<char, char>>& object_delimiters)
 {
     if constexpr (I == 0)
     {
-        is >> get<0>(rhs);
+        if (skip_object_delimiter(is, object_delimiters->first))
+        {
+            is >> get<0>(rep);
+        }
         return is;
     }
     else
     {
-        extract<I - 1>(is, rhs);
-        is >> get<I>(rhs);
+        extract<I - 1>(is, rep);
+        if (skip_element_delimiter(is, element_delimiter_pattern))
+        {
+            is >> get<I>(rep);
+            if (I == N)
+            {
+                skip_object_delimiter(is, object_delimiters->second);
+            }
+        }
         return is;
     }
 }
@@ -637,19 +669,26 @@ std::istream& quetzal::math::CartesianTraits<T, N>::extract(std::istream& is, re
 //------------------------------------------------------------------------------
 template<typename T, size_t N>
 template<size_t I> requires (I < N)
-std::ostream& quetzal::math::CartesianTraits<T, N>::insert(std::ostream& os, const rep_type& rhs)
+std::ostream& quetzal::math::CartesianTraits<T, N>::insert(std::ostream& os, const rep_type& rep, const std::string& element_delimiter, const std::optional<std::pair<char, char>>& object_delimiters)
 {
     // Conditional expression ensures that -0 displays as 0
 
     if constexpr (I == 0)
     {
-        os << (get<0>(rhs) == T(0) ? T(0) : get<0>(rhs));
+        if (object_delimiters) os << object_delimiters->first;
+//        os << std::setprecision(10); // ...
+        os << (get<0>(rep) == T(0) ? T(0) : get<0>(rep));
         return os;
     }
     else
     {
-        insert<I - 1>(os, rhs);
-        os << " " << (get<I>(rhs) == T(0) ? T(0) : get<I>(rhs));
+        insert<I - 1>(os, rep, element_delimiter, object_delimiters);
+//        os << std::setprecision(10); // ...
+        os << element_delimiter << (get<I>(rep) == T(0) ? T(0) : get<I>(rep));
+        if constexpr (I == N - 1)
+        {
+            if (object_delimiters) os << object_delimiters->second;
+        }
         return os;
     }
 }
@@ -688,6 +727,46 @@ template<size_t K>
 void quetzal::math::CartesianTraits<T, N>::conclude(rep_type&, value_type)
 {
     return;
+}
+
+//------------------------------------------------------------------------------
+template<typename T, size_t N>
+std::istream& quetzal::math::CartesianTraits<T, N>::skip_object_delimiter(std::istream& is, char delimiter)
+{
+    is.skipws();
+    char c = is.peek();
+    if (c == delimiter)
+    {
+        is.ignore();
+    }
+    else
+    {
+        is.setstate(std::ios::failbit);
+    }
+    return is;
+}
+
+//------------------------------------------------------------------------------
+template<typename T, size_t N>
+std::istream& quetzal::math::CartesianTraits<T, N>::skip_element_delimiter(std::istream& is, const std::string& delimiter_pattern)
+{
+    // shortcut for now, probably fine forever ...
+    is.skipws();
+    if (delimiter_pattern.empty())
+    {
+        return is;
+    }
+    // for (each char in delimiter_pattern) ...
+    char c = is.peek();
+    if (c == delimiter_pattern[0]) // wrong, check each pattern section in sequence ...
+    {
+        is.ignore();
+    }
+    else
+    {
+        is.setstate(std::ios::failbit);
+    }
+    return is;
 }
 
 #endif // QUETZAL_MATH_CARTESIANTRAITS_HPP

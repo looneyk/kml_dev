@@ -1055,9 +1055,9 @@ bool quetzal::math::float_priority_less(const Vector<Traits>& lhs, const Vector<
 template<typename Traits>
 std::string quetzal::math::to_string(const Vector<Traits>& vector)
 {
-    // see implementation in Point ...
+    // insert/extract now handle typical formatting scenarios
     std::ostringstream oss;
-    oss << "(" << vector << ")";
+    oss << vector;
     return oss.str();
 }
 
@@ -1065,14 +1065,14 @@ std::string quetzal::math::to_string(const Vector<Traits>& vector)
 template<typename Traits>
 std::istream& quetzal::math::operator>>(std::istream& is, quetzal::math::Vector<Traits>& v)
 {
-    return Traits::extract(is, v.rep());
+    return Traits::extract(is, v.rep()); // add provision for specific format, as is should infer format ...
 }
 
 //------------------------------------------------------------------------------
 template<typename Traits>
 std::ostream& quetzal::math::operator<<(std::ostream& os, const quetzal::math::Vector<Traits>& v)
 {
-    return Traits::insert(os, v.rep());
+    return Traits::insert(os, v.rep()); // add provision for specific format ...
 }
 
 //------------------------------------------------------------------------------
