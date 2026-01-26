@@ -143,26 +143,24 @@ namespace quetzal::brep
     template<typename M>
     void prepare_face_vertices(M& mesh);
 
-    // Call an init function at each vertex, then call an apply function for all coincident vertices
-    // Captures can be used to transfer state between init and apply
-    // This uses the visited flag; the caller should define the flags context and call reset_all on u at some point before calling this
+    // for_each_vertex variations
+    // Call an init function once at each vertex, then as long as the result is affirmative, call an apply function unconditionally on all coincident vertices
+    // Captures can be used to share state between callbacks
+    // An optional face function can be called after all the vertices for a face have been processed
     // Works with Surface, Submesh, and Mesh
-    template<typename U>
-    void for_each_vertex_universal(U& u, std::function<bool(const typename U::vertex_type&)> f_init, std::function<void(typename U::vertex_type&)> f_apply, std::optional<std::function<void(typename U::face_type&)>> f_face = std::nullopt);
 
-    // this is the same as for_each_surface_vertex, these four variations of for_each_vertex need to be cleaned up ...
+    // This does nothing more, any additional logic needs to be done in the callbacks
     template<typename U>
     void for_each_vertex(U& u, std::function<bool(const typename U::vertex_type&)> f_init, std::function<void(typename U::vertex_type&)> f_apply, std::optional<std::function<void(typename U::face_type&)>> f_face = std::nullopt);
 
-    // Sets all coincident vertices to the same value
-    // Generally useful for position only
-    // Works with Surface, Submesh, and Mesh
+    // This uses the visited flag to ensure that each vertex at each position is processed exactly once
+    // The caller should define the flags context and call reset_all on u at some point before calling this (not yet ...)
+    // Generally useful for position only, set all coincident vertices to the same value
     template<typename U>
     void for_each_vertex_position(U& u, std::function<bool(const typename U::vertex_type&)> f_init, std::function<void(typename U::vertex_type&)> f_apply, std::optional<std::function<void(typename U::face_type&)>> f_face = std::nullopt);
 
-    // Sets all coincident vertices in the same surface to the same value
-    // Generally useful for normal only
-    // Works with Surface, Submesh, and Mesh
+    // This additionally calls apply only on coincident vertices that are in the same surface as the init vertex
+    // Generally useful for normal and/or texcoord, set all coincident vertices in the same surface to the same value
     template<typename U>
     void for_each_surface_vertex(U& u, std::function<bool(const typename U::vertex_type&)> f_init, std::function<void(typename U::vertex_type&)> f_apply, std::optional<std::function<void(typename U::face_type&)>> f_face = std::nullopt);
 
@@ -939,37 +937,6 @@ void quetzal::brep::prepare_face_vertices(M& mesh)
 
 //------------------------------------------------------------------------------
 template<typename U>
-void quetzal::brep::for_each_vertex_universal(U& u, std::function<bool(const typename U::vertex_type&)> f_init, std::function<void(typename U::vertex_type&)> f_apply, std::optional<std::function<void(typename U::face_type&)>> f_face)
-{
-    u.reset_all();
-
-    for (auto& face : u.faces())
-    {
-        for (auto& halfedge : face.halfedges())
-        {
-            auto& vertex = halfedge.vertex();
-            if (!f_init(vertex))
-            {
-                continue;
-            }
-
-            for (auto& h : vertex.halfedges())
-            {
-                f_apply(h.vertex());
-            }
-        }
-
-        if (f_face)
-        {
-            f_face.value()(face);
-        }
-    }
-
-    return;
-}
-
-//------------------------------------------------------------------------------
-template<typename U>
 void quetzal::brep::for_each_vertex(U& u, std::function<bool(const typename U::vertex_type&)> f_init, std::function<void(typename U::vertex_type&)> f_apply, std::optional<std::function<void(typename U::face_type&)>> f_face)
 {
     u.reset_all();
@@ -979,11 +946,6 @@ void quetzal::brep::for_each_vertex(U& u, std::function<bool(const typename U::v
         for (auto& halfedge : face.halfedges())
         {
             auto& vertex = halfedge.vertex();
-            if (vertex.visited())
-            {
-                continue;
-            }
-
             if (!f_init(vertex))
             {
                 continue;
@@ -991,13 +953,7 @@ void quetzal::brep::for_each_vertex(U& u, std::function<bool(const typename U::v
 
             for (auto& h : vertex.halfedges())
             {
-                if (h.surface_id() != halfedge.surface_id()) // Respect surface boundaries
-                {
-                    continue;
-                }
-
                 f_apply(h.vertex());
-                h.vertex().set_visited();
             }
         }
 
@@ -1009,10 +965,6 @@ void quetzal::brep::for_each_vertex(U& u, std::function<bool(const typename U::v
 
     return;
 }
-
-/*
-for_each_vertex manages visited, this vertex position has been visited, all vertices at that position will have it set
-*/
 
 //------------------------------------------------------------------------------
 template<typename U>
@@ -1333,7 +1285,7 @@ void quetzal::brep::clip_base(U& u, const typename U::traits_type::point_type& b
     u.reset_all();
 
     std::set<id_type> face_ids;
-    for_each_vertex(u,
+    for_each_surface_vertex(u,
         [base_position](const auto& vertex) -> bool
         {
             return math::float_le(vertex.attributes().position().z(), base_position.z());
@@ -1350,7 +1302,7 @@ void quetzal::brep::clip_base(U& u, const typename U::traits_type::point_type& b
     for each face in surface name
         auto normal = geometry::normal(face);
         face.set_normal(normal);
-    for_each_vertex(u.surface(name)
+    for_each_surface_vertex(u.surface(name)
         init calculate vertex normal
         apply vertex_normal
 */

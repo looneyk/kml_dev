@@ -2728,7 +2728,7 @@ void quetzal::model::project_vertices(U& u, typename U::value_type radius)
     u.reset_all();
 
     vertex_attributes_type av;
-    for_each_vertex(u,
+    for_each_surface_vertex(u,
         [&av, radius](const auto& vertex) -> bool
         {
             auto normal = direction(vertex.attributes().position());

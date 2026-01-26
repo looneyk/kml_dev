@@ -149,7 +149,7 @@ void quetzal::model::transform(U& u, const typename U::traits_type::matrix_type&
         typename U::traits_type::vector_type normal;
         id_type surface_id = nullid;
 
-        for_each_vertex_universal(u,
+        for_each_vertex(u,
             [&](const auto& vertex) -> bool
             {
                 if (vertex.marked())
@@ -415,7 +415,7 @@ void quetzal::model::calculate_spherical_texcoords(M& mesh)
 
     // Handle the crossover case here (geodesic sphere) ...
     // Check for texcoord space edge crossing, needs refinement/generalization ...
-    // This must be done after all texcoords are calculated (can't use for_each_vertex with face) ...
+    // This must be done after all texcoords are calculated (can't use for_each_surface_vertex with face) ...
     for (auto& face : mesh.faces())
     {
         fix_spherical_texcoords(face);
