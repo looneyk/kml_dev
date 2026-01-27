@@ -5,6 +5,7 @@
 // clip.hpp
 //------------------------------------------------------------------------------
 
+#include "Submesh.hpp"
 #include "geometry.hpp"
 #include "mesh_util.hpp"
 #include "quetzal/geometry/HalfSpace.hpp"
@@ -14,8 +15,6 @@
 
 namespace quetzal::brep
 {
-
-    // clip submesh in addition to or instead of mesh ...
 
     template<typename M>
     void clip(M& mesh, const geometry::HalfSpace<typename M::vector_traits>& halfspace, const std::string& surface_name = "clip");
@@ -29,19 +28,19 @@ namespace quetzal::brep
 template<typename M>
 void quetzal::brep::clip(M& mesh, const geometry::HalfSpace<typename M::vector_traits>& halfspace, const std::string& surface_name)
 {
-    mesh.reset_all();
+    mesh.reset_all(); // for_each_vertex_position also does this ...
 
     // Mark exterior vertices
     // Vertices in halfspace border plane are considered interior
 
     bool exterior = false;
-    for_each_vertex(mesh,
+    for_each_vertex_position(mesh,
         [&exterior, &halfspace](const auto& vertex) -> bool
         {
             exterior = halfspace.exterior(vertex.attributes().position());
             return true;
         },
-        [&exterior](auto& vertex)
+        [&exterior](auto& vertex) -> void
         {
             vertex.set_marked(exterior);
             return;
@@ -50,8 +49,8 @@ void quetzal::brep::clip(M& mesh, const geometry::HalfSpace<typename M::vector_t
 
     // Split intersecting faces
 
-    id_type nFacesOrig = mesh.face_store_count();
-    for (size_t nFace = 0; nFace < nFacesOrig; ++nFace)
+    id_type face_count_orig = mesh.face_store_count();
+    for (size_t nFace = 0; nFace < face_count_orig; ++nFace)
     {
         auto& face = mesh.face_store()[nFace];
         if (face.deleted())
@@ -83,108 +82,108 @@ void quetzal::brep::clip(M& mesh, const geometry::HalfSpace<typename M::vector_t
             continue;
         }
 
-        id_type idHalfedgeTransitionOut = nullid;
-        id_type idHalfedgeTransitionIn = nullid;
+        id_type halfedge_id_transition_out = nullid;
+        id_type halfedge_id_transition_in = nullid;
 
         for (const auto& halfedge : face.halfedges())
         {
-            bool bMarked0 = halfedge.vertex().marked();
-            bool bMarked1 = halfedge.next().vertex().marked();
+            bool marked0 = halfedge.vertex().marked();
+            bool marked1 = halfedge.next().vertex().marked();
 
-            if (bMarked0 && !bMarked1)
+            if (marked0 && !marked1)
             {
-                idHalfedgeTransitionIn = halfedge.id();
+                halfedge_id_transition_in = halfedge.id();
             }
-            else if (!bMarked0 && bMarked1)
+            else if (!marked0 && marked1)
             {
-                idHalfedgeTransitionOut = halfedge.id();
+                halfedge_id_transition_out = halfedge.id();
             }
         }
 
-        assert(idHalfedgeTransitionOut != nullid);
-        assert(idHalfedgeTransitionIn != nullid);
+        assert(halfedge_id_transition_out != nullid);
+        assert(halfedge_id_transition_in != nullid);
 
         // Don't split if non-exterior point already intersects halfspace plane
-        if (!halfspace.boundary(mesh.halfedge(idHalfedgeTransitionIn).next().vertex_attributes().position()))
+        if (!halfspace.boundary(mesh.halfedge(halfedge_id_transition_in).next().vertex_attributes().position()))
         {
-            auto line = to_line(mesh.halfedge(idHalfedgeTransitionIn));
+            auto line = to_line(mesh.halfedge(halfedge_id_transition_in));
             auto intersection = geometry::intersection(line, halfspace.plane());
             assert(intersection.locus() == geometry::Locus::Point);
             auto position = intersection.point();
-            split_edge(mesh, idHalfedgeTransitionIn, position);
+            split_edge(mesh, halfedge_id_transition_in, position);
         }
-        else if (mesh.halfedge(idHalfedgeTransitionIn).next().id() == idHalfedgeTransitionOut)
+        else if (mesh.halfedge(halfedge_id_transition_in).next().id() == halfedge_id_transition_out)
         {
             // The only halfspace plane intersection is this vertex, so this is actually an exterior face, mark it as such
-            mesh.halfedge(idHalfedgeTransitionOut).vertex().set_marked();
+            mesh.halfedge(halfedge_id_transition_out).vertex().set_marked();
             face.set_marked();
             continue;
         }
-        else if (halfspace.boundary(mesh.halfedge(idHalfedgeTransitionOut).vertex_attributes().position()))
+        else if (halfspace.boundary(mesh.halfedge(halfedge_id_transition_out).vertex_attributes().position()))
         {
             // Both inward and outward transitioning halfedges intersect with the halfspace plane
-            // If all vertices between idHalfedgeTransitionIn and idHalfedgeTransitionOut are in halfspace plane or exterior, then this is an exterior face
+            // If all vertices between halfedge_id_transition_in and halfedge_id_transition_out are in halfspace plane or exterior, then this is an exterior face
 
-            bool bExterior = true;
-            for (id_type idHalfedge = mesh.halfedge(idHalfedgeTransitionIn).next().id(); idHalfedge != idHalfedgeTransitionOut; idHalfedge = mesh.halfedge(idHalfedge).next_id())
+            exterior = true; // reused ...
+            for (id_type halfedge_id = mesh.halfedge(halfedge_id_transition_in).next().id(); halfedge_id != halfedge_id_transition_out; halfedge_id = mesh.halfedge(halfedge_id).next_id())
             {
-                bool bIncident = halfspace.boundary(mesh.halfedge(idHalfedge).vertex_attributes().position());
-                if (!mesh.halfedge(idHalfedge).marked() && !bIncident)
+                bool incident = halfspace.boundary(mesh.halfedge(halfedge_id).vertex_attributes().position());
+                if (!mesh.halfedge(halfedge_id).marked() && !incident)
                 {
-                    bExterior = false;
+                    exterior = false;
                     break;
                 }
             }
 
-            if (bExterior)
+            if (exterior)
             {
-                for (id_type idHalfedge = mesh.halfedge(idHalfedgeTransitionIn).next().id(); idHalfedge != idHalfedgeTransitionOut; idHalfedge = mesh.halfedge(idHalfedge).next_id())
+                for (id_type halfedge_id = mesh.halfedge(halfedge_id_transition_in).next().id(); halfedge_id != halfedge_id_transition_out; halfedge_id = mesh.halfedge(halfedge_id).next_id())
                 {
-                    mesh.halfedge(idHalfedge).vertex().set_marked();
+                    mesh.halfedge(halfedge_id).vertex().set_marked();
                 }
 
-                mesh.halfedge(idHalfedgeTransitionOut).vertex().set_marked();
+                mesh.halfedge(halfedge_id_transition_out).vertex().set_marked();
                 face.set_marked();
                 continue;
             }
         }
 
-        idHalfedgeTransitionIn = mesh.halfedge(idHalfedgeTransitionIn).next_id(); // Adjust so vertex is on halfspace plane
-        assert(halfspace.boundary(mesh.halfedge(idHalfedgeTransitionIn).vertex_attributes().position()));
+        halfedge_id_transition_in = mesh.halfedge(halfedge_id_transition_in).next_id(); // Adjust so vertex is on halfspace plane
+        assert(halfspace.boundary(mesh.halfedge(halfedge_id_transition_in).vertex_attributes().position()));
 
-        assert(!mesh.halfedge(idHalfedgeTransitionIn).vertex().marked());
-        assert(!mesh.halfedge(idHalfedgeTransitionOut).vertex().marked());
+        assert(!mesh.halfedge(halfedge_id_transition_in).vertex().marked());
+        assert(!mesh.halfedge(halfedge_id_transition_out).vertex().marked());
 
-        if (!halfspace.boundary(mesh.halfedge(idHalfedgeTransitionOut).vertex_attributes().position()))
+        if (!halfspace.boundary(mesh.halfedge(halfedge_id_transition_out).vertex_attributes().position()))
         {
-            auto line = to_line(mesh.halfedge(idHalfedgeTransitionOut));
+            auto line = to_line(mesh.halfedge(halfedge_id_transition_out));
             auto intersection = geometry::intersection(line, halfspace.plane());
             assert(intersection.locus() == geometry::Locus::Point);
             auto position = intersection.point();
-            split_edge(mesh, idHalfedgeTransitionOut, position);
+            split_edge(mesh, halfedge_id_transition_out, position);
 
-            idHalfedgeTransitionOut = mesh.halfedge(idHalfedgeTransitionOut).next_id(); // Adjust so vertex is on halfspace plane
+            halfedge_id_transition_out = mesh.halfedge(halfedge_id_transition_out).next_id(); // Adjust so vertex is on halfspace plane
         }
 
-        mesh.halfedge(idHalfedgeTransitionOut).vertex().set_marked();
+        mesh.halfedge(halfedge_id_transition_out).vertex().set_marked();
 
-        assert(halfspace.boundary(mesh.halfedge(idHalfedgeTransitionOut).vertex_attributes().position()));
+        assert(halfspace.boundary(mesh.halfedge(halfedge_id_transition_out).vertex_attributes().position()));
 
         // Split face into interior and exterior faces
-        split_face(mesh, idHalfedgeTransitionIn, idHalfedgeTransitionOut);
-        mesh.halfedge(idHalfedgeTransitionOut).prev().vertex().set_marked();
-        mesh.halfedge(idHalfedgeTransitionOut).face().set_marked();
+        split_face(mesh, halfedge_id_transition_in, halfedge_id_transition_out);
+        mesh.halfedge(halfedge_id_transition_out).prev().vertex().set_marked();
+        mesh.halfedge(halfedge_id_transition_out).face().set_marked();
     }
 
     // Delete all vertices, edges, and faces that are exterior to the halfspace plane, store remaining border halfedges
 
-    // borderHalfedges[idHalfedge] = idSubmesh
-    BorderHalfedges borderHalfedges;
+    // border_halfedges[halfedge_id] = surface_id
+    BorderHalfedges border_halfedges;
 
-    bool bInterior = true;
+    bool interior = true;
     for (auto& face : mesh.faces())
     {
-        if (face.marked() == bInterior)
+        if (face.marked() == interior)
         {
             for (auto& halfedge : face.halfedges())
             {
@@ -197,22 +196,22 @@ void quetzal::brep::clip(M& mesh, const geometry::HalfSpace<typename M::vector_t
 
         for (auto& halfedge : face.halfedges())
         {
-            assert(halfedge.vertex().marked() != bInterior);
+            assert(halfedge.vertex().marked() != interior);
 
-            if (halfedge.border() || halfedge.partner().vertex().marked() == bInterior)
+            if (halfedge.border() || halfedge.partner().vertex().marked() == interior)
             {
-                borderHalfedges.insert({halfedge.id(), face.submesh_id()});
+                border_halfedges.insert({halfedge.id(), face.submesh_id()});
                 halfedge.set_border();
             }
         }
     }
 
-    if (borderHalfedges.empty()) // No intersection
+    if (border_halfedges.empty()) // No intersection
     {
         return;
     }
 
-    close_border(mesh, borderHalfedges, surface_name, bInterior ? halfspace.plane().normal() : -halfspace.plane().normal());
+    close_border(mesh, border_halfedges, surface_name, interior ? halfspace.plane().normal() : -halfspace.plane().normal());
     return;
 }
 
@@ -222,13 +221,13 @@ void quetzal::brep::clip(Submesh<Traits>& submesh, const geometry::HalfSpace<typ
 {
     auto& mesh = submesh.mesh();
 
-    submesh.reset_all();
+    submesh.reset_all(); // for_each_vertex_position also does this ...
 
     // Mark exterior vertices
     // Vertices in halfspace border plane are considered interior
 
     bool exterior = false;
-    for_each_vertex(submesh,
+    for_each_vertex_position(submesh,
         [&exterior, &halfspace](const auto& vertex) -> bool
         {
             exterior = halfspace.exterior(vertex.attributes().position());
@@ -367,16 +366,16 @@ void quetzal::brep::clip(Submesh<Traits>& submesh, const geometry::HalfSpace<typ
 
     // Delete all vertices, edges, and faces that are exterior to the halfspace plane, store remaining border halfedges
 
-    // borderHalfedges[halfedge_id] = sSubmesh_id;
-    BorderHalfedges borderHalfedges;
+    // border_halfedges[halfedge_id] = submesh_id;
+    BorderHalfedges border_halfedges;
 
-    bool bInterior = true;
+    bool interior = true;
     face_ids = submesh.face_ids();
     for (id_type face_id : face_ids)
     {
         auto& face = mesh.face(face_id);
 
-        if (face.marked() == bInterior)
+        if (face.marked() == interior)
         {
             for (auto& halfedge : face.halfedges())
             {
@@ -389,22 +388,22 @@ void quetzal::brep::clip(Submesh<Traits>& submesh, const geometry::HalfSpace<typ
 
         for (auto& halfedge : face.halfedges())
         {
-            assert(halfedge.vertex().marked() != bInterior);
+            assert(halfedge.vertex().marked() != interior);
 
-            if (halfedge.border() || halfedge.partner().vertex().marked() == bInterior)
+            if (halfedge.border() || halfedge.partner().vertex().marked() == interior)
             {
-                borderHalfedges.insert({halfedge.id(), face.submesh_id()});
+                border_halfedges.insert({halfedge.id(), face.submesh_id()});
                 halfedge.set_border();
             }
         }
     }
 
-    if (borderHalfedges.empty()) // No intersection
+    if (border_halfedges.empty()) // No intersection
     {
         return;
     }
 
-    close_border(mesh, borderHalfedges, surface_name, bInterior ? halfspace.plane().normal() : -halfspace.plane().normal());
+    close_border(mesh, border_halfedges, surface_name, interior ? halfspace.plane().normal() : -halfspace.plane().normal());
     return;
 }
 

@@ -144,17 +144,20 @@ namespace quetzal::brep
     void prepare_face_vertices(M& mesh);
 
     // for_each_vertex variations
-    // Call an init function once at each vertex, then as long as the result is affirmative, call an apply function unconditionally on all coincident vertices
+    // Call an init function once at each vertex, then as long as the result is affirmative, call an apply function on coincident vertices
     // Captures can be used to share state between callbacks
     // An optional face function can be called after all the vertices for a face have been processed
     // Works with Surface, Submesh, and Mesh
 
-    // This does nothing more, any additional logic needs to be done in the callbacks
+    // This calls an apply function unconditionally on all coincident vertices
+    // Any additional logic needs to be done in the callbacks (the other two variations can actually be done using this with the additional logic manually added)
     template<typename U>
     void for_each_vertex(U& u, std::function<bool(const typename U::vertex_type&)> f_init, std::function<void(typename U::vertex_type&)> f_apply, std::optional<std::function<void(typename U::face_type&)>> f_face = std::nullopt);
 
+    // Should the caller define the flags context and call reset_all on u at some point before calling these two? ...
+    // Currently reset_all is called at the start of each ...
+
     // This uses the visited flag to ensure that each vertex at each position is processed exactly once
-    // The caller should define the flags context and call reset_all on u at some point before calling this (not yet ...)
     // Generally useful for position only, set all coincident vertices to the same value
     template<typename U>
     void for_each_vertex_position(U& u, std::function<bool(const typename U::vertex_type&)> f_init, std::function<void(typename U::vertex_type&)> f_apply, std::optional<std::function<void(typename U::face_type&)>> f_face = std::nullopt);
@@ -939,8 +942,6 @@ void quetzal::brep::prepare_face_vertices(M& mesh)
 template<typename U>
 void quetzal::brep::for_each_vertex(U& u, std::function<bool(const typename U::vertex_type&)> f_init, std::function<void(typename U::vertex_type&)> f_apply, std::optional<std::function<void(typename U::face_type&)>> f_face)
 {
-    u.reset_all();
-
     for (auto& face : u.faces())
     {
         for (auto& halfedge : face.halfedges())
