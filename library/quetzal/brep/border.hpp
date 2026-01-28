@@ -188,14 +188,10 @@ size_t quetzal::brep::border_edge_count(const M& mesh, id_type halfedge_id)
     assert(mesh.halfedge(halfedge_id).border());
 
     size_t n = 0;
-
-    id_type id = halfedge_id;
-    do
+    for_each_halfedge(halfedge_id, [&mesh, &n](id_type id) -> id_type
     {
-        ++n;
-        id = next_border_halfedge_id(mesh, id);
-    } while (id != halfedge_id);
-
+        return next_border_halfedge_id(mesh, id);
+    });
     return n;
 }
 
@@ -206,15 +202,12 @@ std::vector<quetzal::id_type> quetzal::brep::border_halfedges(const M& mesh, id_
     assert(mesh.valid_halfedge_id(halfedge_id));
 
     std::vector<id_type> ids;
-
-    id_type id = halfedge_id;
-    do
+    for_each_halfedge(halfedge_id, [&mesh, &ids](id_type id) -> id_type
     {
         assert(mesh.halfedge(id).border());
         ids.push_back(id);
-        id = prev_border_halfedge_id(mesh, id);
-    } while (id != halfedge_id);
-
+        return prev_border_halfedge_id(mesh, id);
+    });
     return ids;
 }
 
@@ -226,14 +219,11 @@ quetzal::geometry::Polygon<typename M::vector_traits> quetzal::brep::to_border_p
     assert(mesh.halfedge(halfedge_id).border());
 
     geometry::Polygon<typename M::vector_traits> polygon;
-
-    id_type id = halfedge_id;
-    do
+    for_each_halfedge(halfedge_id, [&mesh, &polygon](id_type id) -> id_type
     {
         polygon.vertices().push_back(mesh.halfedge(id).vertex_attributes().position());
-        id = prev_border_halfedge_id(mesh, id);
-    } while (id != halfedge_id);
-
+        return prev_border_halfedge_id(mesh, id);
+    });
     return polygon;
 }
 
@@ -245,14 +235,11 @@ auto quetzal::brep::to_border_polygon(const M& mesh, id_type halfedge_id, const 
     assert(mesh.halfedge(halfedge_id).border());
 
     geometry::Polygon<typename geometry::Projection<typename M::vector_traits>::projected_traits> polygon;
-
-    id_type id = halfedge_id;
-    do
+    for_each_halfedge(halfedge_id, [&mesh, &polygon, &projection](id_type id) -> id_type
     {
         polygon.vertices().push_back(projection(mesh.halfedge(id).vertex_attributes().position()));
-        id = prev_border_halfedge_id(mesh, id);
-    } while (id != halfedge_id);
-
+        return prev_border_halfedge_id(mesh, id);
+    });
     return polygon;
 }
 

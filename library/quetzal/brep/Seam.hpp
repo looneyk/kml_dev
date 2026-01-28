@@ -6,10 +6,10 @@
 //------------------------------------------------------------------------------
 
 #include "id.hpp"
-#include "quetzal/common/ElementsDirect.hpp"
+#include "quetzal/common/Elements.hpp"
 #include "quetzal/common/Flags.hpp"
 #include "quetzal/common/Properties.hpp"
-#include <iostream>
+#include <ostream>
 #include <vector>
 #include <cassert>
 
@@ -28,7 +28,7 @@ namespace quetzal::brep
         using mesh_type = M;
         using surface_type = mesh_type::surface_type;
         using halfedge_type = mesh_type::halfedge_type;
-        using halfedges_type = ElementsDirect<Seam, halfedge_type, id_type>;
+        using halfedges_type = Elements<mesh_type, halfedge_type, id_type>;
         using size_type = mesh_type::size_type;
 
         Seam();
@@ -96,7 +96,7 @@ quetzal::brep::Seam<Traits, M>::Seam() :
     m_pmesh(nullptr),
     m_surface_id(nullid),
     m_halfedge_id(nullid),
-    m_halfedges(m_halfedges_size, m_halfedges_first, m_halfedges_last, m_halfedges_end, m_halfedges_forward, m_halfedges_reverse, m_halfedges_element, m_halfedges_const_element),
+    m_halfedges(m_pmesh, nullid, m_halfedges_size, m_halfedges_first, m_halfedges_last, m_halfedges_end, m_halfedges_forward, m_halfedges_reverse, m_halfedges_element, m_halfedges_const_element),
     m_properties()
 {
 }
@@ -108,7 +108,7 @@ quetzal::brep::Seam<Traits, M>::Seam(mesh_type& mesh, id_type surface_id, id_typ
     m_pmesh(&mesh),
     m_surface_id(surface_id),
     m_halfedge_id(halfedge_id),
-    m_halfedges(m_halfedges_size, m_halfedges_first, m_halfedges_last, m_halfedges_end, m_halfedges_forward, m_halfedges_reverse, m_halfedges_element, m_halfedges_const_element),
+    m_halfedges(m_pmesh, halfedge_id, m_halfedges_size, m_halfedges_first, m_halfedges_last, m_halfedges_end, m_halfedges_forward, m_halfedges_reverse, m_halfedges_element, m_halfedges_const_element),
     m_properties()
 {
 }
@@ -173,7 +173,6 @@ template<typename Traits, typename M>
 const typename quetzal::brep::Seam<Traits, M>::halfedges_type& quetzal::brep::Seam<Traits, M>::halfedges() const
 {
     surface().check_regenerate_seams();
-    m_halfedges.set_source(*this);
     return m_halfedges;
 }
 
@@ -182,7 +181,6 @@ template<typename Traits, typename M>
 typename quetzal::brep::Seam<Traits, M>::halfedges_type& quetzal::brep::Seam<Traits, M>::halfedges()
 {
     surface().check_regenerate_seams();
-    m_halfedges.set_source(*this);
     return m_halfedges;
 }
 
@@ -265,6 +263,7 @@ template<typename Traits, typename M>
 void quetzal::brep::Seam<Traits, M>::set_mesh(mesh_type& mesh)
 {
     m_pmesh = &mesh;
+    m_halfedges.set_source(mesh);
     return;
 }
 
@@ -286,64 +285,73 @@ quetzal::id_type quetzal::brep::Seam<Traits, M>::halfedge_id() const
 
 //------------------------------------------------------------------------------
 template<typename Traits, typename M>
-typename quetzal::brep::Seam<Traits, M>::halfedges_type::size_function_type quetzal::brep::Seam<Traits, M>::m_halfedges_size = [](const Seam<Traits, M>& seam) -> size_t
+typename quetzal::brep::Seam<Traits, M>::halfedges_type::size_function_type quetzal::brep::Seam<Traits, M>::m_halfedges_size = [](const mesh_type& mesh, id_type id) -> size_t
 {
-    const auto& halfedges = seam.halfedges();
-    return std::distance(halfedges.begin(), halfedges.end());
+    id_type id0 = id;
+    size_t n = 0;
+    for_each_halfedge(id0, [&mesh, &n](id_type id) -> id_type
+    {
+        return mesh.halfedge(id).next_id();
+    });
+    return n;
 };
 
 //------------------------------------------------------------------------------
 template<typename Traits, typename M>
-typename quetzal::brep::Seam<Traits, M>::halfedges_type::terminal_function_type quetzal::brep::Seam<Traits, M>::m_halfedges_first = [](const Seam<Traits, M>& seam) -> id_type
+typename quetzal::brep::Seam<Traits, M>::halfedges_type::terminal_function_type quetzal::brep::Seam<Traits, M>::m_halfedges_first = [](const mesh_type& mesh, id_type id) -> id_type
 {
-    return seam.halfedge_id();
+    mesh;
+    return id;
 };
 
 //------------------------------------------------------------------------------
 template<typename Traits, typename M>
-typename quetzal::brep::Seam<Traits, M>::halfedges_type::terminal_function_type quetzal::brep::Seam<Traits, M>::m_halfedges_last = [](const Seam<Traits, M>& seam) -> id_type
+typename quetzal::brep::Seam<Traits, M>::halfedges_type::terminal_function_type quetzal::brep::Seam<Traits, M>::m_halfedges_last = [](const mesh_type& mesh, id_type id) -> id_type
 {
-    return prev_surface_halfedge_id(seam.mesh(), seam.halfedge_id());
+    return prev_surface_halfedge_id(mesh, id);
 };
 
 //------------------------------------------------------------------------------
 template<typename Traits, typename M>
-typename quetzal::brep::Seam<Traits, M>::halfedges_type::terminal_function_type quetzal::brep::Seam<Traits, M>::m_halfedges_end = [](const Seam<Traits, M>& seam) -> id_type
+typename quetzal::brep::Seam<Traits, M>::halfedges_type::terminal_function_type quetzal::brep::Seam<Traits, M>::m_halfedges_end = [](const mesh_type& mesh, id_type id) -> id_type
 {
-    seam;
+    mesh;
+    id;
     return nullid;
 };
 
 //------------------------------------------------------------------------------
 template<typename Traits, typename M>
-typename quetzal::brep::Seam<Traits, M>::halfedges_type::iterate_function_type quetzal::brep::Seam<Traits, M>::m_halfedges_forward = [](const Seam<Traits, M>& seam, id_type i) -> id_type
+typename quetzal::brep::Seam<Traits, M>::halfedges_type::iterate_function_type quetzal::brep::Seam<Traits, M>::m_halfedges_forward = [](const mesh_type& mesh, id_type id, id_type i) -> id_type
 {
-    assert(i != m_halfedges_end(seam));
-    i = next_surface_halfedge_id(seam.mesh(), i);
-    return i != m_halfedges_first(seam) ? i : nullid;
+    assert(i != m_halfedges_end(mesh, id));
+    i = next_surface_halfedge_id(mesh, i);
+    return i != m_halfedges_first(mesh, id) ? i : nullid;
 };
 
 //------------------------------------------------------------------------------
 template<typename Traits, typename M>
-typename quetzal::brep::Seam<Traits, M>::halfedges_type::iterate_function_type quetzal::brep::Seam<Traits, M>::m_halfedges_reverse = [](const Seam<Traits, M>& seam, id_type i) -> id_type
+typename quetzal::brep::Seam<Traits, M>::halfedges_type::iterate_function_type quetzal::brep::Seam<Traits, M>::m_halfedges_reverse = [](const mesh_type& mesh, id_type id, id_type i) -> id_type
 {
-    assert(i != m_halfedges_end(seam));
-    i = prev_surface_halfedge_id(seam.mesh(), i);
-    return i != m_halfedges_last(seam) ? i : nullid;
+    assert(i != m_halfedges_end(mesh, id));
+    i = prev_surface_halfedge_id(mesh, i);
+    return i != m_halfedges_last(mesh, id) ? i : nullid;
 };
 
 //------------------------------------------------------------------------------
 template<typename Traits, typename M>
-typename quetzal::brep::Seam<Traits, M>::halfedges_type::element_function_type quetzal::brep::Seam<Traits, M>::m_halfedges_element = [](Seam<Traits, M>& seam, id_type i) -> quetzal::brep::Seam<Traits, M>::halfedge_type&
+typename quetzal::brep::Seam<Traits, M>::halfedges_type::element_function_type quetzal::brep::Seam<Traits, M>::m_halfedges_element = [](mesh_type& mesh, id_type id, id_type i) -> quetzal::brep::Seam<Traits, M>::halfedge_type&
 {
-    return seam.mesh().halfedge(i);
+    id;
+    return mesh.halfedge(i);
 };
 
 //------------------------------------------------------------------------------
 template<typename Traits, typename M>
-typename quetzal::brep::Seam<Traits, M>::halfedges_type::const_element_function_type quetzal::brep::Seam<Traits, M>::m_halfedges_const_element = [](const Seam<Traits, M>& seam, id_type i) -> const quetzal::brep::Seam<Traits, M>::halfedge_type&
+typename quetzal::brep::Seam<Traits, M>::halfedges_type::const_element_function_type quetzal::brep::Seam<Traits, M>::m_halfedges_const_element = [](const mesh_type& mesh, id_type id, id_type i) -> const quetzal::brep::Seam<Traits, M>::halfedge_type&
 {
-    return seam.mesh().halfedge(i);
+    id;
+    return mesh.halfedge(i);
 };
 
 //------------------------------------------------------------------------------

@@ -5,6 +5,7 @@
 // vertices_attributes.hpp
 //------------------------------------------------------------------------------
 
+#include "quetzal/brep/mesh_util.hpp"
 #include "quetzal/geometry/PositionAccessor.hpp"
 #include "quetzal/math/Interval.hpp"
 #include "quetzal/geometry/OrientedPoint.hpp"
@@ -933,20 +934,17 @@ quetzal::model::vertices_attributes_type<M> quetzal::model::border_vertices_attr
 {
     assert(mesh.halfedge(halfedge_id).border());
 
-    using T = data_value_type<M>;
-
     vertices_attributes_type<M> avs;
 
 // re-analyze, then validate laminaria_20 to determine which way this should go ...
     halfedge_id = prev_border_halfedge_id(mesh, halfedge_id);
 //    halfedge_id = next_border_halfedge_id(mesh, halfedge_id);
 
-    id_type id = halfedge_id;
-    do
+    brep::for_each_halfedge(halfedge_id, [&mesh, &avs](id_type id) -> id_type
     {
         avs.emplace_back(mesh.halfedge(id).vertex_attributes());
-        id = prev_border_halfedge_id(mesh, id);
-    } while (id != halfedge_id);
+        return prev_border_halfedge_id(mesh, id);
+    });
 
     return avs;
 }

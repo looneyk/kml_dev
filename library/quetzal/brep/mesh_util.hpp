@@ -142,6 +142,12 @@ namespace quetzal::brep
     // Ensures that no vertices belong to more than one face (vertices are not shared between halfedges/faces)
     template<typename M>
     void prepare_face_vertices(M& mesh);
+ 
+    // Perform an operation on each halfedge in a loop (Face, Hole, border, just a halfedge_id, etc.
+    // This is useful when you don't have an iterator (halfedge_id only instead), or the operation would invalidate the iterator
+    // Replace the overhead of the do/while loop that would be required otherwise
+    // The callback should return the next halfedge_id in the loop
+    void for_each_halfedge(id_type halfedge_id, std::function<id_type(id_type)> f);
 
     // for_each_vertex variations
     // Call an init function once at each vertex, then as long as the result is affirmative, call an apply function on coincident vertices
@@ -606,14 +612,10 @@ size_t quetzal::brep::hole_edge_count(const M& mesh, id_type halfedge_id)
     assert(mesh.valid_halfedge_id(halfedge_id));
 
     size_t n = 0;
-    id_type id = halfedge_id;
-
-    do
+    for_each_halfedge(halfedge_id, [&n](id_type id) -> id_type
     {
-        ++n;
-        id = mesh.halfedge(id).next_id();
-    } while (id != halfedge_id);
-
+        return mesh.halfedge(id).next_id();
+    });
     return n;
 }
 
@@ -793,12 +795,11 @@ std::vector<quetzal::id_type> quetzal::brep::close_border(M& mesh, BorderHalfedg
         id_type halfedge_id = border_halfedge.first;
         assert(mesh.valid_halfedge_id(halfedge_id));
 
-        id_type id = halfedge_id;
-        do
+        for_each_halfedge(halfedge_id, [&mesh, &border_halfedges](id_type id) -> id_type
         {
             border_halfedges.erase(id);
-            id = prev_border_halfedge_id(mesh, id);
-        } while (id != halfedge_id);
+            return prev_border_halfedge_id(mesh, id);
+        });
 
         if (border_external(mesh, halfedge_id, normal))
         {
@@ -935,6 +936,17 @@ void quetzal::brep::prepare_face_vertices(M& mesh)
         }
     }
 
+    return;
+}
+
+//------------------------------------------------------------------------------
+void quetzal::brep::for_each_halfedge(id_type halfedge_id, std::function<id_type(id_type)> f)
+{
+    id_type halfedge_id0 = halfedge_id;
+    do
+    {
+        halfedge_id = f(halfedge_id);
+    } while (halfedge_id != halfedge_id0);
     return;
 }
 
