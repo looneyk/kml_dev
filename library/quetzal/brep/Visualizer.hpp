@@ -101,14 +101,6 @@ void quetzal::brep::Visualizer<M>::draw_submesh(const submesh_type& submesh, boo
         draw_face(face, arrowhead_fill);
     }
 
-    for (const auto& hole : submesh.holes())
-    {
-        for (const auto& halfedge : hole.halfedges())
-        {
-            draw_halfedge(halfedge, arrowhead_fill);
-        }
-    }
-
     return;
 }
 
