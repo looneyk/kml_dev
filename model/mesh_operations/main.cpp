@@ -94,14 +94,14 @@ namespace g = quetzal::geometry;
 // Entire points intersection within a face, and tests multiple intersection traces in the same original faces
 #define BOX_TORUS_2
 // Both entire points intersection within a face and regular intersection, and tests multiple intersection traces in the same original faces
-//#define BOX_TORUS_3
+#define BOX_TORUS_3
+// Regular intersection
 #define BOX_TORUS_4
 #define DISJOINT
 #define INCLUSION
 #else
-#define BOX_TORUS_3
-#define BOX_TORUS_4
-//#define BOX_BOX_FACE_FACE
+#define BOX_BOX_FACE_FACE_1
+//#define BOX_BOX_FACE_FACE_2
 #endif
 
 namespace
@@ -236,6 +236,7 @@ namespace
         name;
         model_ids;
         brep::clip(mesh, clip_plane, "slice");
+//        brep::clip(mesh.submesh(name), clip_plane, "slice");
         brep::triangulate(mesh);
         return {}; // the result is ultimately ignored ...
     };
@@ -270,7 +271,7 @@ namespace
     {
         cout << file_name << endl;
         auto m = mesh;
-        operation(m, "", {});
+        operation(m, file_name, {});
         brep::triangulate(m);
         model::write_obj(m, to_filename(file_name));
         return {};
@@ -477,20 +478,35 @@ int main(int argc, char* argv[])
     test_model_operations(mesh, "box_box_edge_edge_2", box_box_edge_edge_2_model, test_operations);
 #endif // BOX_BOX_EDGE_EDGE_2
 
-#if defined(BOX_BOX_FACE_FACE)
-    auto box_box_face_face_model = [&](mesh_type& mesh) -> vector<id_type>
+#if defined(BOX_BOX_FACE_FACE_1)
+    auto box_box_face_face_1_model = [&](mesh_type& mesh) -> vector<id_type>
     {
         string name_a = "box_a";
         string name_b = "box_b";
         mesh.clear();
         id_type submesh_id_a = model::create_box(mesh, name_a, 20.0f, 20.0f, 20.0f);
         id_type submesh_id_b = model::create_box(mesh, name_b, 10.0f, 10.0f, 10.0f);
-        model::transform_positions(mesh.submesh(name_b), g::translation(0.0f, 0.0f, 10.0f));
+        model::transform_positions(mesh.submesh(name_b), g::translation(0.0f, 0.0f, 5.0f));
         return {submesh_id_a, submesh_id_b};
     };
 
-    test_model_operations(mesh, "box_box_face_face", box_box_face_face_model, test_operations);
-#endif // BOX_BOX_FACE_FACE
+    test_model_operations(mesh, "box_box_face_face_1", box_box_face_face_1_model, test_operations);
+#endif // BOX_BOX_FACE_FACE_1
+
+#if defined(BOX_BOX_FACE_FACE_2)
+    auto box_box_face_face_2_model = [&](mesh_type& mesh) -> vector<id_type>
+    {
+        string name_a = "box_a";
+        string name_b = "box_b";
+        mesh.clear();
+        id_type submesh_id_a = model::create_box(mesh, name_a, 20.0f, 20.0f, 20.0f);
+        id_type submesh_id_b = model::create_box(mesh, name_b, 20.0f, 20.0f, 10.0f);
+        model::transform_positions(mesh.submesh(name_b), g::translation(10.0f, 10.0f, 5.0f));
+        return {submesh_id_a, submesh_id_b};
+    };
+
+    test_model_operations(mesh, "box_box_face_face_2", box_box_face_face_2_model, test_operations);
+#endif // BOX_BOX_FACE_FACE_2
 
 #if defined(BOX_CYLINDER_1)
     auto box_cylinder1_model = [](mesh_type& mesh) -> vector<id_type>
