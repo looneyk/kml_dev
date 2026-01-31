@@ -394,10 +394,10 @@ namespace quetzal::model
 
     // Create a geodesic sphere centered at the origin with the given radius
     // bVertex refers to vertical orientation, vertex or face
-    // nSubdivisions (nSegments? ...)
+    // frequency (segments per original icosahedron edge
     // Surfaces: per face "body<i>"
     template<typename M>
-    id_type create_geodesic_sphere(M& mesh, const std::string& name, data_value_type<M> radius, size_t nSubdivisions, bool bVertex = true, bool bSmooth = false);
+    id_type create_geodesic_sphere(M& mesh, const std::string& name, data_value_type<M> radius, size_t frequency, bool bVertex = true, bool bSmooth = false);
 
     // single body surface instead of per side? same as below? ...
 
@@ -4063,18 +4063,18 @@ quetzal::id_type quetzal::model::create_icosahedron(M& mesh, const std::string& 
 
 //------------------------------------------------------------------------------
 template<typename M>
-quetzal::id_type quetzal::model::create_geodesic_sphere(M& mesh, const std::string& name, data_value_type<M> radius, size_t nSubdivisions, bool bVertex, bool bSmooth)
+quetzal::id_type quetzal::model::create_geodesic_sphere(M& mesh, const std::string& name, data_value_type<M> radius, size_t frequency, bool bVertex, bool bSmooth)
 {
     using T = M::value_type;
 
     assert(radius > T(0));
-    assert(nSubdivisions > 0);
+    assert(frequency > 0);
 
     // Approximate a sphere by tessellating an icosahedron
 
     M m{};
     id_type submesh_id = create_icosahedron(m, name, radius, bVertex, bSmooth);
-    if (nSubdivisions == 1)
+    if (frequency == 1)
     {
         mesh.insert(m);
         return mesh.submesh_id(name);
@@ -4093,11 +4093,11 @@ quetzal::id_type quetzal::model::create_geodesic_sphere(M& mesh, const std::stri
             // Split unmarked edge
             if (!m.halfedge(idHalfedge).marked())
             {
-                split_edge(m, idHalfedge, nSubdivisions);
+                split_edge(m, idHalfedge, frequency);
 
                 // Mark partners of this edge's segments so that adjacent face edges will not be split
                 id_type idHalfedgeEdge = idHalfedge;
-                for (int j = 0; j < nSubdivisions; ++j)
+                for (int j = 0; j < frequency; ++j)
                 {
                     m.halfedge(idHalfedgeEdge).partner().set_marked();
                     idHalfedgeEdge = m.halfedge(idHalfedgeEdge).next_id();
@@ -4108,7 +4108,7 @@ quetzal::id_type quetzal::model::create_geodesic_sphere(M& mesh, const std::stri
         } while (idHalfedge != idHalfedge0);
 
         // Recursively triangulate by row
-        triangulate_rows(m, m.face(i).halfedge_id(), nSubdivisions);
+        triangulate_rows(m, m.face(i).halfedge_id(), frequency);
     }
 
     project_vertices(m.submesh(submesh_id), radius);
