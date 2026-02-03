@@ -48,7 +48,7 @@ namespace quetzal::geometry
         plane_type m_plane;
     };
 
-    template<typename Traits>
+    template<typename Traits> requires (Traits::dimension >= 3)
     std::ostream& operator<<(std::ostream& os, HalfSpace<Traits> plane);
 
 } // namespace quetzal::geometry
@@ -96,7 +96,7 @@ std::partial_ordering quetzal::geometry::HalfSpace<Traits>::compare(const point_
 }
 
 //------------------------------------------------------------------------------
-template<typename Traits>
+template<typename Traits> requires (Traits::dimension >= 3)
 std::ostream& quetzal::geometry::operator<<(std::ostream& os, HalfSpace<Traits> halfspace)
 {
     os << halfspace.plane();
