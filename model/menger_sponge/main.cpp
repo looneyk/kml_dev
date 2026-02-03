@@ -31,6 +31,8 @@ namespace
     using value_type = float;
     using vector_traits = math::HomogeneousTraits<value_type, 3>;
     using mesh_type = brep::Mesh<brep::MeshTraits<vector_traits>>;
+    using point_type = mesh_type::point_type;
+    using vector_type = point_type::vector_type;
 
     static const filesystem::path dir_out = "out/";
     static const filesystem::path dir_ref = "reference/";
@@ -113,7 +115,7 @@ namespace
 
         // Reassign all interior surfaces to internal surface of primary submesh
 
-        std::string surface_name_internal = name + "/internal";
+        std::string surface_name_internal = name + "/internal"; // single internal surface is problematic ...
 
         mesh.move_surface("cell_1/front", surface_name_internal);
         mesh.move_surface("cell_1/top", surface_name_internal);
@@ -186,14 +188,14 @@ int main(int argc, char* argv[])
     mesh_type mesh_diagonal;
     id_type submesh_id = nullid;
 
-    mesh_type::vector_type diagonal = math::normalize<vector_traits>({1.0f, 1.0f, 1.0f});
-    mesh_type::value_type angle = angle_between_unit(diagonal, {0.0f, 0.0f, 1.0f});
-    mesh_type::vector_type axis = normalize(cross(diagonal, {0.0f, 0.0f, 1.0f}));
+    vector_type diagonal = math::normalize<vector_traits>({1.0f, 1.0f, 1.0f});
+    value_type angle = angle_between_unit(diagonal, {0.0f, 0.0f, 1.0f});
+    vector_type axis = normalize(cross(diagonal, {0.0f, 0.0f, 1.0f}));
     auto matrix = g::rotation_axis_unit(axis, angle);
 
-    mesh_type::point_type point = {0.0f, 0.0f, 0.0f};
-    g::Plane<vector_traits> planeUpper(point, {0.0f, 0.0f, -1.0f});
-    g::Plane<vector_traits> planeLower(point, {0.0f, 0.0f, 1.0f});
+    point_type point = {};
+    g::Plane<vector_traits> planeUpper(point, -vector_type::z_direction());
+    g::Plane<vector_traits> planeLower(point, vector_type::z_direction());
 
     name = "menger_sponge_0";
     cout << name << endl;

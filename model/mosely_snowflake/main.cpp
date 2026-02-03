@@ -8,7 +8,6 @@
 #include "quetzal/brep/clip.hpp"
 #include "quetzal/brep/connection.hpp"
 #include "quetzal/brep/triangulation.hpp"
-//#include "quetzal/brep/validation.hpp"
 #include "quetzal/common/FileValidator.hpp"
 #include "quetzal/geometry/transformation_matrix.hpp"
 #include "quetzal/math/HomogeneousTraits.hpp"
@@ -35,122 +34,59 @@ namespace
     using point_type = mesh_type::point_type;
     using vector_type = point_type::vector_type;
 
-    static const string dirOut = "out/";
-    static const string dirReference = "reference/";
+    static const filesystem::path dir_out = "out/";
+    static const filesystem::path dir_ref = "reference/";
+    static const string app_name = "mosely_snowflake";
 
     //--------------------------------------------------------------------------
-    string to_filename(const string& name)
+    filesystem::path to_filename(const string& name)
     {
-        return dirOut + name + ".obj";
+        return dir_out / (name + ".obj");
     }
 
     //--------------------------------------------------------------------------
-    void iterate(mesh_type& mesh, value_type size, bool bHeavy)
+    void iterate(mesh_type& mesh, id_type submesh_id, value_type size, bool heavy)
     {
-        assert(mesh.submesh_count() == 1);
-        string name = mesh.submesh(0).name();
-
-        mesh_type mCell = move(mesh);
-        mesh.clear();
+        string name = mesh.submesh(submesh_id).name();
         mesh_type m;
+        id_type cell_id = mesh.move(submesh_id, m, name);
 
-        m = mCell;
-        m.rename_submesh(0, "cell_0");
-        model::transform_positions(m, g::translation(0.0f, -size, -size));
-        mesh.insert(m);
-
-        m = mCell;
-        m.rename_submesh(0, "cell_1");
-        model::transform_positions(m, g::translation(-size, 0.0f, -size));
-        mesh.insert(m);
-
-        m = mCell;
-        m.rename_submesh(0, "cell_2");
-        model::transform_positions(m, g::translation(0.0f, 0.0f, -size));
-        mesh.insert(m);                                 
-
-        m = mCell;
-        m.rename_submesh(0, "cell_3");
-        model::transform_positions(m, g::translation(size, 0.0f, -size));
-        mesh.insert(m);
-
-        m = mCell;
-        m.rename_submesh(0, "cell_4");
-        model::transform_positions(m, g::translation(0.0f, size, -size));
-        mesh.insert(m);
-
-        m = mCell;
-        m.rename_submesh(0, "cell_5");
-        model::transform_positions(m, g::translation(-size, -size, 0.0f));
-        mesh.insert(m);
-
-        m = mCell;
-        m.rename_submesh(0, "cell_6");
-        model::transform_positions(m, g::translation(0.0f, -size, 0.0f));
-        mesh.insert(m);
-
-        m = mCell;
-        m.rename_submesh(0, "cell_7");
-        model::transform_positions(m, g::translation(size, -size, 0.0f));
-        mesh.insert(m);
-
-        m = mCell;
-        m.rename_submesh(0, "cell_8");
-        model::transform_positions(m, g::translation(-size, 0.0f, 0.0f));
-        mesh.insert(m);
-
-        if (bHeavy)
+        struct CellPlacement
         {
-            m = mCell;
-            m.rename_submesh(0, "cell_9");
-            model::transform_positions(m, g::translation(0.0f, 0.0f, 0.0f));
-            mesh.insert(m);
+            string name;
+            typename mesh_type::vector_type offset;
+        };
+
+        std::vector<CellPlacement> placements =
+        {
+            {"cell_0", {0.0f, -size, -size}},
+            {"cell_1", {-size, 0.0f, -size}},
+            {"cell_2", {0.0f, 0.0f, -size}},
+            {"cell_3", {size, 0.0f, -size}},
+            {"cell_4", {0.0f, size, -size}},
+            {"cell_5", {-size, -size, 0.0f}},
+            {"cell_6", {0.0f, -size, 0.0f}},
+            {"cell_7", {size, -size, 0.0f}},
+            {"cell_8", {-size, 0.0f, 0.0f}},
+            {"cell_9", {0.0f, 0.0f, 0.0f}},
+            {"cell_10", {size, 0.0f, 0.0f}},
+            {"cell_11", {-size, size, 0.0f}},
+            {"cell_12", {0.0f, size, 0.0f}},
+            {"cell_13", {size, size, 0.0f}},
+            {"cell_14", {0.0f, -size, size}},
+            {"cell_15", {-size, 0.0f, size}},
+            {"cell_16", {0.0f, 0.0f, size}},
+            {"cell_17", {size, 0.0f, size}},
+            {"cell_18", {0.0f, size, size}},
+        };
+
+        for (const auto& placement : placements)
+        {
+            if (heavy || placement.name != "cell_9")
+            {
+                mesh.insert(m, cell_id, placement.name, [&placement](typename mesh_type::vertex_type vertex) -> typename mesh_type::vertex_type { vertex.attributes().position() *= g::translation(placement.offset); return vertex; });
+            }
         }
-
-        m = mCell;
-        m.rename_submesh(0, "cell_10");
-        model::transform_positions(m, g::translation(size, 0.0f, 0.0f));
-        mesh.insert(m);
-
-        m = mCell;
-        m.rename_submesh(0, "cell_11");
-        model::transform_positions(m, g::translation(-size, size, 0.0f));
-        mesh.insert(m);
-
-        m = mCell;
-        m.rename_submesh(0, "cell_12");
-        model::transform_positions(m, g::translation(0.0f, size, 0.0f));
-        mesh.insert(m);
-
-        m = mCell;
-        m.rename_submesh(0, "cell_13");
-        model::transform_positions(m, g::translation(size, size, 0.0f));
-        mesh.insert(m);
-
-        m = mCell;
-        m.rename_submesh(0, "cell_14");
-        model::transform_positions(m, g::translation(0.0f, -size, size));
-        mesh.insert(m);
-
-        m = mCell;
-        m.rename_submesh(0, "cell_15");
-        model::transform_positions(m, g::translation(-size, 0.0f, size));
-        mesh.insert(m);
-
-        m = mCell;
-        m.rename_submesh(0, "cell_16");
-        model::transform_positions(m, g::translation(0.0f, 0.0f, size));
-        mesh.insert(m);
-
-        m = mCell;
-        m.rename_submesh(0, "cell_17");
-        model::transform_positions(m, g::translation(size, 0.0f, size));
-        mesh.insert(m);
-
-        m = mCell;
-        m.rename_submesh(0, "cell_18");
-        model::transform_positions(m, g::translation(0.0f, size, size));
-        mesh.insert(m);
 
         weld(mesh, "cell_0/front", "cell_2/back");
         weld(mesh, "cell_1/right", "cell_2/left");
@@ -179,7 +115,7 @@ namespace
         weld(mesh, "cell_16/right", "cell_17/left");
         weld(mesh, "cell_16/front", "cell_18/back");
 
-        if (bHeavy)
+        if (heavy)
         {
             weld(mesh, "cell_2/top", "cell_9/bottom");
             weld(mesh, "cell_6/front", "cell_9/back");
@@ -191,43 +127,43 @@ namespace
 
         // Reassign all interior surfaces to internal surface of primary submesh
 
-        std::string nameSurfaceInternal = name + "/internal";
+        std::string surface_name_internal = name + "/internal"; // single internal surface is problematic ...
 
-        mesh.move_surface("cell_0/left", nameSurfaceInternal);
-        mesh.move_surface("cell_0/right", nameSurfaceInternal);
-        mesh.move_surface("cell_1/back", nameSurfaceInternal);
-        mesh.move_surface("cell_1/front", nameSurfaceInternal);
-        mesh.move_surface("cell_3/back", nameSurfaceInternal);
-        mesh.move_surface("cell_3/front", nameSurfaceInternal);
-        mesh.move_surface("cell_4/left", nameSurfaceInternal);
-        mesh.move_surface("cell_4/right", nameSurfaceInternal);
+        mesh.move_surface("cell_0/left", surface_name_internal);
+        mesh.move_surface("cell_0/right", surface_name_internal);
+        mesh.move_surface("cell_1/back", surface_name_internal);
+        mesh.move_surface("cell_1/front", surface_name_internal);
+        mesh.move_surface("cell_3/back", surface_name_internal);
+        mesh.move_surface("cell_3/front", surface_name_internal);
+        mesh.move_surface("cell_4/left", surface_name_internal);
+        mesh.move_surface("cell_4/right", surface_name_internal);
 
-        mesh.move_surface("cell_5/bottom", nameSurfaceInternal);
-        mesh.move_surface("cell_5/top", nameSurfaceInternal);
-        mesh.move_surface("cell_7/bottom", nameSurfaceInternal);
-        mesh.move_surface("cell_7/top", nameSurfaceInternal);
-        mesh.move_surface("cell_11/bottom", nameSurfaceInternal);
-        mesh.move_surface("cell_11/top", nameSurfaceInternal);
-        mesh.move_surface("cell_13/bottom", nameSurfaceInternal);
-        mesh.move_surface("cell_13/top", nameSurfaceInternal);
+        mesh.move_surface("cell_5/bottom", surface_name_internal);
+        mesh.move_surface("cell_5/top", surface_name_internal);
+        mesh.move_surface("cell_7/bottom", surface_name_internal);
+        mesh.move_surface("cell_7/top", surface_name_internal);
+        mesh.move_surface("cell_11/bottom", surface_name_internal);
+        mesh.move_surface("cell_11/top", surface_name_internal);
+        mesh.move_surface("cell_13/bottom", surface_name_internal);
+        mesh.move_surface("cell_13/top", surface_name_internal);
 
-        mesh.move_surface("cell_14/left", nameSurfaceInternal);
-        mesh.move_surface("cell_14/right", nameSurfaceInternal);
-        mesh.move_surface("cell_15/back", nameSurfaceInternal);
-        mesh.move_surface("cell_15/front", nameSurfaceInternal);
-        mesh.move_surface("cell_17/back", nameSurfaceInternal);
-        mesh.move_surface("cell_17/front", nameSurfaceInternal);
-        mesh.move_surface("cell_18/left", nameSurfaceInternal);
-        mesh.move_surface("cell_18/right", nameSurfaceInternal);
+        mesh.move_surface("cell_14/left", surface_name_internal);
+        mesh.move_surface("cell_14/right", surface_name_internal);
+        mesh.move_surface("cell_15/back", surface_name_internal);
+        mesh.move_surface("cell_15/front", surface_name_internal);
+        mesh.move_surface("cell_17/back", surface_name_internal);
+        mesh.move_surface("cell_17/front", surface_name_internal);
+        mesh.move_surface("cell_18/left", surface_name_internal);
+        mesh.move_surface("cell_18/right", surface_name_internal);
 
-        if (!bHeavy)
+        if (!heavy)
         {
-            mesh.move_surface("cell_2/top", nameSurfaceInternal);
-            mesh.move_surface("cell_6/front", nameSurfaceInternal);
-            mesh.move_surface("cell_8/right", nameSurfaceInternal);
-            mesh.move_surface("cell_10/left", nameSurfaceInternal);
-            mesh.move_surface("cell_12/back", nameSurfaceInternal);
-            mesh.move_surface("cell_16/bottom", nameSurfaceInternal);
+            mesh.move_surface("cell_2/top", surface_name_internal);
+            mesh.move_surface("cell_6/front", surface_name_internal);
+            mesh.move_surface("cell_8/right", surface_name_internal);
+            mesh.move_surface("cell_10/left", surface_name_internal);
+            mesh.move_surface("cell_12/back", surface_name_internal);
+            mesh.move_surface("cell_16/bottom", surface_name_internal);
         }
 
         // Ensure that all surfaces are part of the main submesh
@@ -241,7 +177,7 @@ namespace
 
             if (surface.submesh().name() != name)
             {
-                mesh.move_surface(surface.id(), name + "/" + surface.name());
+                mesh.move_surface(surface.id(), brep::extended_surface_name(name, surface.name()));
             }
         }
 
@@ -250,22 +186,20 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    void create_mosely_snowflake(mesh_type& mesh, const string& name, size_t nLevel, value_type scale, bool bHeavy = true)
+    id_type create_mosely_snowflake(mesh_type& mesh, const string& name, size_t nLevel, value_type scale, bool heavy = true)
     {
-        mesh_type m;
         value_type size = 1.0f;
-        model::create_box(m, name, size, size, size);
+        id_type submesh_id = model::create_box(mesh, name, size, size, size);
 
         for (size_t i = 0; i < nLevel; ++i)
         {
             cout << "Level " << i << " size " << size << endl;
-            iterate(m, size, bHeavy);
+            iterate(mesh, submesh_id, size, heavy);
             size *= 3.0f;
         }
 
-        model::transform_positions(m, g::scaling(scale / size));
-        mesh.insert(m);
-        return;
+        model::transform_positions(mesh, g::scaling(scale / size));
+        return submesh_id;
     }
 
 } // namespace
@@ -276,24 +210,24 @@ int main(int argc, char* argv[])
     argc;
     argv;
 
-    FileValidator validator(dirOut, dirReference);
+    FileValidator validator(dir_out, dir_ref, app_name);
 
-    string name;
     mesh_type mesh;
+    string name;
+    id_type submesh_id = nullid;
 
     vector_type diagonal = math::normalize<vector_traits>({1.0f, 1.0f, 1.0f});
     value_type angle = angle_between_unit(diagonal, {0.0f, 0.0f, 1.0f});
     vector_type axis = normalize(cross(diagonal, {0.0f, 0.0f, 1.0f}));
     auto matrix = g::rotation_axis_unit(axis, angle);
 
-    point_type point = {0.0f, 0.0f, 0.0f};
-    vector_type direction = {0.0f, 0.0f, -1.0f};
-    g::Plane plane(point, direction);
+    point_type point = {};
+    g::Plane plane(point, -vector_type::z_direction());
 
     name = "mosely_snowflake_heavy_0";
     cout << name << endl;
     mesh.clear();
-    create_mosely_snowflake(mesh, name, 0, 100.0f);
+    submesh_id = create_mosely_snowflake(mesh, name, 0, 100.0f);
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 
@@ -311,13 +245,13 @@ int main(int argc, char* argv[])
     name = "mosely_snowflake_light_0";
     cout << name << endl;
     mesh.clear();
-    create_mosely_snowflake(mesh, name, 0, 100.0f, false);
+    submesh_id = create_mosely_snowflake(mesh, name, 0, 100.0f, false);
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 
     name = "mosely_snowflake_light_0_diagonal";
     cout << name << endl;
-	model::transform(mesh, matrix);
+    model::transform(mesh, matrix);
     model::write_obj(mesh, to_filename(name));
 
     name = "mosely_snowflake_light_0_diagonal_half";
@@ -329,13 +263,13 @@ int main(int argc, char* argv[])
     name = "mosely_snowflake_heavy_1";
     cout << name << endl;
     mesh.clear();
-    create_mosely_snowflake(mesh, name, 1, 100.0f);
+    submesh_id = create_mosely_snowflake(mesh, name, 1, 100.0f);
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 
     name = "mosely_snowflake_heavy_1_diagonal";
     cout << name << endl;
-	model::transform(mesh, matrix);
+    model::transform(mesh, matrix);
     model::write_obj(mesh, to_filename(name));
 
     name = "mosely_snowflake_heavy_1_diagonal_half";
@@ -347,13 +281,13 @@ int main(int argc, char* argv[])
     name = "mosely_snowflake_light_1";
     cout << name << endl;
     mesh.clear();
-    create_mosely_snowflake(mesh, name, 1, 100.0f, false);
+    submesh_id = create_mosely_snowflake(mesh, name, 1, 100.0f, false);
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 
     name = "mosely_snowflake_light_1_diagonal";
     cout << name << endl;
-	model::transform(mesh, matrix);
+    model::transform(mesh, matrix);
     model::write_obj(mesh, to_filename(name));
 
     name = "mosely_snowflake_light_1_diagonal_half";
@@ -365,19 +299,19 @@ int main(int argc, char* argv[])
     name = "mosely_snowflake_heavy_2";
     cout << name << endl;
     mesh.clear();
-    create_mosely_snowflake(mesh, name, 2, 100.0f);
+    submesh_id = create_mosely_snowflake(mesh, name, 2, 100.0f);
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 
     name = "mosely_snowflake_heavy_2_diagonal";
     cout << name << endl;
-	model::transform(mesh, matrix);
+    model::transform(mesh, matrix);
     model::write_obj(mesh, to_filename(name));
 
     name = "mosely_snowflake_heavy_2_diagonal_half";
     cout << name << endl;
 mesh.clear();
-create_mosely_snowflake(mesh, name, 2, 100.0f);
+submesh_id = create_mosely_snowflake(mesh, name, 2, 100.0f);
 model::transform(mesh, matrix);
     brep::clip(mesh, plane, "slice");
     triangulate(mesh);
@@ -386,19 +320,19 @@ model::transform(mesh, matrix);
     name = "mosely_snowflake_light_2";
     cout << name << endl;
     mesh.clear();
-    create_mosely_snowflake(mesh, name, 2, 100.0f, false);
+    submesh_id = create_mosely_snowflake(mesh, name, 2, 100.0f, false);
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 
     name = "mosely_snowflake_light_2_diagonal";
     cout << name << endl;
-	model::transform(mesh, matrix);
+    model::transform(mesh, matrix);
     model::write_obj(mesh, to_filename(name));
 
     name = "mosely_snowflake_light_2_diagonal_half";
     cout << name << endl;
 mesh.clear();
-create_mosely_snowflake(mesh, name, 2, 100.0f, false);
+submesh_id = create_mosely_snowflake(mesh, name, 2, 100.0f, false);
 model::transform(mesh, matrix);
     brep::clip(mesh, plane, "slice");
     triangulate(mesh);
@@ -407,13 +341,13 @@ model::transform(mesh, matrix);
     name = "mosely_snowflake_heavy_3";
     cout << name << endl;
     mesh.clear();
-    create_mosely_snowflake(mesh, name, 3, 100.0f);
+    submesh_id = create_mosely_snowflake(mesh, name, 3, 100.0f);
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 
     name = "mosely_snowflake_heavy_3_diagonal";
     cout << name << endl;
-	model::transform(mesh, matrix);
+    model::transform(mesh, matrix);
     model::write_obj(mesh, to_filename(name));
 
     name = "mosely_snowflake_heavy_3_diagonal_half";
@@ -425,13 +359,13 @@ model::transform(mesh, matrix);
     name = "mosely_snowflake_light_3";
     cout << name << endl;
     mesh.clear();
-    create_mosely_snowflake(mesh, name, 3, 100.0f, false);
+    submesh_id = create_mosely_snowflake(mesh, name, 3, 100.0f, false);
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 
     name = "mosely_snowflake_light_3_diagonal";
     cout << name << endl;
-	model::transform(mesh, matrix);
+    model::transform(mesh, matrix);
     model::write_obj(mesh, to_filename(name));
 
     name = "mosely_snowflake_light_3_diagonal_half";
@@ -446,7 +380,7 @@ brep::draw_face<mesh_type>("clip_face.svg", face, geometry::alignment(normal, ri
 right = normalize(vertex_position(face.halfedge()) - vertex_centroid(face));
 geometry::Orientation<vector_traits> orientation(normal, right);
 auto projection = geometry::Projection(orientation);
-brep::Visualizer<mesh_type> visualizer(projection, 0.05, 0.1);
+brep::Visualizer<mesh_type> visualizer(projection, 0.05f, 0.1f);
 visualizer.draw_face(face);
 for (const auto& halfedge : face.halfedges())
 {
@@ -461,7 +395,7 @@ orientation = {up, right};
 projection.init(orientation);
 visualizer.clear();
 visualizer.set_projection(projection);
-visualizer.set_scale(0.05, 0.05);
+visualizer.set_scale(0.05f, 0.05f);
 visualizer.draw_face(face);
 visualizer.write("clip_face_projection2.svg");
     triangulate(mesh);
@@ -470,7 +404,7 @@ visualizer.write("clip_face_projection2.svg");
     name = "mosely_snowflake_heavy_4";
     cout << name << endl;
     mesh.clear();
-    create_mosely_snowflake(mesh, name, 4, 100.0f);
+    submesh_id = create_mosely_snowflake(mesh, name, 4, 100.0f);
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 
@@ -488,7 +422,7 @@ visualizer.write("clip_face_projection2.svg");
     name = "mosely_snowflake_light_4";
     cout << name << endl;
     mesh.clear();
-    create_mosely_snowflake(mesh, name, 4, 100.0f, false);
+    submesh_id = create_mosely_snowflake(mesh, name, 4, 100.0f, false);
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 
