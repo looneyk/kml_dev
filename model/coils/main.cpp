@@ -53,12 +53,12 @@ namespace
 
         r *= sin(t * azimuthArc);
 
-        auto matrixRotation = geometry::rotation_z(phi);
-        auto matrixPosition = matrixRotation * geometry::translation(r * cos(phi), r * sin(phi), 0.0f);
-        auto matrixDirection = geometry::direction_matrix(matrixPosition);
+        auto matrix_rotation = geometry::rotation_z(phi);
+        auto matrix_position = matrix_rotation * geometry::translation(r * cos(phi), r * sin(phi), 0.0f);
+        auto matrix_direction = geometry::direction_matrix(matrix_position); // should simply be same as matrix_rotation? ...
 
-        av.position() *= matrixPosition;
-        av.normal() *= matrixDirection;
+        av.position() *= matrix_position;
+        av.normal() *= matrix_direction;
         return av;
     }
 
@@ -82,12 +82,12 @@ namespace
         value_type trans = 1.0f * factor * sin(theta) - t * t * 2.0f;
 //        value_type trans = (1.0f - t * t) * 3.0f * sin(theta);
 
-        auto matrixPosition = geometry::scaling(scale, scale, 1.0f);
-        matrixPosition *= geometry::translation(trans * op.position().x(), trans * op.position().y(), op.position().z());
-//        auto matrixDirection = math::scaling(1.0f / f, 1.0f / f, 0.0f);
+        auto matrix_position = geometry::scaling(scale, scale, 1.0f);
+        matrix_position *= geometry::translation(trans * op.position().x(), trans * op.position().y(), op.position().z());
+//        auto matrix_direction = math::scaling(1.0f / f, 1.0f / f, 0.0f);
 
-//        return {op.position() * matrixPosition, {normalize(op.orientation().direction() * matrixDirection), normalize(op.orientation().right() * matrixDirection)}};
-        return {op.position() * matrixPosition, op.orientation()};
+//        return {op.position() * matrix_position, {normalize(op.orientation().direction() * matrix_direction), normalize(op.orientation().right() * matrix_direction)}};
+        return {op.position() * matrix_position, op.orientation()};
     }
 
     //--------------------------------------------------------------------------
@@ -169,7 +169,8 @@ namespace
     void position_coil(mesh_type& mesh, value_type phi)
     {
         auto matrix = geometry::rotation_z(phi);
-        model::transform(mesh, matrix, matrix);
+//        model::transform(mesh, matrix, matrix);
+        model::transform(mesh.submesh(0), matrix, matrix);
         return;
     }
 
@@ -179,47 +180,57 @@ namespace
         auto circle = geometry::regular_polygon<vector_traits>(nAzimuth, radius);
         circle.set_final();
 
-        math::Interval<value_type> azimuthEven = {0.0f, 2.0f};
-        math::Interval<value_type> azimuthOdd = shift(azimuthEven, 0.5f);
-        geometry::Path<vector_traits> pathEven = create_coil_path_linear(nz, 20.0f, 0.25f, 30.0f, 01.5f, 0.0f, 100.0f, azimuthEven);
-        geometry::Path<vector_traits> pathOdd = create_coil_path_linear(nz, 20.0f, 0.25f, 30.0f, 01.5f, 0.0f, 100.0f, azimuthOdd);
+        math::Interval<value_type> azimuth_even = {0.0f, 2.0f};
+        math::Interval<value_type> azimuth_odd = shift(azimuth_even, 0.5f);
+        geometry::Path<vector_traits> path_even = create_coil_path_linear(nz, 20.0f, 0.25f, 30.0f, 01.5f, 0.0f, 100.0f, azimuth_even);
+        geometry::Path<vector_traits> path_odd = create_coil_path_linear(nz, 20.0f, 0.25f, 30.0f, 01.5f, 0.0f, 100.0f, azimuth_odd);
         auto scaler = [](const geometry::Polygon<vector_traits>& in, value_type t) -> geometry::Polygon<vector_traits>
         {
             return scale(in, (1.0f - 0.85f * t));
         };
-        mesh_type mEven;
-        model::create_swept_volume(mEven, "coil", circle, pathEven, scaler);
-        mesh_type mOdd;
-        model::create_swept_volume(mOdd, "coil", circle, pathOdd, scaler);
-
+        // change to single m0 with separate submesh_id's ...
+        mesh_type m0_even;
+        model::create_swept_volume(m0_even, "coil", circle, path_even, scaler);
+        mesh_type m0_odd;
+        model::create_swept_volume(m0_odd, "coil", circle, path_odd, scaler);
+// replace ...
         mesh_type m;
-
         for (size_t i = 0; i < nCoils; ++i)
         {
-            m = math::even(i) ? mEven : mOdd;
+            m = math::even(i) ? m0_even : m0_odd;
             m.rename_submesh(m.submesh_id("coil"), "coil_" + to_string(i));
             position_coil(m, math::PiTwo<value_type> * i / nCoils);
-            clip(m, geometry::Plane<vector_traits>({0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, -1.0f}));
+            clip(m, geometry::Plane<vector_traits>({}, -vector_type::z_direction()));
             triangulate(m);
             mesh.insert(m);
         }
-
+/* with this ...
+        for (size_t i = 0; i < nCoils; ++i)
+        {
+            value_type phi = math::PiTwo<value_type> * i / nCoils;
+            auto matrix = geometry::rotation_z(phi);
+            id_type submesh_id_coil = mesh.insert(math::even(i) ? m0_even : m0_odd, 0, "coil_" + to_string(i), [=](const typename mesh_type::vertex_type& vertex) -> typename mesh_type::vertex_type
+            {
+                vertex_type v = vertex;
+                v.attributes().transform(matrix, matrix);
+                return v;
+            });
+            clip(mesh.submesh(submesh_id_coil), geometry::Plane<vector_traits>({}, -vector_type::z_direction()));
+            triangulate(mesh.submesh(submesh_id_coil));
+        }
+*/
         // Pinnacle
-        m.clear();
-        model::create_geodesic_sphere(m, "pinnacle", 3.2f, 5);
+        id_type submesh_id_pinnacle = model::create_geodesic_sphere(mesh, "pinnacle", 3.2f, 5);
 // this needed for printing, but incorporate in a better way ...
-//        clip(m, geometry::Plane<vector_traits>({0.0f, 0.0f, -2.4f}, {0.0f, 0.0f, -1.0f}));
-        model::transform(m, geometry::scaling(0.75f, 0.75f, 1.0f) * geometry::translation(0.0f, 0.0f, 99.0f));
-        triangulate(m);
-        mesh.insert(m);
+//        clip(.submesh(submesh_id_pinnacle), geometry::Plane<vector_traits>({0.0f, 0.0f, -2.4f}, -vector_type::z_direction()));
+        model::transform(mesh.submesh(submesh_id_pinnacle), geometry::scaling(0.75f, 0.75f, 1.0f) * geometry::translation(0.0f, 0.0f, 99.0f));
+        triangulate(mesh.submesh(submesh_id_pinnacle));
 
         // Base
-        m.clear();
-        model::create_geodesic_sphere(m, "base", 60.0f, 5);
-        clip(m, geometry::Plane<vector_traits>({0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, -1.0f}));
-        model::transform(m, geometry::scaling(1.0f, 1.0f, 0.1f));
-        triangulate(m);
-        mesh.insert(m);
+        id_type submesh_id_base = model::create_geodesic_sphere(mesh, "base", 60.0f, 5);
+        clip(mesh.submesh(submesh_id_base), geometry::Plane<vector_traits>({}, -vector_type::z_direction()));
+        model::transform(mesh.submesh(submesh_id_base), geometry::scaling(1.0f, 1.0f, 0.1f));
+        triangulate(mesh.submesh(submesh_id_base));
 
         return;
     }
@@ -230,46 +241,42 @@ namespace
         auto circle = geometry::regular_polygon<vector_traits>(nAzimuth, radius);
         circle.set_final();
 
-        math::Interval<value_type> azimuthEven = {0.0f, 2.0f};
-        math::Interval<value_type> azimuthOdd = shift(azimuthEven, 0.5f);
+        math::Interval<value_type> azimuth_even = {0.0f, 2.0f};
+        math::Interval<value_type> azimuth_odd = shift(azimuth_even, 0.5f);
 
-        geometry::Path<vector_traits> pathEven = create_coil_path_parabolic(nz, 1.5f, 20.0f, 20.0f, 0.0f, 150.0f, azimuthEven);
-        geometry::Path<vector_traits> pathOdd = create_coil_path_parabolic(nz, 1.5f, 20.0f, 20.0f, 0.0f, 150.0f, azimuthOdd);
+        geometry::Path<vector_traits> path_even = create_coil_path_parabolic(nz, 1.5f, 20.0f, 20.0f, 0.0f, 150.0f, azimuth_even);
+        geometry::Path<vector_traits> path_odd = create_coil_path_parabolic(nz, 1.5f, 20.0f, 20.0f, 0.0f, 150.0f, azimuth_odd);
         auto scaler = [](const geometry::Polygon<vector_traits>& in, value_type t) -> geometry::Polygon<vector_traits>
         {
             return scale(in, (1.0f - 0.75f * t));
         };
-        mesh_type mEven;
-        model::create_swept_volume(mEven, "coil", circle, pathEven, scaler);
-        mesh_type mOdd;
-        model::create_swept_volume(mOdd, "coil", circle, pathOdd, scaler);
+        mesh_type m0_even;
+        model::create_swept_volume(m0_even, "coil", circle, path_even, scaler);
+        mesh_type m0_odd;
+        model::create_swept_volume(m0_odd, "coil", circle, path_odd, scaler);
 
+// replace ...
         mesh_type m;
-
         for (size_t i = 0; i < nCoils; ++i)
         {
-            m = math::even(i) ? mEven : mOdd;
+            m = math::even(i) ? m0_even : m0_odd;
             m.rename_submesh(m.submesh_id("coil"), "coil_" + to_string(i));
             position_coil(m, math::PiTwo<value_type> * i / nCoils);
-            clip(m, geometry::Plane<vector_traits>({0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, -1.0f}));
+            clip(m, geometry::Plane<vector_traits>({}, -vector_type::z_direction()));
             triangulate(m);
             mesh.insert(m);
         }
 
         // Pinnacle
-        m.clear();
-        model::create_geodesic_sphere(m, "pinnacle", 3.2f, 5);
-        model::transform(m, geometry::scaling(0.75f, 0.75f, 1.0f) * geometry::translation(0.0f, 0.0f, 149.0f));
-        triangulate(m);
-        mesh.insert(m);
+        id_type submesh_id_pinnacle = model::create_geodesic_sphere(mesh, "pinnacle", 3.2f, 5);
+        model::transform(mesh.submesh(submesh_id_pinnacle), geometry::scaling(0.75f, 0.75f, 1.0f) * geometry::translation(0.0f, 0.0f, 149.0f));
+        triangulate(mesh.submesh(submesh_id_pinnacle));
 
         // Base
-        m.clear();
-        model::create_geodesic_sphere(m, "base", 70.0f, 5);
-        clip(m, geometry::Plane<vector_traits>({0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, -1.0f}));
-        model::transform(m, geometry::scaling(1.0f, 1.0f, 0.1f));
-        triangulate(m);
-        mesh.insert(m);
+        id_type submesh_id_base = model::create_geodesic_sphere(mesh, "base", 70.0f, 5);
+        clip(mesh.submesh(submesh_id_base), geometry::Plane<vector_traits>({}, -vector_type::z_direction()));
+        model::transform(mesh.submesh(submesh_id_base), geometry::scaling(1.0f, 1.0f, 0.1f));
+        triangulate(mesh.submesh(submesh_id_base));
 
         return;
     }
@@ -284,8 +291,8 @@ int main(int argc, char* argv[])
 
     FileValidator validator(dir_out, dir_ref, app_name);
 
-    string name;
     mesh_type mesh;
+    string name;
 
     name = "coil_cone";
     cout << name << endl;
@@ -312,15 +319,21 @@ int main(int argc, char* argv[])
     name = "entwine_8";
     cout << name << endl;
     mesh.clear();
+    mesh_type m0;
+    id_type submesh_id0 = model::create_cylinder(m0, "cylinder", 12, 100, 3.75f, 3.75f, -50.0f, 50.0f);
     for (size_t i = 0; i < 8; ++i)
     {
-        mesh_type m;
-        model::create_cylinder(m, "cylinder_" + to_string(i), 12, 100, 3.75f, 3.75f, -50.0f, 50.0f);
         value_type x = 30.0f * cos(math::PiTwo<value_type> * i / 8);
         value_type y = 30.0f * sin(math::PiTwo<value_type> * i / 8);
-        model::transform_positions(m, [=](const point_type& position) -> point_type { return coilify_position(position, 20.0f, -50.0f, 50.0f, x, y, math::Pi<value_type> * i + math::PiTwo<value_type> * i / 8, 2.0f * math::PiTwo<value_type>);});
-        triangulate(m);
-        mesh.insert(m);
+
+        id_type submesh_id = mesh.insert(m0, submesh_id0, std::format("cylinder_{}", i), [=](const typename mesh_type::vertex_type& vertex) -> typename mesh_type::vertex_type
+        {
+            vertex_type v = vertex;
+            point_type position = vertex.attributes().position();
+            v.attributes().position() = coilify_position(position, 20.0f, -50.0f, 50.0f, x, y, math::Pi<value_type> * i + math::PiTwo<value_type> * i / 8, 2.0f * math::PiTwo<value_type>);
+            return v;
+        });
+        triangulate(mesh.submesh(submesh_id));
     }
     model::write_obj(mesh, to_filename(name));
 //validate(mesh);
