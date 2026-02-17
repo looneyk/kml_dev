@@ -200,7 +200,7 @@ namespace
             // this may actually be more efficient, but a single clip at the end should work too ...
             if ((position + upFace * dz).z() < z0)
             {
-                brep::clip(mesh.submesh(spike_id), plane);
+                brep::clip(mesh.submesh(spike_id), {plane, down});
             }
 
             // Connect spike to body

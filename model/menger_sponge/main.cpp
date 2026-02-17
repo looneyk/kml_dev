@@ -10,7 +10,7 @@
 #include "quetzal/brep/connection.hpp"
 #include "quetzal/brep/triangulation.hpp"
 #include "quetzal/common/FileValidator.hpp"
-#include "quetzal/geometry/Plane.hpp"
+#include "quetzal/geometry/HalfSpace.hpp"
 #include "quetzal/geometry/transformation_matrix.hpp"
 #include "quetzal/math/HomogeneousTraits.hpp"
 #include "quetzal/model/mesh_attributes.hpp"
@@ -194,8 +194,8 @@ int main(int argc, char* argv[])
     auto matrix = g::rotation_axis_unit(axis, angle);
 
     point_type point = {};
-    g::Plane<vector_traits> planeUpper(point, -vector_type::z_direction());
-    g::Plane<vector_traits> planeLower(point, vector_type::z_direction());
+    g::HalfSpace<vector_traits> halfspace_upper{{point, -vector_type::z_direction()}, -vector_type::z_direction()};
+    g::HalfSpace<vector_traits> halfspace_lower{{point, vector_type::z_direction()}, vector_type::z_direction()};
 
     name = "menger_sponge_0";
     cout << name << endl;
@@ -213,7 +213,7 @@ int main(int argc, char* argv[])
 
     name = "menger_sponge_0_diagonal_half_upper";
     cout << name << endl;
-    brep::clip(mesh_diagonal.submesh(submesh_id), planeUpper, "slice");
+    brep::clip(mesh_diagonal.submesh(submesh_id), halfspace_upper, "slice");
     mesh_diagonal.pack();
     triangulate(mesh_diagonal);
     model::write_obj(mesh_diagonal, to_filename(name));
@@ -222,14 +222,14 @@ int main(int argc, char* argv[])
 
     name = "menger_sponge_0_diagonal_half_lower";
     cout << name << endl;
-    brep::clip(mesh_diagonal.submesh(submesh_id), planeLower, "slice");
+    brep::clip(mesh_diagonal.submesh(submesh_id), halfspace_lower, "slice");
     mesh_diagonal.pack();
     triangulate(mesh_diagonal);
     model::write_obj(mesh_diagonal, to_filename(name));
 
     name = "menger_sponge_0_diagonal_halves";
     cout << name << endl;
-    brep::split(mesh.submesh(submesh_id), planeUpper, "slice");
+    brep::split(mesh.submesh(submesh_id), halfspace_upper, "slice");
     model::transform(mesh.submesh("menger_sponge_0_0"), g::translation(0.0f, 0.0f, 10.0f));
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
@@ -253,7 +253,7 @@ int main(int argc, char* argv[])
 
     name = "menger_sponge_1_diagonal_half_upper";
     cout << name << endl;
-    brep::clip(mesh_diagonal.submesh(submesh_id), planeUpper, "slice");
+    brep::clip(mesh_diagonal.submesh(submesh_id), halfspace_upper, "slice");
     mesh_diagonal.pack();
     triangulate(mesh_diagonal);
     model::write_obj(mesh_diagonal, to_filename(name));
@@ -263,7 +263,7 @@ int main(int argc, char* argv[])
 
     name = "menger_sponge_1_diagonal_half_lower";
     cout << name << endl;
-    brep::clip(mesh_diagonal.submesh(submesh_id), planeLower, "slice");
+    brep::clip(mesh_diagonal.submesh(submesh_id), halfspace_lower, "slice");
     mesh_diagonal.pack();
     triangulate(mesh_diagonal);
     model::write_obj(mesh_diagonal, to_filename(name));
@@ -271,7 +271,7 @@ int main(int argc, char* argv[])
 
     name = "menger_sponge_1_diagonal_halves";
     cout << name << endl;
-    brep::split(mesh.submesh(submesh_id), planeUpper, "slice");
+    brep::split(mesh.submesh(submesh_id), halfspace_upper, "slice");
     model::transform(mesh.submesh("menger_sponge_1_0"), g::translation(0.0f, 0.0f, 10.0f));
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
@@ -297,7 +297,7 @@ int main(int argc, char* argv[])
 //mesh_diagonal.clear();
 //submesh_id = create_menger_sponge(mesh_diagonal, name, 2, 100.0f);
 //model::transform(mesh_diagonal, matrix);
-    brep::clip(mesh_diagonal.submesh(submesh_id), planeUpper, "slice");
+    brep::clip(mesh_diagonal.submesh(submesh_id), halfspace_upper, "slice");
     mesh_diagonal.pack();
     triangulate(mesh_diagonal);
     model::write_obj(mesh_diagonal, to_filename(name));
@@ -307,7 +307,7 @@ int main(int argc, char* argv[])
 
     name = "menger_sponge_2_diagonal_half_lower";
     cout << name << endl;
-    brep::clip(mesh_diagonal.submesh(submesh_id), planeLower, "slice");
+    brep::clip(mesh_diagonal.submesh(submesh_id), halfspace_lower, "slice");
     mesh_diagonal.pack();
     triangulate(mesh_diagonal);
     model::write_obj(mesh_diagonal, to_filename(name));
@@ -315,7 +315,7 @@ int main(int argc, char* argv[])
 
     name = "menger_sponge_2_diagonal_halves";
     cout << name << endl;
-    brep::split(mesh.submesh(submesh_id), planeUpper, "slice");
+    brep::split(mesh.submesh(submesh_id), halfspace_upper, "slice");
     model::transform(mesh.submesh("menger_sponge_2_0"), g::translation(0.0f, 0.0f, 10.0f));
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
@@ -338,7 +338,7 @@ int main(int argc, char* argv[])
 
     name = "menger_sponge_3_diagonal_half_upper";
     cout << name << endl;
-    brep::clip(mesh_diagonal.submesh(submesh_id), planeUpper, "slice");
+    brep::clip(mesh_diagonal.submesh(submesh_id), halfspace_upper, "slice");
     mesh_diagonal.pack();
     triangulate(mesh_diagonal);
     model::write_obj(mesh_diagonal, to_filename(name));
@@ -348,7 +348,7 @@ int main(int argc, char* argv[])
 
     name = "menger_sponge_3_diagonal_half_lower";
     cout << name << endl;
-    brep::clip(mesh_diagonal.submesh(submesh_id), planeLower, "slice");
+    brep::clip(mesh_diagonal.submesh(submesh_id), halfspace_lower, "slice");
     mesh_diagonal.pack();
     triangulate(mesh_diagonal);
     model::write_obj(mesh_diagonal, to_filename(name));
@@ -356,7 +356,7 @@ int main(int argc, char* argv[])
 
     name = "menger_sponge_3_diagonal_halves";
     cout << name << endl;
-    brep::split(mesh.submesh(submesh_id), planeUpper, "slice");
+    brep::split(mesh.submesh(submesh_id), halfspace_upper, "slice");
     model::transform(mesh.submesh("menger_sponge_3_0"), g::translation(0.0f, 0.0f, 10.0f));
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));

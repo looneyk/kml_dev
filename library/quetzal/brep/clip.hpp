@@ -107,7 +107,7 @@ void quetzal::brep::clip(M& mesh, const geometry::HalfSpace<typename M::vector_t
         if (!halfspace.boundary(mesh.halfedge(halfedge_id_transition_in).next().vertex_attributes().position()))
         {
             auto line = to_line(mesh.halfedge(halfedge_id_transition_in));
-            auto intersection = geometry::intersection(line, halfspace.plane());
+            auto intersection = geometry::intersection(line, halfspace.separator());
             assert(intersection.locus() == geometry::Locus::Point);
             auto position = intersection.point();
             split_edge(mesh, halfedge_id_transition_in, position);
@@ -157,7 +157,7 @@ void quetzal::brep::clip(M& mesh, const geometry::HalfSpace<typename M::vector_t
         if (!halfspace.boundary(mesh.halfedge(halfedge_id_transition_out).vertex_attributes().position()))
         {
             auto line = to_line(mesh.halfedge(halfedge_id_transition_out));
-            auto intersection = geometry::intersection(line, halfspace.plane());
+            auto intersection = geometry::intersection(line, halfspace.separator());
             assert(intersection.locus() == geometry::Locus::Point);
             auto position = intersection.point();
             split_edge(mesh, halfedge_id_transition_out, position);
@@ -211,7 +211,7 @@ void quetzal::brep::clip(M& mesh, const geometry::HalfSpace<typename M::vector_t
         return;
     }
 
-    close_border(mesh, border_halfedges, surface_name, interior ? halfspace.plane().normal() : -halfspace.plane().normal());
+    close_border(mesh, border_halfedges, surface_name, interior ? halfspace.exterior_direction() : -halfspace.exterior_direction());
     return;
 }
 
@@ -296,7 +296,7 @@ void quetzal::brep::clip(Submesh<Traits>& submesh, const geometry::HalfSpace<typ
         if (!halfspace.boundary(mesh.halfedge(halfedge_id_transition_in).next().vertex_attributes().position()))
         {
             auto line = to_line(mesh.halfedge(halfedge_id_transition_in));
-            auto intersection = geometry::intersection(line, halfspace.plane());
+            auto intersection = geometry::intersection(line, halfspace.separator());
             assert(intersection.locus() == geometry::Locus::Point);
             auto position = intersection.point();
             split_edge(mesh, halfedge_id_transition_in, position);
@@ -346,7 +346,7 @@ void quetzal::brep::clip(Submesh<Traits>& submesh, const geometry::HalfSpace<typ
         if (!halfspace.boundary(mesh.halfedge(halfedge_id_transition_out).vertex_attributes().position()))
         {
             auto line = to_line(mesh.halfedge(halfedge_id_transition_out));
-            auto intersection = geometry::intersection(line, halfspace.plane());
+            auto intersection = geometry::intersection(line, halfspace.separator());
             assert(intersection.locus() == geometry::Locus::Point);
             auto position = intersection.point();
             split_edge(mesh, halfedge_id_transition_out, position);
@@ -403,7 +403,7 @@ void quetzal::brep::clip(Submesh<Traits>& submesh, const geometry::HalfSpace<typ
         return;
     }
 
-    close_border(mesh, border_halfedges, surface_name, interior ? halfspace.plane().normal() : -halfspace.plane().normal());
+    close_border(mesh, border_halfedges, surface_name, interior ? halfspace.exterior_direction() : -halfspace.exterior_direction());
     return;
 }
 

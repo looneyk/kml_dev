@@ -245,7 +245,7 @@ value_type t1 = 1.0f;
         auto dzBase = r / 3.0f;
         vector_type v {0.0f, 0.0f, dzBase};
         model::transform(mesh.submesh(submesh_id), g::translation(v));
-        geometry::HalfSpace<vector_traits> hs({point_type::origin(), -vector_type::z_direction()});
+        geometry::HalfSpace<vector_traits> hs{{point_type::origin(), -vector_type::z_direction()}, -vector_type::z_direction()};
         clip(mesh.submesh(submesh_id), hs, "clip_lower");
 
         // Hollow out center to save filament

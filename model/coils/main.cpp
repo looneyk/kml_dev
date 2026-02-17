@@ -8,6 +8,7 @@
 #include "quetzal/brep/clip.hpp"
 #include "quetzal/brep/validation.hpp"
 #include "quetzal/common/FileValidator.hpp"
+#include "quetzal/geometry/HalfSpace.hpp"
 #include "quetzal/geometry/OrientedPoint.hpp"
 #include "quetzal/geometry/Point.hpp"
 #include "quetzal/geometry/Polygon.hpp"
@@ -33,6 +34,7 @@ namespace
     using vector_type = point_type::vector_type;
     using vertex_type = mesh_type::vertex_type;
     using vertex_attributes_type = mesh_type::vertex_attributes_type;
+    using halfspace_type = geometry::HalfSpace<vector_traits>;
 
     static const filesystem::path dir_out = "out/";
     static const filesystem::path dir_ref = "reference/";
@@ -175,6 +177,12 @@ namespace
     }
 
     //--------------------------------------------------------------------------
+    halfspace_type halfspace_upper(value_type z = value_type(0))
+    {
+        return {{{value_type(0), value_type(0), z}, vector_type::z_direction()}, -vector_type::z_direction()};
+    }
+
+    //--------------------------------------------------------------------------
     void create_coils_linear(mesh_type& mesh, size_t nCoils, size_t nAzimuth, size_t nz, value_type radius)
     {
         auto circle = geometry::regular_polygon<vector_traits>(nAzimuth, radius);
@@ -200,7 +208,7 @@ namespace
             m = math::even(i) ? m0_even : m0_odd;
             m.rename_submesh(m.submesh_id("coil"), "coil_" + to_string(i));
             position_coil(m, math::PiTwo<value_type> * i / nCoils);
-            clip(m, geometry::Plane<vector_traits>({}, -vector_type::z_direction()));
+            clip(m, halfspace_upper());
             triangulate(m);
             mesh.insert(m);
         }
@@ -215,20 +223,20 @@ namespace
                 v.attributes().transform(matrix, matrix);
                 return v;
             });
-            clip(mesh.submesh(submesh_id_coil), geometry::Plane<vector_traits>({}, -vector_type::z_direction()));
+            clip(mesh.submesh(submesh_id_coil), halfspace_upper());
             triangulate(mesh.submesh(submesh_id_coil));
         }
 */
         // Pinnacle
         id_type submesh_id_pinnacle = model::create_geodesic_sphere(mesh, "pinnacle", 3.2f, 5);
 // this needed for printing, but incorporate in a better way ...
-//        clip(.submesh(submesh_id_pinnacle), geometry::Plane<vector_traits>({0.0f, 0.0f, -2.4f}, -vector_type::z_direction()));
+//        clip(mesh.submesh(submesh_id_pinnacle), halfspace_upper(-2.4f));
         model::transform(mesh.submesh(submesh_id_pinnacle), geometry::scaling(0.75f, 0.75f, 1.0f) * geometry::translation(0.0f, 0.0f, 99.0f));
         triangulate(mesh.submesh(submesh_id_pinnacle));
 
         // Base
         id_type submesh_id_base = model::create_geodesic_sphere(mesh, "base", 60.0f, 5);
-        clip(mesh.submesh(submesh_id_base), geometry::Plane<vector_traits>({}, -vector_type::z_direction()));
+        clip(mesh.submesh(submesh_id_base), halfspace_upper());
         model::transform(mesh.submesh(submesh_id_base), geometry::scaling(1.0f, 1.0f, 0.1f));
         triangulate(mesh.submesh(submesh_id_base));
 
@@ -262,7 +270,7 @@ namespace
             m = math::even(i) ? m0_even : m0_odd;
             m.rename_submesh(m.submesh_id("coil"), "coil_" + to_string(i));
             position_coil(m, math::PiTwo<value_type> * i / nCoils);
-            clip(m, geometry::Plane<vector_traits>({}, -vector_type::z_direction()));
+            clip(m, halfspace_upper());
             triangulate(m);
             mesh.insert(m);
         }
@@ -274,7 +282,7 @@ namespace
 
         // Base
         id_type submesh_id_base = model::create_geodesic_sphere(mesh, "base", 70.0f, 5);
-        clip(mesh.submesh(submesh_id_base), geometry::Plane<vector_traits>({}, -vector_type::z_direction()));
+        clip(mesh.submesh(submesh_id_base), halfspace_upper());
         model::transform(mesh.submesh(submesh_id_base), geometry::scaling(1.0f, 1.0f, 0.1f));
         triangulate(mesh.submesh(submesh_id_base));
 

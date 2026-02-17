@@ -9,6 +9,7 @@
 #include "quetzal/brep/connection.hpp"
 #include "quetzal/brep/triangulation.hpp"
 #include "quetzal/common/FileValidator.hpp"
+#include "quetzal/geometry/HalfSpace.hpp"
 #include "quetzal/geometry/transformation_matrix.hpp"
 #include "quetzal/math/HomogeneousTraits.hpp"
 #include "quetzal/model/obj_io.hpp"
@@ -222,7 +223,7 @@ int main(int argc, char* argv[])
     auto matrix = g::rotation_axis_unit(axis, angle);
 
     point_type point = {};
-    g::Plane plane(point, -vector_type::z_direction());
+    g::HalfSpace<vector_traits> halfspace_upper{{point, -vector_type::z_direction()}, -vector_type::z_direction()};
 
     name = "mosely_snowflake_heavy_0";
     cout << name << endl;
@@ -238,7 +239,7 @@ int main(int argc, char* argv[])
 
     name = "mosely_snowflake_heavy_0_diagonal_half";
     cout << name << endl;
-    brep::clip(mesh, plane, "slice");
+    brep::clip(mesh, halfspace_upper, "slice");
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 
@@ -256,7 +257,7 @@ int main(int argc, char* argv[])
 
     name = "mosely_snowflake_light_0_diagonal_half";
     cout << name << endl;
-    brep::clip(mesh, plane, "slice");
+    brep::clip(mesh, halfspace_upper, "slice");
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 
@@ -274,7 +275,7 @@ int main(int argc, char* argv[])
 
     name = "mosely_snowflake_heavy_1_diagonal_half";
     cout << name << endl;
-    brep::clip(mesh, plane, "slice");
+    brep::clip(mesh, halfspace_upper, "slice");
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 
@@ -292,7 +293,7 @@ int main(int argc, char* argv[])
 
     name = "mosely_snowflake_light_1_diagonal_half";
     cout << name << endl;
-    brep::clip(mesh, plane, "slice");
+    brep::clip(mesh, halfspace_upper, "slice");
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 
@@ -313,7 +314,7 @@ int main(int argc, char* argv[])
 mesh.clear();
 submesh_id = create_mosely_snowflake(mesh, name, 2, 100.0f);
 model::transform(mesh, matrix);
-    brep::clip(mesh, plane, "slice");
+    brep::clip(mesh, halfspace_upper, "slice");
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 
@@ -334,7 +335,7 @@ model::transform(mesh, matrix);
 mesh.clear();
 submesh_id = create_mosely_snowflake(mesh, name, 2, 100.0f, false);
 model::transform(mesh, matrix);
-    brep::clip(mesh, plane, "slice");
+    brep::clip(mesh, halfspace_upper, "slice");
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 
@@ -352,7 +353,7 @@ model::transform(mesh, matrix);
 
     name = "mosely_snowflake_heavy_3_diagonal_half";
     cout << name << endl;
-    brep::clip(mesh, plane, "slice");
+    brep::clip(mesh, halfspace_upper, "slice");
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 
@@ -370,7 +371,7 @@ model::transform(mesh, matrix);
 
     name = "mosely_snowflake_light_3_diagonal_half";
     cout << name << endl;
-    brep::clip(mesh, plane, "slice");
+    brep::clip(mesh, halfspace_upper, "slice");
 const auto& face = mesh.faces().back();
 const auto& normal = face.attributes().normal();
 std::cout << "normal " << normal << std::endl;
@@ -415,7 +416,7 @@ visualizer.write("clip_face_projection2.svg");
 
     name = "mosely_snowflake_heavy_4_diagonal_half";
     cout << name << endl;
-    brep::clip(mesh, plane, "slice");
+    brep::clip(mesh, halfspace_upper, "slice");
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 
@@ -433,7 +434,7 @@ visualizer.write("clip_face_projection2.svg");
 
     name = "mosely_snowflake_light_4_diagonal_half";
     cout << name << endl;
-    brep::clip(mesh, plane, "slice");
+    brep::clip(mesh, halfspace_upper, "slice");
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 */

@@ -5,7 +5,6 @@
 
 #include "quetzal/brep/Mesh.hpp"
 #include "quetzal/brep/MeshTraits.hpp"
-#include "quetzal/brep/clip.hpp"
 #include "quetzal/brep/connection.hpp"
 #include "quetzal/brep/validation.hpp"
 #include "quetzal/common/FileValidator.hpp"

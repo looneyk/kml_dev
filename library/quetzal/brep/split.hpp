@@ -112,7 +112,7 @@ void quetzal::brep::split(M& mesh, const geometry::HalfSpace<typename M::vector_
         if (!halfspace.boundary(mesh.halfedge(halfedge_id_transition_in).next().vertex_attributes().position()))
         {
             auto line = to_line(mesh.halfedge(halfedge_id_transition_in));
-            auto intersection = geometry::intersection(line, halfspace.plane());
+            auto intersection = geometry::intersection(line, halfspace.separator());
             assert(intersection.locus() == geometry::Locus::Point);
             auto position = intersection.point();
             split_edge(mesh, halfedge_id_transition_in, position);
@@ -162,7 +162,7 @@ void quetzal::brep::split(M& mesh, const geometry::HalfSpace<typename M::vector_
         if (!halfspace.boundary(mesh.halfedge(halfedge_id_transition_out).vertex_attributes().position()))
         {
             auto line = to_line(mesh.halfedge(halfedge_id_transition_out));
-            auto intersection = geometry::intersection(line, halfspace.plane());
+            auto intersection = geometry::intersection(line, halfspace.separator());
             assert(intersection.locus() == geometry::Locus::Point);
             auto position = intersection.point();
             split_edge(mesh, halfedge_id_transition_out, position);
@@ -224,14 +224,14 @@ void quetzal::brep::split(M& mesh, const geometry::HalfSpace<typename M::vector_
     // Close off borders and assign each to a new submesh
     // This will still potentially create disconnected submeshes with one section per surface, need better naming ...
 
-    auto surface_ids = close_border(mesh, border_halfedges0, surface_name, halfspace.plane().normal());
+    auto surface_ids = close_border(mesh, border_halfedges0, surface_name, halfspace.exterior_direction());
     for (id_type surface_id : surface_ids)
     {
         id_type submesh_id = mesh.get_submesh_id(mesh.surface(surface_id).submesh().name() + "_0");
         set_submesh_connected(mesh, mesh.surface(surface_id).faces().front().id(), submesh_id);
     }
 
-    surface_ids = close_border(mesh, border_halfedges1, surface_name, -halfspace.plane().normal());
+    surface_ids = close_border(mesh, border_halfedges1, surface_name, -halfspace.exterior_direction());
     for (id_type surface_id : surface_ids)
     {
         id_type submesh_id = mesh.get_submesh_id(mesh.surface(surface_id).submesh().name() + "_1");
@@ -322,7 +322,7 @@ void quetzal::brep::split(Submesh<Traits>& submesh, const geometry::HalfSpace<ty
         if (!halfspace.boundary(mesh.halfedge(halfedge_id_transition_in).next().vertex_attributes().position()))
         {
             auto line = to_line(mesh.halfedge(halfedge_id_transition_in));
-            auto intersection = geometry::intersection(line, halfspace.plane());
+            auto intersection = geometry::intersection(line, halfspace.separator());
             assert(intersection.locus() == geometry::Locus::Point);
             auto position = intersection.point();
             split_edge(mesh, halfedge_id_transition_in, position);
@@ -372,7 +372,7 @@ void quetzal::brep::split(Submesh<Traits>& submesh, const geometry::HalfSpace<ty
         if (!halfspace.boundary(mesh.halfedge(halfedge_id_transition_out).vertex_attributes().position()))
         {
             auto line = to_line(mesh.halfedge(halfedge_id_transition_out));
-            auto intersection = geometry::intersection(line, halfspace.plane());
+            auto intersection = geometry::intersection(line, halfspace.separator());
             assert(intersection.locus() == geometry::Locus::Point);
             auto position = intersection.point();
             split_edge(mesh, halfedge_id_transition_out, position);
@@ -437,14 +437,14 @@ void quetzal::brep::split(Submesh<Traits>& submesh, const geometry::HalfSpace<ty
     // Close off borders and assign each to a new submesh
     // This will still potentially create disconnected submeshes with one section per surface, need better naming ...
 
-    auto surface_ids = close_border(mesh, border_halfedges0, surface_name, halfspace.plane().normal());
+    auto surface_ids = close_border(mesh, border_halfedges0, surface_name, halfspace.exterior_direction()); // hs upper/lower ...
     for (id_type surface_id : surface_ids)
     {
         id_type submesh_id = mesh.get_submesh_id(mesh.surface(surface_id).submesh().name() + "_0");
         set_submesh_connected(mesh, mesh.surface(surface_id).faces().front().id(), submesh_id);
     }
 
-    surface_ids = close_border(mesh, border_halfedges1, surface_name, -halfspace.plane().normal());
+    surface_ids = close_border(mesh, border_halfedges1, surface_name, -halfspace.exterior_direction()); // hs upper/lower ...
     for (id_type surface_id : surface_ids)
     {
         id_type submesh_id = mesh.get_submesh_id(mesh.surface(surface_id).submesh().name() + "_1");

@@ -10,6 +10,7 @@
 #include "quetzal/brep/connection.hpp"
 #include "quetzal/common/FileValidator.hpp"
 #include "quetzal/geometry/HalfSpace.hpp"
+#include "quetzal/geometry/Plane.hpp"
 #include "quetzal/geometry/intersection.hpp"
 #include "quetzal/geometry/transformation_matrix.hpp"
 #include "quetzal/math/HomogeneousTraits.hpp"
@@ -209,18 +210,21 @@ namespace
 
         connect_partners(mesh);
 
+        static_assert(vector_traits::dimension >= 3);
+
         if (clipped)
         {
             for (size_t i = 0; i < nAzimuth; ++i)
             {
                 auto phi = math::PiTwo<value_type> * i / nAzimuth;
                 vector_type normal = {cos(phi), sin(phi), 0.0};
-                geometry::HalfSpace<vector_traits> hs({normal * (r * 0.75), normal});
+                geometry::HalfSpace<vector_traits> hs({normal * (r * 0.75), normal}, normal);
                 clip(mesh, hs, "clip" + to_string(i));
             }
         }
 
-        geometry::HalfSpace<vector_traits> hsLower({{0.0, 0.0, 0.75 * zLower}, {0.0, 0.0, -1.0}});
+        vector_type normal = -vector_type::z_direction();
+        geometry::HalfSpace<vector_traits> hsLower({{0.0, 0.0, 0.75 * zLower}, normal}, normal);
         clip(mesh, hsLower, "end0");
 
         model::create_cylinder_edges(mesh, "stem", 6, 1, 0.5 * r2, 0.5 * r2, 1.25 * zLower, 0.75 * zLower, 0.5 / nAzimuth, 1.0 + 0.5 / nAzimuth);
@@ -304,12 +308,13 @@ namespace
             {
                 auto phi = math::PiTwo<value_type> * i / nAzimuth;
                 vector_type normal = {cos(phi), sin(phi), 0.0};
-                geometry::HalfSpace<vector_traits> hs({normal * (r * 0.75), normal});
+                geometry::HalfSpace<vector_traits> hs({{normal * (r * 0.75), normal}, normal});
                 clip(mesh, hs, "clip" + to_string(i));
             }
         }
 
-        geometry::HalfSpace<vector_traits> hsLower({{0.0, 0.0, 0.75 * zLower}, {0.0, 0.0, -1.0}});
+        vector_type normal = -vector_type::z_direction();
+        geometry::HalfSpace<vector_traits> hsLower({{0.0, 0.0, 0.75 * zLower}, normal}, normal);
         clip(mesh, hsLower, "end0");
 
         model::create_cylinder_edges(mesh, "stem", 6, 1, 0.5 * r2, 0.5 * r2, 1.25 * zLower, 0.75 * zLower, 0.5 / nAzimuth, 1.0 + 0.5 / nAzimuth);
@@ -418,7 +423,7 @@ namespace
                 auto phi = math::PiTwo<value_type> * i / nAzimuth;
                 vector_type normal = {cos(phi), sin(phi), 0.0};
                 normal.normalize();
-                geometry::HalfSpace<vector_traits> hs({normal * (r3 * 0.75), normal});
+                geometry::HalfSpace<vector_traits> hs({{normal * (r3 * 0.75), normal}, normal});
                 clip(mesh, hs, "side" + to_string(i));
             }
 /*
