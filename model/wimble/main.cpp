@@ -5,6 +5,7 @@
 
 #include "quetzal/brep/Mesh.hpp"
 #include "quetzal/brep/MeshTraits.hpp"
+#include "quetzal/brep/clip.hpp"
 #include "quetzal/brep/connection.hpp"
 #include "quetzal/brep/triangulation.hpp"
 #include "quetzal/common/FileValidator.hpp"
@@ -162,9 +163,8 @@ int main(int argc, char* argv[])
 
     FileValidator validator(dir_out, dir_ref, app_name);
 
-    string name;
     mesh_type mesh;
-    mesh_type m;
+    string name;
     geometry::Polygon<vector_traits> polygon;
 
     float da = 1.0f / 3.0f;
@@ -306,24 +306,28 @@ int main(int argc, char* argv[])
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 /*
-    const size_t resolution = 100;
+    size_t resolution = 100;
     name = "wimble_6_15_high";
     cout << name << endl;
     mesh.clear();
     polygon = create_cross_section_circular(6, resolution, 15.0f, 40.0f);
-    model::create_cylinder_sections(mesh, name, resolution, 0.0f, 100.0f, polygon,
+    model::create_cylinder_sections(mesh, name, polygon, resolution, 0.0f, 100.0f,
 //        [](float t) { return 1.0f - t; },
         [](float t) { return -25.0f / 9.0f * t * t + 20.0f / 9.0f * t + 5.0f / 9.0f; },
         [](float t) { return t / 3.0f; });
 
     // Base
-    m.clear();
-    model::create_geodesic_sphere(m, "base", 22.3f, 36);
-    clip(m, geometry::Plane<vector_traits>({0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, -1.0f}));
-    model::transform(m, math::scaling(1.0f, 1.0f, 0.25f));
-    mesh.insert(m);
+//    mesh_type m;
+//    model::create_geodesic_sphere(m, "base", 22.3f, 36);
+//    clip(m, geometry::Plane<vector_traits>({0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, -1.0f}));
+//    model::transform(m, math::scaling(1.0f, 1.0f, 0.25f));
+//    mesh.insert(m);
 
-    model::transform(mesh, math::scaling(0.75f));
+    id_type base_id = model::create_geodesic_sphere(mesh, "base", 22.3f, 36);
+    clip(mesh.submesh(base_id), {{{}, -vector_type::z_direction()}, -vector_type::z_direction()});
+    model::transform(mesh.submesh(base_id), geometry::scaling(1.0f, 1.0f, 0.25f));
+
+    model::transform(mesh, geometry::scaling(0.75f));
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 */

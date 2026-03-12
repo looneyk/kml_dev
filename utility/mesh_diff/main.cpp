@@ -5,6 +5,7 @@
 
 #include "quetzal/brep/Mesh.hpp"
 #include "quetzal/brep/MeshTraits.hpp"
+#include "quetzal/common/file_util.hpp"
 #include "quetzal/geometry/Attributes.hpp"
 #include "quetzal/math/HomogeneousTraits.hpp"
 #include "quetzal/math/floating_point.hpp"
@@ -33,7 +34,7 @@ namespace
 
     static const string app_name = "mesh_diff";
 
-    bool verbose = true;
+    bool verbose = false;
 
     static const int gulp = 1000;
 
@@ -53,6 +54,8 @@ namespace
     // Returns {position_differences, normal_differences, texcoord_differences}, nullopt if halfedge counts don't match
     optional<array<size_t, 3>> face_differences(const mesh_type::face_type& face_lhs, const mesh_type::face_type& face_rhs, bool exact)
     {
+        const auto& mesh = face_lhs.mesh();
+
         array<size_t, 3> differences = {};
 
         if (face_lhs.halfedge_count() != face_rhs.halfedge_count())
@@ -62,9 +65,10 @@ namespace
 
         id_type halfedge_id_rhs = nullid;
 
+        const auto& lhs_position = face_lhs.halfedge().vertex_attributes().position();
         for (const auto& halfedge_rhs : face_rhs.halfedges())
         {
-            if (float_eq(halfedge_rhs.vertex_attributes().position(), face_lhs.halfedge().vertex_attributes().position()))
+            if (float_eq(lhs_position, halfedge_rhs.vertex_attributes().position()))
             {
                 halfedge_id_rhs = halfedge_rhs.id();
                 break;
@@ -77,8 +81,7 @@ namespace
         for (const auto& halfedge_lhs : face_lhs.halfedges())
         {
             const auto& va_lhs = halfedge_lhs.vertex_attributes();
-//            const auto& va_rhs = halfedge_rhs.vertex_attributes();
-            const auto& va_rhs = face_rhs.mesh().halfedge(halfedge_id_rhs).vertex_attributes();
+            const auto& va_rhs = mesh.halfedge(halfedge_id_rhs).vertex_attributes();
 
             if (exact ? va_lhs.position() != va_rhs.position() : !float_eq(va_lhs.position(), va_rhs.position(), gulp))
             {
@@ -98,7 +101,7 @@ namespace
                 if (verbose && !exact) cout << halfedge_lhs.id() << " " << halfedge_id_rhs << " t " << va_lhs.texcoord() << " != " << va_rhs.texcoord() << endl;
             }
 
-            halfedge_id_rhs = face_rhs.mesh().halfedge(halfedge_id_rhs).next_id();
+            halfedge_id_rhs = mesh.halfedge(halfedge_id_rhs).next_id();
         }
 
         return differences;
@@ -160,14 +163,15 @@ namespace
     {
         mesh_type mesh_lhs;
         model::read_obj(mesh_lhs, path_lhs);
-        mesh_type mesh_rhs;
-        model::read_obj(mesh_rhs, path_rhs);
 
         if (mesh_lhs.face_count() > 100000)
         {
             cout << "Skipping, too many faces: " << path_lhs << " " << mesh_lhs.face_count() << endl;
             return {false, false, {}};
         }
+
+        mesh_type mesh_rhs;
+        model::read_obj(mesh_rhs, path_rhs);
 
         auto results = mesh_stats(mesh_lhs, mesh_rhs);
         if (!results)
@@ -243,6 +247,8 @@ int main(int argc, char* argv[])
         return -1;
     }
 
+    set_output_file_lf_endings();
+
     // Check that paths exist
 
     filesystem::path path_lhs(argc == 3 ? argv[1] : filesystem::path(argv[1]) / argv[2]);
@@ -263,7 +269,7 @@ int main(int argc, char* argv[])
     {
         cout << argv[1] << endl;
     }
-    cout << path_lhs.string() << " " << path_rhs.string() << endl;
+    cout << path_lhs.string() << " <=> " << path_rhs.string() << endl;
 
     if (filesystem::is_regular_file(path_lhs) && filesystem::is_regular_file(path_rhs))
     {
@@ -315,7 +321,7 @@ int main(int argc, char* argv[])
         auto i_rhs = file_index_rhs.begin();
         while (i_lhs != file_index_lhs.end() && i_rhs != file_index_rhs.end())
         {
-            cout << i_lhs->first << "\t";
+            cout << i_lhs->first << "\t" << std::flush;
 
             if (i_lhs->first == i_rhs->first)
             {
