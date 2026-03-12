@@ -94,13 +94,19 @@ namespace quetzal::model
     // d is edge length
     // Surfaces: "left", "right", "back", "front", "bottom", "top"
     template<typename M>
-    id_type create_cube(M& mesh, const std::string& name, data_value_type<M> d);
+    id_type create_cube(M& mesh, const std::string& name, data_value_type<M> d, const typename M::point_type& position = {});
 
     // Create a box (rectangular cuboid) centered at the origin
     // Surfaces: "bottom", "back", "right", "left", "front", "top"
     // Note that the positive axes define the directions right, forward, and up respectively
     template<typename M>
-    id_type create_box(M& mesh, const std::string& name, data_value_type<M> dx, data_value_type<M> dy, data_value_type<M> dz);
+    id_type create_box(M& mesh, const std::string& name, data_value_type<M> dx, data_value_type<M> dy, data_value_type<M> dz, data_value_type<M> x = 0, data_value_type<M> y = 0, data_value_type<M> z = 0);
+
+    // Create a box (rectangular cuboid) centered at the origin
+    // Surfaces: "bottom", "back", "right", "left", "front", "top"
+    // Note that the positive axes define the directions right, forward, and up respectively
+    template<typename M>
+    id_type create_box(M& mesh, const std::string& name, const typename M::vector_type& size, const typename M::point_type& position = {});
 
     // Create a prism parallel to the z-axis centered at the origin
     // Surfaces: per side "body<i>", and "end0", "end1", "side", "side0", "side1" depending on extents
@@ -735,14 +741,21 @@ quetzal::id_type quetzal::model::create_disk(M& mesh, const std::string& name, s
 
 //------------------------------------------------------------------------------
 template<typename M>
-quetzal::id_type quetzal::model::create_cube(M& mesh, const std::string& name, data_value_type<M> d)
+quetzal::id_type quetzal::model::create_cube(M& mesh, const std::string& name, data_value_type<M> d, const typename M::point_type& position)
 {
-    return create_box(mesh, name, d, d, d);
+    return create_box(mesh, name, {d, d, d}, position);
 }
 
 //------------------------------------------------------------------------------
 template<typename M>
-quetzal::id_type quetzal::model::create_box(M& mesh, const std::string& name, data_value_type<M> dx, data_value_type<M> dy, data_value_type<M> dz)
+quetzal::id_type quetzal::model::create_box(M& mesh, const std::string& name, data_value_type<M> dx, data_value_type<M> dy, data_value_type<M> dz, data_value_type<M> x, data_value_type<M> y, data_value_type<M> z)
+{
+    return create_box(mesh, name, {dx, dy, dz}, {x, y, z});
+}
+
+//------------------------------------------------------------------------------
+template<typename M>
+quetzal::id_type quetzal::model::create_box(M& mesh, const std::string& name, const typename M::vector_type& size, const typename M::point_type& position)
 {
     using T = M::value_type;
 
@@ -756,12 +769,15 @@ quetzal::id_type quetzal::model::create_box(M& mesh, const std::string& name, da
         "top"
     };
 
-    T x1 = T(0.5) * dx;
-    T y1 = T(0.5) * dy;
-    T z1 = T(0.5) * dz;
-    T x0 = -x1;
-    T y0 = -y1;
-    T z0 = -z1;
+    T dx_half = T(0.5) * size.x();
+    T dy_half = T(0.5) * size.y();
+    T dz_half = T(0.5) * size.z();
+    T x0 = position.x() - dx_half;
+    T y0 = position.y() - dy_half;
+    T z0 = position.z() - dz_half;
+    T x1 = position.x() + dx_half;
+    T y1 = position.y() + dy_half;
+    T z1 = position.z() + dz_half;
 
     auto normal_x = normal_vector_type<M>::x_direction();
     auto normal_y = normal_vector_type<M>::y_direction();
@@ -2962,17 +2978,22 @@ quetzal::id_type quetzal::model::create_sphere(M& mesh, const std::string& name,
     auto face_count = spec.azimuth_divisions;
     id_type j0_orig = mesh.halfedge_store_count();
 
+    auto vertex_normal = [](T)
+    {
+        return M::vector_type::z_direction(); // calculated later, vertex_normal should be optional for this case ...
+    };
+
     if (cusped_lower)
     {
-        create_base_cusp(mesh, nAzimuth, r1, z0, z1, spec.azimuth_interval, ts1, surface_id);
+        create_base_cusp(mesh, nAzimuth, r1, z0, z1, spec.azimuth_interval, ts1, surface_id, vertex_normal);
     }
     else if (nElevation == 1 && cusped_upper)
     {
-        create_apex_cusp(mesh, nAzimuth, r0, z0, z1, spec.azimuth_interval, surface_id);
+        create_apex_cusp(mesh, nAzimuth, r0, z0, z1, spec.azimuth_interval, ts0, surface_id, vertex_normal);
     }
     else
     {
-        create_band(mesh, nAzimuth, r0, r1, z0, z1, spec.azimuth_interval, spec.azimuth_interval, ts0, ts1, surface_id);
+        create_band(mesh, nAzimuth, r0, r1, z0, z1, spec.azimuth_interval, spec.azimuth_interval, ts0, ts1, surface_id, vertex_normal, vertex_normal);
     }
 
     for (size_t i = 2; i <= nElevation; ++i)
@@ -2989,12 +3010,12 @@ quetzal::id_type quetzal::model::create_sphere(M& mesh, const std::string& name,
 
         if (i == nElevation && cusped_upper)
         {
-            assert(float_eq0(radius1));
-            connect_apex_cusp(mesh, nAzimuth, radius1, spec.azimuth_interval, surface_id);
+            assert(math::float_eq0(r1));
+            connect_apex_cusp(mesh, nAzimuth, r1, spec.azimuth_interval, surface_id, vertex_normal);
         }
         else
         {
-            connect_band(mesh, nAzimuth, r1, z1, spec.azimuth_interval, ts1, surface_id);
+            connect_band(mesh, nAzimuth, r1, z1, spec.azimuth_interval, ts1, surface_id, vertex_normal);
         }
     }
 
