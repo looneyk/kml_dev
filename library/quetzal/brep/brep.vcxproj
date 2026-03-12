@@ -177,6 +177,7 @@
     <ClInclude Include="Halfedge.hpp" />
     <ClInclude Include="Hole.hpp" />
     <ClInclude Include="id.hpp" />
+    <ClInclude Include="intersect.hpp" />
     <ClInclude Include="IntersectionSplitter.hpp" />
     <ClInclude Include="inversion.hpp" />
     <ClInclude Include="Mesh.hpp" />

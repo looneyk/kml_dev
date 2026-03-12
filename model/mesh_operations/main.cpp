@@ -33,7 +33,7 @@ constexpr bool debug_visualize = false;
 #include "quetzal/brep/triangulation.hpp"
 #include "quetzal/common/FileValidator.hpp"
 #include "quetzal/common/file_util.hpp"
-#include "quetzal/geometry/Plane.hpp"
+#include "quetzal/geometry/HalfSpace.hpp"
 #include "quetzal/geometry/transformation_matrix.hpp"
 #include "quetzal/math/HomogeneousTraits.hpp"
 #include "quetzal/model/obj_io.hpp"
@@ -46,6 +46,7 @@ constexpr bool debug_visualize = false;
 #include <cassert>
 
 #include "quetzal/brep/validation.hpp"
+#include "quetzal/brep/intersect.hpp" // just here for testing at the moment ...
 
 using namespace std;
 using namespace quetzal;
@@ -100,7 +101,38 @@ namespace g = quetzal::geometry;
 #define DISJOINT
 #define INCLUSION
 #else
-#define BOX_BOX_FACE_FACE_1
+// FULL indicates that the intersection polygons are completely within a face, single path traces, no need the new trace scheme ...
+// EXT indicates a single face only intersection, no interior intersection, 2A - 2 adjacent edges, 2B - 2 non-adjacent edges
+// IN indicates that the entire intersection is in the face(s) and interior of one of the submeshes (excepting IN_EXT_0)
+// IN_EXT_0 0 edges, 0 edges, 1 face flush, opposite face extends out the other side of the submesh, 2 traces, no branches
+#define BOX_BOX_FACE_FACE_FULL_EXT_0
+#define BOX_BOX_FACE_FACE_FULL_EXT_1
+#define BOX_BOX_FACE_FACE_FULL_EXT_2A
+#define BOX_BOX_FACE_FACE_FULL_EXT_2B
+#define BOX_BOX_FACE_FACE_FULL_EXT_3
+#define BOX_BOX_FACE_FACE_FULL_EXT_ALL
+// Interior intersection, faces have 0 shared edges
+#define BOX_BOX_FACE_FACE_FULL_IN_0
+// Interior intersection, faces have 1 shared edge
+#define BOX_BOX_FACE_FACE_FULL_IN_1
+// Interior intersection, faces have 2 shared non-adjacent edges (2 adjacent edges is corner)
+#define BOX_BOX_FACE_FACE_FULL_IN_2
+// Interior intersection, includes a single vertex
+#define BOX_BOX_FACE_FACE_FULL_IN_CORNER
+// Interior intersection, includes two adjacent vertices (two non-adjacent is half or full)
+#define BOX_BOX_FACE_FACE_FULL_IN_EDGE
+// Interior intersection, no shared edges, but bounded by polygons within two non-adjacent faces
+#define BOX_BOX_FACE_FACE_FULL_IN_COLUMN
+// Interior intersection, sandwiched between two non-adjacent faces
+#define BOX_BOX_FACE_FACE_FULL_IN_SLICE
+// Interior intersection, at least one full face intersection and at least one non-adjacent face that does not intersect
+#define BOX_BOX_FACE_FACE_FULL_IN_HALF
+// Interior intersection of two identical submeshes
+#define BOX_BOX_FACE_FACE_FULL_IN_FULL
+// Interior intersection, 0 shared edges, one face intersection, non-adcent face extends outside the submesh
+#define BOX_BOX_FACE_FACE_FULL_IN_EXT_0
+// partial face face intersections that require new trace scheme ...
+//#define BOX_BOX_FACE_FACE_1
 //#define BOX_BOX_FACE_FACE_2
 #endif
 
@@ -228,7 +260,7 @@ namespace
     auto axis_xy = normalize(vector_type(1.0f, -1.0f, 0.0f));
 //    point_type clip_point{0.0f, 0.0f, 0.0f}; // get this working ...
     point_type clip_point{0.1f, -0.1f, 0.0f};
-    g::Plane<vector_traits> clip_plane(clip_point, axis_xy);
+    g::HalfSpace<vector_traits> clip_plane{{clip_point, axis_xy}, axis_xy};
 
     //--------------------------------------------------------------------------
     vector<id_type> clip_operation(mesh_type& mesh, const string& name, span<id_type> model_ids)
@@ -308,6 +340,25 @@ namespace
         return;
     }
 
+    //--------------------------------------------------------------------------
+    void face_face_test(mesh_type& mesh, const string& geometry_name, const vector_type& box_a_size, const vector_type& box_a_offset, const vector_type& box_b_size, const vector_type& box_b_offset, test_operations_type test_operations)
+    {
+        auto create_model = [&](mesh_type& mesh) -> vector<id_type>
+        {
+            string name_a = "box_a";
+            string name_b = "box_b";
+            mesh.clear();
+            id_type submesh_id_a = model::create_box(mesh, name_a, box_a_size);
+            model::transform_positions(mesh.submesh(name_a), g::translation(box_a_offset));
+            id_type submesh_id_b = model::create_box(mesh, name_b, box_b_size);
+            model::transform_positions(mesh.submesh(name_b), g::translation(box_b_offset));
+            return {submesh_id_a, submesh_id_b};
+        };
+
+        test_model_operations(mesh, geometry_name, create_model, test_operations);
+        return;
+    }
+
 } // namespace
 
 //------------------------------------------------------------------------------
@@ -316,7 +367,7 @@ int main(int argc, char* argv[])
     argc;
     argv;
 
-    set_output_file_endings();
+    set_output_file_lf_endings();
 
     FileValidator validator(dir_out, dir_ref);
 
@@ -356,6 +407,8 @@ int main(int argc, char* argv[])
 
     test_model_operation(mesh, "box", "box", box_model, no_operation);
 #endif // BOX
+
+auto zzz = brep::intersection(mesh.face(0), mesh.face(1)); // test ...
 
 #if defined(BOX_BOX_POINT_FACE)
     auto box_box_point_face_model = [](mesh_type& mesh) -> vector<id_type>
@@ -477,6 +530,70 @@ int main(int argc, char* argv[])
 
     test_model_operations(mesh, "box_box_edge_edge_2", box_box_edge_edge_2_model, test_operations);
 #endif // BOX_BOX_EDGE_EDGE_2
+
+#if defined(BOX_BOX_FACE_FACE_FULL_EXT_0)
+    face_face_test(mesh, "box_box_face_face_full_ext_0", {20.0f, 20.0f, 20.0f}, {}, {10.0f, 10.0f, 10.0f}, {0.0f, 0.0f, 15.0f}, test_operations);
+#endif // BOX_BOX_FACE_FACE_FULL_EXT_0
+
+#if defined(BOX_BOX_FACE_FACE_FULL_EXT_1)
+    face_face_test(mesh, "box_box_face_face_full_ext_1", {20.0f, 20.0f, 20.0f}, {}, {10.0f, 10.0f, 10.0f}, {5.0f, 0.0f, 15.0f}, test_operations);
+#endif // BOX_BOX_FACE_FACE_FULL_EXT_1
+
+#if defined(BOX_BOX_FACE_FACE_FULL_EXT_2A)
+    face_face_test(mesh, "box_box_face_face_full_ext_2a", {20.0f, 20.0f, 20.0f}, {}, {10.0f, 10.0f, 10.0f}, {5.0f, 5.0f, 15.0f}, test_operations);
+#endif // BOX_BOX_FACE_FACE_FULL_EXT_2A
+
+#if defined(BOX_BOX_FACE_FACE_FULL_EXT_2B)
+    face_face_test(mesh, "box_box_face_face_full_ext_2b", {20.0f, 20.0f, 20.0f}, {}, {10.0f, 20.0f, 10.0f}, {0.0f, 0.0f, 15.0f}, test_operations);
+#endif // BOX_BOX_FACE_FACE_FULL_EXT_2B
+
+#if defined(BOX_BOX_FACE_FACE_FULL_EXT_3)
+    face_face_test(mesh, "box_box_face_face_full_ext_3", {20.0f, 20.0f, 20.0f}, {}, {10.0f, 20.0f, 10.0f}, {5.0f, 0.0f, 15.0f}, test_operations);
+#endif // BOX_BOX_FACE_FACE_FULL_EXT_3
+
+#if defined(BOX_BOX_FACE_FACE_FULL_EXT_ALL)
+    face_face_test(mesh, "box_box_face_face_full_ext_all", {20.0f, 20.0f, 20.0f}, {}, {20.0f, 20.0f, 10.0f}, {0.0f, 0.0f, 15.0f}, test_operations);
+#endif // BOX_BOX_FACE_FACE_FULL_EXT_ALL
+
+#if defined(BOX_BOX_FACE_FACE_FULL_IN_0)
+    face_face_test(mesh, "box_box_face_face_full_in_0", {20.0f, 20.0f, 20.0f}, {}, {10.0f, 10.0f, 10.0f}, {0.0f, 0.0f, 5.0f}, test_operations);
+#endif // BOX_BOX_FACE_FACE_FULL_IN_0
+
+#if defined(BOX_BOX_FACE_FACE_FULL_IN_1)
+    face_face_test(mesh, "box_box_face_face_full_in_1", {20.0f, 20.0f, 20.0f}, {}, {10.0f, 10.0f, 10.0f}, {5.0f, 0.0f, 5.0f}, test_operations);
+#endif // BOX_BOX_FACE_FACE_FULL_IN_1
+
+#if defined(BOX_BOX_FACE_FACE_FULL_IN_2)
+    face_face_test(mesh, "box_box_face_face_full_in_2", {20.0f, 20.0f, 20.0f}, {}, {10.0f, 10.0f, 10.0f}, {5.0f, 5.0f, 5.0f}, test_operations);
+#endif // BOX_BOX_FACE_FACE_FULL_IN_2
+
+#if defined(BOX_BOX_FACE_FACE_FULL_IN_CORNER)
+    face_face_test(mesh, "box_box_face_face_full_in_corner", {20.0f, 20.0f, 20.0f}, {}, {10.0f, 10.0f, 10.0f}, {5.0f, 5.0f, 5.0f}, test_operations);
+#endif // BOX_BOX_FACE_FACE_FULL_IN_CORNER
+
+#if defined(BOX_BOX_FACE_FACE_FULL_IN_EDGE)
+    face_face_test(mesh, "box_box_face_face_full_in_edge", {20.0f, 20.0f, 20.0f}, {}, {10.0f, 10.0f, 20.0f}, {5.0f, 5.0f, 0.0f}, test_operations);
+#endif // BOX_BOX_FACE_FACE_FULL_IN_EDGE
+
+#if defined(BOX_BOX_FACE_FACE_FULL_IN_COLUMN)
+    face_face_test(mesh, "box_box_face_face_full_in_column", {20.0f, 20.0f, 20.0f}, {}, {10.0f, 10.0f, 20.0f}, {0.0f, 0.0f, 0.0f}, test_operations);
+#endif // BOX_BOX_FACE_FACE_FULL_IN_COLUMN
+
+#if defined(BOX_BOX_FACE_FACE_FULL_IN_SLICE)
+    face_face_test(mesh, "box_box_face_face_full_in_slice", {20.0f, 20.0f, 20.0f}, {}, {10.0f, 20.0f, 10.0f}, {0.0f, 0.0f, 5.0f}, test_operations);
+#endif // BOX_BOX_FACE_FACE_FULL_IN_SLICE
+
+#if defined(BOX_BOX_FACE_FACE_FULL_IN_HALF)
+    face_face_test(mesh, "box_box_face_face_full_in_half", {20.0f, 20.0f, 20.0f}, {}, {20.0f, 20.0f, 10.0f}, {0.0f, 0.0f, 5.0f}, test_operations);
+#endif // BOX_BOX_FACE_FACE_FULL_IN_HALF
+
+#if defined(BOX_BOX_FACE_FACE_FULL_IN_FULL)
+    face_face_test(mesh, "box_box_face_face_full_in_full", {20.0f, 20.0f, 20.0f}, {}, {20.0f, 20.0f, 20.0f}, {0.0f, 0.0f, 0.0f}, test_operations);
+#endif // BOX_BOX_FACE_FACE_FULL_IN_FULL
+
+#if defined(BOX_BOX_FACE_FACE_FULL_IN_EXT_0)
+    face_face_test(mesh, "box_box_face_face_full_in_ext_0", {20.0f, 20.0f, 20.0f}, {}, {20.0f, 20.0f, 25.0f}, {0.0f, 0.0f, -2.5f}, test_operations);
+#endif // BOX_BOX_FACE_FACE_FULL_IN_EXT_0
 
 #if defined(BOX_BOX_FACE_FACE_1)
     auto box_box_face_face_1_model = [&](mesh_type& mesh) -> vector<id_type>

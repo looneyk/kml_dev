@@ -102,5 +102,8 @@
     <ClInclude Include="Visualizer.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="intersect.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
