@@ -1,4 +1,4 @@
-#if !defined(QUETZAL_MATH_QUATERNIONTRAITS_HPP)
+#if !defined(QUETZAL_MATH_QUATERNIONTRAITS_HPP)
 #define QUETZAL_MATH_QUATERNIONTRAITS_HPP
 //------------------------------------------------------------------------------
 // math

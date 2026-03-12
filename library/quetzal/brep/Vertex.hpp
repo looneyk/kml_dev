@@ -373,7 +373,7 @@ void quetzal::brep::Vertex<Traits, M>::unlink_halfedge(id_type id)
 
 //------------------------------------------------------------------------------
 template<typename Traits, typename M>
-typename const quetzal::brep::Vertex<Traits, M>::attributes_type& quetzal::brep::Vertex<Traits, M>::attributes() const
+const typename quetzal::brep::Vertex<Traits, M>::attributes_type& quetzal::brep::Vertex<Traits, M>::attributes() const
 {
     return m_attributes;
 }
@@ -395,7 +395,7 @@ void quetzal::brep::Vertex<Traits, M>::set_attributes(const attributes_type& att
 
 //------------------------------------------------------------------------------
 template<typename Traits, typename M>
-typename const quetzal::Properties& quetzal::brep::Vertex<Traits, M>::properties() const
+const typename quetzal::Properties& quetzal::brep::Vertex<Traits, M>::properties() const
 {
     return m_properties;
 }

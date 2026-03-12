@@ -33,7 +33,11 @@ namespace quetzal
 
 
     // Change stdout and stderr to binary mode to produce Unix line endings
-    void set_output_file_endings();
+    void set_output_file_lf_endings();
+
+//    int set_lf_endings(std::ostream& os); // returns mode value as defined in fcntl.h
+//    void set_mode(std::ostream& os, int mode); // mode value as defined in fcntl.h or return value from above
+// or do like OstreamRedirect, or add a mode change option to OstreamRedirect? ...
 
 } // namespace quetzal
 

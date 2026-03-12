@@ -246,7 +246,7 @@ std::vector<quetzal::id_type> quetzal::brep::Seam<Traits, M>::find_seam_sections
 
 //------------------------------------------------------------------------------
 template<typename Traits, typename M>
-typename const quetzal::Properties& quetzal::brep::Seam<Traits, M>::properties() const
+const typename quetzal::Properties& quetzal::brep::Seam<Traits, M>::properties() const
 {
     return m_properties;
 }

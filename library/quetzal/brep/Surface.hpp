@@ -431,7 +431,7 @@ std::vector<quetzal::id_type> quetzal::brep::Surface<Traits, M>::find_seam_secti
 
 //------------------------------------------------------------------------------
 template<typename Traits, typename M>
-typename const quetzal::brep::Surface<Traits, M>::attributes_type& quetzal::brep::Surface<Traits, M>::attributes() const
+const typename quetzal::brep::Surface<Traits, M>::attributes_type& quetzal::brep::Surface<Traits, M>::attributes() const
 {
     return m_attributes;
 }
@@ -453,7 +453,7 @@ void quetzal::brep::Surface<Traits, M>::set_attributes(const attributes_type& at
 
 //------------------------------------------------------------------------------
 template<typename Traits, typename M>
-typename const quetzal::Properties& quetzal::brep::Surface<Traits, M>::properties() const
+const typename quetzal::Properties& quetzal::brep::Surface<Traits, M>::properties() const
 {
     return m_properties;
 }

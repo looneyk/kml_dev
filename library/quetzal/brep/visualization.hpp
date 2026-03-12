@@ -120,6 +120,7 @@ document.set_viewport({8000.0, 8000.0});
 template<typename M>
 void quetzal::brep::draw_border(svg::Document& document, const M& mesh, id_type idHalfedge, const typename M::matrix_type& matrix)
 {
+// for_each_halfedge ...
     id_type id = idHalfedge;
     do
     {

@@ -470,7 +470,7 @@ quetzal::id_type quetzal::brep::Halfedge<Traits, M>::partner_surface_id() const
 
 //------------------------------------------------------------------------------
 template<typename Traits, typename M>
-typename const quetzal::Properties& quetzal::brep::Halfedge<Traits, M>::properties() const
+const typename quetzal::Properties& quetzal::brep::Halfedge<Traits, M>::properties() const
 {
     return m_properties;
 }

@@ -24,10 +24,25 @@ quetzal::OstreamRedirect::~OstreamRedirect()
 }    
 
 //------------------------------------------------------------------------------
-void quetzal::set_output_file_endings()
+void quetzal::set_output_file_lf_endings()
 {
-    //#pragma warning(suppress : 4996)
-    //assert(freopen(nullptr, "wb", stdout) != nullptr);
+    cout.flush();
+    cerr.flush();
     assert(_setmode(_fileno(stdout), _O_BINARY) != -1);
     assert(_setmode(_fileno(stderr), _O_BINARY) != -1);
+    // set_lf_endings(cout);
+    // set_lf_endings(cerr);
+    return;
 }
+/*
+//------------------------------------------------------------------------------
+int quetzal::set_lf_endings(std::ostream& os)
+{
+    os.flush();
+    auto handle = os.native_handle();
+    int fd = _open_osfhandle(reinterpret_cast<intptr_t>(handle), 0);
+    int mode_prev = _setmode(fd, _O_BINARY);
+    assert(mode_prev != -1);
+    return mode_prev;
+}
+*/

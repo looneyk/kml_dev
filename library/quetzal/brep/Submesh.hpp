@@ -536,7 +536,7 @@ void quetzal::brep::Submesh<Traits, M>::regenerate_surface_index()
 
 //------------------------------------------------------------------------------
 template<typename Traits, typename M>
-typename const quetzal::brep::Submesh<Traits, M>::attributes_type& quetzal::brep::Submesh<Traits, M>::attributes() const
+const typename quetzal::brep::Submesh<Traits, M>::attributes_type& quetzal::brep::Submesh<Traits, M>::attributes() const
 {
     return m_attributes;
 }
@@ -558,7 +558,7 @@ void quetzal::brep::Submesh<Traits, M>::set_attributes(const attributes_type& at
 
 //------------------------------------------------------------------------------
 template<typename Traits, typename M>
-typename const quetzal::Properties& quetzal::brep::Submesh<Traits, M>::properties() const
+const typename quetzal::Properties& quetzal::brep::Submesh<Traits, M>::properties() const
 {
     return m_properties;
 }

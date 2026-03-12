@@ -566,7 +566,7 @@ typename quetzal::brep::Face<Traits, M>::hole_type& quetzal::brep::Face<Traits, 
 
 //------------------------------------------------------------------------------
 template<typename Traits, typename M>
-typename const quetzal::brep::Face<Traits, M>::attributes_type& quetzal::brep::Face<Traits, M>::attributes() const
+const typename quetzal::brep::Face<Traits, M>::attributes_type& quetzal::brep::Face<Traits, M>::attributes() const
 {
     return m_attributes;
 }
@@ -588,7 +588,7 @@ void quetzal::brep::Face<Traits, M>::set_attributes(const attributes_type& attri
 
 //------------------------------------------------------------------------------
 template<typename Traits, typename M>
-typename const quetzal::Properties& quetzal::brep::Face<Traits, M>::properties() const
+const typename quetzal::Properties& quetzal::brep::Face<Traits, M>::properties() const
 {
     return m_properties;
 }

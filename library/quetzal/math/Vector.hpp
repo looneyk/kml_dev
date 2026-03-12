@@ -936,6 +936,7 @@ quetzal::math::Vector<Traits> quetzal::math::slerp(const Vector<Traits>& lhs, co
     auto theta = angle_between(lhs, rhs);
     auto sin_theta = sin(theta);
     return sin((typename Traits::value_type(1) - t) * theta) / sin_theta * lhs + sin(t * theta) / sin_theta * rhs;
+//    return sin((typename Traits::value_type(1) - t) * theta) / fma(sin_theta, lhs, sin(t * theta)) / sin_theta * rhs;
 }
 
 //------------------------------------------------------------------------------
@@ -1087,6 +1088,7 @@ quetzal::math::Vector<typename Traits::template resized_traits<Traits::template 
         for (size_t j = 0; j < M::cols; ++j)
         {
             v[i] += plhs[j] * rhs[j];
+//            v[i] = fma(plhs[j], rhs[j], v[i]);
         }
 
         plhs += M::cols;
@@ -1107,6 +1109,7 @@ quetzal::math::Vector<typename Traits::template resized_traits<Traits::template 
         for (size_t j = 0; j < M::cols; ++j)
         {
             v[j] += lhs[i] * prhs[j];
+//            v[j] = fma(lhs[i], prhs[j], v[j]);
         }
 
         prhs += M::cols;
@@ -1126,6 +1129,7 @@ quetzal::math::Vector<Traits>& quetzal::math::operator*=(Vector<Traits>& lhs, co
         for (size_t i = 0; i < Traits::size; ++i)
         {
             v[j] += lhs[i] * rhs(i, j);
+//            v[j] = fma(lhs[i], rhs(i, j), v[j]);
         }
     }
 

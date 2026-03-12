@@ -39,6 +39,8 @@ namespace quetzal::geometry
         const separator_type& separator() const;
         const vector_type& exterior_direction() const;
 
+        void set(const separator_type& separator, const vector_type& exterior_direction);
+
         // Returns less, equivalent, greater for interior, boundary, exterior respectively
         std::partial_ordering compare(const point_type& point) const override;
 
@@ -74,6 +76,15 @@ template<typename Traits>
 const quetzal::geometry::HalfSpace<Traits>::vector_type& quetzal::geometry::HalfSpace<Traits>::exterior_direction() const
 {
     return m_exterior_direction;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+void quetzal::geometry::HalfSpace<Traits>::set(const separator_type& separator, const vector_type& exterior_direction)
+{
+    m_separator = separator;
+    m_exterior_direction = exterior_direction;
+    return;
 }
 
 //------------------------------------------------------------------------------

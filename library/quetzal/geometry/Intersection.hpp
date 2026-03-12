@@ -5,17 +5,18 @@
 // Intersection.hpp
 //------------------------------------------------------------------------------
 
-#include "Point.hpp"
 #include "Line.hpp"
 #include "Locus.hpp"
+#include "Plane.hpp"
+#include "Point.hpp"
+#include "Polygon.hpp"
 #include "Ray.hpp"
 #include "Segment.hpp"
-//#include "Polyline.hpp"
-#include "Plane.hpp"
 //#include "Circle.hpp"
-#include "Polygon.hpp"
-//#include "Sphere.hpp"
+//#include "HalfSpace.hpp"
 //#include "Polyhedron.hpp"
+//#include "Polyline.hpp"
+//#include "Sphere.hpp"
 #include <format>
 #include <iostream>
 

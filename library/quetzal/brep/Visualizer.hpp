@@ -39,9 +39,9 @@ namespace quetzal::brep
 
         // arrowhead_fill should be replaced with a more general style parameter ...
         void draw_submesh(const submesh_type& submesh, bool arrowhead_fill = false);
-        void draw_face(const face_type& face, bool arrowhead_fill);
+        void draw_face(const face_type& face, bool arrowhead_fill = false);
         void draw_face_id(const face_type& face);
-        void draw_halfedge(const halfedge_type& halfedge, bool arrowhead_fill);
+        void draw_halfedge(const halfedge_type& halfedge, bool arrowhead_fill = false);
 
         void write(const std::filesystem::path& file_path);
 

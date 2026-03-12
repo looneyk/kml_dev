@@ -248,7 +248,8 @@ void quetzal::model::read_obj(M& mesh, const std::filesystem::path& filepath)
 template<typename M>
 void quetzal::model::write_obj(const M& mesh, const std::filesystem::path& filepath)
 {
-    using attributes_type = M::vertex_attributes_type;
+    using vertex_type = M::vertex_type;
+    using attributes_type = vertex_type::attributes_type;
     using point_type = attributes_type::point_type;
     using vector_type = attributes_type::vector_type;
     using texcoord_type = attributes_type::texcoord_type;

@@ -570,7 +570,7 @@ bool quetzal::geometry::intersects(const Segment<Traits>& segment, const Plane<T
     }
     else if constexpr(Traits::dimension >= 3)
     {
-        HalfSpace halfspace(plane);
+        HalfSpace<Traits> halfspace{plane, plane.normal()};
         auto p = halfspace.compare(segment.endpoint(0));
         auto q = halfspace.compare(segment.endpoint(1));
         return p != q || p == 0;
@@ -590,7 +590,7 @@ bool quetzal::geometry::intersects(const Segment<Traits>& segment, const Polygon
         }
         else if (ix.locus() == Locus::Point)
         {
-            return polygon.contains(ix.point()); // but no need for plane check ...
+            return polygon.contains(ix.point());
         }
 
         assert(ix.locus() == Locus::Segment);
@@ -701,13 +701,12 @@ bool quetzal::geometry::intersects(const Polygon<Traits>& polygon, const Plane<T
 template<typename Traits>
 bool quetzal::geometry::intersects(const Polygon<Traits>& polygon_a, const Polygon<Traits>& polygon_b)
 {
-    if constexpr (Traits::dimension >= 3)
+    if (disjoint(polygon_a.bounds(), polygon_b.bounds()))
     {
-        if (!intersects(polygon_a.plane(), polygon_b) || !intersects(polygon_b.plane(), polygon_a))
-        {
-            return false;
-        }
+        return false;
     }
+
+    // Need to check both ways as one polygon's intersection may be entirely within the other
 
     for (size_t i = 0; i < polygon_a.edge_count(); ++i)
     {
@@ -717,8 +716,15 @@ bool quetzal::geometry::intersects(const Polygon<Traits>& polygon_a, const Polyg
         }
     }
 
-    return false;
+    for (size_t i = 0; i < polygon_b.edge_count(); ++i)
+    {
+        if (intersects(polygon_b.edge(i), polygon_a))
+        {
+            return true;
+        }
+    }
 
+    return false;
 }
 
 //------------------------------------------------------------------------------

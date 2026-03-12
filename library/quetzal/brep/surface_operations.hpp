@@ -9,12 +9,12 @@
 #include "border.hpp"
 #include "geometry.hpp"
 #include "quetzal/common/id.hpp"
+#include "quetzal/geometry/AxisAlignedBoundingBox.hpp"
+#include "quetzal/geometry/Segment.hpp"
 #include "quetzal/geometry/intersect.hpp"
+#include "quetzal/geometry/intersection.hpp"
 #include "quetzal/math/floating_point.hpp"
 #include "quetzal/math/math_util.hpp"
-#include "quetzal/geometry/AxisAlignedBoundingBox.hpp"
-//#include "quetzal/geometry/Segment.hpp"
-#include "quetzal/geometry/intersection.hpp"
 #include <array>
 #include <algorithm>
 #include <span>
@@ -24,6 +24,7 @@ namespace quetzal::brep
 {
 
     // Given that surfaces are rarely coplanar, are these useful at all? ...
+    // Yes, but they might be applied only after determining that they are coplanar ...
 
     // Returns the sub/super surface ids resulting from the operation
 /*
@@ -70,7 +71,7 @@ namespace quetzal::brep
 
     template<typename Traits>
 //    void intersection_point(Mesh<Traits>& mesh, id_type id_a, id_type id_b, const typename Traits::point_type& position, edge_intersections_type& intersections);
-    std::array<id_type, 2> intersection_point(Mesh<Traits>& mesh, id_type id_a, id_type id_b, const typename Traits::point_type& position);
+    std::array<id_type, 2> intersection_point(Mesh<Traits>& mesh, id_type halfedge_id_a, id_type halfedge_id_b, const typename Traits::point_type& position);
 
     template<typename Traits>
     int halfedge_face_orientation(const Halfedge<Traits>& halfedge, const Halfedge<Traits>& halfedge_face);
@@ -81,6 +82,7 @@ namespace quetzal::brep
     template<typename Traits>
     void print_intersections(const Mesh<Traits>& mesh, const edge_intersections_type& intersections);
 
+    // could be tuple ...
     template<typename Traits>
     struct Split
     {
@@ -486,50 +488,50 @@ void quetzal::brep::surface_detail_bounds(const Surface<Traits>& surface, indexe
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-std::array<quetzal::id_type, 2> quetzal::brep::intersection_point(Mesh<Traits>& mesh, id_type id_a, id_type id_b, const typename Traits::point_type& position)
+std::array<quetzal::id_type, 2> quetzal::brep::intersection_point(Mesh<Traits>& mesh, id_type halfedge_id_a, id_type halfedge_id_b, const typename Traits::point_type& position)
 {
-std::cout << "intersection_point\t" << id_a << '\t' << id_b << '\t' << position << std::endl;
-std::cout << "    segment a\t" << to_segment(mesh.halfedge(id_a)) << std::endl;
-std::cout << "    segment b\t" << to_segment(mesh.halfedge(id_b)) << std::endl;
+std::cout << "intersection_point\t" << halfedge_id_a << '\t' << halfedge_id_b << '\t' << position << std::endl;
+std::cout << "    segment a\t" << to_segment(mesh.halfedge(halfedge_id_a)) << std::endl;
+std::cout << "    segment b\t" << to_segment(mesh.halfedge(halfedge_id_b)) << std::endl;
 
     // handle both border and surface_border edges here ...
     // split_edge handles both? ...
 
-    if (position != mesh.halfedge(id_a).vertex_attributes().position())
+    if (position != mesh.halfedge(halfedge_id_a).vertex_attributes().position())
     {
-        if (mesh.halfedge(id_a).border())
+        if (mesh.halfedge(halfedge_id_a).border())
         {
-            split_halfedge(mesh, id_a, position);
+            split_halfedge(mesh, halfedge_id_a, position);
         }
         else
         {
-            split_edge(mesh, id_a, position);
+            split_edge(mesh, halfedge_id_a, position);
         }
 
-        id_a = mesh.halfedge(id_a).next_id();
+        halfedge_id_a = mesh.halfedge(halfedge_id_a).next_id();
     }
 
-    if (position != mesh.halfedge(id_b).vertex_attributes().position())
+    if (position != mesh.halfedge(halfedge_id_b).vertex_attributes().position())
     {
-        if (mesh.halfedge(id_b).border())
+        if (mesh.halfedge(halfedge_id_b).border())
         {
-            split_halfedge(mesh, id_b, position);
+            split_halfedge(mesh, halfedge_id_b, position);
         }
         else
         {
-            split_edge(mesh, id_b, position);
+            split_edge(mesh, halfedge_id_b, position);
         }
 
-        id_b = mesh.halfedge(id_b).next_id();
+        halfedge_id_b = mesh.halfedge(halfedge_id_b).next_id();
     }
 /*
     // is the && correct? ...
-    if (!mesh.halfedge(id_a).surface_border() && !mesh.halfedge(id_b).surface_border())
+    if (!mesh.halfedge(halfedge_id_a).surface_border() && !mesh.halfedge(halfedge_id_b).surface_border())
     {
-        intersections[mesh.halfedge(id_a).partner().next_id()] = mesh.halfedge(id_b).partner().next_id();
+        intersections[mesh.halfedge(halfedge_id_a).partner().next_id()] = mesh.halfedge(halfedge_id_b).partner().next_id();
     }
 */
-    return {id_a, id_b};
+    return {halfedge_id_a, halfedge_id_b};
 }
 
 //------------------------------------------------------------------------------

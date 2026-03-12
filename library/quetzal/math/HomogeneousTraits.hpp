@@ -424,6 +424,7 @@ T quetzal::math::HomogeneousTraits<T, N>::dot_product(const rep_type& lhs, const
     else
     {
         return get<I>(lhs) * get<I>(rhs) + dot_product<I - 1>(lhs, rhs);
+//        return fma(get<I>(lhs), get<I>(rhs), dot_product<I - 1>(lhs, rhs));
     }
 }
 

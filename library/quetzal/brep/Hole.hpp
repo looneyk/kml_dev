@@ -234,7 +234,7 @@ std::vector<quetzal::id_type> quetzal::brep::Hole<Traits, M>::halfedge_ids() con
 
 //------------------------------------------------------------------------------
 template<typename Traits, typename M>
-typename const quetzal::Properties& quetzal::brep::Hole<Traits, M>::properties() const
+const typename quetzal::Properties& quetzal::brep::Hole<Traits, M>::properties() const
 {
     return m_properties;
 }

@@ -99,7 +99,7 @@ quetzal::geometry::Polyline<Traits>::Polyline(std::initializer_list<vertex_type>
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-typename const quetzal::geometry::Polyline<Traits>::vertex_type& quetzal::geometry::Polyline<Traits>::vertex(size_type n) const
+const typename quetzal::geometry::Polyline<Traits>::vertex_type& quetzal::geometry::Polyline<Traits>::vertex(size_type n) const
 {
     assert(n < m_vertices.size());
     return m_vertices[n];

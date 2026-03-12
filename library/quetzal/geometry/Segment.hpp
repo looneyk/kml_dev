@@ -34,7 +34,7 @@ namespace quetzal::geometry
         using points_type = std::array<point_type, 2>;
 
         Segment();
-        Segment(const points_type& points);
+        Segment(const points_type& points); // span? ...
         Segment(const point_type& a, const point_type& b);
         Segment(const Segment&) = default;
         Segment(Segment&&) = default;
@@ -50,8 +50,8 @@ namespace quetzal::geometry
         void set_endpoints(const point_type& a, const point_type& b);
 
         value_type length() const;
-        vector_type vector() const; // vector connecting endpoints
-        vector_type direction() const; // unit direction vector
+        vector_type vector() const; // directed segment support, vector connecting endpoints
+        vector_type direction() const; // directed segment support, unit direction vector
 
         point_type point(value_type t) const;
         point_type midpoint() const;
@@ -65,7 +65,7 @@ namespace quetzal::geometry
         point_type projection(const point_type& point) const;
         value_type projection_parameter(const point_type& point) const;
 
-        void reverse();
+        void reverse(); // directed segment support
 
     private:
 

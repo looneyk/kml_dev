@@ -13,6 +13,7 @@
 namespace quetzal
 {
 
+    // Should be a class, map type is too common, but for now, operator usage is specific enough to prevent conflict ...
     using Properties = std::map<std::string, std::string>;
 
     Properties& operator|=(Properties& lhs, const Properties& rhs);
@@ -30,7 +31,7 @@ namespace quetzal
 template<typename T>
 T quetzal::extract(const Properties& properties, const std::string& key)
 {
-    return properties.contains(key) ? to_type<T>(properties[key]) : T();
+    return properties.contains(key) ? to_type<T>(properties.at(key)) : T();
 }
 
 #endif // QUETZAL_PROPERTIES_HPP

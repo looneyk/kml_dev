@@ -144,6 +144,7 @@ namespace quetzal::geometry
         void set_final(const vector_type& right = vector_type::x_direction()) requires (Traits::dimension == 2);
         void set_final(const vector_type& normal = vector_type::z_direction(), const vector_type& right = vector_type::x_direction()) requires (Traits::dimension == 3);
         // set_final_normal, set_final_right to allow for the other to be calculated? ...
+        // reset_final? ...
 
     private:
 
@@ -308,7 +309,7 @@ size_t quetzal::geometry::Polygon<Traits>::vertex_count() const noexcept
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-typename const quetzal::geometry::Polygon<Traits>::vertex_type& quetzal::geometry::Polygon<Traits>::vertex(size_type n) const
+const typename quetzal::geometry::Polygon<Traits>::vertex_type& quetzal::geometry::Polygon<Traits>::vertex(size_type n) const
 {
     assert(n < m_vertices.size());
     return m_vertices[n];

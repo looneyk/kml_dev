@@ -38,11 +38,8 @@ namespace quetzal::brep
         // Add geometry
         id_type submesh(const std::string& name);
         id_type surface(id_type submesh_id, const std::string& name, vector_type normal);
-        id_type face(id_type surface_id, vector_type normal, const std::vector<point_type>& points = {}); // soon may not need this any more ...
         id_type face(id_type surface_id, vector_type normal, std::span<const point_type> points = {});
-        id_type surface_face(id_type submesh_id, const std::string& name, vector_type normal, const std::vector<point_type>& points = {}); // soon may not need this any more ...
         id_type surface_face(id_type submesh_id, const std::string& name, vector_type normal, std::span<const point_type> points = {});
-        // should be span, not necessarily points, but av, ...
 
         // Adds a face and surface for each remaining border opening
         void close_mesh();
@@ -50,7 +47,7 @@ namespace quetzal::brep
     private:
 
         void find_borders();
-        id_type find_partner(id_type idHalfedge);
+        id_type find_partner(id_type halfedge_id);
 
         mesh_type* m_pmesh;
         std::set<id_type> m_borders;
@@ -112,13 +109,6 @@ quetzal::id_type quetzal::brep::MeshBuilder<M>::surface(id_type submesh_id, cons
 
 //------------------------------------------------------------------------------
 template<typename M>
-quetzal::id_type quetzal::brep::MeshBuilder<M>::face(id_type surface_id, vector_type normal, const std::vector<point_type>& points)
-{
-    return face(surface_id, normal, std::span<const point_type>(points));
-}
-
-//------------------------------------------------------------------------------
-template<typename M>
 quetzal::id_type quetzal::brep::MeshBuilder<M>::face(id_type surface_id, vector_type normal, std::span<const point_type> points)
 {
     assert(m_pmesh != nullptr);
@@ -132,20 +122,20 @@ quetzal::id_type quetzal::brep::MeshBuilder<M>::face(id_type surface_id, vector_
     {
         const auto& point = points[i];
         typename M::vertex_attributes_type av{point, normal, {}};
-        id_type idNext = i < n - 1 ? nh + i + 1 : nh;
-        id_type idPrev = i > 0 ? nh + i - 1 : nh + n - 1;
-        m_pmesh->create_halfedge_vertex(nullid, idNext, idPrev, face_id, av);
+        id_type halfedge_id_next = i < n - 1 ? nh + i + 1 : nh;
+        id_type halfedge_id_prev = i > 0 ? nh + i - 1 : nh + n - 1;
+        m_pmesh->create_halfedge_vertex(nullid, halfedge_id_next, halfedge_id_prev, face_id, av);
     }
 
     for (size_t i = 0; i < n; ++i)
     {
         id_type id = nh + i;
-        id_type idPartner = find_partner(id);
-        if (idPartner != nullid)
+        id_type halfedge_id_partner = find_partner(id);
+        if (halfedge_id_partner != nullid)
         {
-            m_pmesh->halfedge(id).set_partner_id(idPartner);
-            m_pmesh->halfedge(idPartner).set_partner_id(id);
-            m_borders.erase(idPartner);
+            m_pmesh->halfedge(id).set_partner_id(halfedge_id_partner);
+            m_pmesh->halfedge(halfedge_id_partner).set_partner_id(id);
+            m_borders.erase(halfedge_id_partner);
         }
         else
         {
@@ -154,13 +144,6 @@ quetzal::id_type quetzal::brep::MeshBuilder<M>::face(id_type surface_id, vector_
     }
 
     return face_id;
-}
-
-//------------------------------------------------------------------------------
-template<typename M>
-quetzal::id_type quetzal::brep::MeshBuilder<M>::surface_face(id_type submesh_id, const std::string& name, vector_type normal, const std::vector<point_type>& points)
-{
-    return surface_face(submesh_id, name, normal, std::span<const point_type>(points));
 }
 
 //------------------------------------------------------------------------------
@@ -186,13 +169,13 @@ void quetzal::brep::MeshBuilder<M>::close_mesh()
 
     while (!m_borders.empty())
     {
-        id_type idHalfedge = *m_borders.begin();
-        id_type submesh_id = m_pmesh->halfedge(idHalfedge).face().submesh_id();
+        id_type halfedge_id = *m_borders.begin();
+        id_type submesh_id = m_pmesh->halfedge(halfedge_id).face().submesh_id();
 
         std::string name = 's' + std::to_string(m_pmesh->surface_store_count());
 
         id_type surface_id = m_pmesh->create_surface(submesh_id, name);
-        id_type face_id = create_border_face(*m_pmesh, idHalfedge, vector_type::z_direction(), surface_id); // dummy normal, will be calculated next
+        id_type face_id = create_border_face(*m_pmesh, halfedge_id, vector_type::z_direction(), surface_id); // dummy normal, will be calculated next
 
         auto& face = m_pmesh->face(face_id);
         set_facet_normal(face);
@@ -225,14 +208,14 @@ void quetzal::brep::MeshBuilder<M>::find_borders()
 
 //------------------------------------------------------------------------------
 template<typename M>
-quetzal::id_type quetzal::brep::MeshBuilder<M>::find_partner(id_type idHalfedge)
+quetzal::id_type quetzal::brep::MeshBuilder<M>::find_partner(id_type halfedge_id)
 {
     assert(m_pmesh != nullptr);
 
-    const auto& halfedge = m_pmesh->halfedge(idHalfedge);
-    for (auto idBorder : m_borders)
+    const auto& halfedge = m_pmesh->halfedge(halfedge_id);
+    for (auto halfedge_id_border : m_borders)
     {
-        const auto& border = m_pmesh->halfedge(idBorder);
+        const auto& border = m_pmesh->halfedge(halfedge_id_border);
 
         // float_eq? only if necessary ...
 //        if (halfedge.vertex_attributes().position() == border.next().vertex_attributes().position() &&
@@ -240,7 +223,7 @@ quetzal::id_type quetzal::brep::MeshBuilder<M>::find_partner(id_type idHalfedge)
         if (float_eq(halfedge.vertex_attributes().position(), border.next().vertex_attributes().position()) &&
             float_eq(halfedge.next().vertex_attributes().position(), border.vertex_attributes().position()))
         {
-            return idBorder;
+            return halfedge_id_border;
         }
     }
 

@@ -1616,7 +1616,7 @@ void quetzal::brep::Mesh<Traits>::rename_submesh_surfaces(id_type idSubmesh, std
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-typename const quetzal::Properties& quetzal::brep::Mesh<Traits>::properties() const
+const typename quetzal::Properties& quetzal::brep::Mesh<Traits>::properties() const
 {
     return m_properties;
 }
