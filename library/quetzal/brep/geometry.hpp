@@ -99,6 +99,15 @@ namespace quetzal::brep
     template<typename Traits>
     bool degenerate(const Face<Traits>& face);
 
+    // could use geometry functions for these two if we exposed normls the way we expose positions ...
+    // Simple wrapper around the corresponding geometry function
+    template<typename Traits>
+    bool parallel(const Face<Traits>& face_a, const Face<Traits>& face_b);
+
+    // Simple wrapper around the corresponding geometry function
+    template<typename Traits>
+    bool coplanar(const Face<Traits>& face_a, const Face<Traits>& face_b);
+
     // This can be used to quickly reject many non-intersections, but if this returns false, there still may not be an actual intersection
     template<typename Traits>
     bool disjoint_plane_crossings(const Face<Traits>& face_a, const Face<Traits>& face_b);
@@ -393,6 +402,20 @@ bool quetzal::brep::degenerate(const Face<Traits>& face)
     }
 
     return true;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+bool quetzal::brep::parallel(const Face<Traits>& face_a, const Face<Traits>& face_b)
+{
+    return geometry::parallel(to_plane(face_a), to_plane(face_b));
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+bool quetzal::brep::coplanar(const Face<Traits>& face_a, const Face<Traits>& face_b)
+{
+    return geometry::coplanar(to_plane(face_a), to_plane(face_b));
 }
 
 //------------------------------------------------------------------------------

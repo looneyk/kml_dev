@@ -6,7 +6,6 @@
 //------------------------------------------------------------------------------
 
 #include "IntersectionSplitter.hpp"
-#include "IntersectionSplitter2.hpp" // ...
 #include "Mesh.hpp"
 #include "id.hpp"
 #include "border.hpp"
@@ -399,10 +398,6 @@ std::vector<quetzal::id_type> quetzal::brep::mesh_operation(Mesh<Traits>& mesh, 
     IntersectionSplitter intersection_splitter(mesh);
     auto connections = intersection_splitter.connections(submesh_id_a, submesh_id_b);
     validate_connections(mesh, connections);
-
-    // ...
-    IntersectionSplitter2 intersection_splitter2(mesh);
-    auto connections2 = intersection_splitter2.connections(submesh_id_a, submesh_id_b);
 
     std::vector<id_type> submesh_ids;
 
