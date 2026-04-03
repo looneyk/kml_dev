@@ -219,6 +219,9 @@ namespace quetzal::math
     template<typename Traits>
     bool float_eq0(const Vector<Traits>& v, int ulp = ulpDefault);
 
+    template<typename Traits>
+    bool ne_or_exact(const Vector<Traits>& lhs, Vector<Traits> rhs, int ulp = ulpDefault);
+
     // denoise0 is componentwise
     template<typename Traits>
     Vector<Traits> denoise0(Vector<Traits> v, int ulp = ulpDefault);
@@ -990,6 +993,13 @@ template<typename Traits>
 bool quetzal::math::float_eq0(const Vector<Traits>& v, int ulp)
 {
     return v.float_zero(ulp);
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+bool quetzal::math::ne_or_exact(const Vector<Traits>& lhs, Vector<Traits> rhs, int ulp)
+{
+    return !float_eq(lhs, rhs, ulp) || lhs == rhs;
 }
 
 //------------------------------------------------------------------------------

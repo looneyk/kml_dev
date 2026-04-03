@@ -74,6 +74,10 @@ namespace quetzal::math
     template<typename T> requires std::floating_point<T>
     int float_sign(T t, int ulp = ulpDefault);
 
+    // The two values are not approximately exact; they are either exactly equal, or if unequal, then by more than the float equality threshold
+    template<typename T> requires std::floating_point<T>
+    bool ne_or_exact(T lhs, T rhs, int ulp = ulpDefault);
+
     template<typename T> requires std::floating_point<T>
     T denoise0(T t, int ulp = ulpDefault);
 
@@ -222,6 +226,13 @@ int quetzal::math::float_sign(T t, int ulp)
     }
 
     return t < 0 ? -1 : 1;
+}
+
+//------------------------------------------------------------------------------
+template<typename T> requires std::floating_point<T>
+bool quetzal::math::ne_or_exact(T a, T b, int ulp)
+{
+    return float_ne(a, b, ulp) || a == b;
 }
 
 //------------------------------------------------------------------------------

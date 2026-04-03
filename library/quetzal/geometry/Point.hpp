@@ -199,6 +199,9 @@ namespace quetzal::geometry
     template<typename Traits>
     bool epsilon_eq(const Point<Traits>& lhs, Point<Traits> rhs, typename Traits::value_type epsilon = typename Traits::value_type(0.001));
 
+    template<typename Traits>
+    bool ne_or_exact(const Point<Traits>& lhs, Point<Traits> rhs, int ulp = math::ulpDefault);
+
     template<typename Traits> requires (Traits::dimension == 2)
     bool colinear(const Point<Traits>& a, const Point<Traits>& b, const Point<Traits>& c);
 
@@ -839,6 +842,14 @@ bool quetzal::geometry::epsilon_eq(const Point<Traits>& lhs, Point<Traits> rhs, 
     }
 
     return true;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+bool quetzal::geometry::ne_or_exact(const Point<Traits>& lhs, Point<Traits> rhs, int ulp)
+{
+    Traits::prepare(lhs.rep(), rhs.rep());
+    return !Traits::float_equals(lhs.rep(), rhs.rep(), ulp) || Traits::equals(lhs.rep(), rhs.rep());
 }
 
 //------------------------------------------------------------------------------
