@@ -653,7 +653,7 @@ typename Traits::value_type quetzal::math::Vector<Traits>::norm_squared() const
 template<typename Traits>
 quetzal::math::Vector<Traits> quetzal::math::Vector<Traits>::direction() const
 {
-    return normalize(*this);
+    return math::normalize(*this);
 }
 
 //------------------------------------------------------------------------------

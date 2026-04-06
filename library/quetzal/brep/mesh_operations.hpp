@@ -19,15 +19,14 @@
 namespace quetzal::brep
 {
 
-    // input: border halfedge ids in order {A exterior, A interior, B exterior, B interior}
     template<typename Traits>
-    using connect_function_type = std::function<std::vector<id_type> (Mesh<Traits>&, id_type, id_type, id_type, id_type)>;
+    using connect_function_type = std::function<std::vector<id_type> (Mesh<Traits>&, const connection_type&)>;
 
-    // input: submesh_id_a, submesh_id_b
+    // parameters: submesh_id_a, submesh_id_b
     template<typename Traits>
     using disjoint_function_type = std::function<std::vector<id_type> (Mesh<Traits>&, id_type, id_type)>;
 
-    // input: submesh_id_a, submesh_id_b
+    // parameters: submesh_id_a, submesh_id_b
     // submesh A contains submesh B
     template<typename Traits>
     using inclusion_function_type = std::function<std::vector<id_type> (Mesh<Traits>&, id_type, id_type)>;
@@ -129,9 +128,9 @@ namespace quetzal::brep
 
     //--------------------------------------------------------------------------
     template<typename M>
-    void validate_connection(const M& mesh, const typename IntersectionSplitter<M>::connection_type& connection)
+    void validate_connection_borders(const M& mesh, const connection_borders_type& borders)
     {
-        auto [id_a_ext, id_a_int, id_b_ext, id_b_int] = connection;
+        auto [id_a_ext, id_a_int, id_b_ext, id_b_int] = borders;
         std::vector<id_type> seq_next_id_a_ext;
         std::vector<id_type> seq_next_id_a_int;
         std::vector<id_type> seq_next_id_b_ext;
@@ -157,10 +156,10 @@ std::cout << std::format("    a_ext {}  a_int {}  b_ext {}  b_int {}  {:20}  {:2
             id_a_int = next_border_halfedge_id(mesh, id_a_int);
             id_b_ext = next_border_halfedge_id(mesh, id_b_ext);
             id_b_int = next_border_halfedge_id(mesh, id_b_int);
-        } while (id_a_ext != connection[0]);
-        assert(id_a_int == connection[1]);
-        assert(id_b_ext == connection[2]);
-        assert(id_b_int == connection[3]);
+        } while (id_a_ext != borders[0]);
+        assert(id_a_int == borders[1]);
+        assert(id_b_ext == borders[2]);
+        assert(id_b_int == borders[3]);
  
         std::vector<id_type> seq_prev_id_a_ext;
         std::vector<id_type> seq_prev_id_a_int;
@@ -187,10 +186,10 @@ std::cout << std::format("    a_ext {}  a_int {}  b_ext {}  b_int {}  {:20}  {:2
             id_a_int = prev_border_halfedge_id(mesh, id_a_int);
             id_b_ext = prev_border_halfedge_id(mesh, id_b_ext);
             id_b_int = prev_border_halfedge_id(mesh, id_b_int);
-        } while (id_a_ext != connection[0]);
-        assert(id_a_int == connection[1]);
-        assert(id_b_ext == connection[2]);
-        assert(id_b_int == connection[3]);
+        } while (id_a_ext != borders[0]);
+        assert(id_a_int == borders[1]);
+        assert(id_b_ext == borders[2]);
+        assert(id_b_int == borders[3]);
 
         // These checks assume that ext and int are partners or in partner orientation and that a and b are coincident
 
@@ -209,11 +208,17 @@ std::cout << std::format("    a_ext {}  a_int {}  b_ext {}  b_int {}  {:20}  {:2
     template<typename M>
     void validate_connections(const M& mesh, const typename IntersectionSplitter<M>::connections_type& connections)
     {
-size_t i = 0;
         for (const auto& connection : connections)
         {
-std::cout << std::format("connection {}", i++) << std::endl;;
-            validate_connection(mesh, connection);
+            for (const auto& connection_node : connection)
+            {
+                // connection_node paths ahve an end (the next node) which needs to be taken into account ...
+                assert(connection_node.size() == 1 || connection_node.size() == 2);
+                for (const auto& connection_borders : connection_node)
+                {
+                    validate_connection_borders(mesh, connection_borders);
+                }
+            }
         }
         return;
     }
@@ -224,11 +229,9 @@ std::cout << std::format("connection {}", i++) << std::endl;;
 template<typename Traits>
 std::vector<quetzal::id_type> quetzal::brep::mesh_union(Mesh<Traits>& mesh, id_type submesh_id_a, id_type submesh_id_b, const std::string& name)
 {
-    connect_function_type<Traits> connect = [&](Mesh<Traits>& mesh, id_type halfedge_id_a_exterior, id_type halfedge_id_a_interior, id_type halfedge_id_b_exterior, id_type halfedge_id_b_interior) -> std::vector<id_type>
+    connect_function_type<Traits> connect = [&](Mesh<Traits>& mesh, const connection_type& connection) -> std::vector<id_type>
     {
-        connect_border_fragments(mesh, halfedge_id_a_exterior, halfedge_id_b_exterior);
-        delete_border_fragment(mesh, halfedge_id_a_interior);
-        delete_border_fragment(mesh, halfedge_id_b_interior);
+        connect_border_fragments(mesh, connection, 0, 2, true);
         return {mesh.submesh_id(name)};
     };
 
@@ -251,11 +254,9 @@ std::vector<quetzal::id_type> quetzal::brep::mesh_union(Mesh<Traits>& mesh, id_t
 template<typename Traits>
 std::vector<quetzal::id_type> quetzal::brep::mesh_intersection(Mesh<Traits>& mesh, id_type submesh_id_a, id_type submesh_id_b, const std::string& name)
 {
-    connect_function_type<Traits> connect = [&](Mesh<Traits>& mesh, id_type halfedge_id_a_exterior, id_type halfedge_id_a_interior, id_type halfedge_id_b_exterior, id_type halfedge_id_b_interior) -> std::vector<id_type>
+    connect_function_type<Traits> connect = [&](Mesh<Traits>& mesh, const connection_type& connection) -> std::vector<id_type>
     {
-        connect_border_fragments(mesh, halfedge_id_a_interior, halfedge_id_b_interior);
-        delete_border_fragment(mesh, halfedge_id_a_exterior);
-        delete_border_fragment(mesh, halfedge_id_b_exterior);
+        connect_border_fragments(mesh, connection, 1, 3, true);
         return {mesh.submesh_id(name)};
     };
 
@@ -280,9 +281,9 @@ std::vector<quetzal::id_type> quetzal::brep::mesh_intersection(Mesh<Traits>& mes
 template<typename Traits>
 std::vector<quetzal::id_type> quetzal::brep::mesh_difference(Mesh<Traits>& mesh, id_type submesh_id_a, id_type submesh_id_b, const std::string& name)
 {
-    connect_function_type<Traits> connect = [&](Mesh<Traits>& mesh, id_type halfedge_id_a_exterior, id_type halfedge_id_a_interior, id_type halfedge_id_b_exterior, id_type halfedge_id_b_interior) -> std::vector<id_type>
+    connect_function_type<Traits> connect = [&](Mesh<Traits>& mesh, const connection_type& connection) -> std::vector<id_type>
     {
-        BorderFragment<Traits> border_fragment(mesh, halfedge_id_b_interior);
+        BorderFragment<Traits> border_fragment(mesh, connection[0][0][3]); // is this ok? ...
 //std::cout << std::format("mesh_difference connect border_fragment {} marked {}", halfedge_id_b_interior, border_fragment.marked()) << std::endl;
         if (!border_fragment.marked())
         {
@@ -290,10 +291,8 @@ std::vector<quetzal::id_type> quetzal::brep::mesh_difference(Mesh<Traits>& mesh,
             border_fragment.set_submesh_id(submesh_id_a);
         }
 
-        connect_border_fragments(mesh, halfedge_id_a_exterior, halfedge_id_b_interior);
-        delete_border_fragment(mesh, halfedge_id_a_interior);
-        delete_border_fragment(mesh, halfedge_id_b_exterior);
-        return {submesh_id_a};
+        connect_border_fragments(mesh, connection, 0, 3, true);
+        return {mesh.submesh_id(name)};
     };
 
     disjoint_function_type<Traits> disjoint = [&](Mesh<Traits>& mesh, id_type, id_type submesh_id_b) -> std::vector<id_type>
@@ -316,9 +315,9 @@ std::vector<quetzal::id_type> quetzal::brep::mesh_difference(Mesh<Traits>& mesh,
 template<typename Traits>
 std::vector<quetzal::id_type> quetzal::brep::mesh_symmetric_difference(Mesh<Traits>& mesh, id_type submesh_id_a, id_type submesh_id_b, const std::string& name)
 {
-    connect_function_type<Traits> connect = [&](Mesh<Traits>& mesh, id_type halfedge_id_a_exterior, id_type halfedge_id_a_interior, id_type halfedge_id_b_exterior, id_type halfedge_id_b_interior) -> std::vector<id_type>
+    connect_function_type<Traits> connect = [&](Mesh<Traits>& mesh, const connection_type& connection) -> std::vector<id_type>
     {
-        BorderFragment<Traits> border_fragment_a(mesh, halfedge_id_b_interior);
+        BorderFragment<Traits> border_fragment_a(mesh, connection[0][0][3]); // is this ok? ...
 //std::cout << std::format("mesh_symmetric_difference connect border_fragment_a {} marked {}", halfedge_id_b_interior, border_fragment_a.marked()) << std::endl;
         if (!border_fragment_a.marked())
         {
@@ -326,7 +325,7 @@ std::vector<quetzal::id_type> quetzal::brep::mesh_symmetric_difference(Mesh<Trai
             border_fragment_a.set_submesh_id(submesh_id_a);
         }
 
-        BorderFragment<Traits> border_fragment_b(mesh, halfedge_id_a_interior);
+        BorderFragment<Traits> border_fragment_b(mesh, connection[0][0][1]); // is this ok? ...
 //std::cout << std::format("mesh_symmetric_difference connect border_fragment_b {} marked {}", halfedge_id_a_interior, border_fragment_b.marked()) << std::endl;
         if (!border_fragment_b.marked())
         {
@@ -334,9 +333,9 @@ std::vector<quetzal::id_type> quetzal::brep::mesh_symmetric_difference(Mesh<Trai
             border_fragment_b.set_submesh_id(submesh_id_b);
         }
 
-        connect_border_fragments(mesh, halfedge_id_a_exterior, halfedge_id_b_interior);
-        connect_border_fragments(mesh, halfedge_id_b_exterior, halfedge_id_a_interior);
-        return {submesh_id_a, submesh_id_b};
+        connect_border_fragments(mesh, connection, 0, 3, true);
+        connect_border_fragments(mesh, connection, 2, 1, true);
+        return {mesh.submesh_id(name)};
     };
 
     disjoint_function_type<Traits> disjoint = [&](Mesh<Traits>&, id_type, id_type) -> std::vector<id_type>
@@ -358,11 +357,10 @@ std::vector<quetzal::id_type> quetzal::brep::mesh_symmetric_difference(Mesh<Trai
 template<typename Traits>
 std::vector<quetzal::id_type> quetzal::brep::mesh_identity(Mesh<Traits>& mesh, id_type submesh_id_a, id_type submesh_id_b, const std::string& name)
 {
-    connect_function_type<Traits> connect = [&](Mesh<Traits>& mesh, id_type halfedge_id_a_exterior, id_type halfedge_id_a_interior, id_type halfedge_id_b_exterior, id_type halfedge_id_b_interior) -> std::vector<id_type>
+    connect_function_type<Traits> connect = [&](Mesh<Traits>& mesh, const connection_type& connection) -> std::vector<id_type>
     {
- std::cout << std::format("connect {} {} {} {}", id_string(halfedge_id_a_exterior), id_string(halfedge_id_a_interior), id_string(halfedge_id_b_exterior), id_string(halfedge_id_b_interior)) << std::endl;
-        connect_border_fragments(mesh, halfedge_id_a_exterior, halfedge_id_a_interior);
-        connect_border_fragments(mesh, halfedge_id_b_exterior, halfedge_id_b_interior);
+        connect_border_fragments(mesh, connection, 0, 1, true);
+        connect_border_fragments(mesh, connection, 2, 3, true);
         return {submesh_id_a, submesh_id_b};
     };
 
@@ -425,9 +423,9 @@ std::vector<quetzal::id_type> quetzal::brep::mesh_operation(Mesh<Traits>& mesh, 
 
         for (const auto& connection : connections)
         {
-            auto [halfedge_id_a_exterior, halfedge_id_a_interior, halfedge_id_b_exterior, halfedge_id_b_interior] = connection;
-            auto connected_submesh_ids = connect(mesh, halfedge_id_a_exterior, halfedge_id_a_interior, halfedge_id_b_exterior, halfedge_id_b_interior);
+            auto connected_submesh_ids = connect(mesh, connection);
             submesh_ids.append_range(connected_submesh_ids);
+            delete_unconnected_border_fragments(mesh, connection);
         }
     }
 

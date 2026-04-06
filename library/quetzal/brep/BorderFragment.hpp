@@ -214,6 +214,7 @@ void quetzal::brep::BorderFragment<Traits, M>::invert(transform_texcoord_type<Tr
     for (id_type face_id : m_face_ids)
     {
         auto& face = m_pmesh->face(face_id);
+        assert(!face.marked());
         brep::invert(face, transform_texcoord);
         face.set_marked();
     }
