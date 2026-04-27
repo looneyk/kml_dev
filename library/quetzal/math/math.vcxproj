@@ -261,6 +261,7 @@
     <ClInclude Include="Quaternion.hpp" />
     <ClInclude Include="QuaternionTraits.hpp" />
     <ClInclude Include="Random.hpp" />
+    <ClInclude Include="spherical_harmonics.hpp" />
     <ClInclude Include="Vector.hpp" />
     <ClInclude Include="vector_util.hpp" />
   </ItemGroup>

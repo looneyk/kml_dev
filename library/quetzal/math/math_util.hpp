@@ -46,6 +46,9 @@ namespace quetzal::math
     template<typename T>
     constexpr T GoldenRatio = T(1.6180339887498948482045868343656);
 
+    template<typename T>
+    T pow(T x, int n);
+
     template<typename T> requires std::integral<T>
     bool even(T t);
 
@@ -145,6 +148,44 @@ namespace quetzal::math
     size_t triangular_number(size_t n);
 
 } // namespace quetzal::math
+
+//------------------------------------------------------------------------------
+template<typename T>
+T quetzal::math::pow(T x, int n)
+{
+    if (x == T(0))
+    {
+        return T(0);
+    }
+
+    if (n == 0)
+    {
+        return T(1);
+    }
+
+    if (n < 0)
+    {
+        x = T(1) / x;
+        n = -n;
+    }
+
+    T result = T(1);
+    for (;;)
+    {
+        if (odd(n))
+        {
+            result *= x;
+        }
+        n >>= 1;
+        if (n == 0)
+        {
+            break;
+        }
+        x *= x;
+    }
+
+    return result;
+}
 
 //------------------------------------------------------------------------------
 template<typename T> requires std::integral<T>

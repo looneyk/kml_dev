@@ -57,6 +57,7 @@ namespace quetzal::model
         using std::vector<typename M::vertex_attributes_type>::vector;
     };
 
+    // vector of vectors is a lot of overhead, use a single vector with a sections array instead, more like polygon? ...
     template<typename M>
     using vertices_attributes_sections_type = std::vector<vertices_attributes_type<M>>;
 
@@ -65,10 +66,7 @@ namespace quetzal::model
     // Calculates texture coordinates appropriate for a single encompassing surface where ts defines the full texture range
     // Produces nAzimuth + 1 vertex attributes
     template<typename M>
-    vertices_attributes_type<M> vertices_attributes(size_t nAzimuth, data_value_type<M> radius, data_value_type<M> z, azimuth_interval_type<M> azimuth_interval, texture_span_type<M> ts);
-
-    template<typename M>
-    vertices_attributes_type<M> vertices_attributes(size_t nAzimuth, data_value_type<M> radius, data_value_type<M> z, azimuth_interval_type<M> azimuth_interval, texture_span_type<M> ts, vertex_normal_function_type<M> vertex_normal);
+    vertices_attributes_type<M> vertices_attributes(size_t nAzimuth, data_value_type<M> radius, data_value_type<M> z, azimuth_interval_type<M> azimuth_interval, texture_span_type<M> ts, std::optional<vertex_normal_function_type<M>> vertex_normal = std::nullopt);
 
     // Precalculate vertex values for a layer parallel to the xy-plane
     // Calculates normals and texture coordinates appropriate for a section of a single encompassing surface
@@ -81,6 +79,22 @@ namespace quetzal::model
     // Produces polygon edge_count + 1 vertex attributes
     template<typename M>
     vertices_attributes_type<M> vertices_attributes(const geometry::Polygon<typename M::vector_traits>& polygon, std::optional<data_value_type<M>> z, data_value_type<M> scale, data_value_type<M> revs, texture_span_type<M> ts);
+    
+    // Precalculate vertex values for a layer parallel to the xy-plane
+    // Calculates normals and texture coordinates appropriate for a section of a single encompassing surface
+    // Produces coplanar edge_count + 1 vertex attributes
+    // fr is a function for the radius (as projected onto the xy-plane) given an azimuth value (phi) in turns
+    // Generally cylindrical applications
+    template<typename M>
+    vertices_attributes_type<M> vertices_attributes(size_t nAzimuth, std::function<data_value_type<M>(data_value_type<M>)> fr, data_value_type<M> z, azimuth_interval_type<M> azimuth_interval, texture_span_type<M> ts);
+    
+    // Precalculate vertex values for a layer that may not be planar
+    // Calculates normals and texture coordinates appropriate for a section of a single encompassing surface
+    // Produces edge_count + 1 vertex attributes
+    // f is a function for the vertex position given an azimuth value (phi) in turns
+    // Generally spherical applications
+    template<typename M>
+    vertices_attributes_type<M> vertices_attributes(size_t nAzimuth, std::function<typename M::point_type(data_value_type<M>)> f, azimuth_interval_type<M> azimuth_interval, texture_span_type<M> ts);
 
     // Precalculate vertex values for a layer parallel to the xy-plane
     // Calculates normals and texture coordinates appropriate for a section of a single encompassing surface
@@ -139,7 +153,7 @@ namespace quetzal::model
     vertices_attributes_type<M> cusp_vertices_attributes(const vertices_attributes_type<M>& avs_base, data_value_type<M> z, texture_span_type<M> ts);
 
     template<typename M>
-    vertices_attributes_type<M> cusp_vertices_attributes(size_t nAzimuth, data_value_type<M> z, azimuth_interval_type<M> azimuth_interval, texture_span_type<M> ts, vertex_normal_function_type<M> vertex_normal);
+    vertices_attributes_type<M> cusp_vertices_attributes(size_t nAzimuth, data_value_type<M> z, azimuth_interval_type<M> azimuth_interval, texture_span_type<M> ts, std::optional<vertex_normal_function_type<M>> vertex_normal = std::nullopt);
 
     // Precalculate vertex values for a base or apex cusp
     // Normals are not calculated, must be set by caller
@@ -282,14 +296,7 @@ namespace internal
 
 //------------------------------------------------------------------------------
 template<typename M>
-quetzal::model::vertices_attributes_type<M> quetzal::model::vertices_attributes(size_t nAzimuth, data_value_type<M> radius, data_value_type<M> z, azimuth_interval_type<M> azimuth_interval, texture_span_type<M> ts)
-{
-    return vertices_attributes<M>(nAzimuth, radius, z, azimuth_interval, ts, [](data_value_type<M>) -> normal_vector_type<M> { return M::vector_type::z_direction(); });
-}
-
-//------------------------------------------------------------------------------
-template<typename M>
-quetzal::model::vertices_attributes_type<M> quetzal::model::vertices_attributes(size_t nAzimuth, data_value_type<M> radius, data_value_type<M> z, azimuth_interval_type<M> azimuth_interval, texture_span_type<M> ts, vertex_normal_function_type<M> vertex_normal)
+quetzal::model::vertices_attributes_type<M> quetzal::model::vertices_attributes(size_t nAzimuth, data_value_type<M> radius, data_value_type<M> z, azimuth_interval_type<M> azimuth_interval, texture_span_type<M> ts, std::optional<vertex_normal_function_type<M>> vertex_normal)
 {
     using T = data_value_type<M>;
     using texcoord_type = M::vertex_attributes_type::texcoord_type;
@@ -298,6 +305,14 @@ quetzal::model::vertices_attributes_type<M> quetzal::model::vertices_attributes(
     {
         return normalize(denoise0(normal_vector_type<M>{v.x() * cos_phi - v.y() * sin_phi, v.x() * sin_phi + v.y() * cos_phi, v.z()}));
     };
+
+    if (!vertex_normal)
+    {
+        vertex_normal = [](T) -> normal_vector_type<M>
+        {
+            return M::vector_type::z_direction();
+        };
+    }
 
     const auto& [tx0, tx1, ty] = ts;
 
@@ -329,7 +344,7 @@ quetzal::model::vertices_attributes_type<M> quetzal::model::vertices_attributes(
                     T sin_phi = math::denoise011(sin(phi));
 
                     avs[i].set_position({radius * cos_phi, radius * sin_phi, z});
-                    avs[i].set_normal(vertex_normal(phi));
+                    avs[i].set_normal((*vertex_normal)(phi));
                     avs[i].set_texcoord(texcoord);
 
                     size_t j = nAzimuth4 - i;
@@ -357,7 +372,7 @@ quetzal::model::vertices_attributes_type<M> quetzal::model::vertices_attributes(
                     T sin_phi = math::denoise011(sin(phi));
 
                     avs[i].set_position({radius * cos_phi, radius * sin_phi, z});
-                    avs[i].set_normal(vertex_normal(phi));
+                    avs[i].set_normal((*vertex_normal)(phi));
                     avs[i].set_texcoord(texcoord);
                 }
             }
@@ -400,7 +415,7 @@ quetzal::model::vertices_attributes_type<M> quetzal::model::vertices_attributes(
                 T sin_phi = math::denoise011(sin(phi));
 
                 avs[i].set_position({radius * cos_phi, radius * sin_phi, z});
-                avs[i].set_normal(vertex_normal(phi));
+                avs[i].set_normal((*vertex_normal)(phi));
                 avs[i].set_texcoord(texcoord);
 
                 size_t j = nAzimuth - i;
@@ -424,7 +439,7 @@ quetzal::model::vertices_attributes_type<M> quetzal::model::vertices_attributes(
             T sin_phi = math::denoise011(sin(phi));
 
             avs[i].set_position({radius * cos_phi, radius * sin_phi, z});
-            avs[i].set_normal(vertex_normal(phi));
+            avs[i].set_normal((*vertex_normal)(phi));
             avs[i].set_texcoord(texcoord);
         }
 
@@ -492,6 +507,62 @@ quetzal::model::vertices_attributes_type<M> quetzal::model::vertices_attributes(
 
     avs[edge_count] = avs[0];
     avs[edge_count].texcoord().set_x(ts[1]);
+    return avs;
+}
+    
+//------------------------------------------------------------------------------
+template<typename M>
+quetzal::model::vertices_attributes_type<M> quetzal::model::vertices_attributes(size_t nAzimuth, std::function<data_value_type<M>(data_value_type<M>)> fr, data_value_type<M> z, azimuth_interval_type<M> azimuth_interval, texture_span_type<M> ts)
+{
+    using T = data_value_type<M>;
+    using texcoord_type = M::vertex_attributes_type::texcoord_type;
+
+    vertices_attributes_type<M> avs(nAzimuth + 1);
+
+    for (size_t i = 0; i < nAzimuth; ++i)
+    {
+        T t = T(i) / T(nAzimuth);
+        T ta = azimuth_interval.lerp(t);
+        T phi = ta * math::PiTwo<T>;
+
+        auto radius = fr(ta);
+        typename M::vector_type position = {radius * math::denoise011(cos(phi)), radius * math::denoise011(sin(phi)), z};
+        auto texcoord = denoise01(texcoord_type({math::lerp(ts[0], ts[1], t), ts[2]}));
+
+        avs[i].set_position(position);
+        avs[i].set_normal(M::vector_type::z_direction()); // placeholder, surface vertex normal cannot be calculated at this point
+        avs[i].set_texcoord(texcoord);
+    }
+
+    avs[nAzimuth] = avs[0];
+    avs[nAzimuth].texcoord().set_x(ts[1]);
+    return avs;
+}
+
+//------------------------------------------------------------------------------
+template<typename M>
+quetzal::model::vertices_attributes_type<M> quetzal::model::vertices_attributes(size_t nAzimuth, std::function<typename M::point_type(data_value_type<M>)> f, azimuth_interval_type<M> azimuth_interval, texture_span_type<M> ts)
+{
+    using T = data_value_type<M>;
+    using texcoord_type = M::vertex_attributes_type::texcoord_type;
+
+    vertices_attributes_type<M> avs(nAzimuth + 1);
+
+    for (size_t i = 0; i < nAzimuth; ++i)
+    {
+        T t = T(i) / T(nAzimuth);
+        T ta = azimuth_interval.lerp(t);
+
+        auto position = f(ta);
+        auto texcoord = denoise01(texcoord_type({math::lerp(ts[0], ts[1], t), ts[2]}));
+
+        avs[i].set_position(position);
+        avs[i].set_normal(M::vector_type::z_direction()); // placeholder, surface vertex normal cannot be calculated at this point
+        avs[i].set_texcoord(texcoord);
+    }
+
+    avs[nAzimuth] = avs[0];
+    avs[nAzimuth].texcoord().set_x(ts[1]);
     return avs;
 }
 
@@ -564,7 +635,7 @@ quetzal::model::vertices_attributes_sections_type<M> quetzal::model::vertices_at
     for (size_t i = 0; i < section_count; ++i)
     {
         vertices_attributes_type<M> avs(2); // section_edge_count is always 1
-        typename M::vertex_attributes_type::point_type position;
+        typename M::point_type position;
 
         if (i == 0)
         {
@@ -670,7 +741,7 @@ quetzal::model::vertices_attributes_type<M> quetzal::model::vertices_attributes(
 template<typename M>
 quetzal::model::vertices_attributes_sections_type<M> quetzal::model::vertices_attributes_edges(const geometry::Polygon<typename M::vector_traits>& polygon, const geometry::OrientedPoint<typename M::vector_traits>& op, texture_span_type<M> ts)
 {
-    // ...
+    assert(false); // not implemented ...
     return vertices_attributes_sections_type<M>(); // ...
 }
 
@@ -678,7 +749,7 @@ quetzal::model::vertices_attributes_sections_type<M> quetzal::model::vertices_at
 template<typename M>
 quetzal::model::vertices_attributes_sections_type<M> quetzal::model::vertices_attributes_sections(const geometry::Polygon<typename M::vector_traits>& polygon, const geometry::OrientedPoint<typename M::vector_traits>& op, texture_span_type<M> ts)
 {
-    // ...
+    assert(false); // not implemented ...
     return vertices_attributes_sections_type<M>(); // ...
 }
 
@@ -760,7 +831,7 @@ quetzal::model::vertices_attributes_type<M> quetzal::model::cusp_vertices_attrib
 
 //------------------------------------------------------------------------------
 template<typename M>
-quetzal::model::vertices_attributes_type<M> quetzal::model::cusp_vertices_attributes(size_t nAzimuth, data_value_type<M> z, azimuth_interval_type<M> azimuth_interval, texture_span_type<M> ts, vertex_normal_function_type<M> vertex_normal)
+quetzal::model::vertices_attributes_type<M> quetzal::model::cusp_vertices_attributes(size_t nAzimuth, data_value_type<M> z, azimuth_interval_type<M> azimuth_interval, texture_span_type<M> ts, std::optional<vertex_normal_function_type<M>> vertex_normal)
 {
     using T = data_value_type<M>;
 
@@ -770,8 +841,8 @@ quetzal::model::vertices_attributes_type<M> quetzal::model::cusp_vertices_attrib
     for (size_t i = 0; i < nAzimuth; ++i)
     {
         T t = (i + T(0.5)) / T(nAzimuth);
-        T phi = math::PiTwo<T> * azimuth_interval.lerp(t);
-        auto normal = vertex_normal(phi);
+        T phi = azimuth_interval.lerp(t) * math::PiTwo<T>;
+        auto normal = vertex_normal ? (*vertex_normal)(phi) : M::vector_type::z_direction();
 
         avs[i] = {position, normal, {T(0.5), ts[2]}};
     }

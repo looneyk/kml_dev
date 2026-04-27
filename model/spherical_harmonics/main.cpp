@@ -5,12 +5,15 @@
 
 #include "quetzal/brep/Mesh.hpp"
 #include "quetzal/brep/MeshTraits.hpp"
-#include "quetzal/brep/mesh_util.hpp"
+#include "quetzal/brep/triangulation.hpp"
 #include "quetzal/common/FileValidator.hpp"
 #include "quetzal/math/HomogeneousTraits.hpp"
+#include "quetzal/math/math_util.hpp"
+#include "quetzal/math/spherical_harmonics.hpp"
 #include "quetzal/model/mesh_attributes.hpp"
 #include "quetzal/model/obj_io.hpp"
 #include "quetzal/model/primitives.hpp"
+#include <format>
 #include <iostream>
 #include <string>
 #include <cassert>
@@ -29,6 +32,8 @@ namespace
     static const filesystem::path dir_ref = "reference/";
     static const string app_name = "spherical_harmonics";
 
+    static const int degree_max = 10;
+
     //--------------------------------------------------------------------------
     filesystem::path to_filename(const string& name)
     {
@@ -36,52 +41,26 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // degree l, order m
-    std::function<value_type(value_type)> spherical_harmonic_function(int degree, int order)
+    template<typename T>
+    T elevation_to_polar(T elevation)
     {
-        assert(abs(order) <= degree);
-
-        switch (degree)
-        {
-            case 0:
-                return [](value_type) -> value_type { return 0.5f * sqrt(1.0f / math::Pi<value_type>); };
-
-            case 1:
-                if (order == 0)
-                {
-                    return [](value_type t) -> value_type { return 0.5f * sqrt(3.0f / math::Pi<value_type>) * abs(cos(math::Pi<value_type> * t)); };
-                }
-                // -1, 1 ...
-                break;
-
-            case 2:
-                if (order == 0)
-                {
-                    return [](value_type t) -> value_type { value_type c = cos(math::Pi<value_type> * t); return 0.25f * sqrt(5.0f / math::Pi<value_type>) * abs(3.0f * c * c - 1.0f); };
-                }
-                // -2, -1, 1, 2 ...
-                break;
-
-            case 3:
-                if (order == 0)
-                {
-                    return [](value_type t) -> value_type { value_type c = cos(math::Pi<value_type> * t); return 0.25f * sqrt(7.0f / math::Pi<value_type>) * abs(5.0f * c * c * c - 3.0f * c); };
-                }
-                // -3, -2, -1, 1, 2, 3 ...
-                break;
-        }
-
-        assert(false);
-        return [](value_type) -> value_type { return 0.0f; };
+        return T(0.5) - elevation;
     }
 
     //--------------------------------------------------------------------------
     template<typename M>
-    id_type create_spherical_harmonic(M& mesh, const std::string& name, size_t nAzimuth, size_t nElevation, value_type scale, std::function<value_type(value_type)> fr)
+    id_type create_spherical_harmonic(M& mesh, const std::string& name, size_t nAzimuth, size_t nElevation, value_type scale, std::function<double(double)> fr)
     {
-        assert(nAzimuth > 2);
+        id_type submesh_id = model::create_sphere(mesh, name, nAzimuth, nElevation, [fr](value_type te) -> value_type { return static_cast<value_type>(abs(fr(elevation_to_polar(double(te)) * math::Pi<double>))); });
+        model::transform(mesh.submesh(submesh_id), geometry::scaling(scale));
+        return submesh_id;
+    }
 
-        id_type submesh_id = model::create_sphere(mesh, name, nAzimuth, nElevation, [fr](value_type t) -> value_type { return fr(1.0f - t); });
+    //--------------------------------------------------------------------------
+    template<typename M>
+    id_type create_spherical_harmonic2(M& mesh, const std::string& name, size_t nAzimuth, size_t nElevation, value_type scale, std::function<double(double, double)> fr)
+    {
+        id_type submesh_id = model::create_sphere2(mesh, name, nAzimuth, nElevation, [fr](value_type ta, value_type te) -> value_type { return static_cast<value_type>(abs(fr(elevation_to_polar(double(te)) * math::Pi<double>, double(ta) * math::PiTwo<double>))); }); // squared instead of abs? ...
         model::transform(mesh.submesh(submesh_id), geometry::scaling(scale));
         return submesh_id;
     }
@@ -100,33 +79,33 @@ int main(int argc, char* argv[])
     string name;
     id_type submesh_id = nullid;
 
-    name = "spherical_harmonic_0_0";
-    cout << name << endl;
-    mesh.clear();
-    submesh_id = create_spherical_harmonic(mesh, name, 24, 100, 10.0f, spherical_harmonic_function(0, 0));
-    triangulate(mesh.submesh(submesh_id));
-    model::write_obj(mesh, to_filename(name));
+    // Create all spherical harmonics using create_sphere2
 
-    name = "spherical_harmonic_1_0";
-    cout << name << endl;
-    mesh.clear();
-    submesh_id = create_spherical_harmonic(mesh, name, 24, 100, 10.0f, spherical_harmonic_function(1, 0));
-    triangulate(mesh.submesh(submesh_id));
-    model::write_obj(mesh, to_filename(name));
+    for (int l = 0; l <= degree_max; ++l)
+    {
+//        for (int m = -l; m <= l; ++m)
+int m = 0;
+        {
+            name = std::format("spherical_harmonic_{}_{}", l, m);
+            cout << name << endl;
+            mesh.clear();
+            submesh_id = create_spherical_harmonic2(mesh, name, 24, 100, 10.0f, math::real_spherical_harmonic_function(l, m));
+            triangulate(mesh.submesh(submesh_id));
+            model::write_obj(mesh, to_filename(name));
+        }
+    }
 
-    name = "spherical_harmonic_2_0";
-    cout << name << endl;
-    mesh.clear();
-    submesh_id = create_spherical_harmonic(mesh, name, 24, 100, 10.0f, spherical_harmonic_function(2, 0));
-    triangulate(mesh.submesh(submesh_id));
-    model::write_obj(mesh, to_filename(name));
+    // Create spherical harmonics with m = 0 using create_sphere
 
-    name = "spherical_harmonic_3_0";
-    cout << name << endl;
-    mesh.clear();
-    submesh_id = create_spherical_harmonic(mesh, name, 24, 100, 10.0f, spherical_harmonic_function(3, 0));
-    triangulate(mesh.submesh(submesh_id));
-    model::write_obj(mesh, to_filename(name));
+    for (int l = 0; l <= 3; ++l)
+    {
+        name = std::format("spherical_harmonic_{}_0_", l);
+        cout << name << endl;
+        mesh.clear();
+        submesh_id = create_spherical_harmonic(mesh, name, 24, 100, 10.0f, [l] (double theta) { return math::real_spherical_harmonic_function(l, 0)(theta, 0.0); });
+        triangulate(mesh.submesh(submesh_id));
+        model::write_obj(mesh, to_filename(name));
+    }
 
     validator.report_results();
     return 0;

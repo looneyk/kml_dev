@@ -22,6 +22,7 @@
 #include <algorithm>
 #include <array>
 #include <functional>
+#include <optional>
 #include <ranges>
 #include <tuple>
 
@@ -39,7 +40,7 @@ namespace quetzal::model
 
     // Single surface
     template<typename M>
-    void create_apex_cusp(M& mesh, size_t nAzimuth, data_value_type<M> r0, data_value_type<M> z0, data_value_type<M> z1, azimuth_interval_type<M> azimuth_interval, texture_span_type<M> ts0, id_type surface_id, vertex_normal_function_type<M> vertex_normal);
+    void create_apex_cusp(M& mesh, size_t nAzimuth, data_value_type<M> r0, data_value_type<M> z0, data_value_type<M> z1, azimuth_interval_type<M> azimuth_interval, texture_span_type<M> ts0, id_type surface_id, std::optional<vertex_normal_function_type<M>> vertex_normal = std::nullopt);
 
     template<typename M>
     void create_apex_cusp(M& mesh, size_t nAzimuth, data_value_type<M> r0, data_value_type<M> z0, data_value_type<M> z1, azimuth_interval_type<M> azimuth_interval, texture_span_type<M> ts0, id_type surface_id, vertex_normal_function_type<M> vertex_normal0, vertex_normal_function_type<M> vertex_normal1);
@@ -47,6 +48,9 @@ namespace quetzal::model
     // Separate surfaces for each azimuth edge
     template<typename M>
     void create_apex_cusp_sections(M& mesh, size_t nAzimuth, data_value_type<M> r0, data_value_type<M> z0, data_value_type<M> z1, azimuth_interval_type<M> azimuth0, texture_span_type<M> ts0, id_type surface_id0);
+
+    template<typename M>
+    void create_apex_cusp(M& mesh, size_t nAzimuth, std::function<typename M::point_type(data_value_type<M>)> f0, data_value_type<M> z1, azimuth_interval_type<M> azimuth_interval, texture_span_type<M> ts0, id_type surface_id);
 
     // Single surface
     template<typename M>
@@ -57,7 +61,7 @@ namespace quetzal::model
     void create_apex_cusp(M& mesh, const vertices_attributes_sections_type<M>& avss0, const vertices_attributes_sections_type<M>& avss1, id_type surface_id0, bool closed);
 
     template<typename M>
-    void create_base_cusp(M& mesh, size_t nAzimuth, data_value_type<M> r1, data_value_type<M> z0, data_value_type<M> z1, azimuth_interval_type<M> azimuth_interval, texture_span_type<M> ts1, id_type surface_id, vertex_normal_function_type<M> vertex_normal);
+    void create_base_cusp(M& mesh, size_t nAzimuth, data_value_type<M> r1, data_value_type<M> z0, data_value_type<M> z1, azimuth_interval_type<M> azimuth_interval, texture_span_type<M> ts1, id_type surface_id, std::optional<vertex_normal_function_type<M>> vertex_normal = std::nullopt);
 
     // Single surface
     // would making the second optional make sense, then the first could be used for both levels? ...
@@ -70,6 +74,10 @@ namespace quetzal::model
 
     // Single surface
     template<typename M>
+    void create_base_cusp(M& mesh, size_t nAzimuth, data_value_type<M> z0, std::function<typename M::point_type(data_value_type<M>)> f1, azimuth_interval_type<M> azimuth_interval, texture_span_type<M> ts1, id_type surface_id);
+
+    // Single surface
+    template<typename M>
     void create_base_cusp(M& mesh, const vertices_attributes_type<M>& avs0, const vertices_attributes_type<M>& avs1, id_type surface_id, bool closed, bool calculate_normals = true);
 
     // Separate surfaces for each section
@@ -79,7 +87,7 @@ namespace quetzal::model
     // Single surface
     // Create an open cylindrical section with nAzimuth divisions
     template<typename M>
-    void create_band(M& mesh, size_t nAzimuth, data_value_type<M> r0, data_value_type<M> r1, data_value_type<M> z0, data_value_type<M> z1, azimuth_interval_type<M> azimuth0, azimuth_interval_type<M> azimuth1, texture_span_type<M> ts0, texture_span_type<M> ts1, id_type surface_id, vertex_normal_function_type<M> vertex_normal);
+    void create_band(M& mesh, size_t nAzimuth, data_value_type<M> r0, data_value_type<M> r1, data_value_type<M> z0, data_value_type<M> z1, azimuth_interval_type<M> azimuth0, azimuth_interval_type<M> azimuth1, texture_span_type<M> ts0, texture_span_type<M> ts1, id_type surface_id, std::optional<vertex_normal_function_type<M>> vertex_normal = std::nullopt);
 
     template<typename M>
     void create_band(M& mesh, size_t nAzimuth, data_value_type<M> r0, data_value_type<M> r1, data_value_type<M> z0, data_value_type<M> z1, azimuth_interval_type<M> azimuth0, azimuth_interval_type<M> azimuth1, texture_span_type<M> ts0, texture_span_type<M> ts1, id_type surface_id, vertex_normal_function_type<M> vertex_normal0, vertex_normal_function_type<M> vertex_normal1);
@@ -88,6 +96,11 @@ namespace quetzal::model
     // Create an open cylindrical section with nAzimuth divisions
     template<typename M>
     void create_band_sections(M& mesh, size_t nAzimuth, data_value_type<M> r0, data_value_type<M> r1, data_value_type<M> z0, data_value_type<M> z1, azimuth_interval_type<M> azimuth0, azimuth_interval_type<M> azimuth1, texture_span_type<M> ts0, texture_span_type<M> ts1, id_type surface_id0);
+
+    // Single surface
+    // Create an open cylindrical section with nAzimuth divisions
+    template<typename M>
+    void create_band(M& mesh, size_t nAzimuth, std::function<typename M::point_type(data_value_type<M>)> f0, std::function<typename M::point_type(data_value_type<M>)> f1, azimuth_interval_type<M> azimuth0, azimuth_interval_type<M> azimuth1, texture_span_type<M> ts0, texture_span_type<M> ts1, id_type surface_id);
 
     // Single surface
     template<typename M>
@@ -110,7 +123,7 @@ namespace quetzal::model
     // Append a cone with base connected to previous layer in mesh with apex at z1 and with nAzimuth divisions
     // Single surface
     template<typename M>
-    void connect_apex_cusp(M& mesh, size_t nAzimuth, data_value_type<M> z1, azimuth_interval_type<M> azimuth1, id_type surface_id, vertex_normal_function_type<M> vertex_normal);
+    void connect_apex_cusp(M& mesh, size_t nAzimuth, data_value_type<M> z1, azimuth_interval_type<M> azimuth1, id_type surface_id, std::optional<vertex_normal_function_type<M>> vertex_normal = std::nullopt);
 
     // Append a cone with base connected to previous layer in mesh with apex at z1 and with nAzimuth divisions
     // Separate surfaces for each azimuth edge
@@ -128,11 +141,15 @@ namespace quetzal::model
 
     // Single surface
     template<typename M>
-    void connect_band(M& mesh, size_t nAzimuth, data_value_type<M> r1, data_value_type<M> z1, azimuth_interval_type<M> azimuth1, texture_span_type<M> ts1, id_type surface_id, vertex_normal_function_type<M> vertex_normal);
+    void connect_band(M& mesh, size_t nAzimuth, data_value_type<M> r1, data_value_type<M> z1, azimuth_interval_type<M> azimuth1, texture_span_type<M> ts1, id_type surface_id, std::optional<vertex_normal_function_type<M>> vertex_normal = std::nullopt);
 
     // Separate surfaces for each azimuth edge
     template<typename M>
     void connect_band_sections(M& mesh, size_t nAzimuth, data_value_type<M> r1, data_value_type<M> z1, azimuth_interval_type<M> azimuth1, texture_span_type<M> ts1, id_type surface_id0);
+
+    // Single surface
+    template<typename M>
+    void connect_band(M& mesh, size_t nAzimuth, std::function<typename M::point_type(data_value_type<M>)> f1, azimuth_interval_type<M> azimuth1, texture_span_type<M> ts1, id_type surface_id);
 
     // Create an open cylindrical section connected to the previous section
     // Single surface
@@ -261,7 +278,7 @@ namespace quetzal::model
 
 //------------------------------------------------------------------------------
 template<typename M>
-void quetzal::model::create_apex_cusp(M& mesh, size_t nAzimuth, data_value_type<M> r0, data_value_type<M> z0, data_value_type<M> z1, azimuth_interval_type<M> azimuth_interval, texture_span_type<M> ts0, id_type surface_id, vertex_normal_function_type<M> vertex_normal)
+void quetzal::model::create_apex_cusp(M& mesh, size_t nAzimuth, data_value_type<M> r0, data_value_type<M> z0, data_value_type<M> z1, azimuth_interval_type<M> azimuth_interval, texture_span_type<M> ts0, id_type surface_id, std::optional<vertex_normal_function_type<M>> vertex_normal)
 {
 //std::cout << "    create_apex_cusp azimuth single" << std::endl;
     assert(nAzimuth > 2);
@@ -307,6 +324,22 @@ void quetzal::model::create_apex_cusp_sections(M& mesh, size_t nAzimuth, data_va
 
     bool closed = azimuth0.unit();
     create_apex_cusp(mesh, avss0, avss1, surface_id0, closed);
+    return;
+}
+
+//------------------------------------------------------------------------------
+template<typename M>
+void quetzal::model::create_apex_cusp(M& mesh, size_t nAzimuth, std::function<typename M::point_type(data_value_type<M>)> f0, data_value_type<M> z1, azimuth_interval_type<M> azimuth_interval, texture_span_type<M> ts0, id_type surface_id)
+{
+    assert(nAzimuth > 2);
+
+    using T = data_value_type<M>;
+
+    auto avs0 = vertices_attributes<M>(nAzimuth, f0, azimuth_interval, ts0);
+    auto avs1 = cusp_vertices_attributes<M>(nAzimuth, z1, azimuth_interval, texture_span_type<M>{T(0.5), T(0.5), T(0)});
+
+    bool closed = azimuth_interval.unit();
+    create_apex_cusp(mesh, avs0, avs1, surface_id, closed, false);
     return;
 }
 
@@ -447,7 +480,7 @@ void quetzal::model::create_apex_cusp(M& mesh, const vertices_attributes_section
 
 //------------------------------------------------------------------------------
 template<typename M>
-void quetzal::model::create_base_cusp(M& mesh, size_t nAzimuth, data_value_type<M> r1, data_value_type<M> z0, data_value_type<M> z1, azimuth_interval_type<M> azimuth1, texture_span_type<M> ts1, id_type surface_id, vertex_normal_function_type<M> vertex_normal)
+void quetzal::model::create_base_cusp(M& mesh, size_t nAzimuth, data_value_type<M> r1, data_value_type<M> z0, data_value_type<M> z1, azimuth_interval_type<M> azimuth1, texture_span_type<M> ts1, id_type surface_id, std::optional<vertex_normal_function_type<M>> vertex_normal)
 {
 //std::cout << "    create_base_cusp azimuth single" << std::endl;
     using T = data_value_type<M>;
@@ -487,6 +520,20 @@ void quetzal::model::create_base_cusp_sections(M& mesh, size_t nAzimuth, data_va
 
     bool closed = azimuth1.unit();
     create_base_cusp(mesh, avss0, avss1, surface_id0, closed);
+    return;
+}
+
+//------------------------------------------------------------------------------
+template<typename M>
+void quetzal::model::create_base_cusp(M& mesh, size_t nAzimuth, data_value_type<M> z0, std::function<typename M::point_type(data_value_type<M>)> f1, azimuth_interval_type<M> azimuth_interval, texture_span_type<M> ts1, id_type surface_id)
+{
+    using T = data_value_type<M>;
+
+    auto avs0 = cusp_vertices_attributes<M>(nAzimuth, z0, azimuth_interval, texture_span_type<M>{T(0.5), T(0.5), T(1)});
+    auto avs1 = vertices_attributes<M>(nAzimuth, f1, azimuth_interval, ts1);
+
+    bool closed = azimuth_interval.unit();
+    create_base_cusp(mesh, avs0, avs1, surface_id, closed, false);
     return;
 }
 
@@ -628,7 +675,7 @@ void quetzal::model::create_base_cusp(M& mesh, const vertices_attributes_section
 
 //------------------------------------------------------------------------------
 template<typename M>
-void quetzal::model::create_band(M& mesh, size_t nAzimuth, data_value_type<M> r0, data_value_type<M> r1, data_value_type<M> z0, data_value_type<M> z1, azimuth_interval_type<M> azimuth0, azimuth_interval_type<M> azimuth1, texture_span_type<M> ts0, texture_span_type<M> ts1, id_type surface_id, vertex_normal_function_type<M> vertex_normal)
+void quetzal::model::create_band(M& mesh, size_t nAzimuth, data_value_type<M> r0, data_value_type<M> r1, data_value_type<M> z0, data_value_type<M> z1, azimuth_interval_type<M> azimuth0, azimuth_interval_type<M> azimuth1, texture_span_type<M> ts0, texture_span_type<M> ts1, id_type surface_id,  std::optional<vertex_normal_function_type<M>> vertex_normal)
 {
 //std::cout << "    create_band azimuth single" << std::endl;
     assert(azimuth0.unit() == azimuth1.unit());
@@ -666,6 +713,20 @@ void quetzal::model::create_band_sections(M& mesh, size_t nAzimuth, data_value_t
 
     bool closed = azimuth1.unit();
     create_band(mesh, avss0, avss1, surface_id0, closed);
+    return;
+}
+
+//------------------------------------------------------------------------------
+template<typename M>
+void quetzal::model::create_band(M& mesh, size_t nAzimuth, std::function<typename M::point_type(data_value_type<M>)> f0, std::function<typename M::point_type(data_value_type<M>)> f1, azimuth_interval_type<M> azimuth0, azimuth_interval_type<M> azimuth1, texture_span_type<M> ts0, texture_span_type<M> ts1, id_type surface_id)
+{
+    assert(azimuth0.unit() == azimuth1.unit());
+
+    auto avs0 = vertices_attributes<M>(nAzimuth, f0, azimuth0, ts0);
+    auto avs1 = vertices_attributes<M>(nAzimuth, f1, azimuth1, ts1);
+
+    bool closed = azimuth1.unit();
+    create_band(mesh, avs0, avs1, surface_id, closed, false);
     return;
 }
 
@@ -949,7 +1010,7 @@ void quetzal::model::create_antiband_faces(M& mesh, const vertices_attributes_ty
 
 //------------------------------------------------------------------------------
 template<typename M>
-void quetzal::model::connect_apex_cusp(M& mesh, size_t nAzimuth, data_value_type<M> z1, azimuth_interval_type<M> azimuth1, id_type surface_id, vertex_normal_function_type<M> vertex_normal)
+void quetzal::model::connect_apex_cusp(M& mesh, size_t nAzimuth, data_value_type<M> z1, azimuth_interval_type<M> azimuth1, id_type surface_id, std::optional<vertex_normal_function_type<M>> vertex_normal)
 {
 //std::cout << "    connect_apex_cusp azimuth single" << std::endl;
     assert(nAzimuth > 0);
@@ -1119,7 +1180,7 @@ void quetzal::model::connect_apex_cusp(M& mesh, const vertices_attributes_sectio
 
 //------------------------------------------------------------------------------
 template<typename M>
-void quetzal::model::connect_band(M& mesh, size_t nAzimuth, data_value_type<M> r1, data_value_type<M> z1, azimuth_interval_type<M> azimuth1, texture_span_type<M> ts1, id_type surface_id, vertex_normal_function_type<M> vertex_normal)
+void quetzal::model::connect_band(M& mesh, size_t nAzimuth, data_value_type<M> r1, data_value_type<M> z1, azimuth_interval_type<M> azimuth1, texture_span_type<M> ts1, id_type surface_id, std::optional<vertex_normal_function_type<M>> vertex_normal)
 {
 //std::cout << "    connect_band azimuth single" << std::endl;
     assert(nAzimuth > 0);
@@ -1140,6 +1201,18 @@ void quetzal::model::connect_band_sections(M& mesh, size_t nAzimuth, data_value_
     auto avss1 = vertices_attributes_edges<M>(nAzimuth, r1, z1, azimuth1, ts1);
     bool closed = azimuth1.unit();
     connect_band(mesh, avss1, surface_id0, closed);
+    return;
+}
+
+//------------------------------------------------------------------------------
+template<typename M>
+void quetzal::model::connect_band(M& mesh, size_t nAzimuth, std::function<typename M::point_type(data_value_type<M>)> f1, azimuth_interval_type<M> azimuth1, texture_span_type<M> ts1, id_type surface_id)
+{
+    assert(nAzimuth > 0);
+
+    auto avs1 = vertices_attributes<M>(nAzimuth, f1, azimuth1, ts1);
+    bool closed = azimuth1.unit();
+    connect_band(mesh, avs1, surface_id, closed, false);
     return;
 }
 
