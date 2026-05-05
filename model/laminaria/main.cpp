@@ -456,7 +456,7 @@ c1.direction(0.0f); // ...
     name = "laminaria_swept_1";
     cout << name << endl;
     mesh.clear();
-//    model::create_extrusion(mesh, name, polygon, vector_type::z_direction(), {0.0f, 0.0f, 50.0f});
+//    model::create_extrusion(mesh, name, polygon, {0.0f, 0.0f, 50.0f});
     polygon1.transform(g::scaling(30.0f));
     model::create_cylinder(mesh, name, polygon1, 1, 0.0f, 50.0f);
     triangulate(mesh);
@@ -465,7 +465,7 @@ c1.direction(0.0f); // ...
     name = "laminaria_swept_1b";
     cout << name << endl;
     mesh.clear();
-//    model::create_extrusion(mesh, name, polygon, vector_type::z_direction(), {0.0f, 0.0f, 50.0f});
+//    model::create_extrusion(mesh, name, polygon, {0.0f, 0.0f, 50.0f});
     polygon1b.transform(g::scaling(30.0f));
     model::create_cylinder(mesh, name, polygon1b, 1, 0.0f, 50.0f);
     triangulate(mesh);
@@ -504,7 +504,7 @@ c1.direction(0.0f); // ...
     name = "laminaria_swept_2";
     cout << name << endl;
     mesh.clear();
-//    model::create_extrusion(mesh, name, polygon, vector_type::z_direction(), {0.0f, 0.0f, 100.0f});
+//    model::create_extrusion(mesh, name, polygon, {0.0f, 0.0f, 100.0f});
     polygon2.transform(g::scaling(30.0f));
     model::create_cylinder(mesh, name, polygon2, 1, 0.0f, 50.0f);
     triangulate(mesh);

@@ -77,10 +77,10 @@ quetzal::id_type quetzal::model::create_helix_pyramid(M& mesh, const std::string
     math::Interval azimuth0 = shift(azimuth, revs0);
     math::Interval azimuth1 = shift(azimuth, revs1);
 
-    auto ts0 = texture_span<T>(0, nz, false, true);
-    auto ts1 = texture_span<T>(1, nz, false, true);
+    auto ts0 = texture_span<M>(0, nz, false, true);
+    auto ts1 = texture_span<M>(1, nz, false, true);
 
-    auto face_count = spec.azimuth_divisions;
+    auto face_count = spec.azimuth.edge_count;
 
     id_type halfedge_id0 = mesh.halfedge_store_count();
 
@@ -102,7 +102,7 @@ quetzal::id_type quetzal::model::create_helix_pyramid(M& mesh, const std::string
             t = T(i) / T(nz);
             r1 = spec.axis_radius_interval.lerp(t);
             z1 = spec.axis_z_interval.lerp(t);
-            ts1 = texture_span<T>(i, nz, false, true);
+            ts1 = texture_span<M>(i, nz, false, true);
             revs1 = spec.axis_azimuth_offset_interval.lerp(t);
             azimuth1 = shift(azimuth, revs1);
 
@@ -129,7 +129,7 @@ quetzal::id_type quetzal::model::create_helix_pyramid(M& mesh, const std::string
 
     CylinderSpecification<T> spec(polygon.edge_count(), nz, T(0), T(0), T(0), dz, T(0), revs, {{"azimuth_smooth", "false"}});
 
-    auto face_count = spec.azimuth_divisions;
+    auto face_count = spec.azimuth.edge_count;
     assert(face_count > 2);
     assert(nz > 0);
 
@@ -144,8 +144,8 @@ quetzal::id_type quetzal::model::create_helix_pyramid(M& mesh, const std::string
     T scale0 = T(1);
     T scale1 = T(1) - t;
 
-    auto ts0 = texture_span<T>(0, nz, false, true);
-    auto ts1 = texture_span<T>(1, nz, false, true);
+    auto ts0 = texture_span<M>(0, nz, false, true);
+    auto ts1 = texture_span<M>(1, nz, false, true);
 
     bool closed = true;
 
@@ -174,7 +174,7 @@ quetzal::id_type quetzal::model::create_helix_pyramid(M& mesh, const std::string
             z1 = spec.axis_z_interval.lerp(t);
             revs1 = spec.axis_azimuth_offset_interval.lerp(t);
             scale1 = T(1) - t;
-            ts1 = texture_span<T>(i, nz, false, true);
+            ts1 = texture_span<M>(i, nz, false, true);
 
             avss1 = vertices_attributes_edges<M>(polygon, z1, scale1, revs1, ts1);
             connect_band(mesh, avss1, surface_id0, closed);
@@ -182,7 +182,7 @@ quetzal::id_type quetzal::model::create_helix_pyramid(M& mesh, const std::string
 
         j0_orig = mesh.halfedge_store_count();
 
-        ts1 = texture_span<T>(nz, nz, false, true);
+        ts1 = texture_span<M>(nz, nz, false, true);
         avss1 = cusp_vertices_attributes_edges<M>(polygon, dz, ts1);
         connect_apex_cusp(mesh, avss1, surface_id0, closed);
     }

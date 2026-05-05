@@ -50,7 +50,7 @@ namespace quetzal::model
     void create_apex_cusp_sections(M& mesh, size_t nAzimuth, data_value_type<M> r0, data_value_type<M> z0, data_value_type<M> z1, azimuth_interval_type<M> azimuth0, texture_span_type<M> ts0, id_type surface_id0);
 
     template<typename M>
-    void create_apex_cusp(M& mesh, size_t nAzimuth, std::function<typename M::point_type(data_value_type<M>)> f0, data_value_type<M> z1, azimuth_interval_type<M> azimuth_interval, texture_span_type<M> ts0, id_type surface_id);
+    void create_apex_cusp(M& mesh, size_t nAzimuth, std::function<typename M::point_type(data_value_type<M>)> f0, data_value_type<M> z1, azimuth_interval_type<M> azimuth_interval, texture_span_type<M> ts0, id_type surface_id, std::optional<vertex_normal_function_type<M>> vertex_normal1 = std::nullopt);
 
     // Single surface
     template<typename M>
@@ -74,7 +74,7 @@ namespace quetzal::model
 
     // Single surface
     template<typename M>
-    void create_base_cusp(M& mesh, size_t nAzimuth, data_value_type<M> z0, std::function<typename M::point_type(data_value_type<M>)> f1, azimuth_interval_type<M> azimuth_interval, texture_span_type<M> ts1, id_type surface_id);
+    void create_base_cusp(M& mesh, size_t nAzimuth, data_value_type<M> z0, std::function<typename M::point_type(data_value_type<M>)> f1, azimuth_interval_type<M> azimuth_interval, texture_span_type<M> ts1, id_type surface_id, std::optional<vertex_normal_function_type<M>> vertex_normal0 = std::nullopt);
 
     // Single surface
     template<typename M>
@@ -85,7 +85,7 @@ namespace quetzal::model
     void create_base_cusp(M& mesh, const vertices_attributes_sections_type<M>& avss0, const vertices_attributes_sections_type<M>& avss1, id_type surface_id0, bool closed);
     
     // Single surface
-    // Create an open cylindrical section with nAzimuth divisions
+    // Create an open cylindrical section with nAzimuth edges
     template<typename M>
     void create_band(M& mesh, size_t nAzimuth, data_value_type<M> r0, data_value_type<M> r1, data_value_type<M> z0, data_value_type<M> z1, azimuth_interval_type<M> azimuth0, azimuth_interval_type<M> azimuth1, texture_span_type<M> ts0, texture_span_type<M> ts1, id_type surface_id, std::optional<vertex_normal_function_type<M>> vertex_normal = std::nullopt);
 
@@ -93,12 +93,12 @@ namespace quetzal::model
     void create_band(M& mesh, size_t nAzimuth, data_value_type<M> r0, data_value_type<M> r1, data_value_type<M> z0, data_value_type<M> z1, azimuth_interval_type<M> azimuth0, azimuth_interval_type<M> azimuth1, texture_span_type<M> ts0, texture_span_type<M> ts1, id_type surface_id, vertex_normal_function_type<M> vertex_normal0, vertex_normal_function_type<M> vertex_normal1);
 
     // Separate surfaces for each azimuth edge
-    // Create an open cylindrical section with nAzimuth divisions
+    // Create an open cylindrical section with nAzimuth edges
     template<typename M>
     void create_band_sections(M& mesh, size_t nAzimuth, data_value_type<M> r0, data_value_type<M> r1, data_value_type<M> z0, data_value_type<M> z1, azimuth_interval_type<M> azimuth0, azimuth_interval_type<M> azimuth1, texture_span_type<M> ts0, texture_span_type<M> ts1, id_type surface_id0);
 
     // Single surface
-    // Create an open cylindrical section with nAzimuth divisions
+    // Create an open cylindrical section with nAzimuth edges
     template<typename M>
     void create_band(M& mesh, size_t nAzimuth, std::function<typename M::point_type(data_value_type<M>)> f0, std::function<typename M::point_type(data_value_type<M>)> f1, azimuth_interval_type<M> azimuth0, azimuth_interval_type<M> azimuth1, texture_span_type<M> ts0, texture_span_type<M> ts1, id_type surface_id);
 
@@ -120,12 +120,12 @@ namespace quetzal::model
     template<typename M>
     void create_antiband_faces(M& mesh, const vertices_attributes_type<M>& avs0, const vertices_attributes_type<M>& avs1, id_type submesh_id);
 
-    // Append a cone with base connected to previous layer in mesh with apex at z1 and with nAzimuth divisions
+    // Append a cone with base connected to previous layer in mesh with apex at z1 and with nAzimuth edges
     // Single surface
     template<typename M>
     void connect_apex_cusp(M& mesh, size_t nAzimuth, data_value_type<M> z1, azimuth_interval_type<M> azimuth1, id_type surface_id, std::optional<vertex_normal_function_type<M>> vertex_normal = std::nullopt);
 
-    // Append a cone with base connected to previous layer in mesh with apex at z1 and with nAzimuth divisions
+    // Append a cone with base connected to previous layer in mesh with apex at z1 and with nAzimuth edges
     // Separate surfaces for each azimuth edge
     template<typename M>
     void connect_apex_cusp_sections(M& mesh, size_t nAzimuth, data_value_type<M> z1, azimuth_interval_type<M> azimuth1, id_type surface_id0);
@@ -249,30 +249,11 @@ namespace quetzal::model
     template<typename M>
     void calculate_base_cusp_surface_vertex_normals_sequential(M& mesh, id_type id0, size_t n);
 
-    template<typename T>
-    std::array<T, 3> texture_span(T t, bool cusped_lower, bool cusped_upper, T alignment = T(0.5));
-
-    template<typename T>
-    std::array<T, 3> texture_span(size_t i, size_t n, bool cusped_lower, bool cusped_upper, T alignment = T(0.5));
+    template<typename M>
+    quetzal::model::texture_span_type<M> texture_span(data_value_type<M> t, bool cusped_lower, bool cusped_upper, data_value_type<M> alignment = data_value_type<M>(0.5));
 
     template<typename M>
-    void normal_counts(const M& mesh, const std::string& label)
-    {
-        std::map<typename M::point_type, size_t> normal_counts;
-        for (const auto& vertex : mesh.vertices())
-        {
-            ++normal_counts[vertex.attributes().normal()];
-//            if (mesh.vertex_count() == 12)
-//            {
-//                std::cout << "    " << vertex.attributes().normal() << std::endl;
-//            }
-        }
-        std::cout << label << " " << normal_counts.size() << " / " << mesh.vertex_count() << std::endl;
-        for (const auto& [normal, count] : normal_counts)
-        {
-//            std::cout << "    " << normal << " " << count << std::endl;
-        }
-    }
+    quetzal::model::texture_span_type<M> texture_span(size_t i, size_t n, bool cusped_lower, bool cusped_upper, data_value_type<M> alignment = data_value_type<M>(0.5));
 
 } // namespace quetzal::model
 
@@ -329,14 +310,14 @@ void quetzal::model::create_apex_cusp_sections(M& mesh, size_t nAzimuth, data_va
 
 //------------------------------------------------------------------------------
 template<typename M>
-void quetzal::model::create_apex_cusp(M& mesh, size_t nAzimuth, std::function<typename M::point_type(data_value_type<M>)> f0, data_value_type<M> z1, azimuth_interval_type<M> azimuth_interval, texture_span_type<M> ts0, id_type surface_id)
+void quetzal::model::create_apex_cusp(M& mesh, size_t nAzimuth, std::function<typename M::point_type(data_value_type<M>)> f0, data_value_type<M> z1, azimuth_interval_type<M> azimuth_interval, texture_span_type<M> ts0, id_type surface_id, std::optional<vertex_normal_function_type<M>> vertex_normal1)
 {
     assert(nAzimuth > 2);
 
     using T = data_value_type<M>;
 
     auto avs0 = vertices_attributes<M>(nAzimuth, f0, azimuth_interval, ts0);
-    auto avs1 = cusp_vertices_attributes<M>(nAzimuth, z1, azimuth_interval, texture_span_type<M>{T(0.5), T(0.5), T(0)});
+    auto avs1 = cusp_vertices_attributes<M>(nAzimuth, z1, azimuth_interval, texture_span_type<M>{T(0.5), T(0.5), T(0)}, vertex_normal1);
 
     bool closed = azimuth_interval.unit();
     create_apex_cusp(mesh, avs0, avs1, surface_id, closed, false);
@@ -525,11 +506,11 @@ void quetzal::model::create_base_cusp_sections(M& mesh, size_t nAzimuth, data_va
 
 //------------------------------------------------------------------------------
 template<typename M>
-void quetzal::model::create_base_cusp(M& mesh, size_t nAzimuth, data_value_type<M> z0, std::function<typename M::point_type(data_value_type<M>)> f1, azimuth_interval_type<M> azimuth_interval, texture_span_type<M> ts1, id_type surface_id)
+void quetzal::model::create_base_cusp(M& mesh, size_t nAzimuth, data_value_type<M> z0, std::function<typename M::point_type(data_value_type<M>)> f1, azimuth_interval_type<M> azimuth_interval, texture_span_type<M> ts1, id_type surface_id, std::optional<vertex_normal_function_type<M>> vertex_normal0)
 {
     using T = data_value_type<M>;
 
-    auto avs0 = cusp_vertices_attributes<M>(nAzimuth, z0, azimuth_interval, texture_span_type<M>{T(0.5), T(0.5), T(1)});
+    auto avs0 = cusp_vertices_attributes<M>(nAzimuth, z0, azimuth_interval, texture_span_type<M>{T(0.5), T(0.5), T(1)}, vertex_normal0);
     auto avs1 = vertices_attributes<M>(nAzimuth, f1, azimuth_interval, ts1);
 
     bool closed = azimuth_interval.unit();
@@ -708,6 +689,8 @@ template<typename M>
 void quetzal::model::create_band_sections(M& mesh, size_t nAzimuth, data_value_type<M> r0, data_value_type<M> r1, data_value_type<M> z0, data_value_type<M> z1, azimuth_interval_type<M> azimuth0, azimuth_interval_type<M> azimuth1, texture_span_type<M> ts0, texture_span_type<M> ts1, id_type surface_id0)
 {
 //std::cout << "    create_band azimuth sections" << std::endl;
+    assert(azimuth0.unit() == azimuth1.unit());
+
     auto avss0 = vertices_attributes_edges<M>(nAzimuth, r0, z0, azimuth0, ts0);
     auto avss1 = vertices_attributes_edges<M>(nAzimuth, r1, z1, azimuth1, ts1);
 
@@ -726,7 +709,7 @@ void quetzal::model::create_band(M& mesh, size_t nAzimuth, std::function<typenam
     auto avs1 = vertices_attributes<M>(nAzimuth, f1, azimuth1, ts1);
 
     bool closed = azimuth1.unit();
-    create_band(mesh, avs0, avs1, surface_id, closed, false);
+    create_band(mesh, avs0, avs1, surface_id, closed, true);
     return;
 }
 
@@ -1021,7 +1004,8 @@ void quetzal::model::connect_apex_cusp(M& mesh, size_t nAzimuth, data_value_type
     auto avs1 = cusp_vertices_attributes<M>(nAzimuth, z1, azimuth1, ts1, vertex_normal);
 
     bool closed = azimuth1.unit();
-    connect_apex_cusp(mesh, avs1, surface_id, closed, false); // needs to be true in the sphere case? but seems to be working anyway ...
+    bool calculate_normals = false; // smooth, but we don't have this info; needs to be true in the sphere case? but seems to be working anyway ...
+    connect_apex_cusp(mesh, avs1, surface_id, closed, calculate_normals);
     return;
 }
 
@@ -1212,7 +1196,7 @@ void quetzal::model::connect_band(M& mesh, size_t nAzimuth, std::function<typena
 
     auto avs1 = vertices_attributes<M>(nAzimuth, f1, azimuth1, ts1);
     bool closed = azimuth1.unit();
-    connect_band(mesh, avs1, surface_id, closed, false);
+    connect_band(mesh, avs1, surface_id, closed, true);
     return;
 }
 
@@ -1562,7 +1546,7 @@ void quetzal::model::connect_side_flat(M& mesh, size_t na, size_t nb, bool cuspe
             avs[1].set_normal(normal);
             avs[2].set_normal(normal);
 
-            texture_span_type<M> ts = texture_span<T>(j + 1, nb, cusped_lower, cusped_upper);
+            texture_span_type<M> ts = texture_span<M>(j + 1, nb, cusped_lower, cusped_upper);
             avs[0].set_texcoord({T(0.5), T(1)});
             avs[1].set_texcoord({ts[1], ts[2]});
             avs[2].set_texcoord({ts[0], ts[2]});
@@ -1787,7 +1771,7 @@ void quetzal::model::connect_side_center(M& mesh, size_t na, size_t nb, bool cus
             avs[1].set_normal(normal);
             avs[2].set_normal(normal);
 
-            texture_span_type<M> ts = texture_span<T>(j + 1, nb, cusped_lower, cusped_upper, T(0));
+            texture_span_type<M> ts = texture_span<M>(j + 1, nb, cusped_lower, cusped_upper, T(0));
             avs[0].set_texcoord({T(0), T(1)});
             avs[1].set_texcoord({ts[1], ts[2]});
             avs[2].set_texcoord({ts[0], ts[2]});
@@ -1918,7 +1902,7 @@ void quetzal::model::connect_side_center(M& mesh, size_t na, size_t nb, bool cus
                 avs[1].set_texcoord({T(1), T(1)});
             }
 
-            texture_span_type<M> ts = texture_span<T>(j + 1, nb, cusped_lower, cusped_upper, T(0));
+            texture_span_type<M> ts = texture_span<M>(j + 1, nb, cusped_lower, cusped_upper, T(0));
             avs[2].set_texcoord({ts[1], ts[2]});
             avs[3].set_texcoord({ts[0], ts[2]});
             assert(mesh.halfedge(idPartner1).vertex_attributes().texcoord().y() == ts[2]);
@@ -2006,7 +1990,7 @@ void quetzal::model::connect_side_center(M& mesh, size_t na, size_t nb, bool cus
             avs[1].set_normal(normal);
             avs[2].set_normal(normal);
 
-            texture_span_type<M> ts = texture_span<T>(j + 1, nb, cusped_lower, cusped_upper, T(1));
+            texture_span_type<M> ts = texture_span<M>(j + 1, nb, cusped_lower, cusped_upper, T(1));
             avs[0].set_texcoord({T(1), T(1)});
             avs[1].set_texcoord({ts[1], ts[2]});
             avs[2].set_texcoord({ts[0], ts[2]});
@@ -2132,7 +2116,7 @@ void quetzal::model::connect_side_center(M& mesh, size_t na, size_t nb, bool cus
                 avs[1].set_texcoord({T(1), T(1)});
             }
 
-            texture_span_type<M> ts = texture_span<T>(j + 1, nb, cusped_lower, cusped_upper, T(1));
+            texture_span_type<M> ts = texture_span<M>(j + 1, nb, cusped_lower, cusped_upper, T(1));
             avs[2].set_texcoord({ts[1], ts[2]});
             avs[3].set_texcoord({ts[0], ts[2]});
             assert(mesh.halfedge(idPartner3).next().vertex_attributes().texcoord().y() == ts[2]);
@@ -2266,11 +2250,11 @@ void quetzal::model::close_side_flat(M& mesh, size_t na, size_t nb, bool cusped_
         av0.set_normal(normal);
         av1.set_normal(normal);
 
-        texture_span_type<M> ts = texture_span<T>(j, nb, cusped_lower, cusped_upper);
+        texture_span_type<M> ts = texture_span<M>(j, nb, cusped_lower, cusped_upper);
         av0.set_texcoord({ts[1], ts[2]});
         assert(mesh.halfedge(idPartner0).next().vertex_attributes().texcoord().y() == ts[2]);
         
-        ts = texture_span<T>(j + 1, nb, cusped_lower, cusped_upper);
+        ts = texture_span<M>(j + 1, nb, cusped_lower, cusped_upper);
         av1.set_texcoord({ts[0], ts[2]});
         assert(mesh.halfedge(idPartner1).next().vertex_attributes().texcoord().y() == ts[2]);
 
@@ -2370,11 +2354,11 @@ void quetzal::model::close_side_center(M& mesh, size_t na, size_t nb, bool cuspe
         av0.set_normal(normal0);
         av1.set_normal(normal1);
 
-        texture_span_type<M> ts = texture_span<T>(j, nb, cusped_lower, cusped_upper, T(0));
+        texture_span_type<M> ts = texture_span<M>(j, nb, cusped_lower, cusped_upper, T(0));
         av0.set_texcoord({ts[1], ts[2]});
         assert(mesh.halfedge(idPartner0).next().vertex_attributes().texcoord().y() == ts[2]);
         
-        ts = texture_span<T>(j + 1, nb, cusped_lower, cusped_upper, T(1));
+        ts = texture_span<M>(j + 1, nb, cusped_lower, cusped_upper, T(1));
         av1.set_texcoord({ts[0], ts[2]});
         assert(mesh.halfedge(idPartner1).next().vertex_attributes().texcoord().y() == ts[2]);
 
@@ -2423,20 +2407,20 @@ void quetzal::model::seal_cylinder(M& mesh, id_type submesh_id, const CylinderSp
 {
     using T = data_value_type<M>;
 
-    size_t nAzimuth = spec.azimuth_divisions;
-    size_t nz = spec.axis_divisions;
+    size_t nAzimuth = spec.azimuth.edge_count;
+    size_t nz = spec.axis_edge_count;
 
     // Save halfedge id's before potential side closure
     id_type idLowerFirst = halfedge_id0;
     id_type idUpperFirst = mesh.halfedge_store_count() - 2 * nAzimuth; // should have halfedge_id1 too, but should be fine in the current use case ...
 
-    bool bOpenSide = !spec.azimuth_interval.unit();
+    bool bOpenSide = !spec.azimuth.interval.unit();
     if (bOpenSide)
     {
-        if (spec.azimuth_termination.style == TerminationStyle::Direct)
+        if (spec.azimuth.termination.style == TerminationStyle::Butt)
         {
-            id_type surface_id = mesh.create_surface(submesh_id, spec.azimuth_termination.name);
-            if (spec.azimuth_termination.subdivision)
+            id_type surface_id = mesh.create_surface(submesh_id, spec.azimuth.termination.names[0]);
+            if (spec.azimuth.termination.subdivision)
             {
                 connect_side_flat(mesh, nAzimuth, nz, cusped_lower, cusped_upper, surface_id, true);
             }
@@ -2446,11 +2430,11 @@ void quetzal::model::seal_cylinder(M& mesh, id_type submesh_id, const CylinderSp
             }
             bOpenSide = false;
         }
-        else if (spec.azimuth_termination.style == TerminationStyle::Center)
+        else if (spec.azimuth.termination.style == TerminationStyle::Center)
         {
-            id_type surface_id0 = mesh.create_surface(submesh_id, spec.azimuth_termination.lower_name);
-            id_type surface_id1 = mesh.create_surface(submesh_id, spec.azimuth_termination.upper_name);
-            if (spec.azimuth_termination.subdivision)
+            id_type surface_id0 = mesh.create_surface(submesh_id, spec.azimuth.termination.names[0]);
+            id_type surface_id1 = mesh.create_surface(submesh_id, spec.azimuth.termination.names[1]);
+            if (spec.azimuth.termination.subdivision)
             {
                 connect_side_center(mesh, nAzimuth, nz, cusped_lower, cusped_upper, surface_id0, surface_id1,
                         [](const typename M::point_type& point) -> typename M::point_type { return {T(0), T(0), point.z()}; },
@@ -2470,7 +2454,7 @@ void quetzal::model::seal_cylinder(M& mesh, id_type submesh_id, const CylinderSp
     {
         if (spec.axis_termination_lower.style == TerminationStyle::Butt)
         {
-            id_type surface_id = mesh.create_surface(submesh_id, spec.axis_termination_lower.name, {normal_lower});
+            id_type surface_id = mesh.create_surface(submesh_id, spec.axis_termination_lower.names[0], {normal_lower});
             id_type face_id = nullid;
             if (!bOpenSide)
             {
@@ -2489,7 +2473,7 @@ void quetzal::model::seal_cylinder(M& mesh, id_type submesh_id, const CylinderSp
     {
         if (spec.axis_termination_upper.style == TerminationStyle::Butt)
         {
-            id_type surface_id = mesh.create_surface(submesh_id, spec.axis_termination_upper.name, {normal_upper});
+            id_type surface_id = mesh.create_surface(submesh_id, spec.axis_termination_upper.names[0], {normal_upper});
             id_type face_id = nullid;
             if (!bOpenSide)
             {
@@ -2513,20 +2497,20 @@ void quetzal::model::seal_sphere(M& mesh, id_type submesh_id, const SphereSpecif
 {
     using T = data_value_type<M>;
 
-    size_t nAzimuth = spec.azimuth_divisions;
-    size_t nElevation = spec.elevation_divisions;
+    size_t nAzimuth = spec.azimuth.edge_count;
+    size_t nElevation = spec.elevation_edge_count;
 
     // Save halfedge id's before potential side closure
     id_type idLowerFirst = halfedge_id0;
     id_type idUpperFirst = mesh.halfedge_store_count() - 2 * nAzimuth; // should have halfedge_id1 too, but should be fine in the current use case ...
 
-    bool bOpenSide = !spec.azimuth_interval.unit();
+    bool bOpenSide = !spec.azimuth.interval.unit();
     if (bOpenSide) // Elevation TerminationStyle::Center will affect side generation ...
     {
-        if (spec.azimuth_termination.style == TerminationStyle::Direct)
+        if (spec.azimuth.termination.style == TerminationStyle::Butt)
         {
-            id_type surface_id = mesh.create_surface(submesh_id, spec.azimuth_termination.name);
-            bool bPlanar = math::float_eq(spec.azimuth_interval.length(), T(0.5)); // don't think this is sufficient ...
+            id_type surface_id = mesh.create_surface(submesh_id, spec.azimuth.termination.names[0]);
+            bool bPlanar = math::float_eq(spec.azimuth.interval.length(), T(0.5)); // don't think this is sufficient ...
             connect_side_flat(mesh, nAzimuth, nElevation, cusped_lower, cusped_upper, surface_id, bPlanar);
             if (bPlanar)
             {
@@ -2538,11 +2522,11 @@ void quetzal::model::seal_sphere(M& mesh, id_type submesh_id, const SphereSpecif
             }
             bOpenSide = false;
         }
-        else if (spec.azimuth_termination.style == TerminationStyle::Center)
+        else if (spec.azimuth.termination.style == TerminationStyle::Center)
         {
-            id_type surface_id0 = mesh.create_surface(submesh_id, spec.azimuth_termination.lower_name);
-            id_type surface_id1 = mesh.create_surface(submesh_id, spec.azimuth_termination.upper_name);
-            if (spec.azimuth_termination.subdivision)
+            id_type surface_id0 = mesh.create_surface(submesh_id, spec.azimuth.termination.names[0]);
+            id_type surface_id1 = mesh.create_surface(submesh_id, spec.azimuth.termination.names[1]);
+            if (spec.azimuth.termination.subdivision)
             {
                 connect_side_center(mesh, nAzimuth, nElevation, cusped_lower, cusped_upper, surface_id0, surface_id1,
                         [](const typename M::point_type& point) -> typename M::point_type { return {T(0), T(0), point.z()}; },
@@ -2565,7 +2549,7 @@ void quetzal::model::seal_sphere(M& mesh, id_type submesh_id, const SphereSpecif
         if (spec.elevation_termination_lower.style == TerminationStyle::Butt)
         {
             typename M::vector_type normal {T(0), T(0), T(-1)};
-            id_type surface_id = mesh.create_surface(submesh_id, spec.elevation_termination_lower.name, {normal});
+            id_type surface_id = mesh.create_surface(submesh_id, spec.elevation_termination_lower.names[0], {normal});
             id_type face_id = nullid;
             if (!bOpenSide)
             {
@@ -2589,7 +2573,7 @@ void quetzal::model::seal_sphere(M& mesh, id_type submesh_id, const SphereSpecif
         if (spec.elevation_termination_upper.style == TerminationStyle::Butt)
         {
             typename M::vector_type normal = M::vector_type::z_direction();
-            id_type surface_id = mesh.create_surface(submesh_id, spec.elevation_termination_upper.name, {normal});
+            id_type surface_id = mesh.create_surface(submesh_id, spec.elevation_termination_upper.names[0], {normal});
             id_type face_id = nullid;
             if (!bOpenSide)
             {
@@ -2619,8 +2603,8 @@ void quetzal::model::seal_torus(M& mesh, id_type submesh_id, const TorusSpecific
 
     T theta0 = math::PiTwo<T> * spec.major_azimuth_interval.lower();
     T theta1 = math::PiTwo<T> * spec.major_azimuth_interval.upper();
-    size_t nMajor = spec.major_divisions;
-    size_t nMinor = spec.minor_divisions;
+    size_t nMajor = spec.major_edge_count;
+    size_t nMinor = spec.minor.edge_count;
 
     // why not rMajor from spec? ...
     //data_value_type<M> rMajor = spec.major_radius_interval ... assert constant? ...
@@ -2631,19 +2615,19 @@ void quetzal::model::seal_torus(M& mesh, id_type submesh_id, const TorusSpecific
     size_t idSideFirst = mesh.halfedge_store_count();
 
     bool bOpenMajor = !spec.major_azimuth_interval.unit();
-    bool bOpenMinor = !spec.minor_azimuth_interval.unit();
+    bool bOpenMinor = !spec.minor.interval.unit();
     if (bOpenMinor)
     {
-        if (spec.minor_termination.style == TerminationStyle::Direct)
+        if (spec.minor.termination.style == TerminationStyle::Butt)
         {
-            id_type idSurfaceSide = mesh.create_surface(submesh_id, spec.minor_termination.name);
-T sum = spec.minor_azimuth_interval.lower() + spec.minor_azimuth_interval.upper();
+            id_type idSurfaceSide = mesh.create_surface(submesh_id, spec.minor.termination.names[0]);
+T sum = spec.minor.interval.lower() + spec.minor.interval.upper();
 sum -= floor(sum);
-//auto sum_not = spec.minor_azimuth_interval.length();
-//assert(math::float_eq(sum, spec.minor_azimuth_interval.length()));
+//auto sum_not = spec.minor.interval.length();
+//assert(math::float_eq(sum, spec.minor.interval.length()));
 bool bPlanar = math::float_eq(sum, T(0.5)); // abs? ...
 // only planar with horizontal slices ...
-//            bool bPlanar = math::float_eq(spec.minor_azimuth_interval.length(), T(0.5)); // abs? ...
+//            bool bPlanar = math::float_eq(spec.minor.interval.length(), T(0.5)); // abs? ...
             connect_side_flat(mesh, nMinor, nMajor, cusped_lower, cusped_upper, idSurfaceSide, bPlanar);
             bOpenMinor = false;
 
@@ -2656,10 +2640,10 @@ bool bPlanar = math::float_eq(sum, T(0.5)); // abs? ...
 //                surface_normal(mesh.vertex(id0)); // ...
             }
         }
-        else if (spec.minor_termination.style == TerminationStyle::Center)
+        else if (spec.minor.termination.style == TerminationStyle::Center)
         {
-            id_type idSurfaceSideLower = mesh.create_surface(submesh_id, spec.minor_termination.lower_name);
-            id_type idSurfaceSideUpper = mesh.create_surface(submesh_id, spec.minor_termination.upper_name);
+            id_type idSurfaceSideLower = mesh.create_surface(submesh_id, spec.minor.termination.names[0]);
+            id_type idSurfaceSideUpper = mesh.create_surface(submesh_id, spec.minor.termination.names[1]);
             connect_side_center(mesh, nMinor, nMajor, cusped_lower, cusped_upper, idSurfaceSideLower, idSurfaceSideUpper,
                     [rMajor](typename M::point_type point) -> typename M::point_type
                     {
@@ -2710,7 +2694,7 @@ bool bPlanar = math::float_eq(sum, T(0.5)); // abs? ...
             if (spec.major_termination_lower.style == TerminationStyle::Butt)
             {
                 typename M::vector_type normal {math::denoise011(sin(theta0)), -math::denoise011(cos(theta0)), T(0)};
-                id_type surface_id = mesh.create_surface(submesh_id, spec.major_termination_lower.name, {normal});
+                id_type surface_id = mesh.create_surface(submesh_id, spec.major_termination_lower.names[0], {normal});
                 id_type face_id = nullid;
                 if (!bOpenMinor)
                 {
@@ -2731,7 +2715,7 @@ bool bPlanar = math::float_eq(sum, T(0.5)); // abs? ...
             {
                 typename M::vector_type normal = {-math::denoise011(sin(theta1)), math::denoise011(cos(theta1)), T(0)};
                 normal.denoise0();
-                id_type surface_id = mesh.create_surface(submesh_id, spec.major_termination_upper.name, {normal});
+                id_type surface_id = mesh.create_surface(submesh_id, spec.major_termination_upper.names[0], {normal});
                 id_type face_id = nullid;
                 if (!bOpenMinor)
                 {
@@ -3113,80 +3097,85 @@ void quetzal::model::calculate_base_cusp_surface_vertex_normals_sequential(M& me
 }
 
 //------------------------------------------------------------------------------
-template<typename T>
-std::array<T, 3> quetzal::model::texture_span(T t, bool cusped_lower, bool cusped_upper, T alignment)
+template<typename M>
+quetzal::model::texture_span_type<M> quetzal::model::texture_span(data_value_type<M> t, bool cusped_lower, bool cusped_upper, data_value_type<M> alignment)
 {
+    using T = data_value_type<M>;
+
     assert(t >= T(0) && t <= T(1));
 //    assert(!cusped_lower || !cusped_upper);
 
-    T ty = math::denoise01(T(1) - t);
-    T tw = T(1);
+    T v = math::denoise01(T(1) - t);
+    T w = T(1);
 
     // partial sphere may not have both cusps ...
     // need to handle this case for sphere, or create a special version; need to decide how sphere should map texture ...
     // width whould be the fraction of the maximum equatorial width of the side closure etc. ...
     if (cusped_lower && cusped_upper)
     {
-        return {T(0), tw, ty};
+        return {T(0), w, v};
     }
 
     if (cusped_lower)
     {
-        tw = t;
+        w = t;
     }
     else if (cusped_upper)
     {
-        tw = ty;
+        w = v;
     }
 
-    T tx0 = math::denoise01(alignment * (T(1) - tw));
-    T tx1 = math::denoise01(tx0 + tw);
-//    T tx1 = T(1) - tx0;
-    assert(tx0 >= T(0) && tx0 <= T(1));
-    assert(tx1 >= T(0) && tx1 <= T(1));
-    return {tx0, tx1, ty};
+    T u0 = math::denoise01(alignment * (T(1) - w));
+    T u1 = math::denoise01(u0 + w);
+//    T u1 = T(1) - u0;
+    assert(u0 >= T(0) && u0 <= T(1));
+    assert(u1 >= T(0) && u1 <= T(1));
+    return {u0, u1, v};
 }
 
 //------------------------------------------------------------------------------
-template<typename T>
-std::array<T, 3> quetzal::model::texture_span(size_t i, size_t n, bool cusped_lower, bool cusped_upper, T alignment)
+template<typename M>
+quetzal::model::texture_span_type<M> quetzal::model::texture_span(size_t i, size_t n, bool cusped_lower, bool cusped_upper, data_value_type<M> alignment)
 {
+    using T = data_value_type<M>;
+
+    assert(n > 0);
     assert(i >= 0 && i <= n);
 //    assert(!cusped_lower || !cusped_upper);
 
 //    T t = T(i) / T(n);
-//    T ty = T(1) - t;
-    T ty = T(n - i) / T(n);
+//    T v = T(1) - t;
+    T v = T(n - i) / T(n);
 
     // Too bad we can't just ...
-    //return texture_span(T(1) - ty, cusped_lower, cusped_upper, alignment);
+    //return texture_span(T(1) - v, cusped_lower, cusped_upper, alignment);
 
-    T tw = T(1);
-//assert(t == T(1) - ty);
+    T w = T(1);
+//assert(t == T(1) - v);
 
     // partial sphere may not have both cusps ...
     // need to handle this case for sphere, or create a special version; need to decide how sphere should map texture ...
     // width whould be the fraction of the maximum equatorial width of the side closure etc. ...
     if (cusped_lower && cusped_upper)
     {
-        return {T(0), tw, ty};
+        return {T(0), w, v};
     }
 
     if (cusped_lower)
     {
-        tw = T(1) - ty;
+        w = T(1) - v;
     }
     else if (cusped_upper)
     {
-        tw = ty;
+        w = v;
     }
 
-    T tx0 = math::denoise01(alignment * (T(1) - tw));
-    T tx1 = math::denoise01(tx0 + tw);
-//    T tx1 = T(1) - tx0;
-    assert(tx0 >= T(0) && tx0 <= T(1));
-    assert(tx1 >= T(0) && tx1 <= T(1));
-    return {tx0, tx1, ty};
+    T u0 = math::denoise01(alignment * (T(1) - w));
+    T u1 = math::denoise01(u0 + w);
+//    T u1 = T(1) - u0;
+    assert(u0 >= T(0) && u0 <= T(1));
+    assert(u1 >= T(0) && u1 <= T(1));
+    return {u0, u1, v};
 }
 
 #endif // QUETZAL_MODEL_PRIMITIVES_UTIL_HPP

@@ -40,8 +40,10 @@ namespace quetzal::math
 
         void set_bounds(const T& tLower, const T& tUpper);
 
+        // strict functions are for standard dimensionless parametric intervals
         T length() const;
         bool proper() const; // lower < upper
+        bool strict_proper() const; // values in the range [0, 1], implies proper
         bool unit() const; // length == 1, implies proper
         bool strict_unit() const; // [0, 1], implies unit
 
@@ -50,8 +52,8 @@ namespace quetzal::math
 
     private:
 
-        T m_tLower;
-        T m_tUpper;
+        T m_lower;
+        T m_upper;
 //        std::array<T, 2> m_bounds;
     };
 
@@ -80,8 +82,8 @@ quetzal::math::Interval<T>::Interval(const T& tLength) :
 //------------------------------------------------------------------------------
 template<typename T>
 quetzal::math::Interval<T>::Interval(const T& tLower, const T& tUpper) :
-    m_tLower(tLower),
-    m_tUpper(tUpper)
+    m_lower(tLower),
+    m_upper(tUpper)
 {
 }
 
@@ -89,14 +91,14 @@ quetzal::math::Interval<T>::Interval(const T& tLower, const T& tUpper) :
 template<typename T>
 T quetzal::math::Interval<T>::lower() const
 {
-    return m_tLower;
+    return m_lower;
 }
 
 //------------------------------------------------------------------------------
 template<typename T>
 void quetzal::math::Interval<T>::set_lower(const T& t)
 {
-    m_tLower = t;
+    m_lower = t;
     return;
 }
 
@@ -104,14 +106,14 @@ void quetzal::math::Interval<T>::set_lower(const T& t)
 template<typename T>
 T quetzal::math::Interval<T>::upper() const
 {
-    return m_tUpper;
+    return m_upper;
 }
 
 //------------------------------------------------------------------------------
 template<typename T>
 void quetzal::math::Interval<T>::set_upper(const T& t)
 {
-    m_tUpper = t;
+    m_upper = t;
     return;
 }
 
@@ -119,8 +121,8 @@ void quetzal::math::Interval<T>::set_upper(const T& t)
 template<typename T>
 void quetzal::math::Interval<T>::set_bounds(const T& tLower, const T & tUpper)
 {
-    m_tLower = tLower;
-    m_tUpper = tUpper;
+    m_lower = tLower;
+    m_upper = tUpper;
     return;
 }
 
@@ -128,7 +130,7 @@ void quetzal::math::Interval<T>::set_bounds(const T& tLower, const T & tUpper)
 template<typename T>
 T quetzal::math::Interval<T>::length() const
 {
-    return m_tUpper - m_tLower;
+    return m_upper - m_lower;
 }
 
 //------------------------------------------------------------------------------
@@ -137,12 +139,19 @@ bool quetzal::math::Interval<T>::proper() const
 {
     if constexpr (std::floating_point<T>)
     {
-        return float_gt(m_tUpper, m_tLower);
+        return float_gt(m_upper, m_lower);
     }
     else
     {
-        return m_tUpper > m_tLower;
+        return m_upper > m_lower;
     }
+}
+
+//------------------------------------------------------------------------------
+template<typename T>
+bool quetzal::math::Interval<T>::strict_proper() const
+{
+    return clamped01(m_lower) && clamped01(m_upper) && proper();
 }
 
 //------------------------------------------------------------------------------
@@ -165,11 +174,11 @@ bool quetzal::math::Interval<T>::strict_unit() const
 {
     if constexpr (std::floating_point<T>)
     {
-        return float_eq(m_tLower, T(0)) && float_eq(m_tUpper, T(1));
+        return float_eq(m_lower, T(0)) && float_eq(m_upper, T(1));
     }
     else
     {
-        return m_tLower == T(0) && m_tUpper == T(1);
+        return m_lower == T(0) && m_upper == T(1);
     }
 }
 
@@ -179,11 +188,11 @@ bool quetzal::math::Interval<T>::contains(T t) const
 {
     if constexpr (std::floating_point<T>)
     {
-        return float_ge(t, m_tLower) && float_le(t, m_tUpper);
+        return float_ge(t, m_lower) && float_le(t, m_upper);
     }
     else
     {
-        return t >= m_tLower && t <= m_tUpper;
+        return t >= m_lower && t <= m_upper;
     }
 }
 
@@ -191,12 +200,12 @@ bool quetzal::math::Interval<T>::contains(T t) const
 template<typename T>
 T quetzal::math::Interval<T>::lerp(T t) const
 {
-    if (m_tLower == m_tUpper)
+    if (m_lower == m_upper)
     {
-        return m_tLower;
+        return m_lower;
     }
 
-    return math::lerp(m_tLower, m_tUpper, t);
+    return math::lerp(m_lower, m_upper, t);
 }
 
 //------------------------------------------------------------------------------

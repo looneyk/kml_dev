@@ -16,6 +16,7 @@
 #include "quetzal/brep/inversion.hpp"
 #include "quetzal/brep/mesh_util.hpp"
 #include "quetzal/brep/validation.hpp"
+#include "quetzal/common/Properties.hpp"
 #include "quetzal/geometry/Path.hpp"
 #include "quetzal/geometry/Polyline.hpp"
 #include "quetzal/geometry/Polygon.hpp"
@@ -85,7 +86,7 @@ namespace quetzal::model
     template<typename M>
     id_type hex_partner_id(M& mesh, size_t i, size_t j, size_t n, id_type id, size_t wRow, size_t wRowPrev, bool bShiftRight);
 
-    // Create a disk in the xy-plane centered at the origin with nAzimuth divisions
+    // Create a disk in the xy-plane centered at the origin with nAzimuth edges
     // Surfaces: "disk"
     template<typename M>
     id_type create_disk(M& mesh, const std::string& name, size_t nAzimuth, size_t nRadial, data_value_type<M> radius, const azimuth_interval_type<M>& intervalAzimuth = math::Interval(data_value_type<M>(1)));
@@ -259,7 +260,7 @@ namespace quetzal::model
     // All polygon and hole vertices should be in ccw order relative to normal vector of 2D projection
     // Surfaces: "body", per hole "body<i>", "end0", "end1" (body<i> not yet ...)
     template<typename M>
-    id_type create_cylinder(M& mesh, const std::string& name, const geometry::PolygonWithHoles<typename M::vector_traits>& polygons, size_t nz, data_value_type<M> z_lower, data_value_type<M> z_upper, const Properties& properties = {});
+    id_type create_cylinder(M& mesh, const std::string& name, const geometry::PolygonWithHoles<typename M::vector_traits>& polygon_holes, size_t nz, data_value_type<M> z_lower, data_value_type<M> z_upper, const Properties& properties = {});
 
     // Create a cylinder given a cross section in the form of a simple polygon with variable scaling and rotation at each z
     // fr - polygon radius function, scale factor
@@ -332,7 +333,7 @@ namespace quetzal::model
     template<typename M>
     id_type create_anticylinder_faces(M& mesh, const std::string& name, const CylinderSpecification<data_value_type<M>>& spec);
 
-    // Create a sphere centered at the origin with nAzimuth divisions in the xy-plane and nElevation divisions from the negative to the positive z-axis
+    // Create a sphere centered at the origin with nAzimuth edges in the xy-plane and nElevation edges from the negative to the positive z-axis
     // Surfaces: "body", and "end0", "end1", "side", "side0", "side1" depending on extents
     // Sections are not supported
     // add a polygon version that does, scale follows sphere radius ...
@@ -359,7 +360,7 @@ namespace quetzal::model
     // The nAzimuth and nElevation parameters control the degree of tessellation
     // Surfaces: "body", and "end0", "end1", "side", "side0", "side1" depending on extents
     template<typename M>
-    id_type create_sphere2(M& mesh, const std::string& name, size_t nAzimuth, size_t nElevation, std::function<data_value_type<M>(data_value_type<M>, data_value_type<M>)> fr, const Properties& properties = {});
+    id_type create_sphere(M& mesh, const std::string& name, size_t nAzimuth, size_t nElevation, std::function<data_value_type<M>(data_value_type<M>, data_value_type<M>)> fr, const Properties& properties = {});
 
     // Create a torus centered at the origin around the z-axis
     // Minor extent endpoints are measured in the circular cross section in the xz-plane centered at (rMajor, 0, 0) with normal (0, 1, 0)
@@ -418,7 +419,7 @@ namespace quetzal::model
     // Create volume by extruding polygon by the displacement vector
     // Surfaces: "body0", per hole "body<i>", "end0", "end1"
     template<typename M>
-    id_type create_extrusion(M& mesh, const std::string& name, const geometry::PolygonWithHoles<typename M::vector_traits>& polygons, const normal_vector_type<M>& normal, const typename M::vector_type& displacement, const Properties& properties = {});
+    id_type create_extrusion(M& mesh, const std::string& name, const geometry::PolygonWithHoles<typename M::vector_traits>& polygon_holes, const normal_vector_type<M>& normal, const typename M::vector_type& displacement, const Properties& properties = {});
 
     // Create volume by sweeping polygon along points of path
     // Generalized cylinder
@@ -894,7 +895,7 @@ quetzal::id_type quetzal::model::create_prism(M& mesh, const std::string& name, 
 {
 //std::cout << "create_prism" << std::endl;
     CylinderSpecification<data_value_type<M>> spec(nAzimuth, nz, radius_lower, radius_upper, z_lower, z_upper, M::val(0), M::val(0), Properties{{"azimuth_smooth", "false"}} | properties);
-    assert(!spec.azimuth_smooth);
+    assert(!spec.azimuth.smooth);
     return create_cylinder_edges(mesh, name, spec);
 }
 
@@ -928,7 +929,7 @@ quetzal::id_type quetzal::model::create_cylinder_auto(M& mesh, const std::string
 //std::cout << "create_cylinder r revs" << std::endl;
     CylinderSpecification<data_value_type<M>> spec(nAzimuth, nz, radius_lower, radius_upper, z_lower, z_upper, revs_lower, revs_upper, properties);
 
-    if (spec.azimuth_smooth)
+    if (spec.azimuth.smooth)
     {
         return create_cylinder(mesh, name, spec);
     }
@@ -970,12 +971,12 @@ quetzal::id_type quetzal::model::create_cylinder(M& mesh, const std::string& nam
 //std::cout << "create_cylinder spec" << std::endl;
     using T = M::value_type;
 
-    assert(spec.azimuth_smooth);
+    assert(spec.azimuth.smooth);
 
-    auto face_count = spec.azimuth_divisions;
+    auto face_count = spec.azimuth.edge_count;
     assert(face_count > 2);
 
-    auto nz = spec.axis_divisions;
+    auto nz = spec.axis_edge_count;
     assert(nz > 0);
 
     bool cusped_lower = math::float_eq0(spec.axis_radius_interval.lower());
@@ -993,11 +994,11 @@ quetzal::id_type quetzal::model::create_cylinder(M& mesh, const std::string& nam
     T rev0 = spec.axis_azimuth_offset_interval.lower();
     T rev1 = spec.axis_azimuth_offset_interval.lerp(t);
 
-    auto azimuth0 = shift(spec.azimuth_interval, rev0);
-    auto azimuth1 = shift(spec.azimuth_interval, rev1);
+    auto azimuth0 = shift(spec.azimuth.interval, rev0);
+    auto azimuth1 = shift(spec.azimuth.interval, rev1);
 
-    auto ts0 = texture_span<T>(0, nz, cusped_lower, cusped_upper);
-    auto ts1 = texture_span<T>(1, nz, cusped_lower, cusped_upper);
+    auto ts0 = texture_span<M>(0, nz, cusped_lower, cusped_upper);
+    auto ts1 = texture_span<M>(1, nz, cusped_lower, cusped_upper);
 
     auto dz = spec.axis_z_interval.length();
     auto dr = spec.axis_radius_interval.length();
@@ -1036,10 +1037,10 @@ quetzal::id_type quetzal::model::create_cylinder(M& mesh, const std::string& nam
         z1 = spec.axis_z_interval.lerp(t);
         r1 = spec.axis_radius_interval.lerp(t);
         rev1 = spec.axis_azimuth_offset_interval.lerp(t);
-        ts1 = texture_span<T>(i, nz, cusped_lower, cusped_upper);
+        ts1 = texture_span<M>(i, nz, cusped_lower, cusped_upper);
 
         azimuth0 = azimuth1;
-        azimuth1 = shift(spec.azimuth_interval, rev1);
+        azimuth1 = shift(spec.azimuth.interval, rev1);
 
         j0_orig = mesh.halfedge_store_count();
 
@@ -1091,15 +1092,15 @@ quetzal::id_type quetzal::model::create_cylinder_edges(M& mesh, const std::strin
 //std::cout << "create_cylinder_edges spec" << std::endl;
     using T = M::value_type;
 
-    assert(!spec.azimuth_smooth);
+    assert(!spec.azimuth.smooth);
 
-    auto face_count = spec.azimuth_divisions;
+    auto face_count = spec.azimuth.edge_count;
     assert(face_count > 2);
 
     size_t section_count = face_count;
     size_t section_face_count = 1;
 
-    auto nz = spec.axis_divisions;
+    auto nz = spec.axis_edge_count;
     assert(nz > 0);
 
     bool cusped_lower = math::float_eq0(spec.axis_radius_interval.lower());
@@ -1117,11 +1118,11 @@ quetzal::id_type quetzal::model::create_cylinder_edges(M& mesh, const std::strin
     T rev0 = spec.axis_azimuth_offset_interval.lower();
     T rev1 = spec.axis_azimuth_offset_interval.lerp(t);
 
-    auto azimuth0 = shift(spec.azimuth_interval, rev0);
-    auto azimuth1 = shift(spec.azimuth_interval, rev1);
+    auto azimuth0 = shift(spec.azimuth.interval, rev0);
+    auto azimuth1 = shift(spec.azimuth.interval, rev1);
 
-    auto ts0 = texture_span<T>(0, nz, cusped_lower, cusped_upper);
-    auto ts1 = texture_span<T>(1, nz, cusped_lower, cusped_upper);
+    auto ts0 = texture_span<M>(0, nz, cusped_lower, cusped_upper);
+    auto ts1 = texture_span<M>(1, nz, cusped_lower, cusped_upper);
 
     id_type halfedge_id0 = mesh.halfedge_store_count();
 
@@ -1153,7 +1154,7 @@ quetzal::id_type quetzal::model::create_cylinder_edges(M& mesh, const std::strin
         z1 = spec.axis_z_interval.lerp(t);
         r1 = spec.axis_radius_interval.lerp(t);
         rev1 = spec.axis_azimuth_offset_interval.lerp(t);
-        azimuth1 = shift(spec.azimuth_interval, rev1);
+        azimuth1 = shift(spec.azimuth.interval, rev1);
 
         j0_orig = mesh.halfedge_store_count();
 
@@ -1163,7 +1164,7 @@ quetzal::id_type quetzal::model::create_cylinder_edges(M& mesh, const std::strin
         }
         else
         {
-            ts1 = texture_span<T>(i, nz, cusped_lower, cusped_upper);
+            ts1 = texture_span<M>(i, nz, cusped_lower, cusped_upper);
             connect_band_sections(mesh, face_count, r1, z1, azimuth1, ts1, surface_id0);
         }
     }
@@ -1219,7 +1220,7 @@ quetzal::id_type quetzal::model::create_cylinder_auto(M& mesh, const std::string
 // init properties to smooth as below? ...
     CylinderSpecification<data_value_type<M>> spec(polygon.edge_count(), nz, scale_lower, scale_upper, z_lower, z_upper, revs_lower, revs_upper, properties);
 
-    if (spec.azimuth_smooth)
+    if (spec.azimuth.smooth)
     {
         return create_cylinder(mesh, name, polygon, spec);
     }
@@ -1259,13 +1260,13 @@ quetzal::id_type quetzal::model::create_cylinder(M& mesh, const std::string& nam
     using T = M::value_type;
 //std::cout << "create_cylinder polygon spec" << std::endl;
 
-    assert(spec.azimuth_smooth);
+    assert(spec.azimuth.smooth);
     assert(polygon.sections_single());
 
-    size_t face_count = spec.azimuth_divisions;
+    size_t face_count = spec.azimuth.edge_count;
     assert(face_count > 2);
 
-    size_t nz = spec.axis_divisions;
+    size_t nz = spec.axis_edge_count;
     assert(nz > 0);
 
     T t = T(1) / T(nz);
@@ -1284,8 +1285,8 @@ quetzal::id_type quetzal::model::create_cylinder(M& mesh, const std::string& nam
     assert(!cusped_lower || !cusped_upper);
     bool closed = true;
 
-    auto ts0 = texture_span<T>(0, nz, cusped_lower, cusped_upper);
-    auto ts1 = texture_span<T>(1, nz, cusped_lower, cusped_upper);
+    auto ts0 = texture_span<M>(0, nz, cusped_lower, cusped_upper);
+    auto ts1 = texture_span<M>(1, nz, cusped_lower, cusped_upper);
 
     id_type halfedge_id0 = mesh.halfedge_store_count();
 
@@ -1319,7 +1320,7 @@ quetzal::id_type quetzal::model::create_cylinder(M& mesh, const std::string& nam
         z1 = spec.axis_z_interval.lerp(t);
         scale1 = spec.axis_radius_interval.lerp(t);
         revs1 = spec.axis_azimuth_offset_interval.lerp(t);
-        ts1 = texture_span<T>(i, nz, cusped_lower, cusped_upper);
+        ts1 = texture_span<M>(i, nz, cusped_lower, cusped_upper);
 
         j0_orig = mesh.halfedge_store_count();
 
@@ -1345,15 +1346,15 @@ quetzal::id_type quetzal::model::create_cylinder(M& mesh, const std::string& nam
 
     CylinderSpecification<T> spec(polygon_lower.edge_count(), nz, T(0), T(0), T(0), T(0), properties);
 
-    auto face_count = spec.azimuth_divisions;
+    auto face_count = spec.azimuth.edge_count;
     assert(face_count > 2);
 
     assert(nz > 0);
 
     T t = T(1) / T(nz);
 
-    auto ts0 = texture_span<T>(0, nz, false, false);
-    auto ts1 = texture_span<T>(1, nz, false, false);
+    auto ts0 = texture_span<M>(0, nz, false, false);
+    auto ts1 = texture_span<M>(1, nz, false, false);
 
     id_type halfedge_id0 = mesh.halfedge_store_count();
 
@@ -1369,7 +1370,7 @@ quetzal::id_type quetzal::model::create_cylinder(M& mesh, const std::string& nam
     for (size_t i = 2; i <= nz; ++i)
     {
         t = T(i) / T(nz);
-        ts1 = texture_span<T>(i, nz, false, false);
+        ts1 = texture_span<M>(i, nz, false, false);
 
         j0_orig = mesh.halfedge_store_count();
 
@@ -1411,16 +1412,16 @@ quetzal::id_type quetzal::model::create_cylinder_edges(M& mesh, const std::strin
 //std::cout << "create_cylinder_edges polygon spec" << std::endl;
     using T = M::value_type;
 
-    assert(!spec.azimuth_smooth);
+    assert(!spec.azimuth.smooth);
     assert(polygon.sections_edges());
 
-    auto face_count = spec.azimuth_divisions;
+    auto face_count = spec.azimuth.edge_count;
     assert(face_count > 2);
 
     size_t section_count = face_count;
     size_t section_face_count = 1;
 
-    auto nz = spec.axis_divisions;
+    auto nz = spec.axis_edge_count;
     assert(nz > 0);
 
     bool cusped_lower = math::float_eq0(spec.axis_radius_interval.lower());
@@ -1439,8 +1440,8 @@ quetzal::id_type quetzal::model::create_cylinder_edges(M& mesh, const std::strin
     T revs0 = spec.axis_azimuth_offset_interval.lower();
     T revs1 = spec.axis_azimuth_offset_interval.lerp(t);
 
-    auto ts0 = texture_span<T>(0, nz, cusped_lower, cusped_upper);
-    auto ts1 = texture_span<T>(1, nz, cusped_lower, cusped_upper);
+    auto ts0 = texture_span<M>(0, nz, cusped_lower, cusped_upper);
+    auto ts1 = texture_span<M>(1, nz, cusped_lower, cusped_upper);
 
     id_type halfedge_id0 = mesh.halfedge_store_count();
 
@@ -1477,7 +1478,7 @@ quetzal::id_type quetzal::model::create_cylinder_edges(M& mesh, const std::strin
         z1 = spec.axis_z_interval.lerp(t);
         scale1 = spec.axis_radius_interval.lerp(t);
         revs1 = spec.axis_azimuth_offset_interval.lerp(t);
-        ts1 = texture_span<T>(i, nz, cusped_lower, cusped_upper);
+        ts1 = texture_span<M>(i, nz, cusped_lower, cusped_upper);
 
         j0_orig = mesh.halfedge_store_count();
 
@@ -1541,7 +1542,7 @@ quetzal::id_type quetzal::model::create_cylinder_edges(M& mesh, const std::strin
 
     CylinderSpecification<T> spec(polygon_lower.edge_count(), nz, T(0), T(0), T(0), T(0), properties);
 
-    auto face_count = spec.azimuth_divisions;
+    auto face_count = spec.azimuth.edge_count;
     assert(face_count > 2);
 
     size_t section_count = face_count;
@@ -1550,8 +1551,8 @@ quetzal::id_type quetzal::model::create_cylinder_edges(M& mesh, const std::strin
 
     T t = T(1) / T(nz);
 
-    auto ts0 = texture_span<T>(0, nz, false, false);
-    auto ts1 = texture_span<T>(1, nz, false, false);
+    auto ts0 = texture_span<M>(0, nz, false, false);
+    auto ts1 = texture_span<M>(1, nz, false, false);
 
     id_type halfedge_id0 = mesh.halfedge_store_count();
 
@@ -1567,7 +1568,7 @@ quetzal::id_type quetzal::model::create_cylinder_edges(M& mesh, const std::strin
     for (size_t i = 2; i <= nz; ++i)
     {
         t = T(i) / T(nz);
-        ts1 = texture_span<T>(i, nz, false, false);
+        ts1 = texture_span<M>(i, nz, false, false);
 
         j0_orig = mesh.halfedge_store_count();
 
@@ -1616,13 +1617,13 @@ quetzal::id_type quetzal::model::create_cylinder_sections(M& mesh, const std::st
     assert(polygon.sections_full());
     size_t section_count = polygon.sections().value().size();
 
-    assert(section_count == 1 && spec.azimuth_smooth || !spec.azimuth_smooth); 
+    assert(section_count == 1 && spec.azimuth.smooth || !spec.azimuth.smooth); 
     assert(section_count > 0);
 
     auto face_count = polygon.edge_count();
     assert(face_count > 2);
 
-    size_t nz = spec.axis_divisions;
+    size_t nz = spec.axis_edge_count;
     assert(nz > 0);
 
     bool cusped_lower = spec.axis_radius_interval.lower() == T(0);
@@ -1641,8 +1642,8 @@ quetzal::id_type quetzal::model::create_cylinder_sections(M& mesh, const std::st
     T revs0 = spec.axis_azimuth_offset_interval.lower();
     T revs1 = spec.axis_azimuth_offset_interval.lerp(t);
 
-    auto ts0 = texture_span<T>(0, nz, cusped_lower, cusped_upper);
-    auto ts1 = texture_span<T>(1, nz, cusped_lower, cusped_upper);
+    auto ts0 = texture_span<M>(0, nz, cusped_lower, cusped_upper);
+    auto ts1 = texture_span<M>(1, nz, cusped_lower, cusped_upper);
 
     id_type halfedge_id0 = mesh.halfedge_store_count();
 
@@ -1679,7 +1680,7 @@ quetzal::id_type quetzal::model::create_cylinder_sections(M& mesh, const std::st
         z1 = spec.axis_z_interval.lerp(t);
         scale1 = spec.axis_radius_interval.lerp(t);
         revs1 = spec.axis_azimuth_offset_interval.lerp(t);
-        ts1 = texture_span<T>(i, nz, cusped_lower, cusped_upper);
+        ts1 = texture_span<M>(i, nz, cusped_lower, cusped_upper);
 
         j0_orig = mesh.halfedge_store_count();
 
@@ -1744,7 +1745,7 @@ quetzal::id_type quetzal::model::create_cylinder_sections(M& mesh, const std::st
 
     CylinderSpecification<T> spec(polygon_lower.edge_count(), nz, T(0), T(0), T(0), T(0), properties);
 
-    auto face_count = spec.azimuth_divisions;
+    auto face_count = spec.azimuth.edge_count;
     assert(face_count > 2);
 
 // this conflicts with the assertion of sections_full above ...
@@ -1758,8 +1759,8 @@ quetzal::id_type quetzal::model::create_cylinder_sections(M& mesh, const std::st
 
     T t = T(1) / T(nz);
 
-    auto ts0 = texture_span<T>(0, nz, false, false);
-    auto ts1 = texture_span<T>(1, nz, false, false);
+    auto ts0 = texture_span<M>(0, nz, false, false);
+    auto ts1 = texture_span<M>(1, nz, false, false);
 
     id_type halfedge_id0 = mesh.halfedge_store_count();
 
@@ -1775,7 +1776,7 @@ quetzal::id_type quetzal::model::create_cylinder_sections(M& mesh, const std::st
     for (size_t i = 2; i <= nz; ++i)
     {
         t = T(i) / T(nz);
-        ts1 = texture_span<T>(i, nz, false, false);
+        ts1 = texture_span<M>(i, nz, false, false);
 
         j0_orig = mesh.halfedge_store_count();
 
@@ -1805,10 +1806,10 @@ quetzal::id_type quetzal::model::create_cylinder(M& mesh, const std::string& nam
 
     CylinderSpecification<T> spec(polygon.edge_count(), nz, T(0), T(0), z_lower, z_upper, properties);
 
-    auto face_count = spec.azimuth_divisions;
+    auto face_count = spec.azimuth.edge_count;
     assert(face_count > 2);
 
-    nz = spec.axis_divisions;
+    nz = spec.axis_edge_count;
     assert(nz > 0);
 
     T t = T(1) / T(nz);
@@ -1831,8 +1832,8 @@ quetzal::id_type quetzal::model::create_cylinder(M& mesh, const std::string& nam
 
     bool closed = true;
 
-    texture_span_type<M> ts0 = texture_span<T>(0, nz, cusped_lower, cusped_upper);
-    texture_span_type<M> ts1 = texture_span<T>(1, nz, cusped_lower, cusped_upper);
+    texture_span_type<M> ts0 = texture_span<M>(0, nz, cusped_lower, cusped_upper);
+    texture_span_type<M> ts1 = texture_span<M>(1, nz, cusped_lower, cusped_upper);
 
     id_type halfedge_id0 = mesh.halfedge_store_count();
 
@@ -1867,7 +1868,7 @@ quetzal::id_type quetzal::model::create_cylinder(M& mesh, const std::string& nam
     {
         t = T(i) / T(nz);
         z1 = spec.axis_z_interval.lerp(t);
-        ts1 = texture_span<T>(i, nz, cusped_lower, cusped_upper);
+        ts1 = texture_span<M>(i, nz, cusped_lower, cusped_upper);
 
         r1 = fr(t);
         a1 = fa(t);
@@ -1916,17 +1917,17 @@ quetzal::id_type quetzal::model::create_cylinder_edges(M& mesh, const std::strin
 
     CylinderSpecification<T> spec(polygon.edge_count(), nz, T(0), T(0), z_lower, z_upper, properties);
 
-    auto face_count = spec.azimuth_divisions;
+    auto face_count = spec.azimuth.edge_count;
     assert(face_count > 2);
 
-    nz = spec.axis_divisions;
+    nz = spec.axis_edge_count;
     assert(nz > 0);
 
     size_t section_count = face_count;
     size_t section_face_count = 1;
 
-    assert(!spec.azimuth_smooth);
-    assert(spec.azimuth_interval.unit());
+    assert(!spec.azimuth.smooth);
+    assert(spec.azimuth.interval.unit());
 
     T t = T(1) / T(nz);
 
@@ -1948,8 +1949,8 @@ quetzal::id_type quetzal::model::create_cylinder_edges(M& mesh, const std::strin
 
     bool closed = true;
 
-    texture_span_type<M> ts0 = texture_span<T>(0, nz, cusped_lower, cusped_upper);
-    texture_span_type<M> ts1 = texture_span<T>(1, nz, cusped_lower, cusped_upper);
+    texture_span_type<M> ts0 = texture_span<M>(0, nz, cusped_lower, cusped_upper);
+    texture_span_type<M> ts1 = texture_span<M>(1, nz, cusped_lower, cusped_upper);
 
     id_type halfedge_id0 = mesh.halfedge_store_count();
 
@@ -1984,7 +1985,7 @@ quetzal::id_type quetzal::model::create_cylinder_edges(M& mesh, const std::strin
     {
         t = T(i) / T(nz);
         z1 = spec.axis_z_interval.lerp(t);
-        ts1 = texture_span<T>(i, nz, cusped_lower, cusped_upper);
+        ts1 = texture_span<M>(i, nz, cusped_lower, cusped_upper);
 
         r1 = fr(t);
         a1 = fa(t);
@@ -2051,10 +2052,10 @@ quetzal::id_type quetzal::model::create_cylinder_sections(M& mesh, const std::st
     assert(polygon.sections_full());
     size_t section_count = polygon.sections().value().size();
 
-    auto face_count = spec.azimuth_divisions;
+    auto face_count = spec.azimuth.edge_count;
     assert(face_count > 2);
 
-    nz = spec.axis_divisions;
+    nz = spec.axis_edge_count;
     assert(nz > 0);
 
     T t = T(1) / T(nz);
@@ -2077,8 +2078,8 @@ quetzal::id_type quetzal::model::create_cylinder_sections(M& mesh, const std::st
 
     bool closed = true;
 
-    texture_span_type<M> ts0 = texture_span<T>(0, nz, cusped_lower, cusped_upper);
-    texture_span_type<M> ts1 = texture_span<T>(1, nz, cusped_lower, cusped_upper);
+    texture_span_type<M> ts0 = texture_span<M>(0, nz, cusped_lower, cusped_upper);
+    texture_span_type<M> ts1 = texture_span<M>(1, nz, cusped_lower, cusped_upper);
 
     id_type halfedge_id0 = mesh.halfedge_store_count();
 
@@ -2114,7 +2115,7 @@ quetzal::id_type quetzal::model::create_cylinder_sections(M& mesh, const std::st
         t = T(i) / T(nz);
         z1 = spec.axis_z_interval.lerp(t);
         //ty1 = ty0 - t;
-        ts1 = texture_span<T>(i, nz, cusped_lower, cusped_upper);
+        ts1 = texture_span<M>(i, nz, cusped_lower, cusped_upper);
 
         r1 = fr(t);
         a1 = fa(t);
@@ -2179,7 +2180,7 @@ quetzal::id_type quetzal::model::create_cylinder(M& mesh, const std::string& nam
 
     CylinderSpecification<T> spec(polygon_holes.polygon().edge_count(), nz, T(0), T(0), z_lower, z_upper, properties);
 
-    nz = spec.axis_divisions;
+    nz = spec.axis_edge_count;
     assert(nz > 0);
 
     z_lower = spec.z_interval.lower();
@@ -2245,10 +2246,10 @@ quetzal::id_type quetzal::model::create_cylinder(M& mesh, const std::string& nam
 
     CylinderSpecification<T> spec(nAzimuth, nz, T(0), T(0), T(0), T(0), properties);
 
-    auto face_count = spec.azimuth_divisions;
+    auto face_count = spec.azimuth.edge_count;
     assert(face_count > 2);
 
-    nz = spec.axis_divisions;
+    nz = spec.axis_edge_count;
     assert(nz > 0);
 
     T t = T(1) / T(nz);
@@ -2262,22 +2263,22 @@ quetzal::id_type quetzal::model::create_cylinder(M& mesh, const std::string& nam
     T revs0 = fa(T(0));
     T revs1 = fa(t);
 
-    auto azimuth0 = shift(spec.azimuth_interval, revs0);
-    auto azimuth1 = shift(spec.azimuth_interval, revs1);
+    auto azimuth0 = shift(spec.azimuth.interval, revs0);
+    auto azimuth1 = shift(spec.azimuth.interval, revs1);
 
     bool cusped_lower = math::float_eq0(r0);
     bool cusped_upper = math::float_eq0(fr(T(1)));
-    assert(spec.azimuth_smooth);
+    assert(spec.azimuth.smooth);
 
-    auto ts0 = texture_span<T>(0, nz, cusped_lower, cusped_upper);
-    auto ts1 = texture_span<T>(1, nz, cusped_lower, cusped_upper);
+    auto ts0 = texture_span<M>(0, nz, cusped_lower, cusped_upper);
+    auto ts1 = texture_span<M>(1, nz, cusped_lower, cusped_upper);
 
     id_type halfedge_id0 = mesh.halfedge_store_count();
 
     id_type submesh_id = mesh.create_submesh(name);
     id_type surface_id = mesh.create_surface(submesh_id, SurfaceName::Body);
 
-     id_type j0_orig = mesh.halfedge_store_count();
+    id_type j0_orig = mesh.halfedge_store_count();
 
     if (cusped_lower)
     {
@@ -2298,7 +2299,7 @@ quetzal::id_type quetzal::model::create_cylinder(M& mesh, const std::string& nam
         r1 = fr(t);
         z1 = fz(t);
         revs1 = fa(t);
-        azimuth1 = shift(spec.azimuth_interval, revs1);
+        azimuth1 = shift(spec.azimuth.interval, revs1);
 
         j0_orig = mesh.halfedge_store_count();
 
@@ -2308,7 +2309,7 @@ quetzal::id_type quetzal::model::create_cylinder(M& mesh, const std::string& nam
         }
         else
         {
-            ts1 = texture_span<T>(i, nz, cusped_lower, cusped_upper);
+            ts1 = texture_span<M>(i, nz, cusped_lower, cusped_upper);
             connect_band(mesh, face_count, r1, z1, azimuth1, ts1, surface_id);
         }
     }
@@ -2349,10 +2350,10 @@ quetzal::id_type quetzal::model::create_cylinder(M& mesh, const std::string& nam
 
     CylinderSpecification<T> spec(nAzimuth, contour.edge_count(), contour.vertices().front().y(), contour.vertices().back().y(), contour.vertices().front().x(), contour.vertices().back().x(), properties);
 
-    nAzimuth = spec.azimuth_divisions;
+    nAzimuth = spec.azimuth.edge_count;
     assert(nAzimuth > 2);
 
-    size_t nz = spec.axis_divisions;
+    size_t nz = spec.axis_edge_count;
     assert(nz > 0);
 
     // support azimuth interval and closed ...
@@ -2369,28 +2370,28 @@ quetzal::id_type quetzal::model::create_cylinder(M& mesh, const std::string& nam
     T dd = contour.length();
     T d1 = contour.length(0, 1);
 
-    auto ts0 = texture_span<T>(T(0), nz, cusped_lower, cusped_upper);
-    auto ts1 = texture_span<T>(T(1), nz, cusped_lower, cusped_upper);
+    auto ts0 = texture_span<M>(T(0), nz, cusped_lower, cusped_upper);
+    auto ts1 = texture_span<M>(T(1), nz, cusped_lower, cusped_upper);
 
     id_type halfedge_id0 = mesh.halfedge_store_count();
 
     id_type submesh_id = mesh.create_submesh(name);
     id_type surface_id = mesh.create_surface(submesh_id, SurfaceName::Body);
 
-    auto face_count = spec.azimuth_divisions;
+    auto face_count = spec.azimuth.edge_count;
     id_type j0_orig = mesh.halfedge_store_count();
 
     if (cusped_lower)
     {
-        create_base_cusp(mesh, nAzimuth, r1, z0, z1, spec.azimuth_interval, ts1, surface_id, true);
+        create_base_cusp(mesh, nAzimuth, r1, z0, z1, spec.azimuth.interval, ts1, surface_id, true);
     }
     else if (nz == 1 && cusped_upper)
     {
-        create_apex_cusp(mesh, nAzimuth, r0, z0, z1, spec.azimuth_interval, ts0, surface_id);
+        create_apex_cusp(mesh, nAzimuth, r0, z0, z1, spec.azimuth.interval, ts0, surface_id);
     }
     else
     {
-        create_band(mesh, nAzimuth, r0, r1, z0, z1, spec.azimuth_interval, spec.azimuth_interval, ts0, ts1, surface_id, true);
+        create_band(mesh, nAzimuth, r0, r1, z0, z1, spec.azimuth.interval, spec.azimuth.interval, ts0, ts1, surface_id, true);
     }
 
     for (size_t i = 2; i <= nz; ++i)
@@ -2407,12 +2408,12 @@ quetzal::id_type quetzal::model::create_cylinder(M& mesh, const std::string& nam
 
         if (i == nz && cusped_upper)
         {
-            connect_apex_cusp(mesh, nAzimuth, z1, {r1, z1}, spec.azimuth_interval, surface_id, true, true);
+            connect_apex_cusp(mesh, nAzimuth, z1, {r1, z1}, spec.azimuth.interval, surface_id, true, true);
         }
         else
         {
-            ts1 = texture_span<T>(i, nz, cusped_lower, cusped_upper);
-            connect_band(mesh, nAzimuth, r1, z1, spec.azimuth_interval, ts1, surface_id, true, true);
+            ts1 = texture_span<M>(i, nz, cusped_lower, cusped_upper);
+            connect_band(mesh, nAzimuth, r1, z1, spec.azimuth.interval, ts1, surface_id, true, true);
         }
     }
 
@@ -2443,10 +2444,10 @@ quetzal::id_type quetzal::model::create_cylinder(M& mesh, const std::string& nam
 
     CylinderSpecification<T> spec(nAzimuth, contour.size() - 1, contour.front().y(), contour.back().y(), contour.front().x(), contour.back().x(), properties);
 
-    auto face_count = spec.azimuth_divisions;
+    auto face_count = spec.azimuth.edge_count;
     assert(face_count > 2);
 
-    size_t nz = spec.axis_divisions;
+    size_t nz = spec.axis_edge_count;
     assert(nz > 0);
 
     bool cusped_lower = math::float_eq0(spec.axis_radius_interval.lower());
@@ -2456,15 +2457,15 @@ quetzal::id_type quetzal::model::create_cylinder(M& mesh, const std::string& nam
     auto [z0, r0] = contour[0].rep();
     auto [z1, r1] = contour[1].rep();
 
-    auto ts0 = texture_span<T>(0, nz, cusped_lower, cusped_upper);
-    auto ts1 = texture_span<T>(1, nz, cusped_lower, cusped_upper);
+    auto ts0 = texture_span<M>(0, nz, cusped_lower, cusped_upper);
+    auto ts1 = texture_span<M>(1, nz, cusped_lower, cusped_upper);
 
     id_type halfedge_id0 = mesh.halfedge_store_count();
 
     id_type submesh_id = mesh.create_submesh(name);
     id_type surface_id0 = nullid;
 
-    bool bSmooth = spec.azimuth_smooth;
+    bool bSmooth = spec.azimuth.smooth;
     assert(bSmooth); // otherwise not supported ...
     if (bSmooth)
     {
@@ -2476,20 +2477,20 @@ quetzal::id_type quetzal::model::create_cylinder(M& mesh, const std::string& nam
         surface_id0 = create_section_surfaces(mesh, submesh_id, section_count, [](size_t i) { return surface_name(SurfaceName::BodySection, i); });
     }
 
-    auto face_count = spec.azimuth_divisions;
+    auto face_count = spec.azimuth.edge_count;
     id_type j0_orig = mesh.halfedge_store_count();
 
     if (cusped_lower)
     {
-        create_base_cusp(mesh, nAzimuth, r1, z0, z1, spec.azimuth_interval, ts1, surface_id0, closed, true);
+        create_base_cusp(mesh, nAzimuth, r1, z0, z1, spec.azimuth.interval, ts1, surface_id0, closed, true);
     }
     else if (nz == 1 && cusped_upper)
     {
-        create_apex_cusp(mesh, nAzimuth, r0, z0, z1, spec.azimuth_interval, surface_id0, closed, true);
+        create_apex_cusp(mesh, nAzimuth, r0, z0, z1, spec.azimuth.interval, surface_id0, closed, true);
     }
     else
     {
-        create_band(mesh, nAzimuth, r0, r1, z0, z1, spec.azimuth_interval, spec.azimuth_interval, ts0, ts1, surface_id0, closed, true);
+        create_band(mesh, nAzimuth, r0, r1, z0, z1, spec.azimuth.interval, spec.azimuth.interval, ts0, ts1, surface_id0, closed, true);
     }
 
     for (size_t i = 2; i <= nz; ++i)
@@ -2500,12 +2501,12 @@ quetzal::id_type quetzal::model::create_cylinder(M& mesh, const std::string& nam
 
         if (i == nz && cusped_upper)
         {
-            connect_apex_cusp(mesh, nAzimuth, z1, spec.azimuth_interval, surface_id0, closed, true);
+            connect_apex_cusp(mesh, nAzimuth, z1, spec.azimuth.interval, surface_id0, closed, true);
         }
         else
         {
-            ts1 = texture_span<T>(i, nz, cusped_lower, cusped_upper);
-            connect_band(mesh, nAzimuth, r1, z1, spec.azimuth_interval, ts1, surface_id0, closed, true);
+            ts1 = texture_span<M>(i, nz, cusped_lower, cusped_upper);
+            connect_band(mesh, nAzimuth, r1, z1, spec.azimuth.interval, ts1, surface_id0, closed, true);
         }
     }
 
@@ -2540,7 +2541,7 @@ quetzal::id_type quetzal::model::create_anticylinder(M& mesh, const std::string&
 {
     CylinderSpecification<data_value_type<M>> spec(nAzimuth, nz, radius_lower, radius_upper, z_lower, z_upper, properties);
 
-    if (spec.azimuth_smooth)
+    if (spec.azimuth.smooth)
     {
         return create_anticylinder(mesh, name, spec);
     }
@@ -2552,14 +2553,14 @@ quetzal::id_type quetzal::model::create_anticylinder(M& mesh, const std::string&
 template<typename M>
 quetzal::id_type quetzal::model::create_anticylinder(M& mesh, const std::string& name, const CylinderSpecification<data_value_type<M>>& spec)
 {
-    assert(spec.azimuth_smooth);
+    assert(spec.azimuth.smooth);
 
     using T = M::value_type;
 
-    size_t nAzimuth = spec.azimuth_divisions;
+    size_t nAzimuth = spec.azimuth.edge_count;
     assert(nAzimuth > 2);
 
-    size_t nz = spec.axis_divisions;
+    size_t nz = spec.axis_edge_count;
     assert(nz > 0);
 
     T t = T(1) / T(nz);
@@ -2574,8 +2575,8 @@ quetzal::id_type quetzal::model::create_anticylinder(M& mesh, const std::string&
 
     // should handle possibility of cusp here with dr != 0 ...
 
-    auto ts0 = texture_span<T>(0, nz, false, false);
-    auto ts1 = texture_span<T>(1, nz, false, false);
+    auto ts0 = texture_span<M>(0, nz, false, false);
+    auto ts1 = texture_span<M>(1, nz, false, false);
 
     id_type halfedge_id0 = mesh.halfedge_store_count();
 
@@ -2605,7 +2606,7 @@ quetzal::id_type quetzal::model::create_anticylinder(M& mesh, const std::string&
         {
             t = T(i) / T(nz);
             z1 = spec.axis_z_interval.lerp(t);
-            ts1 = texture_span<T>(i, nz, false, false);
+            ts1 = texture_span<M>(i, nz, false, false);
 
             if (math::even(i))
             {
@@ -2631,7 +2632,7 @@ quetzal::id_type quetzal::model::create_anticylinder(M& mesh, const std::string&
             t = T(i) / T(nz);
             r1 = spec.axis_radius_interval.lerp(t);
             z1 = spec.axis_z_interval.lerp(t);
-            ts1 = texture_span<T>(i, nz, false, false);
+            ts1 = texture_span<M>(i, nz, false, false);
 
             if (math::even(i))
             {
@@ -2654,14 +2655,14 @@ quetzal::id_type quetzal::model::create_anticylinder(M& mesh, const std::string&
 template<typename M>
 quetzal::id_type quetzal::model::create_anticylinder_faces(M& mesh, const std::string& name, const CylinderSpecification<data_value_type<M>>& spec)
 {
-    assert(!spec.azimuth_smooth);
+    assert(!spec.azimuth.smooth);
 
     using T = M::value_type;
 
-    size_t nAzimuth = spec.azimuth_divisions;
+    size_t nAzimuth = spec.azimuth.edge_count;
     assert(nAzimuth > 2);
 
-    size_t nz = spec.axis_divisions;
+    size_t nz = spec.axis_edge_count;
     assert(nz > 0);
 
     T t = T(1) / T(nz);
@@ -2742,10 +2743,10 @@ quetzal::id_type quetzal::model::create_sphere(M& mesh, const std::string& name,
 
     SphereSpecification<T> spec(nAzimuth, nElevation, radius, Properties{{"azimuth_smooth", "true"}} | properties);
 
-    nAzimuth = spec.azimuth_divisions;
+    nAzimuth = spec.azimuth.edge_count;
     assert(nAzimuth > 2);
 
-    nElevation = spec.elevation_divisions;
+    nElevation = spec.elevation_edge_count;
     assert(nElevation > 0);
 
     radius = spec.radius;
@@ -2773,8 +2774,8 @@ quetzal::id_type quetzal::model::create_sphere(M& mesh, const std::string& name,
     T z0 = radius * math::denoise011(sin(theta0));
     T z1 = radius * math::denoise011(sin(theta1));
 
-    auto ts0 = texture_span<T>(0, nElevation, cusped_lower, cusped_upper);
-    auto ts1 = texture_span<T>(1, nElevation, cusped_lower, cusped_upper);
+    auto ts0 = texture_span<M>(0, nElevation, cusped_lower, cusped_upper);
+    auto ts1 = texture_span<M>(1, nElevation, cusped_lower, cusped_upper);
 
     auto vertex_normal0 = [r0, z0](T phi) -> normal_vector_type<M>
     {
@@ -2800,16 +2801,16 @@ quetzal::id_type quetzal::model::create_sphere(M& mesh, const std::string& name,
     if (cusped_lower)
     {
         assert(math::float_eq(r0, T(0)));
-        create_base_cusp(mesh, nAzimuth, r1, z0, z1, spec.azimuth_interval, ts1, surface_id, vertex_normal0, vertex_normal1);
+        create_base_cusp(mesh, nAzimuth, r1, z0, z1, spec.azimuth.interval, ts1, surface_id, vertex_normal0, vertex_normal1);
     }
     else if (nElevation == 1 && cusped_upper)
     {
         assert(math::float_eq(r1, T(0)));
-        create_apex_cusp(mesh, nAzimuth, r0, z0, z1, spec.azimuth_interval, ts0, surface_id, vertex_normal0, vertex_normal1);
+        create_apex_cusp(mesh, nAzimuth, r0, z0, z1, spec.azimuth.interval, ts0, surface_id, vertex_normal0, vertex_normal1);
     }
     else
     {
-        create_band(mesh, nAzimuth, r0, r1, z0, z1, spec.azimuth_interval, spec.azimuth_interval, ts0, ts1, surface_id, vertex_normal0, vertex_normal1);
+        create_band(mesh, nAzimuth, r0, r1, z0, z1, spec.azimuth.interval, spec.azimuth.interval, ts0, ts1, surface_id, vertex_normal0, vertex_normal1);
     }
 
     for (size_t i = 2; i <= nElevation; ++i)
@@ -2820,16 +2821,16 @@ quetzal::id_type quetzal::model::create_sphere(M& mesh, const std::string& name,
 //        r1 = i == nElevation && cusped_upper ? T(0) : radius * math::denoise011(cos(theta1));
         r1 = radius * math::denoise011(cos(theta1));
         z1 = radius * math::denoise011(sin(theta1));
-        ts1 = texture_span<T>(i, nElevation, cusped_lower, cusped_upper);
+        ts1 = texture_span<M>(i, nElevation, cusped_lower, cusped_upper);
 
         if (i == nElevation && cusped_upper)
         {
             assert(z1 == radius);
-            connect_apex_cusp(mesh, nAzimuth, z1, spec.azimuth_interval, surface_id, vertex_normal1);
+            connect_apex_cusp(mesh, nAzimuth, z1, spec.azimuth.interval, surface_id, vertex_normal1);
         }
         else
         {
-            connect_band(mesh, nAzimuth, r1, z1, spec.azimuth_interval, ts1, surface_id, vertex_normal1);
+            connect_band(mesh, nAzimuth, r1, z1, spec.azimuth.interval, ts1, surface_id, vertex_normal1);
         }
     }
 
@@ -2845,7 +2846,7 @@ quetzal::id_type quetzal::model::create_sphere(M& mesh, const std::string& name,
 
     SphereSpecification<T> spec(nAzimuth, contour.edge_count(), T(0), properties);
 
-    size_t nAzimuth = spec.azimuth_divisions;
+    size_t nAzimuth = spec.azimuth.edge_count;
     assert(nAzimuth > 2);
 
     size_t nElevation = contour.edge_count();
@@ -2854,7 +2855,7 @@ quetzal::id_type quetzal::model::create_sphere(M& mesh, const std::string& name,
     // check that contour at ends is 0 too ...
     bool cusped_lower = math::float_eq0(spec.elevation_interval.lower());
     bool cusped_upper = math::float_eq(spec.elevation_interval.upper(), T(1));
-    assert(spec.azimuth_smooth); // otherwise not supported ...
+    assert(spec.azimuth.smooth); // otherwise not supported ...
 
     T t0 = contour.vertex(0).x();
     T t1 = contour.vertex(1).x();
@@ -2874,28 +2875,28 @@ quetzal::id_type quetzal::model::create_sphere(M& mesh, const std::string& name,
     T dd = contour.length();
     T d1 = contour.length(0, 1);
 
-    auto ts0 = texture_span<T>(T(0), cusped_lower, cusped_upper);
-    auto ts1 = texture_span<T>(d1 / dd, cusped_lower, cusped_upper);
+    auto ts0 = texture_span<M>(T(0), cusped_lower, cusped_upper);
+    auto ts1 = texture_span<M>(d1 / dd, cusped_lower, cusped_upper);
 
     id_type halfedge_id0 = mesh.halfedge_store_count();
 
     id_type submesh_id = mesh.create_submesh(name);
     id_type surface_id = mesh.create_surface(submesh_id, SurfaceName::Body);
 
-    auto face_count = spec.azimuth_divisions;
+    auto face_count = spec.azimuth.edge_count;
     id_type j0_orig = mesh.halfedge_store_count();
 
     if (cusped_lower)
     {
-        create_base_cusp(mesh, nAzimuth, r1, z0, z1, spec.azimuth_interval, ts1, surface_id);
+        create_base_cusp(mesh, nAzimuth, r1, z0, z1, spec.azimuth.interval, ts1, surface_id);
     }
     else if (nElevation == 1 && cusped_upper)
     {
-        create_apex_cusp(mesh, nAzimuth, r0, z0, z1, spec.azimuth_interval, surface_id);
+        create_apex_cusp(mesh, nAzimuth, r0, z0, z1, spec.azimuth.interval, surface_id);
     }
     else
     {
-        create_band(mesh, nAzimuth, r0, r1, z0, z1, spec.azimuth_interval, spec.azimuth_interval, ts0, ts1, surface_id);
+        create_band(mesh, nAzimuth, r0, r1, z0, z1, spec.azimuth.interval, spec.azimuth.interval, ts0, ts1, surface_id);
     }
 
     for (size_t i = 2; i <= nElevation; ++i)
@@ -2911,7 +2912,7 @@ quetzal::id_type quetzal::model::create_sphere(M& mesh, const std::string& name,
         {
             d1 = dd;
         }
-        ts1 = texture_span<T>(d1 / dd, cusped_lower, cusped_upper);
+        ts1 = texture_span<M>(d1 / dd, cusped_lower, cusped_upper);
 
         j0_orig = mesh.halfedge_store_count();
 
@@ -2919,11 +2920,11 @@ quetzal::id_type quetzal::model::create_sphere(M& mesh, const std::string& name,
         {
             T radius0 = contour.vertex(i - 1).y();
             assert(float_eq0(radius0));
-            connect_apex_cusp(mesh, nAzimuth, r1, spec.azimuth_interval, surface_id);
+            connect_apex_cusp(mesh, nAzimuth, r1, spec.azimuth.interval, surface_id);
         }
         else
         {
-            connect_band(mesh, nAzimuth, r1, z1, spec.azimuth_interval, ts1, surface_id);
+            connect_band(mesh, nAzimuth, r1, z1, spec.azimuth.interval, ts1, surface_id);
         }
     }
 
@@ -2960,8 +2961,8 @@ quetzal::id_type quetzal::model::create_sphere(M& mesh, const std::string& name,
     bool cusped_upper = math::float_eq(spec.elevation_interval.upper(), T(1));
 
     // requirements, otherwise not supported ...
-    assert(spec.azimuth_interval.unit());
-    assert(spec.azimuth_smooth);
+    assert(spec.azimuth.interval.unit());
+    assert(spec.azimuth.smooth);
 
     T t = T(1) / T(nElevation);
     T t0 = spec.elevation_interval.lower();
@@ -2984,28 +2985,28 @@ quetzal::id_type quetzal::model::create_sphere(M& mesh, const std::string& name,
     T z0 = radius0 * math::denoise011(sin(theta0));
     T z1 = radius1 * math::denoise011(sin(theta1));
 
-    auto ts0 = texture_span<T>(0, nElevation, cusped_lower, cusped_upper);
-    auto ts1 = texture_span<T>(1, nElevation, cusped_lower, cusped_upper);
+    auto ts0 = texture_span<M>(0, nElevation, cusped_lower, cusped_upper);
+    auto ts1 = texture_span<M>(1, nElevation, cusped_lower, cusped_upper);
 
     id_type halfedge_id0 = mesh.halfedge_store_count();
 
     id_type submesh_id = mesh.create_submesh(name);
     id_type surface_id = mesh.create_surface(submesh_id, SurfaceName::Body);
 
-    auto face_count = spec.azimuth_divisions;
+    auto face_count = spec.azimuth.edge_count;
     id_type j0_orig = mesh.halfedge_store_count();
 
     if (cusped_lower)
     {
-        create_base_cusp(mesh, nAzimuth, r1, z0, z1, spec.azimuth_interval, ts1, surface_id);
+        create_base_cusp(mesh, nAzimuth, r1, z0, z1, spec.azimuth.interval, ts1, surface_id);
     }
     else if (nElevation == 1 && cusped_upper)
     {
-        create_apex_cusp(mesh, nAzimuth, r0, z0, z1, spec.azimuth_interval, ts0, surface_id);
+        create_apex_cusp(mesh, nAzimuth, r0, z0, z1, spec.azimuth.interval, ts0, surface_id);
     }
     else
     {
-        create_band(mesh, nAzimuth, r0, r1, z0, z1, spec.azimuth_interval, spec.azimuth_interval, ts0, ts1, surface_id);
+        create_band(mesh, nAzimuth, r0, r1, z0, z1, spec.azimuth.interval, spec.azimuth.interval, ts0, ts1, surface_id);
     }
 
     for (size_t i = 2; i <= nElevation; ++i)
@@ -3017,18 +3018,18 @@ quetzal::id_type quetzal::model::create_sphere(M& mesh, const std::string& name,
         radius1 = fr(te1);
         r1 = radius1 * math::denoise011(cos(theta1));
         z1 = radius1 * math::denoise011(sin(theta1));
-        ts1 = texture_span<T>(i, nElevation, cusped_lower, cusped_upper);
+        ts1 = texture_span<M>(i, nElevation, cusped_lower, cusped_upper);
 
         j0_orig = mesh.halfedge_store_count();
 
         if (i == nElevation && cusped_upper)
         {
             assert(math::float_eq0(r1));
-            connect_apex_cusp(mesh, nAzimuth, z1, spec.azimuth_interval, surface_id);
+            connect_apex_cusp(mesh, nAzimuth, z1, spec.azimuth.interval, surface_id);
         }
         else
         {
-            connect_band(mesh, nAzimuth, r1, z1, spec.azimuth_interval, ts1, surface_id);
+            connect_band(mesh, nAzimuth, r1, z1, spec.azimuth.interval, ts1, surface_id);
         }
     }
 
@@ -3052,7 +3053,7 @@ quetzal::id_type quetzal::model::create_sphere(M& mesh, const std::string& name,
 
 //------------------------------------------------------------------------------
 template<typename M>
-quetzal::id_type quetzal::model::create_sphere2(M& mesh, const std::string& name, size_t nAzimuth, size_t nElevation, std::function<data_value_type<M>(data_value_type<M>, data_value_type<M>)> fr, const Properties& properties)
+quetzal::id_type quetzal::model::create_sphere(M& mesh, const std::string& name, size_t nAzimuth, size_t nElevation, std::function<data_value_type<M>(data_value_type<M>, data_value_type<M>)> fr, const Properties& properties)
 {
     using T = M::value_type;
 
@@ -3063,7 +3064,7 @@ quetzal::id_type quetzal::model::create_sphere2(M& mesh, const std::string& name
 
     bool cusped_lower = math::float_eq0(spec.elevation_interval.lower());
     bool cusped_upper = math::float_eq(spec.elevation_interval.upper(), T(1));
-    assert(spec.azimuth_smooth); // otherwise not supported ...
+    assert(spec.azimuth.smooth); // otherwise not supported ...
 
     T t = T(1) / T(nElevation);
     T t0 = spec.elevation_interval.lower();
@@ -3084,22 +3085,20 @@ quetzal::id_type quetzal::model::create_sphere2(M& mesh, const std::string& name
     T radius0 = fr(T(0), te0);
     T z0 = radius0 * sin_theta0;
 
-    auto ts0 = texture_span<T>(0, nElevation, cusped_lower, cusped_upper);
-    auto ts1 = texture_span<T>(1, nElevation, cusped_lower, cusped_upper);
+    auto ts0 = texture_span<M>(0, nElevation, cusped_lower, cusped_upper);
+    auto ts1 = texture_span<M>(1, nElevation, cusped_lower, cusped_upper);
 
     id_type halfedge_id0 = mesh.halfedge_store_count();
 
     id_type submesh_id = mesh.create_submesh(name);
     id_type surface_id = mesh.create_surface(submesh_id, SurfaceName::Body);
 
-    auto face_count = spec.azimuth_divisions;
+    auto face_count = spec.azimuth.edge_count;
     id_type j0_orig = mesh.halfedge_store_count();
 
     auto to_position = [&](T r, T ta, T cos_theta, T sin_theta) -> typename M::point_type
     {
         T phi = ta * math::PiTwo<T>;
-//        auto position = typename M::point_type{r * math::denoise011(cos(phi)) * cos_theta, r * math::denoise011(sin(phi)) * cos_theta, r * sin_theta};
-//        return position;
         return {r * math::denoise011(cos(phi)) * cos_theta, r * math::denoise011(sin(phi)) * cos_theta, r * sin_theta};
     };
 
@@ -3107,7 +3106,7 @@ quetzal::id_type quetzal::model::create_sphere2(M& mesh, const std::string& name
     {
         create_base_cusp(mesh, nAzimuth, z0,
             [&](T ta) -> typename M::point_type { return to_position(fr(ta, te1), ta, cos_theta1, sin_theta1); },
-            spec.azimuth_interval, ts1, surface_id);
+            spec.azimuth.interval, ts1, surface_id, [](T) {return -M::vector_type::z_direction(); });
     }
     else if (nElevation == 1 && cusped_upper)
     {
@@ -3115,14 +3114,14 @@ quetzal::id_type quetzal::model::create_sphere2(M& mesh, const std::string& name
         auto z1 = radius1 * math::denoise011(sin(theta1));
         create_apex_cusp(mesh, nAzimuth,
             [&](T ta) -> typename M::point_type { return to_position(fr(ta, te0), ta, cos_theta0, sin_theta0); },
-            z1, spec.azimuth_interval, ts0, surface_id);
+            z1, spec.azimuth.interval, ts0, surface_id);
     }
     else
     {
         create_band(mesh, nAzimuth,
             [&](T ta) -> typename M::point_type { return to_position(fr(ta, te0), ta, cos_theta0, sin_theta0); },
             [&](T ta) -> typename M::point_type { return to_position(fr(ta, te1), ta, cos_theta1, sin_theta1); },
-            spec.azimuth_interval, spec.azimuth_interval, ts0, ts1, surface_id);
+            spec.azimuth.interval, spec.azimuth.interval, ts0, ts1, surface_id);
     }
 
     for (size_t i = 2; i <= nElevation; ++i)
@@ -3133,7 +3132,7 @@ quetzal::id_type quetzal::model::create_sphere2(M& mesh, const std::string& name
         theta1 = te1 * math::Pi<T>;
         cos_theta1 = math::denoise011(cos(theta1));
         sin_theta1 = math::denoise011(sin(theta1));
-        ts1 = texture_span<T>(i, nElevation, cusped_lower, cusped_upper);
+        ts1 = texture_span<M>(i, nElevation, cusped_lower, cusped_upper);
 
         j0_orig = mesh.halfedge_store_count();
 
@@ -3141,13 +3140,13 @@ quetzal::id_type quetzal::model::create_sphere2(M& mesh, const std::string& name
         {
             auto radius1 = fr(0.0f, te1);
             auto z1 = radius1 * math::denoise011(sin(theta1));
-            connect_apex_cusp(mesh, nAzimuth, z1, spec.azimuth_interval, surface_id);
+            connect_apex_cusp(mesh, nAzimuth, z1, spec.azimuth.interval, surface_id);
         }
         else
         {
             connect_band(mesh, nAzimuth,
                 [&](T ta) -> typename M::point_type { return to_position(fr(ta, te1), ta, cos_theta1, sin_theta1); },
-                spec.azimuth_interval, ts1, surface_id);
+                spec.azimuth.interval, ts1, surface_id);
         }
     }
 
@@ -3177,10 +3176,10 @@ quetzal::id_type quetzal::model::create_torus(M& mesh, const std::string& name, 
 
     TorusSpecification<T> spec(nMajor, nMinor, rMajor, rMajor, rMinor, rMinor, properties);
 
-    nMajor = spec.major_divisions;
+    nMajor = spec.major_edge_count;
     assert(nMajor > 2);
 
-    nMinor = spec.minor_divisions;
+    nMinor = spec.minor.edge_count;
     assert(nMinor > 2);
 
     assert(spec.major_radius_interval.length() == T(0));
@@ -3195,7 +3194,7 @@ quetzal::id_type quetzal::model::create_torus(M& mesh, const std::string& name, 
     // phi measured from innermost points and with rotation reversed
 
     bool closed_major = spec.major_azimuth_interval.unit();
-    bool closed_minor = spec.minor_azimuth_interval.unit();
+    bool closed_minor = spec.minor.interval.unit();
 
     id_type halfedge_id0 = mesh.halfedge_store_count();
 
@@ -3230,8 +3229,8 @@ quetzal::id_type quetzal::model::create_torus(M& mesh, const std::string& name, 
             for (size_t j = 0; j <= nMinor; ++j)
             {
                 T s = T(j) / T(nMinor);
-T phi =  math::PiTwo<T> * (math::lerp(spec.minor_azimuth_interval.upper(), spec.minor_azimuth_interval.lower(), s) - T(0.5));
-//                T phi =  math::PiTwo<T> * (spec.minor_azimuth_interval.lerp(T(1) - s) - T(0.5)); // 1 - s? ...
+T phi =  math::PiTwo<T> * (math::lerp(spec.minor.interval.upper(), spec.minor.interval.lower(), s) - T(0.5));
+//                T phi =  math::PiTwo<T> * (spec.minor.interval.lerp(T(1) - s) - T(0.5)); // 1 - s? ...
 
                 if (j == nMinor && closed_minor)
                 {
@@ -3276,17 +3275,17 @@ quetzal::id_type quetzal::model::create_torus(M& mesh, const std::string& name, 
 
     TorusSpecification<T> spec(nMajor, nMinor, rMajor_lower, rMajor_upper, rMinor_lower, rMinor_upper, properties); // z ...
 
-    nMajor = spec.azimuth_divisions;
+    nMajor = spec.azimuth.edge_count;
     assert(nMajor > 2);
 
-    nMinor = spec.elevation_divisions;
+    nMinor = spec.elevation_edge_count;
     assert(nMinor > 2);
 
     // theta/major and phi/minor follow cylinder band orientation
     // phi measured from innermost points and with rotation reversed (? ...)
 
     bool bOpenMajor = !spec.major_azimuth_interval.unit() || spec.major_radius_interval.length != T(0) || spec.major_z_interval.length != T(0);
-    bool closed_minor = spec.minor_azimuth_interval.unit();
+    bool closed_minor = spec.minor.interval.unit();
     bool cusped_lower = math::float_eq0(spec.minor_radius_interval.lower());
     bool cusped_upper = math::float_eq0(spec.minor_radius_interval.upper());
 
@@ -3326,8 +3325,8 @@ quetzal::id_type quetzal::model::create_torus(M& mesh, const std::string& name, 
             for (size_t j = 0; j <= nMinor; ++j)
             {
                 T s = T(j) / T(nMinor);
-T phi =  math::PiTwo<T> * (math::lerp(spec.minor_azimuth_interval.upper(), spec.minor_azimuth_interval.lower(), s) - T(0.5));
-//                T phi =  math::PiTwo<T> * (spec.minor_azimuth_interval.lerp(T(1) - s) - T(0.5));
+T phi =  math::PiTwo<T> * (math::lerp(spec.minor.interval.upper(), spec.minor.interval.lower(), s) - T(0.5));
+//                T phi =  math::PiTwo<T> * (spec.minor.interval.lerp(T(1) - s) - T(0.5));
 
                 if (j == nMinor && closed_minor)
                 {
@@ -3375,10 +3374,10 @@ quetzal::id_type quetzal::model::create_torus(M& mesh, const std::string& name, 
 
     TorusSpecification<T> spec(nMajor, nMinor, frMajor(T(0)), frMajor(T(1)), frMinor(T(0)), frMinor(T(1)), properties); // z ...
 
-    nMajor = spec.azimuth_divisions;
+    nMajor = spec.azimuth.edge_count;
     assert(nMajor > 2);
 
-    nMinor = spec.elevation_divisions;
+    nMinor = spec.elevation_edge_count;
     assert(nMinor > 2);
 
     // theta/major and phi/minor follow cylinder band orientation
@@ -3386,7 +3385,7 @@ quetzal::id_type quetzal::model::create_torus(M& mesh, const std::string& name, 
 
 //    bool bOpenMajor = !spec.major_azimuth_interval.unit() || spec.major_radius_interval.length() != T(0) || spec.major_z_interval.length() != T(0);
     bool closed_major = !spec.major_azimuth_interval.unit(); // ...
-    bool closed_minor = spec.minor_azimuth_interval.unit();
+    bool closed_minor = spec.minor.interval.unit();
     bool cusped_lower = math::float_eq0(frMinor(T(0)));
     bool cusped_upper = math::float_eq0(frMinor(T(1)));
 
@@ -3421,8 +3420,8 @@ quetzal::id_type quetzal::model::create_torus(M& mesh, const std::string& name, 
             for (size_t j = 0; j <= nMinor; ++j)
             {
                 T s = T(j) / T(nMinor);
-T phi =  math::PiTwo<T> * (math::lerp(spec.minor_azimuth_interval.upper(), spec.minor_azimuth_interval.lower(), s) - T(0.5));
-//                T phi =  math::PiTwo<T> * (spec.minor_azimuth_interval.lerp(s) - T(0.5));
+T phi =  math::PiTwo<T> * (math::lerp(spec.minor.interval.upper(), spec.minor.interval.lower(), s) - T(0.5));
+//                T phi =  math::PiTwo<T> * (spec.minor.interval.lerp(s) - T(0.5));
 
                 T rMajor = frMajor(t, s);
                 T rMinor = frMinor(t, s);
@@ -4286,7 +4285,7 @@ quetzal::id_type quetzal::model::create_extrusion(M& mesh, const std::string& na
     CylinderSpecification<T> spec(polygon.edge_count(), 1, T(0), T(0), T(0), T(0), properties);
 
     size_t face_count = polygon.edge_count();
-    size_t nz = spec.axis_divisions; // nz > 1 not supported ...
+    size_t nz = spec.axis_edge_count; // nz > 1 not supported ...
 
     // this function is a mix of smooth and sectioned styles ...
 
@@ -4318,8 +4317,8 @@ assert(texcoord.y() == T(0) || texcoord.y() == T(1));
     id_type submesh_id = mesh.create_submesh(name);
     id_type surface_id0 = create_section_surfaces(mesh, submesh_id, section_count, [](size_t i) { return surface_name(SurfaceName::BodySection, i); });
 
-    auto ts0 = texture_span<T>(0, 1, false, false);
-    auto ts1 = texture_span<T>(1, 1, false, false);
+    auto ts0 = texture_span<M>(0, 1, false, false);
+    auto ts1 = texture_span<M>(1, 1, false, false);
 
     create_band(mesh, avs0, avs1, ts0, ts1, true, surface_id0, true);
 for (const auto& face : mesh.faces())
@@ -4350,7 +4349,7 @@ quetzal::id_type quetzal::model::create_extrusion(M& mesh, const std::string& na
     CylinderSpecification<T> spec(polygon_holes.polygon().edge_count(), 1, T(0), T(0), T(0), T(0), properties);
 
     size_t nAzimuth = polygon_holes.polygon().edge_count();
-    size_t nz = spec.axis_divisions; // nz > 1 not supported ...
+    size_t nz = spec.axis_edge_count; // nz > 1 not supported ...
 
     assert(nAzimuth > 2);
     assert(nz > 0);
@@ -4374,8 +4373,8 @@ quetzal::id_type quetzal::model::create_extrusion(M& mesh, const std::string& na
 
     for (size_t i = 0; i < nz; ++i)
     {
-        auto ts0 = texture_span<T>(0, 1, false, false);
-        auto ts1 = texture_span<T>(1, 1, false, false);
+        auto ts0 = texture_span<M>(0, 1, false, false);
+        auto ts1 = texture_span<M>(1, 1, false, false);
 
         //  weird to have a band per axis division, is this intentional ...
         id_type surface_id = mesh.create_surface(submesh_id, surface_name(SurfaceName::BodySection, surface_id0));
@@ -4447,15 +4446,15 @@ quetzal::id_type quetzal::model::create_swept_volume(M& mesh, const std::string&
 
     CylinderSpecification<T> spec(face_count, nz, T(0), T(0), T(0), T(0), properties);
 
-    assert(spec.azimuth_smooth);
-    assert(spec.azimuth_interval.unit());
+    assert(spec.azimuth.smooth);
+    assert(spec.azimuth.interval.unit());
 
     bool cusped_lower = false;
     bool cusped_upper = false;
     bool closed = true;
 
-    auto ts0 = texture_span<T>(0, nz, cusped_lower, cusped_upper);
-    auto ts1 = texture_span<T>(1, nz, cusped_lower, cusped_upper);
+    auto ts0 = texture_span<M>(0, nz, cusped_lower, cusped_upper);
+    auto ts1 = texture_span<M>(1, nz, cusped_lower, cusped_upper);
 
     id_type halfedge_id0 = mesh.halfedge_store_count();
 
@@ -4470,7 +4469,7 @@ quetzal::id_type quetzal::model::create_swept_volume(M& mesh, const std::string&
 
     for (size_t i = 2; i <= nz; ++i)
     {
-        ts1 = texture_span<T>(i, nz, cusped_lower, cusped_upper);
+        ts1 = texture_span<M>(i, nz, cusped_lower, cusped_upper);
 
         j0_orig = mesh.halfedge_store_count();
 
@@ -4504,15 +4503,15 @@ quetzal::id_type quetzal::model::create_swept_volume_edges(M& mesh, const std::s
     size_t section_count = face_count;
     size_t section_face_count = 1;
 
-    assert(!spec.azimuth_smooth);
-    assert(spec.azimuth_interval.unit());
+    assert(!spec.azimuth.smooth);
+    assert(spec.azimuth.interval.unit());
 
     bool cusped_lower = false;
     bool cusped_upper = false;
     bool closed = true;
 
-    auto ts0 = texture_span<T>(0, nz, cusped_lower, cusped_upper);
-    auto ts1 = texture_span<T>(1, nz, cusped_lower, cusped_upper);
+    auto ts0 = texture_span<M>(0, nz, cusped_lower, cusped_upper);
+    auto ts1 = texture_span<M>(1, nz, cusped_lower, cusped_upper);
 
     id_type halfedge_id0 = mesh.halfedge_store_count();
 
@@ -4527,7 +4526,7 @@ quetzal::id_type quetzal::model::create_swept_volume_edges(M& mesh, const std::s
 
     for (size_t i = 2; i <= nz; ++i)
     {
-        ts1 = texture_span<T>(i, nz, cusped_lower, cusped_upper);
+        ts1 = texture_span<M>(i, nz, cusped_lower, cusped_upper);
 
         j0_orig = mesh.halfedge_store_count();
 
@@ -4567,15 +4566,15 @@ quetzal::id_type quetzal::model::create_swept_volume_sections(M& mesh, const std
 
     assert(polygon.sections_full());
     size_t section_count = polygon.sections().value().size();
-    assert(section_count == 1 && spec.azimuth_smooth || !spec.azimuth_smooth); 
-    assert(spec.azimuth_interval.unit());
+    assert(section_count == 1 && spec.azimuth.smooth || !spec.azimuth.smooth); 
+    assert(spec.azimuth.interval.unit());
 
     bool cusped_lower = false;
     bool cusped_upper = false;
     bool closed = true;
 
-    auto ts0 = texture_span<T>(0, nz, cusped_lower, cusped_upper);
-    auto ts1 = texture_span<T>(1, nz, cusped_lower, cusped_upper);
+    auto ts0 = texture_span<M>(0, nz, cusped_lower, cusped_upper);
+    auto ts1 = texture_span<M>(1, nz, cusped_lower, cusped_upper);
 
     id_type halfedge_id0 = mesh.halfedge_store_count();
 
@@ -4590,7 +4589,7 @@ quetzal::id_type quetzal::model::create_swept_volume_sections(M& mesh, const std
 
     for (size_t i = 2; i <= nz; ++i)
     {
-        ts1 = texture_span<T>(i, nz, cusped_lower, cusped_upper);
+        ts1 = texture_span<M>(i, nz, cusped_lower, cusped_upper);
 
         j0_orig = mesh.halfedge_store_count();
 
@@ -4627,18 +4626,18 @@ quetzal::id_type quetzal::model::create_swept_volume(M& mesh, const std::string&
 
     CylinderSpecification<T> spec(nAzimuth, nz, T(0), T(0), T(0), T(0), properties);
 
-    assert(spec.azimuth_smooth); // need another version for sections ...
-    assert(spec.azimuth_interval.unit());
-    assert(spec.azimuth_divisions == polygon.edge_count());
+    assert(spec.azimuth.smooth); // need another version for sections ...
+    assert(spec.azimuth.interval.unit());
+    assert(spec.azimuth.edge_count == polygon.edge_count());
 
-    size_t face_count = spec.azimuth_divisions;
+    size_t face_count = spec.azimuth.edge_count;
     bool closed = true;
 
     id_type halfedge_id0 = mesh.halfedge_store_count();
 
     id_type submesh_id = mesh.create_submesh(name);
     id_type surface_id0 = nullid;
-    if (spec.azimuth_smooth)
+    if (spec.azimuth.smooth)
     {
         surface_id0 = mesh.create_surface(submesh_id, SurfaceName::Body);
     }
@@ -4649,8 +4648,8 @@ quetzal::id_type quetzal::model::create_swept_volume(M& mesh, const std::string&
 
     T t = T(1) / T(nz); // Should be relative distance along the path ...
 
-    auto ts0 = texture_span<T>(0, nz, false, false);
-    auto ts1 = texture_span<T>(1, nz, false, false);
+    auto ts0 = texture_span<M>(0, nz, false, false);
+    auto ts1 = texture_span<M>(1, nz, false, false);
 
     auto avs0 = vertices_attributes<M>(f(polygon, T(0)), path[0], ts0);
     auto avs1 = vertices_attributes<M>(f(polygon, t), path[1], ts1);
@@ -4662,7 +4661,7 @@ quetzal::id_type quetzal::model::create_swept_volume(M& mesh, const std::string&
     for (size_t i = 2; i <= nz; ++i)
     {
         t = T(i) / T(nz);
-        ts1 = texture_span<T>(i, nz, false, false);
+        ts1 = texture_span<M>(i, nz, false, false);
         avs1 = vertices_attributes<M>(f(polygon, t), path[i], ts1);
 
         j0_orig = mesh.halfedge_store_count();
@@ -4687,10 +4686,10 @@ quetzal::id_type quetzal::model::create_swept_volume(M& mesh, const std::string&
 
     CylinderSpecification<T> spec(polygon.edge_count(), path.size() - 1, T(0), T(0), T(0), T(0), properties);
 
-    auto face_count = spec.azimuth_divisions;
+    auto face_count = spec.azimuth.edge_count;
     assert(face_count > 2);
 
-    size_t nz = spec.axis_divisions;
+    size_t nz = spec.axis_edge_count;
     assert(nz > 0);
 
     T t = T(1) / T(nz);
@@ -4713,8 +4712,8 @@ quetzal::id_type quetzal::model::create_swept_volume(M& mesh, const std::string&
 
     bool closed = true;
 
-    texture_span_type<M> ts0 = texture_span<T>(0, nz, cusped_lower, cusped_upper);
-    texture_span_type<M> ts1 = texture_span<T>(1, nz, cusped_lower, cusped_upper);
+    texture_span_type<M> ts0 = texture_span<M>(0, nz, cusped_lower, cusped_upper);
+    texture_span_type<M> ts1 = texture_span<M>(1, nz, cusped_lower, cusped_upper);
 
     id_type halfedge_id0 = mesh.halfedge_store_count();
 
@@ -4749,7 +4748,7 @@ quetzal::id_type quetzal::model::create_swept_volume(M& mesh, const std::string&
     {
         t = T(i) / T(nz);
         point1 = path[i];
-        ts1 = texture_span<T>(i, nz, cusped_lower, cusped_upper);
+        ts1 = texture_span<M>(i, nz, cusped_lower, cusped_upper);
 
         r1 = fr(t);
         a1 = fa ? fa.value()(t) : T(0);
@@ -4798,17 +4797,17 @@ quetzal::id_type quetzal::model::create_swept_volume_edges(M& mesh, const std::s
 
     CylinderSpecification<T> spec(polygon.edge_count(), path.size() - 1, T(0), T(0), T(0), T(0), properties);
 
-    auto face_count = spec.azimuth_divisions;
+    auto face_count = spec.azimuth.edge_count;
     assert(face_count > 2);
 
-    size_t nz = spec.axis_divisions;
+    size_t nz = spec.axis_edge_count;
     assert(nz > 0);
 
     size_t section_count = face_count;
     size_t section_face_count = 1;
 
-    assert(!spec.azimuth_smooth);
-    assert(spec.azimuth_interval.unit());
+    assert(!spec.azimuth.smooth);
+    assert(spec.azimuth.interval.unit());
 
     T t = T(1) / T(nz);
 
@@ -4830,8 +4829,8 @@ quetzal::id_type quetzal::model::create_swept_volume_edges(M& mesh, const std::s
 
     bool closed = true;
 
-    texture_span_type<M> ts0 = texture_span<T>(0, nz, cusped_lower, cusped_upper);
-    texture_span_type<M> ts1 = texture_span<T>(1, nz, cusped_lower, cusped_upper);
+    texture_span_type<M> ts0 = texture_span<M>(0, nz, cusped_lower, cusped_upper);
+    texture_span_type<M> ts1 = texture_span<M>(1, nz, cusped_lower, cusped_upper);
 
     id_type halfedge_id0 = mesh.halfedge_store_count();
 
@@ -4866,7 +4865,7 @@ quetzal::id_type quetzal::model::create_swept_volume_edges(M& mesh, const std::s
     {
         t = T(i) / T(nz);
         point1 = path[i];
-        ts1 = texture_span<T>(i, nz, cusped_lower, cusped_upper);
+        ts1 = texture_span<M>(i, nz, cusped_lower, cusped_upper);
 
         r1 = fr(t);
         a1 = fa ? fa.value()(t) : T(0);
@@ -4933,10 +4932,10 @@ quetzal::id_type quetzal::model::create_swept_volume_sections(M& mesh, const std
     assert(polygon.sections_full());
     size_t section_count = polygon.sections().value().size();
 
-    auto face_count = spec.azimuth_divisions;
+    auto face_count = spec.azimuth.edge_count;
     assert(face_count > 2);
 
-    size_t nz = spec.axis_divisions;
+    size_t nz = spec.axis_edge_count;
     assert(nz > 0);
 
     T t = T(1) / T(nz);
@@ -4959,8 +4958,8 @@ quetzal::id_type quetzal::model::create_swept_volume_sections(M& mesh, const std
 
     bool closed = true;
 
-    texture_span_type<M> ts0 = texture_span<T>(0, nz, cusped_lower, cusped_upper);
-    texture_span_type<M> ts1 = texture_span<T>(1, nz, cusped_lower, cusped_upper);
+    texture_span_type<M> ts0 = texture_span<M>(0, nz, cusped_lower, cusped_upper);
+    texture_span_type<M> ts1 = texture_span<M>(1, nz, cusped_lower, cusped_upper);
 
     id_type halfedge_id0 = mesh.halfedge_store_count();
 
@@ -4995,7 +4994,7 @@ quetzal::id_type quetzal::model::create_swept_volume_sections(M& mesh, const std
     {
         t = T(i) / T(nz);
         point1 = path[i];
-        ts1 = texture_span<T>(i, nz, cusped_lower, cusped_upper);
+        ts1 = texture_span<M>(i, nz, cusped_lower, cusped_upper);
 
         r1 = fr(t);
         a1 = fa ? fa.value()(t) : T(0);

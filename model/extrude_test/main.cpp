@@ -68,41 +68,41 @@ int main(int argc, char* argv[])
     name = "star6_extrusion";
     cout << name << endl;
     mesh.clear();
-    model::create_extrusion(mesh, name, polygon, {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f, 40.0f});
+    model::create_extrusion(mesh, name, polygon, {0.0f, 0.0f, 40.0f});
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 
-    geometry::PolygonWithHoles<vector_traits> polygons;
-    polygons.polygon() = model::create_square<vector_traits>(40.0f);
+    geometry::PolygonWithHoles<vector_traits> polygon_holes;
+    polygon_holes.polygon() = model::create_square<vector_traits>(40.0f);
 
     polygon = model::create_circle<vector_traits>(7.0f, 4);
     geometry::Polygon<vector_traits> hole = polygon;
     model::translate(hole, {-9.0f, -9.0f, 0.0f});
-    polygons.holes().push_back(hole);
+    polygon_holes.holes().push_back(hole);
 
     hole = polygon;
     model::translate(hole, {9.0f, -9.0f, 0.0f});
-    polygons.holes().push_back(hole);
+    polygon_holes.holes().push_back(hole);
 
     hole = polygon;
     model::translate(hole, {9.0f, 9.0f, 0.0f});
-    polygons.holes().push_back(hole);
+    polygon_holes.holes().push_back(hole);
 
     hole = polygon;
     model::translate(hole, {-9.0f, 9.0f, 0.0f});
-    polygons.holes().push_back(hole);
+    polygon_holes.holes().push_back(hole);
 
     name = "holes_cylinder";
     cout << name << endl;
     mesh.clear();
-    model::create_cylinder(mesh, name, 1, 0.0f, 40.0f, polygons);
+    model::create_cylinder(mesh, name, 1, 0.0f, 40.0f, polygon_holes);
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 
     name = "holes_extrusion";
     cout << name << endl;
     mesh.clear();
-    model::create_extrusion(mesh, name, polygons, {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f, 40.0f});
+    model::create_extrusion(mesh, name, polygon_holes, {0.0f, 0.0f, 40.0f});
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 

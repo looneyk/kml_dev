@@ -143,12 +143,10 @@ namespace quetzal::math
         constexpr static Vector direction();
 
         constexpr static Vector direction(size_t i);
-        constexpr static Vector x_direction() requires (Traits::dimension == 1);
-        constexpr static Vector x_direction() requires (Traits::dimension == 2);
-        constexpr static Vector x_direction() requires (Traits::dimension == 3);
-        constexpr static Vector y_direction() requires (Traits::dimension == 2);
-        constexpr static Vector y_direction() requires (Traits::dimension == 3);
-        constexpr static Vector z_direction() requires (Traits::dimension == 3);
+
+        constexpr static Vector x_direction() requires (Traits::dimension >= 1);
+        constexpr static Vector y_direction() requires (Traits::dimension >= 2);
+        constexpr static Vector z_direction() requires (Traits::dimension >= 3);
 
     private:
 
@@ -807,44 +805,29 @@ constexpr quetzal::math::Vector<Traits> quetzal::math::Vector<Traits>::direction
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-constexpr quetzal::math::Vector<Traits> quetzal::math::Vector<Traits>::x_direction() requires (Traits::dimension == 1)
+constexpr quetzal::math::Vector<Traits> quetzal::math::Vector<Traits>::x_direction() requires (Traits::dimension >= 1)
 {
-    return {value_type(1)};
+    Vector<Traits> v;
+    v[0] = value_type(1);
+    return v;
 }
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-constexpr quetzal::math::Vector<Traits> quetzal::math::Vector<Traits>::x_direction() requires (Traits::dimension == 2)
+constexpr quetzal::math::Vector<Traits> quetzal::math::Vector<Traits>::y_direction() requires (Traits::dimension >= 2)
 {
-    return {value_type(1), value_type(0)};
+    Vector<Traits> v;
+    v[1] = value_type(1);
+    return v;
 }
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-constexpr quetzal::math::Vector<Traits> quetzal::math::Vector<Traits>::x_direction() requires (Traits::dimension == 3)
+constexpr quetzal::math::Vector<Traits> quetzal::math::Vector<Traits>::z_direction() requires (Traits::dimension >= 3)
 {
-    return {value_type(1), value_type(0), value_type(0)};
-}
-
-//------------------------------------------------------------------------------
-template<typename Traits>
-constexpr quetzal::math::Vector<Traits> quetzal::math::Vector<Traits>::y_direction() requires (Traits::dimension == 2)
-{
-    return {value_type(0), value_type(1)};
-}
-
-//------------------------------------------------------------------------------
-template<typename Traits>
-constexpr quetzal::math::Vector<Traits> quetzal::math::Vector<Traits>::y_direction() requires (Traits::dimension == 3)
-{
-    return {value_type(0), value_type(1), value_type(0)};
-}
-
-//------------------------------------------------------------------------------
-template<typename Traits>
-constexpr quetzal::math::Vector<Traits> quetzal::math::Vector<Traits>::z_direction() requires (Traits::dimension == 3)
-{
-    return {value_type(0), value_type(0), value_type(1)};
+    Vector<Traits> v;
+    v[2] = value_type(1);
+    return v;
 }
 
 //------------------------------------------------------------------------------

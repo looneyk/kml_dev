@@ -111,7 +111,7 @@ int main(int argc, char* argv[])
     name = "cylinder_left_half";
     cout << name << endl;
     mesh.clear();
-    model::create_cylinder(mesh, name, 6, 10, 5.0f, -10.0f, 10.0f, {{"azimuth_lower", "0.25"}, {"azimuth_upper", "0.75"}, {"azimuth_style", "direct"}});
+    model::create_cylinder(mesh, name, 6, 10, 5.0f, -10.0f, 10.0f, {{"azimuth_lower", "0.25"}, {"azimuth_upper", "0.75"}, {"azimuth_style", "butt"}});
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 
@@ -125,21 +125,21 @@ int main(int argc, char* argv[])
     name = "cylinder_right_half";
     cout << name << endl;
     mesh.clear();
-    model::create_cylinder(mesh, name, 6, 10, 5.0f, -10.0f, 10.0f, {{"azimuth_lower", "-0.25"}, {"azimuth_upper", "0.25"}, {"azimuth_style", "direct"}});
+    model::create_cylinder(mesh, name, 6, 10, 5.0f, -10.0f, 10.0f, {{"azimuth_lower", "-0.25"}, {"azimuth_upper", "0.25"}, {"azimuth_style", "butt"}});
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 
     name = "cylinder_quarter";
     cout << name << endl;
     mesh.clear();
-    model::create_cylinder(mesh, name, 3, 10, 5.0f, -10.0f, 10.0f, {{"azimuth_lower", "-0.125"}, {"azimuth_upper", "0.125"}, {"azimuth_style", "direct"}});
+    model::create_cylinder(mesh, name, 3, 10, 5.0f, -10.0f, 10.0f, {{"azimuth_lower", "-0.125"}, {"azimuth_upper", "0.125"}, {"azimuth_style", "butt"}});
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 
     name = "cylinder_three_quarter";
     cout << name << endl;
     mesh.clear();
-    model::create_cylinder(mesh, name, 9, 10, 5.0f, -10.0f, 10.0f, {{"azimuth_lower", "0.125"}, {"azimuth_upper", "0.875"}, {"azimuth_style", "direct"}});
+    model::create_cylinder(mesh, name, 9, 10, 5.0f, -10.0f, 10.0f, {{"azimuth_lower", "0.125"}, {"azimuth_upper", "0.875"}, {"azimuth_style", "butt"}});
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 
@@ -268,28 +268,28 @@ int main(int argc, char* argv[])
     name = "cone_up_left_half";
     cout << name << endl;
     mesh.clear();
-    model::create_cylinder(mesh, name, 6, 6, 7.5f, 0.0f, -10.0f, 10.0f, {{"azimuth_lower", "0.25"}, {"azimuth_upper", "0.75"}, {"azimuth_style", "direct"}});
+    model::create_cylinder(mesh, name, 6, 6, 7.5f, 0.0f, -10.0f, 10.0f, {{"azimuth_lower", "0.25"}, {"azimuth_upper", "0.75"}, {"azimuth_style", "butt"}});
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 
     name = "cone_up_right_half";
     cout << name << endl;
     mesh.clear();
-    model::create_cylinder(mesh, name, 6, 6, 7.5f, 0.0f, -10.0f, 10.0f, {{"azimuth_lower", "-0.25"}, {"azimuth_upper", "0.25"}, {"azimuth_style", "direct"}});
+    model::create_cylinder(mesh, name, 6, 6, 7.5f, 0.0f, -10.0f, 10.0f, {{"azimuth_lower", "-0.25"}, {"azimuth_upper", "0.25"}, {"azimuth_style", "butt"}});
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 
     name = "cone_up_quarter";
     cout << name << endl;
     mesh.clear();
-    model::create_cylinder(mesh, name, 3, 6, 7.5f, 0.0f, -10.0f, 10.0f, {{"azimuth_lower", "-0.125"}, {"azimuth_upper", "0.125"}, {"azimuth_style", "direct"}});
+    model::create_cylinder(mesh, name, 3, 6, 7.5f, 0.0f, -10.0f, 10.0f, {{"azimuth_lower", "-0.125"}, {"azimuth_upper", "0.125"}, {"azimuth_style", "butt"}});
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 
     name = "cone_up_three_quarter";
     cout << name << endl;
     mesh.clear();
-    model::create_cylinder(mesh, name, 9, 6, 7.5f, 0.0f, -10.0f, 10.0f, {{"azimuth_lower", "0.125"}, {"azimuth_upper", "0.875"}, {"azimuth_style", "direct"}});
+    model::create_cylinder(mesh, name, 9, 6, 7.5f, 0.0f, -10.0f, 10.0f, {{"azimuth_lower", "0.125"}, {"azimuth_upper", "0.875"}, {"azimuth_style", "butt"}});
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 
@@ -317,28 +317,28 @@ int main(int argc, char* argv[])
     name = "cone_down_left_half";
     cout << name << endl;
     mesh.clear();
-    model::create_cylinder(mesh, name, 6, 6, 0.0f, 7.5f, -10.0f, 10.0f, {{"azimuth_lower", "0.25"}, {"azimuth_upper", "0.75"}, {"azimuth_style", "direct"}});
+    model::create_cylinder(mesh, name, 6, 6, 0.0f, 7.5f, -10.0f, 10.0f, {{"azimuth_lower", "0.25"}, {"azimuth_upper", "0.75"}, {"azimuth_style", "butt"}});
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 
     name = "cone_down_right_half";
     cout << name << endl;
     mesh.clear();
-    model::create_cylinder(mesh, name, 6, 6, 0.0f, 7.5f, -10.0f, 10.0f, {{"azimuth_lower", "-0.25"}, {"azimuth_upper", "0.25"}, {"azimuth_style", "direct"}});
+    model::create_cylinder(mesh, name, 6, 6, 0.0f, 7.5f, -10.0f, 10.0f, {{"azimuth_lower", "-0.25"}, {"azimuth_upper", "0.25"}, {"azimuth_style", "butt"}});
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 
     name = "cone_down_quarter";
     cout << name << endl;
     mesh.clear();
-    model::create_cylinder(mesh, name, 3, 6, 0.0f, 7.5f, -10.0f, 10.0f, {{"azimuth_lower", "-0.125"}, {"azimuth_upper", "0.125"}, {"azimuth_style", "direct"}});
+    model::create_cylinder(mesh, name, 3, 6, 0.0f, 7.5f, -10.0f, 10.0f, {{"azimuth_lower", "-0.125"}, {"azimuth_upper", "0.125"}, {"azimuth_style", "butt"}});
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 
     name = "cone_down_three_quarter";
     cout << name << endl;
     mesh.clear();
-    model::create_cylinder(mesh, name, 9, 6, 0.0f, 7.5f, -10.0f, 10.0f, {{"azimuth_lower", "0.125"}, {"azimuth_upper", "0.875"}, {"azimuth_style", "direct"}});
+    model::create_cylinder(mesh, name, 9, 6, 0.0f, 7.5f, -10.0f, 10.0f, {{"azimuth_lower", "0.125"}, {"azimuth_upper", "0.875"}, {"azimuth_style", "butt"}});
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 
@@ -387,28 +387,28 @@ int main(int argc, char* argv[])
     name = "pyramid_up_left_half";
     cout << name << endl;
     mesh.clear();
-    model::create_prism(mesh, name, 6, 6, 7.5f, 0.0f, -10.0f, 10.0f, {{"azimuth_lower", "0.25"}, {"azimuth_upper", "0.75"}, {"azimuth_style", "direct"}});
+    model::create_prism(mesh, name, 6, 6, 7.5f, 0.0f, -10.0f, 10.0f, {{"azimuth_lower", "0.25"}, {"azimuth_upper", "0.75"}, {"azimuth_style", "butt"}});
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 
     name = "pyramid_up_right_half";
     cout << name << endl;
     mesh.clear();
-    model::create_prism(mesh, name, 6, 6, 7.5f, 0.0f, -10.0f, 10.0f, {{"azimuth_lower", "-0.25"}, {"azimuth_upper", "0.25"}, {"azimuth_style", "direct"}});
+    model::create_prism(mesh, name, 6, 6, 7.5f, 0.0f, -10.0f, 10.0f, {{"azimuth_lower", "-0.25"}, {"azimuth_upper", "0.25"}, {"azimuth_style", "butt"}});
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 
     name = "pyramid_up_quarter";
     cout << name << endl;
     mesh.clear();
-    model::create_prism(mesh, name, 3, 6, 7.5f, 0.0f, -10.0f, 10.0f, {{"azimuth_lower", "-0.125"}, {"azimuth_upper", "0.125"}, {"azimuth_style", "direct"}});
+    model::create_prism(mesh, name, 3, 6, 7.5f, 0.0f, -10.0f, 10.0f, {{"azimuth_lower", "-0.125"}, {"azimuth_upper", "0.125"}, {"azimuth_style", "butt"}});
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 
     name = "pyramid_up_three_quarter";
     cout << name << endl;
     mesh.clear();
-    model::create_prism(mesh, name, 9, 6, 7.5f, 0.0f, -10.0f, 10.0f, {{"azimuth_lower", "0.125"}, {"azimuth_upper", "0.875"}, {"azimuth_style", "direct"}});
+    model::create_prism(mesh, name, 9, 6, 7.5f, 0.0f, -10.0f, 10.0f, {{"azimuth_lower", "0.125"}, {"azimuth_upper", "0.875"}, {"azimuth_style", "butt"}});
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 
@@ -436,28 +436,28 @@ int main(int argc, char* argv[])
     name = "pyramid_down_left_half";
     cout << name << endl;
     mesh.clear();
-    model::create_prism(mesh, name, 6, 6, 0.0f, 7.5f, -10.0f, 10.0f, {{"azimuth_lower", "0.25"}, {"azimuth_upper", "0.75"}, {"azimuth_style", "direct"}});
+    model::create_prism(mesh, name, 6, 6, 0.0f, 7.5f, -10.0f, 10.0f, {{"azimuth_lower", "0.25"}, {"azimuth_upper", "0.75"}, {"azimuth_style", "butt"}});
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 
     name = "pyramid_down_right_half";
     cout << name << endl;
     mesh.clear();
-    model::create_prism(mesh, name, 6, 6, 0.0f, 7.5f, -10.0f, 10.0f, {{"azimuth_lower", "-0.25"}, {"azimuth_upper", "0.25"}, {"azimuth_style", "direct"}});
+    model::create_prism(mesh, name, 6, 6, 0.0f, 7.5f, -10.0f, 10.0f, {{"azimuth_lower", "-0.25"}, {"azimuth_upper", "0.25"}, {"azimuth_style", "butt"}});
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 
     name = "pyramid_down_quarter";
     cout << name << endl;
     mesh.clear();
-    model::create_prism(mesh, name, 3, 6, 0.0f, 7.5f, -10.0f, 10.0f, {{"azimuth_lower", "-0.125"}, {"azimuth_upper", "0.125"}, {"azimuth_style", "direct"}});
+    model::create_prism(mesh, name, 3, 6, 0.0f, 7.5f, -10.0f, 10.0f, {{"azimuth_lower", "-0.125"}, {"azimuth_upper", "0.125"}, {"azimuth_style", "butt"}});
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 
     name = "pyramid_down_three_quarter";
     cout << name << endl;
     mesh.clear();
-    model::create_prism(mesh, name, 9, 6, 0.0f, 7.5f, -10.0f, 10.0f, {{"azimuth_lower", "0.125"}, {"azimuth_upper", "0.875"}, {"azimuth_style", "direct"}});
+    model::create_prism(mesh, name, 9, 6, 0.0f, 7.5f, -10.0f, 10.0f, {{"azimuth_lower", "0.125"}, {"azimuth_upper", "0.875"}, {"azimuth_style", "butt"}});
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 
@@ -513,28 +513,28 @@ int main(int argc, char* argv[])
     name = "sphere_left_half";
     cout << name << endl;
     mesh.clear();
-    model::create_sphere(mesh, name, 12, 12, 10.0f, {{"azimuth_lower", "0.25"}, {"azimuth_upper", "0.75"}, {"azimuth_style", "direct"}});
+    model::create_sphere(mesh, name, 12, 12, 10.0f, {{"azimuth_lower", "0.25"}, {"azimuth_upper", "0.75"}, {"azimuth_style", "butt"}});
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 
     name = "sphere_right_half";
     cout << name << endl;
     mesh.clear();
-    model::create_sphere(mesh, name, 12, 12, 10.0f, {{"azimuth_lower", "-0.25"}, {"azimuth_upper", "0.25"}, {"azimuth_style", "direct"}});
+    model::create_sphere(mesh, name, 12, 12, 10.0f, {{"azimuth_lower", "-0.25"}, {"azimuth_upper", "0.25"}, {"azimuth_style", "butt"}});
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 
     name = "sphere_quarter";
     cout << name << endl;
     mesh.clear();
-    model::create_sphere(mesh, name, 6, 12, 10.0f, {{"azimuth_lower", "-0.125"}, {"azimuth_upper", "0.125"}, {"azimuth_style", "direct"}});
+    model::create_sphere(mesh, name, 6, 12, 10.0f, {{"azimuth_lower", "-0.125"}, {"azimuth_upper", "0.125"}, {"azimuth_style", "butt"}});
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 
     name = "sphere_three_quarter";
     cout << name << endl;
     mesh.clear();
-    model::create_sphere(mesh, name, 18, 12, 10.0f, {{"azimuth_lower", "0.125"}, {"azimuth_upper", "0.875"}, {"azimuth_style", "direct"}});
+    model::create_sphere(mesh, name, 18, 12, 10.0f, {{"azimuth_lower", "0.125"}, {"azimuth_upper", "0.875"}, {"azimuth_style", "butt"}});
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 
@@ -576,7 +576,7 @@ int main(int argc, char* argv[])
     name = "sphere_top_three_quarter_flat";
     cout << name << endl;
     mesh.clear();
-    model::create_sphere(mesh, name, 18, 6, 10.0f, {{"azimuth_lower", "0.125"}, {"azimuth_upper", "0.875"}, {"azimuth_style", "direct"}, {"elevation_lower", "0.5"}, {"elevation_upper", "1.0"}});
+    model::create_sphere(mesh, name, 18, 6, 10.0f, {{"azimuth_lower", "0.125"}, {"azimuth_upper", "0.875"}, {"azimuth_style", "butt"}, {"elevation_lower", "0.5"}, {"elevation_upper", "1.0"}});
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 
@@ -590,7 +590,7 @@ int main(int argc, char* argv[])
     name = "sphere_bottom_three_quarter_flat";
     cout << name << endl;
     mesh.clear();
-    model::create_sphere(mesh, name, 18, 6, 10.0f, {{"azimuth_lower", "0.125"}, {"azimuth_upper", "0.875"}, {"azimuth_style", "direct"}, {"elevation_lower", "0.0"}, {"elevation_upper", "0.5"}});
+    model::create_sphere(mesh, name, 18, 6, 10.0f, {{"azimuth_lower", "0.125"}, {"azimuth_upper", "0.875"}, {"azimuth_style", "butt"}, {"elevation_lower", "0.0"}, {"elevation_upper", "0.5"}});
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 
@@ -604,7 +604,7 @@ int main(int argc, char* argv[])
     name = "sphere_middle_three_quarter_flat";
     cout << name << endl;
     mesh.clear();
-    model::create_sphere(mesh, name, 18, 6, 10.0f, {{"azimuth_lower", "0.125"}, {"azimuth_upper", "0.875"}, {"azimuth_style", "direct"}, {"elevation_lower", "0.25"}, {"elevation_upper", "0.75"}});
+    model::create_sphere(mesh, name, 18, 6, 10.0f, {{"azimuth_lower", "0.125"}, {"azimuth_upper", "0.875"}, {"azimuth_style", "butt"}, {"elevation_lower", "0.25"}, {"elevation_upper", "0.75"}});
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 
@@ -630,7 +630,14 @@ int main(int argc, char* argv[])
     mesh.clear();
     model::create_sphere(mesh, name, 4, 2, 10.0f);
     model::write_obj(mesh, to_filename(name));
-
+/*
+    name = "antisphere";
+    cout << name << endl;
+    mesh.clear();
+    model::create_antisphere(mesh, name, 12, 6, 10.0f);
+    triangulate(mesh);
+    model::write_obj(mesh, to_filename(name));
+*/
     name = "torus";
     cout << name << endl;
     mesh.clear();
@@ -648,56 +655,56 @@ int main(int argc, char* argv[])
     name = "torus_top_half";
     cout << name << endl;
     mesh.clear();
-    model::create_torus(mesh, name, 24, 6, 15.0f, 7.5f, {{"minor_azimuth_lower", "0.5"}, {"minor_azimuth_upper", "1.0"}, {"minor_style", "direct"}});
+    model::create_torus(mesh, name, 24, 6, 15.0f, 7.5f, {{"minor_azimuth_lower", "0.5"}, {"minor_azimuth_upper", "1.0"}, {"minor_style", "butt"}});
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 
     name = "torus_bottom_half";
     cout << name << endl;
     mesh.clear();
-    model::create_torus(mesh, name, 24, 6, 15.0f, 7.5f, {{"minor_azimuth_lower", "0.0"}, {"minor_azimuth_upper", "0.5"}, {"minor_style", "direct"}});
+    model::create_torus(mesh, name, 24, 6, 15.0f, 7.5f, {{"minor_azimuth_lower", "0.0"}, {"minor_azimuth_upper", "0.5"}, {"minor_style", "butt"}});
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 
     name = "torus_bottom_quarter";
     cout << name << endl;
     mesh.clear();
-    model::create_torus(mesh, name, 24, 3, 15.0f, 7.5f, {{"minor_azimuth_lower", "0.125"}, {"minor_azimuth_upper", "0.375"}, {"minor_style", "direct"}});
+    model::create_torus(mesh, name, 24, 3, 15.0f, 7.5f, {{"minor_azimuth_lower", "0.125"}, {"minor_azimuth_upper", "0.375"}, {"minor_style", "butt"}});
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 
     name = "torus_bottom_three_quarter";
     cout << name << endl;
     mesh.clear();
-    model::create_torus(mesh, name, 24, 9, 15.0f, 7.5f, {{"minor_azimuth_lower", "-0.125"}, {"minor_azimuth_upper", "0.625"}, {"minor_style", "direct"}});
+    model::create_torus(mesh, name, 24, 9, 15.0f, 7.5f, {{"minor_azimuth_lower", "-0.125"}, {"minor_azimuth_upper", "0.625"}, {"minor_style", "butt"}});
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 
     name = "torus_inward_slant";
     cout << name << endl;
     mesh.clear();
-    model::create_torus(mesh, name, 24, 6, 15.0f, 7.5f, {{"minor_azimuth_lower", "0.125"}, {"minor_azimuth_upper", "0.625"}, {"minor_style", "direct"}});
+    model::create_torus(mesh, name, 24, 6, 15.0f, 7.5f, {{"minor_azimuth_lower", "0.125"}, {"minor_azimuth_upper", "0.625"}, {"minor_style", "butt"}});
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 
     name = "torus_outward_slant";
     cout << name << endl;
     mesh.clear();
-    model::create_torus(mesh, name, 24, 6, 15.0f, 7.5f, {{"minor_azimuth_lower", "-0.125"}, {"minor_azimuth_upper", "0.375"}, {"minor_style", "direct"}});
+    model::create_torus(mesh, name, 24, 6, 15.0f, 7.5f, {{"minor_azimuth_lower", "-0.125"}, {"minor_azimuth_upper", "0.375"}, {"minor_style", "butt"}});
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 
     name = "torus_inside_half";
     cout << name << endl;
     mesh.clear();
-    model::create_torus(mesh, name, 24, 6, 15.0f, 7.5f, {{"minor_azimuth_lower", "-0.25"}, {"minor_azimuth_upper", "0.25"}, {"minor_style", "direct"}});
+    model::create_torus(mesh, name, 24, 6, 15.0f, 7.5f, {{"minor_azimuth_lower", "-0.25"}, {"minor_azimuth_upper", "0.25"}, {"minor_style", "butt"}});
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 
     name = "torus_outside_half";
     cout << name << endl;
     mesh.clear();
-    model::create_torus(mesh, name, 24, 6, 15.0f, 7.5f, {{"minor_azimuth_lower", "0.25"}, {"minor_azimuth_upper", "0.75"}, {"minor_style", "direct"}});
+    model::create_torus(mesh, name, 24, 6, 15.0f, 7.5f, {{"minor_azimuth_lower", "0.25"}, {"minor_azimuth_upper", "0.75"}, {"minor_style", "butt"}});
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 

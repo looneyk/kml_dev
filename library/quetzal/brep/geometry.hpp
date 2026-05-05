@@ -131,12 +131,6 @@ namespace quetzal::brep
     template<typename Traits>
     geometry::Polygon<typename Traits::vector_traits> to_polygon(const Hole<Traits>& hole);
 
-    template<typename Traits>
-    geometry::Plane<typename Traits::vector_traits> to_plane(const Surface<Traits>& face);
-
-    template<typename Traits>
-    geometry::HalfSpace<typename Traits::vector_traits> to_halfspace(const Surface<Traits>& face);
-
     // This follows the seams of the surface and returns a polygon for each. There is no expectation that the returned "polygon" is planar.
     template<typename Traits>
     std::vector<geometry::Polygon<typename Traits::vector_traits>> to_polygon(const Surface<Traits>& surface);
@@ -155,6 +149,7 @@ Instead of this, add optional or default identity projection to the functions ab
     geometry::Polygon<typename geometry::Projection<typename Traits::vector_traits>::projected_traits> to_polygon(const Surface<Traits>& surface, const geometry::Projection<typename Traits::vector_traits>& projection);
 */
     // area functions calculate the total signed area based on winding order (CCW positive, CW negative)
+    // if moved to class, all area functions would be called surface_area ...
 
     template<typename Traits>
     typename Traits::value_type face_area(const Face<Traits>& face);
@@ -162,6 +157,9 @@ Instead of this, add optional or default identity projection to the functions ab
     // Works with Surface, Submesh, and Mesh
     template<typename U>
     typename U::value_type surface_area(const U& u);
+
+    // these should probably just be member functions in the corresponding classes ...
+    // reconsider the separation of geometry functionality from brep objects; just create a block of geometric operations in each class ...
 
     // Returns -1, 0, 1: interior, boundary, exterior
     template<typename Traits>
@@ -171,8 +169,7 @@ Instead of this, add optional or default identity projection to the functions ab
     bool face_contains(const Face<Traits>& face, const typename Traits::point_type& point);
 
     // Works with Surface, Submesh, and Mesh
-    // Assumes surface is planar
-    // No, the way it's currently written, each face in the surface needs to be planar
+    // For surface, this is undefined unless the surface is known to be planar, this is not checked here
     template<typename U>
     std::partial_ordering surface_compare(const U& u, const typename U::attributes_type::point_type& point);
 
@@ -181,6 +178,7 @@ Instead of this, add optional or default identity projection to the functions ab
     bool surface_contains(const U& u, const typename U::attributes_type::point_type& point);
 
 // solid_... does not work with bConvex false ...
+// using the ray intersction count approach correctly would be fine whether or not it is convex ...
 
     // Returns -1, 0, 1: interior, boundary, exterior
     // Works with Submesh and Mesh
@@ -514,20 +512,6 @@ quetzal::geometry::Polygon<typename Traits::vector_traits> quetzal::brep::to_pol
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-quetzal::geometry::Plane<typename Traits::vector_traits> quetzal::brep::to_plane(const Surface<Traits>& surface)
-{
-    return {surface.faces().front().halfedge().vertex_attributes().position(), surface.attributes().normal()};
-}
-
-//------------------------------------------------------------------------------
-template<typename Traits>
-quetzal::geometry::HalfSpace<typename Traits::vector_traits> quetzal::brep::to_halfspace(const Surface<Traits>& surface)
-{
-    return {{surface.faces().front().halfedge().vertex_attributes().position(), surface.attributes().normal()}};
-}
-
-//------------------------------------------------------------------------------
-template<typename Traits>
 std::vector<quetzal::geometry::Polygon<typename Traits::vector_traits>> quetzal::brep::to_polygon(const Surface<Traits>& surface)
 {
     std::vector<geometry::Polygon<typename Traits::vector_traits>> polygons(surface.seam_count());
@@ -713,7 +697,7 @@ std::partial_ordering quetzal::brep::solid_compare(const U& u, const typename U:
         return bBoundary ? std::partial_ordering::equivalent : std::partial_ordering::less;
     }
 
-// neeed better algorithm, like one that works ...
+// need better algorithm, like one that works ...
 
     using T = U::value_type;
 

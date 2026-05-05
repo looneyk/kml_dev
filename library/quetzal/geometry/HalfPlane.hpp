@@ -49,6 +49,7 @@ namespace quetzal::geometry
 
         line_type m_line;
         vector_type m_exterior_direction;
+        mutable std::optional<plane_type> m_plane;
     };
 
     template<typename Traits> requires (Traits::dimension >= 2)
@@ -61,7 +62,8 @@ template<typename Traits> requires (Traits::dimension >= 2)
 quetzal::geometry::HalfPlane<Traits>::HalfPlane(const line_type& line, const vector_type& exterior_direction) :
     PointRelation<Traits>(),
     m_line(line),
-    m_exterior_direction(exterior_direction)
+    m_exterior_direction(exterior_direction),
+    m_plane(std::nullopt)
 {
 }
 
@@ -83,7 +85,12 @@ const typename quetzal::geometry::HalfPlane<Traits>::vector_type& quetzal::geome
 template<typename Traits> requires (Traits::dimension >= 2)
 quetzal::geometry::HalfPlane<Traits>::plane_type quetzal::geometry::HalfPlane<Traits>::plane() const requires (Traits::dimension >= 3)
 {
-    return {m_line.point(), normalize(cross(m_line.direction(), m_exterior_direction))};
+    if (!m_plane)
+    {
+        m_plane.emplace(m_line.point(), math::normalize(math::cross(m_line.direction(), m_exterior_direction)));
+    }
+
+    return *m_plane;
 }
 
 //------------------------------------------------------------------------------

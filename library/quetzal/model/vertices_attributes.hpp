@@ -21,12 +21,15 @@
 #include <cassert>
 
 // remove normal placeholders? ...
-// default ts parameters to x [0, 1]? see if y can be defaulted ... 
+// default ts parameters to u [0, 1]?
 
 // nAzimuth here refers to the number of edges and nAzimuth + 1 attributes ard produced in most cases here so that we will have the starting and ending attributes for each face generated from this without the need to deal with the seam edge case 
 // The first and last attributes will have the same position and possibly normal, but the texcoord will be different for the seam
 // texcoords are calculated linearly distributed along the curve, and not for a polygonal surface section
 // texcoords for that case or for the single face/surface per edge case can easily be calulated after
+
+// The surface vertex normal at a cusp is defined as the vector perpendicular to the edge and directed outward
+// This is the surface normal of a perfect cone in that direction, what the face normal would converge to as nAzimuth approaches infinity
 
 namespace quetzal::model
 {
@@ -37,13 +40,10 @@ namespace quetzal::model
     template<typename M>
     using azimuth_interval_type = math::Interval<data_value_type<M>>;
 
-    // The surface vertex normal at a cusp is defined as the vector perpendicular to the edge and directed outward
-    // This is the surface normal of a perfect cone in that direction, what the face normal would converge to as nAzimuth approaches infinity
-
-    // typically used for prototype normal vector at the turn 0 position
     template<typename M>
     using normal_vector_type = M::vector_type;
 
+    // {u0, u1, v}
     template<typename M>
     using texture_span_type = std::array<data_value_type<M>, 3>;
 
@@ -214,7 +214,10 @@ namespace quetzal::model
     template<typename Traits>
     vertices_attributes_type<Traits> vertices_attributes(const brep::Surface<Traits>& surface);
 
-    // note that Interval shift is relative, but this is absolute ...
+    template<typename M>
+    texture_span_type<M> shift(const texture_span_type<M>& ts, data_value_type<M> t);
+
+    // note that Interval shift is relative, but this is absolute, this is not actually a shift ...
 
     template<typename M>
     vertices_attributes_type<M> shift(vertices_attributes_type<M>& avs, data_value_type<M> z, std::optional<texture_span_type<M>> ts = std::nullopt);
@@ -267,7 +270,7 @@ namespace internal
     std::array<size_t, 2> section(const geometry::Polygon<typename M::vector_traits>& polygon, size_t n)
     {
         assert(polygon.sections());
-        const auto& sections = polygon.sections().value();
+        auto& sections = *polygon.sections();
         size_t section_count = sections.size();
 
         size_t edge_count = polygon.edge_count();
@@ -571,7 +574,7 @@ template<typename M>
 quetzal::model::vertices_attributes_sections_type<M> quetzal::model::vertices_attributes_sections(const geometry::Polygon<typename M::vector_traits>& polygon, std::optional<data_value_type<M>> z, texture_span_type<M> ts)
 {
     assert(polygon.sections_full());
-    size_t section_count = polygon.sections().value().size();
+    size_t section_count = (*polygon.sections()).size();
 
     vertices_attributes_sections_type<M> avss(section_count);
 
@@ -596,7 +599,7 @@ template<typename M>
 quetzal::model::vertices_attributes_sections_type<M> quetzal::model::vertices_attributes_sections(const geometry::Polygon<typename M::vector_traits>& polygon, std::optional<data_value_type<M>> z, data_value_type<M> scale, data_value_type<M> revs, texture_span_type<M> ts)
 {
     assert(polygon.sections_full());
-    size_t section_count = polygon.sections().value().size();
+    size_t section_count = (*polygon.sections()).size();
 
     vertices_attributes_sections_type<M> avss(section_count);
 
@@ -927,7 +930,7 @@ template<typename M>
 quetzal::model::vertices_attributes_sections_type<M> quetzal::model::cusp_vertices_attributes_sections(const geometry::Polygon<typename M::vector_traits>& polygon, data_value_type<M> z, texture_span_type<M> ts)
 {
     assert(polygon.sections_full());
-    size_t section_count = polygon.sections().value().size();
+    size_t section_count = (*polygon.sections()).size();
 
     vertices_attributes_sections_type<M> avss(section_count);
 
@@ -1045,6 +1048,13 @@ quetzal::model::vertices_attributes_type<Traits> quetzal::model::vertices_attrib
 
 //------------------------------------------------------------------------------
 template<typename M>
+quetzal::model::texture_span_type<M> quetzal::model::shift(const texture_span_type<M>& ts, data_value_type<M> t)
+{
+    return {ts[0] + t, ts[1] + t, ts[2]};
+}
+
+//------------------------------------------------------------------------------
+template<typename M>
 quetzal::model::vertices_attributes_type<M> quetzal::model::shift(vertices_attributes_type<M>& avs, data_value_type<M> z, std::optional<texture_span_type<M>> ts)
 {
     size_t nAzimuth = avs.size() - 1;
@@ -1063,7 +1073,7 @@ quetzal::model::vertices_attributes_type<M> quetzal::model::shift(vertices_attri
 
         if (ts)
         {
-            av.texcoord().set_y(ts.value()[2]);
+            av.texcoord().set_y((*ts)[2]);
         }
     }
 
@@ -1092,7 +1102,7 @@ quetzal::model::vertices_attributes_type<M> quetzal::model::shift(vertices_attri
 
         if (ts)
         {
-            av.texcoord().set_y(ts.value()[2]);
+            av.texcoord().set_y((*ts)[2]);
         }
     }
 

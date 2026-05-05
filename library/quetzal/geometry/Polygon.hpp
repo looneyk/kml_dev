@@ -36,6 +36,7 @@ namespace quetzal::geometry
     // Note that planarity is assumed but not often enforced
     // Results of centroid, area, normal, and plane are undefined if the polygon is non-planar or degenerate
     // Sections: nullopt - smooth, empty - edge-based, otherwise sequential section start edge ids
+    // (ids for polygon vertices are just array positions)
 
     //--------------------------------------------------------------------------
     template<typename Traits>
@@ -84,6 +85,8 @@ namespace quetzal::geometry
 
         point_type centroid() const;
         point_type vertex_centroid() const; // The geometric mean of all vertices
+
+        // instead of passing in normal for areas, just use internal normal ...
 
         value_type area() const requires (Traits::dimension == 2);
         value_type area(const vector_type& normal) const requires (Traits::dimension == 3);
@@ -144,6 +147,7 @@ namespace quetzal::geometry
         void set_final(const vector_type& right = vector_type::x_direction()) requires (Traits::dimension == 2);
         void set_final(const vector_type& normal = vector_type::z_direction(), const vector_type& right = vector_type::x_direction()) requires (Traits::dimension == 3);
         // set_final_normal, set_final_right to allow for the other to be calculated? ...
+        // 3D right optional? ...
         // reset_final? ...
 
     private:

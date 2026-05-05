@@ -49,7 +49,7 @@ namespace
 
     //--------------------------------------------------------------------------
     template<typename M>
-    id_type create_spherical_harmonic(M& mesh, const std::string& name, size_t nAzimuth, size_t nElevation, value_type scale, std::function<double(double)> fr)
+    id_type create_spherical_harmonic1(M& mesh, const std::string& name, size_t nAzimuth, size_t nElevation, value_type scale, std::function<double(double)> fr)
     {
         id_type submesh_id = model::create_sphere(mesh, name, nAzimuth, nElevation, [fr](value_type te) -> value_type { return static_cast<value_type>(abs(fr(elevation_to_polar(double(te)) * math::Pi<double>))); });
         model::transform(mesh.submesh(submesh_id), geometry::scaling(scale));
@@ -60,7 +60,7 @@ namespace
     template<typename M>
     id_type create_spherical_harmonic2(M& mesh, const std::string& name, size_t nAzimuth, size_t nElevation, value_type scale, std::function<double(double, double)> fr)
     {
-        id_type submesh_id = model::create_sphere2(mesh, name, nAzimuth, nElevation, [fr](value_type ta, value_type te) -> value_type { return static_cast<value_type>(abs(fr(elevation_to_polar(double(te)) * math::Pi<double>, double(ta) * math::PiTwo<double>))); }); // squared instead of abs? ...
+        id_type submesh_id = model::create_sphere(mesh, name, nAzimuth, nElevation, [fr](value_type ta, value_type te) -> value_type { return static_cast<value_type>(abs(fr(elevation_to_polar(double(te)) * math::Pi<double>, double(ta) * math::PiTwo<double>))); }); // squared instead of abs? ...
         model::transform(mesh.submesh(submesh_id), geometry::scaling(scale));
         return submesh_id;
     }
@@ -79,7 +79,7 @@ int main(int argc, char* argv[])
     string name;
     id_type submesh_id = nullid;
 
-    // Create all spherical harmonics using create_sphere2
+    // Create all spherical harmonics using create_sphere with a 2 parameter radius function
 
     for (int l = 0; l <= degree_max; ++l)
     {
@@ -95,14 +95,14 @@ int m = 0;
         }
     }
 
-    // Create spherical harmonics with m = 0 using create_sphere
+    // Create spherical harmonics with m = 0 using create_sphere with a 1 parameter radius function
 
     for (int l = 0; l <= 3; ++l)
     {
         name = std::format("spherical_harmonic_{}_0_", l);
         cout << name << endl;
         mesh.clear();
-        submesh_id = create_spherical_harmonic(mesh, name, 24, 100, 10.0f, [l] (double theta) { return math::real_spherical_harmonic_function(l, 0)(theta, 0.0); });
+        submesh_id = create_spherical_harmonic1(mesh, name, 24, 100, 10.0f, [l] (double theta) { return math::real_spherical_harmonic_function(l, 0)(theta, 0.0); });
         triangulate(mesh.submesh(submesh_id));
         model::write_obj(mesh, to_filename(name));
     }
