@@ -65,8 +65,5 @@
     <ClCompile Include="math_xm.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="math_util.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
   </ItemGroup>
 </Project>

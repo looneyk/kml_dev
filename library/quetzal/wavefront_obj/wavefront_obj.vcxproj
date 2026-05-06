@@ -29,7 +29,6 @@
   <ItemGroup>
     <ClCompile Include="Material.cpp" />
     <ClCompile Include="MaterialLibrary.cpp" />
-    <ClCompile Include="reader_util.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{1102EB46-6B14-42FB-A24E-A39E643763F4}</ProjectGuid>

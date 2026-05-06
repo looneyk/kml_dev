@@ -3,10 +3,10 @@
 // MaterialLibrary.hpp
 //------------------------------------------------------------------------------
 
-#include <iostream>
 #include "MaterialLibrary.hpp"
 #include "reader_util.hpp"
 #include "symbols.hpp"
+#include <cassert>
 
 using namespace std;
 

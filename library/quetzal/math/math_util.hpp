@@ -145,7 +145,7 @@ namespace quetzal::math
     template<typename V> requires (V::dimension == 2)
     typename V::value_type diamond_angle(const V& v);
 
-    size_t triangular_number(size_t n);
+    constexpr size_t triangular_number(size_t n);
 
 } // namespace quetzal::math
 
@@ -384,6 +384,12 @@ typename V::value_type quetzal::math::diamond_angle(const V& v)
     }
 
     return x < T(0) ? T(2) - y / (-x - y) : T(3) + x / (x - y);
+}
+
+//------------------------------------------------------------------------------
+constexpr size_t quetzal::math::triangular_number(size_t n)
+{
+    return n * (n - 1) / 2;
 }
 
 #endif // QUETZAL_MATH_MATH_UTIL_HPP

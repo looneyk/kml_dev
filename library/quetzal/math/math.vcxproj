@@ -266,7 +266,6 @@
     <ClInclude Include="vector_util.hpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="math_util.cpp" />
     <ClCompile Include="math_xm.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
