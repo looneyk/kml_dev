@@ -36,9 +36,6 @@
     <ClInclude Include="stl_io.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="SurfaceName.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="helix_anticylinder.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>

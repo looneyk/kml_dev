@@ -762,67 +762,67 @@ int main(int argc, char* argv[])
     name = "icosahedron_face";
     cout << name << endl;
     mesh.clear();
-    model::create_icosahedron(mesh, name, 10.0f, false, false);
+    model::create_icosahedron(mesh, name, 10.0f, false, {{"smooth", "false"}});
     model::write_obj(mesh, to_filename(name));
 
     name = "icosahedron_vertex_spherical";
     cout << name << endl;
     mesh.clear();
-    model::create_icosahedron(mesh, name, 10.0f, true, true);
+    model::create_icosahedron(mesh, name, 10.0f, true, {{"smooth", "true"}});
     model::write_obj(mesh, to_filename(name));
 
     name = "icosahedron_face_spherical";
     cout << name << endl;
     mesh.clear();
-    model::create_icosahedron(mesh, name, 10.0f, false, true);
+    model::create_icosahedron(mesh, name, 10.0f, false, {{"smooth", "true"}});
     model::write_obj(mesh, to_filename(name));
 
     name = "d20";
     cout << name << endl;
     mesh.clear();
-    model::create_icosahedron(mesh, name, 12.0f, false, false);
+    model::create_icosahedron(mesh, name, 12.0f, false, {{"smooth", "false"}});
     model::write_obj(mesh, to_filename(name));
 
     name = "geodesic_sphere_1";
     cout << name << endl;
     mesh.clear();
-    model::create_geodesic_sphere(mesh, name, 10.0f, 1, false, false);
+    model::create_geodesic_sphere(mesh, name, 10.0f, 1, false);
     model::write_obj(mesh, to_filename(name));
 
     name = "geodesic_sphere_2";
     cout << name << endl;
     mesh.clear();
-    model::create_geodesic_sphere(mesh, name, 10.0f, 2, false, false);
+    model::create_geodesic_sphere(mesh, name, 10.0f, 2, false);
     model::write_obj(mesh, to_filename(name));
 
     name = "geodesic_sphere_3";
     cout << name << endl;
     mesh.clear();
-    model::create_geodesic_sphere(mesh, name, 10.0f, 3, false, false);
+    model::create_geodesic_sphere(mesh, name, 10.0f, 3, false);
     model::write_obj(mesh, to_filename(name));
 
     name = "geodesic_sphere_4";
     cout << name << endl;
     mesh.clear();
-    model::create_geodesic_sphere(mesh, name, 10.0f, 4, false, false);
+    model::create_geodesic_sphere(mesh, name, 10.0f, 4, false);
     model::write_obj(mesh, to_filename(name));
 
     name = "geodesic_sphere_5";
     cout << name << endl;
     mesh.clear();
-    model::create_geodesic_sphere(mesh, name, 10.0f, 5, false, false);
+    model::create_geodesic_sphere(mesh, name, 10.0f, 5, false);
     model::write_obj(mesh, to_filename(name));
 
     name = "geodesic_sphere_6";
     cout << name << endl;
     mesh.clear();
-    model::create_geodesic_sphere(mesh, name, 10.0f, 6, false, false);
+    model::create_geodesic_sphere(mesh, name, 10.0f, 6, false);
     model::write_obj(mesh, to_filename(name));
 
     name = "geodesic_sphere_6_spherical";
     cout << name << endl;
     mesh.clear();
-    model::create_geodesic_sphere(mesh, name, 10.0f, 6, true, true);
+    model::create_geodesic_sphere(mesh, name, 10.0f, 6, true, {{"smooth", "true"}});
     model::write_obj(mesh, to_filename(name));
 
     name = "cylinder_new";

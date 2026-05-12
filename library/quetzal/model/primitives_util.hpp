@@ -5,7 +5,6 @@
 // primitives_util.hpp
 //------------------------------------------------------------------------------
 
-#include "SurfaceName.hpp"
 #include "mesh_attributes.hpp"
 #include "primitives_specification.hpp"
 #include "vertices_attributes.hpp"
@@ -232,7 +231,7 @@ namespace quetzal::model
     std::string surface_name(const std::string& base, size_t n);
 
     template<typename M>
-    std::string next_surface_name(M& mesh, const std::string& base_name = SurfaceName::BodySection);
+    std::string next_surface_name(M& mesh, const std::string& base_name = "body");
 
     template<typename M>
     void create_facet(M& mesh, typename M::face_type& face);

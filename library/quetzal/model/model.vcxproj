@@ -178,7 +178,6 @@
     <ClInclude Include="primitives_specification.hpp" />
     <ClInclude Include="primitives_util.hpp" />
     <ClInclude Include="stl_io.hpp" />
-    <ClInclude Include="SurfaceName.hpp" />
     <ClInclude Include="transforms.hpp" />
     <ClInclude Include="vertices_attributes.hpp" />
   </ItemGroup>

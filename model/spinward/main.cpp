@@ -56,7 +56,7 @@ namespace
     //--------------------------------------------------------------------------
     void create_spinward(mesh_type& mesh, const string& name, size_t nSubdivisions, value_type r0, value_type r1, value_type scaleInner = value_type(1))
     {
-        id_type submesh_id = model::create_geodesic_sphere(mesh, name, r0, nSubdivisions, false, false);
+        id_type submesh_id = model::create_geodesic_sphere(mesh, name, r0, nSubdivisions, false);
 
         auto face_ids = mesh.submesh(submesh_id).face_ids();
         for (auto face_id : face_ids)
@@ -110,7 +110,7 @@ namespace
     //--------------------------------------------------------------------------
     void create_spinward_flush(mesh_type& mesh, const string& name, size_t nSubdivisions, value_type r0, value_type r1, value_type scaleInner)
     {
-        id_type submesh_id = model::create_geodesic_sphere(mesh, name, r0, nSubdivisions, false, false);
+        id_type submesh_id = model::create_geodesic_sphere(mesh, name, r0, nSubdivisions, false);
 
         auto face_ids = mesh.submesh(submesh_id).face_ids();
         for (auto face_id : face_ids)

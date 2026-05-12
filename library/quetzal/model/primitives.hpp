@@ -5,7 +5,6 @@
 // primitives.hpp
 //------------------------------------------------------------------------------
 
-#include "SurfaceName.hpp"
 #include "geometry.hpp"
 #include "mesh_attributes.hpp"
 #include "primitives_specification.hpp"
@@ -391,31 +390,31 @@ namespace quetzal::model
     // Create an tetrahedron centered at the origin with the given circumsphere radius
     // Surfaces: per face "body<i>"
     template<typename M>
-    id_type create_tetrahedron(M& mesh, const std::string& name, data_value_type<M> radius);
+    id_type create_tetrahedron(M& mesh, const std::string& name, data_value_type<M> radius, const Properties& properties = {});
 
     // Create an octahedron centered at the origin with the given circumsphere radius
     // bVertex refers to vertical orientation, vertex or face
     // Surfaces: per face "body<i>"
     template<typename M>
-    id_type create_octahedron(M& mesh, const std::string& name, data_value_type<M> radius, bool bVertex = true);
+    id_type create_octahedron(M& mesh, const std::string& name, data_value_type<M> radius, bool bVertex = true, const Properties& properties = {});
 
     // Create a dodecahedron centered at the origin with the given circumsphere radius
     // Surfaces: per face "body<i>"
     template<typename M>
-    id_type create_dodecahedron(M& mesh, const std::string& name, data_value_type<M> radius);
+    id_type create_dodecahedron(M& mesh, const std::string& name, data_value_type<M> radius, const Properties& properties = {});
 
     // Create an icosahedron centered at the origin with the given circumsphere radius
     // bVertex refers to vertical orientation, vertex or face
     // Surfaces: per face "body<i>"
     template<typename M>
-    id_type create_icosahedron(M& mesh, const std::string& name, data_value_type<M> radius, bool bVertex = true, bool bSmooth = false);
+    id_type create_icosahedron(M& mesh, const std::string& name, data_value_type<M> radius, bool bVertex = true, const Properties& properties = {});
 
     // Create a geodesic sphere centered at the origin with the given radius
     // bVertex refers to vertical orientation, vertex or face
     // frequency (segments per original icosahedron edge
     // Surfaces: per face "body<i>"
     template<typename M>
-    id_type create_geodesic_sphere(M& mesh, const std::string& name, data_value_type<M> radius, size_t frequency, bool bVertex = true, bool bSmooth = false);
+    id_type create_geodesic_sphere(M& mesh, const std::string& name, data_value_type<M> radius, size_t frequency, bool bVertex = true, const Properties& properties = {});
 
     // single body surface instead of per side? same as below? ...
 
@@ -450,6 +449,11 @@ namespace quetzal::model
     // the functions below this one can support cusps ...
     template<typename M>
     id_type create_swept_volume(M& mesh, const std::string& name, const geometry::Polygon<typename M::vector_traits>& polygon, const geometry::Path<typename M::vector_traits>& path, std::function<geometry::Polygon<typename M::vector_traits>(const geometry::Polygon<typename M::vector_traits>&, data_value_type<M>)> f, const Properties& properties = {});
+
+    // For these. parametric functions are called along the path
+    // Currently indexed by array position (consider path position, relative length along path, instead? ...)
+    // fr is the polygon (radius) scaling factor
+    // fa is the azimuth offset
 
     // Create volume by sweeping polygon along points of path with parametric functions for scale and rotation applied to polygon at each point along the path
     // Generalized cylinder
@@ -741,13 +745,12 @@ quetzal::id_type quetzal::model::create_disk(M& mesh, const std::string& name, s
     id_type submesh_id = create_cylinder(mesh, name, nAzimuth, nRadial, radius, T(0), T(0), T(0), {{"axis_lower_style", "none"}});
 
     T radius2 = radius * T(2);
-
     for (auto& vertex : mesh.vertices())
     {
         vertex.attributes().set_texcoord({(radius + vertex.attributes().position().x()) / radius2, (radius - vertex.attributes().position().y()) / radius2});
     }
 
-    mesh.rename_surface(mesh.surface_id(mesh.submesh_id(name), SurfaceName::Body), "disk");
+    mesh.rename_surface(mesh.surface_id(mesh.submesh_id(name), "body"), "disk");
     return submesh_id;
 }
 
@@ -3826,11 +3829,13 @@ T phi =  math::PiTwo<T> * (math::lerp(spec.minor.interval.upper(), spec.minor.in
 
 //------------------------------------------------------------------------------
 template<typename M>
-quetzal::id_type quetzal::model::create_tetrahedron(M& mesh, const std::string& name, data_value_type<M> radius)
+quetzal::id_type quetzal::model::create_tetrahedron(M& mesh, const std::string& name, data_value_type<M> radius, const Properties& properties)
 {
     using T = M::value_type;
 
     assert(radius > T(0));
+
+    SphereSpecification<T> spec(0, 0, radius, Properties{{"faceted", "true"}} | properties);
 
     // a = 4 / sqrt(6); edge length of unit tetrahedron
     T x1 = radius * sqrt(T(2)) / T(3); // radius * a * sqrt(3) / 6;
@@ -3904,7 +3909,7 @@ quetzal::id_type quetzal::model::create_tetrahedron(M& mesh, const std::string& 
     for (size_t i = 0; i < 4; ++i)
     {
         typename M::vector_type normal = avs[3 * i].normal();
-        id_type surface_id = mesh.create_surface(submesh_id, surface_name(SurfaceName::BodySection, i), {normal});
+        id_type surface_id = mesh.create_surface(submesh_id, surface_name("body", i), {normal});
         mesh.create_face(surface_id, nh + 3 * i, {normal});
     }
 
@@ -3913,11 +3918,13 @@ quetzal::id_type quetzal::model::create_tetrahedron(M& mesh, const std::string& 
 
 //------------------------------------------------------------------------------
 template<typename M>
-quetzal::id_type quetzal::model::create_octahedron(M& mesh, const std::string& name, data_value_type<M> radius, bool bVertex)
+quetzal::id_type quetzal::model::create_octahedron(M& mesh, const std::string& name, data_value_type<M> radius, bool bVertex, const Properties& properties)
 {
     using T = M::value_type;
 
     assert(radius > T(0));
+
+    SphereSpecification<T> spec(0, 0, radius, Properties{{"faceted", "true"}} | properties);
 
     vertices_attributes_type<M> avs;
 
@@ -4065,7 +4072,7 @@ quetzal::id_type quetzal::model::create_octahedron(M& mesh, const std::string& n
     for (size_t i = 0; i < 8; ++i)
     {
         typename M::vector_type normal = avs[3 * i].normal();
-        id_type surface_id = mesh.create_surface(submesh_id, surface_name(SurfaceName::BodySection, i), {normal});
+        id_type surface_id = mesh.create_surface(submesh_id, surface_name("body", i), {normal});
         mesh.create_face(surface_id, nh + 3 * i, {normal});
     }
 
@@ -4074,12 +4081,14 @@ quetzal::id_type quetzal::model::create_octahedron(M& mesh, const std::string& n
 
 //------------------------------------------------------------------------------
 template<typename M>
-quetzal::id_type quetzal::model::create_dodecahedron(M& mesh, const std::string& name, data_value_type<M> radius)
+quetzal::id_type quetzal::model::create_dodecahedron(M& mesh, const std::string& name, data_value_type<M> radius, const Properties& properties)
 {
     using T = M::value_type;
     using texcoord_type = M::vertex_attributes_type::texcoord_type;
 
     assert(radius > T(0));
+
+    SphereSpecification<T> spec(0, 0, radius, Properties{{"faceted", "true"}} | properties);
 
     // Pentagonal face parameters
     T gr = math::GoldenRatio<T>;
@@ -4247,7 +4256,7 @@ quetzal::id_type quetzal::model::create_dodecahedron(M& mesh, const std::string&
 
     for (size_t i = 0; i < 12; ++i)
     {
-        id_type surface_id = mesh.create_surface(submesh_id, surface_name(SurfaceName::BodySection, i));
+        id_type surface_id = mesh.create_surface(submesh_id, surface_name("body", i));
         id_type face_id = mesh.create_face(surface_id, nh + 5 * i);
         set_facet_normal(mesh.face(face_id));
     }
@@ -4257,13 +4266,15 @@ quetzal::id_type quetzal::model::create_dodecahedron(M& mesh, const std::string&
 
 //------------------------------------------------------------------------------
 template<typename M>
-quetzal::id_type quetzal::model::create_icosahedron(M& mesh, const std::string& name, data_value_type<M> radius, bool bVertex, bool bSmooth)
+quetzal::id_type quetzal::model::create_icosahedron(M& mesh, const std::string& name, data_value_type<M> radius, bool bVertex, const Properties& properties)
 {
     using T = M::value_type;
     using point_type = M::point_type;
     using texcoord_type = M::vertex_attributes_type::texcoord_type;
 
     assert(radius > T(0));
+
+    SphereSpecification<T> spec(0, 0, radius, Properties{{"faceted", "true"}} | properties);
 
     bool bFace = !bVertex;
 
@@ -4409,7 +4420,7 @@ quetzal::id_type quetzal::model::create_icosahedron(M& mesh, const std::string& 
     for (size_t i = 0; i < vertex_positions.size(); ++i)
     {
         avs[i].set_position(vertex_positions[i]);
-        if (bSmooth)
+        if (spec.azimuth.smooth) // !faceted ...
         {
             auto normal = direction(vertex_positions[i]); // simpler than surface_vertex_normal and can be done earlier ...
             avs[i].set_normal(normal);
@@ -4417,6 +4428,7 @@ quetzal::id_type quetzal::model::create_icosahedron(M& mesh, const std::string& 
         }
     }
 
+    // partner_id, next_id, prev_id, vertex_id, face_id
     using halfedge_descriptor = std::array<id_type, 5>;
     std::vector<halfedge_descriptor> halfedge_descriptors =
     {
@@ -4502,7 +4514,6 @@ quetzal::id_type quetzal::model::create_icosahedron(M& mesh, const std::string& 
     };
 
     id_type nh = mesh.halfedge_store_count();
-//    id_type nv = mesh.vertex_store_count();
     id_type nf = mesh.face_store_count();
 
     id_type submesh_id = mesh.create_submesh(name);
@@ -4513,9 +4524,9 @@ quetzal::id_type quetzal::model::create_icosahedron(M& mesh, const std::string& 
         mesh.create_halfedge_vertex(nh + hd[0], nh + hd[1], nh + hd[2], nf + hd[4], avs[face_vertex_position_ids[hd[3]]]);
     }
 
-    if (bSmooth)
+    if (spec.azimuth.smooth) // !faceted ...
     {
-        id_type surface_id = mesh.create_surface(submesh_id, SurfaceName::Body);
+        id_type surface_id = mesh.create_surface(submesh_id, "body");
 
         for (size_t i = 0; i < 20; ++i)
         {
@@ -4546,7 +4557,7 @@ quetzal::id_type quetzal::model::create_icosahedron(M& mesh, const std::string& 
                 vertex_positions[face_vertex_position_ids[j + 2]],
             };
             auto normal = direction(vertex_centroid(points)); // geometry::normal(points), yes, this, or just wait until after face is created and use that ...
-            id_type surface_id = mesh.create_surface(submesh_id, surface_name(SurfaceName::BodySection, i), {normal});
+            id_type surface_id = mesh.create_surface(submesh_id, surface_name("body", i), {normal});
             id_type face_id = mesh.create_face(surface_id, nh + j, {normal});
 
             size_t k = 0;
@@ -4564,7 +4575,7 @@ quetzal::id_type quetzal::model::create_icosahedron(M& mesh, const std::string& 
 
 //------------------------------------------------------------------------------
 template<typename M>
-quetzal::id_type quetzal::model::create_geodesic_sphere(M& mesh, const std::string& name, data_value_type<M> radius, size_t frequency, bool bVertex, bool bSmooth)
+quetzal::id_type quetzal::model::create_geodesic_sphere(M& mesh, const std::string& name, data_value_type<M> radius, size_t frequency, bool bVertex, const Properties& properties)
 {
     using T = M::value_type;
 
@@ -4573,8 +4584,10 @@ quetzal::id_type quetzal::model::create_geodesic_sphere(M& mesh, const std::stri
 
     // Approximate a sphere by tessellating an icosahedron
 
+    SphereSpecification<T> spec(0, 0, radius, Properties{{"faceted", "true"}} | properties);
+
     M m{};
-    id_type submesh_id = create_icosahedron(m, name, radius, bVertex, bSmooth);
+    id_type submesh_id = create_icosahedron(m, name, radius, bVertex, properties);
     if (frequency == 1)
     {
         mesh.insert(m);
@@ -4615,7 +4628,7 @@ quetzal::id_type quetzal::model::create_geodesic_sphere(M& mesh, const std::stri
     project_vertices(m.submesh(submesh_id), radius);
 
     // in either case here, face normals should be calculated the same, face normals are a face level construct (and vertex normals are a surface level construct) ...
-    if (bSmooth)
+    if (spec.azimuth.smooth) // !faceted ...
     {
         calculate_spherical_normals(m); // spherical face normals may not be exactly correct with geodesic sphere, faces are not necessarily equilateral triangles, the only shape that will work correctly ...
         calculate_spherical_texcoords(m); // spherical texture coordinates, with smooth icosahedron to start, splits should produce mostly correct texture coordinates ...

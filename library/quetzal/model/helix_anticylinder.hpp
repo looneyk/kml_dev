@@ -68,14 +68,14 @@ quetzal::id_type quetzal::model::create_helix_anticylinder(M& mesh, const std::s
 
     if (bSmooth)
     {
-        mesh.create_surface(idSubmesh, SurfaceName::Body);
+        mesh.create_surface(idSubmesh, "body");
     }
     else
     {
         size_t nSurfaces = 2 * nPanels;
         for (size_t i = 0; i < nSurfaces; ++i)
         {
-            mesh.create_surface(idSubmesh, std::format("{}{}", SurfaceName::BodySection, i));
+            mesh.create_surface(idSubmesh, std::format("{}{}", "body", i));
         }
     }
 

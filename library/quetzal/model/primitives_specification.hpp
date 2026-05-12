@@ -319,6 +319,8 @@ void quetzal::model::SphereSpecification<T>::apply(const Properties& properties)
         else if (key == "azimuth_name") { azimuth.termination.names[0] = value; }
         else if (key == "azimuth_lower_name") { azimuth.termination.names[0] = value; }
         else if (key == "azimuth_upper_name") { azimuth.termination.names[1] = value; }
+        else if (key == "smooth") { azimuth.smooth = to_bool(value); } // azimuth_smooth used for full body smooth ...
+        else if (key == "faceted") { azimuth.smooth = !to_bool(value); } // azimuth_smooth used for full body smooth ...
     }
 
     return;

@@ -241,7 +241,7 @@ value_type t1 = 1.0f;
     //--------------------------------------------------------------------------
     id_type create_stone(mesh_type& mesh, const string& name, value_type r, size_t resolution)
     {
-        id_type submesh_id = model::create_geodesic_sphere(mesh, name, r, resolution, true, true);
+        id_type submesh_id = model::create_geodesic_sphere(mesh, name, r, resolution, true, {{"smooth", "true"}});
         auto dzBase = r / 3.0f;
         vector_type v {0.0f, 0.0f, dzBase};
         model::transform(mesh.submesh(submesh_id), g::translation(v));

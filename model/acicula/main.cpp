@@ -14,7 +14,6 @@
 #include "quetzal/geometry/intersection.hpp"
 #include "quetzal/geometry/transformation_matrix.hpp"
 #include "quetzal/math/HomogeneousTraits.hpp"
-#include "quetzal/model/SurfaceName.hpp"
 #include "quetzal/model/obj_io.hpp"
 #include "quetzal/model/mesh_attributes.hpp"
 #include "quetzal/model/primitives.hpp"
@@ -61,7 +60,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    std::string next_surface_name(mesh_type& mesh, const std::string& base_name = model::SurfaceName::BodySection)
+    std::string next_surface_name(mesh_type& mesh, const std::string& base_name = "body")
     {
         return surface_name(base_name, mesh.surface_store_count());
     }
@@ -190,7 +189,7 @@ namespace
         }
 
         id_type submesh_id = mesh.create_submesh("head");
-        std::string surface_base_name = model::SurfaceName::BodySection;
+        std::string surface_base_name = "body";
 
         for (size_t i = 0; i < nAzimuth; ++i)
         {
@@ -395,7 +394,7 @@ namespace
         }
 
         id_type submesh_id = mesh.create_submesh("head");
-        std::string surface_base_name = model::SurfaceName::BodySection;
+        std::string surface_base_name = "body";
 
         for (size_t i = 0; i < nAzimuth; ++i)
         {
