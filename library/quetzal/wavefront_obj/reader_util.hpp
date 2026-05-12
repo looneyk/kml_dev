@@ -33,7 +33,7 @@ namespace quetzal::wavefront_obj
 } // namespace quetzal::wavefront_obj
 
 //--------------------------------------------------------------------------
-std::vector<std::string> quetzal::wavefront_obj::tokenize(const std::string& s, std::string delimiters, empties e)
+inline std::vector<std::string> quetzal::wavefront_obj::tokenize(const std::string& s, std::string delimiters, empties e)
 {
     std::vector<std::string> tokens;
     size_t pos;
@@ -60,7 +60,7 @@ std::vector<std::string> quetzal::wavefront_obj::tokenize(const std::string& s, 
 }
 
 //--------------------------------------------------------------------------
-bool quetzal::wavefront_obj::parse_vertex_reference(const std::string& s, vertex_reference_type& vr)
+inline bool quetzal::wavefront_obj::parse_vertex_reference(const std::string& s, vertex_reference_type& vr)
 {
     auto tokens = tokenize(s, "/", empties::allowed);
     if (tokens.empty() || tokens.size() > 3)

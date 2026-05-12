@@ -630,14 +630,14 @@ int main(int argc, char* argv[])
     mesh.clear();
     model::create_sphere(mesh, name, 4, 2, 10.0f);
     model::write_obj(mesh, to_filename(name));
-/*
+
     name = "antisphere";
     cout << name << endl;
     mesh.clear();
     model::create_antisphere(mesh, name, 12, 6, 10.0f);
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
-*/
+
     name = "torus";
     cout << name << endl;
     mesh.clear();

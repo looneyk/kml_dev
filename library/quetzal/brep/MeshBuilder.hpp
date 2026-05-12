@@ -6,6 +6,7 @@
 //------------------------------------------------------------------------------
 
 #include "geometry.hpp"
+#include "quetzal/geometry/Attributes.hpp"
 #include <span>
 #include <string>
 #include <unordered_map>

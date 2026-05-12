@@ -16,13 +16,9 @@ namespace quetzal::model
 namespace SurfaceName
 {
 
+    // deprecated ...
     static const std::string Body {"body"};
     static const std::string BodySection {"body"};
-    static const std::string End0 {"end0"};
-    static const std::string End1 {"end1"};
-    static const std::string Side {"side"};
-    static const std::string Side0 {"side0"};
-    static const std::string Side1 {"side1"};
 
 } // namespace SurfaceName
 

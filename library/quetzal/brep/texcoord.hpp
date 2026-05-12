@@ -13,6 +13,7 @@
 #include "quetzal/geometry/Projection.hpp"
 #include "quetzal/geometry/transformation_matrix.hpp"
 #include <ranges>
+#include <cmath>
 
 /*
 Note that for these functions, the verttex attributes texcoord check should be done by the caller:
@@ -45,6 +46,9 @@ namespace quetzal::brep
 
     template<typename F>
     typename F::traits_type::vertex_attributes_type::texcoord_type texcoord_vertex_centroid(const F& face);
+
+    template<typename T>
+    bool texcoord_eq(const T& a, const T& b);
 
     // Calculate mapping from positions to texcoords of face
     // This assumes that the set of positions is coplanar in 3D space and thus can be reduced to a planar projection
@@ -198,6 +202,14 @@ typename F::traits_type::vertex_attributes_type::texcoord_type quetzal::brep::te
     }
 
     return total / F::traits_type::val(n);
+}
+
+//------------------------------------------------------------------------------
+template<typename T>
+bool quetzal::brep::texcoord_eq(const T& a, const T& b)
+{
+    auto unwrapped = [](auto t) { return t - std::floor(t); };
+    return float_eq(a, b) || (math::float_eq(unwrapped(a.x()), unwrapped(b.x())) && math::float_eq(unwrapped(a.y()), unwrapped(b.y())));
 }
 
 //------------------------------------------------------------------------------

@@ -13,7 +13,6 @@
 #include "quetzal/geometry/spatial_properties.hpp"
 #include "quetzal/geometry/transformation_matrix.hpp"
 #include "quetzal/math/HomogeneousTraits.hpp"
-#include "quetzal/model/SurfaceName.hpp"
 #include "quetzal/model/helix_pyramid.hpp"
 #include "quetzal/model/mesh_attributes.hpp"
 #include "quetzal/model/obj_io.hpp"
@@ -244,7 +243,7 @@ namespace
 
             rightFace *= geometry::rotation_axis_unit(axis, -theta); // Face right vector rotated using same matrix that would rotate face parallel to xy-plane
             assert(math::float_eq0(rightFace.z()));
-            id_type face_id_spike_base = mesh.submesh(spike_id).surface(model::SurfaceName::End0).faces().front().id();
+            id_type face_id_spike_base = mesh.submesh(spike_id).surface("end0").faces().front().id();
             point_type rightBase = mesh.face(face_id_spike_base).halfedge().vertex_attributes().position();
             value_type phi = atan2(rightFace.y(), rightFace.x()) + atan2(rightBase.y(), rightBase.x());
 

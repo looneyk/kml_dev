@@ -25,8 +25,6 @@
 #include <vector>
 #include <cassert>
 
-#include "validation.hpp" // ...
-
 namespace quetzal::brep
 {
 

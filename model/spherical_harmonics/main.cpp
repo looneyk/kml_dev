@@ -65,6 +65,24 @@ namespace
         return submesh_id;
     }
 
+    //--------------------------------------------------------------------------
+    template<typename M>
+    id_type create_spherical_harmonic1a(M& mesh, const std::string& name, size_t nAzimuth, size_t nElevation, value_type scale, std::function<double(double)> fr)
+    {
+        id_type submesh_id = model::create_antisphere(mesh, name, nAzimuth, nElevation, [fr](value_type te) -> value_type { return static_cast<value_type>(abs(fr(elevation_to_polar(double(te)) * math::Pi<double>))); });
+        model::transform(mesh.submesh(submesh_id), geometry::scaling(scale));
+        return submesh_id;
+    }
+
+    //--------------------------------------------------------------------------
+    template<typename M>
+    id_type create_spherical_harmonic2a(M& mesh, const std::string& name, size_t nAzimuth, size_t nElevation, value_type scale, std::function<double(double, double)> fr)
+    {
+        id_type submesh_id = model::create_antisphere(mesh, name, nAzimuth, nElevation, [fr](value_type ta, value_type te) -> value_type { return static_cast<value_type>(abs(fr(elevation_to_polar(double(te)) * math::Pi<double>, double(ta) * math::PiTwo<double>))); }); // squared instead of abs? ...
+        model::transform(mesh.submesh(submesh_id), geometry::scaling(scale));
+        return submesh_id;
+    }
+
 } // namespace
 
 //------------------------------------------------------------------------------
@@ -92,6 +110,15 @@ int m = 0;
             submesh_id = create_spherical_harmonic2(mesh, name, 24, 100, 10.0f, math::real_spherical_harmonic_function(l, m));
             triangulate(mesh.submesh(submesh_id));
             model::write_obj(mesh, to_filename(name));
+/*
+// need to resolve issue with normals generated at 0 crossings ...
+            name = std::format("spherical_harmonic_{}_{}_a", l, m);
+            cout << name << endl;
+            mesh.clear();
+            submesh_id = create_spherical_harmonic2a(mesh, name, 24, 100, 10.0f, math::real_spherical_harmonic_function(l, m));
+            triangulate(mesh.submesh(submesh_id));
+            model::write_obj(mesh, to_filename(name));
+*/
         }
     }
 
@@ -102,9 +129,18 @@ int m = 0;
         name = std::format("spherical_harmonic_{}_0_", l);
         cout << name << endl;
         mesh.clear();
-        submesh_id = create_spherical_harmonic1(mesh, name, 24, 100, 10.0f, [l] (double theta) { return math::real_spherical_harmonic_function(l, 0)(theta, 0.0); });
+        submesh_id = create_spherical_harmonic1(mesh, name, 24, 100, 10.0f, [l](double theta) { return math::real_spherical_harmonic_function(l, 0)(theta, 0.0); });
         triangulate(mesh.submesh(submesh_id));
         model::write_obj(mesh, to_filename(name));
+/*
+// need to resolve issue with normals generated at 0 crossings ...
+        name = std::format("spherical_harmonic_{}_0_a_", l);
+        cout << name << endl;
+        mesh.clear();
+        submesh_id = create_spherical_harmonic1a(mesh, name, 24, 100, 10.0f, [l](double theta) { return math::real_spherical_harmonic_function(l, 0)(theta, 0.0); });
+        triangulate(mesh.submesh(submesh_id));
+        model::write_obj(mesh, to_filename(name));
+*/
     }
 
     validator.report_results();

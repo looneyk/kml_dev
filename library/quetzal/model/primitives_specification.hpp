@@ -82,7 +82,7 @@ namespace quetzal::model
     template<typename T>
     struct PrimitiveSpecification
     {
-        std::string outer_name;
+        std::string shell_name;
         DimensionSpecification<T> primary;
         DimensionSpecification<T> secondary;
 
@@ -90,12 +90,13 @@ namespace quetzal::model
         void apply(const Properties& properties);
     };
 */
+    // support custom properties by adding an optional key/value callback to apply ...
 
     //--------------------------------------------------------------------------
     template<typename T>
     struct CylinderSpecification
     {
-        std::string outer_name;
+        std::string shell_name;
 
         // primary parametric dimension - z, radius, azimuth offset (revs) are all dependent on t
         math::Interval<T> axis_z_interval;
@@ -119,12 +120,11 @@ namespace quetzal::model
     template<typename T>
     struct SphereSpecification
     {
-        std::string outer_name;
+        std::string shell_name;
         T radius;
 
         // primary parametric dimension - elevation
         math::Interval<T> elevation_interval;
-        // elevation_azimuth_offset_interval? ...
         size_t elevation_edge_count;
         bool elevation_smooth;
         TerminationSpecification elevation_termination_lower; // Supported: Butt, Center
@@ -142,16 +142,14 @@ namespace quetzal::model
     template<typename T>
     struct TorusSpecification
     {
-        std::string outer_name;
+        std::string shell_name;
 
-        // for radius intervals, use 1/2 param radius functions like sphere instead and remove them here ...
+        // for radius intervals, use 1/2 param radius callbacks like sphere instead and remove them here ...
 
         // primary parametric dimension - major azimuth, major radius, minor radius
         math::Interval<T> major_azimuth_interval;
         math::Interval<T> major_radius_interval; // major spiral (weird) ...
         math::Interval<T> minor_radius_interval; // not spiral like above, but horn shape, depends on primary ...
-        // major_z_interval (helix) ...
-        // minor_azimuth_offset_interval (twist) ...
         size_t major_edge_count;
         bool major_smooth;
         TerminationSpecification major_termination_lower; // Supported: Butt
@@ -199,7 +197,7 @@ void quetzal::model::TerminationSpecification::init(const std::string& style_nam
 //------------------------------------------------------------------------------
 template<typename T>
 quetzal::model::CylinderSpecification<T>::CylinderSpecification() :
-    outer_name{"body"},
+    shell_name{"body"},
     axis_z_interval{},
     axis_radius_interval{},
     axis_azimuth_offset_interval{T(0), T(0)},
@@ -242,7 +240,7 @@ void quetzal::model::CylinderSpecification<T>::apply(const Properties& propertie
 {
     for (const auto& [key, value] : properties)
     {
-        if (key == "outer_name") { outer_name = value; }
+        if (key == "shell_name") { shell_name = value; }
         else if (key == "z_lower") { axis_z_interval.set_lower(to_type<T>(value)); }
         else if (key == "z_upper") { axis_z_interval.set_upper(to_type<T>(value)); }
         else if (key == "radius") { auto t = to_type<T>(value); axis_radius_interval.set_bounds(t, t); }
@@ -256,7 +254,7 @@ void quetzal::model::CylinderSpecification<T>::apply(const Properties& propertie
         else if (key == "axis_lower_style") { axis_termination_lower.init(value, "end"); }
         else if (key == "axis_lower_name") { axis_termination_lower.names[0] = value; }
         else if (key == "axis_upper_style") { axis_termination_upper.init(value, "end"); }
-        else if (key == "axis_upper_name") { axis_termination_upper.names[0] = value; }
+        else if (key == "axis_upper_name") { axis_termination_upper.names[1] = value; }
         else if (key == "azimuth_lower") { azimuth.interval.set_lower(to_type<T>(value)); }
         else if (key == "azimuth_upper") { azimuth.interval.set_upper(to_type<T>(value)); }
         else if (key == "azimuth_edge_count") { azimuth.edge_count = std::stoul(value); }
@@ -274,7 +272,7 @@ void quetzal::model::CylinderSpecification<T>::apply(const Properties& propertie
 //------------------------------------------------------------------------------
 template<typename T>
 quetzal::model::SphereSpecification<T>::SphereSpecification() :
-    outer_name{"body"},
+    shell_name{"body"},
     radius(),
     elevation_interval{T(0), T(1)},
     elevation_edge_count{0},
@@ -302,7 +300,7 @@ void quetzal::model::SphereSpecification<T>::apply(const Properties& properties)
 {
     for (const auto& [key, value] : properties)
     {
-        if (key == "outer_name") { outer_name = value; }
+        if (key == "shell_name") { shell_name = value; }
         else if (key == "radius") { radius = to_type<T>(value); }
         else if (key == "elevation_lower") { elevation_interval.set_lower(to_type<T>(value)); }
         else if (key == "elevation_upper") { elevation_interval.set_upper(to_type<T>(value)); }
@@ -311,7 +309,7 @@ void quetzal::model::SphereSpecification<T>::apply(const Properties& properties)
         else if (key == "elevation_lower_style") { elevation_termination_lower.init(value, "end"); }
         else if (key == "elevation_lower_name") { elevation_termination_lower.names[0] = value; }
         else if (key == "elevation_upper_style") { elevation_termination_upper.init(value, "end"); }
-        else if (key == "elevation_upper_name") { elevation_termination_upper.names[0] = value; }
+        else if (key == "elevation_upper_name") { elevation_termination_upper.names[1] = value; }
         else if (key == "azimuth_lower") { azimuth.interval.set_lower(to_type<T>(value)); }
         else if (key == "azimuth_upper") { azimuth.interval.set_upper(to_type<T>(value)); }
         else if (key == "azimuth_edge_count") { azimuth.edge_count = std::stoul(value); }
@@ -329,7 +327,7 @@ void quetzal::model::SphereSpecification<T>::apply(const Properties& properties)
 //------------------------------------------------------------------------------
 template<typename T>
 quetzal::model::TorusSpecification<T>::TorusSpecification() :
-    outer_name{"body"},
+    shell_name{"body"},
     major_azimuth_interval{T(0), T(1)},
     major_radius_interval{},
     minor_radius_interval{},
@@ -359,7 +357,7 @@ void quetzal::model::TorusSpecification<T>::apply(const Properties& properties)
 {
     for (const auto& [key, value] : properties)
     {
-        if (key == "outer_name") { outer_name = value; }
+        if (key == "shell_name") { shell_name = value; }
         else if (key == "major_azimuth_lower") { major_azimuth_interval.set_lower(to_type<T>(value)); }
         else if (key == "major_azimuth_upper") { major_azimuth_interval.set_upper(to_type<T>(value)); }
         else if (key == "major_radius") { auto t = to_type<T>(value); major_radius_interval.set_bounds(t, t); }
@@ -373,7 +371,7 @@ void quetzal::model::TorusSpecification<T>::apply(const Properties& properties)
         else if (key == "major_lower_style") { major_termination_lower.init(value, "end"); }
         else if (key == "major_lower_name") { major_termination_lower.names[0] = value; }
         else if (key == "major_upper_style") { major_termination_upper.init(value, "end"); }
-        else if (key == "major_upper_name") { major_termination_upper.names[0] = value; }
+        else if (key == "major_upper_name") { major_termination_upper.names[1] = value; }
         else if (key == "minor_azimuth_lower") { minor.interval.set_lower(to_type<T>(value)); }
         else if (key == "minor_azimuth_upper") { minor.interval.set_upper(to_type<T>(value)); }
         else if (key == "minor_edge_count") { minor.edge_count = std::stoul(value); }

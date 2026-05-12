@@ -6,7 +6,6 @@
 //------------------------------------------------------------------------------
 
 #include "primitives_util.hpp"
-#include "SurfaceName.hpp"
 #include "quetzal/math/math_util.hpp"
 #include <string>
 #include <cassert>
@@ -85,7 +84,7 @@ quetzal::id_type quetzal::model::create_helix_pyramid(M& mesh, const std::string
     id_type halfedge_id0 = mesh.halfedge_store_count();
 
     id_type submesh_id = mesh.create_submesh(name);
-    id_type surface_id0 = create_section_surfaces(mesh, submesh_id, face_count, [](size_t i) { return surface_name(SurfaceName::BodySection, i); });
+    id_type surface_id0 = create_section_surfaces(mesh, submesh_id, face_count, [&spec](size_t i) { return surface_name(spec.shell_name, i); });
 
     id_type j0_orig = mesh.halfedge_store_count();
 
@@ -152,7 +151,7 @@ quetzal::id_type quetzal::model::create_helix_pyramid(M& mesh, const std::string
     id_type halfedge_id0 = mesh.halfedge_store_count();
 
     id_type submesh_id = mesh.create_submesh(name);
-    id_type surface_id0 = create_section_surfaces(mesh, submesh_id, face_count, [](size_t i) { return surface_name(SurfaceName::BodySection, i); });
+    id_type surface_id0 = create_section_surfaces(mesh, submesh_id, face_count, [&spec](size_t i) { return surface_name(spec.shell_name, i); });
 
     auto avss0 = vertices_attributes_edges<M>(polygon, z0, scale0, revs0, ts0);
 
@@ -160,7 +159,7 @@ quetzal::id_type quetzal::model::create_helix_pyramid(M& mesh, const std::string
 
     if (nz == 1)
     {
-        auto avss1 = cusp_vertices_attributes_edges<M>(polygon, dz, ts1);
+        auto avss1 = cusp_vertices_attributes_edges<M>(polygon, z1, ts1);
         create_apex_cusp(mesh, avss0, avss1, surface_id0, closed);
     }
     else

@@ -6,7 +6,6 @@
 //------------------------------------------------------------------------------
 
 #include "primitives_util.hpp"
-#include "SurfaceName.hpp"
 #include "quetzal/brep/geometry.hpp"
 #include "quetzal/geometry/transformation_matrix.hpp"
 #include "quetzal/math/math_util.hpp"
@@ -235,7 +234,7 @@ assert(r > 0);
     size_t nhBody0 = nh;
     typename M::point_type center = {T(0), T(0), zLower + dz / (T(2) * revs)};
 
-    id_type idSurface = mesh.create_surface(idSubmesh, SurfaceName::End0 + "_0");
+    id_type idSurface = mesh.create_surface(idSubmesh, "end0_0");
     id_type idFace = mesh.create_face(idSurface, nh);
     mesh.create_halfedge_vertex(nh + 5, nh + 1, nh + 2, idFace, {center, {}, {T(0.5), T(0)}});
     mesh.create_halfedge_vertex(2, nh + 2, nh + 0, idFace, {avs0[0].position(), {}, {T(0), T(1)}});
@@ -248,7 +247,7 @@ assert(r > 0);
 
     auto normal = -M::vector_type::z_direction();
 
-    idSurface = mesh.create_surface(idSubmesh, SurfaceName::End0 + "_1", {normal});
+    idSurface = mesh.create_surface(idSubmesh, "end0_1", {normal});
     for (size_t i = 0; i < nAzimuth; ++i)
     {
         idFace = mesh.create_face(idSurface, nh, {normal});
@@ -266,7 +265,7 @@ assert(r > 0);
 
     center = {T(0), T(0), zUpper - dz / (T(2) * revs)};
 
-    idSurface = mesh.create_surface(idSubmesh, SurfaceName::End1 + "_0");
+    idSurface = mesh.create_surface(idSubmesh, "end1_0");
     idFace = mesh.create_face(idSurface, nh);
     mesh.create_halfedge_vertex(nh + 3 * nAzimuth + 2, nh + 1, nh + 2, idFace, {center, {}, {T(0.5), T(0)}});
     mesh.create_halfedge_vertex(nhBody0 - 2, nh + 2, nh + 0, idFace, {avs1[nAzimuth].position(), {}, {T(0), T(1)}});
@@ -279,7 +278,7 @@ assert(r > 0);
 
     normal = M::vector_type::z_direction();
 
-    idSurface = mesh.create_surface(idSubmesh, SurfaceName::End1 + "_1", {normal});
+    idSurface = mesh.create_surface(idSubmesh, "end1_1", {normal});
     for (size_t i = 0; i < nAzimuth; ++i)
     {
         idFace = mesh.create_face(idSurface, nh, {normal});

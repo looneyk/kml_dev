@@ -1,4 +1,4 @@
-#if !defined(QUETZAL_MODEL_PRIMITIVES_HPP)
+#if !defined(QUETZAL_MODEL_PRIMITIVEh_HPP)
 #define QUETZAL_MODEL_PRIMITIVES_HPP
 //------------------------------------------------------------------------------
 // model
@@ -11,11 +11,8 @@
 #include "primitives_specification.hpp"
 #include "primitives_util.hpp"
 #include "vertices_attributes.hpp"
-#include "quetzal/brep/Submesh.hpp"
 #include "quetzal/brep/geometry.hpp"
-#include "quetzal/brep/inversion.hpp"
 #include "quetzal/brep/mesh_util.hpp"
-#include "quetzal/brep/validation.hpp"
 #include "quetzal/common/Properties.hpp"
 #include "quetzal/geometry/Path.hpp"
 #include "quetzal/geometry/Polyline.hpp"
@@ -26,6 +23,7 @@
 #include "quetzal/math/CartesianTraits.hpp"
 #include "quetzal/math/floating_point.hpp"
 #include "quetzal/math/math_util.hpp"
+#include <algorithm>
 #include <format>
 #include <functional>
 #include <numeric>
@@ -43,7 +41,7 @@ namespace quetzal::model
     // Cylindrical coordinates: radius, azimuth, z (r, phi, z) with azimuth interval 0..1 -> phi: 0..2Pi
     // Spherical coordinates: radius, azimuth, elevation (r, phi, theta) with azimuth interval 0..1 -> phi: 0..2Pi; elevation interval 0..1 -> theta: -Pi/2..Pi/2 ({0, 0, -1}..{0, 0, 1})
     // Each primitive given a unique submesh name produces a single submesh with that name
-    // Primitives given a submesh name that already exists in the mesh will be merged into that submesh
+    // Primitives given a submesh name that already exists in the mesh will be merged into that submesh (so don't do that)
 
     // The unqualified versions of these functions consider the polygon to be smooth with just a single surface
     // The edges versions of these functions consider the given polygon as the cross section of a prism, one surface per polygon edge
@@ -361,6 +359,16 @@ namespace quetzal::model
     // Surfaces: "body", and "end0", "end1", "side", "side0", "side1" depending on extents
     template<typename M>
     id_type create_sphere(M& mesh, const std::string& name, size_t nAzimuth, size_t nElevation, std::function<data_value_type<M>(data_value_type<M>, data_value_type<M>)> fr, const Properties& properties = {});
+    
+    // solves the triangulation of rectangular faces issue, may also result in more smooth appearance? ...
+    template<typename M>
+    id_type create_antisphere(M& mesh, const std::string& name, size_t nAzimuth, size_t nElevation, data_value_type<M> radius, const Properties& properties = {});
+    
+    template<typename M>
+    id_type create_antisphere(M& mesh, const std::string& name, size_t nAzimuth, size_t nElevation, std::function<data_value_type<M>(data_value_type<M>)> fr, const Properties& properties = {});
+    
+    template<typename M>
+    id_type create_antisphere(M& mesh, const std::string& name, size_t nAzimuth, size_t nElevation, std::function<data_value_type<M>(data_value_type<M>, data_value_type<M>)> fr, const Properties& properties = {});
 
     // Create a torus centered at the origin around the z-axis
     // Minor extent endpoints are measured in the circular cross section in the xz-plane centered at (rMajor, 0, 0) with normal (0, 1, 0)
@@ -1014,7 +1022,7 @@ quetzal::id_type quetzal::model::create_cylinder(M& mesh, const std::string& nam
     id_type halfedge_id0 = mesh.halfedge_store_count();
 
     id_type submesh_id = mesh.create_submesh(name);
-    id_type surface_id = mesh.create_surface(submesh_id, SurfaceName::Body);
+    id_type surface_id = mesh.create_surface(submesh_id, spec.shell_name);
 
     id_type j0_orig = mesh.halfedge_store_count();
 
@@ -1130,7 +1138,7 @@ quetzal::id_type quetzal::model::create_cylinder_edges(M& mesh, const std::strin
     id_type surface_id0 = mesh.surface_store_count();
     for (size_t i = 0; i < face_count; ++i)
     {
-        mesh.create_surface(submesh_id, surface_name(SurfaceName::BodySection, i));
+        mesh.create_surface(submesh_id, surface_name(spec.shell_name, i));
     }
 
     id_type j0_orig = mesh.halfedge_store_count();
@@ -1291,7 +1299,7 @@ quetzal::id_type quetzal::model::create_cylinder(M& mesh, const std::string& nam
     id_type halfedge_id0 = mesh.halfedge_store_count();
 
     id_type submesh_id = mesh.create_submesh(name);
-    id_type surface_id = mesh.create_surface(submesh_id, SurfaceName::Body);
+    id_type surface_id = mesh.create_surface(submesh_id, spec.shell_name);
  
     id_type j0_orig = mesh.halfedge_store_count();
 
@@ -1359,7 +1367,7 @@ quetzal::id_type quetzal::model::create_cylinder(M& mesh, const std::string& nam
     id_type halfedge_id0 = mesh.halfedge_store_count();
 
     id_type submesh_id = mesh.create_submesh(name);
-    id_type surface_id = mesh.create_surface(submesh_id, SurfaceName::Body);
+    id_type surface_id = mesh.create_surface(submesh_id, spec.shell_name);
 
     id_type j0_orig = mesh.halfedge_store_count();
 
@@ -1446,7 +1454,7 @@ quetzal::id_type quetzal::model::create_cylinder_edges(M& mesh, const std::strin
     id_type halfedge_id0 = mesh.halfedge_store_count();
 
     id_type submesh_id = mesh.create_submesh(name);
-    id_type surface_id0 = create_section_surfaces(mesh, submesh_id, section_count, [](size_t i) { return surface_name(SurfaceName::BodySection, i); });
+    id_type surface_id0 = create_section_surfaces(mesh, submesh_id, section_count, [&spec](size_t i) { return surface_name(spec.shell_name, i); });
 
     vertices_attributes_sections_type<M> avss0;
     vertices_attributes_sections_type<M> avss1;
@@ -1557,7 +1565,7 @@ quetzal::id_type quetzal::model::create_cylinder_edges(M& mesh, const std::strin
     id_type halfedge_id0 = mesh.halfedge_store_count();
 
     id_type submesh_id = mesh.create_submesh(name);
-    id_type surface_id0 = create_section_surfaces(mesh, submesh_id, section_count, [](size_t i) { return surface_name(SurfaceName::BodySection, i); });
+    id_type surface_id0 = create_section_surfaces(mesh, submesh_id, section_count, [&spec](size_t i) { return surface_name(spec.shell_name, i); });
 
     id_type j0_orig = mesh.halfedge_store_count();
 
@@ -1648,7 +1656,7 @@ quetzal::id_type quetzal::model::create_cylinder_sections(M& mesh, const std::st
     id_type halfedge_id0 = mesh.halfedge_store_count();
 
     id_type submesh_id = mesh.create_submesh(name);
-    id_type surface_id0 = create_section_surfaces(mesh, submesh_id, section_count, [](size_t i) { return surface_name(SurfaceName::BodySection, i); });
+    id_type surface_id0 = create_section_surfaces(mesh, submesh_id, section_count, [&spec](size_t i) { return surface_name(spec.shell_name, i); });
 
     vertices_attributes_sections_type<M> avss0;
     vertices_attributes_sections_type<M> avss1;
@@ -1765,7 +1773,7 @@ quetzal::id_type quetzal::model::create_cylinder_sections(M& mesh, const std::st
     id_type halfedge_id0 = mesh.halfedge_store_count();
 
     id_type submesh_id = mesh.create_submesh(name);
-    id_type surface_id0 = create_section_surfaces(mesh, submesh_id, section_count, [](size_t i) { return surface_name(SurfaceName::BodySection, i); });
+    id_type surface_id0 = create_section_surfaces(mesh, submesh_id, section_count, [&spec](size_t i) { return surface_name(spec.shell_name, i); });
 
     id_type j0_orig = mesh.halfedge_store_count();
 
@@ -1838,7 +1846,7 @@ quetzal::id_type quetzal::model::create_cylinder(M& mesh, const std::string& nam
     id_type halfedge_id0 = mesh.halfedge_store_count();
 
     id_type submesh_id = mesh.create_submesh(name);
-    id_type surface_id0 = mesh.create_surface(submesh_id, SurfaceName::Body);
+    id_type surface_id0 = mesh.create_surface(submesh_id, spec.shell_name);
 
     vertices_attributes_type<M> avs0;
     vertices_attributes_type<M> avs1;
@@ -1955,7 +1963,7 @@ quetzal::id_type quetzal::model::create_cylinder_edges(M& mesh, const std::strin
     id_type halfedge_id0 = mesh.halfedge_store_count();
 
     id_type submesh_id = mesh.create_submesh(name);
-    id_type surface_id0 = create_section_surfaces(mesh, submesh_id, section_count, [](size_t i) { return surface_name(SurfaceName::BodySection, i); });
+    id_type surface_id0 = create_section_surfaces(mesh, submesh_id, section_count, [&spec](size_t i) { return surface_name(spec.shell_name, i); });
 
     vertices_attributes_type<M> avss0;
     vertices_attributes_type<M> avss1;
@@ -2084,7 +2092,7 @@ quetzal::id_type quetzal::model::create_cylinder_sections(M& mesh, const std::st
     id_type halfedge_id0 = mesh.halfedge_store_count();
 
     id_type submesh_id = mesh.create_submesh(name);
-    id_type surface_id0 = create_section_surfaces(mesh, submesh_id, section_count, [](size_t i) { return surface_name(SurfaceName::BodySection, i); });
+    id_type surface_id0 = create_section_surfaces(mesh, submesh_id, section_count, [&spec](size_t i) { return surface_name(spec.shell_name, i); });
 
     vertices_attributes_sections_type<M> avss0;
     vertices_attributes_sections_type<M> avss1;
@@ -2276,7 +2284,7 @@ quetzal::id_type quetzal::model::create_cylinder(M& mesh, const std::string& nam
     id_type halfedge_id0 = mesh.halfedge_store_count();
 
     id_type submesh_id = mesh.create_submesh(name);
-    id_type surface_id = mesh.create_surface(submesh_id, SurfaceName::Body);
+    id_type surface_id = mesh.create_surface(submesh_id, spec.shell_name);
 
     id_type j0_orig = mesh.halfedge_store_count();
 
@@ -2376,7 +2384,7 @@ quetzal::id_type quetzal::model::create_cylinder(M& mesh, const std::string& nam
     id_type halfedge_id0 = mesh.halfedge_store_count();
 
     id_type submesh_id = mesh.create_submesh(name);
-    id_type surface_id = mesh.create_surface(submesh_id, SurfaceName::Body);
+    id_type surface_id = mesh.create_surface(submesh_id, spec.shell_name);
 
     auto face_count = spec.azimuth.edge_count;
     id_type j0_orig = mesh.halfedge_store_count();
@@ -2469,12 +2477,12 @@ quetzal::id_type quetzal::model::create_cylinder(M& mesh, const std::string& nam
     assert(bSmooth); // otherwise not supported ...
     if (bSmooth)
     {
-        surface_id0 = mesh.create_surface(submesh_id, SurfaceName::Body);
+        surface_id0 = mesh.create_surface(submesh_id, spec.shell_name);
     }
     else
     {
         size_t section_count = face_count;
-        surface_id0 = create_section_surfaces(mesh, submesh_id, section_count, [](size_t i) { return surface_name(SurfaceName::BodySection, i); });
+        surface_id0 = create_section_surfaces(mesh, submesh_id, section_count, [&spec](size_t i) { return surface_name(spec.shell_name, i); });
     }
 
     auto face_count = spec.azimuth.edge_count;
@@ -2581,7 +2589,7 @@ quetzal::id_type quetzal::model::create_anticylinder(M& mesh, const std::string&
     id_type halfedge_id0 = mesh.halfedge_store_count();
 
     id_type submesh_id = mesh.create_submesh(name);
-    id_type surface_id = mesh.create_surface(submesh_id, SurfaceName::Body);
+    id_type surface_id = mesh.create_surface(submesh_id, spec.shell_name);
 
     math::Interval<T> azimuth_interval(T(1));
     T dAzimuth = T(0.5) / T(nAzimuth);
@@ -2796,7 +2804,7 @@ quetzal::id_type quetzal::model::create_sphere(M& mesh, const std::string& name,
     id_type halfedge_id0 = mesh.halfedge_store_count();
 
     id_type submesh_id = mesh.create_submesh(name);
-    id_type surface_id = mesh.create_surface(submesh_id, SurfaceName::Body);
+    id_type surface_id = mesh.create_surface(submesh_id, spec.shell_name);
 
     if (cusped_lower)
     {
@@ -2881,7 +2889,7 @@ quetzal::id_type quetzal::model::create_sphere(M& mesh, const std::string& name,
     id_type halfedge_id0 = mesh.halfedge_store_count();
 
     id_type submesh_id = mesh.create_submesh(name);
-    id_type surface_id = mesh.create_surface(submesh_id, SurfaceName::Body);
+    id_type surface_id = mesh.create_surface(submesh_id, spec.shell_name);
 
     auto face_count = spec.azimuth.edge_count;
     id_type j0_orig = mesh.halfedge_store_count();
@@ -2991,7 +2999,7 @@ quetzal::id_type quetzal::model::create_sphere(M& mesh, const std::string& name,
     id_type halfedge_id0 = mesh.halfedge_store_count();
 
     id_type submesh_id = mesh.create_submesh(name);
-    id_type surface_id = mesh.create_surface(submesh_id, SurfaceName::Body);
+    id_type surface_id = mesh.create_surface(submesh_id, spec.shell_name);
 
     auto face_count = spec.azimuth.edge_count;
     id_type j0_orig = mesh.halfedge_store_count();
@@ -3091,12 +3099,12 @@ quetzal::id_type quetzal::model::create_sphere(M& mesh, const std::string& name,
     id_type halfedge_id0 = mesh.halfedge_store_count();
 
     id_type submesh_id = mesh.create_submesh(name);
-    id_type surface_id = mesh.create_surface(submesh_id, SurfaceName::Body);
+    id_type surface_id = mesh.create_surface(submesh_id, spec.shell_name);
 
     auto face_count = spec.azimuth.edge_count;
     id_type j0_orig = mesh.halfedge_store_count();
 
-    auto to_position = [&](T r, T ta, T cos_theta, T sin_theta) -> typename M::point_type
+    auto spherical_position = [&](T r, T ta, T cos_theta, T sin_theta) -> typename M::point_type
     {
         T phi = ta * math::PiTwo<T>;
         return {r * math::denoise011(cos(phi)) * cos_theta, r * math::denoise011(sin(phi)) * cos_theta, r * sin_theta};
@@ -3105,7 +3113,7 @@ quetzal::id_type quetzal::model::create_sphere(M& mesh, const std::string& name,
     if (cusped_lower)
     {
         create_base_cusp(mesh, nAzimuth, z0,
-            [&](T ta) -> typename M::point_type { return to_position(fr(ta, te1), ta, cos_theta1, sin_theta1); },
+            [&](T ta) -> typename M::point_type { return spherical_position(fr(ta, te1), ta, cos_theta1, sin_theta1); },
             spec.azimuth.interval, ts1, surface_id, [](T) {return -M::vector_type::z_direction(); });
     }
     else if (nElevation == 1 && cusped_upper)
@@ -3113,14 +3121,14 @@ quetzal::id_type quetzal::model::create_sphere(M& mesh, const std::string& name,
         auto radius1 = fr(0.0f, theta1);
         auto z1 = radius1 * math::denoise011(sin(theta1));
         create_apex_cusp(mesh, nAzimuth,
-            [&](T ta) -> typename M::point_type { return to_position(fr(ta, te0), ta, cos_theta0, sin_theta0); },
+            [&](T ta) -> typename M::point_type { return spherical_position(fr(ta, te0), ta, cos_theta0, sin_theta0); },
             z1, spec.azimuth.interval, ts0, surface_id);
     }
     else
     {
         create_band(mesh, nAzimuth,
-            [&](T ta) -> typename M::point_type { return to_position(fr(ta, te0), ta, cos_theta0, sin_theta0); },
-            [&](T ta) -> typename M::point_type { return to_position(fr(ta, te1), ta, cos_theta1, sin_theta1); },
+            [&](T ta) -> typename M::point_type { return spherical_position(fr(ta, te0), ta, cos_theta0, sin_theta0); },
+            [&](T ta) -> typename M::point_type { return spherical_position(fr(ta, te1), ta, cos_theta1, sin_theta1); },
             spec.azimuth.interval, spec.azimuth.interval, ts0, ts1, surface_id);
     }
 
@@ -3145,7 +3153,7 @@ quetzal::id_type quetzal::model::create_sphere(M& mesh, const std::string& name,
         else
         {
             connect_band(mesh, nAzimuth,
-                [&](T ta) -> typename M::point_type { return to_position(fr(ta, te1), ta, cos_theta1, sin_theta1); },
+                [&](T ta) -> typename M::point_type { return spherical_position(fr(ta, te1), ta, cos_theta1, sin_theta1); },
                 spec.azimuth.interval, ts1, surface_id);
         }
     }
@@ -3170,24 +3178,380 @@ quetzal::id_type quetzal::model::create_sphere(M& mesh, const std::string& name,
 
 //------------------------------------------------------------------------------
 template<typename M>
+quetzal::id_type quetzal::model::create_antisphere(M& mesh, const std::string& name, size_t nAzimuth, size_t nElevation, data_value_type<M> radius, const Properties& properties)
+{
+    using T = data_value_type<M>;
+
+    assert(nAzimuth > 2);
+    assert(nElevation > 0);
+    assert(radius > T(0));
+
+    SphereSpecification<T> spec(nAzimuth, nElevation, radius, Properties{{"azimuth_smooth", "true"}} | properties);
+
+    bool closed = spec.azimuth.interval.unit();
+    assert(closed); // zigzag seam can be anywhere, but must be a full turn
+
+    assert(spec.azimuth.smooth);
+
+    bool cusped_lower = math::float_eq0(spec.elevation_interval.lower());
+    bool cusped_upper = math::float_eq(spec.elevation_interval.upper(), T(1));
+
+    T t = T(1) / T(nElevation);
+    T t0 = spec.elevation_interval.lower();
+    T t1 = spec.elevation_interval.lerp(t);
+
+    T te0 = t0 - T(0.5);
+    T te1 = t1 - T(0.5);
+
+    T theta0 = te0 * math::Pi<T>;
+    T theta1 = te1 * math::Pi<T>;
+
+    T r0 = radius * math::denoise011(cos(theta0));
+    T r1 = radius * math::denoise011(cos(theta1));
+
+    T z0 = radius * math::denoise011(sin(theta0));
+    T z1 = radius * math::denoise011(sin(theta1));
+
+    T azimuth_offset = T(0.5) / T(nAzimuth);
+
+    auto azimuth_interval_a = spec.azimuth.interval;
+    auto azimuth_interval_b = shift(spec.azimuth.interval, azimuth_offset);
+
+    auto ts_a = texture_span<M>(0, nElevation, cusped_lower, cusped_upper);
+    auto ts_b = shift<M>(ts_a, azimuth_offset);
+
+    auto layer_texcoord = [nElevation](texture_span_type<M> texcoord, size_t i) -> texture_span_type<M> { texcoord[2] = texture_span_v<M>(i, nElevation); return texcoord; };
+
+    id_type halfedge_id0 = mesh.halfedge_store_count();
+
+    id_type submesh_id = mesh.create_submesh(name);
+    id_type surface_id = mesh.create_surface(submesh_id, spec.shell_name);
+
+    if (cusped_lower)
+    {
+        auto ts0 = layer_texcoord(ts_a, 0);
+        auto avs0 = cusp_vertices_attributes<M>(nAzimuth, z0, azimuth_interval_a, ts0);
+        auto ts1 = layer_texcoord(ts_a, 1);
+        auto avs1 = vertices_attributes<M>(nAzimuth, r1, z1, azimuth_interval_a, ts1);
+        create_base_cusp(mesh, avs0, avs1, surface_id, closed, false);
+    }
+    else if (nElevation == 1 && cusped_upper)
+    {
+        auto ts0 = layer_texcoord(ts_a, 0);
+        auto avs0 = vertices_attributes<M>(nAzimuth, r0, z0, azimuth_interval_a, ts0);
+        auto ts1 = layer_texcoord(ts_a, 1);
+        auto avs1 = cusp_vertices_attributes<M>(nAzimuth, z1, azimuth_interval_a, ts1);
+        create_apex_cusp(mesh, avs0, avs1, surface_id, closed);
+    }
+    else
+    {
+        auto ts0 = layer_texcoord(ts_b, 0);
+        auto avs0 = vertices_attributes<M>(nAzimuth, r0, z0, azimuth_interval_b, ts0);
+        auto ts1 = layer_texcoord(ts_a, 1);
+        auto avs1 = vertices_attributes<M>(nAzimuth, r1, z1, azimuth_interval_a, ts1);
+        create_antiband_inverted(mesh, avs0, avs1, surface_id);
+    }
+
+    bool inverted = false;
+
+    for (size_t i = 2; i <= nElevation; ++i)
+    {
+        t = T(i) / T(nElevation);
+        t1 = spec.elevation_interval.lerp(t);
+        te1 = t1 - T(0.5);
+        theta1 = te1 * math::Pi<T>;
+        r1 = radius * math::denoise011(cos(theta1));
+        z1 = radius * math::denoise011(sin(theta1));
+
+        if (i == nElevation && cusped_upper)
+        {
+            connect_apex_cusp(mesh, nAzimuth, z1, azimuth_interval_a, surface_id);
+        }
+        else if (inverted)
+        {
+            auto ts1 = layer_texcoord(ts_a, i);
+            auto avs1 = vertices_attributes<M>(nAzimuth, r1, z1, azimuth_interval_a, ts1);
+            connect_antiband_inverted(mesh, avs1, surface_id);
+        }
+        else
+        {
+            auto ts1 = layer_texcoord(ts_b, i);
+            auto avs1 = vertices_attributes<M>(nAzimuth, r1, z1, azimuth_interval_b, ts1);
+            connect_antiband(mesh, avs1, surface_id);
+        }
+
+        inverted = !inverted;
+    }
+
+    calculate_spherical_surface_vertex_normals(mesh.submesh(submesh_id));
+
+    seal_sphere(mesh, submesh_id, spec, halfedge_id0, cusped_lower, cusped_upper);
+    return submesh_id;
+}
+
+//------------------------------------------------------------------------------
+template<typename M>
+quetzal::id_type quetzal::model::create_antisphere(M& mesh, const std::string& name, size_t nAzimuth, size_t nElevation, std::function<data_value_type<M>(data_value_type<M>)> fr, const Properties& properties)
+{
+    using T = M::value_type;
+
+    assert(nAzimuth > 2);
+    assert(nElevation > 0);
+
+    SphereSpecification<T> spec(nAzimuth, nElevation, T(0), Properties{{"azimuth_smooth", "true"}} | properties);
+
+    bool closed = spec.azimuth.interval.unit();
+    assert(closed); // zigzag seam can be anywhere, but must be a full turn
+
+    assert(spec.azimuth.smooth);
+
+    bool cusped_lower = math::float_eq0(spec.elevation_interval.lower());
+    bool cusped_upper = math::float_eq(spec.elevation_interval.upper(), T(1));
+
+    T t = T(1) / T(nElevation);
+    T t0 = spec.elevation_interval.lower();
+    T t1 = spec.elevation_interval.lerp(t);
+
+    T te0 = t0 - T(0.5);
+    T te1 = t1 - T(0.5);
+
+    T theta0 = te0 * math::Pi<T>;
+    T theta1 = te1 * math::Pi<T>;
+
+    T radius0 = fr(te0);
+    T radius1 = fr(te1);
+
+    T r0 = radius0 * math::denoise011(cos(theta0));
+    T r1 = radius1 * math::denoise011(cos(theta1));
+
+    T z0 = radius0 * math::denoise011(sin(theta0));
+    T z1 = radius1 * math::denoise011(sin(theta1));
+
+    T azimuth_offset = T(0.5) / T(nAzimuth);
+
+    auto azimuth_interval_a = spec.azimuth.interval;
+    auto azimuth_interval_b = shift(spec.azimuth.interval, azimuth_offset);
+
+    auto ts_a = texture_span<M>(0, nElevation, cusped_lower, cusped_upper);
+    auto ts_b = shift<M>(ts_a, azimuth_offset);
+
+    auto layer_texcoord = [nElevation](texture_span_type<M> texcoord, size_t i) -> texture_span_type<M> { texcoord[2] = texture_span_v<M>(i, nElevation); return texcoord; };
+
+    id_type halfedge_id0 = mesh.halfedge_store_count();
+
+    id_type submesh_id = mesh.create_submesh(name);
+    id_type surface_id = mesh.create_surface(submesh_id, spec.shell_name);
+
+    if (cusped_lower)
+    {
+        auto ts0 = layer_texcoord(ts_a, 0);
+        auto avs0 = cusp_vertices_attributes<M>(nAzimuth, z0, azimuth_interval_a, ts0);
+        auto ts1 = layer_texcoord(ts_a, 1);
+        auto avs1 = vertices_attributes<M>(nAzimuth, r1, z1, azimuth_interval_a, ts1);
+        create_base_cusp(mesh, avs0, avs1, surface_id, closed, false);
+    }
+    else if (nElevation == 1 && cusped_upper)
+    {
+        auto ts0 = layer_texcoord(ts_a, 0);
+        auto avs0 = vertices_attributes<M>(nAzimuth, r0, z0, azimuth_interval_a, ts0);
+        auto ts1 = layer_texcoord(ts_a, 1);
+        auto avs1 = cusp_vertices_attributes<M>(nAzimuth, z1, azimuth_interval_a, ts1);
+        create_apex_cusp(mesh, avs0, avs1, surface_id, closed);
+    }
+    else
+    {
+        auto ts0 = layer_texcoord(ts_b, 0);
+        auto avs0 = vertices_attributes<M>(nAzimuth, r0, z0, azimuth_interval_b, ts0);
+        auto ts1 = layer_texcoord(ts_a, 1);
+        auto avs1 = vertices_attributes<M>(nAzimuth, r1, z1, azimuth_interval_a, ts1);
+        create_antiband_inverted(mesh, avs0, avs1, surface_id);
+    }
+
+    bool inverted = false;
+
+    for (size_t i = 2; i <= nElevation; ++i)
+    {
+        t = T(i) / T(nElevation);
+        t1 = spec.elevation_interval.lerp(t);
+        te1 = t1 - T(0.5);
+        theta1 = te1 * math::Pi<T>;
+        radius1 = fr(te1);
+        r1 = radius1 * math::denoise011(cos(theta1));
+        z1 = radius1 * math::denoise011(sin(theta1));
+
+        if (i == nElevation && cusped_upper)
+        {
+            connect_apex_cusp(mesh, nAzimuth, z1, azimuth_interval_a, surface_id);
+        }
+        else if (inverted)
+        {
+            auto ts1 = layer_texcoord(ts_a, i);
+            auto avs1 = vertices_attributes<M>(nAzimuth, r1, z1, azimuth_interval_a, ts1);
+            connect_antiband_inverted(mesh, avs1, surface_id);
+        }
+        else
+        {
+            auto ts1 = layer_texcoord(ts_b, i);
+            auto avs1 = vertices_attributes<M>(nAzimuth, r1, z1, azimuth_interval_b, ts1);
+            connect_antiband(mesh, avs1, surface_id);
+        }
+
+        inverted = !inverted;
+    }
+
+    calculate_spherical_surface_vertex_normals(mesh.submesh(submesh_id));
+
+    seal_sphere(mesh, submesh_id, spec, halfedge_id0, cusped_lower, cusped_upper);
+    return submesh_id;
+}
+
+//------------------------------------------------------------------------------
+template<typename M>
+quetzal::id_type quetzal::model::create_antisphere(M& mesh, const std::string& name, size_t nAzimuth, size_t nElevation, std::function<data_value_type<M>(data_value_type<M>, data_value_type<M>)> fr, const Properties& properties)
+{
+    using T = M::value_type;
+
+    assert(nAzimuth > 2);
+    assert(nElevation > 0);
+
+    SphereSpecification<T> spec(nAzimuth, nElevation, T(0), Properties{{"azimuth_smooth", "true"}} | properties);
+
+    bool closed = spec.azimuth.interval.unit();
+    assert(closed); // zigzag seam can be anywhere, but must be a full turn
+
+    assert(spec.azimuth.smooth);
+
+    bool cusped_lower = math::float_eq0(spec.elevation_interval.lower());
+    bool cusped_upper = math::float_eq(spec.elevation_interval.upper(), T(1));
+
+    T t = T(1) / T(nElevation);
+    T t0 = spec.elevation_interval.lower();
+    T t1 = spec.elevation_interval.lerp(t);
+
+    T te0 = t0 - T(0.5);
+    T te1 = t1 - T(0.5);
+
+    T theta0 = te0 * math::Pi<T>;
+    T theta1 = te1 * math::Pi<T>;
+
+    auto cos_theta0 = math::denoise011(cos(theta0));
+    auto sin_theta0 = math::denoise011(sin(theta0));
+
+    auto cos_theta1 = math::denoise011(cos(theta1));
+    auto sin_theta1 = math::denoise011(sin(theta1));
+
+    T azimuth_offset = T(0.5) / T(nAzimuth);
+
+    auto azimuth_interval_a = spec.azimuth.interval;
+    auto azimuth_interval_b = shift(spec.azimuth.interval, azimuth_offset);
+
+    auto ts_a = texture_span<M>(0, nElevation, cusped_lower, cusped_upper);
+    auto ts_b = shift<M>(ts_a, azimuth_offset);
+
+    id_type halfedge_id0 = mesh.halfedge_store_count();
+
+    id_type submesh_id = mesh.create_submesh(name);
+    id_type surface_id = mesh.create_surface(submesh_id, spec.shell_name);
+
+    // Calculate z value for cusps
+    auto terminal_z = [fr](T t) -> T { assert(t == T(0) || t == T(1)); return fr(T(0), (t - T(0.5))); };
+
+    auto layer_texcoord = [nElevation](texture_span_type<M> texcoord, size_t i) -> texture_span_type<M> { texcoord[2] = texture_span_v<M>(i, nElevation); return texcoord; };
+
+    auto spherical_position = [](T r, T ta, T cos_theta, T sin_theta) -> typename M::point_type
+    {
+        T phi = ta * math::PiTwo<T>;
+        return {r * math::denoise011(cos(phi)) * cos_theta, r * math::denoise011(sin(phi)) * cos_theta, r * sin_theta};
+    };
+
+    if (cusped_lower)
+    {
+        auto z0 = terminal_z(T(0));
+        auto ts0 = layer_texcoord(ts_a, 0);
+        auto avs0 = cusp_vertices_attributes<M>(nAzimuth, z0, azimuth_interval_a, ts0);
+        auto ts1 = layer_texcoord(ts_a, 1);
+        auto avs1 = vertices_attributes<M>(nAzimuth,
+            [&](T ta) -> typename M::point_type { return spherical_position(fr(ta, te1), ta, cos_theta1, sin_theta1); },
+            azimuth_interval_a, ts1);
+        create_base_cusp(mesh, avs0, avs1, surface_id, closed, false);
+    }
+    else if (nElevation == 1 && cusped_upper)
+    {
+        auto z1 = terminal_z(T(1));
+        auto ts0 = layer_texcoord(ts_b, 0);
+        auto avs0 = vertices_attributes<M>(nAzimuth,
+            [&](T ta) -> typename M::point_type { return spherical_position(fr(ta, te0), ta, cos_theta0, sin_theta0); },
+            azimuth_interval_a, ts0);
+        auto ts1 = layer_texcoord(ts_a, 1);
+        auto avs1 = cusp_vertices_attributes<M>(nAzimuth, z1, azimuth_interval_a, ts1);
+        create_apex_cusp(mesh, avs0, avs1, surface_id, closed, false);
+    }
+    else
+    {
+        auto ts0 = layer_texcoord(ts_b, 0);
+        auto avs0 = vertices_attributes<M>(nAzimuth,
+            [&](T ta) -> typename M::point_type { return spherical_position(fr(ta, te0), ta, cos_theta0, sin_theta0); },
+            azimuth_interval_b, ts0);
+        auto ts1 = layer_texcoord(ts_a, 1);
+        auto avs1 = vertices_attributes<M>(nAzimuth,
+            [&](T ta) -> typename M::point_type { return spherical_position(fr(ta, te1), ta, cos_theta1, sin_theta1); },
+            azimuth_interval_a, ts1);
+        create_antiband_inverted(mesh, avs0, avs1, surface_id);
+    }
+
+    bool inverted = false;
+
+    for (size_t i = 2; i <= nElevation; ++i)
+    {
+        t = T(i) / T(nElevation);
+        t1 = spec.elevation_interval.lerp(t);
+        te1 = t1 - T(0.5);
+        theta1 = te1 * math::Pi<T>;
+        cos_theta1 = math::denoise011(cos(theta1));
+        sin_theta1 = math::denoise011(sin(theta1));
+
+        if (i == nElevation && cusped_upper)
+        {
+            auto z1 = terminal_z(T(1));
+            connect_apex_cusp(mesh, nAzimuth, z1, azimuth_interval_a, surface_id);
+        }
+        else if (inverted)
+        {
+            auto ts1 = layer_texcoord(ts_a, i);
+            auto avs1 = vertices_attributes<M>(nAzimuth,
+                [&](T ta) -> typename M::point_type { return spherical_position(fr(ta, te1), ta, cos_theta1, sin_theta1); },
+                azimuth_interval_a, ts1);
+            connect_antiband_inverted(mesh, avs1, surface_id);
+        }
+        else
+        {
+            auto ts1 = layer_texcoord(ts_b, i);
+            auto avs1 = vertices_attributes<M>(nAzimuth,
+                [&](T ta) -> typename M::point_type { return spherical_position(fr(ta, te1), ta, cos_theta1, sin_theta1); },
+                azimuth_interval_b, ts1);
+            connect_antiband(mesh, avs1, surface_id);
+        }
+
+        inverted = !inverted;
+    }
+
+    calculate_spherical_surface_vertex_normals(mesh.submesh(submesh_id));
+
+    seal_sphere(mesh, submesh_id, spec, halfedge_id0, cusped_lower, cusped_upper);
+    return submesh_id;
+}
+
+//------------------------------------------------------------------------------
+template<typename M>
 quetzal::id_type quetzal::model::create_torus(M& mesh, const std::string& name, size_t nMajor, size_t nMinor, data_value_type<M> rMajor, data_value_type<M> rMinor, const Properties& properties)
 {
     using T = M::value_type;
 
     TorusSpecification<T> spec(nMajor, nMinor, rMajor, rMajor, rMinor, rMinor, properties);
 
-    nMajor = spec.major_edge_count;
     assert(nMajor > 2);
-
-    nMinor = spec.minor.edge_count;
     assert(nMinor > 2);
-
-    assert(spec.major_radius_interval.length() == T(0));
-    rMajor = spec.major_radius_interval.lower();
     assert(rMajor > T(0));
-
-    assert(spec.minor_radius_interval.length() == T(0));
-    rMinor = spec.minor_radius_interval.lower();
     assert(rMinor > T(0));
 
     // theta/major and phi/minor follow cylinder band orientation
@@ -3199,7 +3563,7 @@ quetzal::id_type quetzal::model::create_torus(M& mesh, const std::string& name, 
     id_type halfedge_id0 = mesh.halfedge_store_count();
 
     id_type submesh_id = mesh.create_submesh(name);
-    id_type surface_id = mesh.create_surface(submesh_id, SurfaceName::Body);
+    id_type surface_id = mesh.create_surface(submesh_id, spec.shell_name);
 
     vertices_attributes_type<M> avs0(nMinor + 1);
     vertices_attributes_type<M> avs1(nMinor + 1);
@@ -3275,10 +3639,7 @@ quetzal::id_type quetzal::model::create_torus(M& mesh, const std::string& name, 
 
     TorusSpecification<T> spec(nMajor, nMinor, rMajor_lower, rMajor_upper, rMinor_lower, rMinor_upper, properties); // z ...
 
-    nMajor = spec.azimuth.edge_count;
     assert(nMajor > 2);
-
-    nMinor = spec.elevation_edge_count;
     assert(nMinor > 2);
 
     // theta/major and phi/minor follow cylinder band orientation
@@ -3292,7 +3653,7 @@ quetzal::id_type quetzal::model::create_torus(M& mesh, const std::string& name, 
     id_type halfedge_id0 = mesh.halfedge_store_count();
 
     id_type submesh_id = mesh.create_submesh(name);
-    id_type surface_id = mesh.create_surface(submesh_id, SurfaceName::Body);
+    id_type surface_id = mesh.create_surface(submesh_id, spec.shell_name);
 
     vertices_attributes_type<M> avs0(nMinor + 1);
     vertices_attributes_type<M> avs1(nMinor + 1);
@@ -3374,10 +3735,7 @@ quetzal::id_type quetzal::model::create_torus(M& mesh, const std::string& name, 
 
     TorusSpecification<T> spec(nMajor, nMinor, frMajor(T(0)), frMajor(T(1)), frMinor(T(0)), frMinor(T(1)), properties); // z ...
 
-    nMajor = spec.azimuth.edge_count;
     assert(nMajor > 2);
-
-    nMinor = spec.elevation_edge_count;
     assert(nMinor > 2);
 
     // theta/major and phi/minor follow cylinder band orientation
@@ -3392,7 +3750,7 @@ quetzal::id_type quetzal::model::create_torus(M& mesh, const std::string& name, 
     id_type halfedge_id0 = mesh.halfedge_store_count();
 
     id_type submesh_id = mesh.create_submesh(name);
-    id_type surface_id = mesh.create_surface(submesh_id, SurfaceName::Body);
+    id_type surface_id = mesh.create_surface(submesh_id, spec.shell_name);
 
     vertices_attributes_type<M> avs0(nMinor + 1);
     vertices_attributes_type<M> avs1(nMinor + 1);
@@ -4187,7 +4545,7 @@ quetzal::id_type quetzal::model::create_icosahedron(M& mesh, const std::string& 
                 vertex_positions[face_vertex_position_ids[j + 1]],
                 vertex_positions[face_vertex_position_ids[j + 2]],
             };
-            auto normal = direction(vertex_centroid(points)); // geometry::normal(points) ...
+            auto normal = direction(vertex_centroid(points)); // geometry::normal(points), yes, this, or just wait until after face is created and use that ...
             id_type surface_id = mesh.create_surface(submesh_id, surface_name(SurfaceName::BodySection, i), {normal});
             id_type face_id = mesh.create_face(surface_id, nh + j, {normal});
 
@@ -4256,9 +4614,10 @@ quetzal::id_type quetzal::model::create_geodesic_sphere(M& mesh, const std::stri
 
     project_vertices(m.submesh(submesh_id), radius);
 
+    // in either case here, face normals should be calculated the same, face normals are a face level construct (and vertex normals are a surface level construct) ...
     if (bSmooth)
     {
-        calculate_spherical_normals(m); // spherical face normals may not be exactly correct with the way geodesic sphere is constructed here ...
+        calculate_spherical_normals(m); // spherical face normals may not be exactly correct with geodesic sphere, faces are not necessarily equilateral triangles, the only shape that will work correctly ...
         calculate_spherical_texcoords(m); // spherical texture coordinates, with smooth icosahedron to start, splits should produce mostly correct texture coordinates ...
     }
     else
@@ -4315,7 +4674,7 @@ assert(texcoord.y() == T(0) || texcoord.y() == T(1));
     id_type halfedge_id0 = mesh.halfedge_store_count();
 
     id_type submesh_id = mesh.create_submesh(name);
-    id_type surface_id0 = create_section_surfaces(mesh, submesh_id, section_count, [](size_t i) { return surface_name(SurfaceName::BodySection, i); });
+    id_type surface_id0 = create_section_surfaces(mesh, submesh_id, section_count, [&spec](size_t i) { return surface_name(spec.shell_name, i); });
 
     auto ts0 = texture_span<M>(0, 1, false, false);
     auto ts1 = texture_span<M>(1, 1, false, false);
@@ -4377,7 +4736,7 @@ quetzal::id_type quetzal::model::create_extrusion(M& mesh, const std::string& na
         auto ts1 = texture_span<M>(1, 1, false, false);
 
         //  weird to have a band per axis division, is this intentional ...
-        id_type surface_id = mesh.create_surface(submesh_id, surface_name(SurfaceName::BodySection, surface_id0));
+        id_type surface_id = mesh.create_surface(submesh_id, surface_name(spec.shell_name, surface_id0));
         create_band(mesh, avs0, avs1, ts0, ts1, true, surface_id, true);
 idHalfedge_upper = mesh.halfedge_store_count() - 2 * nAzimuth; // after last layer ...
 
@@ -4393,7 +4752,7 @@ idHalfedge_upper = mesh.halfedge_store_count() - 2 * nAzimuth; // after last lay
 
             idHalfedgeHoles_lower[j] = mesh.halfedge_store_count();
 
-            surface_id = mesh.create_surface(mesh.create_submesh(name), surface_name(SurfaceName::BodySection, surface_id0 + 1 + j));
+            surface_id = mesh.create_surface(mesh.create_submesh(name), surface_name(spec.shell_name, surface_id0 + 1 + j));
             create_band(mesh, avs0, avs1, ts0, ts1, true, surface_id, true);
 
             assert(mesh.halfedge(idHalfedgeHoles_lower[j]).border());
@@ -4459,7 +4818,7 @@ quetzal::id_type quetzal::model::create_swept_volume(M& mesh, const std::string&
     id_type halfedge_id0 = mesh.halfedge_store_count();
 
     id_type submesh_id = mesh.create_submesh(name);
-    id_type surface_id0 = mesh.create_surface(submesh_id, SurfaceName::Body);
+    id_type surface_id0 = mesh.create_surface(submesh_id, spec.shell_name);
  
     id_type j0_orig = mesh.halfedge_store_count();
 
@@ -4516,7 +4875,7 @@ quetzal::id_type quetzal::model::create_swept_volume_edges(M& mesh, const std::s
     id_type halfedge_id0 = mesh.halfedge_store_count();
 
     id_type submesh_id = mesh.create_submesh(name);
-    id_type surface_id0 = create_section_surfaces(mesh, submesh_id, section_count, [](size_t i) { return surface_name(SurfaceName::BodySection, i); });
+    id_type surface_id0 = create_section_surfaces(mesh, submesh_id, section_count, [&spec](size_t i) { return surface_name(spec.shell_name, i); });
  
     id_type j0_orig = mesh.halfedge_store_count();
 
@@ -4579,7 +4938,7 @@ quetzal::id_type quetzal::model::create_swept_volume_sections(M& mesh, const std
     id_type halfedge_id0 = mesh.halfedge_store_count();
 
     id_type submesh_id = mesh.create_submesh(name);
-    id_type surface_id0 = create_section_surfaces(mesh, submesh_id, section_count, [](size_t i) { return surface_name(SurfaceName::BodySection, i); });
+    id_type surface_id0 = create_section_surfaces(mesh, submesh_id, section_count, [&spec](size_t i) { return surface_name(spec.shell_name, i); });
  
     id_type j0_orig = mesh.halfedge_store_count();
 
@@ -4639,11 +4998,11 @@ quetzal::id_type quetzal::model::create_swept_volume(M& mesh, const std::string&
     id_type surface_id0 = nullid;
     if (spec.azimuth.smooth)
     {
-        surface_id0 = mesh.create_surface(submesh_id, SurfaceName::Body);
+        surface_id0 = mesh.create_surface(submesh_id, spec.shell_name);
     }
     else
     {
-        surface_id0 = create_section_surfaces(mesh, submesh_id, nAzimuth, [](size_t i) { return surface_name(SurfaceName::BodySection, i); });
+        surface_id0 = create_section_surfaces(mesh, submesh_id, nAzimuth, [&spec](size_t i) { return surface_name(spec.shell_name, i); });
     }
 
     T t = T(1) / T(nz); // Should be relative distance along the path ...
@@ -4718,7 +5077,7 @@ quetzal::id_type quetzal::model::create_swept_volume(M& mesh, const std::string&
     id_type halfedge_id0 = mesh.halfedge_store_count();
 
     id_type submesh_id = mesh.create_submesh(name);
-    id_type surface_id0 = mesh.create_surface(submesh_id, SurfaceName::Body);
+    id_type surface_id0 = mesh.create_surface(submesh_id, spec.shell_name);
 
     vertices_attributes_type<M> avs0;
     vertices_attributes_type<M> avs1;
@@ -4835,7 +5194,7 @@ quetzal::id_type quetzal::model::create_swept_volume_edges(M& mesh, const std::s
     id_type halfedge_id0 = mesh.halfedge_store_count();
 
     id_type submesh_id = mesh.create_submesh(name);
-    id_type surface_id0 = create_section_surfaces(mesh, submesh_id, section_count, [](size_t i) { return surface_name(SurfaceName::BodySection, i); });
+    id_type surface_id0 = create_section_surfaces(mesh, submesh_id, section_count, [&spec](size_t i) { return surface_name(spec.shell_name, i); });
 
     vertices_attributes_sections_type<M> avss0;
     vertices_attributes_sections_type<M> avss1;
@@ -4964,7 +5323,7 @@ quetzal::id_type quetzal::model::create_swept_volume_sections(M& mesh, const std
     id_type halfedge_id0 = mesh.halfedge_store_count();
 
     id_type submesh_id = mesh.create_submesh(name);
-    id_type surface_id0 = create_section_surfaces(mesh, submesh_id, section_count, [](size_t i) { return surface_name(SurfaceName::BodySection, i); });
+    id_type surface_id0 = create_section_surfaces(mesh, submesh_id, section_count, [&spec](size_t i) { return surface_name(spec.shell_name, i); });
 
     vertices_attributes_sections_type<M> avss0;
     vertices_attributes_sections_type<M> avss1;

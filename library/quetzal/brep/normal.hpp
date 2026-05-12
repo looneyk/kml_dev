@@ -52,6 +52,7 @@ namespace quetzal::brep
 
     // Set the surface, face, and vertex normals to the common value given for a face that is the sole face in a surface
     // Calculate it if it is not given
+    // Only triangulate_central_vertex is using the explicit normal functionality here, 
     template<typename F>
     void set_facet_normal(F& face, const std::optional<const typename F::attributes_type::vector_type>& normal = std::nullopt);
 

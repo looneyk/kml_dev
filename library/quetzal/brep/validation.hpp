@@ -10,6 +10,7 @@
 #include "mesh_util.hpp"
 #include "id.hpp"
 #include "normal.hpp"
+#include "texcoord.hpp"
 #include "quetzal/brep/Mesh.hpp"
 #include "quetzal/brep/Submesh.hpp"
 #include "quetzal/geometry/Attributes.hpp"
@@ -499,7 +500,7 @@ quetzal::brep::ValidationState quetzal::brep::check_vertex(const M& mesh, const 
             state.set_warn();
         }
 
-        if (halfedge.vertex_attributes().texcoord() != vertex.attributes().texcoord())
+        if (!texcoord_eq(halfedge.vertex_attributes().texcoord(), vertex.attributes().texcoord()))
         {
             std::cout << "  Warn: coincident surface vertex texcoord: reference vertex " << vertex.id() << " (" << vertex.attributes().texcoord() << ") != vertex " << halfedge.vertex_id() << " (" << halfedge.vertex_attributes().texcoord() << ')' << eol;
             state.set_warn();
@@ -676,7 +677,7 @@ quetzal::brep::ValidationState quetzal::brep::check_face(const M& mesh, const ty
 // this catches nan's where the original does not, but that should be a separate test before this one, ...
             if (!texcoord_normal.valid())
             {
-                std::cout << "Warn: !texcoord_normal.valid() : " << face.id() << ' ' << halfedge.id() << ' ' << eol;
+                std::cout << "Warn: !texcoord_normal.valid() : " << face.id() << ' ' << halfedge.id() << ' ' << std::format("    {}, {}    {}, {}    {}, {}    {}", t0.x(), t0.y(), t1.x(), t1.y(), t2.x(), t2.y(), texcoord_normal) << eol;
                 state.set_warn();
             }
             else if (math::float_eq0(texcoord_normal.norm_squared()))

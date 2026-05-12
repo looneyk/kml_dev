@@ -66,11 +66,18 @@ namespace quetzal::model
     template<typename M>
     void transform_border_fragment_position(M& mesh, id_type halfedge_id, const typename M::matrix_type& matrix, bool reset = true);
 
+    // Calculates normals for a submesh representing a sphere once all geometry has been created
+    // face normals are not calculated here, they can be calculated on construcction ...
+    // center? ...
+    template<typename Traits>
+    void calculate_spherical_surface_vertex_normals(brep::Submesh<Traits>& submesh);
+
     // Change to U& u ...
     template<typename M>
     void calculate_spherical_normals(M& mesh, const typename M::point_type& center = {});
 
     // Calculate texcoord from the spherical coordinates of the vertex normal vector
+    // why not using the vertex position? ...
     template<typename M>
     typename M::vertex_attributes_type::texcoord_type calculate_spherical_texcoord(const typename M::vector_type& normal);
 
@@ -207,7 +214,7 @@ void quetzal::model::transform(U& u, const typename U::traits_type::matrix_type&
 template<typename U>
 void quetzal::model::transform_positions(U& u, const typename U::traits_type::matrix_type& matrix)
 {
-    if constexpr (std::same_as<U, brep::Mesh<typename U::traits_type>>) // separate functions, or just get rid of this case, doesn't handle coincident vertex positions ...
+    if constexpr (std::same_as<U, brep::Mesh<typename U::traits_type>>) // separate functions, or just get rid of this case, doesn't handle coincident vertex positions (just stop doing things like this at the mesh level) ...
     {
         for (auto& vertex : u.vertices())
         {
@@ -341,6 +348,28 @@ void quetzal::model::transform_border_fragment_position(M& mesh, id_type halfedg
 
         halfedge.vertex_attributes().position() *= matrix;
     }
+
+    return;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+void quetzal::model::calculate_spherical_surface_vertex_normals(brep::Submesh<Traits>& submesh)
+{
+    typename Traits::vector_type normal;
+
+    for_each_surface_vertex(submesh,
+        [&](const auto& vertex) -> bool
+        {
+            normal = normalize(vertex.attributes().position().vector());
+            return true;
+        },
+        [&](auto& vertex) -> void
+        {
+            vertex.attributes().set_normal(normal);
+            return;
+        }
+    );
 
     return;
 }

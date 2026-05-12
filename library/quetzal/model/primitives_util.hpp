@@ -113,8 +113,14 @@ namespace quetzal::model
     void create_band(M& mesh, const vertices_attributes_sections_type<M>& avss0, const vertices_attributes_sections_type<M>& avss1, id_type surface_id0, bool closed);
 
     // Create an open antiprism section between two vertex attribute sets
+    // Starts with a face with the horizontal edge at the bottom (triangle pointing up)
     template<typename M>
     void create_antiband(M& mesh, const vertices_attributes_type<M>& avs0, const vertices_attributes_type<M>& avs1, id_type surface_id);
+
+    // Create an open antiprism section between two vertex attribute sets
+    // Starts with a face with the horizontal edge at the top (triangle pointing down)
+    template<typename M>
+    void create_antiband_inverted(M& mesh, const vertices_attributes_type<M>& avs0, const vertices_attributes_type<M>& avs1, id_type surface_id);
 
     // Create an open antiprism section between two vertex attribute sets
     template<typename M>
@@ -168,6 +174,9 @@ namespace quetzal::model
 
     template<typename M>
     void connect_antiband(M& mesh, const vertices_attributes_type<M>& avs1, id_type surface_id);
+
+    template<typename M>
+    void connect_antiband_inverted(M& mesh, const vertices_attributes_type<M>& avs1, id_type surface_id);
 
     template<typename M>
     void connect_antiband_faces(M& mesh, const vertices_attributes_type<M>& avs1, id_type submesh_id);
@@ -231,7 +240,11 @@ namespace quetzal::model
     template<typename M>
     id_type create_section_surfaces(M& mesh, id_type submesh_id, size_t n, std::function<std::string(size_t)> namer);
 
-    // This calculates normals for a single section of a band having n faces
+    // deprecated
+    template<typename M>
+    void check_normal(size_t n, const quetzal::model::normal_vector_type<M>& normal, const typename M::vertex_type& vertex, const typename M::face_type& face);
+
+    // These calculate normals for a single section of a band having n faces
     // id0 is the id of the first halfedge in the section
     template<typename M>
     void calculate_lower_surface_vertex_normals_sequential(M& mesh, id_type id0, size_t n);
@@ -254,6 +267,9 @@ namespace quetzal::model
 
     template<typename M>
     quetzal::model::texture_span_type<M> texture_span(size_t i, size_t n, bool cusped_lower, bool cusped_upper, data_value_type<M> alignment = data_value_type<M>(0.5));
+
+    template<typename M>
+    quetzal::model::data_value_type<M> texture_span_v(size_t i, size_t n);
 
 } // namespace quetzal::model
 
@@ -924,6 +940,69 @@ void quetzal::model::create_antiband(M& mesh, const vertices_attributes_type<M>&
 
 //------------------------------------------------------------------------------
 template<typename M>
+void quetzal::model::create_antiband_inverted(M& mesh, const vertices_attributes_type<M>& avs0, const vertices_attributes_type<M>& avs1, id_type surface_id)
+{
+    using T = data_value_type<M>;
+
+    assert(avs1.size() == avs0.size());
+
+    size_t nAzimuth = avs0.size() - 1;
+    assert(nAzimuth > 2);
+
+    size_t nh = mesh.halfedge_store_count();
+
+    mesh.halfedge_store().resize(nh + 6 * nAzimuth);
+    mesh.vertex_store().resize(nh + 6 * nAzimuth);
+
+    for (size_t j = 0; j < nAzimuth; ++j)
+    {
+        size_t j0 = nh;
+        size_t j1 = j0 + nAzimuth;
+        size_t j2 = j1 + nAzimuth;
+        size_t j3 = j2 + nAzimuth;
+        size_t j4 = j3 + nAzimuth;
+        size_t j5 = j4 + nAzimuth;
+
+        id_type face_id = mesh.create_face(surface_id, j0);
+
+        id_type idPartner = nullid;
+        mesh.halfedge(j0) = {mesh, j0, idPartner, j1, j2, j0, face_id};
+        idPartner =  (j < nAzimuth - 1 ? j5 + 1 : j5 - nAzimuth + 1);
+        mesh.halfedge(j1) = {mesh, j1, idPartner, j2, j0, j1, face_id};
+        idPartner = j3;
+        mesh.halfedge(j2) = {mesh, j2, idPartner, j0, j1, j2, face_id};
+
+        mesh.vertex(j0) = {mesh, j0, j0, avs0[j]};
+        mesh.vertex(j1) = {mesh, j1, j1, avs0[j + 1]};
+        mesh.vertex(j2) = {mesh, j2, j2, avs1[j + 1]};
+
+        auto normal = geometry::normal(mesh.face(face_id));
+        mesh.face(face_id).attributes().set_normal(normal);
+
+        face_id = mesh.create_face(surface_id, j3);
+
+        idPartner = j2;
+        mesh.halfedge(j3) = {mesh, j3, idPartner, j4, j5, j3, face_id};
+        idPartner = nullid;
+        mesh.halfedge(j4) = {mesh, j4, idPartner, j5, j3, j4, face_id};
+        idPartner = (j > 0 ? j1 - 1 : j1 + nAzimuth - 1);
+        mesh.halfedge(j5) = {mesh, j5, idPartner, j3, j4, j5, face_id};
+
+        mesh.vertex(j3) = {mesh, j3, j3, avs0[j]};
+        mesh.vertex(j4) = {mesh, j4, j4, avs1[j + 1]};
+        mesh.vertex(j5) = {mesh, j5, j5, avs1[j]};
+
+        normal = geometry::normal(mesh.face(face_id));
+        mesh.face(face_id).attributes().set_normal(normal);
+
+        ++nh;
+    }
+
+    return;
+}
+
+//------------------------------------------------------------------------------
+template<typename M>
 void quetzal::model::create_antiband_faces(M& mesh, const vertices_attributes_type<M>& avs0, const vertices_attributes_type<M>& avs1, id_type submesh_id)
 {
     using T = data_value_type<M>;
@@ -1000,8 +1079,7 @@ void quetzal::model::connect_apex_cusp(M& mesh, size_t nAzimuth, data_value_type
 
     using T = data_value_type<M>;
 
-    auto ts1 = texture_span_type<M>{T(0.5), T(0.5), T(0)};
-    auto avs1 = cusp_vertices_attributes<M>(nAzimuth, z1, azimuth1, ts1, vertex_normal);
+    auto avs1 = cusp_vertices_attributes<M>(nAzimuth, z1, azimuth1, {T(0.5), T(0.5), T(0)}, vertex_normal);
 
     bool closed = azimuth1.unit();
     bool calculate_normals = false; // smooth, but we don't have this info; needs to be true in the sphere case? but seems to be working anyway ...
@@ -1018,8 +1096,7 @@ void quetzal::model::connect_apex_cusp_sections(M& mesh, size_t nAzimuth, data_v
 
     using T = data_value_type<M>;
 
-    auto ts1 = texture_span_type<M>{T(0.5), T(0.5), T(0)};
-    auto avss1 = cusp_vertices_attributes_edges<M>(nAzimuth, z1, ts1);
+    auto avss1 = cusp_vertices_attributes_edges<M>(nAzimuth, z1, {T(0.5), T(0.5), T(0)});
 
     bool closed = azimuth1.unit();
     connect_apex_cusp(mesh, avss1, surface_id0, closed);
@@ -1416,7 +1493,6 @@ void quetzal::model::connect_antiband(M& mesh, const vertices_attributes_type<M>
 
     size_t nAzimuth = avs1.size() - 1;
     assert(nAzimuth > 2);
-    assert(mesh.halfedge_count() >= 6 * nAzimuth);
 
     size_t nh = mesh.halfedge_store_count();
 
@@ -1428,13 +1504,53 @@ void quetzal::model::connect_antiband(M& mesh, const vertices_attributes_type<M>
 
     avs0[nAzimuth] = avs0[0];
     avs0[nAzimuth].texcoord().set_x(T(1));
-    create_antiband(mesh, avs0, avs1, surface_id);
 
     nh = mesh.halfedge_store_count();
+
+    create_antiband(mesh, avs0, avs1, surface_id);
+
     for (size_t i = 0; i < nAzimuth; ++i)
     {
-        size_t idHalfedge0 = nh - 8 * nAzimuth + i;
-        size_t idHalfedge1 = nh - 6 * nAzimuth + i;
+        size_t idHalfedge0 = nh - 2 * nAzimuth + i;
+        size_t idHalfedge1 = nh + i;
+
+        mesh.halfedge(idHalfedge0).set_partner_id(idHalfedge1);
+        mesh.halfedge(idHalfedge1).set_partner_id(idHalfedge0);
+    }
+
+    return;
+}
+
+//------------------------------------------------------------------------------
+template<typename M>
+void quetzal::model::connect_antiband_inverted(M& mesh, const vertices_attributes_type<M>& avs1, id_type surface_id)
+{
+    // create_antiband is leveraged here ...
+    using T = data_value_type<M>;
+
+    size_t nAzimuth = avs1.size() - 1;
+    assert(nAzimuth > 2);
+    assert(mesh.halfedge_count() >= 6 * nAzimuth);
+
+    size_t nh = mesh.halfedge_store_count();
+
+    vertices_attributes_type<M> avs0(nAzimuth + 1);
+    for (size_t i = 0; i < nAzimuth; ++i)
+    {
+        avs0[i] = mesh.halfedge(nh - nAzimuth + i).vertex_attributes();
+    }
+
+    avs0[nAzimuth] = avs0[0];
+    avs0[nAzimuth].texcoord().set_x(T(1) + T(0.5) / nAzimuth);
+
+    nh = mesh.halfedge_store_count();
+
+    create_antiband_inverted(mesh, avs0, avs1, surface_id);
+
+    for (size_t i = 0; i < nAzimuth; ++i)
+    {
+        size_t idHalfedge0 = nh - 2 * nAzimuth + i;
+        size_t idHalfedge1 = nh + i;
 
         mesh.halfedge(idHalfedge0).set_partner_id(idHalfedge1);
         mesh.halfedge(idHalfedge1).set_partner_id(idHalfedge0);
@@ -1463,13 +1579,15 @@ void quetzal::model::connect_antiband_faces(M& mesh, const vertices_attributes_t
     }
 
     avs0[nAzimuth] = avs0[0];
-    create_antiband_faces(mesh, avs0, avs1, submesh_id);
 
     nh = mesh.halfedge_store_count();
+
+    create_antiband_faces(mesh, avs0, avs1, submesh_id);
+
     for (size_t i = 0; i < nAzimuth; ++i)
     {
-        size_t idHalfedge0 = nh - 8 * nAzimuth + i;
-        size_t idHalfedge1 = nh - 6 * nAzimuth + i;
+        size_t idHalfedge0 = nh - 2 * nAzimuth + i;
+        size_t idHalfedge1 = nh + i;
 
         mesh.halfedge(idHalfedge0).set_partner_id(idHalfedge1);
         mesh.halfedge(idHalfedge1).set_partner_id(idHalfedge0);
@@ -2880,7 +2998,7 @@ quetzal::id_type quetzal::model::create_section_surfaces(M& mesh, id_type submes
 
 //------------------------------------------------------------------------------
 template<typename M>
-void check_normal(size_t n, const quetzal::model::normal_vector_type<M>& normal, const typename M::vertex_type& vertex, const typename M::face_type& face)
+void quetzal::model::check_normal(size_t n, const quetzal::model::normal_vector_type<M>& normal, const typename M::vertex_type& vertex, const typename M::face_type& face)
 {
 //    std::cout << "check_normal <" << n << "> [" << normal << "]" << std::endl;
 //    std::cout << "c v n " << vertex.id() << " normal [" << vertex.attributes().normal() << "]" << std::endl;
@@ -3102,21 +3220,19 @@ quetzal::model::texture_span_type<M> quetzal::model::texture_span(data_value_typ
 {
     using T = data_value_type<M>;
 
-    assert(t >= T(0) && t <= T(1));
-//    assert(!cusped_lower || !cusped_upper);
+    assert(math::clamped01(t));
 
     T v = math::denoise01(T(1) - t);
     T w = T(1);
 
-    // partial sphere may not have both cusps ...
-    // need to handle this case for sphere, or create a special version; need to decide how sphere should map texture ...
-    // width whould be the fraction of the maximum equatorial width of the side closure etc. ...
+    // for partial azimuth sphere, width might instead be the fraction of the maximum equatorial width of the side closure etc. ...
+    // partial elevation sphere should have same width throughout even as it may be missing cusps, so can't use only cusped for logic here  ...
+    // that width might instead be the fraction of the maximum equatorial width minus the side closure ...
     if (cusped_lower && cusped_upper)
     {
         return {T(0), w, v};
     }
-
-    if (cusped_lower)
+    else if (cusped_lower)
     {
         w = t;
     }
@@ -3126,10 +3242,11 @@ quetzal::model::texture_span_type<M> quetzal::model::texture_span(data_value_typ
     }
 
     T u0 = math::denoise01(alignment * (T(1) - w));
-    T u1 = math::denoise01(u0 + w);
-//    T u1 = T(1) - u0;
-    assert(u0 >= T(0) && u0 <= T(1));
-    assert(u1 >= T(0) && u1 <= T(1));
+    assert(math::clamped01(u0));
+
+    T u1 = math::denoise01(u0 + w); // T(1) - u0;
+    assert(math::clamped01(u1));
+
     return {u0, u1, v};
 }
 
@@ -3140,28 +3257,23 @@ quetzal::model::texture_span_type<M> quetzal::model::texture_span(size_t i, size
     using T = data_value_type<M>;
 
     assert(n > 0);
-    assert(i >= 0 && i <= n);
-//    assert(!cusped_lower || !cusped_upper);
+    assert(i <= n);
 
-//    T t = T(i) / T(n);
-//    T v = T(1) - t;
-    T v = T(n - i) / T(n);
+    T v = texture_span_v<M>(i, n);
+    T w = T(1);
 
     // Too bad we can't just ...
     //return texture_span(T(1) - v, cusped_lower, cusped_upper, alignment);
+    // unless texture_span(t) takes v instead of t ...
 
-    T w = T(1);
-//assert(t == T(1) - v);
-
-    // partial sphere may not have both cusps ...
-    // need to handle this case for sphere, or create a special version; need to decide how sphere should map texture ...
-    // width whould be the fraction of the maximum equatorial width of the side closure etc. ...
+    // for partial azimuth sphere, width might instead be the fraction of the maximum equatorial width of the side closure etc. ...
+    // partial elevation sphere should have same width throughout even as it may be missing cusps, so can't use only cusped for logic here  ...
+    // that width might instead be the fraction of the maximum equatorial width minus the side closure ...
     if (cusped_lower && cusped_upper)
     {
         return {T(0), w, v};
     }
-
-    if (cusped_lower)
+    else if (cusped_lower)
     {
         w = T(1) - v;
     }
@@ -3171,11 +3283,22 @@ quetzal::model::texture_span_type<M> quetzal::model::texture_span(size_t i, size
     }
 
     T u0 = math::denoise01(alignment * (T(1) - w));
-    T u1 = math::denoise01(u0 + w);
-//    T u1 = T(1) - u0;
-    assert(u0 >= T(0) && u0 <= T(1));
-    assert(u1 >= T(0) && u1 <= T(1));
+    assert(math::clamped01(u0));
+
+    T u1 = math::denoise01(u0 + w); // T(1) - u0;
+    assert(math::clamped01(u1));
+
     return {u0, u1, v};
+}
+
+//------------------------------------------------------------------------------
+template<typename M>
+quetzal::model::data_value_type<M> quetzal::model::texture_span_v(size_t i, size_t n)
+{
+//    T t = T(i) / T(n);
+//    T v = T(1) - t; // lerp(t, 0, 1) result
+//assert(t == T(1) - v);
+    return data_value_type<M>(n - i) / n;
 }
 
 #endif // QUETZAL_MODEL_PRIMITIVES_UTIL_HPP

@@ -23,7 +23,7 @@
 // remove normal placeholders? ...
 // default ts parameters to u [0, 1]?
 
-// nAzimuth here refers to the number of edges and nAzimuth + 1 attributes ard produced in most cases here so that we will have the starting and ending attributes for each face generated from this without the need to deal with the seam edge case 
+// nAzimuth here refers to the number of edges and nAzimuth + 1 attributes are produced in most cases here so that we will have the starting and ending attributes for each face generated from this without the need to deal with the seam edge case
 // The first and last attributes will have the same position and possibly normal, but the texcoord will be different for the seam
 // texcoords are calculated linearly distributed along the curve, and not for a polygonal surface section
 // texcoords for that case or for the single face/surface per edge case can easily be calulated after
@@ -147,6 +147,8 @@ namespace quetzal::model
     // Produces a single smooth polygon section
     template<typename M>
     vertices_attributes_type<M> vertices_attributes_section(const geometry::Polygon<typename M::vector_traits>& polygon, size_t edge0, size_t edge_count, std::optional<data_value_type<M>> z, data_value_type<M> scale, data_value_type<M> revs, texture_span_type<M> ts);
+
+    // In cusp_vertices_attributes, ts is only used for its v value, change that so it's clear
 
     // Having trouble with calculated normal ...
     template<typename M>
@@ -880,12 +882,11 @@ quetzal::model::vertices_attributes_type<M> quetzal::model::cusp_vertices_attrib
     assert(edge_count > 2);
 
     vertices_attributes_type<M> avs(edge_count);
-    T tx = T(0.5);
 
     for (size_t i = 0; i < edge_count; ++i)
     {
         // Normal vector is a placeholder, surface vertex normal cannot be calculated at this point
-        avs[i] = {{T(0), T(0), z}, M::vector_type::z_direction(), {tx, ts[2]}};
+        avs[i] = {{T(0), T(0), z}, M::vector_type::z_direction(), {T(0.5), ts[2]}};
     }
 
     return avs;
@@ -953,12 +954,11 @@ quetzal::model::vertices_attributes_type<M> quetzal::model::cusp_vertices_attrib
     assert(edge_count > 2);
 
     vertices_attributes_type<M> avs(edge_count);
-    T tx = T(0.5);
 
     for (size_t i = 0; i < edge_count; ++i)
     {
         // Normal vector is a placeholder, surface vertex normal cannot be calculated at this point
-        avs[i] = {op.position(), M::vector_type::z_direction(), {tx, ts[2]}};
+        avs[i] = {op.position(), M::vector_type::z_direction(), {T(0.5), ts[2]}};
     }
 
     return avs;
@@ -991,12 +991,11 @@ quetzal::model::vertices_attributes_type<M> quetzal::model::cusp_vertices_attrib
     using T = data_value_type<M>;
 
     vertices_attributes_type<M> avs(edge_count);
-    T tx = T(0.5); // ts ...
 
     for (size_t i = 0; i < edge_count; ++i)
     {
         // Normal vector is a placeholder, surface vertex normal cannot be calculated at this point
-        avs[i] = {{T(0), T(0), z}, M::vector_type::z_direction(), {tx, ts[2]}};
+        avs[i] = {{T(0), T(0), z}, M::vector_type::z_direction(), {T(0.5), ts[2]}};
     }
 
     return avs;
