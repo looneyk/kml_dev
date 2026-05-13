@@ -44,7 +44,7 @@ namespace quetzal::brep
         using submesh_type = mesh_type::submesh_type;
         using hole_type = Hole<Traits, M>;
         using holes_type = std::vector<hole_type>;
-        using halfedges_type = Elements<mesh_type, halfedge_type, id_type>;
+        using halfedges_type = Elements<mesh_type, halfedge_type, std::optional<size_t>>;
         using halfedges_ext_type = Elements<mesh_type, halfedge_type, halfedge_ext_data>;
         using attributes_type = mesh_type::face_attributes_type;
         using size_type = mesh_type::size_type;
@@ -128,7 +128,7 @@ namespace quetzal::brep
         Properties& properties();
 
         const geometry::AxisAlignedBoundingBox<typename M::vector_traits>& bounds() const;
-        void reset_bounds() const;
+        void reset_bounds() const; // rename as this is not just bounds any more ...
 
         bool border() const;
         void set_border();
@@ -158,6 +158,7 @@ namespace quetzal::brep
         attributes_type m_attributes;
         Properties m_properties;
 
+        mutable std::optional<std::vector<id_type>> m_halfedge_ids; // Lazy evaluation
         mutable std::optional<geometry::AxisAlignedBoundingBox<typename M::vector_traits>> m_bounds; // Lazy evaluation
 
         static halfedges_type::size_function_type m_halfedges_size;
@@ -198,21 +199,17 @@ namespace quetzal::brep
 
         static point_type position(const brep::Face<Traits>& t, size_t n)
         {
-            size_t i = 0;
-            for (const auto& halfedge : t.halfedges())
+            if (n >= t.halfedge_count())
             {
-                if (i++ == n)
-                {
-                    return halfedge.vertex_attributes().position();
-                }
+                throw std::out_of_range("PositionAccessor::range_check");
             }
 
-            throw std::out_of_range("PositionAccessor::range_check");
+            return t.mesh().halfedge(t.halfedge_ids()[n]).vertex_attributes().position();
         }
 
         static bool constant_time_acccess()
         {
-            return false; // fix this ...
+            return true;
         }
     };
 
@@ -233,6 +230,7 @@ quetzal::brep::Face<Traits, M>::Face() :
     m_halfedges_ext(m_pmesh, nullid, m_halfedges_ext_size, m_halfedges_ext_first, m_halfedges_ext_last, m_halfedges_ext_end, m_halfedges_ext_forward, m_halfedges_ext_reverse, m_halfedges_ext_element, m_halfedges_ext_const_element),
     m_attributes(),
     m_properties(),
+    m_halfedge_ids(),
     m_bounds()
 {
 }
@@ -252,6 +250,7 @@ quetzal::brep::Face<Traits, M>::Face(mesh_type& mesh, id_type id, id_type idSurf
     m_halfedges_ext(m_pmesh, id, m_halfedges_ext_size, m_halfedges_ext_first, m_halfedges_ext_last, m_halfedges_ext_end, m_halfedges_ext_forward, m_halfedges_ext_reverse, m_halfedges_ext_element, m_halfedges_ext_const_element),
     m_attributes(attributes),
     m_properties(properties),
+    m_halfedge_ids(),
     m_bounds()
 {
 }
@@ -322,7 +321,7 @@ template<typename Traits, typename M>
 void quetzal::brep::Face<Traits, M>::set_halfedge_id(id_type idHalfedge)
 {
     m_idHalfedge = idHalfedge;
-    m_bounds.reset();
+    reset_bounds();
     return;
 }
 
@@ -388,9 +387,19 @@ typename quetzal::brep::Face<Traits, M>::halfedges_ext_type& quetzal::brep::Face
 template<typename Traits, typename M>
 std::vector<quetzal::id_type> quetzal::brep::Face<Traits, M>::halfedge_ids() const
 {
-    return std::ranges::transform_view(m_halfedges, [](const auto& halfedge) {
-        return halfedge.id();
-    }) | std::ranges::to<std::vector>();
+    if (!m_halfedge_ids)
+    {
+//        m_halfedge_ids = std::ranges::transform_view(m_halfedges, [](const auto& halfedge) { return halfedge.id(); }) | std::ranges::to<std::vector>();
+        m_halfedge_ids.emplace();
+        id_type halfedge_id = m_idHalfedge;
+        do
+        {
+            m_halfedge_ids->push_back(halfedge_id);
+            halfedge_id = m_pmesh->halfedge(halfedge_id).next_id();
+        } while (halfedge_id != m_idHalfedge);
+    }
+
+    return *m_halfedge_ids;
 }
 
 //------------------------------------------------------------------------------
@@ -616,6 +625,7 @@ const quetzal::geometry::AxisAlignedBoundingBox<typename M::vector_traits>& quet
 template<typename Traits, typename M>
 void quetzal::brep::Face<Traits, M>::reset_bounds() const
 {
+    m_halfedge_ids.reset();
     m_bounds.reset();
     return;
 }
@@ -714,64 +724,90 @@ void quetzal::brep::Face<Traits, M>::check_mesh(const mesh_type* const pmesh) co
 template<typename Traits, typename M>
 typename quetzal::brep::Face<Traits, M>::halfedges_type::size_function_type quetzal::brep::Face<Traits, M>::m_halfedges_size = [](const mesh_type& mesh, id_type id) -> size_t
 {
-    const auto& halfedges = mesh.face(id).halfedges();
-    return std::distance(halfedges.begin(), halfedges.end());
+    return mesh.face(id).halfedge_ids().size();
 };
 
 //------------------------------------------------------------------------------
 template<typename Traits, typename M>
-typename quetzal::brep::Face<Traits, M>::halfedges_type::terminal_function_type quetzal::brep::Face<Traits, M>::m_halfedges_first = [](const mesh_type& mesh, id_type id) -> id_type
+typename quetzal::brep::Face<Traits, M>::halfedges_type::terminal_function_type quetzal::brep::Face<Traits, M>::m_halfedges_first = [](const mesh_type& mesh, id_type id) -> std::optional<size_t>
 {
-    return mesh.face_store()[id].halfedge_id();
+    if (m_halfedges_size(mesh, id) == 0)
+    {
+        return std::nullopt;
+    }
+
+    return 0;
 };
 
 //------------------------------------------------------------------------------
 template<typename Traits, typename M>
-typename quetzal::brep::Face<Traits, M>::halfedges_type::terminal_function_type quetzal::brep::Face<Traits, M>::m_halfedges_last = [](const mesh_type& mesh, id_type id) -> id_type
+typename quetzal::brep::Face<Traits, M>::halfedges_type::terminal_function_type quetzal::brep::Face<Traits, M>::m_halfedges_last = [](const mesh_type& mesh, id_type id) -> std::optional<size_t>
 {
-    return mesh.face_store()[id].halfedge_id() != nullid ? mesh.face_store()[id].halfedge().prev_id() : nullid;
+    auto size = m_halfedges_size(mesh, id);
+    if (size == 0)
+    {
+        return std::nullopt;
+    }
+
+    return size - 1;
 };
 
 //------------------------------------------------------------------------------
 template<typename Traits, typename M>
-typename quetzal::brep::Face<Traits, M>::halfedges_type::terminal_function_type quetzal::brep::Face<Traits, M>::m_halfedges_end = [](const mesh_type& mesh, id_type id) -> id_type
+typename quetzal::brep::Face<Traits, M>::halfedges_type::terminal_function_type quetzal::brep::Face<Traits, M>::m_halfedges_end = [](const mesh_type& mesh, id_type id) -> std::optional<size_t>
 {
     mesh;
     id;
-    return nullid;
+    return std::nullopt;
 };
 
 //------------------------------------------------------------------------------
 template<typename Traits, typename M>
-typename quetzal::brep::Face<Traits, M>::halfedges_type::iterate_function_type quetzal::brep::Face<Traits, M>::m_halfedges_forward = [](const mesh_type& mesh, id_type id, id_type i) -> id_type
+typename quetzal::brep::Face<Traits, M>::halfedges_type::iterate_function_type quetzal::brep::Face<Traits, M>::m_halfedges_forward = [](const mesh_type& mesh, id_type id, std::optional<size_t> i) -> std::optional<size_t>
 {
-    id_type halfedge_id_next = mesh.halfedge_store()[i].next_id();
-    return halfedge_id_next != m_halfedges_first(mesh, id) ? halfedge_id_next : nullid;
+    auto size = m_halfedges_size(mesh, id);
+    if (!i || size == 0 || *i == size - 1)
+    {
+        return std::nullopt;
+    }
+
+    return ++(*i);
 };
 
 //------------------------------------------------------------------------------
 template<typename Traits, typename M>
-typename quetzal::brep::Face<Traits, M>::halfedges_type::iterate_function_type quetzal::brep::Face<Traits, M>::m_halfedges_reverse = [](const mesh_type& mesh, id_type id, id_type i) -> id_type
+typename quetzal::brep::Face<Traits, M>::halfedges_type::iterate_function_type quetzal::brep::Face<Traits, M>::m_halfedges_reverse = [](const mesh_type& mesh, id_type id, std::optional<size_t> i) -> std::optional<size_t>
 {
-    id_type halfedge_id_prev = mesh.halfedge_store()[i].prev_id();
-    return halfedge_id_prev != m_halfedges_last(mesh, id) ? halfedge_id_prev : nullid;
+    auto size = m_halfedges_size(mesh, id);
+    if (!i || size == 0 || *i == 0)
+    {
+        return std::nullopt;
+    }
+
+    return --(*i);
 };
 
 //------------------------------------------------------------------------------
 template<typename Traits, typename M>
-typename quetzal::brep::Face<Traits, M>::halfedges_type::element_function_type quetzal::brep::Face<Traits, M>::m_halfedges_element = [](mesh_type& mesh, id_type id, id_type i) -> halfedge_type&
+typename quetzal::brep::Face<Traits, M>::halfedges_type::element_function_type quetzal::brep::Face<Traits, M>::m_halfedges_element = [](mesh_type& mesh, id_type id, std::optional<size_t> i) -> halfedge_type&
 {
     id;
-    auto& halfedge = mesh.halfedge_store()[i];
+
+    assert(i);
+
+    auto& halfedge = mesh.halfedge_store()[mesh.face(id).halfedge_ids()[*i]];
     return halfedge;
 };
 
 //------------------------------------------------------------------------------
 template<typename Traits, typename M>
-typename quetzal::brep::Face<Traits, M>::halfedges_type::const_element_function_type quetzal::brep::Face<Traits, M>::m_halfedges_const_element = [](const mesh_type& mesh, id_type id, id_type i) -> const halfedge_type&
+typename quetzal::brep::Face<Traits, M>::halfedges_type::const_element_function_type quetzal::brep::Face<Traits, M>::m_halfedges_const_element = [](const mesh_type& mesh, id_type id, std::optional<size_t> i) -> const halfedge_type&
 {
     id;
-    const auto& halfedge = mesh.halfedge_store()[i];
+
+    assert(i);
+
+    const auto& halfedge = mesh.halfedge_store()[mesh.face(id).halfedge_ids()[*i]];
     return halfedge;
 };
 

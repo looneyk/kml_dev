@@ -444,6 +444,9 @@ void quetzal::brep::split_edge(M& mesh, id_type halfedge_id, const typename M::v
     partner.next().set_prev_id(halfedge_id1);
     partner.set_next_id(halfedge_id1);
     partner.set_partner_id(halfedge_id0);
+
+    mesh.face(face_id_halfedge).reset_bounds();
+    mesh.face(face_id_partner).reset_bounds();
     return;
 }
 
@@ -556,6 +559,9 @@ void quetzal::brep::split_face(M& mesh, id_type halfedge_id_a, id_type halfedge_
 
     connect(mesh, halfedge_id_a, halfedge_id_b, coupled);
 
+    mesh.face(face_id_a).reset_bounds();
+    mesh.face(face_id_b).reset_bounds();
+
     partition_holes(mesh, face_id_a, face_id_b);
     return;
 }
@@ -600,6 +606,9 @@ void quetzal::brep::split_face(M& mesh, id_type halfedge_id_a, id_type halfedge_
     assert(mesh.halfedge(halfedge_id_b).face_id() == face_id_b);
 
     connect(mesh, halfedge_id_a, halfedge_id_b, positions, coupled);
+
+    mesh.face(face_id_a).reset_bounds();
+    mesh.face(face_id_b).reset_bounds();
 
     partition_holes(mesh, face_id_a, face_id_b);
     return;

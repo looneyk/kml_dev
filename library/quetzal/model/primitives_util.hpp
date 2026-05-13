@@ -2920,8 +2920,10 @@ void quetzal::model::project_vertices(U& u, typename U::value_type radius)
                 phi += math::PiTwo<T>;
             }
 
+            // handle seam crossover values, wraparound uses u > 1  ...
+
             // theta [0, Pi] -> texcoord [0, 1]
-            T theta = acos(std::clamp(av.position().z() / radius, T(-1), T(1)));
+            T theta = acos(math::clamp11(av.position().z() / radius));
             av.set_texcoord(denoise01(texcoord_type({phi / math::PiTwo<T>, theta / math::Pi<T>})));
             return true;
         },

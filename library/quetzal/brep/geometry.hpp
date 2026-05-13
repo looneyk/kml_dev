@@ -144,7 +144,8 @@ namespace quetzal::brep
     template<typename Traits>
     geometry::Polygon<typename Traits::vector_traits> to_polygon(const Seam<Traits>& seam);
 /*
-Instead of this, add optional or default identity projection to the functions above (std::ranges pattern) ...
+Instead of this, add optional or default identity projection to the functions above (std::ranges pattern), unfortunately it's not an identity projection ...
+Surface projection is a whole new set of functionality for unwrapping textures ...
     template<typename Traits>
     geometry::Polygon<typename geometry::Projection<typename Traits::vector_traits>::projected_traits> to_polygon(const Surface<Traits>& surface, const geometry::Projection<typename Traits::vector_traits>& projection);
 */
@@ -192,10 +193,6 @@ Instead of this, add optional or default identity projection to the functions ab
     // deprecated, now a halfedge method ...
     template<typename Traits>
     geometry::AxisAlignedBoundingBox<typename Traits::vector_traits> bounds(const Halfedge<Traits>& halfedge);
-
-    // deprecated, now supported by spatial_properties, but this is more performant, fix PositionAccessor for Face to be constant_time_access ...
-    template<typename Traits>
-    geometry::AxisAlignedBoundingBox<typename Traits::vector_traits> bounds(const Face<Traits>& face);
 
     // Works with Surface, Submesh, and Mesh
     template<typename U>
@@ -759,18 +756,6 @@ quetzal::geometry::AxisAlignedBoundingBox<typename Traits::vector_traits> quetza
     geometry::AxisAlignedBoundingBox<typename Traits::vector_traits> box{};
     box.insert(halfedge.vertex_attributes().position());
     box.insert(halfedge.next().vertex_attributes().position());
-    return box;
-}
-
-//------------------------------------------------------------------------------
-template<typename Traits>
-quetzal::geometry::AxisAlignedBoundingBox<typename Traits::vector_traits> quetzal::brep::bounds(const Face<Traits>& face)
-{
-    geometry::AxisAlignedBoundingBox<typename Traits::vector_traits> box{};
-    for (const auto& halfedge : face.halfedges())
-    {
-        box.insert(halfedge.vertex_attributes().position());
-    }
     return box;
 }
 

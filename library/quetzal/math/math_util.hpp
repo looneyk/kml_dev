@@ -16,6 +16,8 @@
 namespace quetzal::math
 {
 
+    // start switching to <numbers>, first by simply replacing the hardcoded values, keep missing ones here if used ...
+
     template<typename T>
     constexpr T Pi = T(3.1415926535897932384626433832795);
 
@@ -69,6 +71,9 @@ namespace quetzal::math
 
     template<typename T>
     T clamp01(T t);
+
+    template<typename T>
+    T clamp11(T t);
 
     template<typename T>
     bool clamped(T t, T tMin, T tMax);
@@ -242,6 +247,13 @@ T quetzal::math::clamp01(T t)
 
 //------------------------------------------------------------------------------
 template<typename T>
+T quetzal::math::clamp11(T t)
+{
+    return std::clamp(t, T(-1), T(1));
+}
+
+//------------------------------------------------------------------------------
+template<typename T>
 bool quetzal::math::clamped(T t, T tMin, T tMax)
 {
     return t >= tMin && t <= tMax;
@@ -289,7 +301,7 @@ typename V::value_type quetzal::math::angle_between_unit(const V& a, const V& b)
     assert(a.unit());
     assert(b.unit());
 
-    return std::acos(std::clamp(dot(a, b), V::value_type(-1), V::value_type(1)));
+    return std::acos(clamp11(dot(a, b)));
 }
 
 //------------------------------------------------------------------------------
