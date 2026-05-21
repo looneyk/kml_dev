@@ -1,4 +1,4 @@
-#if !defined(QUETZAL_MODEL_PRIMITIVEh_HPP)
+#if !defined(QUETZAL_MODEL_PRIMITIVES_HPP)
 #define QUETZAL_MODEL_PRIMITIVES_HPP
 //------------------------------------------------------------------------------
 // model
@@ -130,7 +130,7 @@ namespace quetzal::model
     // Create a cylinder parallel to the z-axis centered at the origin
     // The nAzimuth and nz parameters control the degree of tessellation
     // Creates a cylinder with a single smooth surface
-    // Surfaces: "body", and "end0", "end1", "side", "side0", "side1" depending on extents
+    // Surfaces: "body", "end0", "end1", "side", "side0", "side1" depending on extents
     template<typename M>
     id_type create_cylinder(M& mesh, const std::string& name, size_t nAzimuth, size_t nz, data_value_type<M> radius, data_value_type<M> z_lower, data_value_type<M> z_upper, const Properties& properties = {});
 
@@ -138,7 +138,7 @@ namespace quetzal::model
     // The separate radii can be used to produce frustrum shapes
     // The nAzimuth and nz parameters control the degree of tessellation
     // Creates a cylinder with a single smooth surface
-    // Surfaces: "body", and "end0", "end1", "side", "side0", "side1" depending on extents
+    // Surfaces: "body", "end0", "end1", "side", "side0", "side1" depending on extents
     template<typename M>
     id_type create_cylinder(M& mesh, const std::string& name, size_t nAzimuth, size_t nz, data_value_type<M> radius_lower, data_value_type<M> radius_upper, data_value_type<M> z_lower, data_value_type<M> z_upper, const Properties& properties = {});
 
@@ -147,7 +147,7 @@ namespace quetzal::model
     // The azimuth offset revs can be used to produce a twist, the lower and upper values applying an offset to angle calculations at the corresponding ends
     // The nAzimuth and nz parameters control the degree of tessellation
     // Creates a cylinder with a single smooth surface
-    // Surfaces: "body", and "end0", "end1", "side", "side0", "side1" depending on extents
+    // Surfaces: "body", "end0", "end1", "side", "side0", "side1" depending on extents
     template<typename M>
     id_type create_cylinder(M& mesh, const std::string& name, size_t nAzimuth, size_t nz, data_value_type<M> radius_lower, data_value_type<M> radius_upper, data_value_type<M> z_lower, data_value_type<M> z_upper, data_value_type<M> revs_lower, data_value_type<M> revs_upper, const Properties& properties = {});
 
@@ -156,7 +156,7 @@ namespace quetzal::model
     // Azimuth offset revs can be used to produce a twist, the lower and upper values applying an offset to angle calculations at the corresponding ends
     // nAzimuth and nz parameters control the degree of tessellation
     // Creates a cylinder with a single smooth surface
-    // Surfaces: "body", and "end0", "end1", "side", "side0", "side1" depending on axis and azimuth extents
+    // Surfaces: "body", "end0", "end1", "side", "side0", "side1" depending on axis and azimuth extents
     template<typename M>
     id_type create_cylinder(M& mesh, const std::string& name, const CylinderSpecification<data_value_type<M>>& spec);
 
@@ -416,15 +416,24 @@ namespace quetzal::model
     template<typename M>
     id_type create_geodesic_sphere(M& mesh, const std::string& name, data_value_type<M> radius, size_t frequency, bool bVertex = true, const Properties& properties = {});
 
-    // single body surface instead of per side? same as below? ...
+    // expand these as with swept volume ...
+    // incude _auto version as above ...
+    // or just get rid of auto and have the unadorned function defer to the appropriate one based on properties ...
+    // and change the currently unadorned version to _smooth ...
 
     // Create volume by extruding polygon by the displacement vector
-    // Surfaces: per side "body<i>", "end0", "end1"
+    // Surfaces: per surface "body<i>", "end0", "end1"
     template<typename M>
-    id_type create_extrusion(M& mesh, const std::string& name, const geometry::Polygon<typename M::vector_traits>& polygon, const normal_vector_type<M>& normal, const typename M::vector_type& displacement, const Properties& properties = {});
+    id_type create_extrusion(M& mesh, const std::string& name, const geometry::Polygon<typename M::vector_traits>& polygon, const typename M::vector_type& displacement, const Properties& properties = {});
 
     // Create volume by extruding polygon by the displacement vector
-    // Surfaces: "body0", per hole "body<i>", "end0", "end1"
+    // Surfaces: per surface "body<i>", "end0", "end1"
+    template<typename M>
+    id_type create_extrusion(M& mesh, const std::string& name, geometry::Polygon<typename M::vector_traits> polygon, const normal_vector_type<M>& normal, const typename M::vector_type& displacement, const Properties& properties = {});
+
+    // Create volume by extruding polygon by the displacement vector
+    // Create volume by extruding polygon by the displacement vector
+    // Surfaces: "body0", per hole "body<1, ...>", "end0", "end1"
     template<typename M>
     id_type create_extrusion(M& mesh, const std::string& name, const geometry::PolygonWithHoles<typename M::vector_traits>& polygon_holes, const normal_vector_type<M>& normal, const typename M::vector_type& displacement, const Properties& properties = {});
 
@@ -434,6 +443,7 @@ namespace quetzal::model
     template<typename M>
     id_type create_swept_volume(M& mesh, const std::string& name, const geometry::Polygon<typename M::vector_traits>& polygon, const geometry::Path<typename M::vector_traits>& path, const Properties& properties = {});
 
+    // Surfaces: per face "body<i>"
     template<typename M>
     id_type create_swept_volume_edges(M& mesh, const std::string& name, const geometry::Polygon<typename M::vector_traits>& polygon, const geometry::Path<typename M::vector_traits>& path, const Properties& properties = {});
 
@@ -4649,62 +4659,49 @@ quetzal::id_type quetzal::model::create_geodesic_sphere(M& mesh, const std::stri
 
 //------------------------------------------------------------------------------
 template<typename M>
-quetzal::id_type quetzal::model::create_extrusion(M& mesh, const std::string& name, const geometry::Polygon<typename M::vector_traits>& polygon, const normal_vector_type<M>& normal, const typename M::vector_type& displacement, const Properties& properties)
+quetzal::id_type quetzal::model::create_extrusion(M& mesh, const std::string& name, const geometry::Polygon<typename M::vector_traits>& polygon, const typename M::vector_type& displacement, const Properties& properties)
+{
+    return create_extrusion(mesh, name, polygon, polygon.normal(), displacement, properties);
+}
+
+//------------------------------------------------------------------------------
+template<typename M>
+quetzal::id_type quetzal::model::create_extrusion(M& mesh, const std::string& name, geometry::Polygon<typename M::vector_traits> polygon, const normal_vector_type<M>& normal, const typename M::vector_type& displacement, const Properties& properties)
 {
     using T = M::value_type;
-    using point_type = geometry::Polygon<M::vector_traits>::point_type;
+    using point_type = geometry::Polygon<typename M::vector_traits>::point_type;
 
     CylinderSpecification<T> spec(polygon.edge_count(), 1, T(0), T(0), T(0), T(0), properties);
 
     size_t face_count = polygon.edge_count();
-    size_t nz = spec.axis_edge_count; // nz > 1 not supported ...
 
-    // this function is a mix of smooth and sectioned styles ...
+    // this looks like it is trying to do an _edges construction ...
+    // fix all this up ...
 
     assert(face_count > 2);
-    assert(nz > 0);
+
+    if (direction_compare(normal, displacement) < 0)
+    {
+        invert(polygon);
+    }
 
     size_t section_count = face_count;
-
-    auto avs0 = vertices_attributes<M>(polygon, {T(0), T(1), T(1)});
-
-for (const auto& av : avs0)
-{
-const auto& texcoord = av.texcoord();
-assert(texcoord.y() == T(0) || texcoord.y() == T(1));
-}
-
-    geometry::Polygon<typename M::vector_traits> polygon1;
-    std::transform(polygon.vertices().begin(), polygon.vertices().end(), std::back_inserter(polygon1.vertices()), [displacement](const point_type& point) -> point_type { return point + displacement; });
-    auto avs1 = vertices_attributes<M>(polygon1, {T(0), T(1), T(0)});
-
-for (const auto& av : avs1)
-{
-const auto& texcoord = av.texcoord();
-assert(texcoord.y() == T(0) || texcoord.y() == T(1));
-}
 
     id_type halfedge_id0 = mesh.halfedge_store_count();
 
     id_type submesh_id = mesh.create_submesh(name);
     id_type surface_id0 = create_section_surfaces(mesh, submesh_id, section_count, [&spec](size_t i) { return surface_name(spec.shell_name, i); });
 
-    auto ts0 = texture_span<M>(0, 1, false, false);
-    auto ts1 = texture_span<M>(1, 1, false, false);
+    auto avs0 = vertices_attributes<M>(polygon, std::nullopt, {T(0), T(1), T(1)});
 
-    create_band(mesh, avs0, avs1, ts0, ts1, true, surface_id0, true);
-for (const auto& face : mesh.faces())
-{
-for (const auto& halfedge : face.halfedges())
-{
-const auto& texcoord = halfedge.vertex_attributes().texcoord();
-assert(texcoord.y() == T(0) || texcoord.y() == T(1));
-}
-}
+    std::ranges::for_each(polygon.vertices(), [displacement](point_type& point) { point += displacement; });
+    auto avs1 = vertices_attributes<M>(polygon, std::nullopt, {T(0), T(1), T(0)});
 
-    for (size_t i = 0; i < face_count; ++i)
+    create_band_edges(mesh, avs0, avs1, surface_id0, true, false); // why is this the only _edges function? ...
+
+    for (auto& surface : mesh.submesh(submesh_id).surfaces())
     {
-        mesh.surface(i).attributes().set_normal(mesh.face(i).attributes().normal());
+        calculate_surface_vertex_normals(surface);
     }
 
     seal_cylinder(mesh, submesh_id, spec, halfedge_id0, false, false, -normal, normal);

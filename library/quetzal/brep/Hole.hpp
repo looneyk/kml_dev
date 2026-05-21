@@ -227,9 +227,7 @@ typename quetzal::brep::Hole<Traits, M>::halfedges_type& quetzal::brep::Hole<Tra
 template<typename Traits, typename M>
 std::vector<quetzal::id_type> quetzal::brep::Hole<Traits, M>::halfedge_ids() const
 {
-    return std::ranges::transform_view(m_halfedges, [](const auto& halfedge) {
-        return halfedge.id();
-    }) | std::ranges::to<std::vector>();
+    return std::ranges::transform_view(m_halfedges, [](const auto& halfedge) { return halfedge.id(); }) | std::ranges::to<std::vector>();
 }
 
 //------------------------------------------------------------------------------

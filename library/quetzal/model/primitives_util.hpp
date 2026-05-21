@@ -49,7 +49,7 @@ namespace quetzal::model
     void create_apex_cusp_sections(M& mesh, size_t nAzimuth, data_value_type<M> r0, data_value_type<M> z0, data_value_type<M> z1, azimuth_interval_type<M> azimuth0, texture_span_type<M> ts0, id_type surface_id0);
 
     template<typename M>
-    void create_apex_cusp(M& mesh, size_t nAzimuth, std::function<typename M::point_type(data_value_type<M>)> f0, data_value_type<M> z1, azimuth_interval_type<M> azimuth_interval, texture_span_type<M> ts0, id_type surface_id, std::optional<vertex_normal_function_type<M>> vertex_normal1 = std::nullopt);
+    void create_apex_cusp(M& mesh, size_t nAzimuth, std::function<typename M::point_type(data_value_type<M>)> fr0, data_value_type<M> z1, azimuth_interval_type<M> azimuth_interval, texture_span_type<M> ts0, id_type surface_id, std::optional<vertex_normal_function_type<M>> vertex_normal1 = std::nullopt);
 
     // Single surface
     template<typename M>
@@ -104,6 +104,11 @@ namespace quetzal::model
     // Single surface
     template<typename M>
     void create_band(M& mesh, const vertices_attributes_type<M>& avs0, const vertices_attributes_type<M>& avs1, id_type surface_id, bool closed, bool calculate_normals = true);
+
+    // A surface for each polygon edge
+    // surface_id0 must be the id of the first surface in a contiguous set of surfaces
+    template<typename M>
+    void create_band_edges(M& mesh, const vertices_attributes_type<M>& avs0, const vertices_attributes_type<M>& avs1, id_type surface_id0, bool closed, bool calculate_normals = true);
 
     // Separate surfaces for each section
     // Create an open cylindrical section between two vertex value sets
@@ -325,13 +330,13 @@ void quetzal::model::create_apex_cusp_sections(M& mesh, size_t nAzimuth, data_va
 
 //------------------------------------------------------------------------------
 template<typename M>
-void quetzal::model::create_apex_cusp(M& mesh, size_t nAzimuth, std::function<typename M::point_type(data_value_type<M>)> f0, data_value_type<M> z1, azimuth_interval_type<M> azimuth_interval, texture_span_type<M> ts0, id_type surface_id, std::optional<vertex_normal_function_type<M>> vertex_normal1)
+void quetzal::model::create_apex_cusp(M& mesh, size_t nAzimuth, std::function<typename M::point_type(data_value_type<M>)> fr0, data_value_type<M> z1, azimuth_interval_type<M> azimuth_interval, texture_span_type<M> ts0, id_type surface_id, std::optional<vertex_normal_function_type<M>> vertex_normal1)
 {
     assert(nAzimuth > 2);
 
     using T = data_value_type<M>;
 
-    auto avs0 = vertices_attributes<M>(nAzimuth, f0, azimuth_interval, ts0);
+    auto avs0 = vertices_attributes<M>(nAzimuth, fr0, azimuth_interval, ts0);
     auto avs1 = cusp_vertices_attributes<M>(nAzimuth, z1, azimuth_interval, texture_span_type<M>{T(0.5), T(0.5), T(0)}, vertex_normal1);
 
     bool closed = azimuth_interval.unit();
@@ -404,7 +409,6 @@ void quetzal::model::create_apex_cusp(M& mesh, const vertices_attributes_section
 //std::cout << "    create_apex_cusp avs sections" << std::endl;
     assert(avss1.size() > 0);
     assert(avss1.size() == avss0.size());
-    assert(avss1[0].size() == avss0[0].size() - 1);
 
     size_t nh = mesh.halfedge_store_count();
     size_t nv = mesh.vertex_store_count();
@@ -780,6 +784,72 @@ void quetzal::model::create_band(M& mesh, const vertices_attributes_type<M>& avs
         mesh.vertex(j3) = {mesh, j3, j3, avs[3]};
 
         ++j0;
+    }
+
+    // Calculate normals for the lower vertices
+    if (calculate_normals)
+    {
+        calculate_lower_surface_vertex_normals_sequential(mesh, j0_orig, face_count);
+    }
+
+    return;
+}
+
+//------------------------------------------------------------------------------
+template<typename M>
+void quetzal::model::create_band_edges(M& mesh, const vertices_attributes_type<M>& avs0, const vertices_attributes_type<M>& avs1, id_type surface_id0, bool closed, bool calculate_normals)
+{
+//std::cout << "    create_band_edges avs single" << std::endl;
+    assert(avs0.size() > 2);
+    assert(avs1.size() == avs0.size());
+
+    size_t face_count = avs0.size() - 1;
+    assert(face_count > 2);
+
+    size_t nh = mesh.halfedge_store_count();
+    size_t nv = mesh.vertex_store_count();
+
+    mesh.halfedge_store().resize(nh + 4 * face_count);
+    mesh.vertex_store().resize(nv + 4 * face_count);
+
+    id_type surface_id = surface_id0;
+
+    id_type j0_orig = nh;
+    id_type j0 = j0_orig;
+
+    for (size_t j = 0; j < face_count; ++j)
+    {
+        size_t j1 = j0 + face_count;
+        size_t j2 = j1 + face_count;
+        size_t j3 = j2 + face_count;
+
+        vertices_attributes_type<M> avs =
+        {
+            avs0[j],
+            avs0[j + 1],
+            avs1[j + 1],
+            avs1[j],
+        };
+
+        auto normal = geometry::normal(avs);
+        id_type face_id = mesh.create_face(surface_id, j0, {normal});
+
+        id_type partner_id = nullid;
+        mesh.halfedge(j0) = {mesh, j0, partner_id, j1, j3, j0, face_id};
+        partner_id = (j < face_count - 1 ? j3 + 1 : (closed ? j3 - face_count + 1 : nullid));
+        mesh.halfedge(j1) = {mesh, j1, partner_id, j2, j0, j1, face_id};
+        partner_id = nullid;
+        mesh.halfedge(j2) = {mesh, j2, partner_id, j3, j1, j2, face_id};
+        partner_id = (j > 0 ? j1 - 1 : (closed ? j1 + face_count - 1 : nullid));
+        mesh.halfedge(j3) = {mesh, j3, partner_id, j0, j2, j3, face_id};
+
+        mesh.vertex(j0) = {mesh, j0, j0, avs[0]};
+        mesh.vertex(j1) = {mesh, j1, j1, avs[1]};
+        mesh.vertex(j2) = {mesh, j2, j2, avs[2]};
+        mesh.vertex(j3) = {mesh, j3, j3, avs[3]};
+
+        ++j0;
+        ++surface_id;
     }
 
     // Calculate normals for the lower vertices
@@ -3177,14 +3247,14 @@ void quetzal::model::calculate_apex_cusp_surface_vertex_normals_sequential(M& me
     {
         auto& halfedge = mesh.halfedge(id);
 
-        // surface_normal is not accurate with a sharp cusp, using the face normal instead which should already have been calculated anyway
-//        auto normal = surface_normal(halfedge.vertex());
         auto normal = halfedge.face_attributes().normal();
+// instead of doing this here, can we ensure that corresopnding vertex_attributes and face normals are consistent on creation? ...
         auto normal_prev = halfedge.prev().vertex_attributes().normal();
         if (float_eq(normal, normal_prev))
         {
             normal = normal_prev;
         }
+
         halfedge.vertex_attributes().set_normal(normal);
 
         ++id;
@@ -3203,9 +3273,6 @@ void quetzal::model::calculate_base_cusp_surface_vertex_normals_sequential(M& me
     for (size_t i = 0; i < n; ++i)
     {
         auto& halfedge = mesh.halfedge(id);
-
-        // surface_normal is not accurate with a sharp cusp, using the face normal instead which should already have been calculated anyway
-//        auto normal = surface_normal(halfedge.vertex());
         auto normal = halfedge.face_attributes().normal();
         halfedge.vertex_attributes().set_normal(normal);
 

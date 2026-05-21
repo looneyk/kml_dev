@@ -190,7 +190,6 @@
     <ClInclude Include="split.hpp" />
     <ClInclude Include="Submesh.hpp" />
     <ClInclude Include="Surface.hpp" />
-    <ClInclude Include="surface_operations.hpp" />
     <ClInclude Include="texcoord.hpp" />
     <ClInclude Include="triangulation.hpp" />
     <ClInclude Include="validation.hpp" />

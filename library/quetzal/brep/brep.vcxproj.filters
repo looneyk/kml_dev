@@ -57,9 +57,6 @@
     <ClInclude Include="Halfedge.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="surface_operations.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="mesh_operations.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>

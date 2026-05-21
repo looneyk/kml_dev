@@ -1,0 +1,16 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Project Path="../../library/quetzal/brep/brep.vcxproj" Id="ae597c7b-bf6a-4293-99db-79d8bf7a9451" />
+  <Project Path="../../library/quetzal/common/common.vcxproj" Id="02756409-0bc4-4f9b-ac9c-25e6a33b8592" />
+  <Project Path="../../library/quetzal/geometry/geometry.vcxproj" Id="579c841a-0e45-409a-b443-aaf0c11f05ad" />
+  <Project Path="../../library/quetzal/math/math.vcxproj" Id="35ae4533-aebe-4742-98d9-30f1272649ae" />
+  <Project Path="../../library/quetzal/model/model.vcxproj" Id="90d3a788-052f-4f22-8d69-e756dbdfa577" />
+  <Project Path="../../library/quetzal/svg/svg.vcxproj" Id="070747e8-a464-4d3b-888e-e85d81675bb8" />
+  <Project Path="../../library/quetzal/triangulation/triangulation.vcxproj" Id="39f6f1c4-d162-44fa-b4d8-0b2c489d7881" />
+  <Project Path="../../library/quetzal/wavefront_obj/wavefront_obj.vcxproj" Id="1102eb46-6b14-42fb-a24e-a39e643763f4" />
+  <Project Path="../../library/quetzal/xml/xml.vcxproj" Id="3a0e97de-f090-451f-a1be-92d44c95f9da" />
+  <Project Path="molds.vcxproj" Id="dadc8a12-9bda-4419-84a2-292c7e120bd6" />
+</Solution>

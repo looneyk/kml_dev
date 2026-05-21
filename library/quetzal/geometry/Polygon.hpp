@@ -173,6 +173,9 @@ namespace quetzal::geometry
     template<typename Traits>
     Polygon<Traits> lerp(const Polygon<Traits>& a, const Polygon<Traits>& b, typename Polygon<Traits>::value_type t);
 
+    template<typename Traits>
+    Polygon<Traits> invert(const Polygon<Traits>& polygon);
+
     // Regular polygon
     // Position generation is not symmetric
     template<typename Traits> requires (Traits::dimension == 2)
@@ -684,6 +687,14 @@ quetzal::geometry::Polygon<Traits> quetzal::geometry::lerp(const Polygon<Traits>
     }
 
     return polygon;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+quetzal::geometry::Polygon<Traits> quetzal::geometry::invert(const Polygon<Traits>& polygon)
+{
+    auto reversed = polygon.vertices() | std::views::reverse;
+    return {reversed.begin(), reversed.end()};
 }
 
 //------------------------------------------------------------------------------
