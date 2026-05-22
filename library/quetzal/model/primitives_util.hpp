@@ -270,6 +270,10 @@ namespace quetzal::model
     template<typename M>
     quetzal::model::texture_span_type<M> texture_span(size_t i, size_t n, bool cusped_lower, bool cusped_upper, data_value_type<M> alignment = data_value_type<M>(0.5));
 
+    // internal
+    template<typename M>
+    quetzal::model::texture_span_type<M> texture_span_common(data_value_type<M> v, bool cusped_lower, bool cusped_upper, data_value_type<M> alignment = data_value_type<M>(0.5));
+
     template<typename M>
     quetzal::model::data_value_type<M> texture_span_v(size_t i, size_t n);
 
@@ -3276,31 +3280,7 @@ quetzal::model::texture_span_type<M> quetzal::model::texture_span(data_value_typ
     assert(math::clamped01(t));
 
     T v = math::denoise01(T(1) - t);
-    T w = T(1);
-
-    // for partial azimuth sphere, width might instead be the fraction of the maximum equatorial width of the side closure etc. ...
-    // partial elevation sphere should have same width throughout even as it may be missing cusps, so can't use only cusped for logic here  ...
-    // that width might instead be the fraction of the maximum equatorial width minus the side closure ...
-    if (cusped_lower && cusped_upper)
-    {
-        return {T(0), w, v};
-    }
-    else if (cusped_lower)
-    {
-        w = t;
-    }
-    else if (cusped_upper)
-    {
-        w = v;
-    }
-
-    T u0 = math::denoise01(alignment * (T(1) - w));
-    assert(math::clamped01(u0));
-
-    T u1 = math::denoise01(u0 + w); // T(1) - u0;
-    assert(math::clamped01(u1));
-
-    return {u0, u1, v};
+    return texture_span_common<M>(v, cusped_lower, cusped_upper, alignment);
 }
 
 //------------------------------------------------------------------------------
@@ -3313,15 +3293,16 @@ quetzal::model::texture_span_type<M> quetzal::model::texture_span(size_t i, size
     assert(i <= n);
 
     T v = texture_span_v<M>(i, n);
+    return texture_span_common<M>(v, cusped_lower, cusped_upper, alignment);
+}
+
+//------------------------------------------------------------------------------
+template<typename M>
+quetzal::model::texture_span_type<M> quetzal::model::texture_span_common(data_value_type<M> v, bool cusped_lower, bool cusped_upper, data_value_type<M> alignment)
+{
+    using T = data_value_type<M>;
+
     T w = T(1);
-
-    // Too bad we can't just ...
-    //return texture_span(T(1) - v, cusped_lower, cusped_upper, alignment);
-    // unless texture_span(t) takes v instead of t ...
-
-    // for partial azimuth sphere, width might instead be the fraction of the maximum equatorial width of the side closure etc. ...
-    // partial elevation sphere should have same width throughout even as it may be missing cusps, so can't use only cusped for logic here  ...
-    // that width might instead be the fraction of the maximum equatorial width minus the side closure ...
     if (cusped_lower && cusped_upper)
     {
         return {T(0), w, v};
@@ -3348,10 +3329,7 @@ quetzal::model::texture_span_type<M> quetzal::model::texture_span(size_t i, size
 template<typename M>
 quetzal::model::data_value_type<M> quetzal::model::texture_span_v(size_t i, size_t n)
 {
-//    T t = T(i) / T(n);
-//    T v = T(1) - t; // lerp(t, 0, 1) result
-//assert(t == T(1) - v);
-    return data_value_type<M>(n - i) / n;
+    return data_value_type<M>(n - i) / n; // 1 - t; t = i / n; accuracy
 }
 
 #endif // QUETZAL_MODEL_PRIMITIVES_UTIL_HPP

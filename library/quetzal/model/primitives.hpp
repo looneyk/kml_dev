@@ -3212,7 +3212,7 @@ quetzal::id_type quetzal::model::create_antisphere(M& mesh, const std::string& n
     auto ts_a = texture_span<M>(0, nElevation, cusped_lower, cusped_upper);
     auto ts_b = shift<M>(ts_a, azimuth_offset);
 
-    auto layer_texcoord = [nElevation](texture_span_type<M> texcoord, size_t i) -> texture_span_type<M> { texcoord[2] = texture_span_v<M>(i, nElevation); return texcoord; };
+    auto layer_texture_span = [nElevation](texture_span_type<M> ts, size_t i) -> texture_span_type<M> { ts[2] = texture_span_v<M>(i, nElevation); return ts; };
 
     id_type halfedge_id0 = mesh.halfedge_store_count();
 
@@ -3221,25 +3221,25 @@ quetzal::id_type quetzal::model::create_antisphere(M& mesh, const std::string& n
 
     if (cusped_lower)
     {
-        auto ts0 = layer_texcoord(ts_a, 0);
+        auto ts0 = layer_texture_span(ts_a, 0);
         auto avs0 = cusp_vertices_attributes<M>(nAzimuth, z0, azimuth_interval_a, ts0);
-        auto ts1 = layer_texcoord(ts_a, 1);
+        auto ts1 = layer_texture_span(ts_a, 1);
         auto avs1 = vertices_attributes<M>(nAzimuth, r1, z1, azimuth_interval_a, ts1);
         create_base_cusp(mesh, avs0, avs1, surface_id, closed, false);
     }
     else if (nElevation == 1 && cusped_upper)
     {
-        auto ts0 = layer_texcoord(ts_a, 0);
+        auto ts0 = layer_texture_span(ts_a, 0);
         auto avs0 = vertices_attributes<M>(nAzimuth, r0, z0, azimuth_interval_a, ts0);
-        auto ts1 = layer_texcoord(ts_a, 1);
+        auto ts1 = layer_texture_span(ts_a, 1);
         auto avs1 = cusp_vertices_attributes<M>(nAzimuth, z1, azimuth_interval_a, ts1);
         create_apex_cusp(mesh, avs0, avs1, surface_id, closed);
     }
     else
     {
-        auto ts0 = layer_texcoord(ts_b, 0);
+        auto ts0 = layer_texture_span(ts_b, 0);
         auto avs0 = vertices_attributes<M>(nAzimuth, r0, z0, azimuth_interval_b, ts0);
-        auto ts1 = layer_texcoord(ts_a, 1);
+        auto ts1 = layer_texture_span(ts_a, 1);
         auto avs1 = vertices_attributes<M>(nAzimuth, r1, z1, azimuth_interval_a, ts1);
         create_antiband_inverted(mesh, avs0, avs1, surface_id);
     }
@@ -3260,13 +3260,13 @@ quetzal::id_type quetzal::model::create_antisphere(M& mesh, const std::string& n
         }
         else if (inverted)
         {
-            auto ts1 = layer_texcoord(ts_a, i);
+            auto ts1 = layer_texture_span(ts_a, i);
             auto avs1 = vertices_attributes<M>(nAzimuth, r1, z1, azimuth_interval_a, ts1);
             connect_antiband_inverted(mesh, avs1, surface_id);
         }
         else
         {
-            auto ts1 = layer_texcoord(ts_b, i);
+            auto ts1 = layer_texture_span(ts_b, i);
             auto avs1 = vertices_attributes<M>(nAzimuth, r1, z1, azimuth_interval_b, ts1);
             connect_antiband(mesh, avs1, surface_id);
         }
@@ -3323,7 +3323,7 @@ quetzal::id_type quetzal::model::create_antisphere(M& mesh, const std::string& n
     auto ts_a = texture_span<M>(0, nElevation, cusped_lower, cusped_upper);
     auto ts_b = shift<M>(ts_a, azimuth_offset);
 
-    auto layer_texcoord = [nElevation](texture_span_type<M> texcoord, size_t i) -> texture_span_type<M> { texcoord[2] = texture_span_v<M>(i, nElevation); return texcoord; };
+    auto layer_texture_span = [nElevation](texture_span_type<M> ts, size_t i) -> texture_span_type<M> { ts[2] = texture_span_v<M>(i, nElevation); return ts; };
 
     id_type halfedge_id0 = mesh.halfedge_store_count();
 
@@ -3332,25 +3332,25 @@ quetzal::id_type quetzal::model::create_antisphere(M& mesh, const std::string& n
 
     if (cusped_lower)
     {
-        auto ts0 = layer_texcoord(ts_a, 0);
+        auto ts0 = layer_texture_span(ts_a, 0);
         auto avs0 = cusp_vertices_attributes<M>(nAzimuth, z0, azimuth_interval_a, ts0);
-        auto ts1 = layer_texcoord(ts_a, 1);
+        auto ts1 = layer_texture_span(ts_a, 1);
         auto avs1 = vertices_attributes<M>(nAzimuth, r1, z1, azimuth_interval_a, ts1);
         create_base_cusp(mesh, avs0, avs1, surface_id, closed, false);
     }
     else if (nElevation == 1 && cusped_upper)
     {
-        auto ts0 = layer_texcoord(ts_a, 0);
+        auto ts0 = layer_texture_span(ts_a, 0);
         auto avs0 = vertices_attributes<M>(nAzimuth, r0, z0, azimuth_interval_a, ts0);
-        auto ts1 = layer_texcoord(ts_a, 1);
+        auto ts1 = layer_texture_span(ts_a, 1);
         auto avs1 = cusp_vertices_attributes<M>(nAzimuth, z1, azimuth_interval_a, ts1);
         create_apex_cusp(mesh, avs0, avs1, surface_id, closed);
     }
     else
     {
-        auto ts0 = layer_texcoord(ts_b, 0);
+        auto ts0 = layer_texture_span(ts_b, 0);
         auto avs0 = vertices_attributes<M>(nAzimuth, r0, z0, azimuth_interval_b, ts0);
-        auto ts1 = layer_texcoord(ts_a, 1);
+        auto ts1 = layer_texture_span(ts_a, 1);
         auto avs1 = vertices_attributes<M>(nAzimuth, r1, z1, azimuth_interval_a, ts1);
         create_antiband_inverted(mesh, avs0, avs1, surface_id);
     }
@@ -3372,13 +3372,13 @@ quetzal::id_type quetzal::model::create_antisphere(M& mesh, const std::string& n
         }
         else if (inverted)
         {
-            auto ts1 = layer_texcoord(ts_a, i);
+            auto ts1 = layer_texture_span(ts_a, i);
             auto avs1 = vertices_attributes<M>(nAzimuth, r1, z1, azimuth_interval_a, ts1);
             connect_antiband_inverted(mesh, avs1, surface_id);
         }
         else
         {
-            auto ts1 = layer_texcoord(ts_b, i);
+            auto ts1 = layer_texture_span(ts_b, i);
             auto avs1 = vertices_attributes<M>(nAzimuth, r1, z1, azimuth_interval_b, ts1);
             connect_antiband(mesh, avs1, surface_id);
         }
@@ -3440,7 +3440,7 @@ quetzal::id_type quetzal::model::create_antisphere(M& mesh, const std::string& n
     // Calculate z value for cusps
     auto terminal_z = [fr](T t) -> T { assert(t == T(0) || t == T(1)); return fr(T(0), t); };
 
-    auto layer_texcoord = [nElevation](texture_span_type<M> texcoord, size_t i) -> texture_span_type<M> { texcoord[2] = texture_span_v<M>(i, nElevation); return texcoord; };
+    auto layer_texture_span = [nElevation](texture_span_type<M> ts, size_t i) -> texture_span_type<M> { ts[2] = texture_span_v<M>(i, nElevation); return ts; };
 
     auto spherical_position = [](T r, T ta, T cos_theta, T sin_theta) -> typename M::point_type
     {
@@ -3451,9 +3451,9 @@ quetzal::id_type quetzal::model::create_antisphere(M& mesh, const std::string& n
     if (cusped_lower)
     {
         auto z0 = terminal_z(T(0));
-        auto ts0 = layer_texcoord(ts_a, 0);
+        auto ts0 = layer_texture_span(ts_a, 0);
         auto avs0 = cusp_vertices_attributes<M>(nAzimuth, z0, azimuth_interval_a, ts0);
-        auto ts1 = layer_texcoord(ts_a, 1);
+        auto ts1 = layer_texture_span(ts_a, 1);
         auto avs1 = vertices_attributes<M>(nAzimuth,
             [&](T ta) -> typename M::point_type { return spherical_position(fr(ta, e1), ta, cos_theta1, sin_theta1); },
             azimuth_interval_a, ts1);
@@ -3462,21 +3462,21 @@ quetzal::id_type quetzal::model::create_antisphere(M& mesh, const std::string& n
     else if (nElevation == 1 && cusped_upper)
     {
         auto z1 = terminal_z(T(1));
-        auto ts0 = layer_texcoord(ts_b, 0);
+        auto ts0 = layer_texture_span(ts_b, 0);
         auto avs0 = vertices_attributes<M>(nAzimuth,
             [&](T ta) -> typename M::point_type { return spherical_position(fr(ta, e0), ta, cos_theta0, sin_theta0); },
             azimuth_interval_a, ts0);
-        auto ts1 = layer_texcoord(ts_a, 1);
+        auto ts1 = layer_texture_span(ts_a, 1);
         auto avs1 = cusp_vertices_attributes<M>(nAzimuth, z1, azimuth_interval_a, ts1);
         create_apex_cusp(mesh, avs0, avs1, surface_id, closed, false);
     }
     else
     {
-        auto ts0 = layer_texcoord(ts_b, 0);
+        auto ts0 = layer_texture_span(ts_b, 0);
         auto avs0 = vertices_attributes<M>(nAzimuth,
             [&](T ta) -> typename M::point_type { return spherical_position(fr(ta, e0), ta, cos_theta0, sin_theta0); },
             azimuth_interval_b, ts0);
-        auto ts1 = layer_texcoord(ts_a, 1);
+        auto ts1 = layer_texture_span(ts_a, 1);
         auto avs1 = vertices_attributes<M>(nAzimuth,
             [&](T ta) -> typename M::point_type { return spherical_position(fr(ta, e1), ta, cos_theta1, sin_theta1); },
             azimuth_interval_a, ts1);
@@ -3500,7 +3500,7 @@ quetzal::id_type quetzal::model::create_antisphere(M& mesh, const std::string& n
         }
         else if (inverted)
         {
-            auto ts1 = layer_texcoord(ts_a, i);
+            auto ts1 = layer_texture_span(ts_a, i);
             auto avs1 = vertices_attributes<M>(nAzimuth,
                 [&](T ta) -> typename M::point_type { return spherical_position(fr(ta, e1), ta, cos_theta1, sin_theta1); },
                 azimuth_interval_a, ts1);
@@ -3508,7 +3508,7 @@ quetzal::id_type quetzal::model::create_antisphere(M& mesh, const std::string& n
         }
         else
         {
-            auto ts1 = layer_texcoord(ts_b, i);
+            auto ts1 = layer_texture_span(ts_b, i);
             auto avs1 = vertices_attributes<M>(nAzimuth,
                 [&](T ta) -> typename M::point_type { return spherical_position(fr(ta, e1), ta, cos_theta1, sin_theta1); },
                 azimuth_interval_b, ts1);

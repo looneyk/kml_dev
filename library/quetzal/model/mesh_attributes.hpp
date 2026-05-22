@@ -87,14 +87,15 @@ namespace quetzal::model
     void calculate_spherical_texcoords(M& mesh);
 
     // Fix edge texcoords that span the 0/2Pi boundary by shifting the lower one by +1 ...
-    // needs refinement/generalization ...
+    // Useful for icosahedron/geodesic sphere, anticylinder, antisphere
+    // needs refinement/generalization (not necessarily spherical?) ...
     template<typename F>
     void fix_spherical_texcoords(F& face);
 
+    // Works with Mesh, Submesh, Surface
     // this does arbitrary orientation, take a tangent vector to align textures? then fit triangles to unit square? ...
-    // Change to U& u ...
-    template<typename M>
-    void apply_triangular_face_texcoords(M& mesh);
+    template<typename U>
+    void apply_triangular_face_texcoords(U& u);
 
 } // namespace quetzal::model
 
@@ -490,16 +491,16 @@ void quetzal::model::fix_spherical_texcoords(F& face)
 }
 
 //------------------------------------------------------------------------------
-template<typename M>
-void quetzal::model::apply_triangular_face_texcoords(M& mesh)
+template<typename U>
+void quetzal::model::apply_triangular_face_texcoords(U& u)
 {
-    for (auto& face : mesh.faces())
+    for (auto& face : u.faces())
     {
         assert(face.halfedge_count() == 3);
 
-        face.halfedge().vertex_attributes().set_texcoord({M::val(0), M::val(1)});
-        face.halfedge().next().vertex_attributes().set_texcoord({M::val(1), M::val(1)});
-        face.halfedge().prev().vertex_attributes().set_texcoord({M::val(0.5), M::val(0)});
+        face.halfedge().vertex_attributes().set_texcoord({U::val(0), U::val(1)});
+        face.halfedge().next().vertex_attributes().set_texcoord({U::val(1), U::val(1)});
+        face.halfedge().prev().vertex_attributes().set_texcoord({U::val(0.5), U::val(0)});
     }
 
     return;
