@@ -22,11 +22,11 @@ namespace quetzal::math
 
         using value_type = T;
 
-        Interval();
-        explicit Interval(const T& tLength);
-        Interval(const T& tLower, const T& tUpper);
-        Interval(const Interval&) = default;
-        Interval(Interval&&) = default;
+        constexpr Interval();
+        explicit constexpr Interval(const T& tLength);
+        constexpr Interval(const T& tLower, const T& tUpper);
+        constexpr Interval(const Interval&) = default;
+        constexpr Interval(Interval&&) = default;
         virtual ~Interval() = default;
 
         Interval& operator=(const Interval&) = default;
@@ -67,21 +67,21 @@ namespace quetzal::math
 
 //------------------------------------------------------------------------------
 template<typename T>
-quetzal::math::Interval<T>::Interval() :
+constexpr quetzal::math::Interval<T>::Interval() :
     Interval(T(0))
 {
 }
 
 //------------------------------------------------------------------------------
 template<typename T>
-quetzal::math::Interval<T>::Interval(const T& tLength) :
+constexpr quetzal::math::Interval<T>::Interval(const T& tLength) :
     Interval(T(0), tLength)
 {
 }
 
 //------------------------------------------------------------------------------
 template<typename T>
-quetzal::math::Interval<T>::Interval(const T& tLower, const T& tUpper) :
+constexpr quetzal::math::Interval<T>::Interval(const T& tLower, const T& tUpper) :
     m_lower(tLower),
     m_upper(tUpper)
 {

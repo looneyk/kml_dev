@@ -241,6 +241,10 @@ int main(int argc, char* argv[])
     argc;
     argv;
 
+    FileValidator validator(dir_out, dir_ref, app_name);
+
+    mesh_type mesh;
+
     // read edge length from command line
     double edge_length = 75.0;
 
@@ -282,10 +286,6 @@ int main(int argc, char* argv[])
             sqrt((5.0 - sqrt(5.0)) / 10.0),
         },
      }};
-
-    FileValidator validator(dir_out, dir_ref, app_name);
-
-    mesh_type mesh;
 
     for (const auto& pyramid : pyramids)
     {

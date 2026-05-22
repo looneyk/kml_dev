@@ -154,22 +154,20 @@ namespace quetzal::brep
     // Captures can be used to share state between callbacks
     // An optional face function can be called after all the vertices for a face have been processed
     // Works with Surface, Submesh, and Mesh
+    // reset_all is currently called at the start of the positions/surface variations
 
     // This calls an apply function unconditionally on all coincident vertices
     // Any additional logic needs to be done in the callbacks (the other two variations can actually be done using this with the additional logic manually added)
     template<typename U>
     void for_each_vertex(U& u, std::function<bool(const typename U::vertex_type&)> f_init, std::function<void(typename U::vertex_type&)> f_apply, std::optional<std::function<void(typename U::face_type&)>> f_face = std::nullopt);
 
-    // Should the caller define the flags context and call reset_all on u at some point before calling these two? ...
-    // Currently reset_all is called at the start of each ...
-
     // This uses the visited flag to ensure that each vertex at each position is processed exactly once
     // Generally useful for position only, set all coincident vertices to the same value
     template<typename U>
     void for_each_vertex_position(U& u, std::function<bool(const typename U::vertex_type&)> f_init, std::function<void(typename U::vertex_type&)> f_apply, std::optional<std::function<void(typename U::face_type&)>> f_face = std::nullopt);
 
-    // This additionally calls apply only on coincident vertices that are in the same surface as the init vertex
-    // Generally useful for normal and/or texcoord, set all coincident vertices in the same surface to the same value
+    // This additionally applies only to coincident vertices that are in the same surface as the init vertex
+    // Generally useful for normal and/or texcoord, setting all coincident vertices in the same surface to the same value
     template<typename U>
     void for_each_surface_vertex(U& u, std::function<bool(const typename U::vertex_type&)> f_init, std::function<void(typename U::vertex_type&)> f_apply, std::optional<std::function<void(typename U::face_type&)>> f_face = std::nullopt);
 

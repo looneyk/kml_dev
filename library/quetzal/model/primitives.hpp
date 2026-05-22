@@ -37,8 +37,8 @@ namespace quetzal::model
     // Primitives are created with planar, but not necessarily triangulated faces
     // Any normals and texture coordinates are continuous within each surface
     // All angles and intervals that represent angles are measured in  turns, 0..1 representing one turn and/or full range
-    // Cylindrical coordinates: radius, azimuth, z (r, phi, z) with azimuth interval 0..1 -> phi: 0..2Pi
-    // Spherical coordinates: radius, azimuth, elevation (r, phi, theta) with azimuth interval 0..1 -> phi: 0..2Pi; elevation interval 0..1 -> theta: -Pi/2..Pi/2 ({0, 0, -1}..{0, 0, 1})
+    // Cylindrical coordinates: radius, azimuth, z (r, phi, z) with azimuth interval 0..1 turns ->  0..2Pi radians
+    // Spherical coordinates: radius, azimuth, elevation (r, phi, theta) with azimuth interval 0..1 turns -> 0..2Pi radians; elevation interval -0.25..0.25 turns -> -Pi/2..Pi/2 radians ({0, 0, -1}..{0, 0, 1})
     // Each primitive given a unique submesh name produces a single submesh with that name
     // Primitives given a submesh name that already exists in the mesh will be merged into that submesh (so don't do that)
 
@@ -328,7 +328,7 @@ namespace quetzal::model
     id_type create_anticylinder(M& mesh, const std::string& name, const CylinderSpecification<data_value_type<M>>& spec);
 
     template<typename M>
-    id_type create_anticylinder_faces(M& mesh, const std::string& name, const CylinderSpecification<data_value_type<M>>& spec);
+    id_type create_anticylinder_facets(M& mesh, const std::string& name, const CylinderSpecification<data_value_type<M>>& spec);
 
     // Create a sphere centered at the origin with nAzimuth edges in the xy-plane and nElevation edges from the negative to the positive z-axis
     // Surfaces: "body", and "end0", "end1", "side", "side0", "side1" depending on extents
@@ -2567,7 +2567,7 @@ quetzal::id_type quetzal::model::create_anticylinder(M& mesh, const std::string&
         return create_anticylinder(mesh, name, spec);
     }
 
-    return create_anticylinder_faces(mesh, name, spec);
+    return create_anticylinder_facets(mesh, name, spec);
 }
 
 //------------------------------------------------------------------------------
@@ -2674,7 +2674,7 @@ quetzal::id_type quetzal::model::create_anticylinder(M& mesh, const std::string&
 
 //------------------------------------------------------------------------------
 template<typename M>
-quetzal::id_type quetzal::model::create_anticylinder_faces(M& mesh, const std::string& name, const CylinderSpecification<data_value_type<M>>& spec)
+quetzal::id_type quetzal::model::create_anticylinder_facets(M& mesh, const std::string& name, const CylinderSpecification<data_value_type<M>>& spec)
 {
     assert(!spec.azimuth.smooth);
 
@@ -2710,7 +2710,7 @@ quetzal::id_type quetzal::model::create_anticylinder_faces(M& mesh, const std::s
 
     if (dr == T(0))
     {
-        create_antiband_faces(mesh, avs0, avs1, submesh_id);
+        create_antiband_facets(mesh, avs0, avs1, submesh_id);
 
         for (size_t i = 2; i <= nz; ++i)
         {
@@ -2720,18 +2720,18 @@ quetzal::id_type quetzal::model::create_anticylinder_faces(M& mesh, const std::s
             if (math::even(i))
             {
                 shift(avs0, z1);
-                connect_antiband_faces(mesh, avs0, submesh_id);
+                connect_antiband_facets(mesh, avs0, submesh_id);
             }
             else
             {
                 shift(avs1, z1);
-                connect_antiband_faces(mesh, avs1, submesh_id);
+                connect_antiband_facets(mesh, avs1, submesh_id);
             }
         }
     }
     else
     {
-        create_antiband_faces(mesh, avs0, avs1, submesh_id);
+        create_antiband_facets(mesh, avs0, avs1, submesh_id);
 
         for (size_t i = 2; i <= nz; ++i)
         {
@@ -2742,12 +2742,12 @@ quetzal::id_type quetzal::model::create_anticylinder_faces(M& mesh, const std::s
             if (math::even(i))
             {
                 shift(avs0, r1, z1);
-                connect_antiband_faces(mesh, avs0, submesh_id);
+                connect_antiband_facets(mesh, avs0, submesh_id);
             }
             else
             {
                 shift(avs1, r1, z1);
-                connect_antiband_faces(mesh, avs1, submesh_id);
+                connect_antiband_facets(mesh, avs1, submesh_id);
             }
         }
     }
@@ -2762,31 +2762,22 @@ quetzal::id_type quetzal::model::create_sphere(M& mesh, const std::string& name,
 {
     using T = M::value_type;
 
-    SphereSpecification<T> spec(nAzimuth, nElevation, radius, Properties{{"azimuth_smooth", "true"}} | properties);
-
-    nAzimuth = spec.azimuth.edge_count;
     assert(nAzimuth > 2);
-
-    nElevation = spec.elevation_edge_count;
     assert(nElevation > 0);
-
-    radius = spec.radius;
     assert(radius > T(0));
 
-    bool cusped_lower = math::float_eq0(spec.elevation_interval.lower());
-    bool cusped_upper = math::float_eq(spec.elevation_interval.upper(), T(1));
+    SphereSpecification<T> spec(nAzimuth, nElevation, radius, Properties{{"azimuth_smooth", "true"}} | properties);
+
+    bool cusped_lower = math::float_eq(spec.elevation_interval.lower(), Intervals<T>::elevation.lower());
+    bool cusped_upper = math::float_eq(spec.elevation_interval.upper(), Intervals<T>::elevation.upper());
 
     T t = T(1) / T(nElevation);
-    T t0 = spec.elevation_interval.lower();
-    T t1 = spec.elevation_interval.lerp(t);
-
-    // parametric to elevation
-    T te0 = t0 - T(0.5);
-    T te1 = t1 - T(0.5);
+    T e0 = spec.elevation_interval.lower();
+    T e1 = spec.elevation_interval.lerp(t);
 
     // elevation to radians
-    T theta0 = te0 * math::Pi<T>;
-    T theta1 = te1 * math::Pi<T>;
+    T theta0 = e0 * math::PiTwo<T>;
+    T theta1 = e1 * math::PiTwo<T>;
 
     // band radii
     T r0 = radius * math::denoise011(cos(theta0));
@@ -2837,9 +2828,8 @@ quetzal::id_type quetzal::model::create_sphere(M& mesh, const std::string& name,
     for (size_t i = 2; i <= nElevation; ++i)
     {
         t = T(i) / T(nElevation);
-        t1 = spec.elevation_interval.lerp(t);
-        theta1 = math::Pi<T> * (t1 - T(0.5));
-//        r1 = i == nElevation && cusped_upper ? T(0) : radius * math::denoise011(cos(theta1));
+        e1 = spec.elevation_interval.lerp(t);
+        theta1 = e1 * math::PiTwo<T>;
         r1 = radius * math::denoise011(cos(theta1));
         z1 = radius * math::denoise011(sin(theta1));
         ts1 = texture_span<M>(i, nElevation, cusped_lower, cusped_upper);
@@ -2874,15 +2864,15 @@ quetzal::id_type quetzal::model::create_sphere(M& mesh, const std::string& name,
     assert(nElevation > 0);
 
     // check that contour at ends is 0 too ...
-    bool cusped_lower = math::float_eq0(spec.elevation_interval.lower());
-    bool cusped_upper = math::float_eq(spec.elevation_interval.upper(), T(1));
+    bool cusped_lower = math::float_eq(spec.elevation_interval.lower(), Intervals<T>::elevation.lower());
+    bool cusped_upper = math::float_eq(spec.elevation_interval.upper(), Intervals<T>::elevation.upper());
     assert(spec.azimuth.smooth); // otherwise not supported ...
 
-    T t0 = contour.vertex(0).x();
-    T t1 = contour.vertex(1).x();
+    T e0 = contour.vertex(0).x();
+    T e1 = contour.vertex(1).x();
 
-    T theta0 = math::Pi<T> * (t0 - T(0.5));
-    T theta1 = math::Pi<T> * (t1 - T(0.5));
+    T theta0 = math::PiTwo<T> * e0;
+    T theta1 = math::PiTwo<T> * e1;
 
     T radius0 = contour.vertex(0).y();
     T radius1 = contour.vertex(1).y();
@@ -2923,8 +2913,8 @@ quetzal::id_type quetzal::model::create_sphere(M& mesh, const std::string& name,
     for (size_t i = 2; i <= nElevation; ++i)
     {
         const auto& point = contour.vertex(i);
-        T t1 = point.x();
-        T theta1 = math::Pi<T> * (t1 - T(0.5));
+        T e1 = point.x();
+        T theta1 = math::PiTwo<T> * e1;
         T radius1 = point.y();
         r1 = radius1 * math::denoise011(cos(theta1));
         z1 = radius1 * math::denoise011(sin(theta1));
@@ -2978,26 +2968,23 @@ quetzal::id_type quetzal::model::create_sphere(M& mesh, const std::string& name,
 
     SphereSpecification<T> spec(nAzimuth, nElevation, T(0), properties);
 
-    bool cusped_lower = math::float_eq0(spec.elevation_interval.lower());
-    bool cusped_upper = math::float_eq(spec.elevation_interval.upper(), T(1));
+    bool cusped_lower = math::float_eq(spec.elevation_interval.lower(), Intervals<T>::elevation.lower());
+    bool cusped_upper = math::float_eq(spec.elevation_interval.upper(), Intervals<T>::elevation.upper());
 
     // requirements, otherwise not supported ...
     assert(spec.azimuth.interval.unit());
     assert(spec.azimuth.smooth);
 
     T t = T(1) / T(nElevation);
-    T t0 = spec.elevation_interval.lower();
-    T t1 = spec.elevation_interval.lerp(t);
+    T e0 = spec.elevation_interval.lower();
+    T e1 = spec.elevation_interval.lerp(t);
 
-    T te0 = t0 - T(0.5);
-    T te1 = t1 - T(0.5);
-
-    T theta0 = te0 * math::Pi<T>;
-    T theta1 = te1 * math::Pi<T>;
+    T theta0 = e0 * math::PiTwo<T>;
+    T theta1 = e1 * math::PiTwo<T>;
 
     // sphere radii
-    T radius0 = fr(te0);
-    T radius1 = fr(te1);
+    T radius0 = fr(e0);
+    T radius1 = fr(e1);
 
     // band radii
     T r0 = radius0 * math::denoise011(cos(theta0));
@@ -3033,10 +3020,9 @@ quetzal::id_type quetzal::model::create_sphere(M& mesh, const std::string& name,
     for (size_t i = 2; i <= nElevation; ++i)
     {
         t = T(i) / T(nElevation);
-        t1 = spec.elevation_interval.lerp(t);
-        te1 = t1 - T(0.5);
-        theta1 = te1 * math::Pi<T>;
-        radius1 = fr(te1);
+        e1 = spec.elevation_interval.lerp(t);
+        theta1 = e1 * math::PiTwo<T>;
+        radius1 = fr(e1);
         r1 = radius1 * math::denoise011(cos(theta1));
         z1 = radius1 * math::denoise011(sin(theta1));
         ts1 = texture_span<M>(i, nElevation, cusped_lower, cusped_upper);
@@ -3083,19 +3069,16 @@ quetzal::id_type quetzal::model::create_sphere(M& mesh, const std::string& name,
 
     SphereSpecification<T> spec(nAzimuth, nElevation, T(0), properties);
 
-    bool cusped_lower = math::float_eq0(spec.elevation_interval.lower());
-    bool cusped_upper = math::float_eq(spec.elevation_interval.upper(), T(1));
+    bool cusped_lower = math::float_eq(spec.elevation_interval.lower(), Intervals<T>::elevation.lower());
+    bool cusped_upper = math::float_eq(spec.elevation_interval.upper(), Intervals<T>::elevation.upper());
     assert(spec.azimuth.smooth); // otherwise not supported ...
 
     T t = T(1) / T(nElevation);
-    T t0 = spec.elevation_interval.lower();
-    T t1 = spec.elevation_interval.lerp(t);
+    T e0 = spec.elevation_interval.lower();
+    T e1 = spec.elevation_interval.lerp(t);
 
-    T te0 = t0 - T(0.5);
-    T te1 = t1 - T(0.5);
-
-    T theta0 = te0 * math::Pi<T>;
-    T theta1 = te1 * math::Pi<T>;
+    T theta0 = e0 * math::PiTwo<T>;
+    T theta1 = e1 * math::PiTwo<T>;
 
     auto cos_theta0 = math::denoise011(cos(theta0));
     auto sin_theta0 = math::denoise011(sin(theta0));
@@ -3103,7 +3086,7 @@ quetzal::id_type quetzal::model::create_sphere(M& mesh, const std::string& name,
     auto cos_theta1 = math::denoise011(cos(theta1));
     auto sin_theta1 = math::denoise011(sin(theta1));
 
-    T radius0 = fr(T(0), te0);
+    T radius0 = fr(T(0), e0);
     T z0 = radius0 * sin_theta0;
 
     auto ts0 = texture_span<M>(0, nElevation, cusped_lower, cusped_upper);
@@ -3126,31 +3109,30 @@ quetzal::id_type quetzal::model::create_sphere(M& mesh, const std::string& name,
     if (cusped_lower)
     {
         create_base_cusp(mesh, nAzimuth, z0,
-            [&](T ta) -> typename M::point_type { return spherical_position(fr(ta, te1), ta, cos_theta1, sin_theta1); },
+            [&](T ta) -> typename M::point_type { return spherical_position(fr(ta, e1), ta, cos_theta1, sin_theta1); },
             spec.azimuth.interval, ts1, surface_id, [](T) {return -M::vector_type::z_direction(); });
     }
     else if (nElevation == 1 && cusped_upper)
     {
-        auto radius1 = fr(0.0f, theta1);
+        auto radius1 = fr(0.0f, e1);
         auto z1 = radius1 * math::denoise011(sin(theta1));
         create_apex_cusp(mesh, nAzimuth,
-            [&](T ta) -> typename M::point_type { return spherical_position(fr(ta, te0), ta, cos_theta0, sin_theta0); },
+            [&](T ta) -> typename M::point_type { return spherical_position(fr(ta, e0), ta, cos_theta0, sin_theta0); },
             z1, spec.azimuth.interval, ts0, surface_id);
     }
     else
     {
         create_band(mesh, nAzimuth,
-            [&](T ta) -> typename M::point_type { return spherical_position(fr(ta, te0), ta, cos_theta0, sin_theta0); },
-            [&](T ta) -> typename M::point_type { return spherical_position(fr(ta, te1), ta, cos_theta1, sin_theta1); },
+            [&](T ta) -> typename M::point_type { return spherical_position(fr(ta, e0), ta, cos_theta0, sin_theta0); },
+            [&](T ta) -> typename M::point_type { return spherical_position(fr(ta, e1), ta, cos_theta1, sin_theta1); },
             spec.azimuth.interval, spec.azimuth.interval, ts0, ts1, surface_id);
     }
 
     for (size_t i = 2; i <= nElevation; ++i)
     {
         t = T(i) / T(nElevation);
-        t1 = spec.elevation_interval.lerp(t);
-        te1 = t1 - T(0.5);
-        theta1 = te1 * math::Pi<T>;
+        e1 = spec.elevation_interval.lerp(t);
+        theta1 = e1 * math::PiTwo<T>;
         cos_theta1 = math::denoise011(cos(theta1));
         sin_theta1 = math::denoise011(sin(theta1));
         ts1 = texture_span<M>(i, nElevation, cusped_lower, cusped_upper);
@@ -3159,14 +3141,14 @@ quetzal::id_type quetzal::model::create_sphere(M& mesh, const std::string& name,
 
         if (i == nElevation && cusped_upper)
         {
-            auto radius1 = fr(0.0f, te1);
+            auto radius1 = fr(0.0f, e1);
             auto z1 = radius1 * math::denoise011(sin(theta1));
             connect_apex_cusp(mesh, nAzimuth, z1, spec.azimuth.interval, surface_id);
         }
         else
         {
             connect_band(mesh, nAzimuth,
-                [&](T ta) -> typename M::point_type { return spherical_position(fr(ta, te1), ta, cos_theta1, sin_theta1); },
+                [&](T ta) -> typename M::point_type { return spherical_position(fr(ta, e1), ta, cos_theta1, sin_theta1); },
                 spec.azimuth.interval, ts1, surface_id);
         }
     }
@@ -3206,18 +3188,15 @@ quetzal::id_type quetzal::model::create_antisphere(M& mesh, const std::string& n
 
     assert(spec.azimuth.smooth);
 
-    bool cusped_lower = math::float_eq0(spec.elevation_interval.lower());
-    bool cusped_upper = math::float_eq(spec.elevation_interval.upper(), T(1));
+    bool cusped_lower = math::float_eq(spec.elevation_interval.lower(), Intervals<T>::elevation.lower());
+    bool cusped_upper = math::float_eq(spec.elevation_interval.upper(), Intervals<T>::elevation.upper());
 
     T t = T(1) / T(nElevation);
-    T t0 = spec.elevation_interval.lower();
-    T t1 = spec.elevation_interval.lerp(t);
+    T e0 = spec.elevation_interval.lower();
+    T e1 = spec.elevation_interval.lerp(t);
 
-    T te0 = t0 - T(0.5);
-    T te1 = t1 - T(0.5);
-
-    T theta0 = te0 * math::Pi<T>;
-    T theta1 = te1 * math::Pi<T>;
+    T theta0 = e0 * math::PiTwo<T>;
+    T theta1 = e1 * math::PiTwo<T>;
 
     T r0 = radius * math::denoise011(cos(theta0));
     T r1 = radius * math::denoise011(cos(theta1));
@@ -3270,9 +3249,8 @@ quetzal::id_type quetzal::model::create_antisphere(M& mesh, const std::string& n
     for (size_t i = 2; i <= nElevation; ++i)
     {
         t = T(i) / T(nElevation);
-        t1 = spec.elevation_interval.lerp(t);
-        te1 = t1 - T(0.5);
-        theta1 = te1 * math::Pi<T>;
+        e1 = spec.elevation_interval.lerp(t);
+        theta1 = e1 * math::PiTwo<T>;
         r1 = radius * math::denoise011(cos(theta1));
         z1 = radius * math::denoise011(sin(theta1));
 
@@ -3318,21 +3296,18 @@ quetzal::id_type quetzal::model::create_antisphere(M& mesh, const std::string& n
 
     assert(spec.azimuth.smooth);
 
-    bool cusped_lower = math::float_eq0(spec.elevation_interval.lower());
-    bool cusped_upper = math::float_eq(spec.elevation_interval.upper(), T(1));
+    bool cusped_lower = math::float_eq(spec.elevation_interval.lower(), Intervals<T>::elevation.lower());
+    bool cusped_upper = math::float_eq(spec.elevation_interval.upper(), Intervals<T>::elevation.upper());
 
     T t = T(1) / T(nElevation);
-    T t0 = spec.elevation_interval.lower();
-    T t1 = spec.elevation_interval.lerp(t);
+    T e0 = spec.elevation_interval.lower();
+    T e1 = spec.elevation_interval.lerp(t);
 
-    T te0 = t0 - T(0.5);
-    T te1 = t1 - T(0.5);
+    T theta0 = e0 * math::PiTwo<T>;
+    T theta1 = e1 * math::PiTwo<T>;
 
-    T theta0 = te0 * math::Pi<T>;
-    T theta1 = te1 * math::Pi<T>;
-
-    T radius0 = fr(te0);
-    T radius1 = fr(te1);
+    T radius0 = fr(e0);
+    T radius1 = fr(e1);
 
     T r0 = radius0 * math::denoise011(cos(theta0));
     T r1 = radius1 * math::denoise011(cos(theta1));
@@ -3385,10 +3360,9 @@ quetzal::id_type quetzal::model::create_antisphere(M& mesh, const std::string& n
     for (size_t i = 2; i <= nElevation; ++i)
     {
         t = T(i) / T(nElevation);
-        t1 = spec.elevation_interval.lerp(t);
-        te1 = t1 - T(0.5);
-        theta1 = te1 * math::Pi<T>;
-        radius1 = fr(te1);
+        e1 = spec.elevation_interval.lerp(t);
+        theta1 = e1 * math::PiTwo<T>;
+        radius1 = fr(e1);
         r1 = radius1 * math::denoise011(cos(theta1));
         z1 = radius1 * math::denoise011(sin(theta1));
 
@@ -3434,18 +3408,15 @@ quetzal::id_type quetzal::model::create_antisphere(M& mesh, const std::string& n
 
     assert(spec.azimuth.smooth);
 
-    bool cusped_lower = math::float_eq0(spec.elevation_interval.lower());
-    bool cusped_upper = math::float_eq(spec.elevation_interval.upper(), T(1));
+    bool cusped_lower = math::float_eq(spec.elevation_interval.lower(), Intervals<T>::elevation.lower());
+    bool cusped_upper = math::float_eq(spec.elevation_interval.upper(), Intervals<T>::elevation.upper());
 
     T t = T(1) / T(nElevation);
-    T t0 = spec.elevation_interval.lower();
-    T t1 = spec.elevation_interval.lerp(t);
+    T e0 = spec.elevation_interval.lower();
+    T e1 = spec.elevation_interval.lerp(t);
 
-    T te0 = t0 - T(0.5);
-    T te1 = t1 - T(0.5);
-
-    T theta0 = te0 * math::Pi<T>;
-    T theta1 = te1 * math::Pi<T>;
+    T theta0 = e0 * math::PiTwo<T>;
+    T theta1 = e1 * math::PiTwo<T>;
 
     auto cos_theta0 = math::denoise011(cos(theta0));
     auto sin_theta0 = math::denoise011(sin(theta0));
@@ -3467,7 +3438,7 @@ quetzal::id_type quetzal::model::create_antisphere(M& mesh, const std::string& n
     id_type surface_id = mesh.create_surface(submesh_id, spec.shell_name);
 
     // Calculate z value for cusps
-    auto terminal_z = [fr](T t) -> T { assert(t == T(0) || t == T(1)); return fr(T(0), (t - T(0.5))); };
+    auto terminal_z = [fr](T t) -> T { assert(t == T(0) || t == T(1)); return fr(T(0), t); };
 
     auto layer_texcoord = [nElevation](texture_span_type<M> texcoord, size_t i) -> texture_span_type<M> { texcoord[2] = texture_span_v<M>(i, nElevation); return texcoord; };
 
@@ -3484,7 +3455,7 @@ quetzal::id_type quetzal::model::create_antisphere(M& mesh, const std::string& n
         auto avs0 = cusp_vertices_attributes<M>(nAzimuth, z0, azimuth_interval_a, ts0);
         auto ts1 = layer_texcoord(ts_a, 1);
         auto avs1 = vertices_attributes<M>(nAzimuth,
-            [&](T ta) -> typename M::point_type { return spherical_position(fr(ta, te1), ta, cos_theta1, sin_theta1); },
+            [&](T ta) -> typename M::point_type { return spherical_position(fr(ta, e1), ta, cos_theta1, sin_theta1); },
             azimuth_interval_a, ts1);
         create_base_cusp(mesh, avs0, avs1, surface_id, closed, false);
     }
@@ -3493,7 +3464,7 @@ quetzal::id_type quetzal::model::create_antisphere(M& mesh, const std::string& n
         auto z1 = terminal_z(T(1));
         auto ts0 = layer_texcoord(ts_b, 0);
         auto avs0 = vertices_attributes<M>(nAzimuth,
-            [&](T ta) -> typename M::point_type { return spherical_position(fr(ta, te0), ta, cos_theta0, sin_theta0); },
+            [&](T ta) -> typename M::point_type { return spherical_position(fr(ta, e0), ta, cos_theta0, sin_theta0); },
             azimuth_interval_a, ts0);
         auto ts1 = layer_texcoord(ts_a, 1);
         auto avs1 = cusp_vertices_attributes<M>(nAzimuth, z1, azimuth_interval_a, ts1);
@@ -3503,11 +3474,11 @@ quetzal::id_type quetzal::model::create_antisphere(M& mesh, const std::string& n
     {
         auto ts0 = layer_texcoord(ts_b, 0);
         auto avs0 = vertices_attributes<M>(nAzimuth,
-            [&](T ta) -> typename M::point_type { return spherical_position(fr(ta, te0), ta, cos_theta0, sin_theta0); },
+            [&](T ta) -> typename M::point_type { return spherical_position(fr(ta, e0), ta, cos_theta0, sin_theta0); },
             azimuth_interval_b, ts0);
         auto ts1 = layer_texcoord(ts_a, 1);
         auto avs1 = vertices_attributes<M>(nAzimuth,
-            [&](T ta) -> typename M::point_type { return spherical_position(fr(ta, te1), ta, cos_theta1, sin_theta1); },
+            [&](T ta) -> typename M::point_type { return spherical_position(fr(ta, e1), ta, cos_theta1, sin_theta1); },
             azimuth_interval_a, ts1);
         create_antiband_inverted(mesh, avs0, avs1, surface_id);
     }
@@ -3517,9 +3488,8 @@ quetzal::id_type quetzal::model::create_antisphere(M& mesh, const std::string& n
     for (size_t i = 2; i <= nElevation; ++i)
     {
         t = T(i) / T(nElevation);
-        t1 = spec.elevation_interval.lerp(t);
-        te1 = t1 - T(0.5);
-        theta1 = te1 * math::Pi<T>;
+        e1 = spec.elevation_interval.lerp(t);
+        theta1 = e1 * math::PiTwo<T>;
         cos_theta1 = math::denoise011(cos(theta1));
         sin_theta1 = math::denoise011(sin(theta1));
 
@@ -3532,7 +3502,7 @@ quetzal::id_type quetzal::model::create_antisphere(M& mesh, const std::string& n
         {
             auto ts1 = layer_texcoord(ts_a, i);
             auto avs1 = vertices_attributes<M>(nAzimuth,
-                [&](T ta) -> typename M::point_type { return spherical_position(fr(ta, te1), ta, cos_theta1, sin_theta1); },
+                [&](T ta) -> typename M::point_type { return spherical_position(fr(ta, e1), ta, cos_theta1, sin_theta1); },
                 azimuth_interval_a, ts1);
             connect_antiband_inverted(mesh, avs1, surface_id);
         }
@@ -3540,7 +3510,7 @@ quetzal::id_type quetzal::model::create_antisphere(M& mesh, const std::string& n
         {
             auto ts1 = layer_texcoord(ts_b, i);
             auto avs1 = vertices_attributes<M>(nAzimuth,
-                [&](T ta) -> typename M::point_type { return spherical_position(fr(ta, te1), ta, cos_theta1, sin_theta1); },
+                [&](T ta) -> typename M::point_type { return spherical_position(fr(ta, e1), ta, cos_theta1, sin_theta1); },
                 azimuth_interval_b, ts1);
             connect_antiband(mesh, avs1, surface_id);
         }

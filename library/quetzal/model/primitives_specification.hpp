@@ -13,6 +13,13 @@
 namespace quetzal::model
 {
 
+    template<typename T>
+    struct Intervals
+    {
+        inline static constexpr math::Interval<T> azimuth = {T(0), T(1)};
+        inline static constexpr math::Interval<T> elevation = {T(-0.25), T(0.25)};
+    };
+
     //--------------------------------------------------------------------------
     enum class TerminationStyle
     {
@@ -205,7 +212,7 @@ quetzal::model::CylinderSpecification<T>::CylinderSpecification() :
     axis_smooth{true},
     axis_termination_lower{TerminationStyle::Butt, false, {"end0"}},
     axis_termination_upper{TerminationStyle::Butt, false, {"end1"}},
-    azimuth({T(0), T(1)}, 0, true, {TerminationStyle::Center, true, {"side0", "side1"}})
+    azimuth(Intervals<T>::azimuth, 0, true, {TerminationStyle::Center, true, {"side0", "side1"}})
 {
 }
 
@@ -274,12 +281,12 @@ template<typename T>
 quetzal::model::SphereSpecification<T>::SphereSpecification() :
     shell_name{"body"},
     radius(),
-    elevation_interval{T(0), T(1)},
+    elevation_interval(Intervals<T>::elevation),
     elevation_edge_count{0},
     elevation_smooth{true},
     elevation_termination_lower{TerminationStyle::Butt, false, {"end0"}},
     elevation_termination_upper{TerminationStyle::Butt, false, {"end1"}},
-    azimuth({T(0), T(1)}, 0, true, {TerminationStyle::Center, true, {"side0", "side1"}})
+    azimuth(Intervals<T>::azimuth, 0, true, {TerminationStyle::Center, true, {"side0", "side1"}})
 {
 }
 

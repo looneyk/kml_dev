@@ -31,9 +31,9 @@ namespace quetzal::model
 {
 
     // The following create/connect functions can be used to construct cylinders, cones, spheres, and contoured cylinders by succesive layering
-    // All angles and intervals that represent angles are measured in turns, 0..1 representing one turn (circle) and/or full range
-    // Cylindrical coordinates (r, phi, z) with azimuth interval 0..1 -> phi 0..2Pi
-    // Spherical coordinates (r, phi, theta) with azimuth interval 0..1 -> phi 0..2Pi; elevation interval 0..1 -> theta -Pi/2..Pi/2
+    // All angles and intervals that represent angles are measured in turns, 0..1 representing one turn (full circle) // and/or full range (no) ...
+    // Cylindrical coordinates: radius, azimuth, z (r, phi, z) with azimuth interval 0..1 turns ->  0..2Pi radians
+    // Spherical coordinates: radius, azimuth, elevation (r, phi, theta) with azimuth interval 0..1 turns -> 0..2Pi radians; elevation interval -0.25..0.25 turns -> -Pi/2..Pi/2 radians ({0, 0, -1}..{0, 0, 1})
     // A surface_id parameter references a single surface for the whole band
     // A surface_id0 parameter references a set of separate surface for each section. surface_id0 is the first of a numerically contiguous set of surface ids
 
@@ -49,7 +49,7 @@ namespace quetzal::model
     void create_apex_cusp_sections(M& mesh, size_t nAzimuth, data_value_type<M> r0, data_value_type<M> z0, data_value_type<M> z1, azimuth_interval_type<M> azimuth0, texture_span_type<M> ts0, id_type surface_id0);
 
     template<typename M>
-    void create_apex_cusp(M& mesh, size_t nAzimuth, std::function<typename M::point_type(data_value_type<M>)> fr0, data_value_type<M> z1, azimuth_interval_type<M> azimuth_interval, texture_span_type<M> ts0, id_type surface_id, std::optional<vertex_normal_function_type<M>> vertex_normal1 = std::nullopt);
+    void create_apex_cusp(M& mesh, size_t nAzimuth, std::function<typename M::point_type(data_value_type<M>)> f0, data_value_type<M> z1, azimuth_interval_type<M> azimuth_interval, texture_span_type<M> ts0, id_type surface_id, std::optional<vertex_normal_function_type<M>> vertex_normal1 = std::nullopt);
 
     // Single surface
     template<typename M>
@@ -118,6 +118,7 @@ namespace quetzal::model
 
     // Create an open antiprism section between two vertex attribute sets
     // Starts with a face with the horizontal edge at the bottom (triangle pointing up)
+    // This pair of functions produce an anticylinder with staggered rows
     template<typename M>
     void create_antiband(M& mesh, const vertices_attributes_type<M>& avs0, const vertices_attributes_type<M>& avs1, id_type surface_id);
 
@@ -127,8 +128,9 @@ namespace quetzal::model
     void create_antiband_inverted(M& mesh, const vertices_attributes_type<M>& avs0, const vertices_attributes_type<M>& avs1, id_type surface_id);
 
     // Create an open antiprism section between two vertex attribute sets
+    // This function produces an anticylinder with rows at increasing azimuth offsets (avs0 must provide the coordinates, this does the connections according to that arrangement
     template<typename M>
-    void create_antiband_faces(M& mesh, const vertices_attributes_type<M>& avs0, const vertices_attributes_type<M>& avs1, id_type submesh_id);
+    void create_antiband_facets(M& mesh, const vertices_attributes_type<M>& avs0, const vertices_attributes_type<M>& avs1, id_type submesh_id);
 
     // Append a cone with base connected to previous layer in mesh with apex at z1 and with nAzimuth edges
     // Single surface
@@ -183,7 +185,7 @@ namespace quetzal::model
     void connect_antiband_inverted(M& mesh, const vertices_attributes_type<M>& avs1, id_type surface_id);
 
     template<typename M>
-    void connect_antiband_faces(M& mesh, const vertices_attributes_type<M>& avs1, id_type submesh_id);
+    void connect_antiband_facets(M& mesh, const vertices_attributes_type<M>& avs1, id_type submesh_id);
 
     // Connect the borders of an open side with a flat surface divided into nb faces
     template<typename M>
@@ -243,10 +245,6 @@ namespace quetzal::model
 
     template<typename M>
     id_type create_section_surfaces(M& mesh, id_type submesh_id, size_t n, std::function<std::string(size_t)> namer);
-
-    // deprecated
-    template<typename M>
-    void check_normal(size_t n, const quetzal::model::normal_vector_type<M>& normal, const typename M::vertex_type& vertex, const typename M::face_type& face);
 
     // These calculate normals for a single section of a band having n faces
     // id0 is the id of the first halfedge in the section
@@ -330,13 +328,13 @@ void quetzal::model::create_apex_cusp_sections(M& mesh, size_t nAzimuth, data_va
 
 //------------------------------------------------------------------------------
 template<typename M>
-void quetzal::model::create_apex_cusp(M& mesh, size_t nAzimuth, std::function<typename M::point_type(data_value_type<M>)> fr0, data_value_type<M> z1, azimuth_interval_type<M> azimuth_interval, texture_span_type<M> ts0, id_type surface_id, std::optional<vertex_normal_function_type<M>> vertex_normal1)
+void quetzal::model::create_apex_cusp(M& mesh, size_t nAzimuth, std::function<typename M::point_type(data_value_type<M>)> f0, data_value_type<M> z1, azimuth_interval_type<M> azimuth_interval, texture_span_type<M> ts0, id_type surface_id, std::optional<vertex_normal_function_type<M>> vertex_normal1)
 {
     assert(nAzimuth > 2);
 
     using T = data_value_type<M>;
 
-    auto avs0 = vertices_attributes<M>(nAzimuth, fr0, azimuth_interval, ts0);
+    auto avs0 = vertices_attributes<M>(nAzimuth, f0, azimuth_interval, ts0);
     auto avs1 = cusp_vertices_attributes<M>(nAzimuth, z1, azimuth_interval, texture_span_type<M>{T(0.5), T(0.5), T(0)}, vertex_normal1);
 
     bool closed = azimuth_interval.unit();
@@ -1072,7 +1070,7 @@ void quetzal::model::create_antiband_inverted(M& mesh, const vertices_attributes
 
 //------------------------------------------------------------------------------
 template<typename M>
-void quetzal::model::create_antiband_faces(M& mesh, const vertices_attributes_type<M>& avs0, const vertices_attributes_type<M>& avs1, id_type submesh_id)
+void quetzal::model::create_antiband_facets(M& mesh, const vertices_attributes_type<M>& avs0, const vertices_attributes_type<M>& avs1, id_type submesh_id)
 {
     using T = data_value_type<M>;
 
@@ -1630,9 +1628,9 @@ void quetzal::model::connect_antiband_inverted(M& mesh, const vertices_attribute
 
 //------------------------------------------------------------------------------
 template<typename M>
-void quetzal::model::connect_antiband_faces(M& mesh, const vertices_attributes_type<M>& avs1, id_type submesh_id)
+void quetzal::model::connect_antiband_facets(M& mesh, const vertices_attributes_type<M>& avs1, id_type submesh_id)
 {
-    // create_antiband_faces is leveraged here ...
+    // create_antiband_facets is leveraged here ...
     using T = data_value_type<M>;
 
     size_t nAzimuth = avs1.size() - 1;
@@ -1651,7 +1649,7 @@ void quetzal::model::connect_antiband_faces(M& mesh, const vertices_attributes_t
 
     nh = mesh.halfedge_store_count();
 
-    create_antiband_faces(mesh, avs0, avs1, submesh_id);
+    create_antiband_facets(mesh, avs0, avs1, submesh_id);
 
     for (size_t i = 0; i < nAzimuth; ++i)
     {
@@ -3065,19 +3063,6 @@ quetzal::id_type quetzal::model::create_section_surfaces(M& mesh, id_type submes
     }
 
     return surface_id0;
-}
-
-//------------------------------------------------------------------------------
-template<typename M>
-void quetzal::model::check_normal(size_t n, const quetzal::model::normal_vector_type<M>& normal, const typename M::vertex_type& vertex, const typename M::face_type& face)
-{
-//    std::cout << "check_normal <" << n << "> [" << normal << "]" << std::endl;
-//    std::cout << "c v n " << vertex.id() << " normal [" << vertex.attributes().normal() << "]" << std::endl;
-//    std::cout << "c f n " << face.id() << " normal [" << face.attributes().normal() << "]" << std::endl;
-//    std::cout << "c dot " << dot(normal, face.attributes().normal()) << std::endl;
-
-//    assert(quetzal::math::float_gt0(dot(normal, face.attributes().normal())));
-// This can only be guaranteed with surface changes at singular points, as with polygon sections, for example ...
 }
 
 //------------------------------------------------------------------------------

@@ -555,70 +555,70 @@ int main(int argc, char* argv[])
     name = "sphere_top";
     cout << name << endl;
     mesh.clear();
-    model::create_sphere(mesh, name, 24, 6, 10.0f, {{"elevation_lower", "0.5"}, {"elevation_upper", "1.0"}});
+    model::create_sphere(mesh, name, 24, 6, 10.0f, {{"elevation_lower", "0.0"}, {"elevation_upper", "0.25"}});
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 
     name = "sphere_bottom";
     cout << name << endl;
     mesh.clear();
-    model::create_sphere(mesh, name, 24, 6, 10.0f, {{"elevation_lower", "0.0"}, {"elevation_upper", "0.5"}});
+    model::create_sphere(mesh, name, 24, 6, 10.0f, {{"elevation_lower", "-0.25"}, {"elevation_upper", "0.0"}});
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 
     name = "sphere_middle";
     cout << name << endl;
     mesh.clear();
-    model::create_sphere(mesh, name, 24, 6, 10.0f, {{"elevation_lower", "0.25"}, {"elevation_upper", "0.75"}});
+    model::create_sphere(mesh, name, 24, 6, 10.0f, {{"elevation_lower", "-0.125"}, {"elevation_upper", "0.125"}});
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 
     name = "sphere_top_three_quarter_flat";
     cout << name << endl;
     mesh.clear();
-    model::create_sphere(mesh, name, 18, 6, 10.0f, {{"azimuth_lower", "0.125"}, {"azimuth_upper", "0.875"}, {"azimuth_style", "butt"}, {"elevation_lower", "0.5"}, {"elevation_upper", "1.0"}});
+    model::create_sphere(mesh, name, 18, 6, 10.0f, {{"azimuth_lower", "0.125"}, {"azimuth_upper", "0.875"}, {"azimuth_style", "butt"}, {"elevation_lower", "0.0"}, {"elevation_upper", "0.25"}});
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 
     name = "sphere_top_three_quarter_center";
     cout << name << endl;
     mesh.clear();
-    model::create_sphere(mesh, name, 18, 6, 10.0f, {{"azimuth_lower", "0.125"}, {"azimuth_upper", "0.875"}, {"elevation_lower", "0.5"}, {"elevation_upper", "1.0"}});
+    model::create_sphere(mesh, name, 18, 6, 10.0f, {{"azimuth_lower", "0.125"}, {"azimuth_upper", "0.875"}, {"elevation_lower", "0.0"}, {"elevation_upper", "0.25"}});
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 
     name = "sphere_bottom_three_quarter_flat";
     cout << name << endl;
     mesh.clear();
-    model::create_sphere(mesh, name, 18, 6, 10.0f, {{"azimuth_lower", "0.125"}, {"azimuth_upper", "0.875"}, {"azimuth_style", "butt"}, {"elevation_lower", "0.0"}, {"elevation_upper", "0.5"}});
+    model::create_sphere(mesh, name, 18, 6, 10.0f, {{"azimuth_lower", "0.125"}, {"azimuth_upper", "0.875"}, {"azimuth_style", "butt"}, {"elevation_lower", "-0.25"}, {"elevation_upper", "0.0"}});
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 
     name = "sphere_bottom_three_quarter_center";
     cout << name << endl;
     mesh.clear();
-    model::create_sphere(mesh, name, 18, 6, 10.0f, {{"azimuth_lower", "0.125"}, {"azimuth_upper", "0.875"}, {"elevation_lower", "0.0"}, {"elevation_upper", "0.5"}});
+    model::create_sphere(mesh, name, 18, 6, 10.0f, {{"azimuth_lower", "0.125"}, {"azimuth_upper", "0.875"}, {"elevation_lower", "-0.25"}, {"elevation_upper", "0.0"}});
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 
     name = "sphere_middle_three_quarter_flat";
     cout << name << endl;
     mesh.clear();
-    model::create_sphere(mesh, name, 18, 6, 10.0f, {{"azimuth_lower", "0.125"}, {"azimuth_upper", "0.875"}, {"azimuth_style", "butt"}, {"elevation_lower", "0.25"}, {"elevation_upper", "0.75"}});
+    model::create_sphere(mesh, name, 18, 6, 10.0f, {{"azimuth_lower", "0.125"}, {"azimuth_upper", "0.875"}, {"azimuth_style", "butt"}, {"elevation_lower", "-0.125"}, {"elevation_upper", "0.125"}});
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 
     name = "sphere_middle_three_quarter_center";
     cout << name << endl;
     mesh.clear();
-    model::create_sphere(mesh, name, 18, 6, 10.0f, {{"azimuth_lower", "0.125"}, {"azimuth_upper", "0.875"}, {"elevation_lower", "0.25"}, {"elevation_upper", "0.75"}});
+    model::create_sphere(mesh, name, 18, 6, 10.0f, {{"azimuth_lower", "0.125"}, {"azimuth_upper", "0.875"}, {"elevation_lower", "-0.125"}, {"elevation_upper", "0.125"}});
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 
     name = "sphere_middle_three_quarter_none";
     cout << name << endl;
     mesh.clear();
-    model::create_sphere(mesh, name, 18, 6, 10.0f, {{"azimuth_lower", "0.125"}, {"azimuth_upper", "0.875"}, {"azimuth_style", "none"}, {"elevation_lower", "0.25"}, {"elevation_upper", "0.75"}});
+    model::create_sphere(mesh, name, 18, 6, 10.0f, {{"azimuth_lower", "0.125"}, {"azimuth_upper", "0.875"}, {"azimuth_style", "none"}, {"elevation_lower", "-0.125"}, {"elevation_upper", "0.125"}});
     idSurface = mesh.create_surface(mesh.submesh_id(name), "side", {{1.0f, 0.0f, 0.0f}});
     create_border_face(mesh, 3 * 18, {1.0f, 0.0f, 0.0f}, idSurface);
     calculate_surface_texcoords(mesh, idSurface);
