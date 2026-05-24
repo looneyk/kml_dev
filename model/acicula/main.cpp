@@ -71,8 +71,8 @@ namespace
     {
         id_type idLower = 2;
         id_type idUpper = mesh.halfedge_count() - 6 * (nAzimuth + 1) - 2;
-        geometry::HalfSpace<vector_traits> hsLower({mesh.vertex(idLower).attributes().position(), {0.0, 0.0, -1.0}});
-        geometry::HalfSpace<vector_traits> hsUpper({mesh.vertex(idUpper).attributes().position(), {0.0, 0.0, 1.0}});
+        geometry::HalfSpace<vector_traits> hsLower({mesh.vertex(idLower).attributes().position(), -vector_type::z_direction()});
+        geometry::HalfSpace<vector_traits> hsUpper({mesh.vertex(idUpper).attributes().position(), vector_type::z_direction()});
         clip(mesh, hsLower, "clip_lower");
         clip(mesh, hsUpper, "clip_upper");
         return;
@@ -413,7 +413,7 @@ namespace
 
         auto ids = connect_partners(mesh);
         id_type surface_id_base = mesh.create_surface(submesh_id, "end0");
-        create_border_face(mesh, ids[0], {0.0, 0.0, -1.0}, surface_id_base);
+        create_border_face(mesh, ids[0], -vector_type::z_direction(), surface_id_base);
 
         for (size_t i = 0; i < nAzimuth; ++i)
         {

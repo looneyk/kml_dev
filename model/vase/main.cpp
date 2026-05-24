@@ -190,9 +190,9 @@ r *= 20.0f;
     z0Outer = 0.5f * height;
     z1Outer = 1.5f * height;
 
-    geometry::Plane<vector_traits> planeBottom({0.0f, 0.0f, z0Outer}, {0.0f, 0.0f, -1.0f});
+    geometry::Plane<vector_traits> planeBottom({0.0f, 0.0f, z0Outer}, -vector_type::z_direction());
     clip(mesh, planeBottom, "bottom");
-    geometry::Plane<vector_traits> planeTop({0.0f, 0.0f, z1Outer}, {0.0f, 0.0f, 1.0f});
+    geometry::Plane<vector_traits> planeTop({0.0f, 0.0f, z1Outer}, vector_type::z_direction());
     clip(mesh, planeTop, "top");
 
     triangulate(mesh);

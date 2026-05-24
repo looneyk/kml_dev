@@ -29,6 +29,8 @@ namespace
 //    using value_type = double;
     using vector_traits = math::HomogeneousTraits<value_type, 3>;
     using mesh_type = brep::Mesh<brep::MeshTraits<vector_traits>>;
+    using point_type = mesh_type::point_type;
+    using vector_type = point_type::vector_type;
 
     static const filesystem::path dir_out = "out/";
     static const filesystem::path dir_ref = "reference/";
@@ -57,7 +59,7 @@ namespace
         brep::calculate_surface_vertex_normals(mesh.submesh(submesh_id).surface(0));
 
         // Bottom
-        typename M::vector_type normal = {0.0f, 0.0f, -1.0f};
+        typename M::vector_type normal = -vector_type::z_direction();
         id_type idSurface = mesh.create_surface(mesh.submesh_id(name), "bottom", {normal});
         create_border_face(mesh, 0, normal, idSurface);
         calculate_surface_texcoords(mesh, idSurface);

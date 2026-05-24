@@ -228,7 +228,7 @@ namespace
             vector_type normal = geometry::normal(mesh.face(i)); // upFace
 
             // Axis and angle between face normal and positive z-axis
-            vector_type axis = normalize(cross({0.0f, 0.0f, 1.0f}, normal));
+            vector_type axis = normalize(cross(vector_type::z_direction(), normal));
             value_type theta = math::PiHalf<value_type> - asin(normal.z());
             assert(theta >= 0.0f);
 

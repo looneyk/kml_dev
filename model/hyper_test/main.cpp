@@ -20,6 +20,8 @@ namespace
 
 	using value_type = float;
 	using mesh_type = brep::Mesh<brep::MeshTraits<value_type>>;
+    using point_type = mesh_type::point_type;
+    using vector_type = point_type::vector_type;
 
 	const std::string dirOut = "out/";
 
@@ -46,8 +48,8 @@ namespace
                 value_type yBase = rBase * sin(tPhi * math::PiTwo<value_type>);
 
                 M m = m0;
-                math::Matrix<value_type> mTheta = math::rotation_normal({0.0f, 1.0f, 0.0f}, tTheta * math::PiTwo<value_type>);
-                math::Matrix<value_type> mPhi = math::rotation_normal({0.0f, 0.0f, 1.0f}, tPhi * math::PiTwo<value_type>);
+                math::Matrix<value_type> mTheta = math::rotation_normal(vector_type::y_direction(), tTheta * math::PiTwo<value_type>);
+                math::Matrix<value_type> mPhi = math::rotation_normal(vector_type::z_direction(), tPhi * math::PiTwo<value_type>);
                 math::Matrix<value_type> mTranslation = math::translation(xBase, yBase, 0.0f);
                 model::transform(m, mTheta);
                 model::transform(m, mPhi);
@@ -91,8 +93,8 @@ namespace
                 value_type yBase = rBase * sin(tPhi * math::PiTwo<value_type>);
 
                 M m = m0;
-                math::Matrix<value_type> mTheta = math::rotation_normal({0.0f, 1.0f, 0.0f}, tTheta * math::PiTwo<value_type>);
-                math::Matrix<value_type> mPhi = math::rotation_normal({0.0f, 0.0f, 1.0f}, tPhi * math::PiTwo<value_type>);
+                math::Matrix<value_type> mTheta = math::rotation_normal(vector_type::y_direction(), tTheta * math::PiTwo<value_type>);
+                math::Matrix<value_type> mPhi = math::rotation_normal(vector_type::z_direction(), tPhi * math::PiTwo<value_type>);
                 math::Matrix<value_type> mTranslation = math::translation(xBase, yBase, 0.0f);
                 model::transform(m, mTheta);
                 model::transform(m, mPhi);
@@ -136,8 +138,8 @@ namespace
                 value_type yBase = rBase * sin(tPhi * math::PiTwo<value_type>);
 
                 M m = m0;
-                math::Matrix<value_type> mTheta = math::rotation_normal({0.0f, 1.0f, 0.0f}, tTheta * math::PiTwo<value_type>);
-                math::Matrix<value_type> mPhi = math::rotation_normal({0.0f, 0.0f, 1.0f}, tPhi * math::PiTwo<value_type>);
+                math::Matrix<value_type> mTheta = math::rotation_normal(vector_type::y_direction(), tTheta * math::PiTwo<value_type>);
+                math::Matrix<value_type> mPhi = math::rotation_normal(vector_type::z_direction(), tPhi * math::PiTwo<value_type>);
                 math::Matrix<value_type> mTranslation = math::translation(xBase, yBase, 0.0f);
                 model::transform(m, math::scaling(0.25f, 1.0f, 1.0f)); // Flatten leaf blades
                 model::transform(m, math::translation(0.0f, radius, 0.0f)); // Offset so spikes don't meet at center

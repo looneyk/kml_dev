@@ -34,8 +34,8 @@ namespace
     using mesh_traits = brep::MeshTraits<vector_traits>;
     using mesh_type = brep::Mesh<mesh_traits>;
     using matrix_type = geometry::transformation_matrix_type<vector_traits>;
-    using vector_type = mesh_type::vector_type;
     using point_type = mesh_type::point_type;
+    using vector_type = point_type::vector_type;
 
     namespace g = quetzal::geometry;
 
@@ -151,8 +151,8 @@ namespace
     {
         id_type idLower = 2;
         id_type idUpper = mesh.halfedge_count() - 6 * (nAzimuth + 1) - 2;
-        geometry::HalfSpace<vector_traits> hsLower({mesh.vertex(idLower).attributes().position(), {0.0f, 0.0f, -1.0f}});
-        geometry::HalfSpace<vector_traits> hsUpper({mesh.vertex(idUpper).attributes().position(), {0.0f, 0.0f, 1.0f}});
+        geometry::HalfSpace<vector_traits> hsLower({mesh.vertex(idLower).attributes().position(), -vector_type::z_direction()});
+        geometry::HalfSpace<vector_traits> hsUpper({mesh.vertex(idUpper).attributes().position(), vector_type::z_direction()});
         clip(mesh, hsLower, "clip_lower");
         clip(mesh, hsUpper, "clip_upper");
         return;

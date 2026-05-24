@@ -52,7 +52,7 @@ namespace
             mesh_type::vector3_type normal = geometry::normal(m.face(n));
 
             // Angle to rotate face so that it is perpendicular to z-axis
-            value_type theta = math::angle_normal({0.0f, 0.0f, 1.0f}, normal);
+            value_type theta = math::angle_normal(vector_type::z_direction(), normal);
 
             size_t nLevel = 0; // Controls detail and rotation
             value_type r = 0; // Length of spike
@@ -133,7 +133,7 @@ namespace
 
                     if (theta != 0)
                     {
-                        axisRotationBase = math::normalize(math::cross({0.0f, 0.0f, 1.0f}, normal)); // axis to rotate face perpendicular to z-axis
+                        axisRotationBase = math::normalize(math::cross(vector_type::z_direction(), normal)); // axis to rotate face perpendicular to z-axis
                         vFaceOriented *= math::rotation_normal(axisRotationBase, -theta); // Rotate face parallel to xy-plane
                     }
 
@@ -143,7 +143,7 @@ namespace
                 }
 
                 // Rotate spike to align with normal and translate spike to face position
-                matrix_type matrix = math::matrix_alignment({0.0f, 0.0f, 1.0f}, vBase, normal, vFace);
+                matrix_type matrix = math::matrix_alignment(vector_type::z_direction(), vBase, normal, vFace);
                 model::transform(mSpike, matrix * math::translation(position), matrix);
 
                 // Connect spike to body

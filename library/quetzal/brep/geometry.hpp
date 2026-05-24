@@ -190,14 +190,6 @@ Surface projection is a whole new set of functionality for unwrapping textures .
     template<typename U>
     bool solid_contains(const U& u, const typename U::attributes_type::point_type& point, bool bConvex = true);
 
-    // deprecated, now a halfedge method ...
-    template<typename Traits>
-    geometry::AxisAlignedBoundingBox<typename Traits::vector_traits> bounds(const Halfedge<Traits>& halfedge);
-
-    // Works with Surface, Submesh, and Mesh
-    template<typename U>
-    geometry::AxisAlignedBoundingBox<typename U::traits_type::vector_traits> bounds(const U& u);
-
 } // namespace quetzal::brep
 
 //------------------------------------------------------------------------------
@@ -747,31 +739,6 @@ template<typename U>
 bool quetzal::brep::solid_contains(const U& u, const typename U::attributes_type::point_type& point, bool bConvex)
 {
     return solid_compare(u, point, bConvex) <= 0;
-}
-
-//------------------------------------------------------------------------------
-template<typename Traits>
-quetzal::geometry::AxisAlignedBoundingBox<typename Traits::vector_traits> quetzal::brep::bounds(const Halfedge<Traits>& halfedge)
-{
-    geometry::AxisAlignedBoundingBox<typename Traits::vector_traits> box{};
-    box.insert(halfedge.vertex_attributes().position());
-    box.insert(halfedge.next().vertex_attributes().position());
-    return box;
-}
-
-//------------------------------------------------------------------------------
-template<typename U>
-quetzal::geometry::AxisAlignedBoundingBox<typename U::traits_type::vector_traits> quetzal::brep::bounds(const U& u)
-{
-    geometry::AxisAlignedBoundingBox<typename U::traits_type> box{};
-    for (const auto& face : u.faces())
-    {
-        for (const auto& halfedge : face.halfedges())
-        {
-            box.insert(halfedge.vertex_attributes().position());
-        }
-    }
-    return box;
 }
 
 #endif // QUETZAL_BREP_GEOMETRY_HPP

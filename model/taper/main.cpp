@@ -195,13 +195,13 @@ namespace
         point_type point_lower{0.0f, 0.0f, zLower};
         point_type point_upper{0.0f, 0.0f, zUpper};
 
-        vector_type normalLower{0.0f, 0.0f, -1.0f};
-        vector_type normalUpper{0.0f, 0.0f, 1.0f};
+        vector_type normalLower = -vector_type::z_direction();
+        vector_type normalUpper = vector_type::z_direction();
 
         id_type idSurfaceLower = mesh.create_surface(idSubmesh, "lower", {normalLower});
         id_type idSurfaceUpper = zUpper == zApex ? nullid : mesh.create_surface(idSubmesh, "upper", {normalLower});
 
-        vector_type normal{0.0f, 0.0f, 1.0f}; // calculate this for each ...
+        vector_type normal = vector_type::z_direction(); // calculate this for each ...
 
         auto surface_name = [](const std::string& prefix, size_t i) { return prefix + to_string(i); };
 
@@ -257,7 +257,7 @@ namespace
         point_type p4 = {1.5f * r, 0.0f, 1.5f * h};
         point_type p5 = {-1.5f * r, 0.0f, 1.5f * h};
 
-        vector_type normal{0.0f, 0.0f, 1.0f}; // calculate this for each ...
+        vector_type normal = vector_type::z_direction(); // calculate this for each ...
 
         id_type idExtension = mc.submesh(name);
         mc.surface_face(idExtension, "xa", normal, {p0, p3, p2, p1});
@@ -304,12 +304,12 @@ namespace
         point_type p6{d, d, d};
         point_type p7{0.0f, d, d};
 
-        mc.surface_face(idSubmesh, "right", {1.0f, 0.0f, 0.0f}, {p0, p1, p5, p4});
-        mc.surface_face(idSubmesh, "back", {0.0f, 1.0f, 0.0f}, {p1, p2, p6, p5});
-        mc.surface_face(idSubmesh, "left", {-1.0f, 0.0f, 0.0f}, {p2, p3, p7, p6});
-        mc.surface_face(idSubmesh, "front", {0.0f, -1.0f, 0.0f}, {p3, p0, p4, p7});
-        mc.surface_face(idSubmesh, "bottom", {0.0f, 0.0f, -1.0f}, {p0, p3, p2, p1});
-        mc.surface_face(idSubmesh, "top", {0.0f, 0.0f, 1.0f}, {p4, p5, p6, p7});
+        mc.surface_face(idSubmesh, "right", vector_type::x_direction(), {p0, p1, p5, p4});
+        mc.surface_face(idSubmesh, "back", vector_type::y_direction(), {p1, p2, p6, p5});
+        mc.surface_face(idSubmesh, "left", -vector_type::x_direction(), {p2, p3, p7, p6});
+        mc.surface_face(idSubmesh, "front",-vector_type::y_direction(), {p3, p0, p4, p7});
+        mc.surface_face(idSubmesh, "bottom", -vector_type::z_direction(), {p0, p3, p2, p1});
+        mc.surface_face(idSubmesh, "top", vector_type::z_direction(), {p4, p5, p6, p7});
 
         mc.close();
 
@@ -333,10 +333,10 @@ namespace
         point_type p6{d, d, d};
         point_type p7{0.0f, d, d};
 
-        mc.surface_face(idSubmesh, "right", {1.0f, 0.0f, 0.0f}, {p0, p1, p5, p4});
-        mc.surface_face(idSubmesh, "back", {0.0f, 1.0f, 0.0f}, {p1, p2, p6, p5});
-        mc.surface_face(idSubmesh, "left", {-1.0f, 0.0f, 0.0f}, {p2, p3, p7, p6});
-        mc.surface_face(idSubmesh, "front", {0.0f, -1.0f, 0.0f}, {p3, p0, p4, p7});
+        mc.surface_face(idSubmesh, "right", vector_type::x_direction(), {p0, p1, p5, p4});
+        mc.surface_face(idSubmesh, "back", vector_type::y_direction(), {p1, p2, p6, p5});
+        mc.surface_face(idSubmesh, "left", -vector_type::x_direction(), {p2, p3, p7, p6});
+        mc.surface_face(idSubmesh, "front", -vector_type::y_direction(), {p3, p0, p4, p7});
 
         mc.close();
 

@@ -74,8 +74,7 @@ namespace
         M mStrut;
         model::create_cylinder(mStrut, "strut", nAzimuthStrut, 1, rMinorBottom, rMinorTop, 0.0f, dzStrut);
 dump(mStrut);
-        typename M::vector_type axis_y = {0.0f, 1.0f, 0.0f};
-        matrix = math::rotation_axis(axis_y, -1.0f / 12.0f * math::PiTwo<value_type>); // pi ...
+        matrix = math::rotation_axis(vector_type::y_direction(), -1.0f / 12.0f * math::PiTwo<value_type>); // pi ...
         model::transform(mStrut, matrix);
         matrix = math::translation(rMajorBottom, 0.0f, 0.0f);
         model::transform_positions(mStrut, matrix);
@@ -84,15 +83,14 @@ dump(mStrut);
         {
             m = mStrut;
             m.rename_submesh(0, "strut_" + to_string(i));
-            typename M::vector_type axis_z = {0.0f, 0.0f, 1.0f};
-            matrix = math::rotation_axis(axis_z, value_type(i) / value_type(nStruts) * math::PiTwo<value_type>); // pi ...
+            matrix = math::rotation_axis(vector_type::z_direction(), value_type(i) / value_type(nStruts) * math::PiTwo<value_type>); // pi ...
             model::transform(m, matrix);
             mesh.insert(m);
         }
 
         mesh_type::point_type point{0.0f, 0.0f, 0.0f};
 //mesh_type::point_type point{0.0f, 0.0f, -1.5f};
-        clip(mesh, geometry::Plane(point, {0.0f, 0.0f, -1.0f}), "slice");
+        clip(mesh, geometry::Plane(point, -vector_type::z_direction()), "slice");
 
         mesh.check();
         return;
@@ -133,9 +131,8 @@ dump(mStrut);
 
         M mStrut;
         model::create_cylinder(mStrut, "strut", nAzimuthStrut, 1, rMinorBottom, rMinorTop, 0.0f, dz);
-        typename M::vector_type axis_y = {0.0f, 1.0f, 0.0f};
         value_type angle = atan2(vStrutTop.x() - vStrutBottom.x(), vStrutTop.z() - vStrutBottom.z());
-        matrix = math::rotation_axis(axis_y, angle) * math::translation(rMajorBottom, 0.0f, 0.0f);
+        matrix = math::rotation_axis(vector_type::y_direction(), angle) * math::translation(rMajorBottom, 0.0f, 0.0f);
         model::transform(mStrut, matrix);
 
         for (size_t i = 0; i < nStruts; ++i)
@@ -147,7 +144,7 @@ dump(mStrut);
             mesh.insert(m);
         }
 
-        clip(mesh, geometry::HalfSpace<M::vector_traits>({{0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, -1.0f}}));
+        clip(mesh, geometry::HalfSpace<M::vector_traits>({{0.0f, 0.0f, 0.0f}, -vector_type::z_direction()}));
 
         mesh.check();
         return;

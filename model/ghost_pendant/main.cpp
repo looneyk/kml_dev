@@ -47,27 +47,22 @@ int main(int argc, char* argv[])
     mesh_type mesh;
     mesh_type m;
     mesh_type::point_type point = {0.0f, 0.0f, 0.0f};
-    mesh_type::vector_type direction;
 
     mesh.clear();
     model::read_obj(mesh, "ghost_pendant.obj");
 validate(mesh);
 
-    direction = {0.0f, 0.0f, -1.0f};
-
     name = "ghost_pendant_top";
     cout << name << endl;
     m = mesh;
-    clip(m, geometry::Plane(point, normalize(direction)), "slice");
+    clip(m, geometry::Plane(point, normalize(-vector_type::z_direction())), "slice");
     triangulate(m);
     model::write_obj(m, to_filename(name));
-
-    direction = {0.0f, 0.0f, 1.0f};
 
     name = "ghost_pendant_bottom";
     cout << name << endl;
     m = mesh;
-    clip(m, geometry::Plane(point, normalize(direction)), "slice");
+    clip(m, geometry::Plane(point, normalize(vector_type::z_direction())), "slice");
     triangulate(m);
     model::write_obj(m, to_filename(name));
 

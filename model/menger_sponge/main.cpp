@@ -189,8 +189,8 @@ int main(int argc, char* argv[])
     id_type submesh_id = nullid;
 
     vector_type diagonal = math::normalize<vector_traits>({1.0f, 1.0f, 1.0f});
-    value_type angle = angle_between_unit(diagonal, {0.0f, 0.0f, 1.0f});
-    vector_type axis = normalize(cross(diagonal, {0.0f, 0.0f, 1.0f}));
+    value_type angle = angle_between_unit(diagonal, vector_type::z_direction());
+    vector_type axis = normalize(cross(diagonal, vector_type::z_direction()));
     auto matrix = g::rotation_axis_unit(axis, angle);
 
     point_type point = {};

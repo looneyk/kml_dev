@@ -32,6 +32,8 @@ namespace
     using vector_traits = math::HomogeneousTraits<value_type, 3>;
     using mesh_type = brep::Mesh<brep::MeshTraits<vector_traits>>;
     using matrix_type = math::Matrix<value_type>;
+    using point_type = mesh_type::point_type;
+    using vector_type = point_type::vector_type;
 
     const size_t s_nLevels = 6;
 
@@ -77,7 +79,7 @@ namespace
         auto face_ids = mesh.submesh(submesh_id).face_ids();
         for (const auto& face_id : face_ids)
         {
-            mesh_type::vector_type upSpike = {0.0f, 0.0f, 1.0f};
+            mesh_type::vector_type upSpike = vector_type::z_direction();
             mesh_type::vector_type upFace = mesh.face(face_id).attributes().normal();
 
             // Angle to rotate face so that it is perpendicular to z-axis

@@ -113,7 +113,7 @@ namespace
         }
         else if (mode == 1)
         {
-            model::create_extrusion(mesh, name, polygon, {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f, z1 - z0});
+            model::create_extrusion(mesh, name, polygon, vector_type::z_direction(), {0.0f, 0.0f, z1 - z0});
         }
 
         mesh_type m;

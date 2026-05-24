@@ -184,8 +184,8 @@ namespace
         auto matrix = g::slerp_unit(face.attributes().normal(), {0.0, 0.0, 1.0}, 1.0) * g::scaling(1.0, 1.0, 0.0);
         ranges::for_each(vertices, [&matrix](auto& vertex) { vertex.transform_position(matrix); } );
 
-        vector2_type texture_up_direction = {0.0, -1.0};
-        vector2_type target_direction = {1.0, 0.0}; // alternatively try {0, 1}, really the best fitting direction should be determined based on face and pages ...
+        vector2_type texture_up_direction = -vector2_type::y_direction();
+        vector2_type target_direction = vector2_type::x_direction(); // alternatively try {0, 1}, really the best fitting direction should be determined based on face and pages ...
         // really we can just rotate each independently for best fit
 
         g::Projection<vector_traits> projection;

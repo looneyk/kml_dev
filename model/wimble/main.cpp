@@ -319,7 +319,7 @@ int main(int argc, char* argv[])
     // Base
 //    mesh_type m;
 //    model::create_geodesic_sphere(m, "base", 22.3f, 36);
-//    clip(m, geometry::Plane<vector_traits>({0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, -1.0f}));
+//    clip(m, geometry::Plane<vector_traits>({0.0f, 0.0f, 0.0f}, -vector_type::z_direction()));
 //    model::transform(m, math::scaling(1.0f, 1.0f, 0.25f));
 //    mesh.insert(m);
 
