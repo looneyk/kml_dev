@@ -116,23 +116,23 @@ namespace quetzal::model
     template<typename M>
     id_type create_antiprism(M& mesh, const std::string& name, size_t nAzimuth, data_value_type<M> radius, data_value_type<M> z_lower, data_value_type<M> z_upper, Properties properties = {});
 
-    // create_cylinder_auto functions will call the smooth or edges variant based on the azimuth_smooth property
+    // create_cylinder functions will call the smooth or edges variant based on the azimuth_smooth property
 
     template<typename M>
-    id_type create_cylinder_auto(M& mesh, const std::string& name, size_t nAzimuth, size_t nz, data_value_type<M> radius, data_value_type<M> z_lower, data_value_type<M> z_upper, const Properties& properties = {});
+    id_type create_cylinder(M& mesh, const std::string& name, size_t nAzimuth, size_t nz, data_value_type<M> radius, data_value_type<M> z_lower, data_value_type<M> z_upper, const Properties& properties = {});
 
     template<typename M>
-    id_type create_cylinder_auto(M& mesh, const std::string& name, size_t nAzimuth, size_t nz, data_value_type<M> radius_lower, data_value_type<M> radius_upper, data_value_type<M> z_lower, data_value_type<M> z_upper, const Properties& properties = {});
+    id_type create_cylinder(M& mesh, const std::string& name, size_t nAzimuth, size_t nz, data_value_type<M> radius_lower, data_value_type<M> radius_upper, data_value_type<M> z_lower, data_value_type<M> z_upper, const Properties& properties = {});
 
     template<typename M>
-    id_type create_cylinder_auto(M& mesh, const std::string& name, size_t nAzimuth, size_t nz, data_value_type<M> radius_lower, data_value_type<M> radius_upper, data_value_type<M> z_lower, data_value_type<M> z_upper, data_value_type<M> revs_lower, data_value_type<M> revs_upper, const Properties& properties = {});
+    id_type create_cylinder(M& mesh, const std::string& name, size_t nAzimuth, size_t nz, data_value_type<M> radius_lower, data_value_type<M> radius_upper, data_value_type<M> z_lower, data_value_type<M> z_upper, data_value_type<M> revs_lower, data_value_type<M> revs_upper, const Properties& properties = {});
 
     // Create a cylinder parallel to the z-axis centered at the origin
     // The nAzimuth and nz parameters control the degree of tessellation
     // Creates a cylinder with a single smooth surface
     // Surfaces: "body", "end0", "end1", "side", "side0", "side1" depending on extents
     template<typename M>
-    id_type create_cylinder(M& mesh, const std::string& name, size_t nAzimuth, size_t nz, data_value_type<M> radius, data_value_type<M> z_lower, data_value_type<M> z_upper, const Properties& properties = {});
+    id_type create_cylinder_smooth(M& mesh, const std::string& name, size_t nAzimuth, size_t nz, data_value_type<M> radius, data_value_type<M> z_lower, data_value_type<M> z_upper, const Properties& properties = {});
 
     // Create a cylinder parallel to the z-axis centered at the origin
     // The separate radii can be used to produce frustrum shapes
@@ -140,7 +140,7 @@ namespace quetzal::model
     // Creates a cylinder with a single smooth surface
     // Surfaces: "body", "end0", "end1", "side", "side0", "side1" depending on extents
     template<typename M>
-    id_type create_cylinder(M& mesh, const std::string& name, size_t nAzimuth, size_t nz, data_value_type<M> radius_lower, data_value_type<M> radius_upper, data_value_type<M> z_lower, data_value_type<M> z_upper, const Properties& properties = {});
+    id_type create_cylinder_smooth(M& mesh, const std::string& name, size_t nAzimuth, size_t nz, data_value_type<M> radius_lower, data_value_type<M> radius_upper, data_value_type<M> z_lower, data_value_type<M> z_upper, const Properties& properties = {});
 
     // Create a cylinder parallel to the z-axis centered at the origin
     // The separate radii can be used to produce frustrum shapes
@@ -149,7 +149,7 @@ namespace quetzal::model
     // Creates a cylinder with a single smooth surface
     // Surfaces: "body", "end0", "end1", "side", "side0", "side1" depending on extents
     template<typename M>
-    id_type create_cylinder(M& mesh, const std::string& name, size_t nAzimuth, size_t nz, data_value_type<M> radius_lower, data_value_type<M> radius_upper, data_value_type<M> z_lower, data_value_type<M> z_upper, data_value_type<M> revs_lower, data_value_type<M> revs_upper, const Properties& properties = {});
+    id_type create_cylinder_smooth(M& mesh, const std::string& name, size_t nAzimuth, size_t nz, data_value_type<M> radius_lower, data_value_type<M> radius_upper, data_value_type<M> z_lower, data_value_type<M> z_upper, data_value_type<M> revs_lower, data_value_type<M> revs_upper, const Properties& properties = {});
 
     // Create a cylinder parallel to the z-axis centered at the origin
     // Separate radii can be used to produce frustrum shapes
@@ -158,7 +158,7 @@ namespace quetzal::model
     // Creates a cylinder with a single smooth surface
     // Surfaces: "body", "end0", "end1", "side", "side0", "side1" depending on axis and azimuth extents
     template<typename M>
-    id_type create_cylinder(M& mesh, const std::string& name, const CylinderSpecification<data_value_type<M>>& spec);
+    id_type create_cylinder_smooth(M& mesh, const std::string& name, const CylinderSpecification<data_value_type<M>>& spec);
 
     template<typename M>
     id_type create_cylinder_edges(M& mesh, const std::string& name, size_t nAzimuth, size_t nz, data_value_type<M> radius, data_value_type<M> z_lower, data_value_type<M> z_upper, const Properties& properties = {});
@@ -173,21 +173,13 @@ namespace quetzal::model
     template<typename M>
     id_type create_cylinder_edges(M& mesh, const std::string& name, const CylinderSpecification<data_value_type<M>>& spec);
 
-    // create_cylinder_auto functions will call the smooth/edges/sections variant based on the azimuth_smooth property and/or polygon sections
+    // create_cylinder functions will call the smooth/edges/sections variant based on the azimuth_smooth property and/or polygon sections
 
     template<typename M>
-    id_type create_cylinder_auto(M& mesh, const std::string& name, const geometry::Polygon<typename M::vector_traits>& polygon, size_t nz, data_value_type<M> z_lower, data_value_type<M> z_upper, const Properties& properties = {});
+    id_type create_cylinder(M& mesh, const std::string& name, const geometry::Polygon<typename M::vector_traits>& polygon, size_t nz, data_value_type<M> z_lower, data_value_type<M> z_upper, const Properties& properties = {});
 
     template<typename M>
-    id_type create_cylinder_auto(M& mesh, const std::string& name, const geometry::Polygon<typename M::vector_traits>& polygon, size_t nz, data_value_type<M> z_lower, data_value_type<M> z_upper, data_value_type<M> scale_lower, data_value_type<M> scale_upper, data_value_type<M> revs_lower, data_value_type<M> revs_upper, const Properties& properties = {});
-
-    // Create a cylinder given a cross section in the form of a simple polygon
-    // The nz parameter controls the degree of tessellation along with polygon
-    // Polygon vertices should be in ccw order relative to normal vector of 2D projection
-    // Surfaces: "body", "end0", "end1"
-    // Smooth not currently supported
-    template<typename M>
-    id_type create_cylinder(M& mesh, const std::string& name, geometry::Polygon<typename M::vector_traits> polygon, size_t nz, data_value_type<M> z_lower, data_value_type<M> z_upper, const Properties& properties = {});
+    id_type create_cylinder(M& mesh, const std::string& name, const geometry::Polygon<typename M::vector_traits>& polygon, size_t nz, data_value_type<M> z_lower, data_value_type<M> z_upper, data_value_type<M> scale_lower, data_value_type<M> scale_upper, data_value_type<M> revs_lower, data_value_type<M> revs_upper, const Properties& properties = {});
 
     // Create a cylinder given a cross section in the form of a simple polygon
     // The nz parameter controls the degree of tessellation along with polygon
@@ -195,7 +187,7 @@ namespace quetzal::model
     // Surfaces: "body", "end0", "end1"
     // Smooth not currently supported
     template<typename M>
-    id_type create_cylinder(M& mesh, const std::string& name, geometry::Polygon<typename M::vector_traits> polygon, size_t nz, data_value_type<M> z_lower, data_value_type<M> z_upper, data_value_type<M> scale_lower, data_value_type<M> scale_upper, data_value_type<M> revs_lower, data_value_type<M> revs_upper, const Properties& properties = {});
+    id_type create_cylinder_smooth(M& mesh, const std::string& name, geometry::Polygon<typename M::vector_traits> polygon, size_t nz, data_value_type<M> z_lower, data_value_type<M> z_upper, const Properties& properties = {});
 
     // Create a cylinder given a cross section in the form of a simple polygon
     // The nz parameter controls the degree of tessellation along with polygon
@@ -203,7 +195,15 @@ namespace quetzal::model
     // Surfaces: "body", "end0", "end1"
     // Smooth not currently supported
     template<typename M>
-    id_type create_cylinder(M& mesh, const std::string& name, const geometry::Polygon<typename M::vector_traits>& polygon, const CylinderSpecification<data_value_type<M>>& spec);
+    id_type create_cylinder_smooth(M& mesh, const std::string& name, geometry::Polygon<typename M::vector_traits> polygon, size_t nz, data_value_type<M> z_lower, data_value_type<M> z_upper, data_value_type<M> scale_lower, data_value_type<M> scale_upper, data_value_type<M> revs_lower, data_value_type<M> revs_upper, const Properties& properties = {});
+
+    // Create a cylinder given a cross section in the form of a simple polygon
+    // The nz parameter controls the degree of tessellation along with polygon
+    // Polygon vertices should be in ccw order relative to normal vector of 2D projection
+    // Surfaces: "body", "end0", "end1"
+    // Smooth not currently supported
+    template<typename M>
+    id_type create_cylinder_smooth(M& mesh, const std::string& name, const geometry::Polygon<typename M::vector_traits>& polygon, const CylinderSpecification<data_value_type<M>>& spec);
 
     // Create a cylinder given a cross section of bottom and top in the form of simple polygons
     // The nz parameter controls the degree of tessellation along with polygon
@@ -345,14 +345,14 @@ namespace quetzal::model
     id_type create_sphere(M& mesh, const std::string& name, size_t nAzimuth, const geometry::Polyline<typename M::vector_traits>& contour, const Properties& properties = {});
 
     // Create a sphere centered at the origin given a parametric function for radius based on v, the parameter in the elevation/theta direction
-    // The theta parameter of fr is in radians, should be in the elevation range, [-0.5, 0.5] ...
+    // The theta parameter of fr is in radians, should be in the elevation range, [-0.25, 0.25] ...
     // The nAzimuth and nElevation parameters control the degree of tessellation
     // Surfaces: "body", and "end0", "end1", "side", "side0", "side1" depending on extents
     template<typename M>
     id_type create_sphere(M& mesh, const std::string& name, size_t nAzimuth, size_t nElevation, std::function<data_value_type<M>(data_value_type<M>)> fr, const Properties& properties = {});
 
     // Create a sphere centered at the origin given a parametric function for radius based on u and v, the parameter in the azimuth/phi and elevation/theta directions respectively
-    // The phi and theta parameters of fr are in azimuth and elevation ranges, [0, 1] and [-0.5, 0.5] respectively
+    // The phi and theta parameters of fr are in azimuth and elevation ranges, [0, 1] and [-0.25, 0.25] respectively
     // alternatively use the point return version of fr and precalculate them (may save on operations) ...
     // The nAzimuth and nElevation parameters control the degree of tessellation
     // Surfaces: "body", and "end0", "end1", "side", "side0", "side1" depending on extents
@@ -417,9 +417,8 @@ namespace quetzal::model
     id_type create_geodesic_sphere(M& mesh, const std::string& name, data_value_type<M> radius, size_t frequency, bool bVertex = true, const Properties& properties = {});
 
     // expand these as with swept volume ...
-    // incude _auto version as above ...
-    // or just get rid of auto and have the unadorned function defer to the appropriate one based on properties ...
-    // and change the currently unadorned version to _smooth ...
+    // or deprecate these, creating path from displacement and just call swrpt volume ...
+    // and clean up swept volume to match create_cylinder as necessary ...
 
     // Create volume by extruding polygon by the displacement vector
     // Surfaces: per surface "body<i>", "end0", "end1"
@@ -929,38 +928,33 @@ quetzal::id_type quetzal::model::create_antiprism(M& mesh, const std::string& na
 
 //------------------------------------------------------------------------------
 template<typename M>
-quetzal::id_type quetzal::model::create_cylinder_auto(M& mesh, const std::string& name, size_t nAzimuth, size_t nz, data_value_type<M> radius, data_value_type<M> z_lower, data_value_type<M> z_upper, const Properties& properties)
+quetzal::id_type quetzal::model::create_cylinder(M& mesh, const std::string& name, size_t nAzimuth, size_t nz, data_value_type<M> radius, data_value_type<M> z_lower, data_value_type<M> z_upper, const Properties& properties)
 {
 //std::cout << "create_cylinder r" << std::endl;
-    return create_cylinder_auto(mesh, name, nAzimuth, nz, radius, radius, z_lower, z_upper, M::val(0), M::val(0), properties);
+    return create_cylinder(mesh, name, nAzimuth, nz, radius, radius, z_lower, z_upper, M::val(0), M::val(0), properties);
 }
 
 //------------------------------------------------------------------------------
 template<typename M>
-quetzal::id_type quetzal::model::create_cylinder_auto(M& mesh, const std::string& name, size_t nAzimuth, size_t nz, data_value_type<M> radius_lower, data_value_type<M> radius_upper, data_value_type<M> z_lower, data_value_type<M> z_upper, const Properties& properties)
+quetzal::id_type quetzal::model::create_cylinder(M& mesh, const std::string& name, size_t nAzimuth, size_t nz, data_value_type<M> radius_lower, data_value_type<M> radius_upper, data_value_type<M> z_lower, data_value_type<M> z_upper, const Properties& properties)
 {
 //std::cout << "create_cylinder rr" << std::endl;
-    return create_cylinder_auto(mesh, name, nAzimuth, nz, radius_lower, radius_upper, z_lower, z_upper, M::val(0), M::val(0), properties);
+    return create_cylinder(mesh, name, nAzimuth, nz, radius_lower, radius_upper, z_lower, z_upper, M::val(0), M::val(0), properties);
 }
 
 //------------------------------------------------------------------------------
 template<typename M>
-quetzal::id_type quetzal::model::create_cylinder_auto(M& mesh, const std::string& name, size_t nAzimuth, size_t nz, data_value_type<M> radius_lower, data_value_type<M> radius_upper, data_value_type<M> z_lower, data_value_type<M> z_upper, data_value_type<M> revs_lower, data_value_type<M> revs_upper, const Properties& properties)
+quetzal::id_type quetzal::model::create_cylinder(M& mesh, const std::string& name, size_t nAzimuth, size_t nz, data_value_type<M> radius_lower, data_value_type<M> radius_upper, data_value_type<M> z_lower, data_value_type<M> z_upper, data_value_type<M> revs_lower, data_value_type<M> revs_upper, const Properties& properties)
 {
 //std::cout << "create_cylinder r revs" << std::endl;
     CylinderSpecification<data_value_type<M>> spec(nAzimuth, nz, radius_lower, radius_upper, z_lower, z_upper, revs_lower, revs_upper, properties);
 
-    if (spec.azimuth.smooth)
-    {
-        return create_cylinder(mesh, name, spec);
-    }
-
-    return create_cylinder_edges(mesh, name, spec);
+    return spec.azimuth.smooth ? create_cylinder_smooth(mesh, name, spec) : create_cylinder_edges(mesh, name, spec);
 }
 
 //------------------------------------------------------------------------------
 template<typename M>
-quetzal::id_type quetzal::model::create_cylinder(M& mesh, const std::string& name, size_t nAzimuth, size_t nz, data_value_type<M> radius, data_value_type<M> z_lower, data_value_type<M> z_upper, const Properties& properties)
+quetzal::id_type quetzal::model::create_cylinder_smooth(M& mesh, const std::string& name, size_t nAzimuth, size_t nz, data_value_type<M> radius, data_value_type<M> z_lower, data_value_type<M> z_upper, const Properties& properties)
 {
 //std::cout << "create_cylinder r" << std::endl;
     CylinderSpecification<data_value_type<M>> spec(nAzimuth, nz, radius, radius, z_lower, z_upper, M::val(0), M::val(0), Properties{{"azimuth_smooth", "true"}} | properties);
@@ -969,7 +963,7 @@ quetzal::id_type quetzal::model::create_cylinder(M& mesh, const std::string& nam
 
 //------------------------------------------------------------------------------
 template<typename M>
-quetzal::id_type quetzal::model::create_cylinder(M& mesh, const std::string& name, size_t nAzimuth, size_t nz, data_value_type<M> radius_lower, data_value_type<M> radius_upper, data_value_type<M> z_lower, data_value_type<M> z_upper, const Properties& properties)
+quetzal::id_type quetzal::model::create_cylinder_smooth(M& mesh, const std::string& name, size_t nAzimuth, size_t nz, data_value_type<M> radius_lower, data_value_type<M> radius_upper, data_value_type<M> z_lower, data_value_type<M> z_upper, const Properties& properties)
 {
 //std::cout << "create_cylinder rr" << std::endl;
     CylinderSpecification<data_value_type<M>> spec(nAzimuth, nz, radius_lower, radius_upper, z_lower, z_upper, M::val(0), M::val(0), Properties{{"azimuth_smooth", "true"}} | properties);
@@ -978,7 +972,7 @@ quetzal::id_type quetzal::model::create_cylinder(M& mesh, const std::string& nam
 
 //------------------------------------------------------------------------------
 template<typename M>
-quetzal::id_type quetzal::model::create_cylinder(M& mesh, const std::string& name, size_t nAzimuth, size_t nz, data_value_type<M> radius_lower, data_value_type<M> radius_upper, data_value_type<M> z_lower, data_value_type<M> z_upper, data_value_type<M> revs_lower, data_value_type<M> revs_upper, const Properties& properties)
+quetzal::id_type quetzal::model::create_cylinder_smooth(M& mesh, const std::string& name, size_t nAzimuth, size_t nz, data_value_type<M> radius_lower, data_value_type<M> radius_upper, data_value_type<M> z_lower, data_value_type<M> z_upper, data_value_type<M> revs_lower, data_value_type<M> revs_upper, const Properties& properties)
 {
 //std::cout << "create_cylinder r revs" << std::endl;
     CylinderSpecification<data_value_type<M>> spec(nAzimuth, nz, radius_lower, radius_upper, z_lower, z_upper, revs_lower, revs_upper, Properties{{"azimuth_smooth", "true"}} | properties);
@@ -987,7 +981,7 @@ quetzal::id_type quetzal::model::create_cylinder(M& mesh, const std::string& nam
 
 //------------------------------------------------------------------------------
 template<typename M>
-quetzal::id_type quetzal::model::create_cylinder(M& mesh, const std::string& name, const CylinderSpecification<data_value_type<M>>& spec)
+quetzal::id_type quetzal::model::create_cylinder_smooth(M& mesh, const std::string& name, const CylinderSpecification<data_value_type<M>>& spec)
 {
 //std::cout << "create_cylinder spec" << std::endl;
     using T = M::value_type;
@@ -1158,15 +1152,15 @@ quetzal::id_type quetzal::model::create_cylinder_edges(M& mesh, const std::strin
 
     if (cusped_lower)
     {
-        create_base_cusp_sections(mesh, face_count, r1, z0, z1, azimuth1, ts1, surface_id0);
+        create_base_cusp_edges(mesh, face_count, r1, z0, z1, azimuth1, ts1, surface_id0);
     }
     else if (nz == 1 && cusped_upper)
     {
-        create_apex_cusp_sections(mesh, face_count, r0, z0, z1, azimuth0, ts0, surface_id0);
+        create_apex_cusp_edges(mesh, face_count, r0, z0, z1, azimuth0, ts0, surface_id0);
     }
     else
     {
-        create_band_sections(mesh, face_count, r0, r1, z0, z1, azimuth0, azimuth1, ts0, ts1, surface_id0);
+        create_band_edges(mesh, face_count, r0, r1, z0, z1, azimuth0, azimuth1, ts0, ts1, surface_id0);
     }
 
     for (size_t i = 2; i <= nz; ++i)
@@ -1181,12 +1175,12 @@ quetzal::id_type quetzal::model::create_cylinder_edges(M& mesh, const std::strin
 
         if (i == nz && cusped_upper)
         {
-            connect_apex_cusp_sections(mesh, face_count, z1, azimuth1, surface_id0);
+            connect_apex_cusp_edges(mesh, face_count, z1, azimuth1, surface_id0);
         }
         else
         {
             ts1 = texture_span<M>(i, nz, cusped_lower, cusped_upper);
-            connect_band_sections(mesh, face_count, r1, z1, azimuth1, ts1, surface_id0);
+            connect_band_edges(mesh, face_count, r1, z1, azimuth1, ts1, surface_id0);
         }
     }
 
@@ -1227,7 +1221,7 @@ quetzal::id_type quetzal::model::create_cylinder_edges(M& mesh, const std::strin
 
 //------------------------------------------------------------------------------
 template<typename M>
-quetzal::id_type quetzal::model::create_cylinder_auto(M& mesh, const std::string& name, const geometry::Polygon<typename M::vector_traits>& polygon, size_t nz, data_value_type<M> z_lower, data_value_type<M> z_upper, const Properties& properties)
+quetzal::id_type quetzal::model::create_cylinder(M& mesh, const std::string& name, const geometry::Polygon<typename M::vector_traits>& polygon, size_t nz, data_value_type<M> z_lower, data_value_type<M> z_upper, const Properties& properties)
 {
 //std::cout << "create_cylinder polygon z" << std::endl;
     return create_cylinder(mesh, name, polygon, nz, z_lower, z_upper, M::val(1), M::val(1), M::val(0), M::val(0), properties);
@@ -1235,7 +1229,7 @@ quetzal::id_type quetzal::model::create_cylinder_auto(M& mesh, const std::string
 
 //------------------------------------------------------------------------------
 template<typename M>
-quetzal::id_type quetzal::model::create_cylinder_auto(M& mesh, const std::string& name, const geometry::Polygon<typename M::vector_traits>& polygon, size_t nz, data_value_type<M> z_lower, data_value_type<M> z_upper, data_value_type<M> scale_lower, data_value_type<M> scale_upper, data_value_type<M> revs_lower, data_value_type<M> revs_upper, const Properties& properties)
+quetzal::id_type quetzal::model::create_cylinder(M& mesh, const std::string& name, const geometry::Polygon<typename M::vector_traits>& polygon, size_t nz, data_value_type<M> z_lower, data_value_type<M> z_upper, data_value_type<M> scale_lower, data_value_type<M> scale_upper, data_value_type<M> revs_lower, data_value_type<M> revs_upper, const Properties& properties)
 {
 //std::cout << "create_cylinder polygon z revs" << std::endl;
 // init properties to smooth as below? ...
@@ -1243,7 +1237,7 @@ quetzal::id_type quetzal::model::create_cylinder_auto(M& mesh, const std::string
 
     if (spec.azimuth.smooth)
     {
-        return create_cylinder(mesh, name, polygon, spec);
+        return create_cylinder_smooth(mesh, name, polygon, spec);
     }
 
     if (polygon.sections_edges())
@@ -1256,7 +1250,7 @@ quetzal::id_type quetzal::model::create_cylinder_auto(M& mesh, const std::string
 
 //------------------------------------------------------------------------------
 template<typename M>
-quetzal::id_type quetzal::model::create_cylinder(M& mesh, const std::string& name, geometry::Polygon<typename M::vector_traits> polygon, size_t nz, data_value_type<M> z_lower, data_value_type<M> z_upper, const Properties& properties)
+quetzal::id_type quetzal::model::create_cylinder_smooth(M& mesh, const std::string& name, geometry::Polygon<typename M::vector_traits> polygon, size_t nz, data_value_type<M> z_lower, data_value_type<M> z_upper, const Properties& properties)
 {
 //std::cout << "create_cylinder polygon z" << std::endl;
     polygon.set_sections_single();
@@ -1266,7 +1260,7 @@ quetzal::id_type quetzal::model::create_cylinder(M& mesh, const std::string& nam
 
 //------------------------------------------------------------------------------
 template<typename M>
-quetzal::id_type quetzal::model::create_cylinder(M& mesh, const std::string& name, geometry::Polygon<typename M::vector_traits> polygon, size_t nz, data_value_type<M> z_lower, data_value_type<M> z_upper, data_value_type<M> scale_lower, data_value_type<M> scale_upper, data_value_type<M> revs_lower, data_value_type<M> revs_upper, const Properties& properties)
+quetzal::id_type quetzal::model::create_cylinder_smooth(M& mesh, const std::string& name, geometry::Polygon<typename M::vector_traits> polygon, size_t nz, data_value_type<M> z_lower, data_value_type<M> z_upper, data_value_type<M> scale_lower, data_value_type<M> scale_upper, data_value_type<M> revs_lower, data_value_type<M> revs_upper, const Properties& properties)
 {
 //std::cout << "create_cylinder polygon z revs" << std::endl;
     polygon.set_sections_single();
@@ -1276,7 +1270,7 @@ quetzal::id_type quetzal::model::create_cylinder(M& mesh, const std::string& nam
 
 //------------------------------------------------------------------------------
 template<typename M>
-quetzal::id_type quetzal::model::create_cylinder(M& mesh, const std::string& name, const geometry::Polygon<typename M::vector_traits>& polygon, const CylinderSpecification<data_value_type<M>>& spec)
+quetzal::id_type quetzal::model::create_cylinder_smooth(M& mesh, const std::string& name, const geometry::Polygon<typename M::vector_traits>& polygon, const CylinderSpecification<data_value_type<M>>& spec)
 {
     using T = M::value_type;
 //std::cout << "create_cylinder polygon spec" << std::endl;

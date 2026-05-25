@@ -90,11 +90,11 @@ quetzal::id_type quetzal::model::create_helix_pyramid(M& mesh, const std::string
 
     if (nz == 1)
     {
-        create_apex_cusp_sections(mesh, nAzimuth, r0, z0, z1, azimuth0, ts0, surface_id0);
+        create_apex_cusp_edges(mesh, nAzimuth, r0, z0, z1, azimuth0, ts0, surface_id0);
     }
     else
     {
-        create_band_sections(mesh, nAzimuth, r0, r1, z0, z1, azimuth0, azimuth1, ts0, ts1, surface_id0);
+        create_band_edges(mesh, nAzimuth, r0, r1, z0, z1, azimuth0, azimuth1, ts0, ts1, surface_id0);
 
         for (size_t i = 2; i < nz; ++i)
         {
@@ -105,12 +105,12 @@ quetzal::id_type quetzal::model::create_helix_pyramid(M& mesh, const std::string
             revs1 = spec.axis_azimuth_offset_interval.lerp(t);
             azimuth1 = shift(azimuth, revs1);
 
-            connect_band_sections(mesh, nAzimuth, r1, z1, azimuth1, ts1, surface_id0);
+            connect_band_edges(mesh, nAzimuth, r1, z1, azimuth1, ts1, surface_id0);
         }
 
         j0_orig = mesh.halfedge_store_count();
 
-        connect_apex_cusp_sections(mesh, nAzimuth, dz, azimuth1, surface_id0);
+        connect_apex_cusp_edges(mesh, nAzimuth, dz, azimuth1, surface_id0);
     }
 
     calculate_apex_cusp_surface_vertex_normals_sequential(mesh, j0_orig + 2 * face_count, face_count);
