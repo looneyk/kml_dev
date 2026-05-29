@@ -20,7 +20,7 @@ namespace quetzal::brep
 {
 
     template<typename Traits>
-    using connect_function_type = std::function<std::vector<id_type> (Mesh<Traits>&, const connection_type&)>;
+    using connect_function_type = std::function<std::vector<id_type>(Mesh<Traits>&, const connection_type&)>;
 
     // parameters: submesh_id_a, submesh_id_b
     template<typename Traits>

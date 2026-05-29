@@ -62,13 +62,11 @@ namespace quetzal::brep
     template<typename M>
     auto to_border_polygon(const M& mesh, id_type halfedge_id, const geometry::Projection<typename M::vector_traits>& projection) -> geometry::Polygon<typename geometry::Projection<typename M::vector_traits>::projected_traits>;
 
-    // Connect two submesh borders where it is known that there is a single path/section
+    // Connect two submesh border sections, for single path/section (a1 nullid) or when the correct path around a coplanar section has been selected
+    // a0 and b0 are starting halfedges, a1 defines the ending position
+    // a0 and b0 are the first pair of halfedges to become partners tracing through the section
     template<typename M>
-    void connect_border_fragments(M& mesh, id_type halfedge_id_a, id_type halfedge_id_b);
-
-    // Connect two submesh border sections where there may be two paths around coplanar sections
-    template<typename M>
-    void connect_border_fragments(M& mesh, id_type halfedge_id_a0, id_type halfedge_id_a1, id_type halfedge_id_b0, id_type halfedge_id_b1);
+    void connect_border_fragments(M& mesh, id_type halfedge_id_a0, id_type halfedge_id_b0, id_type halfedge_id_a1 = nullid);
 
     // path_a is the path that is fully external from submesh_b, it may be made up of both original submesh_a and submesh_b sections
     // path_b is the reverse
@@ -265,68 +263,28 @@ auto quetzal::brep::to_border_polygon(const M& mesh, id_type halfedge_id, const 
 
 //------------------------------------------------------------------------------
 template<typename M>
-void quetzal::brep::connect_border_fragments(M& mesh, id_type halfedge_id_a, id_type halfedge_id_b)
-{
-    connect_border_fragments(mesh, halfedge_id_a, nullid, halfedge_id_b, nullid);
-    return;
-}
-
-//------------------------------------------------------------------------------
-template<typename M>
-void quetzal::brep::connect_border_fragments(M& mesh, id_type halfedge_id_a0, id_type halfedge_id_a1, id_type halfedge_id_b0, id_type halfedge_id_b1)
+void quetzal::brep::connect_border_fragments(M& mesh, id_type halfedge_id_a0, id_type halfedge_id_b0, id_type halfedge_id_a1)
 {
     id_type id_a = halfedge_id_a0;
     id_type id_b = halfedge_id_b0;
 
-    assert(vertex_position(mesh.halfedge(id_a).next()) == vertex_position(mesh.halfedge(next_border_halfedge_id(mesh, id_a))));
-    assert(vertex_position(mesh.halfedge(id_b).next()) == vertex_position(mesh.halfedge(next_border_halfedge_id(mesh, id_b))));
-
-    while (vertex_position(mesh.halfedge(id_a)) != vertex_position(mesh.halfedge(id_b).next()))
-    {
-        id_b = next_border_halfedge_id(mesh, id_b); // never happens, just assert both ways? should be exact partners, actually, assertion done below ...
-    }
-
-//    if (halfedge_id_a1 == nullid) halfedge_id_a1 = halfedge_id_a0;
-//    if (halfedge_id_b1 == nullid) halfedge_id_b1 = halfedge_id_b0;
-
-    assert(vertex_position(mesh.halfedge(id_a)) == vertex_position(mesh.halfedge(id_b).next()));
-    assert(vertex_position(mesh.halfedge(id_b)) == vertex_position(mesh.halfedge(id_a).next()));
-
-// position check won't work with single path case or last section where a1 and b1 are nullid ...
-// see if I can fix this, instead of nullid, pass in first halfedge? ...
     auto position_a1 = halfedge_id_a1 == nullid ? vertex_position(mesh.halfedge(halfedge_id_a0)) : vertex_position(mesh.halfedge(halfedge_id_a1));
-    auto position_b1 = halfedge_id_b1 == nullid ? vertex_position(mesh.halfedge(halfedge_id_b0)) : vertex_position(mesh.halfedge(halfedge_id_b1));
 
     for (;;)
     {
-        id_type id_a_next = next_border_halfedge_id(mesh, id_a);
-        id_type id_b_next = prev_border_halfedge_id(mesh, id_b);
-
-        // a1 and b1 are not necesarily the same as next, "inner" is actually next, but outer next is partner of inner last ...
-        // may not have enough info to calculate this easily, just look at position instead ...
-//        if (id_a_next == halfedge_id_a1 || id_b_next == halfedge_id_b1)
-//        {
-//            assert(id_a_next == halfedge_id_a1 && id_b_next == halfedge_id_b1);
-//            return;
-//        }
-        if (id_a_next == nullid)
-        {
-            assert(id_b_next == nullid);
-            return;
-        }
-/*
-        if (vertex_position(mesh.halfedge(id_a_next)) == position_a1)
-        {
-            auto p1 = vertex_position(mesh.halfedge(id_b_next));
-            assert(vertex_position(mesh.halfedge(id_b_next)) == position_b1);
-            return;
-        }
-*/
         assert(vertex_position(mesh.halfedge(id_a)) == vertex_position(mesh.halfedge(id_b).next()));
         assert(vertex_position(mesh.halfedge(id_b)) == vertex_position(mesh.halfedge(id_a).next()));
 
+        id_type id_a_next = next_border_halfedge_id(mesh, id_a);
+        id_type id_b_next = prev_border_halfedge_id(mesh, id_b);
+
         mesh.halfedge(id_a).set_partner_id(id_b);
         mesh.halfedge(id_b).set_partner_id(id_a);
+
+        if (vertex_position(mesh.halfedge(id_a_next)) == position_a1)
+        {
+            break;
+        }
 
         id_a = id_a_next;
         id_b = id_b_next;
@@ -345,7 +303,7 @@ void quetzal::brep::connect_border_fragments(M& mesh, const connection_type& con
     {
         if (i == node_count)
         {
-            return nullid;
+            return connection[0][path_a ? 0 : 1][border];
         }
 
         assert(i < node_count);
@@ -353,16 +311,9 @@ void quetzal::brep::connect_border_fragments(M& mesh, const connection_type& con
         return connection[i][path_a ? 0 : 1][border];
     };
 
-    if (node_count == 1 && connection[0].size() == 1)
-    {
-        id_type halfedge_id_first = node_halfedge_id(connection, 0, border_first, path_a);
-        id_type halfedge_id_second = node_halfedge_id(connection, 0, border_second, path_a);
-        connect_border_fragments(mesh, halfedge_id_first, halfedge_id_second);
-        return;
-    }
-
     id_type id_a = node_halfedge_id(connection, 0, border_first, path_a);
     id_type id_b = node_halfedge_id(connection, 0, border_second, path_a);
+
     for (size_t i = 0; i < node_count; ++i)
     {
         assert(id_a != nullid);
@@ -370,7 +321,7 @@ void quetzal::brep::connect_border_fragments(M& mesh, const connection_type& con
 
         id_type id_a_next = node_halfedge_id(connection, i + 1, border_first, path_a);
         id_type id_b_next = node_halfedge_id(connection, i + 1, border_second, path_a);
-        connect_border_fragments(mesh, id_a, id_a_next, id_b, id_b_next);
+        connect_border_fragments(mesh, id_a, id_b, id_a_next);
 
         id_a = id_a_next;
         id_b = id_b_next;
@@ -392,7 +343,7 @@ void quetzal::brep::delete_border_fragment(M& mesh, id_type halfedge_id, std::fu
     id_type face_id = mesh.halfedge_store()[halfedge_id].face_id();
     auto& face = mesh.face_store()[face_id];
 
-    // Cache connected face halfedge ids before deleting the face
+    // Cache face partner halfedge ids before deleting the face
     std::set<id_type> halfedge_ids;
     for (const auto& halfedge : face.halfedges())
     {
@@ -405,7 +356,7 @@ void quetzal::brep::delete_border_fragment(M& mesh, id_type halfedge_id, std::fu
 
     mesh.delete_face(face_id);
 
-    // Delete connected faces recursively, checking that the existence and deletion conditions still hold
+    // Delete remaining connected faces recursively, checking that they haven't been deleted by a previous deletion of another edge
     for (const auto& id : halfedge_ids)
     {
         const auto& halfedge = mesh.halfedge_store()[id];
