@@ -1,0 +1,35 @@
+{
+    "configurations": [
+        {
+            "name": "Win32",
+            "includePath": [
+                "${workspaceFolder}",
+                "${workspaceFolder}/library",
+                "${workspaceFolder}/library3/glfw/include",
+                "${workspaceFolder}/library3/glm",
+                "${workspaceFolder}/library3/stb",
+                "${workspaceFolder}/library3/tinyobjloader",
+                "${workspaceFolder}/library3/VulkanMemoryAllocator/include",
+                "${workspaceFolder}/library3/KTX-Software/include",
+                "${env:VULKAN_SDK}/Include"
+            ],
+            "browse": {
+                "path": [
+                    "${workspaceFolder}/library"
+                ],
+                "limitSymbolsToIncludedHeaders": true,
+                "databaseFilename": "${workspaceFolder}/.vscode/browse.vc.db"
+            },
+            "defines": [
+                "UNICODE",
+                "_UNICODE"
+            ],
+            "windowsSdkVersion": "10.0.26100.0",
+            "compilerPath": "C:/Program Files/Microsoft Visual Studio/18/Community/VC/Tools/MSVC/14.50.35717/bin/Hostx64/x64/cl.exe",
+            "cStandard": "c17",
+            "cppStandard": "c++26",
+            "intelliSenseMode": "windows-msvc-x64"
+        }
+    ],
+    "version": 4
+}
