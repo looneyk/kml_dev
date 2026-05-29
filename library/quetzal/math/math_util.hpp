@@ -134,6 +134,10 @@ namespace quetzal::math
     template<typename V>
     std::tuple<V, typename V::value_type> quaternion_full(const V& from, const V& to, const V& axis);
 */
+    // lhs and rhs should both be unit vectors (or have equal magnitudes)
+    template<typename V>
+    V slerp(const V& lhs, const V& rhs, typename V::value_type t);
+
     template<typename V>
     typename V::value_type azimuth_radius(const V& v);
 
@@ -336,6 +340,19 @@ typename V::value_type quetzal::math::angle_full_unit(const V& from, const V& to
 
     typename V::value_type theta = angle_between_unit(from, to);
     return dot(cross(from, to), axis) < typename V::value_type(0) ? math::PiTwo<typename V::value_type> - theta : theta;
+}
+
+//------------------------------------------------------------------------------
+template<typename V>
+V quetzal::math::slerp(const V& lhs, const V& rhs, typename V::value_type t)
+{
+    assert(math::float_eq(lhs.norm_squared(), rhs.norm_squared()));
+
+    using T = V::value_type;
+
+    auto theta = angle_between(lhs, rhs);
+    auto sin_theta = sin(theta);
+    return lhs * sin((T(1) - t) * theta) / sin_theta + rhs * sin(t * theta) / sin_theta;
 }
 
 //------------------------------------------------------------------------------

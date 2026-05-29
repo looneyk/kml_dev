@@ -191,9 +191,6 @@ namespace quetzal::math
     Vector<Traits> normalize(const Vector<Traits>& v);
 
     template<typename Traits>
-    Vector<Traits> slerp(const Vector<Traits>& lhs, const Vector<Traits>& rhs, typename Traits::value_type t);
-
-    template<typename Traits>
     bool parallel_unit(const Vector<Traits>& lhs, const Vector<Traits>& rhs);
 
     template<typename Traits>
@@ -912,17 +909,6 @@ template<typename Traits>
 quetzal::math::Vector<Traits> quetzal::math::normalize(const Vector<Traits>& v)
 {
     return v / v.norm();
-}
-
-//------------------------------------------------------------------------------
-template<typename Traits>
-quetzal::math::Vector<Traits> quetzal::math::slerp(const Vector<Traits>& lhs, const Vector<Traits>& rhs, typename Traits::value_type t)
-{
-// this needs testing ...
-    auto theta = angle_between(lhs, rhs);
-    auto sin_theta = sin(theta);
-    return sin((typename Traits::value_type(1) - t) * theta) / sin_theta * lhs + sin(t * theta) / sin_theta * rhs;
-//    return sin((typename Traits::value_type(1) - t) * theta) / fma(sin_theta, lhs, sin(t * theta)) / sin_theta * rhs;
 }
 
 //------------------------------------------------------------------------------
