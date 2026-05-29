@@ -47,6 +47,7 @@ constexpr bool debug_visualize = false;
 
 #include "quetzal/brep/validation.hpp"
 #include "quetzal/brep/intersect.hpp" // just here for testing at the moment ...
+#include "quetzal/geometry/geometry_util.hpp" // just here for testing at the moment ...
 
 using namespace std;
 using namespace quetzal;
@@ -136,6 +137,8 @@ namespace g = quetzal::geometry;
 //#define BOX_BOX_FACE_FACE_2
 #endif
 
+// add tests for single point intersections and that only splits are being done ...
+
 namespace
 {
 
@@ -153,6 +156,33 @@ namespace
     filesystem::path to_filename(const string& name)
     {
         return dir_out / (name + ".obj");
+    }
+
+    //--------------------------------------------------------------------------
+    template<typename V>
+    void test_ccw_order(const V& ref, const V& a, const V& b, const V& normal)
+    {
+        assert(quetzal::geometry::ccw_order(ref, a, b, normal));
+        assert(quetzal::geometry::ccw_order(ref, b, a, -normal));
+        assert(quetzal::geometry::ccw_order(-ref, b, a, normal));
+        assert(quetzal::geometry::ccw_order(-ref, -a, -b, normal));
+        assert(quetzal::geometry::ccw_order(ref, a, -b, -normal));
+        assert(quetzal::geometry::ccw_order(ref, -a, b, -normal));
+        assert(quetzal::geometry::ccw_order(ref, b, -a, normal));
+        assert(quetzal::geometry::ccw_order(ref, -b, a, normal));
+        return;
+    }
+
+    //--------------------------------------------------------------------------
+    void test_ccw_order()
+    {
+        vector_type a(1.0f, 0.0f, 0.0f);
+        vector_type b(0.0f, 1.0f, 0.0f);
+        vector_type ref(-1.0f, -1.0f, 0.0f);
+        vector_type normal(0.0f, 0.0f, 1.0f);
+        test_ccw_order(ref, a, b, normal);
+
+        return;
     }
 
     using create_model_type = function<vector<id_type>(mesh_type&)>;
@@ -373,6 +403,9 @@ int main(int argc, char* argv[])
 
     mesh_type mesh;
 
+    test_ccw_order();
+//    return 0; // ...
+
     // Comprehensive set of test operations for use in most test cases
     test_operations_type test_operations =
     {
@@ -408,7 +441,7 @@ int main(int argc, char* argv[])
     test_model_operation(mesh, "box", "box", box_model, no_operation);
 #endif // BOX
 
-auto zzz = brep::intersection(mesh.face(0), mesh.face(1)); // test ...
+auto zzz = brep::intersection_coplanar(mesh.face(0), mesh.face(1)); // test ...
 
 #if defined(BOX_BOX_POINT_FACE)
     auto box_box_point_face_model = [](mesh_type& mesh) -> vector<id_type>
