@@ -4,6 +4,7 @@
 //------------------------------------------------------------------------------
 
 #include "Window.hpp"
+#include "VulkanError.hpp"
 #include "vulkan_util.hpp"
 #include <stdexcept>
 
@@ -32,11 +33,8 @@ VkSurfaceKHR quetzal::vulkan::Window::create_surface(VkInstance instance) const
 {
     VkSurfaceKHR handle = VK_NULL_HANDLE;
 
-    VkResult result = glfwCreateWindowSurface(instance, m_pwindow, nullptr, &handle);
-    if (result != VK_SUCCESS)
-    {
-        throw std::runtime_error(std::format("Error glfwCreateWindowSurface {}", result));
-    }
+    VkResult vk_result = glfwCreateWindowSurface(instance, m_pwindow, nullptr, &handle);
+    check_result(vk_result, "glfwCreateWindowSurface");
 
     return handle;
 }

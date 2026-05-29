@@ -4,6 +4,8 @@
 #include "DescriptorPool.hpp"
 #include "DescriptorSetLayout.hpp"
 #include "Device.hpp"
+#include "VulkanError.hpp"
+#include "initializer.hpp"
 #include <vulkan/vulkan.hpp>
 
 namespace quetzal::vulkan
@@ -36,11 +38,9 @@ namespace quetzal::vulkan
             allocateInfo.pSetLayouts = layouts.data();
 
             m_handles.resize(layouts.size());
-            VkResult result = vkAllocateDescriptorSets(m_device, &allocateInfo, m_handles.data());
-            if (result != VK_SUCCESS)
-            {
-                throw std::runtime_error(std::format("Error vkAllocateDescriptorSets {}", result));
-            }
+            VkResult vk_result = vkAllocateDescriptorSets(m_device, &allocateInfo, m_handles.data());
+            check_result(vk_result, "vkAllocateDescriptorSets");
+            return;
         }
 
         /* device operation ...

@@ -82,22 +82,22 @@ bool DescriptorAllocator::allocate(VkDescriptorSet* set, const VkDescriptorSetLa
     allocInfo.descriptorPool = m_pool;
     allocInfo.descriptorSetCount = 1;
 
-    VkResult result = vkAllocateDescriptorSets(m_device, &allocInfo, set);
-    if (result == VK_SUCCESS)
+    VkResult vk_result = vkAllocateDescriptorSets(m_device, &allocInfo, set);
+    if (vk_result == VK_SUCCESS)
     {
         return true;
     }
 
-    if (result == VK_ERROR_FRAGMENTED_POOL || result == VK_ERROR_OUT_OF_POOL_MEMORY)
+    if (vk_result == VK_ERROR_FRAGMENTED_POOL || vk_result == VK_ERROR_OUT_OF_POOL_MEMORY)
     {
         //allocate a new pool and retry
         m_pool = grab_pool();
         m_pools_used.push_back(m_pool);
 
-        result = vkAllocateDescriptorSets(m_device, &allocInfo, set);
+        vk_result = vkAllocateDescriptorSets(m_device, &allocInfo, set);
 
         //if it still fails then we have big issues
-        if (result == VK_SUCCESS)
+        if (vk_result == VK_SUCCESS)
         {
             return true;
         }

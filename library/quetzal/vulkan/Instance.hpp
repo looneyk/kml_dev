@@ -1,6 +1,7 @@
 #if !defined(QUETZAL_VULKAN_INSTANCE_HPP)
 #define QUETZAL_VULKAN_INSTANCE_HPP
 
+#include "VulkanError.hpp"
 #include "debug_callback.hpp"
 #include "initializer.hpp"
 #include "vulkan_util.hpp"
@@ -35,7 +36,7 @@ namespace quetzal::vulkan
             application_info.applicationVersion = to_uint32(std::stoul(config["application_version"]));
             application_info.pEngineName = engineName.c_str();
             application_info.engineVersion = to_uint32(std::stoul(config["engine_version"]));
-            application_info.apiVersion = VK_API_VERSION_1_3;
+            application_info.apiVersion = VK_API_VERSION_1_4;
 
             VkInstanceCreateInfo ci = vk_instance_create_info(application_info, extensions, layers); // ...
 
@@ -47,11 +48,8 @@ namespace quetzal::vulkan
                 ci.pNext = &debug_ci;
             }
 
-            VkResult result = vkCreateInstance(&ci, nullptr, &m_handle);
-            if (result != VK_SUCCESS)
-            {
-                throw std::runtime_error(std::format("Error vkCreateInstance {}", result));
-            }
+            VkResult vk_result = vkCreateInstance(&ci, nullptr, &m_handle);
+            check_result(vk_result, "vkCreateInstance");
         }
 
         ~Instance()

@@ -2,6 +2,7 @@
 #define QUETZAL_VULKAN_GRAPHICSPIPELINES_HPP
 
 #include "Device.hpp"
+#include "VulkanError.hpp"
 #include <vulkan/vulkan.hpp>
 #include <span>
 #include <stdexcept>
@@ -41,11 +42,8 @@ namespace quetzal::vulkan
             destroy();
 
             m_handles.resize(createInfos.size());
-            VkResult result = vkCreateGraphicsPipelines(m_device, pipelineCache, to_uint32(createInfos.size()), createInfos.data(), nullptr, m_handles.data());
-            if (result != VK_SUCCESS)
-            {
-                throw std::runtime_error(std::format("Error vkCreateGraphicsPipelines {}", result));
-            }
+            VkResult vk_result = vkCreateGraphicsPipelines(m_device, pipelineCache, to_uint32(createInfos.size()), createInfos.data(), nullptr, m_handles.data());
+            check_result(vk_result, "vkCreateGraphicsPipelines");
 
             return;
         }

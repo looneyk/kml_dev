@@ -2,6 +2,7 @@
 #define QUETZAL_VULKAN_PIPELINECACHE_HPP
 
 #include "Device.hpp"
+#include "VulkanError.hpp"
 #include <vulkan/vulkan.hpp>
 #include <span>
 #include <stdexcept>
@@ -42,12 +43,8 @@ namespace quetzal::vulkan
         void create(std::span<uint8_t> buffer = {})
         {
             VkPipelineCacheCreateInfo ci = vk_pipeline_cache_create_info(buffer);
-            VkResult result = vkCreatePipelineCache(m_device, &ci, nullptr, &m_handle);
-            if (result != VK_SUCCESS)
-            {
-                throw std::runtime_error(std::format("Error vkCreatePipelineCache {}", result));
-            }
-
+            VkResult vk_result = vkCreatePipelineCache(m_device, &ci, nullptr, &m_handle);
+            check_result(vk_result, "vkCreatePipelineCache");
             return;
         }
 
@@ -60,12 +57,8 @@ namespace quetzal::vulkan
 
         void merge(VkPipelineCache other)
         {
-            VkResult result = vkMergePipelineCaches(m_device, m_handle, 1, &other);
-            if (result != VK_SUCCESS)
-            {
-                throw std::runtime_error(std::format("Error vkMergePipelineCaches {}", result));
-            }
-
+            VkResult vk_result = vkMergePipelineCaches(m_device, m_handle, 1, &other);
+            check_result(vk_result, "vkMergePipelineCaches");
             return;
         }
 

@@ -2,6 +2,7 @@
 #define QUETZAL_VULKAN_BUFFER_HPP
 
 #include "Device.hpp"
+#include "VulkanError.hpp"
 #include "initializer.hpp"
 #include <vulkan/vulkan.hpp>
 
@@ -40,11 +41,9 @@ namespace quetzal::vulkan
             VkBufferCreateInfo buffer_ci = vk_buffer_create_info(size, usage);
             VmaAllocationCreateInfo allocation_ci = Allocator::allocation_create_info(flags);
 
-            VkResult result = vmaCreateBuffer(m_device.allocator(), &buffer_ci, &allocation_ci, &m_handle, &m_allocation, nullptr);
-            if (result != VK_SUCCESS)
-            {
-                throw std::runtime_error(std::format("Error vmaCreateBuffer {}", result));
-            }
+            VkResult vk_result = vmaCreateBuffer(m_device.allocator(), &buffer_ci, &allocation_ci, &m_handle, &m_allocation, nullptr);
+            check_result(vk_result, "vmaCreateBuffer");
+            return;
         }
 
         void destroy()
@@ -54,6 +53,7 @@ namespace quetzal::vulkan
                 vmaDestroyBuffer(m_device.allocator(), m_handle, m_allocation);
                 m_handle = VK_NULL_HANDLE;
             }
+            return;
         }
 
         VkDescriptorBufferInfo descriptor() const

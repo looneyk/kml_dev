@@ -3,6 +3,7 @@
 
 #include "Device.hpp"
 #include "Image.hpp"
+#include "VulkanError.hpp"
 #include <vulkan/vulkan.hpp>
 
 namespace quetzal::vulkan
@@ -21,17 +22,16 @@ namespace quetzal::vulkan
         void create(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, uint32_t mipLevels)
         {
             VkImageViewCreateInfo ci = vk_image_view_create_info(image, format, aspectFlags, mipLevels);
-            VkResult result = vkCreateImageView(m_device, &ci, nullptr, &m_handle);
-            if (result != VK_SUCCESS)
-            {
-                throw std::runtime_error(std::format("Error vkCreateImageView {}", result));
-            }
+            VkResult vk_result = vkCreateImageView(m_device, &ci, nullptr, &m_handle);
+            check_result(vk_result, "vkCreateImageView");
+            return;
         }
 
         void destroy()
         {
             assert(m_handle != VK_NULL_HANDLE);
             vkDestroyImageView(m_device, m_handle, nullptr);
+            return;
         }
 
         operator VkImageView() const

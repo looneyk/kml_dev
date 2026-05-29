@@ -23,6 +23,7 @@
 #include "TextureCache.hpp"
 #include "UniformBuffers.hpp"
 #include "Vertex.hpp"
+#include "VulkanError.hpp"
 #include "Window.hpp"
 #include "initializer.hpp"
 #include "quetzal/common/Config.hpp"
@@ -205,9 +206,9 @@ namespace quetzal::vulkan
                 recreate_swapchain();
                 return;
             }
-            else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
+            else if (result != VK_SUBOPTIMAL_KHR)
             {
-                throw std::runtime_error(std::format("Error vkAcquireNextImageKHR {}", result));
+                check_result(result, "vkAcquireNextImageKHR");
             }
 
             m_uniform_buffers.set(m_currentFrame, m_ubo);
@@ -235,9 +236,9 @@ namespace quetzal::vulkan
                 m_framebufferResized = false;
                 recreate_swapchain();
             }
-            else if (result != VK_SUCCESS)
+            else
             {
-                throw std::runtime_error(std::format("Error vkQueuePresentKHR {}", result));
+                check_result(result, "vkQueuePresentKHR");
             }
 
             m_currentFrame = (m_currentFrame + 1) % m_swap_frame_count;

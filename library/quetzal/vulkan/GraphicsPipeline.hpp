@@ -3,6 +3,7 @@
 
 #include "Device.hpp"
 #include "GraphicsPipelineCreateInfo.hpp"
+#include "VulkanError.hpp"
 #include "vulkan_util.hpp"
 #include <vulkan/vulkan.hpp>
 #include <format>
@@ -58,11 +59,8 @@ namespace quetzal::vulkan
             }
 
             auto cis = to_span<GraphicsPipelineCreateInfo>(ci);
-            VkResult result = vkCreateGraphicsPipelines(m_device, pipeline_cache, to_uint32(cis.size()), cis.data(), nullptr, &m_handle);
-            if (result != VK_SUCCESS)
-            {
-                throw std::runtime_error(std::format("Error vkCreateGraphicsPipelines {}", result));
-            }
+            VkResult vk_result = vkCreateGraphicsPipelines(m_device, pipeline_cache, to_uint32(cis.size()), cis.data(), nullptr, &m_handle);
+            check_result(vk_result, "vkCreateGraphicsPipelines");
 
             m_pipeline_layout = ci.pipeline_layout();
             return;

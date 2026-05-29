@@ -4,6 +4,7 @@
 //------------------------------------------------------------------------------
 
 #include "Queue.hpp"
+#include "VulkanError.hpp"
 #include "vulkan_util.hpp"
 
 //------------------------------------------------------------------------------
@@ -61,12 +62,8 @@ bool quetzal::vulkan::Queue::presentable() const
 //------------------------------------------------------------------------------
 void quetzal::vulkan::Queue::submit(std::span<VkSubmitInfo> submit_infos, VkFence fence) const
 {
-    VkResult result = vkQueueSubmit(m_handle, to_uint32(submit_infos.size()), submit_infos.data(), fence);
-    if (result != VK_SUCCESS)
-    {
-        throw std::runtime_error(std::format("Error vkQueueSubmit {}", result));
-    }
-
+    VkResult vk_result = vkQueueSubmit(m_handle, to_uint32(submit_infos.size()), submit_infos.data(), fence);
+    check_result(vk_result, "vkQueueSubmit");
     return;
 }
 

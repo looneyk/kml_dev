@@ -2,6 +2,7 @@
 #define QUETZAL_VULKAN_IMAGE_HPP
 
 #include "Device.hpp"
+#include "VulkanError.hpp"
 #include <vulkan/vulkan.hpp>
 
 namespace quetzal::vulkan
@@ -35,16 +36,15 @@ namespace quetzal::vulkan
         {
             VkImageCreateInfo image_ci = vk_image_create_info(extent, format, usage, sampleCount, mipLevels, tiling);
             VmaAllocationCreateInfo allocation_ci = Allocator::allocation_create_info(flags);
-            VkResult result = vmaCreateImage(m_device.allocator(), &image_ci, &allocation_ci, &m_handle, &m_allocation, nullptr);
-            if (result != VK_SUCCESS)
-            {
-                throw std::runtime_error(std::format("Error vmaCreateImage {}", result));
-            }
+            VkResult vk_result = vmaCreateImage(m_device.allocator(), &image_ci, &allocation_ci, &m_handle, &m_allocation, nullptr);
+            check_result(vk_result, "vmaCreateImage");
+            return;
         }
 
         void destroy()
         {
             vmaDestroyImage(m_device.allocator(), m_handle, m_allocation);
+            return;
         }
 
     private:

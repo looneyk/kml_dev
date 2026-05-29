@@ -1,5 +1,6 @@
 
 #include "CommandBuffer.hpp"
+#include "VulkanError.hpp"
 #include "vulkan_util.hpp"
 #include <stdexcept>
 
@@ -38,11 +39,9 @@ VkCommandBuffer quetzal::vulkan::CommandBuffer::handle() const
 void quetzal::vulkan::CommandBuffer::create()
 {
     VkCommandBufferAllocateInfo allocate_info = vk_command_buffer_allocate_info(m_command_pool, VK_COMMAND_BUFFER_LEVEL_PRIMARY, 1);
-    VkResult result = vkAllocateCommandBuffers(m_device, &allocate_info, &m_handle);
-    if (result != VK_SUCCESS)
-    {
-        throw std::runtime_error(std::format("Error vkAllocateCommandBuffers {}", result));
-    }
+    VkResult vk_result = vkAllocateCommandBuffers(m_device, &allocate_info, &m_handle);
+    check_result(vk_result, "vkAllocateCommandBuffers");
+    return;
 }
 
 //------------------------------------------------------------------------------
@@ -53,28 +52,23 @@ void quetzal::vulkan::CommandBuffer::destroy()
         vkFreeCommandBuffers(m_device, m_command_pool, 1, &m_handle);
         m_handle = VK_NULL_HANDLE;
     }
+    return;
 }
 
 //------------------------------------------------------------------------------
 void quetzal::vulkan::CommandBuffer::begin(VkCommandBufferUsageFlags flags)
 {
     VkCommandBufferBeginInfo begin_info = vk_command_buffer_begin_info(flags);
-    VkResult result = vkBeginCommandBuffer(m_handle, &begin_info);
-    if (result != VK_SUCCESS)
-    {
-        throw std::runtime_error(std::format("Error vkBeginCommandBuffer {}", result));
-    }
+    VkResult vk_result = vkBeginCommandBuffer(m_handle, &begin_info);
+    check_result(vk_result, "vkBeginCommandBuffer");
     return;
 }
 
 //------------------------------------------------------------------------------
 void quetzal::vulkan::CommandBuffer::end()
 {
-    VkResult result = vkEndCommandBuffer(m_handle);
-    if (result != VK_SUCCESS)
-    {
-        throw std::runtime_error(std::format("Error vkEndCommandBuffer {}", result));
-    }
+    VkResult vk_result = vkEndCommandBuffer(m_handle);
+    check_result(vk_result, "vkEndCommandBuffer");
     return;
 }
 

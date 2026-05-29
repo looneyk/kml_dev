@@ -2,6 +2,7 @@
 #define QUETZAL_VULKAN_LOGICALDEVICE_HPP
 
 #include "PhysicalDevice.hpp"
+#include "VulkanError.hpp"
 #include "vulkan_util.hpp"
 #include <vulkan/vulkan.hpp>
 #include <ranges>
@@ -38,11 +39,8 @@ namespace quetzal::vulkan
             deviceFeatures.samplerAnisotropy = VK_TRUE;
 
             VkDeviceCreateInfo device_ci = vk_device_create_info(queue_cis, extensions, &deviceFeatures);
-            VkResult result = vkCreateDevice(physical_device, &device_ci, nullptr, &m_handle);
-            if (result != VK_SUCCESS)
-            {
-                throw std::runtime_error(std::format("Error vkCreateDevice {}", result));
-            }
+            VkResult vk_result = vkCreateDevice(physical_device, &device_ci, nullptr, &m_handle);
+            check_result(vk_result, "vkCreateDevice");
         }
 
         ~LogicalDevice()

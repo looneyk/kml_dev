@@ -1,6 +1,7 @@
 #if !defined(QUETZAL_VULKAN_SHADERMODULE_HPP)
 #define QUETZAL_VULKAN_SHADERMODULE_HPP
 
+#include "VulkanError.hpp"
 #include "vulkan_util.hpp"
 #include <vulkan/vulkan.hpp>
 #include <fstream>
@@ -52,12 +53,8 @@ namespace quetzal::vulkan
         {
             VkShaderModuleCreateInfo ci = vk_shader_module_create_info(code);
             VkShaderModule handle;
-            VkResult result = vkCreateShaderModule(m_device, &ci, nullptr, &handle);
-            if (result != VK_SUCCESS)
-            {
-                throw std::runtime_error(std::format("Error vkCreateShaderModule {}", result));
-            }
-
+            VkResult vk_result = vkCreateShaderModule(m_device, &ci, nullptr, &handle);
+            check_result(vk_result, "vkCreateShaderModule");
             return handle;
         }
 

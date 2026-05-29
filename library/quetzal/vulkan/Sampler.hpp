@@ -2,6 +2,7 @@
 #define QUETZAL_VULKAN_SAMPLER_HPP
 
 #include "Device.hpp"
+#include "VulkanError.hpp"
 #include <vulkan/vulkan.hpp>
 
 namespace quetzal::vulkan
@@ -21,17 +22,16 @@ namespace quetzal::vulkan
         {
             VkPhysicalDeviceProperties properties = m_device.physical_device().properties();
             VkSamplerCreateInfo ci = vk_sampler_create_info(properties);
-            VkResult result = vkCreateSampler(m_device, &ci, nullptr, &m_handle);
-            if (result != VK_SUCCESS)
-            {
-                throw std::runtime_error(std::format("Error vkCreateSampler {}", result));
-            }
+            VkResult vk_result = vkCreateSampler(m_device, &ci, nullptr, &m_handle);
+            check_result(vk_result, "vkCreateSampler");
+            return;
         }
 
         void destroy()
         {
             assert(m_handle != VK_NULL_HANDLE);
             vkDestroySampler(m_device, m_handle, nullptr);
+            return;
         }
 
         operator VkSampler() const

@@ -4,6 +4,7 @@
 //------------------------------------------------------------------------------
 
 #include "PipelineLayout.hpp"
+#include "VulkanError.hpp"
 #include "initializer.hpp"
 
 //------------------------------------------------------------------------------
@@ -48,12 +49,8 @@ VkPipelineLayout quetzal::vulkan::PipelineLayout::handle() const
 void quetzal::vulkan::PipelineLayout::create(std::span<VkDescriptorSetLayout> set_layouts, std::span<VkPushConstantRange> push_constant_ranges)
 {
     VkPipelineLayoutCreateInfo ci = vk_pipeline_layout_create_info(set_layouts, push_constant_ranges);
-    VkResult result = vkCreatePipelineLayout(m_device, &ci, nullptr, &m_handle);
-    if (result != VK_SUCCESS)
-    {
-        throw std::runtime_error(std::format("Error vkCreatePipelineLayout {}", result));
-    }
-
+    VkResult vk_result = vkCreatePipelineLayout(m_device, &ci, nullptr, &m_handle);
+    check_result(vk_result, "vkCreatePipelineLayout");
     return;
 }
 

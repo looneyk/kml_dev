@@ -4,6 +4,7 @@
 #include "Instance.hpp"
 #include "LogicalDevice.hpp"
 #include "PhysicalDevice.hpp"
+#include "VulkanError.hpp"
 #include "vulkan_util.hpp"
 #include <vk_mem_alloc.h>
 
@@ -25,11 +26,8 @@ namespace quetzal::vulkan
             ci.instance = instance;
             ci.pVulkanFunctions = nullptr;
 
-            VkResult result = vmaCreateAllocator(&ci, &m_handle);
-            if (result != VK_SUCCESS)
-            {
-                throw std::runtime_error(std::format("Error vmaCreateAllocator {}", result));
-            }
+            VkResult vk_result = vmaCreateAllocator(&ci, &m_handle);
+            check_result(vk_result, "vmaCreateAllocator");
         }
 
         ~Allocator()

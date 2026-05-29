@@ -2,6 +2,7 @@
 #define QUETZAL_VULKAN_RENDERPASS_HPP
 
 #include "Device.hpp"
+#include "VulkanError.hpp"
 #include <vulkan/vulkan.hpp>
 
 namespace quetzal::vulkan
@@ -26,11 +27,9 @@ namespace quetzal::vulkan
         void create(std::span<VkAttachmentDescription> attachments, std::span<VkSubpassDescription> subpasses, std::span<VkSubpassDependency> dependencies)
         {
             VkRenderPassCreateInfo ci = vk_render_pass_create_info(attachments, subpasses, dependencies);
-            VkResult result = vkCreateRenderPass(m_device, &ci, nullptr, &m_handle);
-            if (result != VK_SUCCESS)
-            {
-                throw std::runtime_error(std::format("Error vkCreateRenderPass {}", result));
-            }
+            VkResult vk_result = vkCreateRenderPass(m_device, &ci, nullptr, &m_handle);
+            check_result(vk_result, "vkCreateRenderPass");
+            return;
         }
 
         void create(VkFormat color_format, VkFormat depth_format, VkSampleCountFlagBits samples)
@@ -61,12 +60,14 @@ namespace quetzal::vulkan
             };
 
             create(attachments, subpasses, dependencies);
+            return;
         }
 
         void destroy()
         {
             assert(m_handle != VK_NULL_HANDLE);
             vkDestroyRenderPass(m_device, m_handle, nullptr);
+            return;
         }
 
     private:

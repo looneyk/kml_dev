@@ -3,6 +3,7 @@
 
 #include "Device.hpp"
 #include "ImageView.hpp"
+#include "VulkanError.hpp"
 #include "initializer.hpp"
 #include <vulkan/vulkan.hpp>
 
@@ -22,11 +23,9 @@ namespace quetzal::vulkan
         void create(VkExtent2D extent, std::span<VkImageView> attachments, VkRenderPass render_pass)
         {
             VkFramebufferCreateInfo ci = vk_framebuffer_create_info(extent, attachments, render_pass);
-            VkResult result = vkCreateFramebuffer(m_device, &ci, nullptr, &m_handle);
-            if (result != VK_SUCCESS)
-            {
-                throw std::runtime_error(std::format("Error vkCreateFramebuffer {}", result));
-            }
+            VkResult vk_result = vkCreateFramebuffer(m_device, &ci, nullptr, &m_handle);
+            check_result(vk_result, "vkCreateFramebuffer");
+            return;
         }
 
         void destroy()

@@ -83,6 +83,7 @@
     <ClInclude Include="TextureCache.hpp" />
     <ClInclude Include="UniformBuffers.hpp" />
     <ClInclude Include="Vertex.hpp" />
+    <ClInclude Include="VulkanError.hpp" />
     <ClInclude Include="vulkan_util.hpp" />
     <ClInclude Include="Window.hpp" />
   </ItemGroup>

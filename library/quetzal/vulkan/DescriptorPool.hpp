@@ -2,6 +2,8 @@
 #define QUETZAL_VULKAN_DESCRIPTORPOOL_HPP
 
 #include "Device.hpp"
+#include "VulkanError.hpp"
+#include "initializer.hpp"
 #include <vulkan/vulkan.hpp>
 #include <span>
 
@@ -27,17 +29,16 @@ namespace quetzal::vulkan
         void create(std::span<VkDescriptorPoolSize> sizes, uint32_t maxSets, VkDescriptorPoolCreateFlags flags = 0)
         {
             VkDescriptorPoolCreateInfo ci = descriptor_pool_create_info(sizes, maxSets, flags);
-            VkResult result = vkCreateDescriptorPool(m_device, &ci, nullptr, &m_handle);
-            if (result != VK_SUCCESS)
-            {
-                throw std::runtime_error(std::format("Error vkCreateDescriptorPool {}", result));
-            }
+            VkResult vk_result = vkCreateDescriptorPool(m_device, &ci, nullptr, &m_handle);
+            check_result(vk_result, "vkCreateDescriptorPool");
+            return;
         }
 
         void destroy()
         {
             assert(m_handle != VK_NULL_HANDLE);
             vkDestroyDescriptorPool(m_device, m_handle, nullptr);
+            return;
         }
 
         void reset()

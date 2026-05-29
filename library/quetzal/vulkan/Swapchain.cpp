@@ -4,6 +4,7 @@
 //------------------------------------------------------------------------------
 
 #include "Swapchain.hpp"
+#include "VulkanError.hpp"
 #include "vulkan_util.hpp"
 #include <algorithm>
 #include <limits>
@@ -257,11 +258,8 @@ void quetzal::vulkan::Swapchain::create(VkExtent2D extent, uint32_t image_count)
     ci.presentMode = select_present_mode(present_mode_priority_list[0], surface_support.present_modes, present_mode_priority_list);
     ci.clipped = VK_TRUE;
 
-    VkResult result = vkCreateSwapchainKHR(m_device, &ci, nullptr, &m_handle);
-    if (result != VK_SUCCESS)
-    {
-        throw std::runtime_error(std::format("Error vkCreateSwapchainKHR {}", result));
-    }
+    VkResult vk_result = vkCreateSwapchainKHR(m_device, &ci, nullptr, &m_handle);
+    check_result(vk_result, "vkCreateSwapchainKHR");
 
     uint32_t count;
     vkGetSwapchainImagesKHR(m_device, m_handle, &count, nullptr);
@@ -328,8 +326,8 @@ const std::vector<quetzal::vulkan::ImageView>& quetzal::vulkan::Swapchain::image
 std::tuple<VkResult, uint32_t> quetzal::vulkan::Swapchain::acquire_next_image(VkSemaphore semaphore, VkFence fence)
 {
     uint32_t image_index{};
-    VkResult result = vkAcquireNextImageKHR(m_device, m_handle, std::numeric_limits<uint64_t>::max(), semaphore, fence, &image_index);
-    return {result, image_index};
+    VkResult vk_result = vkAcquireNextImageKHR(m_device, m_handle, std::numeric_limits<uint64_t>::max(), semaphore, fence, &image_index);
+    return {vk_result, image_index};
 }
 
 //------------------------------------------------------------------------------

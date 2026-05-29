@@ -226,7 +226,7 @@ namespace quetzal::vulkan
             }
             else
             {
-                throw std::invalid_argument("unsupported layout transition!");
+                throw std::invalid_argument("Unsupported layout transition!");
             }
 
             vkCmdPipelineBarrier(commands, sourceStage, destinationStage, 0, 0, nullptr, 0, nullptr, 1, &barrier);

@@ -2,6 +2,7 @@
 #define QUETZAL_VULKAN_DEBUGMESSENGER_HPP
 
 #include "Instance.hpp"
+#include "VulkanError.hpp"
 #include "debug_callback.hpp"
 #include "vulkan_util.hpp"
 #include <vulkan/vulkan.hpp>
@@ -21,11 +22,8 @@ namespace quetzal::vulkan
             if (m_validation)
             {
                 VkDebugUtilsMessengerCreateInfoEXT ci = debug_messenger_create_info();
-                VkResult result = CreateDebugUtilsMessengerEXT(&ci, nullptr);
-                if (result != VK_SUCCESS)
-                {
-                    throw std::runtime_error(std::format("Error CreateDebugUtilsMessengerEXT {}", result));
-                }
+                check_result(CreateDebugUtilsMessengerEXT(&ci, nullptr), "CreateDebugUtilsMessengerEXT");
+            }
             }
         }
 
