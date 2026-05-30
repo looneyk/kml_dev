@@ -1,7 +1,6 @@
 #if !defined(QUETZAL_VULKAN_PHYSICALDEVICE_HPP)
 #define QUETZAL_VULKAN_PHYSICALDEVICE_HPP
 
-#include "Instance.hpp"
 #include "PhysicalDevices.hpp"
 #include "Surface.hpp"
 #include <vulkan/vulkan.hpp>
@@ -267,8 +266,8 @@ namespace quetzal::vulkan
                 vkEnumerateDeviceExtensionProperties(physical_device, nullptr, &count, m_properties.data());
             };
 
-            auto begin() { return m_properties.begin(); }
-            auto end() { return m_properties.end(); }
+            auto begin() const { return m_properties.begin(); }
+            auto end() const { return m_properties.end(); }
 
         private:
 

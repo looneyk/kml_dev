@@ -80,8 +80,8 @@ namespace quetzal::vulkan
                 vkEnumerateInstanceLayerProperties(&count, m_properties.data());
             };
 
-            auto begin() { return m_properties.begin(); }
-            auto end() { return m_properties.end(); }
+            auto begin() const { return m_properties.begin(); }
+            auto end() const { return m_properties.end(); }
 
         private:
 
