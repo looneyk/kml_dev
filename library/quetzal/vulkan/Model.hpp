@@ -27,7 +27,7 @@ namespace quetzal::vulkan
             m_command_pool(command_pool),
             m_vertex_buffer(device),
             m_index_buffer(device),
-            m_nIndices(0)
+            m_index_count(0)
         {
         }
 
@@ -39,11 +39,6 @@ namespace quetzal::vulkan
         template<typename V>
         void load(const std::filesystem::path& filepath)
         {
-            using vertices_type = std::vector<V>;
-
-            vertices_type vertices;
-            indices_type indices;
-
             tinyobj::attrib_t attrib;
             std::vector<tinyobj::shape_t> shapes;
             std::vector<tinyobj::material_t> materials;
@@ -54,7 +49,11 @@ namespace quetzal::vulkan
                 throw std::runtime_error(warn + err);
             }
 
-            std::unordered_map<V, uint32_t> uniqueVertices{};
+            // reserve? ...
+            std::vector<V> vertices;
+            indices_type indices;
+
+            std::unordered_map<V, uint32_t> unique_vertices{};
 
             for (const auto& shape : shapes)
             {
@@ -62,23 +61,20 @@ namespace quetzal::vulkan
                 {
                     V vertex(attrib, index);
 
-                    if (uniqueVertices.count(vertex) == 0)
+                    if (unique_vertices.count(vertex) == 0)
                     {
-                        uniqueVertices[vertex] = to_uint32(vertices.size());
+                        unique_vertices[vertex] = to_uint32(vertices.size());
                         vertices.push_back(vertex);
                     }
 
-                    indices.push_back(uniqueVertices[vertex]);
+                    indices.push_back(unique_vertices[vertex]);
                 }
             }
 
-            m_nIndices = indices.size();
+            m_index_count = indices.size();
 
             create_vertex_buffer(vertices);
             create_index_buffer(indices);
-
-            vertices.clear();
-            indices.clear();
             return;
         }
 
@@ -101,7 +97,7 @@ namespace quetzal::vulkan
 
         size_t index_count() const
         {
-            return m_nIndices;
+            return m_index_count;
         }
 
     private:
@@ -157,7 +153,7 @@ namespace quetzal::vulkan
 
         Buffer m_vertex_buffer;
         Buffer m_index_buffer;
-        size_t m_nIndices;
+        size_t m_index_count;
     };
 
 } // namespace quetzal::vulkan

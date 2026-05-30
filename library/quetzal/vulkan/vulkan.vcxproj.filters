@@ -21,6 +21,9 @@
     <ClInclude Include="Buffer.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="cache_util.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="CommandBuffer.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -30,6 +33,12 @@
     <ClInclude Include="CommandPool.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="ComputePipelineCreateInfo.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Context.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="debug_callback.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -37,6 +46,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="DescriptorPool.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Descriptors.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="DescriptorSetLayout.hpp">
@@ -54,6 +66,12 @@
     <ClInclude Include="Framebuffers.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="GraphicsPipeline.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GraphicsPipelineCreateInfo.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="GraphicsPipelines.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -61,6 +79,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="ImageView.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="initializer.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Instance.hpp">
@@ -72,16 +93,31 @@
     <ClInclude Include="Model.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="ModelCache.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Node.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="PhysicalDevice.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="PhysicalDevices.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="PipelineCache.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="PipelineLayout.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="PipelineManager.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="Queue.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Queues.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Renderer.hpp">
@@ -90,10 +126,22 @@
     <ClInclude Include="RenderPass.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="ResourceCache.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ResourceManager.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="Sampler.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="ShaderModule.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SingleSubmitCommands.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="StagingBuffer.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Surface.hpp">
@@ -105,93 +153,45 @@
     <ClInclude Include="Texture.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Vertex.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Window.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Descriptors.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="GraphicsPipelineCreateInfo.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="PipelineManager.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="StagingBuffer.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="ModelCache.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="TextureCache.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="UniformBuffers.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Node.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="PipelineCache.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="ResourceCache.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="ResourceManager.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="cache_util.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="vulkan_util.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Queues.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="GraphicsPipeline.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="initializer.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="SingleSubmitCommands.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="ComputePipelineCreateInfo.hpp">
+    <ClInclude Include="Vertex.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="VulkanError.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Context.hpp">
+    <ClInclude Include="vulkan_util.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Window.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Descriptors.cpp">
+    <ClCompile Include="Allocator.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Allocator.cpp">
+    <ClCompile Include="CommandBuffer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="debug_callback.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Descriptors.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="initializer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="Model.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Texture.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Window.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="ResourceManager.cpp">
+    <ClCompile Include="PipelineLayout.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Queue.cpp">
@@ -200,19 +200,19 @@
     <ClCompile Include="Queues.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="PipelineLayout.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Vertex.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="initializer.cpp">
+    <ClCompile Include="ResourceManager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Swapchain.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="CommandBuffer.cpp">
+    <ClCompile Include="Texture.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Vertex.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Window.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
