@@ -7,7 +7,6 @@
 
 #include "Device.hpp"
 #include "PipelineLayout.hpp"
-#include "RenderPass.hpp"
 #include "ResourceCache.hpp"
 #include <vulkan/vulkan.hpp>
 #include <span>
@@ -31,8 +30,6 @@ namespace quetzal::vulkan
         ResourceManager& operator=(ResourceManager&&) = delete;
 
         PipelineLayout& request_pipeline_layout(std::span<VkDescriptorSetLayout> set_layouts, std::span<VkPushConstantRange> push_constant_ranges);
-//        RenderPass& request_render_pass(std::span<VkAttachmentDescription> attachments, std::span<LoadStoreInfo> load_store_infos, std::span<VkSubpassDescription> subpasses);
-        RenderPass& request_render_pass(std::span<VkAttachmentDescription> attachments, std::span<VkSubpassDescription> subpasses, std::span<VkSubpassDependency> dependencies);
         // ...
 
         void clear();
@@ -52,7 +49,6 @@ namespace quetzal::vulkan
 
 //        std::filesystem::path m_rootpath;
         ResourceCache<PipelineLayout> m_pipeline_layouts;
-        ResourceCache<RenderPass> m_render_passes;
     };
 
 } // namespace quetzal::vulkan

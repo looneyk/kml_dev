@@ -7,6 +7,7 @@
 #include "Context.hpp"
 #include "Descriptors.hpp"
 #include "Device.hpp"
+#include "Fence.hpp"
 #include "Framebuffers.hpp"
 #include "GraphicsPipeline.hpp"
 #include "GraphicsPipelineCreateInfo.hpp"
@@ -16,8 +17,8 @@
 #include "PhysicalDevice.hpp"
 #include "PipelineLayout.hpp"
 #include "PipelineManager.hpp"
-#include "RenderPass.hpp"
 #include "ResourceManager.hpp"
+#include "Semaphore.hpp"
 #include "Surface.hpp"
 #include "Swapchain.hpp"
 #include "Texture.hpp"
@@ -84,7 +85,6 @@ namespace quetzal::vulkan
             m_swap_frame_count(swap_frame_count_(config, 2)),
             m_swapchain(m_device, window),
             m_framebuffers(m_device),
-            m_render_pass(m_device),
             m_descriptor_allocator(m_device),
             m_descriptor_layout_cache(m_device),
             m_descriptor_set_layouts(),
@@ -111,8 +111,7 @@ namespace quetzal::vulkan
             m_msaa_samples = m_device.physical_device().max_sample_count(); // clamped config? ...
 
             m_swapchain.create(m_device.window().extent(), to_uint32(m_swap_frame_count)); // no provision for handling change to m_swap_frame_count ...
-            m_render_pass.create(m_swapchain.image_format(), m_swapchain.depth_format(), m_msaa_samples);
-            m_framebuffers.create(m_swapchain.extent(), m_swapchain.image_format(), m_swapchain.depth_format(), m_swapchain.image_views(), m_msaa_samples, m_render_pass);
+            m_framebuffers.create(m_swapchain.extent(), m_swapchain.image_format(), m_swapchain.depth_format(), m_msaa_samples);
 
             m_command_pool.create(m_device.queues().get(VK_QUEUE_GRAPHICS_BIT, 0).family_index());
             m_command_buffers.create(m_swap_frame_count);
@@ -125,20 +124,15 @@ namespace quetzal::vulkan
 
             cleanup_swapchain();
 
-            m_render_pass.destroy();
-
             m_descriptor_layout_cache.clear();
             m_descriptor_allocator.clear();
 
             m_texture_cache.clear();
             m_model_cache.clear();
 
-            for (size_t i = 0; i < m_swap_frame_count; ++i)
-            {
-                vkDestroySemaphore(m_device, m_render_finished_semaphores[i], nullptr);
-                vkDestroySemaphore(m_device, m_image_available_semaphores[i], nullptr);
-                vkDestroyFence(m_device, m_in_flight_fences[i], nullptr);
-            }
+            m_in_flight_fences.clear();
+            m_render_finished_semaphores.clear();
+            m_image_available_semaphores.clear();
 
             m_command_pool.destroy();
         }
@@ -185,7 +179,7 @@ namespace quetzal::vulkan
             VkPushConstantRange push_constant_range = vk_push_constant_range(VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(PushConstants));
             const auto& pipeline_layout = m_resource_manager.request_pipeline_layout(descriptor_set_layouts, {&push_constant_range, 1});
 
-            GraphicsPipelineCreateInfo ci = {m_device, "shaders/vert_pct_pc.spv", "shaders/frag_pct.spv", V::binding_description(), V::attribute_descriptions(), pipeline_layout, m_render_pass, m_msaa_samples};
+            GraphicsPipelineCreateInfo ci = {m_device, "shaders/vert_pct_pc.spv", "shaders/frag_pct.spv", V::binding_description(), V::attribute_descriptions(), pipeline_layout, m_swapchain.image_format(), m_swapchain.depth_format(), m_msaa_samples};
             VkPipeline pipeline = m_pipeline_manager.request_graphics_pipeline(ci);
             m_nodes.emplace_back(id, filepath_model.string(), filepath_texture.string(), matrix, descriptor_sets, pipeline_layout, pipeline); // the rest ...
             return;
@@ -205,7 +199,7 @@ namespace quetzal::vulkan
 
         void draw()
         {
-            vkWaitForFences(m_device, 1, &m_in_flight_fences[m_current_frame], VK_TRUE, UINT64_MAX);
+            m_in_flight_fences[m_current_frame].wait();
 
             auto [result, image_index] = m_swapchain.acquire_next_image(m_image_available_semaphores[m_current_frame]);
             if (result == VK_ERROR_OUT_OF_DATE_KHR)
@@ -221,21 +215,21 @@ namespace quetzal::vulkan
             m_uniform_buffers.set(m_current_frame, m_ubo);
 
             CommandBuffer& command_buffer = m_command_buffers[m_current_frame];
-            vkResetFences(m_device, 1, &m_in_flight_fences[m_current_frame]);
+            m_in_flight_fences[m_current_frame].reset();
             vkResetCommandBuffer(command_buffer, /*VkCommandBufferResetFlagBits*/ 0);
             record_command_buffer(command_buffer, image_index);
 
-            std::array<const VkSemaphore, 1> wait_semaphores = {m_image_available_semaphores[m_current_frame]};
-            std::array<const VkPipelineStageFlags, 1> wait_stages = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
-            std::array<const VkCommandBuffer, 1> command_buffers = {command_buffer};
-            std::array<const VkSemaphore, 1> signal_semaphores = {m_render_finished_semaphores[m_current_frame]};
-            VkSubmitInfo submit_info = vk_submit_info(wait_semaphores, wait_stages, command_buffers, signal_semaphores);
+            VkSemaphoreSubmitInfo wait_semaphore = vk_semaphore_submit_info(m_image_available_semaphores[m_current_frame], VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT);
+            VkCommandBufferSubmitInfo cmd_submit = vk_command_buffer_submit_info(command_buffer);
+            VkSemaphoreSubmitInfo signal_semaphore = vk_semaphore_submit_info(m_render_finished_semaphores[m_current_frame], VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT);
+            VkSubmitInfo2 submit_info2 = vk_submit_info2({&wait_semaphore, 1}, {&cmd_submit, 1}, {&signal_semaphore, 1});
 
             const Queue& graphics_queue = m_device.queues().get(VK_QUEUE_GRAPHICS_BIT, 0);
-            graphics_queue.submit(std::span(&submit_info, 1), m_in_flight_fences[m_current_frame]);
+            graphics_queue.submit2({&submit_info2, 1}, m_in_flight_fences[m_current_frame]);
 
             std::array<const VkSwapchainKHR, 1> swapchains = {m_swapchain};
-            VkPresentInfoKHR present_info = vk_present_info(signal_semaphores, swapchains, {&image_index, 1});
+            VkSemaphore render_finished = m_render_finished_semaphores[m_current_frame];
+            VkPresentInfoKHR present_info = vk_present_info({&render_finished, 1}, swapchains, {&image_index, 1});
             const Queue& present_queue = m_device.queues().get_presentable_queue(0);
             result = present_queue.present(present_info);
             if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || m_framebuffer_resized)
@@ -288,7 +282,7 @@ namespace quetzal::vulkan
             cleanup_swapchain();
 
             m_swapchain.create(extent, to_uint32(m_swap_frame_count));
-            m_framebuffers.create(m_swapchain.extent(), m_swapchain.image_format(), m_swapchain.depth_format(), m_swapchain.image_views(), m_msaa_samples, m_render_pass);
+            m_framebuffers.create(m_swapchain.extent(), m_swapchain.image_format(), m_swapchain.depth_format(), m_msaa_samples);
         }
 
         std::vector<std::tuple<VkDescriptorSet, VkDescriptorSetLayout>> descriptor_sets(std::span<const Buffer> uniform_buffers, const Texture& texture)
@@ -319,12 +313,46 @@ namespace quetzal::vulkan
             command_buffer.begin();
 
             auto extent = m_swapchain.extent();
+            VkImage swapchain_image = m_swapchain.images()[image_index];
 
-            std::array<VkClearValue, 2> clear_values{};
-            clear_values[0].color = {{0.0f, 0.0f, 0.0f, 1.0f}};
-            clear_values[1].depthStencil = {1.0f, 0};
+            VkClearValue color_clear{};
+            color_clear.color = {{0.0f, 0.0f, 0.0f, 1.0f}};
+            VkClearValue depth_clear{};
+            depth_clear.depthStencil = {1.0f, 0};
 
-            command_buffer.begin_render_pass(m_render_pass, m_framebuffers[image_index], extent, clear_values);
+            std::array<VkImageMemoryBarrier2, 3> pre_barriers = {
+                vk_image_memory_barrier2(swapchain_image,
+                    VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                    VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, 0,
+                    VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT),
+                vk_image_memory_barrier2(m_framebuffers.color_image(),
+                    VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                    VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, 0,
+                    VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT),
+                vk_image_memory_barrier2(m_framebuffers.depth_image(),
+                    VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+                    VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, 0,
+                    VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT, VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+                    VK_IMAGE_ASPECT_DEPTH_BIT),
+            };
+            VkDependencyInfo pre_dep = vk_dependency_info(pre_barriers);
+            vkCmdPipelineBarrier2(command_buffer, &pre_dep);
+
+            VkRenderingAttachmentInfo color_attachment = vk_rendering_attachment_info_color(
+                m_framebuffers.color_image_view(), VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                VK_RESOLVE_MODE_AVERAGE_BIT,
+                m_swapchain.image_views()[image_index], VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                color_clear);
+
+            VkRenderingAttachmentInfo depth_attachment = vk_rendering_attachment_info_depth(
+                m_framebuffers.depth_image_view(), VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+                VK_RESOLVE_MODE_NONE, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_UNDEFINED,
+                depth_clear);
+
+            VkRect2D render_area{{0, 0}, extent};
+            VkRenderingInfo rendering_info = vk_rendering_info(render_area, 1, 0, {&color_attachment, 1}, std::cref(depth_attachment));
+
+            command_buffer.begin_rendering(rendering_info);
             command_buffer.set_viewport(extent);
             command_buffer.set_scissor(extent);
 
@@ -353,27 +381,25 @@ namespace quetzal::vulkan
                 vkCmdDrawIndexed(command_buffer, count, 1, start, 0, 0);
             }
 
-            command_buffer.end_render_pass();
+            command_buffer.end_rendering();
+
+            VkImageMemoryBarrier2 post_barrier = vk_image_memory_barrier2(swapchain_image,
+                VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+                VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
+                VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT, 0);
+            VkDependencyInfo post_dep = vk_dependency_info({&post_barrier, 1});
+            vkCmdPipelineBarrier2(command_buffer, &post_dep);
+
             command_buffer.end();
         }
 
         void create_sync_objects()
         {
-            m_image_available_semaphores.resize(m_swap_frame_count);
-            m_render_finished_semaphores.resize(m_swap_frame_count);
-            m_in_flight_fences.resize(m_swap_frame_count);
-
-            VkSemaphoreCreateInfo semaphore_ci = vk_semaphore_create_info();
-            VkFenceCreateInfo fence_ci = vk_fence_create_info(VK_FENCE_CREATE_SIGNALED_BIT);
-
             for (size_t i = 0; i < m_swap_frame_count; ++i)
             {
-                if (vkCreateSemaphore(m_device, &semaphore_ci, nullptr, &m_image_available_semaphores[i]) != VK_SUCCESS ||
-                    vkCreateSemaphore(m_device, &semaphore_ci, nullptr, &m_render_finished_semaphores[i]) != VK_SUCCESS ||
-                    vkCreateFence(m_device, &fence_ci, nullptr, &m_in_flight_fences[i]) != VK_SUCCESS)
-                {
-                    throw std::runtime_error("Error failed to create synchronization objects");
-                }
+                m_image_available_semaphores.emplace_back(m_device);
+                m_render_finished_semaphores.emplace_back(m_device);
+                m_in_flight_fences.emplace_back(m_device);
             }
         }
 
@@ -401,8 +427,6 @@ namespace quetzal::vulkan
         Swapchain m_swapchain;
         Framebuffers m_framebuffers;
 
-        RenderPass m_render_pass;
-
         DescriptorAllocator m_descriptor_allocator;
         DescriptorLayoutCache m_descriptor_layout_cache;
 
@@ -420,9 +444,9 @@ namespace quetzal::vulkan
 
         CommandBuffers m_command_buffers;
 
-        std::vector<VkSemaphore> m_image_available_semaphores;
-        std::vector<VkSemaphore> m_render_finished_semaphores;
-        std::vector<VkFence> m_in_flight_fences;
+        std::vector<Semaphore> m_image_available_semaphores;
+        std::vector<Semaphore> m_render_finished_semaphores;
+        std::vector<Fence> m_in_flight_fences;
         uint32_t m_current_frame = 0;
 
         bool m_framebuffer_resized = false;

@@ -3,7 +3,6 @@
 
 #include "Device.hpp"
 #include "PipelineLayout.hpp"
-#include "RenderPass.hpp"
 #include "ShaderModule.hpp"
 #include "initializer.hpp"
 #include "vulkan_util.hpp"
@@ -24,7 +23,7 @@ namespace quetzal::vulkan
 
         GraphicsPipelineCreateInfo(const Device& device, const std::string& vert_shader_filepath, const std::string& frag_shader_filepath,
                 const VkVertexInputBindingDescription& binding_description, std::span<const VkVertexInputAttributeDescription> attribute_descriptions,
-                const PipelineLayout& pipeline_layout, const RenderPass& render_pass, VkSampleCountFlagBits sample_count) :
+                const PipelineLayout& pipeline_layout, VkFormat color_format, VkFormat depth_format, VkSampleCountFlagBits sample_count) :
             m_vert_shader_module(device, vert_shader_filepath),
             m_frag_shader_module(device, frag_shader_filepath),
             m_shader_stages(),
@@ -41,6 +40,8 @@ namespace quetzal::vulkan
             m_color_blend_state_ci(),
             m_dynamic_state_ci(),
             m_pipeline_layout(pipeline_layout),
+            m_color_format(),
+            m_pipeline_rendering_ci(),
             m_ci()
         {
             auto vert_shader_stage_ci = vk_pipeline_shader_stage_create_info(m_vert_shader_module, VK_SHADER_STAGE_VERTEX_BIT);
@@ -73,8 +74,12 @@ namespace quetzal::vulkan
             m_ci.pDepthStencilState = &m_depth_stencil_state_ci;
             m_ci.pColorBlendState = &m_color_blend_state_ci;
             m_ci.pDynamicState = &m_dynamic_state_ci;
+            m_color_format = color_format;
+            m_pipeline_rendering_ci = vk_pipeline_rendering_create_info({&m_color_format, 1}, depth_format);
+
+            m_ci.pNext = &m_pipeline_rendering_ci;
             m_ci.layout = pipeline_layout;
-            m_ci.renderPass = render_pass;
+            m_ci.renderPass = VK_NULL_HANDLE;
             m_ci.subpass = 0;
             m_ci.basePipelineHandle = VK_NULL_HANDLE;
             m_ci.basePipelineIndex = 0;
@@ -119,6 +124,8 @@ namespace quetzal::vulkan
 
         const PipelineLayout& m_pipeline_layout;
 
+        VkFormat m_color_format;
+        VkPipelineRenderingCreateInfo m_pipeline_rendering_ci;
         VkGraphicsPipelineCreateInfo m_ci;
     };
 

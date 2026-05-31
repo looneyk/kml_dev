@@ -317,6 +317,12 @@ VkFormat quetzal::vulkan::Swapchain::depth_format() const
 }
 
 //------------------------------------------------------------------------------
+const std::vector<VkImage>& quetzal::vulkan::Swapchain::images() const
+{
+    return m_images;
+}
+
+//------------------------------------------------------------------------------
 const std::vector<quetzal::vulkan::ImageView>& quetzal::vulkan::Swapchain::image_views() const
 {
     return m_imageViews;

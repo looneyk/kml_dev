@@ -9,8 +9,7 @@
 quetzal::vulkan::ResourceManager::ResourceManager(const Device& device) :
     m_device(device),
     m_precorder(nullptr),
-    m_pipeline_layouts(device),
-    m_render_passes(device)
+    m_pipeline_layouts(device)
 {
 }
 
@@ -18,12 +17,6 @@ quetzal::vulkan::ResourceManager::ResourceManager(const Device& device) :
 quetzal::vulkan::PipelineLayout& quetzal::vulkan::ResourceManager::request_pipeline_layout(std::span<VkDescriptorSetLayout> set_layouts, std::span<VkPushConstantRange> push_constant_ranges)
 {
     return m_pipeline_layouts.request(set_layouts, push_constant_ranges);
-}
-
-//------------------------------------------------------------------------------
-quetzal::vulkan::RenderPass& quetzal::vulkan::ResourceManager::request_render_pass(std::span<VkAttachmentDescription> attachments, std::span<VkSubpassDescription> subpasses, std::span<VkSubpassDependency> dependencies)
-{
-    return m_render_passes.request(attachments, subpasses, dependencies);
 }
 
 //------------------------------------------------------------------------------

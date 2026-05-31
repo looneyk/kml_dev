@@ -3,8 +3,6 @@
 
 #include "CommandPool.hpp"
 #include "Device.hpp"
-#include "Framebuffer.hpp"
-#include "RenderPass.hpp"
 #include <vulkan/vulkan.hpp>
 #include <span>
 
@@ -33,8 +31,8 @@ namespace quetzal::vulkan
         void begin(VkCommandBufferUsageFlags flags = 0);
         void end();
 
-        void begin_render_pass(const RenderPass& render_pass, const Framebuffer& framebuffer, VkExtent2D extent, std::span<VkClearValue> clear_values, VkSubpassContents subpass_contents = VK_SUBPASS_CONTENTS_INLINE);
-        void end_render_pass();
+        void begin_rendering(const VkRenderingInfo& rendering_info);
+        void end_rendering();
 
         void set_viewport(uint32_t first, std::span<VkViewport> viewports);
         void set_viewport(VkExtent2D extent);

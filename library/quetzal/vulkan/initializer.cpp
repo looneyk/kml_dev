@@ -49,16 +49,14 @@ VkDescriptorSetLayoutCreateInfo quetzal::vulkan::vk_descriptor_set_layout_create
 }
 
 //------------------------------------------------------------------------------
-VkDeviceCreateInfo quetzal::vulkan::vk_device_create_info(std::span<VkDeviceQueueCreateInfo> queue_cis, const std::vector<const char*>& extensions, VkPhysicalDeviceFeatures* enabled_features)
+VkDeviceCreateInfo quetzal::vulkan::vk_device_create_info(std::span<VkDeviceQueueCreateInfo> queue_cis, const std::vector<const char*>& extensions, void* pNext)
 {
     VkDeviceCreateInfo ci{VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO};
+    ci.pNext = pNext;
     ci.queueCreateInfoCount = to_uint32(queue_cis.size());
     ci.pQueueCreateInfos = queue_cis.data();
-    //ci.enabledLayerCount
-    //ci.ppEnabledLayerNames
     ci.enabledExtensionCount = to_uint32(extensions.size());
     ci.ppEnabledExtensionNames = extensions.data();
-    ci.pEnabledFeatures = enabled_features;
     return ci;
 }
 
@@ -83,26 +81,6 @@ VkFenceCreateInfo quetzal::vulkan::vk_fence_create_info(VkFenceCreateFlagBits fl
 {
     VkFenceCreateInfo ci{VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
     ci.flags = flags;
-    return ci;
-}
-
-//------------------------------------------------------------------------------
-VkFenceCreateInfo quetzal::vulkan::vk_fence_create_info_v2(bool timeline, uint64_t initial_value)
-{
-    VkFenceCreateInfo ci{VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
-    return ci;
-}
-
-//------------------------------------------------------------------------------
-VkFramebufferCreateInfo quetzal::vulkan::vk_framebuffer_create_info(VkExtent2D extent, std::span<VkImageView> attachments, VkRenderPass render_pass)
-{
-    VkFramebufferCreateInfo ci{VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO};
-    ci.renderPass = render_pass;
-    ci.attachmentCount = to_uint32(attachments.size());
-    ci.pAttachments = attachments.data();
-    ci.width = extent.width;
-    ci.height = extent.height;
-    ci.layers = 1;
     return ci;
 }
 
@@ -283,19 +261,6 @@ VkPipelineViewportStateCreateInfo quetzal::vulkan::vk_pipeline_viewport_state_cr
 }
 
 //------------------------------------------------------------------------------
-VkRenderPassCreateInfo quetzal::vulkan::vk_render_pass_create_info(std::span<VkAttachmentDescription> attachments, std::span<VkSubpassDescription> subpasses, std::span<VkSubpassDependency> dependencies)
-{
-    VkRenderPassCreateInfo ci{VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO};
-    ci.attachmentCount = to_uint32(attachments.size());
-    ci.pAttachments = attachments.data();
-    ci.subpassCount = to_uint32(subpasses.size());
-    ci.pSubpasses = subpasses.data();
-    ci.dependencyCount = to_uint32(dependencies.size());
-    ci.pDependencies = dependencies.data();
-    return ci;
-}
-
-//------------------------------------------------------------------------------
 VkSamplerCreateInfo quetzal::vulkan::vk_sampler_create_info(VkPhysicalDeviceProperties properties)
 {
     VkSamplerCreateInfo ci{VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
@@ -365,19 +330,33 @@ VkSwapchainCreateInfoKHR quetzal::vulkan::vk_swapchain_create_info(VkSurfaceKHR 
 }
 
 //------------------------------------------------------------------------------
-VkAttachmentDescription quetzal::vulkan::vk_attachment_description(VkFormat format, VkSampleCountFlagBits samples, VkAttachmentLoadOp load_op, VkAttachmentStoreOp store_op, VkAttachmentLoadOp stencil_load_op, VkAttachmentStoreOp stencil_store_op, VkImageLayout initial_layout, VkImageLayout final_layout, VkAttachmentDescriptionFlags flags)
+VkDependencyInfo quetzal::vulkan::vk_dependency_info(std::span<const VkImageMemoryBarrier2> image_barriers)
 {
-    VkAttachmentDescription attachment_description{};
-    attachment_description.format = format;
-    attachment_description.samples = samples;
-    attachment_description.loadOp = load_op;
-    attachment_description.storeOp = store_op;
-    attachment_description.stencilLoadOp = stencil_load_op;
-    attachment_description.stencilStoreOp = stencil_store_op;
-    attachment_description.initialLayout = initial_layout;
-    attachment_description.finalLayout = final_layout;
-    attachment_description.flags = flags;
-    return attachment_description;
+    VkDependencyInfo info{VK_STRUCTURE_TYPE_DEPENDENCY_INFO};
+    info.imageMemoryBarrierCount = to_uint32(image_barriers.size());
+    info.pImageMemoryBarriers = image_barriers.data();
+    return info;
+}
+
+//------------------------------------------------------------------------------
+VkImageMemoryBarrier2 quetzal::vulkan::vk_image_memory_barrier2(VkImage image, VkImageLayout old_layout, VkImageLayout new_layout, VkPipelineStageFlags2 src_stage_mask, VkAccessFlags2 src_access_mask, VkPipelineStageFlags2 dst_stage_mask, VkAccessFlags2 dst_access_mask, VkImageAspectFlags aspect_mask)
+{
+    VkImageMemoryBarrier2 barrier{VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2};
+    barrier.srcStageMask = src_stage_mask;
+    barrier.srcAccessMask = src_access_mask;
+    barrier.dstStageMask = dst_stage_mask;
+    barrier.dstAccessMask = dst_access_mask;
+    barrier.oldLayout = old_layout;
+    barrier.newLayout = new_layout;
+    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.image = image;
+    barrier.subresourceRange.aspectMask = aspect_mask;
+    barrier.subresourceRange.baseMipLevel = 0;
+    barrier.subresourceRange.levelCount = VK_REMAINING_MIP_LEVELS;
+    barrier.subresourceRange.baseArrayLayer = 0;
+    barrier.subresourceRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
+    return barrier;
 }
 
 //------------------------------------------------------------------------------
@@ -418,11 +397,31 @@ VkPhysicalDeviceDynamicRenderingFeatures quetzal::vulkan::vk_physical_device_dyn
 }
 
 //------------------------------------------------------------------------------
-VkPhysicalDeviceSynchronization2Features quetzal::vulkan::vk_physical_device_synchronization2_features(bool synchronization2)
+VkPhysicalDeviceFeatures2 quetzal::vulkan::vk_physical_device_features2(void* pNext)
+{
+    VkPhysicalDeviceFeatures2 features2{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2};
+    features2.pNext = pNext;
+    return features2;
+}
+
+//------------------------------------------------------------------------------
+VkPhysicalDeviceSynchronization2Features quetzal::vulkan::vk_physical_device_synchronization2_features(bool synchronization2, void* pNext)
 {
     VkPhysicalDeviceSynchronization2Features features{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SYNCHRONIZATION_2_FEATURES};
+    features.pNext = pNext;
     features.synchronization2 = synchronization2;
     return features;
+}
+
+//------------------------------------------------------------------------------
+VkPipelineRenderingCreateInfo quetzal::vulkan::vk_pipeline_rendering_create_info(std::span<const VkFormat> color_formats, VkFormat depth_format, VkFormat stencil_format)
+{
+    VkPipelineRenderingCreateInfo ci{VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO};
+    ci.colorAttachmentCount = to_uint32(color_formats.size());
+    ci.pColorAttachmentFormats = color_formats.data();
+    ci.depthAttachmentFormat = depth_format;
+    ci.stencilAttachmentFormat = stencil_format;
+    return ci;
 }
 
 //------------------------------------------------------------------------------
@@ -463,18 +462,6 @@ VkPushConstantRange quetzal::vulkan::vk_push_constant_range(VkShaderStageFlags s
     range.offset = offset;
     range.size = size;
     return range;
-}
-
-//------------------------------------------------------------------------------
-VkRenderPassBeginInfo quetzal::vulkan::vk_render_pass_begin_info(VkRenderPass render_pass, VkFramebuffer framebuffer, VkExtent2D extent, std::span<VkClearValue> clear_values)
-{
-    VkRenderPassBeginInfo info{VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO};
-    info.renderPass = render_pass;
-    info.framebuffer = framebuffer;
-    info.renderArea.extent = extent;
-    info.clearValueCount = to_uint32(clear_values.size());
-    info.pClearValues = clear_values.data();
-    return info;
 }
 
 //------------------------------------------------------------------------------
@@ -606,34 +593,3 @@ VkSubmitInfo2 quetzal::vulkan::vk_submit_info2(std::span<const VkSemaphoreSubmit
     return info;
 }
 
-//------------------------------------------------------------------------------
-VkSubpassDependency quetzal::vulkan::vk_subpass_dependency(uint32_t source_subpass, uint32_t dest_subpass, VkPipelineStageFlags source_stage_mask, VkPipelineStageFlags dest_stage_mask, VkAccessFlags source_access_mask, VkAccessFlags dest_access_mask, VkDependencyFlags flags)
-{
-    VkSubpassDependency dependency{};
-    dependency.srcSubpass = source_subpass;
-    dependency.dstSubpass = dest_subpass;
-    dependency.srcStageMask = source_stage_mask;
-    dependency.dstStageMask = dest_stage_mask;
-    dependency.srcAccessMask = source_access_mask;
-    dependency.dstAccessMask = dest_access_mask;
-    dependency.dependencyFlags = flags;
-    return dependency;
-}
-
-//------------------------------------------------------------------------------
-VkSubpassDescription quetzal::vulkan::vk_subpass_description(VkPipelineBindPoint pipeline_bind_point, std::span<VkAttachmentReference> input_attachments, std::span<VkAttachmentReference> color_attachments,
-        const VkAttachmentReference& resolve_attachment, const VkAttachmentReference& depth_stencil_attachment, std::span<uint32_t> preserve_attachments)
-{
-    VkSubpassDescription description{};
-    description.flags = 0;
-    description.pipelineBindPoint = pipeline_bind_point;
-    description.inputAttachmentCount = to_uint32(input_attachments.size());
-    description.pInputAttachments = input_attachments.data();
-    description.colorAttachmentCount = to_uint32(color_attachments.size());
-    description.pColorAttachments = color_attachments.data();
-    description.pResolveAttachments = &resolve_attachment;
-    description.pDepthStencilAttachment = &depth_stencil_attachment;
-    description.preserveAttachmentCount = to_uint32(preserve_attachments.size());
-    description.pPreserveAttachments = preserve_attachments.data();
-    return description;
-}

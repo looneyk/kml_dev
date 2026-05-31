@@ -73,17 +73,16 @@ void quetzal::vulkan::CommandBuffer::end()
 }
 
 //------------------------------------------------------------------------------
-void quetzal::vulkan::CommandBuffer::begin_render_pass(const RenderPass& render_pass, const Framebuffer& framebuffer, VkExtent2D extent, std::span<VkClearValue> clear_values, VkSubpassContents subpass_contents)
+void quetzal::vulkan::CommandBuffer::begin_rendering(const VkRenderingInfo& rendering_info)
 {
-    VkRenderPassBeginInfo begin_info = vk_render_pass_begin_info(render_pass, framebuffer, extent, clear_values);
-    vkCmdBeginRenderPass(m_handle, &begin_info, subpass_contents);
+    vkCmdBeginRendering(m_handle, &rendering_info);
     return;
 }
 
 //------------------------------------------------------------------------------
-void quetzal::vulkan::CommandBuffer::end_render_pass()
+void quetzal::vulkan::CommandBuffer::end_rendering()
 {
-    vkCmdEndRenderPass(m_handle);
+    vkCmdEndRendering(m_handle);
     return;
 }
 

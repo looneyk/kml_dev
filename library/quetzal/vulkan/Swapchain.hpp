@@ -37,6 +37,7 @@ namespace quetzal::vulkan
         VkFormat image_format() const;
         VkFormat depth_format() const;
 
+        const std::vector<VkImage>& images() const;
         const std::vector<ImageView>& image_views() const;
 
         std::tuple<VkResult, uint32_t> acquire_next_image(VkSemaphore semaphore, VkFence fence = VK_NULL_HANDLE);

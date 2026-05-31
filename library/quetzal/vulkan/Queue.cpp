@@ -68,6 +68,14 @@ void quetzal::vulkan::Queue::submit(std::span<VkSubmitInfo> submit_infos, VkFenc
 }
 
 //------------------------------------------------------------------------------
+void quetzal::vulkan::Queue::submit2(std::span<const VkSubmitInfo2> submit_infos, VkFence fence) const
+{
+    VkResult vk_result = vkQueueSubmit2(m_handle, to_uint32(submit_infos.size()), submit_infos.data(), fence);
+    check_result(vk_result, "vkQueueSubmit2");
+    return;
+}
+
+//------------------------------------------------------------------------------
 VkResult quetzal::vulkan::Queue::present(const VkPresentInfoKHR& present_info) const
 {
     if (!presentable())

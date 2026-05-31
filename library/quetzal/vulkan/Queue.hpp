@@ -33,6 +33,7 @@ namespace quetzal::vulkan
         bool presentable() const;
 
         void submit(std::span<VkSubmitInfo> submitInfo, VkFence fence) const;
+        void submit2(std::span<const VkSubmitInfo2> submit_infos, VkFence fence) const;
         // submit commandbuffer ...
         VkResult present(const VkPresentInfoKHR& present_info) const;
         void wait_idle() const;

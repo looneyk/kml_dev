@@ -3,6 +3,7 @@
 
 #include "PhysicalDevice.hpp"
 #include "VulkanError.hpp"
+#include "initializer.hpp"
 #include "vulkan_util.hpp"
 #include <vulkan/vulkan.hpp>
 #include <ranges>
@@ -35,10 +36,12 @@ namespace quetzal::vulkan
                 queue_cis.push_back(queue_ci);
             }
 
-            VkPhysicalDeviceFeatures deviceFeatures{};
-            deviceFeatures.samplerAnisotropy = VK_TRUE;
+            VkPhysicalDeviceDynamicRenderingFeatures dynamic_rendering_features = vk_physical_device_dynamic_rendering_features();
+            VkPhysicalDeviceSynchronization2Features synchronization2_features = vk_physical_device_synchronization2_features(VK_TRUE, &dynamic_rendering_features);
+            VkPhysicalDeviceFeatures2 features2 = vk_physical_device_features2(&synchronization2_features);
+            features2.features.samplerAnisotropy = VK_TRUE;
 
-            VkDeviceCreateInfo device_ci = vk_device_create_info(queue_cis, extensions, &deviceFeatures);
+            VkDeviceCreateInfo device_ci = vk_device_create_info(queue_cis, extensions, &features2);
             VkResult vk_result = vkCreateDevice(physical_device, &device_ci, nullptr, &m_handle);
             check_result(vk_result, "vkCreateDevice");
         }
