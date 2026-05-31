@@ -7,7 +7,6 @@
 
 #include "Window.hpp"
 #include "quetzal/common/Timer.hpp"
-#include "quetzal/common/Timestamp.hpp"
 
 namespace quetzal::game
 {
@@ -48,13 +47,12 @@ namespace quetzal::game
         virtual void on_mouse_scroll(GLFWwindow* pwindow, double xoffset, double yoffset);
 
         Window& m_window;
-        bool m_bSuspended;
-        bool m_bMinimized;
-        bool m_bSizing;
+        bool m_suspended;
+        bool m_sizing;
         Timer m_timer;
-        Timestamp m_tsMessage;
-        size_t m_nFrame;
-        float m_tStatisticsPrev;
+        size_t m_statistics_frame_count;
+        float m_statistics_interval;
+        float m_statistics_time_prev;
         float m_frame_rate;
 
     private:

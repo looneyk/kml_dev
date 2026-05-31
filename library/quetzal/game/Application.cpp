@@ -7,21 +7,19 @@
 #include "Window.hpp"
 #include <thread>
 #include <vector>
-#include <cassert>
 
 using namespace std;
 
 //------------------------------------------------------------------------------
 quetzal::game::Application::Application(Window& window) :
     m_window(window),
-    m_bSuspended(false),
-    m_bMinimized(false),
-    m_bSizing(false),
+    m_suspended(false),
+    m_sizing(false),
     m_timer(),
-    m_tsMessage(),
-    m_nFrame(0),
-    m_tStatisticsPrev(0.f),
-    m_frame_rate(0.f)
+    m_statistics_frame_count(0),
+    m_statistics_interval(1.0f),
+    m_statistics_time_prev(0.0f),
+    m_frame_rate(0.0f)
 {
 }
 
@@ -32,13 +30,14 @@ int quetzal::game::Application::run()
 
     while (!m_window.should_close())
     {
-        if (m_bSuspended) // Give other applications some extra execution time
+        m_window.poll();
+
+        if (m_suspended) // Give other applications some extra execution time
         {
             this_thread::sleep_for(10ms);
             continue;
         }
 
-        m_window.poll();
         update(static_cast<float>(m_timer.delta()));
         draw();
         m_timer.tick();
@@ -83,7 +82,7 @@ void quetzal::game::Application::set_window_event_interface()
 
     auto maximize_callback = [](GLFWwindow* pwindow, int maximized) -> void
         { static_cast<Application*>(glfwGetWindowUserPointer(pwindow))->on_maximize(pwindow, maximized); };
-    m_window.set_maximize_callback(iconify_callback);
+    m_window.set_maximize_callback(maximize_callback);
 
     auto framebuffer_size_callback = [](GLFWwindow* pwindow, int width, int height) -> void
         { static_cast<Application*>(glfwGetWindowUserPointer(pwindow))->on_framebuffer_size(pwindow, width, height); };
@@ -91,7 +90,7 @@ void quetzal::game::Application::set_window_event_interface()
 
     auto refresh_callback = [](GLFWwindow* pwindow) -> void
         { static_cast<Application*>(glfwGetWindowUserPointer(pwindow))->on_refresh(pwindow); };
-    m_window.set_refresh_callback(close_callback);
+    m_window.set_refresh_callback(refresh_callback);
 
     // Input callbacks
 
@@ -190,16 +189,12 @@ void quetzal::game::Application::on_focus(GLFWwindow* pwindow, int focused)
 {
     pwindow;
 
-    if (focused)
+    if (focused && m_suspended)
     {
-        assert(m_bSuspended);
-        m_bSuspended = false;
         on_resume();
     }
-    else
+    else if (!focused && !m_suspended)
     {
-        assert(!m_bSuspended);
-        m_bSuspended = true;
         on_suspend();
     }
 
@@ -226,12 +221,14 @@ void quetzal::game::Application::on_size(GLFWwindow* pwindow, int width, int hei
 void quetzal::game::Application::on_iconify(GLFWwindow* pwindow, int iconified)
 {
     pwindow;
-    // make sure this is user, not program initiated, just check bSuspended state first? ...
-    if (iconified)
+
+    if (iconified && !m_suspended)
     {
-        assert(!m_bSuspended);
-        m_bSuspended = true;
         on_suspend();
+    }
+    else if (!iconified && m_suspended)
+    {
+        on_resume();
     }
 
     m_window.update_mode(iconified ? Window::Mode::Minimized : Window::Mode::Windowed); // maybe not Windowed, really need to track state before iconified ...
@@ -242,11 +239,9 @@ void quetzal::game::Application::on_iconify(GLFWwindow* pwindow, int iconified)
 void quetzal::game::Application::on_maximize(GLFWwindow* pwindow, int maximized)
 {
     pwindow;
-    // make sure this is user, not program initiated, just check bSuspended state first? ...
-    if (maximized && m_window.mode() == Window::Mode::Minimized)
+
+    if (maximized && m_suspended)
     {
-        assert(m_bSuspended);
-        m_bSuspended = false;
         on_resume();
     }
 
@@ -273,16 +268,17 @@ void quetzal::game::Application::on_refresh(GLFWwindow* pwindow)
 //------------------------------------------------------------------------------
 void quetzal::game::Application::on_frame()
 {
-    ++m_nFrame;
+    ++m_statistics_frame_count;
 
     // Compute statistics once per second
     // better yet, provide rolling statistics over the last second ...
-    if ((m_timer.total() - m_tStatisticsPrev) >= 1.0f)
+
+    if ((m_timer.total() - m_statistics_time_prev) >= m_statistics_interval)
     {
-        m_frame_rate = m_nFrame / 1.0f;
+        m_frame_rate = m_statistics_frame_count / m_statistics_interval;
         // Reset for next data point
-        m_nFrame = 0;
-        m_tStatisticsPrev += 1.0f;
+        m_statistics_frame_count = 0;
+        m_statistics_time_prev += m_statistics_interval;
     }
 
     on_frame_();
@@ -293,6 +289,7 @@ void quetzal::game::Application::on_frame()
 //------------------------------------------------------------------------------
 void quetzal::game::Application::on_suspend()
 {
+    m_suspended = true;
     on_suspend_();
     return;
 }
@@ -300,6 +297,7 @@ void quetzal::game::Application::on_suspend()
 //------------------------------------------------------------------------------
 void quetzal::game::Application::on_resume()
 {
+    m_suspended = false;
     on_resume_();
     return;
 }
