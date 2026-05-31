@@ -87,6 +87,13 @@ VkFenceCreateInfo quetzal::vulkan::vk_fence_create_info(VkFenceCreateFlagBits fl
 }
 
 //------------------------------------------------------------------------------
+VkFenceCreateInfo quetzal::vulkan::vk_fence_create_info_v2(bool timeline, uint64_t initial_value)
+{
+    VkFenceCreateInfo ci{VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
+    return ci;
+}
+
+//------------------------------------------------------------------------------
 VkFramebufferCreateInfo quetzal::vulkan::vk_framebuffer_create_info(VkExtent2D extent, std::span<VkImageView> attachments, VkRenderPass render_pass)
 {
     VkFramebufferCreateInfo ci{VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO};
@@ -318,6 +325,15 @@ VkSemaphoreCreateInfo quetzal::vulkan::vk_semaphore_create_info()
 }
 
 //------------------------------------------------------------------------------
+VkSemaphoreTypeCreateInfo quetzal::vulkan::vk_semaphore_type_create_info(VkSemaphoreType semaphore_type, uint64_t initial_value)
+{
+    VkSemaphoreTypeCreateInfo ci{VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO};
+    ci.semaphoreType = semaphore_type;
+    ci.initialValue = initial_value;
+    return ci;
+}
+
+//------------------------------------------------------------------------------
 VkShaderModuleCreateInfo quetzal::vulkan::vk_shader_module_create_info(std::span<const char> code)
 {
     VkShaderModuleCreateInfo ci{VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};
@@ -394,6 +410,22 @@ VkDescriptorSetLayoutBinding quetzal::vulkan::vk_descriptor_set_layout_binding(u
 }
 
 //------------------------------------------------------------------------------
+VkPhysicalDeviceDynamicRenderingFeatures quetzal::vulkan::vk_physical_device_dynamic_rendering_features(bool dynamic_rendering)
+{
+    VkPhysicalDeviceDynamicRenderingFeatures features{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES};
+    features.dynamicRendering = dynamic_rendering;
+    return features;
+}
+
+//------------------------------------------------------------------------------
+VkPhysicalDeviceSynchronization2Features quetzal::vulkan::vk_physical_device_synchronization2_features(bool synchronization2)
+{
+    VkPhysicalDeviceSynchronization2Features features{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SYNCHRONIZATION_2_FEATURES};
+    features.synchronization2 = synchronization2;
+    return features;
+}
+
+//------------------------------------------------------------------------------
 VkPipelineColorBlendAttachmentState quetzal::vulkan::vk_pipeline_color_blend_attachment_state(VkColorComponentFlags color_write_mask, bool blend_enable)
 {
     VkPipelineColorBlendAttachmentState state{};
@@ -446,6 +478,59 @@ VkRenderPassBeginInfo quetzal::vulkan::vk_render_pass_begin_info(VkRenderPass re
 }
 
 //------------------------------------------------------------------------------
+VkRenderingAttachmentInfo quetzal::vulkan::vk_rendering_attachment_info_color(VkImageView image_view, VkImageLayout image_layout, VkResolveModeFlagBits resolve_mode, VkImageView resolve_image_view, VkImageLayout resolve_image_layout, const VkClearValue& clear_value)
+{
+    VkRenderingAttachmentInfo info{VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO};
+    info.imageView = image_view;
+    info.imageLayout = image_layout;
+    info.resolveMode = resolve_mode;
+    info.resolveImageView = resolve_image_view;
+    info.resolveImageLayout = resolve_image_layout;
+    info.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    info.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    info.clearValue = clear_value;
+    return info;
+}
+
+//------------------------------------------------------------------------------
+VkRenderingAttachmentInfo quetzal::vulkan::vk_rendering_attachment_info_depth(VkImageView image_view, VkImageLayout image_layout, VkResolveModeFlagBits resolve_mode, VkImageView resolve_image_view, VkImageLayout resolve_image_layout, const VkClearValue& clear_value)
+{
+    VkRenderingAttachmentInfo info{VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO};
+    info.imageView = image_view;
+    info.imageLayout = image_layout;
+    info.resolveMode = resolve_mode;
+    info.resolveImageView = resolve_image_view;
+    info.resolveImageLayout = resolve_image_layout;
+    info.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    info.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    info.clearValue = clear_value;
+    return info;
+}
+
+//------------------------------------------------------------------------------
+VkRenderingAttachmentInfo quetzal::vulkan::vk_rendering_attachment_info_stencil(VkImageView image_view, VkImageLayout image_layout, VkResolveModeFlagBits resolve_mode, VkImageView resolve_image_view, VkImageLayout resolve_image_layout, const VkClearValue& clear_value)
+{
+    VkRenderingAttachmentInfo info = vk_rendering_attachment_info_depth(image_view, image_layout, resolve_mode, resolve_image_view, resolve_image_layout, clear_value);
+    info.imageLayout = image_layout;
+    info.resolveMode = resolve_mode;
+    return info;
+}
+
+//------------------------------------------------------------------------------
+VkRenderingInfo quetzal::vulkan::vk_rendering_info(VkRect2D render_area, uint32_t layer_count, uint32_t view_mask, std::span<const VkRenderingAttachmentInfo> color_attachments, std::optional<std::reference_wrapper<const VkRenderingAttachmentInfo>> depth_attachment, std::optional<std::reference_wrapper<const VkRenderingAttachmentInfo>> stencil_attachment)
+{
+    VkRenderingInfo info{VK_STRUCTURE_TYPE_RENDERING_INFO};
+    info.renderArea = render_area;
+    info.layerCount = layer_count;
+    info.viewMask = view_mask;
+    info.colorAttachmentCount = to_uint32(color_attachments.size());
+    info.pColorAttachments = color_attachments.data();
+    info.pDepthAttachment = depth_attachment ? &depth_attachment->get() : nullptr;
+    info.pStencilAttachment = stencil_attachment ? &stencil_attachment->get() : nullptr;
+    return info;
+}
+
+//------------------------------------------------------------------------------
 VkStencilOpState quetzal::vulkan::vk_stencil_op_state(VkCompareOp compare_op)
 {
     VkStencilOpState state{};
@@ -457,6 +542,16 @@ VkStencilOpState quetzal::vulkan::vk_stencil_op_state(VkCompareOp compare_op)
     //state.writeMask
     //state.reference
     return state;
+}
+
+//------------------------------------------------------------------------------
+VkSemaphoreSubmitInfo quetzal::vulkan::vk_semaphore_submit_info(VkSemaphore semaphore, VkPipelineStageFlags2 stage_mask, uint64_t value)
+{
+    VkSemaphoreSubmitInfo info{VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO};
+    info.semaphore = semaphore;
+    info.stageMask = stage_mask;
+    info.value = value;
+    return info;
 }
 
 //------------------------------------------------------------------------------
@@ -486,6 +581,28 @@ VkSubmitInfo quetzal::vulkan::vk_submit_info(std::span<const VkCommandBuffer> co
     info.pCommandBuffers = command_buffers.data();
     //info.signalSemaphoreCount = ;
     //info.pSignalSemaphores = ;
+    return info;
+}
+
+//------------------------------------------------------------------------------
+VkCommandBufferSubmitInfo quetzal::vulkan::vk_command_buffer_submit_info(VkCommandBuffer command_buffer, uint32_t device_mask)
+{
+    VkCommandBufferSubmitInfo info{VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO};
+    info.commandBuffer = command_buffer;
+    info.deviceMask = device_mask;
+    return info;
+}
+
+//------------------------------------------------------------------------------
+VkSubmitInfo2 quetzal::vulkan::vk_submit_info2(std::span<const VkSemaphoreSubmitInfo> wait_semaphores, std::span<const VkCommandBufferSubmitInfo> command_buffers, std::span<const VkSemaphoreSubmitInfo> signal_semaphores)
+{
+    VkSubmitInfo2 info{VK_STRUCTURE_TYPE_SUBMIT_INFO_2};
+    info.waitSemaphoreInfoCount = to_uint32(wait_semaphores.size());
+    info.pWaitSemaphoreInfos = wait_semaphores.data();
+    info.commandBufferInfoCount = to_uint32(command_buffers.size());
+    info.pCommandBufferInfos = command_buffers.data();
+    info.signalSemaphoreInfoCount = to_uint32(signal_semaphores.size());
+    info.pSignalSemaphoreInfos = signal_semaphores.data();
     return info;
 }
 
