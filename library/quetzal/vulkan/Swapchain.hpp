@@ -31,7 +31,6 @@ namespace quetzal::vulkan
 
         void create(VkExtent2D extent, uint32_t image_count);
         void destroy();
-        void recreate();
 
         VkExtent2D extent() const;
         VkFormat image_format() const;

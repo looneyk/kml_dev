@@ -283,22 +283,6 @@ void quetzal::vulkan::Swapchain::destroy()
 }
 
 //------------------------------------------------------------------------------
-void quetzal::vulkan::Swapchain::recreate()
-{
-    VkExtent2D extent{};
-    do
-    {
-        extent = m_window.extent();
-        m_window.wait_events();
-    } while (extent.width == 0 || extent.height == 0);
-
-    m_device.wait_idle();
-
-    destroy();
-    create(extent, m_image_count);
-}
-
-//------------------------------------------------------------------------------
 VkExtent2D quetzal::vulkan::Swapchain::extent() const
 {
     return m_extent;

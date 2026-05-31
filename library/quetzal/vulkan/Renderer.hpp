@@ -95,7 +95,7 @@ namespace quetzal::vulkan
             m_uniform_buffers(m_device, m_swap_frame_count),
             m_command_buffers(m_device, m_command_pool),
             m_image_available_semaphores(),
-            m_render_finished_semaphores(),
+            m_rendering_finished_semaphores(),
             m_in_flight_fences(),
             m_current_frame(0),
             m_framebuffer_resized(false),
@@ -110,8 +110,7 @@ namespace quetzal::vulkan
         {
             m_msaa_samples = m_device.physical_device().max_sample_count(); // clamped config? ...
 
-            m_swapchain.create(m_device.window().extent(), to_uint32(m_swap_frame_count)); // no provision for handling change to m_swap_frame_count ...
-            m_framebuffers.create(m_swapchain.extent(), m_swapchain.image_format(), m_swapchain.depth_format(), m_msaa_samples);
+            create_surface_resources();
 
             m_command_pool.create(m_device.queues().get(VK_QUEUE_GRAPHICS_BIT, 0).family_index());
             m_command_buffers.create(m_swap_frame_count);
@@ -122,7 +121,7 @@ namespace quetzal::vulkan
         {
             m_device.wait_idle();
 
-            cleanup_swapchain();
+            destroy_surface_resources();
 
             m_descriptor_layout_cache.clear();
             m_descriptor_allocator.clear();
@@ -131,7 +130,6 @@ namespace quetzal::vulkan
             m_model_cache.clear();
 
             m_in_flight_fences.clear();
-            m_render_finished_semaphores.clear();
             m_image_available_semaphores.clear();
 
             m_command_pool.destroy();
@@ -204,7 +202,7 @@ namespace quetzal::vulkan
             auto [result, image_index] = m_swapchain.acquire_next_image(m_image_available_semaphores[m_current_frame]);
             if (result == VK_ERROR_OUT_OF_DATE_KHR)
             {
-                recreate_swapchain();
+                recreate_surface_resources();
                 return;
             }
             else if (result != VK_SUBOPTIMAL_KHR)
@@ -221,21 +219,21 @@ namespace quetzal::vulkan
 
             VkSemaphoreSubmitInfo wait_semaphore = vk_semaphore_submit_info(m_image_available_semaphores[m_current_frame], VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT);
             VkCommandBufferSubmitInfo cmd_submit = vk_command_buffer_submit_info(command_buffer);
-            VkSemaphoreSubmitInfo signal_semaphore = vk_semaphore_submit_info(m_render_finished_semaphores[m_current_frame], VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT);
+            VkSemaphoreSubmitInfo signal_semaphore = vk_semaphore_submit_info(m_rendering_finished_semaphores[image_index], VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT);
             VkSubmitInfo2 submit_info2 = vk_submit_info2({&wait_semaphore, 1}, {&cmd_submit, 1}, {&signal_semaphore, 1});
 
             const Queue& graphics_queue = m_device.queues().get(VK_QUEUE_GRAPHICS_BIT, 0);
             graphics_queue.submit2({&submit_info2, 1}, m_in_flight_fences[m_current_frame]);
 
             std::array<const VkSwapchainKHR, 1> swapchains = {m_swapchain};
-            VkSemaphore render_finished = m_render_finished_semaphores[m_current_frame];
-            VkPresentInfoKHR present_info = vk_present_info({&render_finished, 1}, swapchains, {&image_index, 1});
+            VkSemaphore rendering_finished = m_rendering_finished_semaphores[image_index];
+            VkPresentInfoKHR present_info = vk_present_info({&rendering_finished, 1}, swapchains, {&image_index, 1});
             const Queue& present_queue = m_device.queues().get_presentable_queue(0);
             result = present_queue.present(present_info);
             if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || m_framebuffer_resized)
             {
                 m_framebuffer_resized = false;
-                recreate_swapchain();
+                recreate_surface_resources();
             }
             else
             {
@@ -263,26 +261,33 @@ namespace quetzal::vulkan
             return n > 0 ? n : n_default;
         }
 
-        void cleanup_swapchain()
+        void create_surface_resources()
         {
+            m_swapchain.create(m_device.window().extent(), to_uint32(m_swap_frame_count));
+            m_framebuffers.create(m_swapchain.extent(), m_swapchain.image_format(), m_swapchain.depth_format(), m_msaa_samples);
+            create_rendering_finished_semaphores();
+        }
+
+        void destroy_surface_resources()
+        {
+            m_rendering_finished_semaphores.clear();
             m_framebuffers.destroy();
             m_swapchain.destroy();
         }
 
-        void recreate_swapchain()
+        void recreate_surface_resources()
         {
-            VkExtent2D extent{};
-            do
+            VkExtent2D extent = m_device.window().extent();
+            while (extent.width == 0 || extent.height == 0)
             {
-                extent = m_device.window().extent();
                 m_device.window().wait_events();
-            } while (extent.width == 0 || extent.height == 0);
+                extent = m_device.window().extent();
+            }
 
             m_device.wait_idle();
-            cleanup_swapchain();
 
-            m_swapchain.create(extent, to_uint32(m_swap_frame_count));
-            m_framebuffers.create(m_swapchain.extent(), m_swapchain.image_format(), m_swapchain.depth_format(), m_msaa_samples);
+            destroy_surface_resources();
+            create_surface_resources();
         }
 
         std::vector<std::tuple<VkDescriptorSet, VkDescriptorSetLayout>> descriptor_sets(std::span<const Buffer> uniform_buffers, const Texture& texture)
@@ -398,8 +403,15 @@ namespace quetzal::vulkan
             for (size_t i = 0; i < m_swap_frame_count; ++i)
             {
                 m_image_available_semaphores.emplace_back(m_device);
-                m_render_finished_semaphores.emplace_back(m_device);
                 m_in_flight_fences.emplace_back(m_device);
+            }
+        }
+
+        void create_rendering_finished_semaphores()
+        {
+            for (size_t i = 0; i < m_swapchain.images().size(); ++i)
+            {
+                m_rendering_finished_semaphores.emplace_back(m_device);
             }
         }
 
@@ -445,7 +457,7 @@ namespace quetzal::vulkan
         CommandBuffers m_command_buffers;
 
         std::vector<Semaphore> m_image_available_semaphores;
-        std::vector<Semaphore> m_render_finished_semaphores;
+        std::vector<Semaphore> m_rendering_finished_semaphores;
         std::vector<Fence> m_in_flight_fences;
         uint32_t m_current_frame = 0;
 
