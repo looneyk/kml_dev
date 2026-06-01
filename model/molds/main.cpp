@@ -10,6 +10,7 @@
 #include "quetzal/common/FileValidator.hpp"
 #include "quetzal/geometry/Polygon.hpp"
 #include "quetzal/math/HomogeneousTraits.hpp"
+#include "quetzal/math/math_util.hpp"
 #include "quetzal/model/obj_io.hpp"
 #include "quetzal/model/primitives.hpp"
 #include <filesystem>
@@ -28,6 +29,8 @@ namespace
     using value_type = double;
     using vector_traits = math::HomogeneousTraits<value_type, 3>;
     using mesh_type = brep::Mesh<brep::MeshTraits<vector_traits>>;
+    using point_type = mesh_type::point_type;
+    using vector_type = point_type::vector_type;
 
     static const filesystem::path dir_out = "out/";
     static const filesystem::path dir_ref = "reference/";
@@ -131,12 +134,6 @@ namespace
     }
 */
     //--------------------------------------------------------------------------
-    double radians(double angle)
-    {
-        return math::Pi<double> * angle / 180.0;
-    }
-
-    //--------------------------------------------------------------------------
     double joint_radius(double alpha, double thickness)
     {
         return thickness / (1.0 + tan(alpha / 2.0));
@@ -191,7 +188,7 @@ namespace
 
         std::string pyramid_name = name + "_pyramid";
         id_type pyramid_submesh_id = model::create_cylinder_edges(mesh, pyramid_name, pyramid.m_base_edge_count, 1, scale * pyramid.m_base_radius, 0.0, z1, z1 - pyramid_height_scaled);
-        // Rename pyramid body surfaces so they don't interfere with outer surfaces
+        // Rename pyramid body surfaces so they're distinct from outer surfaces
         mesh.submesh(pyramid_submesh_id).rename_surfaces(
             [&pyramid](const std::string& name)
             {
@@ -209,28 +206,31 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    id_type create_angle_mold(mesh_type& mesh, const std::string& name, double theta, double width, double length)
+    id_type create_angle_mold(mesh_type& mesh, const std::string& name, double theta, double width, double height)
     {
         double theta2 = math::PiHalf<double> - theta / 2.0;
         double x0 = 0.0;
         double x1 = width * cos(theta2);
         double x2 = x1 + 5.0;
-        double y0 = length / 2.0;
-        double z0 = 5.0;
-        double z1 = z0 + width * sin(theta2);
+        double y0 = 7.5;
+        double y1 = y0 + width * sin(theta2);
 
         geometry::Polygon<vector_traits> polygon
         {
-            {x0, y0, z0},
-            {-x1, y0, z1},
-            {-x2, y0, z1},
-            {-x2, y0, 0.0},
-            {x2, y0, 0.0},
-            {x2, y0, z1},
-            {x1, y0, z1},
+            {x0, y0, 0.0},
+            {-x1, y1, 0.0},
+            {-x2, y1, 0.0},
+            {-x2, 0.0, 0.0},
+            {x2, 0.0, 0.0},
+            {x2, y1, 0.0},
+            {x1, y1, 0.0},
         };
 
-        return model::create_extrusion(mesh, name, polygon, {0.0, length, 0.0});
+        vector_type va = {polygon.vertex(6) - polygon.vertex(0)};
+        vector_type vb = {polygon.vertex(1) - polygon.vertex(0)};
+        assert(math::float_eq(angle_between(va, vb), theta));
+
+        return model::create_extrusion(mesh, name, polygon, {0.0, 0.0, height});
     }
 
 } // namespace
@@ -311,7 +311,7 @@ int main(int argc, char* argv[])
 
     for (const auto [name, angle] : polygon_angles)
     {
-        auto theta = radians(angle);
+        auto theta = math::degrees_to_radians(angle);
         auto radius = joint_radius(theta, 3.0);
         cout << "joint radius" << "\t" << name << "\t" << angle << "\t" << theta << "\t" << radius << "\t" << (2.0 * radius) << endl;
     }
@@ -323,8 +323,8 @@ int main(int argc, char* argv[])
         string name = std::format("{}_mold", polygon_name);
         cout << name << endl;
         mesh.clear();
-        auto theta = radians(angle);
-        id_type submesh_id = create_angle_mold(mesh, name, theta, 80.0, 40.0);
+        auto theta = math::degrees_to_radians(angle);
+        id_type submesh_id = create_angle_mold(mesh, name, theta, 80.0, 30.0);
         auto& submesh = mesh.submesh(submesh_id);
         triangulate(submesh);
         model::write_submesh_obj(submesh, to_filename(name));

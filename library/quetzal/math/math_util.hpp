@@ -84,6 +84,12 @@ namespace quetzal::math
     template<typename X, typename T>
     X lerp(const X& x0, const X& x1, T t);
 
+    template<typename T>
+    T turns_to_radians(T angle);
+
+    template<typename T>
+    T degrees_to_radians(T angle);
+
     // |arc| == 2 * Pi
     template<typename T>
     bool full_circle(T arc);
@@ -275,6 +281,20 @@ template<typename X, typename T>
 X quetzal::math::lerp(const X& x0, const X& x1, T t)
 {
     return (T(1) - t) * x0 + t * x1;
+}
+
+//------------------------------------------------------------------------------
+template<typename T>
+T quetzal::math::turns_to_radians(T turns)
+{
+    return turns * PiTwo<T>;
+}
+
+//------------------------------------------------------------------------------
+template<typename T>
+T quetzal::math::degrees_to_radians(T angle)
+{
+    return angle * Pi<T> / 180.0;
 }
 
 //------------------------------------------------------------------------------
