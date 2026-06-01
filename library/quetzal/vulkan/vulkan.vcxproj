@@ -51,7 +51,6 @@
     <ClInclude Include="DescriptorSets.hpp" />
     <ClInclude Include="Device.hpp" />
     <ClInclude Include="Framebuffer.hpp" />
-    <ClInclude Include="Framebuffers.hpp" />
     <ClInclude Include="GraphicsPipeline.hpp" />
     <ClInclude Include="GraphicsPipelineCreateInfo.hpp" />
     <ClInclude Include="GraphicsPipelines.hpp" />
@@ -71,6 +70,7 @@
     <ClInclude Include="Queue.hpp" />
     <ClInclude Include="Queues.hpp" />
     <ClInclude Include="Renderer.hpp" />
+    <ClInclude Include="RenderingAttachments.hpp" />
     <ClInclude Include="RenderPass.hpp" />
     <ClInclude Include="ResourceCache.hpp" />
     <ClInclude Include="ResourceManager.hpp" />

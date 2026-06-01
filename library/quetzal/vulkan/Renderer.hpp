@@ -8,7 +8,6 @@
 #include "Descriptors.hpp"
 #include "Device.hpp"
 #include "Fence.hpp"
-#include "Framebuffers.hpp"
 #include "GraphicsPipeline.hpp"
 #include "GraphicsPipelineCreateInfo.hpp"
 #include "Model.hpp"
@@ -17,6 +16,7 @@
 #include "PhysicalDevice.hpp"
 #include "PipelineLayout.hpp"
 #include "PipelineManager.hpp"
+#include "RenderingAttachments.hpp"
 #include "ResourceManager.hpp"
 #include "Semaphore.hpp"
 #include "Surface.hpp"
@@ -84,7 +84,7 @@ namespace quetzal::vulkan
             m_pipeline_manager(m_device, "."),
             m_swap_frame_count(swap_frame_count_(config, 2)),
             m_swapchain(m_device, window),
-            m_framebuffers(m_device),
+            m_rendering_attachments(m_device),
             m_descriptor_allocator(m_device),
             m_descriptor_layout_cache(m_device),
             m_descriptor_set_layouts(),
@@ -264,14 +264,14 @@ namespace quetzal::vulkan
         void create_surface_resources()
         {
             m_swapchain.create(m_device.window().extent(), to_uint32(m_swap_frame_count));
-            m_framebuffers.create(m_swapchain.extent(), m_swapchain.image_format(), m_swapchain.depth_format(), m_msaa_samples);
+            m_rendering_attachments.create(m_swapchain.extent(), m_swapchain.image_format(), m_swapchain.depth_format(), m_msaa_samples);
             create_rendering_finished_semaphores();
         }
 
         void destroy_surface_resources()
         {
             m_rendering_finished_semaphores.clear();
-            m_framebuffers.destroy();
+            m_rendering_attachments.destroy();
             m_swapchain.destroy();
         }
 
@@ -330,11 +330,11 @@ namespace quetzal::vulkan
                     VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
                     VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, 0,
                     VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT),
-                vk_image_memory_barrier2(m_framebuffers.color_image(),
+                vk_image_memory_barrier2(m_rendering_attachments.color_image(),
                     VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
                     VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, 0,
                     VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT),
-                vk_image_memory_barrier2(m_framebuffers.depth_image(),
+                vk_image_memory_barrier2(m_rendering_attachments.depth_image(),
                     VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
                     VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, 0,
                     VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT, VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
@@ -344,13 +344,13 @@ namespace quetzal::vulkan
             vkCmdPipelineBarrier2(command_buffer, &pre_dep);
 
             VkRenderingAttachmentInfo color_attachment = vk_rendering_attachment_info_color(
-                m_framebuffers.color_image_view(), VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                m_rendering_attachments.color_image_view(), VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
                 VK_RESOLVE_MODE_AVERAGE_BIT,
                 m_swapchain.image_views()[image_index], VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
                 color_clear);
 
             VkRenderingAttachmentInfo depth_attachment = vk_rendering_attachment_info_depth(
-                m_framebuffers.depth_image_view(), VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+                m_rendering_attachments.depth_image_view(), VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
                 VK_RESOLVE_MODE_NONE, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_UNDEFINED,
                 depth_clear);
 
@@ -437,7 +437,7 @@ namespace quetzal::vulkan
         VkSampleCountFlagBits m_msaa_samples;
 
         Swapchain m_swapchain;
-        Framebuffers m_framebuffers;
+        RenderingAttachments m_rendering_attachments;
 
         DescriptorAllocator m_descriptor_allocator;
         DescriptorLayoutCache m_descriptor_layout_cache;

@@ -1,5 +1,5 @@
-#if !defined(QUETZAL_VULKAN_FRAMEBUFFERS_HPP)
-#define QUETZAL_VULKAN_FRAMEBUFFERS_HPP
+#if !defined(QUETZAL_VULKAN_RENDERING_ATTACHMENTS_HPP)
+#define QUETZAL_VULKAN_RENDERING_ATTACHMENTS_HPP
 
 #include "Device.hpp"
 #include "Image.hpp"
@@ -10,11 +10,11 @@
 namespace quetzal::vulkan
 {
 
-    class Framebuffers
+    class RenderingAttachments
     {
     public:
 
-        Framebuffers(const Device& device) :
+        RenderingAttachments(const Device& device) :
             m_device(device),
             m_colorImage(m_device),
             m_colorImageView(m_device),
@@ -57,4 +57,4 @@ namespace quetzal::vulkan
 
 } // namespace quetzal::vulkan
 
-#endif // QUETZAL_VULKAN_FRAMEBUFFERS_HPP
+#endif // QUETZAL_VULKAN_RENDERING_ATTACHMENTS_HPP
