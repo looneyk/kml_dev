@@ -50,7 +50,7 @@
     <ClInclude Include="DescriptorSetLayout.hpp" />
     <ClInclude Include="DescriptorSets.hpp" />
     <ClInclude Include="Device.hpp" />
-    <ClInclude Include="Framebuffer.hpp" />
+    <ClInclude Include="Fence.hpp" />
     <ClInclude Include="GraphicsPipeline.hpp" />
     <ClInclude Include="GraphicsPipelineCreateInfo.hpp" />
     <ClInclude Include="GraphicsPipelines.hpp" />
@@ -71,10 +71,10 @@
     <ClInclude Include="Queues.hpp" />
     <ClInclude Include="Renderer.hpp" />
     <ClInclude Include="RenderingAttachments.hpp" />
-    <ClInclude Include="RenderPass.hpp" />
     <ClInclude Include="ResourceCache.hpp" />
     <ClInclude Include="ResourceManager.hpp" />
     <ClInclude Include="Sampler.hpp" />
+    <ClInclude Include="Semaphore.hpp" />
     <ClInclude Include="ShaderModule.hpp" />
     <ClInclude Include="SingleSubmitCommands.hpp" />
     <ClInclude Include="StagingBuffer.hpp" />
@@ -82,6 +82,8 @@
     <ClInclude Include="Swapchain.hpp" />
     <ClInclude Include="Texture.hpp" />
     <ClInclude Include="TextureCache.hpp" />
+    <ClInclude Include="TimelineFence.hpp" />
+    <ClInclude Include="TimelineSemaphore.hpp" />
     <ClInclude Include="UniformBuffers.hpp" />
     <ClInclude Include="Vertex.hpp" />
     <ClInclude Include="VulkanError.hpp" />
