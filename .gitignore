@@ -21,6 +21,8 @@
 !/library/quetzal/model/**
 !/library/quetzal/pdf/
 !/library/quetzal/pdf/**
+!/library/quetzal/scene_graph/
+!/library/quetzal/scene_graph/**
 !/library/quetzal/svg/
 !/library/quetzal/svg/**
 !/library/quetzal/triangulation/

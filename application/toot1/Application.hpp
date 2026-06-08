@@ -10,6 +10,7 @@
 #include "quetzal/game/Camera.hpp"
 #include "quetzal/vulkan/Renderer.hpp"
 #include "quetzal/vulkan/Window.hpp"
+#include "quetzal/scene_graph/Scene.hpp"
 
 namespace quetzal::toot1
 {
@@ -43,6 +44,7 @@ namespace quetzal::toot1
 
         vulkan::Window m_window;
         vulkan::Renderer m_renderer;
+        scene_graph::Scene m_scene;
         game::Camera m_camera;
 
         float m_speed;

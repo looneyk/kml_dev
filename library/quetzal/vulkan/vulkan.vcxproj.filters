@@ -66,6 +66,15 @@
     <ClInclude Include="GraphicsPipelineCreateInfo.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="handles.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Geometry.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GeometryCache.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="GraphicsPipelines.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -84,13 +93,10 @@
     <ClInclude Include="LogicalDevice.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Model.hpp">
+    <ClInclude Include="Material.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="ModelCache.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Node.hpp">
+    <ClInclude Include="MaterialCache.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="PhysicalDevice.hpp">
@@ -194,9 +200,6 @@
     <ClCompile Include="initializer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Model.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="PipelineLayout.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -210,9 +213,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Swapchain.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Texture.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Vertex.cpp">

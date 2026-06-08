@@ -1,12 +1,12 @@
 #if !defined(QUETZAL_VULKAN_VERTEX_HPP)
 #define QUETZAL_VULKAN_VERTEX_HPP
 
+#include "IRenderer.hpp"
 #include "quetzal/game/types.hpp"
 #pragma warning(push)
 #pragma warning(disable: 4201)
 #include <glm/gtx/hash.hpp>
 #pragma warning(pop)
-#include <tiny_obj_loader.h>
 #include <vulkan/vulkan.hpp>
 #include <vector>
 
@@ -30,7 +30,7 @@ namespace quetzal::vulkan
 
         using binding_description_type = VkVertexInputBindingDescription;
         using attribute_descriptions_type = std::vector<VkVertexInputAttributeDescription>;
-
+/*
         VertexPositionColorTexcoord(const tinyobj::attrib_t& attrib, const tinyobj::index_t& index) :
             position{
             attrib.vertices[3 * index.vertex_index + 0],
@@ -44,7 +44,7 @@ namespace quetzal::vulkan
             }
         {
         }
-
+*/
         bool operator==(const VertexPositionColorTexcoord& other) const
         {
             return position == other.position && color == other.color && texcoord == other.texcoord;
@@ -74,7 +74,7 @@ namespace quetzal::vulkan
 
         using binding_description_type = VkVertexInputBindingDescription;
         using attribute_descriptions_type = std::vector<VkVertexInputAttributeDescription>;
-
+/*
         VertexPositionNormalTexcoord(const tinyobj::attrib_t& attrib, const tinyobj::index_t& index) :
             position{
                 attrib.vertices[3 * index.vertex_index + 0],
@@ -92,7 +92,7 @@ namespace quetzal::vulkan
             }
         {
         }
-
+*/
         bool operator==(const VertexPositionNormalTexcoord& other) const
         {
             return position == other.position && normal == other.normal && texcoord == other.texcoord;
@@ -113,6 +113,28 @@ namespace quetzal::vulkan
         static binding_description_type m_binding_description;
         static attribute_descriptions_type m_attribute_descriptions;
     };
+
+    template<>
+    inline VertexBinding vertex_binding<VertexPositionColorTexcoord>()
+    {
+        const auto& bd = VertexPositionColorTexcoord::binding_description();
+        const auto ads = VertexPositionColorTexcoord::attribute_descriptions();
+        VertexBinding layout{bd.binding, bd.stride, {}};
+        for (const auto& ad : ads)
+            layout.attributes.push_back({ad.location, static_cast<uint32_t>(ad.format), ad.offset});
+        return layout;
+    }
+
+    template<>
+    inline VertexBinding vertex_binding<VertexPositionNormalTexcoord>()
+    {
+        const auto& bd = VertexPositionNormalTexcoord::binding_description();
+        const auto ads = VertexPositionNormalTexcoord::attribute_descriptions();
+        VertexBinding layout{bd.binding, bd.stride, {}};
+        for (const auto& ad : ads)
+            layout.attributes.push_back({ad.location, static_cast<uint32_t>(ad.format), ad.offset});
+        return layout;
+    }
 
 } // namespace quetzal::vulkan
 

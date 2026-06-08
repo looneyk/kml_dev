@@ -2,6 +2,7 @@
 #define QUETZAL_VULKAN_PIPELINEMANAGER_HPP
 
 #include "Device.hpp"
+#include "GraphicsPipeline.hpp"
 #include "GraphicsPipelines.hpp"
 #include "PipelineCache.hpp"
 #include <vulkan/vulkan.hpp>

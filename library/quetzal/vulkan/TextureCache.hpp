@@ -5,7 +5,7 @@
 #include "Device.hpp"
 #include "Queue.hpp"
 #include "Texture.hpp"
-#include <filesystem>
+#include "handles.hpp"
 #include <unordered_map>
 #include <string>
 
@@ -16,9 +16,8 @@ namespace quetzal::vulkan
     {
     public:
 
-        TextureCache(const Device& device, const std::filesystem::path& rootpath, const CommandPool& command_pool, const Queue& queue) :
+        TextureCache(const Device& device, const CommandPool& command_pool, const Queue& queue) :
             m_device(device),
-            m_rootpath(rootpath),
             m_command_pool(command_pool),
             m_queue(queue),
             m_cache()
@@ -27,19 +26,17 @@ namespace quetzal::vulkan
 
         ~TextureCache() = default;
 
-        const Texture& load(const std::string& id, const std::filesystem::path& file)
+        TextureHandle upload(const std::string& id, const void* pixels, uint32_t width, uint32_t height)
         {
-            auto filepath = texture_filepath(m_rootpath, file);
-
             auto [i, b] = m_cache.try_emplace(id, m_device);
             if (b)
             {
-                i->second.create(filepath, m_command_pool, m_queue);
+                i->second.create(pixels, width, height, m_command_pool, m_queue);
             }
-            return i->second;
+            return TextureHandle{id};
         }
 
-        const Texture& get(const std::string& id)
+        const Texture& get(const std::string& id) const
         {
             auto i = m_cache.find(id);
             assert(i != m_cache.end());
@@ -59,13 +56,7 @@ namespace quetzal::vulkan
 
     private:
 
-        std::filesystem::path texture_filepath(const std::filesystem::path& rootpath, const std::filesystem::path& file)
-        {
-            return rootpath / "textures" / file;
-        }
-
         const Device& m_device;
-        std::filesystem::path m_rootpath;
         const CommandPool& m_command_pool;
         const Queue& m_queue;
         std::unordered_map<std::string, Texture> m_cache;

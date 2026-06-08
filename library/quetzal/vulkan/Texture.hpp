@@ -12,12 +12,6 @@
 #include "SingleSubmitCommands.hpp"
 #include "StagingBuffer.hpp"
 #include <vulkan/vulkan.hpp>
-#include <filesystem>
-
-#pragma warning(push)
-#pragma warning(disable: 4244)
-#include <stb_image.h>
-#pragma warning(pop)
 
 namespace quetzal::vulkan
 {
@@ -40,9 +34,22 @@ namespace quetzal::vulkan
 //            destroy();
         }
 
-        void create(const std::filesystem::path& filepath, const CommandPool& commandPool, const Queue& queue)
+        void create(const void* pixels, uint32_t width, uint32_t height, const CommandPool& commandPool, const Queue& queue)
         {
-            load(filepath, queue, commandPool);
+            VkDeviceSize imageSize = static_cast<VkDeviceSize>(width) * height * 4;
+            m_mipLevels = to_uint32(std::floor(std::log2(std::max(width, height)))) + 1;
+
+            StagingBuffer stagingBuffer(m_device, imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT);
+            stagingBuffer.copy(pixels, static_cast<size_t>(imageSize));
+
+            VkExtent2D extent{width, height};
+            m_textureImage.create(extent, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_SAMPLE_COUNT_1_BIT, m_mipLevels, VK_IMAGE_TILING_OPTIMAL, 0);
+
+            transitionImageLayout(m_textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, m_mipLevels, queue, commandPool);
+            copyBufferToImage(stagingBuffer, m_textureImage, width, height, queue, commandPool);
+
+            generateMipmaps(m_textureImage, VK_FORMAT_R8G8B8A8_SRGB, extent, m_mipLevels, queue, commandPool);
+
             m_textureImageView.create(m_textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT, m_mipLevels);
             m_textureSampler.create();
         }
@@ -84,38 +91,8 @@ namespace quetzal::vulkan
             return;
         }
 
-        void load(const std::filesystem::path& filepath, const Queue& queue, const CommandPool& commandPool)
-        {
-            int width, height, channels;
-            stbi_uc* pixels = stbi_load(filepath.string().c_str(), &width, &height, &channels, STBI_rgb_alpha);
-            VkDeviceSize imageSize = width * height * 4;
-            m_mipLevels = to_uint32(std::floor(std::log2(std::max(width, height)))) + 1;
-
-            if (!pixels)
-            {
-                throw std::runtime_error("Error stbi_load");
-            }
-
-            StagingBuffer stagingBuffer(m_device, imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT);
-
-            stagingBuffer.copy(pixels, static_cast<size_t>(imageSize));
-
-            stbi_image_free(pixels);
-
-            VkExtent2D extent{to_uint32(width), to_uint32(height)};
-            m_textureImage.create(extent, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_SAMPLE_COUNT_1_BIT, m_mipLevels, VK_IMAGE_TILING_OPTIMAL, 0);
-
-            transitionImageLayout(m_textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, m_mipLevels, queue, commandPool);
-            copyBufferToImage(stagingBuffer, m_textureImage, to_uint32(width), to_uint32(height), queue, commandPool);
-            //transitioned to VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL while generating mipmaps
-
-            generateMipmaps(m_textureImage, VK_FORMAT_R8G8B8A8_SRGB, extent, m_mipLevels, queue, commandPool);
-            return;
-        }
-
         void generateMipmaps(VkImage image, VkFormat imageFormat, VkExtent2D extent, uint32_t mipLevels, const Queue& queue, const CommandPool& commandPool)
         {
-            // Check if image format supports linear blitting
             VkFormatProperties formatProperties = m_device.physical_device().format_properties(imageFormat);
             if (!(formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT))
             {

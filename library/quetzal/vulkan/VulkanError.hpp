@@ -1,5 +1,5 @@
-#if !defined(QUETZAL_VULKAN_ERROR_HPP)
-#define QUETZAL_VULKAN_ERROR_HPP
+#if !defined(QUETZAL_VULKAN_VULKAN_ERROR_HPP)
+#define QUETZAL_VULKAN_VULKAN_ERROR_HPP
 
 #include <vulkan/vulkan.hpp>
 #include <format>
@@ -90,4 +90,4 @@ namespace quetzal::vulkan
 
 } // namespace quetzal::vulkan
 
-#endif // QUETZAL_VULKAN_ERROR_HPP
+#endif // QUETZAL_VULKAN_VULKAN_ERROR_HPP

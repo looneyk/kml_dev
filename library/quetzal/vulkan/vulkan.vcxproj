@@ -53,15 +53,17 @@
     <ClInclude Include="Fence.hpp" />
     <ClInclude Include="GraphicsPipeline.hpp" />
     <ClInclude Include="GraphicsPipelineCreateInfo.hpp" />
+    <ClInclude Include="handles.hpp" />
+    <ClInclude Include="Geometry.hpp" />
+    <ClInclude Include="GeometryCache.hpp" />
     <ClInclude Include="GraphicsPipelines.hpp" />
     <ClInclude Include="Image.hpp" />
     <ClInclude Include="ImageView.hpp" />
     <ClInclude Include="initializer.hpp" />
     <ClInclude Include="Instance.hpp" />
     <ClInclude Include="LogicalDevice.hpp" />
-    <ClInclude Include="Model.hpp" />
-    <ClInclude Include="ModelCache.hpp" />
-    <ClInclude Include="Node.hpp" />
+    <ClInclude Include="Material.hpp" />
+    <ClInclude Include="MaterialCache.hpp" />
     <ClInclude Include="PhysicalDevice.hpp" />
     <ClInclude Include="PhysicalDevices.hpp" />
     <ClInclude Include="PipelineCache.hpp" />
@@ -96,13 +98,11 @@
     <ClCompile Include="debug_callback.cpp" />
     <ClCompile Include="Descriptors.cpp" />
     <ClCompile Include="initializer.cpp" />
-    <ClCompile Include="Model.cpp" />
     <ClCompile Include="PipelineLayout.cpp" />
     <ClCompile Include="Queue.cpp" />
     <ClCompile Include="Queues.cpp" />
     <ClCompile Include="ResourceManager.cpp" />
     <ClCompile Include="Swapchain.cpp" />
-    <ClCompile Include="Texture.cpp" />
     <ClCompile Include="Vertex.cpp" />
     <ClCompile Include="Window.cpp" />
   </ItemGroup>
@@ -236,7 +236,7 @@
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
       <PreprocessorDefinitions>WIN32;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>../../;../../../library3;../../../library3/glfw/include;../../../library3/glm;$(VULKAN_SDK)/Include;../../../library3/stb;../../../library3/tinyobjloader;../../../library3/VulkanMemoryAllocator/include;../../../library3/KTX-Software/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../../;../../../library3;../../../library3/glfw/include;../../../library3/glm;$(VULKAN_SDK)/Include;../../../library3/VulkanMemoryAllocator/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
     </ClCompile>
     <Link>
@@ -252,7 +252,7 @@
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
       <PreprocessorDefinitions>WIN32;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>../../;../../../library3;../../../library3/glfw/include;../../../library3/glm;$(VULKAN_SDK)/Include;../../../library3/stb;../../../library3/tinyobjloader;../../../library3/VulkanMemoryAllocator/include;../../../library3/KTX-Software/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../../;../../../library3;../../../library3/glfw/include;../../../library3/glm;$(VULKAN_SDK)/Include;../../../library3/VulkanMemoryAllocator/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
     </ClCompile>
     <Link>
@@ -270,7 +270,7 @@
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
       <PreprocessorDefinitions>WIN32;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>../../;../../../library3;../../../library3/glfw/include;../../../library3/glm;$(VULKAN_SDK)/Include;../../../library3/stb;../../../library3/tinyobjloader;../../../library3/VulkanMemoryAllocator/include;../../../library3/KTX-Software/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../../;../../../library3;../../../library3/glfw/include;../../../library3/glm;$(VULKAN_SDK)/Include;../../../library3/VulkanMemoryAllocator/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
     </ClCompile>
     <Link>
@@ -290,7 +290,7 @@
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
       <PreprocessorDefinitions>WIN32;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>../../;../../../library3;../../../library3/glfw/include;../../../library3/glm;$(VULKAN_SDK)/Include;../../../library3/stb;../../../library3/tinyobjloader;../../../library3/VulkanMemoryAllocator/include;../../../library3/KTX-Software/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../../;../../../library3;../../../library3/glfw/include;../../../library3/glm;$(VULKAN_SDK)/Include;../../../library3/VulkanMemoryAllocator/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
     </ClCompile>
     <Link>
@@ -308,7 +308,7 @@
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
       <PreprocessorDefinitions>_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>../../;../../../library3;../../../library3/glfw/include;../../../library3/glm;$(VULKAN_SDK)/Include;../../../library3/stb;../../../library3/tinyobjloader;../../../library3/VulkanMemoryAllocator/include;../../../library3/KTX-Software/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../../;../../../library3;../../../library3/glfw/include;../../../library3/glm;$(VULKAN_SDK)/Include;../../../library3/VulkanMemoryAllocator/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
     </ClCompile>
     <Link>
@@ -324,7 +324,7 @@
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
       <PreprocessorDefinitions>_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>../../;../../../library3;../../../library3/glfw/include;../../../library3/glm;$(VULKAN_SDK)/Include;../../../library3/stb;../../../library3/tinyobjloader;../../../library3/VulkanMemoryAllocator/include;../../../library3/KTX-Software/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../../;../../../library3;../../../library3/glfw/include;../../../library3/glm;$(VULKAN_SDK)/Include;../../../library3/VulkanMemoryAllocator/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
     </ClCompile>
     <Link>
@@ -342,7 +342,7 @@
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
       <PreprocessorDefinitions>NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>../../;../../../library3;../../../library3/glfw/include;../../../library3/glm;$(VULKAN_SDK)/Include;../../../library3/stb;../../../library3/tinyobjloader;../../../library3/VulkanMemoryAllocator/include;../../../library3/KTX-Software/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../../;../../../library3;../../../library3/glfw/include;../../../library3/glm;$(VULKAN_SDK)/Include;../../../library3/VulkanMemoryAllocator/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
     </ClCompile>
     <Link>
@@ -362,7 +362,7 @@
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
       <PreprocessorDefinitions>NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>../../;../../../library3;../../../library3/glfw/include;../../../library3/glm;$(VULKAN_SDK)/Include;../../../library3/stb;../../../library3/tinyobjloader;../../../library3/VulkanMemoryAllocator/include;../../../library3/KTX-Software/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../../;../../../library3;../../../library3/glfw/include;../../../library3/glm;$(VULKAN_SDK)/Include;../../../library3/VulkanMemoryAllocator/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
     </ClCompile>
     <Link>
