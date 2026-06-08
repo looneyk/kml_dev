@@ -35,8 +35,10 @@
 !/library/quetzal/xml/**
 !/model/
 !/model/*/
+!/model/*/*
 /model/*/*/
-!/model/*/*/reference
+!/model/*/reference/
+!/model/*/reference/*
 !/test/
 !/test/**
 !/utility/

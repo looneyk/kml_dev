@@ -44,19 +44,19 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    geometry::Polygon<vector_traits> create_cross_section_circular(size_t nFlutes, size_t nt, float rInner, float rOuter)
+    geometry::Polygon<vector_traits> create_cross_section_circular(size_t n_flutes, size_t nt, float radius_inner, float radius_outer)
     {
-        assert(rOuter > rInner);
+        assert(radius_outer > radius_inner);
 
         size_t nPointsFlute = 2 * nt + 1;
-        geometry::Polygon<vector_traits> flute(nFlutes * nPointsFlute);
+        geometry::Polygon<vector_traits> flute(n_flutes * nPointsFlute);
 
-        float wBase = math::PiTwo<float> * rInner / nFlutes;
-        float rArc = (rOuter * rOuter - rInner * rInner) / (2.0f * rOuter);
+        float wBase = math::PiTwo<float> * radius_inner / n_flutes;
+        float rArc = (radius_outer * radius_outer - radius_inner * radius_inner) / (2.0f * radius_outer);
         float phi0 = -math::PiHalf<float>;
-        float phi1 = atan2(rArc, rInner);
-        phi1 += math::PiTwo<float> / (nFlutes * nFlutes);
-        point_type center = {rInner, rArc, 0.0f};
+        float phi1 = atan2(rArc, radius_inner);
+        phi1 += math::PiTwo<float> / (n_flutes * n_flutes);
+        point_type center = {radius_inner, rArc, 0.0f};
 
         for (size_t j = 0; j <= nt; ++j)
         {
@@ -77,13 +77,13 @@ namespace
             }
         }
 
-        geometry::Polygon<vector_traits> polygon(nFlutes * nPointsFlute);
+        geometry::Polygon<vector_traits> polygon(n_flutes * nPointsFlute);
         typename geometry::Polygon<vector_traits>::sections_type::value_type sections;
 
-        for (size_t i = 0; i < nFlutes; ++i)
+        for (size_t i = 0; i < n_flutes; ++i)
         {
             size_t n = i * nPointsFlute;
-            float phi = math::PiTwo<float> * i / nFlutes;
+            float phi = math::PiTwo<float> * i / n_flutes;
             auto matrix = geometry::rotation_z(phi);
 
             for (size_t j = 0; j < nPointsFlute; ++j)
@@ -100,22 +100,22 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    geometry::Polygon<vector_traits> create_cross_section_spiral(size_t nFlutes, size_t nt, float rInner, float rOuter, float arc)
+    geometry::Polygon<vector_traits> create_cross_section_spiral(size_t n_flutes, size_t nt, float radius_inner, float radius_outer, float arc)
     {
-        assert(rOuter > rInner);
+        assert(radius_outer > radius_inner);
         assert(arc > 0.0f);
 
         size_t nPointsFlute = 2 * nt + 1;
-        geometry::Polygon<vector_traits> polygon(nFlutes * nPointsFlute);
+        geometry::Polygon<vector_traits> polygon(n_flutes * nPointsFlute);
 
-        float dr = rOuter - rInner;
+        float dr = radius_outer - radius_inner;
         float a = dr / arc; // maybe pass in a directly instead of arc ...
-        float wBase = math::PiTwo<float> * rInner / nFlutes;
+        float wBase = math::PiTwo<float> * radius_inner / n_flutes;
 cout << dr << "\t" << a << "\t" << wBase << endl;
 
-        for (size_t i = 0; i < nFlutes; ++i)
+        for (size_t i = 0; i < n_flutes; ++i)
         {
-            float ti = float(i) / nFlutes;
+            float ti = float(i) / n_flutes;
             size_t ni = i * nPointsFlute;
 
             // looks like tangent is bad below, big surprize, but not too bad oddly enough ...
@@ -123,7 +123,7 @@ cout << dr << "\t" << a << "\t" << wBase << endl;
             for (size_t j = 0; j <= nt; ++j)
             {
                 float tj = float(j) / nt;
-                float r = rInner + a * tj;
+                float r = radius_inner + a * tj;
 r /= 2.0f;
                 float t = ti + tj;
 //                float phi = math::PiTwo<float> * t;
@@ -306,24 +306,37 @@ int main(int argc, char* argv[])
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 /*
-    size_t resolution = 100;
+    size_t body_resolution = 100;
+    size_t base_resolution = 24;
+    id_type base_id = nullid;
+
+    name = "wimble_3x3";
+    cout << name << endl;
+    mesh.clear();
+    polygon = create_cross_section_circular(6, body_resolution / 2, 15.0f, 40.0f);
+    model::create_cylinder_sections(mesh, "body", polygon, body_resolution, 0.0f, 100.0f,
+//        [](float t) { return 1.0f - t; },
+        [](float t) { return -25.0f / 9.0f * t * t + 20.0f / 9.0f * t + 5.0f / 9.0f; },
+        [&](float t) { return da * t; });
+
+    base_id = model::create_geodesic_sphere(mesh, "base", 22.3f, base_resolution);
+    clip(mesh.submesh(base_id), {{{}, -vector_type::z_direction()}, -vector_type::z_direction()});
+    model::transform(mesh.submesh(base_id), geometry::scaling(1.0f, 1.0f, 0.25f));
+
+    model::transform(mesh, geometry::scaling(0.75f));
+    triangulate(mesh);
+    model::write_obj(mesh, to_filename(name));
+
     name = "wimble_6_15_high";
     cout << name << endl;
     mesh.clear();
-    polygon = create_cross_section_circular(6, resolution, 15.0f, 40.0f);
-    model::create_cylinder_sections(mesh, name, polygon, resolution, 0.0f, 100.0f,
+    polygon = create_cross_section_circular(6, body_resolution, 15.0f, 40.0f);
+    model::create_cylinder_sections(mesh, name, polygon, body_resolution, 0.0f, 100.0f,
 //        [](float t) { return 1.0f - t; },
         [](float t) { return -25.0f / 9.0f * t * t + 20.0f / 9.0f * t + 5.0f / 9.0f; },
         [](float t) { return t / 3.0f; });
 
-    // Base
-//    mesh_type m;
-//    model::create_geodesic_sphere(m, "base", 22.3f, 36);
-//    clip(m, geometry::Plane<vector_traits>({0.0f, 0.0f, 0.0f}, -vector_type::z_direction()));
-//    model::transform(m, math::scaling(1.0f, 1.0f, 0.25f));
-//    mesh.insert(m);
-
-    id_type base_id = model::create_geodesic_sphere(mesh, "base", 22.3f, 36);
+    base_id = model::create_geodesic_sphere(mesh, "base", 22.3f, 36);
     clip(mesh.submesh(base_id), {{{}, -vector_type::z_direction()}, -vector_type::z_direction()});
     model::transform(mesh.submesh(base_id), geometry::scaling(1.0f, 1.0f, 0.25f));
 
