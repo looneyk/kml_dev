@@ -11,6 +11,7 @@
 #include "Orientation.hpp"
 #include "OrientedPoint.hpp"
 #include "quetzal/math/Matrix.hpp"
+#include "quetzal/math/Rotation.hpp"
 #include "quetzal/math/Vector.hpp"
 #include "quetzal/math/floating_point.hpp"
 #include "quetzal/math/math_util.hpp"
@@ -89,6 +90,9 @@ namespace quetzal::geometry
     // experimental ...
     template<typename T>
     math::Matrix<T, 4> rotation_dz(T angle);
+
+    template<typename T>
+    math::Matrix<T, 4> rotation(math::Rotation<T> rotation);
 
     template<typename V> requires (Homogeneous<typename V::traits_type>)
     transformation_matrix_type<typename V::traits_type> rotation_axis(const V& axis, typename V::value_type angle);
@@ -409,6 +413,40 @@ quetzal::math::Matrix<T, 4> quetzal::geometry::rotation_dz(T angle)
     matrix(0, 1) = c;
     matrix(1, 0) = -c;
     matrix(1, 1) = -s;
+
+    return matrix;
+}
+
+//------------------------------------------------------------------------------
+template<typename T>
+quetzal::math::Matrix<T, 4> quetzal::geometry::rotation(math::Rotation<T> rotation)
+{
+    math::Matrix<T, 4> matrix;
+    
+    const auto& q = rotation.rep();
+    T xx = q[0] * q[0];
+    T yy = q[1] * q[1];
+    T zz = q[2] * q[2];
+    T xy = q[0] * q[1];
+    T yz = q[1] * q[2];
+    T zx = q[2] * q[0];
+    T wx = q[3] * q[0];
+    T wy = q[3] * q[1];
+    T wz = q[3] * q[2];
+    
+    matrix(0, 0) = T(1) - T(2) * (yy + zz);
+    matrix(0, 1) = T(2) * (xy - wz);
+    matrix(0, 2) = T(2) * (zx + wy);
+    
+    matrix(1, 0) = T(2) * (xy + wz);
+    matrix(1, 1) = T(1) - T(2) * (xx + zz);
+    matrix(1, 2) = T(2) * (yz - wx);
+    
+    matrix(2, 0) = T(2) * (zx - wy);
+    matrix(2, 1) = T(2) * (yz + wx);
+    matrix(2, 2) = T(1) - T(2) * (xx + yy);
+    
+    matrix(3, 3) = T(1);
 
     return matrix;
 }

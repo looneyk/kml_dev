@@ -16,6 +16,9 @@
 namespace quetzal::math
 {
 
+    template<size_t S>
+    constexpr size_t Alignment = S % 16 == 0 ? 16 : 0; 
+
     // start switching to <numbers>, first by simply replacing the hardcoded values, keep missing ones here if used ...
 
     template<typename T>

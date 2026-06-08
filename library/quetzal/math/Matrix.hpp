@@ -20,7 +20,7 @@ namespace quetzal::math
 
     //--------------------------------------------------------------------------
     template<typename T, size_t M = 4, size_t N = M>
-    class Matrix
+    class alignas(Alignment<M * N>) Matrix
     {
     public:
 
@@ -97,7 +97,7 @@ namespace quetzal::math
         }
 
         using rep_type = std::array<value_type, M * N>;
-        alignas(16) rep_type m_rep;
+        alignas(Alignment<M * N>) rep_type m_rep;
     };
 
     template<typename T, size_t M, size_t N>

@@ -7,27 +7,30 @@
 
 #include "floating_point.hpp"
 #include <array>
+#include <iostream>
+#include <span>
 #include <cassert>
 
 namespace quetzal::math
 {
 
+    // This uses (x, y, z, w) component ordering to be consistent with 3D graphics
+    // As much as I would like to use the (w, x, y, z) component ordering as in mathematics to be consistent with complex (real, imag)
+
     //--------------------------------------------------------------------------
-    template<typename Traits> requires (Traits::dimension == 3 && Traits::size == 4)
-    class Quaternion
+    template<typename T>
+    class alignas(16) Quaternion
     {
     public:
 
-        using traits_type = Traits;
-        using value_type = Traits::value_type;
-        using size_type = Traits::size_type;
-        using rep_type = Traits::rep_type;
-        static constexpr size_type dimension = Traits::dimension;
+        using value_type = T;
+        static constexpr size_t dimension = 3;
+        static constexpr size_t component_count = 4;
+        using rep_type = std::array<value_type, component_count>;
 
         Quaternion();
-//        Quaternion(value_type a, value_type b, value_type c, value_type d);
-        Quaternion(std::span<value_type, size> s);
-//        Quaternion(std::initializer_list<value_type> elements); // waiting for the fix ...
+        Quaternion(value_type x, value_type y, value_type z, value_type w);
+        Quaternion(std::span<value_type, component_count> s);
         Quaternion(const rep_type& rep);
         Quaternion(const Quaternion&) = default;
         Quaternion(Quaternion&&) = default;
@@ -35,7 +38,7 @@ namespace quetzal::math
 
         Quaternion& operator=(const Quaternion&) = default;
         Quaternion& operator=(Quaternion&& other) = default;
-        Quaternion& operator=(std::span<value_type, dimension> s);
+        Quaternion& operator=(std::span<value_type, component_count> s);
 
         Quaternion operator+() const;
         Quaternion operator-() const;
@@ -45,30 +48,44 @@ namespace quetzal::math
         Quaternion& operator*=(value_type factor);
         Quaternion& operator/=(value_type divisor);
 
-        value_type operator[](size_type i) const;
-        value_type& operator[](size_type i);
+        value_type operator[](size_t i) const;
+        value_type& operator[](size_t i);
 
-        value_type a() const;
-        value_type b() const;
-        value_type c() const;
-        value_type d() const;
+        value_type x() const;
+        value_type y() const;
+        value_type z() const;
+        value_type w() const;
 
-        value_type& a();
-        value_type& b();
-        value_type& c();
-        value_type& d();
+        value_type& x();
+        value_type& y();
+        value_type& z();
+        value_type& w();
 
-        template<typename U> requires std::convertible_to<U, typename Traits::value_type>
-        void set(const U& a, const U& b, const U& c, const U& d);
+        template<typename U> requires std::convertible_to<U, value_type>
+        void set(const U& x, const U& y, const U& z,const U& w)
+        {
+            m_rep = {value_type(x), value_type(y), value_type(z), value_type(w)};
+            return;
+        }
 
-        template<size_type I> requires (I < Traits::size)
-        value_type get() const;
+        template<size_t I, typename U> requires (I < component_count) && std::convertible_to<U, value_type>
+        void set(const U& u)
+        {
+            m_rep[I] = value_type(u);
+            return;
+        } 
 
-        template<size_type I> requires (I < Traits::size)
-        value_type& get();
+        template<size_t I> requires (I < Quaternion<T>::component_count)
+        value_type get() const
+        {
+            return m_rep[I];
+        }
 
-        template<size_type I, typename U> requires (I < Traits::size) && std::convertible_to<U, typename Traits::value_type>
-        void set(const U& u);
+        template<size_t I> requires (I < Quaternion<T>::component_count)
+        value_type& get()
+        {
+            return m_rep[I];
+        }
 
         value_type norm() const;
         value_type norm_squared() const;
@@ -80,475 +97,482 @@ namespace quetzal::math
         void clear();
 
         bool unit(int ulp = ulpDefault) const;
+        bool identity(int ulp = ulpDefault) const;
         bool zero() const;
         bool float_zero(int ulp = ulpDefault) const;
 
-        // traits for data extraction, Traits::data(rep) ...
         const value_type* data() const;
         value_type* data();
 
-        constexpr size_type size() const;
+        constexpr size_t size() const;
 
-        // rep should only be visible to functions that should actually be friends ...
-        // rep should only be used in calls to traits functions
         const rep_type& rep() const;
         rep_type& rep();
 
     protected:
 
-        rep_type m_rep;
+        alignas(16) rep_type m_rep;
     };
 
-    template<typename Traits>
-    Quaternion<Traits> operator+(Quaternion<Traits> lhs, const Quaternion<Traits>& rhs);
+    template<typename T>
+    Quaternion<T> operator+(Quaternion<T> lhs, const Quaternion<T>& rhs);
 
-    template<typename Traits>
-    Quaternion<Traits> operator-(Quaternion<Traits> lhs, const Quaternion<Traits>& rhs);
+    template<typename T>
+    Quaternion<T> operator-(Quaternion<T> lhs, const Quaternion<T>& rhs);
 
-    template<typename Traits>
-    Quaternion<Traits> operator*(Quaternion<Traits> lhs, const Quaternion<Traits>& rhs);
+    template<typename T>
+    Quaternion<T> operator*(Quaternion<T> lhs, const Quaternion<T>& rhs);
 
-    template<typename Traits>
-    Quaternion<Traits> operator*(Quaternion<Traits> lhs, const typename Traits::value_type& rhs);
+    template<typename T>
+    Quaternion<T> operator*(Quaternion<T> lhs, const T& rhs);
 
-    template<typename Traits>
-    Quaternion<Traits> operator*(const typename Traits::value_type& lhs, Quaternion<Traits> rhs);
+    template<typename T>
+    Quaternion<T> operator*(const T& lhs, Quaternion<T> rhs);
 
-    template<typename Traits>
-    Quaternion<Traits> operator/(Quaternion<Traits> lhs, const typename Traits::value_type& rhs);
+    template<typename T>
+    Quaternion<T> operator/(Quaternion<T> lhs, const T& rhs);
 
-    template<typename Traits>
-    bool operator==(const Quaternion<Traits>& lhs, Quaternion<Traits> rhs);
+    template<typename T>
+    bool operator==(const Quaternion<T>& lhs, const Quaternion<T>& rhs);
 
-    template<typename Traits>
-    bool operator!=(const Quaternion<Traits>& lhs, const Quaternion<Traits>& rhs);
+    template<typename T>
+    bool operator!=(const Quaternion<T>& lhs, const Quaternion<T>& rhs);
 
-    template<typename Traits>
-    Quaternion<Traits> normalize(const Quaternion<Traits>& v);
+    template<typename T>
+    Quaternion<T> dot(const Quaternion<T>& lhs, const Quaternion<T>& rhs);
 
-    template<typename Traits>
-    bool float_eq(const Quaternion<Traits>& lhs, Quaternion<Traits> rhs, int ulp = ulpDefault);
+    template<typename T>
+    Quaternion<T> normalize(const Quaternion<T>& v);
 
-    template<typename Traits>
-    bool float_eq0(const Quaternion<Traits>& v, int ulp = ulpDefault);
+    template<typename T>
+    bool float_eq(const Quaternion<T>& lhs, Quaternion<T> rhs, int ulp = ulpDefault);
 
-    template<typename Traits>
-    std::istream& operator>>(std::istream& is, Quaternion<Traits>& v);
+    template<typename T>
+    bool float_eq0(const Quaternion<T>& v, int ulp = ulpDefault);
 
-    template<typename Traits>
-    std::ostream& operator<<(std::ostream& os, const Quaternion<Traits>& v);
+    template<typename T>
+    std::istream& operator>>(std::istream& is, Quaternion<T>& rhs);
+
+    template<typename T>
+    std::ostream& operator<<(std::ostream& os, const Quaternion<T>& rhs);
 
 } // namespace quetzal::math
 
 //------------------------------------------------------------------------------
-template<typename Traits>
-quetzal::math::Quaternion<Traits>::Quaternion() :
-    m_rep()
-{
-    clear();
-}
-/*
-//------------------------------------------------------------------------------
-template<typename Traits>
-quetzal::math::Quaternion<Traits>::Quaternion(value_type a, value_type b, value_type c, value_type d) :
+template<typename T>
+quetzal::math::Quaternion<T>::Quaternion() :
     m_rep()
 {
 }
-*/
+
 //------------------------------------------------------------------------------
-template<typename Traits>
-quetzal::math::Quaternion<Traits>::Quaternion(std::span<value_type, size> s) :
+template<typename T>
+quetzal::math::Quaternion<T>::Quaternion(value_type x, value_type y, value_type z, value_type w) :
+    m_rep{x, y, z, w}
+{
+}
+
+//------------------------------------------------------------------------------
+template<typename T>
+quetzal::math::Quaternion<T>::Quaternion(std::span<value_type, component_count> s) :
     m_rep{s[0], s[1], s[2], s[3]}
 {
 }
-/*
+
 //------------------------------------------------------------------------------
-template<typename Traits>
-quetzal::math::Quaternion<Traits>::Quaternion(std::initializer_list<value_type> elements) :
-    m_rep(elements)
-{
-}
-*/
-//------------------------------------------------------------------------------
-template<typename Traits>
-quetzal::math::Quaternion<Traits>::Quaternion(const rep_type& rep) :
+template<typename T>
+quetzal::math::Quaternion<T>::Quaternion(const rep_type& rep) :
     m_rep(rep)
 {
 }
 
 //------------------------------------------------------------------------------
-template<typename Traits>
-quetzal::math::Quaternion<Traits>& quetzal::math::Quaternion<Traits>::operator=(std::span<value_type, dimension> s)
+template<typename T>
+quetzal::math::Quaternion<T>& quetzal::math::Quaternion<T>::operator=(std::span<value_type, component_count> s)
 {
-    Traits::assign(m_rep, s);
+    m_rep[0] = s[0];
+    m_rep[1] = s[1];
+    m_rep[2] = s[2];
+    m_rep[3] = s[3];
     return *this;
 }
 
 //------------------------------------------------------------------------------
-template<typename Traits>
-quetzal::math::Quaternion<Traits> quetzal::math::Quaternion<Traits>::operator+() const
+template<typename T>
+quetzal::math::Quaternion<T> quetzal::math::Quaternion<T>::operator+() const
 {
     return *this;
 }
 
 //------------------------------------------------------------------------------
-template<typename Traits>
-quetzal::math::Quaternion<Traits> quetzal::math::Quaternion<Traits>::operator-() const
+template<typename T>
+quetzal::math::Quaternion<T> quetzal::math::Quaternion<T>::operator-() const
 {
-    Traits::unary_minus(m_rep);
+    return {-m_rep[0], -m_rep[1], -m_rep[2], -m_rep[3]};
+}
+
+//------------------------------------------------------------------------------
+template<typename T>
+quetzal::math::Quaternion<T>& quetzal::math::Quaternion<T>::operator+=(const Quaternion& other)
+{
+    m_rep[0] += other.m_rep[0];
+    m_rep[1] += other.m_rep[1];
+    m_rep[2] += other.m_rep[2];
+    m_rep[3] += other.m_rep[3];
     return *this;
 }
 
 //------------------------------------------------------------------------------
-template<typename Traits>
-quetzal::math::Quaternion<Traits>& quetzal::math::Quaternion<Traits>::operator+=(const Quaternion& other)
+template<typename T>
+quetzal::math::Quaternion<T>& quetzal::math::Quaternion<T>::operator-=(const Quaternion& other)
 {
-    Traits::assign_add(m_rep, other);
+    m_rep[0] -= other.m_rep[0];
+    m_rep[1] -= other.m_rep[1];
+    m_rep[2] -= other.m_rep[2];
+    m_rep[3] -= other.m_rep[3];
     return *this;
 }
 
 //------------------------------------------------------------------------------
-template<typename Traits>
-quetzal::math::Quaternion<Traits>& quetzal::math::Quaternion<Traits>::operator-=(const Quaternion& other)
+template<typename T>
+quetzal::math::Quaternion<T>& quetzal::math::Quaternion<T>::operator*=(const Quaternion& other)
 {
-    Traits::assign_subtract(m_rep, other);
+    m_rep = 
+    {
+        m_rep[3] * other.m_rep[3] - m_rep[0] * other.m_rep[0] - m_rep[1] * other.m_rep[1] - m_rep[2] * other.m_rep[2],
+        m_rep[3] * other.m_rep[0] + m_rep[0] * other.m_rep[3] + m_rep[1] * other.m_rep[2] - m_rep[2] * other.m_rep[1],
+        m_rep[3] * other.m_rep[1] - m_rep[0] * other.m_rep[2] + m_rep[1] * other.m_rep[3] + m_rep[2] * other.m_rep[0],
+        m_rep[3] * other.m_rep[2] + m_rep[0] * other.m_rep[1] - m_rep[1] * other.m_rep[0] + m_rep[2] * other.m_rep[3],
+    };            
     return *this;
 }
 
 //------------------------------------------------------------------------------
-template<typename Traits>
-quetzal::math::Quaternion<Traits>& quetzal::math::Quaternion<Traits>::operator*=(const Quaternion& other)
+template<typename T>
+quetzal::math::Quaternion<T>& quetzal::math::Quaternion<T>::operator*=(value_type factor)
 {
-    Traits::assign_multiply(m_rep, other);
+    m_rep[0] *= factor;
+    m_rep[1] *= factor;
+    m_rep[2] *= factor;
+    m_rep[3] *= factor;
     return *this;
 }
 
 //------------------------------------------------------------------------------
-template<typename Traits>
-quetzal::math::Quaternion<Traits>& quetzal::math::Quaternion<Traits>::operator*=(value_type factor)
+template<typename T>
+quetzal::math::Quaternion<T>& quetzal::math::Quaternion<T>::operator/=(value_type divisor)
 {
-    Traits::assign_multiply(m_rep, factor);
+    m_rep[0] /= divisor;
+    m_rep[1] /= divisor;
+    m_rep[2] /= divisor;
+    m_rep[3] /= divisor;
     return *this;
 }
 
 //------------------------------------------------------------------------------
-template<typename Traits>
-quetzal::math::Quaternion<Traits>& quetzal::math::Quaternion<Traits>::operator/=(value_type divisor)
+template<typename T>
+quetzal::math::Quaternion<T>::value_type quetzal::math::Quaternion<T>::operator[](size_t i) const
 {
-    Traits::assign_divide(m_rep, divisor);
-    return *this;
+    assert(i < component_count);
+    return m_rep[i];
 }
 
 //------------------------------------------------------------------------------
-template<typename Traits>
-quetzal::math::Quaternion<Traits>::value_type quetzal::math::Quaternion<Traits>::operator[](size_type i) const
+template<typename T>
+quetzal::math::Quaternion<T>::value_type& quetzal::math::Quaternion<T>::operator[](size_t i)
 {
-    assert(i < Traits::size);
-    return Traits::get(m_rep, i);
+    assert(i < component_count);
+    return m_rep[i];
 }
 
 //------------------------------------------------------------------------------
-template<typename Traits>
-quetzal::math::Quaternion<Traits>::value_type& quetzal::math::Quaternion<Traits>::operator[](size_type i)
+template<typename T>
+quetzal::math::Quaternion<T>::value_type quetzal::math::Quaternion<T>::x() const
 {
-    assert(i < Traits::size);
-    return Traits::get(m_rep, i);
+    return m_rep[0];
 }
 
 //------------------------------------------------------------------------------
-template<typename Traits>
-quetzal::math::Quaternion<Traits>::value_type quetzal::math::Quaternion<Traits>::a() const
+template<typename T>
+quetzal::math::Quaternion<T>::value_type quetzal::math::Quaternion<T>::y() const
 {
-    return Traits::get<0>(m_rep);
+    return m_rep[1];
 }
 
 //------------------------------------------------------------------------------
-template<typename Traits>
-quetzal::math::Quaternion<Traits>::value_type quetzal::math::Quaternion<Traits>::b() const
+template<typename T>
+quetzal::math::Quaternion<T>::value_type quetzal::math::Quaternion<T>::z() const
 {
-    return Traits::get<1>(m_rep);
+    return m_rep[2];
 }
 
 //------------------------------------------------------------------------------
-template<typename Traits>
-quetzal::math::Quaternion<Traits>::value_type quetzal::math::Quaternion<Traits>::c() const
+template<typename T>
+quetzal::math::Quaternion<T>::value_type quetzal::math::Quaternion<T>::w() const
 {
-    return Traits::get<2>(m_rep);
+    return m_rep[3];
 }
 
 //------------------------------------------------------------------------------
-template<typename Traits>
-quetzal::math::Quaternion<Traits>::value_type quetzal::math::Quaternion<Traits>::d() const
+template<typename T>
+quetzal::math::Quaternion<T>::value_type& quetzal::math::Quaternion<T>::x()
 {
-    return Traits::get<3>(m_rep);
+    return m_rep[0];
 }
 
 //------------------------------------------------------------------------------
-template<typename Traits>
-quetzal::math::Quaternion<Traits>::value_type& quetzal::math::Quaternion<Traits>::a()
+template<typename T>
+quetzal::math::Quaternion<T>::value_type& quetzal::math::Quaternion<T>::y()
 {
-    return Traits::get<0>(m_rep);
+    return m_rep[1];
 }
 
 //------------------------------------------------------------------------------
-template<typename Traits>
-quetzal::math::Quaternion<Traits>::value_type& quetzal::math::Quaternion<Traits>::b()
+template<typename T>
+quetzal::math::Quaternion<T>::value_type& quetzal::math::Quaternion<T>::z()
 {
-    return Traits::get<1>(m_rep);
+    return m_rep[2];
 }
 
 //------------------------------------------------------------------------------
-template<typename Traits>
-quetzal::math::Quaternion<Traits>::value_type& quetzal::math::Quaternion<Traits>::c()
+template<typename T>
+quetzal::math::Quaternion<T>::value_type& quetzal::math::Quaternion<T>::w()
 {
-    return Traits::get<2>(m_rep);
+    return m_rep[3];
 }
 
 //------------------------------------------------------------------------------
-template<typename Traits>
-quetzal::math::Quaternion<Traits>::value_type& quetzal::math::Quaternion<Traits>::d()
-{
-    return Traits::get<3>(m_rep);
-}
-
-//------------------------------------------------------------------------------
-template<typename Traits>
-template<typename U> requires std::convertible_to<U, typename Traits::value_type>
-void quetzal::math::Quaternion<Traits>::set(const U& a, const U& b, const U& c, const U& d)
-{
-    Traits::assign(m_rep, {value_type(a), value_type(b), value_type(c), value_type(d)});
-    return;
-}
-
-//------------------------------------------------------------------------------
-template<typename Traits>
-template<size_type I> requires (I < Traits::size)
-quetzal::math::Quaternion<Traits>::value_type quetzal::math::Quaternion<Traits>::get() const
-{
-    return Traits::get<I>(m_rep);
-}
-
-//------------------------------------------------------------------------------
-template<typename Traits>
-template<size_type I> requires (I < Traits::size)
-quetzal::math::Quaternion<Traits>::value_type& quetzal::math::Quaternion<Traits>::get()
-{
-    return Traits::get<I>(m_rep);
-}
-
-//------------------------------------------------------------------------------
-template<typename Traits>
-template<size_type I, typename U> requires (I < Traits::size) && std::convertible_to<U, typename Traits::value_type>
-void quetzal::math::Quaternion<Traits>::set(const U& u)
-{
-    Traits::get<I>(m_rep) = value_type(u);
-    return;
-}
-
-//------------------------------------------------------------------------------
-template<typename Traits>
-quetzal::math::Quaternion<Traits>::value_type quetzal::math::Quaternion<Traits>::norm() const
+template<typename T>
+quetzal::math::Quaternion<T>::value_type quetzal::math::Quaternion<T>::norm() const
 {
     return std::sqrt(norm_squared());
 }
 
 //------------------------------------------------------------------------------
-template<typename Traits>
-quetzal::math::Quaternion<Traits>::value_type quetzal::math::Quaternion<Traits>::norm_squared() const
+template<typename T>
+quetzal::math::Quaternion<T>::value_type quetzal::math::Quaternion<T>::norm_squared() const
 {
     return
-        get<0>(m_rep) * get<0>(m_rep) +
-        get<1>(m_rep) * get<1>(m_rep) +
-        get<2>(m_rep) * get<2>(m_rep) +
-        get<3>(m_rep) * get<3>(m_rep);
+        m_rep[0] * m_rep[0] +
+        m_rep[1] * m_rep[1] +
+        m_rep[2] * m_rep[2] +
+        m_rep[3] * m_rep[3];
 }
 
 //------------------------------------------------------------------------------
-template<typename Traits>
-const quetzal::math::Quaternion<Traits>& quetzal::math::Quaternion<Traits>::conjugate() const
+template<typename T>
+const quetzal::math::Quaternion<T>& quetzal::math::Quaternion<T>::conjugate() const
 {
-    return Traits::assign(m_rep, {get<0>(m_rep), -get<1>(m_rep), -get<2>(m_rep), -get<3>(m_rep)});
+    m_rep = {m_rep[0], -m_rep[1], -m_rep[2], -m_rep[3]};
+    return m_rep;
 }
 
 //------------------------------------------------------------------------------
-template<typename Traits>
-const quetzal::math::Quaternion<Traits>& quetzal::math::Quaternion<Traits>::inverse() const
+template<typename T>
+const quetzal::math::Quaternion<T>& quetzal::math::Quaternion<T>::inverse() const
 {
     *this = conjugate() / norm();
     return *this;
 }
 
 //------------------------------------------------------------------------------
-template<typename Traits>
-void quetzal::math::Quaternion<Traits>::normalize()
+template<typename T>
+void quetzal::math::Quaternion<T>::normalize()
 {
-    auto length = norm();
-    if (!float_eq0(length)) // assert? ...
+    auto denom = norm_squared();
+    assert(!float_eq0(denom));
+    if (!float_eq(denom, T(1)))
     {
-        *this /= length;
+        *this /= sqrt(denom);
     }
     return;
 }
 
 //------------------------------------------------------------------------------
-template<typename Traits>
-void quetzal::math::Quaternion<Traits>::clear()
+template<typename T>
+void quetzal::math::Quaternion<T>::clear()
 {
-    Traits:::clear(m_rep);
+    m_rep.clear();
     return;
 }
 
 //------------------------------------------------------------------------------
-template<typename Traits>
-bool quetzal::math::Quaternion<Traits>::unit(int ulp) const
+template<typename T>
+bool quetzal::math::Quaternion<T>::unit(int ulp) const
 {
-    return float_eq(norm_squared(), value_type(1), ulp);
+    return float_eq(norm_squared(), T(1), ulp);
 }
 
 //------------------------------------------------------------------------------
-template<typename Traits>
-bool quetzal::math::Quaternion<Traits>::zero() const
+template<typename T>
+bool quetzal::math::Quaternion<T>::identity(int ulp) const
 {
-    return Traits::zero(m_rep);
+    return math::float_eq0(m_rep[0]) && math::float_eq0(m_rep[1]) && math::float_eq0(m_rep[2]) && math::float_eq(m_rep[3], T(1));
 }
 
 //------------------------------------------------------------------------------
-template<typename Traits>
-bool quetzal::math::Quaternion<Traits>::float_zero(int ulp) const
+template<typename T>
+bool quetzal::math::Quaternion<T>::zero() const
 {
-    return Traits::float_zero(m_rep);
+    return m_rep[0] == T(0) && m_rep[1] == T(0) && m_rep[2] == T(0) && m_rep[3] == T(0);
 }
 
 //------------------------------------------------------------------------------
-template<typename Traits>
-const quetzal::math::Quaternion<Traits>::value_type* data() const
+template<typename T>
+bool quetzal::math::Quaternion<T>::float_zero(int ulp) const
 {
-    return m_rep.data(); // Traits::data() ...
+    return math::float_eq0(m_rep[0]) && math::float_eq0(m_rep[1]) && math::float_eq0(m_rep[2]) && math::float_eq0(m_rep[3]);
 }
 
 //------------------------------------------------------------------------------
-template<typename Traits>
-quetzal::math::Quaternion<Traits>::value_type* quetzal::math::Quaternion<Traits>::data()
+template<typename T>
+const quetzal::math::Quaternion<T>::value_type* quetzal::math::Quaternion<T>::data() const
 {
-    return m_rep.data(); // Traits::data() ...
+    return m_rep.data();
 }
 
 //------------------------------------------------------------------------------
-template<typename Traits>
-constexpr quetzal::math::Quaternion<Traits>::size_type size() const
+template<typename T>
+quetzal::math::Quaternion<T>::value_type* quetzal::math::Quaternion<T>::data()
 {
-    return Traits::size;
+    return m_rep.data();
 }
 
 //------------------------------------------------------------------------------
-template<typename Traits>
-const quetzal::math::Quaternion<Traits>::rep_type& rep() const
+template<typename T>
+constexpr size_t quetzal::math::Quaternion<T>::size() const
+{
+    return component_count;
+}
+
+//------------------------------------------------------------------------------
+template<typename T>
+const quetzal::math::Quaternion<T>::rep_type& quetzal::math::Quaternion<T>::rep() const
 {
     return m_rep;
 }
 
 //------------------------------------------------------------------------------
-template<typename Traits>
-quetzal::math::Quaternion<Traits>::rep_type& quetzal::math::Quaternion<Traits>::rep()
+template<typename T>
+quetzal::math::Quaternion<T>::rep_type& quetzal::math::Quaternion<T>::rep()
 {
     return m_rep;
 }
 
 //------------------------------------------------------------------------------
-template<typename Traits>
-quetzal::math::Quaternion<Traits> quetzal::math::operator+(Quaternion<Traits> lhs, const Quaternion<Traits>& rhs)
+template<typename T>
+quetzal::math::Quaternion<T> quetzal::math::operator+(Quaternion<T> lhs, const Quaternion<T>& rhs)
 {
     return lhs += rhs;
 }
 
 //------------------------------------------------------------------------------
-template<typename Traits>
-quetzal::math::Quaternion<Traits> quetzal::math::operator-(Quaternion<Traits> lhs, const Quaternion<Traits>& rhs)
+template<typename T>
+quetzal::math::Quaternion<T> quetzal::math::operator-(Quaternion<T> lhs, const Quaternion<T>& rhs)
 {
     return lhs -= rhs;
 }
 
 //------------------------------------------------------------------------------
-template<typename Traits>
-quetzal::math::Quaternion<Traits> quetzal::math::operator*(Quaternion<Traits> lhs, const Quaternion<Traits>& rhs)
+template<typename T>
+quetzal::math::Quaternion<T> quetzal::math::operator*(Quaternion<T> lhs, const Quaternion<T>& rhs)
 {
     return lhs *= rhs;
 }
 
 //------------------------------------------------------------------------------
-template<typename Traits>
-quetzal::math::Quaternion<Traits> quetzal::math::operator*(Quaternion<Traits> lhs, const typename Traits::value_type& rhs)
+template<typename T>
+quetzal::math::Quaternion<T> quetzal::math::operator*(Quaternion<T> lhs, const T& rhs)
 {
     return lhs *= rhs;
 }
 
 //------------------------------------------------------------------------------
-template<typename Traits>
-quetzal::math::Quaternion<Traits> quetzal::math::operator*(const typename Traits::value_type& lhs, Quaternion<Traits> rhs)
+template<typename T>
+quetzal::math::Quaternion<T> quetzal::math::operator*(const T& lhs, Quaternion<T> rhs)
 {
     return rhs *= lhs;
 }
 
 //------------------------------------------------------------------------------
-template<typename Traits>
-quetzal::math::Quaternion<Traits> quetzal::math::operator/(Quaternion<Traits> lhs, const typename Traits::value_type& rhs)
+template<typename T>
+quetzal::math::Quaternion<T> quetzal::math::operator/(Quaternion<T> lhs, const T& rhs)
 {
     return lhs /= rhs;
 }
 
 //------------------------------------------------------------------------------
-template<typename Traits>
-bool quetzal::math::operator==(const Quaternion<Traits>& lhs, Quaternion<Traits> rhs)
+template<typename T>
+bool quetzal::math::operator==(const Quaternion<T>& lhs, const Quaternion<T>& rhs)
 {
-    return Traits::equals(lhs.rep(), rhs.rep());
+    return lhs.rep() == rhs.rep();
 }
 
 //------------------------------------------------------------------------------
-template<typename Traits>
-bool quetzal::math::operator!=(const Quaternion<Traits>& lhs, const Quaternion<Traits>& rhs)
+template<typename T>
+bool quetzal::math::operator!=(const Quaternion<T>& lhs, const Quaternion<T>& rhs)
 {
     return !(lhs == rhs);
 }
 
 //------------------------------------------------------------------------------
-template<typename Traits>
-quetzal::math::Quaternion<Traits> quetzal::math::normalize(const Quaternion<Traits>& q)
+template<typename T>
+quetzal::math::Quaternion<T> quetzal::math::dot(const Quaternion<T>& lhs, const Quaternion<T>& rhs)
+{
+    return
+        get<0>(lhs) * get<0>(rhs) +
+        get<1>(lhs) * get<1>(rhs) +
+        get<2>(lhs) * get<2>(rhs) +
+        get<3>(lhs) * get<3>(rhs);
+}
+
+//------------------------------------------------------------------------------
+template<typename T>
+quetzal::math::Quaternion<T> quetzal::math::normalize(const Quaternion<T>& q)
 {
     return q / q.norm();
 }
 
 //------------------------------------------------------------------------------
-template<typename Traits>
-bool quetzal::math::float_eq(const Quaternion<Traits>& lhs, Quaternion<Traits> rhs, int ulp)
+template<typename T>
+bool quetzal::math::float_eq(const Quaternion<T>& lhs, Quaternion<T> rhs, int ulp)
 {
-    return Traits::float_equals(lhs.rep(), rhs.rep(), ulp);
+    return float_equals(lhs.rep(), rhs.rep(), ulp);
 }
 
 //------------------------------------------------------------------------------
-template<typename Traits>
-bool quetzal::math::float_eq0(const Quaternion<Traits>& q, int ulp)
+template<typename T>
+bool quetzal::math::float_eq0(const Quaternion<T>& q, int ulp)
 {
     return q.float_zero(ulp);
 }
 
 //------------------------------------------------------------------------------
-template<typename Traits>
-std::istream& quetzal::math::operator>>(std::istream& is, Quaternion<Traits>& q)
+template<typename T>
+std::istream& quetzal::math::operator>>(std::istream& is, Quaternion<T>& rhs)
 {
-    return Traits::extract(is, q.rep());
+    is >> get<0>(rhs);
+    is >> get<1>(rhs);
+    is >> get<2>(rhs);
+    is >> get<3>(rhs);
+    return is;
 }
 
 //------------------------------------------------------------------------------
-template<typename Traits>
-std::ostream& quetzal::math::operator<<(std::ostream& os, const Quaternion<Traits>& q)
+template<typename T>
+std::ostream& quetzal::math::operator<<(std::ostream& os, const Quaternion<T>& rhs)
 {
-    return Traits::insert(os, q.rep());
+    os << (get<0>(rhs) == T(0) ? T(0) : get<0>(rhs))
+        << " " << (get<1>(rhs) == T(0) ? T(0) : get<1>(rhs))
+        << " " << (get<2>(rhs) == T(0) ? T(0) : get<2>(rhs))
+        << " " << (get<3>(rhs) == T(0) ? T(0) : get<3>(rhs));
+    return os;
 }
 
 #endif // QUETZAL_MATH_QUATERNION_HPP
 
 
-
+/*
 // ---------------------------------------------------------------------
 // construct the quaternion that rotates one vector to another
 // uses the usual trick to get the half angle
@@ -604,12 +628,136 @@ inline Quaternion Quaternion::rotate( const Quaternion& r ) const
     return (*this) * r * (*this).conjugate();
 }
 
-// convert to matrix
-// non-optimized
-inline Matrix3 Quaternion::toMatrix3() const
-{
-    Vector3 v0 = rotate( Vector3(1,0,0) );
-    Vector3 v1 = rotate( Vector3(0,1,0) );
-    Vector3 v2 = rotate( Vector3(0,0,1) );
-    return Matrix3( v0, v1, v2 );
-}
+
+
+class Quaternion {
+public:
+    // Internal memory is XYZW for your gaming/modeling context
+    float x = 0.0f, y = 0.0f, z = 0.0f, w = 1.0f;
+
+    // 1. Tagged Constructor ensures WXYZ safety at the API level
+    struct wxyz_t {};
+    static constexpr wxyz_t wxyz{};
+    
+    Quaternion(wxyz_t, float w_val, float x_val, float y_val, float z_val)
+        : x(x_val), y(y_val), z(z_val), w(w_val) {}
+
+    Quaternion() = default;
+
+    // 2. Factory method that guarantees a valid "Versor" state
+    static Quaternion FromAxisAngle(float angle_rad, float axis_x, float axis_y, float axis_z) {
+        float half_angle = angle_rad * 0.5f;
+        float s = std::sin(half_angle);
+        
+        // Constructs a guaranteed unit quaternion (versor)
+        return Quaternion(wxyz, std::cos(half_angle), axis_x * s, axis_y * s, axis_z * s);
+    }
+
+    // 3. Normalization is explicit, avoiding hidden performance costs
+    void normalize() {
+        float mag_sq = x*x + y*y + z*z + w*w;
+        if (mag_sq > 0.0f) {
+            float inv_mag = 1.0f / std::sqrt(mag_sq);
+            x *= inv_mag; y *= inv_mag; z *= inv_mag; w *= inv_mag;
+        }
+    }
+
+    // 4. The Sandwich Product lives here, but strictly asserts validity
+    struct Vector3 { float x, y, z; };
+    
+    Vector3 rotate_vector(const Vector3& v) const {
+        // Assert ensures it acts as a Versor in debug mode without slowing down release mode
+        #ifndef NDEBUG
+        float mag_sq = x*x + y*y + z*z + w*w;
+        const float epsilon = 0.001f;
+        assert(std::abs(mag_sq - 1.0f) < epsilon && "Attempted to rotate a vector with a non-unit quaternion!");
+        #endif
+
+        // Optimized sandwich product: v' = v + 2w(q_xyz x v) + 2(q_xyz x (q_xyz x v))
+        float qx_v_x = y * v.z - z * v.y;
+        float qx_v_y = z * v.x - x * v.z;
+        float qx_v_z = x * v.y - y * v.x;
+
+        return Vector3{
+            v.x + 2.0f * (w * qx_v_x + (y * qx_v_z - z * qx_v_y)),
+            v.y + 2.0f * (w * qx_v_y + (z * qx_v_x - x * qx_v_z)),
+            v.z + 2.0f * (w * qx_v_z + (x * qx_v_y - y * qx_v_x))
+        };
+    }
+};
+
+    // column major
+    Matrix4x4 to_matrix() const {
+        assert(std::abs(norm_squared() - 1.0f) < 0.001f && "Cannot convert non-unit quaternion to a rotation matrix!");
+
+        // Pre-calculate squares and cross-products to maximize CPU cache performance
+        float xx = x * x; float yy = y * y; float zz = z * z;
+        float xy = x * y; float xz = x * z; float yz = y * z;
+        float wx = w * x; float wy = w * y; float wz = w * z;
+
+        Matrix4x4 mat;
+
+        // Column 0
+        mat[0]  = 1.0f - 2.0f * (yy + zz);
+        mat[1]  = 2.0f * (xy + wz);
+        mat[2]  = 2.0f * (xz - wy);
+        mat[3]  = 0.0f;
+
+        // Column 1
+        mat[4]  = 2.0f * (xy - wz);
+        mat[5]  = 1.0f - 2.0f * (xx + zz);
+        mat[6]  = 2.0f * (yz + wx);
+        mat[7]  = 0.0f;
+
+        // Column 2
+        mat[8]  = 2.0f * (xz + wy);
+        mat[9]  = 2.0f * (yz - wx);
+        mat[10] = 1.0f - 2.0f * (xx + yy);
+        mat[11] = 0.0f;
+
+        // Column 3 (Translation column for a pure rotation matrix)
+        mat[12] = 0.0f;
+        mat[13] = 0.0f;
+        mat[14] = 0.0f;
+        mat[15] = 1.0f;
+
+        return mat;
+    }
+
+    Matrix4x4 to_matrix_row_major() const {
+        assert(std::abs(norm_squared() - 1.0f) < 0.001f && "Cannot convert non-unit quaternion to a rotation matrix!");
+
+        // Pre-calculate squared terms and cross-products
+        float xx = x * x; float yy = y * y; float zz = z * z;
+        float xy = x * y; float xz = x * z; float yz = y * z;
+        float wx = w * x; float wy = w * y; float wz = w * z;
+
+        Matrix4x4 mat;
+
+        // Row 0
+        mat[0]  = 1.0f - 2.0f * (yy + zz);
+        mat[1]  = 2.0f * (xy - wz);
+        mat[2]  = 2.0f * (xz + wy);
+        mat[3]  = 0.0f;
+
+        // Row 1
+        mat[4]  = 2.0f * (xy + wz);
+        mat[5]  = 1.0f - 2.0f * (xx + zz);
+        mat[6]  = 2.0f * (yz - wx);
+        mat[7]  = 0.0f;
+
+        // Row 2
+        mat[8]  = 2.0f * (xz - wy);
+        mat[9]  = 2.0f * (yz + wx);
+        mat[10] = 1.0f - 2.0f * (xx + yy);
+        mat[11] = 0.0f;
+
+        // Row 3 (Translation row)
+        mat[12] = 0.0f;
+        mat[13] = 0.0f;
+        mat[14] = 0.0f;
+        mat[15] = 1.0f;
+
+        return mat;
+    }
+*/
