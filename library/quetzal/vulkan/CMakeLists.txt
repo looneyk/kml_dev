@@ -1,0 +1,83 @@
+add_library(quetzal_vulkan STATIC
+    Allocator.cpp
+    CommandBuffer.cpp
+    debug_callback.cpp
+    Descriptors.cpp
+    initializer.cpp
+    PipelineLayout.cpp
+    Queue.cpp
+    Queues.cpp
+    ResourceManager.cpp
+    Swapchain.cpp
+    Vertex.cpp
+    Window.cpp
+    Allocator.hpp
+    Buffer.hpp
+    cache_util.hpp
+    CommandBuffer.hpp
+    CommandBuffers.hpp
+    CommandPool.hpp
+    ComputePipelineCreateInfo.hpp
+    Context.hpp
+    debug_callback.hpp
+    DebugMessenger.hpp
+    DescriptorPool.hpp
+    Descriptors.hpp
+    DescriptorSetLayout.hpp
+    DescriptorSets.hpp
+    Device.hpp
+    Fence.hpp
+    Geometry.hpp
+    GeometryCache.hpp
+    GraphicsPipeline.hpp
+    GraphicsPipelineCreateInfo.hpp
+    GraphicsPipelines.hpp
+    handles.hpp
+    Image.hpp
+    ImageView.hpp
+    initializer.hpp
+    Instance.hpp
+    LogicalDevice.hpp
+    Material.hpp
+    MaterialCache.hpp
+    PhysicalDevice.hpp
+    PhysicalDevices.hpp
+    PipelineCache.hpp
+    PipelineLayout.hpp
+    PipelineManager.hpp
+    Queue.hpp
+    Queues.hpp
+    Renderer.hpp
+    RenderingAttachments.hpp
+    ResourceCache.hpp
+    ResourceManager.hpp
+    Sampler.hpp
+    Semaphore.hpp
+    ShaderModule.hpp
+    SingleSubmitCommands.hpp
+    StagingBuffer.hpp
+    Surface.hpp
+    Swapchain.hpp
+    Texture.hpp
+    TextureCache.hpp
+    TimelineFence.hpp
+    TimelineSemaphore.hpp
+    UniformBuffers.hpp
+    Vertex.hpp
+    vulkan_util.hpp
+    VulkanError.hpp
+    Window.hpp
+)
+
+set_property(TARGET quetzal_vulkan PROPERTY FOLDER "library")
+
+set_target_properties(quetzal_vulkan PROPERTIES OUTPUT_NAME vulkan)
+
+target_include_directories(quetzal_vulkan PRIVATE
+    ${DEV_ROOT}/library
+    ${LIBRARY3_DIR}
+    ${LIBRARY3_DIR}/glfw/include
+    ${LIBRARY3_DIR}/glm
+    ${Vulkan_INCLUDE_DIRS}
+    ${LIBRARY3_DIR}/VulkanMemoryAllocator/include
+)
