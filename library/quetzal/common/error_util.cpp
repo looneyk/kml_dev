@@ -8,12 +8,17 @@
 
 using namespace std;
 
+namespace
+{
+
+    wchar_t buffer[512] = {};
+
+} // namespace
+
 //------------------------------------------------------------------------------
 std::string quetzal::to_error_string(DWORD error)
 {
-    wchar_t buffer[256] = {};
-
-    FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, nullptr, error, 0, buffer, static_cast<DWORD>(size(buffer)), nullptr);
+    FormatMessageW(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, nullptr, error, 0, buffer, static_cast<DWORD>(size(buffer)), nullptr);
 
     return to_string(wstring(buffer)); // to_utf8 ...
 }
@@ -27,7 +32,7 @@ std::string quetzal::to_error_string(HRESULT hr)
 //------------------------------------------------------------------------------
 void quetzal::write_debug_string(const std::string& s)
 {
-    OutputDebugString(to_type<wstring>(s).c_str());
+    OutputDebugStringW(to_type<wstring>(s).c_str());
     return;
 }
 

@@ -28,10 +28,9 @@ int main()
     config.insert("swap_frame_count", "2");
     config.insert("resource_path", "C:/Users/Keith/Documents/kml/dev/application/toot1");
 
-    quetzal::toot1::Application application(config);
-
     try
     {
+        quetzal::toot1::Application application(config);
         application.run();
     }
     catch (const exception& e)
