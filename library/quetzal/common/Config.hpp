@@ -5,33 +5,23 @@
 // Config.hpp
 //------------------------------------------------------------------------------
 
+#include "KeyValueStore.hpp"
 #include <map>
 #include <string>
 
 namespace quetzal
 {
 
-    class Config
+    class Config : public KeyValueStore
     {
     public:
+        using KeyValueStore::KeyValueStore;
 
-        using map_type = std::map<std::string, std::string>;
-
-        Config() = default;
-        Config(const Config&) = default;
-        Config(Config&&) = default;
-        ~Config() = default;
-
-        Config& operator=(const Config&) = default;
-        Config& operator=(Config&&) = default;
-
-        std::string operator[](const std::string& key) const;
-
-        void insert(const std::string& key, const std::string& value);
-
-    private:
-
-        map_type m_values;
+        // deprecated ...
+        std::string operator[](const std::string& key) const
+        {
+            return value_or(key, std::string{});
+        }
     };
 
 } // namespace quetzal

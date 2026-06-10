@@ -5,6 +5,7 @@
 // Properties.hpp
 //------------------------------------------------------------------------------
 
+#include "KeyValueStore.hpp"
 #include "string_util.hpp"
 #include <iosfwd>
 #include <map>
@@ -13,10 +14,14 @@
 namespace quetzal
 {
 
-    // Should be a class, map type is too common, but for now, operator usage is specific enough to prevent conflict ...
-    using Properties = std::map<std::string, std::string>;
+    class Properties : public KeyValueStore
+    {
+    public:
+        using KeyValueStore::KeyValueStore;
 
-    Properties& operator|=(Properties& lhs, const Properties& rhs);
+        Properties& operator|=(const Properties& rhs);
+    };
+
     Properties operator|(Properties lhs, const Properties& rhs);
 
     template<typename T>
@@ -31,7 +36,7 @@ namespace quetzal
 template<typename T>
 T quetzal::extract(const Properties& properties, const std::string& key)
 {
-    return properties.contains(key) ? to_type<T>(properties.at(key)) : T();
+    return properties.contains(key) ? to_type<T>(properties.value(key)) : T();
 }
 
 #endif // QUETZAL_PROPERTIES_HPP

@@ -9,14 +9,14 @@
 using namespace std;
 
 //------------------------------------------------------------------------------
-quetzal::Properties& quetzal::operator|=(Properties& lhs, const Properties& rhs)
+quetzal::Properties& quetzal::Properties::operator|=(const Properties& rhs)
 {
     for (const auto& property : rhs)
     {
-        lhs.insert(property);
+        insert(property);
     }
 
-    return lhs;
+    return *this;
 }
 
 //------------------------------------------------------------------------------
