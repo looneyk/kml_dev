@@ -29,8 +29,11 @@ namespace quetzal::vulkan
 
         void destroy()
         {
-            assert(m_handle != VK_NULL_HANDLE);
-            vkDestroyImageView(m_device, m_handle, nullptr);
+            if (m_handle != VK_NULL_HANDLE)
+            {
+                vkDestroyImageView(m_device, m_handle, nullptr);
+                m_handle = VK_NULL_HANDLE;
+            }
             return;
         }
 

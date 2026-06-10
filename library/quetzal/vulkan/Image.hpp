@@ -43,7 +43,12 @@ namespace quetzal::vulkan
 
         void destroy()
         {
-            vmaDestroyImage(m_device.allocator(), m_handle, m_allocation);
+            if (m_allocation != VK_NULL_HANDLE)
+            {
+                vmaDestroyImage(m_device.allocator(), m_handle, m_allocation);
+                m_allocation = VK_NULL_HANDLE;
+                m_handle = VK_NULL_HANDLE;
+            }
             return;
         }
 

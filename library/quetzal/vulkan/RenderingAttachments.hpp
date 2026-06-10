@@ -23,6 +23,11 @@ namespace quetzal::vulkan
         {
         }
 
+        ~RenderingAttachments()
+        {
+            destroy();
+        }
+
         VkImage color_image() const { return m_colorImage; }
         VkImageView color_image_view() const { return m_colorImageView; }
         VkImage depth_image() const { return m_depthImage; }

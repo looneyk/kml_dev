@@ -92,7 +92,7 @@ namespace quetzal::scene_graph
     {
         vulkan::GeometryHandle geometry_handle = load_model<V>(id, model_path);
         vulkan::TextureHandle texture_handle = load_texture(id + "_tex", texture_path);
-        vulkan::MaterialHandle material_handle = m_renderer.create_material<V>(texture_handle, vert_spv, frag_spv);
+        vulkan::MaterialHandle material_handle = m_renderer.create_material<V>(texture_handle, (m_resource_path / vert_spv).string(), (m_resource_path / frag_spv).string());
 
         auto transform_node = std::make_unique<TransformNode>(id, transform);
         Node& transform_ref = insert(m_root, std::move(transform_node));

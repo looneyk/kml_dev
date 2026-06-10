@@ -31,7 +31,7 @@ namespace quetzal::vulkan
 
         ~Texture()
         {
-//            destroy();
+            destroy();
         }
 
         void create(const void* pixels, uint32_t width, uint32_t height, const CommandPool& commandPool, const Queue& queue)
