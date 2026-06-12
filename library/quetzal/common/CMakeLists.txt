@@ -1,4 +1,4 @@
-add_library(common STATIC
+add_library(quetzal_common STATIC
     Arguments.cpp
     Color.cpp
     ComException.cpp
@@ -47,8 +47,8 @@ add_library(common STATIC
     Timestamp.hpp
 )
 
-set_property(TARGET common PROPERTY FOLDER "library")
+set_property(TARGET quetzal_common PROPERTY FOLDER "library")
 
-target_include_directories(common PRIVATE
+target_include_directories(quetzal_common PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
 )

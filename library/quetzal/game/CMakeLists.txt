@@ -1,4 +1,4 @@
-add_library(game STATIC
+add_library(quetzal_game STATIC
     Application.cpp
     Camera.cpp
     Window.cpp
@@ -8,9 +8,9 @@ add_library(game STATIC
     Window.hpp
 )
 
-set_property(TARGET game PROPERTY FOLDER "library")
+set_property(TARGET quetzal_game PROPERTY FOLDER "library")
 
-target_include_directories(game PRIVATE
+target_include_directories(quetzal_game PRIVATE
     ${DEV_ROOT}/library
     ${LIBRARY3_DIR}
     ${LIBRARY3_DIR}/glfw/include

@@ -1,0 +1,45 @@
+add_custom_target(quetzal_geometry SOURCES
+    Attributes.hpp
+    AxisAlignedBoundingBox.hpp
+    BoundingSphere.hpp
+    BoundingVolume.hpp
+    Box.hpp
+    coordinate_system.hpp
+    Curve.hpp
+    CurveNURBS.hpp
+    distance.hpp
+    geometry_util.hpp
+    HalfPlane.hpp
+    HalfSpace.hpp
+    intersect.hpp
+    Intersection.hpp
+    Line.hpp
+    Locus.hpp
+    Mapping.hpp
+    Orientation.hpp
+    OrientedPoint.hpp
+    Path.hpp
+    Plane.hpp
+    Point.hpp
+    point_util.hpp
+    PointRelation.hpp
+    Points.hpp
+    points_util.hpp
+    Polygon.hpp
+    polygon_util.hpp
+    PolygonWithHoles.hpp
+    Polyline.hpp
+    PositionAccessor.hpp
+    Projection.hpp
+    random.hpp
+    Ray.hpp
+    relationships.hpp
+    Segment.hpp
+    spatial_properties.hpp
+    Sphere.hpp
+    transformation_matrix.hpp
+    triangle_util.hpp
+    Vector.hpp
+)
+
+set_property(TARGET quetzal_geometry PROPERTY FOLDER "library")
