@@ -314,7 +314,6 @@
     <ClCompile Include="Arguments.cpp" />
     <ClCompile Include="Color.cpp" />
     <ClCompile Include="ComException.cpp" />
-    <ClCompile Include="Config.cpp" />
     <ClCompile Include="DateTime.cpp" />
     <ClCompile Include="error_util.cpp" />
     <ClCompile Include="Exception.cpp" />

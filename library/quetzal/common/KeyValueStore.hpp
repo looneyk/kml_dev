@@ -8,7 +8,9 @@
 //------------------------------------------------------------------------------
 
 #include <filesystem>
+#include <initializer_list>
 #include <optional>
+#include <span>
 #include <string>
 #include <unordered_map>
 
@@ -24,6 +26,8 @@ namespace quetzal
 
         KeyValueStore() = default;
         KeyValueStore(const std::filesystem::path& path);
+        KeyValueStore(std::initializer_list<map_type::value_type> key_values);
+        KeyValueStore(std::span<const typename map_type::value_type> key_values);
         KeyValueStore(const KeyValueStore&) = default;
         KeyValueStore(KeyValueStore&&) = default;
         ~KeyValueStore() = default;

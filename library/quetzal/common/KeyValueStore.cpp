@@ -13,6 +13,20 @@ namespace quetzal
 {
 
 //------------------------------------------------------------------------------
+    KeyValueStore::KeyValueStore(std::initializer_list<map_type::value_type> key_values)
+    {
+        m_values.insert(key_values);
+        return;
+    }
+
+//------------------------------------------------------------------------------
+    KeyValueStore::KeyValueStore(std::span<const typename map_type::value_type> key_values)
+    {
+        m_values.insert_range(key_values);
+        return;
+    }
+
+//------------------------------------------------------------------------------
 KeyValueStore::KeyValueStore(const filesystem::path& path)
 {
     ifstream file(path);

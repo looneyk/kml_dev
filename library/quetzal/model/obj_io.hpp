@@ -120,14 +120,15 @@ void quetzal::model::read_obj(M& mesh, const std::filesystem::path& filepath)
         }
 
         surface_id = mesh.get_surface_id(submesh_id, name);
+        auto surface = mesh.surface(surface_id);
 
-        if (mesh.surface(surface_id).empty() && !material.empty())
+        if (surface.empty() && !material.empty())
         {
-            mesh.surface(surface_id).properties()[MaterialPropertyName] = material;
+            surface.properties().insert({MaterialPropertyName, material});
         }
-        else if (mesh.surface(surface_id).properties().contains(MaterialPropertyName))
+        else if (surface.properties().contains(MaterialPropertyName))
         {
-            if (mesh.surface(surface_id).properties().at(MaterialPropertyName) != material)
+            if (*surface.properties().value(MaterialPropertyName) != material)
             {
                 // The case where an existing group is being specified in the context of a different material is not handled here ...
                 // This needs to be deferred in case the discrepancy is corrected in a subsequent material specification ...
@@ -206,10 +207,10 @@ void quetzal::model::read_obj(M& mesh, const std::filesystem::path& filepath)
         std::string prefix;
         if (mesh.properties().contains(MaterialsPropertyName))
         {
-            prefix = mesh.properties().at(MaterialsPropertyName) + " ";
+            prefix = *mesh.properties().value(MaterialsPropertyName) + " ";
         }
 
-        mesh.properties()[MaterialsPropertyName] = prefix + name;
+        mesh.properties().insert({MaterialsPropertyName, prefix + name});
         return;
     };
 
@@ -222,13 +223,15 @@ void quetzal::model::read_obj(M& mesh, const std::filesystem::path& filepath)
             on_group(mesh, wavefront_obj::GroupNameDefault);
         }
 
-        if (mesh.surface(surface_id).empty() && !material.empty())
+        auto surface = mesh.surface(surface_id);
+
+        if (surface.empty() && !material.empty())
         {
-            mesh.surface(surface_id).properties()[MaterialPropertyName] = material;
+            surface.properties().insert({MaterialPropertyName, material});
         }
-        else if (mesh.surface(surface_id).properties().contains(MaterialPropertyName))
+        else if (surface.properties().contains(MaterialPropertyName))
         {
-            if (mesh.surface(surface_id).properties().at(MaterialPropertyName) != material)
+            if (*surface.properties().value(MaterialPropertyName) != material)
             {
                 // The case where an existing group is being specified in the context of a different material is not handled here ...
                 // Could handle this here creating surface with name group_material, store group name in properties for subsequent use, ...
@@ -258,7 +261,7 @@ void quetzal::model::write_obj(const M& mesh, const std::filesystem::path& filep
 
     if (mesh.properties().contains(MaterialsPropertyName))
     {
-        writer.set_materials(mesh.properties().at(MaterialsPropertyName));
+        writer.set_materials(*mesh.properties().value(MaterialsPropertyName));
     }
 
     write_vertices(writer, mesh);
@@ -280,7 +283,7 @@ void quetzal::model::write_submesh_obj(const U& submesh, const std::filesystem::
 
     if (submesh.properties().contains(MaterialsPropertyName))
     {
-        writer.set_materials(submesh.properties().at(MaterialsPropertyName));
+        writer.set_materials(*submesh.properties().value(MaterialsPropertyName));
     }
 
     write_submesh_vertices(writer, submesh);
@@ -374,7 +377,7 @@ void quetzal::model::write_submesh_faces(W& writer, const U& submesh)
         writer.set_group(surface.name());
         if (surface.properties().contains(MaterialPropertyName))
         {
-            writer.set_material(surface.properties().at(MaterialPropertyName));
+            writer.set_material(*surface.properties().value(MaterialPropertyName));
         }
 
         for (const auto& face : surface.faces())
@@ -409,7 +412,7 @@ quetzal::model::Materials quetzal::model::read_materials(const M& mesh, const st
     std::vector<std::string> filenames;
     if (mesh.properties().contains(MaterialsPropertyName))
     {
-        std::istringstream iss(mesh.properties().at(MaterialsPropertyName));
+        std::istringstream iss(*mesh.properties().value(MaterialsPropertyName));
         std::string filename;
         while (iss >> filename)  
         { 
@@ -422,7 +425,7 @@ quetzal::model::Materials quetzal::model::read_materials(const M& mesh, const st
     {
         if (surface.properties().contains(MaterialPropertyName))
         {
-            material_usages.insert(surface.properties().at(MaterialPropertyName));
+            material_usages.insert(*surface.properties().value(MaterialPropertyName));
         }
     }
 

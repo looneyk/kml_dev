@@ -63,9 +63,6 @@
     <ClCompile Include="Flags.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Config.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="file_util.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
