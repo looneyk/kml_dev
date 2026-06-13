@@ -11,6 +11,7 @@ add_library(quetzal_math STATIC
     parametric.hpp
     Quaternion.hpp
     Random.hpp
+    Rotation.hpp
     spherical_harmonics.hpp
     Vector.hpp
     vector_util.hpp

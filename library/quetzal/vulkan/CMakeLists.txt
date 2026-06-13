@@ -26,6 +26,8 @@ add_library(quetzal_vulkan STATIC
     DescriptorSetLayout.hpp
     DescriptorSets.hpp
     Device.hpp
+    Effect.hpp
+    EffectCache.hpp
     Fence.hpp
     Geometry.hpp
     GeometryCache.hpp
@@ -35,6 +37,7 @@ add_library(quetzal_vulkan STATIC
     handles.hpp
     Image.hpp
     ImageView.hpp
+    IRenderer.hpp
     initializer.hpp
     Instance.hpp
     LogicalDevice.hpp

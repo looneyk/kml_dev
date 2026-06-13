@@ -1,6 +1,8 @@
 add_library(quetzal_scene_graph STATIC
     Scene.cpp
+    stb_image_impl.cpp
     TextureManager.cpp
+    tinyobj_impl.cpp
     TinyobjReader.cpp
     AssetManager.hpp
     GeometryNode.hpp

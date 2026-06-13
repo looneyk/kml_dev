@@ -4,6 +4,7 @@ add_custom_target(quetzal_geometry SOURCES
     BoundingSphere.hpp
     BoundingVolume.hpp
     Box.hpp
+    Circle.hpp
     coordinate_system.hpp
     Curve.hpp
     CurveNURBS.hpp
