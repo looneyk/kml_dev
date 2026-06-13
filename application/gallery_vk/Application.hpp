@@ -1,7 +1,7 @@
-#if !defined(QUETZAL_TOOT1_APPLICATION_HPP)
-#define QUETZAL_TOOT1_APPLICATION_HPP
+#if !defined(QUETZAL_GALLERY_VK_APPLICATION_HPP)
+#define QUETZAL_GALLERY_VK_APPLICATION_HPP
 //------------------------------------------------------------------------------
-// quetzal toot1
+// quetzal gallery_vk
 // Application.hpp
 //------------------------------------------------------------------------------
 
@@ -10,8 +10,10 @@
 #include "quetzal/game/Camera.hpp"
 #include "quetzal/vulkan/Renderer.hpp"
 #include "quetzal/vulkan/Window.hpp"
+#include "quetzal/scene_graph/Scene.hpp"
+#include <filesystem>
 
-namespace quetzal::toot1
+namespace quetzal::gallery_vk
 {
 
     class Application : public game::Application
@@ -43,6 +45,8 @@ namespace quetzal::toot1
 
         vulkan::Window m_window;
         vulkan::Renderer m_renderer;
+        scene_graph::Scene m_scene;
+        std::filesystem::path m_resource_path;
         game::Camera m_camera;
 
         float m_speed;
@@ -50,6 +54,6 @@ namespace quetzal::toot1
         std::array<double, 2> m_cursor_prev;
     };
 
-} // namespace quetzal::toot1
+} // namespace quetzal::gallery_vk
 
-#endif // QUETZAL_TOOT1_APPLICATION_HPP
+#endif // QUETZAL_GALLERY_VK_APPLICATION_HPP

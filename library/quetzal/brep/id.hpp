@@ -18,8 +18,8 @@ namespace quetzal::brep
     template<typename T>
     std::string id_string(id_type id, const T& container);
 
-    std::string id_string(id_type id);
-    std::string partner_id_string(id_type id);
+    inline std::string id_string(id_type id);
+    inline std::string partner_id_string(id_type id);
 
 } // namespace quetzal::brep
 
@@ -53,7 +53,7 @@ std::string quetzal::brep::id_string(id_type id, const T& container)
 }
 
 //------------------------------------------------------------------------------
-std::string quetzal::brep::id_string(id_type id)
+inline std::string quetzal::brep::id_string(id_type id)
 {
     if (id == nullid)
     {
@@ -64,7 +64,7 @@ std::string quetzal::brep::id_string(id_type id)
 }
 
 //------------------------------------------------------------------------------
-std::string quetzal::brep::partner_id_string(id_type id)
+inline std::string quetzal::brep::partner_id_string(id_type id)
 {
     if (id == nullid)
     {

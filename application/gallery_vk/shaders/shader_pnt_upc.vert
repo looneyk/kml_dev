@@ -1,10 +1,9 @@
 #version 450
 
-layout(binding = 0) uniform UniformBufferObject {
-    mat4 model;
+layout(set = 0, binding = 0) uniform SceneUBO {
     mat4 view;
     mat4 proj;
-} ubo;
+} scene;
 
 layout(push_constant) uniform PushConstants {
     mat4 model;
@@ -16,9 +15,12 @@ layout(location = 2) in vec2 inTexCoord;
 
 layout(location = 0) out vec3 fragNormal;
 layout(location = 1) out vec2 fragTexCoord;
+layout(location = 2) out vec3 fragWorldPos;
 
 void main() {
-    gl_Position = ubo.proj * ubo.view * pcs.model * vec4(inPosition, 1.0);
-    fragNormal = inNormal;
+    vec4 worldPos = pcs.model * vec4(inPosition, 1.0);
+    gl_Position = scene.proj * scene.view * worldPos;
+    fragNormal = mat3(transpose(inverse(pcs.model))) * inNormal;
     fragTexCoord = inTexCoord;
+    fragWorldPos = worldPos.xyz;
 }

@@ -369,8 +369,8 @@ namespace quetzal::brep
         static submeshes_type::const_element_function_type m_submeshes_const_element;
     };
 
-    std::string extended_surface_name(const std::string& submesh_name, const std::string& surface_name);
-    std::array<std::string, 2> split_extended_surface_name(const std::string& name);
+    inline std::string extended_surface_name(const std::string& submesh_name, const std::string& surface_name);
+    inline std::array<std::string, 2> split_extended_surface_name(const std::string& name);
 
     //--------------------------------------------------------------------------
     template<typename Traits>
@@ -2570,13 +2570,13 @@ quetzal::brep::Mesh<Traits>::index_type quetzal::brep::Mesh<Traits>::remap_index
 }
 
 //------------------------------------------------------------------------------
-std::string quetzal::brep::extended_surface_name(const std::string& submesh_name, const std::string& surface_name)
+inline std::string quetzal::brep::extended_surface_name(const std::string& submesh_name, const std::string& surface_name)
 {
     return format("{}/{}", submesh_name, surface_name);
 }
 
 //------------------------------------------------------------------------------
-std::array<std::string, 2> quetzal::brep::split_extended_surface_name(const std::string& name)
+inline std::array<std::string, 2> quetzal::brep::split_extended_surface_name(const std::string& name)
 {
     auto pos = name.find_first_of('/');
     if (pos != std::string::npos)

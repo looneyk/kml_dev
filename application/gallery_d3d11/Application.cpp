@@ -21,7 +21,7 @@ quetzal::gallery::Application::Application() :
     m_t(),
     m_statistics()
 {
-    m_window.create_floating("Gallery", {100, 100}, {800, 600});
+    m_window.create_windowed("Gallery", {100, 100}, {800, 600});
     m_renderer.create();
     m_texture_manager.set_path("textures");
     m_model_manager.set_path("models");
@@ -46,7 +46,7 @@ void quetzal::gallery::Application::update(float dt)
 }
 
 //------------------------------------------------------------------------------
-void quetzal::gallery::Application::render()
+void quetzal::gallery::Application::draw()
 {
     m_renderer.clear();
     m_scene.draw(m_camera);

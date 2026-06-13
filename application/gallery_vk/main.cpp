@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-// toot1
+// gallery_vk
 // main.cpp
 //------------------------------------------------------------------------------
 
@@ -12,14 +12,13 @@ using namespace std;
 
 int main()
 {
-    // file ...
     quetzal::Config config;
-    config.insert("application_name", "toot1");
+    config.insert("application_name", "gallery_vk");
     config.insert("application_version", "0");
     config.insert("engine_name", "engine");
     config.insert("engine_version", "0");
     config.insert("mode", "windowed");
-    config.insert("title", "toot1");
+    config.insert("title", "gallery_vk");
     config.insert("x", "0");
     config.insert("y", "0");
     config.insert("width", "800");
@@ -27,7 +26,7 @@ int main()
     config.insert("cursor", "disabled");
     config.insert("swap_frame_count", "2");
 
-    quetzal::toot1::Application application(config);
+    quetzal::gallery_vk::Application application(config);
 
     try
     {

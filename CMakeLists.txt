@@ -39,7 +39,9 @@ add_subdirectory(library/quetzal/vulkan)
 add_subdirectory(library/quetzal/wavefront_obj)
 add_subdirectory(library/quetzal/xml)
 
+add_subdirectory(application/gallery_vk)
 add_subdirectory(application/toot1)
+
 add_subdirectory(model/primitives)
 add_subdirectory(model/helix_pyramid)
 add_subdirectory(model/menger_sponge)

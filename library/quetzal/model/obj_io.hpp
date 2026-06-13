@@ -6,6 +6,7 @@
 //------------------------------------------------------------------------------
 
 #include "quetzal/common/id.hpp"
+#include "quetzal/geometry/spatial_properties.hpp"
 #include "quetzal/wavefront_obj/Material.hpp"
 #include "quetzal/wavefront_obj/MaterialLibrary.hpp"
 #include "quetzal/wavefront_obj/Reader.hpp"
@@ -80,7 +81,7 @@ void quetzal::model::read_obj(M& mesh, const std::filesystem::path& filepath)
         assert(surface_id == nullid);
         assert(face_id == nullid);
         
-        mesh.properties()[MaterialStandardPropertyName] = "wavefront_obj";
+        mesh.properties().insert({MaterialStandardPropertyName, "wavefront_obj"});
         return;
     };
 

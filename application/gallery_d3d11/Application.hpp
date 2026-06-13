@@ -27,7 +27,7 @@ namespace quetzal::gallery
     protected:
 
         virtual void update(float dt);
-        virtual void render();
+        virtual void draw();
 
         virtual void on_size(size_type size);
         virtual void on_key_down(Timestamp ts, quetzal::input::key::Modifiers modifiers, quetzal::input::key::Code code);

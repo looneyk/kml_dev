@@ -1,37 +1,38 @@
 //------------------------------------------------------------------------------
-// quetzal toot1
+// quetzal gallery_vk
 // Application.cpp
 //------------------------------------------------------------------------------
 
 #include "Application.hpp"
 #include "quetzal/game/types.hpp"
 #include "quetzal/math/math_util.hpp"
+#include "quetzal/vulkan/Vertex.hpp"
 #include <glm/gtc/matrix_transform.hpp>
 #include <array>
 #include <ranges>
 #include <cassert>
 
-#include <iostream>
-
 using namespace std;
 
-const std::vector<std::string> model_paths = 
+const std::vector<std::string> model_paths =
 {
-    "viking_room.obj",
-    "tuskified_spikosahedron.obj",
+    "models/viking_room.obj",
+    "models/tuskified_spikosahedron.obj",
 };
 
-const std::vector<std::string> texture_paths = 
+const std::vector<std::string> texture_paths =
 {
-    "viking_room.png",
-    "142LL_1.png",
+    "textures/viking_room.png",
+    "textures/142LL_1.png",
 };
 
 //------------------------------------------------------------------------------
-quetzal::toot1::Application::Application(const quetzal::Config& config) :
+quetzal::gallery_vk::Application::Application(const quetzal::Config& config) :
     game::Application(m_window),
     m_window(config),
     m_renderer(config, m_window),
+    m_scene(m_renderer),
+    m_resource_path(config["resource_path"]),
     m_camera(math::PiThird<float>),
     m_speed(1.0f),
     m_bTracking(false),
@@ -40,35 +41,33 @@ quetzal::toot1::Application::Application(const quetzal::Config& config) :
     m_window.set_user_pointer(this);
     set_window_event_interface();
 
-    m_renderer.create(); // window here so no initialization order ...
+    m_renderer.create();
+//    m_texture_manager.set_path("textures");
+//    m_model_manager.set_path("models");
 
-    m_renderer.insert<vulkan::VertexPositionColorTexcoord>("0", model_paths[0], texture_paths[0], glm::translate(glm::mat4(1.0f), glm::vec3(-1.0f, 0.0f, 0.0f)));
-    m_renderer.insert<vulkan::VertexPositionNormalTexcoord>("1", model_paths[1], texture_paths[1], glm::translate(glm::mat4(1.0f), glm::vec3(1.0f, 0.0f, 0.0f)) * glm::scale(glm::mat4(1.0f), glm::vec3(0.01f, 0.01f, 0.01f)));
+    scene_graph::load<vulkan::VertexPositionColorTexcoord>(m_scene, m_renderer, m_resource_path, "0", model_paths[0], texture_paths[0], glm::translate(glm::mat4(1.0f), glm::vec3(-1.0f, 0.0f, 0.0f)));
+    scene_graph::load<vulkan::VertexPositionNormalTexcoord>(m_scene, m_renderer, m_resource_path, "1", model_paths[1], texture_paths[1], glm::translate(glm::mat4(1.0f), glm::vec3(1.0f, 0.0f, 0.0f)) * glm::scale(glm::mat4(1.0f), glm::vec3(0.01f, 0.01f, 0.01f)), "shaders/vert_pnt_pc.spv", "shaders/frag_pnt.spv");
 
     m_camera.set_position({2.0f, 2.0f, 2.0f, 1.0f});
     m_camera.set_forward({-1.0f, -1.0f, -1.0f});
 }
 
 //------------------------------------------------------------------------------
-quetzal::toot1::Application::~Application()
+quetzal::gallery_vk::Application::~Application()
 {
     m_renderer.destroy();
 }
 
 //------------------------------------------------------------------------------
-void quetzal::toot1::Application::update(float dt)
+void quetzal::gallery_vk::Application::update(float dt)
 {
-    // update scene
-
     const float omega = 0.25f * game::PI;
 
-    std::array<glm::mat4, 2> model_matrices = 
+    std::array<glm::mat4, 2> model_matrices =
     {
          glm::rotate(glm::mat4(1.0f), dt * omega, glm::vec3(0.0f, 0.0f, 1.0f)),
          glm::rotate(glm::mat4(1.0f), -dt * omega, glm::vec3(0.0f, 0.0f, 1.0f)),
     };
-
-    // update view
 
     update_camera(dt);
 
@@ -77,30 +76,27 @@ void quetzal::toot1::Application::update(float dt)
     m_camera.update_view();
     m_camera.set_perspective(static_cast<float>(extent.width) / static_cast<float>(extent.height), 0.1f, 100.0f);
 
-    auto view = m_camera.view();
-    auto proj = m_camera.projection();
-
-    m_renderer.update_viewpoint(view, proj);
+    m_scene.set_camera(m_camera.view(), m_camera.projection());
 
     std::array<std::string, 2> ids = {"0", "1"};
 
     for (const auto& e : std::views::zip(ids, model_matrices))
     {
-        m_renderer.update_model_instance(get<0>(e), get<1>(e));
+        m_scene.update_model_instance(get<0>(e), get<1>(e));
     }
 
     return;
 }
 
 //------------------------------------------------------------------------------
-void quetzal::toot1::Application::draw()
+void quetzal::gallery_vk::Application::draw()
 {
-    m_renderer.draw();
+    m_scene.draw();
     return;
 }
 
 //------------------------------------------------------------------------------
-void quetzal::toot1::Application::on_key(GLFWwindow* pwindow, int key, int scancode, int action, int mods)
+void quetzal::gallery_vk::Application::on_key(GLFWwindow* pwindow, int key, int scancode, int action, int mods)
 {
     pwindow;
     key;
@@ -108,7 +104,6 @@ void quetzal::toot1::Application::on_key(GLFWwindow* pwindow, int key, int scanc
     action;
     mods;
 
-    //std::cout << "on_key " << (char)key << std::endl;
     switch (key)
     {
         case GLFW_KEY_ESCAPE:
@@ -135,7 +130,7 @@ void quetzal::toot1::Application::on_key(GLFWwindow* pwindow, int key, int scanc
 }
 
 //------------------------------------------------------------------------------
-void quetzal::toot1::Application::on_char(GLFWwindow* pwindow, unsigned int codepoint)
+void quetzal::gallery_vk::Application::on_char(GLFWwindow* pwindow, unsigned int codepoint)
 {
     pwindow;
     codepoint;
@@ -143,7 +138,7 @@ void quetzal::toot1::Application::on_char(GLFWwindow* pwindow, unsigned int code
 }
 
 //------------------------------------------------------------------------------
-void quetzal::toot1::Application::on_cursor_position(GLFWwindow* pwindow, double x, double y)
+void quetzal::gallery_vk::Application::on_cursor_position(GLFWwindow* pwindow, double x, double y)
 {
     pwindow;
 
@@ -151,8 +146,6 @@ void quetzal::toot1::Application::on_cursor_position(GLFWwindow* pwindow, double
     {
         return;
     }
-
-    //std::cout << "on_cursor_position " << x << " " << y << std::endl;
 
     auto extent = m_renderer.extent();
 
@@ -163,12 +156,11 @@ void quetzal::toot1::Application::on_cursor_position(GLFWwindow* pwindow, double
         return;
     }
 
-    float sensitivity = 0.5f; // missing factor of 2? ...
+    float sensitivity = 0.5f;
     float factor = sensitivity * m_camera.fov() / extent.width;
 
     float rx = factor * static_cast<float>(-dx);
     float ry = factor * static_cast<float>(-dy);
-    //std::cout << "radians " << rx << " " << ry << std::endl;
 
     m_camera.pan(rx);
     m_camera.tilt(ry);
@@ -179,7 +171,7 @@ void quetzal::toot1::Application::on_cursor_position(GLFWwindow* pwindow, double
 }
 
 //------------------------------------------------------------------------------
-void quetzal::toot1::Application::on_cursor_enter(GLFWwindow* pwindow, int entered)
+void quetzal::gallery_vk::Application::on_cursor_enter(GLFWwindow* pwindow, int entered)
 {
     pwindow;
 
@@ -193,7 +185,7 @@ void quetzal::toot1::Application::on_cursor_enter(GLFWwindow* pwindow, int enter
 }
 
 //------------------------------------------------------------------------------
-void quetzal::toot1::Application::on_mouse_button(GLFWwindow* pwindow, int button, int action, int mods)
+void quetzal::gallery_vk::Application::on_mouse_button(GLFWwindow* pwindow, int button, int action, int mods)
 {
     pwindow;
     button;
@@ -203,7 +195,7 @@ void quetzal::toot1::Application::on_mouse_button(GLFWwindow* pwindow, int butto
 }
 
 //------------------------------------------------------------------------------
-void quetzal::toot1::Application::on_mouse_scroll(GLFWwindow* pwindow, double xoffset, double yoffset)
+void quetzal::gallery_vk::Application::on_mouse_scroll(GLFWwindow* pwindow, double xoffset, double yoffset)
 {
     pwindow;
     xoffset;
@@ -212,7 +204,7 @@ void quetzal::toot1::Application::on_mouse_scroll(GLFWwindow* pwindow, double xo
 }
 
 //------------------------------------------------------------------------------
-void quetzal::toot1::Application::update_camera(float dt)
+void quetzal::gallery_vk::Application::update_camera(float dt)
 {
     glm::vec4 position = m_camera.position();
 
