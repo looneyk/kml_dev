@@ -1,8 +1,8 @@
 #if !defined(QUETZAL_SCENE_GRAPH_RENDERVISITOR_HPP)
 #define QUETZAL_SCENE_GRAPH_RENDERVISITOR_HPP
 
-#include "CameraNode.hpp"
 #include "GeometryNode.hpp"
+#include "LightNode.hpp"
 #include "MaterialNode.hpp"
 #include "NodeVisitor.hpp"
 #include "TransformNode.hpp"
@@ -20,13 +20,17 @@ namespace quetzal::scene_graph
         RenderVisitor(vulkan::IRenderer& renderer) :
             m_renderer(renderer),
             m_transform_stack(1, game::matrix_type(1.0f)),
-            m_material_stack()
+            m_material_stack(),
+            m_lights()
         {
         }
 
-        void apply(CameraNode& node) override
+        std::span<const vulkan::Light> lights() const { return m_lights; }
+
+        void apply(LightNode& node) override
         {
-            m_renderer.set_camera(node.view(), node.proj());
+            game::vector_type position(m_transform_stack.back()[3]);
+            m_lights.push_back({position, node.color(), node.intensity()});
             traverse(node);
         }
 
@@ -58,6 +62,7 @@ namespace quetzal::scene_graph
         vulkan::IRenderer& m_renderer;
         std::vector<game::matrix_type> m_transform_stack;
         std::vector<vulkan::MaterialHandle> m_material_stack;
+        std::vector<vulkan::Light> m_lights;
     };
 
 } // namespace quetzal::scene_graph

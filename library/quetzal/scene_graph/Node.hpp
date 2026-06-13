@@ -23,15 +23,15 @@ namespace quetzal::scene_graph
 
         virtual ~Node() = default;
 
-        virtual void accept(NodeVisitor&) {}
+        virtual void accept(NodeVisitor& visitor);
 
         const std::string& id() const { return m_id; }
 
         Node* parent() const { return m_parent; }
 
-        const std::vector<std::unique_ptr<Node>>& children() const { return m_children; }
+        const std::vector<std::shared_ptr<Node>>& children() const { return m_children; }
 
-        Node& add_child(std::unique_ptr<Node> child)
+        Node& add_child(std::shared_ptr<Node> child)
         {
             child->m_parent = this;
             return *m_children.emplace_back(std::move(child));
@@ -46,7 +46,7 @@ namespace quetzal::scene_graph
 
         std::string m_id;
         Node* m_parent;
-        std::vector<std::unique_ptr<Node>> m_children;
+        std::vector<std::shared_ptr<Node>> m_children;
     };
 
 } // namespace quetzal::scene_graph

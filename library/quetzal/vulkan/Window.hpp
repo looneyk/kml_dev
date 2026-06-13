@@ -5,7 +5,7 @@
 // Window.hpp
 //------------------------------------------------------------------------------
 
-#include <vulkan/vulkan.hpp> // must be first ...
+#include <vulkan/vulkan.hpp> // must preceed GLFW include in game/Window.hpp
 #include "quetzal/common/Config.hpp"
 #include "quetzal/game/Window.hpp"
 

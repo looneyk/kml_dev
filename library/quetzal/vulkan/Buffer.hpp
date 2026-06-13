@@ -64,7 +64,7 @@ namespace quetzal::vulkan
             VkDescriptorBufferInfo bufferInfo{};
             bufferInfo.buffer = m_handle;
             bufferInfo.offset = 0; // allocationInfo.offset; ? ...
-            bufferInfo.range = allocationInfo.size;
+            bufferInfo.range = VK_WHOLE_SIZE;
             return bufferInfo;
         }
 

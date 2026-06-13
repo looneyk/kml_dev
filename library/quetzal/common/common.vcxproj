@@ -320,6 +320,7 @@
     <ClCompile Include="FileValidator.cpp" />
     <ClCompile Include="file_util.cpp" />
     <ClCompile Include="Flags.cpp" />
+    <ClCompile Include="KeyValueStore.cpp" />
     <ClCompile Include="logger.cpp" />
     <ClCompile Include="LogLevel.cpp" />
     <ClCompile Include="Platform.cpp" />
@@ -350,6 +351,7 @@
     <ClInclude Include="file_util.hpp" />
     <ClInclude Include="Flags.hpp" />
     <ClInclude Include="id.hpp" />
+    <ClInclude Include="KeyValueStore.hpp" />
     <ClInclude Include="Log.hpp" />
     <ClInclude Include="logger.hpp" />
     <ClInclude Include="LogLevel.hpp" />

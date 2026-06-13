@@ -27,6 +27,13 @@ namespace quetzal::vulkan
         bool operator==(const TextureHandle&) const = default;
     };
 
+    struct EffectHandle
+    {
+        std::string id;
+
+        bool operator==(const EffectHandle&) const = default;
+    };
+
 } // namespace quetzal::vulkan
 
 #endif // QUETZAL_VULKAN_HANDLES_HPP

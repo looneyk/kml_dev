@@ -6,8 +6,8 @@
 namespace quetzal::scene_graph
 {
 
-    class CameraNode;
     class GeometryNode;
+    class LightNode;
     class MaterialNode;
     class TransformNode;
 
@@ -17,8 +17,8 @@ namespace quetzal::scene_graph
 
         virtual ~NodeVisitor() = default;
 
-        virtual void apply(CameraNode&) {}
         virtual void apply(GeometryNode&) {}
+        virtual void apply(LightNode&) {}
         virtual void apply(MaterialNode&) {}
         virtual void apply(TransformNode&) {}
 
@@ -28,6 +28,8 @@ namespace quetzal::scene_graph
                 child->accept(*this);
         }
     };
+
+    inline void Node::accept(NodeVisitor& visitor) { visitor.traverse(*this); }
 
 } // namespace quetzal::scene_graph
 

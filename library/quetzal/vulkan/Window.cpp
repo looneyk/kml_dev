@@ -6,6 +6,7 @@
 #include "Window.hpp"
 #include "VulkanError.hpp"
 #include "vulkan_util.hpp"
+#include <GLFW/glfw3.h>
 #include <stdexcept>
 
 //------------------------------------------------------------------------------

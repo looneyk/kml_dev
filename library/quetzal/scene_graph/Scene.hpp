@@ -1,7 +1,6 @@
 #if !defined(QUETZAL_SCENE_GRAPH_SCENE_HPP)
 #define QUETZAL_SCENE_GRAPH_SCENE_HPP
 
-#include "CameraNode.hpp"
 #include "GeometryNode.hpp"
 #include "MaterialNode.hpp"
 #include "Node.hpp"
@@ -23,25 +22,25 @@ namespace quetzal::scene_graph
     {
     public:
 
-        Scene(vulkan::IRenderer& renderer, const std::filesystem::path& resource_path) :
+        Scene(vulkan::IRenderer& renderer) :
             m_renderer(renderer),
-            m_resource_path(resource_path),
             m_root(""),
             m_index(),
-            m_camera_node(nullptr)
+            m_view(1.0f),
+            m_proj(1.0f)
         {
         }
 
         Node& root() { return m_root; }
         const Node& root() const { return m_root; }
 
-        Node& insert(Node& parent, std::unique_ptr<Node> node)
+        Node& insert(Node& parent, std::shared_ptr<Node> node)
         {
             register_subtree(*node);
             return parent.add_child(std::move(node));
         }
 
-        Node& insert(const std::string& parent_id, std::unique_ptr<Node> node)
+        Node& insert(const std::string& parent_id, std::shared_ptr<Node> node)
         {
             Node* parent = find(parent_id);
             assert(parent != nullptr);
@@ -60,33 +59,27 @@ namespace quetzal::scene_graph
             return i != m_index.end() ? i->second : nullptr;
         }
 
-        template<typename V>
-        void insert(const std::string& id,
-                    const std::filesystem::path& model_path,
-                    const std::filesystem::path& texture_path,
-                    const game::matrix_type& transform,
-                    const std::string& vert_spv = "shaders/vert_pct_pc.spv",
-                    const std::string& frag_spv = "shaders/frag_pct.spv");
+        template<typename T>
+        T* find(const std::string& id)
+        {
+            return dynamic_cast<T*>(find(id));
+        }
+
+        template<typename T>
+        const T* find(const std::string& id) const
+        {
+            return dynamic_cast<const T*>(find(id));
+        }
 
         void set_camera(const game::matrix_type& view, const game::matrix_type& proj)
         {
-            if (m_camera_node == nullptr)
-            {
-                auto camera = std::make_unique<CameraNode>("__camera__", view, proj);
-                m_camera_node = static_cast<CameraNode*>(&insert(m_root, std::move(camera)));
-            }
-            else
-            {
-                m_camera_node->set_view(view);
-                m_camera_node->set_proj(proj);
-            }
+            m_view = view;
+            m_proj = proj;
         }
 
         void update_model_instance(const std::string& id, const game::matrix_type& matrix)
         {
-            Node* node = find(id);
-            assert(node != nullptr);
-            TransformNode* transform = dynamic_cast<TransformNode*>(node);
+            TransformNode* transform = find<TransformNode>(id);
             assert(transform != nullptr);
             transform->set_local_transform(transform->local_transform() * matrix);
         }
@@ -100,8 +93,10 @@ namespace quetzal::scene_graph
         {
             if (!m_renderer.begin_frame())
                 return;
+            m_renderer.set_camera(m_view, m_proj);
             RenderVisitor visitor(m_renderer);
             accept(visitor);
+            m_renderer.set_lights(visitor.lights());
             m_renderer.end_frame();
         }
 
@@ -109,15 +104,9 @@ namespace quetzal::scene_graph
         {
             m_root.clear_children();
             m_index.clear();
-            m_camera_node = nullptr;
         }
 
     private:
-
-        template<typename V>
-        vulkan::GeometryHandle load_model(const std::string& id, const std::filesystem::path& model_path);
-
-        vulkan::TextureHandle load_texture(const std::string& id, const std::filesystem::path& texture_path);
 
         void register_subtree(Node& node)
         {
@@ -128,14 +117,25 @@ namespace quetzal::scene_graph
         }
 
         vulkan::IRenderer& m_renderer;
-        std::filesystem::path m_resource_path;
         Node m_root;
         std::unordered_map<std::string, Node*> m_index;
-        CameraNode* m_camera_node;
+        game::matrix_type m_view;
+        game::matrix_type m_proj;
     };
 
-    extern template void Scene::insert<vulkan::VertexPositionColorTexcoord>(const std::string&, const std::filesystem::path&, const std::filesystem::path&, const game::matrix_type&, const std::string&, const std::string&);
-    extern template void Scene::insert<vulkan::VertexPositionNormalTexcoord>(const std::string&, const std::filesystem::path&, const std::filesystem::path&, const game::matrix_type&, const std::string&, const std::string&);
+    template<typename V>
+    void load(Scene& scene,
+              vulkan::IRenderer& renderer,
+              const std::filesystem::path& resource_path,
+              const std::string& id,
+              const std::filesystem::path& model_path,
+              const std::filesystem::path& texture_path,
+              const game::matrix_type& transform,
+              const std::string& vert_spv = "shaders/vert_pct_pc.spv",
+              const std::string& frag_spv = "shaders/frag_pct.spv");
+
+    extern template void load<vulkan::VertexPositionColorTexcoord>(Scene&, vulkan::IRenderer&, const std::filesystem::path&, const std::string&, const std::filesystem::path&, const std::filesystem::path&, const game::matrix_type&, const std::string&, const std::string&);
+    extern template void load<vulkan::VertexPositionNormalTexcoord>(Scene&, vulkan::IRenderer&, const std::filesystem::path&, const std::string&, const std::filesystem::path&, const std::filesystem::path&, const game::matrix_type&, const std::string&, const std::string&);
 
 } // namespace quetzal::scene_graph
 

@@ -15,10 +15,10 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="CameraNode.hpp">
+    <ClInclude Include="GeometryNode.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="GeometryNode.hpp">
+    <ClInclude Include="LightNode.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="MaterialNode.hpp">

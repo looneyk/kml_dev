@@ -2,8 +2,8 @@ add_library(quetzal_scene_graph STATIC
     Scene.cpp
     stb_image_impl.cpp
     tinyobj_impl.cpp
-    CameraNode.hpp
     GeometryNode.hpp
+    LightNode.hpp
     MaterialNode.hpp
     Node.hpp
     NodeVisitor.hpp

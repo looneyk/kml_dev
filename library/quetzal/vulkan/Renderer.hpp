@@ -8,6 +8,8 @@
 #include "Context.hpp"
 #include "Descriptors.hpp"
 #include "Device.hpp"
+#include "Effect.hpp"
+#include "EffectCache.hpp"
 #include "Fence.hpp"
 #include "Geometry.hpp"
 #include "GeometryCache.hpp"
@@ -28,6 +30,7 @@
 #include "initializer.hpp"
 #include "quetzal/common/Config.hpp"
 #include "quetzal/game/types.hpp"
+#include <glm/gtc/matrix_inverse.hpp>
 #include <vulkan/vulkan.hpp>
 #include <array>
 #include <optional>
@@ -58,10 +61,22 @@ namespace quetzal::vulkan
 
     } // namespace detail
 
-    struct UniformBufferObject
+    struct SceneLight
+    {
+        glm::vec4 position;
+        glm::vec4 color;
+        float intensity;
+        float _pad[3];
+    };
+
+    struct SceneUBO
     {
         alignas(16) game::matrix_type view_matrix;
-        alignas(16) game::matrix_type proj_matrix;
+        game::matrix_type proj_matrix;
+        glm::vec4 camera_pos;
+        SceneLight lights[8];
+        int32_t light_count;
+        int32_t _pad[3];
     };
 
     struct PushConstants
@@ -86,7 +101,12 @@ namespace quetzal::vulkan
             m_command_pool(m_device),
             m_geometry_cache(m_device, m_command_pool),
             m_texture_cache(m_device, m_command_pool, m_device.queues().get(VK_QUEUE_GRAPHICS_BIT, 0)),
-            m_uniform_buffers(m_device, m_swap_frame_count),
+            m_scene_uniform_buffers(m_device, m_swap_frame_count),
+            m_set0_layout(VK_NULL_HANDLE),
+            m_set1_layout(VK_NULL_HANDLE),
+            m_scene_descriptor_sets(),
+            m_scene_ubo{},
+            m_effect_cache(),
             m_material_cache(),
             m_command_buffers(m_device, m_command_pool),
             m_image_available_semaphores(),
@@ -106,19 +126,53 @@ namespace quetzal::vulkan
 
             create_surface_resources();
 
+            VkDescriptorSetLayoutBinding set0_binding{};
+            set0_binding.binding = 0;
+            set0_binding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+            set0_binding.descriptorCount = 1;
+            set0_binding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+            set0_binding.pImmutableSamplers = nullptr;
+            std::array<VkDescriptorSetLayoutBinding, 1> set0_bindings = {set0_binding};
+            m_set0_layout = m_descriptor_layout_cache.create_descriptor_layout(set0_bindings);
+
+            VkDescriptorSetLayoutBinding set1_binding{};
+            set1_binding.binding = 0;
+            set1_binding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+            set1_binding.descriptorCount = 1;
+            set1_binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+            set1_binding.pImmutableSamplers = nullptr;
+            std::array<VkDescriptorSetLayoutBinding, 1> set1_bindings = {set1_binding};
+            m_set1_layout = m_descriptor_layout_cache.create_descriptor_layout(set1_bindings);
+
+            m_scene_descriptor_sets.resize(m_swap_frame_count);
+            for (size_t i = 0; i < m_swap_frame_count; ++i)
+            {
+                VkDescriptorBufferInfo buffer_info = m_scene_uniform_buffers[i].descriptor();
+                DescriptorBuilder::begin(&m_descriptor_allocator, &m_descriptor_layout_cache)
+                    .bind(0, buffer_info, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT)
+                    .build(m_scene_descriptor_sets[i]);
+            }
+
             VkPushConstantRange push_constant_range = vk_push_constant_range(VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(PushConstants));
-            m_material_cache.emplace(
+            m_effect_cache.emplace(
                 m_device,
-                m_descriptor_allocator,
-                m_descriptor_layout_cache,
+                m_set0_layout,
+                m_set1_layout,
                 m_resource_manager,
                 m_pipeline_manager,
-                m_texture_cache,
-                std::span<const Buffer>(m_uniform_buffers),
                 m_swapchain.image_format(),
                 m_swapchain.depth_format(),
                 m_msaa_samples,
                 std::span<VkPushConstantRange>{&push_constant_range, 1}
+            );
+
+            m_material_cache.emplace(
+                m_device,
+                m_descriptor_allocator,
+                m_descriptor_layout_cache,
+                *m_effect_cache,
+                m_texture_cache,
+                m_swap_frame_count
             );
 
             m_command_pool.create(m_device.queues().get(VK_QUEUE_GRAPHICS_BIT, 0).family_index());
@@ -133,6 +187,7 @@ namespace quetzal::vulkan
             destroy_surface_resources();
 
             m_material_cache->clear();
+            m_effect_cache->clear();
             m_descriptor_layout_cache.clear();
             m_descriptor_allocator.clear();
 
@@ -171,25 +226,24 @@ namespace quetzal::vulkan
             return m_texture_cache.upload(id, pixels, width, height);
         }
 
-        MaterialHandle create_material(const TextureHandle& texture, const std::string& vert_spv, const std::string& frag_spv, const VertexBinding& layout) override
+        EffectHandle create_effect(const std::string& vert_spv, const std::string& frag_spv, const VertexBinding& layout) override
         {
             VkVertexInputBindingDescription binding_desc{layout.binding, layout.stride, VK_VERTEX_INPUT_RATE_VERTEX};
             std::vector<VkVertexInputAttributeDescription> attr_descs;
             for (const auto& attr : layout.attributes)
                 attr_descs.push_back({attr.location, layout.binding, static_cast<VkFormat>(attr.format), attr.offset});
-            return m_material_cache->create(texture, vert_spv, frag_spv, binding_desc, attr_descs);
+            return m_effect_cache->create(vert_spv, frag_spv, binding_desc, attr_descs);
+        }
+
+        MaterialHandle create_material(const EffectHandle& effect, const TextureHandle& texture) override
+        {
+            return m_material_cache->create(effect, texture);
         }
 
         template<typename V>
         GeometryHandle upload_geometry(const std::string& id, std::span<const V> vertices, std::span<const Geometry::index_type> indices)
         {
             return m_geometry_cache.upload<V>(id, vertices, indices);
-        }
-
-        template<typename V>
-        MaterialHandle create_material(const TextureHandle& texture, const std::string& vert_spv, const std::string& frag_spv)
-        {
-            return m_material_cache->create<V>(texture, vert_spv, frag_spv);
         }
 
         bool begin_frame() override
@@ -305,10 +359,23 @@ namespace quetzal::vulkan
 
         void set_camera(const game::matrix_type& view, const game::matrix_type& proj) override
         {
-            UniformBufferObject ubo;
-            ubo.view_matrix = view;
-            ubo.proj_matrix = proj;
-            m_uniform_buffers.set(m_current_frame, ubo);
+            m_scene_ubo.view_matrix = view;
+            m_scene_ubo.proj_matrix = proj;
+            game::matrix_type inv_view = glm::inverse(view);
+            m_scene_ubo.camera_pos = glm::vec4(glm::vec3(inv_view[3]), 1.0f);
+            m_scene_uniform_buffers.set(m_current_frame, m_scene_ubo);
+        }
+
+        void set_lights(std::span<const Light> lights) override
+        {
+            m_scene_ubo.light_count = static_cast<int32_t>(std::min(lights.size(), size_t(8)));
+            for (int32_t i = 0; i < m_scene_ubo.light_count; ++i)
+            {
+                m_scene_ubo.lights[i].position = glm::vec4(lights[i].position, 1.0f);
+                m_scene_ubo.lights[i].color = glm::vec4(lights[i].color, 1.0f);
+                m_scene_ubo.lights[i].intensity = lights[i].intensity;
+            }
+            m_scene_uniform_buffers.set(m_current_frame, m_scene_ubo);
         }
 
         void draw_geometry(const GeometryHandle& geometry_handle, const MaterialHandle& material_handle, const game::matrix_type& model_matrix) override
@@ -319,22 +386,19 @@ namespace quetzal::vulkan
             PushConstants pcs;
             pcs.model_matrix = model_matrix;
 
-            VkDescriptorSet descriptor_set = material.descriptor_set(m_current_frame);
-            VkBuffer vertex_buffer = geometry.vertex_buffer();
-            VkBuffer index_buffer = geometry.index_buffer();
-            uint32_t count = to_uint32(geometry.index_count());
+            VkDescriptorSet sets[] = {m_scene_descriptor_sets[m_current_frame], material.descriptor_set(m_current_frame)};
 
             CommandBuffer& command_buffer = m_command_buffers[m_current_frame];
 
-            vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, material.pipeline_layout(), 0, 1, &descriptor_set, 0, nullptr);
+            vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, material.pipeline_layout(), 0, 2, sets, 0, nullptr);
             vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, material.pipeline());
 
-            VkBuffer vertex_buffers[] = {vertex_buffer};
+            VkBuffer vertex_buffers[] = {geometry.vertex_buffer()};
             VkDeviceSize offsets[] = {0};
             vkCmdBindVertexBuffers(command_buffer, 0, 1, vertex_buffers, offsets);
-            vkCmdBindIndexBuffer(command_buffer, index_buffer, 0, VK_INDEX_TYPE_UINT32);
+            vkCmdBindIndexBuffer(command_buffer, geometry.index_buffer(), 0, VK_INDEX_TYPE_UINT32);
             vkCmdPushConstants(command_buffer, material.pipeline_layout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(PushConstants), &pcs);
-            vkCmdDrawIndexed(command_buffer, count, 1, 0, 0, 0);
+            vkCmdDrawIndexed(command_buffer, to_uint32(geometry.index_count()), 1, 0, 0, 0);
         }
 
     private:
@@ -423,8 +487,14 @@ namespace quetzal::vulkan
         GeometryCache m_geometry_cache;
         TextureCache m_texture_cache;
 
-        UniformBuffers<UniformBufferObject> m_uniform_buffers;
+        UniformBuffers<SceneUBO> m_scene_uniform_buffers;
 
+        VkDescriptorSetLayout m_set0_layout;
+        VkDescriptorSetLayout m_set1_layout;
+        std::vector<VkDescriptorSet> m_scene_descriptor_sets;
+        SceneUBO m_scene_ubo;
+
+        std::optional<EffectCache> m_effect_cache;
         std::optional<MaterialCache> m_material_cache;
 
         CommandBuffers m_command_buffers;

@@ -171,8 +171,8 @@
     </Manifest>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="CameraNode.hpp" />
     <ClInclude Include="GeometryNode.hpp" />
+    <ClInclude Include="LightNode.hpp" />
     <ClInclude Include="MaterialNode.hpp" />
     <ClInclude Include="Node.hpp" />
     <ClInclude Include="NodeVisitor.hpp" />

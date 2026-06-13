@@ -50,6 +50,8 @@
     <ClInclude Include="DescriptorSetLayout.hpp" />
     <ClInclude Include="DescriptorSets.hpp" />
     <ClInclude Include="Device.hpp" />
+    <ClInclude Include="Effect.hpp" />
+    <ClInclude Include="EffectCache.hpp" />
     <ClInclude Include="Fence.hpp" />
     <ClInclude Include="GraphicsPipeline.hpp" />
     <ClInclude Include="GraphicsPipelineCreateInfo.hpp" />
