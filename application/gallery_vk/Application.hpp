@@ -10,8 +10,8 @@
 #include "quetzal/game/Camera.hpp"
 #include "quetzal/vulkan/Renderer.hpp"
 #include "quetzal/vulkan/Window.hpp"
+#include "quetzal/scene_graph/AssetManager.hpp"
 #include "quetzal/scene_graph/Scene.hpp"
-#include <filesystem>
 
 namespace quetzal::gallery_vk
 {
@@ -46,7 +46,7 @@ namespace quetzal::gallery_vk
         vulkan::Window m_window;
         vulkan::Renderer m_renderer;
         scene_graph::Scene m_scene;
-        std::filesystem::path m_resource_path;
+        scene_graph::AssetManager m_assets;
         game::Camera m_camera;
 
         float m_speed;

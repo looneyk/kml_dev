@@ -1,6 +1,7 @@
 #if !defined(QUETZAL_SCENE_GRAPH_SCENE_HPP)
 #define QUETZAL_SCENE_GRAPH_SCENE_HPP
 
+#include "AssetManager.hpp"
 #include "GeometryNode.hpp"
 #include "MaterialNode.hpp"
 #include "Node.hpp"
@@ -10,7 +11,6 @@
 #include "quetzal/vulkan/IRenderer.hpp"
 #include "quetzal/vulkan/Vertex.hpp"
 #include <cassert>
-#include <filesystem>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -126,7 +126,7 @@ namespace quetzal::scene_graph
     template<typename V>
     void load(Scene& scene,
               vulkan::IRenderer& renderer,
-              const std::filesystem::path& resource_path,
+              AssetManager& assets,
               const std::string& id,
               const std::filesystem::path& model_path,
               const std::filesystem::path& texture_path,
@@ -134,8 +134,8 @@ namespace quetzal::scene_graph
               const std::string& vert_spv = "shaders/vert_pct_pc.spv",
               const std::string& frag_spv = "shaders/frag_pct.spv");
 
-    extern template void load<vulkan::VertexPositionColorTexcoord>(Scene&, vulkan::IRenderer&, const std::filesystem::path&, const std::string&, const std::filesystem::path&, const std::filesystem::path&, const game::matrix_type&, const std::string&, const std::string&);
-    extern template void load<vulkan::VertexPositionNormalTexcoord>(Scene&, vulkan::IRenderer&, const std::filesystem::path&, const std::string&, const std::filesystem::path&, const std::filesystem::path&, const game::matrix_type&, const std::string&, const std::string&);
+    extern template void load<vulkan::VertexPositionColorTexcoord>(Scene&, vulkan::IRenderer&, AssetManager&, const std::string&, const std::filesystem::path&, const std::filesystem::path&, const game::matrix_type&, const std::string&, const std::string&);
+    extern template void load<vulkan::VertexPositionNormalTexcoord>(Scene&, vulkan::IRenderer&, AssetManager&, const std::string&, const std::filesystem::path&, const std::filesystem::path&, const game::matrix_type&, const std::string&, const std::string&);
 
 } // namespace quetzal::scene_graph
 

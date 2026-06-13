@@ -18,14 +18,14 @@ using namespace std;
 
 const std::vector<std::string> model_paths =
 {
-    "models/viking_room.obj",
-    "models/tuskified_spikosahedron.obj",
+    "viking_room.obj",
+    "tuskified_spikosahedron.obj",
 };
 
 const std::vector<std::string> texture_paths =
 {
-    "textures/viking_room.png",
-    "textures/142LL_1.png",
+    "viking_room.png",
+    "142LL_1.png",
 };
 
 //------------------------------------------------------------------------------
@@ -34,7 +34,7 @@ quetzal::toot1::Application::Application(const quetzal::Config& config) :
     m_window(config),
     m_renderer(config, m_window),
     m_scene(m_renderer),
-    m_resource_path(config["resource_path"]),
+    m_assets(m_renderer, config["asset_path"]),
     m_camera(math::PiThird<float>),
     m_speed(1.0f),
     m_bTracking(false),
@@ -45,8 +45,8 @@ quetzal::toot1::Application::Application(const quetzal::Config& config) :
 
     m_renderer.create();
 
-    scene_graph::load<vulkan::VertexPositionColorTexcoord>(m_scene, m_renderer, m_resource_path, "0", model_paths[0], texture_paths[0], glm::translate(glm::mat4(1.0f), glm::vec3(-1.0f, 0.0f, 0.0f)));
-    scene_graph::load<vulkan::VertexPositionNormalTexcoord>(m_scene, m_renderer, m_resource_path, "1", model_paths[1], texture_paths[1], glm::translate(glm::mat4(1.0f), glm::vec3(1.0f, 0.0f, 0.0f)) * glm::scale(glm::mat4(1.0f), glm::vec3(0.01f, 0.01f, 0.01f)));
+    scene_graph::load<vulkan::VertexPositionColorTexcoord>(m_scene, m_renderer, m_assets, "0", model_paths[0], texture_paths[0], glm::translate(glm::mat4(1.0f), glm::vec3(-1.0f, 0.0f, 0.0f)));
+    scene_graph::load<vulkan::VertexPositionNormalTexcoord>(m_scene, m_renderer, m_assets, "1", model_paths[1], texture_paths[1], glm::translate(glm::mat4(1.0f), glm::vec3(1.0f, 0.0f, 0.0f)) * glm::scale(glm::mat4(1.0f), glm::vec3(0.01f, 0.01f, 0.01f)));
 
     m_camera.set_position({2.0f, 2.0f, 2.0f, 1.0f});
     m_camera.set_forward({-1.0f, -1.0f, -1.0f});

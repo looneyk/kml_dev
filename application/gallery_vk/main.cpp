@@ -25,6 +25,7 @@ int main()
     config.insert("height", "600");
     config.insert("cursor", "disabled");
     config.insert("swap_frame_count", "2");
+    config.insert("asset_path", "C:/Users/Keith/Documents/kml/dev/application/gallery_vk");
 
     quetzal::gallery_vk::Application application(config);
 
