@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-// quetzal gallery_vk
+// quetzal gallery
 // Application.cpp
 //------------------------------------------------------------------------------
 
@@ -27,7 +27,7 @@ const std::vector<std::string> texture_paths =
 };
 
 //------------------------------------------------------------------------------
-quetzal::gallery_vk::Application::Application(const quetzal::Config& config) :
+quetzal::gallery::Application::Application(const quetzal::Config& config) :
     game::Application(m_window),
     m_window(config),
     m_renderer(config, m_window),
@@ -51,13 +51,13 @@ quetzal::gallery_vk::Application::Application(const quetzal::Config& config) :
 }
 
 //------------------------------------------------------------------------------
-quetzal::gallery_vk::Application::~Application()
+quetzal::gallery::Application::~Application()
 {
     m_renderer.destroy();
 }
 
 //------------------------------------------------------------------------------
-void quetzal::gallery_vk::Application::update(float dt)
+void quetzal::gallery::Application::update(float dt)
 {
     const float omega = 0.25f * game::PI;
 
@@ -87,14 +87,14 @@ void quetzal::gallery_vk::Application::update(float dt)
 }
 
 //------------------------------------------------------------------------------
-void quetzal::gallery_vk::Application::draw()
+void quetzal::gallery::Application::draw()
 {
     m_scene.draw();
     return;
 }
 
 //------------------------------------------------------------------------------
-void quetzal::gallery_vk::Application::on_key(GLFWwindow* pwindow, int key, int scancode, int action, int mods)
+void quetzal::gallery::Application::on_key(GLFWwindow* pwindow, int key, int scancode, int action, int mods)
 {
     pwindow;
     key;
@@ -128,7 +128,7 @@ void quetzal::gallery_vk::Application::on_key(GLFWwindow* pwindow, int key, int 
 }
 
 //------------------------------------------------------------------------------
-void quetzal::gallery_vk::Application::on_char(GLFWwindow* pwindow, unsigned int codepoint)
+void quetzal::gallery::Application::on_char(GLFWwindow* pwindow, unsigned int codepoint)
 {
     pwindow;
     codepoint;
@@ -136,7 +136,7 @@ void quetzal::gallery_vk::Application::on_char(GLFWwindow* pwindow, unsigned int
 }
 
 //------------------------------------------------------------------------------
-void quetzal::gallery_vk::Application::on_cursor_position(GLFWwindow* pwindow, double x, double y)
+void quetzal::gallery::Application::on_cursor_position(GLFWwindow* pwindow, double x, double y)
 {
     pwindow;
 
@@ -169,7 +169,7 @@ void quetzal::gallery_vk::Application::on_cursor_position(GLFWwindow* pwindow, d
 }
 
 //------------------------------------------------------------------------------
-void quetzal::gallery_vk::Application::on_cursor_enter(GLFWwindow* pwindow, int entered)
+void quetzal::gallery::Application::on_cursor_enter(GLFWwindow* pwindow, int entered)
 {
     pwindow;
 
@@ -183,7 +183,7 @@ void quetzal::gallery_vk::Application::on_cursor_enter(GLFWwindow* pwindow, int 
 }
 
 //------------------------------------------------------------------------------
-void quetzal::gallery_vk::Application::on_mouse_button(GLFWwindow* pwindow, int button, int action, int mods)
+void quetzal::gallery::Application::on_mouse_button(GLFWwindow* pwindow, int button, int action, int mods)
 {
     pwindow;
     button;
@@ -193,7 +193,7 @@ void quetzal::gallery_vk::Application::on_mouse_button(GLFWwindow* pwindow, int 
 }
 
 //------------------------------------------------------------------------------
-void quetzal::gallery_vk::Application::on_mouse_scroll(GLFWwindow* pwindow, double xoffset, double yoffset)
+void quetzal::gallery::Application::on_mouse_scroll(GLFWwindow* pwindow, double xoffset, double yoffset)
 {
     pwindow;
     xoffset;
@@ -202,7 +202,7 @@ void quetzal::gallery_vk::Application::on_mouse_scroll(GLFWwindow* pwindow, doub
 }
 
 //------------------------------------------------------------------------------
-void quetzal::gallery_vk::Application::update_camera(float dt)
+void quetzal::gallery::Application::update_camera(float dt)
 {
     glm::vec4 position = m_camera.position();
 

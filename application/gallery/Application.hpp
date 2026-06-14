@@ -1,7 +1,7 @@
-#if !defined(QUETZAL_GALLERY_VK_APPLICATION_HPP)
-#define QUETZAL_GALLERY_VK_APPLICATION_HPP
+#if !defined(QUETZAL_GALLERY_APPLICATION_HPP)
+#define QUETZAL_GALLERY_APPLICATION_HPP
 //------------------------------------------------------------------------------
-// quetzal gallery_vk
+// quetzal gallery
 // Application.hpp
 //------------------------------------------------------------------------------
 
@@ -13,7 +13,7 @@
 #include "quetzal/scene_graph/AssetManager.hpp"
 #include "quetzal/scene_graph/Scene.hpp"
 
-namespace quetzal::gallery_vk
+namespace quetzal::gallery
 {
 
     class Application : public game::Application
@@ -54,6 +54,6 @@ namespace quetzal::gallery_vk
         std::array<double, 2> m_cursor_prev;
     };
 
-} // namespace quetzal::gallery_vk
+} // namespace quetzal::gallery
 
-#endif // QUETZAL_GALLERY_VK_APPLICATION_HPP
+#endif // QUETZAL_GALLERY_APPLICATION_HPP

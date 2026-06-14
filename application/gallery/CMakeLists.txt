@@ -27,21 +27,21 @@ foreach(PAIR ${SHADER_PAIRS})
     list(APPEND SPV_FILES ${SHADER_DIR}/${OUT})
 endforeach()
 
-add_custom_target(gallery_vk_shaders DEPENDS ${SPV_FILES})
+add_custom_target(gallery_shaders DEPENDS ${SPV_FILES})
 
-add_executable(gallery_vk
+add_executable(gallery
     Application.cpp
     Application.hpp
     main.cpp
 )
 
-set_property(TARGET gallery_vk PROPERTY FOLDER "application")
+set_property(TARGET gallery PROPERTY FOLDER "application")
 
-set_target_properties(gallery_vk PROPERTIES
+set_target_properties(gallery PROPERTIES
     VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
 )
 
-target_include_directories(gallery_vk PRIVATE
+target_include_directories(gallery PRIVATE
     ${DEV_ROOT}/library
     ${Vulkan_INCLUDE_DIRS}
     ${LIBRARY3_DIR}/glfw/include
@@ -52,9 +52,9 @@ target_include_directories(gallery_vk PRIVATE
     ${LIBRARY3_DIR}/KTX-Software/include
 )
 
-target_link_options(gallery_vk PRIVATE $<$<CONFIG:Debug>:/NODEFAULTLIB:LIBCMT>)
+target_link_options(gallery PRIVATE $<$<CONFIG:Debug>:/NODEFAULTLIB:LIBCMT>)
 
-target_link_libraries(gallery_vk PRIVATE
+target_link_libraries(gallery PRIVATE
     quetzal_common
     quetzal_game
     quetzal_vulkan
@@ -63,4 +63,4 @@ target_link_libraries(gallery_vk PRIVATE
     glfw3_mt
 )
 
-add_dependencies(gallery_vk gallery_vk_shaders)
+add_dependencies(gallery gallery_shaders)

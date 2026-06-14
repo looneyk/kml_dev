@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-// gallery_vk
+// gallery
 // main.cpp
 //------------------------------------------------------------------------------
 
@@ -13,21 +13,21 @@ using namespace std;
 int main()
 {
     quetzal::Config config;
-    config.insert("application_name", "gallery_vk");
+    config.insert("application_name", "gallery");
     config.insert("application_version", "0");
     config.insert("engine_name", "engine");
     config.insert("engine_version", "0");
     config.insert("mode", "windowed");
-    config.insert("title", "gallery_vk");
+    config.insert("title", "gallery");
     config.insert("x", "0");
     config.insert("y", "0");
     config.insert("width", "800");
     config.insert("height", "600");
     config.insert("cursor", "disabled");
     config.insert("swap_frame_count", "2");
-    config.insert("asset_path", "C:/Users/Keith/Documents/kml/dev/application/gallery_vk");
+    config.insert("asset_path", "C:/Users/Keith/Documents/kml/dev/application/gallery");
 
-    quetzal::gallery_vk::Application application(config);
+    quetzal::gallery::Application application(config);
 
     try
     {
