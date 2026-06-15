@@ -58,6 +58,28 @@ namespace quetzal::model
     const std::string MaterialsPropertyName = "materials";
     const std::string MaterialPropertyName = "material";
 
+    template<typename A>
+    A vertex_attributes(const typename A::point_type& position, const std::optional<typename A::vector_type>& normal, const std::optional<typename A::texcoord_type>& texcoord)
+    {
+        A av;
+        av.set_position(position);
+        if constexpr (A::contains(geometry::AttributesFlags::Normal))
+        {
+            if (normal)
+            {
+                av.set_normal(*normal);
+            }
+        }
+        if constexpr (A::contains(geometry::AttributesFlags::Texcoord0))
+        {
+            if (texcoord)
+            {
+                av.set_texcoord(*texcoord);
+            }
+        }
+        return av;
+    }
+
 } // namespace quetzal::model
 
 //------------------------------------------------------------------------------
@@ -161,10 +183,10 @@ void quetzal::model::read_obj(M& mesh, const std::filesystem::path& filepath)
         return;
     };
 
-    auto on_face_vertex = [&](M& mesh, const typename M::point_type& position, const typename M::vector_type& normal, const typename M::vertex_attributes_type::texcoord_type& texcoord) -> void
+    auto on_face_vertex = [&](M& mesh, const typename M::point_type& position, const std::optional<typename M::vector_type>& normal, const std::optional<typename M::vertex_attributes_type::texcoord_type>& texcoord) -> void
     {
         id_type nh = mesh.halfedge_store_count();
-        typename M::vertex_attributes_type av = {position, normal, texcoord};
+        auto av = vertex_attributes<typename M::vertex_attributes_type>(position, normal, texcoord);
         mesh.create_halfedge_vertex(0, nh + 1, nh - 1, face_id, av);
         ++vertex_count;
         return;

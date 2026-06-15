@@ -13,6 +13,7 @@
 #include <vector>
 #include <filesystem>
 #include <fstream>
+#include <optional>
 #include <sstream>
 #include <string>
 #include <cassert>
@@ -38,11 +39,11 @@ namespace quetzal::wavefront_obj
         Writer& operator=(const Writer&) = delete;
         Writer& operator=(Writer&&) = delete;
 
-        void set_vertex(const point_type& position, const vector_type& normal, const texcoord_type& texcoord);
+        void set_vertex(const point_type& position, const std::optional<vector_type>& normal, const std::optional<texcoord_type>& texcoord);
         void set_object(const std::string& name);
         void set_group(const std::string& name);
         void set_face();
-        void set_face_vertex(const point_type& position, const vector_type& normal, const texcoord_type& texcoord);
+        void set_face_vertex(const point_type& position, const std::optional<vector_type>& normal, const std::optional<texcoord_type>& texcoord);
         void set_materials(const std::string& name);
         void set_material(const std::string& name);
 
@@ -102,47 +103,53 @@ quetzal::wavefront_obj::Writer<P, V, T>::~Writer()
 
 //------------------------------------------------------------------------------
 template<typename P, typename V, typename T>
-void quetzal::wavefront_obj::Writer<P, V, T>::set_vertex(const point_type& position, const vector_type& normal, const texcoord_type& texcoord)
+void quetzal::wavefront_obj::Writer<P, V, T>::set_vertex(const point_type& position, const std::optional<vector_type>& normal, const std::optional<texcoord_type>& texcoord)
 {
     assert(m_bVertices);
 
-    id_type idPosition = 0;
+    id_type position_id = 0;
     const auto ip = m_unique_positions.find(position);
     if (ip != m_unique_positions.end())
     {
-        idPosition = ip->second;
+        position_id = ip->second;
     }
     else
     {
-        idPosition = static_cast<id_type>(m_positions.size());
-        m_unique_positions.insert(std::make_pair(position, idPosition));
+        position_id = static_cast<id_type>(m_positions.size());
+        m_unique_positions.insert(std::make_pair(position, position_id));
         m_positions.push_back(position);
     }
 
-    id_type idNormal = 0;
-    const auto in = m_unique_normals.find(normal);
-    if (in != m_unique_normals.end())
+    id_type normal_id = 0;
+    if (normal)
     {
-        idNormal = in->second;
-    }
-    else
-    {
-        idNormal = static_cast<id_type>(m_normals.size());
-        m_unique_normals.insert(std::make_pair(normal, idNormal));
-        m_normals.push_back(normal);
+        const auto in = m_unique_normals.find(*normal);
+        if (in != m_unique_normals.end())
+        {
+            normal_id = in->second;
+        }
+        else
+        {
+            normal_id = static_cast<id_type>(m_normals.size());
+            m_unique_normals.insert(std::make_pair(*normal, normal_id));
+            m_normals.push_back(*normal);
+        }
     }
 
-    id_type idTexcoord = 0;
-    const auto it = m_unique_texcoords.find(texcoord);
-    if (it != m_unique_texcoords.end())
+    id_type texcoord_id = 0;
+    if (texcoord)
     {
-        idTexcoord = it->second;
-    }
-    else
-    {
-        idTexcoord = static_cast<id_type>(m_texcoords.size());
-        m_unique_texcoords.insert(std::make_pair(texcoord, idTexcoord));
-        m_texcoords.push_back(texcoord);
+        const auto it = m_unique_texcoords.find(*texcoord);
+        if (it != m_unique_texcoords.end())
+        {
+            texcoord_id = it->second;
+        }
+        else
+        {
+            texcoord_id = static_cast<id_type>(m_texcoords.size());
+            m_unique_texcoords.insert(std::make_pair(*texcoord, texcoord_id));
+            m_texcoords.push_back(*texcoord);
+        }
     }
 
     return;
@@ -178,7 +185,7 @@ void quetzal::wavefront_obj::Writer<P, V, T>::set_face()
 
 //------------------------------------------------------------------------------
 template<typename P, typename V, typename T>
-void quetzal::wavefront_obj::Writer<P, V, T>::set_face_vertex(const point_type& position, const vector_type& normal, const texcoord_type& texcoord)
+void quetzal::wavefront_obj::Writer<P, V, T>::set_face_vertex(const point_type& position, const std::optional<vector_type>& normal, const std::optional<texcoord_type>& texcoord)
 {
     assert(m_bFace);
 
@@ -186,18 +193,18 @@ void quetzal::wavefront_obj::Writer<P, V, T>::set_face_vertex(const point_type& 
     assert(ip != m_unique_positions.end());
     m_ofs << ' ' << (ip->second + 1) << '/';
 
-    if (!m_unique_texcoords.empty())
+    if (!m_unique_texcoords.empty() && texcoord)
     {
-        const auto it = m_unique_texcoords.find(texcoord);
+        const auto it = m_unique_texcoords.find(*texcoord);
         assert(it != m_unique_texcoords.end());
         m_ofs << (it->second + 1);
     }
 
     m_ofs << '/';
 
-    if (!m_unique_normals.empty())
+    if (!m_unique_normals.empty() && normal)
     {
-        const auto in = m_unique_normals.find(normal);
+        const auto in = m_unique_normals.find(*normal);
         assert(in != m_unique_normals.end());
         m_ofs << (in->second + 1);
     }

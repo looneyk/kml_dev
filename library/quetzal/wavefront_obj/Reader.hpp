@@ -13,6 +13,7 @@
 #include <functional>
 #include <fstream>
 #include <iostream> // warning messages, change to log ...
+#include <optional>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -67,7 +68,7 @@ namespace quetzal::wavefront_obj
         using object_function_type = std::function<void(M&, const std::string&)>;
         using group_function_type = std::function<void(M&, const std::string&)>;
         using face_open_function_type = std::function<void(M&)>;
-        using face_vertex_function_type = std::function<void(M&, const point_type&, const vector_type&, const texcoord_type&)>;
+        using face_vertex_function_type = std::function<void(M&, const point_type&, const std::optional<vector_type>&, const std::optional<texcoord_type>&)>;
         using face_close_function_type = std::function<void(M&)>;
         using materials_function_type = std::function<void(M&, const std::string&)>;
         using material_function_type = std::function<void(M&, const std::string&)>;
@@ -224,13 +225,13 @@ void quetzal::wavefront_obj::Reader<M>::read(M& m, const std::filesystem::path& 
 
                 point_type position = positions[vr[0] - 1];
 
-                vector_type normal;
+                std::optional<vector_type> normal;
                 if (vr[2] > 0)
                 {
                     normal = normals[vr[2] - 1];
                 }
 
-                texcoord_type texcoord;
+                std::optional<texcoord_type> texcoord;
                 if (vr[1] > 0)
                 {
                     texcoord = texcoords[vr[1] - 1];

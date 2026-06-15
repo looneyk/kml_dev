@@ -2459,15 +2459,14 @@ quetzal::id_type quetzal::model::create_cylinder(M& mesh, const std::string& nam
 
     CylinderSpecification<T> spec(nAzimuth, contour.size() - 1, contour.front().y(), contour.back().y(), contour.front().x(), contour.back().x(), properties);
 
-    auto face_count = spec.azimuth.edge_count;
+    const size_t face_count = spec.azimuth.edge_count;
     assert(face_count > 2);
 
-    size_t nz = spec.axis_edge_count;
+    const size_t nz = spec.axis_edge_count;
     assert(nz > 0);
 
     bool cusped_lower = math::float_eq0(spec.axis_radius_interval.lower());
     bool cusped_upper = math::float_eq0(spec.axis_radius_interval.upper());
-    bool closed = true;
 
     auto [z0, r0] = contour[0].rep();
     auto [z1, r1] = contour[1].rep();
@@ -2492,36 +2491,35 @@ quetzal::id_type quetzal::model::create_cylinder(M& mesh, const std::string& nam
         surface_id0 = create_section_surfaces(mesh, submesh_id, section_count, [&spec](size_t i) { return surface_name(spec.shell_name, i); });
     }
 
-    auto face_count = spec.azimuth.edge_count;
     id_type j0_orig = mesh.halfedge_store_count();
 
     if (cusped_lower)
     {
-        create_base_cusp(mesh, nAzimuth, r1, z0, z1, spec.azimuth.interval, ts1, surface_id0, closed, true);
+        create_base_cusp(mesh, nAzimuth, r1, z0, z1, spec.azimuth.interval, ts1, surface_id0);
     }
     else if (nz == 1 && cusped_upper)
     {
-        create_apex_cusp(mesh, nAzimuth, r0, z0, z1, spec.azimuth.interval, surface_id0, closed, true);
+        create_apex_cusp(mesh, nAzimuth, r0, z0, z1, spec.azimuth.interval, ts0, surface_id0);
     }
     else
     {
-        create_band(mesh, nAzimuth, r0, r1, z0, z1, spec.azimuth.interval, spec.azimuth.interval, ts0, ts1, surface_id0, closed, true);
+        create_band(mesh, nAzimuth, r0, r1, z0, z1, spec.azimuth.interval, spec.azimuth.interval, ts0, ts1, surface_id0);
     }
 
     for (size_t i = 2; i <= nz; ++i)
     {
         j0_orig = mesh.halfedge_store_count();
 
-        auto [z1, r1] = contour[i].rep();
+        std::tie(z1, r1) = contour[i].rep();
 
         if (i == nz && cusped_upper)
         {
-            connect_apex_cusp(mesh, nAzimuth, z1, spec.azimuth.interval, surface_id0, closed, true);
+            connect_apex_cusp(mesh, nAzimuth, z1, spec.azimuth.interval, surface_id0);
         }
         else
         {
             ts1 = texture_span<M>(i, nz, cusped_lower, cusped_upper);
-            connect_band(mesh, nAzimuth, r1, z1, spec.azimuth.interval, ts1, surface_id0, closed, true);
+            connect_band(mesh, nAzimuth, r1, z1, spec.azimuth.interval, ts1, surface_id0);
         }
     }
 
