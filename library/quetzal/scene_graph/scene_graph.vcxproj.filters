@@ -39,6 +39,9 @@
     <ClInclude Include="TransformNode.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="GltfLoader.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Scene.cpp">
@@ -48,6 +51,24 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="tinyobj_impl.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GltfLoader.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="TextureManager.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="../../../library3/fastgltf/src/base64.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="../../../library3/fastgltf/src/fastgltf.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="../../../library3/fastgltf/src/io.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="../../../library3/simdjson/singleheader/simdjson.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

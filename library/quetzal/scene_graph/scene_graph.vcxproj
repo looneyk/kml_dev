@@ -91,7 +91,7 @@
       <WarningLevel>Level4</WarningLevel>
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>../..;../../../library3/stb;../../../library3/tinyobjloader;$(VULKAN_SDK)/Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../..;../../../library3/stb;../../../library3/tinyobjloader;../../../library3/fastgltf/include;../../../library3/simdjson/singleheader;$(VULKAN_SDK)/Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
@@ -113,7 +113,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>../..;../../../library3/stb;../../../library3/tinyobjloader;$(VULKAN_SDK)/Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../..;../../../library3/stb;../../../library3/tinyobjloader;../../../library3/fastgltf/include;../../../library3/simdjson/singleheader;$(VULKAN_SDK)/Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
@@ -133,7 +133,7 @@
       <WarningLevel>Level4</WarningLevel>
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>../..;../../../library3/stb;../../../library3/tinyobjloader;$(VULKAN_SDK)/Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../..;../../../library3/stb;../../../library3/tinyobjloader;../../../library3/fastgltf/include;../../../library3/simdjson/singleheader;$(VULKAN_SDK)/Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
@@ -155,7 +155,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>../..;../../../library3/stb;../../../library3/tinyobjloader;$(VULKAN_SDK)/Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../..;../../../library3/stb;../../../library3/tinyobjloader;../../../library3/fastgltf/include;../../../library3/simdjson/singleheader;$(VULKAN_SDK)/Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
@@ -179,11 +179,18 @@
     <ClInclude Include="RenderVisitor.hpp" />
     <ClInclude Include="Scene.hpp" />
     <ClInclude Include="TransformNode.hpp" />
+    <ClInclude Include="GltfLoader.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Scene.cpp" />
     <ClCompile Include="stb_image_impl.cpp" />
     <ClCompile Include="tinyobj_impl.cpp" />
+    <ClCompile Include="GltfLoader.cpp" />
+    <ClCompile Include="TextureManager.cpp" />
+    <ClCompile Include="../../../library3/fastgltf/src/base64.cpp" />
+    <ClCompile Include="../../../library3/fastgltf/src/fastgltf.cpp" />
+    <ClCompile Include="../../../library3/fastgltf/src/io.cpp" />
+    <ClCompile Include="../../../library3/simdjson/singleheader/simdjson.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

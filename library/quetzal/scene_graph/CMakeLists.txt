@@ -1,4 +1,5 @@
 add_library(quetzal_scene_graph STATIC
+    GltfLoader.cpp
     Scene.cpp
     stb_image_impl.cpp
     TextureManager.cpp
@@ -6,6 +7,7 @@ add_library(quetzal_scene_graph STATIC
     TinyobjReader.cpp
     AssetManager.hpp
     GeometryNode.hpp
+    GltfLoader.hpp
     IMeshReader.hpp
     LightNode.hpp
     MaterialNode.hpp
@@ -28,3 +30,5 @@ target_include_directories(quetzal_scene_graph PRIVATE
     ${LIBRARY3_DIR}/tinyobjloader
     ${Vulkan_INCLUDE_DIRS}
 )
+
+target_link_libraries(quetzal_scene_graph PRIVATE fastgltf)
