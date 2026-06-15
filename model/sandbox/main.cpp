@@ -16,6 +16,7 @@
 #include "quetzal/model/obj_io.hpp"
 #include "quetzal/model/primitives.hpp"
 #include <filesystem>
+#include <format>
 #include <iostream>
 #include <string>
 #include <cassert>
@@ -32,13 +33,14 @@ namespace
     using vector_traits = math::HomogeneousTraits<value_type, 3>;
     using mesh_type = brep::Mesh<brep::MeshTraits<vector_traits>>;
 
-    const filesystem::path dirOut = "out/";
-    const filesystem::path dirReference = "reference/";
+    static const filesystem::path dir_out = "out/";
+    static const filesystem::path dir_ref = "reference/";
+    static const string app_name = "sandbox";
 
     //--------------------------------------------------------------------------
     filesystem::path to_filename(const string& name)
     {
-        return dirOut / (name + ".obj");
+        return dir_out / (name + ".obj");
     }
 
 } // namespace
@@ -49,11 +51,12 @@ int main(int argc, char* argv[])
     argc;
     argv;
 
-    FileValidator validator(dirOut, dirReference);
+    FileValidator validator(dir_out, dir_ref, app_name);
 
     string name;
+    string submesh_name;
     mesh_type mesh;
-/*
+
     name = "first_layer_block";
     cout << name << endl;
     mesh.clear();
@@ -78,35 +81,47 @@ int main(int argc, char* argv[])
     name = "axis_origin";
     cout << name << endl;
     mesh.clear();
-    model::create_icosahedron(mesh, name, 0.05f, true, true);
+    model::create_icosahedron(mesh, name, 0.05f, true);
     model::write_obj(mesh, to_filename(name));
 
-    name = "unit_cylinder";
+    name = "unit_cube";
     cout << name << endl;
     mesh.clear();
-    model::create_cylinder(mesh, name, 24, 1, 1.0f, 1.0f, 0.0f, 1.0f);
+    model::create_cube(mesh, name, 1.0f);
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 
-    name = "unit_cone";
-    cout << name << endl;
-    mesh.clear();
-    model::create_cylinder(mesh, name, 24, 1, 1.0f, 0.0f, 0.0f, 1.0f);
-    triangulate(mesh);
-    model::write_obj(mesh, to_filename(name));
+    for (size_t n = 12; n <= 24; n+= 4)
+    {
+        submesh_name = "unit_cylinder";
+        name = std::format("{}_{}", submesh_name, n);
+        cout << name << endl;
+        mesh.clear();
+        model::create_cylinder(mesh, submesh_name, n, 1, 1.0f, 1.0f, 0.0f, 1.0f);
+        triangulate(mesh);
+        model::write_obj(mesh, to_filename(name));
+
+        submesh_name = "unit_cone";
+        name = std::format("{}_{}", submesh_name, n);
+        cout << name << endl;
+        mesh.clear();
+        model::create_cylinder(mesh, submesh_name, n, 1, 1.0f, 0.0f, 0.0f, 1.0f);
+        triangulate(mesh);
+        model::write_obj(mesh, to_filename(name));
+    }
 
     name = "unit_icosahedron";
     cout << name << endl;
     mesh.clear();
-    model::create_icosahedron(mesh, name, 1.0f, true, true);
+    model::create_icosahedron(mesh, name, 1.0f, true, {{"azimuth_smooth", "true"}});
     model::write_obj(mesh, to_filename(name));
 
     name = "unit_geosphere2";
     cout << name << endl;
     mesh.clear();
-    model::create_geodesic_sphere(mesh, name, 1.0f, 2, true, true);
+    model::create_geodesic_sphere(mesh, name, 1.0f, 2, true, {{"azimuth_smooth", "true"}});
     model::write_obj(mesh, to_filename(name));
-*/
+
     mesh_type m;
 
     name = "cubes_attach1";
@@ -458,6 +473,5 @@ int main(int argc, char* argv[])
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 
-    validator.report_results();
-    return 0;
+    return validator.report_results();
 }
