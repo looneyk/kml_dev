@@ -6,6 +6,7 @@
 //------------------------------------------------------------------------------
 
 #include "quetzal/common/id.hpp"
+#include "quetzal/geometry/Attributes.hpp"
 #include "quetzal/geometry/spatial_properties.hpp"
 #include "quetzal/wavefront_obj/Material.hpp"
 #include "quetzal/wavefront_obj/MaterialLibrary.hpp"

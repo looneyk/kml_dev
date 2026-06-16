@@ -26,11 +26,11 @@ game::matrix_type to_matrix(const fastgltf::Node& node)
         [](const fastgltf::TRS& trs) -> game::matrix_type
         {
             game::matrix_type T = glm::translate(game::matrix_type(1.0f),
-                glm::vec3(trs.translation.x(), trs.translation.y(), trs.translation.z()));
-            glm::quat q(trs.rotation.w(), trs.rotation.x(), trs.rotation.y(), trs.rotation.z());
+                glm::vec3(trs.translation.x(), -trs.translation.z(), trs.translation.y()));
+            glm::quat q(trs.rotation.w(), trs.rotation.x(), -trs.rotation.z(), trs.rotation.y());
             game::matrix_type R = glm::mat4_cast(q);
             game::matrix_type S = glm::scale(game::matrix_type(1.0f),
-                glm::vec3(trs.scale.x(), trs.scale.y(), trs.scale.z()));
+                glm::vec3(trs.scale.x(), trs.scale.z(), trs.scale.y()));
             return T * R * S;
         },
         [](const fastgltf::math::fmat4x4& m) -> game::matrix_type
@@ -121,7 +121,7 @@ void load_primitive(Scene& scene,
     fastgltf::iterateAccessorWithIndex<fastgltf::math::fvec3>(asset, pos_acc,
         [&](fastgltf::math::fvec3 v, std::size_t i)
         {
-            vertices[i].position = {v.x(), v.y(), v.z()};
+            vertices[i].position = {v.x(), -v.z(), v.y()};
         });
 
     if (auto* n = prim.findAttribute("NORMAL"); n != prim.attributes.end())
@@ -130,7 +130,7 @@ void load_primitive(Scene& scene,
             asset.accessors[n->accessorIndex],
             [&](fastgltf::math::fvec3 v, std::size_t i)
             {
-                vertices[i].normal = {v.x(), v.y(), v.z()};
+                vertices[i].normal = {v.x(), -v.z(), v.y()};
             });
     }
 
@@ -155,7 +155,9 @@ void load_primitive(Scene& scene,
     vulkan::GeometryHandle geometry = renderer.upload_geometry<V>(
         id + "_geo", std::span<const V>(vertices), std::span<const uint32_t>(indices));
 
-    vulkan::TextureHandle texture;
+    static const uint32_t white = 0xFFFFFFFF;
+    vulkan::TextureHandle texture = renderer.upload_texture("__default_white", &white, 1, 1);
+
     if (prim.materialIndex.has_value())
     {
         const auto& mat = asset.materials[prim.materialIndex.value()];
@@ -164,6 +166,15 @@ void load_primitive(Scene& scene,
             const auto& tex = asset.textures[mat.pbrData.baseColorTexture->textureIndex];
             if (tex.imageIndex.has_value())
                 texture = load_image(renderer, asset, tex.imageIndex.value(), id + "_tex", gltf_dir);
+        }
+        else
+        {
+            const auto& ef = mat.emissiveFactor;
+            uint8_t r = static_cast<uint8_t>(std::clamp(ef[0], 0.0f, 1.0f) * 255.0f);
+            uint8_t g = static_cast<uint8_t>(std::clamp(ef[1], 0.0f, 1.0f) * 255.0f);
+            uint8_t b = static_cast<uint8_t>(std::clamp(ef[2], 0.0f, 1.0f) * 255.0f);
+            uint32_t pixel = (0xFFu << 24) | (static_cast<uint32_t>(b) << 16) | (static_cast<uint32_t>(g) << 8) | r;
+            texture = renderer.upload_texture(id + "_emissive", &pixel, 1, 1);
         }
     }
 

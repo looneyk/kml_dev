@@ -1,0 +1,130 @@
+
+freehand needs to track polygon points
+erase
+undo stack
+    image
+    modified flag
+    fg/bg colors, palette, tool, view changes?
+everything disabled (toolbars, menus) until new or load image
+save disabled based on image and modified
+recent file list
+scroll bars
+move tool
+resize
+canvas size
+configuration file
+    defaults for new designs
+    last visited current directory
+stamp single and continuous
+load clipart files
+need to be able to load/save other than 8 bit palette
+
+select, after release, continue to highlight or change to stamp?
+
+
+Image
+    count // holes/threads per inch
+    w, h
+    pixels
+    palette (selected colors)
+
+Canvas
+    image
+    position
+    scale
+    grid
+    stitch representation
+    ruler
+
+Environment
+    image list
+    clipboard image(s)
+    palette (full)
+    fg, bg color
+    tool
+    tool-specific data (brush shape, size; stamp; selection area; ...)
+
+Tool
+    drag flag
+    draw, fill methods
+
+
+BufferedImage
+count
+background color?
+ncolors, colors
+scale
+
+bRuler
+bGrid
+enum StitchRep
+    Solid
+    Cross
+    SymbolMono
+    SymbolColor
+enum Tool
+    Line
+    Draw
+    DrawFilled
+    Square
+    SquareFilled
+    Rect
+    RectFilled
+    Circle
+    CircleFilled
+    Ellipse
+    EllipseFilled
+    Fill
+    Select
+    Picker
+    Erase
+
+
+selection operations
+    move
+    resize?
+    flip
+    rotate
+
+clip-art, load, create, stamp
+
+brush shapes (square, round), sizes
+
+palette management
+    color selection and hex input
+    fg, bg colors
+
+load/save png, bmp with palette
+print
+
+import thread colors
+
+
+class MyCanvas extends JPanel implements MouseListener
+{
+    Image img;      // Contains the image to draw on MyCanvas
+
+    public MyCanvas()
+    {
+        // Initialize img here.
+        this.addMouseListener(this);
+    }
+
+    public void paintComponent(Graphics g)
+    {
+        // Draws the image to the canvas
+        g.drawImage(img, 0, 0, null);
+    }
+
+    public void mouseClicked(MouseEvent e)
+    {
+        int x = e.getX();
+        int y = e.getY();
+
+        Graphics g = img.getGraphics();
+        g.fillOval(x, y, 3, 3);
+        g.dispose();
+    }
+
+    // ... other MouseListener methods ... //
+}

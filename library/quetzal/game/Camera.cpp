@@ -143,6 +143,7 @@ void game::Camera::pan(float radians)
     matrix_type matrix = glm::rotate(radians, up);
     m_forward = glm::normalize(matrix * glm::vec4(m_forward, 0.0f));
     m_right = glm::normalize(matrix * glm::vec4(m_right, 0.0f));
+    m_up = glm::normalize(glm::cross(m_right, m_forward));
     return;
 }
 
@@ -150,8 +151,16 @@ void game::Camera::pan(float radians)
 void game::Camera::tilt(float radians)
 {
     matrix_type matrix = glm::rotate(radians, m_right);
-    m_up = glm::normalize(matrix * glm::vec4(m_up, 0.0f));
     m_forward = glm::normalize(matrix * glm::vec4(m_forward, 0.0f));
+    if (m_mode == ViewMode::Fixed)
+    {
+        m_right = glm::normalize(glm::cross(m_forward, m_up0));
+        m_up = glm::normalize(glm::cross(m_right, m_forward));
+    }
+    else
+    {
+        m_up = glm::normalize(matrix * glm::vec4(m_up, 0.0f));
+    }
     return;
 }
 

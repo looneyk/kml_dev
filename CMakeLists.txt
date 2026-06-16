@@ -46,6 +46,7 @@ set(FASTGLTF_ENABLE_DOCS OFF CACHE BOOL "" FORCE)
 set(FASTGLTF_ENABLE_INSTALL OFF CACHE BOOL "" FORCE)
 add_subdirectory(library3/fastgltf)
 
+add_subdirectory(application/cubes)
 add_subdirectory(application/gallery)
 add_subdirectory(application/toot1)
 
