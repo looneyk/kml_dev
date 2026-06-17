@@ -37,7 +37,7 @@ namespace quetzal::gallery
 
         Application& m_application;
 
-        modx::Axes m_axes;
+        object::Axes m_axes;
 
         std::shared_ptr<direct3d11::Model> m_pModelFloor;
         std::shared_ptr<direct3d11::Model> m_pModelSpikosahedron;

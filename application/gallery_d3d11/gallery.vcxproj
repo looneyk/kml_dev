@@ -19,7 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{E53FE6AF-870B-402E-B2A5-3A5DD1F844C2}</ProjectGuid>
+    <ProjectGuid>{CE920372-17A7-4E5B-B858-03AA885DDBA9}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>gallery</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
