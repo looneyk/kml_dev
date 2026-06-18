@@ -11,6 +11,8 @@
 !/library/quetzal/brep/**
 !/library/quetzal/common/
 !/library/quetzal/common/**
+!/library/quetzal/expression/
+!/library/quetzal/expression/**
 !/library/quetzal/game/
 !/library/quetzal/game/**
 !/library/quetzal/geometry/
@@ -24,6 +26,10 @@
 !/library/quetzal/scene_graph/
 !/library/quetzal/scene_graph/**
 /library/quetzal/scene_graph/shaders/*.spv
+!/library/quetzal/spatial_search/
+!/library/quetzal/spatial_search/**
+!/library/quetzal/stl/
+!/library/quetzal/stl/**
 !/library/quetzal/svg/
 !/library/quetzal/svg/**
 !/library/quetzal/triangulation/
