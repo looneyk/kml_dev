@@ -6,7 +6,10 @@
             "displayName": "Visual Studio 18 2026 x64",
             "generator": "Visual Studio 18 2026",
             "architecture": "x64",
-            "binaryDir": "${sourceDir}/build"
+            "binaryDir": "${sourceDir}/build",
+            "cacheVariables": {
+                "CMAKE_SYSTEM_VERSION": "latest"
+            }
         }
     ],
     "buildPresets": [
