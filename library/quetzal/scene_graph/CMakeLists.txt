@@ -1,3 +1,30 @@
+find_program(GLSLC_EXECUTABLE glslc REQUIRED)
+
+set(SHADER_DIR ${CMAKE_CURRENT_SOURCE_DIR}/shaders)
+
+file(GLOB SHADER_SOURCES
+    ${SHADER_DIR}/*.vert
+    ${SHADER_DIR}/*.frag
+)
+
+set(SPV_FILES)
+foreach(SRC ${SHADER_SOURCES})
+    get_filename_component(NAME ${SRC} NAME_WE)
+    get_filename_component(EXT ${SRC} LAST_EXT)
+    string(REPLACE "." "" EXT_CLEAN ${EXT})
+    set(OUT ${SHADER_DIR}/${NAME}.${EXT_CLEAN}.spv)
+    add_custom_command(
+        OUTPUT ${OUT}
+        COMMAND ${GLSLC_EXECUTABLE} ${SRC} -o ${OUT}
+        DEPENDS ${SRC}
+        COMMENT "Compiling shader ${NAME}${EXT}"
+    )
+    list(APPEND SPV_FILES ${OUT})
+endforeach()
+
+add_custom_target(quetzal_shaders ALL DEPENDS ${SPV_FILES})
+set_property(TARGET quetzal_shaders PROPERTY FOLDER "library")
+
 add_library(quetzal_scene_graph STATIC
     DdsLoader.cpp
     GltfLoader.cpp
@@ -8,6 +35,7 @@ add_library(quetzal_scene_graph STATIC
     TinyobjReader.cpp
     AssetManager.hpp
     DdsLoader.hpp
+    ShaderManager.hpp
     GeometryNode.hpp
     GltfLoader.hpp
     KtxLoader.hpp
@@ -26,6 +54,8 @@ add_library(quetzal_scene_graph STATIC
 )
 
 set_property(TARGET quetzal_scene_graph PROPERTY FOLDER "library")
+
+add_dependencies(quetzal_scene_graph quetzal_shaders)
 
 target_include_directories(quetzal_scene_graph PRIVATE
     ${DEV_ROOT}/library

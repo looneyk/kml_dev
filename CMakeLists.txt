@@ -24,7 +24,6 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${DEV_ROOT}/lib)
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
-add_subdirectory(library/quetzal/effects)
 add_subdirectory(library/quetzal/brep)
 add_subdirectory(library/quetzal/common)
 add_subdirectory(library/quetzal/expression)

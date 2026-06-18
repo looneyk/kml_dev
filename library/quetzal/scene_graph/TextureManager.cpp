@@ -11,9 +11,10 @@
 namespace quetzal::scene_graph
 {
 
-TextureManager::TextureManager(vulkan::IRenderer& renderer, std::filesystem::path base_path) :
+TextureManager::TextureManager(vulkan::IRenderer& renderer, std::filesystem::path base_path, std::filesystem::path fallback_path) :
     m_renderer(renderer),
     m_base_path(std::move(base_path)),
+    m_fallback_path(std::move(fallback_path)),
     m_cache()
 {
 }
@@ -27,6 +28,8 @@ vulkan::TextureHandle TextureManager::load(const std::string& id, const std::fil
     }
 
     std::filesystem::path full_path = m_base_path / path;
+    if (!std::filesystem::exists(full_path) && !m_fallback_path.empty())
+        full_path = m_fallback_path / path;
 
     vulkan::TextureHandle handle;
 

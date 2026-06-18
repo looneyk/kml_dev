@@ -26,7 +26,6 @@ target_link_options(cubes PRIVATE $<$<CONFIG:Debug>:/NODEFAULTLIB:LIBCMT>)
 
 target_link_libraries(cubes PRIVATE
     quetzal_common
-    quetzal_effects
     quetzal_game
     quetzal_vulkan
     quetzal_scene_graph

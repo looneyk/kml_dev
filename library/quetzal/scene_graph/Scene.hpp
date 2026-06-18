@@ -7,7 +7,7 @@
 #include "Node.hpp"
 #include "RenderVisitor.hpp"
 #include "TransformNode.hpp"
-#include "quetzal/effects/EffectManager.hpp"
+#include "ShaderManager.hpp"
 #include "quetzal/game/types.hpp"
 #include "quetzal/vulkan/IRenderer.hpp"
 #include "quetzal/vulkan/Vertex.hpp"
@@ -132,11 +132,11 @@ namespace quetzal::scene_graph
               const std::filesystem::path& model_path,
               const std::filesystem::path& texture_path,
               const game::matrix_type& transform,
-              effects::EffectManager& effects,
+              ShaderManager& shaders,
               const std::string& effect_name);
 
-    extern template void load<vulkan::VertexPositionColorTexcoord>(Scene&, vulkan::IRenderer&, AssetManager&, const std::string&, const std::filesystem::path&, const std::filesystem::path&, const game::matrix_type&, effects::EffectManager&, const std::string&);
-    extern template void load<vulkan::VertexPositionNormalTexcoord>(Scene&, vulkan::IRenderer&, AssetManager&, const std::string&, const std::filesystem::path&, const std::filesystem::path&, const game::matrix_type&, effects::EffectManager&, const std::string&);
+    extern template void load<vulkan::VertexPositionColorTexcoord>(Scene&, vulkan::IRenderer&, AssetManager&, const std::string&, const std::filesystem::path&, const std::filesystem::path&, const game::matrix_type&, ShaderManager&, const std::string&);
+    extern template void load<vulkan::VertexPositionNormalTexcoord>(Scene&, vulkan::IRenderer&, AssetManager&, const std::string&, const std::filesystem::path&, const std::filesystem::path&, const game::matrix_type&, ShaderManager&, const std::string&);
 
 } // namespace quetzal::scene_graph
 

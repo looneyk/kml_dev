@@ -7,7 +7,7 @@
 
 #include "AssetManager.hpp"
 #include "Scene.hpp"
-#include "quetzal/effects/EffectManager.hpp"
+#include "ShaderManager.hpp"
 #include "quetzal/vulkan/IRenderer.hpp"
 #include <filesystem>
 #include <string>
@@ -20,7 +20,7 @@ namespace quetzal::scene_graph
                    vulkan::IRenderer& renderer,
                    AssetManager& assets,
                    const std::filesystem::path& path,
-                   effects::EffectManager& effects);
+                   ShaderManager& shaders);
 
 } // namespace quetzal::scene_graph
 

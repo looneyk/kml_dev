@@ -4,6 +4,7 @@
 //------------------------------------------------------------------------------
 
 #include "Application.hpp"
+#include "quetzal/scene_graph/LightNode.hpp"
 #include "quetzal/game/types.hpp"
 #include "quetzal/math/math_util.hpp"
 #include "quetzal/scene_graph/GltfLoader.hpp"
@@ -19,8 +20,8 @@ quetzal::gallery::Application::Application(const quetzal::Config& config) :
     m_window(config),
     m_renderer(config, m_window),
     m_scene(m_renderer),
-    m_assets(m_renderer, config["assets_path"]),
-    m_effects(config["effects_path"]),
+    m_assets(m_renderer, config["assets_path"], config["shared_assets_path"]),
+    m_shaders(config["shaders_path"]),
     m_camera(game::Camera::ViewMode::Fixed, math::PiThird<float>),
     m_speed(200.0f),
     m_bTracking(false),
@@ -31,10 +32,13 @@ quetzal::gallery::Application::Application(const quetzal::Config& config) :
 
     m_renderer.create();
 
-    const std::filesystem::path models = m_assets.assets_path() / "models";
-    scene_graph::load_gltf(m_scene, m_scene.root(), m_renderer, m_assets, models / "axes.gltf", m_effects);
-    scene_graph::load<vulkan::VertexPositionNormalTexcoord>(m_scene, m_renderer, m_assets, "floor", "floor.obj", "stones.png", glm::mat4(1.0f), m_effects, "pnt");
-    scene_graph::load<vulkan::VertexPositionNormalTexcoord>(m_scene, m_renderer, m_assets, "spikosahedron", "spikosahedron.obj", "142LL_1.png", glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 115.225f)), m_effects, "pnt");
+    scene_graph::load_gltf(m_scene, m_scene.root(), m_renderer, m_assets, m_assets.shared_assets_path() / "models" / "axes.gltf", m_shaders);
+    scene_graph::load<vulkan::VertexPositionNormalTexcoord>(m_scene, m_renderer, m_assets, "floor", "floor.obj", "stones.png", glm::mat4(1.0f), m_shaders, "pnt");
+    scene_graph::load<vulkan::VertexPositionNormalTexcoord>(m_scene, m_renderer, m_assets, "spikosahedron", "spikosahedron.obj", "142LL_1.png", glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 115.225f)), m_shaders, "pnt");
+
+    auto light_transform = std::make_shared<scene_graph::TransformNode>("light0_transform", glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -500.0f, 800.0f)));
+    scene_graph::Node& light_xform_ref = m_scene.insert(m_scene.root(), std::move(light_transform));
+    m_scene.insert(light_xform_ref, std::make_shared<scene_graph::LightNode>("light0", glm::vec3(1.0f, 1.0f, 1.0f), 1000000.0f));
 
     m_camera.set_position({0.0f, -1000.0f, 500.0f, 1.0f});
     m_camera.set_forward({0.0f, 1.0f, -0.5f});

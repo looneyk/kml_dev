@@ -23,6 +23,7 @@
 !/library/quetzal/pdf/**
 !/library/quetzal/scene_graph/
 !/library/quetzal/scene_graph/**
+/library/quetzal/scene_graph/shaders/*.spv
 !/library/quetzal/svg/
 !/library/quetzal/svg/**
 !/library/quetzal/triangulation/

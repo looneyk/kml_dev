@@ -109,7 +109,7 @@ void load_primitive(Scene& scene,
                     const fastgltf::Primitive& prim,
                     const std::string& id,
                     const std::filesystem::path& gltf_dir,
-                    effects::EffectManager& effects)
+                    ShaderManager& shaders)
 {
     using V = vulkan::VertexPositionNormalTexcoord;
 
@@ -185,8 +185,8 @@ void load_primitive(Scene& scene,
     }
 
     vulkan::EffectHandle effect = renderer.create_effect<V>(
-        effects.vert_path(effect_name).string(),
-        effects.frag_path(effect_name).string());
+        shaders.vert_path(effect_name).string(),
+        shaders.frag_path(effect_name).string());
 
     vulkan::MaterialHandle material = renderer.create_material(effect, texture);
 
@@ -203,7 +203,7 @@ void load_node(Scene& scene,
                std::size_t node_index,
                const std::string& id_prefix,
                const std::filesystem::path& gltf_dir,
-               effects::EffectManager& effects)
+               ShaderManager& shaders)
 {
     const auto& node = asset.nodes[node_index];
     std::string node_id = id_prefix +
@@ -219,14 +219,14 @@ void load_node(Scene& scene,
         {
             std::string prim_id = node_id + "_p" + std::to_string(i);
             load_primitive(scene, xform_ref, renderer, assets, asset,
-                mesh.primitives[i], prim_id, gltf_dir, effects);
+                mesh.primitives[i], prim_id, gltf_dir, shaders);
         }
     }
 
     for (std::size_t child_idx : node.children)
     {
         load_node(scene, xform_ref, renderer, assets, asset,
-            child_idx, id_prefix, gltf_dir, effects);
+            child_idx, id_prefix, gltf_dir, shaders);
     }
 }
 
@@ -237,7 +237,7 @@ void load_gltf(Scene& scene,
                vulkan::IRenderer& renderer,
                AssetManager& assets,
                const std::filesystem::path& path,
-               effects::EffectManager& effects)
+               ShaderManager& shaders)
 {
     auto data = fastgltf::MappedGltfFile::FromPath(path);
     if (!bool(data))
@@ -265,7 +265,7 @@ void load_gltf(Scene& scene,
     for (std::size_t node_idx : asset.scenes[scene_index].nodeIndices)
     {
         load_node(scene, parent, renderer, assets, asset,
-            node_idx, id_prefix, gltf_dir, effects);
+            node_idx, id_prefix, gltf_dir, shaders);
     }
 }
 

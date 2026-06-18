@@ -18,7 +18,7 @@ namespace quetzal::scene_graph
     {
     public:
 
-        TextureManager(vulkan::IRenderer& renderer, std::filesystem::path base_path);
+        TextureManager(vulkan::IRenderer& renderer, std::filesystem::path base_path, std::filesystem::path fallback_path = {});
 
         vulkan::TextureHandle load(const std::string& id, const std::filesystem::path& path);
 
@@ -26,6 +26,7 @@ namespace quetzal::scene_graph
 
         vulkan::IRenderer& m_renderer;
         std::filesystem::path m_base_path;
+        std::filesystem::path m_fallback_path;
         std::unordered_map<std::string, vulkan::TextureHandle> m_cache;
     };
 

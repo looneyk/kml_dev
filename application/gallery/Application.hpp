@@ -6,7 +6,7 @@
 //------------------------------------------------------------------------------
 
 #include "quetzal/common/Config.hpp"
-#include "quetzal/effects/EffectManager.hpp"
+#include "quetzal/scene_graph/ShaderManager.hpp"
 #include "quetzal/game/Application.hpp"
 #include "quetzal/game/Camera.hpp"
 #include "quetzal/vulkan/Renderer.hpp"
@@ -48,7 +48,7 @@ namespace quetzal::gallery
         vulkan::Renderer m_renderer;
         scene_graph::Scene m_scene;
         scene_graph::AssetManager m_assets;
-        effects::EffectManager m_effects;
+        scene_graph::ShaderManager m_shaders;
         game::Camera m_camera;
 
         float m_speed;

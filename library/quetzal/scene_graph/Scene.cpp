@@ -1,6 +1,6 @@
 
 #include "Scene.hpp"
-#include "quetzal/effects/EffectManager.hpp"
+#include "ShaderManager.hpp"
 #include "quetzal/vulkan/Vertex.hpp"
 #include <glm/glm.hpp>
 #include <stdexcept>
@@ -48,7 +48,7 @@ namespace quetzal::scene_graph
               const std::filesystem::path& model_path,
               const std::filesystem::path& texture_path,
               const game::matrix_type& transform,
-              effects::EffectManager& effects,
+              ShaderManager& shaders,
               const std::string& effect_name)
     {
         MeshData mesh_data = assets.load_mesh(model_path);
@@ -63,8 +63,8 @@ namespace quetzal::scene_graph
         vulkan::GeometryHandle geometry_handle = renderer.upload_geometry<V>(id, vertices, mesh_data.indices);
         vulkan::TextureHandle texture_handle = assets.load_texture(id + "_tex", texture_path);
         vulkan::EffectHandle effect_handle = renderer.create_effect<V>(
-            effects.vert_path(effect_name).string(),
-            effects.frag_path(effect_name).string());
+            shaders.vert_path(effect_name).string(),
+            shaders.frag_path(effect_name).string());
         vulkan::MaterialHandle material_handle = renderer.create_material(effect_handle, texture_handle);
 
         auto transform_node = std::make_shared<TransformNode>(id, transform);
@@ -76,7 +76,7 @@ namespace quetzal::scene_graph
         scene.insert(material_ref, std::make_shared<GeometryNode>(id + "_geo", geometry_handle));
     }
 
-    template void load<vulkan::VertexPositionColorTexcoord>(Scene&, vulkan::IRenderer&, AssetManager&, const std::string&, const std::filesystem::path&, const std::filesystem::path&, const game::matrix_type&, effects::EffectManager&, const std::string&);
-    template void load<vulkan::VertexPositionNormalTexcoord>(Scene&, vulkan::IRenderer&, AssetManager&, const std::string&, const std::filesystem::path&, const std::filesystem::path&, const game::matrix_type&, effects::EffectManager&, const std::string&);
+    template void load<vulkan::VertexPositionColorTexcoord>(Scene&, vulkan::IRenderer&, AssetManager&, const std::string&, const std::filesystem::path&, const std::filesystem::path&, const game::matrix_type&, ShaderManager&, const std::string&);
+    template void load<vulkan::VertexPositionNormalTexcoord>(Scene&, vulkan::IRenderer&, AssetManager&, const std::string&, const std::filesystem::path&, const std::filesystem::path&, const game::matrix_type&, ShaderManager&, const std::string&);
 
 } // namespace quetzal::scene_graph

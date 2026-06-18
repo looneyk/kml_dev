@@ -27,7 +27,8 @@ int main()
     config.insert("cursor", "disabled");
     config.insert("swap_frame_count", "2");
     config.insert("assets_path", "C:/Users/Keith/Documents/kml/dev/application/cubes");
-    config.insert("effects_path", "C:/Users/Keith/Documents/kml/dev/library/quetzal/effects/shaders");
+    config.insert("shared_assets_path", "C:/Users/Keith/Documents/kml/dev/application/assets");
+    config.insert("shaders_path", "C:/Users/Keith/Documents/kml/dev/library/quetzal/scene_graph/shaders");
 
     try
     {
