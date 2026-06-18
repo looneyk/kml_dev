@@ -7,6 +7,7 @@
 
 #include "AssetManager.hpp"
 #include "Scene.hpp"
+#include "quetzal/effects/EffectManager.hpp"
 #include "quetzal/vulkan/IRenderer.hpp"
 #include <filesystem>
 #include <string>
@@ -19,8 +20,7 @@ namespace quetzal::scene_graph
                    vulkan::IRenderer& renderer,
                    AssetManager& assets,
                    const std::filesystem::path& path,
-                   const std::string& vert_spv = "shaders/vert_pnt.spv",
-                   const std::string& frag_spv = "shaders/frag_pnt.spv");
+                   effects::EffectManager& effects);
 
 } // namespace quetzal::scene_graph
 

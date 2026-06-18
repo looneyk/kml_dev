@@ -25,7 +25,8 @@ int main()
     config.insert("height", "600");
     config.insert("cursor", "disabled");
     config.insert("swap_frame_count", "2");
-    config.insert("asset_path", "C:/Users/Keith/Documents/kml/dev/application/gallery");
+    config.insert("assets_path", "C:/Users/Keith/Documents/kml/dev/application/gallery");
+    config.insert("effects_path", "C:/Users/Keith/Documents/kml/dev/library/quetzal/effects/shaders");
 
     quetzal::gallery::Application application(config);
 

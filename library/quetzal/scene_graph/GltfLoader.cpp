@@ -3,6 +3,7 @@
 #include "GeometryNode.hpp"
 #include "MaterialNode.hpp"
 #include "TransformNode.hpp"
+#include "quetzal/vulkan/TextureData.hpp"
 #include "quetzal/vulkan/Vertex.hpp"
 #include <fastgltf/core.hpp>
 #include <fastgltf/tools.hpp>
@@ -13,6 +14,8 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
+
+using namespace quetzal;
 
 namespace quetzal::scene_graph
 {
@@ -59,8 +62,8 @@ vulkan::TextureHandle load_image(vulkan::IRenderer& renderer,
             &w, &h, &ch, STBI_rgb_alpha);
         if (!pixels)
             return {};
-        auto handle = renderer.upload_texture(id, pixels,
-            static_cast<uint32_t>(w), static_cast<uint32_t>(h));
+        vulkan::TextureData td{VK_FORMAT_R8G8B8A8_SRGB, {{pixels, static_cast<size_t>(w) * h * 4, static_cast<uint32_t>(w), static_cast<uint32_t>(h)}}};
+        auto handle = renderer.upload_texture(id, td);
         stbi_image_free(pixels);
         return handle;
     };
@@ -74,8 +77,8 @@ vulkan::TextureHandle load_image(vulkan::IRenderer& renderer,
             stbi_uc* pixels = stbi_load(path.string().c_str(), &w, &h, &ch, STBI_rgb_alpha);
             if (!pixels)
                 return {};
-            auto handle = renderer.upload_texture(id, pixels,
-                static_cast<uint32_t>(w), static_cast<uint32_t>(h));
+            vulkan::TextureData td{VK_FORMAT_R8G8B8A8_SRGB, {{pixels, static_cast<size_t>(w) * h * 4, static_cast<uint32_t>(w), static_cast<uint32_t>(h)}}};
+            auto handle = renderer.upload_texture(id, td);
             stbi_image_free(pixels);
             return handle;
         },
@@ -106,8 +109,7 @@ void load_primitive(Scene& scene,
                     const fastgltf::Primitive& prim,
                     const std::string& id,
                     const std::filesystem::path& gltf_dir,
-                    const std::string& vert_spv,
-                    const std::string& frag_spv)
+                    effects::EffectManager& effects)
 {
     using V = vulkan::VertexPositionNormalTexcoord;
 
@@ -156,7 +158,9 @@ void load_primitive(Scene& scene,
         id + "_geo", std::span<const V>(vertices), std::span<const uint32_t>(indices));
 
     static const uint32_t white = 0xFFFFFFFF;
-    vulkan::TextureHandle texture = renderer.upload_texture("__default_white", &white, 1, 1);
+    vulkan::TextureData white_td{VK_FORMAT_R8G8B8A8_SRGB, {{&white, 4, 1u, 1u}}};
+    vulkan::TextureHandle texture = renderer.upload_texture("__default_white", white_td);
+    std::string effect_name = "emissive";
 
     if (prim.materialIndex.has_value())
     {
@@ -166,6 +170,7 @@ void load_primitive(Scene& scene,
             const auto& tex = asset.textures[mat.pbrData.baseColorTexture->textureIndex];
             if (tex.imageIndex.has_value())
                 texture = load_image(renderer, asset, tex.imageIndex.value(), id + "_tex", gltf_dir);
+            effect_name = "pnt";
         }
         else
         {
@@ -174,13 +179,14 @@ void load_primitive(Scene& scene,
             uint8_t g = static_cast<uint8_t>(std::clamp(ef[1], 0.0f, 1.0f) * 255.0f);
             uint8_t b = static_cast<uint8_t>(std::clamp(ef[2], 0.0f, 1.0f) * 255.0f);
             uint32_t pixel = (0xFFu << 24) | (static_cast<uint32_t>(b) << 16) | (static_cast<uint32_t>(g) << 8) | r;
-            texture = renderer.upload_texture(id + "_emissive", &pixel, 1, 1);
+            vulkan::TextureData emissive_td{VK_FORMAT_R8G8B8A8_SRGB, {{&pixel, 4, 1u, 1u}}};
+            texture = renderer.upload_texture(id + "_emissive", emissive_td);
         }
     }
 
     vulkan::EffectHandle effect = renderer.create_effect<V>(
-        (assets.asset_path() / vert_spv).string(),
-        (assets.asset_path() / frag_spv).string());
+        effects.vert_path(effect_name).string(),
+        effects.frag_path(effect_name).string());
 
     vulkan::MaterialHandle material = renderer.create_material(effect, texture);
 
@@ -197,8 +203,7 @@ void load_node(Scene& scene,
                std::size_t node_index,
                const std::string& id_prefix,
                const std::filesystem::path& gltf_dir,
-               const std::string& vert_spv,
-               const std::string& frag_spv)
+               effects::EffectManager& effects)
 {
     const auto& node = asset.nodes[node_index];
     std::string node_id = id_prefix +
@@ -214,14 +219,14 @@ void load_node(Scene& scene,
         {
             std::string prim_id = node_id + "_p" + std::to_string(i);
             load_primitive(scene, xform_ref, renderer, assets, asset,
-                mesh.primitives[i], prim_id, gltf_dir, vert_spv, frag_spv);
+                mesh.primitives[i], prim_id, gltf_dir, effects);
         }
     }
 
     for (std::size_t child_idx : node.children)
     {
         load_node(scene, xform_ref, renderer, assets, asset,
-            child_idx, id_prefix, gltf_dir, vert_spv, frag_spv);
+            child_idx, id_prefix, gltf_dir, effects);
     }
 }
 
@@ -232,8 +237,7 @@ void load_gltf(Scene& scene,
                vulkan::IRenderer& renderer,
                AssetManager& assets,
                const std::filesystem::path& path,
-               const std::string& vert_spv,
-               const std::string& frag_spv)
+               effects::EffectManager& effects)
 {
     auto data = fastgltf::MappedGltfFile::FromPath(path);
     if (!bool(data))
@@ -261,7 +265,7 @@ void load_gltf(Scene& scene,
     for (std::size_t node_idx : asset.scenes[scene_index].nodeIndices)
     {
         load_node(scene, parent, renderer, assets, asset,
-            node_idx, id_prefix, gltf_dir, vert_spv, frag_spv);
+            node_idx, id_prefix, gltf_dir, effects);
     }
 }
 

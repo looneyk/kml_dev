@@ -183,6 +183,12 @@
     <ClInclude Include="TimelineSemaphore.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Effect.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="EffectCache.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Allocator.cpp">

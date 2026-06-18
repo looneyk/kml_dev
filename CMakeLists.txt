@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(kml_dev CXX)
+project(kml_dev C CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -18,11 +18,13 @@ set_target_properties(glfw3_mt PROPERTIES
     IMPORTED_LOCATION ${LIBRARY3_DIR}/glfw/bin/lib-vc2022/glfw3_mt.lib
 )
 
+
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${DEV_ROOT}/bin)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${DEV_ROOT}/lib)
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
+add_subdirectory(library/quetzal/effects)
 add_subdirectory(library/quetzal/brep)
 add_subdirectory(library/quetzal/common)
 add_subdirectory(library/quetzal/expression)
@@ -39,12 +41,23 @@ add_subdirectory(library/quetzal/vulkan)
 add_subdirectory(library/quetzal/wavefront_obj)
 add_subdirectory(library/quetzal/xml)
 
+set(CMAKE_FOLDER "library3")
 add_subdirectory(library3/simdjson)
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 set(FASTGLTF_ENABLE_TESTS OFF CACHE BOOL "" FORCE)
 set(FASTGLTF_ENABLE_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(FASTGLTF_ENABLE_DOCS OFF CACHE BOOL "" FORCE)
 set(FASTGLTF_ENABLE_INSTALL OFF CACHE BOOL "" FORCE)
 add_subdirectory(library3/fastgltf)
+set(KTX_FEATURE_TESTS OFF CACHE BOOL "" FORCE)
+set(KTX_FEATURE_TOOLS OFF CACHE BOOL "" FORCE)
+set(KTX_FEATURE_DOC OFF CACHE BOOL "" FORCE)
+set(KTX_FEATURE_LOADTEST_APPS "OFF" CACHE STRING "" FORCE)
+add_subdirectory(library3/KTX-Software)
+unset(CMAKE_FOLDER)
+set_property(TARGET simdjson PROPERTY FOLDER "library3")
+set_property(TARGET fastgltf PROPERTY FOLDER "library3")
+set_property(TARGET ktx PROPERTY FOLDER "library3")
 
 add_subdirectory(application/cubes)
 add_subdirectory(application/gallery)

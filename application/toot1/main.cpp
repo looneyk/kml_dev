@@ -26,7 +26,8 @@ int main()
     config.insert("height", "600");
     config.insert("cursor", "disabled");
     config.insert("swap_frame_count", "2");
-    config.insert("asset_path", "C:/Users/Keith/Documents/kml/dev/application/toot1");
+    config.insert("assets_path", "C:/Users/Keith/Documents/kml/dev/application/toot1");
+    config.insert("effects_path", "C:/Users/Keith/Documents/kml/dev/library/quetzal/effects/shaders");
 
     try
     {

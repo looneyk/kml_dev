@@ -20,15 +20,15 @@ namespace quetzal::scene_graph
     {
     public:
 
-        AssetManager(vulkan::IRenderer& renderer, std::filesystem::path asset_path) :
-            m_asset_path(asset_path),
-            m_mesh_loader(asset_path / "models"),
-            m_texture_manager(renderer, asset_path / "textures")
+        AssetManager(vulkan::IRenderer& renderer, std::filesystem::path assets_path) :
+            m_assets_path(assets_path),
+            m_mesh_loader(assets_path / "models"),
+            m_texture_manager(renderer, assets_path / "textures")
         {
             m_mesh_loader.add_reader(std::make_unique<TinyobjReader>());
         }
 
-        const std::filesystem::path& asset_path() const { return m_asset_path; }
+        const std::filesystem::path& assets_path() const { return m_assets_path; }
 
         MeshData load_mesh(const std::filesystem::path& path)
         {
@@ -42,7 +42,7 @@ namespace quetzal::scene_graph
 
     private:
 
-        std::filesystem::path m_asset_path;
+        std::filesystem::path m_assets_path;
         MeshLoader m_mesh_loader;
         TextureManager m_texture_manager;
     };

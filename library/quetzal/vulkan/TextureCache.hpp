@@ -5,6 +5,7 @@
 #include "Device.hpp"
 #include "Queue.hpp"
 #include "Texture.hpp"
+#include "TextureData.hpp"
 #include "handles.hpp"
 #include <unordered_map>
 #include <string>
@@ -26,12 +27,12 @@ namespace quetzal::vulkan
 
         ~TextureCache() = default;
 
-        TextureHandle upload(const std::string& id, const void* pixels, uint32_t width, uint32_t height)
+        TextureHandle upload(const std::string& id, const TextureData& td)
         {
             auto [i, b] = m_cache.try_emplace(id, m_device);
             if (b)
             {
-                i->second.create(pixels, width, height, m_command_pool, m_queue);
+                i->second.create(td, m_command_pool, m_queue);
             }
             return TextureHandle{id};
         }

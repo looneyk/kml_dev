@@ -11,7 +11,10 @@
 #include "Sampler.hpp"
 #include "SingleSubmitCommands.hpp"
 #include "StagingBuffer.hpp"
+#include "TextureData.hpp"
 #include <vulkan/vulkan.hpp>
+#include <cstdint>
+#include <vector>
 
 namespace quetzal::vulkan
 {
@@ -34,23 +37,52 @@ namespace quetzal::vulkan
             destroy();
         }
 
-        void create(const void* pixels, uint32_t width, uint32_t height, const CommandPool& commandPool, const Queue& queue)
+        void create(const TextureData& td, const CommandPool& commandPool, const Queue& queue)
         {
-            VkDeviceSize imageSize = static_cast<VkDeviceSize>(width) * height * 4;
-            m_mipLevels = to_uint32(std::floor(std::log2(std::max(width, height)))) + 1;
+            const MipLevel& base = td.mips[0];
 
-            StagingBuffer stagingBuffer(m_device, imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT);
-            stagingBuffer.copy(pixels, static_cast<size_t>(imageSize));
+            if (!is_compressed(td.format) && td.mips.size() == 1)
+            {
+                m_mipLevels = to_uint32(std::floor(std::log2(std::max(base.width, base.height)))) + 1;
 
-            VkExtent2D extent{width, height};
-            m_textureImage.create(extent, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_SAMPLE_COUNT_1_BIT, m_mipLevels, VK_IMAGE_TILING_OPTIMAL, 0);
+                StagingBuffer stagingBuffer(m_device, static_cast<VkDeviceSize>(base.byte_size), VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT);
+                stagingBuffer.copy(base.data, base.byte_size);
 
-            transitionImageLayout(m_textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, m_mipLevels, queue, commandPool);
-            copyBufferToImage(stagingBuffer, m_textureImage, width, height, queue, commandPool);
+                VkExtent2D extent{base.width, base.height};
+                m_textureImage.create(extent, td.format, VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_SAMPLE_COUNT_1_BIT, m_mipLevels, VK_IMAGE_TILING_OPTIMAL, 0);
 
-            generateMipmaps(m_textureImage, VK_FORMAT_R8G8B8A8_SRGB, extent, m_mipLevels, queue, commandPool);
+                transitionImageLayout(m_textureImage, td.format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, m_mipLevels, queue, commandPool);
+                copyBufferToImage(stagingBuffer, m_textureImage, base.width, base.height, queue, commandPool);
+                generateMipmaps(m_textureImage, td.format, extent, m_mipLevels, queue, commandPool);
+            }
+            else
+            {
+                m_mipLevels = static_cast<uint32_t>(td.mips.size());
 
-            m_textureImageView.create(m_textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT, m_mipLevels);
+                VkDeviceSize totalSize = 0;
+                for (const auto& mip : td.mips)
+                    totalSize += static_cast<VkDeviceSize>(mip.byte_size);
+
+                std::vector<uint8_t> staging_data;
+                staging_data.reserve(static_cast<size_t>(totalSize));
+                for (const auto& mip : td.mips)
+                {
+                    const auto* bytes = static_cast<const uint8_t*>(mip.data);
+                    staging_data.insert(staging_data.end(), bytes, bytes + mip.byte_size);
+                }
+
+                StagingBuffer stagingBuffer(m_device, totalSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT);
+                stagingBuffer.copy(staging_data.data(), staging_data.size());
+
+                VkExtent2D extent{base.width, base.height};
+                m_textureImage.create(extent, td.format, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_SAMPLE_COUNT_1_BIT, m_mipLevels, VK_IMAGE_TILING_OPTIMAL, 0);
+
+                transitionImageLayout(m_textureImage, td.format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, m_mipLevels, queue, commandPool);
+                copyBufferToImageMips(stagingBuffer, td.mips, queue, commandPool);
+                transitionImageLayout(m_textureImage, td.format, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, m_mipLevels, queue, commandPool);
+            }
+
+            m_textureImageView.create(m_textureImage, td.format, VK_IMAGE_ASPECT_COLOR_BIT, m_mipLevels);
             m_textureSampler.create();
         }
 
@@ -89,6 +121,33 @@ namespace quetzal::vulkan
             vkCmdCopyBufferToImage(commands, buffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
             commands.submit();
             return;
+        }
+
+        void copyBufferToImageMips(VkBuffer buffer, const std::vector<MipLevel>& mips, const Queue& queue, const CommandPool& commandPool)
+        {
+            std::vector<VkBufferImageCopy> regions;
+            regions.reserve(mips.size());
+
+            VkDeviceSize offset = 0;
+            for (uint32_t i = 0; i < static_cast<uint32_t>(mips.size()); ++i)
+            {
+                VkBufferImageCopy region{};
+                region.bufferOffset = offset;
+                region.bufferRowLength = 0;
+                region.bufferImageHeight = 0;
+                region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+                region.imageSubresource.mipLevel = i;
+                region.imageSubresource.baseArrayLayer = 0;
+                region.imageSubresource.layerCount = 1;
+                region.imageOffset = {0, 0, 0};
+                region.imageExtent = {mips[i].width, mips[i].height, 1};
+                regions.push_back(region);
+                offset += static_cast<VkDeviceSize>(mips[i].byte_size);
+            }
+
+            SingleSubmitCommands commands(m_device, commandPool, queue);
+            vkCmdCopyBufferToImage(commands, buffer, m_textureImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, static_cast<uint32_t>(regions.size()), regions.data());
+            commands.submit();
         }
 
         void generateMipmaps(VkImage image, VkFormat imageFormat, VkExtent2D extent, uint32_t mipLevels, const Queue& queue, const CommandPool& commandPool)

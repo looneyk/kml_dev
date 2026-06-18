@@ -1,13 +1,16 @@
 add_library(quetzal_scene_graph STATIC
+    DdsLoader.cpp
     GltfLoader.cpp
+    KtxLoader.cpp
     Scene.cpp
     stb_image_impl.cpp
     TextureManager.cpp
-    tinyobj_impl.cpp
     TinyobjReader.cpp
     AssetManager.hpp
+    DdsLoader.hpp
     GeometryNode.hpp
     GltfLoader.hpp
+    KtxLoader.hpp
     IMeshReader.hpp
     LightNode.hpp
     MaterialNode.hpp
@@ -31,4 +34,4 @@ target_include_directories(quetzal_scene_graph PRIVATE
     ${Vulkan_INCLUDE_DIRS}
 )
 
-target_link_libraries(quetzal_scene_graph PRIVATE fastgltf)
+target_link_libraries(quetzal_scene_graph PRIVATE fastgltf ktx)

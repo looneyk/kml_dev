@@ -221,9 +221,9 @@ namespace quetzal::vulkan
             return m_geometry_cache.upload(id, bytes, indices);
         }
 
-        TextureHandle upload_texture(const std::string& id, const void* pixels, uint32_t width, uint32_t height) override
+        TextureHandle upload_texture(const std::string& id, const TextureData& td) override
         {
-            return m_texture_cache.upload(id, pixels, width, height);
+            return m_texture_cache.upload(id, td);
         }
 
         EffectHandle create_effect(const std::string& vert_spv, const std::string& frag_spv, const VertexBinding& layout) override

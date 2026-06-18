@@ -35,7 +35,8 @@ quetzal::cubes::Application::Application(const quetzal::Config& config) :
     m_window(config),
     m_renderer(config, m_window),
     m_scene(m_renderer),
-    m_assets(m_renderer, config["asset_path"]),
+    m_assets(m_renderer, config["assets_path"]),
+    m_effects(config["effects_path"]),
     m_camera(game::Camera::ViewMode::Fixed, math::PiThird<float>),
     m_nColor(11),
     m_color(s_colors[11]),
@@ -54,9 +55,9 @@ quetzal::cubes::Application::Application(const quetzal::Config& config) :
 
     m_renderer.create();
 
-    const std::filesystem::path models = m_assets.asset_path() / "models";
-    scene_graph::load_gltf(m_scene, m_scene.root(), m_renderer, m_assets, models / "axes.gltf", "shaders/vert_emissive.spv", "shaders/frag_emissive.spv");
-    scene_graph::load_gltf(m_scene, m_scene.root(), m_renderer, m_assets, models / "cubes.gltf", "shaders/vert_emissive.spv", "shaders/frag_emissive.spv");
+    const std::filesystem::path models = m_assets.assets_path() / "models";
+    scene_graph::load_gltf(m_scene, m_scene.root(), m_renderer, m_assets, models / "axes.gltf", m_effects);
+    scene_graph::load_gltf(m_scene, m_scene.root(), m_renderer, m_assets, models / "cubes.gltf", m_effects);
 
     m_camera.set_up({0.0f, 0.0f, 1.0f});
     m_camera.set_position({12.0f, 12.0f, 10.0f, 1.0f});

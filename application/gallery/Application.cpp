@@ -6,25 +6,12 @@
 #include "Application.hpp"
 #include "quetzal/game/types.hpp"
 #include "quetzal/math/math_util.hpp"
+#include "quetzal/scene_graph/GltfLoader.hpp"
 #include "quetzal/vulkan/Vertex.hpp"
 #include <glm/gtc/matrix_transform.hpp>
-#include <array>
-#include <ranges>
 #include <cassert>
 
 using namespace std;
-
-const std::vector<std::string> model_paths =
-{
-    "viking_room.obj",
-    "tuskified_spikosahedron.obj",
-};
-
-const std::vector<std::string> texture_paths =
-{
-    "viking_room.png",
-    "142LL_1.png",
-};
 
 //------------------------------------------------------------------------------
 quetzal::gallery::Application::Application(const quetzal::Config& config) :
@@ -32,9 +19,10 @@ quetzal::gallery::Application::Application(const quetzal::Config& config) :
     m_window(config),
     m_renderer(config, m_window),
     m_scene(m_renderer),
-    m_assets(m_renderer, config["asset_path"]),
-    m_camera(math::PiThird<float>),
-    m_speed(1.0f),
+    m_assets(m_renderer, config["assets_path"]),
+    m_effects(config["effects_path"]),
+    m_camera(game::Camera::ViewMode::Fixed, math::PiThird<float>),
+    m_speed(200.0f),
     m_bTracking(false),
     m_cursor_prev(m_window.get_cursor_position())
 {
@@ -43,11 +31,13 @@ quetzal::gallery::Application::Application(const quetzal::Config& config) :
 
     m_renderer.create();
 
-    scene_graph::load<vulkan::VertexPositionColorTexcoord>(m_scene, m_renderer, m_assets, "0", model_paths[0], texture_paths[0], glm::translate(glm::mat4(1.0f), glm::vec3(-1.0f, 0.0f, 0.0f)));
-    scene_graph::load<vulkan::VertexPositionNormalTexcoord>(m_scene, m_renderer, m_assets, "1", model_paths[1], texture_paths[1], glm::translate(glm::mat4(1.0f), glm::vec3(1.0f, 0.0f, 0.0f)) * glm::scale(glm::mat4(1.0f), glm::vec3(0.01f, 0.01f, 0.01f)), "shaders/vert_pnt_pc.spv", "shaders/frag_pnt.spv");
+    const std::filesystem::path models = m_assets.assets_path() / "models";
+    scene_graph::load_gltf(m_scene, m_scene.root(), m_renderer, m_assets, models / "axes.gltf", m_effects);
+    scene_graph::load<vulkan::VertexPositionNormalTexcoord>(m_scene, m_renderer, m_assets, "floor", "floor.obj", "stones.png", glm::mat4(1.0f), m_effects, "pnt");
+    scene_graph::load<vulkan::VertexPositionNormalTexcoord>(m_scene, m_renderer, m_assets, "spikosahedron", "spikosahedron.obj", "142LL_1.png", glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 115.225f)), m_effects, "pnt");
 
-    m_camera.set_position({2.0f, 2.0f, 2.0f, 1.0f});
-    m_camera.set_forward({-1.0f, -1.0f, -1.0f});
+    m_camera.set_position({0.0f, -1000.0f, 500.0f, 1.0f});
+    m_camera.set_forward({0.0f, 1.0f, -0.5f});
 }
 
 //------------------------------------------------------------------------------
@@ -59,29 +49,14 @@ quetzal::gallery::Application::~Application()
 //------------------------------------------------------------------------------
 void quetzal::gallery::Application::update(float dt)
 {
-    const float omega = 0.25f * game::PI;
-
-    std::array<glm::mat4, 2> model_matrices =
-    {
-         glm::rotate(glm::mat4(1.0f), dt * omega, glm::vec3(0.0f, 0.0f, 1.0f)),
-         glm::rotate(glm::mat4(1.0f), -dt * omega, glm::vec3(0.0f, 0.0f, 1.0f)),
-    };
-
     update_camera(dt);
 
     auto extent = m_renderer.extent();
 
     m_camera.update_view();
-    m_camera.set_perspective(static_cast<float>(extent.width) / static_cast<float>(extent.height), 0.1f, 100.0f);
+    m_camera.set_perspective(static_cast<float>(extent.width) / static_cast<float>(extent.height), 1.0f, 10000.0f);
 
     m_scene.set_camera(m_camera.view(), m_camera.projection());
-
-    std::array<std::string, 2> ids = {"0", "1"};
-
-    for (const auto& e : std::views::zip(ids, model_matrices))
-    {
-        m_scene.update_model_instance(get<0>(e), get<1>(e));
-    }
 
     return;
 }

@@ -1,6 +1,7 @@
 #if !defined(QUETZAL_VULKAN_IRENDERER_HPP)
 #define QUETZAL_VULKAN_IRENDERER_HPP
 
+#include "TextureData.hpp"
 #include "handles.hpp"
 #include "quetzal/game/types.hpp"
 #include <cstddef>
@@ -47,7 +48,7 @@ namespace quetzal::vulkan
         virtual void set_camera(const game::matrix_type& view, const game::matrix_type& proj) = 0;
         virtual void draw_geometry(const GeometryHandle& geometry, const MaterialHandle& material, const game::matrix_type& model) = 0;
         virtual void set_lights(std::span<const Light> lights) = 0;
-        virtual TextureHandle upload_texture(const std::string& id, const void* pixels, uint32_t width, uint32_t height) = 0;
+        virtual TextureHandle upload_texture(const std::string& id, const TextureData& td) = 0;
         virtual GeometryHandle upload_geometry(const std::string& id, const void* vertex_data, size_t vertex_count, const VertexBinding& layout, std::span<const uint32_t> indices) = 0;
         virtual EffectHandle create_effect(const std::string& vert_spv, const std::string& frag_spv, const VertexBinding& layout) = 0;
         virtual MaterialHandle create_material(const EffectHandle& effect, const TextureHandle& texture) = 0;
