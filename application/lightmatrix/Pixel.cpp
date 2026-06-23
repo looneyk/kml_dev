@@ -1,46 +1,39 @@
 //------------------------------------------------------------------------------
 // Light Matrix Simulation
-// Copyright (c) 2010 Keith Michael Looney. All Rights Reserved.
 // Pixel.cpp
 //------------------------------------------------------------------------------
 
+#include "Pixel.hpp"
 #include <iostream>
 #include <cassert>
-#include "Pixel.hpp"
 
 using namespace std;
 
 //------------------------------------------------------------------------------
 quetzal::lightmatrix::Pixel::Pixel() :
+    m_position(),
     m_radius(1.0f),
-    m_x(0.0f),
-    m_y(0.0f),
     m_color()
 {
+}
+
+//------------------------------------------------------------------------------
+quetzal::lightmatrix::point_type quetzal::lightmatrix::Pixel::position() const
+{
+    return m_position;
+}
+
+//------------------------------------------------------------------------------
+void quetzal::lightmatrix::Pixel::set_position(point_type position)
+{
+    m_position = position;
+    return;
 }
 
 //------------------------------------------------------------------------------
 float quetzal::lightmatrix::Pixel::radius() const
 {
     return m_radius;
-}
-
-//------------------------------------------------------------------------------
-float quetzal::lightmatrix::Pixel::x() const
-{
-    return m_x;
-}
-
-//------------------------------------------------------------------------------
-float quetzal::lightmatrix::Pixel::y() const
-{
-    return m_y;
-}
-
-//------------------------------------------------------------------------------
-quetzal::lightmatrix::Color quetzal::lightmatrix::Pixel::color() const
-{
-    return m_color;
 }
 
 //------------------------------------------------------------------------------
@@ -51,11 +44,9 @@ void quetzal::lightmatrix::Pixel::set_radius(float r)
 }
 
 //------------------------------------------------------------------------------
-void quetzal::lightmatrix::Pixel::set_position(float x, float y)
+quetzal::lightmatrix::Color quetzal::lightmatrix::Pixel::color() const
 {
-    m_x = x;
-    m_y = y;
-    return;
+    return m_color;
 }
 
 //------------------------------------------------------------------------------
@@ -96,6 +87,14 @@ void quetzal::lightmatrix::Pixel::set_a(component_type a)
     m_color.set_a(a);
 
     return;
+}
+
+//------------------------------------------------------------------------------
+quetzal::lightmatrix::Pixel quetzal::lightmatrix::lerp(const Pixel& pixel0, const Pixel& pixel1, float t)
+{
+    Pixel pixel = pixel0;
+    pixel.set_color(lerp(pixel0.color(), pixel1.color(), t));
+    return pixel;
 }
 
 //------------------------------------------------------------------------------

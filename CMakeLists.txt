@@ -60,6 +60,7 @@ set_property(TARGET ktx PROPERTY FOLDER "library3")
 
 add_subdirectory(application/cubes)
 add_subdirectory(application/gallery)
+add_subdirectory(application/lightmatrix)
 add_subdirectory(application/toot1)
 
 add_subdirectory(model/acicula)

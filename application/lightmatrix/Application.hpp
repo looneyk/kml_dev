@@ -2,57 +2,75 @@
 #define QUETZAL_LIGHTMATRIX_APPLICATION_HPP
 //------------------------------------------------------------------------------
 // Light Matrix Simulation
-// Copyright (c) 2010 Keith Michael Looney. All Rights Reserved.
 // Application.hpp
 //------------------------------------------------------------------------------
 
-#include "quetzal/direct3d11/Application.hpp"
-#include "quetzal/direct3d11/Camera.hpp"
-#include "quetzal/direct3d11/Statistics.hpp"
-#include "Controller.hpp"
 #include "Scene.hpp"
+#include "quetzal/common/Config.hpp"
+#include "quetzal/scene_graph/ShaderManager.hpp"
+#include "quetzal/game/Application.hpp"
+#include "quetzal/game/Camera.hpp"
+#include "quetzal/vulkan/Renderer.hpp"
+#include "quetzal/vulkan/Window.hpp"
+#include "quetzal/scene_graph/AssetManager.hpp"
+#include "quetzal/scene_graph/Scene.hpp"
+#include "quetzal/scene_graph/TransformNode.hpp"
+#include "quetzal/scene_graph/MaterialNode.hpp"
+#include <array>
 
 namespace quetzal::lightmatrix
 {
 
     //----------------------------------------------------------------------
-    class Application : public quetzal::direct3d11::Application
+    class Application : public game::Application
     {
     public:
 
-        Application();
+        Application(const Config& config);
         Application(const Application&) = delete;
-        ~Application() = default;
+        Application(Application&&) = delete;
+        ~Application();
 
         Application& operator=(const Application&) = delete;
-
-    protected:
-
-        virtual void update(float dt);
-        virtual void draw() override;
-
-        virtual void on_size(size_type size);
-        virtual void on_key_down(Timestamp ts, quetzal::input::key::Modifiers modifiers, quetzal::input::key::Code code);
-        virtual void on_mouse_move(Timestamp ts, quetzal::input::key::Modifiers modifiers, position_type position);
+        Application& operator=(Application&&) = delete;
 
     private:
 
-        void check_input(float dt);
+        void update(float dt) override;
+        void draw() override;
 
-        void init_projection();
+        virtual void on_key(GLFWwindow* pwindow, int key, int scancode, int action, int mods) override;
+        virtual void on_char(GLFWwindow* pwindow, unsigned int codepoint) override;
+        virtual void on_cursor_position(GLFWwindow* pwindow, double x, double y) override;
+        virtual void on_cursor_enter(GLFWwindow* pwindow, int entered) override;
+        virtual void on_mouse_button(GLFWwindow* pwindow, int button, int action, int mods) override;
+        virtual void on_mouse_scroll(GLFWwindow* pwindow, double xoffset, double yoffset) override;
+
+        void check_input(float dt);
+        void update_camera(float dt);
+
+        void build_pixels();
+        void update_pixels();
 
         void set_pattern(int nPattern);
 
-        Frame m_frame;
-        Scene m_scene;
-        Controller m_controller;
+        vulkan::Window m_window;
+        vulkan::Renderer m_renderer;
+        scene_graph::Scene m_scene_graph;
+        scene_graph::AssetManager m_assets;
+        scene_graph::ShaderManager m_shaders;
+        game::Camera m_camera;
 
-        direct3d11::Camera m_camera;
-        DirectX::XMVECTOR m_up; // World up vector
+        Scene m_scene;
+
+        vulkan::GeometryHandle m_geometry_pixel;
+        vulkan::MaterialHandle m_material_pixel;
+        std::vector<scene_graph::TransformNode*> m_pixel_transforms;
+        std::vector<scene_graph::MaterialNode*> m_pixel_materials;
+
         float m_speed;
-        float m_tDissolve;
-		
-        quetzal::direct3d11::Statistics m_statistics;
+        bool m_bTracking;
+        std::array<double, 2> m_cursor_prev;
     };
 
 } // namespace quetzal::lightmatrix

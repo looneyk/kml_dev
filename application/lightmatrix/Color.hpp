@@ -2,7 +2,6 @@
 #define QUETZAL_LIGHTMATRIX_COLOR_HPP
 //------------------------------------------------------------------------------
 // Light Matrix Simulation
-// Copyright (c) 2010 Keith Michael Looney. All Rights Reserved.
 // Color.hpp
 //------------------------------------------------------------------------------
 
@@ -21,9 +20,11 @@ namespace quetzal::lightmatrix
         Color();
         Color(component_type r, component_type g, component_type b, component_type a = 1.0f);
         Color(const Color&) = default;
+        Color(Color&&) = default;
         ~Color() = default;
 
         Color& operator=(const Color&) = default;
+        Color& operator=(Color&&) = default;
 
         component_type r() const;
         component_type g() const;
@@ -35,10 +36,6 @@ namespace quetzal::lightmatrix
         void set_rgb(component_type r, component_type g, component_type b);
         void set_a(component_type a);
 
-        // lerp? ...
-        // should convert to HSV for circular hue ...
-        // not really slerp, but conceptually similar in effect ...
-
     private:
 
         component_type m_r;
@@ -47,8 +44,11 @@ namespace quetzal::lightmatrix
         component_type m_a;
     };
 
-    std::ostream& operator<<(std::ostream& os, const quetzal::lightmatrix::Color& color);
-    std::istream& operator>>(std::istream& is, quetzal::lightmatrix::Color& color);
+    Color lerp(const Color& color0, const Color& color1, float t);
+    // also lerp of just hue component? ...
+
+    std::ostream& operator<<(std::ostream& os, const Color& color);
+    std::istream& operator>>(std::istream& is, Color& color);
 
 } // namespace quetzal::lightmatrix
 

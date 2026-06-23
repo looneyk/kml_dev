@@ -4,6 +4,7 @@
 #include "Node.hpp"
 #include "NodeVisitor.hpp"
 #include "quetzal/vulkan/handles.hpp"
+#include "quetzal/game/types.hpp"
 
 namespace quetzal::scene_graph
 {
@@ -12,9 +13,10 @@ namespace quetzal::scene_graph
     {
     public:
 
-        MaterialNode(std::string id, vulkan::MaterialHandle material) :
+        MaterialNode(std::string id, vulkan::MaterialHandle material, glm::vec4 color = glm::vec4(1.0f)) :
             Node(std::move(id)),
-            m_material(std::move(material))
+            m_material(std::move(material)),
+            m_color(color)
         {
         }
 
@@ -24,9 +26,14 @@ namespace quetzal::scene_graph
 
         void set_material(vulkan::MaterialHandle material) { m_material = std::move(material); }
 
+        const glm::vec4& color() const { return m_color; }
+
+        void set_color(const glm::vec4& color) { m_color = color; }
+
     private:
 
         vulkan::MaterialHandle m_material;
+        glm::vec4 m_color;
     };
 
 } // namespace quetzal::scene_graph

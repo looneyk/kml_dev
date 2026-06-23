@@ -1,4 +1,5 @@
 
+(a bit out of date)
 Pixel: position, color; physical characteristics of an emissive light source
 Frame: array of pixels, normalized positions: {[0, 1), [0, 1)}; physical size of the pixel array
 Layout: arrangement of pixels (rectangular, radial); does not take part in animation calculations, only the final rendering of the frame

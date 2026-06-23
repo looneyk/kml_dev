@@ -1,11 +1,11 @@
 //------------------------------------------------------------------------------
 // Light Matrix Simulation
-// Copyright (c) 2010 Keith Michael Looney. All Rights Reserved.
 // Color.cpp
 //------------------------------------------------------------------------------
 
-#include <iostream>
 #include "Color.hpp"
+#include "quetzal/math/math_util.hpp"
+#include <iostream>
 
 using namespace std;
 
@@ -74,6 +74,17 @@ void quetzal::lightmatrix::Color::set_a(component_type a)
     m_a = a;
 
     return;
+}
+
+//------------------------------------------------------------------------------
+quetzal::lightmatrix::Color quetzal::lightmatrix::lerp(const Color& color0, const Color& color1, float t)
+{
+    return Color(
+        math::lerp(color0.r(), color1.r(), t),
+        math::lerp(color0.g(), color1.g(), t),
+        math::lerp(color0.b(), color1.b(), t),
+        math::lerp(color0.a(), color1.a(), t)
+    );
 }
 
 //------------------------------------------------------------------------------

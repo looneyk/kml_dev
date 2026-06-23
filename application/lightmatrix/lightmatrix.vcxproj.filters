@@ -30,21 +30,36 @@
     <ClCompile Include="Scene.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Controller.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="Color.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Pattern.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Shot.cpp">
+    <ClCompile Include="Animation.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Viewport.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Panel.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Transition.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Application.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Transition.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Panel.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Arrangement.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Frame.hpp">
@@ -56,7 +71,7 @@
     <ClInclude Include="Scene.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Controller.hpp">
+    <ClInclude Include="Smoothing.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Color.hpp">
@@ -65,7 +80,13 @@
     <ClInclude Include="Pattern.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Shot.hpp">
+    <ClInclude Include="Animation.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Viewport.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="types.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

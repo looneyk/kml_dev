@@ -104,7 +104,7 @@
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>..\..\lib\$(Platform)\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>common.lib;direct3d11.lib;framework.lib;input.lib;xml.lib;d3d11.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>common.lib;direct3d11.lib;object.lib;framework.lib;input.lib;math.lib;triangulation.lib;wavefront_obj.lib;xml.lib;d3d11.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <CustomBuildStep>
       <Command>copy $(OutDir)*.cso $(ProjectDir)</Command>
@@ -128,7 +128,7 @@
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>..\..\lib\$(Platform)\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>common.lib;direct3d11.lib;framework.lib;input.lib;xml.lib;d3d11.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>common.lib;direct3d11.lib;object.lib;framework.lib;input.lib;math.lib;triangulation.lib;wavefront_obj.lib;xml.lib;d3d11.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <CustomBuildStep>
       <Command>copy $(OutDir)*.cso $(ProjectDir)</Command>
@@ -156,7 +156,7 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>..\..\lib\$(Platform)\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>common.lib;direct3d11.lib;framework.lib;input.lib;xml.lib;d3d11.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>common.lib;direct3d11.lib;object.lib;framework.lib;input.lib;math.lib;triangulation.lib;wavefront_obj.lib;xml.lib;d3d11.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <CustomBuildStep>
       <Command>copy $(OutDir)*.cso $(ProjectDir)</Command>
@@ -184,7 +184,7 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>..\..\lib\$(Platform)\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>common.lib;direct3d11.lib;framework.lib;input.lib;xml.lib;d3d11.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>common.lib;direct3d11.lib;object.lib;framework.lib;input.lib;math.lib;triangulation.lib;wavefront_obj.lib;xml.lib;d3d11.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <CustomBuildStep>
       <Command>copy $(OutDir)*.cso $(ProjectDir)</Command>
@@ -194,25 +194,32 @@
     </CustomBuildStep>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Animation.cpp" />
     <ClCompile Include="Application.cpp" />
     <ClCompile Include="Color.cpp" />
-    <ClCompile Include="Controller.cpp" />
     <ClCompile Include="Frame.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="Panel.cpp" />
     <ClCompile Include="Pattern.cpp" />
     <ClCompile Include="Pixel.cpp" />
     <ClCompile Include="Scene.cpp" />
-    <ClCompile Include="Shot.cpp" />
+    <ClCompile Include="Transition.cpp" />
+    <ClCompile Include="Viewport.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Animation.hpp" />
     <ClInclude Include="Application.hpp" />
+    <ClInclude Include="Arrangement.hpp" />
     <ClInclude Include="Color.hpp" />
-    <ClInclude Include="Controller.hpp" />
     <ClInclude Include="Frame.hpp" />
+    <ClInclude Include="Panel.hpp" />
     <ClInclude Include="Pattern.hpp" />
     <ClInclude Include="Pixel.hpp" />
     <ClInclude Include="Scene.hpp" />
-    <ClInclude Include="Shot.hpp" />
+    <ClInclude Include="Smoothing.hpp" />
+    <ClInclude Include="Transition.hpp" />
+    <ClInclude Include="types.hpp" />
+    <ClInclude Include="Viewport.hpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="pixel_shader.hlsl">

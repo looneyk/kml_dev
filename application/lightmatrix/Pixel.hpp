@@ -2,12 +2,12 @@
 #define QUETZAL_LIGHTMATRIX_PIXEL_HPP
 //------------------------------------------------------------------------------
 // Light Matrix Simulation
-// Copyright (c) 2010 Keith Michael Looney. All Rights Reserved.
 // Pixel.hpp
 //------------------------------------------------------------------------------
 
-#include <iosfwd>
 #include "Color.hpp"
+#include "types.hpp"
+#include <iosfwd>
 
 namespace quetzal::lightmatrix
 {
@@ -21,19 +21,19 @@ namespace quetzal::lightmatrix
 
         Pixel();
         Pixel(const Pixel&) = default;
+        Pixel(Pixel&&) = default;
         ~Pixel() = default;
 
         Pixel& operator=(const Pixel&) = default;
+        Pixel& operator=(Pixel&&) = default;
+
+        point_type position() const;
+        void set_position(point_type position);
 
         float radius() const;
-        float x() const;
-        float y() const;
+        void set_radius(float r);
 
         Color color() const;
-
-        void set_radius(float r);
-        void set_position(float x, float y);
-
         void set_color(Color color);
         void set_rgb(Color color);
         void set_a(Color color);
@@ -43,15 +43,15 @@ namespace quetzal::lightmatrix
 
     private:
 
+        point_type m_position;
         float m_radius;
-
-        float m_x;
-        float m_y;
-
         Color m_color;
     };
 
-    // These write and read only color values
+    // These operate on only color values
+
+    Pixel lerp(const Pixel& pixel0, const Pixel& pixel1, float t);
+
     std::ostream& operator<<(std::ostream& os, const quetzal::lightmatrix::Pixel& pixel);
     std::istream& operator>>(std::istream& is, quetzal::lightmatrix::Pixel& pixel);
 
