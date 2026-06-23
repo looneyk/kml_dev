@@ -121,8 +121,7 @@ void quetzal::gallery::Application::on_mouse_move(Timestamp ts, input::key::Modi
     float rx = m_mouseSensitivity * static_cast<float>(-position.x);
     float ry = m_mouseSensitivity * static_cast<float>(-position.y);
 
-    m_camera.pan(rx);
-//    m_camera.pan(rx, m_up);
+    m_camera.pan(rx, m_up);
     m_camera.tilt(ry);
     m_camera.update_view();
     return;

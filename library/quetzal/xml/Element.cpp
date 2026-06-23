@@ -89,7 +89,7 @@ shared_ptr<quetzal::xml::Element> quetzal::xml::Element::sub_element(const strin
 }
 
 //------------------------------------------------------------------------------
-string quetzal::xml::Element::element_value(const string& name) const
+optional<string> quetzal::xml::Element::element_value(const string& name) const
 {
     const auto& pe = sub_element(name);
     if (pe != nullptr)
@@ -97,13 +97,13 @@ string quetzal::xml::Element::element_value(const string& name) const
         return pe->value();
     }
 
-    return string();
+    return nullopt;
 }
 
 //------------------------------------------------------------------------------
 const quetzal::xml::Attribute* quetzal::xml::Element::attribute(const string& name) const
 {
-    for (auto& attribute : m_attributes)
+    for (const auto& attribute : m_attributes)
     {
         if (attribute.name() == name)
         {
@@ -129,7 +129,7 @@ quetzal::xml::Attribute* quetzal::xml::Element::attribute(const string& name)
 }
 
 //------------------------------------------------------------------------------
-string quetzal::xml::Element::attribute_value(const string& name) const
+optional<string> quetzal::xml::Element::attribute_value(const string& name) const
 {
     const Attribute* pa = attribute(name);
     if (pa != nullptr)
@@ -137,7 +137,7 @@ string quetzal::xml::Element::attribute_value(const string& name) const
         return pa->value();
     }
 
-    return string();
+    return nullopt;
 }
 
 //------------------------------------------------------------------------------
@@ -343,6 +343,13 @@ istream& quetzal::xml::operator>>(istream& is, quetzal::xml::Element& element)
 
     string strStart = element.name();
 
+    string::size_type posTrailingNonWs = strStart.find_last_not_of(Element::whitespace);
+    if (posTrailingNonWs != string::npos && strStart[posTrailingNonWs] == '/')
+    {
+        bEmpty = true;
+        strStart.erase(posTrailingNonWs);
+    }
+
     string::size_type posNameEnd = strStart.find_first_of(Element::whitespace);
     element.set_name(strStart.substr(0, posNameEnd));
     if (posNameEnd != string::npos)
@@ -351,12 +358,6 @@ istream& quetzal::xml::operator>>(istream& is, quetzal::xml::Element& element)
         if (posAttributeStart != string::npos)
         {
             string::size_type posAttributeEnd = strStart.find_last_not_of(Element::whitespace);
-            if (strStart[posAttributeEnd] == '/')
-            {
-                --posAttributeEnd;
-                bEmpty = true;
-            }
-
             element.parse_attributes(strStart.substr(posAttributeStart, posAttributeEnd - posAttributeStart + 1));
         }
     }
@@ -390,7 +391,8 @@ istream& quetzal::xml::operator>>(istream& is, quetzal::xml::Element& element)
 
             case TokenType::EmptyElementTag:
             {
-                auto pe = make_shared<Element>(t.value());
+                auto pe = make_shared<Element>(t.value() + "/");
+                is >> *pe;
                 element.add_element(pe);
                 t.set_type(TokenType::EndTag);
                 break;

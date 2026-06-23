@@ -19,9 +19,11 @@ namespace quetzal::xml
 
         Document();
         Document(const Document&) = default;
+        Document(Document&&) = default;
         ~Document() = default;
 
         Document& operator=(const Document&) = default;
+        Document& operator=(Document&&) = default;
 
         void clear();
 

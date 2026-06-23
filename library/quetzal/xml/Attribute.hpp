@@ -25,10 +25,10 @@ namespace quetzal::xml
         Attribute& operator=(const Attribute&) = default;
         Attribute& operator=(Attribute&&) = default;
 
-        std::string name() const;
+        const std::string name() const;
         void set_name(const std::string& name);
 
-        std::string value() const;
+        const std::string value() const;
         void set_value(const std::string& value);
 
     private:

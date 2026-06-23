@@ -43,7 +43,7 @@ quetzal::lightmatrix::Application::Application() :
     m_tDissolve(3.0f),
     m_statistics()
 {
-    m_window.create_floating("Light Matrix", {100, 100}, {800, 800});
+    m_window.create_windowed("Light Matrix", {100, 100}, {800, 800});
     m_renderer.create();
 
     set_pattern(0);
@@ -70,7 +70,7 @@ void quetzal::lightmatrix::Application::update(float dt)
 }
 
 //------------------------------------------------------------------------------
-void quetzal::lightmatrix::Application::render()
+void quetzal::lightmatrix::Application::draw()
 {
 ////    m_scene.draw(m_camera);
 //    draw();

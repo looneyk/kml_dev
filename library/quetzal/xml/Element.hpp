@@ -9,10 +9,11 @@
 // Attribute* or iterator?
 
 #include "Attribute.hpp"
+#include <iosfwd>
 #include <list>
 #include <memory>
+#include <optional>
 #include <string>
-#include <iosfwd>
 
 namespace quetzal::xml
 {
@@ -28,9 +29,11 @@ namespace quetzal::xml
         Element() = default;
         explicit Element(const std::string& name, const std::string& value = std::string());
         Element(const Element&) = default;
+        Element(Element&&) = default;
         ~Element() = default;
 
         Element& operator=(const Element&) = default;
+        Element& operator=(Element&&) = default;
 
         std::string name() const;
         void set_name(const std::string& name);
@@ -45,11 +48,11 @@ namespace quetzal::xml
         const elements_type& elements() const;
 
         std::shared_ptr<Element> sub_element(const std::string& name) const;
-        std::string element_value(const std::string& name) const;
+        std::optional<std::string> element_value(const std::string& name) const;
 
         const Attribute* attribute(const std::string& name) const;
         Attribute* attribute(const std::string& name);
-        std::string attribute_value(const std::string& name) const;
+        std::optional<std::string> attribute_value(const std::string& name) const;
 
         void clear();
         void parse_attributes(const std::string& strAttributes);

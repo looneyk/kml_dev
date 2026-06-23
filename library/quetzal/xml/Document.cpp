@@ -65,10 +65,10 @@ istream& quetzal::xml::operator>>(istream& is, quetzal::xml::Document& document)
     do
     {
         start = get_token(is);
-    } while (!is.eof() && start.type() != TokenType::StartTag);
+    } while (!is.eof() && start.type() != TokenType::StartTag && start.type() != TokenType::EmptyElementTag);
 
     xml::Element& e = document.element();
-    e.set_name(start.value());
+    e.set_name(start.type() == TokenType::EmptyElementTag ? start.value() + "/" : start.value());
     is >> e;
 
     return is;

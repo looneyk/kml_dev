@@ -17,7 +17,7 @@ quetzal::xml::Attribute::Attribute(const string& name, const string& value) :
 }
 
 //------------------------------------------------------------------------------
-string quetzal::xml::Attribute::name() const
+const string quetzal::xml::Attribute::name() const
 {
     return m_name;
 }
@@ -30,7 +30,7 @@ void quetzal::xml::Attribute::set_name(const string& name)
 }
 
 //------------------------------------------------------------------------------
-string quetzal::xml::Attribute::value() const
+const string quetzal::xml::Attribute::value() const
 {
     return m_value;
 }
