@@ -76,6 +76,8 @@ set_property(TARGET quetzal_vulkan PROPERTY FOLDER "library")
 
 set_target_properties(quetzal_vulkan PROPERTIES OUTPUT_NAME vulkan)
 
+target_compile_definitions(quetzal_vulkan PRIVATE GLM_ENABLE_EXPERIMENTAL)
+
 target_include_directories(quetzal_vulkan PRIVATE
     ${DEV_ROOT}/library
     ${LIBRARY3_DIR}

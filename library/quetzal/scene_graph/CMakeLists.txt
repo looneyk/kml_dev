@@ -57,6 +57,8 @@ set_property(TARGET quetzal_scene_graph PROPERTY FOLDER "library")
 
 add_dependencies(quetzal_scene_graph quetzal_shaders)
 
+target_compile_definitions(quetzal_scene_graph PRIVATE GLM_ENABLE_EXPERIMENTAL)
+
 target_include_directories(quetzal_scene_graph PRIVATE
     ${DEV_ROOT}/library
     ${LIBRARY3_DIR}/stb
