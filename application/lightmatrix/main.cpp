@@ -26,9 +26,9 @@ int main()
     config.insert("height", "800");
     config.insert("cursor", "disabled");
     config.insert("swap_frame_count", "2");
-    config.insert("assets_path", "C:/Users/Keith/Documents/kml/dev/application/lightmatrix");
+    config.insert("assets_path", ".");
     config.insert("shared_assets_path", "");
-    config.insert("shaders_path", "C:/Users/Keith/Documents/kml/dev/library/quetzal/scene_graph/shaders");
+    config.insert("shaders_path", "../../library/quetzal/scene_graph/shaders");
 
     try
     {
