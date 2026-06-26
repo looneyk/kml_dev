@@ -184,13 +184,13 @@ void load_primitive(Scene& scene,
         }
     }
 
-    vulkan::EffectHandle effect = renderer.create_effect<V>(
+    vulkan::MaterialHandle material = renderer.create_material<V>(
         shaders.vert_path(effect_name).string(),
         shaders.frag_path(effect_name).string());
 
-    vulkan::MaterialHandle material = renderer.create_material(effect, texture);
+    vulkan::MaterialInstanceHandle material_instance = renderer.create_material_instance(material, vulkan::TextureParameters{texture});
 
-    auto mat_node = std::make_shared<MaterialNode>(id + "_mat", material);
+    auto mat_node = std::make_shared<MaterialNode>(id + "_mat", material_instance);
     Node& mat_ref = scene.insert(parent, std::move(mat_node));
     scene.insert(mat_ref, std::make_shared<GeometryNode>(id + "_geo", geometry));
 }

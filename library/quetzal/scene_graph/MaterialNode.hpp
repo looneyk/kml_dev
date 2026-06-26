@@ -13,27 +13,21 @@ namespace quetzal::scene_graph
     {
     public:
 
-        MaterialNode(std::string id, vulkan::MaterialHandle material, glm::vec4 color = glm::vec4(1.0f)) :
+        MaterialNode(std::string id, vulkan::MaterialInstanceHandle material) :
             Node(std::move(id)),
-            m_material(std::move(material)),
-            m_color(color)
+            m_material(std::move(material))
         {
         }
 
         void accept(NodeVisitor& visitor) override { visitor.apply(*this); }
 
-        const vulkan::MaterialHandle& material() const { return m_material; }
+        const vulkan::MaterialInstanceHandle& material() const { return m_material; }
 
-        void set_material(vulkan::MaterialHandle material) { m_material = std::move(material); }
-
-        const glm::vec4& color() const { return m_color; }
-
-        void set_color(const glm::vec4& color) { m_color = color; }
+        void set_material(vulkan::MaterialInstanceHandle material) { m_material = std::move(material); }
 
     private:
 
-        vulkan::MaterialHandle m_material;
-        glm::vec4 m_color;
+        vulkan::MaterialInstanceHandle m_material;
     };
 
 } // namespace quetzal::scene_graph

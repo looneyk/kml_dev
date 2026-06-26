@@ -62,15 +62,15 @@ namespace quetzal::scene_graph
 
         vulkan::GeometryHandle geometry_handle = renderer.upload_geometry<V>(id, vertices, mesh_data.indices);
         vulkan::TextureHandle texture_handle = assets.load_texture(id + "_tex", texture_path);
-        vulkan::EffectHandle effect_handle = renderer.create_effect<V>(
+        vulkan::MaterialHandle material_handle = renderer.create_material<V>(
             shaders.vert_path(effect_name).string(),
             shaders.frag_path(effect_name).string());
-        vulkan::MaterialHandle material_handle = renderer.create_material(effect_handle, texture_handle);
+        vulkan::MaterialInstanceHandle material_instance_handle = renderer.create_material_instance(material_handle, vulkan::TextureParameters{texture_handle});
 
         auto transform_node = std::make_shared<TransformNode>(id, transform);
         Node& transform_ref = scene.insert(scene.root(), std::move(transform_node));
 
-        auto material_node = std::make_shared<MaterialNode>(id + "_mat", material_handle);
+        auto material_node = std::make_shared<MaterialNode>(id + "_mat", material_instance_handle);
         Node& material_ref = scene.insert(transform_ref, std::move(material_node));
 
         scene.insert(material_ref, std::make_shared<GeometryNode>(id + "_geo", geometry_handle));

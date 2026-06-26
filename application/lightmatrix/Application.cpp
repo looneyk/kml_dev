@@ -82,9 +82,8 @@ quetzal::lightmatrix::Application::Application(const quetzal::Config& config) :
 
     static const uint32_t white = 0xFFFFFFFF;
     vulkan::TextureData white_td{VK_FORMAT_R8G8B8A8_SRGB, {{&white, 4, 1u, 1u}}};
-    vulkan::TextureHandle texture = m_renderer.upload_texture("__default_white", white_td);
-    vulkan::EffectHandle effect = m_renderer.create_effect(m_shaders.vert_path("tint").string(), m_shaders.frag_path("tint").string(), vulkan::vertex_binding<V>());
-    m_material_pixel = m_renderer.create_material(effect, texture);
+    m_texture_pixel = m_renderer.upload_texture("__default_white", white_td);
+    m_material_pixel = m_renderer.create_material(m_shaders.vert_path("tint").string(), m_shaders.frag_path("tint").string(), vulkan::vertex_binding<V>());
 
     m_scene.panel().set_size({400.0f, 400.0f});
     m_scene.panel().set_pixel_radius(2.5f);
@@ -153,8 +152,9 @@ void quetzal::lightmatrix::Application::build_pixels()
         {
             std::string id = "px_" + std::to_string(i) + "_" + std::to_string(j);
 
+            vulkan::MaterialInstanceHandle mi = m_renderer.create_material_instance(m_material_pixel, vulkan::TextureParameters{m_texture_pixel});
             auto& transform_ref = static_cast<scene_graph::TransformNode&>(m_scene_graph.insert(m_scene_graph.root(), std::make_shared<scene_graph::TransformNode>(id)));
-            auto& material_ref = static_cast<scene_graph::MaterialNode&>(m_scene_graph.insert(transform_ref, std::make_shared<scene_graph::MaterialNode>(id + "_mat", m_material_pixel)));
+            auto& material_ref = static_cast<scene_graph::MaterialNode&>(m_scene_graph.insert(transform_ref, std::make_shared<scene_graph::MaterialNode>(id + "_mat", mi)));
             m_scene_graph.insert(material_ref, std::make_shared<scene_graph::GeometryNode>(id + "_geo", m_geometry_pixel));
 
             m_pixel_transforms.push_back(&transform_ref);
@@ -185,7 +185,7 @@ void quetzal::lightmatrix::Application::update_pixels()
 
             glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(x, y, 0.0f)) * glm::scale(glm::mat4(1.0f), glm::vec3(r, r, r));
             m_pixel_transforms[k]->set_local_transform(model);
-            m_pixel_materials[k]->set_color(glm::vec4(color.r(), color.g(), color.b(), color.a()));
+            m_renderer.update_material_instance(m_pixel_materials[k]->material(), vulkan::ColorParameters{glm::vec4(color.r(), color.g(), color.b(), color.a())});
         }
     }
 

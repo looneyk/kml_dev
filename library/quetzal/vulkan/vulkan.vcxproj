@@ -50,8 +50,6 @@
     <ClInclude Include="DescriptorSetLayout.hpp" />
     <ClInclude Include="DescriptorSets.hpp" />
     <ClInclude Include="Device.hpp" />
-    <ClInclude Include="Effect.hpp" />
-    <ClInclude Include="EffectCache.hpp" />
     <ClInclude Include="Fence.hpp" />
     <ClInclude Include="GraphicsPipeline.hpp" />
     <ClInclude Include="GraphicsPipelineCreateInfo.hpp" />
@@ -66,6 +64,8 @@
     <ClInclude Include="LogicalDevice.hpp" />
     <ClInclude Include="Material.hpp" />
     <ClInclude Include="MaterialCache.hpp" />
+    <ClInclude Include="MaterialInstance.hpp" />
+    <ClInclude Include="MaterialInstanceCache.hpp" />
     <ClInclude Include="PhysicalDevice.hpp" />
     <ClInclude Include="PhysicalDevices.hpp" />
     <ClInclude Include="PipelineCache.hpp" />

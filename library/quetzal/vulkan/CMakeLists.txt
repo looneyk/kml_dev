@@ -26,8 +26,6 @@ add_library(quetzal_vulkan STATIC
     DescriptorSetLayout.hpp
     DescriptorSets.hpp
     Device.hpp
-    Effect.hpp
-    EffectCache.hpp
     Fence.hpp
     Geometry.hpp
     GeometryCache.hpp
@@ -43,6 +41,8 @@ add_library(quetzal_vulkan STATIC
     LogicalDevice.hpp
     Material.hpp
     MaterialCache.hpp
+    MaterialInstance.hpp
+    MaterialInstanceCache.hpp
     PhysicalDevice.hpp
     PhysicalDevices.hpp
     PipelineCache.hpp

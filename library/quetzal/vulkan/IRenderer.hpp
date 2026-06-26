@@ -1,13 +1,19 @@
 #if !defined(QUETZAL_VULKAN_IRENDERER_HPP)
 #define QUETZAL_VULKAN_IRENDERER_HPP
+//------------------------------------------------------------------------------
+// quetzal
+// IRenderer.hpp
+//------------------------------------------------------------------------------
 
 #include "TextureData.hpp"
 #include "handles.hpp"
 #include "quetzal/game/types.hpp"
+#include <glm/glm.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <span>
 #include <string>
+#include <variant>
 #include <vector>
 
 namespace quetzal::vulkan
@@ -37,6 +43,18 @@ namespace quetzal::vulkan
         float intensity;
     };
 
+    struct ColorParameters
+    {
+        glm::vec4 color;
+    };
+
+    struct TextureParameters
+    {
+        TextureHandle texture;
+    };
+
+    using MaterialParameters = std::variant<ColorParameters, TextureParameters>;
+
     class IRenderer
     {
     public:
@@ -46,12 +64,13 @@ namespace quetzal::vulkan
         virtual bool begin_frame() = 0;
         virtual void end_frame() = 0;
         virtual void set_camera(const game::matrix_type& view, const game::matrix_type& proj) = 0;
-        virtual void draw_geometry(const GeometryHandle& geometry, const MaterialHandle& material, const game::matrix_type& model) = 0;
+        virtual void draw_geometry(const GeometryHandle& geometry, const MaterialInstanceHandle& material_instance, const game::matrix_type& model) = 0;
         virtual void set_lights(std::span<const Light> lights) = 0;
         virtual TextureHandle upload_texture(const std::string& id, const TextureData& td) = 0;
         virtual GeometryHandle upload_geometry(const std::string& id, const void* vertex_data, size_t vertex_count, const VertexBinding& layout, std::span<const uint32_t> indices) = 0;
-        virtual EffectHandle create_effect(const std::string& vert_spv, const std::string& frag_spv, const VertexBinding& layout) = 0;
-        virtual MaterialHandle create_material(const EffectHandle& effect, const TextureHandle& texture) = 0;
+        virtual MaterialHandle create_material(const std::string& vert_spv, const std::string& frag_spv, const VertexBinding& layout) = 0;
+        virtual MaterialInstanceHandle create_material_instance(const MaterialHandle& material, const MaterialParameters& params) = 0;
+        virtual void update_material_instance(const MaterialInstanceHandle& handle, const MaterialParameters& params) = 0;
 
         template<typename V>
         GeometryHandle upload_geometry(const std::string& id, std::span<const V> vertices, std::span<const uint32_t> indices)
@@ -60,9 +79,9 @@ namespace quetzal::vulkan
         }
 
         template<typename V>
-        EffectHandle create_effect(const std::string& vert_spv, const std::string& frag_spv)
+        MaterialHandle create_material(const std::string& vert_spv, const std::string& frag_spv)
         {
-            return create_effect(vert_spv, frag_spv, vertex_binding<V>());
+            return create_material(vert_spv, frag_spv, vertex_binding<V>());
         }
     };
 

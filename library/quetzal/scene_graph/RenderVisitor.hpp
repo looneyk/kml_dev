@@ -21,7 +21,6 @@ namespace quetzal::scene_graph
             m_renderer(renderer),
             m_transform_stack(1, game::matrix_type(1.0f)),
             m_material_stack(),
-            m_color_stack(),
             m_lights()
         {
         }
@@ -45,9 +44,7 @@ namespace quetzal::scene_graph
         void apply(MaterialNode& node) override
         {
             m_material_stack.push_back(node.material());
-            m_color_stack.push_back(node.color());
             traverse(node);
-            m_color_stack.pop_back();
             m_material_stack.pop_back();
         }
 
@@ -55,7 +52,7 @@ namespace quetzal::scene_graph
         {
             if (!m_material_stack.empty())
             {
-                m_renderer.draw_geometry(node.geometry(), m_material_stack.back(), m_transform_stack.back(), m_color_stack.back());
+                m_renderer.draw_geometry(node.geometry(), m_material_stack.back(), m_transform_stack.back());
             }
             traverse(node);
         }
@@ -64,8 +61,7 @@ namespace quetzal::scene_graph
 
         vulkan::IRenderer& m_renderer;
         std::vector<game::matrix_type> m_transform_stack;
-        std::vector<vulkan::MaterialHandle> m_material_stack;
-        std::vector<glm::vec4> m_color_stack;
+        std::vector<vulkan::MaterialInstanceHandle> m_material_stack;
         std::vector<vulkan::Light> m_lights;
     };
 

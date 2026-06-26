@@ -65,6 +65,7 @@ namespace quetzal::lightmatrix
 
         vulkan::GeometryHandle m_geometry_pixel;
         vulkan::MaterialHandle m_material_pixel;
+        vulkan::TextureHandle m_texture_pixel;
         std::vector<scene_graph::TransformNode*> m_pixel_transforms;
         std::vector<scene_graph::MaterialNode*> m_pixel_materials;
 

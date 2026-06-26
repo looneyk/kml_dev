@@ -1,5 +1,9 @@
 #if !defined(QUETZAL_VULKAN_HANDLES_HPP)
 #define QUETZAL_VULKAN_HANDLES_HPP
+//------------------------------------------------------------------------------
+// quetzal
+// handles.hpp
+//------------------------------------------------------------------------------
 
 #include <string>
 
@@ -20,18 +24,18 @@ namespace quetzal::vulkan
         bool operator==(const MaterialHandle&) const = default;
     };
 
+    struct MaterialInstanceHandle
+    {
+        std::string id;
+
+        bool operator==(const MaterialInstanceHandle&) const = default;
+    };
+
     struct TextureHandle
     {
         std::string id;
 
         bool operator==(const TextureHandle&) const = default;
-    };
-
-    struct EffectHandle
-    {
-        std::string id;
-
-        bool operator==(const EffectHandle&) const = default;
     };
 
 } // namespace quetzal::vulkan
