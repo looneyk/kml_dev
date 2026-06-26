@@ -56,3 +56,5 @@
 **/target
 !**/CMakeLists.txt
 !**/CMakePresets.json
+!/library3/
+!/library3/CMakeLists.txt
