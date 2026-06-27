@@ -6,6 +6,7 @@
 #include "OpLiteral.hpp"
 #include "quetzal/common/string_util.hpp"
 #include "quetzal/common/Exception.hpp"
+#include <iostream>
 
 //------------------------------------------------------------------------------
 quetzal::expression::OpLiteral::OpLiteral(const std::string& c) :

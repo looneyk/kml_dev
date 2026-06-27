@@ -59,9 +59,9 @@ quetzal::geometry::Path<Traits> quetzal::geometry::load_path(const std::filesyst
         const std::string element_name = pe->name();
         if (element_name == s_point)
         {
-            typename Traits::value_type position = to_type<typename Traits::value_type>(pe->element_value(s_position));
-            typename Traits::value_type direction = to_type<typename Traits::value_type>(pe->element_value(s_direction));
-            typename Traits::value_type right = to_type<typename Traits::value_type>(pe->element_value(s_right));
+            auto position = to_type<typename Path<Traits>::value_type::point_type>(pe->element_value(s_position));
+            auto direction = to_type<typename Path<Traits>::value_type::vector_type>(pe->element_value(s_direction));
+            auto right = to_type<typename Path<Traits>::value_type::vector_type>(pe->element_value(s_right));
             path.emplace_back(position, {direction, right});
         }
     }

@@ -4,7 +4,6 @@
 //------------------------------------------------------------------------------
 
 #include "Item.hpp"
-#include "quetzal/string_util.hpp"
 
 using namespace std;
 

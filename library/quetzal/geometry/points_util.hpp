@@ -65,11 +65,7 @@ void quetzal::geometry::load_points(const std::filesystem::path& filepath, Point
         const std::string element_name = pe->name();
         if (element_name == s_point)
         {
-            // could use to_type here ...
-            Point<Traits> point;
-            std::istringstream iss(pe->value());
-            iss >> point;
-            points.push_back(point);
+            points.push_back(to_type<Point<Traits>>(pe->value()));
         }
     }
 

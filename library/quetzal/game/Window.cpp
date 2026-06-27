@@ -5,7 +5,6 @@
 
 #include "Window.hpp"
 #include "quetzal/common/Exception.hpp"
-#include "quetzal/common/string_util.hpp"
 #include <sstream>
 #include <stdexcept>
 #include <vector>

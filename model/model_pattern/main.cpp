@@ -10,7 +10,7 @@
 #include "quetzal/brep/MeshTraits.hpp"
 #include "quetzal/brep/geometry.hpp"
 #include "quetzal/common/Exception.hpp"
-#include "quetzal/common/string_util.hpp"
+//#include "quetzal/common/string_util.hpp"
 #include "quetzal/geometry/Accessor.hpp"
 #include "quetzal/geometry/AxisAlignedBoundingBox.hpp"
 #include "quetzal/geometry/Projection.hpp"

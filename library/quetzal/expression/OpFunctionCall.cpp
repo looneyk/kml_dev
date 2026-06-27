@@ -6,6 +6,7 @@
 #include "OpFunctionCall.hpp"
 #include "quetzal/common/Exception.hpp"
 #include <algorithm>
+#include <iostream>
 #include <sstream>
 #include <cassert>
 

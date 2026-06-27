@@ -758,19 +758,29 @@ std::ostream& quetzal::math::HomogeneousTraits<T, N>::insert(std::ostream& os, c
     if constexpr (I == 0)
     {
         if (object_delimiters) os << object_delimiters->first;
-//        os << std::setprecision(10); // ...
         os << (get<0>(rep) == T(0) ? T(0) : get<0>(rep));
         return os;
     }
     else
     {
+        std::ios state(nullptr);
+        if constexpr (I == N)
+        {
+            state.copyfmt(os);
+        }
+
         insert<I - 1>(os, rep, element_delimiter, object_delimiters);
-//        os << std::setprecision(10); // ...
         os << element_delimiter << (get<I>(rep) == T(0) ? T(0) : get<I>(rep));
         if constexpr (I == N - 1)
         {
             if (object_delimiters) os << object_delimiters->second;
         }
+
+        if constexpr (I == N)
+        {
+            os.copyfmt(state);
+        }
+
         return os;
     }
 }

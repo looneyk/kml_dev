@@ -676,19 +676,29 @@ std::ostream& quetzal::math::CartesianTraits<T, N>::insert(std::ostream& os, con
     if constexpr (I == 0)
     {
         if (object_delimiters) os << object_delimiters->first;
-//        os << std::setprecision(10); // ...
         os << (get<0>(rep) == T(0) ? T(0) : get<0>(rep));
         return os;
     }
     else
     {
+        std::ios state(nullptr);
+        if constexpr (I == N - 1)
+        {
+            state.copyfmt(os);
+        }
+
         insert<I - 1>(os, rep, element_delimiter, object_delimiters);
-//        os << std::setprecision(10); // ...
         os << element_delimiter << (get<I>(rep) == T(0) ? T(0) : get<I>(rep));
         if constexpr (I == N - 1)
         {
             if (object_delimiters) os << object_delimiters->second;
         }
+
+        if constexpr (I == N - 1)
+        {
+            os.copyfmt(state);
+        }
+
         return os;
     }
 }

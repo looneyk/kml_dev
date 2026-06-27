@@ -5,7 +5,6 @@
 
 #include "Items.hpp"
 #include "Item.hpp"
-#include "quetzal/string_util.hpp"
 #include "quetzal/XML.hpp"
 #include "quetzal/Exception.hpp"
 #include <fstream>

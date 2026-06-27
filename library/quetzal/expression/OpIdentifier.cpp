@@ -6,6 +6,7 @@
 #include "OpIdentifier.hpp"
 #include "quetzal/common/string_util.hpp"
 #include "quetzal/common/Exception.hpp"
+#include <sstream>
 
 //------------------------------------------------------------------------------
 quetzal::expression::OpIdentifier::OpIdentifier(const std::string& str) :

@@ -2,11 +2,13 @@
 #define QUETZAL_STRING_UTIL_HPP
 //------------------------------------------------------------------------------
 // string_util.hpp
+// locale independent
 //------------------------------------------------------------------------------
 
+#include <charconv>
+#include <format>
 #include <optional>
 #include <string>
-#include <sstream>
 
 namespace quetzal
 {
@@ -15,9 +17,7 @@ namespace quetzal
     template<typename T>
     std::string to_string(const T& t)
     {
-        std::ostringstream oss;
-        oss << t;
-        return oss.str();
+        return std::format("{}", t);
     }
 
     std::string to_string(const std::string& str);
@@ -28,9 +28,8 @@ namespace quetzal
     template<typename T>
     T to_type(const std::string& str)
     {
-        std::istringstream iss(str);
-        T t;
-        iss >> t;
+        T t{};
+        auto [p, ec] = std::from_chars(str.data(), str.data() + str.size(), t);
         return t;
     }
 
@@ -50,6 +49,15 @@ namespace quetzal
     std::string opt_string(const std::optional<T>& opt)
     {
         return opt ? to_string(*opt) : "nullopt";
+    }
+
+    //--------------------------------------------------------------------------
+    template<typename T>
+    std::optional<T> opt_type(const std::string& str)
+    {
+        T t{};
+        auto result = std::from_chars(str.data(), str.data() + str.size(), t);
+        return result ? make_optional(t) : std::nullopt;
     }
 
 // to_utf8 ...
