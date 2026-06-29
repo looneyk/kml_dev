@@ -5,18 +5,20 @@
 //
 //------------------------------------------------------------------------------
 
+#include "quetzal/expression/Node.hpp"
 #include "quetzal/expression/Expression.hpp"
 #include <string>
 #include <map>
+#include <optional>
+#include <vector>
 #include <iosfwd>
 
-namespace quetzal
-{
-
-namespace expression
+namespace quetzal::expression
 {
 
     //--------------------------------------------------------------------------
+    // Builds a Node tree only; carries no notion of a value type, so parse()
+    // need not be a template and the resulting tree is reusable across types
     class Parser
     {
     public:
@@ -27,10 +29,8 @@ namespace expression
 
         Parser& operator=(const Parser&) = delete;
 
-        // Syntax errors silently result in an expression that evaluates to 0
-        Expression::pointer_type parse(const std::string& str);
-
-//    private:
+        // Returns std::nullopt on a syntax error rather than any kind of placeholder
+        std::optional<Expression> parse(const std::string& str);
 
         //----------------------------------------------------------------------
         enum class TokenType
@@ -73,14 +73,16 @@ namespace expression
             // signature (argument and return data types)
         };
 
+        static Node::pointer_type make_node(NodeKind kind, std::string text, std::vector<Node::pointer_type> children);
+
         void init_functions();
 
         int precedence(TokenType op);
 
-        Expression::pointer_type expression();
-        Expression::pointer_type term();
-        Expression::pointer_type factor();
-        Expression::pointer_type function_call(const std::string& name);
+        Node::pointer_type expression();
+        Node::pointer_type term();
+        Node::pointer_type factor();
+        Node::pointer_type function_call(const std::string& name);
 
         void next();
         bool accept(TokenType tokenType);
@@ -101,8 +103,6 @@ namespace expression
 
     std::ostream& operator<<(std::ostream& os, const Parser::TokenType& tokenType);
 
-} // namespace expression
-
-} // namespace quetzal
+} // namespace quetzal::expression
 
 #endif // QUETZAL_EXPRESSION_PARSER_HPP

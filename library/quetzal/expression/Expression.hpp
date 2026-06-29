@@ -5,47 +5,51 @@
 //
 //------------------------------------------------------------------------------
 
+#include "Node.hpp"
+#include "Evaluator.hpp"
+#include "Printer.hpp"
 #include "SymbolTable.hpp"
-#include <memory>
-#include <iosfwd>
+#include <ostream>
+#include <utility>
 
-namespace quetzal
-{
-
-namespace expression
+namespace quetzal::expression
 {
 
     //--------------------------------------------------------------------------
+    // A thin, copyable value wrapping a parsed Node tree; evaluate<T> and
+    // operator<< just forward to Evaluator<T> and Printer respectively, so
+    // this class holds no behavior of its own
     class Expression
     {
     public:
 
-        typedef std::shared_ptr<Expression> pointer_type;
+        explicit Expression(Node::pointer_type node) :
+            m_node(std::move(node))
+        {
+        }
 
-        bool parenthesized() const;
-        void set_parenthesized(const bool& b);
+        const Node& node() const
+        {
+            return *m_node;
+        }
 
-        float evaluate_float(const SymbolTable& st) const;
+        template<typename T>
+        T evaluate(const SymbolTable& st) const
+        {
+            return Evaluator<T>().evaluate(*m_node, st);
+        }
 
-        virtual void print(std::ostream& os) const = 0;
+        friend std::ostream& operator<<(std::ostream& os, const Expression& e)
+        {
+            Printer().print(os, *e.m_node);
+            return os;
+        }
 
-    protected:
+    private:
 
-        Expression();
-        Expression(const Expression&) = delete;
-        virtual ~Expression();
-
-        Expression& operator=(const Expression&) = delete;
-
-        virtual float evaluate_float_(const SymbolTable& st) const = 0;
-
-        bool m_bParenthesized;
+        Node::pointer_type m_node;
     };
 
-    std::ostream& operator<<(std::ostream& os, const Expression& e);
-
-} // namespace expression
-
-} // namespace quetzal
+} // namespace quetzal::expression
 
 #endif // QUETZAL_EXPRESSION_EXPRESSION_HPP

@@ -1,28 +1,10 @@
 add_library(quetzal_expression STATIC
-    Expression.cpp
-    OpAdd.cpp
-    OpBinary.cpp
-    OpDivide.cpp
-    OpFunctionCall.cpp
-    OpIdentifier.cpp
-    OpLiteral.cpp
-    OpMultiply.cpp
-    OpNegate.cpp
-    OpSubtract.cpp
-    OpUnary.cpp
     Parser.cpp
+    Evaluator.hpp
     Expression.hpp
-    OpAdd.hpp
-    OpBinary.hpp
-    OpDivide.hpp
-    OpFunctionCall.hpp
-    OpIdentifier.hpp
-    OpLiteral.hpp
-    OpMultiply.hpp
-    OpNegate.hpp
-    OpSubtract.hpp
-    OpUnary.hpp
+    Node.hpp
     Parser.hpp
+    Printer.hpp
     SymbolTable.hpp
 )
 

@@ -4,14 +4,6 @@
 //------------------------------------------------------------------------------
 
 #include "Parser.hpp"
-#include "OpLiteral.hpp"
-#include "OpIdentifier.hpp"
-#include "OpNegate.hpp"
-#include "OpAdd.hpp"
-#include "OpSubtract.hpp"
-#include "OpMultiply.hpp"
-#include "OpDivide.hpp"
-#include "OpFunctionCall.hpp"
 #include "quetzal/common/Exception.hpp"
 #include <sstream>
 #include <cassert>
@@ -35,17 +27,28 @@ quetzal::expression::Parser::~Parser()
 }
 
 //------------------------------------------------------------------------------
+quetzal::expression::Node::pointer_type quetzal::expression::Parser::make_node(NodeKind kind, string text, vector<Node::pointer_type> children)
+{
+    auto n = make_shared<Node>();
+    n->kind = kind;
+    n->text = std::move(text);
+    n->children = std::move(children);
+    return n;
+}
+
+//------------------------------------------------------------------------------
 void quetzal::expression::Parser::init_functions()
 {
     m_functions["abs"] = Function("abs", 1);
     m_functions["min"] = Function("min", 2);
     m_functions["max"] = Function("max", 2);
+    m_functions["mod"] = Function("mod", 2);
 
     return;
 }
 
 //------------------------------------------------------------------------------
-quetzal::expression::Expression::pointer_type quetzal::expression::Parser::parse(const string& str)
+std::optional<quetzal::expression::Expression> quetzal::expression::Parser::parse(const string& str)
 {
     try
     {
@@ -53,17 +56,13 @@ quetzal::expression::Expression::pointer_type quetzal::expression::Parser::parse
         m_pos = 0;
 
         next();
-        return expression();
+        return Expression(expression());
     }
-//        catch (const Exception& e)
-//        {
-//            cout << "parse error: " << e.what() << endl;
-//        }
     catch (...)
     {
     }
 
-    return parse("0");
+    return std::nullopt;
 }
 
 //------------------------------------------------------------------------------
@@ -93,20 +92,20 @@ int quetzal::expression::Parser::precedence(TokenType op)
 }
 
 //------------------------------------------------------------------------------
-quetzal::expression::Expression::pointer_type quetzal::expression::Parser::expression()
+quetzal::expression::Node::pointer_type quetzal::expression::Parser::expression()
 {
-    Expression::pointer_type pterm = term();
+    Node::pointer_type pterm = term();
     assert(pterm);
 
     while (m_tokenType != TokenType::End && precedence(m_tokenType) >= precedence(TokenType::OperatorAdd))
     {
         if (accept(TokenType::OperatorAdd))
         {
-            pterm = Expression::pointer_type(new OpAdd(pterm, term()));
+            pterm = make_node(NodeKind::BinaryOp, "+", { pterm, term() });
         }
         else if (accept(TokenType::OperatorSubtract))
         {
-            pterm = Expression::pointer_type(new OpSubtract(pterm, term()));
+            pterm = make_node(NodeKind::BinaryOp, "-", { pterm, term() });
         }
         else
         {
@@ -120,20 +119,20 @@ quetzal::expression::Expression::pointer_type quetzal::expression::Parser::expre
 }
 
 //------------------------------------------------------------------------------
-quetzal::expression::Expression::pointer_type quetzal::expression::Parser::term()
+quetzal::expression::Node::pointer_type quetzal::expression::Parser::term()
 {
-    Expression::pointer_type pfactor = factor();
+    Node::pointer_type pfactor = factor();
     assert(pfactor);
 
     while (m_tokenType != TokenType::End && precedence(m_tokenType) >= precedence(TokenType::OperatorMultiply))
     {
         if (accept(TokenType::OperatorMultiply))
         {
-            pfactor = Expression::pointer_type(new OpMultiply(pfactor, factor()));
+            pfactor = make_node(NodeKind::BinaryOp, "*", { pfactor, factor() });
         }
         else if (accept(TokenType::OperatorDivide))
         {
-            pfactor = Expression::pointer_type(new OpDivide(pfactor, factor()));
+            pfactor = make_node(NodeKind::BinaryOp, "/", { pfactor, factor() });
         }
         else
         {
@@ -147,17 +146,17 @@ quetzal::expression::Expression::pointer_type quetzal::expression::Parser::term(
 }
 
 //------------------------------------------------------------------------------
-quetzal::expression::Expression::pointer_type quetzal::expression::Parser::factor()
+quetzal::expression::Node::pointer_type quetzal::expression::Parser::factor()
 {
     string tokenPrev = m_token;
 
     if (accept(TokenType::Literal))
     {
-        return Expression::pointer_type(new OpLiteral(tokenPrev));
+        return make_node(NodeKind::Literal, tokenPrev, {});
     }
     else if (accept(TokenType::Identifier))
     {
-        return Expression::pointer_type(new OpIdentifier(tokenPrev));
+        return make_node(NodeKind::Identifier, tokenPrev, {});
     }
     else if (accept(TokenType::FunctionCall))
     {
@@ -165,15 +164,15 @@ quetzal::expression::Expression::pointer_type quetzal::expression::Parser::facto
     }
     else if (accept(TokenType::LeftParen))
     {
-        Expression::pointer_type pe = expression();
+        Node::pointer_type pe = expression();
         assert(pe);
-        pe->set_parenthesized(true);
+        pe->parenthesized = true;
         expect(TokenType::RightParen);
         return pe;
     }
     else if (accept(TokenType::OperatorSubtract))
     {
-        return Expression::pointer_type(new OpNegate(factor()));
+        return make_node(NodeKind::UnaryOp, "-", { factor() });
     }
 
     ostringstream oss;
@@ -182,14 +181,14 @@ quetzal::expression::Expression::pointer_type quetzal::expression::Parser::facto
 }
 
 //------------------------------------------------------------------------------
-quetzal::expression::Expression::pointer_type quetzal::expression::Parser::function_call(const string& name)
+quetzal::expression::Node::pointer_type quetzal::expression::Parser::function_call(const string& name)
 {
     Functions::const_iterator i = m_functions.find(name);
     assert(i != m_functions.end());
 
     expect(TokenType::LeftParen);
 
-    vector<Expression::pointer_type> pes;
+    vector<Node::pointer_type> pes;
     bool bFirst = true;
 
     for (; ; )
@@ -203,11 +202,11 @@ quetzal::expression::Expression::pointer_type quetzal::expression::Parser::funct
                 throw Exception(oss.str().c_str(), __FILE__, __LINE__);
             }
 
-            return Expression::pointer_type(new OpFunctionCall(name, pes));
+            return make_node(NodeKind::FunctionCall, name, pes);
         }
         else if (bFirst)
         {
-            Expression::pointer_type pe = expression();
+            Node::pointer_type pe = expression();
             assert(pe);
 
             pes.push_back(pe);
@@ -216,7 +215,7 @@ quetzal::expression::Expression::pointer_type quetzal::expression::Parser::funct
         }
         else if (accept(TokenType::Comma))
         {
-            Expression::pointer_type pe = expression();
+            Node::pointer_type pe = expression();
             assert(pe);
 
             pes.push_back(pe);

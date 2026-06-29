@@ -57,4 +57,6 @@ add_subdirectory(model/spoctahedron)
 add_subdirectory(model/trinket_box)
 add_subdirectory(model/wimble)
 
+add_subdirectory(test/expression_test)
+
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT toot1)
