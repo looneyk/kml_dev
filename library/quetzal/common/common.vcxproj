@@ -324,6 +324,7 @@
     <ClCompile Include="logger.cpp" />
     <ClCompile Include="LogLevel.cpp" />
     <ClCompile Include="Platform.cpp" />
+    <ClCompile Include="process.cpp" />
     <ClCompile Include="Properties.cpp" />
     <ClCompile Include="string_util.cpp" />
     <ClCompile Include="system_path.cpp" />
@@ -356,6 +357,7 @@
     <ClInclude Include="logger.hpp" />
     <ClInclude Include="LogLevel.hpp" />
     <ClInclude Include="Platform.hpp" />
+    <ClInclude Include="process.hpp" />
     <ClInclude Include="Properties.hpp" />
     <ClInclude Include="Singleton.hpp" />
     <ClInclude Include="string_util.hpp" />

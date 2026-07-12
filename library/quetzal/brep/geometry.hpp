@@ -128,6 +128,10 @@ namespace quetzal::brep
     template<typename Traits>
     auto to_polygon(const Face<Traits>& face, const geometry::Projection<typename Traits::vector_traits>& projection) -> geometry::Polygon<typename geometry::Projection<typename Traits::vector_traits>::projected_traits>;
 
+    // The vertex attributes (position, normal, texcoord, ...) of the face's vertices in halfedge order
+    template<typename Traits>
+    std::vector<typename Traits::vertex_attributes_type> to_vertex_attributes(const Face<Traits>& face);
+
     template<typename Traits>
     geometry::Polygon<typename Traits::vector_traits> to_polygon(const Hole<Traits>& hole);
 
@@ -466,6 +470,21 @@ quetzal::geometry::Polygon<typename Traits::vector_traits> quetzal::brep::to_pol
     }
 
     return polygon;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+std::vector<typename Traits::vertex_attributes_type> quetzal::brep::to_vertex_attributes(const Face<Traits>& face)
+{
+    std::vector<typename Traits::vertex_attributes_type> vertices;
+    vertices.reserve(face.halfedge_count());
+
+    for (const auto& halfedge : face.halfedges())
+    {
+        vertices.push_back(halfedge.vertex_attributes());
+    }
+
+    return vertices;
 }
 
 //------------------------------------------------------------------------------

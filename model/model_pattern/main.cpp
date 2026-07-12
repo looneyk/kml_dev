@@ -10,8 +10,9 @@
 #include "quetzal/brep/MeshTraits.hpp"
 #include "quetzal/brep/geometry.hpp"
 #include "quetzal/common/Exception.hpp"
+#include "quetzal/common/process.hpp"
 //#include "quetzal/common/string_util.hpp"
-#include "quetzal/geometry/Accessor.hpp"
+#include "quetzal/geometry/PositionAccessor.hpp"
 #include "quetzal/geometry/AxisAlignedBoundingBox.hpp"
 #include "quetzal/geometry/Projection.hpp"
 #include "quetzal/geometry/points_util.hpp"
@@ -88,6 +89,7 @@ namespace
         using value_type = vertices_type::value_type::value_type;
         using point_type = vertices_type::value_type::point_type;
         using vector_type = vertices_type::value_type::vector_type;
+        static constexpr size_t dimension = point_type::dimension;
 
         static size_t position_count(const vector<T>& t)
         {
@@ -180,7 +182,7 @@ namespace
     //--------------------------------------------------------------------------
     Pane transform_face(const face_type& face)
     {
-        auto vertices = to_vertices(face);
+        auto vertices = to_vertex_attributes(face);
         auto matrix = g::slerp_unit(face.attributes().normal(), {0.0, 0.0, 1.0}, 1.0) * g::scaling(1.0, 1.0, 0.0);
         ranges::for_each(vertices, [&matrix](auto& vertex) { vertex.transform_position(matrix); } );
 
@@ -191,7 +193,7 @@ namespace
         g::Projection<vector_traits> projection;
 
         // Align grain direction
-        auto matrix2 = g::translation(-to_vector(projection(centroid(vertices))));
+        auto matrix2 = g::translation(-g::to_vector(projection(g::centroid(vertices))));
         auto direction = grain_direction(vertices, projection, texture_up_direction);
         matrix2 *= g::rotation_2(angle_full_unit(direction, target_direction));
 
@@ -335,14 +337,14 @@ int main(int argc, char* argv[])
     }
 
     filesystem::path in_path = argv[1];
-    filesystem::path out_path = argc >= 2 ? argv[2] : output_path(in_path);
+    filesystem::path out_path = argc >= 3 ? argv[2] : output_path(in_path);
 
     try
     {
         illustrate_model(in_path, out_path);
 
         // Display resulting PDF file
-//        ShellExecute(GetDesktopWindow(), L"open", quetzal::to_type<wstring>(out_path).c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+        open_with_default_application(out_path);
     }
     catch (exception& e)
     {

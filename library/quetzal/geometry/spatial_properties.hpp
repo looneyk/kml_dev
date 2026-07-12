@@ -22,7 +22,10 @@ namespace quetzal::geometry
     template<typename T> requires (quetzal::geometry::PositionAccessor<T>::dimension == 3)
     typename PositionAccessor<T>::vector_type normal(const T& points);
 
-    template<typename T>
+    template<typename T> requires (quetzal::geometry::PositionAccessor<T>::dimension == 2)
+    typename PositionAccessor<T>::point_type centroid(const T& points);
+
+    template<typename T> requires (quetzal::geometry::PositionAccessor<T>::dimension == 3)
     typename PositionAccessor<T>::point_type centroid(const T& points);
 
     template<typename T>
@@ -94,7 +97,32 @@ if (math::float_eq0(sum.norm_squared()))
 }
 
 //------------------------------------------------------------------------------
-template<typename T>
+template<typename T> requires (quetzal::geometry::PositionAccessor<T>::dimension == 2)
+typename quetzal::geometry::PositionAccessor<T>::point_type quetzal::geometry::centroid(const T& points)
+{
+    auto n = PositionAccessor<T>::position_count(points);
+    if (n <= 3)
+    {
+        return vertex_centroid(points);
+    }
+
+    typename PositionAccessor<T>::value_type areaTotal = 0;
+    typename PositionAccessor<T>::vector_type weightedTotal{};
+    auto p0 = PositionAccessor<T>::position(points, 0);
+    for (size_t i = 1; i < n - 1; ++i)
+    {
+        auto p1 = PositionAccessor<T>::position(points, i);
+        auto p2 = PositionAccessor<T>::position(points, i + 1);
+        auto area = triangle_signed_area(p0, p1, p2);
+        areaTotal += area;
+        weightedTotal += area * triangle_centroid(p0, p1, p2).vector();
+    }
+
+    return weightedTotal / areaTotal;
+}
+
+//------------------------------------------------------------------------------
+template<typename T> requires (quetzal::geometry::PositionAccessor<T>::dimension == 3)
 typename quetzal::geometry::PositionAccessor<T>::point_type quetzal::geometry::centroid(const T& points)
 {
     auto n = PositionAccessor<T>::position_count(points);

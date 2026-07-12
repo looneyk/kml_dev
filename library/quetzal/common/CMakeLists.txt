@@ -12,6 +12,7 @@ add_library(quetzal_common STATIC
     logger.cpp
     LogLevel.cpp
     Platform.cpp
+    process.cpp
     Properties.cpp
     string_util.cpp
     system_path.cpp
@@ -39,6 +40,7 @@ add_library(quetzal_common STATIC
     logger.hpp
     LogLevel.hpp
     Platform.hpp
+    process.hpp
     Properties.hpp
     Singleton.hpp
     string_util.hpp
