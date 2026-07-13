@@ -7,7 +7,6 @@
 #include "quetzal/brep/MeshTraits.hpp"
 #include "quetzal/brep/connection.hpp"
 #include "quetzal/brep/triangulation.hpp"
-#include "quetzal/common/FileValidator.hpp"
 #include "quetzal/geometry/Polygon.hpp"
 #include "quetzal/math/HomogeneousTraits.hpp"
 #include "quetzal/math/math_util.hpp"
@@ -32,9 +31,6 @@ namespace
     using point_type = mesh_type::point_type;
     using vector_type = point_type::vector_type;
 
-    static const filesystem::path dir_out = "out/";
-    static const filesystem::path dir_ref = "reference/";
-    static const string app_name = "molds";
     static const double dz_base = 5.0;
     static const double dz_rim = 5.0;
 
@@ -46,12 +42,6 @@ namespace
         double m_base_radius; // base radius with unit vertical side
         double m_height; // height with unit vertical side
     };
-
-    //--------------------------------------------------------------------------
-    filesystem::path to_filename(const string& name)
-    {
-        return dir_out / (name + ".obj");
-    }
 
     //--------------------------------------------------------------------------
     // don't I already have this somewhere? ...
@@ -238,10 +228,12 @@ namespace
 //------------------------------------------------------------------------------
 int main(int argc, char* argv[])
 {
-    argc;
-    argv;
+    filesystem::path dir_out = argc > 1 ? argv[1] : "out/";
 
-    FileValidator validator(dir_out, dir_ref, app_name);
+    auto to_filename = [&dir_out](const string& name)
+    {
+        return dir_out / (name + ".obj");
+    };
 
     mesh_type mesh;
 
@@ -330,5 +322,5 @@ int main(int argc, char* argv[])
         model::write_submesh_obj(submesh, to_filename(name));
     }
 
-    return validator.report_results();
+    return 0;
 }

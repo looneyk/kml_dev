@@ -9,7 +9,6 @@
 #include "quetzal/brep/split.hpp"
 #include "quetzal/brep/connection.hpp"
 #include "quetzal/brep/triangulation.hpp"
-#include "quetzal/common/FileValidator.hpp"
 #include "quetzal/geometry/HalfSpace.hpp"
 #include "quetzal/geometry/transformation_matrix.hpp"
 #include "quetzal/math/HomogeneousTraits.hpp"
@@ -33,16 +32,6 @@ namespace
     using mesh_type = brep::Mesh<brep::MeshTraits<vector_traits>>;
     using point_type = mesh_type::point_type;
     using vector_type = point_type::vector_type;
-
-    static const filesystem::path dir_out = "out/";
-    static const filesystem::path dir_ref = "reference/";
-    static const string app_name = "menger_sponge";
-
-    //--------------------------------------------------------------------------
-    filesystem::path to_filename(const string& name)
-    {
-        return dir_out / (name + ".obj");
-    }
 
     //--------------------------------------------------------------------------
     void iterate(mesh_type& mesh, id_type submesh_id, value_type size)
@@ -178,10 +167,12 @@ namespace
 //------------------------------------------------------------------------------
 int main(int argc, char* argv[])
 {
-    argc;
-    argv;
+    filesystem::path dir_out = argc > 1 ? argv[1] : "out/";
 
-    FileValidator validator(dir_out, dir_ref, app_name);
+    auto to_filename = [&dir_out](const string& name)
+    {
+        return dir_out / (name + ".obj");
+    };
 
     string name;
     mesh_type mesh;
@@ -370,6 +361,5 @@ int main(int argc, char* argv[])
     model::write_obj(mesh, to_filename(name));
 */
 
-    validator.report_results();
     return 0;
 }

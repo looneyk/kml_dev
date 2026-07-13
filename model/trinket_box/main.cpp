@@ -9,7 +9,6 @@
 #include "quetzal/brep/geometry.hpp"
 #include "quetzal/brep/mesh_util.hpp"
 #include "quetzal/brep/triangulation.hpp"
-#include "quetzal/common/FileValidator.hpp"
 #include "quetzal/math/HomogeneousTraits.hpp"
 #include "quetzal/geometry/Point.hpp"
 #include "quetzal/geometry/transformation_matrix.hpp"
@@ -34,16 +33,6 @@ namespace
     using vector_traits = math::HomogeneousTraits<value_type, 3>;
     using mesh_type = brep::Mesh<brep::MeshTraits<vector_traits>>;
     using matrix_type = math::Matrix<value_type>;
-
-    static const filesystem::path dir_out = "out/";
-    static const filesystem::path dir_ref = "reference/";
-    static const string app_name = "trinket_box";
-
-    //--------------------------------------------------------------------------
-    filesystem::path to_filename(const string& name)
-    {
-        return dir_out / (name + ".obj");
-    }
 
     //--------------------------------------------------------------------------
     value_type dodecahedron_insphere_radius(value_type r)
@@ -194,8 +183,12 @@ namespace
 //------------------------------------------------------------------------------
 int main(int argc, char* argv[])
 {
-    argc;
-    argv;
+    filesystem::path dir_out = argc > 1 ? argv[1] : "out/";
+
+    auto to_filename = [&dir_out](const string& name)
+    {
+        return dir_out / (name + ".obj");
+    };
 
     value_type r0 = 1.0f;
     value_type r1 = 1.1f;
@@ -204,8 +197,6 @@ int main(int argc, char* argv[])
     value_type revsSpike = 0.25f;
 //nzSpike = 1;
 //revsSpike = 0.0f;
-
-    FileValidator validator(dir_out, dir_ref, app_name);
 
     string name;
     mesh_type mesh;
@@ -321,6 +312,5 @@ for (auto& p : polygonLower.vertices())
 //validate(mesh);
 //check_surface_vertex_consistency_exact(mesh);
 
-    validator.report_results();
     return 0;
 }

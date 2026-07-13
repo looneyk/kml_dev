@@ -96,10 +96,10 @@ namespace quetzal::math
         void normalize();
         void clear();
 
-        bool unit(int ulp = ulpDefault) const;
-        bool identity(int ulp = ulpDefault) const;
+        bool unit(int tolerance = tolerance_default) const;
+        bool identity(int tolerance = tolerance_default) const;
         bool zero() const;
-        bool float_zero(int ulp = ulpDefault) const;
+        bool float_zero(int tolerance = tolerance_default) const;
 
         const value_type* data() const;
         value_type* data();
@@ -145,10 +145,10 @@ namespace quetzal::math
     Quaternion<T> normalize(const Quaternion<T>& v);
 
     template<typename T>
-    bool float_eq(const Quaternion<T>& lhs, Quaternion<T> rhs, int ulp = ulpDefault);
+    bool float_eq(const Quaternion<T>& lhs, Quaternion<T> rhs, int tolerance = tolerance_default);
 
     template<typename T>
-    bool float_eq0(const Quaternion<T>& v, int ulp = ulpDefault);
+    bool float_eq0(const Quaternion<T>& v, int tolerance = tolerance_default);
 
     template<typename T>
     std::istream& operator>>(std::istream& is, Quaternion<T>& rhs);
@@ -398,14 +398,14 @@ void quetzal::math::Quaternion<T>::clear()
 
 //------------------------------------------------------------------------------
 template<typename T>
-bool quetzal::math::Quaternion<T>::unit(int ulp) const
+bool quetzal::math::Quaternion<T>::unit(int tolerance) const
 {
-    return float_eq(norm_squared(), T(1), ulp);
+    return float_eq(norm_squared(), T(1), tolerance);
 }
 
 //------------------------------------------------------------------------------
 template<typename T>
-bool quetzal::math::Quaternion<T>::identity(int ulp) const
+bool quetzal::math::Quaternion<T>::identity(int tolerance) const
 {
     return math::float_eq0(m_rep[0]) && math::float_eq0(m_rep[1]) && math::float_eq0(m_rep[2]) && math::float_eq(m_rep[3], T(1));
 }
@@ -419,7 +419,7 @@ bool quetzal::math::Quaternion<T>::zero() const
 
 //------------------------------------------------------------------------------
 template<typename T>
-bool quetzal::math::Quaternion<T>::float_zero(int ulp) const
+bool quetzal::math::Quaternion<T>::float_zero(int tolerance) const
 {
     return math::float_eq0(m_rep[0]) && math::float_eq0(m_rep[1]) && math::float_eq0(m_rep[2]) && math::float_eq0(m_rep[3]);
 }
@@ -535,16 +535,16 @@ quetzal::math::Quaternion<T> quetzal::math::normalize(const Quaternion<T>& q)
 
 //------------------------------------------------------------------------------
 template<typename T>
-bool quetzal::math::float_eq(const Quaternion<T>& lhs, Quaternion<T> rhs, int ulp)
+bool quetzal::math::float_eq(const Quaternion<T>& lhs, Quaternion<T> rhs, int tolerance)
 {
-    return float_equals(lhs.rep(), rhs.rep(), ulp);
+    return float_equals(lhs.rep(), rhs.rep(), tolerance);
 }
 
 //------------------------------------------------------------------------------
 template<typename T>
-bool quetzal::math::float_eq0(const Quaternion<T>& q, int ulp)
+bool quetzal::math::float_eq0(const Quaternion<T>& q, int tolerance)
 {
-    return q.float_zero(ulp);
+    return q.float_zero(tolerance);
 }
 
 //------------------------------------------------------------------------------

@@ -7,7 +7,6 @@
 #include "quetzal/brep/MeshTraits.hpp"
 #include "quetzal/brep/clip.hpp"
 #include "quetzal/brep/validation.hpp"
-#include "quetzal/common/FileValidator.hpp"
 #include "quetzal/geometry/HalfSpace.hpp"
 #include "quetzal/geometry/OrientedPoint.hpp"
 #include "quetzal/geometry/Point.hpp"
@@ -35,16 +34,6 @@ namespace
     using vertex_type = mesh_type::vertex_type;
     using vertex_attributes_type = mesh_type::vertex_attributes_type;
     using halfspace_type = geometry::HalfSpace<vector_traits>;
-
-    static const filesystem::path dir_out = "out/";
-    static const filesystem::path dir_ref = "reference/";
-    static const string app_name = "coils";
-
-    //--------------------------------------------------------------------------
-    filesystem::path to_filename(const string& name)
-    {
-        return dir_out / (name + ".obj");
-    }
 
     //--------------------------------------------------------------------------
     vertex_attributes_type coilify(vertex_attributes_type av, value_type r, value_type dphi, value_type z0, value_type z1, value_type azimuthArc)
@@ -294,10 +283,12 @@ namespace
 //------------------------------------------------------------------------------
 int main(int argc, char* argv[])
 {
-    argc;
-    argv;
+    filesystem::path dir_out = argc > 1 ? argv[1] : "out/";
 
-    FileValidator validator(dir_out, dir_ref, app_name);
+    auto to_filename = [&dir_out](const string& name)
+    {
+        return dir_out / (name + ".obj");
+    };
 
     mesh_type mesh;
     string name;
@@ -399,5 +390,5 @@ int main(int argc, char* argv[])
     model::write_obj(mesh, to_filename(name));
 */
 
-    return validator.report_results();
+    return 0;
 }

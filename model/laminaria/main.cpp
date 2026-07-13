@@ -7,7 +7,6 @@
 #include "quetzal/brep/MeshTraits.hpp"
 #include "quetzal/brep/clip.hpp"
 #include "quetzal/brep/connection.hpp"
-#include "quetzal/common/FileValidator.hpp"
 #include "quetzal/geometry/CurveNURBS.hpp"
 #include "quetzal/geometry/HalfSpace.hpp"
 #include "quetzal/geometry/Path.hpp"
@@ -51,16 +50,6 @@ namespace
     // egg formula parameters ...
     static const value_type wEgg = 0.76f;
     static const value_type kEgg = 0.5f;
-
-    static const filesystem::path dir_out = "out/";
-    static const filesystem::path dir_ref = "reference/";
-    static const string app_name = "laminaria";
-
-    //--------------------------------------------------------------------------
-    filesystem::path to_filename(const string& name)
-    {
-        return dir_out / (name + ".obj");
-    }
 
     //--------------------------------------------------------------------------
     template<typename T>
@@ -361,10 +350,12 @@ value_type t1 = 1.0f;
 //------------------------------------------------------------------------------
 int main(int argc, char* argv[])
 {
-    argc;
-    argv;
+    filesystem::path dir_out = argc > 1 ? argv[1] : "out/";
 
-    FileValidator validator(dir_out, dir_ref, app_name);
+    auto to_filename = [&dir_out](const string& name)
+    {
+        return dir_out / (name + ".obj");
+    };
 
     string name;
     mesh_type mesh;
@@ -538,6 +529,5 @@ c1.direction(0.0f); // ...
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 */
-    validator.report_results();
     return 0;
 }

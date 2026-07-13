@@ -8,7 +8,6 @@
 #include "quetzal/brep/clip.hpp"
 #include "quetzal/brep/connection.hpp"
 #include "quetzal/brep/triangulation.hpp"
-#include "quetzal/common/FileValidator.hpp"
 #include "quetzal/geometry/transformation_matrix.hpp"
 #include "quetzal/math/HomogeneousTraits.hpp"
 #include "quetzal/math/Interval.hpp"
@@ -32,16 +31,6 @@ namespace
     using point_type = typename mesh_type::point_type;
     using vector_type = typename point_type::vector_type;
     using size_type = size_t; // ...
-
-    static const filesystem::path dir_out = "out/";
-    static const filesystem::path dir_ref = "reference/";
-    static const string app_name = "wimble";
-
-    //--------------------------------------------------------------------------
-    filesystem::path to_filename(const string& name)
-    {
-        return dir_out / (name + ".obj");
-    }
 
     //--------------------------------------------------------------------------
     geometry::Polygon<vector_traits> create_cross_section_circular(size_t n_flutes, size_t nt, float radius_inner, float radius_outer)
@@ -158,10 +147,12 @@ cout << i << "\t" << ni << "\t" << ti << "\t" << j << "\t" << tj << "\t" << (ni 
 //------------------------------------------------------------------------------
 int main(int argc, char* argv[])
 {
-    argc;
-    argv;
+    filesystem::path dir_out = argc > 1 ? argv[1] : "out/";
 
-    FileValidator validator(dir_out, dir_ref, app_name);
+    auto to_filename = [&dir_out](const string& name)
+    {
+        return dir_out / (name + ".obj");
+    };
 
     mesh_type mesh;
     string name;
@@ -344,6 +335,5 @@ int main(int argc, char* argv[])
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 */
-    validator.report_results();
     return 0;
 }

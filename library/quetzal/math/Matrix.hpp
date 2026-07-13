@@ -143,7 +143,7 @@ namespace quetzal::math
     std::tuple<quetzal::math::Matrix<T, M, N>, bool> gauss_jordan_elimination(Matrix<T, M, N> matrix);
 
     template<typename T, size_t M, size_t N>
-    bool float_eq(const Matrix<T, M, N>& lhs, const Matrix<T, M, N>& rhs, int ulp = 128);
+    bool float_eq(const Matrix<T, M, N>& lhs, const Matrix<T, M, N>& rhs, int tolerance = 128);
 
     template<typename T, size_t M, size_t N>
     std::ostream& operator<<(std::ostream& os, const Matrix<T, M, N>& matrix);
@@ -763,11 +763,11 @@ std::tuple<quetzal::math::Matrix<T, M, N>, bool> quetzal::math::gauss_jordan_eli
 
 //------------------------------------------------------------------------------
 template<typename T, size_t M, size_t N>
-bool quetzal::math::float_eq(const Matrix<T, M, N>& lhs, const Matrix<T, M, N>& rhs, int ulp)
+bool quetzal::math::float_eq(const Matrix<T, M, N>& lhs, const Matrix<T, M, N>& rhs, int tolerance)
 {
     for (size_t i = 0; i < lhs.size(); ++i)
     {
-        if (!float_eq(lhs.data()[i], rhs.data()[i], ulp))
+        if (!float_eq(lhs.data()[i], rhs.data()[i], tolerance))
         {
             return false;
         }

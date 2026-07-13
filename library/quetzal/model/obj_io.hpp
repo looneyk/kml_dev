@@ -5,6 +5,8 @@
 // obj_io.hpp
 //------------------------------------------------------------------------------
 
+#include "quetzal/common/error_util.hpp"
+#include "quetzal/common/Exception.hpp"
 #include "quetzal/common/id.hpp"
 #include "quetzal/geometry/Attributes.hpp"
 #include "quetzal/geometry/spatial_properties.hpp"
@@ -68,7 +70,33 @@ namespace quetzal::model
         {
             if (normal)
             {
-                av.set_normal(*normal);
+// refactor this out into a function used here and below ...            
+                auto n = *normal;
+                if (n.float_zero())
+                {
+                    std::ostringstream oss;
+                    oss << "vertex_attributes - degenerate vertex normal at position " << position;
+
+                    // Preferred: log to a text file instead of the debugger output window ...
+                    write_debug_string(oss.str() + '\n');
+                    throw Exception(oss.str().c_str(), __FILE__, __LINE__);
+                }
+
+                if (n.norm_squared() != typename A::vector_type::value_type(1))
+                {
+                    if (!n.unit())
+                    {
+                        std::ostringstream oss;
+                        oss << "vertex_attributes - non-unit vertex normal " << n << " at position " << position;
+
+                        // Preferred: log to a text file instead of the debugger output window ...
+                        write_debug_string(oss.str() + '\n');
+                    }
+
+                    n = normalize(n);
+                }
+
+                av.set_normal(n);
             }
         }
         if constexpr (A::contains(geometry::AttributesFlags::Texcoord0))
@@ -222,7 +250,32 @@ void quetzal::model::read_obj(M& mesh, const std::filesystem::path& filepath)
         }
 
         // Recreate face normal
-        face.attributes().set_normal(geometry::normal(face));
+        auto normal = geometry::normal(face);
+        if (normal.float_zero())
+        {
+            std::ostringstream oss;
+            oss << "read_obj - degenerate face " << face_id << " in " << filepath;
+
+            // Preferred: log to a text file instead of the debugger output window ...
+            write_debug_string(oss.str() + '\n');
+            throw Exception(oss.str().c_str(), __FILE__, __LINE__);
+        }
+
+        if (normal.norm_squared() != decltype(normal)::value_type(1))
+        {
+            if (!normal.unit())
+            {
+                std::ostringstream oss;
+                oss << "read_obj - non-unit face normal " << normal << " for face " << face_id << " in " << filepath;
+
+                // Preferred: log to a text file instead of the debugger output window ...
+                write_debug_string(oss.str() + '\n');
+            }
+
+            normal = normalize(normal);
+        }
+
+        face.attributes().set_normal(normal);
         return;
     };
 

@@ -8,7 +8,6 @@
 #include "quetzal/brep/MeshTraits.hpp"
 #include "quetzal/brep/clip.hpp"
 #include "quetzal/brep/connection.hpp"
-#include "quetzal/common/FileValidator.hpp"
 #include "quetzal/geometry/HalfSpace.hpp"
 #include "quetzal/geometry/Plane.hpp"
 #include "quetzal/geometry/intersection.hpp"
@@ -42,16 +41,6 @@ namespace
     using vector_type = point_type::vector_type;
 
     namespace g = quetzal::geometry;
-
-    static const filesystem::path dir_out = "out/";
-    static const filesystem::path dir_ref = "reference/";
-    static const string app_name = "acicula";
-
-    //--------------------------------------------------------------------------
-    filesystem::path to_filename(const string& name)
-    {
-        return dir_out / (name + ".obj");
-    }
 
     //--------------------------------------------------------------------------
     std::string surface_name(const std::string& base, size_t n)
@@ -537,10 +526,12 @@ namespace
 //------------------------------------------------------------------------------
 int main(int argc, char* argv[])
 {
-    argc;
-    argv;
+    filesystem::path dir_out = argc > 1 ? argv[1] : "out/";
 
-    FileValidator validator(dir_out, dir_ref, app_name);
+    auto to_filename = [&dir_out](const string& name)
+    {
+        return dir_out / (name + ".obj");
+    };
 
     string name;
     mesh_type mesh;
@@ -699,5 +690,5 @@ int main(int argc, char* argv[])
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 
-    return validator.report_results();
+    return 0;
 }

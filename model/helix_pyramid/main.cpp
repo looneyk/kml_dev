@@ -6,7 +6,6 @@
 #include "quetzal/brep/Mesh.hpp"
 #include "quetzal/brep/MeshTraits.hpp"
 #include "quetzal/brep/mesh_util.hpp"
-#include "quetzal/common/FileValidator.hpp"
 #include "quetzal/geometry/Polygon.hpp"
 #include "quetzal/math/HomogeneousTraits.hpp"
 #include "quetzal/model/helix_pyramid.hpp"
@@ -27,16 +26,6 @@ namespace
     using value_type = float;
     using vector_traits = math::HomogeneousTraits<value_type, 3>;
     using mesh_type = brep::Mesh<brep::MeshTraits<vector_traits>>;
-
-    static const filesystem::path dir_out = "out/";
-    static const filesystem::path dir_ref = "reference/";
-    static const string app_name = "helix_pyramid";
-
-    //--------------------------------------------------------------------------
-    filesystem::path to_filename(const string& name)
-    {
-        return dir_out / (name + ".obj");
-    }
 
     //--------------------------------------------------------------------------
     template<typename S>
@@ -67,10 +56,12 @@ namespace
 //------------------------------------------------------------------------------
 int main(int argc, char* argv[])
 {
-    argc;
-    argv;
+    filesystem::path dir_out = argc > 1 ? argv[1] : "out/";
 
-    FileValidator validator(dir_out, dir_ref, app_name);
+    auto to_filename = [&dir_out](const string& name)
+    {
+        return dir_out / (name + ".obj");
+    };
 
     string name;
     mesh_type mesh;
@@ -456,6 +447,5 @@ int main(int argc, char* argv[])
     model::write_obj(mesh, to_filename(name));
     check_consistency(mesh);
 
-    validator.report_results();
     return 0;
 }

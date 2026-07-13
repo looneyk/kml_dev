@@ -30,7 +30,7 @@
 namespace quetzal::brep
 {
 
-    constexpr int v_ulp = math::ulpDefault;
+    constexpr int v_ulp = math::tolerance_default;
 //    constexpr int v_ulp = 1;
     template<typename M>
     constexpr typename M::value_type v_value_max = M::val(1000);
@@ -624,7 +624,7 @@ quetzal::brep::ValidationState quetzal::brep::check_face(const M& mesh, const ty
     else
     {
         auto normalPolygon = to_polygon(face).normal();
-        if (!float_eq(normal, normalPolygon)) // ulp ...
+        if (!float_eq(normal, normalPolygon)) // tolerance ...
         {
             std::cout << "Warn: normal != polygon normal:" << '\t' << face.id() << "\t[" << normal << "]\t[" << normalPolygon << ']' << eol;
             state.set_warn();

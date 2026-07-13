@@ -39,7 +39,7 @@ namespace
     const size_t N_TESTS = 10;
     const size_t N_BENCHMARK = 10000;
 
-    int ulp = 100000;
+    int tolerance = 100000;
 
     //--------------------------------------------------------------------------
     template<typename M>
@@ -67,11 +67,11 @@ namespace
         auto d_x = [&]() { if constexpr (xm_compatible) return determinant_xm(matrix); else return value_type(0); }();
         auto d_e = matrix.determinant_e();
 
-        cout << "d:   " << d << " " << check(math::float_eq(d, d_e, ulp)) << endl;
-        cout << "d_g: " << d_g << " " << check(math::float_eq(d_g, d_e, ulp)) << endl;
+        cout << "d:   " << d << " " << check(math::float_eq(d, d_e, tolerance)) << endl;
+        cout << "d_g: " << d_g << " " << check(math::float_eq(d_g, d_e, tolerance)) << endl;
         if constexpr (xm_compatible)
         {
-            cout << "d_x: " << d_x << " " << check(math::float_eq(d_x, d_e, ulp)) << endl;
+            cout << "d_x: " << d_x << " " << check(math::float_eq(d_x, d_e, tolerance)) << endl;
         }
         cout << "d_e: " << d_e << endl;
         return;
@@ -87,9 +87,9 @@ namespace
         auto m_x = [&]() { if constexpr (xm_compatible) return inverse_xm(matrix); else return M{}; }();
         auto m_e = inverse_e(matrix);
 
-        cout << "inverse: " << check(float_eq(m, m_e, ulp)) << endl;
+        cout << "inverse: " << check(float_eq(m, m_e, tolerance)) << endl;
         cout << m;
-        cout << "inverse_g: " << check(float_eq(m_g.value(), m_e, ulp)) << endl;
+        cout << "inverse_g: " << check(float_eq(m_g.value(), m_e, tolerance)) << endl;
         if (m_g.has_value())
         {
             cout << m_g.value();
@@ -98,11 +98,11 @@ namespace
         {
             cout << "[singular]" << endl;
         }
-        cout << "inverse_g_: " << check(float_eq(m_g_, m_e, ulp)) << endl;
+        cout << "inverse_g_: " << check(float_eq(m_g_, m_e, tolerance)) << endl;
         cout << m_g_;
         if constexpr (xm_compatible)
         {
-            cout << "inverse_x: " << check(float_eq(m_x, m_e, ulp)) << endl;
+            cout << "inverse_x: " << check(float_eq(m_x, m_e, tolerance)) << endl;
             cout << m_x;
         }
         cout << "inverse_e" << endl;
@@ -121,17 +121,17 @@ namespace
         auto m_e = pseudo_inverse_e(matrix);
         auto m_svd_e = pseudo_inverse_svd_e(matrix);
 //        auto m_svd_o = pseudo_inverse_svd_o(matrix);
-        cout << "pseudo_inverse: " << check(float_eq(m, m_e, ulp)) << endl;
+        cout << "pseudo_inverse: " << check(float_eq(m, m_e, tolerance)) << endl;
         cout << m;
-        cout << "pseudo_inverse_g: " << check(float_eq(m_g, m_e, ulp)) << endl;
+        cout << "pseudo_inverse_g: " << check(float_eq(m_g, m_e, tolerance)) << endl;
         cout << m_g;
-        cout << "pseudo_inverse_g_: " << check(float_eq(m_g_, m_e, ulp)) << endl;
+        cout << "pseudo_inverse_g_: " << check(float_eq(m_g_, m_e, tolerance)) << endl;
         cout << m_g_;
         cout << "pseudo_inverse_e" << endl;
         cout << m_e;
-        cout << "pseudo_inverse_svd_e: " << check(float_eq(m_svd_e, m_e, ulp)) << endl;
+        cout << "pseudo_inverse_svd_e: " << check(float_eq(m_svd_e, m_e, tolerance)) << endl;
         cout << m_svd_e;
-//        cout << "pseudo_inverse_svd_o: " << check(float_eq(m_svd_o, m_e, ulp)) << endl;
+//        cout << "pseudo_inverse_svd_o: " << check(float_eq(m_svd_o, m_e, tolerance)) << endl;
 //        cout << m_svd_o;
         return;
     }

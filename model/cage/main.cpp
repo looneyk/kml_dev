@@ -8,7 +8,6 @@
 #include "quetzal/brep/MeshTraits.hpp"
 #include "quetzal/brep/connection.hpp"
 #include "quetzal/brep/mesh_util.hpp"
-#include "quetzal/common/FileValidator.hpp"
 #include "quetzal/common/string_util.hpp"
 #include "quetzal/geometry/spatial_properties.hpp"
 #include "quetzal/geometry/transformation_matrix.hpp"
@@ -33,16 +32,6 @@ namespace
     using mesh_type = brep::Mesh<brep::MeshTraits<vector_traits>>;
     using point_type = mesh_type::point_type;
     using vector_type = point_type::vector_type;
-
-    static const filesystem::path dir_out = "out/";
-    static const filesystem::path dir_ref = "reference/";
-    static const string app_name = "cage";
-
-    //--------------------------------------------------------------------------
-    filesystem::path to_filename(const string& name)
-    {
-        return dir_out / (name + ".obj");
-    }
 
     //--------------------------------------------------------------------------
     std::string surface_name(const std::string& base, size_t n)
@@ -278,10 +267,12 @@ namespace
 //------------------------------------------------------------------------------
 int main(int argc, char* argv[])
 {
-    argc;
-    argv;
+    filesystem::path dir_out = argc > 1 ? argv[1] : "out/";
 
-    FileValidator validator(dir_out, dir_ref, app_name);
+    auto to_filename = [&dir_out](const string& name)
+    {
+        return dir_out / (name + ".obj");
+    };
 
     string name;
     mesh_type mesh;
@@ -387,5 +378,5 @@ int main(int argc, char* argv[])
     model::transform(mesh.submesh(submesh_id), geometry::translation(0.0f, 0.0f, 55.0f));
     model::write_obj(mesh, to_filename(name));
 
-    return validator.report_results();
+    return 0;
 }

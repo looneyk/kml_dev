@@ -8,7 +8,6 @@
 #include "quetzal/brep/connection.hpp"
 #include "quetzal/brep/mesh_util.hpp"
 #include "quetzal/brep/validation.hpp"
-#include "quetzal/common/FileValidator.hpp"
 #include "quetzal/geometry/transformation_matrix.hpp"
 #include "quetzal/math/HomogeneousTraits.hpp"
 #include "quetzal/math/Matrix.hpp"
@@ -36,16 +35,6 @@ namespace
     using vector_type = point_type::vector_type;
 
     const size_t s_nLevels = 6;
-
-    static const filesystem::path dir_out = "out/";
-    static const filesystem::path dir_ref = "reference/";
-    static const string app_name = "spikosahedron";
-
-    //--------------------------------------------------------------------------
-    filesystem::path to_filename(const string& name)
-    {
-        return dir_out / (name + ".obj");
-    }
 
     //--------------------------------------------------------------------------
     void validate_normals(mesh_type& mesh)
@@ -198,10 +187,12 @@ namespace
 //------------------------------------------------------------------------------
 int main(int argc, char* argv[])
 {
-    argc;
-    argv;
+    filesystem::path dir_out = argc > 1 ? argv[1] : "out/";
 
-    FileValidator validator(dir_out, dir_ref, app_name);
+    auto to_filename = [&dir_out](const string& name)
+    {
+        return dir_out / (name + ".obj");
+    };
 
     mesh_type mesh;
     string name;
@@ -398,6 +389,5 @@ check(mesh);
     model::swirl(mesh, math::Pi<value_type>);
     model::write_obj(mesh, to_filename(name));
 */
-    validator.report_results();
     return 0;
 }

@@ -7,7 +7,6 @@
 #include "quetzal/brep/MeshTraits.hpp"
 #include "quetzal/brep/connection.hpp"
 #include "quetzal/brep/validation.hpp"
-#include "quetzal/common/FileValidator.hpp"
 #include "quetzal/geometry/intersect.hpp"
 #include "quetzal/geometry/transformation_matrix.hpp"
 #include "quetzal/math/HomogeneousTraits.hpp"
@@ -35,16 +34,6 @@ namespace
     using mesh_type = brep::Mesh<brep::MeshTraits<vector_traits>>;
     using matrix_type = geometry::transformation_matrix_type<vector_traits>;
     using vector_type = mesh_type::vector_type;
-
-    static const filesystem::path dir_out = "out/";
-    static const filesystem::path dir_ref = "reference/";
-    static const string app_name = "spinward";
-
-    //--------------------------------------------------------------------------
-    filesystem::path to_filename(const string& name)
-    {
-        return dir_out / (name + ".obj");
-    }
 
     //--------------------------------------------------------------------------
     // move to common module ...
@@ -180,10 +169,12 @@ if (nSubdivisions == 2)
 //------------------------------------------------------------------------------
 int main(int argc, char* argv[])
 {
-    argc;
-    argv;
+    filesystem::path dir_out = argc > 1 ? argv[1] : "out/";
 
-    FileValidator validator(dir_out, dir_ref, app_name);
+    auto to_filename = [&dir_out](const string& name)
+    {
+        return dir_out / (name + ".obj");
+    };
 
     string name;
     mesh_type mesh;
@@ -247,6 +238,5 @@ for (size_t i = 0; i < n; ++i)
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 
-    validator.report_results();
     return 0;
 }

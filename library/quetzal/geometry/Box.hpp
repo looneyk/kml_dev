@@ -38,8 +38,8 @@ namespace quetzal::geometry
 
         void set_bounds(const point_type& lower, const point_type& upper);
 
-        // Returns -1, 0, 1: interior, boundary, exterior
-        int compare(const point_type& point) const override;
+        // Returns less, equivalent, greater for interior, boundary, exterior respectively
+        std::partial_ordering compare(const point_type& point) const override;
 
         virtual void print(std::ostream& os) const;
 
@@ -106,7 +106,7 @@ void quetzal::geometry::Box<Traits>::set_bounds(const point_type& lower, const p
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-int quetzal::geometry::Box<Traits>::compare(const point_type& point) const
+std::partial_ordering quetzal::geometry::Box<Traits>::compare(const point_type& point) const
 {
 // expose so it can be handled by caller, or just leave it to caller and assert ...
 //    order();
@@ -117,14 +117,14 @@ int quetzal::geometry::Box<Traits>::compare(const point_type& point) const
         {
             if (math::float_lt(point[i], m_lower[i]) || math::float_gt(point[i], m_upper[i]))
             {
-                return 1;
+                return std::partial_ordering::greater;
             }
         }
         else
         {
             if (point[i] < m_lower[i] || point[i] > m_upper[i])
             {
-                return 1;
+                return std::partial_ordering::greater;
             }
         }
     }
@@ -135,19 +135,19 @@ int quetzal::geometry::Box<Traits>::compare(const point_type& point) const
         {
             if (math::float_ne(point[i], m_lower[i]) || math::float_ne(point[i], m_upper[i]))
             {
-                return -1;
+                return std::partial_ordering::less;
             }
         }
         else
         {
             if (point[i] != m_lower[i] || point[i] != m_upper[i])
             {
-                return -1;
+                return std::partial_ordering::less;
             }
         }
     }
 
-    return 0;
+    return std::partial_ordering::equivalent;
 }
 
 //------------------------------------------------------------------------------

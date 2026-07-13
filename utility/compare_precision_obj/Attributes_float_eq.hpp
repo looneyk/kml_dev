@@ -143,7 +143,7 @@ namespace quetzal::geometry
     Position<Traits> lerp(const Position<Traits>& a, const Position<Traits>& b, typename Traits::value_type t);
 
     template<typename Traits>
-    bool float_eq(const Position<Traits>& lhs, const Position<Traits>& rhs, int ulp = math::ulpDefault);
+    bool float_eq(const Position<Traits>& lhs, const Position<Traits>& rhs, int tolerance = math::tolerance_default);
 
     template<typename Traits>
     std::ostream& operator<<(std::ostream& os, const Position<Traits>& a);
@@ -200,7 +200,7 @@ namespace quetzal::geometry
     PositionNormal<Traits> lerp(const PositionNormal<Traits>& a, const PositionNormal<Traits>& b, typename Traits::value_type t);
 
     template<typename Traits>
-    bool float_eq(const PositionNormal<Traits>& lhs, const PositionNormal<Traits>& rhs, int ulp = math::ulpDefault);
+    bool float_eq(const PositionNormal<Traits>& lhs, const PositionNormal<Traits>& rhs, int tolerance = math::tolerance_default);
 
     template<typename Traits>
     std::ostream& operator<<(std::ostream& os, const PositionNormal<Traits>& a);
@@ -263,7 +263,7 @@ namespace quetzal::geometry
     PositionNormalColor<Traits, C> lerp(const PositionNormalColor<Traits, C>& a, const PositionNormalColor<Traits, C>& b, typename Traits::value_type t);
 
     template<typename Traits, typename C>
-    bool float_eq(const PositionNormalColor<Traits, C>& lhs, const PositionNormalColor<Traits, C>& rhs, int ulp = math::ulpDefault);
+    bool float_eq(const PositionNormalColor<Traits, C>& lhs, const PositionNormalColor<Traits, C>& rhs, int tolerance = math::tolerance_default);
 
     template<typename Traits, typename C>
     std::ostream& operator<<(std::ostream& os, const PositionNormalColor<Traits, C>& a);
@@ -325,7 +325,7 @@ namespace quetzal::geometry
     PositionNormalTexture<Traits> lerp(const PositionNormalTexture<Traits>& a, const PositionNormalTexture<Traits>& b, typename Traits::value_type t);
 
     template<typename Traits>
-    bool float_eq(const PositionNormalTexture<Traits>& lhs, const PositionNormalTexture<Traits>& rhs, int ulp = math::ulpDefault);
+    bool float_eq(const PositionNormalTexture<Traits>& lhs, const PositionNormalTexture<Traits>& rhs, int tolerance = math::tolerance_default);
 
     template<typename Traits>
     std::ostream& operator<<(std::ostream& os, const PositionNormalTexture<Traits>& a);
@@ -392,7 +392,7 @@ namespace quetzal::geometry
     PositionNormalTextureTangent<Traits> lerp(const PositionNormalTextureTangent<Traits>& a, const PositionNormalTextureTangent<Traits>& b, typename Traits::value_type t);
 
     template<typename Traits>
-    bool float_eq(const PositionNormalTextureTangent<Traits>& lhs, const PositionNormalTextureTangent<Traits>& rhs, int ulp = math::ulpDefault);
+    bool float_eq(const PositionNormalTextureTangent<Traits>& lhs, const PositionNormalTextureTangent<Traits>& rhs, int tolerance = math::tolerance_default);
 
     template<typename Traits>
     std::ostream& operator<<(std::ostream& os, const PositionNormalTextureTangent<Traits>& a);
@@ -444,7 +444,7 @@ namespace quetzal::geometry
     Normal<Traits> lerp(const Normal<Traits>& a, const Normal<Traits>& b, typename Traits::value_type t);
 
     template<typename Traits>
-    bool float_eq(const Normal<Traits>& lhs, const Normal<Traits>& rhs, int ulp = math::ulpDefault);
+    bool float_eq(const Normal<Traits>& lhs, const Normal<Traits>& rhs, int tolerance = math::tolerance_default);
 
     template<typename Traits>
     std::ostream& operator<<(std::ostream& os, const Normal<Traits>& a);
@@ -501,7 +501,7 @@ namespace quetzal::geometry
     NormalTangent<Traits> lerp(const NormalTangent<Traits>& a, const NormalTangent<Traits>& b, typename Traits::value_type t);
 
     template<typename Traits>
-    bool float_eq(const NormalTangent<Traits>& lhs, const NormalTangent<Traits>& rhs, int ulp = math::ulpDefault);
+    bool float_eq(const NormalTangent<Traits>& lhs, const NormalTangent<Traits>& rhs, int tolerance = math::tolerance_default);
 
     template<typename Traits>
     std::ostream& operator<<(std::ostream& os, const NormalTangent<Traits>& a);
@@ -693,9 +693,9 @@ quetzal::geometry::Position<Traits> quetzal::geometry::lerp(const Position<Trait
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-bool quetzal::geometry::float_eq(const Position<Traits>& lhs, const Position<Traits>& rhs, int ulp)
+bool quetzal::geometry::float_eq(const Position<Traits>& lhs, const Position<Traits>& rhs, int tolerance)
 {
-    return float_eq(lhs.position(), rhs.position(), ulp);
+    return float_eq(lhs.position(), rhs.position(), tolerance);
 }
 
 //------------------------------------------------------------------------------
@@ -833,9 +833,9 @@ quetzal::geometry::PositionNormal<Traits> quetzal::geometry::lerp(const Position
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-bool quetzal::geometry::float_eq(const PositionNormal<Traits>& lhs, const PositionNormal<Traits>& rhs, int ulp)
+bool quetzal::geometry::float_eq(const PositionNormal<Traits>& lhs, const PositionNormal<Traits>& rhs, int tolerance)
 {
-    return float_eq(lhs.position(), rhs.position(), ulp) && float_eq(lhs.normal(), rhs.normal(), ulp);
+    return float_eq(lhs.position(), rhs.position(), tolerance) && float_eq(lhs.normal(), rhs.normal(), tolerance);
 }
 
 //------------------------------------------------------------------------------
@@ -1007,9 +1007,9 @@ quetzal::geometry::PositionNormalColor<Traits, C> quetzal::geometry::lerp(const 
 
 //------------------------------------------------------------------------------
 template<typename Traits, typename C>
-bool quetzal::geometry::float_eq(const PositionNormalColor<Traits, C>& lhs, const PositionNormalColor<Traits, C>& rhs, int ulp)
+bool quetzal::geometry::float_eq(const PositionNormalColor<Traits, C>& lhs, const PositionNormalColor<Traits, C>& rhs, int tolerance)
 {
-    return float_eq(lhs.position(), rhs.position(), ulp) && float_eq(lhs.normal(), rhs.normal(), ulp); // what should the color comparison be? ...
+    return float_eq(lhs.position(), rhs.position(), tolerance) && float_eq(lhs.normal(), rhs.normal(), tolerance); // what should the color comparison be? ...
 }
 
 //------------------------------------------------------------------------------
@@ -1194,9 +1194,9 @@ quetzal::geometry::PositionNormalTexture<Traits> quetzal::geometry::lerp(const P
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-bool quetzal::geometry::float_eq(const PositionNormalTexture<Traits>& lhs, const PositionNormalTexture<Traits>& rhs, int ulp)
+bool quetzal::geometry::float_eq(const PositionNormalTexture<Traits>& lhs, const PositionNormalTexture<Traits>& rhs, int tolerance)
 {
-    return float_eq(lhs.position(), rhs.position(), ulp) && float_eq(lhs.normal(), rhs.normal(), ulp) && float_eq(lhs.texcoord(), rhs.texcoord(), ulp);
+    return float_eq(lhs.position(), rhs.position(), tolerance) && float_eq(lhs.normal(), rhs.normal(), tolerance) && float_eq(lhs.texcoord(), rhs.texcoord(), tolerance);
 }
 
 //------------------------------------------------------------------------------
@@ -1418,9 +1418,9 @@ quetzal::geometry::PositionNormalTextureTangent<Traits> quetzal::geometry::lerp(
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-bool quetzal::geometry::float_eq(const PositionNormalTextureTangent<Traits>& lhs, const PositionNormalTextureTangent<Traits>& rhs, int ulp)
+bool quetzal::geometry::float_eq(const PositionNormalTextureTangent<Traits>& lhs, const PositionNormalTextureTangent<Traits>& rhs, int tolerance)
 {
-    return float_eq(lhs.position(), rhs.position(), ulp) && float_eq(lhs.normal(), rhs.normal(), ulp) && float_eq(lhs.texcoord(), rhs.texcoord(), ulp) && float_eq(lhs.tangent(), rhs.tangent(), ulp);
+    return float_eq(lhs.position(), rhs.position(), tolerance) && float_eq(lhs.normal(), rhs.normal(), tolerance) && float_eq(lhs.texcoord(), rhs.texcoord(), tolerance) && float_eq(lhs.tangent(), rhs.tangent(), tolerance);
 }
 
 //------------------------------------------------------------------------------
@@ -1537,9 +1537,9 @@ quetzal::geometry::Normal<Traits> quetzal::geometry::lerp(const Normal<Traits>& 
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-bool quetzal::geometry::float_eq(const Normal<Traits>& lhs, const Normal<Traits>& rhs, int ulp)
+bool quetzal::geometry::float_eq(const Normal<Traits>& lhs, const Normal<Traits>& rhs, int tolerance)
 {
-    return float_eq(lhs.normal(), rhs.normal(), ulp);
+    return float_eq(lhs.normal(), rhs.normal(), tolerance);
 }
 
 //------------------------------------------------------------------------------
@@ -1699,9 +1699,9 @@ quetzal::geometry::NormalTangent<Traits> quetzal::geometry::lerp(const NormalTan
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-bool quetzal::geometry::float_eq(const NormalTangent<Traits>& lhs, const NormalTangent<Traits>& rhs, int ulp)
+bool quetzal::geometry::float_eq(const NormalTangent<Traits>& lhs, const NormalTangent<Traits>& rhs, int tolerance)
 {
-    return float_eq(lhs.normal(), rhs.normal(), ulp) && float_eq(lhs.tangent(), rhs.tangent(), ulp);
+    return float_eq(lhs.normal(), rhs.normal(), tolerance) && float_eq(lhs.tangent(), rhs.tangent(), tolerance);
 }
 
 //------------------------------------------------------------------------------

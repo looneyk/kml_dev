@@ -118,14 +118,14 @@ namespace quetzal::math
         void clear();
 
         bool valid() const;
-        bool unit(int ulp = ulpDefault) const;
+        bool unit(int tolerance = tolerance_default) const;
         bool zero() const;
-        bool float_zero(int ulp = ulpDefault) const;
+        bool float_zero(int tolerance = tolerance_default) const;
 
         // denoise is componentwise
-        void denoise0(int ulp = ulpDefault);
-        void denoise01(int ulp = ulpDefault);
-        void denoise011(int ulp = ulpDefault);
+        void denoise0(int tolerance = tolerance_default);
+        void denoise01(int tolerance = tolerance_default);
+        void denoise011(int tolerance = tolerance_default);
 
         size_type longest_component() const; // special operation, should probably be external, in application; prefers the rightmost component in case of tie ...
 
@@ -209,25 +209,25 @@ namespace quetzal::math
     std::partial_ordering direction_compare(const Vector<Traits>& lhs, const Vector<Traits>& rhs);
 
     template<typename Traits>
-    bool float_eq(const Vector<Traits>& lhs, Vector<Traits> rhs, int ulp = ulpDefault);
+    bool float_eq(const Vector<Traits>& lhs, Vector<Traits> rhs, int tolerance = tolerance_default);
 
     template<typename Traits>
-    bool float_eq0(const Vector<Traits>& v, int ulp = ulpDefault);
+    bool float_eq0(const Vector<Traits>& v, int tolerance = tolerance_default);
 
     template<typename Traits>
-    bool ne_or_exact(const Vector<Traits>& lhs, Vector<Traits> rhs, int ulp = ulpDefault);
+    bool ne_or_exact(const Vector<Traits>& lhs, Vector<Traits> rhs, int tolerance = tolerance_default);
 
     // denoise0 is componentwise
     template<typename Traits>
-    Vector<Traits> denoise0(Vector<Traits> v, int ulp = ulpDefault);
+    Vector<Traits> denoise0(Vector<Traits> v, int tolerance = tolerance_default);
 
     // denoise01 is componentwise
     template<typename Traits>
-    Vector<Traits> denoise01(Vector<Traits> v, int ulp = ulpDefault);
+    Vector<Traits> denoise01(Vector<Traits> v, int tolerance = tolerance_default);
 
     // denoise011 is componentwise
     template<typename Traits>
-    Vector<Traits> denoise011(Vector<Traits> v, int ulp = ulpDefault);
+    Vector<Traits> denoise011(Vector<Traits> v, int tolerance = tolerance_default);
 
     // abs is componentwise
     template<typename Traits>
@@ -243,7 +243,7 @@ namespace quetzal::math
     bool any_less(const Vector<Traits>& lhs, const Vector<Traits>& rhs);
 
     template<typename Traits>
-    bool float_priority_less(const Vector<Traits>& lhs, const Vector<Traits>& rhs, int ulp);
+    bool float_priority_less(const Vector<Traits>& lhs, const Vector<Traits>& rhs, int tolerance);
 
     template<typename Traits>
     std::string to_string(const Vector<Traits>& vector);
@@ -303,8 +303,8 @@ namespace quetzal::math
             FloatPriorityLess(2)
         {}
 
-        FloatPriorityLess(int ulp) :
-            m_ulp(ulp)
+        FloatPriorityLess(int tolerance) :
+            m_ulp(tolerance)
         {}
 
         bool operator()(const T& lhs, const T& rhs) const
@@ -682,9 +682,9 @@ bool quetzal::math::Vector<Traits>::valid() const
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-bool quetzal::math::Vector<Traits>::unit(int ulp) const
+bool quetzal::math::Vector<Traits>::unit(int tolerance) const
 {
-    return float_eq(norm_squared(), value_type(1), ulp);
+    return float_eq(norm_squared(), value_type(1), tolerance);
 }
 
 //------------------------------------------------------------------------------
@@ -696,32 +696,32 @@ bool quetzal::math::Vector<Traits>::zero() const
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-bool quetzal::math::Vector<Traits>::float_zero(int ulp) const
+bool quetzal::math::Vector<Traits>::float_zero(int tolerance) const
 {
-    return Traits::float_zero(m_rep, ulp);
+    return Traits::float_zero(m_rep, tolerance);
 }
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-void quetzal::math::Vector<Traits>::denoise0(int ulp)
+void quetzal::math::Vector<Traits>::denoise0(int tolerance)
 {
-    Traits::denoise0(m_rep, ulp);
+    Traits::denoise0(m_rep, tolerance);
     return;
 }
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-void quetzal::math::Vector<Traits>::denoise01(int ulp)
+void quetzal::math::Vector<Traits>::denoise01(int tolerance)
 {
-    Traits::denoise01(m_rep, ulp);
+    Traits::denoise01(m_rep, tolerance);
     return;
 }
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-void quetzal::math::Vector<Traits>::denoise011(int ulp)
+void quetzal::math::Vector<Traits>::denoise011(int tolerance)
 {
-    Traits::denoise011(m_rep, ulp);
+    Traits::denoise011(m_rep, tolerance);
     return;
 }
 
@@ -952,46 +952,46 @@ std::partial_ordering quetzal::math::direction_compare(const Vector<Traits>& lhs
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-bool quetzal::math::float_eq(const Vector<Traits>& lhs, Vector<Traits> rhs, int ulp)
+bool quetzal::math::float_eq(const Vector<Traits>& lhs, Vector<Traits> rhs, int tolerance)
 {
-    return Traits::float_equals(lhs.rep(), rhs.rep(), ulp);
+    return Traits::float_equals(lhs.rep(), rhs.rep(), tolerance);
 }
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-bool quetzal::math::float_eq0(const Vector<Traits>& v, int ulp)
+bool quetzal::math::float_eq0(const Vector<Traits>& v, int tolerance)
 {
-    return v.float_zero(ulp);
+    return v.float_zero(tolerance);
 }
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-bool quetzal::math::ne_or_exact(const Vector<Traits>& lhs, Vector<Traits> rhs, int ulp)
+bool quetzal::math::ne_or_exact(const Vector<Traits>& lhs, Vector<Traits> rhs, int tolerance)
 {
-    return !float_eq(lhs, rhs, ulp) || lhs == rhs;
+    return !float_eq(lhs, rhs, tolerance) || lhs == rhs;
 }
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-quetzal::math::Vector<Traits> quetzal::math::denoise0(Vector<Traits> v, int ulp)
+quetzal::math::Vector<Traits> quetzal::math::denoise0(Vector<Traits> v, int tolerance)
 {
-    v.denoise0(ulp);
+    v.denoise0(tolerance);
     return v;
 }
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-quetzal::math::Vector<Traits> quetzal::math::denoise01(Vector<Traits> v, int ulp)
+quetzal::math::Vector<Traits> quetzal::math::denoise01(Vector<Traits> v, int tolerance)
 {
-    v.denoise01(ulp);
+    v.denoise01(tolerance);
     return v;
 }
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-quetzal::math::Vector<Traits> quetzal::math::denoise011(Vector<Traits> v, int ulp)
+quetzal::math::Vector<Traits> quetzal::math::denoise011(Vector<Traits> v, int tolerance)
 {
-    v.denoise011(ulp);
+    v.denoise011(tolerance);
     return v;
 }
 
@@ -1026,9 +1026,9 @@ bool quetzal::math::any_less(const Vector<Traits>& lhs, const Vector<Traits>& rh
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-bool quetzal::math::float_priority_less(const Vector<Traits>& lhs, const Vector<Traits>& rhs, int ulp)
+bool quetzal::math::float_priority_less(const Vector<Traits>& lhs, const Vector<Traits>& rhs, int tolerance)
 {
-    return Traits::float_priority_less(lhs.rep(), rhs.rep(), ulp);
+    return Traits::float_priority_less(lhs.rep(), rhs.rep(), tolerance);
 }
 
 //------------------------------------------------------------------------------

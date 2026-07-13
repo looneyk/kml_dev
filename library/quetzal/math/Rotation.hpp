@@ -67,7 +67,7 @@ namespace quetzal::math
 
         void reset();
 
-        bool identity(int ulp = ulpDefault) const;
+        bool identity(int tolerance = tolerance_default) const;
 
         const rep_type& rep() const;
         rep_type& rep();
@@ -118,7 +118,7 @@ namespace quetzal::math
     typename Rotation<T>::vector_type slerp(const typename Rotation<T>::vector_type& lhs, const typename Rotation<T>::vector_type& rhs, T t);
 
     template<typename T>
-    bool float_eq(const Rotation<T>& lhs, const Rotation<T>& rhs, int ulp = ulpDefault);
+    bool float_eq(const Rotation<T>& lhs, const Rotation<T>& rhs, int tolerance = tolerance_default);
 
     template<typename T>
     std::istream& operator>>(std::istream& is, Rotation<T>& rotation);
@@ -309,9 +309,9 @@ void quetzal::math::Rotation<T>::reset()
 
 //------------------------------------------------------------------------------
 template<typename T>
-bool quetzal::math::Rotation<T>::identity(int ulp) const
+bool quetzal::math::Rotation<T>::identity(int tolerance) const
 {
-    return float_eq0(m_rep[0], ulp) && float_eq0(m_rep[1], ulp) && float_eq0(m_rep[2], ulp) && float_eq(m_rep[3], T(1), ulp);
+    return float_eq0(m_rep[0], tolerance) && float_eq0(m_rep[1], tolerance) && float_eq0(m_rep[2], tolerance) && float_eq(m_rep[3], T(1), tolerance);
 }
 
 //------------------------------------------------------------------------------
@@ -447,9 +447,9 @@ typename quetzal::math::Rotation<T>::vector_type quetzal::math::slerp(const type
 
 //------------------------------------------------------------------------------
 template<typename T>
-bool quetzal::math::float_eq(const Rotation<T>& lhs, const Rotation<T>& rhs, int ulp)
+bool quetzal::math::float_eq(const Rotation<T>& lhs, const Rotation<T>& rhs, int tolerance)
 {
-    return float_eq(lhs.rep(), rhs.rep(), ulp);
+    return float_eq(lhs.rep(), rhs.rep(), tolerance);
 }
 
 //------------------------------------------------------------------------------

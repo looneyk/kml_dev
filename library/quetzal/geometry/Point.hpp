@@ -125,12 +125,12 @@ namespace quetzal::geometry
 
         bool valid() const;
         bool zero() const;
-        bool float_zero(int ulp = math::ulpDefault) const;
+        bool float_zero(int tolerance = math::tolerance_default) const;
 
         // denoise, abs, min, max are componentwise
-        void denoise0(int ulp = math::ulpDefault);
-        void denoise01(int ulp = math::ulpDefault);
-        void denoise011(int ulp = math::ulpDefault);
+        void denoise0(int tolerance = math::tolerance_default);
+        void denoise01(int tolerance = math::tolerance_default);
+        void denoise011(int tolerance = math::tolerance_default);
         void abs();
 
         constexpr static Point origin();
@@ -191,16 +191,16 @@ namespace quetzal::geometry
     Point<Traits> lerp(const Point<Traits>& a, const Point<Traits>& b, typename Traits::value_type t);
 
     template<typename Traits>
-    bool float_eq(const Point<Traits>& lhs, Point<Traits> rhs, int ulp = math::ulpDefault);
+    bool float_eq(const Point<Traits>& lhs, Point<Traits> rhs, int tolerance = math::tolerance_default);
 
     template<typename Traits>
-    bool float_eq0(const Point<Traits>& point, int ulp = math::ulpDefault);
+    bool float_eq0(const Point<Traits>& point, int tolerance = math::tolerance_default);
 
     template<typename Traits>
     bool epsilon_eq(const Point<Traits>& lhs, Point<Traits> rhs, typename Traits::value_type epsilon = typename Traits::value_type(0.001));
 
     template<typename Traits>
-    bool ne_or_exact(const Point<Traits>& lhs, Point<Traits> rhs, int ulp = math::ulpDefault);
+    bool ne_or_exact(const Point<Traits>& lhs, Point<Traits> rhs, int tolerance = math::tolerance_default);
 
     template<typename Traits> requires (Traits::dimension == 2)
     bool colinear(const Point<Traits>& a, const Point<Traits>& b, const Point<Traits>& c);
@@ -220,13 +220,13 @@ namespace quetzal::geometry
     // denoise, abs, min, max are componentwise
 
     template<typename Traits>
-    Point<Traits> denoise0(Point<Traits> point, int ulp = math::ulpDefault);
+    Point<Traits> denoise0(Point<Traits> point, int tolerance = math::tolerance_default);
 
     template<typename Traits>
-    Point<Traits> denoise01(Point<Traits> point, int ulp = math::ulpDefault);
+    Point<Traits> denoise01(Point<Traits> point, int tolerance = math::tolerance_default);
 
     template<typename Traits>
-    Point<Traits> denoise011(Point<Traits> point, int ulp = math::ulpDefault);
+    Point<Traits> denoise011(Point<Traits> point, int tolerance = math::tolerance_default);
 
     template<typename Traits>
     Point<Traits> abs(Point<Traits> point);
@@ -250,7 +250,7 @@ namespace quetzal::geometry
     bool any_less(const Point<Traits>& lhs, const Point<Traits>& rhs);
 
     template<typename Traits>
-    bool float_priority_less(const Point<Traits>& lhs, const Point<Traits>& rhs, int ulp);
+    bool float_priority_less(const Point<Traits>& lhs, const Point<Traits>& rhs, int tolerance);
 
     template<typename Traits>
     std::string to_string(const Point<Traits>& point);
@@ -622,32 +622,32 @@ bool quetzal::geometry::Point<Traits>::zero() const
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-bool quetzal::geometry::Point<Traits>::float_zero(int ulp) const
+bool quetzal::geometry::Point<Traits>::float_zero(int tolerance) const
 {
-    return Traits::float_zero(m_rep, ulp);
+    return Traits::float_zero(m_rep, tolerance);
 }
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-void quetzal::geometry::Point<Traits>::denoise0(int ulp)
+void quetzal::geometry::Point<Traits>::denoise0(int tolerance)
 {
-    Traits::denoise0(m_rep, ulp);
+    Traits::denoise0(m_rep, tolerance);
     return;
 }
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-void quetzal::geometry::Point<Traits>::denoise01(int ulp)
+void quetzal::geometry::Point<Traits>::denoise01(int tolerance)
 {
-    Traits::denoise01(m_rep, ulp);
+    Traits::denoise01(m_rep, tolerance);
     return;
 }
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-void quetzal::geometry::Point<Traits>::denoise011(int ulp)
+void quetzal::geometry::Point<Traits>::denoise011(int tolerance)
 {
-    Traits::denoise011(m_rep, ulp);
+    Traits::denoise011(m_rep, tolerance);
     return;
 }
 
@@ -814,17 +814,17 @@ quetzal::geometry::Point<Traits> quetzal::geometry::lerp(const Point<Traits>& a,
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-bool quetzal::geometry::float_eq(const Point<Traits>& lhs, Point<Traits> rhs, int ulp)
+bool quetzal::geometry::float_eq(const Point<Traits>& lhs, Point<Traits> rhs, int tolerance)
 {
     Traits::prepare(lhs.rep(), rhs.rep());
-    return Traits::float_equals(lhs.rep(), rhs.rep(), ulp);
+    return Traits::float_equals(lhs.rep(), rhs.rep(), tolerance);
 }
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-bool quetzal::geometry::float_eq0(const Point<Traits>& point, int ulp)
+bool quetzal::geometry::float_eq0(const Point<Traits>& point, int tolerance)
 {
-    return point.float_zero(ulp);
+    return point.float_zero(tolerance);
 }
 
 //------------------------------------------------------------------------------
@@ -846,10 +846,10 @@ bool quetzal::geometry::epsilon_eq(const Point<Traits>& lhs, Point<Traits> rhs, 
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-bool quetzal::geometry::ne_or_exact(const Point<Traits>& lhs, Point<Traits> rhs, int ulp)
+bool quetzal::geometry::ne_or_exact(const Point<Traits>& lhs, Point<Traits> rhs, int tolerance)
 {
     Traits::prepare(lhs.rep(), rhs.rep());
-    return !Traits::float_equals(lhs.rep(), rhs.rep(), ulp) || Traits::equals(lhs.rep(), rhs.rep());
+    return !Traits::float_equals(lhs.rep(), rhs.rep(), tolerance) || Traits::equals(lhs.rep(), rhs.rep());
 }
 
 //------------------------------------------------------------------------------
@@ -894,25 +894,25 @@ quetzal::geometry::Point<Traits> quetzal::geometry::to_point(const Vector<Traits
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-quetzal::geometry::Point<Traits> quetzal::geometry::denoise0(Point<Traits> point, int ulp)
+quetzal::geometry::Point<Traits> quetzal::geometry::denoise0(Point<Traits> point, int tolerance)
 {
-    point.denoise0(ulp);
+    point.denoise0(tolerance);
     return point;
 }
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-quetzal::geometry::Point<Traits> quetzal::geometry::denoise01(Point<Traits> point, int ulp)
+quetzal::geometry::Point<Traits> quetzal::geometry::denoise01(Point<Traits> point, int tolerance)
 {
-    point.denoise01(ulp);
+    point.denoise01(tolerance);
     return point;
 }
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-quetzal::geometry::Point<Traits> quetzal::geometry::denoise011(Point<Traits> point, int ulp)
+quetzal::geometry::Point<Traits> quetzal::geometry::denoise011(Point<Traits> point, int tolerance)
 {
-    point.denoise011(ulp);
+    point.denoise011(tolerance);
     return point;
 }
 
@@ -971,9 +971,9 @@ bool quetzal::geometry::any_less(const Point<Traits>& lhs, const Point<Traits>& 
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-bool quetzal::geometry::float_priority_less(const Point<Traits>& lhs, const Point<Traits>& rhs, int ulp)
+bool quetzal::geometry::float_priority_less(const Point<Traits>& lhs, const Point<Traits>& rhs, int tolerance)
 {
-    return Traits::float_priority_less(lhs.rep(), rhs.rep(), ulp);
+    return Traits::float_priority_less(lhs.rep(), rhs.rep(), tolerance);
 }
 
 //------------------------------------------------------------------------------
