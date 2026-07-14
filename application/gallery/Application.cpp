@@ -47,7 +47,6 @@ quetzal::gallery::Application::Application(const quetzal::Config& config) :
 //------------------------------------------------------------------------------
 quetzal::gallery::Application::~Application()
 {
-    m_renderer.destroy();
 }
 
 //------------------------------------------------------------------------------

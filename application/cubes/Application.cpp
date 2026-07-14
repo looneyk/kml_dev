@@ -67,7 +67,6 @@ quetzal::cubes::Application::Application(const quetzal::Config& config) :
 //------------------------------------------------------------------------------
 quetzal::cubes::Application::~Application()
 {
-    m_renderer.destroy();
 }
 
 //------------------------------------------------------------------------------

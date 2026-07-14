@@ -108,7 +108,6 @@ quetzal::lightmatrix::Application::Application(const quetzal::Config& config) :
 //------------------------------------------------------------------------------
 quetzal::lightmatrix::Application::~Application()
 {
-    m_renderer.destroy();
 }
 
 //------------------------------------------------------------------------------

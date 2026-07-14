@@ -61,7 +61,6 @@ quetzal::toot1::Application::Application(const quetzal::Config& config) :
 //------------------------------------------------------------------------------
 quetzal::toot1::Application::~Application()
 {
-    m_renderer.destroy();
 }
 
 //------------------------------------------------------------------------------

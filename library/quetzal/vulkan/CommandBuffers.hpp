@@ -42,7 +42,7 @@ namespace quetzal::vulkan
         void destroy()
         {
             std::vector<VkCommandBuffer> handles;
-            std::transform(m_command_buffers.begin(), m_command_buffers.end(), handles.begin(), [](const CommandBuffer& command_buffer) { return command_buffer.handle(); });
+            std::transform(m_command_buffers.begin(), m_command_buffers.end(), std::back_inserter(handles), [](const CommandBuffer& command_buffer) { return command_buffer.handle(); });
 
             vkFreeCommandBuffers(m_device, m_command_pool, to_uint32(handles.size()), handles.data());
             m_command_buffers.clear();
