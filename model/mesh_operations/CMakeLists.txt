@@ -22,3 +22,9 @@ target_link_libraries(mesh_operations PRIVATE
     quetzal_wavefront_obj
     quetzal_xml
 )
+
+add_dependencies(mesh_operations
+    quetzal_brep
+    quetzal_geometry
+    quetzal_model
+)

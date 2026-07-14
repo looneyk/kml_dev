@@ -22,3 +22,8 @@ target_link_libraries(primitives PRIVATE
     quetzal_wavefront_obj
     quetzal_xml
 )
+
+add_dependencies(primitives
+    quetzal_brep
+    quetzal_model
+)

@@ -29,3 +29,9 @@ target_link_libraries(model_pattern PRIVATE
     quetzal_wavefront_obj
     quetzal_xml
 )
+
+add_dependencies(model_pattern
+    quetzal_brep
+    quetzal_geometry
+    quetzal_model
+)

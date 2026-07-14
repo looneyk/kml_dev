@@ -22,3 +22,9 @@ target_link_libraries(menger_sponge PRIVATE
     quetzal_wavefront_obj
     quetzal_xml
 )
+
+add_dependencies(menger_sponge
+    quetzal_brep
+    quetzal_geometry
+    quetzal_model
+)

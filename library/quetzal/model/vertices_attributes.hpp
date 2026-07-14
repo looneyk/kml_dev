@@ -263,7 +263,7 @@ namespace quetzal::model
         }
     };
 
-namespace internal
+namespace detail
 {
 
     //--------------------------------------------------------------------------
@@ -295,7 +295,7 @@ namespace internal
         return polygon.vertices()[n % polygon.vertex_count()];
     }
 
-} // namespace internal
+} // namespace detail
 
 } // namespace quetzal::model
 
@@ -588,7 +588,7 @@ quetzal::model::vertices_attributes_sections_type<M> quetzal::model::vertices_at
     {
         for (size_t i = 0; i < section_count; ++i)
         {
-            auto [edge0, edge_count] = internal::section<M>(polygon, i);
+            auto [edge0, edge_count] = detail::section<M>(polygon, i);
             avss[i] = vertices_attributes_section<M>(polygon, edge0, edge_count, z, ts);
         }
     }
@@ -613,7 +613,7 @@ quetzal::model::vertices_attributes_sections_type<M> quetzal::model::vertices_at
     {
         for (size_t i = 0; i < section_count; ++i)
         {
-            auto [edge0, edge_count] = internal::section<M>(polygon, i);
+            auto [edge0, edge_count] = detail::section<M>(polygon, i);
             avss[i] = vertices_attributes_section<M>(polygon, edge0, edge_count, z, scale, revs, ts);
         }
     }
@@ -769,7 +769,7 @@ quetzal::model::vertices_attributes_type<M> quetzal::model::vertices_attributes_
     for (size_t i = 0; i <= edge_count; ++i)
     {
         T t = T(i) / edge_count;
-        auto position = internal::polygon_vertex<M>(polygon, edge0 + i);
+        auto position = detail::polygon_vertex<M>(polygon, edge0 + i);
         if (z)
         {
             position.set_z(*z);
@@ -798,7 +798,7 @@ quetzal::model::vertices_attributes_type<M> quetzal::model::vertices_attributes_
     {
         T t = T(i) / edge_count;
 
-        auto position = internal::polygon_vertex<M>(polygon, edge0 + i);
+        auto position = detail::polygon_vertex<M>(polygon, edge0 + i);
         position = {scale * (position.x() * cos_phi - position.y() * sin_phi), scale * (position.x() * sin_phi + position.y() * cos_phi), z.value_or(position.z())};
         avs[i].set_position(denoise0(position));
         avs[i].set_normal(M::vector_type::z_direction()); // placeholder, surface vertex normal cannot be calculated at this point
@@ -937,7 +937,7 @@ quetzal::model::vertices_attributes_sections_type<M> quetzal::model::cusp_vertic
 
     for (size_t i = 0; i < section_count; ++i)
     {
-        auto [edge0, edge_count] = internal::section<M>(polygon, i);
+        auto [edge0, edge_count] = detail::section<M>(polygon, i);
         avss[i] = cusp_vertices_attributes_section<M>(polygon, edge0, edge_count, z, ts);
     }
 

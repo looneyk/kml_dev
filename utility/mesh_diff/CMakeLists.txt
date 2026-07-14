@@ -20,3 +20,9 @@ target_link_libraries(mesh_diff PRIVATE
     quetzal_wavefront_obj
     quetzal_xml
 )
+
+add_dependencies(mesh_diff
+    quetzal_brep
+    quetzal_geometry
+    quetzal_model
+)

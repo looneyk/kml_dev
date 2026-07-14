@@ -15,7 +15,7 @@ namespace quetzal::math
 
     //--------------------------------------------------------------------------
     // degree l, order m
-    // Returns a function taking the precomputed cos and sin ofstandard parameters, (theta, phi) in radians where theta is the polar angle
+    // Returns a function taking the precomputed cos and sin of standard parameters, (theta, phi) in radians where theta is the polar angle
     // Note that the quetzal/model convention (phi, theta) uses turns where theta is the elevation angle
     template<typename T = double>
     std::function<std::complex<T>(T, T)> spherical_harmonic_function(int degree, int order);
@@ -23,7 +23,7 @@ namespace quetzal::math
     template<typename T = double>
     std::function<T(T, T)> real_spherical_harmonic_function(int degree, int order);
 
-namespace internal
+namespace detail
 {
 
     template<typename T>
@@ -35,7 +35,7 @@ namespace internal
     template<typename T>
     std::function<T(T)> imaginary_azimuthal_component(int order);
 
-} // namespace internal
+} // namespace detail
 
 } // namespace quetzal::math
 
@@ -48,9 +48,9 @@ std::function<std::complex<T>(T, T)> quetzal::math::spherical_harmonic_function(
 
     return [degree, order](T theta, T phi) -> T
     {
-        auto normalization_polar = internal::normalization_polar_component<T>(degree, order)(theta);
+        auto normalization_polar = detail::normalization_polar_component<T>(degree, order)(theta);
         return [&](T phi) -> std::complex<T> {
-            return normalization_polar * internal::real_azimuthal_component<T>(order)(phi), normalization_polar * internal::imaginary_azimuthal_component<T>(order)(phi);
+            return normalization_polar * detail::real_azimuthal_component<T>(order)(phi), normalization_polar * detail::imaginary_azimuthal_component<T>(order)(phi);
         };
     };
 }
@@ -64,13 +64,13 @@ std::function<T(T, T)> quetzal::math::real_spherical_harmonic_function(int degre
 
     return [degree, order](T theta, T phi) -> T
     {
-        return internal::normalization_polar_component<T>(degree, order)(theta) * internal::real_azimuthal_component<T>(order)(phi);
+        return detail::normalization_polar_component<T>(degree, order)(theta) * detail::real_azimuthal_component<T>(order)(phi);
     };
 }
 
 //------------------------------------------------------------------------------
 template<typename T>
-std::function<T(T)> quetzal::math::internal::normalization_polar_component(int degree, int order)
+std::function<T(T)> quetzal::math::detail::normalization_polar_component(int degree, int order)
 {
     auto PI = std::numbers::pi_v<T>;
 
@@ -391,7 +391,7 @@ std::function<T(T)> quetzal::math::internal::normalization_polar_component(int d
 
 //------------------------------------------------------------------------------
 template<typename T>
-std::function<T(T)> quetzal::math::internal::real_azimuthal_component(int order)
+std::function<T(T)> quetzal::math::detail::real_azimuthal_component(int order)
 {
     if (order > 0)
     {
@@ -408,7 +408,7 @@ std::function<T(T)> quetzal::math::internal::real_azimuthal_component(int order)
 
 //------------------------------------------------------------------------------
 template<typename T>
-std::function<T(T)> quetzal::math::internal::imaginary_azimuthal_component(int order)
+std::function<T(T)> quetzal::math::detail::imaginary_azimuthal_component(int order)
 {
     if (order > 0)
     {

@@ -36,22 +36,25 @@ namespace quetzal::model
     template<typename U>
     void write_submesh_obj(const U& submesh, const std::filesystem::path& filepath);
 
-// remaining write_ functions should be detail ...
+    namespace detail
+    {
 
-    template<typename W, typename M>
-    void write_vertices(W& writer, const M& mesh);
+        template<typename W, typename M>
+        void write_vertices(W& writer, const M& mesh);
 
-    template<typename W, typename M>
-    void write_faces(W& writer, const M& mesh);
+        template<typename W, typename M>
+        void write_faces(W& writer, const M& mesh);
 
-    template<typename W, typename U>
-    void write_submesh_vertices(W& writer, const U& submesh);
+        template<typename W, typename U>
+        void write_submesh_vertices(W& writer, const U& submesh);
 
-    template<typename W, typename U>
-    void write_submesh_faces(W& writer, const U& submesh);
+        template<typename W, typename U>
+        void write_submesh_faces(W& writer, const U& submesh);
 
-    template<typename W, typename F>
-    void write_face(W& writer, const F& face);
+        template<typename W, typename F>
+        void write_face(W& writer, const F& face);
+
+    } // namespace detail
 
     using Materials = std::unordered_map<std::string, wavefront_obj::Material>;
 
@@ -324,8 +327,8 @@ void quetzal::model::write_obj(const M& mesh, const std::filesystem::path& filep
         writer.set_materials(*mesh.properties().value(MaterialsPropertyName));
     }
 
-    write_vertices(writer, mesh);
-    write_faces(writer, mesh);
+    detail::write_vertices(writer, mesh);
+    detail::write_faces(writer, mesh);
     return;
 }
 
@@ -346,14 +349,14 @@ void quetzal::model::write_submesh_obj(const U& submesh, const std::filesystem::
         writer.set_materials(*submesh.properties().value(MaterialsPropertyName));
     }
 
-    write_submesh_vertices(writer, submesh);
-    write_submesh_faces(writer, submesh);
+    detail::write_submesh_vertices(writer, submesh);
+    detail::write_submesh_faces(writer, submesh);
     return;
 }
 
 //------------------------------------------------------------------------------
 template<typename W, typename M>
-void quetzal::model::write_vertices(W& writer, const M& mesh)
+void quetzal::model::detail::write_vertices(W& writer, const M& mesh)
 {
     for (const typename M::vertex_type& vertex : mesh.vertices())
     {
@@ -366,7 +369,7 @@ void quetzal::model::write_vertices(W& writer, const M& mesh)
 
 //------------------------------------------------------------------------------
 template<typename W, typename M>
-void quetzal::model::write_faces(W& writer, const M& mesh)
+void quetzal::model::detail::write_faces(W& writer, const M& mesh)
 {
     bool b = false;
 
@@ -393,7 +396,7 @@ void quetzal::model::write_faces(W& writer, const M& mesh)
 
 //------------------------------------------------------------------------------
 template<typename W, typename U>
-void quetzal::model::write_submesh_vertices(W& writer, const U& submesh)
+void quetzal::model::detail::write_submesh_vertices(W& writer, const U& submesh)
 {
     using vertex_type = U::vertex_type;
 
@@ -411,7 +414,7 @@ void quetzal::model::write_submesh_vertices(W& writer, const U& submesh)
 
 //------------------------------------------------------------------------------
 template<typename W, typename U>
-void quetzal::model::write_submesh_faces(W& writer, const U& submesh)
+void quetzal::model::detail::write_submesh_faces(W& writer, const U& submesh)
 {
     assert(!submesh.empty());
 
@@ -451,7 +454,7 @@ void quetzal::model::write_submesh_faces(W& writer, const U& submesh)
 
 //------------------------------------------------------------------------------
 template<typename W, typename F>
-void quetzal::model::write_face(W& writer, const F& face)
+void quetzal::model::detail::write_face(W& writer, const F& face)
 {
     writer.set_face();
     for (const auto& halfedge : face.halfedges())

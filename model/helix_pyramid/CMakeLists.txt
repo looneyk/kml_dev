@@ -22,3 +22,9 @@ target_link_libraries(helix_pyramid PRIVATE
     quetzal_wavefront_obj
     quetzal_xml
 )
+
+add_dependencies(helix_pyramid
+    quetzal_brep
+    quetzal_geometry
+    quetzal_model
+)

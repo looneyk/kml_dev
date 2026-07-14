@@ -22,3 +22,9 @@ target_link_libraries(trinket_box PRIVATE
     quetzal_wavefront_obj
     quetzal_xml
 )
+
+add_dependencies(trinket_box
+    quetzal_brep
+    quetzal_geometry
+    quetzal_model
+)

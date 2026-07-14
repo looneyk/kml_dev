@@ -95,7 +95,7 @@ namespace quetzal::brep
     template<typename Traits>
     IntersectionSplitter<Traits>::connections_type split_intersection_(const Face<Traits>& face_a, const Face<Traits>& face_b, const std::vector<HalfedgeIntersectionPoint<Traits>>& ix);
 */
-namespace internal
+namespace detail
 {
 
     //--------------------------------------------------------------------------
@@ -112,7 +112,7 @@ namespace internal
         return float_eq(halfedge.next().vertex_attributes().position(), position) ? halfedge.next_id() : halfedge.id();
     }
 
-} // namespace internal
+} // namespace detail
 
 } // namespace quetzal::brep
 
@@ -162,7 +162,7 @@ quetzal::geometry::Intersection<typename Traits::vector_traits> quetzal::brep::i
     {
         auto position = ix.point();
         //if (float_eq(position, halfedge_a.next().vertex_attributes().position()) || float_eq(position, halfedge_b.next().vertex_attributes().position())) // Reject open end of halfedge interval
-        if (internal::half_open_endpoint(halfedge_a, position) != halfedge_a.id() || internal::half_open_endpoint(halfedge_b, position) != halfedge_b.id()) // float_half_open_endpoint? ...
+        if (detail::half_open_endpoint(halfedge_a, position) != halfedge_a.id() || detail::half_open_endpoint(halfedge_b, position) != halfedge_b.id()) // float_half_open_endpoint? ...
         {
             return {};
         }
@@ -318,8 +318,8 @@ std::vector<quetzal::brep::HalfedgeIntersectionPoint<Traits>> quetzal::brep::int
                     intersections.push_back(intersection_point0);
 
                     auto position1 = segment.endpoint(1);
-                    id_type halfedge_id_a1 = internal::half_open_endpoint(halfedge_a, position1);
-                    id_type halfedge_id_b1 = internal::half_open_endpoint(halfedge_b, position1);
+                    id_type halfedge_id_a1 = detail::half_open_endpoint(halfedge_a, position1);
+                    id_type halfedge_id_b1 = detail::half_open_endpoint(halfedge_b, position1);
                     HalfedgeIntersectionPoint<Traits> intersection_point1 = {segment.endpoint(1), {{halfedge_id_a1, halfedge_id_b1}}};
                     intersections.push_back(intersection_point1);
                     break;
@@ -374,7 +374,7 @@ quetzal::brep::IntersectionSplitter<Traits>::connections_type quetzal::brep::spl
 
             if (ix.locus() == geometry::Locus::Point)
             {
-                // point intersection is only relevant if one face is entirely inside the other except for that point (does this apply here? same internal issue with empty) ...
+                // point intersection is only relevant if one face is entirely inside the other except for that point (does this apply here? same detail issue with empty) ...
                 return intersection2(face_a, face_b, ix.point());
             }
 
@@ -382,8 +382,8 @@ quetzal::brep::IntersectionSplitter<Traits>::connections_type quetzal::brep::spl
 
             // discard or cache any point intersections ...
             // for each endpoint that intersects both face vertices, trace it forward and backward until that is not true ...
-            // if halfedges are in the same direction, this is an internal (possibly not exclusively though) intersection, return the polygon ...
-            // in the internal case, discard or cache any point intersections ...
+            // if halfedges are in the same direction, this is an detail (possibly not exclusively though) intersection, return the polygon ...
+            // in the detail case, discard or cache any point intersections ...
             //return intersection_trace of elements {halfedge_a, halfedge_b, position}; // ...
 //            return intersection2(-- array of 2 intersection_points --); // ...
 return {};
@@ -423,8 +423,8 @@ quetzal::brep::IntersectionSplitter<Traits>::connections_type quetzal::brep::spl
 
             // discard or cache any point intersections ...
             // for each endpoint that intersects both face vertices, trace it forward and backward until that is not true ...
-            // if halfedges are in the same direction, this is an internal (possibly not exclusively though) intersection, return the polygon ...
-            // in the internal case, discard or cache any point intersections ...
+            // if halfedges are in the same direction, this is an detail (possibly not exclusively though) intersection, return the polygon ...
+            // in the detail case, discard or cache any point intersections ...
 //            return intersection_trace of elements {halfedge_a, halfedge_b, position}; ...
 return {};
         }

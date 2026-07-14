@@ -22,3 +22,7 @@ target_link_libraries(compare_precision_obj PRIVATE
     quetzal_wavefront_obj
     quetzal_xml
 )
+
+add_dependencies(compare_precision_obj
+    quetzal_geometry
+)

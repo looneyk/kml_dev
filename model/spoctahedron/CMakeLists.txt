@@ -22,3 +22,9 @@ target_link_libraries(spoctahedron PRIVATE
     quetzal_wavefront_obj
     quetzal_xml
 )
+
+add_dependencies(spoctahedron
+    quetzal_brep
+    quetzal_geometry
+    quetzal_model
+)

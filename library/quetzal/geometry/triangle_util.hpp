@@ -58,14 +58,14 @@ namespace quetzal::geometry
     template<typename P> requires (P::dimension == 3)
     typename P::vector_type triangle_normal(const P& a, const P& b, const P& c);
 
-namespace internal
+namespace detail
 {
 
     // Check if point is in region defined by triangle
     template<typename P> requires (P::dimension == 2)
     bool triangle_region_contains(const P& a, const P& b, const P& c, const P& point);
 
-} // namespace internal
+} // namespace detail
 
 } // namespace quetzal::geometry
 
@@ -86,7 +86,7 @@ std::partial_ordering quetzal::geometry::triangle_compare(const P& a, const P& b
 
     if constexpr (P::dimension == 2)
     {
-        return internal::triangle_region_contains(a, b, c, point) ? std::partial_ordering::less : std::partial_ordering::greater;
+        return detail::triangle_region_contains(a, b, c, point) ? std::partial_ordering::less : std::partial_ordering::greater;
     }
     else if constexpr (P::dimension == 3)
     {
@@ -100,7 +100,7 @@ std::partial_ordering quetzal::geometry::triangle_compare(const P& a, const P& b
         }
 
         Projection<typename P::traits_type> projection(normal);
-        return internal::triangle_region_contains(projection(a), projection(b), projection(c), projection(point)) ? std::partial_ordering::less : std::partial_ordering::greater;
+        return detail::triangle_region_contains(projection(a), projection(b), projection(c), projection(point)) ? std::partial_ordering::less : std::partial_ordering::greater;
     }
 }
 
@@ -199,7 +199,7 @@ typename P::vector_type quetzal::geometry::triangle_normal(const P& a, const P& 
 //------------------------------------------------------------------------------
 // Area signs implementation
 template<typename P> requires (P::dimension == 2)
-bool quetzal::geometry::internal::triangle_region_contains(const P& a, const P& b, const P& c, const P& point)
+bool quetzal::geometry::detail::triangle_region_contains(const P& a, const P& b, const P& c, const P& point)
 {
     using T = P::value_type;
 
@@ -214,7 +214,7 @@ bool quetzal::geometry::internal::triangle_region_contains(const P& a, const P& 
 //------------------------------------------------------------------------------
 // Barycentric implementation
 template<typename P> requires (P::dimension == 2)
-bool quetzal::geometry::internal::triangle_region_contains(const P& a, const P& b, const P& c, const P& point)
+bool quetzal::geometry::detail::triangle_region_contains(const P& a, const P& b, const P& c, const P& point)
 {
     using T = P::value_type;
 

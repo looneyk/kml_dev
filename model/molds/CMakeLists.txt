@@ -22,3 +22,9 @@ target_link_libraries(molds PRIVATE
     quetzal_wavefront_obj
     quetzal_xml
 )
+
+add_dependencies(molds
+    quetzal_brep
+    quetzal_geometry
+    quetzal_model
+)

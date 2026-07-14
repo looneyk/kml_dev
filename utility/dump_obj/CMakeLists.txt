@@ -20,3 +20,8 @@ target_link_libraries(dump_obj PRIVATE
     quetzal_wavefront_obj
     quetzal_xml
 )
+
+add_dependencies(dump_obj
+    quetzal_brep
+    quetzal_model
+)

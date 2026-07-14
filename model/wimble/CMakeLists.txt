@@ -22,3 +22,9 @@ target_link_libraries(wimble PRIVATE
     quetzal_wavefront_obj
     quetzal_xml
 )
+
+add_dependencies(wimble
+    quetzal_brep
+    quetzal_geometry
+    quetzal_model
+)
