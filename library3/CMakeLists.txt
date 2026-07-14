@@ -23,6 +23,7 @@ set(KTX_FEATURE_LOADTEST_APPS "OFF" CACHE STRING "" FORCE)
 add_subdirectory(KTX-Software)
 
 set_property(TARGET glfw PROPERTY FOLDER "library3")
+set_property(TARGET update_mappings PROPERTY FOLDER "library3")
 set_property(TARGET simdjson PROPERTY FOLDER "library3")
 set_property(TARGET fastgltf PROPERTY FOLDER "library3")
 set_property(TARGET ktx PROPERTY FOLDER "library3")
