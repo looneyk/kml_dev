@@ -12,6 +12,7 @@
 #include "quetzal/wavefront_obj/Reader.hpp"
 #include "quetzal/wavefront_obj/symbols.hpp"
 #include <filesystem>
+#include <optional>
 #include <string>
 
 namespace obj_io
@@ -70,7 +71,7 @@ void obj_io::read_obj(M& mesh, const std::filesystem::path& filepath)
         return;
     };
 
-    auto on_face_vertex = [&](M& mesh, const typename M::point_type& position, const typename M::vector_type& normal, const typename M::texcoord_type& texcoord) -> void
+    auto on_face_vertex = [&](M& mesh, const typename M::point_type& position, const std::optional<typename M::vector_type>& normal, const std::optional<typename M::texcoord_type>& texcoord) -> void
     {
         mesh;
         position;

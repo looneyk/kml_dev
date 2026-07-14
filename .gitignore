@@ -50,11 +50,13 @@
 !/test/**
 !/utility/
 !/utility/**
+!/library3/
+!/library3/CMakeLists.txt
+!**/CMakeLists.txt
+!**/CMakePresets.json
+!**/*.ps1
+!**/*.sh
 **/*.user
 **/.vs
 **/build
 **/target
-!**/CMakeLists.txt
-!**/CMakePresets.json
-!/library3/
-!/library3/CMakeLists.txt

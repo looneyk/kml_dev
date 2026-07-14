@@ -62,6 +62,9 @@ add_subdirectory(model/wimble)
 add_subdirectory(test/expression_test)
 add_subdirectory(test/to_utf8_test)
 
+add_subdirectory(utility/compare_precision_obj)
+add_subdirectory(utility/dump_obj)
+add_subdirectory(utility/mesh_diff)
 add_subdirectory(utility/to_utf8)
 add_subdirectory(utility/verify_model_output)
 
