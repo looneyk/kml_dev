@@ -2,7 +2,22 @@
 
 configuration=Debug
 
-# application list, loop through in build and run ...
+applications=(
+    "primitives:true"
+    "helix_pyramid:true"
+    "menger_sponge:true"
+    "spikosahedron:true"
+    "spinward:true"
+    "spoctahedron:true"
+    "trinket_box:true"
+    "acicula:true"
+    "cage:true"
+    "coils:true"
+    "laminaria:true"
+    "molds:true"
+    "wimble:true"
+    "mesh_operations:false"
+)
 
 executable_path() {
     local application="$1"
@@ -14,12 +29,6 @@ build() {
     local application="$1"
 
     echo "$application"
-
-    local application_exe=$(executable_path "$application")
-    if [ -f "$application_exe" ]; then
-        rm "$application_exe"
-    fi
-
     cmake --build ../build --config "$configuration" --target "$application"
 }
 
@@ -39,33 +48,18 @@ verify() {
     cd ..
 }
 
-build verify_model_output
-build primitives
-build helix_pyramid
-build menger_sponge
-build spikosahedron
-build spinward
-build spoctahedron
-build trinket_box
-build acicula
-build cage
-build coils
-build laminaria
-build molds
-build wimble
-build mesh_operations
+cmake --build ../build --config "$configuration" --target clean
 
-verify primitives
-verify helix_pyramid
-verify menger_sponge
-verify spikosahedron
-verify spinward
-verify spoctahedron
-verify trinket_box
-verify acicula
-verify cage
-verify coils
-verify molds
-verify laminaria
-verify wimble
-#run mesh_operations
+build verify_model_output
+
+for entry in "${applications[@]}"; do
+    IFS=':' read -r name _ <<< "$entry"
+    build "$name"
+done
+
+for entry in "${applications[@]}"; do
+    IFS=':' read -r name should_verify <<< "$entry"
+    if [ "$should_verify" = "true" ]; then
+        verify "$name"
+    fi
+done
