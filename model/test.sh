@@ -25,12 +25,47 @@ executable_path() {
     echo "../../bin/$configuration/$application.exe"
 }
 
-clean() {
-    local application="$1"
+get_libraries() {
+    local name="$1"
 
-    echo "Cleaning $application"
+    perl -0777 -ne 'while (/target_link_libraries\s*\([^)]*\)/gs) { my $block = $&; while ($block =~ /quetzal_[a-zA-Z_]+/g) { print "$&\n" } }' "$name/CMakeLists.txt"
+}
+
+get_dependencies() {
+    local names=()
+    for entry in "${applications[@]}"; do
+        IFS=':' read -r name _ <<< "$entry"
+        while IFS= read -r lib; do
+            names+=("$lib")
+        done < <(get_libraries "$name")
+    done
+    printf '%s\n' "${names[@]}" | sort -u
+}
+
+print_clean_progress() {
+    local name="$1"
+    local width=20
+    local filled=$((width * clean_index / clean_total))
+    local empty=$((width - filled))
+    local bar
+    bar=$(printf '%*s' "$filled" '' | tr ' ' '#')
+    bar+=$(printf '%*s' "$empty" '' | tr ' ' '-')
+    printf '\rCleaning [%s] %3d%% %-30s' "$bar" "$((100 * clean_index / clean_total))" "$name"
+}
+
+clear_progress() {
+    printf '\r%*s\r' 60 ''
+}
+
+clean() {
+    local name="$1"
+
+    clean_index=$((clean_index + 1))
+    print_clean_progress "$name"
+
     local output
-    if ! output=$(cmake --build ../build --config "$configuration" --target "clean_$application" 2>&1); then
+    if ! output=$(cmake --build ../build --config "$configuration" --target "clean_$name" 2>&1); then
+        clear_progress
         echo "$output"
     fi
 }
@@ -39,7 +74,7 @@ build() {
     local application="$1"
 
     echo "$application"
-    cmake --build ../build --config "$configuration" --target "$application"
+    cmake --build ../build --config "$configuration" --target "$application" -- --nologo
 }
 
 run() {
@@ -58,10 +93,24 @@ verify() {
     cd ..
 }
 
+dependencies=()
+while IFS= read -r name; do
+    dependencies+=("$name")
+done < <(get_dependencies)
+
+clean_index=0
+clean_total=$(( ${#dependencies[@]} + ${#applications[@]} ))
+
+for name in "${dependencies[@]}"; do
+    clean "$name"
+done
+
 for entry in "${applications[@]}"; do
     IFS=':' read -r name _ <<< "$entry"
     clean "$name"
 done
+
+clear_progress
 
 build verify_model_output
 

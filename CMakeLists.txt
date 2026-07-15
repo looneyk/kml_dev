@@ -20,36 +20,44 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 # add_subdirectory_ext: drop-in replacement for add_subdirectory that also defines a
 # clean_<name> target running MSBuild's per-project Clean on the generated vcxproj.
+# An optional second argument gives the target name explicitly, for directories whose
+# target name doesn't match the directory name, quetzal libraries for example,
+# otherwise it defaults to the directory name.
+# BuildProjectReferences=false requires dependencies to be cleaned separately and explicitly for speed
+# (MSBuild's Clean cascades into every library the project links, which can be redundant
+# when cleaning many projects that share the same libraries.)
 # Visual Studio generator only: `cmake --build --target clean` cleans the whole
 # solution, and there is no generator-agnostic equivalent for a single project.
 function(add_subdirectory_ext dir)
     add_subdirectory(${dir})
     if(CMAKE_GENERATOR MATCHES "Visual Studio")
-        get_filename_component(name ${dir} NAME)
+        if(ARGC GREATER 1)
+            set(name ${ARGV1})
+        else()
+            get_filename_component(name ${dir} NAME)
+        endif()
         add_custom_target(clean_${name}
-            COMMAND MSBuild ${CMAKE_BINARY_DIR}/${dir}/${name}.vcxproj /t:Clean /p:Configuration=$<CONFIG> /p:Platform=${CMAKE_VS_PLATFORM_NAME}
+            COMMAND MSBuild ${CMAKE_BINARY_DIR}/${dir}/${name}.vcxproj /t:Clean /p:Configuration=$<CONFIG> /p:Platform=${CMAKE_VS_PLATFORM_NAME} /p:BuildProjectReferences=false
         )
     endif()
 endfunction()
 
-add_subdirectory(library/quetzal/brep)
-add_subdirectory(library/quetzal/common)
-add_subdirectory(library/quetzal/expression)
-add_subdirectory(library/quetzal/game)
-add_subdirectory(library/quetzal/geometry)
-add_subdirectory(library/quetzal/math)
-add_subdirectory(library/quetzal/model)
-add_subdirectory(library/quetzal/pdf)
-add_subdirectory(library/quetzal/scene_graph)
-add_subdirectory(library/quetzal/spatial_search)
-add_subdirectory(library/quetzal/stl)
-add_subdirectory(library/quetzal/svg)
-add_subdirectory(library/quetzal/triangulation)
-add_subdirectory(library/quetzal/vulkan)
-add_subdirectory(library/quetzal/wavefront_obj)
-add_subdirectory(library/quetzal/xml)
-
-add_subdirectory(library3)
+add_subdirectory_ext(library/quetzal/brep quetzal_brep)
+add_subdirectory_ext(library/quetzal/common quetzal_common)
+add_subdirectory_ext(library/quetzal/expression quetzal_expression)
+add_subdirectory_ext(library/quetzal/game quetzal_game)
+add_subdirectory_ext(library/quetzal/geometry quetzal_geometry)
+add_subdirectory_ext(library/quetzal/math quetzal_math)
+add_subdirectory_ext(library/quetzal/model quetzal_model)
+add_subdirectory_ext(library/quetzal/pdf quetzal_pdf)
+add_subdirectory_ext(library/quetzal/scene_graph quetzal_scene_graph)
+add_subdirectory_ext(library/quetzal/spatial_search quetzal_spatial_search)
+add_subdirectory_ext(library/quetzal/stl quetzal_stl)
+add_subdirectory_ext(library/quetzal/svg quetzal_svg)
+add_subdirectory_ext(library/quetzal/triangulation quetzal_triangulation)
+add_subdirectory_ext(library/quetzal/vulkan quetzal_vulkan)
+add_subdirectory_ext(library/quetzal/wavefront_obj quetzal_wavefront_obj)
+add_subdirectory_ext(library/quetzal/xml quetzal_xml)
 
 add_subdirectory(application/cubes)
 add_subdirectory(application/gallery)
@@ -82,5 +90,7 @@ add_subdirectory(utility/dump_obj)
 add_subdirectory(utility/mesh_diff)
 add_subdirectory(utility/to_utf8)
 add_subdirectory(utility/verify_model_output)
+
+add_subdirectory(library3)
 
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT toot1)

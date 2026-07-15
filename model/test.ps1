@@ -18,18 +18,6 @@ $applications = @(
     @{ Name = 'mesh_operations'; Verify = $false }
 )
 
-function clean {
-    param (
-        $name
-    )
-
-    Write-Output "Cleaning $name"
-    $output = cmake --build ../build --config $configuration --target "clean_$name" 2>&1
-    if ($LASTEXITCODE -ne 0) {
-        Write-Output $output
-    }
-}
-
 function executable_path {
     param (
         $name
@@ -38,13 +26,55 @@ function executable_path {
     return "../../bin/$configuration/$name.exe"
 }
 
+function get_libraries {
+    param (
+        $name
+    )
+
+    $content = Get-Content "$name/CMakeLists.txt" -Raw
+    $libraries = @()
+    foreach ($call in [regex]::Matches($content, 'target_link_libraries\s*\([^)]*\)')) {
+        $libraries += [regex]::Matches($call.Value, 'quetzal_[a-zA-Z_]+') | ForEach-Object { $_.Value }
+    }
+    return $libraries
+}
+
+function get_dependencies {
+    param (
+        $applications
+    )
+
+    $names = @()
+    foreach ($application in $applications) {
+        $names += get_libraries $application.Name
+    }
+    $names = $names | Select-Object -Unique
+
+    return $names | ForEach-Object { @{ Name = $_ } }
+}
+
+function clean {
+    param (
+        $name
+    )
+
+    $script:cleaned_count++
+    Write-Progress -Activity 'Cleaning' -Status $name -PercentComplete (100 * $script:cleaned_count / $script:clean_total)
+
+    $output = cmake --build ../build --config $configuration --target "clean_$name" 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        Write-Progress -Activity 'Cleaning' -Completed
+        Write-Output $output
+    }
+}
+
 function build {
     param (
         $name
     )
 
     Write-Output $name
-    cmake --build ../build --config $configuration --target $name
+    cmake --build ../build --config $configuration --target $name -- --nologo
 }
 
 function run {
@@ -67,9 +97,20 @@ function verify {
     Set-Location ..
 }
 
+$dependencies = get_dependencies $applications
+
+$cleaned_count = 0
+$clean_total = $dependencies.Count + $applications.Count
+
+foreach ($dependency in $dependencies) {
+    clean $dependency.Name
+}
+
 foreach ($application in $applications) {
     clean $application.Name
 }
+
+Write-Progress -Activity 'Cleaning' -Completed
 
 build 'verify_model_output'
 
