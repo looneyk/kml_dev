@@ -25,6 +25,16 @@ executable_path() {
     echo "../../bin/$configuration/$application.exe"
 }
 
+clean() {
+    local application="$1"
+
+    echo "Cleaning $application"
+    local output
+    if ! output=$(cmake --build ../build --config "$configuration" --target "clean_$application" 2>&1); then
+        echo "$output"
+    fi
+}
+
 build() {
     local application="$1"
 
@@ -48,7 +58,10 @@ verify() {
     cd ..
 }
 
-cmake --build ../build --config "$configuration" --target clean
+for entry in "${applications[@]}"; do
+    IFS=':' read -r name _ <<< "$entry"
+    clean "$name"
+done
 
 build verify_model_output
 

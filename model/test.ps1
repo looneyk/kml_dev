@@ -18,6 +18,18 @@ $applications = @(
     @{ Name = 'mesh_operations'; Verify = $false }
 )
 
+function clean {
+    param (
+        $name
+    )
+
+    Write-Output "Cleaning $name"
+    $output = cmake --build ../build --config $configuration --target "clean_$name" 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        Write-Output $output
+    }
+}
+
 function executable_path {
     param (
         $name
@@ -55,7 +67,9 @@ function verify {
     Set-Location ..
 }
 
-cmake --build ../build --config $configuration --target clean
+foreach ($application in $applications) {
+    clean $application.Name
+}
 
 build 'verify_model_output'
 
