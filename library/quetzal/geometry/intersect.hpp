@@ -21,6 +21,7 @@
 #include "distance.hpp"
 #include "relationships.hpp"
 #include "quetzal/math/floating_point.hpp"
+#include <map>
 #include <vector>
 #include <cassert>
 

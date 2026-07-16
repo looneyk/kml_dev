@@ -35,8 +35,10 @@ namespace quetzal::geometry
     template<typename M>
     concept TransformationMatrix = (M::square && TransformationMatrixSize<M::rows>);
 
-    template<typename Traits> requires (Homogeneous<Traits> && TransformationMatrixSize<Traits::size>)
-    using transformation_matrix_type = math::Matrix<typename Traits::value_type, Traits::size, Traits::size>;
+//    template<typename Traits> requires (Homogeneous<Traits> && TransformationMatrixSize<Traits::size>)
+//    using transformation_matrix_type = math::Matrix<typename Traits::value_type, Traits::size, Traits::size>;
+    template<typename Traits> requires (TransformationMatrixSize<Traits::dimension + 1>)
+    using transformation_matrix_type = math::Matrix<typename Traits::value_type, Traits::dimension + 1, Traits::dimension + 1>;
 
     template<TransformationMatrix M>
     static constexpr size_t transformation_dimension = M::rows - 1;

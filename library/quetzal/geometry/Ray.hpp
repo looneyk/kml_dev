@@ -171,11 +171,30 @@ std::ostream& quetzal::geometry::operator<<(std::ostream& os, Ray<Traits> ray)
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-struct std::formatter<quetzal::geometry::Ray<Traits>> : std::formatter<std::string>
+struct std::formatter<quetzal::geometry::Ray<Traits>>
 {
+    std::formatter<typename Traits::value_type> m_element_formatter;
+
+    constexpr auto parse(std::format_parse_context& ctx)
+    {
+        return m_element_formatter.parse(ctx);
+    }
+
     auto format(const quetzal::geometry::Ray<Traits>& ray, std::format_context& ctx) const
     {
-        return std::formatter<std::string>::format(to_string(ray), ctx);
+        std::formatter<quetzal::geometry::Point<Traits>> point_formatter;
+        point_formatter.m_element_formatter = m_element_formatter;
+
+        std::formatter<quetzal::math::Vector<Traits>> vector_formatter;
+        vector_formatter.m_element_formatter = m_element_formatter;
+
+        auto out = point_formatter.format(ray.endpoint(), ctx);
+        ctx.advance_to(out);
+        *out++ = ',';
+        *out++ = ' ';
+        ctx.advance_to(out);
+
+        return vector_formatter.format(ray.direction(), ctx);
     }
 };
 

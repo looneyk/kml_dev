@@ -12,6 +12,7 @@
 #include "handles.hpp"
 #include <vulkan/vulkan.hpp>
 #include <cassert>
+#include <format>
 #include <span>
 #include <string>
 #include <unordered_map>
@@ -46,8 +47,8 @@ namespace quetzal::vulkan
         {
             std::string layout_key = std::to_string(binding_desc.binding) + ":" + std::to_string(binding_desc.stride);
             for (const auto& ad : attr_descs)
-                layout_key += "|" + std::to_string(ad.location) + ":" + std::to_string(ad.format) + ":" + std::to_string(ad.offset);
-            std::string key = vert_shader + "|" + frag_shader + "|" + layout_key;
+                layout_key += std::format("|{}:{}:{}", ad.location, ad.format, ad.offset);
+            std::string key = std::format("{}|{}|{}", vert_shader, frag_shader, layout_key);
 
             auto [i, inserted] = m_cache.try_emplace(key, m_device);
             if (inserted)

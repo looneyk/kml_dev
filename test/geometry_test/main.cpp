@@ -176,8 +176,13 @@ namespace
         test_extent<Traits>();
 //        test_parallel<Traits>();
 //        test_perpendicular<Traits>();
-        test_intersects<Traits>();
-        test_intersection<Traits>();
+        if constexpr (geometry::Homogeneous<Traits>)
+        {
+            // Intersection<Traits> holds a Polygon<Traits> member, and Polygon's containment
+            // test relies on Projection<Traits>, which only exists for homogeneous traits
+            test_intersects<Traits>();
+            test_intersection<Traits>();
+        }
         test_triangle<Traits>();
         return;
     }

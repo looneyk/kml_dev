@@ -20,6 +20,7 @@
 #include "quetzal/math/floating_point.hpp"
 #include <algorithm>
 #include <exception>
+#include <format>
 #include <iterator>
 #include <optional>
 #include <ostream>
@@ -919,5 +920,39 @@ std::ostream& quetzal::geometry::operator<<(std::ostream& os, const Polygon<Trai
 
     return os;
 }
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+struct std::formatter<quetzal::geometry::Polygon<Traits>>
+{
+    std::formatter<typename Traits::value_type> m_element_formatter;
+
+    constexpr auto parse(std::format_parse_context& ctx)
+    {
+        return m_element_formatter.parse(ctx);
+    }
+
+    auto format(const quetzal::geometry::Polygon<Traits>& polygon, std::format_context& ctx) const
+    {
+        std::formatter<quetzal::geometry::Point<Traits>> point_formatter;
+        point_formatter.m_element_formatter = m_element_formatter;
+
+        auto out = ctx.out();
+        bool first = true;
+        for (const auto& vertex : polygon.vertices())
+        {
+            if (!first)
+            {
+                *out++ = ',';
+                *out++ = ' ';
+                ctx.advance_to(out);
+            }
+            first = false;
+            out = point_formatter.format(vertex, ctx);
+        }
+
+        return out;
+    }
+};
 
 #endif // QUETZAL_GEOMETRY_POLYGON_HPP

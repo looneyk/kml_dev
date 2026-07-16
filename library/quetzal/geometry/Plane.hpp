@@ -152,11 +152,30 @@ std::ostream& quetzal::geometry::operator<<(std::ostream& os, Plane<Traits> plan
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-struct std::formatter<quetzal::geometry::Plane<Traits>> : std::formatter<std::string>
+struct std::formatter<quetzal::geometry::Plane<Traits>>
 {
+    std::formatter<typename Traits::value_type> m_element_formatter;
+
+    constexpr auto parse(std::format_parse_context& ctx)
+    {
+        return m_element_formatter.parse(ctx);
+    }
+
     auto format(const quetzal::geometry::Plane<Traits>& plane, std::format_context& ctx) const
     {
-        return std::formatter<std::string>::format(to_string(plane), ctx);
+        std::formatter<quetzal::geometry::Point<Traits>> point_formatter;
+        point_formatter.m_element_formatter = m_element_formatter;
+
+        std::formatter<quetzal::math::Vector<Traits>> vector_formatter;
+        vector_formatter.m_element_formatter = m_element_formatter;
+
+        auto out = point_formatter.format(plane.point(), ctx);
+        ctx.advance_to(out);
+        *out++ = ',';
+        *out++ = ' ';
+        ctx.advance_to(out);
+
+        return vector_formatter.format(plane.normal(), ctx);
     }
 };
 

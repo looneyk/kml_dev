@@ -19,6 +19,7 @@
 //#include "Sphere.hpp"
 #include <format>
 #include <iostream>
+#include <string_view>
 
 namespace quetzal::geometry
 {
@@ -283,11 +284,72 @@ std::ostream& quetzal::geometry::operator<<(std::ostream& os, const Intersection
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-struct std::formatter<quetzal::geometry::Intersection<Traits>> : std::formatter<std::string>
+struct std::formatter<quetzal::geometry::Intersection<Traits>>
 {
+    std::formatter<typename Traits::value_type> m_element_formatter;
+
+    constexpr auto parse(std::format_parse_context& ctx)
+    {
+        return m_element_formatter.parse(ctx);
+    }
+
     auto format(const quetzal::geometry::Intersection<Traits>& ix, std::format_context& ctx) const
     {
-        return std::formatter<std::string>::format(to_string(ix), ctx);
+        std::string label = quetzal::geometry::to_string(ix.locus());
+        auto out = ctx.out();
+        for (char c : label)
+        {
+            *out++ = c;
+        }
+
+        if (ix.locus() == quetzal::geometry::Locus::Empty)
+        {
+            return out;
+        }
+
+        *out++ = ' ';
+        ctx.advance_to(out);
+
+        switch (ix.locus())
+        {
+            case quetzal::geometry::Locus::Point:
+            {
+                std::formatter<quetzal::geometry::Point<Traits>> f;
+                f.m_element_formatter = m_element_formatter;
+                return f.format(ix.point(), ctx);
+            }
+
+            case quetzal::geometry::Locus::Line:
+            {
+                std::formatter<quetzal::geometry::Line<Traits>> f;
+                f.m_element_formatter = m_element_formatter;
+                return f.format(ix.line(), ctx);
+            }
+
+            case quetzal::geometry::Locus::Ray:
+            {
+                std::formatter<quetzal::geometry::Ray<Traits>> f;
+                f.m_element_formatter = m_element_formatter;
+                return f.format(ix.ray(), ctx);
+            }
+
+            case quetzal::geometry::Locus::Segment:
+            {
+                std::formatter<quetzal::geometry::Segment<Traits>> f;
+                f.m_element_formatter = m_element_formatter;
+                return f.format(ix.segment(), ctx);
+            }
+
+            case quetzal::geometry::Locus::Polygon:
+            {
+                std::formatter<quetzal::geometry::Polygon<Traits>> f;
+                f.m_element_formatter = m_element_formatter;
+                return f.format(ix.polygon(), ctx);
+            }
+
+            default:
+                return out;
+        }
     }
 };
 

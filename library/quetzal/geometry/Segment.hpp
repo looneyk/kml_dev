@@ -293,11 +293,27 @@ std::ostream& quetzal::geometry::operator<<(std::ostream& os, Segment<Traits> se
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-struct std::formatter<quetzal::geometry::Segment<Traits>> : std::formatter<std::string>
+struct std::formatter<quetzal::geometry::Segment<Traits>>
 {
+    std::formatter<typename Traits::value_type> m_element_formatter;
+
+    constexpr auto parse(std::format_parse_context& ctx)
+    {
+        return m_element_formatter.parse(ctx);
+    }
+
     auto format(const quetzal::geometry::Segment<Traits>& segment, std::format_context& ctx) const
     {
-        return std::formatter<std::string>::format(to_string(segment), ctx);
+        std::formatter<quetzal::geometry::Point<Traits>> point_formatter;
+        point_formatter.m_element_formatter = m_element_formatter;
+
+        auto out = point_formatter.format(segment.endpoint(0), ctx);
+        ctx.advance_to(out);
+        *out++ = ',';
+        *out++ = ' ';
+        ctx.advance_to(out);
+
+        return point_formatter.format(segment.endpoint(1), ctx);
     }
 };
 
