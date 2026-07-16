@@ -50,6 +50,8 @@
 !/test/**
 !/utility/
 !/utility/**
+!/script/
+!/script/**
 !/library3/
 !/library3/CMakeLists.txt
 !**/CMakeLists.txt

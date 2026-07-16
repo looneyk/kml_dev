@@ -22,8 +22,8 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 # clean_<name> target running MSBuild's per-project Clean on the generated vcxproj.
 # An optional second argument gives the target name explicitly, for directories whose
 # target name doesn't match the directory name, quetzal libraries for example,
-# otherwise it defaults to the directory name.
-# BuildProjectReferences=false requires dependencies to be cleaned separately and explicitly for speed
+# otherwise defaults to the directory name.
+# BuildProjectReferences=false requires dependencies to be cleaned separately, and explicitly for speed
 # (MSBuild's Clean cascades into every library the project links, which can be redundant
 # when cleaning many projects that share the same libraries.)
 # Visual Studio generator only: `cmake --build --target clean` cleans the whole
