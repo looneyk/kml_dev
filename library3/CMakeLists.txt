@@ -10,6 +10,10 @@ add_subdirectory(glfw)
 
 add_subdirectory(simdjson)
 
+set(UTF8CPP_ENABLE_TESTS OFF CACHE BOOL "" FORCE)
+set(UTF8CPP_ENABLE_BENCHMARKS OFF CACHE BOOL "" FORCE)
+add_subdirectory(utfcpp)
+
 set(FASTGLTF_ENABLE_TESTS OFF CACHE BOOL "" FORCE)
 set(FASTGLTF_ENABLE_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(FASTGLTF_ENABLE_DOCS OFF CACHE BOOL "" FORCE)
@@ -27,6 +31,7 @@ set_property(TARGET update_mappings PROPERTY FOLDER "library3")
 set_property(TARGET simdjson PROPERTY FOLDER "library3")
 set_property(TARGET fastgltf PROPERTY FOLDER "library3")
 set_property(TARGET ktx PROPERTY FOLDER "library3")
+set_property(TARGET utf8cpp PROPERTY FOLDER "library3")
 
 add_library(glfw3_mt ALIAS glfw)
 

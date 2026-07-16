@@ -2,10 +2,9 @@
 // string_util.cpp
 //------------------------------------------------------------------------------
 
-#define _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING
-
 #include "string_util.hpp"
-#include <codecvt>
+#include "utf8.h"
+#include "utf8/cpp11.h"
 
 using namespace std;
 
@@ -18,8 +17,14 @@ string quetzal::to_string(const string& str)
 //------------------------------------------------------------------------------
 string quetzal::to_string(const wstring& wstr)
 {
-    wstring_convert<codecvt_utf8<wchar_t>> converter;
-    return converter.to_bytes(wstr);
+    if constexpr (sizeof(wchar_t) == 2)
+    {
+        return utf8::utf16to8(u16string(wstr.begin(), wstr.end()));
+    }
+    else
+    {
+        return utf8::utf32to8(u32string(wstr.begin(), wstr.end()));
+    }
 }
 
 //------------------------------------------------------------------------------
@@ -39,8 +44,16 @@ string quetzal::to_type<string>(const string& str)
 template<>
 wstring quetzal::to_type<wstring>(const string& str)
 {
-    wstring_convert<codecvt_utf8<wchar_t>> converter;
-    return converter.from_bytes(str);
+    if constexpr (sizeof(wchar_t) == 2)
+    {
+        u16string utf16 = utf8::utf8to16(str);
+        return wstring(utf16.begin(), utf16.end());
+    }
+    else
+    {
+        u32string utf32 = utf8::utf8to32(str);
+        return wstring(utf32.begin(), utf32.end());
+    }
 }
 
 //------------------------------------------------------------------------------

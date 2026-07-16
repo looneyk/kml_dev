@@ -54,3 +54,5 @@ set_property(TARGET quetzal_common PROPERTY FOLDER "library")
 target_include_directories(quetzal_common PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
+
+target_link_libraries(quetzal_common PRIVATE utf8cpp)
