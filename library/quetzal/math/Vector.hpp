@@ -6,6 +6,7 @@
 //------------------------------------------------------------------------------
 
 #include "floating_point.hpp"
+#include <charconv>
 #include <concepts>
 #include <iosfwd>
 #include <format>
@@ -253,6 +254,12 @@ namespace quetzal::math
 
     template<typename Traits>
     std::ostream& operator<<(std::ostream& os, const Vector<Traits>& v);
+
+    template<typename Traits>
+    std::from_chars_result from_chars(const char* first, const char* last, Vector<Traits>& v);
+
+    template<typename Traits>
+    std::to_chars_result to_chars(char* first, char* last, const Vector<Traits>& v);
 
     // Matrix operations
 
@@ -1056,6 +1063,27 @@ std::ostream& quetzal::math::operator<<(std::ostream& os, const quetzal::math::V
 }
 
 //------------------------------------------------------------------------------
+template<typename Traits>
+std::from_chars_result quetzal::math::from_chars(const char* first, const char* last, Vector<Traits>& v)
+{
+    auto result = Traits::from_chars(first, last, v.rep());
+//    if (result) ...
+    if (result.ec == std::errc{})
+    {
+        Traits::conclude<Traits::dimension>(v.rep(), typename Traits::value_type(0));
+    }
+
+    return result;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+std::to_chars_result quetzal::math::to_chars(char* first, char* last, const Vector<Traits>& v)
+{
+    return Traits::to_chars(first, last, v.rep());
+}
+
+//------------------------------------------------------------------------------
 template<typename Traits, typename M> requires (std::same_as<typename M::value_type, typename Traits::value_type> && Traits::size == M::cols)
 quetzal::math::Vector<typename Traits::template resized_traits<Traits::template effective_dimension<M::rows>>> quetzal::math::operator*(const M& lhs, const Vector<Traits>& rhs)
 {
@@ -1118,11 +1146,18 @@ quetzal::math::Vector<Traits>& quetzal::math::operator*=(Vector<Traits>& lhs, co
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-struct std::formatter<quetzal::math::Vector<Traits>> : std::formatter<std::string>
+struct std::formatter<quetzal::math::Vector<Traits>>
 {
+    std::formatter<typename Traits::value_type> m_element_formatter;
+
+    constexpr auto parse(std::format_parse_context& ctx)
+    {
+        return m_element_formatter.parse(ctx);
+    }
+
     auto format(const quetzal::math::Vector<Traits>& vector, std::format_context& ctx) const
     {
-        return std::formatter<std::string>::format(to_string(vector), ctx);
+        return Traits::format_to(ctx, m_element_formatter, vector.rep());
     }
 };
 

@@ -7,6 +7,7 @@
 
 #include "Vector.hpp"
 #include "quetzal/math/floating_point.hpp"
+#include <charconv>
 #include <concepts>
 #include <iosfwd>
 #include <format>
@@ -255,13 +256,19 @@ namespace quetzal::geometry
     template<typename Traits>
     std::string to_string(const Point<Traits>& point);
 
-    // These two operators are not symmetrical. extrace parses numeric values separated by whitespace, and insert outputs a formatted point
+    // These two operators are not symmetrical. extract parses numeric values separated by whitespace, and insert outputs a formatted point
 
     template<typename Traits>
     std::istream& operator>>(std::istream& is, Point<Traits>& point);
 
     template<typename Traits>
     std::ostream& operator<<(std::ostream& os, const Point<Traits>& point);
+
+    template<typename Traits>
+    std::from_chars_result from_chars(const char* first, const char* last, Point<Traits>& point);
+
+    template<typename Traits>
+    std::to_chars_result to_chars(char* first, char* last, Point<Traits> point);
 
     // Matrix operations
 
@@ -997,7 +1004,30 @@ std::istream& quetzal::geometry::operator>>(std::istream& is, Point<Traits>& poi
 template<typename Traits>
 std::ostream& quetzal::geometry::operator<<(std::ostream& os, const Point<Traits>& point)
 {
+    // prepare ...
     return Traits::insert(os, point.rep()); // add provision for specific format ...
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+std::from_chars_result quetzal::geometry::from_chars(const char* first, const char* last, Point<Traits>& point)
+{
+    auto result = Traits::from_chars(first, last, point.rep());
+//    if (result) ...
+    if (result.ec == std::errc{})
+    {
+        Traits::conclude<Traits::dimension>(point.rep(), typename Traits::value_type(1));
+    }
+
+    return result;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+std::to_chars_result quetzal::geometry::to_chars(char* first, char* last, Point<Traits> point)
+{
+    Traits::prepare(point.rep());
+    return Traits::to_chars(first, last, point.rep());
 }
 
 //------------------------------------------------------------------------------
@@ -1063,11 +1093,19 @@ quetzal::geometry::Point<Traits>& quetzal::geometry::operator*=(Point<Traits>& l
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-struct std::formatter<quetzal::geometry::Point<Traits>> : std::formatter<std::string>
+struct std::formatter<quetzal::geometry::Point<Traits>>
 {
-    auto format(const quetzal::geometry::Point<Traits>& point, std::format_context& ctx) const
+    std::formatter<typename Traits::value_type> m_element_formatter;
+
+    constexpr auto parse(std::format_parse_context& ctx)
     {
-        return std::formatter<std::string>::format(to_string(point), ctx);
+        return m_element_formatter.parse(ctx);
+    }
+
+    auto format(quetzal::geometry::Point<Traits> point, std::format_context& ctx) const
+    {
+        Traits::prepare(point.rep());
+        return Traits::format_to(ctx, m_element_formatter, point.rep());
     }
 };
 

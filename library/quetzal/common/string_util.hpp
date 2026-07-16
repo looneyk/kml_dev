@@ -20,6 +20,13 @@ namespace quetzal
         return std::format("{}", t);
     }
 
+    //--------------------------------------------------------------------------
+    template<typename T>
+    std::string opt_string(const std::optional<T>& opt)
+    {
+        return opt ? to_string(*opt) : "nullopt";
+    }
+
     std::string to_string(const std::string& str);
     std::string to_string(const std::wstring& wstr);
     std::string to_string(const bool& b);
@@ -29,8 +36,20 @@ namespace quetzal
     T to_type(const std::string& str)
     {
         T t{};
-        auto [p, ec] = std::from_chars(str.data(), str.data() + str.size(), t);
+        using std::from_chars;
+        auto result = from_chars(str.data(), str.data() + str.size(), t);
         return t;
+    }
+
+    //--------------------------------------------------------------------------
+    template<typename T>
+    std::optional<T> opt_type(const std::string& str)
+    {
+        T t{};
+        using std::from_chars;
+        auto result = from_chars(str.data(), str.data() + str.size(), t);
+//        return result ? make_optional(t) : std::nullopt; ...
+        return result.ec == std::errc{} ? make_optional(t) : std::nullopt;
     }
 
     template<>
@@ -43,22 +62,6 @@ namespace quetzal
     bool to_type<bool>(const std::string& str);
 
     bool to_bool(const std::string& str);
-
-    //--------------------------------------------------------------------------
-    template<typename T>
-    std::string opt_string(const std::optional<T>& opt)
-    {
-        return opt ? to_string(*opt) : "nullopt";
-    }
-
-    //--------------------------------------------------------------------------
-    template<typename T>
-    std::optional<T> opt_type(const std::string& str)
-    {
-        T t{};
-        auto result = std::from_chars(str.data(), str.data() + str.size(), t);
-        return result ? make_optional(t) : std::nullopt;
-    }
 
 // to_utf8 ...
 //    std::string to_utf8(char16_t c);
