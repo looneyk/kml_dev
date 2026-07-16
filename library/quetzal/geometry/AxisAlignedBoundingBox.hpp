@@ -59,7 +59,7 @@ namespace quetzal::geometry
         void clear() override;
 
         // Returns less, equivalent, greater for interior, boundary, exterior respectively
-        std::partial_ordering compare(const point_type& point) const override;
+        std::partial_ordering compare(const point_type& point, int tolerance = math::tolerance_default) const override;
 
         bool empty() const override;
 
@@ -235,7 +235,7 @@ void quetzal::geometry::AxisAlignedBoundingBox<Traits>::clear()
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-std::partial_ordering quetzal::geometry::AxisAlignedBoundingBox<Traits>::compare(const point_type& point) const
+std::partial_ordering quetzal::geometry::AxisAlignedBoundingBox<Traits>::compare(const point_type& point, int tolerance) const
 {
     assert(ordered());
 
@@ -244,12 +244,12 @@ std::partial_ordering quetzal::geometry::AxisAlignedBoundingBox<Traits>::compare
     {
         if constexpr (std::is_floating_point_v<Traits::value_type>)
         {
-            if (math::float_lt(point[i], m_lower[i]) || math::float_gt(point[i], m_upper[i]))
+            if (math::float_lt(point[i], m_lower[i], tolerance) || math::float_gt(point[i], m_upper[i], tolerance))
             {
                 return std::partial_ordering::greater;
             }
 
-            if (math::float_eq(point[i], m_lower[i]) || math::float_eq(point[i], m_upper[i]))
+            if (math::float_eq(point[i], m_lower[i], tolerance) || math::float_eq(point[i], m_upper[i], tolerance))
             {
                 result = std::partial_ordering::equivalent;
             }

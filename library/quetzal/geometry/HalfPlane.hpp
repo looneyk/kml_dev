@@ -43,7 +43,7 @@ namespace quetzal::geometry
         plane_type plane() const requires (Traits::dimension >= 3);
 
         // Returns less, equivalent, greater for interior, boundary, exterior respectively
-        std::partial_ordering compare(const point_type& point) const override;
+        std::partial_ordering compare(const point_type& point, int tolerance = math::tolerance_default) const override;
 
     private:
 
@@ -95,18 +95,18 @@ quetzal::geometry::HalfPlane<Traits>::plane_type quetzal::geometry::HalfPlane<Tr
 
 //------------------------------------------------------------------------------
 template<typename Traits> requires (Traits::dimension >= 2)
-std::partial_ordering quetzal::geometry::HalfPlane<Traits>::compare(const point_type& point) const
+std::partial_ordering quetzal::geometry::HalfPlane<Traits>::compare(const point_type& point, int tolerance) const
 {
     if constexpr (Traits::dimension >= 3)
     {
-        if (!plane().contains(point))
+        if (!plane().contains(point, tolerance))
         {
             return std::partial_ordering::greater; // exterior
         }
     }
 
     auto d = dot(m_exterior_direction, point - m_line.point());
-    return math::float_compare0(d);
+    return math::float_compare0(d, tolerance);
 }
 
 //------------------------------------------------------------------------------

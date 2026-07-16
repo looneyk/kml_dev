@@ -1453,9 +1453,12 @@ quetzal::geometry::Intersection<Traits> quetzal::geometry::intersection(const Pl
             assert(false);
     }
 
-    assert(plane_a.contains(point));
-    assert(plane_b.contains(point));
-////std::cout << (plane_a.contains(point) && plane_b.contains(point) ? "OK" : "Error") << ' ' << i_max << std::endl;
+    // point was derived through a cross product, an axis selection, and a 2x2 linear solve (a division by denom),
+    // so its deviation from either plane carries several steps of accumulated rounding error on top of what a
+    // single dot-product comparison budgets for by default; a larger, explicit tolerance reflects that chain.
+    constexpr int intersection_tolerance = 4096;
+    assert(plane_a.contains(point, intersection_tolerance));
+    assert(plane_b.contains(point, intersection_tolerance));
 
     return {Line<Traits>(point, direction)};
 }

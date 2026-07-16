@@ -49,7 +49,7 @@ namespace quetzal::geometry
         point_type point(value_type t) const;
 
         // Returns less, equivalent, greater for interior, boundary, exterior respectively
-        std::partial_ordering compare(const point_type& point) const override;
+        std::partial_ordering compare(const point_type& point, int tolerance = math::tolerance_default) const override;
 
         point_type projection(const point_type& point) const;
         value_type projection_parameter(const point_type& point) const;
@@ -127,15 +127,15 @@ typename quetzal::geometry::Ray<Traits>::point_type quetzal::geometry::Ray<Trait
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-std::partial_ordering quetzal::geometry::Ray<Traits>::compare(const point_type& point) const
+std::partial_ordering quetzal::geometry::Ray<Traits>::compare(const point_type& point, int tolerance) const
 {
-    if (float_eq(point, m_endpoint))
+    if (float_eq(point, m_endpoint, tolerance))
     {
         return std::partial_ordering::equivalent;
     }
 
     value_type t = dot(point - m_endpoint, m_direction);
-    return math::float_ge0(t) && float_eq(point, this->point(t)) ? std::partial_ordering::less : std::partial_ordering::greater;
+    return math::float_ge0(t, tolerance) && float_eq(point, this->point(t), tolerance) ? std::partial_ordering::less : std::partial_ordering::greater;
 }
 
 //------------------------------------------------------------------------------

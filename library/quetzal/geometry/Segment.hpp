@@ -60,7 +60,7 @@ namespace quetzal::geometry
         bool float_degenerate() const;
 
         // Returns less, equivalent, greater for interior, boundary, exterior respectively
-        std::partial_ordering compare(const point_type& point) const override;
+        std::partial_ordering compare(const point_type& point, int tolerance = math::tolerance_default) const override;
 
         point_type projection(const point_type& point) const;
         value_type projection_parameter(const point_type& point) const;
@@ -220,15 +220,15 @@ bool quetzal::geometry::Segment<Traits>::float_degenerate() const
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-std::partial_ordering quetzal::geometry::Segment<Traits>::compare(const point_type& point) const
+std::partial_ordering quetzal::geometry::Segment<Traits>::compare(const point_type& point, int tolerance) const
 {
-    if (float_eq(point, m_endpoints[0]) || float_eq(point, m_endpoints[1]))
+    if (float_eq(point, m_endpoints[0], tolerance) || float_eq(point, m_endpoints[1], tolerance))
     {
         return std::partial_ordering::equivalent;
     }
 
     value_type t = projection_parameter(point);
-    return math::float_clamped01(t) && float_eq(point, this->point(t)) ? std::partial_ordering::less : std::partial_ordering::greater;
+    return math::float_clamped01(t, tolerance) && float_eq(point, this->point(t), tolerance) ? std::partial_ordering::less : std::partial_ordering::greater;
 }
 
 //------------------------------------------------------------------------------

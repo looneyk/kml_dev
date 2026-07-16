@@ -48,7 +48,7 @@ namespace quetzal::geometry
 
         // Returns less, equivalent, greater for interior, boundary, exterior respectively
         // Results are either interior or exterior, line is not considered to have (or be) a boundary
-        std::partial_ordering compare(const point_type& point) const override;
+        std::partial_ordering compare(const point_type& point, int tolerance = math::tolerance_default) const override;
 
         point_type projection(const point_type& point) const;
         value_type projection_parameter(const point_type& point) const;
@@ -126,9 +126,9 @@ typename quetzal::geometry::Line<Traits>::point_type quetzal::geometry::Line<Tra
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-std::partial_ordering quetzal::geometry::Line<Traits>::compare(const point_type& point) const
+std::partial_ordering quetzal::geometry::Line<Traits>::compare(const point_type& point, int tolerance) const
 {
-    return float_eq(point, projection(point)) ? std::partial_ordering::less : std::partial_ordering::greater;
+    return float_eq(point, projection(point), tolerance) ? std::partial_ordering::less : std::partial_ordering::greater;
 }
 
 //------------------------------------------------------------------------------

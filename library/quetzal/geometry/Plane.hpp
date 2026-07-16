@@ -44,8 +44,8 @@ namespace quetzal::geometry
         void set_normal(const vector_type& normal) requires (Traits::dimension >= 3);
 
         // Returns less, equivalent, greater for interior, boundary, exterior respectively
-        // Results are either interior or exterior, plane is not considered to have or be a boundary
-        std::partial_ordering compare(const point_type& point) const override;
+        // Results here are either interior or exterior, plane is not considered to have or be a boundary
+        std::partial_ordering compare(const point_type& point, int tolerance = math::tolerance_default) const override;
 
     private:
 
@@ -120,7 +120,7 @@ void quetzal::geometry::Plane<Traits>::set_normal(const vector_type& normal) req
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-std::partial_ordering quetzal::geometry::Plane<Traits>::compare(const point_type& point) const
+std::partial_ordering quetzal::geometry::Plane<Traits>::compare(const point_type& point, int tolerance) const
 {
     if constexpr(Traits::dimension == 2)
     {
@@ -128,8 +128,9 @@ std::partial_ordering quetzal::geometry::Plane<Traits>::compare(const point_type
     }
     else if constexpr(Traits::dimension >= 3)
     {
-        auto d = dot(m_normal, point - m_point);
-        return math::float_eq0(d) ? std::partial_ordering::less : std::partial_ordering::greater;
+        auto a = dot(m_normal, point.vector());
+        auto b = dot(m_normal, m_point.vector());
+        return math::float_eq(a, b, tolerance) ? std::partial_ordering::less : std::partial_ordering::greater;
     }
 }
 

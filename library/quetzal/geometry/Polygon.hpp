@@ -105,15 +105,15 @@ namespace quetzal::geometry
 
         // Returns less, equivalent, greater for interior, boundary, exterior respectively
         // Exterior is defined by the winding order
-        std::partial_ordering compare(const point_type& point) const override;
+        std::partial_ordering compare(const point_type& point, int tolerance = math::tolerance_default) const override;
 
         virtual void clear();
 
         // Point is in the region defined by the polygon
         // Results are indeterminate if the point is on an edge
         // integrate these into compare ...
-        bool contains_(const point_type& point) const requires (Traits::dimension == 2);
-        bool contains_(const point_type& point) const requires (Traits::dimension == 3);
+        bool contains_(const point_type& point, int tolerance = math::tolerance_default) const requires (Traits::dimension == 2);
+        bool contains_(const point_type& point, int tolerance = math::tolerance_default) const requires (Traits::dimension == 3);
 
         AxisAlignedBoundingBox<Traits> bounds() const;
 
@@ -455,18 +455,18 @@ void quetzal::geometry::Polygon<Traits>::scale(value_type factor)
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-std::partial_ordering quetzal::geometry::Polygon<Traits>::compare(const point_type& point) const
+std::partial_ordering quetzal::geometry::Polygon<Traits>::compare(const point_type& point, int tolerance) const
 {
     for (size_t i = 0; i < edge_count(); ++i)
     {
         auto segment = edge(i);
-        if (segment.contains(point))
+        if (segment.contains(point, tolerance))
         {
             return std::partial_ordering::equivalent;
         }
     }
 
-    return contains_(point) ? std::partial_ordering::less : std::partial_ordering::greater;
+    return contains_(point, tolerance) ? std::partial_ordering::less : std::partial_ordering::greater;
 }
 
 //------------------------------------------------------------------------------
@@ -481,13 +481,13 @@ void quetzal::geometry::Polygon<Traits>::clear()
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-bool quetzal::geometry::Polygon<Traits>::contains_(const point_type& point) const requires (Traits::dimension == 2)
+bool quetzal::geometry::Polygon<Traits>::contains_(const point_type& point, int tolerance) const requires (Traits::dimension == 2)
 {
     // Return >0: left, ==0: on, <0: right for p2 relative to the line through p0 and p1
-    auto left = [](point_type p0, point_type p1, point_type p2)
+    auto left = [tolerance](point_type p0, point_type p1, point_type p2)
     {
         auto t = (p1.x() - p0.x()) * (p2.y() - p0.y()) - (p2.x() -  p0.x()) * (p1.y() - p0.y());
-        return math::float_compare0(t);
+        return math::float_compare0(t, tolerance);
     };
 
     auto vertices = m_vertices;
@@ -497,15 +497,15 @@ bool quetzal::geometry::Polygon<Traits>::contains_(const point_type& point) cons
 
     for (size_t i = 0; i < edge_count(); ++i)
     {
-        if (math::float_le(vertices[i].y(), point.y()))
+        if (math::float_le(vertices[i].y(), point.y(), tolerance))
         {
-            if (math::float_gt(vertices[i + 1].y(), point.y())) // upward crossing
+            if (math::float_gt(vertices[i + 1].y(), point.y(), tolerance)) // upward crossing
                  if (left(vertices[i], vertices[i + 1], point) > 0)
                      ++n; // valid up intersect
         }
         else
         {
-            if (math::float_le(vertices[i + 1].y(), point.y())) // downward crossing
+            if (math::float_le(vertices[i + 1].y(), point.y(), tolerance)) // downward crossing
                  if (left(vertices[i], vertices[i + 1], point) < 0)
                      --n; // valid down intersect
         }
@@ -516,9 +516,9 @@ bool quetzal::geometry::Polygon<Traits>::contains_(const point_type& point) cons
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-bool quetzal::geometry::Polygon<Traits>::contains_(const point_type& point) const requires (Traits::dimension == 3)
+bool quetzal::geometry::Polygon<Traits>::contains_(const point_type& point, int tolerance) const requires (Traits::dimension == 3)
 {
-    if (!planar() || !plane().contains(point))
+    if (!planar() || !plane().contains(point, tolerance))
     {
         return false;
     }
@@ -530,7 +530,7 @@ bool quetzal::geometry::Polygon<Traits>::contains_(const point_type& point) cons
     projection_type projection(normal());
     Polygon<projected_traits> polygon_projected;
     std::transform(m_vertices.begin(), m_vertices.end(), std::back_inserter(polygon_projected.vertices()), [&](const point_type& point) -> projected_type { return projection(point); });
-    return polygon_projected.contains_(projection(point));
+    return polygon_projected.contains_(projection(point), tolerance);
 }
 
 //------------------------------------------------------------------------------

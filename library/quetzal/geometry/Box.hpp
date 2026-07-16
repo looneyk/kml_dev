@@ -39,7 +39,7 @@ namespace quetzal::geometry
         void set_bounds(const point_type& lower, const point_type& upper);
 
         // Returns less, equivalent, greater for interior, boundary, exterior respectively
-        std::partial_ordering compare(const point_type& point) const override;
+        std::partial_ordering compare(const point_type& point, int tolerance = math::tolerance_default) const override;
 
         virtual void print(std::ostream& os) const;
 
@@ -106,7 +106,7 @@ void quetzal::geometry::Box<Traits>::set_bounds(const point_type& lower, const p
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-std::partial_ordering quetzal::geometry::Box<Traits>::compare(const point_type& point) const
+std::partial_ordering quetzal::geometry::Box<Traits>::compare(const point_type& point, int tolerance) const
 {
 // expose so it can be handled by caller, or just leave it to caller and assert ...
 //    order();
@@ -115,7 +115,7 @@ std::partial_ordering quetzal::geometry::Box<Traits>::compare(const point_type& 
     {
         if constexpr (std::is_floating_point_v<Traits::value_type>)
         {
-            if (math::float_lt(point[i], m_lower[i]) || math::float_gt(point[i], m_upper[i]))
+            if (math::float_lt(point[i], m_lower[i], tolerance) || math::float_gt(point[i], m_upper[i], tolerance))
             {
                 return std::partial_ordering::greater;
             }
@@ -133,7 +133,7 @@ std::partial_ordering quetzal::geometry::Box<Traits>::compare(const point_type& 
     {
         if constexpr (std::is_floating_point_v<Traits::value_type>)
         {
-            if (math::float_ne(point[i], m_lower[i]) || math::float_ne(point[i], m_upper[i]))
+            if (math::float_ne(point[i], m_lower[i], tolerance) || math::float_ne(point[i], m_upper[i], tolerance))
             {
                 return std::partial_ordering::less;
             }

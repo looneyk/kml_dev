@@ -33,7 +33,7 @@ namespace quetzal::geometry
         virtual void clear() = 0;
 
         // Returns less, equivalent, greater for interior, boundary, exterior respectively
-        virtual std::partial_ordering compare(const point_type& point) const = 0;
+        virtual std::partial_ordering compare(const point_type& point, int tolerance = math::tolerance_default) const = 0;
 
         virtual bool empty() const = 0;
 

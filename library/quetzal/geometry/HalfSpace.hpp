@@ -42,7 +42,7 @@ namespace quetzal::geometry
         void set(const separator_type& separator, const vector_type& exterior_direction);
 
         // Returns less, equivalent, greater for interior, boundary, exterior respectively
-        std::partial_ordering compare(const point_type& point) const override;
+        std::partial_ordering compare(const point_type& point, int tolerance = math::tolerance_default) const override;
 
     private:
 
@@ -89,7 +89,7 @@ void quetzal::geometry::HalfSpace<Traits>::set(const separator_type& separator, 
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-std::partial_ordering quetzal::geometry::HalfSpace<Traits>::compare(const point_type& position) const
+std::partial_ordering quetzal::geometry::HalfSpace<Traits>::compare(const point_type& position, int tolerance) const
 {
     point_type reference_position;
     if constexpr(Traits::dimension >= 2)
@@ -102,7 +102,7 @@ std::partial_ordering quetzal::geometry::HalfSpace<Traits>::compare(const point_
     }
 
     auto d = dot(m_exterior_direction, (position - reference_position));
-    return math::float_compare0(d);
+    return math::float_compare0(d, tolerance);
 }
 
 //------------------------------------------------------------------------------
