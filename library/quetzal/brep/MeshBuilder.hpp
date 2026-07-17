@@ -7,6 +7,7 @@
 
 #include "geometry.hpp"
 #include "quetzal/geometry/Attributes.hpp"
+#include <format>
 #include <span>
 #include <string>
 #include <unordered_map>
@@ -173,7 +174,7 @@ void quetzal::brep::MeshBuilder<M>::close_mesh()
         id_type halfedge_id = *m_borders.begin();
         id_type submesh_id = m_pmesh->halfedge(halfedge_id).face().submesh_id();
 
-        std::string name = 's' + std::to_string(m_pmesh->surface_store_count());
+        auto name = std::format("s{}", m_pmesh->surface_store_count());
 
         id_type surface_id = m_pmesh->create_surface(submesh_id, name);
         id_type face_id = create_border_face(*m_pmesh, halfedge_id, vector_type::z_direction(), surface_id); // dummy normal, will be calculated next

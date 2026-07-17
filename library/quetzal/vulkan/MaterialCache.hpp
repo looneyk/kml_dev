@@ -45,7 +45,7 @@ namespace quetzal::vulkan
         MaterialHandle create(const std::string& vert_shader, const std::string& frag_shader,
             const VkVertexInputBindingDescription& binding_desc, const std::vector<VkVertexInputAttributeDescription>& attr_descs)
         {
-            std::string layout_key = std::to_string(binding_desc.binding) + ":" + std::to_string(binding_desc.stride);
+            std::string layout_key = std::format("{}:{}", binding_desc.binding, binding_desc.stride);
             for (const auto& ad : attr_descs)
                 layout_key += std::format("|{}:{}:{}", ad.location, ad.format, ad.offset);
             std::string key = std::format("{}|{}|{}", vert_shader, frag_shader, layout_key);

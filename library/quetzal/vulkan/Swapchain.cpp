@@ -6,6 +6,7 @@
 #include "Swapchain.hpp"
 #include "VulkanError.hpp"
 #include "vulkan_util.hpp"
+#include "quetzal/common/string_util.hpp"
 #include <algorithm>
 #include <limits>
 #include <stdexcept>
@@ -131,7 +132,7 @@ namespace
         std::string usage_list;
         for (VkImageUsageFlagBits image_usage_flag : validated_image_usage_flags)
         {
-            usage_list += std::to_string(image_usage_flag) + " ";
+            usage_list += quetzal::to_string(image_usage_flag) + " ";
         }
         // log usage list ...
 
@@ -173,7 +174,7 @@ namespace
 
         if (i != available_surface_formats.end())
         {
-            // log "(Swapchain) Surface format selected: {}", std::to_string(requested_surface_format)
+            // log "(Swapchain) Surface format selected: {}", quetzal::to_string(requested_surface_format)
             return *i;
         }
 
@@ -185,7 +186,7 @@ namespace
                 });
             if (i != available_surface_formats.end())
             {
-                // log "(Swapchain) Surface format ({}) not supported. Selecting ({}).", std::to_string(requested_surface_format), std::to_string(*i)
+                // log "(Swapchain) Surface format ({}) not supported. Selecting ({}).", quetzal::to_string(requested_surface_format), quetzal::to_string(*i)
                 return *i;
             }
         }

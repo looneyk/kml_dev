@@ -6,6 +6,7 @@
 //------------------------------------------------------------------------------
 
 #include "quetzal/common/id.hpp"
+#include "quetzal/common/string_util.hpp"
 #include "quetzal/geometry/AxisAlignedBoundingBox.hpp"
 #include "quetzal/math/floating_point.hpp"
 #include <algorithm>
@@ -186,9 +187,9 @@ namespace quetzal::spatial_search
             void print(std::ostream& os, size_t n) const
             {
                 os << n << '\t' << boundingBox << '\t'
-                    << (nLeft == nullid ? "null" : std::to_string(nLeft)) << '\t'
-                    << (nRight == nullid ? "null" : std::to_string(nRight)) << '\t'
-                    << (nPrimitive == nullid ? "null" : std::to_string(nPrimitive)) << std::endl;
+                    << (nLeft == nullid ? "null" : quetzal::to_string(nLeft)) << '\t'
+                    << (nRight == nullid ? "null" : quetzal::to_string(nRight)) << '\t'
+                    << (nPrimitive == nullid ? "null" : quetzal::to_string(nPrimitive)) << std::endl;
                 return;
             }
         };

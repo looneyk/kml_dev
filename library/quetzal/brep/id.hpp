@@ -6,6 +6,8 @@
 //------------------------------------------------------------------------------
 
 #include "quetzal/common/id.hpp"
+#include "quetzal/common/string_util.hpp"
+#include <format>
 #include <string>
 #include <cstdint>
 
@@ -41,15 +43,15 @@ std::string quetzal::brep::id_string(id_type id, const T& container)
 
     if (id >= container.size())
     {
-        return std::to_string(id) + " out of range";
+        return std::format("id {} out of range", id);
     }
 
     if (container[id].deleted())
     {
-        return std::to_string(id) + " deleted";
+        return std::format("id {} deleted", id);
     }
 
-    return std::to_string(id);
+    return quetzal::to_string(id);
 }
 
 //------------------------------------------------------------------------------
@@ -60,7 +62,7 @@ inline std::string quetzal::brep::id_string(id_type id)
         return "nullid";
     }
 
-    return std::to_string(id);
+    return quetzal::to_string(id);
 }
 
 //------------------------------------------------------------------------------
@@ -71,7 +73,7 @@ inline std::string quetzal::brep::partner_id_string(id_type id)
         return "border";
     }
 
-    return std::to_string(id);
+    return quetzal::to_string(id);
 }
 
 #endif // QUETZAL_BREP_ID_HPP

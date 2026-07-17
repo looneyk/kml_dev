@@ -3,6 +3,7 @@
 #include "GeometryNode.hpp"
 #include "MaterialNode.hpp"
 #include "TransformNode.hpp"
+#include "quetzal/common/string_util.hpp"
 #include "quetzal/vulkan/TextureData.hpp"
 #include "quetzal/vulkan/Vertex.hpp"
 #include <fastgltf/core.hpp>
@@ -207,7 +208,7 @@ void load_node(Scene& scene,
 {
     const auto& node = asset.nodes[node_index];
     std::string node_id = id_prefix +
-        (node.name.empty() ? std::to_string(node_index) : std::string(node.name.c_str()));
+        (node.name.empty() ? quetzal::to_string(node_index) : node.name.c_str());
 
     auto transform_node = std::make_shared<TransformNode>(node_id, to_matrix(node));
     Node& xform_ref = scene.insert(parent, std::move(transform_node));
@@ -217,7 +218,7 @@ void load_node(Scene& scene,
         const auto& mesh = asset.meshes[node.meshIndex.value()];
         for (std::size_t i = 0; i < mesh.primitives.size(); ++i)
         {
-            std::string prim_id = node_id + "_p" + std::to_string(i);
+            std::string prim_id = node_id + "_p" + quetzal::to_string(i);
             load_primitive(scene, xform_ref, renderer, assets, asset,
                 mesh.primitives[i], prim_id, gltf_dir, shaders);
         }

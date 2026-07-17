@@ -110,8 +110,8 @@ void quetzal::svg::Document::set_svg()
 //------------------------------------------------------------------------------
 void quetzal::svg::Document::finalize()
 {
-    m_document.element().set_attribute("width", std::to_string(m_viewport_size.x()));
-    m_document.element().set_attribute("height", std::to_string(m_viewport_size.y()));
+    m_document.element().set_attribute("width", quetzal::to_string(m_viewport_size.x()));
+    m_document.element().set_attribute("height", quetzal::to_string(m_viewport_size.y()));
 
     point_type view_box_position;
     size_type view_box_size;

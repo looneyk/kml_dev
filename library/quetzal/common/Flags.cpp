@@ -4,9 +4,10 @@
 //------------------------------------------------------------------------------
 
 #include "Flags.hpp"
-#include <type_traits>
+#include "string_util.hpp"
 #include <iostream>
 #include <string>
+#include <type_traits>
 #include <cassert>
 
 using namespace std;
@@ -186,6 +187,6 @@ ostream& quetzal::operator<<(ostream& os, const Flags& flags)
     os << (flags.visited() ? 'V' : '-');
     os << (flags.checked() ? 'C' : '-');
     os << (flags.marked() ? 'M' : '-');
-    os << '<' << (flags.compared() ? to_string(flags.comparison()) : "-") << '>';
+    os << '<' << (flags.compared() ? quetzal::to_string(flags.comparison()) : "-") << '>';
     return os;
 }

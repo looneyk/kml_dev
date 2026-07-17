@@ -5,6 +5,7 @@
 // visualizer.hpp
 //------------------------------------------------------------------------------
 
+#include "quetzal/common/string_util.hpp"
 #include "quetzal/svg/Document.hpp"
 #include <filesystem>
 #include <format>
@@ -143,9 +144,9 @@ void quetzal::brep::Visualizer<M>::draw_face_id(const face_type& face)
     auto path_text = std::format("M {} {} L {} {}", p0.x(), p0.y(), p1.x(), p1.y());
 
     // Draw face id
-    auto caption = std::to_string(face.id());
+    auto caption = quetzal::to_string(face.id());
     auto font_size = scale_font(z);
-    m_document.text_path(caption, xml::Attribute("path", path_text), xml::Attribute("font-size", std::to_string(font_size)));
+    m_document.text_path(caption, xml::Attribute("path", path_text), xml::Attribute("font-size", quetzal::to_string(font_size)));
     return;
 }
 
@@ -213,7 +214,7 @@ void quetzal::brep::Visualizer<M>::draw_halfedge(const halfedge_type& halfedge, 
     size_t digit_count = 1; // 2 (with better point formatting support, no need for breaking out by components here) ...
     auto caption = std::format("{} {} ({:.{}f}, {:.{}f}, {:.{}f})", halfedge.id(), halfedge.face_id(), position0.x(), digit_count, position0.y(), digit_count, position0.z(), digit_count);
     auto font_size = scale_font(z);
-    m_document.text_path(caption, xml::Attribute("path", path_text), xml::Attribute("font-size", std::to_string(font_size)));
+    m_document.text_path(caption, xml::Attribute("path", path_text), xml::Attribute("font-size", quetzal::to_string(font_size)));
     return;
 }
 

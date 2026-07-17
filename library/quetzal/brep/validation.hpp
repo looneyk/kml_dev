@@ -1857,7 +1857,7 @@ void quetzal::brep::dump(const M& mesh)
     size_t n = 0;
     for (const auto& halfedge : mesh.halfedge_store())
     {
-        write_halfedge<M>(halfedge, "Halfedge[" + std::to_string(n++) + ']');
+        write_halfedge<M>(halfedge, std::format("Halfedge[{}]", n++));
         if (halfedge.deleted())
         {
             continue;
@@ -1869,7 +1869,7 @@ void quetzal::brep::dump(const M& mesh)
     n = 0;
     for (const auto& vertex : mesh.vertex_store())
     {
-        write_vertex<M>(vertex, "Vertex[" + std::to_string(n++) + ']');
+        write_vertex<M>(vertex, std::format("Vertex[{}]", n++));
         if (vertex.deleted())
         {
             continue;
@@ -1945,7 +1945,7 @@ void quetzal::brep::dump(const M& mesh)
     n = 0;
     for (const auto& surface : mesh.surface_store())
     {
-        write_surface<M>(surface, "Surface[" + std::to_string(n++) + ']');
+        write_surface<M>(surface, std::format("Surface[{}]", n++));
         if (surface.deleted())
         {
             continue;
@@ -1963,7 +1963,7 @@ void quetzal::brep::dump(const M& mesh)
     n = 0;
     for (const auto& submesh : mesh.submesh_store())
     {
-        write_submesh<M>(submesh, "Submesh[" + std::to_string(n++) + ']');
+        write_submesh<M>(submesh, std::format("Submesh[{}]", n++));
         if (submesh.deleted())
         {
             continue;
@@ -1987,19 +1987,19 @@ void quetzal::brep::dump_compact(const M& mesh)
     size_t n = 0;
     for (const auto& halfedge : mesh.halfedge_store())
     {
-        write_halfedge<M>(halfedge, "Halfedge[" + std::to_string(n++) + ']');
+        write_halfedge<M>(halfedge, std::format("Halfedge[{}]", n++));
     }
 
     n = 0;
     for (const auto& vertex : mesh.vertex_store())
     {
-        write_vertex<M>(vertex, "Vertex[" + std::to_string(n++) + ']');
+        write_vertex<M>(vertex, std::format("Vertex[{}]", n++));
     }
 
     n = 0;
     for (const auto& face : mesh.face_store())
     {
-        write_face<M>(face, "Face[" + std::to_string(n++) + ']');
+        write_face<M>(face, std::format("Face[{}]", n++));
         if (face.deleted())
         {
             continue;
@@ -2014,7 +2014,7 @@ void quetzal::brep::dump_compact(const M& mesh)
     n = 0;
     for (const auto& surface : mesh.surface_store())
     {
-        write_surface<M>(surface, "Surface[" + std::to_string(n++) + ']');
+        write_surface<M>(surface, std::format("Surface[{}]", n++));
     }
 
     std::cout << "Surface index" << eol;
@@ -2026,7 +2026,7 @@ void quetzal::brep::dump_compact(const M& mesh)
     n = 0;
     for (const auto& submesh : mesh.submesh_store())
     {
-        write_submesh<M>(submesh, "Submesh[" + std::to_string(n++) + ']');
+        write_submesh<M>(submesh, std::format("Submesh[{}]", n++));
     }
 
     std::cout << "Submesh index" << eol;
@@ -2045,7 +2045,7 @@ void quetzal::brep::dump_structure(const M& mesh)
     size_t n = 0;
     for (const auto& surface : mesh.surface_store())
     {
-        write_surface<M>(surface, "Surface[" + std::to_string(n++) + ']');
+        write_surface<M>(surface, std::format("Surface[{}]", n++));
         if (surface.deleted())
         {
             continue;
@@ -2063,7 +2063,7 @@ void quetzal::brep::dump_structure(const M& mesh)
     n = 0;
     for (const auto& submesh : mesh.submesh_store())
     {
-        write_submesh<M>(submesh, "Submesh[" + std::to_string(n++) + ']');
+        write_submesh<M>(submesh, std::format("Submesh[{}]", n++));
         if (submesh.deleted())
         {
             continue;

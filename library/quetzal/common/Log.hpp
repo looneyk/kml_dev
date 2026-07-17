@@ -4,6 +4,7 @@
 // Log.hpp
 //------------------------------------------------------------------------------
 
+#include "string_util.hpp"
 #include "system_path.hpp"
 #include "LogLevel.hpp"
 #include "DateTime.hpp"
@@ -94,7 +95,7 @@ namespace quetzal
         {
             assert(m_os);
 
-            m_os << DateTime().to_string() << " " << to_string(level) << " ";
+            m_os << DateTime().to_string() << " " << quetzal::to_string(level) << " ";
 
             return m_os;
         }

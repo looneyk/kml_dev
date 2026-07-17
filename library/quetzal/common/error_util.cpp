@@ -20,7 +20,7 @@ std::string quetzal::to_error_string(DWORD error)
 {
     FormatMessageW(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, nullptr, error, 0, buffer, static_cast<DWORD>(size(buffer)), nullptr);
 
-    return to_string(wstring(buffer)); // to_utf8 ...
+    return to_string(wstring(buffer));
 }
 
 //------------------------------------------------------------------------------

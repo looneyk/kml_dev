@@ -154,7 +154,7 @@ void quetzal::brep::attach_x(M& mesh, id_type idFaceA, id_type idFaceB)
         }
         else
         {
-            id_type idSurfaceHole = mesh.create_surface(idSubmesh, mesh.surface(idSurface).name() + std::to_string(i), mesh.surface(idSurface).attributes(), mesh.surface(idSurface).properties());
+            id_type idSurfaceHole = mesh.create_surface(idSubmesh, mesh.surface(idSurface).name() + quetzal::to_string(i), mesh.surface(idSurface).attributes(), mesh.surface(idSurface).properties());
             face.set_surface_id(idSurfaceHole);
 
             if constexpr (M::vertex_attributes_type::contains(geometry::AttributesFlags::Texcoord0))

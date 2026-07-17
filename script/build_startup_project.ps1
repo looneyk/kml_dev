@@ -107,6 +107,8 @@ if (-not $dte) {
     exit 1
 }
 
+$dte.Documents.SaveAll()
+
 $allProjects = Get-AllProjects $dte.Solution.Projects
 $startupUniqueNames = @($dte.Solution.SolutionBuild.StartupProjects)
 $activeConfig = $dte.Solution.SolutionBuild.ActiveConfiguration

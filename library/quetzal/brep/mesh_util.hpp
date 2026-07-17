@@ -16,6 +16,7 @@
 #include "quetzal/math/floating_point.hpp"
 #include "quetzal/math/math_util.hpp"
 #include <array>
+#include <format>
 #include <functional>
 #include <map>
 #include <optional>
@@ -230,7 +231,7 @@ void quetzal::brep::add_face_surfaces(U& u, const std::string& prefix)
 {
     for (auto& face : u.faces())
     {
-        std::string name = prefix + std::to_string(face.id());
+        auto name = std::format("{}{}", prefix, face.id());
         if (face.surface().name() != name)
         {
             u.add_surface_face(face.submesh_id(), name, face.id());

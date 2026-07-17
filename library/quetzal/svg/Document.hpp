@@ -5,6 +5,7 @@
 // Document.hpp
 //------------------------------------------------------------------------------
 
+#include "quetzal/common/string_util.hpp"
 #include "quetzal/math/CartesianTraits.hpp"
 #include "quetzal/math/Vector.hpp"
 #include "quetzal/geometry/AxisAlignedBoundingBox.hpp"
@@ -143,7 +144,7 @@ template<typename... Args>
 std::shared_ptr<quetzal::xml::Element> quetzal::svg::Document::rectangle(point_type position, value_type dx, value_type dy, Args... args)
 {
     std::shared_ptr<xml::Element> pelement = m_pelement->add_element("rect");
-    set_attributes(pelement, xml::Attribute("x", std::to_string(position.x())), xml::Attribute("y", std::to_string(position.y())), xml::Attribute("width", std::to_string(dx)), xml::Attribute("height", std::to_string(dy)), args...);
+    set_attributes(pelement, xml::Attribute("x", quetzal::to_string(position.x())), xml::Attribute("y", quetzal::to_string(position.y())), xml::Attribute("width", quetzal::to_string(dx)), xml::Attribute("height", quetzal::to_string(dy)), args...);
     update_size(position);
     update_size(position + vector_type(dx, dy));
     return pelement;
@@ -154,7 +155,7 @@ template<typename... Args>
 std::shared_ptr<quetzal::xml::Element> quetzal::svg::Document::circle(point_type position, value_type radius, Args... args)
 {
     std::shared_ptr<xml::Element> pelement = m_pelement->add_element("circle");
-    set_attributes(pelement, xml::Attribute("cx", std::to_string(position.x())), xml::Attribute("cy", std::to_string(position.y())), xml::Attribute("r", std::to_string(radius)), args...);
+    set_attributes(pelement, xml::Attribute("cx", quetzal::to_string(position.x())), xml::Attribute("cy", quetzal::to_string(position.y())), xml::Attribute("r", quetzal::to_string(radius)), args...);
     update_size(position + vector_type(-radius, -radius));
     update_size(position + vector_type(radius, radius));
     return pelement;
@@ -165,7 +166,7 @@ template<typename... Args>
 std::shared_ptr<quetzal::xml::Element> quetzal::svg::Document::ellipse(point_type position, value_type rx, value_type ry, Args... args)
 {
     std::shared_ptr<xml::Element> pelement = m_pelement->add_element("ellipse");
-    set_attributes(pelement, xml::Attribute("cx", std::to_string(position.x())), xml::Attribute("cy", std::to_string(position.y())), xml::Attribute("rx", std::to_string(rx)), xml::Attribute("ry", std::to_string(ry)), args...);
+    set_attributes(pelement, xml::Attribute("cx", quetzal::to_string(position.x())), xml::Attribute("cy", quetzal::to_string(position.y())), xml::Attribute("rx", quetzal::to_string(rx)), xml::Attribute("ry", quetzal::to_string(ry)), args...);
     update_size(position + vector_type(-rx, -ry));
     update_size(position + vector_type(rx, ry));
     return pelement;
@@ -176,7 +177,7 @@ template<typename... Args>
 std::shared_ptr<quetzal::xml::Element> quetzal::svg::Document::line(point_type p0, point_type p1, Args... args)
 {
     std::shared_ptr<xml::Element> pelement = m_pelement->add_element("line");
-    set_attributes(pelement, xml::Attribute("x1", std::to_string(p0.x())), xml::Attribute("y1", std::to_string(p0.y())), xml::Attribute("x2", std::to_string(p1.x())), xml::Attribute("y2", std::to_string(p1.y())), args...);
+    set_attributes(pelement, xml::Attribute("x1", quetzal::to_string(p0.x())), xml::Attribute("y1", quetzal::to_string(p0.y())), xml::Attribute("x2", quetzal::to_string(p1.x())), xml::Attribute("y2", quetzal::to_string(p1.y())), args...);
     update_size(p0);
     update_size(p1);
     return pelement;
@@ -227,7 +228,7 @@ template<typename... Args>
 std::shared_ptr<quetzal::xml::Element> quetzal::svg::Document::text(point_type position, const std::string& s, Args... args)
 {
     std::shared_ptr<xml::Element> pelement = m_pelement->add_element("text", s);
-    set_attributes(pelement, xml::Attribute("x", std::to_string(position.x())), xml::Attribute("y", std::to_string(position.y())), args...);
+    set_attributes(pelement, xml::Attribute("x", quetzal::to_string(position.x())), xml::Attribute("y", quetzal::to_string(position.y())), args...);
     update_size(position);
     return pelement;
 }
@@ -247,7 +248,7 @@ template<typename... Args>
 std::shared_ptr<quetzal::xml::Element> quetzal::svg::Document::use(const std::string& href, point_type position, size_type size, Args... args)
 {
     std::shared_ptr<xml::Element> pelement = m_pelement->add_element("use");
-    set_attributes(pelement, xml::Attribute("href", href), xml::Attribute("x", std::to_string(position.x())), xml::Attribute("y", std::to_string(position.y())), xml::Attribute("width", std::to_string(size.x())), xml::Attribute("height", std::to_string(size.y())), args...);
+    set_attributes(pelement, xml::Attribute("href", href), xml::Attribute("x", quetzal::to_string(position.x())), xml::Attribute("y", quetzal::to_string(position.y())), xml::Attribute("width", quetzal::to_string(size.x())), xml::Attribute("height", quetzal::to_string(size.y())), args...);
     update_size(position);
     update_size(position + size); // is there a possible offset? ...
     return pelement;
@@ -258,9 +259,9 @@ template<typename... Args>
 std::shared_ptr<quetzal::xml::Element> quetzal::svg::Document::open_symbol(const std::string& id, size_type size, Args... args)
 {
     std::shared_ptr<xml::Element> pelement = m_pelement->add_element("symbol");
-//    set_attributes(pelement, xml::Attribute("id", id), xml::Attribute("width", std::to_string(size.x())), xml::Attribute("height", std::to_string(size.y())), xml::Attribute("refX", "center"), xml::Attribute("refY", "center"), args...);
+//    set_attributes(pelement, xml::Attribute("id", id), xml::Attribute("width", quetzal::to_string(size.x())), xml::Attribute("height", quetzal::to_string(size.y())), xml::Attribute("refX", "center"), xml::Attribute("refY", "center"), args...);
 size;
-    set_attributes(pelement, xml::Attribute("id", std::to_string(id)), xml::Attribute("refX", "center"), xml::Attribute("refY", "center"), args...);
+    set_attributes(pelement, xml::Attribute("id", quetzal::to_string(id)), xml::Attribute("refX", "center"), xml::Attribute("refY", "center"), args...);
     m_pelement = pelement.get();
     return pelement;
 }

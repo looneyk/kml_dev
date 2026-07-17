@@ -14,6 +14,7 @@
 #include "handles.hpp"
 #include <cassert>
 #include <cstddef>
+#include <format>
 #include <string>
 #include <unordered_map>
 
@@ -40,7 +41,7 @@ namespace quetzal::vulkan
 
         MaterialInstanceHandle create(const MaterialHandle& material, const MaterialParameters& params)
         {
-            std::string key = "mi_" + std::to_string(m_next_id++);
+            auto key = std::format("mi_{}", m_next_id++);
             auto [i, inserted] = m_cache.try_emplace(key, m_device);
             assert(inserted);
             std::visit([&](const auto& p) { create_(i->second, material, p); }, params);

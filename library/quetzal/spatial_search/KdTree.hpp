@@ -6,6 +6,7 @@
 //------------------------------------------------------------------------------
 
 #include "quetzal/common/id.hpp"
+#include "quetzal/common/string_util.hpp"
 #include "quetzal/math/floating_point.hpp"
 #include "SeparatorPlane.hpp"
 #include <algorithm>
@@ -264,8 +265,8 @@ namespace quetzal::spatial_search
                 }
 
                 os
-                    << (nLeft == nullid ? "null" : std::to_string(nLeft)) << '\t'
-                    << (nRight == nullid ? "null" : std::to_string(nRight)) << std::endl;
+                    << (nLeft == nullid ? "null" : quetzal::to_string(nLeft)) << '\t'
+                    << (nRight == nullid ? "null" : quetzal::to_string(nRight)) << std::endl;
                 return;
             }
         };

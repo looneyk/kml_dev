@@ -8,6 +8,7 @@
 #include "Device.hpp"
 #include "cache_util.hpp"
 #include <vulkan/vulkan.hpp>
+#include <format>
 #include <mutex>
 #include <type_traits>
 #include <unordered_map>
@@ -102,7 +103,7 @@ T& quetzal::vulkan::ResourceCache<T>::request_resource(ResourceRecorder* precord
         auto [j, b] = m_cache.emplace(key, std::move(resource));
         if (!b)
         {
-            throw std::runtime_error{std::string{"Insertion error at #"} + std::to_string(n) + ", cache object type " + type};
+            throw std::runtime_error{std::format("Insertion error at #{}, cache object type {}", n, type)};
         }
 
         if (precorder)
