@@ -7,6 +7,7 @@
 
 #include "PointRelation.hpp"
 #include "Point.hpp"
+#include "quetzal/common/string_util.hpp"
 #include <format>
 #include <ostream>
 #include <sstream>
@@ -52,9 +53,6 @@ namespace quetzal::geometry
         point_type m_point;
         vector_type m_normal;
     };
-
-    template<typename Traits>
-    std::string to_string(const Plane<Traits>& plane);
 
     template<typename Traits>
     std::ostream& operator<<(std::ostream& os, Plane<Traits> plane);
@@ -136,18 +134,9 @@ std::partial_ordering quetzal::geometry::Plane<Traits>::compare(const point_type
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-std::string quetzal::geometry::to_string(const Plane<Traits>& plane)
-{
-    std::ostringstream oss;
-    oss << to_string(plane.point()) << ", " << to_string(plane.normal());
-    return oss.str();
-}
-
-//------------------------------------------------------------------------------
-template<typename Traits>
 std::ostream& quetzal::geometry::operator<<(std::ostream& os, Plane<Traits> plane)
 {
-    os << to_string(plane);
+    os << to_array_string(plane, os);
     return os;
 }
 
@@ -155,22 +144,24 @@ std::ostream& quetzal::geometry::operator<<(std::ostream& os, Plane<Traits> plan
 template<typename Traits>
 struct std::formatter<quetzal::geometry::Plane<Traits>>
 {
-    std::formatter<typename Traits::value_type> m_element_formatter;
+    // Plane has no formatting knobs of its own; the whole spec belongs to (and is entirely
+    // consumed by) the Point formatter, whose parsed state is then shared with a Vector
+    // formatter for the normal (they carry the identical set of fields).
+    std::formatter<quetzal::geometry::Point<Traits>> m_point_formatter;
 
     constexpr auto parse(std::format_parse_context& ctx)
     {
-        return m_element_formatter.parse(ctx);
+        return m_point_formatter.parse(ctx);
     }
 
     auto format(const quetzal::geometry::Plane<Traits>& plane, std::format_context& ctx) const
     {
-        std::formatter<quetzal::geometry::Point<Traits>> point_formatter;
-        point_formatter.m_element_formatter = m_element_formatter;
-
         std::formatter<quetzal::math::Vector<Traits>> vector_formatter;
-        vector_formatter.m_element_formatter = m_element_formatter;
+        vector_formatter.m_object_delimiters = m_point_formatter.m_object_delimiters;
+        vector_formatter.m_element_delimiter = m_point_formatter.m_element_delimiter;
+        vector_formatter.m_element_formatter = m_point_formatter.m_element_formatter;
 
-        auto out = point_formatter.format(plane.point(), ctx);
+        auto out = m_point_formatter.format(plane.point(), ctx);
         ctx.advance_to(out);
         *out++ = ',';
         *out++ = ' ';

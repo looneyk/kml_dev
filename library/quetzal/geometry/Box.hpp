@@ -7,7 +7,9 @@
 
 #include "Point.hpp"
 #include "PointRelation.hpp"
+#include "quetzal/common/string_util.hpp"
 #include "quetzal/math/floating_point.hpp"
+#include <format>
 #include <iostream>
 
 namespace quetzal::geometry
@@ -154,7 +156,7 @@ std::partial_ordering quetzal::geometry::Box<Traits>::compare(const point_type& 
 template<typename Traits>
 void quetzal::geometry::Box<Traits>::print(std::ostream& os) const
 {
-    os << to_string(m_lower) << " .. " << to_string(m_upper);
+    os << to_array_string(*this, os);
     return;
 }
 
@@ -195,5 +197,32 @@ std::ostream& quetzal::geometry::operator<<(std::ostream& os, const Box<Traits>&
     box.print(os);
     return os;
 }
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+struct std::formatter<quetzal::geometry::Box<Traits>>
+{
+    // Box has no formatting knobs of its own; the whole spec belongs to (and is entirely consumed
+    // by) the Point formatter, reused verbatim for lower and upper.
+    std::formatter<quetzal::geometry::Point<Traits>> m_point_formatter;
+
+    constexpr auto parse(std::format_parse_context& ctx)
+    {
+        return m_point_formatter.parse(ctx);
+    }
+
+    auto format(const quetzal::geometry::Box<Traits>& box, std::format_context& ctx) const
+    {
+        auto out = m_point_formatter.format(box.lower(), ctx);
+        ctx.advance_to(out);
+        *out++ = ' ';
+        *out++ = '.';
+        *out++ = '.';
+        *out++ = ' ';
+        ctx.advance_to(out);
+
+        return m_point_formatter.format(box.upper(), ctx);
+    }
+};
 
 #endif // QUETZAL_GEOMETRY_BOX_HPP

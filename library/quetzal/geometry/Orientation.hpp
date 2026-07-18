@@ -6,6 +6,8 @@
 //------------------------------------------------------------------------------
 
 #include "Vector.hpp"
+#include "quetzal/common/string_util.hpp"
+#include <format>
 #include <iostream>
 
 namespace quetzal::geometry
@@ -155,8 +157,33 @@ void quetzal::geometry::Orientation<Traits>::clear()
 template<typename Traits>
 std::ostream& quetzal::geometry::operator<<(std::ostream& os, Orientation<Traits> orientation)
 {
-    os << to_string(orientation.direction()) << ", " << to_string(orientation.right());
+    os << to_array_string(orientation, os);
     return os;
 }
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+struct std::formatter<quetzal::geometry::Orientation<Traits>>
+{
+    // Orientation has no formatting knobs of its own; the whole spec belongs to (and is entirely
+    // consumed by) the Vector formatter, reused verbatim for direction and right.
+    std::formatter<quetzal::math::Vector<Traits>> m_vector_formatter;
+
+    constexpr auto parse(std::format_parse_context& ctx)
+    {
+        return m_vector_formatter.parse(ctx);
+    }
+
+    auto format(const quetzal::geometry::Orientation<Traits>& orientation, std::format_context& ctx) const
+    {
+        auto out = m_vector_formatter.format(orientation.direction(), ctx);
+        ctx.advance_to(out);
+        *out++ = ',';
+        *out++ = ' ';
+        ctx.advance_to(out);
+
+        return m_vector_formatter.format(orientation.right(), ctx);
+    }
+};
 
 #endif // QUETZAL_GEOMETRY_ORIENTATION_HPP

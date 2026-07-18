@@ -6,7 +6,9 @@
 //------------------------------------------------------------------------------
 
 #include "BoundingVolume.hpp"
+#include "quetzal/common/string_util.hpp"
 #include "quetzal/math/floating_point.hpp"
+#include <format>
 #include <iostream>
 #include <limits>
 
@@ -44,8 +46,8 @@ namespace quetzal::geometry
 
         void clear() override;
 
-        // Returns -1, 0, 1: interior, boundary, exterior
-        int compare(const point_type& point) const override;
+        // Returns less, equivalent, greater for interior, boundary, exterior respectively
+        std::partial_ordering compare(const point_type& point, int tolerance = math::tolerance_default) const override;
 
         bool empty() const override;
 
@@ -131,24 +133,24 @@ void quetzal::geometry::BoundingSphere<Traits>::clear()
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-int quetzal::geometry::BoundingSphere<Traits>::compare(const point_type& point) const
+std::partial_ordering quetzal::geometry::BoundingSphere<Traits>::compare(const point_type& point, int tolerance) const
 {
     if (m_radius >= value_type(0))
     {
         value_type d = (point - m_center).norm_squared();
         value_type r2 = m_radius * m_radius;
 
-        if (math::float_eq(d, r2))
+        if (math::float_eq(d, r2, tolerance))
         {
-            return 0;
+            return std::partial_ordering::equivalent;
         }
         else if (d < r2)
         {
-            return -1;
+            return std::partial_ordering::less;
         }
     }
 
-    return 1;
+    return std::partial_ordering::greater;
 }
 
 //------------------------------------------------------------------------------
@@ -162,8 +164,34 @@ bool quetzal::geometry::BoundingSphere<Traits>::empty() const
 template<typename Traits>
 void quetzal::geometry::BoundingSphere<Traits>::print(std::ostream& os) const
 {
-    os << to_string(m_center) << ", " << m_radius;
+    os << to_array_string(*this, os);
     return;
 }
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+struct std::formatter<quetzal::geometry::BoundingSphere<Traits>>
+{
+    // BoundingSphere has no formatting knobs of its own; the whole spec belongs to (and is entirely
+    // consumed by) the Point formatter, reused for the center, with its element formatter reused
+    // directly for the bare scalar radius (no Vector-style wrapper needed for a single value).
+    std::formatter<quetzal::geometry::Point<Traits>> m_point_formatter;
+
+    constexpr auto parse(std::format_parse_context& ctx)
+    {
+        return m_point_formatter.parse(ctx);
+    }
+
+    auto format(const quetzal::geometry::BoundingSphere<Traits>& sphere, std::format_context& ctx) const
+    {
+        auto out = m_point_formatter.format(sphere.center(), ctx);
+        ctx.advance_to(out);
+        *out++ = ',';
+        *out++ = ' ';
+        ctx.advance_to(out);
+
+        return m_point_formatter.m_element_formatter.format(sphere.radius(), ctx);
+    }
+};
 
 #endif // QUETZAL_GEOMETRY_BOUNDINGSPHERE_HPP

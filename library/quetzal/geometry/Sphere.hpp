@@ -7,6 +7,9 @@
 
 #include "PointRelation.hpp"
 #include "Point.hpp"
+#include "quetzal/common/string_util.hpp"
+#include "quetzal/math/floating_point.hpp"
+#include <format>
 #include <iostream>
 
 namespace quetzal::geometry
@@ -36,8 +39,8 @@ namespace quetzal::geometry
 
         point_type point(value_type azimuth, value_type elevation) const;
 
-        // Returns -1, 0, 1: interior, boundary, exterior
-        int compare(const point_type& point) const override;
+        // Returns less, equivalent, greater for interior, boundary, exterior respectively
+        std::partial_ordering compare(const point_type& point, int tolerance = math::tolerance_default) const override;
 
     private:
 
@@ -99,19 +102,51 @@ typename quetzal::geometry::Sphere<Traits>::point_type quetzal::geometry::Sphere
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-int quetzal::geometry::Sphere<Traits>::compare(const point_type& point)
+std::partial_ordering quetzal::geometry::Sphere<Traits>::compare(const point_type& point, int tolerance) const
 {
     value_type d2 = (point - m_center).norm_squared();
     value_type r2 = m_radius * m_radius;
-    return float_compare(d2, r2);
+
+    if (math::float_eq(d2, r2, tolerance))
+    {
+        return std::partial_ordering::equivalent;
+    }
+
+    return d2 < r2 ? std::partial_ordering::less : std::partial_ordering::greater;
 }
 
 //------------------------------------------------------------------------------
 template<typename Traits>
 std::ostream& quetzal::geometry::operator<<(std::ostream& os, const Sphere<Traits>& sphere)
 {
-    os << to_string(sphere.center()) << ", " << sphere.radius();
+    os << to_array_string(sphere, os);
     return os;
 }
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+struct std::formatter<quetzal::geometry::Sphere<Traits>>
+{
+    // Sphere has no formatting knobs of its own; the whole spec belongs to (and is entirely
+    // consumed by) the Point formatter, reused for the center, with its element formatter reused
+    // directly for the bare scalar radius (no Vector-style wrapper needed for a single value).
+    std::formatter<quetzal::geometry::Point<Traits>> m_point_formatter;
+
+    constexpr auto parse(std::format_parse_context& ctx)
+    {
+        return m_point_formatter.parse(ctx);
+    }
+
+    auto format(const quetzal::geometry::Sphere<Traits>& sphere, std::format_context& ctx) const
+    {
+        auto out = m_point_formatter.format(sphere.center(), ctx);
+        ctx.advance_to(out);
+        *out++ = ',';
+        *out++ = ' ';
+        ctx.advance_to(out);
+
+        return m_point_formatter.m_element_formatter.format(sphere.radius(), ctx);
+    }
+};
 
 #endif // QUETZAL_GEOMETRY_SPHERE_HPP

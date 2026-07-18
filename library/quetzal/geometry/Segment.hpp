@@ -7,6 +7,7 @@
 
 #include "PointRelation.hpp"
 #include "Point.hpp"
+#include "quetzal/common/string_util.hpp"
 #include "quetzal/math/floating_point.hpp"
 #include "quetzal/math/math_util.hpp"
 #include <algorithm>
@@ -85,9 +86,6 @@ namespace quetzal::geometry
 
     template<typename Traits>
     Segment<Traits> reverse(Segment<Traits> segment);
-
-    template<typename Traits>
-    std::string to_string(const Segment<Traits>& segment);
 
     template<typename Traits>
     std::ostream& operator<<(std::ostream& os, Segment<Traits> segment);
@@ -278,16 +276,9 @@ quetzal::geometry::Segment<Traits> quetzal::geometry::reverse(Segment<Traits> se
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-std::string quetzal::geometry::to_string(const Segment<Traits>& segment)
-{
-    return to_string(segment.endpoint(0)) + ", " + to_string(segment.endpoint(1));
-}
-
-//------------------------------------------------------------------------------
-template<typename Traits>
 std::ostream& quetzal::geometry::operator<<(std::ostream& os, Segment<Traits> segment)
 {
-    os << to_string(segment);
+    os << to_array_string(segment, os);
     return os;
 }
 
@@ -295,25 +286,24 @@ std::ostream& quetzal::geometry::operator<<(std::ostream& os, Segment<Traits> se
 template<typename Traits>
 struct std::formatter<quetzal::geometry::Segment<Traits>>
 {
-    std::formatter<typename Traits::value_type> m_element_formatter;
+    // Segment has no formatting knobs of its own; the whole spec belongs to (and is entirely
+    // consumed by) the Point formatter, reused verbatim for both endpoints.
+    std::formatter<quetzal::geometry::Point<Traits>> m_point_formatter;
 
     constexpr auto parse(std::format_parse_context& ctx)
     {
-        return m_element_formatter.parse(ctx);
+        return m_point_formatter.parse(ctx);
     }
 
     auto format(const quetzal::geometry::Segment<Traits>& segment, std::format_context& ctx) const
     {
-        std::formatter<quetzal::geometry::Point<Traits>> point_formatter;
-        point_formatter.m_element_formatter = m_element_formatter;
-
-        auto out = point_formatter.format(segment.endpoint(0), ctx);
+        auto out = m_point_formatter.format(segment.endpoint(0), ctx);
         ctx.advance_to(out);
         *out++ = ',';
         *out++ = ' ';
         ctx.advance_to(out);
 
-        return point_formatter.format(segment.endpoint(1), ctx);
+        return m_point_formatter.format(segment.endpoint(1), ctx);
     }
 };
 

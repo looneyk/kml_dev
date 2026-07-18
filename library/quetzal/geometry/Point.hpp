@@ -6,11 +6,13 @@
 //------------------------------------------------------------------------------
 
 #include "Vector.hpp"
+#include "quetzal/common/string_util.hpp"
 #include "quetzal/math/floating_point.hpp"
 #include <charconv>
 #include <concepts>
 #include <iosfwd>
 #include <format>
+#include <optional>
 //#include <ranges>
 #include <span>
 #include <sstream>
@@ -252,9 +254,6 @@ namespace quetzal::geometry
 
     template<typename Traits>
     bool float_priority_less(const Point<Traits>& lhs, const Point<Traits>& rhs, int tolerance);
-
-    template<typename Traits>
-    std::string to_string(const Point<Traits>& point);
 
     // These two operators are not symmetrical. extract parses numeric values separated by whitespace, and insert outputs a formatted point
 
@@ -985,16 +984,6 @@ bool quetzal::geometry::float_priority_less(const Point<Traits>& lhs, const Poin
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-std::string quetzal::geometry::to_string(const Point<Traits>& point)
-{
-    // insert/extract now handle typical formatting scenarios
-    std::ostringstream oss;
-    oss << point;
-    return oss.str();
-}
-
-//------------------------------------------------------------------------------
-template<typename Traits>
 std::istream& quetzal::geometry::operator>>(std::istream& is, Point<Traits>& point)
 {
     return Traits::extract(is, point.rep()); // add provision for specific format, as is should infer format ...
@@ -1004,8 +993,8 @@ std::istream& quetzal::geometry::operator>>(std::istream& is, Point<Traits>& poi
 template<typename Traits>
 std::ostream& quetzal::geometry::operator<<(std::ostream& os, const Point<Traits>& point)
 {
-    // prepare ...
-    return Traits::insert(os, point.rep()); // add provision for specific format ...
+    os << to_array_string(point, os);
+    return os;
 }
 
 //------------------------------------------------------------------------------
@@ -1043,6 +1032,7 @@ quetzal::geometry::Point<typename Traits::template resized_traits<Traits::templa
         for (size_t j = 0; j < M::cols; ++j)
         {
             point[i] += plhs[j] * rhs[j];
+//            point[i] = fma(plhs[j], rhs[j], point[i]);
         }
 
         plhs += M::cols;
@@ -1064,6 +1054,7 @@ quetzal::geometry::Point<typename Traits::template resized_traits<Traits::templa
         for (size_t j = 0; j < M::cols; ++j)
         {
             point[j] += lhs[i] * prhs[j];
+//            point[j] = fma(lhs[i], prhs[j], point[j]);
         }
 
         prhs += M::cols;
@@ -1084,6 +1075,7 @@ quetzal::geometry::Point<Traits>& quetzal::geometry::operator*=(Point<Traits>& l
         for (size_t i = 0; i < Traits::size; ++i)
         {
             point[j] += lhs[i] * rhs(i, j);
+//            point[j] = fma(lhs[i], rhs(i, j), point[j]);
         }
     }
 
@@ -1097,15 +1089,48 @@ struct std::formatter<quetzal::geometry::Point<Traits>>
 {
     std::formatter<typename Traits::value_type> m_element_formatter;
 
+    // Leading format-spec characters: an optional '[' or '(' selects a bracket pair to wrap the elements
+    // ('[' -> "[ ]", '(' -> "( )"), followed by an optional run of characters drawn from ",;: _" that
+    // becomes the literal element separator verbatim, with '_' standing in for a space (so the separator
+    // can be spelled out unambiguously in a spec string without relying on trailing/embedded raw spaces,
+    // e.g. "[,_" -> bracket '[' + separator ", "; "_:_"  -> separator " : "). Neither of these leading
+    // sections appears in the output otherwise. Whatever remains of the spec after them is handed to the
+    // element type's own formatter (precision, etc.).
+    std::optional<std::pair<char, char>> m_object_delimiters;
+    std::string m_element_delimiter = " ";
+
     constexpr auto parse(std::format_parse_context& ctx)
     {
+        auto it = ctx.begin();
+
+        if (it != ctx.end() && (*it == '[' || *it == '('))
+        {
+            m_object_delimiters = (*it == '[') ? std::make_pair('[', ']') : std::make_pair('(', ')');
+            ++it;
+        }
+
+        std::string delimiter;
+        bool has_delimiter = false;
+        while (it != ctx.end() && (*it == ',' || *it == ';' || *it == ':' || *it == ' ' || *it == '_'))
+        {
+            delimiter += (*it == '_') ? ' ' : *it;
+            has_delimiter = true;
+            ++it;
+        }
+
+        if (has_delimiter)
+        {
+            m_element_delimiter = std::move(delimiter);
+        }
+
+        ctx.advance_to(it);
         return m_element_formatter.parse(ctx);
     }
 
     auto format(quetzal::geometry::Point<Traits> point, std::format_context& ctx) const
     {
         Traits::prepare(point.rep());
-        return Traits::format_to(ctx, m_element_formatter, point.rep());
+        return Traits::format_to(ctx, m_element_formatter, point.rep(), m_element_delimiter, m_object_delimiters);
     }
 };
 

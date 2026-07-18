@@ -8,16 +8,57 @@
 #include <charconv>
 #include <format>
 #include <optional>
+#include <ostream>
 #include <string>
 
 namespace quetzal
 {
 
     //--------------------------------------------------------------------------
+    // Using this with array types (Vector, Point, and higher level objects) produces a string of space separated values
     template<typename T>
     std::string to_string(const T& t)
     {
         return std::format("{}", t);
+    }
+
+    //--------------------------------------------------------------------------
+    // Only valid for array types (Vector, Point, and higher level objects) with a corresponding formatter
+    // Produces a string of bracketed, comma-separated valuse
+    template<typename T>
+    std::string to_array_string(const T& t)
+    {
+        return std::format("{:[,_}", t);
+    }
+
+    // Reflects an ostream's currently active precision and fixed/scientific formatting flags into
+    // an equivalent std::format spec fragment (precision before the presentation type, matching
+    // std::format's grammar), for use by operator<< implementations that want to stay aware of
+    // manipulators like std::setprecision/std::fixed/std::scientific.
+    inline std::string array_format_spec(const std::ostream& os)
+    {
+        std::string spec = "[,_.";
+        spec += std::to_string(os.precision());
+
+        if (os.flags() & std::ios::fixed)
+        {
+            spec += 'f';
+        }
+        else if (os.flags() & std::ios::scientific)
+        {
+            spec += 'e';
+        }
+
+        return spec;
+    }
+
+    // Stream-state-aware form of to_array_string: mirrors os's current precision and fixed/scientific
+    // flags into the format spec, so operator<< implementations built on this respect manipulators
+    // like std::setprecision/std::fixed/std::scientific the way plain ostream insertion always has.
+    template<typename T>
+    std::string to_array_string(const T& t, const std::ostream& os)
+    {
+        return std::vformat("{:" + array_format_spec(os) + "}", std::make_format_args(t));
     }
 
     //--------------------------------------------------------------------------

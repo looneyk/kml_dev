@@ -16,6 +16,7 @@
 #include "spatial_properties.hpp"
 #include "transformation_matrix.hpp"
 #include "triangle_util.hpp"
+#include "quetzal/common/string_util.hpp"
 #include "quetzal/math/Interval.hpp"
 #include "quetzal/math/floating_point.hpp"
 #include <algorithm>
@@ -913,11 +914,7 @@ quetzal::geometry::Polygon<Traits> quetzal::geometry::regular_polygon_section(si
 template<typename Traits>
 std::ostream& quetzal::geometry::operator<<(std::ostream& os, const Polygon<Traits>& polygon)
 {
-    for (const auto& point : polygon.vertices())
-    {
-        os << '(' << point << ")\n";
-    }
-
+    os << to_array_string(polygon, os);
     return os;
 }
 
@@ -925,18 +922,17 @@ std::ostream& quetzal::geometry::operator<<(std::ostream& os, const Polygon<Trai
 template<typename Traits>
 struct std::formatter<quetzal::geometry::Polygon<Traits>>
 {
-    std::formatter<typename Traits::value_type> m_element_formatter;
+    // Polygon has no formatting knobs of its own; the whole spec belongs to (and is entirely
+    // consumed by) the Point formatter, reused verbatim for every vertex.
+    std::formatter<quetzal::geometry::Point<Traits>> m_point_formatter;
 
     constexpr auto parse(std::format_parse_context& ctx)
     {
-        return m_element_formatter.parse(ctx);
+        return m_point_formatter.parse(ctx);
     }
 
     auto format(const quetzal::geometry::Polygon<Traits>& polygon, std::format_context& ctx) const
     {
-        std::formatter<quetzal::geometry::Point<Traits>> point_formatter;
-        point_formatter.m_element_formatter = m_element_formatter;
-
         auto out = ctx.out();
         bool first = true;
         for (const auto& vertex : polygon.vertices())
@@ -948,7 +944,7 @@ struct std::formatter<quetzal::geometry::Polygon<Traits>>
                 ctx.advance_to(out);
             }
             first = false;
-            out = point_formatter.format(vertex, ctx);
+            out = m_point_formatter.format(vertex, ctx);
         }
 
         return out;

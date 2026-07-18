@@ -7,7 +7,9 @@
 
 #include "PointRelation.hpp"
 #include "Point.hpp"
+#include "quetzal/common/string_util.hpp"
 #include "quetzal/math/floating_point.hpp"
+#include <format>
 #include <iostream>
 
 namespace quetzal::geometry
@@ -39,8 +41,8 @@ namespace quetzal::geometry
 
         point_type point(value_type phi) const;
 
-        // Returns -1, 0, 1: interior, boundary, exterior
-        virtual int compare(const point_type& point) const = 0;
+        // Returns less, equivalent, greater for interior, boundary, exterior respectively
+        std::partial_ordering compare(const point_type& point, int tolerance = math::tolerance_default) const override;
 
     private:
 
@@ -112,19 +114,51 @@ typename quetzal::geometry::Circle<Traits>::point_type quetzal::geometry::Circle
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-int quetzal::geometry::Circle<Traits>::compare(const point_type& point)
+std::partial_ordering quetzal::geometry::Circle<Traits>::compare(const point_type& point, int tolerance) const
 {
     value_type d2 = (point - m_center).norm_squared();
     value_type r2 = m_radius * m_radius;
-    return float_compare(d2, r2);
+
+    if (math::float_eq(d2, r2, tolerance))
+    {
+        return std::partial_ordering::equivalent;
+    }
+
+    return d2 < r2 ? std::partial_ordering::less : std::partial_ordering::greater;
 }
 
 //------------------------------------------------------------------------------
 template<typename Traits>
 std::ostream& quetzal::geometry::operator<<(std::ostream& os, const Circle<Traits>& circle)
 {
-    os << to_string(circle.center()) << ", " << circle.radius();
+    os << to_array_string(circle, os);
     return os;
 }
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+struct std::formatter<quetzal::geometry::Circle<Traits>>
+{
+    // Circle has no formatting knobs of its own; the whole spec belongs to (and is entirely
+    // consumed by) the Point formatter, reused for the center, with its element formatter reused
+    // directly for the bare scalar radius (no Vector-style wrapper needed for a single value).
+    std::formatter<quetzal::geometry::Point<Traits>> m_point_formatter;
+
+    constexpr auto parse(std::format_parse_context& ctx)
+    {
+        return m_point_formatter.parse(ctx);
+    }
+
+    auto format(const quetzal::geometry::Circle<Traits>& circle, std::format_context& ctx) const
+    {
+        auto out = m_point_formatter.format(circle.center(), ctx);
+        ctx.advance_to(out);
+        *out++ = ',';
+        *out++ = ' ';
+        ctx.advance_to(out);
+
+        return m_point_formatter.m_element_formatter.format(circle.radius(), ctx);
+    }
+};
 
 #endif // QUETZAL_GEOMETRY_CIRCLE_HPP

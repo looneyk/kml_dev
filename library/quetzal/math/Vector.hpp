@@ -6,12 +6,15 @@
 //------------------------------------------------------------------------------
 
 #include "floating_point.hpp"
+#include "quetzal/common/string_util.hpp"
 #include <charconv>
 #include <concepts>
 #include <iosfwd>
 #include <format>
+#include <optional>
 #include <span>
 #include <sstream>
+#include <utility>
 #include <cmath>
 #include <cassert>
 
@@ -246,8 +249,7 @@ namespace quetzal::math
     template<typename Traits>
     bool float_priority_less(const Vector<Traits>& lhs, const Vector<Traits>& rhs, int tolerance);
 
-    template<typename Traits>
-    std::string to_string(const Vector<Traits>& vector);
+    // These two operators are not symmetrical. extract parses numeric values separated by whitespace, and insert outputs a formatted point
 
     template<typename Traits>
     std::istream& operator>>(std::istream& is, Vector<Traits>& v);
@@ -612,7 +614,7 @@ void quetzal::math::Vector<Traits>::set(const U& x, const U& y, const U& z, cons
     Traits::conclude<dimension>(m_rep, value_type(0));
     return;
 }
-                
+
 //------------------------------------------------------------------------------
 template<typename Traits>
 template<Traits::size_type I> requires (I < Traits::size)
@@ -1040,16 +1042,6 @@ bool quetzal::math::float_priority_less(const Vector<Traits>& lhs, const Vector<
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-std::string quetzal::math::to_string(const Vector<Traits>& vector)
-{
-    // insert/extract now handle typical formatting scenarios
-    std::ostringstream oss;
-    oss << vector;
-    return oss.str();
-}
-
-//------------------------------------------------------------------------------
-template<typename Traits>
 std::istream& quetzal::math::operator>>(std::istream& is, quetzal::math::Vector<Traits>& v)
 {
     return Traits::extract(is, v.rep()); // add provision for specific format, as is should infer format ...
@@ -1059,7 +1051,8 @@ std::istream& quetzal::math::operator>>(std::istream& is, quetzal::math::Vector<
 template<typename Traits>
 std::ostream& quetzal::math::operator<<(std::ostream& os, const quetzal::math::Vector<Traits>& v)
 {
-    return Traits::insert(os, v.rep()); // add provision for specific format ...
+    os << to_array_string(v, os);
+    return os;
 }
 
 //------------------------------------------------------------------------------
@@ -1150,14 +1143,47 @@ struct std::formatter<quetzal::math::Vector<Traits>>
 {
     std::formatter<typename Traits::value_type> m_element_formatter;
 
+    // Leading format-spec characters: an optional '[' or '(' selects a bracket pair to wrap the elements
+    // ('[' -> "[ ]", '(' -> "( )"), followed by an optional run of characters drawn from ",;: _" that
+    // becomes the literal element separator verbatim, with '_' standing in for a space (so the separator
+    // can be spelled out unambiguously in a spec string without relying on trailing/embedded raw spaces,
+    // e.g. "[,_" -> bracket '[' + separator ", "; "_:_"  -> separator " : "). Neither of these leading
+    // sections appears in the output otherwise. Whatever remains of the spec after them is handed to the
+    // element type's own formatter (precision, etc.).
+    std::optional<std::pair<char, char>> m_object_delimiters;
+    std::string m_element_delimiter = " ";
+
     constexpr auto parse(std::format_parse_context& ctx)
     {
+        auto it = ctx.begin();
+
+        if (it != ctx.end() && (*it == '[' || *it == '('))
+        {
+            m_object_delimiters = (*it == '[') ? std::make_pair('[', ']') : std::make_pair('(', ')');
+            ++it;
+        }
+
+        std::string delimiter;
+        bool has_delimiter = false;
+        while (it != ctx.end() && (*it == ',' || *it == ';' || *it == ':' || *it == ' ' || *it == '_'))
+        {
+            delimiter += (*it == '_') ? ' ' : *it;
+            has_delimiter = true;
+            ++it;
+        }
+
+        if (has_delimiter)
+        {
+            m_element_delimiter = std::move(delimiter);
+        }
+
+        ctx.advance_to(it);
         return m_element_formatter.parse(ctx);
     }
 
     auto format(const quetzal::math::Vector<Traits>& vector, std::format_context& ctx) const
     {
-        return Traits::format_to(ctx, m_element_formatter, vector.rep());
+        return Traits::format_to(ctx, m_element_formatter, vector.rep(), m_element_delimiter, m_object_delimiters);
     }
 };
 

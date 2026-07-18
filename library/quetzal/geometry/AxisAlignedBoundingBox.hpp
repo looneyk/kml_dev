@@ -6,7 +6,9 @@
 //------------------------------------------------------------------------------
 
 #include "BoundingVolume.hpp"
+#include "quetzal/common/string_util.hpp"
 #include "quetzal/math/floating_point.hpp"
+#include <format>
 #include <iostream>
 #include <cassert>
 
@@ -284,7 +286,7 @@ bool quetzal::geometry::AxisAlignedBoundingBox<Traits>::empty() const
 template<typename Traits>
 void quetzal::geometry::AxisAlignedBoundingBox<Traits>::print(std::ostream& os) const
 {
-    os << to_string(m_lower) << " .. " << to_string(m_upper);
+    os << to_array_string(*this, os);
     return;
 }
 
@@ -368,5 +370,32 @@ quetzal::geometry::AxisAlignedBoundingBox<Traits> quetzal::geometry::op_intersec
 
     return {max(a.lower(), b.lower()), min(a.upper(), b.upper())};
 }
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+struct std::formatter<quetzal::geometry::AxisAlignedBoundingBox<Traits>>
+{
+    // AxisAlignedBoundingBox has no formatting knobs of its own; the whole spec belongs to (and is
+    // entirely consumed by) the Point formatter, reused verbatim for lower and upper.
+    std::formatter<quetzal::geometry::Point<Traits>> m_point_formatter;
+
+    constexpr auto parse(std::format_parse_context& ctx)
+    {
+        return m_point_formatter.parse(ctx);
+    }
+
+    auto format(const quetzal::geometry::AxisAlignedBoundingBox<Traits>& bounds, std::format_context& ctx) const
+    {
+        auto out = m_point_formatter.format(bounds.lower(), ctx);
+        ctx.advance_to(out);
+        *out++ = ' ';
+        *out++ = '.';
+        *out++ = '.';
+        *out++ = ' ';
+        ctx.advance_to(out);
+
+        return m_point_formatter.format(bounds.upper(), ctx);
+    }
+};
 
 #endif // QUETZAL_GEOMETRY_AXISALIGNEDBOUNDINGBOX_HPP

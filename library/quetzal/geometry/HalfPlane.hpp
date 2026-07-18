@@ -9,7 +9,9 @@
 #include "Plane.hpp"
 #include "Point.hpp"
 #include "PointRelation.hpp"
+#include "quetzal/common/string_util.hpp"
 #include "quetzal/math/floating_point.hpp"
+#include <format>
 #include <ostream>
 #include <cassert>
 
@@ -113,8 +115,41 @@ std::partial_ordering quetzal::geometry::HalfPlane<Traits>::compare(const point_
 template<typename Traits> requires (Traits::dimension >= 2)
 std::ostream& quetzal::geometry::operator<<(std::ostream& os, HalfPlane<Traits> halfplane)
 {
-    os << halfplane.line() << ' ' << halfplane.exterior_direction();
+    os << to_array_string(halfplane, os);
     return os;
 }
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+struct std::formatter<quetzal::geometry::HalfPlane<Traits>>
+{
+    // HalfPlane has no formatting knobs of its own; the whole spec belongs to (and is entirely
+    // consumed by) the Point formatter, shared with a Line formatter (for the line) and a Vector
+    // formatter (for the exterior direction).
+    std::formatter<quetzal::geometry::Point<Traits>> m_point_formatter;
+
+    constexpr auto parse(std::format_parse_context& ctx)
+    {
+        return m_point_formatter.parse(ctx);
+    }
+
+    auto format(const quetzal::geometry::HalfPlane<Traits>& halfplane, std::format_context& ctx) const
+    {
+        std::formatter<quetzal::geometry::Line<Traits>> line_formatter;
+        line_formatter.m_point_formatter = m_point_formatter;
+
+        std::formatter<quetzal::math::Vector<Traits>> vector_formatter;
+        vector_formatter.m_object_delimiters = m_point_formatter.m_object_delimiters;
+        vector_formatter.m_element_delimiter = m_point_formatter.m_element_delimiter;
+        vector_formatter.m_element_formatter = m_point_formatter.m_element_formatter;
+
+        auto out = line_formatter.format(halfplane.line(), ctx);
+        ctx.advance_to(out);
+        *out++ = ' ';
+        ctx.advance_to(out);
+
+        return vector_formatter.format(halfplane.exterior_direction(), ctx);
+    }
+};
 
 #endif // QUETZAL_GEOMETRY_HALFPLANE_HPP

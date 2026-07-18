@@ -9,7 +9,9 @@
 #include "Plane.hpp"
 #include "Point.hpp"
 #include "PointRelation.hpp"
+#include "quetzal/common/string_util.hpp"
 #include "quetzal/math/floating_point.hpp"
+#include <format>
 #include <ostream>
 #include <cassert>
 
@@ -109,8 +111,55 @@ std::partial_ordering quetzal::geometry::HalfSpace<Traits>::compare(const point_
 template<typename Traits>
 std::ostream& quetzal::geometry::operator<<(std::ostream& os, HalfSpace<Traits> halfspace)
 {
-    os << halfspace.separator() << ' ' << halfspace.exterior_direction();
+    os << to_array_string(halfspace, os);
     return os;
 }
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+struct std::formatter<quetzal::geometry::HalfSpace<Traits>>
+{
+    // HalfSpace has no formatting knobs of its own; the whole spec belongs to (and is entirely
+    // consumed by) the Point formatter. separator_type is a Plane, Line, or Point depending on
+    // dimension -- all of which either hold or are a Point formatter with the identical fields.
+    std::formatter<quetzal::geometry::Point<Traits>> m_point_formatter;
+
+    constexpr auto parse(std::format_parse_context& ctx)
+    {
+        return m_point_formatter.parse(ctx);
+    }
+
+    auto format(const quetzal::geometry::HalfSpace<Traits>& halfspace, std::format_context& ctx) const
+    {
+        std::formatter<quetzal::math::Vector<Traits>> vector_formatter;
+        vector_formatter.m_object_delimiters = m_point_formatter.m_object_delimiters;
+        vector_formatter.m_element_delimiter = m_point_formatter.m_element_delimiter;
+        vector_formatter.m_element_formatter = m_point_formatter.m_element_formatter;
+
+        auto out = ctx.out();
+        if constexpr (Traits::dimension >= 3)
+        {
+            std::formatter<quetzal::geometry::Plane<Traits>> separator_formatter;
+            separator_formatter.m_point_formatter = m_point_formatter;
+            out = separator_formatter.format(halfspace.separator(), ctx);
+        }
+        else if constexpr (Traits::dimension == 2)
+        {
+            std::formatter<quetzal::geometry::Line<Traits>> separator_formatter;
+            separator_formatter.m_point_formatter = m_point_formatter;
+            out = separator_formatter.format(halfspace.separator(), ctx);
+        }
+        else
+        {
+            out = m_point_formatter.format(halfspace.separator(), ctx);
+        }
+
+        ctx.advance_to(out);
+        *out++ = ' ';
+        ctx.advance_to(out);
+
+        return vector_formatter.format(halfspace.exterior_direction(), ctx);
+    }
+};
 
 #endif // QUETZAL_GEOMETRY_HALFSPACE_HPP

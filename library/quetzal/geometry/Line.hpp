@@ -7,6 +7,7 @@
 
 #include "PointRelation.hpp"
 #include "Point.hpp"
+#include "quetzal/common/string_util.hpp"
 #include "quetzal/math/floating_point.hpp"
 #include <array>
 #include <format>
@@ -66,9 +67,6 @@ namespace quetzal::geometry
     // For the case where one or both are actually segments which require vector instead of direction ...
     template<typename P>
     std::array<typename P::value_type, 2> closest_point_parameters(const P& pointA, const typename P::vector_type& vectorA, const P& pointB, const typename P::vector_type& vectorB);
-
-    template<typename Traits>
-    std::string to_string(const Line<Traits>& line);
 
     template<typename Traits>
     std::ostream& operator<<(std::ostream& os, Line<Traits> line);
@@ -228,18 +226,9 @@ std::array<typename P::value_type, 2> quetzal::geometry::closest_point_parameter
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-std::string quetzal::geometry::to_string(const Line<Traits>& line)
-{
-    std::ostringstream oss;
-    oss << to_string(line.point()) << ", " << to_string(line.direction());
-    return oss.str();
-}
-
-//------------------------------------------------------------------------------
-template<typename Traits>
 std::ostream& quetzal::geometry::operator<<(std::ostream& os, Line<Traits> line)
 {
-    os << to_string(line);
+    os << to_array_string(line, os);
     return os;
 }
 
@@ -247,22 +236,24 @@ std::ostream& quetzal::geometry::operator<<(std::ostream& os, Line<Traits> line)
 template<typename Traits>
 struct std::formatter<quetzal::geometry::Line<Traits>>
 {
-    std::formatter<typename Traits::value_type> m_element_formatter;
+    // Line has no formatting knobs of its own; the whole spec belongs to (and is entirely
+    // consumed by) the Point formatter, whose parsed state is then shared with a Vector
+    // formatter for the direction (they carry the identical set of fields).
+    std::formatter<quetzal::geometry::Point<Traits>> m_point_formatter;
 
     constexpr auto parse(std::format_parse_context& ctx)
     {
-        return m_element_formatter.parse(ctx);
+        return m_point_formatter.parse(ctx);
     }
 
     auto format(const quetzal::geometry::Line<Traits>& line, std::format_context& ctx) const
     {
-        std::formatter<quetzal::geometry::Point<Traits>> point_formatter;
-        point_formatter.m_element_formatter = m_element_formatter;
-
         std::formatter<quetzal::math::Vector<Traits>> vector_formatter;
-        vector_formatter.m_element_formatter = m_element_formatter;
+        vector_formatter.m_object_delimiters = m_point_formatter.m_object_delimiters;
+        vector_formatter.m_element_delimiter = m_point_formatter.m_element_delimiter;
+        vector_formatter.m_element_formatter = m_point_formatter.m_element_formatter;
 
-        auto out = point_formatter.format(line.point(), ctx);
+        auto out = m_point_formatter.format(line.point(), ctx);
         ctx.advance_to(out);
         *out++ = ',';
         *out++ = ' ';

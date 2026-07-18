@@ -12,6 +12,7 @@
 #include "Polygon.hpp"
 #include "Ray.hpp"
 #include "Segment.hpp"
+#include "quetzal/common/string_util.hpp"
 //#include "Circle.hpp"
 //#include "HalfSpace.hpp"
 //#include "Polyhedron.hpp"
@@ -72,9 +73,6 @@ namespace quetzal::geometry
         plane_type m_plane;
         polygon_type m_polygon;
     };
-
-    template<typename Traits>
-    std::string to_string(const Intersection<Traits>& ix);
 
     template<typename Traits>
     std::ostream& operator<<(std::ostream& os, const Intersection<Traits>& ix);
@@ -236,49 +234,9 @@ bool quetzal::geometry::Intersection<Traits>::empty() const
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-std::string quetzal::geometry::to_string(const Intersection<Traits>& ix)
-{
-    std::ostringstream oss;
-    switch (ix.locus())
-    {
-        case Locus::Empty:
-            oss << "Empty";
-            break;
-
-        case Locus::Point:
-            oss << "Point " << ix.point();
-            break;
-
-        case Locus::Line:
-            oss << "Line " << ix.line();
-            break;
-
-        case Locus::Ray:
-            oss << "Ray " << ix.ray();
-            break;
-
-        case Locus::Segment:
-            oss << "Segment " << ix.segment();
-            break;
-
-/*
-        case Locus::Plane:
-            oss << "Plane " << ix.plane();
-            break;
-*/
-
-        case Locus::Polygon:
-            oss << "Polygon " << ix.polygon();
-            break;
-    }
-    return oss.str();
-}
-
-//------------------------------------------------------------------------------
-template<typename Traits>
 std::ostream& quetzal::geometry::operator<<(std::ostream& os, const Intersection<Traits>& ix)
 {
-    os << to_string(ix);
+    os << to_array_string(ix, os);
     return os;
 }
 
@@ -286,11 +244,14 @@ std::ostream& quetzal::geometry::operator<<(std::ostream& os, const Intersection
 template<typename Traits>
 struct std::formatter<quetzal::geometry::Intersection<Traits>>
 {
-    std::formatter<typename Traits::value_type> m_element_formatter;
+    // Intersection has no formatting knobs of its own; the whole spec belongs to (and is entirely
+    // consumed by) the Point formatter, whose parsed state is shared verbatim with whichever
+    // sub-formatter the active locus needs (they all expose the identical m_point_formatter field).
+    std::formatter<quetzal::geometry::Point<Traits>> m_point_formatter;
 
     constexpr auto parse(std::format_parse_context& ctx)
     {
-        return m_element_formatter.parse(ctx);
+        return m_point_formatter.parse(ctx);
     }
 
     auto format(const quetzal::geometry::Intersection<Traits>& ix, std::format_context& ctx) const
@@ -314,36 +275,34 @@ struct std::formatter<quetzal::geometry::Intersection<Traits>>
         {
             case quetzal::geometry::Locus::Point:
             {
-                std::formatter<quetzal::geometry::Point<Traits>> f;
-                f.m_element_formatter = m_element_formatter;
-                return f.format(ix.point(), ctx);
+                return m_point_formatter.format(ix.point(), ctx);
             }
 
             case quetzal::geometry::Locus::Line:
             {
                 std::formatter<quetzal::geometry::Line<Traits>> f;
-                f.m_element_formatter = m_element_formatter;
+                f.m_point_formatter = m_point_formatter;
                 return f.format(ix.line(), ctx);
             }
 
             case quetzal::geometry::Locus::Ray:
             {
                 std::formatter<quetzal::geometry::Ray<Traits>> f;
-                f.m_element_formatter = m_element_formatter;
+                f.m_point_formatter = m_point_formatter;
                 return f.format(ix.ray(), ctx);
             }
 
             case quetzal::geometry::Locus::Segment:
             {
                 std::formatter<quetzal::geometry::Segment<Traits>> f;
-                f.m_element_formatter = m_element_formatter;
+                f.m_point_formatter = m_point_formatter;
                 return f.format(ix.segment(), ctx);
             }
 
             case quetzal::geometry::Locus::Polygon:
             {
                 std::formatter<quetzal::geometry::Polygon<Traits>> f;
-                f.m_element_formatter = m_element_formatter;
+                f.m_point_formatter = m_point_formatter;
                 return f.format(ix.polygon(), ctx);
             }
 
