@@ -53,6 +53,8 @@ namespace quetzal::geometry
 
         void print(std::ostream& os) const override;
 
+        point_type support(const vector_type& direction) const override;
+
     private:
 
         point_type m_center;
@@ -166,6 +168,14 @@ void quetzal::geometry::BoundingSphere<Traits>::print(std::ostream& os) const
 {
     os << to_array_string(*this, os);
     return;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+typename quetzal::geometry::BoundingSphere<Traits>::point_type quetzal::geometry::BoundingSphere<Traits>::support(const vector_type& direction) const
+{
+    vector_type unit_direction = direction.zero() ? vector_type::x_direction() : math::normalize(direction);
+    return m_center + m_radius * unit_direction;
 }
 
 //------------------------------------------------------------------------------

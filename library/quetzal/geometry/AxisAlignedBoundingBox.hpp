@@ -67,6 +67,8 @@ namespace quetzal::geometry
 
         void print(std::ostream& os) const override;
 
+        point_type support(const vector_type& direction) const override;
+
     private:
 
         bool ordered() const;
@@ -288,6 +290,19 @@ void quetzal::geometry::AxisAlignedBoundingBox<Traits>::print(std::ostream& os) 
 {
     os << to_array_string(*this, os);
     return;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+typename quetzal::geometry::AxisAlignedBoundingBox<Traits>::point_type quetzal::geometry::AxisAlignedBoundingBox<Traits>::support(const vector_type& direction) const
+{
+    point_type result;
+    for (size_t i = 0; i < Traits::dimension; ++i)
+    {
+        result[i] = direction[i] >= value_type(0) ? m_upper[i] : m_lower[i];
+    }
+
+    return result;
 }
 
 //------------------------------------------------------------------------------

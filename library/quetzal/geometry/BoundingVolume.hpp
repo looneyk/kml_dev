@@ -19,6 +19,7 @@ namespace quetzal::geometry
     public:
 
         using point_type = Point<Traits>;
+        using vector_type = point_type::vector_type;
 
         BoundingVolume() = default;
         BoundingVolume(const BoundingVolume&) = default;
@@ -38,11 +39,14 @@ namespace quetzal::geometry
         virtual bool empty() const = 0;
 
         virtual void print(std::ostream& os) const = 0;
-    };
 
-    // The bounding volumes do not intersect
-//    template<typename Traits, typename B> requires (std::is_base_of_v<quetzal::geometry::BoundingVolume<Traits>, B>)
-//    bool disjoint(const B& a, const B& b);
+        // The point on the volume's surface farthest along direction -- the GJK support mapping.
+        // This is the one primitive GJK-based intersection testing needs; unlike compare()/centroid(),
+        // it generalizes to volume-vs-volume tests between different concrete shapes without needing
+        // to know the other shape's type, since GJK only ever calls a.support(d) and b.support(d)
+        // independently of each other.
+        virtual point_type support(const vector_type& direction) const = 0;
+    };
 
     template<typename Traits>
     std::ostream& operator<<(std::ostream& os, const BoundingVolume<Traits>& bv);

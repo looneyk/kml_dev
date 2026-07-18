@@ -23,6 +23,8 @@
 !/library/quetzal/model/**
 !/library/quetzal/pdf/
 !/library/quetzal/pdf/**
+!/library/quetzal/physics/
+!/library/quetzal/physics/**
 !/library/quetzal/scene_graph/
 !/library/quetzal/scene_graph/**
 /library/quetzal/scene_graph/shaders/*.spv

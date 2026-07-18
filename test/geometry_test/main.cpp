@@ -28,6 +28,7 @@
 #include "quetzal/math/HomogeneousTraits.hpp"
 #include "quetzal/math/Vector.hpp"
 #include "quetzal/math/floating_point.hpp"
+#include "quetzal/physics/gjk.hpp"
 #include <iomanip>
 #include <iostream>
 #include <random>
@@ -292,6 +293,48 @@ int main(int argc, char* argv[])
     geometry::HalfPlane<math::CartesianTraits<double, 3>> smoke_hp(smoke_l, math::Vector<math::CartesianTraits<double, 3>>::x_direction());
     std::cout << std::format("half plane default [{}]", smoke_hp) << std::endl;
     std::cout << std::format("half plane combo [{:[,_.2f}]", smoke_hp) << std::endl;
+
+    // GJK cross-validation against known closed-form results
+    {
+        using traits3 = math::CartesianTraits<double, 3>;
+        using point3 = geometry::Point<traits3>;
+
+        geometry::AxisAlignedBoundingBox<traits3> aabb_a(point3(0.0, 0.0, 0.0), point3(2.0, 2.0, 2.0));
+        geometry::AxisAlignedBoundingBox<traits3> aabb_b_overlap(point3(1.0, 1.0, 1.0), point3(3.0, 3.0, 3.0));
+        geometry::AxisAlignedBoundingBox<traits3> aabb_c_disjoint(point3(5.0, 5.0, 5.0), point3(6.0, 6.0, 6.0));
+
+        bool aabb_overlap_gjk = physics::intersects_gjk(aabb_a, aabb_b_overlap);
+        bool aabb_overlap_expected = !geometry::disjoint(aabb_a, aabb_b_overlap);
+        std::cout << "gjk aabb-aabb overlap: gjk=" << aabb_overlap_gjk << " expected=" << aabb_overlap_expected << (aabb_overlap_gjk == aabb_overlap_expected ? " OK" : " MISMATCH") << std::endl;
+
+        bool aabb_disjoint_gjk = physics::intersects_gjk(aabb_a, aabb_c_disjoint);
+        bool aabb_disjoint_expected = !geometry::disjoint(aabb_a, aabb_c_disjoint);
+        std::cout << "gjk aabb-aabb disjoint: gjk=" << aabb_disjoint_gjk << " expected=" << aabb_disjoint_expected << (aabb_disjoint_gjk == aabb_disjoint_expected ? " OK" : " MISMATCH") << std::endl;
+
+        geometry::BoundingSphere<traits3> sphere_a(point3(0.0, 0.0, 0.0), 2.0);
+        geometry::BoundingSphere<traits3> sphere_b_overlap(point3(3.0, 0.0, 0.0), 2.0);
+        geometry::BoundingSphere<traits3> sphere_c_disjoint(point3(10.0, 0.0, 0.0), 1.0);
+
+        bool sphere_overlap_gjk = physics::intersects_gjk(sphere_a, sphere_b_overlap);
+        std::cout << "gjk sphere-sphere overlap: gjk=" << sphere_overlap_gjk << " expected=1" << (sphere_overlap_gjk == true ? " OK" : " MISMATCH") << std::endl;
+
+        bool sphere_disjoint_gjk = physics::intersects_gjk(sphere_a, sphere_c_disjoint);
+        std::cout << "gjk sphere-sphere disjoint: gjk=" << sphere_disjoint_gjk << " expected=0" << (sphere_disjoint_gjk == false ? " OK" : " MISMATCH") << std::endl;
+
+        geometry::BoundingSphere<traits3> sphere_unit(point3(0.0, 0.0, 0.0), 1.0);
+        geometry::AxisAlignedBoundingBox<traits3> aabb_overlap_sphere(point3(0.5, 0.5, 0.5), point3(2.0, 2.0, 2.0));
+        geometry::AxisAlignedBoundingBox<traits3> aabb_disjoint_sphere(point3(5.0, 5.0, 5.0), point3(6.0, 6.0, 6.0));
+
+        bool sphere_aabb_overlap_gjk = physics::intersects_gjk(sphere_unit, aabb_overlap_sphere);
+        std::cout << "gjk sphere-aabb overlap: gjk=" << sphere_aabb_overlap_gjk << " expected=1" << (sphere_aabb_overlap_gjk == true ? " OK" : " MISMATCH") << std::endl;
+
+        bool sphere_aabb_disjoint_gjk = physics::intersects_gjk(sphere_unit, aabb_disjoint_sphere);
+        std::cout << "gjk sphere-aabb disjoint: gjk=" << sphere_aabb_disjoint_gjk << " expected=0" << (sphere_aabb_disjoint_gjk == false ? " OK" : " MISMATCH") << std::endl;
+
+        // argument-order symmetry
+        bool sphere_aabb_overlap_swapped = physics::intersects_gjk(aabb_overlap_sphere, sphere_unit);
+        std::cout << "gjk aabb-sphere overlap (swapped): gjk=" << sphere_aabb_overlap_swapped << " expected=1" << (sphere_aabb_overlap_swapped == true ? " OK" : " MISMATCH") << std::endl;
+    }
 
     argc;
     argv;

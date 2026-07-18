@@ -18,4 +18,5 @@ target_link_libraries(geometry_test PRIVATE
 
 add_dependencies(geometry_test
     quetzal_geometry
+    quetzal_physics
 )
