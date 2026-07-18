@@ -157,7 +157,7 @@ void quetzal::geometry::Orientation<Traits>::clear()
 template<typename Traits>
 std::ostream& quetzal::geometry::operator<<(std::ostream& os, Orientation<Traits> orientation)
 {
-    os << to_array_string(orientation, os);
+    os << to_string(orientation, os);
     return os;
 }
 

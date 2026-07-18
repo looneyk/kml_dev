@@ -154,7 +154,7 @@ typename quetzal::geometry::Ray<Traits>::value_type quetzal::geometry::Ray<Trait
 template<typename Traits>
 std::ostream& quetzal::geometry::operator<<(std::ostream& os, Ray<Traits> ray)
 {
-    os << to_array_string(ray, os);
+    os << to_string(ray, os);
     return os;
 }
 

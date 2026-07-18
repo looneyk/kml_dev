@@ -111,7 +111,7 @@ std::partial_ordering quetzal::geometry::HalfSpace<Traits>::compare(const point_
 template<typename Traits>
 std::ostream& quetzal::geometry::operator<<(std::ostream& os, HalfSpace<Traits> halfspace)
 {
-    os << to_array_string(halfspace, os);
+    os << to_string(halfspace, os);
     return os;
 }
 

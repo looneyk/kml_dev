@@ -39,6 +39,7 @@ function(add_subdirectory_ext dir)
         add_custom_target(clean_${name}
             COMMAND MSBuild ${CMAKE_BINARY_DIR}/${dir}/${name}.vcxproj /t:Clean /p:Configuration=$<CONFIG> /p:Platform=${CMAKE_VS_PLATFORM_NAME} /p:BuildProjectReferences=false
         )
+        set_property(TARGET clean_${name} PROPERTY FOLDER "CleanTargets")
     endif()
 endfunction()
 

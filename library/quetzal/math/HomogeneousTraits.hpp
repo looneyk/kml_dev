@@ -826,9 +826,11 @@ template<typename T, size_t N>
 template<size_t I> requires (I < N)
 std::to_chars_result quetzal::math::HomogeneousTraits<T, N>::to_chars(char* first, char* last, const rep_type& rep, const std::string& element_delimiter)
 {
+    // Conditional expression ensures that -0 displays as 0
+
     if constexpr (I == 0)
     {
-        return std::to_chars(first, last, get<0>(rep));
+        return std::to_chars(first, last, get<0>(rep) == T(0) ? T(0) : get<0>(rep));
     }
     else
     {
@@ -849,7 +851,7 @@ std::to_chars_result quetzal::math::HomogeneousTraits<T, N>::to_chars(char* firs
             *p++ = c;
         }
 
-        return std::to_chars(p, last, get<I>(rep));
+        return std::to_chars(p, last, get<I>(rep) == T(0) ? T(0) : get<I>(rep));
     }
 }
 
@@ -858,6 +860,8 @@ template<typename T, size_t N>
 template<typename FormatContext, size_t I> requires (I < N)
 typename FormatContext::iterator quetzal::math::HomogeneousTraits<T, N>::format_to(FormatContext& ctx, const std::formatter<T>& element_formatter, const rep_type& rep, const std::string& element_delimiter, const std::optional<std::pair<char, char>>& object_delimiters)
 {
+    // Conditional expression ensures that -0 displays as 0
+
     if constexpr (I == 0)
     {
         if (object_delimiters)
@@ -867,7 +871,7 @@ typename FormatContext::iterator quetzal::math::HomogeneousTraits<T, N>::format_
             ctx.advance_to(out);
         }
 
-        return element_formatter.format(get<0>(rep), ctx);
+        return element_formatter.format(get<0>(rep) == T(0) ? T(0) : get<0>(rep), ctx);
     }
     else
     {
@@ -879,7 +883,7 @@ typename FormatContext::iterator quetzal::math::HomogeneousTraits<T, N>::format_
         }
 
         ctx.advance_to(out);
-        out = element_formatter.format(get<I>(rep), ctx);
+        out = element_formatter.format(get<I>(rep) == T(0) ? T(0) : get<I>(rep), ctx);
 
         if constexpr (I == N - 1)
         {

@@ -1051,7 +1051,7 @@ std::istream& quetzal::math::operator>>(std::istream& is, quetzal::math::Vector<
 template<typename Traits>
 std::ostream& quetzal::math::operator<<(std::ostream& os, const quetzal::math::Vector<Traits>& v)
 {
-    os << to_array_string(v, os);
+    os << to_string(v, os);
     return os;
 }
 

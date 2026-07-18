@@ -13,6 +13,7 @@ target_include_directories(geometry_test PRIVATE
 )
 
 target_link_libraries(geometry_test PRIVATE
+    quetzal_common
     quetzal_math
 )
 

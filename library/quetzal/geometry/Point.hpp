@@ -993,7 +993,7 @@ std::istream& quetzal::geometry::operator>>(std::istream& is, Point<Traits>& poi
 template<typename Traits>
 std::ostream& quetzal::geometry::operator<<(std::ostream& os, const Point<Traits>& point)
 {
-    os << to_array_string(point, os);
+    os << to_string(point, os);
     return os;
 }
 

@@ -5,8 +5,117 @@
 #include "string_util.hpp"
 #include "utf8.h"
 #include "utf8/cpp11.h"
+#include <ios>
+#include <cassert>
 
 using namespace std;
+
+namespace
+{
+
+    int array_object_delim_index()
+    {
+        static int index = ios_base::xalloc();
+        return index;
+    }
+
+    int array_element_delim_index()
+    {
+        static int index = ios_base::xalloc();
+        return index;
+    }
+
+    // pword is a raw void*, so its lifetime (copy on copyfmt, delete on stream destruction) has to be
+    // managed manually via this callback, per the standard idiom for storing non-trivial per-stream state
+    void array_element_delim_callback(ios_base::event event, ios_base& stream, int index)
+    {
+        if (event == ios_base::erase_event)
+        {
+            delete static_cast<string*>(stream.pword(index));
+            stream.pword(index) = nullptr;
+        }
+        else if (event == ios_base::copyfmt_event)
+        {
+            auto* p = static_cast<string*>(stream.pword(index));
+            stream.pword(index) = p != nullptr ? new string(*p) : nullptr;
+        }
+    }
+
+} // namespace
+
+//------------------------------------------------------------------------------
+quetzal::object_delim_manip quetzal::object_delim(char c)
+{
+    assert(c == '\0' || c == '[' || c == '(');
+    return {c};
+}
+
+//------------------------------------------------------------------------------
+ostream& quetzal::operator<<(ostream& os, object_delim_manip manip)
+{
+    os.iword(array_object_delim_index()) = manip.value;
+    return os;
+}
+
+//------------------------------------------------------------------------------
+quetzal::element_delim_manip quetzal::element_delim(string s)
+{
+    return {std::move(s)};
+}
+
+//------------------------------------------------------------------------------
+ostream& quetzal::operator<<(ostream& os, const element_delim_manip& manip)
+{
+    if (manip.value.empty()) // leave whatever element delimiter is already in effect unchanged
+    {
+        return os;
+    }
+
+    int index = array_element_delim_index();
+    if (os.pword(index) == nullptr)
+    {
+        os.register_callback(array_element_delim_callback, index);
+    }
+
+    delete static_cast<string*>(os.pword(index));
+    os.pword(index) = new string(manip.value);
+    return os;
+}
+
+//------------------------------------------------------------------------------
+string quetzal::array_format_spec(const ostream& os, char default_object_delim, const string& default_element_delim)
+{
+    auto& mutable_os = const_cast<ostream&>(os); // iword/pword aren't const, though this only reads
+
+    long object_delim_value = mutable_os.iword(array_object_delim_index());
+    char object_delim_char = object_delim_value != 0 ? static_cast<char>(object_delim_value) : default_object_delim;
+
+    void* element_delim_ptr = mutable_os.pword(array_element_delim_index());
+    string element_delim_value = element_delim_ptr != nullptr ? *static_cast<string*>(element_delim_ptr) : default_element_delim;
+
+    string spec;
+    if (object_delim_char != '\0')
+    {
+        spec += object_delim_char;
+    }
+    for (char c : element_delim_value)
+    {
+        spec += (c == ' ') ? '_' : c;
+    }
+    spec += '.';
+    spec += std::to_string(os.precision());
+
+    if (os.flags() & ios::fixed)
+    {
+        spec += 'f';
+    }
+    else if (os.flags() & ios::scientific)
+    {
+        spec += 'e';
+    }
+
+    return spec;
+}
 
 //------------------------------------------------------------------------------
 string quetzal::to_string(const string& str)

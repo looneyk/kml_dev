@@ -115,7 +115,7 @@ std::partial_ordering quetzal::geometry::HalfPlane<Traits>::compare(const point_
 template<typename Traits> requires (Traits::dimension >= 2)
 std::ostream& quetzal::geometry::operator<<(std::ostream& os, HalfPlane<Traits> halfplane)
 {
-    os << to_array_string(halfplane, os);
+    os << to_string(halfplane, os);
     return os;
 }
 

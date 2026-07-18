@@ -131,7 +131,7 @@ std::partial_ordering quetzal::geometry::Circle<Traits>::compare(const point_typ
 template<typename Traits>
 std::ostream& quetzal::geometry::operator<<(std::ostream& os, const Circle<Traits>& circle)
 {
-    os << to_array_string(circle, os);
+    os << to_string(circle, os);
     return os;
 }
 

@@ -119,7 +119,7 @@ std::partial_ordering quetzal::geometry::Sphere<Traits>::compare(const point_typ
 template<typename Traits>
 std::ostream& quetzal::geometry::operator<<(std::ostream& os, const Sphere<Traits>& sphere)
 {
-    os << to_array_string(sphere, os);
+    os << to_string(sphere, os);
     return os;
 }
 

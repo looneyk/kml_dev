@@ -136,7 +136,7 @@ std::partial_ordering quetzal::geometry::Plane<Traits>::compare(const point_type
 template<typename Traits>
 std::ostream& quetzal::geometry::operator<<(std::ostream& os, Plane<Traits> plane)
 {
-    os << to_array_string(plane, os);
+    os << to_string(plane, os);
     return os;
 }
 

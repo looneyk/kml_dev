@@ -228,7 +228,7 @@ std::array<typename P::value_type, 2> quetzal::geometry::closest_point_parameter
 template<typename Traits>
 std::ostream& quetzal::geometry::operator<<(std::ostream& os, Line<Traits> line)
 {
-    os << to_array_string(line, os);
+    os << to_string(line, os);
     return os;
 }
 

@@ -288,7 +288,7 @@ bool quetzal::geometry::AxisAlignedBoundingBox<Traits>::empty() const
 template<typename Traits>
 void quetzal::geometry::AxisAlignedBoundingBox<Traits>::print(std::ostream& os) const
 {
-    os << to_array_string(*this, os);
+    os << to_string(*this, os);
     return;
 }
 

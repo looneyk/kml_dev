@@ -109,7 +109,7 @@ void quetzal::geometry::OrientedPoint<Traits>::set_orientation(const orientation
 template<typename Traits>
 std::ostream& quetzal::geometry::operator<<(std::ostream& os, OrientedPoint<Traits> op)
 {
-    os << to_array_string(op, os);
+    os << to_string(op, os);
     return os;
 }
 

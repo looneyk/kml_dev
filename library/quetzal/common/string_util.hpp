@@ -15,6 +15,28 @@ namespace quetzal
 {
 
     //--------------------------------------------------------------------------
+    // Stream manipulators for the object and element delimiters used by array_format_spec, giving
+    // operator<< the same array-string vocabulary as a std::format spec: os << object_delim('[')
+    // << element_delim(", ") << v matches std::format("{:[,_}", v). object_delim('\0') resets the
+    // stream back to no object delimiter (the default). element_delim("") is a no-op, leaving
+    // whatever element delimiter is already in effect unchanged.
+    struct object_delim_manip
+    {
+        char value;
+    };
+
+    object_delim_manip object_delim(char c);
+    std::ostream& operator<<(std::ostream& os, object_delim_manip manip);
+
+    struct element_delim_manip
+    {
+        std::string value;
+    };
+
+    element_delim_manip element_delim(std::string s);
+    std::ostream& operator<<(std::ostream& os, const element_delim_manip& manip);
+
+    //--------------------------------------------------------------------------
     // Using this with array types (Vector, Point, and higher level objects) produces a string of space separated values
     template<typename T>
     std::string to_string(const T& t)
@@ -31,32 +53,21 @@ namespace quetzal
         return std::format("{:[,_}", t);
     }
 
-    // Reflects an ostream's currently active precision and fixed/scientific formatting flags into
-    // an equivalent std::format spec fragment (precision before the presentation type, matching
-    // std::format's grammar), for use by operator<< implementations that want to stay aware of
-    // manipulators like std::setprecision/std::fixed/std::scientific.
-    inline std::string array_format_spec(const std::ostream& os)
-    {
-        std::string spec = "[,_.";
-        spec += std::to_string(os.precision());
+    //--------------------------------------------------------------------------
+    // Reflects an ostream's currently active object_delim/element_delim manipulators (falling back to
+    // default_object_delim/default_element_delim when unset, i.e. '\0' == no bracket), precision, and
+    // fixed/scientific formatting flags into an equivalent std::format spec fragment (matching
+    // std::format's grammar). The defaults match std::format's own empty-spec default (no bracket,
+    // single-space element delimiter), so this is what puts operator<< and format({}) in agreement.
+    std::string array_format_spec(const std::ostream& os, char default_object_delim = '\0', const std::string& default_element_delim = " ");
 
-        if (os.flags() & std::ios::fixed)
-        {
-            spec += 'f';
-        }
-        else if (os.flags() & std::ios::scientific)
-        {
-            spec += 'e';
-        }
-
-        return spec;
-    }
-
-    // Stream-state-aware form of to_array_string: mirrors os's current precision and fixed/scientific
-    // flags into the format spec, so operator<< implementations built on this respect manipulators
-    // like std::setprecision/std::fixed/std::scientific the way plain ostream insertion always has.
+    // Stream-state-aware form of to_string: matches to_string(t)'s unbracketed, space-separated output
+    // by default (same as format({}), see array_format_spec), but honors object_delim/element_delim
+    // manipulators (so operator<< can be made to produce array-formatted output on request, the ostream
+    // equivalent of passing a format spec) as well as std::setprecision/std::fixed/std::scientific, the
+    // way plain ostream insertion always has.
     template<typename T>
-    std::string to_array_string(const T& t, const std::ostream& os)
+    std::string to_string(const T& t, const std::ostream& os)
     {
         return std::vformat("{:" + array_format_spec(os) + "}", std::make_format_args(t));
     }

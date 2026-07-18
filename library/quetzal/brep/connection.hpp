@@ -8,6 +8,7 @@
 #include "geometry.hpp"
 #include "mesh_util.hpp"
 #include "texcoord.hpp"
+#include <format>
 #include <limits>
 #include <map>
 #include <ranges>
@@ -279,7 +280,7 @@ void quetzal::brep::connect_non_planar(M& mesh, id_type idFaceA, bool bSmooth)
 
     for (size_t i = 0; i < n; ++i)
     {
-        id_type idSurface = bSmooth ? idSurface0 : mesh.create_surface(idSubmesh, format("{}_{}", nameSurface, i), as);
+        id_type idSurface = bSmooth ? idSurface0 : mesh.create_surface(idSubmesh, std::format("{}_{}", nameSurface, i), as);
         id_type idFace = mesh.create_face(idSurface, idA, {});
 
         mesh.halfedge(idA).set_face_id(idFace);

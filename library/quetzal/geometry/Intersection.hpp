@@ -236,7 +236,7 @@ bool quetzal::geometry::Intersection<Traits>::empty() const
 template<typename Traits>
 std::ostream& quetzal::geometry::operator<<(std::ostream& os, const Intersection<Traits>& ix)
 {
-    os << to_array_string(ix, os);
+    os << to_string(ix, os);
     return os;
 }
 

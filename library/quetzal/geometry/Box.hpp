@@ -43,8 +43,6 @@ namespace quetzal::geometry
         // Returns less, equivalent, greater for interior, boundary, exterior respectively
         std::partial_ordering compare(const point_type& point, int tolerance = math::tolerance_default) const override;
 
-        virtual void print(std::ostream& os) const;
-
     private:
 
         bool ordered() const;
@@ -154,14 +152,6 @@ std::partial_ordering quetzal::geometry::Box<Traits>::compare(const point_type& 
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-void quetzal::geometry::Box<Traits>::print(std::ostream& os) const
-{
-    os << to_array_string(*this, os);
-    return;
-}
-
-//------------------------------------------------------------------------------
-template<typename Traits>
 bool quetzal::geometry::Box<Traits>::ordered() const
 {
     for (size_t i = 0; i < Traits::dimension; ++i)
@@ -194,7 +184,7 @@ void quetzal::geometry::Box<Traits>::order()
 template<typename Traits>
 std::ostream& quetzal::geometry::operator<<(std::ostream& os, const Box<Traits>& box)
 {
-    box.print(os);
+    os << to_string(box, os);
     return os;
 }
 

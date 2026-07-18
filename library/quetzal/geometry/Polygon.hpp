@@ -914,7 +914,7 @@ quetzal::geometry::Polygon<Traits> quetzal::geometry::regular_polygon_section(si
 template<typename Traits>
 std::ostream& quetzal::geometry::operator<<(std::ostream& os, const Polygon<Traits>& polygon)
 {
-    os << to_array_string(polygon, os);
+    os << to_string(polygon, os);
     return os;
 }
 

@@ -278,7 +278,7 @@ quetzal::geometry::Segment<Traits> quetzal::geometry::reverse(Segment<Traits> se
 template<typename Traits>
 std::ostream& quetzal::geometry::operator<<(std::ostream& os, Segment<Traits> segment)
 {
-    os << to_array_string(segment, os);
+    os << to_string(segment, os);
     return os;
 }
 
