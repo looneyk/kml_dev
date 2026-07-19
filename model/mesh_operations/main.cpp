@@ -80,7 +80,11 @@ namespace g = quetzal::geometry;
 // Vertices intersect edges
 #define BOX_BOX_VERTEX_EDGE
 // Intersection at corresponding vertices
-#define BOX_BOX_VERTEX_VERTEX
+#define BOX_BOX_VERTEX_VERTEX_1
+// Intersection at corresponding vertices
+//#define BOX_BOX_VERTEX_VERTEX_2
+// Intersection at corresponding vertices
+//#define BOX_BOX_VERTEX_VERTEX_3
 // Edges entirely within a face
 #define BOX_BOX_EDGE_FACE
 // Edges intersect at interior points
@@ -498,8 +502,8 @@ auto zzz = brep::intersection_coplanar(mesh.face(0), mesh.face(1)); // test ...
     test_model_operations(mesh, "box_box_vertex_edge", box_box_vertex_edge_model, test_operations);
 #endif // BOX_BOX_VERTEX_EDGE
 
-#if defined(BOX_BOX_VERTEX_VERTEX)
-    auto box_box_vertex_vertex_model = [&](mesh_type& mesh) -> vector<id_type>
+#if defined(BOX_BOX_VERTEX_VERTEX_1)
+    auto box_box_vertex_vertex_1_model = [&](mesh_type& mesh) -> vector<id_type>
     {
         string name_a = "box_a";
         string name_b = "box_b";
@@ -515,8 +519,42 @@ auto zzz = brep::intersection_coplanar(mesh.face(0), mesh.face(1)); // test ...
         return {submesh_id_a, submesh_id_b};
     };
 
-    test_model_operations(mesh, "box_box_vertex_vertex", box_box_vertex_vertex_model, test_operations);
-#endif // BOX_BOX_VERTEX_VERTEX
+    test_model_operations(mesh, "box_box_vertex_vertex_1", box_box_vertex_vertex_1_model, test_operations);
+#endif // BOX_BOX_VERTEX_VERTEX_1
+
+#if defined(BOX_BOX_VERTEX_VERTEX_2)
+    auto box_box_vertex_vertex_2_model = [&](mesh_type& mesh) -> vector<id_type>
+    {
+        string name_a = "box_a";
+        string name_b = "box_b";
+        mesh.clear();
+        id_type submesh_id_a = model::create_box(mesh, name_a, 20.0f, 20.0f, 20.0f);
+        id_type submesh_id_b = model::create_box(mesh, name_b, 10.0f, 10.0f, 10.0f);
+        auto axis = normalize(vector_type(1.0f, 1.0f, 1.0f));
+        auto angle = math::PiThird<value_type>;
+        model::transform(mesh.submesh(submesh_id_b), g::rotation_axis_unit(axis, angle) * g::translation(5.0f, 5.0f, 5.0f));
+        return {submesh_id_a, submesh_id_b};
+    };
+
+    test_model_operations(mesh, "box_box_vertex_vertex_2", box_box_vertex_vertex_2_model, test_operations);
+#endif // BOX_BOX_VERTEX_VERTEX_2
+
+#if defined(BOX_BOX_VERTEX_VERTEX_3)
+    auto box_box_vertex_vertex_3_model = [&](mesh_type& mesh) -> vector<id_type>
+    {
+        string name_a = "box_a";
+        string name_b = "box_b";
+        mesh.clear();
+        id_type submesh_id_a = model::create_box(mesh, name_a, 20.0f, 20.0f, 20.0f);
+        id_type submesh_id_b = model::create_box(mesh, name_b, 20.0f, 20.0f, 20.0f);
+        auto axis = normalize(vector_type(1.0f, 1.0f, 1.0f));
+        auto angle = math::PiThird<value_type>;
+        model::transform(mesh.submesh(submesh_id_b), g::rotation_axis_unit(axis, angle));
+        return {submesh_id_a, submesh_id_b};
+    };
+
+    test_model_operations(mesh, "box_box_vertex_vertex_3", box_box_vertex_vertex_3_model, test_operations);
+#endif // BOX_BOX_VERTEX_VERTEX_3
 
 #if defined(BOX_BOX_EDGE_FACE)
     auto box_box_edge_face_model = [&](mesh_type& mesh) -> vector<id_type>
