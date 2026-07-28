@@ -295,7 +295,8 @@ struct std::formatter<quetzal::geometry::Segment<Traits>>
         return m_point_formatter.parse(ctx);
     }
 
-    auto format(const quetzal::geometry::Segment<Traits>& segment, std::format_context& ctx) const
+    template<typename FormatContext>
+    auto format(const quetzal::geometry::Segment<Traits>& segment, FormatContext& ctx) const
     {
         auto out = m_point_formatter.format(segment.endpoint(0), ctx);
         ctx.advance_to(out);

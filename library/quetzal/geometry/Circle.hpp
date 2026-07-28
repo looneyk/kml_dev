@@ -149,7 +149,8 @@ struct std::formatter<quetzal::geometry::Circle<Traits>>
         return m_point_formatter.parse(ctx);
     }
 
-    auto format(const quetzal::geometry::Circle<Traits>& circle, std::format_context& ctx) const
+    template<typename FormatContext>
+    auto format(const quetzal::geometry::Circle<Traits>& circle, FormatContext& ctx) const
     {
         auto out = m_point_formatter.format(circle.center(), ctx);
         ctx.advance_to(out);

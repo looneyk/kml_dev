@@ -172,7 +172,8 @@ struct std::formatter<quetzal::geometry::Ray<Traits>>
         return m_point_formatter.parse(ctx);
     }
 
-    auto format(const quetzal::geometry::Ray<Traits>& ray, std::format_context& ctx) const
+    template<typename FormatContext>
+    auto format(const quetzal::geometry::Ray<Traits>& ray, FormatContext& ctx) const
     {
         std::formatter<quetzal::math::Vector<Traits>> vector_formatter;
         vector_formatter.m_object_delimiters = m_point_formatter.m_object_delimiters;

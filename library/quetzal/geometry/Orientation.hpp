@@ -174,7 +174,8 @@ struct std::formatter<quetzal::geometry::Orientation<Traits>>
         return m_vector_formatter.parse(ctx);
     }
 
-    auto format(const quetzal::geometry::Orientation<Traits>& orientation, std::format_context& ctx) const
+    template<typename FormatContext>
+    auto format(const quetzal::geometry::Orientation<Traits>& orientation, FormatContext& ctx) const
     {
         auto out = m_vector_formatter.format(orientation.direction(), ctx);
         ctx.advance_to(out);

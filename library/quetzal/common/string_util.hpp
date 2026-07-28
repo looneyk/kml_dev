@@ -61,6 +61,7 @@ namespace quetzal
     // single-space element delimiter), so this is what puts operator<< and format({}) in agreement.
     std::string array_format_spec(const std::ostream& os, char default_object_delim = '\0', const std::string& default_element_delim = " ");
 
+    //--------------------------------------------------------------------------
     // Stream-state-aware form of to_string: matches to_string(t)'s unbracketed, space-separated output
     // by default (same as format({}), see array_format_spec), but honors object_delim/element_delim
     // manipulators (so operator<< can be made to produce array-formatted output on request, the ostream
@@ -74,9 +75,16 @@ namespace quetzal
 
     //--------------------------------------------------------------------------
     template<typename T>
-    std::string opt_string(const std::optional<T>& opt)
+    std::string to_string(const std::optional<T>& opt)
     {
         return opt ? to_string(*opt) : "nullopt";
+    }
+
+    template<typename T>
+    std::ostream& operator<<(std::ostream& os, const std::optional<T>& opt)
+    {
+        os << to_string(opt, os);
+        return os;
     }
 
     std::string to_string(const std::string& str);
@@ -95,7 +103,7 @@ namespace quetzal
 
     //--------------------------------------------------------------------------
     template<typename T>
-    std::optional<T> opt_type(const std::string& str)
+    std::optional<T> try_type(const std::string& str)
     {
         T t{};
         using std::from_chars;
@@ -124,5 +132,21 @@ namespace quetzal
 //    std::u8string to_utf8(string_view<char32_t> s);
 
 } // namespace quetzal
+
+//------------------------------------------------------------------------------
+template<typename T>
+struct std::formatter<std::optional<T>> : std::formatter<T>
+{
+    template<typename FormatContext>
+    auto format(const std::optional<T>& opt, FormatContext& ctx) const
+    {
+        if (!opt)
+        {
+            return std::format_to(ctx.out(), "nullopt");
+        }
+
+        return std::formatter<T>::format(*opt, ctx);
+    }
+};
 
 #endif // QUETZAL_STRING_UTIL_HPP

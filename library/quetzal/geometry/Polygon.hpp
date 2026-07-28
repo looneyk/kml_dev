@@ -931,7 +931,8 @@ struct std::formatter<quetzal::geometry::Polygon<Traits>>
         return m_point_formatter.parse(ctx);
     }
 
-    auto format(const quetzal::geometry::Polygon<Traits>& polygon, std::format_context& ctx) const
+    template<typename FormatContext>
+    auto format(const quetzal::geometry::Polygon<Traits>& polygon, FormatContext& ctx) const
     {
         auto out = ctx.out();
         bool first = true;

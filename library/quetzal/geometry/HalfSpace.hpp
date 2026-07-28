@@ -31,6 +31,7 @@ namespace quetzal::geometry
 
         HalfSpace() = default;
         HalfSpace(const separator_type& separator, const vector_type& exterior_direction);
+        HalfSpace(const separator_type& separator); // Uses plane normal or line perp for exterior_direction
         HalfSpace(const HalfSpace&) = default;
         HalfSpace(HalfSpace&&) = default;
         ~HalfSpace() = default;
@@ -63,6 +64,15 @@ quetzal::geometry::HalfSpace<Traits>::HalfSpace(const separator_type& separator,
     PointRelation<Traits>(),
     m_separator(separator),
     m_exterior_direction(exterior_direction)
+{
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+quetzal::geometry::HalfSpace<Traits>::HalfSpace(const separator_type& separator) :
+    PointRelation<Traits>(),
+    m_separator(separator),
+    m_exterior_direction([&](){if constexpr (Traits::dimension >= 3) {return separator.normal();} else {return separator.perp();};}())
 {
 }
 
@@ -129,7 +139,8 @@ struct std::formatter<quetzal::geometry::HalfSpace<Traits>>
         return m_point_formatter.parse(ctx);
     }
 
-    auto format(const quetzal::geometry::HalfSpace<Traits>& halfspace, std::format_context& ctx) const
+    template<typename FormatContext>
+    auto format(const quetzal::geometry::HalfSpace<Traits>& halfspace, FormatContext& ctx) const
     {
         std::formatter<quetzal::math::Vector<Traits>> vector_formatter;
         vector_formatter.m_object_delimiters = m_point_formatter.m_object_delimiters;

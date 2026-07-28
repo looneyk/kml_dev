@@ -154,7 +154,8 @@ struct std::formatter<quetzal::geometry::Plane<Traits>>
         return m_point_formatter.parse(ctx);
     }
 
-    auto format(const quetzal::geometry::Plane<Traits>& plane, std::format_context& ctx) const
+    template<typename FormatContext>
+    auto format(const quetzal::geometry::Plane<Traits>& plane, FormatContext& ctx) const
     {
         std::formatter<quetzal::math::Vector<Traits>> vector_formatter;
         vector_formatter.m_object_delimiters = m_point_formatter.m_object_delimiters;

@@ -82,7 +82,8 @@ std::ostream& quetzal::geometry::operator<<(std::ostream& os, const Locus& locus
 template <>
 struct std::formatter<quetzal::geometry::Locus> : std::formatter<std::string>
 {
-    auto format(const quetzal::geometry::Locus& locus, std::format_context& ctx) const
+    template<typename FormatContext>
+    auto format(const quetzal::geometry::Locus& locus, FormatContext& ctx) const
     {
         return std::formatter<std::string>::format(to_string(locus), ctx);
     }

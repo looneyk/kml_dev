@@ -183,6 +183,9 @@ namespace quetzal::brep
     template<typename Traits, typename M>
     std::ostream& operator<<(std::ostream& os, const Face<Traits, M>& face);
 
+    template<typename F>
+    void test_halfedge_face_iteration(const F& face);
+
     //--------------------------------------------------------------------------
     template<typename Traits>
     struct geometry::PositionAccessor<Face<Traits>>
@@ -866,13 +869,13 @@ typename quetzal::brep::Face<Traits, M>::halfedges_ext_type::iterate_function_ty
     if (holes.empty())
     {
         id_type halfedge_id_next = mesh.halfedge_store()[halfedge_id].next_id();
-        return {std::nullopt, halfedge_id_next != m_halfedges_first(mesh, id) ? halfedge_id_next : nullid};
+        return {std::nullopt, halfedge_id_next != mesh.face_store()[id].halfedge_id() ? halfedge_id_next : nullid};
     }
 
     // Handle perimeter values
     if (!hole_id_opt.has_value())
     {
-        if (halfedge_id == m_halfedges_last(mesh, id))
+        if (halfedge_id == mesh.face_store()[id].halfedge().prev_id())
         {
             return {0, holes[0].halfedge_id()};
         }
@@ -911,13 +914,13 @@ typename quetzal::brep::Face<Traits, M>::halfedges_ext_type::iterate_function_ty
     if (holes.empty())
     {
         id_type halfedge_id_prev = mesh.halfedge_store()[halfedge_id].prev_id();
-        return {std::nullopt, halfedge_id_prev != m_halfedges_last(mesh, id) ? halfedge_id_prev : nullid};
+        return {std::nullopt, halfedge_id_prev != mesh.face_store()[id].halfedge().prev_id() ? halfedge_id_prev : nullid};
     }
 
     // Handle perimeter values
     if (!hole_id_opt.has_value())
     {
-        if (halfedge_id == m_halfedges_first(mesh, id))
+        if (halfedge_id == mesh.face_store()[id].halfedge_id())
         {
             return {std::nullopt, nullid};
         }
@@ -1005,6 +1008,50 @@ std::ostream& quetzal::brep::operator<<(std::ostream& os, const Face<Traits, M>&
 
     os << '\n';
     return os;
+}
+
+//--------------------------------------------------------------------------
+template<typename F>
+void test_halfege_face_iteration(const F& face)
+{
+    std::cout << "test_halfedge_face_iteration face id " << face.id() << std::endl;
+    const auto& halfedges = face.halfedges();
+    std::cout << "    forward iterator" << std::endl;
+    for (auto i = halfedges.begin(); i != halfedges.end(); ++i)
+    {
+        const auto& halfedge = *i;
+        std::cout << "        " << halfedge.id() << " " << vertex_position(halfedge) << std::endl;
+    }
+    std::cout << "    reverse iterator" << std::endl;
+    for (auto i = halfedges.rbegin(); i != halfedges.rend(); ++i)
+    {
+        const auto& halfedge = *i;
+        std::cout << "        " << halfedge.id() << " " << vertex_position(halfedge) << std::endl;
+    }
+    std::cout << "    range for" << std::endl;
+    for (const auto& halfedge : halfedges)
+    {
+        std::cout << "        " << halfedge.id() << " " << vertex_position(halfedge) << std::endl;
+    }
+    const auto& halfedges_ext = face.halfedges_ext();
+    auto j = halfedges_ext.begin();
+    std::cout << "    ext forward iterator" << std::endl;
+    for (auto i = halfedges_ext.begin(); i != halfedges_ext.end(); ++i)
+    {
+        const auto& halfedge = *i;
+        std::cout << "        " << halfedge.id() << " " << vertex_position(halfedge) << std::endl;
+    }
+    std::cout << "    ext reverse iterator" << std::endl;
+    for (auto i = halfedges_ext.rbegin(); i != halfedges_ext.rend(); ++i)
+    {
+        const auto& halfedge = *i;
+        std::cout << "        " << halfedge.id() << " " << vertex_position(halfedge) << std::endl;
+    }
+    std::cout << "    ext range for" << std::endl;
+    for (const auto& halfedge : halfedges_ext)
+    {
+        std::cout << "        " << halfedge.id() << " " << vertex_position(halfedge) << std::endl;
+    }
 }
 
 #endif // QUETZAL_BREP_FACE_HPP

@@ -133,7 +133,8 @@ struct std::formatter<quetzal::geometry::HalfPlane<Traits>>
         return m_point_formatter.parse(ctx);
     }
 
-    auto format(const quetzal::geometry::HalfPlane<Traits>& halfplane, std::format_context& ctx) const
+    template<typename FormatContext>
+    auto format(const quetzal::geometry::HalfPlane<Traits>& halfplane, FormatContext& ctx) const
     {
         std::formatter<quetzal::geometry::Line<Traits>> line_formatter;
         line_formatter.m_point_formatter = m_point_formatter;

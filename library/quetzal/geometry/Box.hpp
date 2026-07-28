@@ -201,7 +201,8 @@ struct std::formatter<quetzal::geometry::Box<Traits>>
         return m_point_formatter.parse(ctx);
     }
 
-    auto format(const quetzal::geometry::Box<Traits>& box, std::format_context& ctx) const
+    template<typename FormatContext>
+    auto format(const quetzal::geometry::Box<Traits>& box, FormatContext& ctx) const
     {
         auto out = m_point_formatter.format(box.lower(), ctx);
         ctx.advance_to(out);

@@ -192,7 +192,8 @@ struct std::formatter<quetzal::geometry::BoundingSphere<Traits>>
         return m_point_formatter.parse(ctx);
     }
 
-    auto format(const quetzal::geometry::BoundingSphere<Traits>& sphere, std::format_context& ctx) const
+    template<typename FormatContext>
+    auto format(const quetzal::geometry::BoundingSphere<Traits>& sphere, FormatContext& ctx) const
     {
         auto out = m_point_formatter.format(sphere.center(), ctx);
         ctx.advance_to(out);

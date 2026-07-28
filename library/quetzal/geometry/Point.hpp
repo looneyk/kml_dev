@@ -253,7 +253,7 @@ namespace quetzal::geometry
     bool any_less(const Point<Traits>& lhs, const Point<Traits>& rhs);
 
     template<typename Traits>
-    bool float_priority_less(const Point<Traits>& lhs, const Point<Traits>& rhs, int tolerance);
+    bool float_priority_less(const Point<Traits>& lhs, const Point<Traits>& rhs, int tolerance = math::tolerance_default);
 
     // These two operators are not symmetrical. extract parses numeric values separated by whitespace, and insert outputs a formatted point
 
@@ -1127,7 +1127,8 @@ struct std::formatter<quetzal::geometry::Point<Traits>>
         return m_element_formatter.parse(ctx);
     }
 
-    auto format(quetzal::geometry::Point<Traits> point, std::format_context& ctx) const
+    template<typename FormatContext>
+    auto format(quetzal::geometry::Point<Traits> point, FormatContext& ctx) const
     {
         Traits::prepare(point.rep());
         return Traits::format_to(ctx, m_element_formatter, point.rep(), m_element_delimiter, m_object_delimiters);

@@ -254,7 +254,8 @@ struct std::formatter<quetzal::geometry::Intersection<Traits>>
         return m_point_formatter.parse(ctx);
     }
 
-    auto format(const quetzal::geometry::Intersection<Traits>& ix, std::format_context& ctx) const
+    template<typename FormatContext>
+    auto format(const quetzal::geometry::Intersection<Traits>& ix, FormatContext& ctx) const
     {
         std::string label = quetzal::geometry::to_string(ix.locus());
         auto out = ctx.out();
@@ -297,6 +298,13 @@ struct std::formatter<quetzal::geometry::Intersection<Traits>>
                 std::formatter<quetzal::geometry::Segment<Traits>> f;
                 f.m_point_formatter = m_point_formatter;
                 return f.format(ix.segment(), ctx);
+            }
+
+            case quetzal::geometry::Locus::Plane:
+            {
+                std::formatter<quetzal::geometry::Plane<Traits>> f;
+                f.m_point_formatter = m_point_formatter;
+                return f.format(ix.plane(), ctx);
             }
 
             case quetzal::geometry::Locus::Polygon:

@@ -1181,7 +1181,8 @@ struct std::formatter<quetzal::math::Vector<Traits>>
         return m_element_formatter.parse(ctx);
     }
 
-    auto format(const quetzal::math::Vector<Traits>& vector, std::format_context& ctx) const
+    template<typename FormatContext>
+    auto format(const quetzal::math::Vector<Traits>& vector, FormatContext& ctx) const
     {
         return Traits::format_to(ctx, m_element_formatter, vector.rep(), m_element_delimiter, m_object_delimiters);
     }
