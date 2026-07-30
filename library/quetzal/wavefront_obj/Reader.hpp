@@ -6,6 +6,7 @@
 //------------------------------------------------------------------------------
 
 #include "quetzal/common/Exception.hpp"
+#include "quetzal/common/file_util.hpp"
 #include "reader_util.hpp"
 #include "symbols.hpp"
 #include <array>
@@ -16,6 +17,7 @@
 #include <optional>
 #include <sstream>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include <type_traits>
@@ -136,19 +138,22 @@ void quetzal::wavefront_obj::Reader<M>::read(M& m, const std::filesystem::path& 
     std::vector<texcoord_type> texcoords;
     size_t n = 0;
 
+    // Reused across lines so that reading a file does not allocate per line
+    std::string line;
+    std::vector<std::string_view> tokens;
+
     while (!is.eof())
     {
-        std::string line;
-        getline(is, line);
+        read_line(is, line);
         ++n;
 
-        auto tokens = tokenize(line);
+        tokenize(line, tokens);
         if (tokens.empty())
         {
             continue;
         }
 
-        std::string keyword = tokens[0];
+        std::string_view keyword = tokens[0];
 
         if (keyword == wavefront_obj::Keyword::Position)
         {
@@ -212,7 +217,7 @@ void quetzal::wavefront_obj::Reader<M>::read(M& m, const std::filesystem::path& 
 
             for (size_t i = 1; i < tokens.size(); ++i)
             {
-                const std::string& s = tokens[i];
+                std::string_view s = tokens[i];
 
                 vertex_reference_type vr;
                 bool b = parse_vertex_reference(s, vr);
@@ -249,7 +254,7 @@ void quetzal::wavefront_obj::Reader<M>::read(M& m, const std::filesystem::path& 
                 std::cout << "Warning: No parameter for " << wavefront_obj::Keyword::Group << " keyword: " << (tokens.size() - 1) << " found, at least 1 expected." << std::endl;
             }
 
-            m_on_group(m, tokens.size() > 1 && !tokens[1].empty() ? tokens[1] : GroupNameDefault);
+            m_on_group(m, tokens.size() > 1 && !tokens[1].empty() ? std::string(tokens[1]) : GroupNameDefault);
         }
         else if (keyword == wavefront_obj::Keyword::Object)
         {
@@ -258,7 +263,7 @@ void quetzal::wavefront_obj::Reader<M>::read(M& m, const std::filesystem::path& 
                 std::cout << "Warning: Wrong number of parameters for " << wavefront_obj::Keyword::Object << " keyword: " << (tokens.size() - 1) << " found, 1 expected." << std::endl;
             }
 
-            m_on_object(m, tokens[1]);
+            m_on_object(m, std::string(tokens[1]));
         }
         else if (keyword == wavefront_obj::Keyword::Materials)
         {
@@ -267,7 +272,7 @@ void quetzal::wavefront_obj::Reader<M>::read(M& m, const std::filesystem::path& 
                 std::cout << "Warning: Wrong number of parameters for " << wavefront_obj::Keyword::Materials << " keyword: " << (tokens.size() - 1) << " found, 1 expected." << std::endl;
             }
 
-            m_on_materials(m, tokens[1]);
+            m_on_materials(m, std::string(tokens[1]));
         }
         else if (keyword == wavefront_obj::Keyword::Material)
         {
@@ -276,7 +281,7 @@ void quetzal::wavefront_obj::Reader<M>::read(M& m, const std::filesystem::path& 
                 std::cout << "Warning: Wrong number of parameters for " << wavefront_obj::Keyword::Material << " keyword: " << (tokens.size() - 1) << " found, 1 expected." << std::endl;
             }
 
-            m_on_material(m, tokens[1]);
+            m_on_material(m, std::string(tokens[1]));
         }
 
         // Comments, missing, unrecognized, and all other keywords ignored ...
