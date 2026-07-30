@@ -3,19 +3,16 @@
 // main.cpp
 //------------------------------------------------------------------------------
 
-#include "quetzal/brep/Mesh.hpp"
-#include "quetzal/brep/MeshTraits.hpp"
+#include "quetzal/common/Exception.hpp"
 #include "quetzal/common/file_util.hpp"
-#include "quetzal/geometry/Attributes.hpp"
 #include "quetzal/math/HomogeneousTraits.hpp"
-#include "quetzal/math/floating_point.hpp"
-#include "quetzal/model/obj_io.hpp"
+#include "quetzal/model/mesh_diff.hpp"
+#include <exception>
 #include <filesystem>
 #include <format>
 #include <iostream>
+#include <map>
 #include <string>
-#include <ranges>
-#include <cassert>
 
 using namespace std;
 using namespace quetzal;
@@ -26,214 +23,215 @@ namespace
     using value_type = float;
 //    using value_type = double;
     using vector_traits = math::HomogeneousTraits<value_type, 3>;
-    using mesh_type = brep::Mesh<brep::MeshTraits<vector_traits>>;
-    using point_type = typename mesh_type::point_type;
-//    using vector_type = point_type::vector_type;
-
-    using face_index_type = map<typename point_type, id_type, math::PriorityLess<typename point_type>>;
 
     static const string app_name = "mesh_diff";
 
-    bool verbose = false;
-
-    static const int gulp = 1000;
+    //--------------------------------------------------------------------------
+    enum class FileResult
+    {
+        identical,
+        equivalent,
+        different,
+        error
+    };
 
     //--------------------------------------------------------------------------
-    face_index_type index_faces(const mesh_type& mesh)
+    struct Results
     {
-        face_index_type index;
-        for (const auto& face : mesh.faces())
+        size_t n_total = 0;
+        size_t n_identical = 0;
+        size_t n_equivalent = 0; // Includes identical
+        size_t n_different = 0;
+        size_t n_error = 0;
+        size_t n_unpaired = 0;       // Present only on the left
+        size_t n_unpaired_other = 0; // Present only on the right
+    };
+
+    //--------------------------------------------------------------------------
+    void accumulate(Results& results, FileResult result)
+    {
+        ++results.n_total;
+
+        switch (result)
         {
-            index[vertex_centroid(face)] = face.id();
+            case FileResult::identical:
+                ++results.n_identical;
+                ++results.n_equivalent;
+                break;
+
+            case FileResult::equivalent:
+                ++results.n_equivalent;
+                break;
+
+            case FileResult::different:
+                ++results.n_different;
+                break;
+
+            case FileResult::error:
+                ++results.n_error;
+                break;
+        }
+
+        return;
+    }
+
+    //--------------------------------------------------------------------------
+    void report_differences(const model::Comparison& comparison, const model::Options& options)
+    {
+        for (const auto& difference : comparison.differences)
+        {
+            const auto& counts = difference.differences;
+
+            string where = difference.face_id_other
+                ? std::format("faces {} and {}", difference.face_id, *difference.face_id_other)
+                : std::format("face {}", difference.face_id);
+
+            string detail;
+            if (!counts.empty())
+            {
+                detail = std::format(", {} position, {} normal, {} texcoord", counts.positions, counts.normals, counts.texcoords);
+            }
+
+            string surface;
+            if (options.compare_surfaces && !difference.surface.empty() && !difference.surface_other.empty() && difference.surface != difference.surface_other)
+            {
+                surface = std::format(", surface {} != {}", difference.surface, difference.surface_other);
+            }
+
+            cout << "    " << where << " " << model::to_string(difference.match) << detail << surface << endl;
+        }
+
+        if (comparison.n_differences_elided > 0)
+        {
+            cout << "    ... " << comparison.n_differences_elided << " more" << endl;
+        }
+
+        return;
+    }
+
+    //--------------------------------------------------------------------------
+    FileResult compare_files(const filesystem::path& path_lhs, const filesystem::path& path_rhs, const model::Options& options)
+    {
+        model::Comparison comparison;
+
+        try
+        {
+            comparison = model::mesh_diff<vector_traits>(path_lhs, path_rhs, options);
+        }
+        catch (const std::exception& e)
+        {
+            cout << "Error reading: " << e.what() << endl;
+            return FileResult::error;
+        }
+
+        if (comparison.identical())
+        {
+            cout << "Identical: " << comparison.n_faces << " faces" << endl;
+            return FileResult::identical;
+        }
+
+        if (comparison.equivalent() && comparison.n_surface_differences == 0)
+        {
+            cout << "Equivalent: " << comparison.n_faces << " faces (" << comparison.n_identical << " identical)" << endl;
+            return FileResult::equivalent;
+        }
+
+        if (comparison.n_faces != comparison.n_faces_other)
+        {
+            cout << "Different face counts: " << comparison.n_faces << " and " << comparison.n_faces_other << endl;
+        }
+        else
+        {
+            cout << std::format("Different: {} identical, {} equivalent, {} reversed, {} different, {} unmatched, {} extra, {} surface, {} total faces",
+                comparison.n_identical, comparison.n_equivalent, comparison.n_reversed, comparison.n_different,
+                comparison.n_unmatched, comparison.n_unmatched_other, comparison.n_surface_differences, comparison.n_faces) << endl;
+        }
+
+        report_differences(comparison, options);
+        return FileResult::different;
+    }
+
+    //--------------------------------------------------------------------------
+    void report_results(const Results& results)
+    {
+        if (results.n_error > 0 || results.n_different > 0)
+        {
+            cout << std::format("Error: {} different, {} unreadable, {} files compared",
+                results.n_different, results.n_error, results.n_total) << endl;
+        }
+        else if (results.n_identical == results.n_total)
+        {
+            cout << "OK: " << results.n_total << " identical files" << endl;
+        }
+        else
+        {
+            cout << "OK: " << results.n_total << " equivalent files (" << results.n_identical << " identical)" << endl;
+        }
+
+        if (results.n_unpaired > 0 || results.n_unpaired_other > 0)
+        {
+            cout << std::format("Unpaired: {} only on the left, {} only on the right", results.n_unpaired, results.n_unpaired_other) << endl;
+        }
+
+        return;
+    }
+
+    //--------------------------------------------------------------------------
+    using file_index_type = map<string, filesystem::path>;
+
+    //--------------------------------------------------------------------------
+    file_index_type index_files(const filesystem::path& path)
+    {
+        file_index_type index;
+
+        for (const auto& entry : filesystem::directory_iterator{path})
+        {
+            if (entry.is_regular_file())
+            {
+                index[entry.path().filename().string()] = entry.path();
+            }
         }
 
         return index;
     }
 
     //--------------------------------------------------------------------------
-    // Returns {position_differences, normal_differences, texcoord_differences}, nullopt if halfedge counts don't match
-    optional<array<size_t, 3>> face_differences(const mesh_type::face_type& face_lhs, const mesh_type::face_type& face_rhs, bool exact)
+    Results compare_directories(const filesystem::path& path_lhs, const filesystem::path& path_rhs, const model::Options& options)
     {
-        const auto& mesh = face_lhs.mesh();
+        file_index_type index_lhs = index_files(path_lhs);
+        file_index_type index_rhs = index_files(path_rhs);
 
-        array<size_t, 3> differences = {};
+        Results results;
 
-        if (face_lhs.halfedge_count() != face_rhs.halfedge_count())
+        auto i_lhs = index_lhs.begin();
+        auto i_rhs = index_rhs.begin();
+
+        while (i_lhs != index_lhs.end() || i_rhs != index_rhs.end())
         {
-            return nullopt;
-        }
-
-        id_type halfedge_id_rhs = nullid;
-
-        const auto& lhs_position = face_lhs.halfedge().vertex_attributes().position();
-        for (const auto& halfedge_rhs : face_rhs.halfedges())
-        {
-            if (float_eq(lhs_position, halfedge_rhs.vertex_attributes().position()))
+            if (i_rhs == index_rhs.end() || (i_lhs != index_lhs.end() && i_lhs->first < i_rhs->first))
             {
-                halfedge_id_rhs = halfedge_rhs.id();
-                break;
-            }
-        }
-
-        assert(halfedge_id_rhs != nullid);
-
-//        for (const auto& [halfedge_lhs, halfedge_rhs] : views::zip(face_lhs.halfedges(), face_rhs.halfedges()))
-        for (const auto& halfedge_lhs : face_lhs.halfedges())
-        {
-            const auto& va_lhs = halfedge_lhs.vertex_attributes();
-            const auto& va_rhs = mesh.halfedge(halfedge_id_rhs).vertex_attributes();
-
-            if (exact ? va_lhs.position() != va_rhs.position() : !float_eq(va_lhs.position(), va_rhs.position(), gulp))
-            {
-                ++differences[0];
-                if (verbose && !exact) cout << halfedge_lhs.id() << " " << halfedge_id_rhs << " p " << va_lhs.position() << " != " << va_rhs.position() << endl;
-            }
-
-            if (exact ? va_lhs.normal() != va_rhs.normal() : !float_eq(va_lhs.normal(), va_rhs.normal(), gulp))
-            {
-                ++differences[1];
-                if (verbose && !exact) cout << halfedge_lhs.id() << " " << halfedge_id_rhs << " n " << va_lhs.normal() << " != " << va_rhs.normal() << endl;
-            }
-
-            if (exact ? va_lhs.texcoord() != va_rhs.texcoord() : !float_eq(va_lhs.texcoord(), va_rhs.texcoord(), gulp))
-            {
-                ++differences[2];
-                if (verbose && !exact) cout << halfedge_lhs.id() << " " << halfedge_id_rhs << " t " << va_lhs.texcoord() << " != " << va_rhs.texcoord() << endl;
-            }
-
-            halfedge_id_rhs = mesh.halfedge(halfedge_id_rhs).next_id();
-        }
-
-        return differences;
-    }
-
-    //--------------------------------------------------------------------------
-    // Returns {faces_identical, faces_equivalent, faces_total}, nullopt if face counts don't match
-    // identical counts as equivalent
-    optional<array<size_t, 3>> mesh_stats(const mesh_type& mesh_lhs, const mesh_type& mesh_rhs)
-    {
-        array<size_t, 3> stats = {};
-        auto& [n_identical, n_equivalent, n_total] = stats;
-
-        if (mesh_lhs.face_count() != mesh_rhs.face_count())
-        {
-            return nullopt;
-        }
-
-        auto index_lhs = index_faces(mesh_lhs);
-        auto index_rhs = index_faces(mesh_rhs);
-
-        for (const auto& [entry_lhs, entry_rhs, i] : views::zip(index_lhs, index_rhs, views::iota(0)))
-        {
-            ++n_total;
-
-            if (!float_eq(entry_lhs.first, entry_rhs.first, gulp))
-            {
+                cout << i_lhs->first << "\tOnly in " << path_lhs.string() << endl;
+                ++results.n_unpaired;
+                ++i_lhs;
                 continue;
             }
 
-            auto result = face_differences(mesh_lhs.face(entry_lhs.second), mesh_rhs.face(entry_rhs.second), true);
-            if (!result)
+            if (i_lhs == index_lhs.end() || i_rhs->first < i_lhs->first)
             {
+                cout << i_rhs->first << "\tOnly in " << path_rhs.string() << endl;
+                ++results.n_unpaired_other;
+                ++i_rhs;
                 continue;
             }
 
-            if (result.value()[0] == 0 && result.value()[1] == 0 && result.value()[2] == 0)
-            {
-                ++n_identical;
-                ++n_equivalent;
-                continue;
-            }
+            cout << i_lhs->first << "\t" << std::flush;
+            accumulate(results, compare_files(i_lhs->second, i_rhs->second, options));
 
-            result = face_differences(mesh_lhs.face(entry_lhs.second), mesh_rhs.face(entry_rhs.second), false);
-            assert(result);
-
-            if (result.value()[0] == 0 && result.value()[1] == 0 && result.value()[2] == 0)
-            {
-                ++n_equivalent;
-            }
+            ++i_lhs;
+            ++i_rhs;
         }
 
-        return stats;
-    }
-
-    //--------------------------------------------------------------------------
-    // Returns {compared, equivalent, mesh_stats (null for face count mismatch)}
-    tuple<bool, bool, optional<array<size_t, 3>>> mesh_diff(const filesystem::path& path_lhs, const filesystem::path& path_rhs)
-    {
-        mesh_type mesh_lhs;
-        model::read_obj(mesh_lhs, path_lhs);
-
-        if (mesh_lhs.face_count() > 100000)
-        {
-            cout << "Skipping, too many faces: " << path_lhs << " " << mesh_lhs.face_count() << endl;
-            return {false, false, {}};
-        }
-
-        mesh_type mesh_rhs;
-        model::read_obj(mesh_rhs, path_rhs);
-
-        auto results = mesh_stats(mesh_lhs, mesh_rhs);
-        if (!results)
-        {
-            cout << "Different face counts: " << mesh_lhs.face_count() << " and " << mesh_rhs.face_count() << endl;
-            return {true, false, {}};
-        }
-
-        auto [n_identical, n_equivalent, n_total] = results.value();
-//        assert(n_total == mesh_lhs.face_count());
-        if (n_total != mesh_lhs.face_count())
-        {
-            cout << std::format("Error: total {} != face_count {}", n_total,  mesh_lhs.face_count()) << endl;
-        }
-
-        if (n_identical == n_total)
-        {
-            cout << "Identical: " << n_total << " faces" << endl;
-            return {true, true, results};
-        }
-
-        if (n_equivalent == n_total)
-        {
-            cout << "Equivalent: " << n_total << " faces (" << n_identical << " identical)" << endl;
-            return {true, true, results};
-        }
-
-        cout << "Different: " << n_identical << " identical, " << n_equivalent << " equivalent, " << n_total << " total faces" << endl;
-        return {true, false, results};
-    }
-
-    //--------------------------------------------------------------------------
-    struct Results
-    {
-        size_t n_skipped = 0;
-        size_t n_uncomparable = 0;
-        size_t n_identical = 0;
-        size_t n_equivalent = 0;
-        size_t n_total = 0;
-    };
-
-    //--------------------------------------------------------------------------
-    void report_results(const Results& results)
-    {
-        if (results.n_identical == results.n_total)
-        {
-            cout << "OK: " << results.n_total << " identical files" << endl;
-        }
-        else if (results.n_equivalent == results.n_total)
-        {
-            cout << "OK: " << results.n_total << " equivalent files (" << results.n_identical << " identical)" << endl;
-        }
-        else if (results.n_equivalent == results.n_total - results.n_skipped)
-        {
-            cout << "OK: " << (results.n_total - results.n_skipped) << " equivalent files (" << results.n_skipped << " skipped, " << results.n_identical << " identical)" << endl;
-        }
-        else
-        {
-            cout << "Error: " << (results.n_total - results.n_skipped - results.n_equivalent) << " different, " << results.n_skipped << " skipped, " << results.n_total << " files" << endl;
-        }
-
-        return;
+        return results;
     }
 
 } // namespace
@@ -269,98 +267,20 @@ int main(int argc, char* argv[])
     {
         cout << argv[1] << endl;
     }
+
     cout << path_lhs.string() << " <=> " << path_rhs.string() << endl;
+
+    model::Options options;
+
+    Results results;
 
     if (filesystem::is_regular_file(path_lhs) && filesystem::is_regular_file(path_rhs))
     {
-        auto mesh_results = mesh_diff(path_lhs, path_rhs);
-        
-        Results final_results;
-        ++final_results.n_total;
-        if (!get<0>(mesh_results))
-        {
-            ++final_results.n_skipped;
-        }
-        else if (get<2>(mesh_results))
-        {
-            auto counts = get<2>(mesh_results).value();
-            if (counts[0] == counts[2])
-            {
-                ++final_results.n_identical;
-                ++final_results.n_equivalent;
-            }
-            else if (counts[1] == counts[2])
-            {
-                ++final_results.n_equivalent;
-            }
-        }
-
-        report_results(final_results);
+        accumulate(results, compare_files(path_lhs, path_rhs, options));
     }
     else if (filesystem::is_directory(path_lhs) && filesystem::is_directory(path_rhs))
     {
-        using file_index_type = map<string, filesystem::path>;
-
-        file_index_type file_index_lhs;
-        ranges::for_each(filesystem::directory_iterator{path_lhs}, [&](const auto& entry)
-        { 
-            auto path = entry.path();
-            file_index_lhs[path.filename().string()] = path;
-        });
-
-        file_index_type file_index_rhs;
-        ranges::for_each(filesystem::directory_iterator{path_rhs}, [&](const auto& entry)
-        { 
-            auto path = entry.path();
-            file_index_rhs[path.filename().string()] = path;
-        });
-
-        Results final_results;
-
-        auto i_lhs = file_index_lhs.begin();
-        auto i_rhs = file_index_rhs.begin();
-        while (i_lhs != file_index_lhs.end() && i_rhs != file_index_rhs.end())
-        {
-            cout << i_lhs->first << "\t" << std::flush;
-
-            if (i_lhs->first == i_rhs->first)
-            {
-                auto mesh_results = mesh_diff(i_lhs->second, i_rhs->second);
-                ++final_results.n_total;
-                if (!get<0>(mesh_results))
-                {
-                    ++final_results.n_skipped;
-                }
-                else if (get<2>(mesh_results))
-                {
-                    auto counts = get<2>(mesh_results).value();
-                    if (counts[0] == counts[2])
-                    {
-                        ++final_results.n_identical;
-                        ++final_results.n_equivalent;
-                    }
-                    else if (counts[1] == counts[2])
-                    {
-                        ++final_results.n_equivalent;
-                    }
-                }
-
-                ++i_lhs;
-                ++i_rhs;
-                continue;
-            }
-
-            if (i_lhs->first > i_rhs->first)
-            {
-                ++i_rhs;
-                continue;
-            }
-
-            ++i_lhs;
-            continue;
-        }
-
-        report_results(final_results);
+        results = compare_directories(path_lhs, path_rhs, options);
     }
     else
     {
@@ -368,5 +288,6 @@ int main(int argc, char* argv[])
         return -1;
     }
 
-    return 0;
+    report_results(results);
+    return results.n_different > 0 || results.n_error > 0 ? 1 : 0;
 }

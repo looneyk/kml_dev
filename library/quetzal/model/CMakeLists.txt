@@ -3,6 +3,7 @@ add_custom_target(quetzal_model SOURCES
     helix_anticylinder.hpp
     helix_pyramid.hpp
     mesh_attributes.hpp
+    mesh_diff.hpp
     obj_io.hpp
     primitives.hpp
     primitives_specification.hpp
