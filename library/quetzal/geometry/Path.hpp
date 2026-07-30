@@ -36,7 +36,7 @@ quetzal::geometry::Path<Traits> quetzal::geometry::load_path(const std::filesyst
 
     Path<Traits> path;
 
-    std::ifstream is(filepath);
+    std::ifstream is(filepath, std::ios_base::binary);
     if (!is)
     {
         return path;

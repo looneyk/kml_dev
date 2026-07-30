@@ -7,9 +7,28 @@
 //------------------------------------------------------------------------------
 
 #include <iostream>
+#include <istream>
+#include <string>
 
 namespace quetzal
 {
+
+    //--------------------------------------------------------------------------
+    // Reads a line, dropping a trailing cr so that a file written with crlf
+    // endings reads identically on every platform.
+    // Neither stream mode does this on its own: text mode drops the cr only on
+    // Windows, and binary mode retains it everywhere
+    inline std::istream& read_line(std::istream& is, std::string& line)
+    {
+        std::getline(is, line);
+
+        if (!line.empty() && line.back() == '\r')
+        {
+            line.pop_back();
+        }
+
+        return is;
+    }
 
     // Redirect stdout or stderr to another stream
 

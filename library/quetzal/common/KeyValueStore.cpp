@@ -4,6 +4,7 @@
 //------------------------------------------------------------------------------
 
 #include "KeyValueStore.hpp"
+#include "file_util.hpp"
 #include <fstream>
 #include <sstream>
 
@@ -29,14 +30,14 @@ namespace quetzal
 //------------------------------------------------------------------------------
 KeyValueStore::KeyValueStore(const filesystem::path& path)
 {
-    ifstream file(path);
+    ifstream file(path, ios_base::binary);
     if (!file.is_open())
     {
         return;
     }
 
     string line;
-    while (getline(file, line))
+    while (read_line(file, line))
     {
         // Skip empty lines and comments
         if (line.empty() || line[0] == '#' || line[0] == ';')

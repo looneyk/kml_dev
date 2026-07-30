@@ -30,7 +30,7 @@ void quetzal::geometry::load_points(const std::filesystem::path& filepath, Point
     static const std::string s_dimension("dimension");
     static const std::string s_point("point");
 
-    std::ifstream is(filepath);
+    std::ifstream is(filepath, std::ios_base::binary);
     if (!is)
     {
         return;

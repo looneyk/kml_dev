@@ -6,8 +6,11 @@
 #include "file_util.hpp"
 #include <cstdio>
 #include <cassert>
+
+#if defined(_WIN32)
 #include <fcntl.h>
 #include <io.h>
+#endif
 
 using namespace std;
 
@@ -26,12 +29,19 @@ quetzal::OstreamRedirect::~OstreamRedirect()
 //------------------------------------------------------------------------------
 void quetzal::set_output_file_lf_endings()
 {
+#if defined(_WIN32)
     cout.flush();
     cerr.flush();
-    assert(_setmode(_fileno(stdout), _O_BINARY) != -1);
-    assert(_setmode(_fileno(stderr), _O_BINARY) != -1);
-    // set_lf_endings(cout);
-    // set_lf_endings(cerr);
+
+    // The calls have to be made outside the assert so that they still happen when NDEBUG is defined
+    int mode_stdout = _setmode(_fileno(stdout), _O_BINARY);
+    assert(mode_stdout != -1);
+
+    int mode_stderr = _setmode(_fileno(stderr), _O_BINARY);
+    assert(mode_stderr != -1);
+#endif
+
+    // Platforms other than Windows do not translate line endings on output
     return;
 }
 /*

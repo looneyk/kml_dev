@@ -4,6 +4,7 @@
 //------------------------------------------------------------------------------
 
 #include "MaterialLibrary.hpp"
+#include "quetzal/common/file_util.hpp"
 #include "reader_util.hpp"
 #include "symbols.hpp"
 #include <cassert>
@@ -12,7 +13,7 @@ using namespace std;
 
 //------------------------------------------------------------------------------
 quetzal::wavefront_obj::MaterialLibrary::MaterialLibrary(const filesystem::path& filepath) :
-    m_ifs(filepath),
+    m_ifs(filepath, std::ios_base::binary),
     m_tokensPrev(),
     m_filepath(filepath),
     m_line(1)
@@ -42,7 +43,7 @@ quetzal::wavefront_obj::Material quetzal::wavefront_obj::MaterialLibrary::read_m
     while (!m_ifs.eof())
     {
         std::string line;
-        getline(m_ifs, line);
+        read_line(m_ifs, line);
         ++m_line;
 
         vector<string> tokens = tokenize(line);

@@ -115,7 +115,7 @@ void quetzal::geometry::load_polygon(const std::filesystem::path& filepath, Poly
     static const std::string s_points("points");
     static const std::string s_dimension("dimension");
 
-    std::ifstream is(filepath);
+    std::ifstream is(filepath, std::ios_base::binary);
     if (!is)
     {
         return;
@@ -149,7 +149,7 @@ void quetzal::geometry::load_polygon(const std::filesystem::path& filepath, Poly
     static const std::string s_dimension("dimension");
     static const std::string s_vertex("vertex");
 
-    std::ifstream is(filepath);
+    std::ifstream is(filepath, std::ios_base::binary);
     if (!is)
     {
         return;
