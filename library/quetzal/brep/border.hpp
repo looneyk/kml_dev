@@ -10,23 +10,35 @@
 #include "quetzal/common/id.hpp"
 #include "quetzal/geometry/Polygon.hpp"
 #include "quetzal/geometry/Projection.hpp"
+#include <format>
 #include <functional>
+#include <iostream>
 #include <vector>
 
 namespace quetzal::brep
 {
 
     // Input to connect_border_fragments
+    // A single matching set of border halfedges, next_border_halfedge_id and prev_border_halfedge_id used to iterate along border
     using connection_borders_type = std::array<id_type, 4>; // border halfedge ids in order {A exterior, A interior, B exterior, B interior}
-    using connection_node_type = std::vector<connection_borders_type>; // inplace_vector, either 1 or 2 edges leaving this connection vertex position
+    using connection_node_type = std::vector<connection_borders_type>; // inplace_vector, either 1 or 2 edges leaving this connection vertex position (deprecated, coplanar ...)
     using connection_type = std::vector<connection_node_type>;
 
+    // Input to connect_border_fragments
+    // A closed loop of matching sets of border halfedges
+    using connection_trace_type = std::vector<connection_borders_type>;
+    using connection_traces_type = std::vector<connection_trace_type>;
+
     // Returns the next border halfedge id, same halfedge ordering as a surface border
+    // Returns the first border halfedge with the next vertex position in clockwise order around the vertex
+    // If there are more than two border halfedges entering and/or exiting this vertex, the results can be unexpected
     // The halfedge coming in does not itself need to be a border
     template<typename M>
     id_type next_border_halfedge_id(const M& mesh, id_type halfedge_id);
 
     // Returns the prev border halfedge id, same halfedge ordering as a surface border
+    // Returns the first border halfedge directed into this vertex position in counterclockwise order around the vertex
+    // If there are more than two border halfedges entering and/or exiting this vertex, the results can be unexpected
     // The halfedge coming in does not itself need to be a border
     template<typename M>
     id_type prev_border_halfedge_id(const M& mesh, id_type halfedge_id);
@@ -68,10 +80,15 @@ namespace quetzal::brep
     template<typename M>
     void connect_border_fragments(M& mesh, id_type halfedge_id_a0, id_type halfedge_id_b0, id_type halfedge_id_a1 = nullid);
 
+    // Stitch matching border halfedges together given the first set and iterating until the starting point is reached
     // path_a is the path that is fully external from submesh_b, it may be made up of both original submesh_a and submesh_b sections
     // path_b is the reverse
     template<typename M>
     void connect_border_fragments(M& mesh, const connection_type& connection, size_t border_first, size_t border_second, bool path_a);
+
+    // Stitch matching border halfedges together given the entire closed loop set
+    template<typename M>
+    void connect_border_fragments(M& mesh, const connection_trace_type& connection, size_t border_first, size_t border_second);
 
     // Delete all components connected to this at any level
     template<typename M>
@@ -80,6 +97,10 @@ namespace quetzal::brep
     // Delete all components connected to this at any level
     template<typename M>
     void delete_unconnected_border_fragments(M& mesh, const connection_type& connection, std::function<bool(const typename M::halfedge_type&)> border_condition = [](const typename M::halfedge_type& halfedge) -> bool { return halfedge.border(); });
+
+    // Delete all components connected to this at any level
+    template<typename M>
+    void delete_unconnected_border_fragments(M& mesh, const connection_trace_type& connection, std::function<bool(const typename M::halfedge_type&)> border_condition = [](const typename M::halfedge_type& halfedge) -> bool { return halfedge.border(); });
 
     template<typename M>
     void set_border_fragment_submesh(M& mesh, id_type halfedge_id, const std::string& name);
@@ -90,6 +111,9 @@ namespace quetzal::brep
     // Handles a single face and connected faces recursively
     template<typename M>
     void set_border_fragment_submesh_internal(M& mesh, id_type halfedge_id, id_type submesh_id);
+
+    template<typename M>
+    void validate_connection_traces(const M& mesh, const connection_traces_type& connection_tracess);
 
     template<typename M>
     void dump_border_fragment(M& mesh, id_type halfedge_id);
@@ -332,6 +356,29 @@ void quetzal::brep::connect_border_fragments(M& mesh, const connection_type& con
 
 //------------------------------------------------------------------------------
 template<typename M>
+void quetzal::brep::connect_border_fragments(M& mesh, const connection_trace_type& connection, size_t border_first, size_t border_second)
+{
+    assert(!connection.empty());
+
+    for (const auto& borders : connection)
+    {
+        id_type id_a = borders[border_first];
+        id_type id_b = borders[border_second];
+
+        assert(id_a != nullid);
+        assert(id_b != nullid);
+        assert(vertex_position(mesh.halfedge(id_a)) == vertex_position(mesh.halfedge(id_b).next()));
+        assert(vertex_position(mesh.halfedge(id_b)) == vertex_position(mesh.halfedge(id_a).next()));
+
+        mesh.halfedge(id_a).set_partner_id(id_b);
+        mesh.halfedge(id_b).set_partner_id(id_a);
+    }
+
+    return;
+}
+
+//------------------------------------------------------------------------------
+template<typename M>
 void quetzal::brep::delete_border_fragment(M& mesh, id_type halfedge_id, std::function<bool(const typename M::halfedge_type&)> border_condition)
 {
     // Check that this fragment has not already been deleted by an earlier connection
@@ -391,6 +438,23 @@ void quetzal::brep::delete_unconnected_border_fragments(M& mesh, const connectio
 
 //------------------------------------------------------------------------------
 template<typename M>
+void quetzal::brep::delete_unconnected_border_fragments(M& mesh, const connection_trace_type& connection, std::function<bool(const typename M::halfedge_type&)> border_condition)
+{
+    for (const auto& connection_borders : connection)
+    {
+        for (id_type halfedge_id : connection_borders)
+        {
+            assert(halfedge_id != nullid);
+            if (!mesh.halfedge_store()[halfedge_id].deleted() && border_condition(mesh.halfedge_store()[halfedge_id]))
+            {
+                delete_border_fragment(mesh, halfedge_id, border_condition);
+            }
+        }
+    }
+}
+
+//------------------------------------------------------------------------------
+template<typename M>
 void quetzal::brep::set_border_fragment_submesh(M& mesh, id_type halfedge_id, const std::string& name)
 {
     id_type submesh_id = mesh.contains_submesh(name) ? mesh.submesh_id(name) : mesh.create_submesh(name);
@@ -429,6 +493,66 @@ void quetzal::brep::set_border_fragment_submesh_internal(M& mesh, id_type halfed
         }
 
         set_border_fragment_submesh_internal(mesh, partner_id, submesh_id);
+    }
+
+    return;
+}
+
+//------------------------------------------------------------------------------
+template<typename M>
+void quetzal::brep::validate_connection_traces(const M& mesh, const connection_traces_type& connection_traces)
+{
+    // A halfedge and its partner run in opposite directions, so the exterior and interior borders of one
+    // side advance opposite ways around the trace, and side a takes its exterior direction opposite to
+    // side b. Between them that fixes a direction per slot, so each is walked the one way that follows the
+    // trace: the border function by side, and whether the trace is read forwards or backwards by whether
+    // the slot is exterior or interior
+    using advance_type = std::function<id_type(id_type)>;
+    using trace_index_type = std::function<size_t(size_t, size_t)>;
+
+    advance_type advance_next = [&mesh](id_type halfedge_id) -> id_type { return next_border_halfedge_id(mesh, halfedge_id); };
+    advance_type advance_prev = [&mesh](id_type halfedge_id) -> id_type { return prev_border_halfedge_id(mesh, halfedge_id); };
+
+    trace_index_type index_forward = [](size_t step_count, size_t step_total) -> size_t { return step_count % step_total; };
+    trace_index_type index_reverse = [](size_t step_count, size_t step_total) -> size_t { return (step_total - step_count) % step_total; };
+
+    const std::array<std::pair<advance_type, trace_index_type>, 4> border_slot_walks =
+    {{
+        {advance_next, index_reverse}, // A exterior
+        {advance_next, index_forward}, // A interior
+        {advance_prev, index_reverse}, // B exterior
+        {advance_prev, index_forward}  // B interior
+    }};
+
+    for (const auto& connection_trace : connection_traces)
+    {
+        size_t step_total = connection_trace.size();
+
+        for (size_t border_slot = 0; border_slot < 4; ++border_slot)
+        {
+            const auto& [advance, trace_index] = border_slot_walks[border_slot];
+
+            id_type halfedge_id0 = connection_trace[0][border_slot];
+            id_type halfedge_id = halfedge_id0;
+
+            for (size_t step_count = 0; step_count < step_total; ++step_count)
+            {
+                id_type halfedge_id_trace = connection_trace[trace_index(step_count, step_total)][border_slot];
+                if (halfedge_id != halfedge_id_trace)
+                {
+                    std::cout << std::format("validate_connection_traces border_slot {} step {} of {} returned halfedge_id {} expected {}", border_slot, step_count, step_total, id_string(halfedge_id), id_string(halfedge_id_trace)) << std::endl;
+                }
+                assert(halfedge_id == halfedge_id_trace);
+
+                halfedge_id = advance(halfedge_id);
+            }
+
+            if (halfedge_id != halfedge_id0)
+            {
+                std::cout << std::format("validate_connection_traces border_slot {} {} steps, returned to {} expected {}", border_slot, step_total, id_string(halfedge_id), id_string(halfedge_id0)) << std::endl;
+            }
+            assert(halfedge_id == halfedge_id0);
+        }
     }
 
     return;

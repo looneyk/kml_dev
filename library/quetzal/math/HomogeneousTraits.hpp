@@ -585,7 +585,7 @@ bool quetzal::math::HomogeneousTraits<T, N>::float_priority_less(const rep_type&
     {
         if (float_eq(get<I>(lhs), get<I>(rhs), tolerance))
         {
-            return priority_less<I - 1>(lhs, rhs);
+            return float_priority_less<I - 1>(lhs, rhs, tolerance);
         }
 
         return float_lt(get<I>(lhs), get<I>(rhs), tolerance);

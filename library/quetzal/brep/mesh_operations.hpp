@@ -20,7 +20,7 @@ namespace quetzal::brep
 {
 
     template<typename Traits>
-    using connect_function_type = std::function<std::vector<id_type>(Mesh<Traits>&, const connection_type&)>;
+    using connect_function_type = std::function<std::vector<id_type>(Mesh<Traits>&, const connection_trace_type&)>;
 
     // parameters: submesh_id_a, submesh_id_b
     template<typename Traits>
@@ -62,6 +62,8 @@ namespace quetzal::brep
     // Returns submesh id of the result
     template<typename Traits>
     std::vector<id_type> mesh_operation(Mesh<Traits>& mesh, id_type submesh_id_a, id_type submesh_id_b, connect_function_type<Traits> connect, disjoint_function_type<Traits> disjoint, inclusion_function_type<Traits> inclusion, const std::string& name);
+
+    // remaining border/connection validation should move to border.hpp ...
 
     //--------------------------------------------------------------------------
     template<typename M>
@@ -160,7 +162,7 @@ std::cout << std::format("    a_ext {}  a_int {}  b_ext {}  b_int {}  {:20}  {:2
         assert(id_a_int == borders[1]);
         assert(id_b_ext == borders[2]);
         assert(id_b_int == borders[3]);
- 
+
         std::vector<id_type> seq_prev_id_a_ext;
         std::vector<id_type> seq_prev_id_a_int;
         std::vector<id_type> seq_prev_id_b_ext;
@@ -229,9 +231,9 @@ std::cout << std::format("    a_ext {}  a_int {}  b_ext {}  b_int {}  {:20}  {:2
 template<typename Traits>
 std::vector<quetzal::id_type> quetzal::brep::mesh_union(Mesh<Traits>& mesh, id_type submesh_id_a, id_type submesh_id_b, const std::string& name)
 {
-    connect_function_type<Traits> connect = [&](Mesh<Traits>& mesh, const connection_type& connection) -> std::vector<id_type>
+    connect_function_type<Traits> connect = [&](Mesh<Traits>& mesh, const connection_trace_type& connection) -> std::vector<id_type>
     {
-        connect_border_fragments(mesh, connection, 0, 2, true);
+        connect_border_fragments(mesh, connection, 0, 2);
         return {mesh.submesh_id(name)};
     };
 
@@ -254,9 +256,9 @@ std::vector<quetzal::id_type> quetzal::brep::mesh_union(Mesh<Traits>& mesh, id_t
 template<typename Traits>
 std::vector<quetzal::id_type> quetzal::brep::mesh_intersection(Mesh<Traits>& mesh, id_type submesh_id_a, id_type submesh_id_b, const std::string& name)
 {
-    connect_function_type<Traits> connect = [&](Mesh<Traits>& mesh, const connection_type& connection) -> std::vector<id_type>
+    connect_function_type<Traits> connect = [&](Mesh<Traits>& mesh, const connection_trace_type& connection) -> std::vector<id_type>
     {
-        connect_border_fragments(mesh, connection, 1, 3, true);
+        connect_border_fragments(mesh, connection, 1, 3);
         return {mesh.submesh_id(name)};
     };
 
@@ -281,9 +283,9 @@ std::vector<quetzal::id_type> quetzal::brep::mesh_intersection(Mesh<Traits>& mes
 template<typename Traits>
 std::vector<quetzal::id_type> quetzal::brep::mesh_difference(Mesh<Traits>& mesh, id_type submesh_id_a, id_type submesh_id_b, const std::string& name)
 {
-    connect_function_type<Traits> connect = [&](Mesh<Traits>& mesh, const connection_type& connection) -> std::vector<id_type>
+    connect_function_type<Traits> connect = [&](Mesh<Traits>& mesh, const connection_trace_type& connection) -> std::vector<id_type>
     {
-        BorderFragment<Traits> border_fragment(mesh, connection[0][0][3]); // is this ok? ...
+        BorderFragment<Traits> border_fragment(mesh, connection[0][3]); // is this ok? ...
 //std::cout << std::format("mesh_difference connect border_fragment {} marked {}", halfedge_id_b_interior, border_fragment.marked()) << std::endl;
         if (!border_fragment.marked())
         {
@@ -291,7 +293,7 @@ std::vector<quetzal::id_type> quetzal::brep::mesh_difference(Mesh<Traits>& mesh,
             border_fragment.set_submesh_id(submesh_id_a);
         }
 
-        connect_border_fragments(mesh, connection, 0, 3, true);
+        connect_border_fragments(mesh, connection, 0, 3);
         return {mesh.submesh_id(name)};
     };
 
@@ -315,9 +317,9 @@ std::vector<quetzal::id_type> quetzal::brep::mesh_difference(Mesh<Traits>& mesh,
 template<typename Traits>
 std::vector<quetzal::id_type> quetzal::brep::mesh_symmetric_difference(Mesh<Traits>& mesh, id_type submesh_id_a, id_type submesh_id_b, const std::string& name)
 {
-    connect_function_type<Traits> connect = [&](Mesh<Traits>& mesh, const connection_type& connection) -> std::vector<id_type>
+    connect_function_type<Traits> connect = [&](Mesh<Traits>& mesh, const connection_trace_type& connection) -> std::vector<id_type>
     {
-        BorderFragment<Traits> border_fragment_a(mesh, connection[0][0][3]); // is this ok? ...
+        BorderFragment<Traits> border_fragment_a(mesh, connection[0][3]); // is this ok? ...
 //std::cout << std::format("mesh_symmetric_difference connect border_fragment_a {} marked {}", halfedge_id_b_interior, border_fragment_a.marked()) << std::endl;
         if (!border_fragment_a.marked())
         {
@@ -325,7 +327,7 @@ std::vector<quetzal::id_type> quetzal::brep::mesh_symmetric_difference(Mesh<Trai
             border_fragment_a.set_submesh_id(submesh_id_a);
         }
 
-        BorderFragment<Traits> border_fragment_b(mesh, connection[0][0][1]); // is this ok? ...
+        BorderFragment<Traits> border_fragment_b(mesh, connection[0][1]); // is this ok? ...
 //std::cout << std::format("mesh_symmetric_difference connect border_fragment_b {} marked {}", halfedge_id_a_interior, border_fragment_b.marked()) << std::endl;
         if (!border_fragment_b.marked())
         {
@@ -333,8 +335,8 @@ std::vector<quetzal::id_type> quetzal::brep::mesh_symmetric_difference(Mesh<Trai
             border_fragment_b.set_submesh_id(submesh_id_b);
         }
 
-        connect_border_fragments(mesh, connection, 0, 3, true);
-        connect_border_fragments(mesh, connection, 2, 1, true);
+        connect_border_fragments(mesh, connection, 0, 3);
+        connect_border_fragments(mesh, connection, 2, 1);
         return {mesh.submesh_id(name)};
     };
 
@@ -357,10 +359,10 @@ std::vector<quetzal::id_type> quetzal::brep::mesh_symmetric_difference(Mesh<Trai
 template<typename Traits>
 std::vector<quetzal::id_type> quetzal::brep::mesh_identity(Mesh<Traits>& mesh, id_type submesh_id_a, id_type submesh_id_b, const std::string& name)
 {
-    connect_function_type<Traits> connect = [&](Mesh<Traits>& mesh, const connection_type& connection) -> std::vector<id_type>
+    connect_function_type<Traits> connect = [&](Mesh<Traits>& mesh, const connection_trace_type& connection) -> std::vector<id_type>
     {
-        connect_border_fragments(mesh, connection, 0, 1, true);
-        connect_border_fragments(mesh, connection, 2, 3, true);
+        connect_border_fragments(mesh, connection, 0, 1);
+        connect_border_fragments(mesh, connection, 2, 3);
         return {submesh_id_a, submesh_id_b};
     };
 
@@ -395,7 +397,7 @@ std::vector<quetzal::id_type> quetzal::brep::mesh_operation(Mesh<Traits>& mesh, 
 
     IntersectionSplitter intersection_splitter(mesh);
     auto connections = intersection_splitter.connections(submesh_id_a, submesh_id_b);
-    validate_connections(mesh, connections);
+    validate_connection_traces(mesh, connections);
 
     std::vector<id_type> submesh_ids;
 

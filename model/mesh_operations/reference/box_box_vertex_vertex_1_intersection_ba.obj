@@ -29,7 +29,7 @@ vn 0 0 1
 # Faces
 o box_box_vertex_vertex_1_intersection_ba
 g box_a_front
-f 4/12/1 1/1/1 2/7/1
+f 1/1/1 2/7/1 4/12/1
 g box_a_top
 f 5/9/5 2/6/5 1/11/5
 g box_b_bottom

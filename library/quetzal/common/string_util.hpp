@@ -46,7 +46,7 @@ namespace quetzal
 
     //--------------------------------------------------------------------------
     // Only valid for array types (Vector, Point, and higher level objects) with a corresponding formatter
-    // Produces a string of bracketed, comma-separated valuse
+    // Produces a string of bracketed, comma-separated values
     template<typename T>
     std::string to_array_string(const T& t)
     {
@@ -54,19 +54,16 @@ namespace quetzal
     }
 
     //--------------------------------------------------------------------------
-    // Reflects an ostream's currently active object_delim/element_delim manipulators (falling back to
-    // default_object_delim/default_element_delim when unset, i.e. '\0' == no bracket), precision, and
-    // fixed/scientific formatting flags into an equivalent std::format spec fragment (matching
-    // std::format's grammar). The defaults match std::format's own empty-spec default (no bracket,
-    // single-space element delimiter), so this is what puts operator<< and format({}) in agreement.
+    // Reflects an ostream's currently active object_delim/element_delim manipulators, precision,
+    // and fixed/scientific formatting flags into an equivalent std::format spec fragment.
+    // The defaults match std::format's own empty-spec default (no bracket, single-space element delimiter),
+    // so this is what puts operator<< and format({}) in agreement.
     std::string array_format_spec(const std::ostream& os, char default_object_delim = '\0', const std::string& default_element_delim = " ");
 
     //--------------------------------------------------------------------------
     // Stream-state-aware form of to_string: matches to_string(t)'s unbracketed, space-separated output
-    // by default (same as format({}), see array_format_spec), but honors object_delim/element_delim
-    // manipulators (so operator<< can be made to produce array-formatted output on request, the ostream
-    // equivalent of passing a format spec) as well as std::setprecision/std::fixed/std::scientific, the
-    // way plain ostream insertion always has.
+    // by default (same as format({}), see array_format_spec), but honors object_delim/element_delim manipulators
+    // in addition to standard floating point manipulators, so stream output has the same functionality as std::format.
     template<typename T>
     std::string to_string(const T& t, const std::ostream& os)
     {
