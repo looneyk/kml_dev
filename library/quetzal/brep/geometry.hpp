@@ -77,6 +77,10 @@ namespace quetzal::brep
     template<typename Traits>
     typename Traits::vector_type direction(const Halfedge<Traits>& halfedge);
 
+    // Tests against the half-open interval
+    template<typename Traits>
+    bool halfedge_contains(const Halfedge<Traits>& halfedge, const typename Traits::point_type& position);
+
     template<typename Traits>
     typename Traits::vector_type to_vector(const Halfedge<Traits>& halfedge);
 
@@ -168,19 +172,19 @@ Surface projection is a whole new set of functionality for unwrapping textures .
 
     // Returns -1, 0, 1: interior, boundary, exterior
     template<typename Traits>
-    std::partial_ordering face_compare(const Face<Traits>& face, const typename Traits::point_type& point);
+    std::partial_ordering face_compare(const Face<Traits>& face, const typename Traits::point_type& position);
 
     template<typename Traits>
-    bool face_contains(const Face<Traits>& face, const typename Traits::point_type& point);
+    bool face_contains(const Face<Traits>& face, const typename Traits::point_type& position);
 
     // Works with Surface, Submesh, and Mesh
     // For surface, this is undefined unless the surface is known to be planar, this is not checked here
     template<typename U>
-    std::partial_ordering surface_compare(const U& u, const typename U::attributes_type::point_type& point);
+    std::partial_ordering surface_compare(const U& u, const typename U::attributes_type::point_type& position);
 
     // Works with Surface, Submesh, and Mesh
     template<typename U>
-    bool surface_contains(const U& u, const typename U::attributes_type::point_type& point);
+    bool surface_contains(const U& u, const typename U::attributes_type::point_type& position);
 
 // solid_... does not work with bConvex false ...
 // using the ray intersction count approach correctly would be fine whether or not it is convex ...
@@ -188,11 +192,11 @@ Surface projection is a whole new set of functionality for unwrapping textures .
     // Returns -1, 0, 1: interior, boundary, exterior
     // Works with Submesh and Mesh
     template<typename U>
-    std::partial_ordering solid_compare(const U& u, const typename U::attributes_type::point_type& point, bool bConvex = true);
+    std::partial_ordering solid_compare(const U& u, const typename U::attributes_type::point_type& position, bool bConvex = true);
 
     // Works with Submesh and Mesh
     template<typename U>
-    bool solid_contains(const U& u, const typename U::attributes_type::point_type& point, bool bConvex = true);
+    bool solid_contains(const U& u, const typename U::attributes_type::point_type& position, bool bConvex = true);
 
 } // namespace quetzal::brep
 
@@ -319,6 +323,14 @@ template<typename Traits>
 typename Traits::vector_type quetzal::brep::direction(const Halfedge<Traits>& halfedge)
 {
     return normalize(denoise0(to_vector(halfedge)));
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+bool quetzal::brep::halfedge_contains(const Halfedge<Traits>& halfedge, const typename Traits::point_type& position)
+{
+    const auto segment = to_segment(halfedge);
+    return segment.contains(position) && position != segment.endpoint(1);
 }
 
 //------------------------------------------------------------------------------
@@ -613,7 +625,7 @@ typename U::value_type quetzal::brep::surface_area(const U& u)
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-std::partial_ordering quetzal::brep::face_compare(const Face<Traits>& face, const typename Traits::point_type& point)
+std::partial_ordering quetzal::brep::face_compare(const Face<Traits>& face, const typename Traits::point_type& position)
 {
     assert(!face.deleted());
     assert(face.halfedge_count() >= 3);
@@ -621,34 +633,34 @@ std::partial_ordering quetzal::brep::face_compare(const Face<Traits>& face, cons
     if (face.halfedge_count() == 3)
     {
         const auto& halfedge = face.halfedge();
-        return geometry::triangle_compare(halfedge.prev().vertex_attributes().position(), halfedge.vertex_attributes().position(), halfedge.next().vertex_attributes().position(), point);
+        return geometry::triangle_compare(halfedge.prev().vertex_attributes().position(), halfedge.vertex_attributes().position(), halfedge.next().vertex_attributes().position(), position);
     }
 
-    if (!to_polygon(face).planar() || !to_plane(face).contains(point))
+    if (!to_polygon(face).planar() || !to_plane(face).contains(position))
     {
         return std::partial_ordering::greater;
     }
 
     geometry::Projection<typename Traits::vector_traits> projection(face.attributes().normal());
-    return to_polygon(face, projection).compare(projection(point));
+    return to_polygon(face, projection).compare(projection(position));
 }
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-bool quetzal::brep::face_contains(const Face<Traits>& face, const typename Traits::point_type& point)
+bool quetzal::brep::face_contains(const Face<Traits>& face, const typename Traits::point_type& position)
 {
-    return face_compare(face, point) <= 0;
+    return face_compare(face, position) <= 0;
 }
 
 //------------------------------------------------------------------------------
 template<typename U>
-std::partial_ordering quetzal::brep::surface_compare(const U& u, const typename U::attributes_type::point_type& point)
+std::partial_ordering quetzal::brep::surface_compare(const U& u, const typename U::attributes_type::point_type& position)
 {
     // Or do polygon_compare with surface seam ...
 
     for (const auto& face : u.faces())
     {
-        auto c = face_compare(face, point);
+        auto c = face_compare(face, position);
         if (c == std::partial_ordering::greater)
         {
             continue;
@@ -668,11 +680,11 @@ std::partial_ordering quetzal::brep::surface_compare(const U& u, const typename 
 
 //------------------------------------------------------------------------------
 template<typename U>
-bool quetzal::brep::surface_contains(const U& u, const typename U::attributes_type::point_type& point)
+bool quetzal::brep::surface_contains(const U& u, const typename U::attributes_type::point_type& position)
 {
     for (const auto& face : u.faces())
     {
-        if (face_contains(face, point))
+        if (face_contains(face, position))
         {
             return true;
         }
@@ -683,7 +695,7 @@ bool quetzal::brep::surface_contains(const U& u, const typename U::attributes_ty
 
 //------------------------------------------------------------------------------
 template<typename U>
-std::partial_ordering quetzal::brep::solid_compare(const U& u, const typename U::attributes_type::point_type& point, bool bConvex)
+std::partial_ordering quetzal::brep::solid_compare(const U& u, const typename U::attributes_type::point_type& position, bool bConvex)
 {
     if (bConvex)
     {
@@ -691,7 +703,7 @@ std::partial_ordering quetzal::brep::solid_compare(const U& u, const typename U:
 
         for (const auto& face : u.faces())
         {
-            auto d = dot(face.halfedge().vertex_attributes().position() - point, face.attributes().normal());
+            auto d = dot(face.halfedge().vertex_attributes().position() - position, face.attributes().normal());
             if (math::float_eq0(d))
             {
                 bBoundary = true;
@@ -711,7 +723,7 @@ std::partial_ordering quetzal::brep::solid_compare(const U& u, const typename U:
 
     u.reset_all(); // reset_faces would work here ...
 
-    geometry::Ray ray(point, {T(1), T(0), T(0)});
+    geometry::Ray ray(position, {T(1), T(0), T(0)});
     size_t n = 0;
 
     for (const auto& face : u.faces())
@@ -721,14 +733,14 @@ std::partial_ordering quetzal::brep::solid_compare(const U& u, const typename U:
             for (const auto& halfedge : face.halfedges())
             {
                 // Skip next position so that each vertex is only checked once
-                if (float_eq(halfedge.next().vertex_attributes().position(), point))
+                if (float_eq(halfedge.next().vertex_attributes().position(), position))
                 {
                     continue;
                 }
 
                 // Check for vertex and edge intersection so that adjoining vertices or edge can be marked so that intersection will only count once
 
-                if (float_eq(halfedge.vertex_attributes().position(), point))
+                if (float_eq(halfedge.vertex_attributes().position(), position))
                 {
                     for (const auto& h : halfedge.vertex().halfedges())
                     {
@@ -755,9 +767,9 @@ std::partial_ordering quetzal::brep::solid_compare(const U& u, const typename U:
 
 //------------------------------------------------------------------------------
 template<typename U>
-bool quetzal::brep::solid_contains(const U& u, const typename U::attributes_type::point_type& point, bool bConvex)
+bool quetzal::brep::solid_contains(const U& u, const typename U::attributes_type::point_type& position, bool bConvex)
 {
-    return solid_compare(u, point, bConvex) <= 0;
+    return solid_compare(u, position, bConvex) <= 0;
 }
 
 #endif // QUETZAL_BREP_GEOMETRY_HPP

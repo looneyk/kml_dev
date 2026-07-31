@@ -4,6 +4,7 @@ add_custom_target(quetzal_brep SOURCES
     clip.hpp
     connection.hpp
     connection2.hpp
+    debug.hpp
     Face.hpp
     geometry.hpp
     Halfedge.hpp
