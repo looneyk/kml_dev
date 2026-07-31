@@ -18,29 +18,24 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${DEV_ROOT}/lib)
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
-# add_subdirectory_ext: drop-in replacement for add_subdirectory that also defines a
-# clean_<name> target running MSBuild's per-project Clean on the generated vcxproj.
+# add_subdirectory_ext: drop-in replacement for add_subdirectory that also registers the
+# directory for a clean_<name> target running MSBuild's per-project Clean on the generated vcxproj.
 # An optional second argument gives the target name explicitly, for directories whose
 # target name doesn't match the directory name, quetzal libraries for example,
 # otherwise defaults to the directory name.
-# BuildProjectReferences=false requires dependencies to be cleaned separately, and explicitly for speed
-# (MSBuild's Clean cascades into every library the project links, which can be redundant
-# when cleaning many projects that share the same libraries.)
-# Visual Studio generator only: `cmake --build --target clean` cleans the whole
-# solution, and there is no generator-agnostic equivalent for a single project.
+# The targets themselves are created by support/, which keeps their generated projects and
+# scratch directories together there instead of scattering three entries per target through the
+# top of the build directory -- a function body runs in the scope of its caller, so creating them
+# here would place every one of them at the root regardless of the directory being added
 function(add_subdirectory_ext dir)
     add_subdirectory(${dir})
-    if(CMAKE_GENERATOR MATCHES "Visual Studio")
-        if(ARGC GREATER 1)
-            set(name ${ARGV1})
-        else()
-            get_filename_component(name ${dir} NAME)
-        endif()
-        add_custom_target(clean_${name}
-            COMMAND MSBuild ${CMAKE_BINARY_DIR}/${dir}/${name}.vcxproj /t:Clean /p:Configuration=$<CONFIG> /p:Platform=${CMAKE_VS_PLATFORM_NAME} /p:BuildProjectReferences=false
-        )
-        set_property(TARGET clean_${name} PROPERTY FOLDER "CleanTargets")
+    if(ARGC GREATER 1)
+        set(name ${ARGV1})
+    else()
+        get_filename_component(name ${dir} NAME)
     endif()
+    set_property(GLOBAL APPEND PROPERTY KML_CLEAN_TARGET_NAMES ${name})
+    set_property(GLOBAL APPEND PROPERTY KML_CLEAN_TARGET_DIRS ${dir})
 endfunction()
 
 add_subdirectory_ext(library/quetzal/brep quetzal_brep)
@@ -96,5 +91,8 @@ add_subdirectory(utility/to_utf8)
 add_subdirectory(utility/verify_model_output)
 
 add_subdirectory(library3)
+
+# Last, so that every add_subdirectory_ext above has registered by the time the targets are created
+add_subdirectory(support)
 
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT toot1)

@@ -5,6 +5,8 @@
 !/.vscode/c_cpp_properties.json
 !/application/
 !/application/**
+!/support/
+!/support/**
 !/library/
 !/library/quetzal/
 !/library/quetzal/brep/
