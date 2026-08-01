@@ -120,6 +120,14 @@ namespace quetzal::brep
     template<typename M>
     ValidationState check_border_face(const M& mesh, id_type idHalfedge);
 
+    // Checks that the merged perimeter/hole iteration visits every halfedge of the face exactly once,
+    // the perimeter loop followed by each hole loop, and that it agrees with halfedge_ext_count
+    template<typename M>
+    ValidationState check_face_halfedges_ext(const M& mesh, const typename M::face_type& face);
+
+    template<typename M>
+    ValidationState check_faces_halfedges_ext(const M& mesh);
+
     template<typename M>
     ValidationState check_surfaces(const M& mesh);
 
@@ -2191,6 +2199,68 @@ void quetzal::brep::mesh_info(const M& mesh)
     }
 
     return;
+}
+
+//------------------------------------------------------------------------------
+template<typename M>
+quetzal::brep::ValidationState quetzal::brep::check_face_halfedges_ext(const M& mesh, const typename M::face_type& face)
+{
+    ValidationState state(true);
+
+    // What the merged iteration should produce: the perimeter loop, then each hole loop in turn
+    std::vector<id_type> halfedge_ids_expected;
+    for (const auto& halfedge : face.halfedges())
+    {
+        halfedge_ids_expected.push_back(halfedge.id());
+    }
+
+    for (const auto& hole : face.holes())
+    {
+        for (const auto& halfedge : hole.halfedges())
+        {
+            halfedge_ids_expected.push_back(halfedge.id());
+        }
+    }
+
+    std::vector<id_type> halfedge_ids;
+    for (const auto& halfedge : face.halfedges_ext())
+    {
+        halfedge_ids.push_back(halfedge.id());
+    }
+
+    if (halfedge_ids != halfedge_ids_expected)
+    {
+        std::cout << "Face " << face.id() << " halfedges_ext " << halfedge_ids.size() << " halfedges, expected " << halfedge_ids_expected.size() << " (" << face.hole_count() << " holes)" << eol;
+        state.set_bad();
+    }
+
+    if (face.halfedge_ext_count() != halfedge_ids_expected.size())
+    {
+        std::cout << "Face " << face.id() << " halfedge_ext_count " << face.halfedge_ext_count() << ", expected " << halfedge_ids_expected.size() << eol;
+        state.set_bad();
+    }
+
+    return state;
+}
+
+//------------------------------------------------------------------------------
+template<typename M>
+quetzal::brep::ValidationState quetzal::brep::check_faces_halfedges_ext(const M& mesh)
+{
+    ValidationState state;
+
+    std::cout << "Checking face halfedges_ext: " << mesh.face_count() << " faces" << eol;
+    for (const auto& face : mesh.faces())
+    {
+        state += check_face_halfedges_ext(mesh, face);
+    }
+
+    if (state.ok())
+    {
+        std::cout << "OK" << eol;
+    }
+
+    return state;
 }
 
 //------------------------------------------------------------------------------

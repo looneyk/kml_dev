@@ -232,6 +232,7 @@ size_t quetzal::brep::border_edge_count(const M& mesh, id_type halfedge_id)
     size_t n = 0;
     for_each_halfedge(halfedge_id, [&mesh, &n](id_type id) -> id_type
     {
+        ++n;
         return next_border_halfedge_id(mesh, id);
     });
     return n;

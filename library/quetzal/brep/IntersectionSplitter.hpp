@@ -153,6 +153,33 @@ namespace quetzal::brep
         using TraceSegments = std::vector<TraceSegment>;
         using Traces = std::vector<TraceSegments>;
 
+        // One end of one segment, the branch of the intersection curve leaving a node
+        //----------------------------------------------------------------------
+        struct BranchRef
+        {
+            size_t trace_id = 0;
+            size_t segment_id = 0; // Within its trace
+            int endpoint_index = 0; // 0 = p0, 1 = p1
+
+            bool operator==(const BranchRef&) const = default;
+        };
+
+        // A position where segment ends meet, holding every branch incident on it. Two branches is the
+        // ordinary joint. More means several sheets of the intersection curve converge here, and
+        // branches belonging to more than one trace mean those traces are pinched together at this one
+        // position -- a joint that the per-segment representation can only express by accident
+        //----------------------------------------------------------------------
+        struct TraceNode
+        {
+            point_type position;
+            std::vector<BranchRef> branches;
+
+            size_t degree() const { return branches.size(); }
+            bool junction() const { return branches.size() > 2; }
+        };
+
+        using TraceNodes = std::vector<TraceNode>;
+
         // Reference to one side of one TracePoint, used to bring the trace up to date as instantiation
         // modifies the mesh
         //----------------------------------------------------------------------
@@ -259,6 +286,23 @@ namespace quetzal::brep
         // connectivity. Consults the face pairs reachable on each side and keeps those that actually
         // meet trace_point's position and have not been consumed
         std::optional<SegmentEndpointRef> successor(const TraceSegments& segments, const SegmentIndex& segment_index, const std::vector<bool>& used, const TracePoint& trace_point, size_t segment_index_current) const;
+
+        // Collects every segment end of every trace into one node per distinct position, so that a joint
+        // is a single object rather than something rediscovered from two segments each time it is needed
+        TraceNodes build_trace_nodes(const Traces& traces) const;
+
+        // The TracePoint a branch leaves from, and the one at the far end of its segment
+        static const TracePoint& branch_trace_point(const Traces& traces, const BranchRef& branch);
+        static const TracePoint& branch_far_trace_point(const Traces& traces, const BranchRef& branch);
+
+        // The traces with a branch at this node, more than one meaning the traces are pinched here
+        static std::set<size_t> node_trace_ids(const TraceNode& node);
+
+        // Positions where separate traces meet at a single point. Border traversal cannot be expected to
+        // stay within one trace at these, since the regions they bound are joined there
+        std::vector<point_type> pinch_positions() const;
+
+        void validate_trace_nodes(const Traces& traces, const TraceNodes& nodes) const;
 
         // Instantiates all intersection traces, producing connection traces
         connection_traces_type instantiate_connections(Traces& traces);
@@ -377,6 +421,10 @@ namespace quetzal::brep
         // belongs to the retired live-search algorithm (commented out below) and is never called from the active pipeline
         std::set<point_type> m_connection_positions; // All of the vertex positons that are part of any continuous connection (not just the start points) so that they are not mistaken for new intersections (for functionality)
         connection_traces_type m_connections;
+
+        // The joints of the ordered traces, one entry per distinct position. Built once from the traces
+        // and not maintained across instantiation, which moves the mesh out from under it
+        TraceNodes m_trace_nodes;
 
         // halfedge id -> the trace point sides referencing it, for the trace currently being instantiated.
         // Traces can run to many thousands of segments, so the points affected by a split are found by
@@ -535,6 +583,10 @@ assert(debug_log(m_mesh, std::format("model{}", m_stage_count++), submesh_ids).v
 //std::cout << "traces" << '\n' << traces << '\n';
     validate_intersection_traces(traces);
 
+    // The joints of the traces, as objects rather than as coincident segment endpoints
+    m_trace_nodes = build_trace_nodes(traces);
+    validate_trace_nodes(traces, m_trace_nodes);
+
     // Instantiate each intersection trace, splitting and adding halfedges and faces as required
     // Uncouple the trace halfedges to produce the final connection traces of border halfedges
     m_connections = instantiate_connections(traces);
@@ -555,6 +607,7 @@ void quetzal::brep::IntersectionSplitter<M>::clear()
     m_trace_point_refs.clear();
     m_face_origin.clear();
     m_face_descendants.clear();
+    m_trace_nodes.clear();
     m_instantiated_halfedge_a.clear();
     m_instantiated_halfedge_b.clear();
     m_stage_count = 0;
@@ -1214,6 +1267,116 @@ typename quetzal::brep::IntersectionSplitter<M>::Traces quetzal::brep::Intersect
     }
 
     return traces;
+}
+
+//------------------------------------------------------------------------------
+template<typename M>
+typename quetzal::brep::IntersectionSplitter<M>::TraceNodes quetzal::brep::IntersectionSplitter<M>::build_trace_nodes(const Traces& traces) const
+{
+    TraceNodes nodes;
+
+    for (size_t trace_id = 0; trace_id < traces.size(); ++trace_id)
+    {
+        for (size_t segment_id = 0; segment_id < traces[trace_id].size(); ++segment_id)
+        {
+            for (int endpoint_index : {0, 1})
+            {
+                BranchRef branch = {trace_id, segment_id, endpoint_index};
+                const auto& position = branch_trace_point(traces, branch).position;
+
+                // align_segment_positions has already given every endpoint at one point the same value,
+                // so exact comparison groups them
+                auto i = std::ranges::find_if(nodes, [&position](const TraceNode& node) { return node.position == position; });
+                if (i == nodes.end())
+                {
+                    nodes.push_back({position, {branch}});
+                }
+                else
+                {
+                    i->branches.push_back(branch);
+                }
+            }
+        }
+    }
+
+    return nodes;
+}
+
+//------------------------------------------------------------------------------
+template<typename M>
+const typename quetzal::brep::IntersectionSplitter<M>::TracePoint& quetzal::brep::IntersectionSplitter<M>::branch_trace_point(const Traces& traces, const BranchRef& branch)
+{
+    const TraceSegment& segment = traces[branch.trace_id][branch.segment_id];
+    return branch.endpoint_index == 0 ? segment.p0 : segment.p1;
+}
+
+//------------------------------------------------------------------------------
+template<typename M>
+const typename quetzal::brep::IntersectionSplitter<M>::TracePoint& quetzal::brep::IntersectionSplitter<M>::branch_far_trace_point(const Traces& traces, const BranchRef& branch)
+{
+    const TraceSegment& segment = traces[branch.trace_id][branch.segment_id];
+    return branch.endpoint_index == 0 ? segment.p1 : segment.p0;
+}
+
+//------------------------------------------------------------------------------
+template<typename M>
+std::set<size_t> quetzal::brep::IntersectionSplitter<M>::node_trace_ids(const TraceNode& node)
+{
+    std::set<size_t> trace_ids;
+    for (const auto& branch : node.branches)
+    {
+        trace_ids.insert(branch.trace_id);
+    }
+
+    return trace_ids;
+}
+
+//------------------------------------------------------------------------------
+template<typename M>
+std::vector<typename quetzal::brep::IntersectionSplitter<M>::point_type> quetzal::brep::IntersectionSplitter<M>::pinch_positions() const
+{
+    std::vector<point_type> positions;
+
+    for (const auto& node : m_trace_nodes)
+    {
+        if (node_trace_ids(node).size() > 1)
+        {
+            positions.push_back(node.position);
+        }
+    }
+
+    return positions;
+}
+
+//------------------------------------------------------------------------------
+template<typename M>
+void quetzal::brep::IntersectionSplitter<M>::validate_trace_nodes(const Traces& traces, const TraceNodes& nodes) const
+{
+    for (const auto& node : nodes)
+    {
+        // Every branch arriving has to leave again, so a node is entered and left an equal number of
+        // times and its degree is even. Two is an ordinary joint
+        if (node.degree() < 2 || node.degree() % 2 != 0)
+        {
+            std::cout << std::format("validate_trace_nodes, degree: node {} has {} branches", node.position, node.degree()) << std::endl;
+        }
+        assert(node.degree() >= 2 && node.degree() % 2 == 0);
+
+        for (const auto& branch : node.branches)
+        {
+            assert(branch_trace_point(traces, branch).position == node.position);
+        }
+
+        auto trace_ids = node_trace_ids(node);
+        if (node.junction() || trace_ids.size() > 1)
+        {
+            std::string s;
+            for (size_t trace_id : trace_ids) s += std::format(" {}", trace_id);
+            std::cout << std::format("validate_trace_nodes, junction: node {} has {} branches across {} traces [{}]", node.position, node.degree(), trace_ids.size(), s) << std::endl;
+        }
+    }
+
+    return;
 }
 
 //------------------------------------------------------------------------------
@@ -2258,6 +2421,7 @@ void quetzal::brep::IntersectionSplitter<M>::validate_connections(const connecti
     }
 
     dump_multitrace_vertices(m_mesh, connections); // TEMP diagnostic
+assert(check_faces_halfedges_ext(m_mesh).ok()); // TEMP probe
 
     // Validate each border path through each of the connection traces
     validate_connection_traces(m_mesh, connections);

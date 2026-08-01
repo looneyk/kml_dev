@@ -298,6 +298,7 @@ typename quetzal::brep::Hole<Traits, M>::halfedges_type::size_function_type quet
     size_t n = 0;
     for_each_halfedge(id0, [&mesh, &n](id_type id) -> id_type
     {
+        ++n;
         return mesh.halfedge(id).next_id();
     });
     return n;
