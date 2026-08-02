@@ -21,6 +21,9 @@
 namespace quetzal::math
 {
 
+    template<typename Traits>
+    concept Homogeneous = (Traits::size == Traits::dimension + 1);
+
     //--------------------------------------------------------------------------
     template<typename Traits>
     class Vector
@@ -74,6 +77,9 @@ namespace quetzal::math
         value_type y() const requires (Traits::size >= 2);
         value_type z() const requires (Traits::size >= 3);
         value_type w() const requires (Traits::size >= 4);
+
+        // The last component of homogeneous coordinates; happens to coincide with w in three dimensions
+        value_type weight() const requires (quetzal::math::Homogeneous<Traits>);
 
         value_type& x() requires (Traits::size >= 1);
         value_type& y() requires (Traits::size >= 2);
@@ -509,6 +515,13 @@ template<typename Traits>
 typename Traits::value_type quetzal::math::Vector<Traits>::w() const requires (Traits::size >= 4)
 {
     return Traits::get<3>(m_rep);
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+typename Traits::value_type quetzal::math::Vector<Traits>::weight() const requires (quetzal::math::Homogeneous<Traits>)
+{
+    return Traits::get<Traits::dimension>(m_rep);
 }
 
 //------------------------------------------------------------------------------

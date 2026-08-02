@@ -200,7 +200,7 @@ namespace quetzal::math
         static constexpr T* data(rep_type& rep) noexcept;
 
         // prepare: reduce, projective_divide, relative_projective_divide, ...
-        // only applies to points, and so there is no explicit check for w != 0
+        // only applies to points
         static void prepare(rep_type& rep);
         static void prepare(const rep_type& lhs, rep_type& rhs);
 
@@ -976,6 +976,7 @@ bool quetzal::math::HomogeneousTraits<T, N>::reduced(const rep_type& lhs, const 
 template<typename T, size_t N>
 void quetzal::math::HomogeneousTraits<T, N>::reduce(rep_type& rep)
 {
+    assert(!quetzal::math::float_eq0(get<N>(rep)));
     assign_divide(rep, get<N>(rep));
     conclude<N>(rep, T(1)); // exact
     return;
@@ -985,6 +986,7 @@ void quetzal::math::HomogeneousTraits<T, N>::reduce(rep_type& rep)
 template<typename T, size_t N>
 void quetzal::math::HomogeneousTraits<T, N>::reduce(const rep_type& lhs, rep_type& rhs)
 {
+    assert(!quetzal::math::float_eq0(get<N>(rhs)));
     assign_divide(assign_multiply(rhs, get<N>(lhs)), get<N>(rhs));
     conclude<N>(rhs, get<N>(lhs)); // exact
     return;

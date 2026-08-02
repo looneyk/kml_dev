@@ -22,7 +22,7 @@ namespace quetzal::geometry
 {
 
     //--------------------------------------------------------------------------
-    template<Homogeneous Traits> requires (Traits::dimension == 3)
+    template<math::Homogeneous Traits> requires (Traits::dimension == 3)
     class Projection
     {
     public:
@@ -93,14 +93,14 @@ namespace quetzal::geometry
 } // namespace quetzal::geometry
 
 //------------------------------------------------------------------------------
-template<quetzal::geometry::Homogeneous Traits> requires (Traits::dimension == 3)
+template<quetzal::math::Homogeneous Traits> requires (Traits::dimension == 3)
 quetzal::geometry::Projection<Traits>::Projection() :
     m_project{project_z_xy}
 {
 }
 
 //------------------------------------------------------------------------------
-template<quetzal::geometry::Homogeneous Traits> requires (Traits::dimension == 3)
+template<quetzal::math::Homogeneous Traits> requires (Traits::dimension == 3)
 quetzal::geometry::Projection<Traits>::Projection(const vector_type& normal) :
     m_project{}
 {
@@ -108,7 +108,7 @@ quetzal::geometry::Projection<Traits>::Projection(const vector_type& normal) :
 }
 
 //------------------------------------------------------------------------------
-template<quetzal::geometry::Homogeneous Traits> requires (Traits::dimension == 3)
+template<quetzal::math::Homogeneous Traits> requires (Traits::dimension == 3)
 quetzal::geometry::Projection<Traits>::Projection(const Orientation<Traits>& orientation) :
     m_project{}
 {
@@ -116,7 +116,7 @@ quetzal::geometry::Projection<Traits>::Projection(const Orientation<Traits>& ori
 }
 
 //------------------------------------------------------------------------------
-template<quetzal::geometry::Homogeneous Traits> requires (Traits::dimension == 3)
+template<quetzal::math::Homogeneous Traits> requires (Traits::dimension == 3)
 quetzal::geometry::Projection<Traits>::Projection(const OrientedPoint<Traits>& oriented_point) :
     m_project{}
 {
@@ -124,7 +124,7 @@ quetzal::geometry::Projection<Traits>::Projection(const OrientedPoint<Traits>& o
 }
 
 //------------------------------------------------------------------------------
-template<quetzal::geometry::Homogeneous Traits> requires (Traits::dimension == 3)
+template<quetzal::math::Homogeneous Traits> requires (Traits::dimension == 3)
 quetzal::geometry::Projection<Traits>::Projection(const OrientedPoint<Traits>& viewpoint, value_type fov) :
     m_project{}
 {
@@ -132,7 +132,7 @@ quetzal::geometry::Projection<Traits>::Projection(const OrientedPoint<Traits>& v
 }
 
 //------------------------------------------------------------------------------
-template<quetzal::geometry::Homogeneous Traits> requires (Traits::dimension == 3)
+template<quetzal::math::Homogeneous Traits> requires (Traits::dimension == 3)
 void quetzal::geometry::Projection<Traits>::init(const vector_type& normal)
 {
     assert(normal.unit());
@@ -164,7 +164,7 @@ void quetzal::geometry::Projection<Traits>::init(const vector_type& normal)
 }
 
 //------------------------------------------------------------------------------
-template<quetzal::geometry::Homogeneous Traits> requires (Traits::dimension == 3)
+template<quetzal::math::Homogeneous Traits> requires (Traits::dimension == 3)
 void quetzal::geometry::Projection<Traits>::init(const Orientation<Traits>& orientation)
 {
     m_matrix = alignment(orientation, {});
@@ -179,7 +179,7 @@ void quetzal::geometry::Projection<Traits>::init(const Orientation<Traits>& orie
 }
 
 //------------------------------------------------------------------------------
-template<quetzal::geometry::Homogeneous Traits> requires (Traits::dimension == 3)
+template<quetzal::math::Homogeneous Traits> requires (Traits::dimension == 3)
 void quetzal::geometry::Projection<Traits>::init(const OrientedPoint<Traits>& oriented_point)
 {
     m_matrix = alignment(oriented_point, {});
@@ -194,7 +194,7 @@ void quetzal::geometry::Projection<Traits>::init(const OrientedPoint<Traits>& or
 }
 
 //------------------------------------------------------------------------------
-template<quetzal::geometry::Homogeneous Traits> requires (Traits::dimension == 3)
+template<quetzal::math::Homogeneous Traits> requires (Traits::dimension == 3)
 void quetzal::geometry::Projection<Traits>::init(const OrientedPoint<Traits>& viewpoint, value_type fov)
 {
     m_matrix = perspective(viewpoint, fov);
@@ -208,21 +208,21 @@ void quetzal::geometry::Projection<Traits>::init(const OrientedPoint<Traits>& vi
 }
 
 //------------------------------------------------------------------------------
-template<quetzal::geometry::Homogeneous Traits> requires (Traits::dimension == 3)
+template<quetzal::math::Homogeneous Traits> requires (Traits::dimension == 3)
 typename quetzal::geometry::Projection<Traits>::projected_type quetzal::geometry::Projection<Traits>::operator()(const point_type& point) const
 {
     return m_project(point);
 }
 
 //------------------------------------------------------------------------------
-template<quetzal::geometry::Homogeneous Traits> requires (Traits::dimension == 3)
+template<quetzal::math::Homogeneous Traits> requires (Traits::dimension == 3)
 typename quetzal::geometry::Projection<Traits>::value_type quetzal::geometry::Projection<Traits>::z_scale(const point_type& point) const
 {
     return m_z_scale(point);
 }
 
 //------------------------------------------------------------------------------
-template<quetzal::geometry::Homogeneous Traits> requires (Traits::dimension == 3)
+template<quetzal::math::Homogeneous Traits> requires (Traits::dimension == 3)
 typename quetzal::geometry::Projection<Traits>::value_type quetzal::geometry::Projection<Traits>::transformed_z(const point_type& point) const
 {
     auto transformed = point * m_matrix;
@@ -230,7 +230,7 @@ typename quetzal::geometry::Projection<Traits>::value_type quetzal::geometry::Pr
 }
 
 //------------------------------------------------------------------------------
-template<quetzal::geometry::Homogeneous Traits> requires (Traits::dimension == 3)
+template<quetzal::math::Homogeneous Traits> requires (Traits::dimension == 3)
 typename quetzal::geometry::Projection<Traits>::matrix_type quetzal::geometry::Projection<Traits>::matrix_x_yz = 
 {
     0, 0, 0, 0,
@@ -240,7 +240,7 @@ typename quetzal::geometry::Projection<Traits>::matrix_type quetzal::geometry::P
 };
 
 //------------------------------------------------------------------------------
-template<quetzal::geometry::Homogeneous Traits> requires (Traits::dimension == 3)
+template<quetzal::math::Homogeneous Traits> requires (Traits::dimension == 3)
 typename quetzal::geometry::Projection<Traits>::matrix_type quetzal::geometry::Projection<Traits>::matrix_x_zy =
 {
     0, 0, 0, 0,
@@ -250,7 +250,7 @@ typename quetzal::geometry::Projection<Traits>::matrix_type quetzal::geometry::P
 };
 
 //------------------------------------------------------------------------------
-template<quetzal::geometry::Homogeneous Traits> requires (Traits::dimension == 3)
+template<quetzal::math::Homogeneous Traits> requires (Traits::dimension == 3)
 typename quetzal::geometry::Projection<Traits>::matrix_type quetzal::geometry::Projection<Traits>::matrix_y_zx =
 {
     -1, 0, 0, 0,
@@ -260,7 +260,7 @@ typename quetzal::geometry::Projection<Traits>::matrix_type quetzal::geometry::P
 };
 
 //------------------------------------------------------------------------------
-template<quetzal::geometry::Homogeneous Traits> requires (Traits::dimension == 3)
+template<quetzal::math::Homogeneous Traits> requires (Traits::dimension == 3)
 typename quetzal::geometry::Projection<Traits>::matrix_type quetzal::geometry::Projection<Traits>::matrix_y_xz =
 {
     1, 0, 0, 0,
@@ -270,7 +270,7 @@ typename quetzal::geometry::Projection<Traits>::matrix_type quetzal::geometry::P
 };
 
 //------------------------------------------------------------------------------
-template<quetzal::geometry::Homogeneous Traits> requires (Traits::dimension == 3)
+template<quetzal::math::Homogeneous Traits> requires (Traits::dimension == 3)
 typename quetzal::geometry::Projection<Traits>::matrix_type quetzal::geometry::Projection<Traits>::matrix_z_xy =
 {
     1, 0, 0, 0,
@@ -280,7 +280,7 @@ typename quetzal::geometry::Projection<Traits>::matrix_type quetzal::geometry::P
 };
 
 //------------------------------------------------------------------------------
-template<quetzal::geometry::Homogeneous Traits> requires (Traits::dimension == 3)
+template<quetzal::math::Homogeneous Traits> requires (Traits::dimension == 3)
 typename quetzal::geometry::Projection<Traits>::matrix_type quetzal::geometry::Projection<Traits>::matrix_z_yx =
 {
     -1, 0, 0, 0,
@@ -290,42 +290,42 @@ typename quetzal::geometry::Projection<Traits>::matrix_type quetzal::geometry::P
 };
 
 //------------------------------------------------------------------------------
-template<quetzal::geometry::Homogeneous Traits> requires (Traits::dimension == 3)
+template<quetzal::math::Homogeneous Traits> requires (Traits::dimension == 3)
 typename quetzal::geometry::Projection<Traits>::projected_type quetzal::geometry::Projection<Traits>::project_x_yz(const point_type& point)
 {
     return {point.y(), point.z()};
 }
 
 //------------------------------------------------------------------------------
-template<quetzal::geometry::Homogeneous Traits> requires (Traits::dimension == 3)
+template<quetzal::math::Homogeneous Traits> requires (Traits::dimension == 3)
 typename quetzal::geometry::Projection<Traits>::projected_type quetzal::geometry::Projection<Traits>::project_x_zy(const point_type& point)
 {
     return {-point.y(), point.z()};
 }
 
 //------------------------------------------------------------------------------
-template<quetzal::geometry::Homogeneous Traits> requires (Traits::dimension == 3)
+template<quetzal::math::Homogeneous Traits> requires (Traits::dimension == 3)
 typename quetzal::geometry::Projection<Traits>::projected_type quetzal::geometry::Projection<Traits>::project_y_zx(const point_type& point)
 {
     return {-point.x(), point.z()};
 }
 
 //------------------------------------------------------------------------------
-template<quetzal::geometry::Homogeneous Traits> requires (Traits::dimension == 3)
+template<quetzal::math::Homogeneous Traits> requires (Traits::dimension == 3)
 typename quetzal::geometry::Projection<Traits>::projected_type quetzal::geometry::Projection<Traits>::project_y_xz(const point_type& point)
 {
     return {point.x(), point.z()};
 }
 
 //------------------------------------------------------------------------------
-template<quetzal::geometry::Homogeneous Traits> requires (Traits::dimension == 3)
+template<quetzal::math::Homogeneous Traits> requires (Traits::dimension == 3)
 typename quetzal::geometry::Projection<Traits>::projected_type quetzal::geometry::Projection<Traits>::project_z_xy(const point_type& point)
 {
     return {point.x(), point.y()};
 }
 
 //------------------------------------------------------------------------------
-template<quetzal::geometry::Homogeneous Traits> requires (Traits::dimension == 3)
+template<quetzal::math::Homogeneous Traits> requires (Traits::dimension == 3)
 typename quetzal::geometry::Projection<Traits>::projected_type quetzal::geometry::Projection<Traits>::project_z_yx(const point_type& point)
 {
     return {-point.x(), point.y()};

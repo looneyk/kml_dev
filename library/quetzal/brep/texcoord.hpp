@@ -10,6 +10,7 @@
 #include "quetzal/geometry/AxisAlignedBoundingBox.hpp"
 #include "quetzal/geometry/Mapping.hpp"
 #include "quetzal/geometry/Polygon.hpp"
+#include "quetzal/geometry/PolygonMapping.hpp"
 #include "quetzal/geometry/Projection.hpp"
 #include "quetzal/geometry/transformation_matrix.hpp"
 #include <ranges>
@@ -53,7 +54,7 @@ namespace quetzal::brep
     // Calculate mapping from positions to texcoords of face
     // This assumes that the set of positions is coplanar in 3D space and thus can be reduced to a planar projection
     template<typename Traits>
-    geometry::Mapping<typename Traits::vertex_attributes_type::point_type, typename Traits::vertex_attributes_type::texcoord_type, geometry::Projection<typename Traits::vertex_attributes_type::traits_type>> position_texcoord_mapping(const Face<Traits>& face);
+    geometry::PolygonMapping<typename Traits::vertex_attributes_type> position_texcoord_mapping(const Face<Traits>& face);
 
 } // namespace quetzal::brep
 
@@ -214,23 +215,38 @@ bool quetzal::brep::texcoord_eq(const T& a, const T& b)
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-quetzal::geometry::Mapping<typename Traits::vertex_attributes_type::point_type, typename Traits::vertex_attributes_type::texcoord_type, quetzal::geometry::Projection<typename Traits::vertex_attributes_type::traits_type>> quetzal::brep::position_texcoord_mapping(const Face<Traits>& face)
+quetzal::geometry::PolygonMapping<typename Traits::vertex_attributes_type> quetzal::brep::position_texcoord_mapping(const Face<Traits>& face)
 {
     using vertex_attributes_type = Traits::vertex_attributes_type;
-    using point_type = vertex_attributes_type::point_type;
-    using projection_type = geometry::Projection<typename vertex_attributes_type::traits_type>;
-    using projected_type = projection_type::projected_type;
 
     assert(face.halfedge_count() >= 3);
+/* see if we can get back to this ...
     size_t n = face.halfedge_count() > 3 ? 4 : 3;
 
-    auto avs = std::ranges::take_view(face.halfedges(), n) | std::views::transform([](const auto& halfedge) { return halfedge.vertex_attributes(); });
-    auto positions = std::ranges::to<std::vector>(avs | std::views::transform([](const auto& av) -> point_type { return av.position(); }));
-    auto texcoords = std::ranges::to<std::vector>(avs | std::views::transform([](const auto& av) -> projected_type { return av.texcoord(); }));
+    auto corners = std::ranges::to<std::vector>(std::ranges::take_view(face.halfedges(), n)
+        | std::views::transform([](const auto& halfedge) -> vertex_attributes_type { return halfedge.vertex_attributes(); }));
+*/
+    // Only genuine corners. A vertex whose incoming and outgoing edges are parallel sits in the middle
+    // of a straight run: it came from subdividing an edge and is not a corner of the polygon the
+    // texcoords were authored on. Taking the first three or four halfedges instead would pick such a
+    // vertex up, and a fit through three collinear points is singular -- a subdivided triangle, whose
+    // corners alternate corner, midpoint, corner, midpoint, fails that way on its first three
+    std::vector<vertex_attributes_type> corners;
 
-    projection_type projection(face.attributes().normal());
+    for (const auto& halfedge : face.halfedges())
+    {
+        auto incoming = vertex_position(halfedge) - vertex_position(halfedge.prev());
+        auto outgoing = vertex_position(halfedge.next()) - vertex_position(halfedge);
 
-    return {positions, texcoords, projection};
+        if (!math::float_eq0(cross(normalize(incoming), normalize(outgoing)).norm()))
+        {
+            corners.push_back(halfedge.vertex_attributes());
+        }
+    }
+
+    // Corner attributes carry position and texcoord together, so there is no pair of parallel arrays
+    // to fall out of step. PolygonMapping takes three for an affine fit, four for a bilinear one
+    return {corners, face.attributes().normal()};
 }
 
 #endif // QUETZAL_BREP_TEXCOORD_HPP

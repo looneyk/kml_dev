@@ -82,6 +82,9 @@ namespace quetzal::geometry
         value_type z() const requires (Traits::size >= 3);
         value_type w() const requires (Traits::size >= 4);
 
+        // The last component of homogeneous coordinates; happens to coincide with w in three dimensions
+        value_type weight() const requires (math::Homogeneous<Traits>);
+
         value_type& x() requires (Traits::size >= 1);
         value_type& y() requires (Traits::size >= 2);
         value_type& z() requires (Traits::size >= 3);
@@ -458,6 +461,13 @@ template<typename Traits>
 typename Traits::value_type quetzal::geometry::Point<Traits>::w() const requires (Traits::size >= 4)
 {
     return Traits::get<3>(m_rep);
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+typename Traits::value_type quetzal::geometry::Point<Traits>::weight() const requires (quetzal::math::Homogeneous<Traits>)
+{
+    return Traits::get<Traits::dimension>(m_rep);
 }
 
 //------------------------------------------------------------------------------
