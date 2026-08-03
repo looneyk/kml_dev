@@ -15,6 +15,10 @@ using namespace quetzal;
 namespace
 {
 
+    // Exit status is the ResultStatus value itself, so a caller can tell the passing cases apart and
+    // report the worst of a run. Beyond them means no comparison was made at all
+    constexpr int status_no_result = int(FileValidator::ResultStatus::Different) + 1;
+
     //--------------------------------------------------------------------------
     void usage()
     {
@@ -27,6 +31,13 @@ namespace
         cout << "files left over from a previous run." << endl;
         cout << endl;
         cout << "verify_model_output <app_exe> <out_dir> <reference_dir> [app_name]" << endl;
+        cout << endl;
+        cout << "Exit status is the FileValidator result value, ordered least to most severe:" << endl;
+        cout << "  0  all files equal" << endl;
+        cout << "  1  files equal, some unchanged" << endl;
+        cout << "  2  files equal, some missing" << endl;
+        cout << "  3  differences found" << endl;
+        cout << "  4  no comparison made, the executable could not be run" << endl;
 
         return;
     }
@@ -39,7 +50,7 @@ int main(int argc, char* argv[])
     if (argc < 4)
     {
         usage();
-        return 1;
+        return status_no_result;
     }
 
     string app_exe = argv[1];
@@ -54,10 +65,10 @@ int main(int argc, char* argv[])
     if (status != 0)
     {
         cerr << "Could not run " << app_exe << " (status " << status << ")" << endl;
-        return 1;
+        return status_no_result;
     }
 
-    int n = validator.report_results();
+    validator.report_results();
 
-    return n >= 0 ? 0 : 1;
+    return int(validator.result());
 }

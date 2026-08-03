@@ -28,6 +28,15 @@ namespace quetzal
     {
     public:
 
+        // Outcome of a comparison, ordered least to most severe
+        enum class ResultStatus
+        {
+            Equal,
+            Unchanged,
+            Missing,
+            Different
+        };
+
         // out_path is directory for generated test files, reference_path is directory for reference files
         // clear empties the out_path directory at the start for more comprehensive testing
         // out_path: test output directory, reference_path: reference directory
@@ -43,6 +52,8 @@ namespace quetzal
         // Returns total_count if everything lines up and there are no differences
         // Returns negative count of different, unchanged, and missing otherwise
         int report_results(std::function<void()> report_extra = []{});
+
+        ResultStatus result() const; // The overall worst case result value
 
     private:
 
@@ -60,6 +71,7 @@ namespace quetzal
         std::filesystem::path m_reference_path;
         std::map<std::string, std::filesystem::file_time_type> m_out_file_timestamps;
         Timestamp m_t0;
+        ResultStatus m_result;
     };
 
 } // namespace quetzal

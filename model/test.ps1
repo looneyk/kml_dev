@@ -1,4 +1,14 @@
 
+param (
+    # Optional, limits the run to a single model application. Named ApplicationName instead
+    # of just Application to prevent collision with the $application loop variable below.
+    [Parameter(Position = 0)]
+    [string]$ApplicationName,
+
+    # Skip the clean pass, allowing for an incremental build.
+    [switch]$NoClean
+)
+
 $configuration = 'Debug'
 
 $applications = @(
@@ -17,6 +27,17 @@ $applications = @(
     @{ Name = 'wimble';          Verify = $true }
     @{ Name = 'mesh_operations'; Verify = $false }
 )
+
+if ($ApplicationName) {
+    $selected = @($applications | Where-Object { $_.Name -eq $ApplicationName })
+    if ($selected.Count -eq 0) {
+        Write-Output "Unknown application '$ApplicationName'"
+        Write-Output "Available: $(($applications | ForEach-Object { $_.Name }) -join ', ')"
+        exit 1
+    }
+
+    $applications = $selected
+}
 
 function executable_path {
     param (
@@ -97,20 +118,22 @@ function verify {
     Set-Location ..
 }
 
-$dependencies = get_dependencies $applications
+if (-not $NoClean) {
+    $dependencies = get_dependencies $applications
 
-$cleaned_count = 0
-$clean_total = $dependencies.Count + $applications.Count
+    $cleaned_count = 0
+    $clean_total = $dependencies.Count + $applications.Count
 
-foreach ($dependency in $dependencies) {
-    clean $dependency.Name
+    foreach ($dependency in $dependencies) {
+        clean $dependency.Name
+    }
+
+    foreach ($application in $applications) {
+        clean $application.Name
+    }
+
+    Write-Progress -Activity 'Cleaning' -Completed
 }
-
-foreach ($application in $applications) {
-    clean $application.Name
-}
-
-Write-Progress -Activity 'Cleaning' -Completed
 
 build 'verify_model_output'
 
@@ -118,8 +141,39 @@ foreach ($application in $applications) {
     build $application.Name
 }
 
+# verify_model_output exits with the FileValidator result value, ordered least to most severe, so the
+# status is both the severity and the index of the color that result was reported with
+$status_different = 3
+$pass_colors = @(34, 76, 148)
+
+$passed = 0
+$failed = 0
+$worst = 0
+
 foreach ($application in $applications) {
     if ($application.Verify) {
         verify $application.Name
+
+        if ($LASTEXITCODE -ge $status_different) {
+            ++$failed
+        }
+        else {
+            ++$passed
+            if ($LASTEXITCODE -gt $worst) {
+                $worst = $LASTEXITCODE
+            }
+        }
     }
 }
+
+$total = $passed + $failed
+if ($passed -gt 0) {
+    Write-Output "`e[38;5;$($pass_colors[$worst])m$passed of $total Passed`e[0m"
+}
+
+if ($failed -gt 0) {
+    Write-Output "`e[38;5;196m$failed of $total Failed`e[0m"
+}
+
+# Otherwise the status of whichever application happened to run last would be the script's
+exit ($failed -gt 0 ? 1 : 0)

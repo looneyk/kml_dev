@@ -27,7 +27,8 @@ quetzal::FileValidator::FileValidator(const std::filesystem::path& out_path, con
     m_out_path(out_path),
     m_reference_path(reference_path),
     m_out_file_timestamps(),
-    m_t0()
+    m_t0(),
+    m_result(ResultStatus::Equal)
 {
     if (!app_name.empty())
     {
@@ -60,17 +61,20 @@ int quetzal::FileValidator::report_results(std::function<void()> report_extra)
             if (unchanged_count == 0)
             {
                 color_code = 34;
+                m_result = ResultStatus::Equal;
                 oss << "OK: " << total_count << " files equal (" << t << " seconds)";
             }
             else
             {
                 color_code = 76;
+                m_result = ResultStatus::Unchanged;
                 oss << "OK: " << total_count << " files equal, " << unchanged_count << " unchanged (" << t << " seconds)";
             }
         }
         else
         {
             color_code = 148;
+            m_result = ResultStatus::Missing;
             oss << "Warn: " << (total_count - missing_count) << " files equal, " << unchanged_count << " unchanged, " << missing_count << " missing (" << t << " seconds)";
         }
         n = int(total_count);
@@ -78,6 +82,7 @@ int quetzal::FileValidator::report_results(std::function<void()> report_extra)
     else
     {
         color_code = 196;
+        m_result = ResultStatus::Different;
         oss << "Error: " << difference_count << " different, " << unchanged_count << " unchanged, " << missing_count << " missing, " << unchecked_count << " unchecked, " << total_count << " files (" << t << " seconds)";
         n = -int(difference_count + unchanged_count + missing_count);
     }
@@ -89,6 +94,12 @@ int quetzal::FileValidator::report_results(std::function<void()> report_extra)
     report_extra();
     this_thread::sleep_for(1s);
     return n;
+}
+
+//------------------------------------------------------------------------------
+quetzal::FileValidator::ResultStatus quetzal::FileValidator::result() const
+{
+    return m_result;
 }
 
 //------------------------------------------------------------------------------
