@@ -90,7 +90,7 @@ auto db = abs(dot(lineB.point() - lineA.point(), normalize(cross(lineA.direction
 assert(math::float_eq(da, db));
 std::cout << "worked" << std::endl;
 */
-        return abs(dot(lineB.point() - lineA.point(), normalize(cross(lineA.direction(), lineB.direction()))));
+        return std::abs(dot(lineB.point() - lineA.point(), normalize(cross(lineA.direction(), lineB.direction()))));
     }
 
     return Traits::val(0);

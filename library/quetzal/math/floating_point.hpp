@@ -48,6 +48,13 @@ namespace quetzal::math
     template<typename T> requires std::floating_point<T>
     bool float_eq0(T t, int tolerance = tolerance_default);
 
+    // Zero has no scale of its own, so t is judged against the magnitude it came from. Required where t
+    // is a difference of larger quantities: what stands in for an exact zero there is cancellation
+    // noise proportional to those quantities, which the form above cannot see. scale below one is
+    // treated as one, so this is never the tighter of the two
+    template<typename T> requires std::floating_point<T>
+    bool float_eq0(T t, T scale, int tolerance = tolerance_default);
+
     template<typename T> requires std::floating_point<T>
     bool float_ne0(T t, int tolerance = tolerance_default);
 
@@ -98,22 +105,7 @@ std::partial_ordering quetzal::math::float_compare(T lhs, T rhs, int tolerance)
 template<typename T> requires std::floating_point<T>
 bool quetzal::math::float_eq(T lhs, T rhs, int tolerance)
 {
-    // this? ...
-    if (float_eq0(lhs, tolerance) || float_eq0(rhs, tolerance))
-    {
-        return float_eq0(lhs - rhs, tolerance);
-    }
-
-    // absolute
-    if (float_eq0(lhs - rhs, tolerance))
-    {
-        return true;
-    }
-
-    // relative
-//    T diff = std::abs(lhs - rhs);
-//    return diff <= (std::numeric_limits<T>::epsilon() * std::max(std::abs(lhs), std::abs(rhs)) * tolerance);
-    return std::abs(lhs - rhs) <= std::max(std::abs(lhs), std::abs(rhs)) * std::numeric_limits<T>::epsilon() * tolerance;
+    return float_eq0(lhs - rhs, std::max(std::abs(lhs), std::abs(rhs)), tolerance);
 }
 
 //------------------------------------------------------------------------------
@@ -162,7 +154,14 @@ std::partial_ordering quetzal::math::float_compare0(T t, int tolerance)
 template<typename T> requires std::floating_point<T>
 bool quetzal::math::float_eq0(T t, int tolerance)
 {
-    return abs(t) <= std::numeric_limits<T>::epsilon() * tolerance;
+    return float_eq0(t, T(0), tolerance);
+}
+
+//------------------------------------------------------------------------------
+template<typename T> requires std::floating_point<T>
+bool quetzal::math::float_eq0(T t, T scale, int tolerance)
+{
+    return std::abs(t) <= std::max(std::abs(scale), T(1)) * std::numeric_limits<T>::epsilon() * tolerance;
 }
 
 //------------------------------------------------------------------------------

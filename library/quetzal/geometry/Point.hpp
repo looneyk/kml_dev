@@ -872,14 +872,18 @@ bool quetzal::geometry::ne_or_exact(const Point<Traits>& lhs, Point<Traits> rhs,
 template<typename Traits> requires (Traits::dimension == 2)
 bool quetzal::geometry::colinear(const Point<Traits>& a, const Point<Traits>& b, const Point<Traits>& c)
 {
-    return math::float_eq0(math::dot_perp(b - a, c - a));
+    auto u = b - a;
+    auto v = c - a;
+    return math::float_eq0(math::dot_perp(u, v), u.norm() * v.norm());
 }
 
 //------------------------------------------------------------------------------
 template<typename Traits> requires (Traits::dimension == 3)
 bool quetzal::geometry::colinear(const Point<Traits>& a, const Point<Traits>& b, const Point<Traits>& c)
 {
-    return math::float_eq0(math::cross(b - a, c - a).norm_squared());
+    auto u = b - a;
+    auto v = c - a;
+    return math::float_eq0(math::cross(u, v).norm(), u.norm() * v.norm());
 }
 
 //------------------------------------------------------------------------------
