@@ -671,7 +671,7 @@ quetzal::brep::ValidationState quetzal::brep::check_face(const M& mesh, const ty
             state.set_bad();
         }
 
-        if constexpr (M::vertex_attributes_type::contains(geometry::AttributesFlags::Texcoord0))
+        if constexpr (geometry::Textured<typename M::vertex_attributes_type>)
         {
             auto to_point = [](const typename M::vertex_attributes_type::texcoord_type& t) -> typename M::point_type { return {t.x(), t.y(), M::val(0)}; };
 

@@ -155,7 +155,7 @@ quetzal::id_type quetzal::brep::MeshBuilder<M>::surface_face(id_type submesh_id,
     id_type surface_id = surface(submesh_id, name, normal);
     id_type face_id = face(surface_id, normal, points);
 
-    if constexpr (M::vertex_attributes_type::contains(geometry::AttributesFlags::Texcoord0))
+    if constexpr (geometry::Textured<typename M::vertex_attributes_type>)
     {
         calculate_face_texcoords(mesh(), face_id);
     }

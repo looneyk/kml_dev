@@ -147,7 +147,7 @@ void quetzal::brep::attach_x(M& mesh, id_type idFaceA, id_type idFaceB)
 
         if (bSmooth)
         {
-            if constexpr (M::vertex_attributes_type::contains(geometry::AttributesFlags::Texcoord0))
+            if constexpr (geometry::Textured<typename M::vertex_attributes_type>)
             {
                 interpolate_texcoords(faceA, face);
             }
@@ -157,7 +157,7 @@ void quetzal::brep::attach_x(M& mesh, id_type idFaceA, id_type idFaceB)
             id_type idSurfaceHole = mesh.create_surface(idSubmesh, mesh.surface(idSurface).name() + quetzal::to_string(i), mesh.surface(idSurface).attributes(), mesh.surface(idSurface).properties());
             face.set_surface_id(idSurfaceHole);
 
-            if constexpr (M::vertex_attributes_type::contains(geometry::AttributesFlags::Texcoord0))
+            if constexpr (geometry::Textured<typename M::vertex_attributes_type>)
             {
                 calculate_surface_texcoords(mesh, idSurfaceHole);
             }

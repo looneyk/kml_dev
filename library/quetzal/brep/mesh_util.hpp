@@ -920,7 +920,7 @@ std::vector<quetzal::id_type> quetzal::brep::close_border(M& mesh, BorderHalfedg
         idsSurface.push_back(surface_id);
         id_type face_id = create_border_with_holes_face(mesh, border_face.m_halfedge_id_border_external, border_face.m_halfedge_ids_border_internal, normal, surface_id);
 
-        if constexpr (M::vertex_attributes_type::contains(geometry::AttributesFlags::Texcoord0))
+        if constexpr (geometry::Textured<typename M::vertex_attributes_type>)
         {
             calculate_face_texcoords(mesh, face_id);
         }
@@ -1235,7 +1235,7 @@ assert(false); // unused ...
     mesh.halfedge(halfedge_id_b).prev().set_next_id(halfedge_id_a_next);
     mesh.halfedge(halfedge_id_b).set_prev_id(halfedge_id_b_prev);
 
-    if constexpr (M::vertex_attributes_type::contains(geometry::AttributesFlags::Texcoord0))
+    if constexpr (geometry::Textured<typename M::vertex_attributes_type>)
     {
 if constexpr (false) // ...
 {
