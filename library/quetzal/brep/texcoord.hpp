@@ -16,50 +16,54 @@
 #include <ranges>
 #include <cmath>
 
-/*
-Note that for these functions, the verttex attributes texcoord check should be done by the caller:
-    if constexpr (M::vertex_attributes_type::contains(geometry::AttributesFlags::Texcoord0))
-    and/or add constraints here ...
-*/
-
 namespace quetzal::brep
 {
 
     // Surface is unfolded onto a plane
     // not implemented, uses calculate_planar_surface_texcoords instead ...
-    template<typename M>
+    template<typename M> requires quetzal::geometry::Textured<typename M::vertex_attributes_type>
     void calculate_surface_texcoords(M& mesh, id_type surface_id);
 
     // Assumes that all vertices in the surface are coplanar (or already projected onto a plane)
     // the direct uses of planar can be replaced with texcoord assignment from opposite (?) ...
-    template<typename M>
+    template<typename M> requires quetzal::geometry::Textured<typename M::vertex_attributes_type>
     void calculate_planar_surface_texcoords(M& mesh, id_type surface_id);
 
-    template<typename M>
+    template<typename M> requires quetzal::geometry::Textured<typename M::vertex_attributes_type>
     void calculate_face_texcoords(M& mesh, id_type face_id);
 
-    template<typename M>
+    template<typename M> requires quetzal::geometry::Textured<typename M::vertex_attributes_type>
     void set_triangular_texcoords(M& mesh, id_type face_id);
 
+    // Calculate texcoords for face or hole from a mapping
+    // Lets a caller build the mapping while the reference face is still pristine and apply it to any
+    // number of targets afterwards, rather than rederiving it from a face that is being modified
+    template<typename FH, typename A> requires quetzal::geometry::Textured<typename FH::traits_type::vertex_attributes_type>
+    void interpolate_texcoords(const geometry::PolygonMapping<A>& mapping, FH& target);
+
     // Calculate texcoords for face or hole by interpolating from texcoords of reference
-    template<typename F, typename FH>
+    template<typename F, typename FH> requires quetzal::geometry::Textured<typename F::traits_type::vertex_attributes_type> && quetzal::geometry::Textured<typename FH::traits_type::vertex_attributes_type>
     void interpolate_texcoords(const F& reference, FH& target);
 
-    template<typename F>
+    template<typename F> requires quetzal::geometry::Textured<typename F::traits_type::vertex_attributes_type>
     typename F::traits_type::vertex_attributes_type::texcoord_type texcoord_vertex_centroid(const F& face);
 
     template<typename T>
     bool texcoord_eq(const T& a, const T& b);
 
     // Calculate mapping from positions to texcoords of face
-    // This assumes that the set of positions is coplanar in 3D space and thus can be reduced to a planar projection
-    template<typename Traits>
+    // Be sure to only call this prior to any operation that modifies the face such that texcoords need to be generated
+    template<typename Traits> requires quetzal::geometry::Textured<typename Traits::vertex_attributes_type>
+    std::vector<typename Traits::vertex_attributes_type> face_texcoord_corners(const Face<Traits>& face);
+
+    // PolygonMapping requires three vertices for an affine fit, four for bilinear
+    template<typename Traits> requires quetzal::geometry::Textured<typename Traits::vertex_attributes_type>
     geometry::PolygonMapping<typename Traits::vertex_attributes_type> position_texcoord_mapping(const Face<Traits>& face);
 
 } // namespace quetzal::brep
 
 //------------------------------------------------------------------------------
-template<typename M>
+template<typename M> requires quetzal::geometry::Textured<typename M::vertex_attributes_type>
 void quetzal::brep::calculate_surface_texcoords(M& mesh, id_type surface_id)
 {
     calculate_planar_surface_texcoords(mesh, surface_id);
@@ -67,7 +71,7 @@ void quetzal::brep::calculate_surface_texcoords(M& mesh, id_type surface_id)
 }
 
 //------------------------------------------------------------------------------
-template<typename M>
+template<typename M> requires quetzal::geometry::Textured<typename M::vertex_attributes_type>
 void quetzal::brep::calculate_planar_surface_texcoords(M& mesh, id_type surface_id)
 {
     using value_type = M::value_type;
@@ -113,7 +117,7 @@ void quetzal::brep::calculate_planar_surface_texcoords(M& mesh, id_type surface_
 }
 
 //------------------------------------------------------------------------------
-template<typename M>
+template<typename M> requires quetzal::geometry::Textured<typename M::vertex_attributes_type>
 void quetzal::brep::calculate_face_texcoords(M& mesh, id_type face_id)
 {
     using value_type = M::value_type;
@@ -151,7 +155,7 @@ void quetzal::brep::calculate_face_texcoords(M& mesh, id_type face_id)
 }
 
 //------------------------------------------------------------------------------
-template<typename M>
+template<typename M> requires quetzal::geometry::Textured<typename M::vertex_attributes_type>
 void quetzal::brep::set_triangular_texcoords(M& mesh, id_type face_id)
 {
     using T = M::value_type;
@@ -177,11 +181,17 @@ void quetzal::brep::set_triangular_texcoords(M& mesh, id_type face_id)
 }
 
 //------------------------------------------------------------------------------
-template<typename F, typename FH>
+template<typename F, typename FH> requires quetzal::geometry::Textured<typename F::traits_type::vertex_attributes_type> && quetzal::geometry::Textured<typename FH::traits_type::vertex_attributes_type>
 void quetzal::brep::interpolate_texcoords(const F& reference, FH& target)
 {
-    auto mapping = position_texcoord_mapping(reference);
+    interpolate_texcoords(position_texcoord_mapping(reference), target);
+    return;
+}
 
+//------------------------------------------------------------------------------
+template<typename FH, typename A> requires quetzal::geometry::Textured<typename FH::traits_type::vertex_attributes_type>
+void quetzal::brep::interpolate_texcoords(const geometry::PolygonMapping<A>& mapping, FH& target)
+{
     for (auto& halfedge : target.halfedges())
     {
         halfedge.vertex_attributes().set_texcoord(denoise01(mapping(halfedge.vertex_attributes().position())));
@@ -191,7 +201,7 @@ void quetzal::brep::interpolate_texcoords(const F& reference, FH& target)
 }
 
 //------------------------------------------------------------------------------
-template<typename F>
+template<typename F> requires quetzal::geometry::Textured<typename F::traits_type::vertex_attributes_type>
 typename F::traits_type::vertex_attributes_type::texcoord_type quetzal::brep::texcoord_vertex_centroid(const F& face)
 {
     typename F::traits_type::vertex_attributes_type::texcoord_type::vector_type total{};
@@ -214,39 +224,44 @@ bool quetzal::brep::texcoord_eq(const T& a, const T& b)
 }
 
 //------------------------------------------------------------------------------
-template<typename Traits>
-quetzal::geometry::PolygonMapping<typename Traits::vertex_attributes_type> quetzal::brep::position_texcoord_mapping(const Face<Traits>& face)
+template<typename Traits> requires quetzal::geometry::Textured<typename Traits::vertex_attributes_type>
+std::vector<typename Traits::vertex_attributes_type> quetzal::brep::face_texcoord_corners(const Face<Traits>& face)
 {
     using vertex_attributes_type = Traits::vertex_attributes_type;
 
     assert(face.halfedge_count() >= 3);
-/* see if we can get back to this ...
-    size_t n = face.halfedge_count() > 3 ? 4 : 3;
 
-    auto corners = std::ranges::to<std::vector>(std::ranges::take_view(face.halfedges(), n)
-        | std::views::transform([](const auto& halfedge) -> vertex_attributes_type { return halfedge.vertex_attributes(); }));
-*/
-    // Only genuine corners. A vertex whose incoming and outgoing edges are parallel sits in the middle
-    // of a straight run: it came from subdividing an edge and is not a corner of the polygon the
-    // texcoords were authored on. Taking the first three or four halfedges instead would pick such a
-    // vertex up, and a fit through three collinear points is singular -- a subdivided triangle, whose
-    // corners alternate corner, midpoint, corner, midpoint, fails that way on its first three
-    std::vector<vertex_attributes_type> corners;
+    std::vector<typename vertex_attributes_type::point_type> positions;
+    for (const auto& halfedge : face.halfedges())
+    {
+        positions.push_back(vertex_position(halfedge));
+    }
+
+    // Reject colinear halfeddges
+    std::vector<vertex_attributes_type> avs;
+    size_t n = positions.size();
+    size_t i = 0;
 
     for (const auto& halfedge : face.halfedges())
     {
-        auto incoming = vertex_position(halfedge) - vertex_position(halfedge.prev());
-        auto outgoing = vertex_position(halfedge.next()) - vertex_position(halfedge);
+        auto incoming = positions[i] - positions[(i + n - 1) % n];
+        auto outgoing = positions[(i + 1) % n] - positions[i];
+        ++i;
 
         if (!math::float_eq0(cross(normalize(incoming), normalize(outgoing)).norm()))
         {
-            corners.push_back(halfedge.vertex_attributes());
+            avs.push_back(halfedge.vertex_attributes());
         }
     }
 
-    // Corner attributes carry position and texcoord together, so there is no pair of parallel arrays
-    // to fall out of step. PolygonMapping takes three for an affine fit, four for a bilinear one
-    return {corners, face.attributes().normal()};
+    return avs;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits> requires quetzal::geometry::Textured<typename Traits::vertex_attributes_type>
+quetzal::geometry::PolygonMapping<typename Traits::vertex_attributes_type> quetzal::brep::position_texcoord_mapping(const Face<Traits>& face)
+{
+    return {face_texcoord_corners(face), face.attributes().normal()};
 }
 
 #endif // QUETZAL_BREP_TEXCOORD_HPP

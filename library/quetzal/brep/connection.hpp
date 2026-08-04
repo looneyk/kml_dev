@@ -11,6 +11,7 @@
 #include <format>
 #include <limits>
 #include <map>
+#include <optional>
 #include <ranges>
 #include <string>
 
@@ -186,6 +187,14 @@ void quetzal::brep::attach(M& mesh, id_type idFaceA, id_type idFaceB, bool bSmoo
     auto normal0 = af.normal();
     size_t n = faceA.halfedge_count();
 
+    // Built while face A is still pristine, since everything below modifies it and the texcoords being
+    // applied are those of the original face
+    std::optional<geometry::PolygonMapping<typename M::vertex_attributes_type>> mappingA;
+    if constexpr (geometry::Textured<typename M::vertex_attributes_type>)
+    {
+        mappingA.emplace(face_texcoord_corners(faceA), normal0);
+    }
+
     // Fix face id and apply face A normal to transferred vertices
     for (auto& halfedge : faceB.halfedges())
     {
@@ -195,9 +204,9 @@ void quetzal::brep::attach(M& mesh, id_type idFaceA, id_type idFaceB, bool bSmoo
 
     faceA.create_hole(idHalfedgeB);
 
-    if constexpr (M::vertex_attributes_type::contains(geometry::AttributesFlags::Texcoord0))
+    if constexpr (geometry::Textured<typename M::vertex_attributes_type>)
     {
-        interpolate_texcoords(faceA, faceB);
+        interpolate_texcoords(mappingA.value(), faceB);
     }
 
     size_t i = n;
@@ -214,11 +223,11 @@ void quetzal::brep::attach(M& mesh, id_type idFaceA, id_type idFaceB, bool bSmoo
             halfedge.vertex_attributes().set_normal(normal0);
         }
 
-        if constexpr (M::vertex_attributes_type::contains(geometry::AttributesFlags::Texcoord0))
+        if constexpr (geometry::Textured<typename M::vertex_attributes_type>)
         {
             if (bSmooth)
             {
-                interpolate_texcoords(mesh.face(idFaceA), face);
+                interpolate_texcoords(mappingA.value(), face);
             }
             else
             {
@@ -306,7 +315,7 @@ void quetzal::brep::connect_non_planar(M& mesh, id_type idFaceA, bool bSmooth)
         {
             face.surface().attributes().set_normal(normal); // arbitrary, discard? no, this is that one face per surface case, in which case there is no need for surface normal anyway ...
 
-            if constexpr (M::vertex_attributes_type::contains(geometry::AttributesFlags::Texcoord0))
+            if constexpr (geometry::Textured<typename M::vertex_attributes_type>)
             {
                 calculate_surface_texcoords(mesh, face.surface_id());
             }
