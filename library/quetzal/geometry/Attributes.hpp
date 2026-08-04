@@ -48,6 +48,9 @@ namespace quetzal::geometry
         const uint32_t m_flags;
     };
 
+    template<typename A>
+    concept Textured = A::contains(AttributesFlags::Texcoord0);
+
     //--------------------------------------------------------------------------
     template<typename Traits, typename C = uint32_t> // ...
     class Attributes

@@ -25,9 +25,8 @@ namespace quetzal::geometry
     };
 
     template<typename T>
-    concept Planar = requires (T t)
+    concept Planar = requires { typename T::vector_type; } && T::vector_type::dimension >= 3 && requires (T t)
     {
-        T::vector_type::dimension >= 3;
         { t.normal() } -> Directional;
     };
 /*
