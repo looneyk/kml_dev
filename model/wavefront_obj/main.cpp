@@ -57,6 +57,7 @@ int main(int argc, char* argv[])
 
     string name;
     mesh_type mesh;
+    id_type submesh_id = nullid;
 
     name = "box";
     cout << name << endl;
@@ -186,8 +187,8 @@ int main(int argc, char* argv[])
     name = "dodecahedron";
     cout << name << endl;
     mesh.clear();
-    model::create_dodecahedron(mesh, name, 10.0f);
-    triangulate_central_vertex(mesh);
+    submesh_id = model::create_dodecahedron(mesh, name, 10.0f);
+    triangulate_central_vertex(mesh.submesh(submesh_id));
     model::write_obj(mesh, to_filename(name));
     rewrite(name);
 

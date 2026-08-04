@@ -252,7 +252,7 @@ namespace
     //--------------------------------------------------------------------------
     void check_polygon_corners(const string& name, const polygon_mapping_type& mapping, const vector<attributes_type>& corners)
     {
-        for (size_t i = 0; i < mapping.corner_count(); ++i)
+        for (size_t i = 0; i < mapping.vertex_count(); ++i)
         {
             texcoord_type t = mapping(corners[i].position());
             check(std::format("{}: corner {} round trips", name, i), near(t, corners[i].texcoord()),
@@ -289,7 +289,6 @@ namespace
             corner({2.0, 0.0, 0.0}, n, {1.0, 0.0}),
             corner({0.0, 3.0, 0.0}, n, {0.0, 1.0})};
         polygon_mapping_type mapping_triangle(triangle, n);
-        check("triangle: usable", bool(mapping_triangle));
         check_polygon_corners("triangle", mapping_triangle, triangle);
         check_polygon_edge("triangle edge 0-1", mapping_triangle, triangle[0], triangle[1]);
 
@@ -300,7 +299,6 @@ namespace
             corner({2.0, 3.0, 0.0}, n, {1.0, 1.0}),
             corner({0.0, 3.0, 0.0}, n, {0.0, 1.0})};
         polygon_mapping_type mapping_parallelogram(parallelogram, n);
-        check("parallelogram: usable", bool(mapping_parallelogram));
         check_polygon_corners("parallelogram", mapping_parallelogram, parallelogram);
         check_polygon_edge("parallelogram edge 1-2", mapping_parallelogram, parallelogram[1], parallelogram[2]);
         check("parallelogram: centre", near(mapping_parallelogram(point_type(1.0, 1.5, 0.0)), texcoord_type(0.5, 0.5)),
@@ -313,27 +311,148 @@ namespace
             corner({3.0, 2.0, 0.0}, n, {1.0, 1.0}),
             corner({1.0, 2.0, 0.0}, n, {0.0, 1.0})};
         polygon_mapping_type mapping_trapezoid(trapezoid, n);
-        check("trapezoid: usable", bool(mapping_trapezoid));
         check_polygon_corners("trapezoid", mapping_trapezoid, trapezoid);
         check_polygon_edge("trapezoid edge 0-1", mapping_trapezoid, trapezoid[0], trapezoid[1]);
         check_polygon_edge("trapezoid edge 2-3", mapping_trapezoid, trapezoid[2], trapezoid[3]);
         check_polygon_edge("trapezoid edge 3-0", mapping_trapezoid, trapezoid[3], trapezoid[0]);
 
-        // An already split polygon: corner 1 sits on the edge between 0 and 2, so the fit is singular
-        vector<attributes_type> split = {
-            corner({0.0, 0.0, 0.0}, n, {0.0, 0.0}),
-            corner({1.0, 0.0, 0.0}, n, {0.5, 0.0}),
-            corner({2.0, 0.0, 0.0}, n, {1.0, 0.0}),
-            corner({2.0, 3.0, 0.0}, n, {1.0, 1.0})};
-        polygon_mapping_type mapping_split(split, n);
-        check("collinear corners: rejected", !bool(mapping_split));
+        // Colinear vertices, too few vertices and default construction are all rejected at compile
+        // time or by assert now, so none of them has a runtime rejection to test here
+        return;
+    }
 
-        // Too few corners
-        vector<attributes_type> pair = {triangle[0], triangle[1]};
-        check("two corners: rejected", !bool(polygon_mapping_type(pair, n)));
+    //--------------------------------------------------------------------------
+    // The dodecahedron top face, verbatim from the primitives model. Five corners, so the bilinear
+    // patch is fit through four of them and the fifth is dropped. That costs nothing here: a regular
+    // pentagon and its regular uv pentagon are related by a similarity, and a bilinear patch through
+    // any four corners of an affinely related pair reproduces the whole relation. So the centre must
+    // map to the uv centroid, whichever corner the perimeter happens to start at.
+    //
+    // Run at float as well as double. A regular pentagon makes the inverse bilinear twist term
+    // exactly zero, and at float the cancellation noise left in its place is large enough to be taken
+    // for a real value, which sends the solve down the quadratic branch and returns a wrong texcoord
+    // rather than a slightly imprecise one. Models are built at float
+    template<typename T>
+    void test_pentagon(const string& precision, T tolerance)
+    {
+        cout << endl << "regular pentagon, more corners than the patch takes, " << precision << endl;
 
-        // Default constructed
-        check("default constructed: rejected", !bool(polygon_mapping_type()));
+        using traits = math::HomogeneousTraits<T, 3>;
+        using pentagon_point_type = geometry::Point<traits>;
+        using pentagon_vector_type = pentagon_point_type::vector_type;
+        using pentagon_texcoord_type = geometry::Projection<traits>::projected_type;
+        using pentagon_attributes_type = geometry::PositionNormalTexture<traits>;
+
+        pentagon_vector_type n(T(0), T(0), T(1));
+        const T z = T(7.94654);
+
+        vector<pentagon_attributes_type> pentagon = {
+            {pentagon_point_type(T( 4.91123), T( 3.56822), z), n, pentagon_texcoord_type(T(0.5),      T(0.0489435))},
+            {pentagon_point_type(T(-1.87593), T( 5.7735),  z), n, pentagon_texcoord_type(T(0.0),      T(0.412215))},
+            {pentagon_point_type(T(-6.07062), T( 0.0),     z), n, pentagon_texcoord_type(T(0.190983), T(1.0))},
+            {pentagon_point_type(T(-1.87593), T(-5.7735),  z), n, pentagon_texcoord_type(T(0.809017), T(1.0))},
+            {pentagon_point_type(T( 4.91123), T(-3.56822), z), n, pentagon_texcoord_type(T(1.0),      T(0.412215))}};
+
+        pentagon_texcoord_type centroid(T(0.5), T(0.574675));
+        pentagon_point_type centre(T(0), T(0), z);
+
+        for (size_t start = 0; start < pentagon.size(); ++start)
+        {
+            vector<pentagon_attributes_type> rotated;
+            for (size_t i = 0; i < pentagon.size(); ++i)
+            {
+                rotated.push_back(pentagon[(start + i) % pentagon.size()]);
+            }
+
+            geometry::PolygonMapping<pentagon_attributes_type> mapping(rotated, n);
+
+            for (size_t i = 0; i < mapping.vertex_count(); ++i)
+            {
+                pentagon_texcoord_type tc = mapping(rotated[i].position());
+                bool round_trips = abs(tc.x() - rotated[i].texcoord().x()) <= tolerance && abs(tc.y() - rotated[i].texcoord().y()) <= tolerance;
+                check(std::format("pentagon {} start {}: corner {} round trips", precision, start, i), round_trips,
+                    std::format("got ({:.6f}, {:.6f}) expected ({:.6f}, {:.6f})", tc.x(), tc.y(), rotated[i].texcoord().x(), rotated[i].texcoord().y()));
+            }
+
+            pentagon_texcoord_type t = mapping(centre);
+            bool b = abs(t.x() - centroid.x()) <= tolerance && abs(t.y() - centroid.y()) <= tolerance;
+            check(std::format("pentagon {} start {}: centre maps to uv centroid", precision, start), b,
+                std::format("got ({:.6f}, {:.6f}) expected ({:.6f}, {:.6f})", t.x(), t.y(), centroid.x(), centroid.y()));
+        }
+
+        return;
+    }
+
+    //--------------------------------------------------------------------------
+    // Accuracy of the inverse bilinear solve, measured rather than assumed.
+    //
+    // A known (u, v) is pushed through the forward patch in double to get a position and the texcoord
+    // that position must map back to. The mapping then re-derives (u, v) from that position at the
+    // precision under test, so the gap is the inversion's own error. Near parallelogram quads are the
+    // hard case: the twist term is small, the quadratic is ill conditioned, and the smaller root comes
+    // out of the direct formula as a difference of near equal terms
+    template<typename T>
+    double inverse_bilinear_error(const std::array<std::pair<double, double>, 4>& xy, const std::array<std::pair<double, double>, 4>& uv)
+    {
+        using traits = math::HomogeneousTraits<T, 3>;
+        using pt = geometry::Point<traits>;
+        using tc = geometry::Projection<traits>::projected_type;
+        using att = geometry::PositionNormalTexture<traits>;
+
+        typename pt::vector_type n(T(0), T(0), T(1));
+
+        vector<att> corners;
+        for (size_t i = 0; i < 4; ++i)
+        {
+            corners.push_back({pt(T(xy[i].first), T(xy[i].second), T(0)), n, tc(T(uv[i].first), T(uv[i].second))});
+        }
+
+        geometry::PolygonMapping<att> mapping(corners, n);
+
+        auto blend = [](const std::array<std::pair<double, double>, 4>& c, double u, double v) {
+            return std::pair<double, double>{
+                c[0].first * (1 - u) * (1 - v) + c[1].first * u * (1 - v) + c[2].first * u * v + c[3].first * (1 - u) * v,
+                c[0].second * (1 - u) * (1 - v) + c[1].second * u * (1 - v) + c[2].second * u * v + c[3].second * (1 - u) * v};
+        };
+
+        double worst = 0.0;
+        for (int iu = 0; iu <= 8; ++iu)
+        {
+            for (int iv = 0; iv <= 8; ++iv)
+            {
+                double u = iu / 8.0;
+                double v = iv / 8.0;
+                auto p = blend(xy, u, v);
+                auto expected = blend(uv, u, v);
+
+                tc got = mapping(pt(T(p.first), T(p.second), T(0)));
+                worst = std::max(worst, std::max(std::abs(double(got.x()) - expected.first), std::abs(double(got.y()) - expected.second)));
+            }
+        }
+
+        return worst;
+    }
+
+    //--------------------------------------------------------------------------
+    void test_inverse_bilinear_accuracy()
+    {
+        cout << endl << "inverse bilinear accuracy, near parallelogram quads" << endl;
+
+        std::array<std::pair<double, double>, 4> uv = {{{0.0, 0.0}, {1.0, 0.0}, {1.0, 1.0}, {0.0, 1.0}}};
+
+        // Twist shrinking toward zero, so the quadratic gets steadily worse conditioned
+        for (double twist : {1.0, 0.1, 0.01, 0.001, 0.0001})
+        {
+            std::array<std::pair<double, double>, 4> xy = {{{0.0, 0.0}, {10.0, 0.0}, {10.0 + twist, 5.0}, {0.0, 5.0}}};
+
+            double ef = inverse_bilinear_error<float>(xy, uv);
+            double ed = inverse_bilinear_error<double>(xy, uv);
+
+            // Tight enough to fail as soon as the conditioning regresses at all: the stable solve holds
+            // near one ulp at both precisions, while the direct formula misses these by orders
+            check(std::format("twist {:<8g} float error {:.3e}, double error {:.3e}", twist, ef, ed), ef >= 0.0 && ef < 1.0e-6 && ed < 1.0e-14);
+        }
+
         return;
     }
 
@@ -348,6 +467,9 @@ int main()
     test_quad_overdetermined();
     test_quad_off_plane();
     test_polygon_mapping();
+    test_pentagon<double>("double", 1.0e-6);
+    test_pentagon<float>("float", 1.0e-4f);
+    test_inverse_bilinear_accuracy();
 
     cout << endl << (n_failures == 0 ? "OK: " : "Error: ") << (n_cases - n_failures) << " of " << n_cases << " cases passed" << endl;
     return n_failures == 0 ? 0 : 1;

@@ -86,6 +86,55 @@ namespace
         return geometry::Plane<Traits>(random_position<Traits>(dimension_extent), random_unit_vector<Traits>());
     }
 
+    size_t n_cases = 0;
+    size_t n_failures = 0;
+
+    //--------------------------------------------------------------------------
+    void check(const std::string& name, bool b)
+    {
+        ++n_cases;
+        if (!b)
+        {
+            ++n_failures;
+        }
+
+        std::cout << (b ? "pass  " : "FAIL  ") << name << std::endl;
+        return;
+    }
+
+    //--------------------------------------------------------------------------
+    // The third component is dropped in 2D, so a caller can name all three and let the dimension decide
+    template<typename Traits>
+    geometry::Point<Traits> make_point(typename Traits::value_type x, typename Traits::value_type y, typename Traits::value_type z)
+    {
+        if constexpr (Traits::dimension == 2)
+        {
+            return {x, y};
+        }
+        else
+        {
+            return {x, y, z};
+        }
+    }
+
+    //--------------------------------------------------------------------------
+    template<typename Traits>
+    std::string traits_name()
+    {
+        return std::format("dim {} {}", Traits::dimension, sizeof(typename Traits::value_type) == 4 ? "float " : "double");
+    }
+
+    //--------------------------------------------------------------------------
+    template<typename Traits>
+    geometry::Point<Traits> point_on_line(typename Traits::value_type t, typename Traits::value_type scale)
+    {
+        using T = Traits::value_type;
+
+        // Deliberately not representable in binary, so that the products forming the predicate do not
+        // cancel exactly and the test sees real rounding rather than an artificially clean zero
+        return make_point<Traits>((T(0.1) + t * T(1)) * scale, (T(0.2) + t * T(3)) * scale, (T(0.3) + t * T(2)) * scale);
+    }
+
     //--------------------------------------------------------------------------
     template<typename Traits>
     void test_extent()
@@ -99,16 +148,30 @@ namespace
     template<typename Traits>
     void test_parallel()
     {
-        geometry::Line<Traits> line;
-        geometry::Ray<Traits> ray;
-        geometry::Segment<Traits> segment;
-        geometry::Plane<Traits> plane;
-        geometry::Plane<Traits> polygon;
+        using T = Traits::value_type;
+        using vector_type = geometry::Point<Traits>::vector_type;
 
-        assert(!geometry::parallel(line, segment));
-        assert(!geometry::parallel(ray, polygon));
-        assert(!geometry::parallel(plane, line));
-        assert(!geometry::parallel(polygon, plane));
+        auto origin = make_point<Traits>(T(0), T(0), T(0));
+        std::string d = traits_name<Traits>();
+
+        geometry::Line<Traits> line_x(origin, vector_type::x_direction());
+        geometry::Line<Traits> line_y(origin, vector_type::y_direction());
+        geometry::Segment<Traits> segment_x(make_point<Traits>(T(0), T(1), T(0)), make_point<Traits>(T(1), T(1), T(0)));
+
+        check(d + " parallel: line and segment along x", geometry::parallel(line_x, segment_x));
+        check(d + " parallel: lines along x and y are not", !geometry::parallel(line_x, line_y));
+
+        // The plane overloads are only reachable where normal() is, which Plane declares for 3D and up
+        if constexpr (Traits::dimension >= 3)
+        {
+            geometry::Plane<Traits> plane_xy(origin, vector_type::z_direction());
+            geometry::Plane<Traits> plane_yz(origin, vector_type::x_direction());
+
+            check(d + " parallel: line lies parallel to plane", geometry::parallel(line_x, plane_xy));
+            check(d + " parallel: line crossing plane is not", !geometry::parallel(line_x, plane_yz));
+            check(d + " parallel: plane with itself", geometry::parallel(plane_xy, plane_xy));
+            check(d + " parallel: perpendicular planes are not", !geometry::parallel(plane_xy, plane_yz));
+        }
 
         return;
     }
@@ -117,16 +180,61 @@ namespace
     template<typename Traits>
     void test_perpendicular()
     {
-        geometry::Line<Traits> line;
-        geometry::Ray<Traits> ray;
-        geometry::Segment<Traits> segment;
-        geometry::Plane<Traits> plane;
-        geometry::Plane<Traits> polygon;
+        using T = Traits::value_type;
+        using vector_type = geometry::Point<Traits>::vector_type;
 
-        assert(!geometry::perpendicular(line, segment));
-        assert(!geometry::perpendicular(ray, polygon));
-        assert(!geometry::perpendicular(plane, line));
-        assert(!geometry::perpendicular(polygon, plane));
+        auto origin = make_point<Traits>(T(0), T(0), T(0));
+        std::string d = traits_name<Traits>();
+
+        geometry::Line<Traits> line_x(origin, vector_type::x_direction());
+        geometry::Line<Traits> line_y(origin, vector_type::y_direction());
+
+        // The directional pair also requires that they meet, so this is perpendicular rather than skew
+        check(d + " perpendicular: lines along x and y meeting at the origin", geometry::perpendicular(line_x, line_y));
+        check(d + " perpendicular: line with itself is not", !geometry::perpendicular(line_x, line_x));
+
+        if constexpr (Traits::dimension >= 3)
+        {
+            geometry::Line<Traits> line_z(origin, vector_type::z_direction());
+            geometry::Plane<Traits> plane_xy(origin, vector_type::z_direction());
+            geometry::Plane<Traits> plane_yz(origin, vector_type::x_direction());
+
+            check(d + " perpendicular: line along the plane normal", geometry::perpendicular(line_z, plane_xy));
+            check(d + " perpendicular: line lying in the plane is not", !geometry::perpendicular(line_x, plane_xy));
+            check(d + " perpendicular: planes with orthogonal normals", geometry::perpendicular(plane_xy, plane_yz));
+            check(d + " perpendicular: plane with itself is not", !geometry::perpendicular(plane_xy, plane_xy));
+        }
+
+        return;
+    }
+
+    //--------------------------------------------------------------------------
+    // Whether three points are colinear cannot depend on how far from the origin they sit. The
+    // predicate compares a product of two edge vectors, so its rounding error grows with the square of
+    // the coordinates while a fixed tolerance does not, and past some scale genuinely colinear points
+    // start reading as not colinear
+    template<typename Traits>
+    void test_colinear()
+    {
+        using T = Traits::value_type;
+
+        for (T scale : {T(1), T(10), T(100), T(1000), T(10000)})
+        {
+            auto a = point_on_line<Traits>(T(0.3), scale);
+            auto b = point_on_line<Traits>(T(1.1), scale);
+            auto c = point_on_line<Traits>(T(2.7), scale);
+
+            bool exact = geometry::colinear(a, b, c);
+
+            // Displaced perpendicular to the line by a thousandth of the scale, well clear of any
+            // rounding, so this has to read as not colinear at every scale
+            auto d = c;
+            d.set_y(d.y() + scale / T(1000));
+            bool displaced = geometry::colinear(a, b, d);
+
+            check(std::format("{} colinear: colinear at scale {}", traits_name<Traits>(), scale), exact);
+            check(std::format("{} colinear: displaced at scale {}", traits_name<Traits>(), scale), !displaced);
+        }
 
         return;
     }
@@ -139,12 +247,17 @@ namespace
 
         using T = Traits::value_type;
 
-        for (size_t i = 0; i < 100; ++i)
+        // Plane intersection needs normal(), which is 3D and up, and Intersection holds a Polygon whose
+        // containment test needs Projection, which exists only for homogeneous traits
+        if constexpr (math::Homogeneous<Traits> && Traits::dimension >= 3)
         {
-            auto a = random_plane<Traits>(T(25));
-            auto b = random_plane<Traits>(T(25));
-            auto ix = intersection(a, b);
-            std::cout << std::format("a [{}]\tb [{}]\t ix {}", a, b, ix);
+            for (size_t i = 0; i < 100; ++i)
+            {
+                auto a = random_plane<Traits>(T(25));
+                auto b = random_plane<Traits>(T(25));
+                auto ix = intersection(a, b);
+                std::cout << std::format("a [{}]\tb [{}]\t ix {}", a, b, ix);
+            }
         }
 
         return;
@@ -173,10 +286,11 @@ namespace
     void test2()
     {
         test_extent<Traits>();
-//        test_parallel<Traits>();
-//        test_perpendicular<Traits>();
-//        test_intersects<Traits>();
-//        test_intersection<Traits>();
+        test_parallel<Traits>();
+        test_perpendicular<Traits>();
+        test_intersects<Traits>();
+        test_intersection<Traits>();
+        test_colinear<Traits>();
         test_triangle<Traits>();
         return;
     }
@@ -186,8 +300,8 @@ namespace
     void test3()
     {
         test_extent<Traits>();
-//        test_parallel<Traits>();
-//        test_perpendicular<Traits>();
+        test_parallel<Traits>();
+        test_perpendicular<Traits>();
         if constexpr (math::Homogeneous<Traits>)
         {
             // Intersection<Traits> holds a Polygon<Traits> member, and Polygon's containment
@@ -195,6 +309,7 @@ namespace
             test_intersects<Traits>();
             test_intersection<Traits>();
         }
+        test_colinear<Traits>();
         test_triangle<Traits>();
         return;
     }
@@ -348,6 +463,8 @@ int main(int argc, char* argv[])
     test3<math::CartesianTraits<float, 3>>();
     test3<math::HomogeneousTraits<double, 3>>();
     test3<math::HomogeneousTraits<float, 3>>();
+
+    std::cout << (n_failures == 0 ? "OK: " : "Error: ") << (n_cases - n_failures) << " of " << n_cases << " cases passed" << std::endl;
 
     // original ...
 

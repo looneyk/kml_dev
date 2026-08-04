@@ -34,15 +34,18 @@ namespace quetzal::model
     template<typename Traits>
     void triangulate_body_surfaces(brep::Submesh<Traits>& submesh)
     {
-        for (auto& surface : submesh.surfaces())
+        auto& mesh = submesh.mesh();
+        auto surface_ids = submesh.surface_ids();
+        for (id_type surface_id : surface_ids)
         {
-            if (!body_surface(surface))
+            if (!body_surface(mesh.surface(surface_id)))
             {
                 continue;
             }
 
-            triangulate_central_vertex_positions(surface);
-            calculate_surface_vertex_normals(surface);
+            // revisit this once triangulate_central_vertices normal and texcoord handling is finalized ...
+            triangulate_central_vertices(mesh, surface_id);
+            calculate_surface_vertex_normals(mesh.surface(surface_id));
         }
 
         return;

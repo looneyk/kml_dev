@@ -71,7 +71,8 @@ int main(int argc, char* argv[])
 
     string name;
     mesh_type mesh;
-    id_type idSurface = nullid;
+    id_type submesh_id = nullid;
+    id_type surface_id = nullid;
 
     name = "disk_cone";
     cout << name << endl;
@@ -161,9 +162,9 @@ int main(int argc, char* argv[])
     cout << name << endl;
     mesh.clear();
     model::create_cylinder(mesh, name, 9, 10, 5.0f, -10.0f, 10.0f, {{"azimuth_lower", "0.125"}, {"azimuth_upper", "0.875"}, {"azimuth_style", "none"}});
-    idSurface = mesh.create_surface(mesh.submesh_id(name), "side", {{1.0f, 0.0f, 0.0f}});
-    create_border_face(mesh, 3 * 9, {1.0f, 0.0f, 0.0f}, idSurface);
-    calculate_surface_texcoords(mesh, idSurface);
+    surface_id = mesh.create_surface(mesh.submesh_id(name), "side", {{1.0f, 0.0f, 0.0f}});
+    create_border_face(mesh, 3 * 9, {1.0f, 0.0f, 0.0f}, surface_id);
+    calculate_surface_texcoords(mesh, surface_id);
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 
@@ -612,9 +613,9 @@ int main(int argc, char* argv[])
     cout << name << endl;
     mesh.clear();
     model::create_sphere(mesh, name, 18, 6, 10.0f, {{"azimuth_lower", "0.125"}, {"azimuth_upper", "0.875"}, {"azimuth_style", "none"}, {"elevation_lower", "-0.125"}, {"elevation_upper", "0.125"}});
-    idSurface = mesh.create_surface(mesh.submesh_id(name), "side", {{1.0f, 0.0f, 0.0f}});
-    create_border_face(mesh, 3 * 18, {1.0f, 0.0f, 0.0f}, idSurface);
-    calculate_surface_texcoords(mesh, idSurface);
+    surface_id = mesh.create_surface(mesh.submesh_id(name), "side", {{1.0f, 0.0f, 0.0f}});
+    create_border_face(mesh, 3 * 18, {1.0f, 0.0f, 0.0f}, surface_id);
+    calculate_surface_texcoords(mesh, surface_id);
     triangulate(mesh);
     model::write_obj(mesh, to_filename(name));
 
@@ -736,8 +737,8 @@ int main(int argc, char* argv[])
     name = "dodecahedron";
     cout << name << endl;
     mesh.clear();
-    model::create_dodecahedron(mesh, name, 10.0f);
-    triangulate_central_vertex(mesh);
+    submesh_id = model::create_dodecahedron(mesh, name, 10.0f);
+    triangulate_central_vertices(mesh.submesh(submesh_id));
     model::write_obj(mesh, to_filename(name));
 
     for (const auto& face : mesh.faces())
