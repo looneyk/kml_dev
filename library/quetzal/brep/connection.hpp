@@ -21,17 +21,17 @@ namespace quetzal::brep
     // Connect bodies A and B at coincident matching surfaces
     // Remove the original surfaces and their faces
     template<typename M>
-    void weld(M& mesh, const std::string& nameSurfaceA, const std::string& nameSurfaceB);
+    void weld(M& mesh, const std::string& surface_name_a, const std::string& surface_name_b);
 
     // Connect bodies A and B at coincident matching (partner) faces
     // Corresponding face halfedge partners will form new pairs
     // Remove the adjoining faces
     template<typename M>
-    void weld(M& mesh, id_type idFaceA, id_type idFaceB);
+    void weld(M& mesh, id_type face_id_a, id_type face_id_b);
 
     // Currently only supports surfaces that consist of a single face
     template<typename M>
-    void attach(M& mesh, const std::string& nameSurfaceA, const std::string& nameSurfaceB, bool bSmooth = true);
+    void attach(M& mesh, const std::string& surface_name_a, const std::string& surface_name_b, bool smooth = true);
 
     // Connect bodies A and B at coplanar faces using vertices and halfedges of faces A and B
     // Face B must fit completely within face A
@@ -39,27 +39,27 @@ namespace quetzal::brep
     // No new halfedges or vertices are added, only faces if there are any holes in B
     // Works by repurposing base B halfedges to form hole in face A and hole halfedges in base B to form new faces
     template<typename M>
-    void attach(M& mesh, id_type idFaceA, id_type idFaceB, bool bSmooth = true);
+    void attach(M& mesh, id_type face_id_a, id_type face_id_b, bool smooth = true);
 
     // better place for the following ...
 
     // FH is Face or Hole
     template<typename FH>
-    id_type find_closest_vertex_halfedge(const FH& fh, id_type idHalfedge);
+    id_type find_closest_vertex_halfedge(const FH& fh, id_type halfedge_id);
 
     // Create new faces between each edge of the face and the closest edge of its singular hole
     template<typename M>
-    void connect_non_planar(M& mesh, id_type idFaceA, bool bSmooth);
+    void connect_non_planar(M& mesh, id_type face_id_a, bool smooth);
 
 } // namespace quetzal::brep
 
 //------------------------------------------------------------------------------
 template<typename M>
-void quetzal::brep::weld(M& mesh, const std::string& nameSurfaceA, const std::string& nameSurfaceB)
+void quetzal::brep::weld(M& mesh, const std::string& surface_name_a, const std::string& surface_name_b)
 {
-    auto& surfaceA = mesh.surface(nameSurfaceA);
-    auto& surfaceB = mesh.surface(nameSurfaceB);
-    assert(surfaceA.face_count() == surfaceB.face_count());
+    auto& surface_a = mesh.surface(surface_name_a);
+    auto& surface_b = mesh.surface(surface_name_b);
+    assert(surface_a.face_count() == surface_b.face_count());
 
     using index_type = std::map<typename M::point_type, id_type, math::PriorityLess<typename M::point_type>>;
 
@@ -73,17 +73,17 @@ void quetzal::brep::weld(M& mesh, const std::string& nameSurfaceA, const std::st
         return index;
     };
 
-    auto indexFacesA = sort_faces(surfaceA);
-    auto indexFacesB = sort_faces(surfaceB);
-    assert(indexFacesA.size() == indexFacesB.size());
+    auto faces_index_a = sort_faces(surface_a);
+    auto faces_index_b = sort_faces(surface_b);
+    assert(faces_index_a.size() == faces_index_b.size());
 
-    for (const auto& [iA, iB] : std::views::zip(indexFacesA, indexFacesB))
+    for (const auto& [ia, ib] : std::views::zip(faces_index_a, faces_index_b))
     {
-//        assert(float_eq(iA->first, iB->first));
-//auto a = iA->first;
-//auto b = iB->first;
-assert(float_eq(iA.first, iB.first, 1024)); // imprecise centroid calculation? ...
-        weld(mesh, iA.second, iB.second);
+//        assert(float_eq(ia->first, ib->first));
+//auto a = ia->first;
+//auto b = ib->first;
+assert(float_eq(ia.first, ib.first, 1024)); // imprecise centroid calculation? ...
+        weld(mesh, ia.second, ib.second);
     }
 
     return;
@@ -117,14 +117,14 @@ void quetzal::brep::weld(M& mesh, id_type face_id_a, id_type face_id_b)
     // Need to do the same for holes here, connect them through, holes will be deleted along with their faces below
     // Use the scheme above, unify_vertex_positions needs to work with combinations of face and hole ...
 
-    for (auto& holeA : face_a.holes())
+    for (auto& hole_a : face_a.holes())
     {
-        id_type b_hole_halfedge_id = find_matching_hole_halfedge(face_b, holeA);
+        id_type b_hole_halfedge_id = find_matching_hole_halfedge(face_b, hole_a);
         assert(mesh.valid_halfedge_id(b_hole_halfedge_id));
 
-//        assert(holeA.halfedge_count() == holeB.halfedge_count());
+//        assert(hole_a.halfedge_count() == holeb.halfedge_count());
 
-        for (auto& halfedge_a : holeA.halfedges())
+        for (auto& halfedge_a : hole_a.halfedges())
         {
             auto& halfedge_b = mesh.halfedge(b_hole_halfedge_id);
 
@@ -152,82 +152,82 @@ void quetzal::brep::weld(M& mesh, id_type face_id_a, id_type face_id_b)
 
 //------------------------------------------------------------------------------
 template<typename M>
-void quetzal::brep::attach(M& mesh, const std::string& nameSurfaceA, const std::string& nameSurfaceB, bool bSmooth)
+void quetzal::brep::attach(M& mesh, const std::string& surface_name_a, const std::string& surface_name_b, bool smooth)
 {
-    auto& surfaceA = mesh.surface(nameSurfaceA);
-    auto& surfaceB = mesh.surface(nameSurfaceB);
+    auto& surface_a = mesh.surface(surface_name_a);
+    auto& surface_b = mesh.surface(surface_name_b);
 
     // so far this only handles the single face per surface case ...
-    assert(surfaceA.face_count() == surfaceB.face_count());
-    assert(surfaceA.face_count() == 1);
+    assert(surface_a.face_count() == surface_b.face_count());
+    assert(surface_a.face_count() == 1);
 
-    attach(mesh, surfaceA.faces().front().id(), surfaceB.faces().front().id(), bSmooth);
+    attach(mesh, surface_a.faces().front().id(), surface_b.faces().front().id(), smooth);
     return;
 }
 
 //------------------------------------------------------------------------------
 template<typename M>
-void quetzal::brep::attach(M& mesh, id_type idFaceA, id_type idFaceB, bool bSmooth)
+void quetzal::brep::attach(M& mesh, id_type face_id_a, id_type face_id_b, bool smooth)
 {
-    id_type idHalfedgeA = mesh.face(idFaceA).halfedge_id();
-    id_type idHalfedgeB = mesh.face(idFaceB).halfedge_id();
-    assert(mesh.valid_halfedge_id(idHalfedgeA));
-    assert(mesh.valid_halfedge_id(idHalfedgeB));
+    id_type halfedge_id_a = mesh.face(face_id_a).halfedge_id();
+    id_type halfedge_id_b = mesh.face(face_id_b).halfedge_id();
+    assert(mesh.valid_halfedge_id(halfedge_id_a));
+    assert(mesh.valid_halfedge_id(halfedge_id_b));
 
-    auto& faceA = mesh.face(idFaceA);
-    auto& faceB = mesh.face(idFaceB);
+    auto& face_a = mesh.face(face_id_a);
+    auto& face_b = mesh.face(face_id_b);
 
-// start out by moving all submeshB surfaces to submeshA ...
+// start out by moving all submesh_b surfaces to submesh_a ...
 
-    id_type idSubmesh = faceA.submesh_id();
-    id_type idSurface0 = faceA.surface_id();
-    auto nameSurface = faceA.surface().name();
-    auto as = faceA.surface().attributes();
-    auto af = faceA.attributes();
+    id_type submesh_id = face_a.submesh_id();
+    id_type surface_id0 = face_a.surface_id();
+    auto surface_name = face_a.surface().name();
+    auto as = face_a.surface().attributes();
+    auto af = face_a.attributes();
     auto normal0 = af.normal();
-    size_t n = faceA.halfedge_count();
+    size_t n = face_a.halfedge_count();
 
     // Built while face A is still pristine, since everything below modifies it and the texcoords being
     // applied are those of the original face
-    std::optional<geometry::PolygonMapping<typename M::vertex_attributes_type>> mappingA;
+    std::optional<geometry::PolygonMapping<typename M::vertex_attributes_type>> mapping_a;
     if constexpr (geometry::Textured<typename M::vertex_attributes_type>)
     {
-        mappingA.emplace(face_texcoord_corners(faceA), normal0);
+        mapping_a.emplace(face_texcoord_corners(face_a), normal0);
     }
 
     // Fix face id and apply face A normal to transferred vertices
-    for (auto& halfedge : faceB.halfedges())
+    for (auto& halfedge : face_b.halfedges())
     {
-        halfedge.set_face_id(idFaceA);
+        halfedge.set_face_id(face_id_a);
         halfedge.vertex_attributes().set_normal(normal0);
     }
 
-    faceA.create_hole(idHalfedgeB);
+    face_a.create_hole(halfedge_id_b);
 
     if constexpr (geometry::Textured<typename M::vertex_attributes_type>)
     {
-        interpolate_texcoords(mappingA.value(), faceB);
+        interpolate_texcoords(mapping_a.value(), face_b);
     }
 
     size_t i = n;
-    auto hole_ids = faceB.hole_ids();
+    auto hole_ids = face_b.hole_ids();
     for (id_type hole_id : hole_ids)
     {
-        id_type idSurface = bSmooth ? idSurface0 : mesh.create_surface(idSubmesh, format("{}_{}", nameSurface, i), as);
-        id_type idFace = mesh.create_face(idSurface, hole_id, af);
-        auto& face = mesh.face(idFace);
+        id_type surface_id = smooth ? surface_id0 : mesh.create_surface(submesh_id, format("{}_{}", surface_name, i), as);
+        id_type face_id = mesh.create_face(surface_id, hole_id, af);
+        auto& face = mesh.face(face_id);
 
         for (auto& halfedge : face.halfedges())
         {
-            halfedge.set_face_id(idFace);
+            halfedge.set_face_id(face_id);
             halfedge.vertex_attributes().set_normal(normal0);
         }
 
         if constexpr (geometry::Textured<typename M::vertex_attributes_type>)
         {
-            if (bSmooth)
+            if (smooth)
             {
-                interpolate_texcoords(mappingA.value(), face);
+                interpolate_texcoords(mapping_a.value(), face);
             }
             else
             {
@@ -238,71 +238,71 @@ void quetzal::brep::attach(M& mesh, id_type idFaceA, id_type idFaceB, bool bSmoo
         ++i;
     }
 
-    // All of faceB's halfedges and vertices have been repurposed, so just bookkeeping here
-    mesh.unlink_face(idFaceB);
-    mesh.face(idFaceB).set_deleted();
+    // all of face_b's halfedges and vertices have been repurposed, so just bookkeeping here
+    mesh.unlink_face(face_id_b);
+    mesh.face(face_id_b).set_deleted();
     return;
 }
 
 //------------------------------------------------------------------------------
 template<typename FH>
-quetzal::id_type quetzal::brep::find_closest_vertex_halfedge(const FH& fh, id_type idHalfedge)
+quetzal::id_type quetzal::brep::find_closest_vertex_halfedge(const FH& fh, id_type halfedge_id)
 {
-    auto position = fh.mesh().halfedge(idHalfedge).vertex_attributes().position();
+    auto position = fh.mesh().halfedge(halfedge_id).vertex_attributes().position();
 
-    auto dMin = std::numeric_limits<typename FH::mesh_type::value_type>::max();
-    id_type idMin = nullid;
+    auto d_min = std::numeric_limits<typename FH::mesh_type::value_type>::max();
+    id_type id_min = nullid;
 
     for (const auto& halfedge : fh.halfedges())
     {
         auto d = (halfedge.vertex_attributes().position() - position).norm_squared();
-        if (d < dMin)
+        if (d < d_min)
         {
-            dMin = d;
-            idMin = halfedge.id();
+            d_min = d;
+            id_min = halfedge.id();
         }
     }
 
-    return idMin;
+    return id_min;
 }
 
 //------------------------------------------------------------------------------
 template<typename M>
-void quetzal::brep::connect_non_planar(M& mesh, id_type idFaceA, bool bSmooth)
+void quetzal::brep::connect_non_planar(M& mesh, id_type face_id_a, bool smooth)
 {
-    const auto& faceA = mesh.face(idFaceA);
+    const auto& face_a = mesh.face(face_id_a);
 
-    assert(faceA.hole_count() == 1);
-    const auto& hole = faceA.holes().front();
+    assert(face_a.hole_count() == 1);
+    const auto& hole = face_a.holes().front();
 
-    id_type idSubmesh = faceA.submesh_id();
-    id_type idSurface0 = faceA.surface_id();
-    auto nameSurface = faceA.surface().name();
-    auto as = faceA.surface().attributes();
-    size_t n = faceA.halfedge_count();
+    id_type submesh_id = face_a.submesh_id();
+    id_type surface_id0 = face_a.surface_id();
+    auto surface_name = face_a.surface().name();
+    auto as = face_a.surface().attributes();
+    size_t n = face_a.halfedge_count();
 
-    id_type idA = faceA.halfedge_id();
-    id_type idB = find_closest_vertex_halfedge(hole, idA);
+    id_type id_a = face_a.halfedge_id();
+    id_type id_b = find_closest_vertex_halfedge(hole, id_a);
 
     size_t nf = mesh.face_store_count();
-    id_type idFacePrev = nf + n - 1;
+    id_type face_id_prev = nf + n - 1;
 
     for (size_t i = 0; i < n; ++i)
     {
-        id_type idSurface = bSmooth ? idSurface0 : mesh.create_surface(idSubmesh, std::format("{}_{}", nameSurface, i), as);
-        id_type idFace = mesh.create_face(idSurface, idA, {});
+        id_type surface_id = smooth ? surface_id0 : mesh.create_surface(submesh_id, std::format("{}_{}", surface_name, i), as);
+        id_type face_id = mesh.create_face(surface_id, id_a, {});
 
-        mesh.halfedge(idA).set_face_id(idFace);
-        mesh.halfedge(idB).set_face_id(idFacePrev);
+        mesh.halfedge(id_a).set_face_id(face_id);
+        mesh.halfedge(id_b).set_face_id(face_id_prev);
 
-        id_type idANext = mesh.halfedge(idA).next_id();
-        id_type idBNext = mesh.halfedge(idB).prev_id();
+        id_type id_a_next = mesh.halfedge(id_a).next_id();
+        id_type id_b_next = mesh.halfedge(id_b).prev_id();
 
-        connect(mesh, idA, idB);
-        idFacePrev = idFace;
+        connect(mesh, id_a, id_b);
+        face_id_prev = face_id;
 
-        idA = idANext;
-        idB = idBNext;
+        id_a = id_a_next;
+        id_b = id_b_next;
     }
 
     for (size_t i = 0; i < n; ++i)
@@ -311,7 +311,7 @@ void quetzal::brep::connect_non_planar(M& mesh, id_type idFaceA, bool bSmooth)
         auto normal = geometry::normal(face);
         face.attributes().set_normal(normal);
 
-        if (!bSmooth)
+        if (!smooth)
         {
             face.surface().attributes().set_normal(normal); // arbitrary, discard? no, this is that one face per surface case, in which case there is no need for surface normal anyway ...
 
@@ -322,9 +322,9 @@ void quetzal::brep::connect_non_planar(M& mesh, id_type idFaceA, bool bSmooth)
         }
     }
 
-    // All of faceA's halfedges and vertices have been repurposed
-    mesh.unlink_face(idFaceA);
-    mesh.face(idFaceA).set_deleted();
+    // all of face_a's halfedges and vertices have been repurposed
+    mesh.unlink_face(face_id_a);
+    mesh.face(face_id_a).set_deleted();
 
     return;
 }
