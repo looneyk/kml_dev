@@ -42,6 +42,15 @@ namespace quetzal::brep
         return os;
     }
 
+    // One check that did not pass, recorded so that a caller can act on which elements deviated and in
+    // what way rather than only on how many did
+    struct Deviation
+    {
+        std::string m_check;
+        id_type m_id = nullid;
+        bool m_bad = false;
+    };
+
     struct ValidationState
     {
         ValidationState(bool checked = false) :
@@ -55,7 +64,36 @@ namespace quetzal::brep
         {
             m_warn_count += other.m_warn_count;
             m_bad_count += other.m_bad_count;
+            m_deviations.append_range(other.m_deviations);
             return *this;
+        }
+
+        // Deviation count by check, which is what makes a count of 18 tell you whether it is one thing
+        // eighteen times or eighteen different things
+        std::map<std::string, size_t> check_counts() const
+        {
+            std::map<std::string, size_t> counts;
+            for (const auto& deviation : m_deviations)
+            {
+                ++counts[deviation.m_check];
+            }
+
+            return counts;
+        }
+
+        // The elements that deviated on one check
+        std::vector<id_type> check_ids(const std::string& check) const
+        {
+            std::vector<id_type> ids;
+            for (const auto& deviation : m_deviations)
+            {
+                if (deviation.m_check == check)
+                {
+                    ids.push_back(deviation.m_id);
+                }
+            }
+
+            return ids;
         }
 
         bool ok() const
@@ -79,21 +117,26 @@ namespace quetzal::brep
             return bad() ? -1 : warn() ? 0 : 1;
         }
 
-        void set_warn()
+        // check names the deviation so that it can be counted and located; unnamed until a call site
+        // has been given one
+        void set_warn(const std::string& check = "unnamed", id_type id = nullid)
         {
             ++m_warn_count;
+            m_deviations.emplace_back(check, id, false);
             return;
         }
 
-        void set_bad()
+        void set_bad(const std::string& check = "unnamed", id_type id = nullid)
         {
             ++m_bad_count;
+            m_deviations.emplace_back(check, id, true);
             return;
         }
 
         bool m_checked = false; // do we need this info? the caller should know what it asked for ...
         size_t m_warn_count = 0;
         size_t m_bad_count = 0;
+        std::vector<Deviation> m_deviations;
     };
 
     template<typename M>
@@ -455,10 +498,13 @@ quetzal::brep::ValidationState quetzal::brep::check_vertex(const M& mesh, const 
         state.set_bad();
     }
 
-    if (vertex.halfedge().border())
+    // A border vertex is checked like any other apart from the fan walk below, which cannot close
+    // through a null partner
+    const bool border = vertex.halfedge().border();
+    if (border)
     {
         std::cout << "  Border halfedge, vertex " << vertex.id() << " face " << vertex.halfedge().face_id() << eol;
-        return state;
+        state.set_warn("border halfedge", vertex.id());
     }
 
     if (!good(vertex.halfedge_id(), mesh.halfedge_store()))
@@ -485,7 +531,12 @@ quetzal::brep::ValidationState quetzal::brep::check_vertex(const M& mesh, const 
     if (vertex.halfedge_id() != vertex.id())
     {
         std::cout << "  Warn: vertex halfedge id match " << id_string(vertex.halfedge_id(), mesh.halfedge_store()) << ' ' << id_string(vertex.id(), mesh.halfedge_store()) << eol;
-        state.set_warn();
+        state.set_warn("vertex halfedge id match", vertex.id());
+    }
+
+    if (border)
+    {
+        return state; // Everything above has been checked; only the fan walk below cannot be
     }
 
     // Shared vertices could make this test moot
@@ -494,7 +545,7 @@ quetzal::brep::ValidationState quetzal::brep::check_vertex(const M& mesh, const 
         if (halfedge.vertex_attributes().position() != vertex.attributes().position())
         {
             std::cout << "  Warn: coincident vertex position: reference vertex " << vertex.id() << " (" << vertex.attributes().position() << ") != vertex " << halfedge.vertex_id() << " (" << halfedge.vertex_attributes().position() << ')' << eol;
-            state.set_warn();
+            state.set_warn("coincident vertex position", vertex.id());
         }
 
         if (halfedge.surface_id() != vertex.halfedge().surface_id())
@@ -505,13 +556,13 @@ quetzal::brep::ValidationState quetzal::brep::check_vertex(const M& mesh, const 
         if (halfedge.vertex_attributes().normal() != vertex.attributes().normal())
         {
             std::cout << "  Warn: coincident surface vertex normal: reference vertex " << vertex.id() << " (" << vertex.attributes().normal() << ") != vertex " << halfedge.vertex_id() << " (" << halfedge.vertex_attributes().normal() << ')' << eol;
-            state.set_warn();
+            state.set_warn("coincident surface vertex normal", vertex.id());
         }
 
         if (!texcoord_eq(halfedge.vertex_attributes().texcoord(), vertex.attributes().texcoord()))
         {
             std::cout << "  Warn: coincident surface vertex texcoord: reference vertex " << vertex.id() << " (" << vertex.attributes().texcoord() << ") != vertex " << halfedge.vertex_id() << " (" << halfedge.vertex_attributes().texcoord() << ')' << eol;
-            state.set_warn();
+            state.set_warn("coincident surface vertex texcoord", vertex.id());
         }
     }
 
@@ -541,7 +592,7 @@ quetzal::brep::ValidationState quetzal::brep::check_vertex(const M& mesh, const 
         if (halfedge.partner_id() == nullid)
         {
             std::cout << "Warn: halfedge iterator: halfedge.partner_id() == nullid" << " v " << vertex.id() << " h " << halfedge.id() << eol;
-            state.set_warn();
+            state.set_warn("halfedge iterator, null partner", vertex.id());
             break;
         }
 
@@ -567,7 +618,7 @@ quetzal::brep::ValidationState quetzal::brep::check_vertex(const M& mesh, const 
         if (halfedge.prev().partner_id() == nullid)
         {
             std::cout << "Warn: halfedge iterator: halfedge.prev().partner_id() == nullid" << " v " << vertex.id() << " h " << halfedge.id() << eol;
-            state.set_warn();
+            state.set_warn("halfedge iterator, null prev partner", vertex.id());
             break;
         }
 
@@ -652,6 +703,18 @@ quetzal::brep::ValidationState quetzal::brep::check_face(const M& mesh, const ty
         state.set_bad();
     }
 
+    size_t edge_count = face.halfedge_count();
+    if (edge_count == 2)
+    {
+        std::cout << "Warn: face.halfedge_count() == 2 :" << '\t' << face.id() << '\t' << edge_count << eol;
+        state.set_warn("degenerate face, halfedge_count == 2", face.id());
+    }
+    else if (edge_count < 2)
+    {
+        std::cout << "Bad: face.halfedge_count() < 2 :" << '\t' << face.id() << '\t' << edge_count << eol;
+        state.set_bad();
+    }
+
     for (const auto& halfedge : face.halfedges())
     {
         if (halfedge.face_id() == face.id())
@@ -665,6 +728,14 @@ quetzal::brep::ValidationState quetzal::brep::check_face(const M& mesh, const ty
             state.set_bad();
         }
 
+        // A loop belongs to one face throughout, so a disagreement across next is where a reassignment
+        // stopped short rather than the loop genuinely leaving the face
+        if (halfedge.face_id() != halfedge.next().face_id())
+        {
+            std::cout << "Bad: halfedge " << halfedge.id() << " face " << halfedge.face_id() << " != next " << halfedge.next_id() << " face " << halfedge.next().face_id() << eol;
+            state.set_bad("halfedge face differs from next", face.id());
+        }
+
         if (direction_compare(halfedge.vertex_attributes().normal(), face.attributes().normal()) <= 0)
         {
             std::cout << "Bad: direction_compare(halfedge.vertex_attributes().normal(), face.attributes().normal()) <= 0" << " f " << face.id() << " h " << halfedge.id() << " [" << halfedge.vertex_attributes().normal() << "] [" << face.attributes().normal() << ']' << eol;
@@ -673,45 +744,51 @@ quetzal::brep::ValidationState quetzal::brep::check_face(const M& mesh, const ty
 
         if constexpr (geometry::Textured<typename M::vertex_attributes_type>)
         {
-            auto to_point = [](const typename M::vertex_attributes_type::texcoord_type& t) -> typename M::point_type { return {t.x(), t.y(), M::val(0)}; };
+            if (edge_count >= 3)
+            {
+                auto to_point = [](const typename M::vertex_attributes_type::texcoord_type& t) -> typename M::point_type { return {t.x(), t.y(), M::val(0)}; };
 
-            // This is fine for triangulated models, but does not handle reflex vertices correctly ...
-            auto t0 = to_point(halfedge.vertex_attributes().texcoord());
-            auto t1 = to_point(halfedge.next().vertex_attributes().texcoord());
-            auto t2 = to_point(halfedge.prev().vertex_attributes().texcoord());
-            auto texcoord_normal = normalize(cross(t1 - t0, t2 - t0)); // does not need to be normalized for this check ...
-// check for texcoord validity and uniqueness here too ...
-//std::cout << std::format("tn {}, dc {}, d {}, fd {}", texcoord_normal, direction_compare(texcoord_normal, M::vector_type::z_direction()), dot(texcoord_normal, M::vector_type::z_direction()), math::float_eq0(dot(texcoord_normal, M::vector_type::z_direction()))) << eol;
-// this catches nan's where the original does not, but that should be a separate test before this one, ...
-            if (!texcoord_normal.valid())
-            {
-                std::cout << "Warn: !texcoord_normal.valid() : " << face.id() << ' ' << halfedge.id() << ' ' << std::format("    {}, {}    {}, {}    {}, {}    {}", t0.x(), t0.y(), t1.x(), t1.y(), t2.x(), t2.y(), texcoord_normal) << eol;
-                state.set_warn();
-            }
-            else if (math::float_eq0(texcoord_normal.norm_squared()))
-            {
-                std::cout << "Warn: float_eq0(texcoord_normal) : " << face.id() << ' ' << halfedge.id() << ' ' << eol;
-                state.set_warn();
-            }
-            else if (direction_compare(texcoord_normal, M::vector_type::z_direction()) >= 0)
-            {
-                std::cout << "Warn: direction_compare(texcoord_normal, (0, 0, 1, 0)) >= 0 : " << face.id() << ' ' << halfedge.id() << ' ' << texcoord_normal << " (0, 0, 1, 0)" << eol;
-                state.set_warn();
-            }
+                // This is fine for triangulated models, but does not handle reflex vertices correctly ...
+                auto t0 = to_point(halfedge.vertex_attributes().texcoord());
+                auto t1 = to_point(halfedge.next().vertex_attributes().texcoord());
+                auto t2 = to_point(halfedge.prev().vertex_attributes().texcoord());
+
+                // Colinear corner texcoords leave no winding to test, so the corner says nothing either
+                // way. The spur left by a partial edge is the case that arises here: its tip halfedge has
+                // next and prev both at the anchor position carrying the same texcoord, collapsing the
+                // three points to two. Colinearity is judged relative to the magnitudes involved, which
+                // a comparison against the cross product alone cannot do
+                if (!colinear(t0, t1, t2))
+                {
+                    // Normalized because direction_compare requires a non-degenerate vector, which the
+                    // raw cross product of two texcoord differences is not once they get small
+                    auto texcoord_normal = normalize(cross(t1 - t0, t2 - t0));
+
+                    // cross(next - this, prev - this) turns the other way at a reflex vertex, so the sign a
+                    // correctly wound face gives depends on which kind of corner this is
+                    const bool texcoord_reflex = reflex(halfedge);
+
+                    if (auto comparison = direction_compare(texcoord_normal, M::vector_type::z_direction()); texcoord_reflex ? comparison <= 0 : comparison >= 0)
+                    {
+                        std::cout << "Warn: texcoord winding : " << face.id() << ' ' << halfedge.id() << ' ' << texcoord_normal << (texcoord_reflex ? " (reflex)" : " (convex)") << eol;
+                        state.set_warn("texcoord winding", face.id());
+                    }
+                }
 /*
-            typename M::value_type projection = dot(texture_direction, M::vector_type::z_direction());
-            if (convex(halfedge) && math::float_le0(projection))
-            {
-                std::cout << "Bad: convex dot(texture_direction, M::vector_type::z_direction()) <= 0" << " f " << halfedge.face_id() << " h " << halfedge.id() << " [" << texture_direction << "]: [" << halfedge.vertex_attributes().position() << "] [" << halfedge.vertex_attributes().texcoord() << ']' << eol;
-                std::cout << '(' << texcoord << ") (" << texcoordNext << ") (" << texcoordPrev << ") " << eol;
-                state.set_bad();
-            }
-            else if (reflex(halfedge) && math::float_ge0(projection))
-            {
-                std::cout << "Bad: reflex dot(texture_direction, M::vector_type::z_direction()) >= 0" << " f " << halfedge.face_id() << " h " << halfedge.id() << " [" << texture_direction << "]: [" << halfedge.vertex_attributes().position() << "] [" << halfedge.vertex_attributes().texcoord() << ']' << eol;
-                state.set_bad();
-            }
+                typename M::value_type projection = dot(texture_direction, M::vector_type::z_direction());
+                if (convex(halfedge) && math::float_le0(projection))
+                {
+                    std::cout << "Bad: convex dot(texture_direction, M::vector_type::z_direction()) <= 0" << " f " << halfedge.face_id() << " h " << halfedge.id() << " [" << texture_direction << "]: [" << halfedge.vertex_attributes().position() << "] [" << halfedge.vertex_attributes().texcoord() << ']' << eol;
+                    std::cout << '(' << texcoord << ") (" << texcoordNext << ") (" << texcoordPrev << ") " << eol;
+                    state.set_bad();
+                }
+                else if (reflex(halfedge) && math::float_ge0(projection))
+                {
+                    std::cout << "Bad: reflex dot(texture_direction, M::vector_type::z_direction()) >= 0" << " f " << halfedge.face_id() << " h " << halfedge.id() << " [" << texture_direction << "]: [" << halfedge.vertex_attributes().position() << "] [" << halfedge.vertex_attributes().texcoord() << ']' << eol;
+                    state.set_bad();
+                }
 */
+            }
         }
 
         auto position = halfedge.vertex_attributes().position();
@@ -736,10 +813,101 @@ quetzal::brep::ValidationState quetzal::brep::check_face(const M& mesh, const ty
         state.set_bad();
     }
 
+    // Holes are not reached by the perimeter iteration above, so they are checked here. Each hole loop
+    // has to close, name this face throughout, and be disjoint from the perimeter and from every other
+    // hole of the face. A hole of two halfedges is a legitimate degenerate case, the pair being its own
+    // partner chain, so it is checked as such rather than rejected for being short
+    std::map<id_type, size_t> hole_halfedge_counts;
+
+    std::map<id_type, size_t> perimeter_halfedge_counts;
+    for (const auto& halfedge : face.halfedges())
+    {
+        ++perimeter_halfedge_counts[halfedge.id()];
+    }
+
+    for (const auto& hole : face.holes())
+    {
+        size_t n = 0;
+        for (const auto& halfedge : hole.halfedges())
+        {
+            ++n;
+
+            if (halfedge.face_id() != face.id())
+            {
+                std::cout << "Bad: hole halfedge " << halfedge.id() << " face " << halfedge.face_id() << " != " << face.id() << eol;
+                state.set_bad("hole halfedge face id", face.id());
+            }
+
+            if (perimeter_halfedge_counts.contains(halfedge.id()))
+            {
+                std::cout << "Bad: hole halfedge " << halfedge.id() << " is on the perimeter of face " << face.id() << eol;
+                state.set_bad("hole halfedge on perimeter", face.id());
+            }
+
+            if (++hole_halfedge_counts[halfedge.id()] > 1)
+            {
+                std::cout << "Bad: hole halfedge " << halfedge.id() << " belongs to more than one hole of face " << face.id() << eol;
+                state.set_bad("hole halfedge shared between holes", face.id());
+            }
+
+            if (halfedge.hole_id() != hole.id())
+            {
+                std::cout << "Bad: hole halfedge " << halfedge.id() << " hole " << id_string(halfedge.hole_id()) << " != " << id_string(hole.id()) << " on face " << face.id() << eol;
+                state.set_bad("hole halfedge hole id", face.id());
+            }
+
+            // As for the perimeter, a loop carries one face and one hole the whole way round
+            if (halfedge.face_id() != halfedge.next().face_id())
+            {
+                std::cout << "Bad: hole halfedge " << halfedge.id() << " face " << halfedge.face_id() << " != next " << halfedge.next_id() << " face " << halfedge.next().face_id() << eol;
+                state.set_bad("hole halfedge face differs from next", face.id());
+            }
+
+            if (halfedge.hole_id() != halfedge.next().hole_id())
+            {
+                std::cout << "Bad: hole halfedge " << halfedge.id() << " hole " << id_string(halfedge.hole_id()) << " != next " << halfedge.next_id() << " hole " << id_string(halfedge.next().hole_id()) << eol;
+                state.set_bad("hole halfedge hole differs from next", face.id());
+            }
+        }
+
+        if (n != hole.halfedge_count())
+        {
+            std::cout << "Bad: hole walk " << n << " != hole.halfedge_count() " << hole.halfedge_count() << " face " << face.id() << eol;
+            state.set_bad("hole halfedge count", face.id());
+        }
+
+        if (n == 2)
+        {
+            std::cout << "Warn: hole.halfedge_count() == 2 :" << '\t' << face.id() << '\t' << n << eol;
+            state.set_warn("degenerate hole, halfedge_count == 2", face.id());
+
+            // Degenerate but legitimate, so what makes it well formed is checked rather than assumed:
+            // the pair is its own partner chain, each halfedge being the other's partner and next
+            id_type halfedge_id = hole.halfedge_id();
+            const auto& halfedge = mesh.halfedge(halfedge_id);
+            if (halfedge.partner_id() != halfedge.next_id() || halfedge.next().next_id() != halfedge_id)
+            {
+                std::cout << "Bad: two halfedge hole " << halfedge_id << " is not its own partner pair, face " << face.id() << eol;
+                state.set_bad("two halfedge hole not self paired", face.id());
+            }
+        }
+        else if (n < 2)
+        {
+            std::cout << "Bad: hole.halfedge_count() < 2 :" << '\t' << face.id() << '\t' << n << eol;
+            state.set_bad("degenerate hole, halfedge_count < 2", face.id());
+        }
+    }
+
+    if (face.halfedge_count() + hole_halfedge_counts.size() != face.halfedge_ext_count())
+    {
+        std::cout << "Bad: face " << face.id() << " halfedge_ext_count " << face.halfedge_ext_count() << " != perimeter " << face.halfedge_count() << " + holes " << hole_halfedge_counts.size() << eol;
+        state.set_bad("halfedge_ext_count mismatch", face.id());
+    }
+
     if (face.surface_id() == nullid)
     {
         std::cout << "Warn: face " << face.id() << " surface null" << eol;
-        state.set_warn();
+        state.set_warn("face surface null", face.id());
     }
     else if (face.surface_id() >= mesh.surface_store_count())
     {
@@ -760,7 +928,7 @@ quetzal::brep::ValidationState quetzal::brep::check_face(const M& mesh, const ty
     if (face.submesh_id() == nullid)
     {
         std::cout << "Warn: face " << face.id() << " submesh null" << eol;
-        state.set_warn();
+        state.set_warn("face submesh null", face.id());
     }
     else if (face.submesh_id() >= mesh.submesh_store_count())
     {
@@ -856,13 +1024,13 @@ quetzal::brep::ValidationState quetzal::brep::check_surfaces(const M& mesh)
         if (surface.name().empty())
         {
             std::cout << "Warn: surface.name().empty() " << surface.id() << eol;
-            state.set_warn();
+            state.set_warn("surface name empty", surface.id());
         }
 
         if (surface.submesh_id() == nullid)
         {
             std::cout << "Warn: surface " << surface.id() << " submesh null" << eol;
-            state.set_warn();
+            state.set_warn("surface submesh null", surface.id());
         }
         else if (surface.submesh_id() > mesh.submesh_store_count())
         {
@@ -1017,7 +1185,7 @@ quetzal::brep::ValidationState quetzal::brep::check_submeshes(const M& mesh)
         if (submesh.name().empty())
         {
             std::cout << "Warn: submesh.name().empty() " << submesh.id() << eol;
-            state.set_warn();
+            state.set_warn("submesh name empty", submesh.id());
         }
 
         for (id_type idFace : submesh.face_ids())
@@ -2446,7 +2614,7 @@ mesh; // ...
             else if (attributes.normal() != attributesNominal.normal())
             {
                 std::cout << "Warn: attributes.normal() != attributesNominal.normal() : " << vertex.id() << " [" << attributes.normal() << "] [" << attributesNominal.normal() << ']' << eol;
-                state.set_warn();
+                state.set_warn("vertex normal differs from nominal", vertex.id());
             }
 
             const_cast<typename M::halfedge_type&>(halfedge).vertex().set_marked();
@@ -2481,7 +2649,7 @@ quetzal::brep::ValidationState quetzal::brep::check_surface_vertex_consistency_e
             if (halfedge.vertex_attributes().position() != vertex.attributes().position())
             {
                 std::cout << "  Warn: coincident vertex position: reference vertex " << vertex.id() << " (" << vertex.attributes().position() << ") != vertex " << halfedge.vertex_id() << " (" << halfedge.vertex_attributes().position() << ')' << eol;
-                state.set_warn();
+                state.set_warn("coincident vertex position", vertex.id());
             }
 
             if (halfedge.surface_id() != vertex.halfedge().surface_id())
@@ -2492,19 +2660,19 @@ quetzal::brep::ValidationState quetzal::brep::check_surface_vertex_consistency_e
             if (!float_eq(halfedge.vertex_attributes().normal(), normal, 10000))
             {
                 std::cout << "  Warn: surface vertex normal: vertex " << vertex.id() << " normal (" << vertex.attributes().normal() << ") != (float) normal (" << normal << ')' << eol;
-                state.set_warn();
+                state.set_warn("surface vertex normal differs from computed", vertex.id());
             }
 
             if (halfedge.vertex_attributes().normal() != vertex.attributes().normal())
             {
                 std::cout << "  Warn: coincident surface vertex normal: reference vertex " << vertex.id() << " (" << vertex.attributes().normal() << ") != vertex " << halfedge.vertex_id() << " (" << halfedge.vertex_attributes().normal() << ')' << eol;
-                state.set_warn();
+                state.set_warn("coincident surface vertex normal", vertex.id());
             }
 
             if (halfedge.vertex_attributes().texcoord() != vertex.attributes().texcoord())
             {
                 std::cout << "  Warn: coincident surface vertex texcoord: reference vertex " << vertex.id() << " (" << vertex.attributes().texcoord() << ") != vertex " << halfedge.vertex_id() << " (" << halfedge.vertex_attributes().texcoord() << ')' << eol;
-                state.set_warn();
+                state.set_warn("coincident surface vertex texcoord", vertex.id());
             }
         }
     }

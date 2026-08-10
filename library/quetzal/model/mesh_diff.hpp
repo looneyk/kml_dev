@@ -127,6 +127,12 @@ namespace quetzal::model
         size_t n_unmatched_other = 0; // rhs faces with no counterpart
         size_t n_surface_differences = 0;
 
+        // Faces resolved as the same polygon triangulated differently, counted per side. The diagonal
+        // chosen across a planar polygon carries no information, so those are equivalent; across a
+        // non-planar one the two triangulations are genuinely different surfaces and are not
+        size_t n_triangulation = 0;
+        size_t n_triangulation_nonplanar = 0;
+
         std::vector<Difference> differences;
         size_t n_differences_elided = 0; // Differences beyond Options::detail_limit
 
@@ -310,9 +316,47 @@ namespace detail
     template<typename M>
     Comparison compare_models(const M& lhs, const M& rhs, const Options& options = {});
 
+    // Align two vertex loops, nullopt when their vertex counts differ. Takes the loops rather than the
+    // faces so that a loop assembled from more than one face, as a merged triangulation is, is judged
+    // by the same rules as a face
+    template<typename M, typename L, typename R>
+    std::optional<FaceComparison> compare_loops(const L& vertices_lhs, const R& vertices_rhs, const Options& options);
+
     // Align two face vertex loops, nullopt when their vertex counts differ
     template<typename M>
     std::optional<FaceComparison> compare_faces(const M& lhs, id_type face_id_lhs, const M& rhs, id_type face_id_rhs, const Options& options);
+
+    //--------------------------------------------------------------------------
+    // A vertex loop gathered from vertices that need not be contiguous in the model, which is what a
+    // loop merged from several faces requires. Reads the same way a face's own vertices do
+    template<typename M>
+    class VertexLoop
+    {
+    public:
+
+        using vertex_type = M::Vertex;
+        using value_type = M::point_type;
+
+        void push_back(const vertex_type& vertex) { m_vertices.push_back(&vertex); }
+
+        size_t size() const { return m_vertices.size(); }
+        value_type operator[](size_t n) const { return m_vertices[n]->position; }
+        const vertex_type& vertex(size_t n) const { return *m_vertices[n]; }
+
+    private:
+
+        std::vector<const vertex_type*> m_vertices;
+    };
+
+    // The loop bounding two triangles that share an edge, that edge being the diagonal they were split
+    // along, or nullopt where they are not two triangles sharing one
+    template<typename M>
+    std::optional<VertexLoop<M>> merge_triangles(const M& model, id_type face_id0, id_type face_id1, const Options& options);
+
+    // Whether two triangles of a merged pair lie in one plane, in which case the diagonal between them
+    // is arbitrary and the two triangulations describe the same surface
+    template<typename M>
+    bool coplanar_triangles(const M& model, id_type face_id0, id_type face_id1, const Options& options);
 
     //--------------------------------------------------------------------------
     // Uniform grid over face centroids, sized so that every position within
@@ -820,6 +864,9 @@ quetzal::model::Comparison quetzal::model::detail::compare_models(const M& lhs, 
     CentroidGrid<M> grid(rhs, options.tolerance);
     std::vector<bool> consumed(rhs.face_count(), false);
 
+    std::vector<id_type> unmatched_lhs;
+    std::vector<id_type> unmatched_rhs;
+
     for (id_type face_id = 0; face_id < lhs.face_count(); ++face_id)
     {
         const auto& centroid = lhs.face_centroid(face_id);
@@ -852,8 +899,7 @@ quetzal::model::Comparison quetzal::model::detail::compare_models(const M& lhs, 
 
         if (!best)
         {
-            ++comparison.n_unmatched;
-            record({face_id, std::nullopt, FaceMatch::unmatched, {}, qualified_name(lhs, face_id), {}});
+            unmatched_lhs.push_back(face_id);
             continue;
         }
 
@@ -898,8 +944,102 @@ quetzal::model::Comparison quetzal::model::detail::compare_models(const M& lhs, 
     {
         if (!consumed[face_id])
         {
+            unmatched_rhs.push_back(face_id);
+        }
+    }
+
+    // A polygon split along one diagonal on one side and the other diagonal on the other leaves both of
+    // its triangles unmatched on both sides. Merging each pair back into the polygon it triangulates
+    // recovers the correspondence the face by face comparison cannot see
+    std::vector<bool> merged_lhs(unmatched_lhs.size(), false);
+    std::vector<bool> merged_rhs(unmatched_rhs.size(), false);
+
+    for (size_t a0 = 0; a0 < unmatched_lhs.size(); ++a0)
+    {
+        for (size_t a1 = a0 + 1; a1 < unmatched_lhs.size() && !merged_lhs[a0]; ++a1)
+        {
+            if (merged_lhs[a1])
+            {
+                continue;
+            }
+
+            auto loop_lhs = merge_triangles(lhs, unmatched_lhs[a0], unmatched_lhs[a1], options);
+            if (!loop_lhs)
+            {
+                continue;
+            }
+
+            for (size_t b0 = 0; b0 < unmatched_rhs.size() && !merged_lhs[a0]; ++b0)
+            {
+                for (size_t b1 = b0 + 1; b1 < unmatched_rhs.size() && !merged_lhs[a0]; ++b1)
+                {
+                    if (merged_rhs[b0] || merged_rhs[b1])
+                    {
+                        continue;
+                    }
+
+                    auto loop_rhs = merge_triangles(rhs, unmatched_rhs[b0], unmatched_rhs[b1], options);
+                    if (!loop_rhs)
+                    {
+                        continue;
+                    }
+
+                    auto result = compare_loops<M>(*loop_lhs, *loop_rhs, options);
+                    if (!result || !result->differences.empty())
+                    {
+                        continue;
+                    }
+
+                    merged_lhs[a0] = true;
+                    merged_lhs[a1] = true;
+                    merged_rhs[b0] = true;
+                    merged_rhs[b1] = true;
+
+                    // The diagonal across a planar polygon is arbitrary, so those two triangulations
+                    // describe one surface. Across a non-planar one they do not, and saying otherwise
+                    // would hide a real difference
+                    bool planar = coplanar_triangles(lhs, unmatched_lhs[a0], unmatched_lhs[a1], options)
+                        && coplanar_triangles(rhs, unmatched_rhs[b0], unmatched_rhs[b1], options);
+
+                    comparison.n_triangulation += planar ? 2 : 0;
+                    comparison.n_triangulation_nonplanar += planar ? 0 : 2;
+
+                    for (size_t i = 0; i < 2; ++i)
+                    {
+                        id_type face_id_lhs = i == 0 ? unmatched_lhs[a0] : unmatched_lhs[a1];
+                        id_type face_id_rhs = i == 0 ? unmatched_rhs[b0] : unmatched_rhs[b1];
+
+                        if (planar)
+                        {
+                            ++comparison.n_equivalent;
+                        }
+                        else
+                        {
+                            ++comparison.n_different;
+                        }
+
+                        record({face_id_lhs, face_id_rhs, planar ? FaceMatch::equivalent : FaceMatch::different, {}, qualified_name(lhs, face_id_lhs), qualified_name(rhs, face_id_rhs)});
+                    }
+                }
+            }
+        }
+    }
+
+    for (size_t i = 0; i < unmatched_lhs.size(); ++i)
+    {
+        if (!merged_lhs[i])
+        {
+            ++comparison.n_unmatched;
+            record({unmatched_lhs[i], std::nullopt, FaceMatch::unmatched, {}, qualified_name(lhs, unmatched_lhs[i]), {}});
+        }
+    }
+
+    for (size_t i = 0; i < unmatched_rhs.size(); ++i)
+    {
+        if (!merged_rhs[i])
+        {
             ++comparison.n_unmatched_other;
-            record({face_id, std::nullopt, FaceMatch::unmatched, {}, {}, qualified_name(rhs, face_id)});
+            record({unmatched_rhs[i], std::nullopt, FaceMatch::unmatched, {}, {}, qualified_name(rhs, unmatched_rhs[i])});
         }
     }
 
@@ -910,15 +1050,82 @@ quetzal::model::Comparison quetzal::model::detail::compare_models(const M& lhs, 
 template<typename M>
 std::optional<quetzal::model::detail::FaceComparison> quetzal::model::detail::compare_faces(const M& lhs, id_type face_id_lhs, const M& rhs, id_type face_id_rhs, const Options& options)
 {
-    using attributes_type = M::attributes_type;
+    return compare_loops<M>(lhs.face_vertices(face_id_lhs), rhs.face_vertices(face_id_rhs), options);
+}
 
-    auto vertices_lhs = lhs.face_vertices(face_id_lhs);
-    auto vertices_rhs = rhs.face_vertices(face_id_rhs);
+//------------------------------------------------------------------------------
+template<typename M>
+std::optional<quetzal::model::detail::VertexLoop<M>> quetzal::model::detail::merge_triangles(const M& model, id_type face_id0, id_type face_id1, const Options& options)
+{
+    auto vertices0 = model.face_vertices(face_id0);
+    auto vertices1 = model.face_vertices(face_id1);
+
+    if (vertices0.size() != 3 || vertices1.size() != 3)
+    {
+        return std::nullopt;
+    }
+
+    auto position_index = [&](const auto& position) -> int
+    {
+        for (int i = 0; i < 3; ++i)
+        {
+            if (float_eq(vertices1[i], position, options.tolerance))
+            {
+                return i;
+            }
+        }
+
+        return -1;
+    };
+
+    for (size_t i = 0; i < 3; ++i)
+    {
+        size_t j = (i + 1) % 3;
+
+        int i_shared = position_index(vertices0[i]);
+        int j_shared = position_index(vertices0[j]);
+        if (i_shared < 0 || j_shared < 0)
+        {
+            continue;
+        }
+
+        // The one vertex of the second triangle that is not on the shared edge, taking the place of
+        // that edge in the first triangle's loop
+        VertexLoop<M> loop;
+        loop.push_back(vertices0.vertex((i + 2) % 3));
+        loop.push_back(vertices0.vertex(i));
+        loop.push_back(vertices1.vertex(3 - i_shared - j_shared));
+        loop.push_back(vertices0.vertex(j));
+        return loop;
+    }
+
+    return std::nullopt;
+}
+
+//------------------------------------------------------------------------------
+template<typename M>
+bool quetzal::model::detail::coplanar_triangles(const M& model, id_type face_id0, id_type face_id1, const Options& options)
+{
+    auto vertices0 = model.face_vertices(face_id0);
+    auto vertices1 = model.face_vertices(face_id1);
+
+    auto normal_of = [](const auto& vertices)
+    {
+        return normalize(cross(vertices[1] - vertices[0], vertices[2] - vertices[0]));
+    };
+
+    return float_eq(normal_of(vertices0), normal_of(vertices1), options.tolerance);
+}
+
+//------------------------------------------------------------------------------
+template<typename M, typename L, typename R>
+std::optional<quetzal::model::detail::FaceComparison> quetzal::model::detail::compare_loops(const L& vertices_lhs, const R& vertices_rhs, const Options& options)
+{
+    using attributes_type = M::attributes_type;
 
     size_t n = vertices_lhs.size();
     if (n != vertices_rhs.size())
     {
-        // Equivalent triangulations of a polygonal face would be recognized here ...
         return std::nullopt;
     }
 
