@@ -215,7 +215,7 @@ namespace quetzal::brep
     // Move any holes in face_a to the opposite face as necessary after split_face
     // Undefined results if the split crosses a hole
     template<typename M>
-    void partition_face_holes(M& mesh, typename M::face_type& face_a, typename M::face_type& face_b, std::span<id_type> hole_ids_a);
+    void partition_face_holes(M& mesh, typename M::face_type& face_a, typename M::face_type& face_b, std::span<const id_type> hole_ids_a);
 
     // should be in model/mesh_util.hpp but there is none ...
     // needs to either be changed over to just use clip (preferable and correct) or manually recalculate normals, either of which will result in reference model changes ...
@@ -394,6 +394,8 @@ void quetzal::brep::split_halfedge(M& mesh, id_type id, const typename M::vertex
     // halfedge may have been invalidated
     mesh.halfedge(id).next().set_prev_id(halfedge_id0);
     mesh.halfedge(id).set_next_id(halfedge_id0);
+
+    halfedge.face().reset_bounds();
     return;
 }
 
@@ -430,9 +432,14 @@ void quetzal::brep::split_edge(M& mesh, id_type halfedge_id, const typename M::v
     id_type partner_id = halfedge_orig.partner_id();
     id_type partner_id_next = halfedge_orig.partner().next_id();
     id_type face_id_partner = halfedge_orig.partner().face_id();
+    id_type hole_id_halfedge = halfedge_orig.hole_id();
+    id_type hole_id_partner = halfedge_orig.partner().hole_id();
 
     id_type halfedge_id0 = mesh.create_halfedge_vertex(partner_id, halfedge_id_next, halfedge_id, face_id_halfedge, av); // extension of halfedge
     id_type halfedge_id1 = mesh.create_halfedge_vertex(halfedge_id, partner_id_next, partner_id, face_id_partner, av_partner); // partner of halfedge
+
+    mesh.halfedge(halfedge_id0).set_hole_id(hole_id_halfedge);
+    mesh.halfedge(halfedge_id1).set_hole_id(hole_id_partner);
 
     auto& halfedge = mesh.halfedge(halfedge_id);
     halfedge.next().set_prev_id(halfedge_id0);
@@ -1266,34 +1273,28 @@ void quetzal::brep::partition_holes(M& mesh, id_type face_id_a, id_type face_id_
     auto& face_a = mesh.face(face_id_a);
     auto& face_b = mesh.face(face_id_b);
 
-    std::vector<id_type> hole_halfedge_ids_a = face_a.holes()
-        | std::views::transform([](const Hole<typename M::traits_type>& hole) { return hole.halfedge_id(); })
-        | std::ranges::to<std::vector>();
-    std::vector<id_type> hole_halfedge_ids_b = face_b.holes()
-        | std::views::transform([](const Hole<typename M::traits_type>& hole) { return hole.halfedge_id(); })
-        | std::ranges::to<std::vector>();
+    const auto hole_ids_a = face_a.hole_ids();
+    const auto hole_ids_b = face_b.hole_ids();
 
-    partition_face_holes(mesh, face_a, face_b, hole_halfedge_ids_a);
-    partition_face_holes(mesh, face_b, face_a, hole_halfedge_ids_b);
+    partition_face_holes(mesh, face_a, face_b, hole_ids_a);
+    partition_face_holes(mesh, face_b, face_a, hole_ids_b);
     return;
 }
 
 //------------------------------------------------------------------------------
 template<typename M>
-void quetzal::brep::partition_face_holes(M& mesh, typename M::face_type& face_a, typename M::face_type& face_b, std::span<id_type> hole_halfedge_ids_a)
+void quetzal::brep::partition_face_holes(M& mesh, typename M::face_type& face_a, typename M::face_type& face_b, std::span<const id_type> hole_ids_a)
 {
-    for (id_type hole_halfedge_id_a : hole_halfedge_ids_a)
+    for (id_type hole_id : hole_ids_a)
     {
-        if (face_contains(face_a, vertex_position(mesh.halfedge(hole_halfedge_id_a))))
+        if (face_contains(face_a, vertex_position(mesh.halfedge(mesh.hole(hole_id).halfedge_id()))))
         {
             continue;
         }
 
         // Hole is no longer in face_a, so move it to face_b
-        auto hole = face_a.halfedge_hole(hole_halfedge_id_a);
-        face_a.remove_hole(hole_halfedge_id_a);
-        hole.set_face_id(face_b.id());
-        face_b.insert_hole(hole);
+        face_a.remove_hole(hole_id);
+        face_b.assign_halfedges(face_b.insert_hole(hole_id));
     }
 
     return;

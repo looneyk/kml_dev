@@ -33,7 +33,7 @@ namespace quetzal::brep
         using size_type = mesh_type::size_type;
 
         Hole();
-        Hole(mesh_type& mesh, id_type halfedge_id);
+        Hole(mesh_type& mesh, id_type id, id_type face_id, id_type halfedge_id);
         Hole(const Hole&) = default;
         Hole(Hole&&) noexcept = default;
         ~Hole() = default;
@@ -44,8 +44,11 @@ namespace quetzal::brep
         const mesh_type& mesh() const;
         mesh_type& mesh();
 
+        id_type id() const;
+        void set_id(id_type id);
+
         id_type face_id() const;
-        void set_face_id(id_type face_id); // split_face operations can change the face
+        void set_face_id(id_type face_id); // Does not automatically assign to halfedges ...
 
         const face_type& face() const;
         face_type& face();
@@ -63,6 +66,10 @@ namespace quetzal::brep
 
         std::vector<quetzal::id_type> halfedge_ids() const;
 
+        // rework to take id's ...
+        void assign_halfedges(); // Give each halfedge its hole id
+        void release_halfedges(); // Give each halfedge a hole id of nullid
+
         const Properties& properties() const;
         Properties& properties();
 
@@ -77,6 +84,8 @@ namespace quetzal::brep
     private:
 
         mesh_type* m_pmesh;
+        id_type m_id;
+        id_type m_face_id;
         id_type m_halfedge_id;
         halfedges_type m_halfedges;
         Properties m_properties;
@@ -101,6 +110,8 @@ template<typename Traits, typename M>
 quetzal::brep::Hole<Traits, M>::Hole() :
     Flags(),
     m_pmesh(nullptr),
+    m_id(nullid),
+    m_face_id(nullid),
     m_halfedge_id(nullid),
     m_halfedges(m_pmesh, nullid, m_halfedges_size, m_halfedges_first, m_halfedges_last, m_halfedges_end, m_halfedges_forward, m_halfedges_reverse, m_halfedges_element, m_halfedges_const_element),
     m_properties()
@@ -109,13 +120,30 @@ quetzal::brep::Hole<Traits, M>::Hole() :
 
 //------------------------------------------------------------------------------
 template<typename Traits, typename M>
-quetzal::brep::Hole<Traits, M>::Hole(mesh_type& mesh, id_type halfedge_id) :
+quetzal::brep::Hole<Traits, M>::Hole(mesh_type& mesh, id_type id, id_type face_id, id_type halfedge_id) :
     Flags(),
     m_pmesh(&mesh),
+    m_id(id),
+    m_face_id(face_id),
     m_halfedge_id(halfedge_id),
     m_halfedges(m_pmesh, halfedge_id, m_halfedges_size, m_halfedges_first, m_halfedges_last, m_halfedges_end, m_halfedges_forward, m_halfedges_reverse, m_halfedges_element, m_halfedges_const_element),
     m_properties()
 {
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits, typename M>
+quetzal::id_type quetzal::brep::Hole<Traits, M>::id() const
+{
+    return m_id;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits, typename M>
+void quetzal::brep::Hole<Traits, M>::set_id(id_type id)
+{
+    m_id = id;
+    return;
 }
 
 //------------------------------------------------------------------------------
@@ -138,19 +166,14 @@ typename quetzal::brep::Hole<Traits, M>::mesh_type& quetzal::brep::Hole<Traits, 
 template<typename Traits, typename M>
 quetzal::id_type quetzal::brep::Hole<Traits, M>::face_id() const
 {
-    assert(m_pmesh != nullptr);
-    return m_pmesh->halfedge(m_halfedge_id).face_id();
+    return m_face_id;
 }
 
 //------------------------------------------------------------------------------
 template<typename Traits, typename M>
 void quetzal::brep::Hole<Traits, M>::set_face_id(id_type face_id)
 {
-    // Assign hole halfedges to the new face
-    for (auto& halfedge : halfedges())
-    {
-        halfedge.set_face_id(face_id);
-    }
+    m_face_id = face_id;
     return;
 }
 
@@ -228,6 +251,30 @@ template<typename Traits, typename M>
 std::vector<quetzal::id_type> quetzal::brep::Hole<Traits, M>::halfedge_ids() const
 {
     return std::ranges::transform_view(m_halfedges, [](const auto& halfedge) { return halfedge.id(); }) | std::ranges::to<std::vector>();
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits, typename M>
+void quetzal::brep::Hole<Traits, M>::assign_halfedges()
+{
+    for (auto& halfedge : halfedges())
+    {
+        halfedge.set_hole_id(m_id);
+    }
+
+    return;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits, typename M>
+void quetzal::brep::Hole<Traits, M>::release_halfedges()
+{
+    for (auto& halfedge : halfedges())
+    {
+        halfedge.set_hole_id(nullid);
+    }
+
+    return;
 }
 
 //------------------------------------------------------------------------------

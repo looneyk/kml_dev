@@ -62,6 +62,9 @@ namespace quetzal::brep
         using face_type = Face<Traits>;
         using face_store_type = std::vector<face_type>;
         using faces_type = Elements<Mesh<Traits>, face_type, id_type>;
+        using hole_type = Hole<Traits>;
+        using hole_store_type = std::vector<hole_type>;
+        using holes_type = Elements<Mesh<Traits>, hole_type, id_type>;
         using surface_type = Surface<Traits>;
         using surface_store_type = std::vector<surface_type>;
         using surfaces_type = Elements<Mesh<Traits>, surface_type, id_type>;
@@ -133,6 +136,19 @@ namespace quetzal::brep
         face_store_type& face_store();
 
         id_type create_face(id_type idSurface, id_type idHalfedge, const face_attributes_type& attributes = {});
+
+        const hole_type& hole(id_type id) const;
+        hole_type& hole(id_type id);
+
+        size_type hole_count() const;
+        const holes_type& holes() const;
+        holes_type& holes();
+
+        size_type hole_store_count() const;
+        const hole_store_type& hole_store() const;
+        hole_store_type& hole_store();
+
+        id_type create_hole(id_type idFace, id_type idHalfedge);
 
         void unlink_face(id_type idFace); // Unlink face from its surface and submesh, delete them if empty
         void delete_face(id_type idFace); // Delete face resulting in an open area with border edges
@@ -265,6 +281,7 @@ namespace quetzal::brep
         bool valid_halfedge_id(id_type id) const;
         bool valid_vertex_id(id_type id) const;
         bool valid_face_id(id_type id) const;
+        bool valid_hole_id(id_type id) const;
         bool valid_surface_id(id_type id) const;
         bool valid_submesh_id(id_type id) const;
 
@@ -286,6 +303,7 @@ namespace quetzal::brep
             Mapping submesh_index;
             Mapping surface_index;
             Mapping face_index;
+            Mapping hole_index;
             Mapping vertex_index;
             Mapping halfedge_index;
         };
@@ -293,6 +311,7 @@ namespace quetzal::brep
         void remap_submesh(id_type submesh_id, const Mappings& mappings, const std::string& name);
         void remap_surface(id_type surface_id, const Mappings& mappings);
         void remap_face(id_type face_id, const Mappings& mappings);
+        void remap_hole(id_type hole_id, const Mappings& mappings);
         void remap_vertex(id_type vertex_id, const Mappings& mappings);
         void remap_halfedge(id_type halfedge_id, const Mappings& mappings);
 
@@ -310,6 +329,9 @@ namespace quetzal::brep
 
         face_store_type m_face_store;
         faces_type m_faces;
+
+        hole_store_type m_hole_store;
+        holes_type m_holes;
 
         surface_store_type m_surface_store;
         surfaces_type m_surfaces;
@@ -349,6 +371,15 @@ namespace quetzal::brep
         static faces_type::iterate_function_type m_faces_reverse;
         static faces_type::element_function_type m_faces_element;
         static faces_type::const_element_function_type m_faces_const_element;
+
+        static holes_type::size_function_type m_holes_size;
+        static holes_type::terminal_function_type m_holes_first;
+        static holes_type::terminal_function_type m_holes_last;
+        static holes_type::terminal_function_type m_holes_end;
+        static holes_type::iterate_function_type m_holes_forward;
+        static holes_type::iterate_function_type m_holes_reverse;
+        static holes_type::element_function_type m_holes_element;
+        static holes_type::const_element_function_type m_holes_const_element;
 
         static surfaces_type::size_function_type m_surfaces_size;
         static surfaces_type::terminal_function_type m_surfaces_first;
@@ -413,6 +444,8 @@ quetzal::brep::Mesh<Traits>::Mesh(const std::string& name) :
     m_vertices(this, nullid, m_vertices_size, m_vertices_first, m_vertices_last, m_vertices_end, m_vertices_forward, m_vertices_reverse, m_vertices_element, m_vertices_const_element),
     m_face_store(),
     m_faces(this, nullid, m_faces_size, m_faces_first, m_faces_last, m_faces_end, m_faces_forward, m_faces_reverse, m_faces_element, m_faces_const_element),
+    m_hole_store(),
+    m_holes(this, nullid, m_holes_size, m_holes_first, m_holes_last, m_holes_end, m_holes_forward, m_holes_reverse, m_holes_element, m_holes_const_element),
     m_surface_store(),
     m_surfaces(this, nullid, m_surfaces_size, m_surfaces_first, m_surfaces_last, m_surfaces_end, m_surfaces_forward, m_surfaces_reverse, m_surfaces_element, m_surfaces_const_element),
     m_surface_index(),
@@ -436,6 +469,8 @@ quetzal::brep::Mesh<Traits>::Mesh(const Mesh& other) :
     m_vertices(other.m_vertices),
     m_face_store(other.m_face_store),
     m_faces(other.m_faces),
+    m_hole_store(other.m_hole_store),
+    m_holes(other.m_holes),
     m_surface_store(other.m_surface_store),
     m_surfaces(other.m_surfaces),
     m_surface_index(other.m_surface_index),
@@ -460,6 +495,8 @@ quetzal::brep::Mesh<Traits>::Mesh(Mesh&& other) noexcept :
     m_vertices(other.m_vertices),
     m_face_store(std::move(other.m_face_store)),
     m_faces(other.m_faces),
+    m_hole_store(std::move(other.m_hole_store)),
+    m_holes(other.m_holes),
     m_surface_store(std::move(other.m_surface_store)),
     m_surfaces(other.m_surfaces),
     m_surface_index(std::move(other.m_surface_index)),
@@ -482,6 +519,7 @@ quetzal::brep::Mesh<Traits>& quetzal::brep::Mesh<Traits>::operator=(const Mesh& 
     m_halfedge_store = other.m_halfedge_store;
     m_vertex_store = other.m_vertex_store;
     m_face_store = other.m_face_store;
+    m_hole_store = other.m_hole_store;
     m_surface_store = other.m_surface_store;
     m_surface_index = other.m_surface_index;
     m_submesh_store = other.m_submesh_store;
@@ -503,6 +541,7 @@ quetzal::brep::Mesh<Traits>& quetzal::brep::Mesh<Traits>::operator=(Mesh&& other
     m_halfedge_store = std::move(other.m_halfedge_store);
     m_vertex_store = std::move(other.m_vertex_store);
     m_face_store = std::move(other.m_face_store);
+    m_hole_store = std::move(other.m_hole_store);
     m_surface_store = std::move(other.m_surface_store);
     m_surface_index = std::move(other.m_surface_index);
     m_submesh_store = std::move(other.m_submesh_store);
@@ -740,6 +779,73 @@ typename quetzal::brep::Mesh<Traits>::face_store_type& quetzal::brep::Mesh<Trait
 
 //------------------------------------------------------------------------------
 template<typename Traits>
+const typename quetzal::brep::Mesh<Traits>::hole_type& quetzal::brep::Mesh<Traits>::hole(id_type id) const
+{
+    assert(valid_hole_id(id));
+    return m_hole_store[id];
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+typename quetzal::brep::Mesh<Traits>::hole_type& quetzal::brep::Mesh<Traits>::hole(id_type id)
+{
+    assert(valid_hole_id(id));
+    return m_hole_store[id];
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+typename quetzal::brep::Mesh<Traits>::size_type quetzal::brep::Mesh<Traits>::hole_count() const
+{
+    return std::ranges::count_if(m_hole_store, [](const auto& t){ return !t.deleted(); });
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+const typename quetzal::brep::Mesh<Traits>::holes_type& quetzal::brep::Mesh<Traits>::holes() const
+{
+    return m_holes;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+typename quetzal::brep::Mesh<Traits>::holes_type& quetzal::brep::Mesh<Traits>::holes()
+{
+    return m_holes;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+typename quetzal::brep::Mesh<Traits>::size_type quetzal::brep::Mesh<Traits>::hole_store_count() const
+{
+    return m_hole_store.size();
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+const typename quetzal::brep::Mesh<Traits>::hole_store_type& quetzal::brep::Mesh<Traits>::hole_store() const
+{
+    return m_hole_store;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+typename quetzal::brep::Mesh<Traits>::hole_store_type& quetzal::brep::Mesh<Traits>::hole_store()
+{
+    return m_hole_store;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+quetzal::id_type quetzal::brep::Mesh<Traits>::create_hole(id_type idFace, id_type idHalfedge)
+{
+    id_type idHole = m_hole_store.size();
+    m_hole_store.emplace_back(*this, idHole, idFace, idHalfedge);
+    return idHole;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
 quetzal::id_type quetzal::brep::Mesh<Traits>::create_face(id_type idSurface, id_type idHalfedge, const face_attributes_type& attributes)
 {
     id_type idFace = m_face_store.size();
@@ -809,9 +915,10 @@ void quetzal::brep::Mesh<Traits>::delete_face(id_type idFace)
         halfedge.set_deleted();
     }
 
-    for (auto& hole : f.holes())
+    const auto hole_ids = f.hole_ids();
+    for (id_type hole_id : hole_ids)
     {
-        for (auto& halfedge : hole.halfedges())
+        for (auto& halfedge : hole(hole_id).halfedges())
         {
             if (!halfedge.border())
             {
@@ -821,9 +928,11 @@ void quetzal::brep::Mesh<Traits>::delete_face(id_type idFace)
             halfedge.vertex().set_deleted();
             halfedge.set_deleted();
         }
+
+        f.remove_hole(hole_id);
+        hole(hole_id).set_deleted();
     }
 
-    f.holes().clear();
     f.set_deleted();
     return;
 }
@@ -1790,8 +1899,10 @@ quetzal::id_type quetzal::brep::Mesh<Traits>::copy(id_type submesh_id, const std
             auto hole_ids = face.hole_ids();
             for (id_type hole_id : hole_ids)
             {
-                Hole<Traits> hole(*this, hole_id);
-                auto hole_halfedge_ids = hole.halfedge_ids();
+                auto hole_halfedge_ids = hole(hole_id).halfedge_ids();
+                mappings.hole_index[hole_id] = hole_store_count();
+                m_hole_store.push_back(hole(hole_id));
+
                 for (id_type halfedge_id : hole_halfedge_ids)
                 {
                     mappings.halfedge_index[halfedge_id] = halfedge_store_count();
@@ -1818,6 +1929,11 @@ quetzal::id_type quetzal::brep::Mesh<Traits>::copy(id_type submesh_id, const std
     for (auto& face : mappings.face_index)
     {
         remap_face(face.second, mappings);
+    }
+
+    for (auto& hole : mappings.hole_index)
+    {
+        remap_hole(hole.second, mappings);
     }
 
     for (auto& halfedge : mappings.halfedge_index)
@@ -2010,6 +2126,11 @@ quetzal::id_type quetzal::brep::Mesh<Traits>::insert(const Mesh<Traits>& other, 
     for (auto& face : mappings.face_index)
     {
         remap_face(face.second, mappings);
+    }
+
+    for (auto& hole : mappings.hole_index)
+    {
+        remap_hole(hole.second, mappings);
     }
 
     for (auto& halfedge : mappings.halfedge_index)
@@ -2250,6 +2371,7 @@ void quetzal::brep::Mesh<Traits>::clear()
     m_halfedge_store.clear();
     m_vertex_store.clear();
     m_face_store.clear();
+    m_hole_store.clear();
     m_surface_store.clear();
     m_surface_index.clear();
     m_submesh_store.clear();
@@ -2267,6 +2389,7 @@ void quetzal::brep::Mesh<Traits>::reset_all() const
     std::ranges::for_each(m_halfedge_store, reset_flags);
     std::ranges::for_each(m_vertex_store, reset_flags);
     std::ranges::for_each(m_face_store, reset_flags);
+    std::ranges::for_each(m_hole_store, reset_flags);
     std::ranges::for_each(m_surface_store, reset_flags);
     std::ranges::for_each(m_submesh_store, reset_flags);
     Flags::reset();
@@ -2287,6 +2410,9 @@ void quetzal::brep::Mesh<Traits>::reassign_mesh()
 
     std::ranges::for_each(m_face_store, set_mesh);
     m_faces.set_source(*this);
+
+    std::ranges::for_each(m_hole_store, set_mesh);
+    m_holes.set_source(*this);
 
     std::ranges::for_each(m_surface_store, set_mesh);
     m_surfaces.set_source(*this);
@@ -2342,6 +2468,13 @@ template<typename Traits>
 bool quetzal::brep::Mesh<Traits>::valid_face_id(id_type id) const
 {
     return id != nullid && id < m_face_store.size() && !m_face_store[id].deleted();
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+bool quetzal::brep::Mesh<Traits>::valid_hole_id(id_type id) const
+{
+    return id != nullid && id < m_hole_store.size() && !m_hole_store[id].deleted();
 }
 
 //------------------------------------------------------------------------------
@@ -2405,6 +2538,9 @@ void quetzal::brep::Mesh<Traits>::check_mesh() const
     std::ranges::for_each(m_face_store, check);
     m_faces.check_source(this);
 
+    std::ranges::for_each(m_hole_store, check);
+    m_holes.check_source(this);
+
     std::ranges::for_each(m_surface_store, check);
     m_surfaces.check_source(this);
 
@@ -2425,6 +2561,7 @@ void quetzal::brep::swap(Mesh<Traits>& lhs, Mesh<Traits>& rhs)
     swap(lhs.m_halfedge_store, rhs.m_halfedge_store);
     swap(lhs.m_vertex_store, rhs.m_vertex_store);
     swap(lhs.m_face_store, rhs.m_face_store);
+    swap(lhs.m_hole_store, rhs.m_hole_store);
     swap(lhs.m_surface_store, rhs.m_surface_store);
     swap(lhs.m_surface_index, rhs.m_surface_index);
     swap(lhs.m_submesh_store, rhs.m_submesh_store);
@@ -2499,10 +2636,24 @@ void quetzal::brep::Mesh<Traits>::remap_face(id_type face_id, const Mappings& ma
     face.halfedges().set_id(id);
     face.halfedges_ext().set_id(id);
 
-    for (auto& hole : face.holes())
+    for (id_type& hole_id : face.hole_ids())
     {
-        hole.set_halfedge_id(mappings.halfedge_index.at(hole.halfedge_id()));
+        hole_id = mappings.hole_index.at(hole_id);
     }
+
+    return;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+void quetzal::brep::Mesh<Traits>::remap_hole(id_type hole_id, const Mappings& mappings)
+{
+    id_type id = hole_id;
+    auto& hole = m_hole_store[id];
+    hole.set_id(id);
+
+    hole.set_face_id(mappings.face_index.at(hole.face_id()));
+    hole.set_halfedge_id(mappings.halfedge_index.at(hole.halfedge_id()));
 
     return;
 }
@@ -2858,6 +3009,97 @@ typename quetzal::brep::Mesh<Traits>::faces_type::const_element_function_type qu
     const auto& face = mesh.face(i);
     assert(!face.deleted());
     return face;
+};
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+typename quetzal::brep::Mesh<Traits>::holes_type::size_function_type quetzal::brep::Mesh<Traits>::m_holes_size = [](const Mesh<Traits>& mesh, id_type id) -> size_t
+{
+    id;
+    return mesh.hole_count();
+};
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+typename quetzal::brep::Mesh<Traits>::holes_type::terminal_function_type quetzal::brep::Mesh<Traits>::m_holes_first = [](const Mesh<Traits>& mesh, id_type id) -> id_type
+{
+    id;
+    auto container = mesh.hole_store();
+    auto i = std::ranges::find_if(container, [](const auto& t) { return !t.deleted(); });
+    return i != container.end() ? i->id() : nullid;
+};
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+typename quetzal::brep::Mesh<Traits>::holes_type::terminal_function_type quetzal::brep::Mesh<Traits>::m_holes_last = [](const Mesh<Traits>& mesh, id_type id) -> id_type
+{
+    id;
+    auto reversed = mesh.hole_store() | std::views::reverse;
+    auto i = std::ranges::find_if(reversed, [](const auto& t) { return !t.deleted(); });
+    return i != reversed.end() ? i->id() : nullid;
+};
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+typename quetzal::brep::Mesh<Traits>::holes_type::terminal_function_type quetzal::brep::Mesh<Traits>::m_holes_end = [](const Mesh<Traits>& mesh, id_type id) -> id_type
+{
+    mesh;
+    id;
+    return nullid;
+};
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+typename quetzal::brep::Mesh<Traits>::holes_type::iterate_function_type quetzal::brep::Mesh<Traits>::m_holes_forward = [](const Mesh<Traits>& mesh, id_type id, id_type i) -> id_type
+{
+    assert(i != m_holes_end(mesh, id));
+    assert(i < mesh.hole_store_count());
+    for (++i; i < mesh.hole_store_count(); ++i)
+    {
+        if (!mesh.hole_store()[i].deleted())
+        {
+            return i;
+        }
+    }
+
+    return m_holes_end(mesh, id);
+};
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+typename quetzal::brep::Mesh<Traits>::holes_type::iterate_function_type quetzal::brep::Mesh<Traits>::m_holes_reverse = [](const Mesh<Traits>& mesh, id_type id, id_type i) -> id_type
+{
+    assert(i != m_holes_end(mesh, id));
+    assert(i < mesh.hole_store_count());
+    while (i > 0)
+    {
+        if (!mesh.hole_store()[--i].deleted())
+        {
+            return i;
+        }
+    }
+
+    return m_holes_end(mesh, id);
+};
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+typename quetzal::brep::Mesh<Traits>::holes_type::element_function_type quetzal::brep::Mesh<Traits>::m_holes_element = [](Mesh<Traits>& mesh, id_type id, id_type i) -> quetzal::brep::Mesh<Traits>::hole_type&
+{
+    id;
+    auto& hole = mesh.hole(i);
+    assert(!hole.deleted());
+    return hole;
+};
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+typename quetzal::brep::Mesh<Traits>::holes_type::const_element_function_type quetzal::brep::Mesh<Traits>::m_holes_const_element = [](const Mesh<Traits>& mesh, id_type id, id_type i) -> const quetzal::brep::Mesh<Traits>::hole_type&
+{
+    id;
+    const auto& hole = mesh.hole(i);
+    assert(!hole.deleted());
+    return hole;
 };
 
 //------------------------------------------------------------------------------
