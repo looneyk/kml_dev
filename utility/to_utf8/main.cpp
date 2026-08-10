@@ -22,7 +22,7 @@ namespace
     struct options
     {
         fs::path root_path;
-        vector<string> extensions = { ".cpp", ".hpp", ".h", ".c", ".cc", ".cxx", ".inl", ".txt", ".cmake", ".sh", ".ps1", ".md" };
+        vector<string> extensions = { ".cpp", ".hpp", ".h", ".c", ".cc", ".cxx", ".inl", ".txt", ".md", ".cmake", ".sh", ".ps1", ".py", ".vert", ".frag" };
         vector<string> filenames = { "notes", "misc" };
         vector<string> excluded_directories = { ".git", ".vs", "build", "x64", "Debug", "Release", "bin", "obj" };
         bool dry_run = false;

@@ -3,6 +3,8 @@
 !/.gitattributes
 !/.vscode/
 !/.vscode/c_cpp_properties.json
+!/.claude/
+!/.claude/settings.json
 !/application/
 !/application/**
 !/support/

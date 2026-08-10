@@ -1,8 +1,17 @@
-cmake_minimum_required(VERSION 3.20)
+cmake_minimum_required(VERSION 3.25) # CXX26 dialect support
 project(kml_dev C CXX)
 
-set(CMAKE_CXX_STANDARD 23)
+# CMake has no CXX26 dialect flag for MSVC, so ask MSVC for the latest directly and let every other
+# compiler be told C++26 the documented way
+if(MSVC)
+    set(CMAKE_CXX_STANDARD 23)
+    add_compile_options(/std:c++latest /bigobj) # heavily templated translation units exceed the default section count
+else()
+    set(CMAKE_CXX_STANDARD 26)
+endif()
+
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_C_STANDARD 17)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
