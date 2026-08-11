@@ -236,7 +236,7 @@ namespace quetzal::brep
         Properties& properties();
 
         const geometry::AxisAlignedBoundingBox<vector_traits>& bounds() const;
-        void reset_bounds() const;
+        void invalidate() const;
 
         // These linked functions are not used, but useful at least in validation contexts
         bool linked_face_surface(id_type idFace, id_type idSurface) const;
@@ -918,6 +918,8 @@ void quetzal::brep::Mesh<Traits>::delete_face(id_type idFace)
     const auto hole_ids = f.hole_ids();
     for (id_type hole_id : hole_ids)
     {
+        f.remove_hole(hole_id);
+
         for (auto& halfedge : hole(hole_id).halfedges())
         {
             if (!halfedge.border())
@@ -929,7 +931,6 @@ void quetzal::brep::Mesh<Traits>::delete_face(id_type idFace)
             halfedge.set_deleted();
         }
 
-        f.remove_hole(hole_id);
         hole(hole_id).set_deleted();
     }
 
@@ -1751,10 +1752,10 @@ const quetzal::geometry::AxisAlignedBoundingBox<typename quetzal::brep::Mesh<Tra
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-void quetzal::brep::Mesh<Traits>::reset_bounds() const
+void quetzal::brep::Mesh<Traits>::invalidate() const
 {
     m_bounds.reset();
-    std::ranges::for_each(submeshes(), [](auto& submesh) { submesh.reset_bounds(); });
+    std::ranges::for_each(submeshes(), [](auto& submesh) { submesh.invalidate(); });
     return;
 }
 

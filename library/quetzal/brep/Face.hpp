@@ -126,7 +126,7 @@ namespace quetzal::brep
         Properties& properties();
 
         const geometry::AxisAlignedBoundingBox<typename M::vector_traits>& bounds() const;
-        void reset_bounds() const; // rename as this is not just bounds any more ...
+        void invalidate() const; // Reset hidden internal state
 
         bool border() const;
         void set_border();
@@ -334,7 +334,7 @@ template<typename Traits, typename M>
 void quetzal::brep::Face<Traits, M>::set_halfedge_id(id_type halfedge_id)
 {
     m_halfedge_id = halfedge_id;
-    reset_bounds();
+    invalidate();
     return;
 }
 
@@ -534,10 +534,7 @@ void quetzal::brep::Face<Traits, M>::remove_hole(id_type id)
     auto i = std::ranges::find(m_hole_ids, id);
     assert(i != m_hole_ids.end());
 
-    // Released while the loop is still intact, since it is walked to clear the hole membership it set.
-    // The hole itself survives, so that moving one between faces is a detach and an insert rather than
-    // a destroy and a rebuild; deleting it is the caller's to do
-    m_pmesh->hole(id).release_halfedges();
+    m_pmesh->hole(id).release_halfedges(); // Halfedges are no longer associated with this hole
     m_pmesh->hole(id).set_face_id(nullid);
     m_hole_ids.erase(i);
     return;
@@ -649,7 +646,7 @@ const quetzal::geometry::AxisAlignedBoundingBox<typename M::vector_traits>& quet
 
 //------------------------------------------------------------------------------
 template<typename Traits, typename M>
-void quetzal::brep::Face<Traits, M>::reset_bounds() const
+void quetzal::brep::Face<Traits, M>::invalidate() const
 {
     m_halfedge_ids.reset();
     m_bounds.reset();

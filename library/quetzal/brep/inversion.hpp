@@ -156,7 +156,7 @@ void quetzal::brep::reverse_winding_order(Face<Traits>& face)
     }
     while (halfedge_id_next != halfedge_id0);
 
-    face.reset_bounds();
+    face.invalidate();
     return;
 }
 

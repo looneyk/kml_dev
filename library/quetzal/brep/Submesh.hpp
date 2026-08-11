@@ -125,7 +125,7 @@ namespace quetzal::brep
         Properties& properties();
 
         const geometry::AxisAlignedBoundingBox<typename M::vector_traits>& bounds() const;
-        void reset_bounds() const;
+        void invalidate() const;
 
         bool empty() const;
 
@@ -586,10 +586,10 @@ const quetzal::geometry::AxisAlignedBoundingBox<typename M::vector_traits>& quet
 
 //------------------------------------------------------------------------------
 template<typename Traits, typename M>
-void quetzal::brep::Submesh<Traits, M>::reset_bounds() const
+void quetzal::brep::Submesh<Traits, M>::invalidate() const
 {
     m_bounds.reset();
-    std::ranges::for_each(surfaces(), [](auto& surface) { surface.reset_bounds(); });
+    std::ranges::for_each(surfaces(), [](auto& surface) { surface.invalidate(); });
     return;
 }
 
