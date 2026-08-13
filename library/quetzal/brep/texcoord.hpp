@@ -244,14 +244,12 @@ std::vector<typename Traits::vertex_attributes_type> quetzal::brep::face_texcoor
 
     for (const auto& halfedge : face.halfedges())
     {
-        auto incoming = positions[i] - positions[(i + n - 1) % n];
-        auto outgoing = positions[(i + 1) % n] - positions[i];
-        ++i;
-
-        if (!math::float_eq0(cross(normalize(incoming), normalize(outgoing)).norm()))
+        if (!colinear(positions[(i + n - 1) % n], positions[i], positions[(i + 1) % n]))
         {
             avs.push_back(halfedge.vertex_attributes());
         }
+
+        ++i;
     }
 
     return avs;

@@ -30,6 +30,12 @@
 namespace quetzal::brep
 {
 
+    template<typename M>
+    id_type next_vertex_halfedge_id(const M& mesh, id_type halfedge_id);
+
+    template<typename M>
+    id_type prev_vertex_halfedge_id(const M& mesh, id_type halfedge_id);
+
     // Works with Surface, Submesh, and Mesh
     // could take renamer (defaulted) instead ...
     template<typename U>
@@ -224,6 +230,30 @@ namespace quetzal::brep
     void clip_base(U& u, const typename U::traits_type::point_type& base_position, const std::string& name);
 
 } // namespace quetzal::brep
+
+//------------------------------------------------------------------------------
+template<typename M>
+quetzal::id_type quetzal::brep::next_vertex_halfedge_id(const M& mesh, id_type halfedge_id)
+{
+    if (mesh.halfedge(halfedge_id).prev().border())
+    {
+        return nullid;
+    }
+
+    return mesh.halfedge(halfedge_id).prev().partner_id();
+}
+
+//------------------------------------------------------------------------------
+template<typename M>
+quetzal::id_type quetzal::brep::prev_vertex_halfedge_id(const M& mesh, id_type halfedge_id)
+{
+    if (mesh.halfedge(halfedge_id).border())
+    {
+        return nullid;
+    }
+
+    return mesh.halfedge(halfedge_id).partner().next_id();
+}
 
 //------------------------------------------------------------------------------
 template<typename U>
