@@ -19,6 +19,7 @@
 #include "geometry.hpp"
 #include "mesh_util.hpp"
 #include "quetzal/geometry/AxisAlignedBoundingBox.hpp"
+#include "quetzal/geometry/geometry_util.hpp"
 #include "quetzal/geometry/Halfspace.hpp"
 #include "quetzal/geometry/Intersection.hpp"
 #include "quetzal/geometry/Plane.hpp"
@@ -214,12 +215,12 @@ namespace quetzal::brep
 
         // Updates the halfedge_id in trace points after a segment has been instantiated as required
         // Instantiating a segment divides the face it lies in, leaving a halfedge at each of its ends
-        // on either side of the division, so the neighbouring segments can be left holding the one
-        // that went the other way. Consecutive segments in a face both bound the region the trace cuts
-        // off, so the neighbour continues on the interior side of this segment and takes the halfedge
-        // of that loop at its own end. An end left behind shows up as the two ends of its segment
-        // disagreeing on face, face ids being reassigned correctly by the division
-        void update_trace_points_connection(TraceSegments& segments, size_t pos, id_type halfedge_id_a_interior, id_type halfedge_id_b_interior);
+        // on either side of the division, so any segment still to be instantiated can be left holding
+        // the one that went the other way. Every segment meeting this one in that face bounds the
+        // region the trace cuts off, whichever trace it belongs to, so it lies on the interior side
+        // and takes the halfedge of that loop at its own end. An end left behind shows up as the two
+        // ends of its segment disagreeing on face, face ids being reassigned correctly by the division
+        void update_trace_points_connection(Traces& traces, id_type halfedge_id_a_interior, id_type halfedge_id_b_interior);
 
         // Connects a set of face/face intersection segments into closed-loop intersection traces
         // Each segment is the intersection of one face pair, so a trace is a walk through face pairs and
@@ -255,7 +256,7 @@ namespace quetzal::brep
 
         // Instantiates an intersection trace producing a single connection trace
         // Connects the ordered trace segments, adding and splitting faces and halfedges as required
-        connection_trace_type instantiate_trace(TraceSegments& segments);
+        connection_trace_type instantiate_trace(Traces& traces, size_t trace_pos);
 
         // Instantiates one side of one segment, connecting its two ends if no edge runs between them yet
         // Returns the halfedge along the segment in exterior_direction
@@ -948,14 +949,23 @@ void quetzal::brep::IntersectionSplitter<M>::create_isolated_intersection_point_
             const SubmeshTracePointRef& ref_anchor = floating0 ? ref1 : ref0;
             const SubmeshTracePointRef& ref_floating = floating0 ? ref0 : ref1;
 
-            id_type halfedge_id_anchor = ref_anchor.halfedge_id();
-            id_type halfedge_id = create_edge_partial(halfedge_id_anchor, ref_floating.position());
+            id_type halfedge_id = create_edge_partial(ref_anchor.halfedge_id(), ref_floating.position());
+
+            // The spur goes in ahead of whichever occurrence of the anchor position holds its corner,
+            // which is not necessarily the one the trace point named, and the tip halfedge runs back
+            // into it
+            id_type halfedge_id_anchor = m_mesh.halfedge(m_mesh.halfedge(halfedge_id).next_id()).next_id();
+
             set_trace_points_halfedge(segments, side_a, ref_floating.position(), m_mesh.halfedge(halfedge_id).next_id());
             update_trace_points_spur(segments, side_a, halfedge_id_anchor, halfedge_id);
 
-            if (!floating0) // The spur runs along this segment, which now leaves the anchor through it rather than through the anchor halfedge
+            if (!floating0) // The spur runs along this segment, which leaves the anchor through it rather than through the anchor halfedge
             {
                 ref0.halfedge_id() = halfedge_id;
+            }
+            else // The segment runs into the anchor along the spur, so it ends on the halfedge the tip runs back into
+            {
+                ref1.halfedge_id() = halfedge_id_anchor;
             }
         }
     }
@@ -1149,9 +1159,9 @@ template<typename M>
 typename quetzal::brep::connection_traces_type quetzal::brep::IntersectionSplitter<M>::instantiate_connection_traces(Traces& traces)
 {
     connection_traces_type connections;
-    for (auto& trace : traces)
+    for (size_t pos = 0; pos < traces.size(); ++pos)
     {
-        connections.push_back(instantiate_trace(trace));
+        connections.push_back(instantiate_trace(traces, pos));
     }
 
     return connections;
@@ -1159,8 +1169,9 @@ typename quetzal::brep::connection_traces_type quetzal::brep::IntersectionSplitt
 
 //------------------------------------------------------------------------------
 template<typename M>
-typename quetzal::brep::connection_trace_type quetzal::brep::IntersectionSplitter<M>::instantiate_trace(TraceSegments& segments)
+typename quetzal::brep::connection_trace_type quetzal::brep::IntersectionSplitter<M>::instantiate_trace(Traces& traces, const size_t trace_pos)
 {
+    TraceSegments& segments = traces[trace_pos];
     assert(segments.size() >= 2);
 
     connection_trace_type connection_trace;
@@ -1187,7 +1198,7 @@ typename quetzal::brep::connection_trace_type quetzal::brep::IntersectionSplitte
         id_type halfedge_id_b_interior = interior_partner(halfedge_id_b_exterior, trace_direction);
 
         insert_trace_intersection(halfedge_id_a_exterior, halfedge_id_a_interior, halfedge_id_b_exterior, halfedge_id_b_interior);
-        update_trace_points_connection(segments, i, halfedge_id_a_interior, halfedge_id_b_interior);
+        update_trace_points_connection(traces, halfedge_id_a_interior, halfedge_id_b_interior);
 #if defined(QUETZAL_INTERSECTION_SPLITTER_TRACE_VERBOSE)
 std::cout << std::format("instantiate_trace i {} of {} a_ext {} a_int {} b_ext {} b_int {}", i, n, id_string(halfedge_id_a_exterior), id_string(halfedge_id_a_interior), id_string(halfedge_id_b_exterior), id_string(halfedge_id_b_interior)) << std::endl;
 #endif
@@ -1202,30 +1213,39 @@ std::cout << std::format("instantiate_trace i {} of {} a_ext {} a_int {} b_ext {
 
 //------------------------------------------------------------------------------
 template<typename M>
-void quetzal::brep::IntersectionSplitter<M>::update_trace_points_connection(TraceSegments& segments, const size_t pos, const id_type halfedge_id_a_interior, const id_type halfedge_id_b_interior)
+void quetzal::brep::IntersectionSplitter<M>::update_trace_points_connection(Traces& traces, const id_type halfedge_id_a_interior, const id_type halfedge_id_b_interior)
 {
-    const size_t n = segments.size();
-    TraceSegment& segment_next = segments[(pos + 1) % n];
-    TraceSegment& segment_prev = segments[(pos + n - 1) % n];
-
     for (bool side_a : {true, false})
     {
-        // The interior halfedge of side a runs along the trace and that of side b against it, so the
-        // halfedge of the interior loop at the far end of this segment is next of the one for a and
-        // the one itself for b, and at the near end the other way round
+        // The interior halfedge and its next are the two halfedges of the interior loop standing at
+        // the segment's two ends, whichever way round that loop runs on this side
         id_type halfedge_id_interior = side_a ? halfedge_id_a_interior : halfedge_id_b_interior;
-        id_type halfedge_id_next = m_mesh.halfedge(halfedge_id_interior).next_id();
-        id_type halfedge_id_far = side_a ? halfedge_id_next : halfedge_id_interior;
-        id_type halfedge_id_near = side_a ? halfedge_id_interior : halfedge_id_next;
 
-        for (auto [psegment, pref_far, halfedge_id] : {std::tuple{&segment_next, &segment_next.p0, halfedge_id_far}, std::tuple{&segment_prev, &segment_prev.p1, halfedge_id_near}})
+        for (id_type halfedge_id : {halfedge_id_interior, m_mesh.halfedge(halfedge_id_interior).next_id()})
         {
-            SubmeshTracePointRef ref = {pref_far, side_a};
-            SubmeshTracePointRef ref_other = {pref_far == &psegment->p0 ? &psegment->p1 : &psegment->p0, side_a};
+            const point_type position = vertex_position(m_mesh.halfedge(halfedge_id));
+            const id_type face_id = m_mesh.halfedge(halfedge_id).face_id();
 
-            if (m_mesh.halfedge(ref.halfedge_id()).face_id() != m_mesh.halfedge(ref_other.halfedge_id()).face_id() && vertex_position(m_mesh.halfedge(halfedge_id)) == ref.position())
+            for (auto& trace : traces)
             {
-                ref.halfedge_id() = halfedge_id;
+                for (auto& segment : trace)
+                {
+                    SubmeshTracePointRef ref0 = {&segment.p0, side_a};
+                    SubmeshTracePointRef ref1 = {&segment.p1, side_a};
+
+                    if (m_mesh.halfedge(ref0.halfedge_id()).face_id() == m_mesh.halfedge(ref1.halfedge_id()).face_id())
+                    {
+                        continue; // Both ends on one loop, so the division left neither of them behind
+                    }
+
+                    for (const SubmeshTracePointRef& ref : {ref0, ref1})
+                    {
+                        if (ref.position() == position && m_mesh.halfedge(ref.halfedge_id()).face_id() != face_id)
+                        {
+                            ref.halfedge_id() = halfedge_id;
+                        }
+                    }
+                }
             }
         }
     }
@@ -1347,22 +1367,39 @@ quetzal::id_type quetzal::brep::IntersectionSplitter<M>::create_edge_partial(con
     id_type face_id = m_mesh.halfedge(halfedge_id0).face_id();
     auto normal = m_mesh.face(face_id).attributes().normal();
 
+    // The spur goes in ahead of its anchor halfedge, so where an earlier spur has already left the loop
+    // reaching this position more than once, the one it goes ahead of decides which corner of the face
+    // it lands in. It belongs in the corner holding the direction it runs, a corner at an occurrence
+    // running counterclockwise from the halfedge leaving it to the reverse of the one arriving
+    id_type halfedge_id_anchor = halfedge_id0;
+    auto position0 = vertex_position(m_mesh.halfedge(halfedge_id0));
+    auto direction_spur = normalize(position1 - position0);
+
+    for (const auto& halfedge : m_mesh.face(face_id).halfedges())
+    {
+        if (vertex_position(halfedge) == position0 && geometry::ccw_order(direction(halfedge), direction_spur, -direction(halfedge.prev()), normal))
+        {
+            halfedge_id_anchor = halfedge.id();
+            break;
+        }
+    }
+
     const auto& mapping = face_mapping(face_id);
     auto texcoord1 = denoise01(mapping(position1));
 
-    typename M::vertex_attributes_type av0 = m_mesh.halfedge(halfedge_id0).vertex_attributes();
+    typename M::vertex_attributes_type av0 = m_mesh.halfedge(halfedge_id_anchor).vertex_attributes();
     typename M::vertex_attributes_type av1{position1, normal, texcoord1};
 
     size_t nh = m_mesh.halfedge_store_count();
-    m_mesh.create_halfedge_vertex(nh + 1, nh + 1, m_mesh.halfedge(halfedge_id0).prev_id(), face_id, av0);
-    m_mesh.create_halfedge_vertex(nh, halfedge_id0, nh, face_id, av1);
+    m_mesh.create_halfedge_vertex(nh + 1, nh + 1, m_mesh.halfedge(halfedge_id_anchor).prev_id(), face_id, av0);
+    m_mesh.create_halfedge_vertex(nh, halfedge_id_anchor, nh, face_id, av1);
 
-    m_mesh.halfedge(halfedge_id0).prev().set_next_id(nh);
-    m_mesh.halfedge(halfedge_id0).set_prev_id(nh + 1);
+    m_mesh.halfedge(halfedge_id_anchor).prev().set_next_id(nh);
+    m_mesh.halfedge(halfedge_id_anchor).set_prev_id(nh + 1);
 
-    // Spliced into whichever loop halfedge_id0 is on, so the pair takes its hole id: nullid on a
+    // Spliced into whichever loop the anchor is on, so the pair takes its hole id: nullid on a
     // perimeter, the hole's id on a hole, without needing to know which
-    id_type hole_id = m_mesh.halfedge(halfedge_id0).hole_id();
+    id_type hole_id = m_mesh.halfedge(halfedge_id_anchor).hole_id();
     m_mesh.halfedge(nh).set_hole_id(hole_id);
     m_mesh.halfedge(nh + 1).set_hole_id(hole_id);
 

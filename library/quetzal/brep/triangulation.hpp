@@ -34,19 +34,24 @@ namespace quetzal::brep
     template<typename M>
     void triangulate_face_quad(M& mesh, id_type face_id);
 
-    // Uses only existing vertex positions
     template<typename M>
     void triangulate_face_ear(M& mesh, id_type face_id);
 
-    // Uses only existing vertex positions
+    // Ear clips the face at each position its perimeter returns to, a loop that reaches a position more
+    // than once not being a polygon that the triangulation can take
+    // Returns the id of the face left to triangulate, the ears taken off it being triangles already
+    template<typename M>
+    id_type triangulate_face_precheck(M& mesh, id_type face_id);
+
+    // Constrained Delaunay Triangulation of a face
     template<typename M>
     void triangulate_face_cdt(M& mesh, id_type face_id);
 
-    // Delaunay triangulation of all faces in a surface
+    // Constrained Delaunay Triangulation of all faces in a surface
     template<typename M>
     void triangulate_surface(M& mesh, id_type submesh_id, const std::string& name);
 
-    // Delaunay triangulation of all faces in a surface
+    // Constrained Delaunay Triangulation of all faces in a surface
     template<typename M>
     void triangulate_surface(M& mesh, id_type surface_id);
 
@@ -208,8 +213,106 @@ void quetzal::brep::triangulate_face_ear(M& mesh, id_type face_id)
 
 //------------------------------------------------------------------------------
 template<typename M>
+quetzal::id_type quetzal::brep::triangulate_face_precheck(M& mesh, id_type face_id)
+{
+    using point_type = M::point_type;
+
+    for (;;)
+    {
+        // The perimeter halfedges at each position, a position the loop returns to having more than one
+        std::map<point_type, std::vector<id_type>> position_halfedge_ids;
+        for (const auto& halfedge : mesh.face(face_id).halfedges())
+        {
+            position_halfedge_ids[vertex_position(halfedge)].push_back(halfedge.id());
+        }
+
+        const std::vector<id_type>* phalfedge_ids = nullptr;
+        for (const auto& [position, halfedge_ids] : position_halfedge_ids)
+        {
+            if (halfedge_ids.size() > 1)
+            {
+                phalfedge_ids = &halfedge_ids;
+                break;
+            }
+        }
+
+        if (phalfedge_ids == nullptr)
+        {
+            return face_id;
+        }
+
+        auto normal = mesh.face(face_id).attributes().normal();
+
+        // Faces are wound counterclockwise about the normal, so a point lies within the ear only where
+        // it is to the left of all three of its edges. A vertex at the repeated position stands on a
+        // corner of the ear rather than within it, giving 0 there and taking itself out of the way
+        auto within = [&normal](const point_type& a, const point_type& b, const point_type& c, const point_type& p) -> bool
+        {
+            return dot(cross(b - a, p - a), normal) > 0 && dot(cross(c - b, p - b), normal) > 0 && dot(cross(a - c, p - c), normal) > 0;
+        };
+
+        // The two ends of the loop at a repeated position divide the face into as many sectors, which
+        // cannot all be reflex, so one of them always presents a corner to clip. Clipping needs the ear
+        // clear of the rest of the face as well, which the other sector need not leave it
+        id_type halfedge_id_clip = nullid;
+
+        for (id_type halfedge_id : *phalfedge_ids)
+        {
+            id_type halfedge_id_prev = mesh.halfedge(halfedge_id).prev_id();
+            id_type halfedge_id_next = mesh.halfedge(halfedge_id).next_id();
+
+            if (mesh.halfedge(halfedge_id_next).next_id() == halfedge_id_prev) // The ear is the whole face, leaving nothing to divide
+            {
+                continue;
+            }
+
+            point_type a = vertex_position(mesh.halfedge(halfedge_id_prev));
+            point_type b = vertex_position(mesh.halfedge(halfedge_id));
+            point_type c = vertex_position(mesh.halfedge(halfedge_id_next));
+
+            if (!(dot(cross(b - a, c - b), normal) > 0)) // Reflex, so the ear falls outside the face
+            {
+                continue;
+            }
+
+            bool clear = true;
+            for (const auto& halfedge : mesh.face(face_id).halfedges_ext())
+            {
+                if (halfedge.id() != halfedge_id_prev && halfedge.id() != halfedge_id && halfedge.id() != halfedge_id_next && within(a, b, c, vertex_position(halfedge)))
+                {
+                    clear = false;
+                    break;
+                }
+            }
+
+            if (clear)
+            {
+                halfedge_id_clip = halfedge_id;
+                break;
+            }
+        }
+
+        assert(halfedge_id_clip != nullid);
+        if (halfedge_id_clip == nullid)
+        {
+            return face_id;
+        }
+
+        // split_face keeps the original face for the run holding halfedge_id_prev, which is the ear, and
+        // gives the rest of the face a new one, that being what is left to triangulate
+        id_type halfedge_id_prev = mesh.halfedge(halfedge_id_clip).prev_id();
+        id_type halfedge_id_next = mesh.halfedge(halfedge_id_clip).next_id();
+        split_face(mesh, halfedge_id_prev, halfedge_id_next);
+        face_id = mesh.halfedge(halfedge_id_next).face_id();
+    }
+}
+
+//------------------------------------------------------------------------------
+template<typename M>
 void quetzal::brep::triangulate_face_cdt(M& mesh, id_type face_id)
 {
+    face_id = triangulate_face_precheck(mesh, face_id);
+
     const auto& face = mesh.face(face_id);
     auto af = face.attributes();
     auto normal = af.normal();

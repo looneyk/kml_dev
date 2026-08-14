@@ -1427,7 +1427,7 @@ quetzal::brep::ValidationState quetzal::brep::check_adjacent_face_normals(const 
 
         if (dot(faceA.attributes().normal(), faceB.attributes().normal()) < 0)
         {
-            std::cout << "Bad?: adjacent face normals " << (faceA.surface_id() != nullid ? face.surface().name() : '-') << ' ' << faceA.id() << '/' << halfedge.id() << " [" << faceA.attributes().normal() << "] and " << (faceB.surface_id() != nullid ? face.surface().name() : '-') << ' ' << faceB.id() << '/' << halfedge.partner_id() << " [" << faceB.attributes().normal() << ']' << eol;
+            std::cout << "Bad?: adjacent face normals " << (faceA.surface_id() != nullid ? face.surface().name() : "-") << ' ' << faceA.id() << '/' << halfedge.id() << " [" << faceA.attributes().normal() << "] and " << (faceB.surface_id() != nullid ? face.surface().name() : "-") << ' ' << faceB.id() << '/' << halfedge.partner_id() << " [" << faceB.attributes().normal() << ']' << eol;
             state.set_bad();
         }
     }

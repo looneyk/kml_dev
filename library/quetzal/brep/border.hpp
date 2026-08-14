@@ -505,24 +505,23 @@ void quetzal::brep::validate_connection_traces(const M& mesh, const connection_t
 {
     // A halfedge and its partner run in opposite directions, so the exterior and interior borders of one
     // side advance opposite ways around the trace, and side a takes its exterior direction opposite to
-    // side b. Between them that fixes a direction per slot, so each is walked the one way that follows the
-    // trace: the border function by side, and whether the trace is read forwards or backwards by whether
-    // the slot is exterior or interior
-    using advance_type = std::function<id_type(id_type)>;
+    // side b. Between them that fixes a direction per slot, so each is read the one way that follows the
+    // trace: whether consecutive borders meet head to tail by side, and whether the trace is read
+    // forwards or backwards by whether the slot is exterior or interior
     using trace_index_type = std::function<size_t(size_t, size_t)>;
-
-    advance_type advance_next = [&mesh](id_type halfedge_id) -> id_type { return next_border_halfedge_id(mesh, halfedge_id); };
-    advance_type advance_prev = [&mesh](id_type halfedge_id) -> id_type { return prev_border_halfedge_id(mesh, halfedge_id); };
 
     trace_index_type index_forward = [](size_t step_count, size_t step_total) -> size_t { return step_count % step_total; };
     trace_index_type index_reverse = [](size_t step_count, size_t step_total) -> size_t { return (step_total - step_count) % step_total; };
 
-    const std::array<std::pair<advance_type, trace_index_type>, 4> border_slot_walks =
+    // The recorded halfedges are the border, so the sequence is checked against itself rather than
+    // against a walk of the mesh. Where two traces meet at a vertex the border halfedges of both stand
+    // there and a walk cannot tell which trace it is on, while the record can
+    const std::array<std::pair<bool, trace_index_type>, 4> border_slot_reads =
     {{
-        {advance_next, index_reverse}, // A exterior
-        {advance_next, index_forward}, // A interior
-        {advance_prev, index_reverse}, // B exterior
-        {advance_prev, index_forward}  // B interior
+        {true, index_reverse},  // A exterior
+        {true, index_forward},  // A interior
+        {false, index_reverse}, // B exterior
+        {false, index_forward}  // B interior
     }};
 
     for (const auto& connection_trace : connection_traces)
@@ -531,28 +530,25 @@ void quetzal::brep::validate_connection_traces(const M& mesh, const connection_t
 
         for (size_t border_slot = 0; border_slot < 4; ++border_slot)
         {
-            const auto& [advance, trace_index] = border_slot_walks[border_slot];
-
-            id_type halfedge_id0 = connection_trace[0][border_slot];
-            id_type halfedge_id = halfedge_id0;
+            const auto& [head_to_tail, trace_index] = border_slot_reads[border_slot];
 
             for (size_t step_count = 0; step_count < step_total; ++step_count)
             {
-                id_type halfedge_id_trace = connection_trace[trace_index(step_count, step_total)][border_slot];
-                if (halfedge_id != halfedge_id_trace)
+                id_type halfedge_id = connection_trace[trace_index(step_count, step_total)][border_slot];
+                id_type halfedge_id_next = connection_trace[trace_index(step_count + 1, step_total)][border_slot];
+                assert(halfedge_id != nullid);
+                assert(halfedge_id_next != nullid);
+
+                // The one the border runs into ends where the other one starts, whichever way round
+                auto position_end = vertex_position(mesh.halfedge(head_to_tail ? halfedge_id : halfedge_id_next).next());
+                auto position_start = vertex_position(mesh.halfedge(head_to_tail ? halfedge_id_next : halfedge_id));
+
+                if (position_end != position_start)
                 {
-                    std::cout << std::format("validate_connection_traces border_slot {} step {} of {} returned halfedge_id {} expected {}", border_slot, step_count, step_total, id_string(halfedge_id), id_string(halfedge_id_trace)) << std::endl;
+                    std::cout << std::format("validate_connection_traces border_slot {} step {} of {} halfedge {} ends {} where {} starts {}", border_slot, step_count, step_total, id_string(halfedge_id), position_end, id_string(halfedge_id_next), position_start) << std::endl;
                 }
-                assert(halfedge_id == halfedge_id_trace);
-
-                halfedge_id = advance(halfedge_id);
+                assert(position_end == position_start);
             }
-
-            if (halfedge_id != halfedge_id0)
-            {
-                std::cout << std::format("validate_connection_traces border_slot {} {} steps, returned to {} expected {}", border_slot, step_total, id_string(halfedge_id), id_string(halfedge_id0)) << std::endl;
-            }
-            assert(halfedge_id == halfedge_id0);
         }
     }
 
