@@ -31,14 +31,16 @@ namespace quetzal::brep
 
     // Returns the next border halfedge id, same halfedge ordering as a surface border
     // Returns the first border halfedge with the next vertex position in clockwise order around the vertex
-    // If there are more than two border halfedges entering and/or exiting this vertex, the results can be unexpected
+    // If there are more than two border halfedges entering and/or exiting this vertex, the resulting halfedge_id
+    // will be within the same border fragment as the given halfedge id, this will not cross the border
     // The halfedge coming in does not itself need to be a border
     template<typename M>
     id_type next_border_halfedge_id(const M& mesh, id_type halfedge_id);
 
     // Returns the prev border halfedge id, same halfedge ordering as a surface border
     // Returns the first border halfedge directed into this vertex position in counterclockwise order around the vertex
-    // If there are more than two border halfedges entering and/or exiting this vertex, the results can be unexpected
+    // If there are more than two border halfedges entering and/or exiting this vertex, the resulting halfedge_id
+    // will be within the same border fragment as the given halfedge id, this will not cross the border
     // The halfedge coming in does not itself need to be a border
     template<typename M>
     id_type prev_border_halfedge_id(const M& mesh, id_type halfedge_id);

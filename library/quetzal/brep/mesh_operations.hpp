@@ -285,12 +285,15 @@ std::vector<quetzal::id_type> quetzal::brep::mesh_difference(Mesh<Traits>& mesh,
 {
     connect_function_type<Traits> connect = [&](Mesh<Traits>& mesh, const connection_trace_type& connection) -> std::vector<id_type>
     {
-        BorderFragment<Traits> border_fragment(mesh, connection[0][3]); // is this ok? ...
-//std::cout << std::format("mesh_difference connect border_fragment {} marked {}", halfedge_id_b_interior, border_fragment.marked()) << std::endl;
-        if (!border_fragment.marked())
+        // Need to check all borders as there may be border fragment sections that meet only at a common vertex, and a single border fragment check will miss these
+        for (const auto& borders : connection)
         {
-            border_fragment.invert();
-            border_fragment.set_submesh_id(submesh_id_a);
+            BorderFragment<Traits> border_fragment(mesh, borders[3]);
+            if (!border_fragment.marked())
+            {
+                border_fragment.invert();
+                border_fragment.set_submesh_id(submesh_id_a);
+            }
         }
 
         connect_border_fragments(mesh, connection, 0, 3);
@@ -319,20 +322,22 @@ std::vector<quetzal::id_type> quetzal::brep::mesh_symmetric_difference(Mesh<Trai
 {
     connect_function_type<Traits> connect = [&](Mesh<Traits>& mesh, const connection_trace_type& connection) -> std::vector<id_type>
     {
-        BorderFragment<Traits> border_fragment_a(mesh, connection[0][3]); // is this ok? ...
-//std::cout << std::format("mesh_symmetric_difference connect border_fragment_a {} marked {}", halfedge_id_b_interior, border_fragment_a.marked()) << std::endl;
-        if (!border_fragment_a.marked())
+        // Need to check all borders as there may be border fragment sections that meet only at a common vertex, and a single border fragment check will miss these
+        for (const auto& borders : connection)
         {
-            border_fragment_a.invert();
-            border_fragment_a.set_submesh_id(submesh_id_a);
-        }
+            BorderFragment<Traits> border_fragment_a(mesh, borders[3]);
+            if (!border_fragment_a.marked())
+            {
+                border_fragment_a.invert();
+                border_fragment_a.set_submesh_id(submesh_id_a);
+            }
 
-        BorderFragment<Traits> border_fragment_b(mesh, connection[0][1]); // is this ok? ...
-//std::cout << std::format("mesh_symmetric_difference connect border_fragment_b {} marked {}", halfedge_id_a_interior, border_fragment_b.marked()) << std::endl;
-        if (!border_fragment_b.marked())
-        {
-            border_fragment_b.invert();
-            border_fragment_b.set_submesh_id(submesh_id_b);
+            BorderFragment<Traits> border_fragment_b(mesh, borders[1]);
+            if (!border_fragment_b.marked())
+            {
+                border_fragment_b.invert();
+                border_fragment_b.set_submesh_id(submesh_id_b);
+            }
         }
 
         connect_border_fragments(mesh, connection, 0, 3);

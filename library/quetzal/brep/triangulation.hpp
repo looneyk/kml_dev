@@ -37,8 +37,7 @@ namespace quetzal::brep
     template<typename M>
     void triangulate_face_ear(M& mesh, id_type face_id);
 
-    // Ear clips the face at each position its perimeter returns to, a loop that reaches a position more
-    // than once not being a polygon that the triangulation can take
+    // Deduplicate face polygon positions using ear clipping prior to full triangulation
     // Returns the id of the face left to triangulate, the ears taken off it being triangles already
     template<typename M>
     id_type triangulate_face_precheck(M& mesh, id_type face_id);
@@ -243,17 +242,16 @@ quetzal::id_type quetzal::brep::triangulate_face_precheck(M& mesh, id_type face_
 
         auto normal = mesh.face(face_id).attributes().normal();
 
-        // Faces are wound counterclockwise about the normal, so a point lies within the ear only where
-        // it is to the left of all three of its edges. A vertex at the repeated position stands on a
-        // corner of the ear rather than within it, giving 0 there and taking itself out of the way
+        // Faces are wound counterclockwise about the normal, so a point lies within the ear only where it
+        // is to the left of all three of its edges. The other vertex at the repeated position is on a
+        // corner of the ear, giving 0 there rather than a positive value, so it does not block the clip
         auto within = [&normal](const point_type& a, const point_type& b, const point_type& c, const point_type& p) -> bool
         {
             return dot(cross(b - a, p - a), normal) > 0 && dot(cross(c - b, p - b), normal) > 0 && dot(cross(a - c, p - c), normal) > 0;
         };
 
-        // The two ends of the loop at a repeated position divide the face into as many sectors, which
-        // cannot all be reflex, so one of them always presents a corner to clip. Clipping needs the ear
-        // clear of the rest of the face as well, which the other sector need not leave it
+        // The sectors the loop divides the face into at a repeated position cannot all be reflex, so one
+        // always presents a corner to clip, but that ear also has to be clear of the rest of the face
         id_type halfedge_id_clip = nullid;
 
         for (id_type halfedge_id : *phalfedge_ids)

@@ -84,7 +84,7 @@ namespace g = quetzal::geometry;
 // Double intersection at a vertex of each
 #define BOX_BOX_VERTEX_VERTEX_2
 // Triple intersection at a vertex of each
-//#define BOX_BOX_VERTEX_VERTEX_3
+#define BOX_BOX_VERTEX_VERTEX_3
 // Triple intersection at two opposite vertices of each (and edge-edge intersections)
 //#define BOX_BOX_VERTEX_VERTEX_4
 // Edges entirely within a face
