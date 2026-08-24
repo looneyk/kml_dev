@@ -1027,7 +1027,6 @@ typename quetzal::brep::IntersectionSplitter<M>::Traces quetzal::brep::Intersect
         return i != position_index.end() && i->second.size() > 2;
     };
 
-{ size_t n = 0; for (const auto& [position, ends] : position_index) { if (ends.size() > 2) { ++n; } } std::cout << std::format("ORDERINFO {} segments, {} positions, {} shared", segments.size(), position_index.size(), n) << std::endl; } // TEMP diagnostic
     for (;;)
     {
         size_t pos = segments.size();

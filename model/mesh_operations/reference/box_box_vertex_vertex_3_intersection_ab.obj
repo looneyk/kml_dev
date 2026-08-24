@@ -45,7 +45,7 @@ o box_box_vertex_vertex_3_intersection_ab
 g box_a_right
 f 5/9/7 6/12/7 11/3/7
 g box_a_front
-f 11/4/8 7/10/8 8/15/8
+f 7/10/8 8/15/8 11/4/8
 g box_a_top
 f 11/3/9 9/9/9 10/12/9
 g box_b_bottom

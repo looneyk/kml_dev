@@ -44,7 +44,7 @@ f 4/10/6 3/13/6 7/15/6
 g box_a_front
 f 6/12/7 3/11/7 5/18/7
 g pyramid_b_body0
-f 4/6/5 5/19/5 3/3/5
+f 3/3/5 4/6/5 5/19/5
 g pyramid_b_body1
 f 6/8/3 1/2/3 3/3/3
 g pyramid_b_body2
