@@ -11,8 +11,8 @@ if(NOT CMAKE_GENERATOR MATCHES "Visual Studio")
     return()
 endif()
 
-get_property(clean_target_names GLOBAL PROPERTY KML_CLEAN_TARGET_NAMES)
-get_property(clean_target_dirs GLOBAL PROPERTY KML_CLEAN_TARGET_DIRS)
+get_property(clean_target_names GLOBAL PROPERTY KML_DEV_CLEAN_TARGET_NAMES)
+get_property(clean_target_dirs GLOBAL PROPERTY KML_DEV_CLEAN_TARGET_DIRS)
 
 list(LENGTH clean_target_names clean_target_count)
 if(clean_target_count EQUAL 0)

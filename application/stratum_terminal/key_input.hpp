@@ -1,11 +1,11 @@
-#if !defined(STRATUM_PATTERN_KEY_INPUT_HPP)
-#define STRATUM_PATTERN_KEY_INPUT_HPP
+#if !defined(STRATUM_TERMINAL_KEY_INPUT_HPP)
+#define STRATUM_TERMINAL_KEY_INPUT_HPP
 //------------------------------------------------------------------------------
-// stratum_pattern
+// stratum_terminal
 // key_input.hpp
 //------------------------------------------------------------------------------
 
-namespace stratum_pattern
+namespace stratum_terminal
 {
 
     //--------------------------------------------------------------------------
@@ -30,6 +30,6 @@ namespace stratum_pattern
     // Reads one key without waiting for a newline, blocking until there is one
     KeyPress read_key();
 
-} // namespace stratum_pattern
+} // namespace stratum_terminal
 
-#endif // STRATUM_PATTERN_KEY_INPUT_HPP
+#endif // STRATUM_TERMINAL_KEY_INPUT_HPP

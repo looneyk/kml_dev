@@ -1,14 +1,14 @@
-#if !defined(STRATUM_PATTERN_TERMINAL_HPP)
-#define STRATUM_PATTERN_TERMINAL_HPP
+#if !defined(STRATUM_TERMINAL_TERMINAL_HPP)
+#define STRATUM_TERMINAL_TERMINAL_HPP
 //------------------------------------------------------------------------------
-// stratum_pattern
+// stratum_terminal
 // Terminal.hpp
 //------------------------------------------------------------------------------
 
 #include "quetzal/stratum_view/Console.hpp"
 #include <string>
 
-namespace stratum_pattern
+namespace stratum_terminal
 {
 
     //--------------------------------------------------------------------------
@@ -63,6 +63,6 @@ namespace stratum_pattern
         bool m_sized = false; // The level's size is not known until the first frame arrives
     };
 
-} // namespace stratum_pattern
+} // namespace stratum_terminal
 
-#endif // STRATUM_PATTERN_TERMINAL_HPP
+#endif // STRATUM_TERMINAL_TERMINAL_HPP

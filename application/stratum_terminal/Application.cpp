@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-// stratum_pattern
+// stratum_terminal
 // Application.cpp
 //------------------------------------------------------------------------------
 
@@ -57,7 +57,7 @@ namespace
 } // namespace
 
 //------------------------------------------------------------------------------
-stratum_pattern::Application::Application(const std::string& filepath_level, const std::string& script, bool incremental) :
+stratum_terminal::Application::Application(const std::string& filepath_level, const std::string& script, bool incremental) :
     m_world(),
     m_zone(),
     m_player(),
@@ -80,7 +80,7 @@ stratum_pattern::Application::Application(const std::string& filepath_level, con
 }
 
 //------------------------------------------------------------------------------
-int stratum_pattern::Application::run()
+int stratum_terminal::Application::run()
 {
     while (m_running)
     {
@@ -135,7 +135,7 @@ int stratum_pattern::Application::run()
 }
 
 //------------------------------------------------------------------------------
-stratum_pattern::KeyPress stratum_pattern::Application::next_key()
+stratum_terminal::KeyPress stratum_terminal::Application::next_key()
 {
     if (m_script.empty())
     {
@@ -151,14 +151,14 @@ stratum_pattern::KeyPress stratum_pattern::Application::next_key()
 }
 
 //------------------------------------------------------------------------------
-void stratum_pattern::Application::draw()
+void stratum_terminal::Application::draw()
 {
     m_terminal.draw(stratum_view::render(m_world, m_zone, m_view_glyphs), status(), help_string);
     return;
 }
 
 //------------------------------------------------------------------------------
-quetzal::stratum_sim::Command stratum_pattern::Application::command_of(const KeyPress& key_press) const
+quetzal::stratum_sim::Command stratum_terminal::Application::command_of(const KeyPress& key_press) const
 {
     id_type id = m_player.id();
 
@@ -193,7 +193,7 @@ quetzal::stratum_sim::Command stratum_pattern::Application::command_of(const Key
 }
 
 //------------------------------------------------------------------------------
-void stratum_pattern::Application::report(const quetzal::stratum_sim::EventQueue& events)
+void stratum_terminal::Application::report(const quetzal::stratum_sim::EventQueue& events)
 {
     m_message.clear();
 
@@ -221,7 +221,7 @@ void stratum_pattern::Application::report(const quetzal::stratum_sim::EventQueue
 }
 
 //------------------------------------------------------------------------------
-std::string stratum_pattern::Application::status() const
+std::string stratum_terminal::Application::status() const
 {
     const stratum_sim::Layout& layout = m_world.layout(m_zone);
     const stratum_sim::placement_type& placement = m_player.get<stratum_sim::placement_type>();

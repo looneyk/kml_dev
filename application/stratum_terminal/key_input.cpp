@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-// stratum_pattern
+// stratum_terminal
 // key_input.cpp
 //------------------------------------------------------------------------------
 
@@ -10,7 +10,7 @@
 #include <conio.h>
 
 //------------------------------------------------------------------------------
-stratum_pattern::KeyPress stratum_pattern::read_key()
+stratum_terminal::KeyPress stratum_terminal::read_key()
 {
     int c = _getch();
 
@@ -81,7 +81,7 @@ namespace
 } // namespace
 
 //------------------------------------------------------------------------------
-stratum_pattern::KeyPress stratum_pattern::read_key()
+stratum_terminal::KeyPress stratum_terminal::read_key()
 {
     RawMode raw_mode;
 

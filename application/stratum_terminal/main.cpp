@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-// stratum_pattern
+// stratum_terminal
 // main.cpp
 //------------------------------------------------------------------------------
 
@@ -11,7 +11,7 @@
 //------------------------------------------------------------------------------
 int main(int argc, char* argv[])
 {
-    std::string filepath_level = "data/dungeon.level";
+    std::string filepath_level = std::string(KML_DEV_ASSETS_ROOT) + "/level/dungeon.level";
     std::string script;
     bool incremental = false;
 
@@ -29,7 +29,7 @@ int main(int argc, char* argv[])
         }
         else if (arg.starts_with("--"))
         {
-            std::cerr << "Usage: stratum_pattern [level] [--script keys] [--incremental]" << std::endl;
+            std::cerr << "Usage: stratum_terminal [level] [--script keys] [--incremental]" << std::endl;
             return 1;
         }
         else
@@ -40,7 +40,7 @@ int main(int argc, char* argv[])
 
     try
     {
-        stratum_pattern::Application application(filepath_level, script, incremental || script.empty());
+        stratum_terminal::Application application(filepath_level, script, incremental || script.empty());
         return application.run();
     }
     catch (const std::exception& e)

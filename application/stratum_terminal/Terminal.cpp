@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-// stratum_pattern
+// stratum_terminal
 // Terminal.cpp
 //------------------------------------------------------------------------------
 
@@ -73,7 +73,7 @@ namespace
 } // namespace
 
 //------------------------------------------------------------------------------
-stratum_pattern::Size stratum_pattern::terminal_size()
+stratum_terminal::Size stratum_terminal::terminal_size()
 {
 #if defined(_WIN32)
 
@@ -101,7 +101,7 @@ stratum_pattern::Size stratum_pattern::terminal_size()
 }
 
 //------------------------------------------------------------------------------
-bool stratum_pattern::set_terminal_size(const Size& size)
+bool stratum_terminal::set_terminal_size(const Size& size)
 {
     if (size.rows == 0 || size.columns == 0)
     {
@@ -129,7 +129,7 @@ bool stratum_pattern::set_terminal_size(const Size& size)
 }
 
 //------------------------------------------------------------------------------
-stratum_pattern::Terminal::Terminal(bool incremental) :
+stratum_terminal::Terminal::Terminal(bool incremental) :
     m_console_previous(),
     m_size_previous(),
     m_size_original(),
@@ -146,7 +146,7 @@ stratum_pattern::Terminal::Terminal(bool incremental) :
 }
 
 //------------------------------------------------------------------------------
-stratum_pattern::Terminal::~Terminal()
+stratum_terminal::Terminal::~Terminal()
 {
     if (!m_incremental)
     {
@@ -174,7 +174,7 @@ stratum_pattern::Terminal::~Terminal()
 }
 
 //------------------------------------------------------------------------------
-void stratum_pattern::Terminal::draw(const stratum_view::Console& console, const std::string& status, const std::string& help)
+void stratum_terminal::Terminal::draw(const stratum_view::Console& console, const std::string& status, const std::string& help)
 {
     if (!m_incremental)
     {
@@ -271,7 +271,7 @@ void stratum_pattern::Terminal::draw(const stratum_view::Console& console, const
 }
 
 //------------------------------------------------------------------------------
-void stratum_pattern::Terminal::redraw()
+void stratum_terminal::Terminal::redraw()
 {
     m_console_previous = stratum_view::Console();
     return;

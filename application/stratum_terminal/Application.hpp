@@ -1,7 +1,7 @@
-#if !defined(STRATUM_PATTERN_APPLICATION_HPP)
-#define STRATUM_PATTERN_APPLICATION_HPP
+#if !defined(STRATUM_TERMINAL_APPLICATION_HPP)
+#define STRATUM_TERMINAL_APPLICATION_HPP
 //------------------------------------------------------------------------------
-// stratum_pattern
+// stratum_terminal
 // Application.hpp
 //------------------------------------------------------------------------------
 
@@ -14,7 +14,7 @@
 #include "quetzal/stratum_view/ascii.hpp"
 #include <string>
 
-namespace stratum_pattern
+namespace stratum_terminal
 {
 
     //--------------------------------------------------------------------------
@@ -58,6 +58,6 @@ namespace stratum_pattern
         bool m_running = true;
     };
 
-} // namespace stratum_pattern
+} // namespace stratum_terminal
 
-#endif // STRATUM_PATTERN_APPLICATION_HPP
+#endif // STRATUM_TERMINAL_APPLICATION_HPP
