@@ -1,0 +1,108 @@
+-- initial
+########
+#......#
+#.##...#
+#.#....#
+#@.....#
+########
+   cell (1, 1)  facing east
+
+-- command 'l'
+########
+#......#
+#.##...#
+#.#....#
+#.@....#
+########
+   cell (2, 1)  facing east
+   moved to (2, 1)
+
+-- command 'l'
+########
+#......#
+#.##...#
+#.#....#
+#..@...#
+########
+   cell (3, 1)  facing east
+   moved to (3, 1)
+
+-- command 'k'
+########
+#......#
+#.##...#
+#.#@...#
+#......#
+########
+   cell (3, 2)  facing east
+   moved to (3, 2)
+
+-- command 'k'
+########
+#......#
+#.##...#
+#.#@...#
+#......#
+########
+   cell (3, 2)  facing east
+   blocked by wall 25
+
+-- command '<'
+########
+#......#
+#.##...#
+#.#@...#
+#......#
+########
+   cell (3, 2)  facing north
+   turned to face north
+
+-- command 'h'
+########
+#......#
+#.##...#
+#.#@...#
+#......#
+########
+   cell (3, 2)  facing north
+   blocked by wall 26
+
+-- command ' '
+########
+#......#
+#.##...#
+#.#@...#
+#......#
+########
+   cell (3, 2)  facing north
+   interacted with wall 25
+
+-- command '>'
+########
+#......#
+#.##...#
+#.#@...#
+#......#
+########
+   cell (3, 2)  facing east
+   turned to face east
+
+-- command 'j'
+########
+#......#
+#.##...#
+#.#....#
+#..@...#
+########
+   cell (3, 1)  facing east
+   moved to (3, 1)
+
+-- command ' '
+########
+#......#
+#.##...#
+#.#....#
+#..@...#
+########
+   cell (3, 1)  facing east
+
