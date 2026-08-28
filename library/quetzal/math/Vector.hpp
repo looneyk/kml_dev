@@ -6,6 +6,7 @@
 //------------------------------------------------------------------------------
 
 #include "floating_point.hpp"
+#include "traits.hpp"
 #include "quetzal/common/string_util.hpp"
 #include <charconv>
 #include <concepts>
@@ -20,9 +21,6 @@
 
 namespace quetzal::math
 {
-
-    template<typename Traits>
-    concept Homogeneous = (Traits::size == Traits::dimension + 1);
 
     //--------------------------------------------------------------------------
     template<typename Traits>

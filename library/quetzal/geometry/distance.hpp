@@ -92,8 +92,10 @@ std::cout << "worked" << std::endl;
 */
         return std::abs(dot(lineB.point() - lineA.point(), normalize(cross(lineA.direction(), lineB.direction()))));
     }
-
-    return Traits::val(0);
+    else
+    {
+        return Traits::val(0);
+    }
 }
 
 //------------------------------------------------------------------------------

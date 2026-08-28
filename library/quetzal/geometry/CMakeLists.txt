@@ -8,6 +8,7 @@ add_custom_target(quetzal_geometry SOURCES
     coordinate_system.hpp
     Curve.hpp
     CurveNURBS.hpp
+    DirectedPoint.hpp
     distance.hpp
     geometry_util.hpp
     HalfPlane.hpp

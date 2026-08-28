@@ -8,15 +8,14 @@
 #include "Vector.hpp"
 #include "quetzal/common/string_util.hpp"
 #include "quetzal/math/floating_point.hpp"
+#include "quetzal/math/traits.hpp"
 #include <charconv>
 #include <concepts>
 #include <iosfwd>
 #include <format>
 #include <optional>
-//#include <ranges>
 #include <span>
 #include <sstream>
-//#include <string_view>
 #include <cmath>
 #include <cassert>
 

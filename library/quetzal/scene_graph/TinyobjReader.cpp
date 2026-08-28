@@ -1,6 +1,9 @@
 
+#pragma warning(push)
+#pragma warning(disable: 4456 4505)
 #define TINYOBJLOADER_IMPLEMENTATION
 #include <tiny_obj_loader.h>
+#pragma warning(pop)
 
 #include "TinyobjReader.hpp"
 #include <functional>

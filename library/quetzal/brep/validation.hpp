@@ -166,7 +166,7 @@ namespace quetzal::brep
     // Checks that the merged perimeter/hole iteration visits every halfedge of the face exactly once,
     // the perimeter loop followed by each hole loop, and that it agrees with halfedge_ext_count
     template<typename M>
-    ValidationState check_face_halfedges_ext(const M& mesh, const typename M::face_type& face);
+    ValidationState check_face_halfedges_ext(const M&, const typename M::face_type& face);
 
     template<typename M>
     ValidationState check_faces_halfedges_ext(const M& mesh);
@@ -2371,7 +2371,7 @@ void quetzal::brep::mesh_info(const M& mesh)
 
 //------------------------------------------------------------------------------
 template<typename M>
-quetzal::brep::ValidationState quetzal::brep::check_face_halfedges_ext(const M& mesh, const typename M::face_type& face)
+quetzal::brep::ValidationState quetzal::brep::check_face_halfedges_ext(const M&, const typename M::face_type& face)
 {
     ValidationState state(true);
 

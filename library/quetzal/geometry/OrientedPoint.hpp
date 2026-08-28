@@ -49,7 +49,7 @@ namespace quetzal::geometry
     };
 
     template<typename Traits>
-    std::ostream& operator<<(std::ostream& os, OrientedPoint<Traits> plane);
+    std::ostream& operator<<(std::ostream& os, OrientedPoint<Traits> oriented_point);
 
 } // namespace quetzal::geometry
 
@@ -128,7 +128,7 @@ struct std::formatter<quetzal::geometry::OrientedPoint<Traits>>
     }
 
     template<typename FormatContext>
-    auto format(const quetzal::geometry::OrientedPoint<Traits>& op, FormatContext& ctx) const
+    auto format(const quetzal::geometry::OrientedPoint<Traits>& oriented_point, FormatContext& ctx) const
     {
         std::formatter<quetzal::math::Vector<Traits>> vector_formatter;
         vector_formatter.m_object_delimiters = m_point_formatter.m_object_delimiters;
@@ -138,13 +138,13 @@ struct std::formatter<quetzal::geometry::OrientedPoint<Traits>>
         std::formatter<quetzal::geometry::Orientation<Traits>> orientation_formatter;
         orientation_formatter.m_vector_formatter = vector_formatter;
 
-        auto out = m_point_formatter.format(op.position(), ctx);
+        auto out = m_point_formatter.format(oriented_point.position(), ctx);
         ctx.advance_to(out);
         *out++ = ',';
         *out++ = ' ';
         ctx.advance_to(out);
 
-        return orientation_formatter.format(op.orientation(), ctx);
+        return orientation_formatter.format(oriented_point.orientation(), ctx);
     }
 };
 

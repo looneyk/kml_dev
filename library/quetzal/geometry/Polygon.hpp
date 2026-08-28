@@ -110,12 +110,6 @@ namespace quetzal::geometry
 
         virtual void clear();
 
-        // Point is in the region defined by the polygon
-        // Results are indeterminate if the point is on an edge
-        // integrate these into compare ...
-        bool contains_(const point_type& point, int tolerance = math::tolerance_default) const requires (Traits::dimension == 2);
-        bool contains_(const point_type& point, int tolerance = math::tolerance_default) const requires (Traits::dimension == 3);
-
         AxisAlignedBoundingBox<Traits> bounds() const;
 
         // Sections allow for distinct sets of contiguous vertices
@@ -151,6 +145,13 @@ namespace quetzal::geometry
         // set_final_normal, set_final_right to allow for the other to be calculated? ...
         // 3D right optional? ...
         // reset_final? ...
+
+        // Point is in the region defined by the polygon
+        // Result is undefined if the point is on an edge
+        // These should be internal, but need to be public ...
+        bool contains_(const point_type& point, int tolerance = math::tolerance_default) const requires (Traits::dimension == 2);
+        bool contains_(const point_type& point, int tolerance = math::tolerance_default) const requires (Traits::dimension == 3 && quetzal::math::Homogeneous<Traits>);
+        bool contains_(const point_type& point, int tolerance = math::tolerance_default) const requires (Traits::dimension == 3 && quetzal::math::Cartesian<Traits>);
 
     private:
 
@@ -482,60 +483,6 @@ void quetzal::geometry::Polygon<Traits>::clear()
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-bool quetzal::geometry::Polygon<Traits>::contains_(const point_type& point, int tolerance) const requires (Traits::dimension == 2)
-{
-    // Return >0: left, ==0: on, <0: right for p2 relative to the line through p0 and p1
-    auto left = [tolerance](point_type p0, point_type p1, point_type p2)
-    {
-        auto t = (p1.x() - p0.x()) * (p2.y() - p0.y()) - (p2.x() -  p0.x()) * (p1.y() - p0.y());
-        return math::float_compare0(t, tolerance);
-    };
-
-    auto vertices = m_vertices;
-    vertices.push_back(m_vertices[0]);
-
-    size_t n = 0; // the  winding number counter
-
-    for (size_t i = 0; i < edge_count(); ++i)
-    {
-        if (math::float_le(vertices[i].y(), point.y(), tolerance))
-        {
-            if (math::float_gt(vertices[i + 1].y(), point.y(), tolerance)) // upward crossing
-                 if (left(vertices[i], vertices[i + 1], point) > 0)
-                     ++n; // valid up intersect
-        }
-        else
-        {
-            if (math::float_le(vertices[i + 1].y(), point.y(), tolerance)) // downward crossing
-                 if (left(vertices[i], vertices[i + 1], point) < 0)
-                     --n; // valid down intersect
-        }
-    }
-
-    return n != 0;
-}
-
-//------------------------------------------------------------------------------
-template<typename Traits>
-bool quetzal::geometry::Polygon<Traits>::contains_(const point_type& point, int tolerance) const requires (Traits::dimension == 3)
-{
-    if (!planar() || !plane().contains(point, tolerance))
-    {
-        return false;
-    }
-
-    using projection_type = Projection<Traits>;
-    using projected_traits = projection_type::projected_traits;
-    using projected_type = projection_type::projected_type;
-
-    projection_type projection(normal());
-    Polygon<projected_traits> polygon_projected;
-    std::transform(m_vertices.begin(), m_vertices.end(), std::back_inserter(polygon_projected.vertices()), [&](const point_type& point) -> projected_type { return projection(point); });
-    return polygon_projected.contains_(projection(point), tolerance);
-}
-
-//------------------------------------------------------------------------------
-template<typename Traits>
 quetzal::geometry::AxisAlignedBoundingBox<Traits> quetzal::geometry::Polygon<Traits>::bounds() const
 {
     if (!m_bounds)
@@ -641,6 +588,100 @@ void quetzal::geometry::Polygon<Traits>::set_final(const vector_type& normal, co
     m_right = right;
     m_final = true;
     return;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+bool quetzal::geometry::Polygon<Traits>::contains_(const point_type& point, int tolerance) const requires (Traits::dimension == 2)
+{
+    // Return >0: left, ==0: on, <0: right for p2 relative to the line through p0 and p1
+    auto left = [tolerance](point_type p0, point_type p1, point_type p2)
+    {
+        auto t = (p1.x() - p0.x()) * (p2.y() - p0.y()) - (p2.x() -  p0.x()) * (p1.y() - p0.y());
+        return math::float_compare0(t, tolerance);
+    };
+
+    auto vertices = m_vertices;
+    vertices.push_back(m_vertices[0]);
+
+    size_t n = 0; // the  winding number counter
+
+    for (size_t i = 0; i < edge_count(); ++i)
+    {
+        if (math::float_le(vertices[i].y(), point.y(), tolerance))
+        {
+            if (math::float_gt(vertices[i + 1].y(), point.y(), tolerance)) // upward crossing
+                 if (left(vertices[i], vertices[i + 1], point) > 0)
+                     ++n; // valid up intersect
+        }
+        else
+        {
+            if (math::float_le(vertices[i + 1].y(), point.y(), tolerance)) // downward crossing
+                 if (left(vertices[i], vertices[i + 1], point) < 0)
+                     --n; // valid down intersect
+        }
+    }
+
+    return n != 0;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+bool quetzal::geometry::Polygon<Traits>::contains_(const point_type& point, int tolerance) const requires (Traits::dimension == 3 && quetzal::math::Homogeneous<Traits>)
+{
+    if (!planar() || !plane().contains(point, tolerance))
+    {
+        return false;
+    }
+
+    using projection_type = Projection<Traits>;
+    using projected_traits = projection_type::projected_traits;
+    using projected_type = projection_type::projected_type;
+
+    projection_type projection(normal());
+    Polygon<projected_traits> polygon_projected;
+    std::transform(m_vertices.begin(), m_vertices.end(), std::back_inserter(polygon_projected.vertices()), [&](const point_type& point) -> projected_type { return projection(point); });
+    return polygon_projected.contains_(projection(point), tolerance);
+}
+
+//------------------------------------------------------------------------------
+// Cartesian traits do not support Projection. The polygon is projected instead by
+// dropping the axis it most nearly faces, leaving the two best conditioned components
+// That can reverse handedness, which a nonzero winding test does not notice
+template<typename Traits>
+bool quetzal::geometry::Polygon<Traits>::contains_(const point_type& point, int tolerance) const requires (Traits::dimension == 3 && quetzal::math::Cartesian<Traits>)
+{
+    if (!planar() || !plane().contains(point, tolerance))
+    {
+        return false;
+    }
+
+    using projected_traits = typename Traits::template resized_traits<2>;
+    using projected_type = Point<projected_traits>;
+
+    vector_type v = normal();
+    size_t axis = 0;
+    value_type extent = v[0] * v[0];
+
+    if (v[1] * v[1] > extent)
+    {
+        axis = 1;
+        extent = v[1] * v[1];
+    }
+
+    if (v[2] * v[2] > extent)
+    {
+        axis = 2;
+    }
+
+    size_t i0 = (axis + 1) % 3;
+    size_t i1 = (axis + 2) % 3;
+
+    auto drop = [i0, i1](const point_type& p) -> projected_type { return projected_type(p[i0], p[i1]); };
+
+    Polygon<projected_traits> polygon_projected;
+    std::transform(m_vertices.begin(), m_vertices.end(), std::back_inserter(polygon_projected.vertices()), drop);
+    return polygon_projected.contains_(drop(point), tolerance);
 }
 
 //------------------------------------------------------------------------------

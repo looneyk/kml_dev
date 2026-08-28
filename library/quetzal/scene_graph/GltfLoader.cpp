@@ -112,6 +112,8 @@ void load_primitive(Scene& scene,
                     const std::filesystem::path& gltf_dir,
                     ShaderManager& shaders)
 {
+    assets;
+
     using V = vulkan::VertexPositionNormalTexcoord;
 
     auto* pos_it = prim.findAttribute("POSITION");
