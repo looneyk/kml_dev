@@ -64,10 +64,45 @@ int quetzal::stratum_sim::Scheduler::energy(id_type actor_id) const
 }
 
 //------------------------------------------------------------------------------
+void quetzal::stratum_sim::Scheduler::advance(long long units)
+{
+    if (units <= 0)
+    {
+        return;
+    }
+
+    for (auto& [actor_id, energy] : m_energies)
+    {
+        energy += static_cast<int>(units * m_speeds[actor_id]);
+    }
+
+    m_elapsed += units;
+
+    return;
+}
+
+//------------------------------------------------------------------------------
+quetzal::id_type quetzal::stratum_sim::Scheduler::ready() const
+{
+    id_type actor_id_ready = nullid;
+    int most = 0;
+
+    for (const auto& [actor_id, energy] : m_energies)
+    {
+        if (energy >= action_cost && energy > most)
+        {
+            actor_id_ready = actor_id;
+            most = energy;
+        }
+    }
+
+    return actor_id_ready;
+}
+
+//------------------------------------------------------------------------------
 quetzal::id_type quetzal::stratum_sim::Scheduler::next()
 {
-    // Advance straight to the unit at which the soonest actor is ready rather than one
-    // unit at a time
+    // Straight to the unit at which the soonest actor is ready rather than one at a time
     long long wait = -1;
 
     for (const auto& [actor_id, speed] : m_speeds)
@@ -77,7 +112,7 @@ quetzal::id_type quetzal::stratum_sim::Scheduler::next()
             continue;
         }
 
-        int shortfall = action_cost - m_energies[actor_id];
+        int shortfall = action_cost - m_energies.at(actor_id);
         long long units = shortfall <= 0 ? 0 : (shortfall + speed - 1) / speed;
 
         if (wait < 0 || units < wait)
@@ -91,29 +126,9 @@ quetzal::id_type quetzal::stratum_sim::Scheduler::next()
         return nullid; // No actor accumulates anything
     }
 
-    if (wait > 0)
-    {
-        for (auto& [actor_id, energy] : m_energies)
-        {
-            energy += static_cast<int>(wait * m_speeds[actor_id]);
-        }
+    advance(wait);
 
-        m_elapsed += wait;
-    }
-
-    id_type ready = nullid;
-    int most = 0;
-
-    for (const auto& [actor_id, energy] : m_energies)
-    {
-        if (energy >= action_cost && energy > most)
-        {
-            ready = actor_id;
-            most = energy;
-        }
-    }
-
-    return ready;
+    return ready();
 }
 
 //------------------------------------------------------------------------------

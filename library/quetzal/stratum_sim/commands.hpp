@@ -26,9 +26,12 @@ namespace quetzal::stratum_sim
     };
 
     //--------------------------------------------------------------------------
+    // The facing asked for, absolute rather than relative, which the layout snaps to one of
+    // its own. A view with a relative turn asks Layout::turn what lies that way and sends
+    // the answer, so the quantization stays with the layout
     struct TurnTo
     {
-        Turn turn = Turn::Left;
+        vector_type direction;
     };
 
     //--------------------------------------------------------------------------
@@ -47,10 +50,12 @@ namespace quetzal::stratum_sim
     };
 
     //--------------------------------------------------------------------------
+    // What stopped the mover, one or the other and never both
     struct Blocked
     {
         id_type entity_id = nullid;
-        id_type wall_id = nullid; // What stopped it
+        id_type obstruction_wall_id = nullid; // The wall it was stopped by
+        id_type obstruction_entity_id = nullid; // The entity that was standing in the way
     };
 
     //--------------------------------------------------------------------------

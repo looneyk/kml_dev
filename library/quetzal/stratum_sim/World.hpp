@@ -21,6 +21,14 @@ namespace quetzal::stratum_sim
     };
 
     //--------------------------------------------------------------------------
+    // Tag, an entity another cannot move into. Presence rather than identity, so a dropped
+    // sword has a placement and no more, while a monster and a pushable boulder stop a mover
+    // the same way
+    struct Blocking
+    {
+    };
+
+    //--------------------------------------------------------------------------
     // The set of Zones and everything in them. One flecs world holds the entities, each
     // Zone an entity whose contents are its children; the Layouts are held alongside
     // rather than in it, being static topology rather than game objects
@@ -53,8 +61,15 @@ namespace quetzal::stratum_sim
 
         flecs::entity zone_of(flecs::entity e) const;
 
+        // Where the mover ends up, topology and occupancy together. A Layout answers for its
+        // own geometry and knows nothing of entities; this holds both, so it is where the two
+        // meet rather than either of them reaching into the other
+        // Blocking entities stop a mover, itself excepted. Rules ask this rather than the
+        // Layout underneath
+        MoveResult move(flecs::entity e, const vector_type& direction, value_type distance) const;
+
         // Occupancy. Ordered by entity id, so a run gives the same answer every time
-        entities_type entities_at(flecs::entity zone, const Cell& cell) const;
+        entities_type entities_at(flecs::entity zone, const GridPosition& cell) const;
         entities_type entities_within(flecs::entity zone, const placement_type& placement, value_type range) const;
 
         // Migration keeps the entity's id, so references to it survive

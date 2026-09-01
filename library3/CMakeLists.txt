@@ -45,6 +45,18 @@ set(KTX_FEATURE_DOC OFF CACHE BOOL "" FORCE)
 set(KTX_FEATURE_LOADTEST_APPS "OFF" CACHE STRING "" FORCE)
 add_subdirectory(KTX-Software)
 
+if(KML_DEV_GODOT)
+    set(GODOTCPP_API_VERSION "4.7" CACHE STRING "Godot API version the bindings target")
+    add_subdirectory(godot-cpp)
+
+    # Same treatment as flecs above and for the same reason: these headers compile as part of
+    # whatever includes them, so at /W4 they report against the extension's own sources
+    get_target_property(godot_cpp_include_directories godot-cpp INTERFACE_INCLUDE_DIRECTORIES)
+    set_target_properties(godot-cpp PROPERTIES INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${godot_cpp_include_directories}")
+
+    set_property(TARGET godot-cpp PROPERTY FOLDER "library3")
+endif()
+
 set_property(TARGET flecs_static PROPERTY FOLDER "library3")
 set_property(TARGET glfw PROPERTY FOLDER "library3")
 set_property(TARGET update_mappings PROPERTY FOLDER "library3")

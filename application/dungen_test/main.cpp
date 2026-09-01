@@ -11,11 +11,17 @@
 #include "quetzal/math/math_util.hpp"
 #include <algorithm>
 #include <array>
+#include <format>
 #include <fstream>
 #include <functional>
 #include <iostream>
+#include <optional>
+#include <random>
 #include <set>
+#include <stdexcept>
+#include <string>
 #include <tuple>
+#include <utility>
 #include <cassert>
 
 using namespace std;
@@ -27,8 +33,7 @@ namespace
 
     using connection_type = array<id_type, 2>;
     using connections_type = set<connection_type>;
-    using direction_type = array<coord_type, 2>;
-    using directions_type = array<direction_type, 4>;
+    using directions_type = array<vector_type, 4>;
 
     enum class ShaftPlacements
     {
@@ -37,27 +42,161 @@ namespace
         Multiple
     };
 
+    using seed_type = default_random_engine::result_type;
+
+    //--------------------------------------------------------------------------
+    // The generation parameters of one run, gathered so that the level file can record them
+    // and the command line can set them
+    struct Parameters
+    {
+        dimensions_type size {32, 32}; // Rounded down to odd in each direction by create_level
+        coord_type room_dimension_base = 3;
+        coord_type room_dimension_variation = 8;
+        double room_density = 0.25;
+        bool room_merge = false;
+        double corridor_straightness = 0.5;
+        ShaftPlacements shaft_placements = ShaftPlacements::Paired;
+        double probability_dead_end_removal = 0.5;
+        double probability_loop_removal = 1.0;
+
+        // Empty until one is assigned, so that a run that never seeded is caught rather than
+        // quietly handed the same level every time
+        optional<seed_type> seed;
+    };
+
+    //--------------------------------------------------------------------------
+    // A seed drawn from the platform's entropy source, for a run wanting a different level
+    // each time. Generation takes the seed it is given, so that a recorded seed reproduces
+    // a level exactly
+    seed_type random_seed()
+    {
+        random_device rd;
+        return static_cast<seed_type>(rd());
+    }
+
+    //--------------------------------------------------------------------------
+    const char* shaft_placements_name(ShaftPlacements placements)
+    {
+        switch (placements)
+        {
+            case ShaftPlacements::None: return "none";
+            case ShaftPlacements::Paired: return "paired";
+            case ShaftPlacements::Multiple: return "multiple";
+        }
+
+        assert(false);
+        return "";
+    }
+
+    //--------------------------------------------------------------------------
+    ShaftPlacements to_shaft_placements(const string& s)
+    {
+        if (s == "none") return ShaftPlacements::None;
+        if (s == "paired") return ShaftPlacements::Paired;
+        if (s == "multiple") return ShaftPlacements::Multiple;
+
+        throw invalid_argument(format("\"{}\" is not none, paired or multiple", s));
+    }
+
+    //--------------------------------------------------------------------------
+    // The whole string or nothing, so that trailing rubbish is an error rather than
+    // something quietly ignored
+    long to_integer(const string& s)
+    {
+        size_t n = 0;
+        long value = stol(s, &n);
+
+        if (n != s.size())
+        {
+            throw invalid_argument(format("\"{}\" is not a whole number", s));
+        }
+
+        return value;
+    }
+
+    //--------------------------------------------------------------------------
+    double to_real(const string& s)
+    {
+        size_t n = 0;
+        double value = stod(s, &n);
+
+        if (n != s.size())
+        {
+            throw invalid_argument(format("\"{}\" is not a number", s));
+        }
+
+        return value;
+    }
+
+    //--------------------------------------------------------------------------
+    // Two numbers with a separator between them, written as the level file header writes
+    // them so that a header can be read back as a command line
+    pair<long, long> to_pair(const string& s, char separator)
+    {
+        size_t n = s.find(separator);
+
+        if (n == string::npos)
+        {
+            throw invalid_argument(format("\"{}\" is not two values separated by '{}'", s, separator));
+        }
+
+        return {to_integer(s.substr(0, n)), to_integer(s.substr(n + 1))};
+    }
+
+    //--------------------------------------------------------------------------
+    void usage(ostream& os)
+    {
+        os << "Usage: dungen_test [level] [--size nx,ny] [--room-dimension-base n]"
+            << " [--room-dimension-variation n] [--room-density d] [--room-merge]"
+            << " [--corridor-straightness s] [--shaft-placements none|paired|multiple]"
+            << " [--probability-dead-end-removal p] [--probability-loop-removal p] [--seed n]" << endl;
+        return;
+    }
+
+    //--------------------------------------------------------------------------
+    // One row naming the generator, the file format version, and the parameters the run
+    // used. A grid row never starts with a letter, so the first token tells a reader which
+    // of the two it is holding
+    void write_header(ostream& os, const Level& level, const Parameters& parameters)
+    {
+        auto [nx, ny] = level.size();
+
+        os << "dungen 1"
+            << " size=" << nx << "," << ny
+            << " room_dimension_base=" << parameters.room_dimension_base
+            << " room_dimension_variation=" << parameters.room_dimension_variation
+            << " room_density=" << parameters.room_density
+            << " room_merge=" << parameters.room_merge
+            << " corridor_straightness=" << parameters.corridor_straightness
+            << " shaft_placements=" << shaft_placements_name(parameters.shaft_placements)
+            << " probability_dead_end_removal=" << parameters.probability_dead_end_removal
+            << " probability_loop_removal=" << parameters.probability_loop_removal
+            << " seed=" << parameters.seed.value() // Throws rather than write a header that cannot reproduce
+            << endl;
+        return;
+    }
+
     CellType N = CellType::Null;
     CellType S = CellType::Solid;
     CellType C = CellType::Corridor;
 
-    Cells patternEnd({3, 3},
+    Cells pattern_end({3, 3},
     {
         S, S, S,
         S, C, S,
         S, C, S
     });
-    Pattern matcherEnd = {patternEnd, {1, 1}};
+    Pattern matcher_end = {pattern_end, {1, 1}};
 
-    Cells replacementEnd({3, 3},
+    Cells replacement_end({3, 3},
     {
         N, N, N,
         N, S, N,
         N, S, N
     });
-    Pattern replacerEnd = {replacementEnd, {1, 1}, {0, 2}};
+    Pattern replacer_end = {replacement_end, {1, 1}, {0, 2}};
 
-    Cells patternLoop({5, 5},
+    Cells pattern_loop({5, 5},
     {
         S, S, S, S, S,
         S, C, C, C, S,
@@ -65,15 +204,15 @@ namespace
         N, N, N, N, N,
         N, N, N, N, N,
     });
-    Pattern matcherLoop = {patternLoop, {2, 2}};
+    Pattern matcher_loop = {pattern_loop, {2, 2}};
 
-    Cells replacementLoop({3, 3},
+    Cells replacement_loop({3, 3},
     {
         S, S, S,
         S, N, S,
         N, C, N,
     });
-    Pattern replacerLoop = {replacementLoop, {1, 1}, {0, 2}};
+    Pattern replacer_loop = {replacement_loop, {1, 1}, {0, 2}};
 
     math::Random random;
 
@@ -84,13 +223,13 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    size_t room_placement_attempts(const Level& level, double density, coord_type roomDimensionMax)
+    size_t room_placement_attempts(const Level& level, double density, coord_type room_dimension_max)
     {
         auto [nx, ny] = level.size();
-        coord_type areaLevel = nx * ny;
-        coord_type areaRoomMax = roomDimensionMax * roomDimensionMax;
-        double densityFactor = 16 * density;
-        return static_cast<size_t>(densityFactor * areaLevel / areaRoomMax);
+        coord_type area_level = nx * ny;
+        coord_type area_room_max = room_dimension_max * room_dimension_max;
+        double density_factor = 16 * density;
+        return static_cast<size_t>(density_factor * area_level / area_room_max);
     }
 
     //--------------------------------------------------------------------------
@@ -130,7 +269,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    bool attempt_room_placement(Level& level, function<coord_type()> dimensionalizer, bool roomMerge)
+    bool attempt_room_placement(Level& level, function<coord_type()> dimensionalizer, bool room_merge)
     {
         auto [position, size] = room_dimensions(level, dimensionalizer);
         auto intersections = room_intersections(level, position, size);
@@ -140,7 +279,7 @@ namespace
         }
         else if (intersections.size() == 1)
         {
-            if (roomMerge) // and probability?
+            if (room_merge) // and probability?
             {
                 level.expand_room(*intersections.begin(), position, size);
                 return true;
@@ -154,12 +293,12 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    void place_rooms(Level& level, double density, function<coord_type()> dimensionalizer, coord_type roomDimensionMax, bool roomMerge)
+    void place_rooms(Level& level, double density, function<coord_type()> dimensionalizer, coord_type room_dimension_max, bool room_merge)
     {
-        size_t n = room_placement_attempts(level, density, roomDimensionMax);
+        size_t n = room_placement_attempts(level, density, room_dimension_max);
         for (size_t i = 0; i < n; ++i)
         {
-            attempt_room_placement(level, dimensionalizer, roomMerge);
+            attempt_room_placement(level, dimensionalizer, room_merge);
         }
 
         return;
@@ -180,18 +319,18 @@ namespace
     // Given a door position, determine if it connects two rooms
     tuple<bool, connection_type> room_connection(const Level& level, position_type position)
     {
-        Cell cellLeft = level.cell(position.x() - 1, position.y());
-        Cell cellRight = level.cell(position.x() + 1, position.y());
-        if (cellLeft.type() == CellType::Room && cellRight.type() == CellType::Room)
+        Cell cell_left = level.cell(position.x() - 1, position.y());
+        Cell cell_right = level.cell(position.x() + 1, position.y());
+        if (cell_left.type() == CellType::Room && cell_right.type() == CellType::Room)
         {
-            return {true, {cellLeft.room_id(), cellRight.room_id()}};
+            return {true, {cell_left.room_id(), cell_right.room_id()}};
         }
 
-        Cell cellBelow = level.cell(position.x(), position.y() - 1);
-        Cell cellAbove = level.cell(position.x(), position.y() + 1);
-        if (cellBelow.type() == CellType::Room && cellAbove.type() == CellType::Room)
+        Cell cell_below = level.cell(position.x(), position.y() - 1);
+        Cell cell_above = level.cell(position.x(), position.y() + 1);
+        if (cell_below.type() == CellType::Room && cell_above.type() == CellType::Room)
         {
-            return {true, {cellBelow.room_id(), cellAbove.room_id()}};
+            return {true, {cell_below.room_id(), cell_above.room_id()}};
         }
 
         return {false, {0, 0}};
@@ -205,7 +344,7 @@ namespace
         position_type position0 = room.position();
         position_type position1 = position0 + room.size();
 
-        size_t nExisting = 0;
+        size_t n_existing = 0;
 
         for (coord_type x = position0.x(); x < position1.x(); x += 2)
         {
@@ -218,7 +357,7 @@ namespace
                 }
                 else if (level.cell(x, y).type() == CellType::Door)
                 {
-                    ++nExisting;
+                    ++n_existing;
                 }
             }
 
@@ -231,7 +370,7 @@ namespace
                 }
                 else if (level.cell(x, y).type() == CellType::Door)
                 {
-                    ++nExisting;
+                    ++n_existing;
                 }
             }
         }
@@ -247,7 +386,7 @@ namespace
                 }
                 else if (level.cell(x, y).type() == CellType::Door)
                 {
-                    ++nExisting;
+                    ++n_existing;
                 }
             }
 
@@ -260,12 +399,12 @@ namespace
                 }
                 else if (level.cell(x, y).type() == CellType::Door)
                 {
-                    ++nExisting;
+                    ++n_existing;
                 }
             }
         }
 
-        return {candidates, nExisting};
+        return {candidates, n_existing};
     }
 
     //--------------------------------------------------------------------------
@@ -283,26 +422,26 @@ namespace
     //--------------------------------------------------------------------------
     void place_doors(Level& level, Room& room, connections_type& connections)
     {
-        auto [candidates, nExisting] = door_candidates(level, room);
+        auto [candidates, n_existing] = door_candidates(level, room);
         shuffle(candidates.begin(), candidates.end(), random.engine());
 
-        size_t nDoors = door_placements(room);
-//cout << "Room\t" << room.id() << "\tc\t" << c << "\tnDoors\t" << nDoors << endl;
-//cout << "nExisting\t" << nExisting << endl;
-        if (nDoors >= nExisting)
+        size_t n_doors = door_placements(room);
+//cout << "Room\t" << room.id() << "\tc\t" << c << "\tn_doors\t" << n_doors << endl;
+//cout << "n_existing\t" << n_existing << endl;
+        if (n_doors >= n_existing)
         {
-//            nDoors -= nExisting;
+//            n_doors -= n_existing;
         }
 
-        nDoors = min(nDoors, candidates.size());
+        n_doors = min(n_doors, candidates.size());
 
-        for (size_t i = 0; i < nDoors; ++i)
+        for (size_t i = 0; i < n_doors; ++i)
         {
             if (level.cell(candidates[i]).type() != CellType::Door)
             {
                 // Limit to a single door between any two rooms
-                auto [bConnected, connection] = room_connection(level, candidates[i]);
-                if (bConnected)
+                auto [connected, connection] = room_connection(level, candidates[i]);
+                if (connected)
                 {
                     sort(connection.begin(), connection.end());
                     if (!connections.contains(connection))
@@ -334,19 +473,19 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    void excavate(Level& level, position_type positionFrom, position_type positionTo)
+    void excavate(Level& level, position_type position_from, position_type position_to)
     {
-        level.cell((positionFrom + positionTo) / 2).set_type(CellType::Corridor);
-        level.cell(positionTo).set_type(CellType::Corridor);
+        level.cell((position_from + position_to) / 2).set_type(CellType::Corridor);
+        level.cell(position_to).set_type(CellType::Corridor);
         return;
     }
 
     //--------------------------------------------------------------------------
-    bool attempt_excavate(Level& level, position_type positionFrom, position_type positionTo)
+    bool attempt_excavate(Level& level, position_type position_from, position_type position_to)
     {
-        if (available(level, positionTo))
+        if (available(level, position_to))
         {
-            excavate(level, positionFrom, positionTo);
+            excavate(level, position_from, position_to);
             return true;
         }
 
@@ -354,10 +493,10 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    void excavate_cell(Level& level, position_type positionFrom, directions_type directions, double corridorStraightness)
+    void excavate_cell(Level& level, position_type position_from, directions_type directions, double corridor_straightness)
     {
         auto first = directions.begin();
-        if (random.gen() < corridorStraightness)
+        if (random.gen() < corridor_straightness)
         {
             ++first;
         }
@@ -365,8 +504,8 @@ namespace
 
         for (auto direction : directions)
         {
-            position_type positionTo = positionFrom + direction;
-            if (attempt_excavate(level, positionFrom, positionTo))
+            position_type position_to = position_from + direction;
+            if (attempt_excavate(level, position_from, position_to))
             {
                 for (size_t i = 1; i < 4; ++i)
                 {
@@ -376,8 +515,8 @@ namespace
                     }
                 }
 
-                level.cell(positionFrom).set_type(CellType::Corridor);
-                excavate_cell(level, positionTo, directions, corridorStraightness);
+                level.cell(position_from).set_type(CellType::Corridor);
+                excavate_cell(level, position_to, directions, corridor_straightness);
             }
         }
 
@@ -385,7 +524,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    void excavate(Level& level, double corridorStraightness)
+    void excavate(Level& level, double corridor_straightness)
     {
         directions_type directions = 
         {{
@@ -403,7 +542,7 @@ namespace
             {
                 if (level.cell(x, y).type() == CellType::Solid)
                 {
-                    excavate_cell(level, {x, y}, directions, corridorStraightness);
+                    excavate_cell(level, {x, y}, directions, corridor_straightness);
                 }
             }
         }
@@ -422,7 +561,7 @@ namespace
             for (coord_type x = 1; x < nx; x += 2)
             {
                 position_type position = {x, y};
-                if (match(level.cells(), position, matcherEnd))
+                if (match(level.cells(), position, matcher_end))
                 {
                     candidates.push_back(position);
                 }
@@ -433,9 +572,9 @@ namespace
     }
 
     //------------------------------------------------------------------------------
-    size_t shaft_placements(const Level& level, ShaftPlacements shaftPlacements)
+    size_t shaft_placements(const Level& level, ShaftPlacements placements)
     {
-        if (shaftPlacements == ShaftPlacements::Paired)
+        if (placements == ShaftPlacements::Paired)
         {
             return 2;
         }
@@ -445,9 +584,9 @@ namespace
     }
 
     //------------------------------------------------------------------------------
-    void place_shafts(Level& level, ShaftPlacements shaftPlacements)
+    void place_shafts(Level& level, ShaftPlacements placements)
     {
-        if (shaftPlacements == ShaftPlacements::None)
+        if (placements == ShaftPlacements::None)
         {
             return;
         }
@@ -455,19 +594,19 @@ namespace
         auto candidates = shaft_candidates(level);
         shuffle(candidates.begin(), candidates.end(), random.engine());
 
-        size_t nShafts = shaft_placements(level, shaftPlacements);
-        nShafts = min(nShafts, candidates.size());
+        size_t n_shafts = shaft_placements(level, placements);
+        n_shafts = min(n_shafts, candidates.size());
 
-        for (size_t i = 0; i < nShafts; ++i)
+        for (size_t i = 0; i < n_shafts; ++i)
         {
-            bool bDown = true;
+            bool down = true;
             if (i == 1)
             {
-                bDown = false;
+                down = false;
             }
             else if (i > 1)
             {
-                bDown = random.gen(2) == 0;
+                down = random.gen(2) == 0;
             }
 
             auto [x, y] = candidates[i];
@@ -495,16 +634,16 @@ namespace
             for (long y = 1; y < ny; y += 2)
             {
                 position_type position = {x, y};
-                bool bNext = true;
-                while (bNext && contains(level, position) && level.cell(position).type() == CellType::Corridor)
+                bool again = true;
+                while (again && contains(level, position) && level.cell(position).type() == CellType::Corridor)
                 {
                     if (random.gen() >= probability)
                     {
                         break;
                     }
 
-                    auto [bMatched, shift] = match_replace(level.cells(), position, matcherEnd, replacerEnd);
-                    bNext = bMatched;
+                    auto [matched, shift] = match_replace(level.cells(), position, matcher_end, replacer_end);
+                    again = matched;
                     position += shift;
                 }
             }
@@ -530,16 +669,16 @@ namespace
             for (coord_type y = 1; y < ny; y += 2)
             {
                 position_type position = {x, y};
-                bool bNext = true;
-                while (bNext && contains(level, position) && level.cell(position).type() == CellType::Solid)
+                bool again = true;
+                while (again && contains(level, position) && level.cell(position).type() == CellType::Solid)
                 {
                     if (random.gen() < probability)
                     {
                         break;
                     }
 
-                    auto [bMatched, shift] = match_replace(level.cells(), position, matcherLoop, replacerLoop);
-                    bNext = bMatched;
+                    auto [matched, shift] = match_replace(level.cells(), position, matcher_loop, replacer_loop);
+                    again = matched;
                     position += shift;
                 }
             }
@@ -549,28 +688,28 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    Level create_level(id_type id, const string& name, dimensions_type size)
+    Level create_level(id_type id, const string& name, const Parameters& parameters)
     {
         // add generation parameters and calculate dimensions and geometry from them here ...
 
-        coord_type roomDimensionBase = 3;
-        coord_type roomDimensionVariation = 8;
-//        double roomDimensionMean = 7.0;
-//        double roomDimensionStddev = 1.5;
-//        double roomDimensionHalfwidth = 4.0;
-        auto room_dimensionalizer = [roomDimensionBase, roomDimensionVariation]() -> coord_type { return roomDimensionBase + random.gen(roomDimensionVariation); }; // linear probability density
-//        auto room_dimensionalizer = [roomDimensionMean, roomDimensionStddev]() -> coord_type { return static_cast<coord_type>round(random.genn(roomDimensionMean, roomDimensionStddev)); }; // normal distribution
-//        auto room_dimensionalizer = [roomDimensionMean, roomDimensionHalfwidth]() -> coord_type { return static_cast<coord_type>round(random.gent(roomDimensionMean, roomDimensionHalfwidth)); }; // triangular distribution
-        double roomDensity = 0.25;
-        bool roomMerge = false;
-        double corridorStraightness = 0.5;
-        ShaftPlacements shaftPlacements = ShaftPlacements::Paired;
-        double probabilityDeadEndRemoval = 0.5;
-        double probabilityLoopRemoval = 1.0;
+        coord_type room_dimension_base = parameters.room_dimension_base;
+        coord_type room_dimension_variation = parameters.room_dimension_variation;
+//        double room_dimension_mean = 7.0;
+//        double room_dimension_stddev = 1.5;
+//        double room_dimension_halfwidth = 4.0;
+        auto room_dimensionalizer = [room_dimension_base, room_dimension_variation]() -> coord_type { return room_dimension_base + random.gen(room_dimension_variation); }; // linear probability density
+//        auto room_dimensionalizer = [room_dimension_mean, room_dimension_stddev]() -> coord_type { return static_cast<coord_type>round(random.genn(room_dimension_mean, room_dimension_stddev)); }; // normal distribution
+//        auto room_dimensionalizer = [room_dimension_mean, room_dimension_halfwidth]() -> coord_type { return static_cast<coord_type>round(random.gent(room_dimension_mean, room_dimension_halfwidth)); }; // triangular distribution
+        double room_density = parameters.room_density;
+        bool room_merge = parameters.room_merge;
+        double corridor_straightness = parameters.corridor_straightness;
+        ShaftPlacements placements = parameters.shaft_placements;
+        double probability_dead_end_removal = parameters.probability_dead_end_removal;
+        double probability_loop_removal = parameters.probability_loop_removal;
 
         // Level
 
-        auto [nx, ny] = size;
+        auto [nx, ny] = parameters.size;
         if (!math::odd(nx))
         {
             --nx;
@@ -584,9 +723,9 @@ namespace
         Level level(id, name, {nx, ny}, CellType::Solid);
 
         // Rooms
-        if (roomDensity < 1.0)
+        if (room_density < 1.0)
         {
-            place_rooms(level, roomDensity, room_dimensionalizer, roomDimensionBase + roomDimensionVariation, roomMerge);
+            place_rooms(level, room_density, room_dimensionalizer, room_dimension_base + room_dimension_variation, room_merge);
         }
         else
         {
@@ -601,18 +740,18 @@ namespace
         }
 
         // Corridors
-        excavate(level, corridorStraightness);
+        excavate(level, corridor_straightness);
 
         // ShaftPlacements
-        place_shafts(level, shaftPlacements);
+        place_shafts(level, placements);
 
         // Dead end and loop removal
 level.render(cout);
 cout << endl;
-        shorten_dead_ends(level, probabilityDeadEndRemoval);
+        shorten_dead_ends(level, probability_dead_end_removal);
 level.render(cout);
 cout << endl;
-        shorten_loops(level, probabilityLoopRemoval);
+        shorten_loops(level, probability_loop_removal);
         return level;
     }
 
@@ -621,16 +760,96 @@ cout << endl;
 //------------------------------------------------------------------------------
 int main(int argc, char* argv[])
 {
-    argc;
-    argv;
+    string filepath = "Level_0.level";
+    Parameters parameters;
 
-    Level level = create_level(0, "Level 0", {32, 32});
+    try
+    {
+        for (int i = 1; i < argc; ++i)
+        {
+            string arg = argv[i];
 
-    ofstream os("Level_0.level", ios_base::binary);
-    level.render(os);
+            if (arg == "--size" && i + 1 < argc)
+            {
+                auto [nx, ny] = to_pair(argv[++i], ',');
+                parameters.size = {static_cast<coord_type>(nx), static_cast<coord_type>(ny)};
+            }
+            else if (arg == "--room-dimension-base" && i + 1 < argc)
+            {
+                parameters.room_dimension_base = static_cast<coord_type>(to_integer(argv[++i]));
+            }
+            else if (arg == "--room-dimension-variation" && i + 1 < argc)
+            {
+                parameters.room_dimension_variation = static_cast<coord_type>(to_integer(argv[++i]));
+            }
+            else if (arg == "--room-density" && i + 1 < argc)
+            {
+                parameters.room_density = to_real(argv[++i]);
+            }
+            else if (arg == "--room-merge")
+            {
+                parameters.room_merge = true;
+            }
+            else if (arg == "--corridor-straightness" && i + 1 < argc)
+            {
+                parameters.corridor_straightness = to_real(argv[++i]);
+            }
+            else if (arg == "--shaft-placements" && i + 1 < argc)
+            {
+                parameters.shaft_placements = to_shaft_placements(argv[++i]);
+            }
+            else if (arg == "--probability-dead-end-removal" && i + 1 < argc)
+            {
+                parameters.probability_dead_end_removal = to_real(argv[++i]);
+            }
+            else if (arg == "--probability-loop-removal" && i + 1 < argc)
+            {
+                parameters.probability_loop_removal = to_real(argv[++i]);
+            }
+            else if (arg == "--seed" && i + 1 < argc)
+            {
+                parameters.seed = static_cast<seed_type>(to_integer(argv[++i]));
+            }
+            else if (arg.starts_with("--"))
+            {
+                usage(cerr);
+                return 1;
+            }
+            else
+            {
+                filepath = arg;
+            }
+        }
 
-    level.render(cout);
+        // A run that asked for no seed gets one of its own, so that the header names a seed
+        // either way and any level can be produced again
+        if (!parameters.seed)
+        {
+            parameters.seed = random_seed();
+        }
+
+        random.engine().seed(parameters.seed.value());
+
+        Level level = create_level(0, "Level 0", parameters);
+
+        ofstream os(filepath, ios_base::binary);
+        if (!os)
+        {
+            throw runtime_error(format("unable to open level file {}", filepath));
+        }
+
+        write_header(os, level, parameters);
+        level.render(os);
+
+        write_header(cout, level, parameters);
+        level.render(cout);
 //    cout << level;
+    }
+    catch (const exception& e)
+    {
+        cerr << "Error: " << e.what() << endl;
+        return 1;
+    }
 
     return 0;
 }

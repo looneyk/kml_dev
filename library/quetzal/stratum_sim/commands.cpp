@@ -5,30 +5,7 @@
 
 #include "commands.hpp"
 #include "Scheduler.hpp"
-#include "quetzal/math/floating_point.hpp"
-
-namespace
-{
-
-    //--------------------------------------------------------------------------
-    // The cell step a direction most nearly asks for, zero when it asks for nothing
-    quetzal::stratum_sim::Cell step_of(const quetzal::stratum_sim::vector_type& direction)
-    {
-        using quetzal::stratum_sim::value_type;
-
-        auto [dx, dy, dz] = direction.rep();
-
-        if (quetzal::math::float_eq0(dx) && quetzal::math::float_eq0(dy))
-        {
-            return {0, 0};
-        }
-
-        return std::abs(dx) >= std::abs(dy)
-            ? quetzal::stratum_sim::Cell {dx > value_type(0) ? 1 : -1, 0}
-            : quetzal::stratum_sim::Cell {0, dy > value_type(0) ? 1 : -1};
-    }
-
-} // namespace
+#include <cmath>
 
 //------------------------------------------------------------------------------
 int quetzal::stratum_sim::apply(World& world, const Command& command, EventQueue& events)
@@ -53,9 +30,11 @@ int quetzal::stratum_sim::apply(World& world, const Command& command, EventQueue
     if (const Step* pstep = command.try_get<Step>())
     {
         // A zero direction means step along the actor's own facing
-        vector_type direction = step_of(pstep->direction) == Cell {0, 0} ? placement.direction() : pstep->direction;
+        vector_type direction = grid_step(pstep->direction).zero() ? placement.direction() : pstep->direction;
 
-        MoveResult result = layout.move(placement, direction, pstep->distance);
+        // Asked of the world rather than the layout, so that a wall and something standing in
+        // the way stop the mover in one answer
+        MoveResult result = world.move(e, direction, pstep->distance);
         bool moved = !layout.same_location(result.placement, placement);
 
         if (moved)
@@ -64,17 +43,34 @@ int quetzal::stratum_sim::apply(World& world, const Command& command, EventQueue
             events.push(Moved {command.entity_id(), result.placement});
         }
 
-        if (result.obstruction != nullid)
+        if (result.obstruction_wall_id != nullid || result.obstruction_entity_id != nullid)
         {
-            events.push(Blocked {command.entity_id(), result.obstruction});
+            events.push(Blocked {command.entity_id(), result.obstruction_wall_id, result.obstruction_entity_id});
         }
 
-        return moved ? Scheduler::action_cost : 0;
+        if (!moved)
+        {
+            return 0;
+        }
+
+        // What it cost is what it covered rather than a flat action, so that crossing four
+        // cells costs four turns and a fraction of a step costs a fraction of one. Being
+        // stopped short is therefore charged for the distance actually reached
+        value_type covered = (result.placement.position() - placement.position()).norm();
+
+        return static_cast<int>(std::lround(Scheduler::action_cost * covered / layout.step_distance()));
     }
 
     if (const TurnTo* pturn = command.try_get<TurnTo>())
     {
-        placement_type turned = layout.turn(placement, pturn->turn);
+        placement_type turned = layout.face(placement, pturn->direction);
+
+        // Already facing that way, so nothing was asked of the turn
+        if (turned.direction() == placement.direction())
+        {
+            return 0;
+        }
+
         e.set<placement_type>(turned);
         events.push(Turned {command.entity_id(), turned});
 
@@ -83,14 +79,14 @@ int quetzal::stratum_sim::apply(World& world, const Command& command, EventQueue
 
     if (command.is<Interact>())
     {
-        Cell step = step_of(placement.direction());
-        if (step == Cell {0, 0})
+        DiscreteVector step = grid_step(placement.direction());
+        if (step.zero())
         {
             return 0;
         }
 
-        Cell cell = layout.cell_at(placement.position());
-        id_type wall_id = layout.facing_between(cell, Cell {cell.i + step.i, cell.j + step.j});
+        GridPosition cell = layout.cell_at(placement.position());
+        id_type wall_id = layout.wall_toward(cell, step);
 
         if (wall_id == nullid)
         {

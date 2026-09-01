@@ -18,7 +18,13 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 set(DEV_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
 set(LIBRARY3_DIR ${DEV_ROOT}/library3)
 
-set(CMAKE_MSVC_RUNTIME_LIBRARY "$<IF:$<CONFIG:Debug>,MultiThreadedDebug,MultiThreaded>")
+# Forced into the cache rather than merely set: godot-cpp's windows.cmake caches MultiThreaded, the
+# static release CRT, even for a debug build, and quetzal's static libraries will not link into a
+# GDExtension unless the two agree
+set(CMAKE_MSVC_RUNTIME_LIBRARY "$<IF:$<CONFIG:Debug>,MultiThreadedDebug,MultiThreaded>"
+    CACHE STRING "MSVC runtime library for targets using the MSVC ABI" FORCE)
+
+option(KML_DEV_GODOT "Build the Godot integration" ON)
 
 find_package(Vulkan REQUIRED)
 
@@ -48,10 +54,15 @@ function(add_subdirectory_ext dir)
 endfunction()
 
 add_subdirectory_ext(library/quetzal/brep quetzal_brep)
+add_subdirectory_ext(library/quetzal/catagen quetzal_catagen)
 add_subdirectory_ext(library/quetzal/common quetzal_common)
+add_subdirectory_ext(library/quetzal/dungen quetzal_dungen)
 add_subdirectory_ext(library/quetzal/expression quetzal_expression)
 add_subdirectory_ext(library/quetzal/game quetzal_game)
 add_subdirectory_ext(library/quetzal/geometry quetzal_geometry)
+if(KML_DEV_GODOT)
+    add_subdirectory_ext(library/quetzal/godot quetzal_godot)
+endif()
 add_subdirectory_ext(library/quetzal/math quetzal_math)
 add_subdirectory_ext(library/quetzal/model quetzal_model)
 add_subdirectory_ext(library/quetzal/pdf quetzal_pdf)
@@ -67,7 +78,9 @@ add_subdirectory_ext(library/quetzal/vulkan quetzal_vulkan)
 add_subdirectory_ext(library/quetzal/wavefront_obj quetzal_wavefront_obj)
 add_subdirectory_ext(library/quetzal/xml quetzal_xml)
 
+add_subdirectory(application/catagen_test)
 add_subdirectory(application/cubes)
+add_subdirectory(application/dungen_test)
 add_subdirectory(application/gallery)
 add_subdirectory(application/lightmatrix)
 add_subdirectory(application/stratum_terminal)
@@ -108,6 +121,12 @@ add_subdirectory(utility/to_utf8)
 add_subdirectory(utility/verify_model_output)
 
 add_subdirectory(library3)
+
+# After library3, unlike the other applications: configuring a GDExtension reads a property from
+# the godot-cpp target, so that target has to exist by the time this directory is added
+if(KML_DEV_GODOT)
+    add_subdirectory(application/stratum_godot)
+endif()
 
 # Last, so that every add_subdirectory_ext above has registered by the time the targets are created
 add_subdirectory(support)

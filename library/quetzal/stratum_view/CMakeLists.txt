@@ -1,7 +1,8 @@
 add_library(quetzal_stratum_view STATIC
     ascii.cpp
-    Console.cpp
+    cells.cpp
     ascii.hpp
+    cells.hpp
     Console.hpp
 )
 

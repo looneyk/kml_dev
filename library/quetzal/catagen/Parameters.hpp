@@ -1,0 +1,55 @@
+#if !defined(QUETZAL_CATAGEN_PARAMETERS_HPP)
+#define QUETZAL_CATAGEN_PARAMETERS_HPP
+//------------------------------------------------------------------------------
+// catagen
+// Parameters.hpp
+//------------------------------------------------------------------------------
+
+#include "types.hpp"
+#include <optional>
+#include <random>
+
+namespace quetzal::catagen
+{
+
+    //--------------------------------------------------------------------------
+    // The generation parameters of one run, recorded in the level file so that a level
+    // names what produced it and can be produced again
+    struct Parameters
+    {
+        using seed_type = std::default_random_engine::result_type;
+
+        Extent extent {48, 32}; // The area to fill, in cells
+
+        // Target room size in cells. The partition splits while a room exceeds scale_max and
+        // never below scale_min, so a room lands within the range unless the range is too
+        // narrow to split into -- scale_max below twice scale_min leaves rooms oversized
+        coord_type scale_min = 4;
+        coord_type scale_max = 8;
+
+        // Rock left between rooms, in cells, as a range. Zero has them share a wall; anything
+        // more stands them apart, and what separates them is what the corridors then cross
+        coord_type spacing_min = 0;
+        coord_type spacing_max = 0;
+
+        // Fraction of the extent the rooms are drawn from; 1.0 keeps every one of them, so
+        // with no spacing it leaves no rock at all
+        double density = 1.0;
+        double loop = 0.1; // Probability of a door beyond the ones connectivity needs
+
+        // Empty until one is assigned, so that a caller who never did is caught by validate
+        // rather than quietly handed the same level every run
+        std::optional<seed_type> seed;
+    };
+
+    // A seed drawn from the platform's entropy source, for a caller wanting a different
+    // level each run. Generation itself takes the seed it is given, so that a recorded
+    // seed reproduces a level exactly
+    Parameters::seed_type random_seed();
+
+    // Throws std::invalid_argument naming the parameter at fault
+    void validate(const Parameters& parameters);
+
+} // namespace quetzal::catagen
+
+#endif // QUETZAL_CATAGEN_PARAMETERS_HPP

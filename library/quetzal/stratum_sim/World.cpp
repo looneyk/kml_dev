@@ -100,7 +100,32 @@ flecs::entity quetzal::stratum_sim::World::zone_of(flecs::entity e) const
 }
 
 //------------------------------------------------------------------------------
-quetzal::stratum_sim::World::entities_type quetzal::stratum_sim::World::entities_at(flecs::entity zone, const Cell& cell) const
+quetzal::stratum_sim::MoveResult quetzal::stratum_sim::World::move(flecs::entity e, const vector_type& direction, value_type distance) const
+{
+    flecs::entity zone = zone_of(e);
+    assert(zone);
+
+    const Layout& zone_layout = layout(zone);
+
+    // The mover is standing where it starts, so it is not something it can be stopped by
+    Layout::obstructed_type obstructed = [&](const placement_type& candidate)
+    {
+        for (flecs::entity other : entities_at(zone, zone_layout.cell_at(candidate.position())))
+        {
+            if (other != e && other.has<Blocking>())
+            {
+                return static_cast<id_type>(other.id());
+            }
+        }
+
+        return nullid;
+    };
+
+    return zone_layout.move(e.get<placement_type>(), direction, distance, obstructed);
+}
+
+//------------------------------------------------------------------------------
+quetzal::stratum_sim::World::entities_type quetzal::stratum_sim::World::entities_at(flecs::entity zone, const GridPosition& cell) const
 {
     const Layout& zone_layout = layout(zone);
 

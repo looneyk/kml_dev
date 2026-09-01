@@ -9,6 +9,7 @@
 #include "quetzal/stratum_sim/load_layout.hpp"
 #include "quetzal/stratum_sim/World.hpp"
 #include "quetzal/stratum_view/ascii.hpp"
+#include "quetzal/stratum_view/cells.hpp"
 #include <format>
 #include <fstream>
 #include <iostream>
@@ -160,6 +161,48 @@ namespace
     }
 
     //--------------------------------------------------------------------------
+    // The reduction both views consume, before either decides how to show it
+    void test_cells()
+    {
+        report_group("cells");
+
+        stratum_sim::World world;
+        flecs::entity zone = world.create_zone("crypt");
+        stratum_sim::load_layout("data/corridor.level", world.layout(zone));
+
+        stratum_view::Cells cells = stratum_view::cells(world, zone);
+
+        report_case_equal("it covers the zone's grid", cells.width(), 7);
+        report_case_equal("in both directions", cells.height(), 3);
+        report_case("rock where the level says rock", cells.at(0, 1) == stratum_view::Kind::Rock);
+        report_case("floor where it says open", cells.at(1, 1) == stratum_view::Kind::Floor);
+        report_case("no actor before one exists", cells.at(3, 1) != stratum_view::Kind::Actor);
+
+        stratum_sim::Layout& layout = world.layout(zone);
+        world.create_entity(zone, stratum_sim::placement_type(layout.cell_position(stratum_sim::GridPosition {3, 1}),
+            stratum_sim::vector_type(1.0f, 0.0f, 0.0f)));
+
+        cells = stratum_view::cells(world, zone);
+        report_case("an entity takes the cell it stands in", cells.at(3, 1) == stratum_view::Kind::Actor);
+        report_case("and only that one", cells.at(2, 1) == stratum_view::Kind::Floor);
+
+        // A view's mapping is its own; the terminal's is Glyphs
+        stratum_view::Glyphs glyphs;
+        report_case("glyphs map each kind", glyphs(stratum_view::Kind::Rock) == '#'
+            && glyphs(stratum_view::Kind::Floor) == '.' && glyphs(stratum_view::Kind::Actor) == '@');
+
+        report_case("rendering from cells matches rendering from the world",
+            stratum_view::render(cells).to_string() == stratum_view::render(world, zone).to_string());
+
+        // difference serves any buffer, which is what having one implementation buys
+        stratum_view::Cells other = cells;
+        other.set(5, 1, stratum_view::Kind::Rock);
+        report_case_equal("differencing works over kinds too", stratum_view::difference(cells, other).size(), 1);
+
+        return;
+    }
+
+    //--------------------------------------------------------------------------
     // Reads from data/, so stratum_view_test runs from its own directory
     void test_render()
     {
@@ -181,7 +224,7 @@ namespace
 
         // An actor draws over the floor it stands on
         stratum_sim::Layout& layout = world.layout(zone);
-        world.create_entity(zone, stratum_sim::placement_type(layout.cell_position(stratum_sim::Cell {3, 1}), stratum_sim::vector_type(1.0f, 0.0f, 0.0f)));
+        world.create_entity(zone, stratum_sim::placement_type(layout.cell_position(stratum_sim::GridPosition {3, 1}), stratum_sim::vector_type(1.0f, 0.0f, 0.0f)));
 
         console = stratum_view::render(world, zone);
         report_case("an actor draws over its floor", console.at(3, 1) == '@');
@@ -274,11 +317,21 @@ namespace
     //--------------------------------------------------------------------------
     // The command a script character asks for, empty for anything else. Mapped here rather
     // than taken from the terminal host, which is not what these frames are checking
-    stratum_sim::Command command_of(char c, id_type entity_id)
+    stratum_sim::Command command_of(char c, flecs::entity player, const stratum_sim::Layout& layout)
     {
+        id_type entity_id = player.id();
+
         auto step = [entity_id](stratum_sim::value_type dx, stratum_sim::value_type dy)
         {
             return stratum_sim::Command(entity_id, stratum_sim::Step {stratum_sim::vector_type(dx, dy, 0.0f), 1.0f});
+        };
+
+        // A relative turn is resolved against the layout here, the command itself carrying
+        // the absolute facing it arrived at
+        auto turn = [&](stratum_sim::Rotation rotation)
+        {
+            const stratum_sim::placement_type& placement = player.get<stratum_sim::placement_type>();
+            return stratum_sim::Command(entity_id, stratum_sim::TurnTo {layout.turn(placement, rotation).direction()});
         };
 
         switch (c)
@@ -287,8 +340,8 @@ namespace
             case 'j': return step(0.0f, -1.0f);
             case 'k': return step(0.0f, 1.0f);
             case 'l': return step(1.0f, 0.0f);
-            case '<': return stratum_sim::Command(entity_id, stratum_sim::TurnTo {stratum_sim::Turn::Left});
-            case '>': return stratum_sim::Command(entity_id, stratum_sim::TurnTo {stratum_sim::Turn::Right});
+            case '<': return turn(stratum_sim::Rotation::CCW);
+            case '>': return turn(stratum_sim::Rotation::CW);
             case ' ': return stratum_sim::Command(entity_id, stratum_sim::Interact {});
         }
 
@@ -300,13 +353,15 @@ namespace
     {
         if (const stratum_sim::Moved* pevent = event.try_get<stratum_sim::Moved>())
         {
-            stratum_sim::Cell cell = layout.cell_at(pevent->placement.position());
+            stratum_sim::GridPosition cell = layout.cell_at(pevent->placement.position());
             return format("moved to ({}, {})", cell.i, cell.j);
         }
 
         if (const stratum_sim::Blocked* pevent = event.try_get<stratum_sim::Blocked>())
         {
-            return format("blocked by wall {}", pevent->wall_id);
+            return pevent->obstruction_entity_id != nullid
+                ? format("blocked by {}", pevent->obstruction_entity_id)
+                : format("blocked by wall {}", pevent->obstruction_wall_id);
         }
 
         if (const stratum_sim::Turned* pevent = event.try_get<stratum_sim::Turned>())
@@ -327,7 +382,7 @@ namespace
     {
         const stratum_sim::Layout& layout = world.layout(zone);
         const stratum_sim::placement_type& placement = player.get<stratum_sim::placement_type>();
-        stratum_sim::Cell cell = layout.cell_at(placement.position());
+        stratum_sim::GridPosition cell = layout.cell_at(placement.position());
 
         string s = format("-- {}\n", label);
         s += stratum_view::render(world, zone).to_string();
@@ -345,7 +400,7 @@ namespace
 
     //--------------------------------------------------------------------------
     // Plays a fixed command sequence, rendering after each, and returns every frame
-    string play(const string& filepath, const stratum_sim::Cell& start, const string& script)
+    string play(const string& filepath, const stratum_sim::GridPosition& start, const string& script)
     {
         stratum_sim::World world;
         flecs::entity zone = world.create_zone("zone");
@@ -360,7 +415,7 @@ namespace
         for (char c : script)
         {
             events.clear();
-            stratum_sim::apply(world, command_of(c, player.id()), events);
+            stratum_sim::apply(world, command_of(c, player, layout), events);
             s += frame(world, zone, player, format("command '{}'", c), events);
         }
 
@@ -387,7 +442,7 @@ namespace
         {
             string name;
             string level;
-            stratum_sim::Cell start;
+            stratum_sim::GridPosition start;
             string script;
         };
 
@@ -419,6 +474,7 @@ int main()
 {
     test_console();
     test_difference();
+    test_cells();
     test_render();
     test_round_trip();
     test_dungeon();

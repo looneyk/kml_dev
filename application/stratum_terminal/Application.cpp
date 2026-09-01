@@ -5,10 +5,8 @@
 
 #include "Application.hpp"
 #include "quetzal/stratum_sim/commands.hpp"
-#include "quetzal/stratum_sim/load_layout.hpp"
 #include <format>
 #include <iostream>
-#include <stdexcept>
 
 using namespace quetzal;
 
@@ -18,28 +16,6 @@ namespace
     static constexpr auto help_string = "arrows or hjkl move, < > turn, space acts, . waits, ^L redraws, q quits";
 
     static constexpr char key_redraw = '\x0c'; // Ctrl-L, as curses and the roguelikes bind it
-
-    static constexpr int player_speed = 100;
-
-    //--------------------------------------------------------------------------
-    // The lowest open cell of a layout, where the player starts
-    stratum_sim::Cell first_open_cell(const stratum_sim::Layout& layout)
-    {
-        const stratum_sim::Grid& grid = layout.grid();
-
-        for (int j = 0; j < grid.extent.j; ++j)
-        {
-            for (int i = 0; i < grid.extent.i; ++i)
-            {
-                if (layout.region_at(stratum_sim::Cell {i, j}) != nullid)
-                {
-                    return {i, j};
-                }
-            }
-        }
-
-        throw std::runtime_error("level has no open cell");
-    }
 
     //--------------------------------------------------------------------------
     std::string name_of(const stratum_sim::vector_type& direction)
@@ -58,10 +34,7 @@ namespace
 
 //------------------------------------------------------------------------------
 stratum_terminal::Application::Application(const std::string& filepath_level, const std::string& script, bool incremental) :
-    m_world(),
-    m_zone(),
-    m_player(),
-    m_scheduler(),
+    m_session(),
     m_view_glyphs(),
     m_terminal(incremental),
     m_message(),
@@ -69,28 +42,28 @@ stratum_terminal::Application::Application(const std::string& filepath_level, co
     m_script_slot(0),
     m_running(true)
 {
-    m_zone = m_world.create_zone("dungeon");
-    stratum_sim::load_layout(filepath_level, m_world.layout(m_zone));
-
-    const stratum_sim::Layout& layout = m_world.layout(m_zone);
-    stratum_sim::point_type position = layout.cell_position(first_open_cell(layout));
-
-    m_player = m_world.create_entity(m_zone, stratum_sim::placement_type(position, stratum_sim::vector_type(1.0f, 0.0f, 0.0f)));
-    m_scheduler.add(m_player.id(), player_speed);
+    m_session.load(filepath_level);
 }
 
 //------------------------------------------------------------------------------
 int stratum_terminal::Application::run()
 {
+    // Outlives an iteration: what the session produced while applying a command is reported
+    // against the frame drawn after it, not against the one it was issued from
+    stratum_sim::EventQueue events;
+
     while (m_running)
     {
-        // Only the player is scheduled so far, but the loop is already driven by turn order
-        id_type actor_id = m_scheduler.next();
+        id_type actor_id = m_session.advance(events);
+
+        // Nobody will ever be ready, so there is no turn left to take
         if (actor_id == nullid)
         {
             break;
         }
 
+        report(events);
+        events.clear();
         draw();
 
         KeyPress key_press = next_key();
@@ -111,24 +84,13 @@ int stratum_terminal::Application::run()
         if (key_press.c == '.')
         {
             m_message.clear();
-            m_scheduler.spend(actor_id);
+            m_session.scheduler().spend(actor_id);
             continue;
         }
 
-        stratum_sim::Command command = command_of(key_press);
-        if (command.empty())
-        {
-            continue;
-        }
-
-        stratum_sim::EventQueue events;
-        int cost = stratum_sim::apply(m_world, command, events);
-        report(events);
-
-        if (cost > 0)
-        {
-            m_scheduler.spend(actor_id, cost);
-        }
+        // Taken on the next turn of the loop, which acts on it and charges whichever actor
+        // the session was waiting on
+        submit_key(key_press, actor_id);
     }
 
     return 0;
@@ -153,43 +115,55 @@ stratum_terminal::KeyPress stratum_terminal::Application::next_key()
 //------------------------------------------------------------------------------
 void stratum_terminal::Application::draw()
 {
-    m_terminal.draw(stratum_view::render(m_world, m_zone, m_view_glyphs), status(), help_string);
+    m_terminal.draw(stratum_view::render(m_session.world(), m_session.zone(), m_view_glyphs), status(), help_string);
     return;
 }
 
 //------------------------------------------------------------------------------
-quetzal::stratum_sim::Command stratum_terminal::Application::command_of(const KeyPress& key_press) const
+void stratum_terminal::Application::submit_key(const KeyPress& key_press, id_type id)
 {
-    id_type id = m_player.id();
+    using value_type = stratum_sim::value_type;
 
-    auto step = [id](stratum_sim::value_type dx, stratum_sim::value_type dy)
+    auto step = [this](value_type dx, value_type dy)
     {
-        return stratum_sim::Command(id, stratum_sim::Step {stratum_sim::vector_type(dx, dy, 0.0f), 1.0f});
+        m_session.set_intent(stratum_sim::Intent {stratum_sim::vector_type(dx, dy, value_type(0)),
+            value_type(1), stratum_sim::vector_type()});
+    };
+
+    // A relative turn is resolved against the layout here, the intent carrying the absolute
+    // facing it arrived at
+    auto turn = [&](stratum_sim::Rotation rotation)
+    {
+        flecs::entity e = m_session.world().entities().entity(id);
+        const stratum_sim::placement_type& placement = e.get<stratum_sim::placement_type>();
+
+        m_session.set_intent(stratum_sim::Intent {stratum_sim::vector_type(), value_type(1),
+            m_session.layout().turn(placement, rotation).direction()});
     };
 
     switch (key_press.key)
     {
-        case Key::Up: return step(0.0f, 1.0f);
-        case Key::Down: return step(0.0f, -1.0f);
-        case Key::Left: return step(-1.0f, 0.0f);
-        case Key::Right: return step(1.0f, 0.0f);
+        case Key::Up: step(value_type(0), value_type(1)); return;
+        case Key::Down: step(value_type(0), value_type(-1)); return;
+        case Key::Left: step(value_type(-1), value_type(0)); return;
+        case Key::Right: step(value_type(1), value_type(0)); return;
         default: break;
     }
 
     switch (key_press.c)
     {
-        case 'k': return step(0.0f, 1.0f);
-        case 'j': return step(0.0f, -1.0f);
-        case 'h': return step(-1.0f, 0.0f);
-        case 'l': return step(1.0f, 0.0f);
+        case 'k': step(value_type(0), value_type(1)); return;
+        case 'j': step(value_type(0), value_type(-1)); return;
+        case 'h': step(value_type(-1), value_type(0)); return;
+        case 'l': step(value_type(1), value_type(0)); return;
 
-        case '<': return stratum_sim::Command(id, stratum_sim::TurnTo {stratum_sim::Turn::Left});
-        case '>': return stratum_sim::Command(id, stratum_sim::TurnTo {stratum_sim::Turn::Right});
+        case '<': turn(stratum_sim::Rotation::CCW); return;
+        case '>': turn(stratum_sim::Rotation::CW); return;
 
-        case ' ': return stratum_sim::Command(id, stratum_sim::Interact {});
+        case ' ': m_session.submit(stratum_sim::Command(id, stratum_sim::Interact {})); return;
     }
 
-    return {};
+    return;
 }
 
 //------------------------------------------------------------------------------
@@ -205,7 +179,9 @@ void stratum_terminal::Application::report(const quetzal::stratum_sim::EventQueu
         }
         else if (const stratum_sim::Blocked* pblocked = event.try_get<stratum_sim::Blocked>())
         {
-            m_message = std::format("Blocked by wall {}.", pblocked->wall_id);
+            m_message = pblocked->obstruction_entity_id != nullid
+                ? std::format("Blocked by {}.", pblocked->obstruction_entity_id)
+                : std::format("Blocked by wall {}.", pblocked->obstruction_wall_id);
         }
         else if (event.is<stratum_sim::Turned>())
         {
@@ -223,10 +199,9 @@ void stratum_terminal::Application::report(const quetzal::stratum_sim::EventQueu
 //------------------------------------------------------------------------------
 std::string stratum_terminal::Application::status() const
 {
-    const stratum_sim::Layout& layout = m_world.layout(m_zone);
-    const stratum_sim::placement_type& placement = m_player.get<stratum_sim::placement_type>();
-    stratum_sim::Cell cell = layout.cell_at(placement.position());
+    const stratum_sim::placement_type& placement = m_session.player().get<stratum_sim::placement_type>();
+    stratum_sim::GridPosition cell = m_session.layout().cell_at(placement.position());
 
     // The message shares this line so that the frame keeps its height as it comes and goes
-    return std::format("cell ({}, {})  facing {}  turn {}  {}", cell.i, cell.j, name_of(placement.direction()), m_scheduler.elapsed(), m_message);
+    return std::format("cell ({}, {})  facing {}  turn {}  {}", cell.i, cell.j, name_of(placement.direction()), m_session.scheduler().elapsed(), m_message);
 }

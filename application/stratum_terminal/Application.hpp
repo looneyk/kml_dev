@@ -7,10 +7,8 @@
 
 #include "key_input.hpp"
 #include "Terminal.hpp"
-#include "quetzal/stratum_sim/CommandQueue.hpp"
 #include "quetzal/stratum_sim/EventQueue.hpp"
-#include "quetzal/stratum_sim/Scheduler.hpp"
-#include "quetzal/stratum_sim/World.hpp"
+#include "quetzal/stratum_sim/Session.hpp"
 #include "quetzal/stratum_view/ascii.hpp"
 #include <string>
 
@@ -40,16 +38,15 @@ namespace stratum_terminal
 
         void draw();
 
-        // The command a key asks for, empty when it asks for nothing
-        quetzal::stratum_sim::Command command_of(const KeyPress& key_press) const;
+        // Routes a key to the session: movement and facing as intent, one-shot actions as
+        // commands. Nothing is submitted for a key that asks for neither
+        // For the actor the session is waiting on, not for the player by assumption
+        void submit_key(const KeyPress& key_press, quetzal::id_type actor_id);
 
         void report(const quetzal::stratum_sim::EventQueue& events);
         std::string status() const;
 
-        quetzal::stratum_sim::World m_world;
-        flecs::entity m_zone;
-        flecs::entity m_player;
-        quetzal::stratum_sim::Scheduler m_scheduler;
+        quetzal::stratum_sim::Session m_session;
         quetzal::stratum_view::Glyphs m_view_glyphs;
         Terminal m_terminal;
         std::string m_message;

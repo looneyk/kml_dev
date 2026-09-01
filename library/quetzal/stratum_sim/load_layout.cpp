@@ -4,15 +4,19 @@
 //------------------------------------------------------------------------------
 
 #include "load_layout.hpp"
+#include "load_layout_catagen.hpp"
+#include "load_layout_dungen.hpp"
 #include "quetzal/common/file_util.hpp"
-#include <algorithm>
 #include <format>
 #include <fstream>
 #include <map>
+#include <sstream>
 #include <stdexcept>
 #include <string>
+#include <utility>
 #include <vector>
 #include <cassert>
+#include <cctype>
 
 namespace
 {
@@ -20,73 +24,34 @@ namespace
     using quetzal::id_type;
     using quetzal::nullid;
 
-    enum class Kind
-    {
-        Rock,
-        Open,
-        Doorway,
-        Shaft
-    };
+    using namespace quetzal::stratum_sim::detail;
 
     //--------------------------------------------------------------------------
-    // dungen's symbols, from dungen::cell_types. '0' is its Null type, marking a cell the
-    // generator never assigned
-    Kind kind(char c)
+    // A grid row never begins with a letter, so a file whose first row does not is one
+    // written before headers existed
+    bool header_row(const std::string& line)
     {
-        switch (c)
-        {
-            case '#': return Kind::Rock;
-            case '0': return Kind::Rock;
-            case ' ': return Kind::Open;
-            case '.': return Kind::Open;
-            case '|': return Kind::Doorway;
-            case '>': return Kind::Shaft;
-        }
-
-        assert(false); // Unrecognized cell code
-        return Kind::Rock;
-    }
-
-    // A doorway or a shaft is its own component even where nothing separates it from its
-    // neighbours, so that its facings can carry a door, or a portal, and their attachments
-    //--------------------------------------------------------------------------
-    bool solitary(Kind k)
-    {
-        return k == Kind::Doorway || k == Kind::Shaft;
+        return !line.empty() && std::isalpha(static_cast<unsigned char>(line[0])) != 0;
     }
 
     //--------------------------------------------------------------------------
-    // Lattice point, so that boundary edges chain by exact comparison
-    struct Vertex
+    Header read_header(const std::string& line)
     {
-        int i = 0;
-        int j = 0;
+        Header header;
+        std::istringstream is(line);
+        is >> header.generator >> header.version;
 
-        friend auto operator<=>(const Vertex&, const Vertex&) = default;
-    };
-
-    //--------------------------------------------------------------------------
-    struct Edge
-    {
-        Vertex from;
-        Vertex to;
-    };
-
-    //--------------------------------------------------------------------------
-    // Twice the signed area. Positive is counterclockwise, which is an outer ring; a hole
-    // is traced clockwise because the interior stays on the left throughout
-    long long signed_area2(const std::vector<Vertex>& ring)
-    {
-        long long a = 0;
-
-        for (size_t n = 0; n < ring.size(); ++n)
+        std::string token;
+        while (is >> token)
         {
-            const Vertex& p = ring[n];
-            const Vertex& q = ring[(n + 1) % ring.size()];
-            a += static_cast<long long>(p.i) * q.j - static_cast<long long>(q.i) * p.j;
+            size_t n = token.find('=');
+            if (n != std::string::npos)
+            {
+                header.values[token.substr(0, n)] = token.substr(n + 1);
+            }
         }
 
-        return a;
+        return header;
     }
 
     //--------------------------------------------------------------------------
@@ -106,7 +71,270 @@ namespace
         return quetzal::stratum_sim::polygon_type(points.begin(), points.end());
     }
 
+    //--------------------------------------------------------------------------
+    // The edge one cell shares with an orthogonally adjacent one, as the directed boundary
+    // edge that lies on it wound for that cell. The other cell's is its reverse, which is
+    // what makes the two walls on it partners
+    Edge boundary_edge(const Vertex& cell, const Vertex& other)
+    {
+        if (other.i > cell.i)
+        {
+            return {{cell.i + 1, cell.j}, {cell.i + 1, cell.j + 1}};
+        }
+
+        if (other.i < cell.i)
+        {
+            return {{cell.i, cell.j + 1}, {cell.i, cell.j}};
+        }
+
+        if (other.j > cell.j)
+        {
+            return {{cell.i + 1, cell.j + 1}, {cell.i, cell.j + 1}};
+        }
+
+        return {{cell.i, cell.j}, {cell.i + 1, cell.j}};
+    }
+
+    //--------------------------------------------------------------------------
+    using Ring = std::vector<Vertex>;
+    using Rings = std::vector<Ring>; // The outlines of one component
+    using Outlines = std::vector<Rings>; // By component
+    using WallIndex = std::map<std::pair<Vertex, Vertex>, id_type>; // The wall lying on one directed boundary edge
+
+    //--------------------------------------------------------------------------
+    // The boundary of every component, as closed outlines. Geometry derived from the map and
+    // nothing more: nothing is built here and no Layout is touched
+    // One directed edge per boundary cell edge, wound with the open space on the left
+    Outlines trace_outlines(const Map& map)
+    {
+        Outlines outlines;
+        outlines.reserve(map.component_cells.size());
+
+        for (size_t component = 0; component < map.component_cells.size(); ++component)
+        {
+            std::map<Vertex, Edge> edges;
+
+            auto add = [&](const Vertex& from, const Vertex& to)
+            {
+                assert(!edges.contains(from)); // A vertex with two exits is a diagonal pinch
+                edges[from] = Edge {from, to};
+            };
+
+            for (const Vertex& c : map.component_cells[component])
+            {
+                auto outside = [&](int i, int j)
+                {
+                    return i < 0 || j < 0 || i >= static_cast<int>(map.w) || j >= static_cast<int>(map.h)
+                        || map.cell_components[static_cast<size_t>(j) * map.w + i] != component;
+                };
+
+                if (outside(c.i, c.j - 1))
+                {
+                    add({c.i, c.j}, {c.i + 1, c.j});
+                }
+
+                if (outside(c.i + 1, c.j))
+                {
+                    add({c.i + 1, c.j}, {c.i + 1, c.j + 1});
+                }
+
+                if (outside(c.i, c.j + 1))
+                {
+                    add({c.i + 1, c.j + 1}, {c.i, c.j + 1});
+                }
+
+                if (outside(c.i - 1, c.j))
+                {
+                    add({c.i, c.j + 1}, {c.i, c.j});
+                }
+            }
+
+            // Chain the edges into rings
+            Rings rings;
+
+            while (!edges.empty())
+            {
+                Ring ring;
+                Vertex start = edges.begin()->first;
+                Vertex v = start;
+
+                do
+                {
+                    auto i = edges.find(v);
+                    assert(i != edges.end()); // A boundary that does not close
+                    ring.push_back(v);
+                    v = i->second.to;
+                    edges.erase(i);
+                } while (v != start);
+
+                rings.push_back(ring);
+            }
+
+            assert(!rings.empty());
+            outlines.push_back(rings);
+        }
+
+        return outlines;
+    }
+
+    //--------------------------------------------------------------------------
+    // Everything a mover meets: the flats and the grid, a wall per outline edge, which cells
+    // hold floor, and one partnered pair per passage between two components
+    // Returns the wall lying on each directed boundary edge, which is what naming an area
+    // then needs to say what stands on its border
+    WallIndex build(quetzal::stratum_sim::Layout& layout, const Map& map, const Outlines& outlines,
+        quetzal::stratum_sim::value_type height_ceiling)
+    {
+        using namespace quetzal::stratum_sim;
+
+        layout.clear();
+        layout.set_flats(value_type(0), height_ceiling);
+        layout.set_grid(point_type(value_type(0), value_type(0), value_type(0)), value_type(1),
+            DiscreteVector(static_cast<long>(map.w), static_cast<long>(map.h)));
+
+        WallIndex walls;
+
+        for (size_t component = 0; component < outlines.size(); ++component)
+        {
+            const Rings& rings = outlines[component];
+
+            std::vector<polygon_type> polygons;
+            polygons.reserve(rings.size());
+            for (const Ring& ring : rings)
+            {
+                polygons.push_back(to_polygon(ring));
+            }
+
+            Layout::ids_type component_starts = layout.create_walls(polygons);
+
+            // A ring's walls run contiguously from the wall it starts at
+            for (size_t n = 0; n < rings.size(); ++n)
+            {
+                const Ring& ring = rings[n];
+                for (size_t i = 0; i < ring.size(); ++i)
+                {
+                    walls[{ring[i], ring[(i + 1) % ring.size()]}] = component_starts[n] + i;
+                }
+            }
+
+            // Openness comes from what the file said of each cell, both formats stating it
+            for (const Vertex& c : map.component_cells[component])
+            {
+                layout.set_cell_open(GridPosition {c.i, c.j}, true);
+            }
+        }
+
+        // Walls are one cell edge each, so a shared edge is one pair
+        for (const Passage& passage : map.passages)
+        {
+            Edge edge_a = boundary_edge(passage.cell, passage.other);
+            Edge edge_b = boundary_edge(passage.other, passage.cell);
+
+            auto a = walls.find({edge_a.from, edge_a.to});
+            auto b = walls.find({edge_b.from, edge_b.to});
+            assert(a != walls.end() && b != walls.end()); // A passage not on either boundary
+
+            layout.connect(a->second, b->second);
+            layout.set_passable(a->second, passage.passable);
+            layout.set_passable(b->second, passage.passable);
+        }
+
+        return walls;
+    }
+
+    //--------------------------------------------------------------------------
+    // One Room per contiguous run of the cells the format called room floor, its outline
+    // traced the same way a component's is. A format that names no rooms builds none, and
+    // corridors, doorways and shafts are never rooms in either
+    // A room's outline edge carries the wall standing on it, or nullid where the room opens
+    // onto a corridor with nothing between them
+    void create_rooms(quetzal::stratum_sim::Layout& layout, const Map& map, const WallIndex& walls)
+    {
+        using namespace quetzal::stratum_sim;
+
+        if (map.cell_room.empty())
+        {
+            return;
+        }
+
+        Map rooms;
+        rooms.w = map.w;
+        rooms.h = map.h;
+
+        find_components(rooms,
+            [&](int i, int j) { return map.cell_room[static_cast<size_t>(j) * map.w + i]; },
+            [](const Vertex&, const Vertex&) { return true; });
+
+        Outlines outlines = trace_outlines(rooms);
+
+        for (size_t component = 0; component < rooms.component_cells.size(); ++component)
+        {
+            Room room;
+
+            // The first outline alone. A room enclosing something it is not needs the rest,
+            // which waits on a format that can say so
+            const Ring& ring = outlines[component].front();
+
+            for (size_t i = 0; i < ring.size(); ++i)
+            {
+                auto w = walls.find({ring[i], ring[(i + 1) % ring.size()]});
+
+                Room::Vertex vertex;
+                vertex.position = point_type(static_cast<value_type>(ring[i].i),
+                    static_cast<value_type>(ring[i].j), value_type(0));
+                vertex.wall_id = w != walls.end() ? w->second : nullid;
+                vertex.type = vertex.wall_id == nullid || layout.wall(vertex.wall_id).passable
+                    ? Room::Type::Open
+                    : Room::Type::Wall;
+
+                room.outline().push_back(vertex);
+            }
+
+            for (const Vertex& c : rooms.component_cells[component])
+            {
+                room.add_cell(GridPosition {c.i, c.j});
+            }
+
+            layout.create_room(room);
+        }
+
+        return;
+    }
+
 } // namespace
+
+//------------------------------------------------------------------------------
+bool quetzal::stratum_sim::detail::read_pair(const std::string& s, char separator, long& first, long& second)
+{
+    size_t n = s.find(separator);
+    if (n == std::string::npos)
+    {
+        return false;
+    }
+
+    try
+    {
+        size_t used = 0;
+        first = std::stol(s.substr(0, n), &used);
+        if (used != n)
+        {
+            return false;
+        }
+
+        std::string rest = s.substr(n + 1);
+        second = std::stol(rest, &used);
+        if (used != rest.size())
+        {
+            return false;
+        }
+    }
+    catch (const std::exception&)
+    {
+        return false;
+    }
+
+    return true;
+}
 
 //------------------------------------------------------------------------------
 void quetzal::stratum_sim::load_layout(const std::filesystem::path& filepath, Layout& layout, value_type height_ceiling)
@@ -130,233 +358,44 @@ void quetzal::stratum_sim::load_layout(const std::filesystem::path& filepath, La
         throw std::runtime_error(std::format("level file {} is empty", filepath.string()));
     }
 
-    size_t h = lines.size();
-    size_t w = 0;
-    for (const std::string& s : lines)
-    {
-        w = std::max(w, s.size());
-    }
+    Header header;
 
-    // Trailing spaces may have been trimmed, and a short line is room floor
-    for (std::string& s : lines)
+    if (header_row(lines.front()))
     {
-        s.resize(w, ' ');
-    }
+        header = read_header(lines.front());
+        lines.erase(lines.begin());
 
-    // The first line of the file is the highest row
-    std::vector<Kind> kinds(w * h);
-    for (size_t j = 0; j < h; ++j)
-    {
-        for (size_t i = 0; i < w; ++i)
+        if (header.version != 1)
         {
-            kinds[j * w + i] = kind(lines[h - 1 - j][i]);
+            throw std::runtime_error(std::format("level file {} is {} format version {}, which is not one this reads",
+                filepath.string(), header.generator, header.version));
         }
     }
 
-    auto at = [&](int i, int j)
+    if (lines.empty())
     {
-        return i < 0 || j < 0 || i >= static_cast<int>(w) || j >= static_cast<int>(h)
-            ? Kind::Rock
-            : kinds[static_cast<size_t>(j) * w + i];
-    };
-
-    // Contiguous open cells with nothing between them are one component. In the block
-    // format nothing ever separates two open cells, so only the solitary kinds break it up
-    std::vector<size_t> cell_components(w * h, static_cast<size_t>(-1));
-    std::vector<std::vector<Vertex>> component_cells;
-
-    for (size_t j = 0; j < h; ++j)
-    {
-        for (size_t i = 0; i < w; ++i)
-        {
-            size_t slot = j * w + i;
-            if (kinds[slot] == Kind::Rock || cell_components[slot] != static_cast<size_t>(-1))
-            {
-                continue;
-            }
-
-            size_t component = component_cells.size();
-            component_cells.push_back({});
-
-            std::vector<Vertex> pending {Vertex {static_cast<int>(i), static_cast<int>(j)}};
-            cell_components[slot] = component;
-
-            while (!pending.empty())
-            {
-                Vertex v = pending.back();
-                pending.pop_back();
-                component_cells[component].push_back(v);
-
-                if (solitary(at(v.i, v.j)))
-                {
-                    continue; // Never merges with a neighbour
-                }
-
-                const Vertex neighbors[4] {{v.i + 1, v.j}, {v.i - 1, v.j}, {v.i, v.j + 1}, {v.i, v.j - 1}};
-                for (const Vertex& n : neighbors)
-                {
-                    if (at(n.i, n.j) == Kind::Rock || solitary(at(n.i, n.j)))
-                    {
-                        continue;
-                    }
-
-                    size_t n_slot = static_cast<size_t>(n.j) * w + n.i;
-                    if (cell_components[n_slot] == static_cast<size_t>(-1))
-                    {
-                        cell_components[n_slot] = component;
-                        pending.push_back(n);
-                    }
-                }
-            }
-        }
+        throw std::runtime_error(std::format("level file {} holds no rows", filepath.string()));
     }
 
-    layout.clear();
-    layout.set_grid(point_type(0.0f, 0.0f, 0.0f), value_type(1), Cell {static_cast<int>(w), static_cast<int>(h)});
+    Map map;
 
-    std::vector<id_type> component_regions(component_cells.size(), nullid);
-
-    for (size_t component = 0; component < component_cells.size(); ++component)
+    if (header.generator == "catagen")
     {
-        // One directed edge per boundary cell edge, wound with the interior on the left.
-        // Not merged across collinear runs: a facing must not span two different
-        // neighbours, or connecting it would need splitting
-        std::map<Vertex, Edge> edges;
-
-        auto add = [&](const Vertex& from, const Vertex& to)
-        {
-            assert(!edges.contains(from)); // A vertex with two exits is a diagonal pinch
-            edges[from] = Edge {from, to};
-        };
-
-        for (const Vertex& c : component_cells[component])
-        {
-            size_t slot = static_cast<size_t>(c.j) * w + c.i;
-            auto outside = [&](int i, int j)
-            {
-                return at(i, j) == Kind::Rock || cell_components[static_cast<size_t>(j) * w + i] != cell_components[slot];
-            };
-
-            if (c.j == 0 || outside(c.i, c.j - 1))
-            {
-                add({c.i, c.j}, {c.i + 1, c.j});
-            }
-
-            if (c.i + 1 == static_cast<int>(w) || outside(c.i + 1, c.j))
-            {
-                add({c.i + 1, c.j}, {c.i + 1, c.j + 1});
-            }
-
-            if (c.j + 1 == static_cast<int>(h) || outside(c.i, c.j + 1))
-            {
-                add({c.i + 1, c.j + 1}, {c.i, c.j + 1});
-            }
-
-            if (c.i == 0 || outside(c.i - 1, c.j))
-            {
-                add({c.i, c.j + 1}, {c.i, c.j});
-            }
-        }
-
-        // Chain the edges into rings
-        std::vector<std::vector<Vertex>> rings;
-
-        while (!edges.empty())
-        {
-            std::vector<Vertex> ring;
-            Vertex start = edges.begin()->first;
-            Vertex v = start;
-
-            do
-            {
-                auto i = edges.find(v);
-                assert(i != edges.end()); // A boundary that does not close
-                ring.push_back(v);
-                v = i->second.to;
-                edges.erase(i);
-            } while (v != start);
-
-            rings.push_back(ring);
-        }
-
-        std::vector<Vertex> outer;
-        std::vector<polygon_type> holes;
-
-        for (const std::vector<Vertex>& ring : rings)
-        {
-            if (signed_area2(ring) > 0)
-            {
-                assert(outer.empty()); // One outer ring per component
-                outer = ring;
-            }
-            else
-            {
-                holes.push_back(to_polygon(ring));
-            }
-        }
-
-        assert(!outer.empty());
-        component_regions[component] = layout.create_region(to_polygon(outer), holes, value_type(0), height_ceiling);
-
-        for (const Vertex& c : component_cells[component])
-        {
-            layout.set_cell_region(Cell {c.i, c.j}, component_regions[component]);
-        }
+        auto [nx, ny] = wall_extent(header, lines, filepath);
+        map = read_walls(lines, nx, ny, filepath);
+    }
+    else if (header.generator.empty() || header.generator == "dungen")
+    {
+        map = read_block(lines);
+    }
+    else
+    {
+        throw std::runtime_error(std::format("level file {} was written by {}, whose format this does not read",
+            filepath.string(), header.generator));
     }
 
-    // Facings are one cell edge each, so a shared edge is one pair
-    for (size_t j = 0; j < h; ++j)
-    {
-        for (size_t i = 0; i < w; ++i)
-        {
-            size_t slot = j * w + i;
-            if (kinds[slot] == Kind::Rock)
-            {
-                continue;
-            }
-
-            const Vertex neighbors[2] {{static_cast<int>(i) + 1, static_cast<int>(j)}, {static_cast<int>(i), static_cast<int>(j) + 1}};
-
-            for (const Vertex& n : neighbors)
-            {
-                if (at(n.i, n.j) == Kind::Rock)
-                {
-                    continue;
-                }
-
-                size_t n_slot = static_cast<size_t>(n.j) * w + n.i;
-                if (cell_components[n_slot] == cell_components[slot])
-                {
-                    continue; // One region, so there is no facing between them
-                }
-
-                id_type region_a = component_regions[cell_components[slot]];
-                id_type region_b = component_regions[cell_components[n_slot]];
-
-                Layout::ids_type walls_a = layout.region_all_walls(region_a);
-                Layout::ids_type walls_b = layout.region_all_walls(region_b);
-
-                for (id_type a : walls_a)
-                {
-                    if (layout.wall(a).partner != nullid)
-                    {
-                        continue;
-                    }
-
-                    for (id_type b : walls_b)
-                    {
-                        if (layout.wall(b).partner == nullid && layout.opposed(a, b))
-                        {
-                            layout.connect(a, b);
-                            layout.set_passable(a, true);
-                            layout.set_passable(b, true);
-                            break;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
+    Outlines outlines = trace_outlines(map);
+    WallIndex walls = build(layout, map, outlines, height_ceiling);
+    create_rooms(layout, map, walls);
     return;
 }

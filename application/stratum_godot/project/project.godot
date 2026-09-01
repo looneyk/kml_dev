@@ -1,0 +1,14 @@
+; Godot front end for stratum. The extension is built by the kml_dev solution into bin/
+
+config_version=5
+
+[application]
+
+config/name="stratum"
+run/main_scene="res://game.tscn"
+config/features=PackedStringArray("4.7")
+
+[display]
+
+window/size/viewport_width=1024
+window/size/viewport_height=1024
