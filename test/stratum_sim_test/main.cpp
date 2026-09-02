@@ -517,7 +517,7 @@ namespace
         report_case_equal("a spur outline keeps its repeated vertex", layout.room(hall).vertex_count(), 7);
 
         // Cells are the other half of containment, and the one a view asks
-        layout.set_grid(stratum_sim::point_type(0.0f, 0.0f, 0.0f), 1.0f, stratum_sim::DiscreteVector(8, 8));
+        layout.set_grid(stratum_sim::point_type(0.0f, 0.0f, 0.0f), 1.0f, stratum_sim::discrete_vector_type(8, 8));
 
         stratum_sim::Room cellar = room_of(rectangle(0.0f, 0.0f, 2.0f, 2.0f));
         cellar.add_cell(stratum_sim::GridPosition {0, 0});
@@ -538,7 +538,7 @@ namespace
         report_group("grid");
 
         stratum_sim::Layout layout;
-        layout.set_grid(stratum_sim::point_type(0.0f, 0.0f, 0.0f), 1.0f, stratum_sim::DiscreteVector(8, 8));
+        layout.set_grid(stratum_sim::point_type(0.0f, 0.0f, 0.0f), 1.0f, stratum_sim::discrete_vector_type(8, 8));
 
         report_case("a point maps to its cell", layout.cell_at(stratum_sim::point_type(2.7f, 3.2f, 0.0f)) == stratum_sim::GridPosition(2, 3));
         report_case("a cell maps back to its centre", layout.cell_position(stratum_sim::GridPosition {2, 3}).x() == 2.5f);
@@ -554,7 +554,7 @@ namespace
         report_group("blocking");
 
         stratum_sim::Layout layout;
-        layout.set_grid(stratum_sim::point_type(0.0f, 0.0f, 0.0f), 1.0f, stratum_sim::DiscreteVector(8, 8));
+        layout.set_grid(stratum_sim::point_type(0.0f, 0.0f, 0.0f), 1.0f, stratum_sim::discrete_vector_type(8, 8));
 
         // Two rooms one cell tall, so their shared boundary is exactly one cell edge
         stratum_sim::Layout::ids_type walls_a = build_outline(layout, rectangle(0.0f, 0.0f, 2.0f, 1.0f));
@@ -961,7 +961,7 @@ namespace
 
         // A corridor four cells long, walled at both ends
         stratum_sim::Layout layout;
-        layout.set_grid(stratum_sim::point_type(0.0f, 0.0f, 0.0f), 1.0f, stratum_sim::DiscreteVector(8, 8));
+        layout.set_grid(stratum_sim::point_type(0.0f, 0.0f, 0.0f), 1.0f, stratum_sim::discrete_vector_type(8, 8));
 
         stratum_sim::Layout::ids_type corridor = build_outline(layout, cell_rectangle(0, 0, 4, 1));
         stratum_sim::Layout::ids_type beyond = build_outline(layout, cell_rectangle(4, 0, 5, 1));
@@ -1107,7 +1107,7 @@ namespace
         stratum_sim::Layout loop;
         stratum_sim::load_layout("data/loop.level", loop);
 
-        report_case("the grid is the file's extent", loop.grid().extent == stratum_sim::DiscreteVector(5, 5));
+        report_case("the grid is the file's extent", loop.grid().extent == stratum_sim::discrete_vector_type(5, 5));
         report_case_equal("a layout has one floor and one ceiling", loop.flat_store_count(), 2);
 
         // One contiguous area, its boundary two closed outlines: around the outside and
@@ -1150,7 +1150,7 @@ namespace
         stratum_sim::load_layout("data/generated.level", generated);
 
         report_case("a generated level reads", generated.wall_store_count() > 0);
-        report_case("its grid matches the file", generated.grid().extent == stratum_sim::DiscreteVector(31, 31));
+        report_case("its grid matches the file", generated.grid().extent == stratum_sim::discrete_vector_type(31, 31));
 
         // 292 of its 961 cells are room floor and 247 corridor, the rest rock, doorways
         // and shafts. Rooms come from the first alone
@@ -1183,7 +1183,7 @@ namespace
     //--------------------------------------------------------------------------
     size_t open_cells(const stratum_sim::Layout& layout)
     {
-        const stratum_sim::DiscreteVector extent = layout.grid().extent;
+        const stratum_sim::discrete_vector_type extent = layout.grid().extent;
         size_t n = 0;
 
         for (long j = 0; j < extent.y(); ++j)
@@ -1202,7 +1202,7 @@ namespace
     // the connectivity movement itself sees rather than one read off an area graph
     size_t cells_reached(const stratum_sim::Layout& layout)
     {
-        const stratum_sim::DiscreteVector extent = layout.grid().extent;
+        const stratum_sim::discrete_vector_type extent = layout.grid().extent;
         auto slot = [&extent](const stratum_sim::GridPosition& c) { return static_cast<size_t>(c.j) * extent.x() + c.i; };
 
         vector<bool> seen(static_cast<size_t>(extent.x()) * extent.y(), false);
@@ -1228,9 +1228,9 @@ namespace
             pending.pop_back();
             ++count;
 
-            const stratum_sim::DiscreteVector steps[4] {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+            const stratum_sim::discrete_vector_type steps[4] {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
 
-            for (const stratum_sim::DiscreteVector& step : steps)
+            for (const stratum_sim::discrete_vector_type& step : steps)
             {
                 stratum_sim::GridPosition t = c + step;
 
@@ -1256,7 +1256,7 @@ namespace
         stratum_sim::Layout walls;
         stratum_sim::load_layout("data/walls.level", walls);
 
-        report_case("the grid is the header's extent", walls.grid().extent == stratum_sim::DiscreteVector(4, 3));
+        report_case("the grid is the header's extent", walls.grid().extent == stratum_sim::discrete_vector_type(4, 3));
         report_case("areas sharing a wall are outlined separately", outline_lengths(walls) == vector<size_t> {10, 10});
         report_case_equal("both outlines account for every wall", walls.wall_store_count(), 20);
 
@@ -1289,7 +1289,7 @@ namespace
         stratum_sim::load_layout("data/walls_no_extent.level", derived);
 
         report_case("an extent absent from the header is derived from the grid",
-            derived.grid().extent == stratum_sim::DiscreteVector(4, 3));
+            derived.grid().extent == stratum_sim::discrete_vector_type(4, 3));
         report_case("and reads the same outlines", outline_lengths(derived) == outline_lengths(walls));
         report_case_equal("and the same walls", derived.wall_store_count(), walls.wall_store_count());
         report_case("and the same door", !derived.blocked(stratum_sim::GridPosition {1, 1}, stratum_sim::Direction::East)
@@ -1300,7 +1300,7 @@ namespace
         stratum_sim::load_layout("data/catagen.level", generated);
 
         report_case("a generated level reads", generated.wall_store_count() > 0);
-        report_case("its grid is the header's extent", generated.grid().extent == stratum_sim::DiscreteVector(24, 14));
+        report_case("its grid is the header's extent", generated.grid().extent == stratum_sim::discrete_vector_type(24, 14));
 
         size_t rock = 0;
         for (int j = 0; j < 14; ++j)
@@ -1334,7 +1334,7 @@ namespace
         stratum_sim::load_layout("data/catagen_spaced.level", spaced);
 
         report_case("a spaced level reads", spaced.wall_store_count() > 0);
-        report_case("its grid is the header's extent", spaced.grid().extent == stratum_sim::DiscreteVector(30, 18));
+        report_case("its grid is the header's extent", spaced.grid().extent == stratum_sim::discrete_vector_type(30, 18));
 
         size_t spaced_rock = 0;
         for (int j = 0; j < 18; ++j)

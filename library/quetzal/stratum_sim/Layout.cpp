@@ -308,7 +308,7 @@ void quetzal::stratum_sim::Layout::set_passable(id_type wall_id, bool passable)
 }
 
 //------------------------------------------------------------------------------
-void quetzal::stratum_sim::Layout::set_grid(const point_type& origin, value_type spacing, const DiscreteVector& extent)
+void quetzal::stratum_sim::Layout::set_grid(const point_type& origin, value_type spacing, const discrete_vector_type& extent)
 {
     assert(spacing > value_type(0));
     assert(extent.x() >= 0 && extent.y() >= 0);
@@ -381,7 +381,7 @@ quetzal::stratum_sim::point_type quetzal::stratum_sim::Layout::cell_position(con
 }
 
 //------------------------------------------------------------------------------
-quetzal::id_type quetzal::stratum_sim::Layout::wall_toward(const GridPosition& cell, const DiscreteVector& direction) const
+quetzal::id_type quetzal::stratum_sim::Layout::wall_toward(const GridPosition& cell, const discrete_vector_type& direction) const
 {
     const Grid& g = grid();
     assert(g.contains(cell));
@@ -440,7 +440,7 @@ quetzal::id_type quetzal::stratum_sim::Layout::wall_toward(const GridPosition& c
 }
 
 //------------------------------------------------------------------------------
-bool quetzal::stratum_sim::Layout::blocked(const GridPosition& cell, const DiscreteVector& direction) const
+bool quetzal::stratum_sim::Layout::blocked(const GridPosition& cell, const discrete_vector_type& direction) const
 {
     id_type id = wall_toward(cell, direction);
     return id != nullid && !wall(id).passable;
@@ -453,7 +453,7 @@ quetzal::stratum_sim::MoveResult quetzal::stratum_sim::Layout::move(const placem
     MoveResult result {placement, nullid};
 
     // Snap to whichever of the layout's own directions the caller most nearly asked for
-    DiscreteVector step = grid_step(direction);
+    discrete_vector_type step = grid_step(direction);
 
     if (step.zero())
     {
@@ -559,9 +559,9 @@ quetzal::stratum_sim::Layout::placements_type quetzal::stratum_sim::Layout::neig
     GridPosition cell = cell_at(placement.position());
 
     const Grid& g = grid();
-    const DiscreteVector steps[4] {Direction::East, Direction::West, Direction::North, Direction::South};
+    const discrete_vector_type steps[4] {Direction::East, Direction::West, Direction::North, Direction::South};
 
-    for (const DiscreteVector& step : steps)
+    for (const discrete_vector_type& step : steps)
     {
         if (blocked(cell, step))
         {
@@ -625,7 +625,7 @@ bool quetzal::stratum_sim::Layout::visible(const placement_type& from, const pla
 
     for (size_t n = 0; n < limit; ++n)
     {
-        DiscreteVector step = t_i < t_j ? DiscreteVector(step_i, 0) : DiscreteVector(0, step_j);
+        discrete_vector_type step = t_i < t_j ? discrete_vector_type(step_i, 0) : discrete_vector_type(0, step_j);
 
         if (blocked(cell, step))
         {

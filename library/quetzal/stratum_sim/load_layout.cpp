@@ -190,7 +190,7 @@ namespace
         layout.clear();
         layout.set_flats(value_type(0), height_ceiling);
         layout.set_grid(point_type(value_type(0), value_type(0), value_type(0)), value_type(1),
-            DiscreteVector(static_cast<long>(map.w), static_cast<long>(map.h)));
+            discrete_vector_type(static_cast<long>(map.w), static_cast<long>(map.h)));
 
         WallIndex walls;
 

@@ -57,7 +57,7 @@ namespace quetzal::stratum_sim
     {
         point_type origin; // Corner of cell (0, 0)
         value_type spacing = value_type(1);
-        DiscreteVector extent; // Cell counts, which is a displacement rather than a position
+        discrete_vector_type extent; // Cell counts, which is a displacement rather than a position
 
         // Whether a cell lies on the grid at all. Cells run from (0, 0) to the extent, so
         // anything negative is off it, as is anything at or past the extent. cell_at maps
@@ -175,7 +175,7 @@ namespace quetzal::stratum_sim
         // which is what leaves one-way passages expressible
         void set_passable(id_type wall_id, bool passable);
 
-        void set_grid(const point_type& origin, value_type spacing, const DiscreteVector& extent);
+        void set_grid(const point_type& origin, value_type spacing, const discrete_vector_type& extent);
         const Grid& grid() const;
 
         // Whether a cell holds floor. Layout data of its own, taken from what a level file
@@ -200,10 +200,10 @@ namespace quetzal::stratum_sim
         // One wall lies on one cell edge, so the two match end for end. Scans the walls
         // rather than consulting an index; an edge keyed index would replace the scan
         // without changing this signature
-        id_type wall_toward(const GridPosition& cell, const DiscreteVector& direction) const;
+        id_type wall_toward(const GridPosition& cell, const discrete_vector_type& direction) const;
 
         // Whether a mover stepping that way is stopped
-        bool blocked(const GridPosition& cell, const DiscreteVector& direction) const;
+        bool blocked(const GridPosition& cell, const discrete_vector_type& direction) const;
 
         // Whatever stands at a placement and stops a mover entering it, nullid when nothing
         // does. What counts as one is the caller's business; the layout only asks, so it

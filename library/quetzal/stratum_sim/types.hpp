@@ -29,7 +29,7 @@ namespace quetzal::stratum_sim
     //--------------------------------------------------------------------------
     // Displacement on the grid: a step between cells, an extent in cells, an offset from
     // one cell to another. What a GridPosition is not
-    using DiscreteVector = math::DiscreteVector<long, 2>;
+    using discrete_vector_type = math::DiscreteVector<long, 2>;
 
     //--------------------------------------------------------------------------
     // The four steps a flat grid can take, named. A holder of constants rather than an
@@ -37,10 +37,10 @@ namespace quetzal::stratum_sim
     // one to the other
     struct Direction
     {
-        inline static const DiscreteVector East = DiscreteVector(1, 0);
-        inline static const DiscreteVector North = DiscreteVector(0, 1);
-        inline static const DiscreteVector West = DiscreteVector(-1, 0);
-        inline static const DiscreteVector South = DiscreteVector(0, -1);
+        inline static const discrete_vector_type East = discrete_vector_type(1, 0);
+        inline static const discrete_vector_type North = discrete_vector_type(0, 1);
+        inline static const discrete_vector_type West = discrete_vector_type(-1, 0);
+        inline static const discrete_vector_type South = discrete_vector_type(0, -1);
     };
 
     //--------------------------------------------------------------------------
@@ -55,28 +55,28 @@ namespace quetzal::stratum_sim
     }
 
     // The cell step a direction through space most nearly asks for, height disregarded
-    inline DiscreteVector grid_step(const vector_type& direction)
+    inline discrete_vector_type grid_step(const vector_type& direction)
     {
-        return math::direction<DiscreteVector>(footprint(direction));
+        return math::direction<discrete_vector_type>(footprint(direction));
     }
 
     //--------------------------------------------------------------------------
     // Which cell of the grid, as a coordinate rather than a stored record. The grid it sits
     // on is recorded at load rather than derived from the wall geometry afterwards
     // A position rather than a displacement, so it is only ever moved by adding a
-    // DiscreteVector to it
+    // discrete_vector_type to it
     struct GridPosition
     {
         long i = 0;
         long j = 0;
 
-        GridPosition& operator+=(const DiscreteVector& v);
+        GridPosition& operator+=(const discrete_vector_type& v);
 
         friend bool operator==(const GridPosition&, const GridPosition&) = default;
     };
 
     //--------------------------------------------------------------------------
-    inline GridPosition& GridPosition::operator+=(const DiscreteVector& v)
+    inline GridPosition& GridPosition::operator+=(const discrete_vector_type& v)
     {
         i += v.x();
         j += v.y();
@@ -84,15 +84,15 @@ namespace quetzal::stratum_sim
     }
 
     //--------------------------------------------------------------------------
-    inline GridPosition operator+(GridPosition position, const DiscreteVector& v)
+    inline GridPosition operator+(GridPosition position, const discrete_vector_type& v)
     {
         return position += v;
     }
 
     //--------------------------------------------------------------------------
-    inline DiscreteVector operator-(const GridPosition& a, const GridPosition& b)
+    inline discrete_vector_type operator-(const GridPosition& a, const GridPosition& b)
     {
-        return DiscreteVector(a.i - b.i, a.j - b.j);
+        return discrete_vector_type(a.i - b.i, a.j - b.j);
     }
 
 } // namespace quetzal::stratum_sim

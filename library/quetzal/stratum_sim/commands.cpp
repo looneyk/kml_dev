@@ -79,7 +79,7 @@ int quetzal::stratum_sim::apply(World& world, const Command& command, EventQueue
 
     if (command.is<Interact>())
     {
-        DiscreteVector step = grid_step(placement.direction());
+        discrete_vector_type step = grid_step(placement.direction());
         if (step.zero())
         {
             return 0;
