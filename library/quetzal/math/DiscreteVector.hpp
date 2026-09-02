@@ -95,9 +95,7 @@ namespace quetzal::math
         bool zero() const;
 
         // The unit step along whichever axis this most nearly points down, ties going to the
-        // later axis, and zero when it points nowhere. Quantizing to a lattice is a choice
-        // of axis rather than a scaling of each component: reducing (9, 8) componentwise
-        // gives a diagonal that was never asked for
+        // later axis, and zero when it points nowhere
         DiscreteVector direction() const;
 
         template<size_type I> requires (I < dimension)
@@ -129,8 +127,6 @@ namespace quetzal::math
     template<std::signed_integral T, size_t N> requires (N > 0)
     DiscreteVector<T, N> operator-(DiscreteVector<T, N> lhs, const DiscreteVector<T, N>& rhs);
 
-    // The scalar is not deduced, so that a literal of another integral type still scales a
-    // vector rather than failing to agree with it
     template<std::signed_integral T, size_t N> requires (N > 0)
     DiscreteVector<T, N> operator*(DiscreteVector<T, N> lhs, std::type_identity_t<T> rhs);
 
@@ -157,10 +153,10 @@ namespace quetzal::math
     template<std::signed_integral T, size_t N> requires (N > 0)
     DiscreteVector<T, N> direction(const DiscreteVector<T, N>& v);
 
-    // The same of a continuous direction. The result type is named rather than deduced,
-    // there being nothing in the argument to say what lattice it is being quantized onto.
-    // The two dimensions must agree: a caller quantizing a direction through space onto a
-    // flat grid reduces it to that plane first, rather than having a component dropped here
+    // The same of a continuous direction. The result type is named, there being nothing in
+    // the argument to say what lattice it is being quantized onto. The two dimensions must
+    // agree, so a caller quantizing a direction through space onto a flat grid reduces it
+    // to that plane first
     template<typename V, typename Traits> requires (Traits::dimension == V::dimension)
     V direction(const Vector<Traits>& v);
 

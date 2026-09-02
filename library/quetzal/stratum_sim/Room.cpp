@@ -13,9 +13,8 @@ namespace
 
     // A room's outline is horizontal, so containment is tested in two dimensions. The
     // outline vertices carry a height that plays no part in it
-    using footprint_traits = quetzal::stratum_sim::traits_type::resized_traits<2>;
-    using footprint_point_type = quetzal::geometry::Point<footprint_traits>;
-    using footprint_type = quetzal::geometry::Polygon<footprint_traits>;
+    using projection_type = quetzal::stratum_sim::point_projection_type;
+    using footprint_type = quetzal::geometry::Polygon<projection_type::projected_traits>;
 
 } // namespace
 
@@ -136,15 +135,17 @@ bool quetzal::stratum_sim::Room::contains(const point_type& position) const
         return false;
     }
 
-    std::vector<footprint_point_type> points;
+    static const projection_type project;
+
+    std::vector<projection_type::projected_type> points;
     points.reserve(m_outline.size());
 
     for (const Vertex& v : m_outline)
     {
-        points.push_back(footprint_point_type(v.position.x(), v.position.y()));
+        points.push_back(project(v.position));
     }
 
-    return footprint_type(points.begin(), points.end()).contains(footprint_point_type(position.x(), position.y()));
+    return footprint_type(points.begin(), points.end()).contains(project(position));
 }
 
 //------------------------------------------------------------------------------

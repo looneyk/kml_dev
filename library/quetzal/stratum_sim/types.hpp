@@ -6,6 +6,7 @@
 //------------------------------------------------------------------------------
 
 #include "quetzal/geometry/DirectedPoint.hpp"
+#include "quetzal/geometry/MinProjection.hpp"
 #include "quetzal/geometry/Point.hpp"
 #include "quetzal/geometry/Polygon.hpp"
 #include "quetzal/math/CartesianTraits.hpp"
@@ -22,19 +23,15 @@ namespace quetzal::stratum_sim
     using points_type = std::vector<point_type>;
     using polygon_type = geometry::Polygon<traits_type>;
 
-    // Where a mover is and which way it faces. Relative movement passes its own direction;
-    // absolute movement passes one the view chose and leaves the mover's alone
+    // Where a mover is and which way it faces
     using placement_type = geometry::DirectedPoint<traits_type>;
 
     //--------------------------------------------------------------------------
-    // Displacement on the grid: a step between cells, an extent in cells, an offset from
-    // one cell to another. What a GridPosition is not
+    // A displacement in the grid
     using discrete_vector_type = math::DiscreteVector<long, 2>;
 
     //--------------------------------------------------------------------------
-    // The four steps a flat grid can take, named. A holder of constants rather than an
-    // enumeration, so that a direction is the displacement itself and nothing has to map
-    // one to the other
+    // The four steps a flat grid can take, named
     struct Direction
     {
         inline static const discrete_vector_type East = discrete_vector_type(1, 0);
@@ -44,27 +41,19 @@ namespace quetzal::stratum_sim
     };
 
     //--------------------------------------------------------------------------
-    // The horizontal plane the grid lies in. A layout is flat, so anything asked of the grid
-    // comes to it through here rather than by dropping a component somewhere further down
-    using footprint_traits = traits_type::resized_traits<2>;
-    using footprint_vector_type = math::Vector<footprint_traits>;
-
-    inline footprint_vector_type footprint(const vector_type& v)
-    {
-        return footprint_vector_type(v.x(), v.y());
-    }
+    // Simple projection along the z-axis onto the xy_plane 
+    using point_projection_type = geometry::MinProjection<point_type>;
+    using vector_projection_type = geometry::MinProjection<vector_type>;
 
     // The cell step a direction through space most nearly asks for, height disregarded
     inline discrete_vector_type grid_step(const vector_type& direction)
     {
-        return math::direction<discrete_vector_type>(footprint(direction));
+        static const vector_projection_type project;
+        return math::direction<discrete_vector_type>(project(direction));
     }
 
     //--------------------------------------------------------------------------
-    // Which cell of the grid, as a coordinate rather than a stored record. The grid it sits
-    // on is recorded at load rather than derived from the wall geometry afterwards
-    // A position rather than a displacement, so it is only ever moved by adding a
-    // discrete_vector_type to it
+    // The coordinates of a cell in the grid
     struct GridPosition
     {
         long i = 0;
