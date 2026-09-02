@@ -7,7 +7,6 @@
 
 #include "CommandQueue.hpp"
 #include "EventQueue.hpp"
-#include "Layout.hpp"
 #include "World.hpp"
 #include "types.hpp"
 
@@ -27,7 +26,7 @@ namespace quetzal::stratum_sim
 
     //--------------------------------------------------------------------------
     // The facing asked for, absolute rather than relative, which the layout snaps to one of
-    // its own. A view with a relative turn asks Layout::turn what lies that way and sends
+    // its own. A view with a relative turn asks the layout's turn what lies that way and sends
     // the answer, so the quantization stays with the layout
     struct TurnTo
     {

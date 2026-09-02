@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 // stratum_sim
-// Layout.cpp
+// DiscreteLayout.cpp
 //------------------------------------------------------------------------------
 
-#include "Layout.hpp"
+#include "DiscreteLayout.hpp"
 #include "quetzal/math/floating_point.hpp"
 #include <cassert>
 #include <cmath>
@@ -45,111 +45,228 @@ bool quetzal::stratum_sim::Grid::contains(const GridPosition& cell) const
 }
 
 //------------------------------------------------------------------------------
-const quetzal::stratum_sim::Wall& quetzal::stratum_sim::Layout::wall(id_type wall_id) const
+quetzal::stratum_sim::GridPosition quetzal::stratum_sim::Grid::cell_at(const point_type& position) const
 {
-    assert(wall_id < m_wall_store.size());
-    return m_wall_store[wall_id];
+    auto [px, py, pz] = position.rep();
+    auto [ox, oy, oz] = origin.rep();
+
+    value_type i = std::floor((px - ox) / spacing);
+    value_type j = std::floor((py - oy) / spacing);
+
+    return {static_cast<long>(i), static_cast<long>(j)};
 }
 
 //------------------------------------------------------------------------------
-quetzal::stratum_sim::Wall& quetzal::stratum_sim::Layout::wall(id_type wall_id)
+quetzal::stratum_sim::point_type quetzal::stratum_sim::Grid::cell_position(const GridPosition& cell) const
 {
-    assert(wall_id < m_wall_store.size());
-    return m_wall_store[wall_id];
+    auto [ox, oy, oz] = origin.rep();
+
+    value_type x = ox + (static_cast<value_type>(cell.i) + value_type(0.5)) * spacing;
+    value_type y = oy + (static_cast<value_type>(cell.j) + value_type(0.5)) * spacing;
+
+    return point_type(x, y, oz);
 }
 
 //------------------------------------------------------------------------------
-size_t quetzal::stratum_sim::Layout::wall_store_count() const
+quetzal::stratum_sim::Flat::Flat(value_type height, bool ceiling) :
+    m_height(height),
+    m_ceiling(ceiling),
+    m_sampling(),
+    m_heights()
 {
-    return m_wall_store.size();
 }
 
 //------------------------------------------------------------------------------
-const quetzal::stratum_sim::Layout::walls_type& quetzal::stratum_sim::Layout::wall_store() const
+bool quetzal::stratum_sim::Flat::ceiling() const
 {
-    return m_wall_store;
+    return m_ceiling;
 }
 
 //------------------------------------------------------------------------------
-const quetzal::stratum_sim::Room& quetzal::stratum_sim::Layout::room(id_type room_id) const
+void quetzal::stratum_sim::Flat::set_ceiling(bool b)
 {
-    assert(room_id < m_room_store.size());
-    return m_room_store[room_id];
+    m_ceiling = b;
+    return;
 }
 
 //------------------------------------------------------------------------------
-quetzal::stratum_sim::Room& quetzal::stratum_sim::Layout::room(id_type room_id)
+std::optional<quetzal::stratum_sim::value_type> quetzal::stratum_sim::Flat::height(const point_type& position) const
 {
-    assert(room_id < m_room_store.size());
-    return m_room_store[room_id];
+    if (!sampled())
+    {
+        return m_height;
+    }
+
+    GridPosition p = m_sampling->cell_at(position);
+    if (!m_sampling->contains(p))
+    {
+        return {}; // Off the sampling grid is off the surface
+    }
+
+    return sample(p);
 }
 
 //------------------------------------------------------------------------------
-size_t quetzal::stratum_sim::Layout::room_store_count() const
+quetzal::stratum_sim::value_type quetzal::stratum_sim::Flat::height() const
 {
-    return m_room_store.size();
+    return m_height;
 }
 
 //------------------------------------------------------------------------------
-const quetzal::stratum_sim::Layout::rooms_type& quetzal::stratum_sim::Layout::room_store() const
+void quetzal::stratum_sim::Flat::set_height(value_type height)
 {
-    return m_room_store;
+    m_height = height;
+    return;
 }
 
 //------------------------------------------------------------------------------
-const quetzal::stratum_sim::Flat& quetzal::stratum_sim::Layout::flat(id_type flat_id) const
+void quetzal::stratum_sim::Flat::set_sampling(const Grid& grid)
 {
-    assert(flat_id < m_flat_store.size());
-    return m_flat_store[flat_id];
-}
-
-//------------------------------------------------------------------------------
-quetzal::stratum_sim::Flat& quetzal::stratum_sim::Layout::flat(id_type flat_id)
-{
-    assert(flat_id < m_flat_store.size());
-    return m_flat_store[flat_id];
-}
-
-//------------------------------------------------------------------------------
-size_t quetzal::stratum_sim::Layout::flat_store_count() const
-{
-    return m_flat_store.size();
-}
-
-//------------------------------------------------------------------------------
-const quetzal::stratum_sim::Layout::flats_type& quetzal::stratum_sim::Layout::flat_store() const
-{
-    return m_flat_store;
-}
-
-//------------------------------------------------------------------------------
-quetzal::id_type quetzal::stratum_sim::Layout::floor_id() const
-{
-    return m_floor_id;
-}
-
-//------------------------------------------------------------------------------
-quetzal::id_type quetzal::stratum_sim::Layout::ceiling_id() const
-{
-    return m_ceiling_id;
-}
-
-//------------------------------------------------------------------------------
-void quetzal::stratum_sim::Layout::set_flats(value_type height_floor, value_type height_ceiling)
-{
-    assert(m_floor_id == nullid); // The two bound the layout, so they are set once
-
-    m_floor_id = m_flat_store.size();
-    m_flat_store.push_back({height_floor, false});
-
-    m_ceiling_id = m_flat_store.size();
-    m_flat_store.push_back({height_ceiling, true});
+    m_sampling = grid;
+    m_heights.assign(static_cast<size_t>(grid.extent.x()) * static_cast<size_t>(grid.extent.y()), m_height);
 
     return;
 }
 
 //------------------------------------------------------------------------------
-quetzal::stratum_sim::Layout::ids_type quetzal::stratum_sim::Layout::create_walls(const std::vector<polygon_type>& outlines)
+bool quetzal::stratum_sim::Flat::sampled() const
+{
+    return m_sampling.has_value();
+}
+
+//------------------------------------------------------------------------------
+const quetzal::stratum_sim::Grid& quetzal::stratum_sim::Flat::sampling() const
+{
+    assert(sampled());
+    return *m_sampling;
+}
+
+//------------------------------------------------------------------------------
+std::optional<quetzal::stratum_sim::value_type> quetzal::stratum_sim::Flat::sample(const GridPosition& position) const
+{
+    assert(sampled());
+    assert(m_sampling->contains(position));
+
+    return m_heights[static_cast<size_t>(position.j) * static_cast<size_t>(m_sampling->extent.x()) + static_cast<size_t>(position.i)];
+}
+
+//------------------------------------------------------------------------------
+void quetzal::stratum_sim::Flat::set_sample(const GridPosition& position, std::optional<value_type> height)
+{
+    assert(sampled());
+    assert(m_sampling->contains(position));
+
+    m_heights[static_cast<size_t>(position.j) * static_cast<size_t>(m_sampling->extent.x()) + static_cast<size_t>(position.i)] = height;
+
+    return;
+}
+
+//------------------------------------------------------------------------------
+const quetzal::stratum_sim::Wall& quetzal::stratum_sim::DiscreteLayout::wall(id_type wall_id) const
+{
+    assert(wall_id < m_wall_store.size());
+    return m_wall_store[wall_id];
+}
+
+//------------------------------------------------------------------------------
+quetzal::stratum_sim::Wall& quetzal::stratum_sim::DiscreteLayout::wall(id_type wall_id)
+{
+    assert(wall_id < m_wall_store.size());
+    return m_wall_store[wall_id];
+}
+
+//------------------------------------------------------------------------------
+size_t quetzal::stratum_sim::DiscreteLayout::wall_store_count() const
+{
+    return m_wall_store.size();
+}
+
+//------------------------------------------------------------------------------
+const quetzal::stratum_sim::DiscreteLayout::walls_type& quetzal::stratum_sim::DiscreteLayout::wall_store() const
+{
+    return m_wall_store;
+}
+
+//------------------------------------------------------------------------------
+const quetzal::stratum_sim::Room& quetzal::stratum_sim::DiscreteLayout::room(id_type room_id) const
+{
+    assert(room_id < m_room_store.size());
+    return m_room_store[room_id];
+}
+
+//------------------------------------------------------------------------------
+quetzal::stratum_sim::Room& quetzal::stratum_sim::DiscreteLayout::room(id_type room_id)
+{
+    assert(room_id < m_room_store.size());
+    return m_room_store[room_id];
+}
+
+//------------------------------------------------------------------------------
+size_t quetzal::stratum_sim::DiscreteLayout::room_store_count() const
+{
+    return m_room_store.size();
+}
+
+//------------------------------------------------------------------------------
+const quetzal::stratum_sim::DiscreteLayout::rooms_type& quetzal::stratum_sim::DiscreteLayout::room_store() const
+{
+    return m_room_store;
+}
+
+//------------------------------------------------------------------------------
+const quetzal::stratum_sim::Flat& quetzal::stratum_sim::DiscreteLayout::flat(id_type flat_id) const
+{
+    assert(flat_id < m_flat_store.size());
+    return m_flat_store[flat_id];
+}
+
+//------------------------------------------------------------------------------
+quetzal::stratum_sim::Flat& quetzal::stratum_sim::DiscreteLayout::flat(id_type flat_id)
+{
+    assert(flat_id < m_flat_store.size());
+    return m_flat_store[flat_id];
+}
+
+//------------------------------------------------------------------------------
+size_t quetzal::stratum_sim::DiscreteLayout::flat_store_count() const
+{
+    return m_flat_store.size();
+}
+
+//------------------------------------------------------------------------------
+const quetzal::stratum_sim::DiscreteLayout::flats_type& quetzal::stratum_sim::DiscreteLayout::flat_store() const
+{
+    return m_flat_store;
+}
+
+//------------------------------------------------------------------------------
+quetzal::id_type quetzal::stratum_sim::DiscreteLayout::floor_id() const
+{
+    return m_floor_id;
+}
+
+//------------------------------------------------------------------------------
+quetzal::id_type quetzal::stratum_sim::DiscreteLayout::ceiling_id() const
+{
+    return m_ceiling_id;
+}
+
+//------------------------------------------------------------------------------
+void quetzal::stratum_sim::DiscreteLayout::set_flats(value_type height_floor, value_type height_ceiling)
+{
+    assert(m_floor_id == nullid); // The two bound the layout, so they are set once
+
+    m_floor_id = m_flat_store.size();
+    m_flat_store.emplace_back(height_floor, false);
+
+    m_ceiling_id = m_flat_store.size();
+    m_flat_store.emplace_back(height_ceiling, true);
+
+    return;
+}
+
+//------------------------------------------------------------------------------
+quetzal::stratum_sim::DiscreteLayout::ids_type quetzal::stratum_sim::DiscreteLayout::create_walls(const std::vector<polygon_type>& outlines)
 {
     ids_type starts;
     starts.reserve(outlines.size());
@@ -177,7 +294,7 @@ quetzal::stratum_sim::Layout::ids_type quetzal::stratum_sim::Layout::create_wall
 }
 
 //------------------------------------------------------------------------------
-quetzal::id_type quetzal::stratum_sim::Layout::create_room(const Room& room)
+quetzal::id_type quetzal::stratum_sim::DiscreteLayout::create_room(const Room& room)
 {
     id_type room_id = m_room_store.size();
     m_room_store.push_back(room);
@@ -191,7 +308,7 @@ quetzal::id_type quetzal::stratum_sim::Layout::create_room(const Room& room)
 }
 
 //------------------------------------------------------------------------------
-quetzal::id_type quetzal::stratum_sim::Layout::room_at(const point_type& point) const
+quetzal::id_type quetzal::stratum_sim::DiscreteLayout::room_at(const point_type& point) const
 {
     for (id_type room_id = 0; room_id < m_room_store.size(); ++room_id)
     {
@@ -205,7 +322,7 @@ quetzal::id_type quetzal::stratum_sim::Layout::room_at(const point_type& point) 
 }
 
 //------------------------------------------------------------------------------
-quetzal::id_type quetzal::stratum_sim::Layout::room_at(const GridPosition& cell) const
+quetzal::id_type quetzal::stratum_sim::DiscreteLayout::room_at(const GridPosition& cell) const
 {
     const Grid& g = grid();
     assert(g.contains(cell));
@@ -214,7 +331,7 @@ quetzal::id_type quetzal::stratum_sim::Layout::room_at(const GridPosition& cell)
 }
 
 //------------------------------------------------------------------------------
-void quetzal::stratum_sim::Layout::set_cell_room(const GridPosition& cell, id_type room_id)
+void quetzal::stratum_sim::DiscreteLayout::set_cell_room(const GridPosition& cell, id_type room_id)
 {
     const Grid& g = grid();
     assert(g.contains(cell));
@@ -225,7 +342,7 @@ void quetzal::stratum_sim::Layout::set_cell_room(const GridPosition& cell, id_ty
 }
 
 //------------------------------------------------------------------------------
-bool quetzal::stratum_sim::Layout::opposed(id_type wall_id_a, id_type wall_id_b) const
+bool quetzal::stratum_sim::DiscreteLayout::opposed(id_type wall_id_a, id_type wall_id_b) const
 {
     if (wall_id_a == nullid || wall_id_b == nullid || wall_id_a == wall_id_b)
     {
@@ -244,7 +361,7 @@ bool quetzal::stratum_sim::Layout::opposed(id_type wall_id_a, id_type wall_id_b)
 }
 
 //------------------------------------------------------------------------------
-void quetzal::stratum_sim::Layout::connect(id_type wall_id_a, id_type wall_id_b)
+void quetzal::stratum_sim::DiscreteLayout::connect(id_type wall_id_a, id_type wall_id_b)
 {
     assert(opposed(wall_id_a, wall_id_b));
 
@@ -255,7 +372,7 @@ void quetzal::stratum_sim::Layout::connect(id_type wall_id_a, id_type wall_id_b)
 }
 
 //------------------------------------------------------------------------------
-void quetzal::stratum_sim::Layout::disconnect(id_type wall_id)
+void quetzal::stratum_sim::DiscreteLayout::disconnect(id_type wall_id)
 {
     id_type partner_id = wall(wall_id).partner_id;
     wall(wall_id).partner_id = nullid;
@@ -269,7 +386,7 @@ void quetzal::stratum_sim::Layout::disconnect(id_type wall_id)
 }
 
 //------------------------------------------------------------------------------
-size_t quetzal::stratum_sim::Layout::connect_walls(const ids_type& wall_ids_a, const ids_type& wall_ids_b)
+size_t quetzal::stratum_sim::DiscreteLayout::connect_walls(const ids_type& wall_ids_a, const ids_type& wall_ids_b)
 {
     size_t count = 0;
 
@@ -295,20 +412,20 @@ size_t quetzal::stratum_sim::Layout::connect_walls(const ids_type& wall_ids_a, c
 }
 
 //------------------------------------------------------------------------------
-size_t quetzal::stratum_sim::Layout::connect_folds(const ids_type& wall_ids)
+size_t quetzal::stratum_sim::DiscreteLayout::connect_folds(const ids_type& wall_ids)
 {
     return connect_walls(wall_ids, wall_ids);
 }
 
 //------------------------------------------------------------------------------
-void quetzal::stratum_sim::Layout::set_passable(id_type wall_id, bool passable)
+void quetzal::stratum_sim::DiscreteLayout::set_passable(id_type wall_id, bool passable)
 {
     wall(wall_id).passable = passable;
     return;
 }
 
 //------------------------------------------------------------------------------
-void quetzal::stratum_sim::Layout::set_grid(const point_type& origin, value_type spacing, const discrete_vector_type& extent)
+void quetzal::stratum_sim::DiscreteLayout::set_grid(const point_type& origin, value_type spacing, const discrete_vector_type& extent)
 {
     assert(spacing > value_type(0));
     assert(extent.x() >= 0 && extent.y() >= 0);
@@ -321,7 +438,7 @@ void quetzal::stratum_sim::Layout::set_grid(const point_type& origin, value_type
 }
 
 //------------------------------------------------------------------------------
-bool quetzal::stratum_sim::Layout::open(const GridPosition& cell) const
+bool quetzal::stratum_sim::DiscreteLayout::open(const GridPosition& cell) const
 {
     const Grid& g = grid();
     assert(g.contains(cell));
@@ -330,7 +447,7 @@ bool quetzal::stratum_sim::Layout::open(const GridPosition& cell) const
 }
 
 //------------------------------------------------------------------------------
-void quetzal::stratum_sim::Layout::set_cell_open(const GridPosition& cell, bool open)
+void quetzal::stratum_sim::DiscreteLayout::set_cell_open(const GridPosition& cell, bool open)
 {
     const Grid& g = grid();
     assert(g.contains(cell));
@@ -341,47 +458,46 @@ void quetzal::stratum_sim::Layout::set_cell_open(const GridPosition& cell, bool 
 }
 
 //------------------------------------------------------------------------------
-const quetzal::stratum_sim::Grid& quetzal::stratum_sim::Layout::grid() const
+const quetzal::stratum_sim::Grid& quetzal::stratum_sim::DiscreteLayout::grid() const
 {
     assert(m_grid.has_value());
     return *m_grid;
 }
 
 //------------------------------------------------------------------------------
-quetzal::stratum_sim::value_type quetzal::stratum_sim::Layout::step_distance() const
+quetzal::stratum_sim::value_type quetzal::stratum_sim::DiscreteLayout::step_distance() const
 {
     return grid().spacing;
 }
 
 //------------------------------------------------------------------------------
-quetzal::stratum_sim::GridPosition quetzal::stratum_sim::Layout::cell_at(const point_type& point) const
+quetzal::stratum_sim::GridPosition quetzal::stratum_sim::DiscreteLayout::cell_at(const point_type& point) const
 {
-    const Grid& g = grid();
-
-    auto [px, py, pz] = point.rep();
-    auto [ox, oy, oz] = g.origin.rep();
-
-    value_type i = std::floor((px - ox) / g.spacing);
-    value_type j = std::floor((py - oy) / g.spacing);
-
-    return {static_cast<int>(i), static_cast<int>(j)};
+    return grid().cell_at(point);
 }
 
 //------------------------------------------------------------------------------
-quetzal::stratum_sim::point_type quetzal::stratum_sim::Layout::cell_position(const GridPosition& cell) const
+quetzal::stratum_sim::point_type quetzal::stratum_sim::DiscreteLayout::cell_position(const GridPosition& cell) const
 {
-    const Grid& g = grid();
+    point_type position = grid().cell_position(cell);
 
-    auto [ox, oy, oz] = g.origin.rep();
+    // The floor is what says where the ground is. A layout with no floor stands on the grid's
+    // own plane instead, which is what one under construction has; so does a cell the floor is
+    // absent under, that being a hole rather than a place to stand
+    if (m_floor_id != nullid)
+    {
+        std::optional<value_type> height = flat(m_floor_id).height(position);
+        if (height)
+        {
+            position.set_z(*height);
+        }
+    }
 
-    value_type x = ox + (static_cast<value_type>(cell.i) + value_type(0.5)) * g.spacing;
-    value_type y = oy + (static_cast<value_type>(cell.j) + value_type(0.5)) * g.spacing;
-
-    return point_type(x, y, oz);
+    return position;
 }
 
 //------------------------------------------------------------------------------
-quetzal::id_type quetzal::stratum_sim::Layout::wall_toward(const GridPosition& cell, const discrete_vector_type& direction) const
+quetzal::id_type quetzal::stratum_sim::DiscreteLayout::wall_toward(const GridPosition& cell, const discrete_vector_type& direction) const
 {
     const Grid& g = grid();
     assert(g.contains(cell));
@@ -440,14 +556,14 @@ quetzal::id_type quetzal::stratum_sim::Layout::wall_toward(const GridPosition& c
 }
 
 //------------------------------------------------------------------------------
-bool quetzal::stratum_sim::Layout::blocked(const GridPosition& cell, const discrete_vector_type& direction) const
+bool quetzal::stratum_sim::DiscreteLayout::blocked(const GridPosition& cell, const discrete_vector_type& direction) const
 {
     id_type id = wall_toward(cell, direction);
     return id != nullid && !wall(id).passable;
 }
 
 //------------------------------------------------------------------------------
-quetzal::stratum_sim::MoveResult quetzal::stratum_sim::Layout::move(const placement_type& placement, const vector_type& direction, value_type distance,
+quetzal::stratum_sim::MoveResult quetzal::stratum_sim::DiscreteLayout::move(const placement_type& placement, const vector_type& direction, value_type distance,
     const obstructed_type& obstructed) const
 {
     MoveResult result {placement, nullid};
@@ -503,7 +619,7 @@ quetzal::stratum_sim::MoveResult quetzal::stratum_sim::Layout::move(const placem
 }
 
 //------------------------------------------------------------------------------
-quetzal::stratum_sim::placement_type quetzal::stratum_sim::Layout::turn(const placement_type& placement, Rotation rotation) const
+quetzal::stratum_sim::placement_type quetzal::stratum_sim::DiscreteLayout::turn(const placement_type& placement, Rotation rotation) const
 {
     placement_type result = placement;
 
@@ -528,7 +644,7 @@ quetzal::stratum_sim::placement_type quetzal::stratum_sim::Layout::turn(const pl
 }
 
 //------------------------------------------------------------------------------
-quetzal::stratum_sim::placement_type quetzal::stratum_sim::Layout::face(const placement_type& placement, const vector_type& direction) const
+quetzal::stratum_sim::placement_type quetzal::stratum_sim::DiscreteLayout::face(const placement_type& placement, const vector_type& direction) const
 {
     placement_type result = placement;
 
@@ -547,13 +663,13 @@ quetzal::stratum_sim::placement_type quetzal::stratum_sim::Layout::face(const pl
 }
 
 //------------------------------------------------------------------------------
-bool quetzal::stratum_sim::Layout::same_location(const placement_type& a, const placement_type& b) const
+bool quetzal::stratum_sim::DiscreteLayout::same_location(const placement_type& a, const placement_type& b) const
 {
     return cell_at(a.position()) == cell_at(b.position());
 }
 
 //------------------------------------------------------------------------------
-quetzal::stratum_sim::Layout::placements_type quetzal::stratum_sim::Layout::neighbors(const placement_type& placement) const
+quetzal::stratum_sim::DiscreteLayout::placements_type quetzal::stratum_sim::DiscreteLayout::neighbors(const placement_type& placement) const
 {
     placements_type result;
     GridPosition cell = cell_at(placement.position());
@@ -580,7 +696,7 @@ quetzal::stratum_sim::Layout::placements_type quetzal::stratum_sim::Layout::neig
 }
 
 //------------------------------------------------------------------------------
-bool quetzal::stratum_sim::Layout::visible(const placement_type& from, const placement_type& to) const
+bool quetzal::stratum_sim::DiscreteLayout::visible(const placement_type& from, const placement_type& to) const
 {
     GridPosition cell = cell_at(from.position());
     GridPosition target = cell_at(to.position());
@@ -657,7 +773,7 @@ bool quetzal::stratum_sim::Layout::visible(const placement_type& from, const pla
 }
 
 //------------------------------------------------------------------------------
-void quetzal::stratum_sim::Layout::clear()
+void quetzal::stratum_sim::DiscreteLayout::clear()
 {
     m_wall_store.clear();
     m_room_store.clear();

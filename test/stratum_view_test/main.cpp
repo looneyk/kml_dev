@@ -167,8 +167,7 @@ namespace
         report_group("cells");
 
         stratum_sim::World world;
-        flecs::entity zone = world.create_zone("crypt");
-        stratum_sim::load_layout("data/corridor.level", world.layout(zone));
+        flecs::entity zone = world.create_zone("crypt", stratum_sim::load_layout("data/corridor.level"));
 
         stratum_view::Cells cells = stratum_view::cells(world, zone);
 
@@ -178,7 +177,7 @@ namespace
         report_case("floor where it says open", cells.at(1, 1) == stratum_view::Kind::Floor);
         report_case("no actor before one exists", cells.at(3, 1) != stratum_view::Kind::Actor);
 
-        stratum_sim::Layout& layout = world.layout(zone);
+        const stratum_sim::DiscreteLayout& layout = stratum_sim::layout_as<stratum_sim::DiscreteLayout>(world.layout(zone));
         world.create_entity(zone, stratum_sim::placement_type(layout.cell_position(stratum_sim::GridPosition {3, 1}),
             stratum_sim::vector_type(1.0f, 0.0f, 0.0f)));
 
@@ -209,8 +208,7 @@ namespace
         report_group("ascii render");
 
         stratum_sim::World world;
-        flecs::entity zone = world.create_zone("crypt");
-        stratum_sim::load_layout("data/corridor.level", world.layout(zone));
+        flecs::entity zone = world.create_zone("crypt", stratum_sim::load_layout("data/corridor.level"));
 
         stratum_view::Console console = stratum_view::render(world, zone);
 
@@ -223,7 +221,7 @@ namespace
         report_case("beyond it is rock", console.at(6, 1) == '#');
 
         // An actor draws over the floor it stands on
-        stratum_sim::Layout& layout = world.layout(zone);
+        const stratum_sim::DiscreteLayout& layout = stratum_sim::layout_as<stratum_sim::DiscreteLayout>(world.layout(zone));
         world.create_entity(zone, stratum_sim::placement_type(layout.cell_position(stratum_sim::GridPosition {3, 1}), stratum_sim::vector_type(1.0f, 0.0f, 0.0f)));
 
         console = stratum_view::render(world, zone);
@@ -245,8 +243,7 @@ namespace
             string filepath = format("data/{}.level", name);
 
             stratum_sim::World world;
-            flecs::entity zone = world.create_zone(name);
-            stratum_sim::load_layout(filepath, world.layout(zone));
+            flecs::entity zone = world.create_zone(name, stratum_sim::load_layout(filepath));
 
             string s = stratum_view::render(world, zone).to_string();
             report_case(format("{} renders back to its own file", name), s == read_file(filepath), "\n" + s);
@@ -265,8 +262,7 @@ namespace
         string source = read_file("data/dungeon.level");
 
         stratum_sim::World world;
-        flecs::entity zone = world.create_zone("dungeon");
-        stratum_sim::load_layout("data/dungeon.level", world.layout(zone));
+        flecs::entity zone = world.create_zone("dungeon", stratum_sim::load_layout("data/dungeon.level"));
 
         stratum_view::Console console = stratum_view::render(world, zone);
 
@@ -317,7 +313,7 @@ namespace
     //--------------------------------------------------------------------------
     // The command a script character asks for, empty for anything else. Mapped here rather
     // than taken from the terminal host, which is not what these frames are checking
-    stratum_sim::Command command_of(char c, flecs::entity player, const stratum_sim::Layout& layout)
+    stratum_sim::Command command_of(char c, flecs::entity player, const stratum_sim::DiscreteLayout& layout)
     {
         id_type entity_id = player.id();
 
@@ -349,7 +345,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    string describe(const stratum_sim::Event& event, const stratum_sim::Layout& layout)
+    string describe(const stratum_sim::Event& event, const stratum_sim::DiscreteLayout& layout)
     {
         if (const stratum_sim::Moved* pevent = event.try_get<stratum_sim::Moved>())
         {
@@ -380,7 +376,7 @@ namespace
     //--------------------------------------------------------------------------
     string frame(const stratum_sim::World& world, flecs::entity zone, flecs::entity player, const string& label, const stratum_sim::EventQueue& events)
     {
-        const stratum_sim::Layout& layout = world.layout(zone);
+        const stratum_sim::DiscreteLayout& layout = stratum_sim::layout_as<stratum_sim::DiscreteLayout>(world.layout(zone));
         const stratum_sim::placement_type& placement = player.get<stratum_sim::placement_type>();
         stratum_sim::GridPosition cell = layout.cell_at(placement.position());
 
@@ -403,10 +399,9 @@ namespace
     string play(const string& filepath, const stratum_sim::GridPosition& start, const string& script)
     {
         stratum_sim::World world;
-        flecs::entity zone = world.create_zone("zone");
-        stratum_sim::load_layout(filepath, world.layout(zone));
+        flecs::entity zone = world.create_zone("zone", stratum_sim::load_layout(filepath));
 
-        const stratum_sim::Layout& layout = world.layout(zone);
+        const stratum_sim::DiscreteLayout& layout = stratum_sim::layout_as<stratum_sim::DiscreteLayout>(world.layout(zone));
         flecs::entity player = world.create_entity(zone, stratum_sim::placement_type(layout.cell_position(start), stratum_sim::vector_type(1.0f, 0.0f, 0.0f)));
 
         stratum_sim::EventQueue events;

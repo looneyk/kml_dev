@@ -103,7 +103,7 @@ namespace
 
     //--------------------------------------------------------------------------
     // The boundary of every component, as closed outlines. Geometry derived from the map and
-    // nothing more: nothing is built here and no Layout is touched
+    // nothing more: nothing is built here and no layout is touched
     // One directed edge per boundary cell edge, wound with the open space on the left
     Outlines trace_outlines(const Map& map)
     {
@@ -182,7 +182,7 @@ namespace
     // hold floor, and one partnered pair per passage between two components
     // Returns the wall lying on each directed boundary edge, which is what naming an area
     // then needs to say what stands on its border
-    WallIndex build(quetzal::stratum_sim::Layout& layout, const Map& map, const Outlines& outlines,
+    WallIndex build(quetzal::stratum_sim::DiscreteLayout& layout, const Map& map, const Outlines& outlines,
         quetzal::stratum_sim::value_type height_ceiling)
     {
         using namespace quetzal::stratum_sim;
@@ -205,7 +205,7 @@ namespace
                 polygons.push_back(to_polygon(ring));
             }
 
-            Layout::ids_type component_starts = layout.create_walls(polygons);
+            DiscreteLayout::ids_type component_starts = layout.create_walls(polygons);
 
             // A ring's walls run contiguously from the wall it starts at
             for (size_t n = 0; n < rings.size(); ++n)
@@ -248,7 +248,7 @@ namespace
     // corridors, doorways and shafts are never rooms in either
     // A room's outline edge carries the wall standing on it, or nullid where the room opens
     // onto a corridor with nothing between them
-    void create_rooms(quetzal::stratum_sim::Layout& layout, const Map& map, const WallIndex& walls)
+    void create_rooms(quetzal::stratum_sim::DiscreteLayout& layout, const Map& map, const WallIndex& walls)
     {
         using namespace quetzal::stratum_sim;
 
@@ -337,7 +337,7 @@ bool quetzal::stratum_sim::detail::read_pair(const std::string& s, char separato
 }
 
 //------------------------------------------------------------------------------
-void quetzal::stratum_sim::load_layout(const std::filesystem::path& filepath, Layout& layout, value_type height_ceiling)
+std::unique_ptr<quetzal::stratum_sim::DiscreteLayout> quetzal::stratum_sim::load_layout(const std::filesystem::path& filepath, value_type height_ceiling)
 {
     std::ifstream is(filepath, std::ios_base::binary);
     if (!is)
@@ -394,8 +394,12 @@ void quetzal::stratum_sim::load_layout(const std::filesystem::path& filepath, La
             filepath.string(), header.generator));
     }
 
+    // Built only once every way the read can fail has passed, so a throw leaves nothing behind
+    auto layout = std::make_unique<DiscreteLayout>();
+
     Outlines outlines = trace_outlines(map);
-    WallIndex walls = build(layout, map, outlines, height_ceiling);
-    create_rooms(layout, map, walls);
-    return;
+    WallIndex walls = build(*layout, map, outlines, height_ceiling);
+    create_rooms(*layout, map, walls);
+
+    return layout;
 }

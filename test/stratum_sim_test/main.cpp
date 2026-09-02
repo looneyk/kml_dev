@@ -8,7 +8,8 @@
 #include "quetzal/stratum_sim/Event.hpp"
 #include "quetzal/stratum_sim/EventQueue.hpp"
 #include "quetzal/stratum_sim/Intent.hpp"
-#include "quetzal/stratum_sim/Layout.hpp"
+#include "quetzal/stratum_sim/ContinuousLayout.hpp"
+#include "quetzal/stratum_sim/DiscreteLayout.hpp"
 #include "quetzal/stratum_sim/load_layout.hpp"
 #include "quetzal/stratum_sim/commands.hpp"
 #include "quetzal/stratum_sim/Clock.hpp"
@@ -19,7 +20,9 @@
 #include <algorithm>
 #include <format>
 #include <iostream>
+#include <memory>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 using namespace std;
@@ -147,10 +150,18 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // One outline's walls, which run contiguously from the wall create_walls returned for it
-    stratum_sim::Layout::ids_type outline_walls(id_type wall_id0, size_t vertex_count)
+    // A zone's layout as the kind it is. World answers with the interface, and most of what
+    // is checked here is cells and walls, which live below it
+    stratum_sim::DiscreteLayout& zone_layout(stratum_sim::World& world, flecs::entity zone)
     {
-        stratum_sim::Layout::ids_type ids;
+        return stratum_sim::layout_as<stratum_sim::DiscreteLayout>(world.layout(zone));
+    }
+
+    //--------------------------------------------------------------------------
+    // One outline's walls, which run contiguously from the wall create_walls returned for it
+    stratum_sim::DiscreteLayout::ids_type outline_walls(id_type wall_id0, size_t vertex_count)
+    {
+        stratum_sim::DiscreteLayout::ids_type ids;
         ids.reserve(vertex_count);
 
         for (size_t i = 0; i < vertex_count; ++i)
@@ -163,7 +174,7 @@ namespace
 
     //--------------------------------------------------------------------------
     // The walls of one outline, built and named in one step, as most structural tests want
-    stratum_sim::Layout::ids_type build_outline(stratum_sim::Layout& layout, const stratum_sim::polygon_type& outline)
+    stratum_sim::DiscreteLayout::ids_type build_outline(stratum_sim::DiscreteLayout& layout, const stratum_sim::polygon_type& outline)
     {
         return outline_walls(layout.create_walls({outline}).front(), outline.vertex_count());
     }
@@ -187,7 +198,7 @@ namespace
     //--------------------------------------------------------------------------
     // The closed outlines the walls form, by length. Every wall belongs to exactly one, so
     // this is what an area's boundary count is read from now that no record holds it
-    vector<size_t> outline_lengths(const stratum_sim::Layout& layout)
+    vector<size_t> outline_lengths(const stratum_sim::DiscreteLayout& layout)
     {
         vector<bool> seen(layout.wall_store_count(), false);
         vector<size_t> lengths;
@@ -216,7 +227,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    size_t rock_count(const stratum_sim::Layout& layout, const stratum_sim::Layout::ids_type& ids)
+    size_t rock_count(const stratum_sim::DiscreteLayout& layout, const stratum_sim::DiscreteLayout::ids_type& ids)
     {
         size_t n = 0;
         for (id_type id : ids)
@@ -315,14 +326,34 @@ namespace
     }
 
     //--------------------------------------------------------------------------
+    // The layouts that are named and not written. Compiling their headers at all is most of
+    // what this checks; the cases state the two things a skeleton promises
+    void test_layout_hierarchy()
+    {
+        report_group("layout hierarchy");
+
+        report_case("a discrete layout is a Layout",
+            is_base_of_v<stratum_sim::Layout, stratum_sim::DiscreteLayout>);
+        report_case("and can be built, being the one that is written",
+            !is_abstract_v<stratum_sim::DiscreteLayout>);
+
+        report_case("a continuous layout is a Layout too",
+            is_base_of_v<stratum_sim::Layout, stratum_sim::ContinuousLayout>);
+        report_case("and cannot be built, nothing behind it being written",
+            is_abstract_v<stratum_sim::ContinuousLayout>);
+
+        return;
+    }
+
+    //--------------------------------------------------------------------------
     void test_level_layout()
     {
         report_group("level layout");
 
-        stratum_sim::Layout layout;
+        stratum_sim::DiscreteLayout layout;
         stratum_sim::polygon_type outline = rectangle(0.0f, 0.0f, 4.0f, 3.0f);
 
-        stratum_sim::Layout::ids_type walls = build_outline(layout, outline);
+        stratum_sim::DiscreteLayout::ids_type walls = build_outline(layout, outline);
 
         report_case_equal("one wall per outline edge", layout.wall_store_count(), outline.vertex_count());
         report_case_equal("the outline's walls run contiguously from its start", walls.size(), outline.vertex_count());
@@ -346,10 +377,10 @@ namespace
         // Flats, which bound the layout rather than any one area within it
         layout.set_flats(0.0f, 2.5f);
         report_case_equal("a layout has two flats", layout.flat_store_count(), 2);
-        report_case("the floor is not a ceiling", !layout.flat(layout.floor_id()).ceiling);
-        report_case("the ceiling is a ceiling", layout.flat(layout.ceiling_id()).ceiling);
-        report_case("the floor keeps its height", layout.flat(layout.floor_id()).height == 0.0f);
-        report_case("the ceiling keeps its height", layout.flat(layout.ceiling_id()).height == 2.5f);
+        report_case("the floor is not a ceiling", !layout.flat(layout.floor_id()).ceiling());
+        report_case("the ceiling is a ceiling", layout.flat(layout.ceiling_id()).ceiling());
+        report_case("the floor keeps its height", layout.flat(layout.floor_id()).height() == 0.0f);
+        report_case("the ceiling keeps its height", layout.flat(layout.ceiling_id()).height() == 2.5f);
 
         layout.clear();
         report_case("clear empties every store", layout.wall_store_count() == 0 && layout.room_store_count() == 0 && layout.flat_store_count() == 0);
@@ -363,12 +394,12 @@ namespace
     {
         report_group("partner linking");
 
-        stratum_sim::Layout layout;
+        stratum_sim::DiscreteLayout layout;
 
         // Sharing the edge at x == 4, traversed in opposite directions by each outline
-        stratum_sim::Layout::ids_type walls_a = build_outline(layout, rectangle(0.0f, 0.0f, 4.0f, 3.0f));
-        stratum_sim::Layout::ids_type walls_b = build_outline(layout, rectangle(4.0f, 0.0f, 8.0f, 3.0f));
-        stratum_sim::Layout::ids_type walls_far = build_outline(layout, rectangle(20.0f, 0.0f, 24.0f, 3.0f));
+        stratum_sim::DiscreteLayout::ids_type walls_a = build_outline(layout, rectangle(0.0f, 0.0f, 4.0f, 3.0f));
+        stratum_sim::DiscreteLayout::ids_type walls_b = build_outline(layout, rectangle(4.0f, 0.0f, 8.0f, 3.0f));
+        stratum_sim::DiscreteLayout::ids_type walls_far = build_outline(layout, rectangle(20.0f, 0.0f, 24.0f, 3.0f));
 
         report_case_equal("every wall starts as rock", rock_count(layout, walls_a) + rock_count(layout, walls_b), 8);
 
@@ -408,7 +439,7 @@ namespace
     {
         report_group("wall fold");
 
-        stratum_sim::Layout layout;
+        stratum_sim::DiscreteLayout layout;
 
         // A hall with a partition hanging into it from the north wall. The outline runs
         // down one face of the partition and back up the other, so the tip is where the
@@ -424,7 +455,7 @@ namespace
             stratum_sim::point_type(0.0f, 6.0f, 0.0f)
         };
 
-        stratum_sim::Layout::ids_type walls = build_outline(layout, stratum_sim::polygon_type(points.begin(), points.end()));
+        stratum_sim::DiscreteLayout::ids_type walls = build_outline(layout, stratum_sim::polygon_type(points.begin(), points.end()));
 
         report_case_equal("a spur outline produces one wall per edge", walls.size(), 7);
         report_case_equal("the outline closes over a spur", walls.size(), points.size());
@@ -473,7 +504,7 @@ namespace
     {
         report_group("point location");
 
-        stratum_sim::Layout layout;
+        stratum_sim::DiscreteLayout layout;
         stratum_sim::polygon_type outline = rectangle(0.0f, 0.0f, 4.0f, 3.0f);
 
         id_type room_a = layout.create_room(room_of(outline));
@@ -537,7 +568,7 @@ namespace
     {
         report_group("grid");
 
-        stratum_sim::Layout layout;
+        stratum_sim::DiscreteLayout layout;
         layout.set_grid(stratum_sim::point_type(0.0f, 0.0f, 0.0f), 1.0f, stratum_sim::discrete_vector_type(8, 8));
 
         report_case("a point maps to its cell", layout.cell_at(stratum_sim::point_type(2.7f, 3.2f, 0.0f)) == stratum_sim::GridPosition(2, 3));
@@ -549,16 +580,75 @@ namespace
     }
 
     //--------------------------------------------------------------------------
+    void test_flats()
+    {
+        report_group("flats");
+
+        // A constant is what a level carrying no height data loads, and it answers everywhere
+        stratum_sim::Flat floor(2.0f);
+
+        report_case("a flat is a floor unless it says otherwise", !floor.ceiling());
+        report_case("an unsampled flat is not sampled", !floor.sampled());
+        report_case("and answers its constant anywhere", floor.height(stratum_sim::point_type(100.0f, -50.0f, 0.0f)) == 2.0f);
+
+        floor.set_height(3.0f);
+        report_case("moving the constant moves the whole surface", floor.height(stratum_sim::point_type(1.0f, 1.0f, 0.0f)) == 3.0f);
+
+        // Sampling is the same record with more of its features used
+        stratum_sim::Grid sampling {stratum_sim::point_type(0.0f, 0.0f, 0.0f), 1.0f, stratum_sim::discrete_vector_type(4, 4)};
+        floor.set_sampling(sampling);
+
+        report_case("sampling starts every sample at the constant", floor.sampled() && floor.sample(stratum_sim::GridPosition {2, 2}) == 3.0f);
+        report_case("and the surface still answers by position", floor.height(stratum_sim::point_type(2.5f, 2.5f, 0.0f)) == 3.0f);
+
+        floor.set_sample(stratum_sim::GridPosition {1, 1}, 5.0f);
+        report_case("a sample can be raised", floor.height(stratum_sim::point_type(1.5f, 1.5f, 0.0f)) == 5.0f);
+        report_case("leaving its neighbours where they were", floor.height(stratum_sim::point_type(2.5f, 1.5f, 0.0f)) == 3.0f);
+
+        // Absent is somewhere the surface is not, rather than somewhere it is low
+        floor.set_sample(stratum_sim::GridPosition {3, 3}, {});
+        report_case("a sample can be absent, which is a pit rather than a depth", !floor.height(stratum_sim::point_type(3.5f, 3.5f, 0.0f)));
+        report_case("a position off the sampling grid is off the surface", !floor.height(stratum_sim::point_type(9.0f, 9.0f, 0.0f)));
+
+        // The sampling grid is the surface's own and need not be the movement grid
+        stratum_sim::Flat fine(0.0f);
+        fine.set_sampling(stratum_sim::Grid {stratum_sim::point_type(0.0f, 0.0f, 0.0f), 0.5f, stratum_sim::discrete_vector_type(8, 8)});
+        fine.set_sample(stratum_sim::GridPosition {1, 0}, 1.0f);
+
+        report_case("a height map may be finer than the cells", fine.height(stratum_sim::point_type(0.75f, 0.25f, 0.0f)) == 1.0f
+            && fine.height(stratum_sim::point_type(0.25f, 0.25f, 0.0f)) == 0.0f);
+
+        // A cell sits on the floor, which is the one thing in the layout that reads a flat
+        stratum_sim::DiscreteLayout layout;
+        layout.set_grid(stratum_sim::point_type(0.0f, 0.0f, 0.0f), 1.0f, stratum_sim::discrete_vector_type(8, 8));
+
+        report_case("with no floor a cell sits on the grid's own plane", layout.cell_position(stratum_sim::GridPosition {1, 1}).z() == 0.0f);
+
+        layout.set_flats(1.5f, 4.0f);
+        report_case("with one it sits on the floor", layout.cell_position(stratum_sim::GridPosition {1, 1}).z() == 1.5f);
+
+        layout.flat(layout.floor_id()).set_sampling(sampling);
+        layout.flat(layout.floor_id()).set_sample(stratum_sim::GridPosition {1, 1}, 2.5f);
+        report_case("and follows it where it is sampled", layout.cell_position(stratum_sim::GridPosition {1, 1}).z() == 2.5f);
+
+        layout.flat(layout.floor_id()).set_sample(stratum_sim::GridPosition {1, 1}, {});
+        report_case("a cell the floor is absent under is back on the grid's plane",
+            layout.cell_position(stratum_sim::GridPosition {1, 1}).z() == 0.0f);
+
+        return;
+    }
+
+    //--------------------------------------------------------------------------
     void test_blocking()
     {
         report_group("blocking");
 
-        stratum_sim::Layout layout;
+        stratum_sim::DiscreteLayout layout;
         layout.set_grid(stratum_sim::point_type(0.0f, 0.0f, 0.0f), 1.0f, stratum_sim::discrete_vector_type(8, 8));
 
         // Two rooms one cell tall, so their shared boundary is exactly one cell edge
-        stratum_sim::Layout::ids_type walls_a = build_outline(layout, rectangle(0.0f, 0.0f, 2.0f, 1.0f));
-        stratum_sim::Layout::ids_type walls_b = build_outline(layout, rectangle(2.0f, 0.0f, 4.0f, 1.0f));
+        stratum_sim::DiscreteLayout::ids_type walls_a = build_outline(layout, rectangle(0.0f, 0.0f, 2.0f, 1.0f));
+        stratum_sim::DiscreteLayout::ids_type walls_b = build_outline(layout, rectangle(2.0f, 0.0f, 4.0f, 1.0f));
 
         // Within one outline there is no wall at all, so nothing can block
         report_case("cells inside one area never block", !layout.blocked(stratum_sim::GridPosition {0, 0}, stratum_sim::Direction::East));
@@ -711,10 +801,9 @@ namespace
         report_group("clock");
 
         stratum_sim::World world;
-        flecs::entity zone = world.create_zone("corridor");
-        stratum_sim::load_layout("data/corridor.level", world.layout(zone));
+        flecs::entity zone = world.create_zone("corridor", stratum_sim::load_layout("data/corridor.level"));
 
-        stratum_sim::Layout& layout = world.layout(zone);
+        stratum_sim::DiscreteLayout& layout = zone_layout(world, zone);
         flecs::entity player = world.create_entity(zone,
             stratum_sim::placement_type(layout.cell_position(stratum_sim::GridPosition {1, 1}),
                 stratum_sim::vector_type(1.0f, 0.0f, 0.0f)));
@@ -792,10 +881,9 @@ namespace
         // Its own world, so that the energies reached here are not what decides the order
         {
             stratum_sim::World world_two;
-            flecs::entity zone_two = world_two.create_zone("corridor");
-            stratum_sim::load_layout("data/corridor.level", world_two.layout(zone_two));
+            flecs::entity zone_two = world_two.create_zone("corridor", stratum_sim::load_layout("data/corridor.level"));
 
-            const stratum_sim::Layout& layout_two = world_two.layout(zone_two);
+            const stratum_sim::DiscreteLayout& layout_two = zone_layout(world_two, zone_two);
             stratum_sim::vector_type east(1.0f, 0.0f, 0.0f);
 
             flecs::entity driven = world_two.create_entity(zone_two,
@@ -832,10 +920,9 @@ namespace
         report_group("time driver");
 
         stratum_sim::World world;
-        flecs::entity zone = world.create_zone("corridor");
-        stratum_sim::load_layout("data/corridor.level", world.layout(zone));
+        flecs::entity zone = world.create_zone("corridor", stratum_sim::load_layout("data/corridor.level"));
 
-        stratum_sim::Layout& layout = world.layout(zone);
+        stratum_sim::DiscreteLayout& layout = zone_layout(world, zone);
         stratum_sim::vector_type east(1.0f, 0.0f, 0.0f);
 
         flecs::entity player = world.create_entity(zone,
@@ -960,11 +1047,11 @@ namespace
         report_group("movement");
 
         // A corridor four cells long, walled at both ends
-        stratum_sim::Layout layout;
+        stratum_sim::DiscreteLayout layout;
         layout.set_grid(stratum_sim::point_type(0.0f, 0.0f, 0.0f), 1.0f, stratum_sim::discrete_vector_type(8, 8));
 
-        stratum_sim::Layout::ids_type corridor = build_outline(layout, cell_rectangle(0, 0, 4, 1));
-        stratum_sim::Layout::ids_type beyond = build_outline(layout, cell_rectangle(4, 0, 5, 1));
+        stratum_sim::DiscreteLayout::ids_type corridor = build_outline(layout, cell_rectangle(0, 0, 4, 1));
+        stratum_sim::DiscreteLayout::ids_type beyond = build_outline(layout, cell_rectangle(4, 0, 5, 1));
         layout.connect_walls(corridor, beyond);
 
         stratum_sim::vector_type east(1.0f, 0.0f, 0.0f);
@@ -1059,8 +1146,8 @@ namespace
         // A three by three room with a doorway off its east side, read so that walls are
         // one cell edge each. Hand built rectangles would give the room one wall spanning
         // three cells, which connect_walls cannot pair against the doorway's single one
-        stratum_sim::Layout layout;
-        stratum_sim::load_layout("data/room.level", layout);
+        auto proom = stratum_sim::load_layout("data/room.level");
+        stratum_sim::DiscreteLayout& layout = *proom;
 
         stratum_sim::vector_type east(1.0f, 0.0f, 0.0f);
         auto at = [&](int i, int j) { return stratum_sim::placement_type(layout.cell_position(stratum_sim::GridPosition {i, j}), east); };
@@ -1104,8 +1191,8 @@ namespace
         report_group("load layout");
 
         // A ring of eight open cells around one enclosed rock cell
-        stratum_sim::Layout loop;
-        stratum_sim::load_layout("data/loop.level", loop);
+        auto ploop = stratum_sim::load_layout("data/loop.level");
+        const stratum_sim::DiscreteLayout& loop = *ploop;
 
         report_case("the grid is the file's extent", loop.grid().extent == stratum_sim::discrete_vector_type(5, 5));
         report_case_equal("a layout has one floor and one ceiling", loop.flat_store_count(), 2);
@@ -1136,8 +1223,8 @@ namespace
         report_case("row order puts the origin at the lower left", loop.open(stratum_sim::GridPosition {3, 1}));
 
         // A doorway is an ordinary open cell to the reader, outlined on its own
-        stratum_sim::Layout door;
-        stratum_sim::load_layout("data/door.level", door);
+        auto pdoor = stratum_sim::load_layout("data/door.level");
+        const stratum_sim::DiscreteLayout& door = *pdoor;
 
         report_case("a doorway is outlined on its own", outline_lengths(door) == vector<size_t> {4, 4, 4});
         report_case("a doorway connects both ways", !door.blocked(stratum_sim::GridPosition {1, 1}, stratum_sim::Direction::East) && !door.blocked(stratum_sim::GridPosition {2, 1}, stratum_sim::Direction::East));
@@ -1146,8 +1233,8 @@ namespace
         report_case_equal("a level of corridor alone has no rooms", door.room_store_count(), 0);
 
         // A real generated level, for scale rather than for exact counts
-        stratum_sim::Layout generated;
-        stratum_sim::load_layout("data/generated.level", generated);
+        auto pgenerated = stratum_sim::load_layout("data/generated.level");
+        const stratum_sim::DiscreteLayout& generated = *pgenerated;
 
         report_case("a generated level reads", generated.wall_store_count() > 0);
         report_case("its grid matches the file", generated.grid().extent == stratum_sim::discrete_vector_type(31, 31));
@@ -1181,7 +1268,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    size_t open_cells(const stratum_sim::Layout& layout)
+    size_t open_cells(const stratum_sim::DiscreteLayout& layout)
     {
         const stratum_sim::discrete_vector_type extent = layout.grid().extent;
         size_t n = 0;
@@ -1200,7 +1287,7 @@ namespace
     //--------------------------------------------------------------------------
     // Open cells reachable from the first by crossing only walls a mover may pass, which is
     // the connectivity movement itself sees rather than one read off an area graph
-    size_t cells_reached(const stratum_sim::Layout& layout)
+    size_t cells_reached(const stratum_sim::DiscreteLayout& layout)
     {
         const stratum_sim::discrete_vector_type extent = layout.grid().extent;
         auto slot = [&extent](const stratum_sim::GridPosition& c) { return static_cast<size_t>(c.j) * extent.x() + c.i; };
@@ -1253,8 +1340,8 @@ namespace
         report_group("load wall layout");
 
         // Two rooms of two by three cells sharing one wall, with a door in the middle of it
-        stratum_sim::Layout walls;
-        stratum_sim::load_layout("data/walls.level", walls);
+        auto pwalls = stratum_sim::load_layout("data/walls.level");
+        const stratum_sim::DiscreteLayout& walls = *pwalls;
 
         report_case("the grid is the header's extent", walls.grid().extent == stratum_sim::discrete_vector_type(4, 3));
         report_case("areas sharing a wall are outlined separately", outline_lengths(walls) == vector<size_t> {10, 10});
@@ -1285,8 +1372,8 @@ namespace
 
         // The same grid with the extent taken out of its header, which the geometry then has
         // to supply: the last column is never blank, so no row can have been trimmed
-        stratum_sim::Layout derived;
-        stratum_sim::load_layout("data/walls_no_extent.level", derived);
+        auto pderived = stratum_sim::load_layout("data/walls_no_extent.level");
+        const stratum_sim::DiscreteLayout& derived = *pderived;
 
         report_case("an extent absent from the header is derived from the grid",
             derived.grid().extent == stratum_sim::discrete_vector_type(4, 3));
@@ -1296,8 +1383,8 @@ namespace
             && derived.blocked(stratum_sim::GridPosition {1, 0}, stratum_sim::Direction::East));
 
         // A generated level, for scale and for the properties the generator promises
-        stratum_sim::Layout generated;
-        stratum_sim::load_layout("data/catagen.level", generated);
+        auto pgenerated = stratum_sim::load_layout("data/catagen.level");
+        const stratum_sim::DiscreteLayout& generated = *pgenerated;
 
         report_case("a generated level reads", generated.wall_store_count() > 0);
         report_case("its grid is the header's extent", generated.grid().extent == stratum_sim::discrete_vector_type(24, 14));
@@ -1330,8 +1417,8 @@ namespace
 
         // At full density with no spacing every cell is room, so rock here is the spacing
         // and nothing else, and nothing but a corridor joins any two rooms
-        stratum_sim::Layout spaced;
-        stratum_sim::load_layout("data/catagen_spaced.level", spaced);
+        auto pspaced = stratum_sim::load_layout("data/catagen_spaced.level");
+        const stratum_sim::DiscreteLayout& spaced = *pspaced;
 
         report_case("a spaced level reads", spaced.wall_store_count() > 0);
         report_case("its grid is the header's extent", spaced.grid().extent == stratum_sim::discrete_vector_type(30, 18));
@@ -1363,19 +1450,18 @@ namespace
 
         report_case_equal("a new world has no zones", world.zone_count(), 0);
 
-        flecs::entity crypt = world.create_zone("crypt");
-        flecs::entity moor = world.create_zone("moor");
+        flecs::entity crypt = world.create_zone("crypt", stratum_sim::load_layout("data/room.level"));
+        flecs::entity moor = world.create_zone("moor", make_unique<stratum_sim::DiscreteLayout>());
 
         report_case_equal("zones are created", world.zone_count(), 2);
         report_case("a zone is found by name", world.zone("crypt") == crypt);
         report_case("each zone has its own layout", &world.layout(crypt) != &world.layout(moor));
 
-        stratum_sim::load_layout("data/room.level", world.layout(crypt));
-        report_case("a zone's layout can be loaded", world.layout(crypt).wall_store_count() == 16);
-        report_case("the other stays empty", world.layout(moor).wall_store_count() == 0);
+        report_case("a zone holds the layout it was created with", zone_layout(world, crypt).wall_store_count() == 16);
+        report_case("the other stays empty", zone_layout(world, moor).wall_store_count() == 0);
 
         stratum_sim::vector_type east(1.0f, 0.0f, 0.0f);
-        stratum_sim::placement_type where(world.layout(crypt).cell_position(stratum_sim::GridPosition {2, 2}), east);
+        stratum_sim::placement_type where(zone_layout(world, crypt).cell_position(stratum_sim::GridPosition {2, 2}), east);
 
         flecs::entity monster = world.create_entity(crypt, where);
         report_case("an entity is placed in its zone", world.zone_of(monster) == crypt);
@@ -1405,10 +1491,9 @@ namespace
         report_group("commands");
 
         stratum_sim::World world;
-        flecs::entity zone = world.create_zone("crypt");
-        stratum_sim::load_layout("data/room.level", world.layout(zone));
+        flecs::entity zone = world.create_zone("crypt", stratum_sim::load_layout("data/room.level"));
 
-        stratum_sim::Layout& layout = world.layout(zone);
+        stratum_sim::DiscreteLayout& layout = zone_layout(world, zone);
         stratum_sim::vector_type east(1.0f, 0.0f, 0.0f);
         stratum_sim::vector_type north(0.0f, 1.0f, 0.0f);
 
@@ -1523,10 +1608,9 @@ namespace
         report_group("occupancy");
 
         stratum_sim::World world;
-        flecs::entity zone = world.create_zone("crypt");
-        stratum_sim::load_layout("data/corridor.level", world.layout(zone));
+        flecs::entity zone = world.create_zone("crypt", stratum_sim::load_layout("data/corridor.level"));
 
-        stratum_sim::Layout& layout = world.layout(zone);
+        stratum_sim::DiscreteLayout& layout = zone_layout(world, zone);
         stratum_sim::vector_type east(1.0f, 0.0f, 0.0f);
         auto place = [&](int i, int j) { return stratum_sim::placement_type(layout.cell_position(stratum_sim::GridPosition {i, j}), east); };
 
@@ -1544,8 +1628,7 @@ namespace
         report_case("the far entity is the third", world.entities_within(zone, place(1, 1), 4.0f).back() == c);
 
         // Occupancy is per zone
-        flecs::entity moor = world.create_zone("moor");
-        stratum_sim::load_layout("data/corridor.level", world.layout(moor));
+        flecs::entity moor = world.create_zone("moor", stratum_sim::load_layout("data/corridor.level"));
         world.create_entity(moor, place(1, 1));
 
         report_case_equal("another zone's entities do not appear", world.entities_at(zone, stratum_sim::GridPosition {1, 1}).size(), 2);
@@ -1564,10 +1647,9 @@ namespace
         report_group("world movement");
 
         stratum_sim::World world;
-        flecs::entity zone = world.create_zone("crypt");
-        stratum_sim::load_layout("data/corridor.level", world.layout(zone));
+        flecs::entity zone = world.create_zone("crypt", stratum_sim::load_layout("data/corridor.level"));
 
-        stratum_sim::Layout& layout = world.layout(zone);
+        stratum_sim::DiscreteLayout& layout = zone_layout(world, zone);
         stratum_sim::vector_type east(1.0f, 0.0f, 0.0f);
         auto place = [&](int i, int j) { return stratum_sim::placement_type(layout.cell_position(stratum_sim::GridPosition {i, j}), east); };
         auto cell_of = [&](flecs::entity e) { return layout.cell_at(e.get<stratum_sim::placement_type>().position()); };
@@ -1617,7 +1699,7 @@ namespace
             events.events().back().get<stratum_sim::Blocked>().obstruction_entity_id == static_cast<id_type>(boulder.id())
             && events.events().back().get<stratum_sim::Blocked>().obstruction_wall_id == nullid);
 
-        // A Layout asked directly still answers for its own geometry and nothing else
+        // A layout asked directly still answers for its own geometry and nothing else
         stratum_sim::MoveResult geometric = layout.move(place(1, 1), east, 4.0f);
         report_case("the layout alone does not stop for entities", layout.cell_at(geometric.placement.position()).i > 3);
 
@@ -1632,10 +1714,9 @@ namespace
         report_group("deciding for itself");
 
         stratum_sim::World world;
-        flecs::entity zone = world.create_zone("corridor");
-        stratum_sim::load_layout("data/corridor.level", world.layout(zone));
+        flecs::entity zone = world.create_zone("corridor", stratum_sim::load_layout("data/corridor.level"));
 
-        const stratum_sim::Layout& layout = world.layout(zone);
+        const stratum_sim::DiscreteLayout& layout = zone_layout(world, zone);
         stratum_sim::vector_type east(1.0f, 0.0f, 0.0f);
         stratum_sim::vector_type west(-1.0f, 0.0f, 0.0f);
         auto at = [&](int i) { return stratum_sim::placement_type(layout.cell_position(stratum_sim::GridPosition {i, 1}), east); };
@@ -1724,7 +1805,7 @@ namespace
         report_case("a session places something that decides for itself", hunter.is_alive());
 
         stratum_sim::EventQueue session_events;
-        stratum_sim::GridPosition before = session.layout().cell_at(hunter.get<stratum_sim::placement_type>().position());
+        stratum_sim::GridPosition before = stratum_sim::layout_as<stratum_sim::DiscreteLayout>(session.layout()).cell_at(hunter.get<stratum_sim::placement_type>().position());
 
         // The controlled entity waits, which is the only decision a host has to supply
         for (int n = 0; n < 3; ++n)
@@ -1732,7 +1813,7 @@ namespace
             session.scheduler().spend(session.advance(session_events));
         }
 
-        stratum_sim::GridPosition after = session.layout().cell_at(hunter.get<stratum_sim::placement_type>().position());
+        stratum_sim::GridPosition after = stratum_sim::layout_as<stratum_sim::DiscreteLayout>(session.layout()).cell_at(hunter.get<stratum_sim::placement_type>().position());
         report_case("and it closes on the controlled entity while the host only waits", after.i < before.i);
 
         return;
@@ -1746,10 +1827,9 @@ namespace
         report_group("walking a dungeon");
 
         stratum_sim::World world;
-        flecs::entity zone = world.create_zone("crypt");
-        stratum_sim::load_layout("data/corridor.level", world.layout(zone));
+        flecs::entity zone = world.create_zone("crypt", stratum_sim::load_layout("data/corridor.level"));
 
-        stratum_sim::Layout& layout = world.layout(zone);
+        stratum_sim::DiscreteLayout& layout = zone_layout(world, zone);
         stratum_sim::vector_type east(1.0f, 0.0f, 0.0f);
 
         flecs::entity actor = world.create_entity(zone, stratum_sim::placement_type(layout.cell_position(stratum_sim::GridPosition {1, 1}), east));
@@ -1872,11 +1952,13 @@ int main()
 {
     test_command_queue();
     test_event_queue();
+    test_layout_hierarchy();
     test_level_layout();
     test_partner_linking();
     test_wall_fold();
     test_point_location();
     test_grid();
+    test_flats();
     test_blocking();
     test_scheduler();
     test_clock();

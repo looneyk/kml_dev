@@ -4,6 +4,7 @@
 //------------------------------------------------------------------------------
 
 #include "cells.hpp"
+#include "quetzal/stratum_sim/DiscreteLayout.hpp"
 #include <cassert>
 
 namespace sim = quetzal::stratum_sim;
@@ -11,7 +12,9 @@ namespace sim = quetzal::stratum_sim;
 //------------------------------------------------------------------------------
 quetzal::stratum_view::Cells quetzal::stratum_view::cells(const sim::World& world, flecs::entity zone)
 {
-    const sim::Layout& layout = world.layout(zone);
+    // One cell per grid position is the shape of this reduction, so it asks for a layout
+    // that has cells. What stands on the edges between them is not in it and is not asked for
+    const sim::DiscreteLayout& layout = sim::layout_as<sim::DiscreteLayout>(world.layout(zone));
 
     const sim::Grid& grid = layout.grid();
 

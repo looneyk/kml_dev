@@ -4,6 +4,7 @@
 //------------------------------------------------------------------------------
 
 #include "commands.hpp"
+#include "DiscreteLayout.hpp" // Interact, which still does cell arithmetic of its own
 #include "Scheduler.hpp"
 #include <cmath>
 
@@ -24,7 +25,7 @@ int quetzal::stratum_sim::apply(World& world, const Command& command, EventQueue
         return 0;
     }
 
-    Layout& layout = world.layout(zone);
+    const Layout& layout = world.layout(zone);
     placement_type placement = *pplacement;
 
     if (const Step* pstep = command.try_get<Step>())
@@ -85,8 +86,12 @@ int quetzal::stratum_sim::apply(World& world, const Command& command, EventQueue
             return 0;
         }
 
-        GridPosition cell = layout.cell_at(placement.position());
-        id_type wall_id = layout.wall_toward(cell, step);
+        // Cell arithmetic in the rules layer, which is the one thing here the interface does
+        // not cover. It goes when the layout is asked what is in front instead
+        const DiscreteLayout& cells = layout_as<DiscreteLayout>(layout);
+
+        GridPosition cell = cells.cell_at(placement.position());
+        id_type wall_id = cells.wall_toward(cell, step);
 
         if (wall_id == nullid)
         {

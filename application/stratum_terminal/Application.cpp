@@ -4,6 +4,7 @@
 //------------------------------------------------------------------------------
 
 #include "Application.hpp"
+#include "quetzal/stratum_sim/DiscreteLayout.hpp" // The status line, which reports a cell
 #include "quetzal/stratum_sim/commands.hpp"
 #include <format>
 #include <iostream>
@@ -200,7 +201,7 @@ void stratum_terminal::Application::report(const quetzal::stratum_sim::EventQueu
 std::string stratum_terminal::Application::status() const
 {
     const stratum_sim::placement_type& placement = m_session.player().get<stratum_sim::placement_type>();
-    stratum_sim::GridPosition cell = m_session.layout().cell_at(placement.position());
+    stratum_sim::GridPosition cell = stratum_sim::layout_as<stratum_sim::DiscreteLayout>(m_session.layout()).cell_at(placement.position());
 
     // The message shares this line so that the frame keeps its height as it comes and goes
     return std::format("cell ({}, {})  facing {}  turn {}  {}", cell.i, cell.j, name_of(placement.direction()), m_session.scheduler().elapsed(), m_message);

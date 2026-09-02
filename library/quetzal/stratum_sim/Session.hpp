@@ -47,7 +47,8 @@ namespace quetzal::stratum_sim
         World& world();
         const World& world() const;
 
-        // The loaded zone's layout. Must be loaded
+        // The loaded zone's layout. Must be loaded. A caller needing more than the interface
+        // says reaches for the concrete class with layout_as
         Layout& layout();
         const Layout& layout() const;
 

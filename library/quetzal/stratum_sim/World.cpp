@@ -4,6 +4,7 @@
 //------------------------------------------------------------------------------
 
 #include "World.hpp"
+#include "DiscreteLayout.hpp" // The cell form of entities_at, which asks for cells
 #include <algorithm>
 #include <cassert>
 
@@ -47,12 +48,13 @@ const flecs::world& quetzal::stratum_sim::World::entities() const
 }
 
 //------------------------------------------------------------------------------
-flecs::entity quetzal::stratum_sim::World::create_zone(const std::string& name)
+flecs::entity quetzal::stratum_sim::World::create_zone(const std::string& name, std::unique_ptr<Layout> layout)
 {
     assert(!zone(name)); // Not is_alive: flecs asserts rather than answering for a null entity
+    assert(layout != nullptr);
 
     flecs::entity e = m_world.entity(name.c_str()).add<Zone>();
-    m_layouts.emplace(e.id(), Layout());
+    m_layouts.emplace(e.id(), std::move(layout));
 
     return e;
 }
@@ -74,7 +76,7 @@ quetzal::stratum_sim::Layout& quetzal::stratum_sim::World::layout(flecs::entity 
 {
     auto i = m_layouts.find(zone.id());
     assert(i != m_layouts.end());
-    return i->second;
+    return *i->second;
 }
 
 //------------------------------------------------------------------------------
@@ -82,7 +84,7 @@ const quetzal::stratum_sim::Layout& quetzal::stratum_sim::World::layout(flecs::e
 {
     auto i = m_layouts.find(zone.id());
     assert(i != m_layouts.end());
-    return i->second;
+    return *i->second;
 }
 
 //------------------------------------------------------------------------------
@@ -110,7 +112,7 @@ quetzal::stratum_sim::MoveResult quetzal::stratum_sim::World::move(flecs::entity
     // The mover is standing where it starts, so it is not something it can be stopped by
     Layout::obstructed_type obstructed = [&](const placement_type& candidate)
     {
-        for (flecs::entity other : entities_at(zone, zone_layout.cell_at(candidate.position())))
+        for (flecs::entity other : entities_at(zone, candidate))
         {
             if (other != e && other.has<Blocking>())
             {
@@ -125,9 +127,20 @@ quetzal::stratum_sim::MoveResult quetzal::stratum_sim::World::move(flecs::entity
 }
 
 //------------------------------------------------------------------------------
-quetzal::stratum_sim::World::entities_type quetzal::stratum_sim::World::entities_at(flecs::entity zone, const GridPosition& cell) const
+quetzal::stratum_sim::World::entities_type quetzal::stratum_sim::World::entities_at(flecs::entity zone, const placement_type& placement) const
 {
     const Layout& zone_layout = layout(zone);
+
+    return placed_in(zone, [&](const placement_type& other)
+    {
+        return zone_layout.same_location(other, placement);
+    });
+}
+
+//------------------------------------------------------------------------------
+quetzal::stratum_sim::World::entities_type quetzal::stratum_sim::World::entities_at(flecs::entity zone, const GridPosition& cell) const
+{
+    const DiscreteLayout& zone_layout = layout_as<DiscreteLayout>(layout(zone));
 
     return placed_in(zone, [&](const placement_type& placement)
     {

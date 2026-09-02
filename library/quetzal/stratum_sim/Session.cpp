@@ -19,7 +19,7 @@ namespace
     //--------------------------------------------------------------------------
     // The lowest open cell, where the controlled entity starts. Empty when the layout has
     // no open cell at all
-    std::optional<quetzal::stratum_sim::GridPosition> first_open_cell(const quetzal::stratum_sim::Layout& layout)
+    std::optional<quetzal::stratum_sim::GridPosition> first_open_cell(const quetzal::stratum_sim::DiscreteLayout& layout)
     {
         const quetzal::stratum_sim::Grid& grid = layout.grid();
 
@@ -39,7 +39,7 @@ namespace
 
     //--------------------------------------------------------------------------
     // The highest open cell, as far from the controlled entity as this cares to look
-    std::optional<quetzal::stratum_sim::GridPosition> last_open_cell(const quetzal::stratum_sim::Layout& layout)
+    std::optional<quetzal::stratum_sim::GridPosition> last_open_cell(const quetzal::stratum_sim::DiscreteLayout& layout)
     {
         const quetzal::stratum_sim::Grid& grid = layout.grid();
 
@@ -76,17 +76,19 @@ void quetzal::stratum_sim::Session::load(const std::filesystem::path& filepath, 
     // Built alongside and moved in only once the whole load has succeeded. The clock's
     // references are to these members rather than to what is moved from, so they stand
     World world;
-    flecs::entity zone = world.create_zone("zone");
-    load_layout(filepath, world.layout(zone));
+    flecs::entity zone = world.create_zone("zone", load_layout(filepath));
 
-    std::optional<GridPosition> start = first_open_cell(world.layout(zone));
+    // Where the player starts is asked in cells, which is the loaded layout's own vocabulary
+    const DiscreteLayout& layout = layout_as<DiscreteLayout>(world.layout(zone));
+
+    std::optional<GridPosition> start = first_open_cell(layout);
     if (!start)
     {
         throw std::runtime_error(std::format("level has no open cell: {}", filepath.string()));
     }
 
     flecs::entity player = world.create_entity(zone,
-        placement_type(world.layout(zone).cell_position(*start), vector_type(value_type(1), value_type(0), value_type(0))));
+        placement_type(layout.cell_position(*start), vector_type(value_type(1), value_type(0), value_type(0))));
     player.add<Blocking>(); // Stands in the way of anything else that moves
 
     Scheduler scheduler;
@@ -94,11 +96,11 @@ void quetzal::stratum_sim::Session::load(const std::filesystem::path& filepath, 
 
     // One pursuer, as far off as this bothers to look, so that something other than the host
     // decides for itself. Placed here until levels carry content of their own
-    std::optional<GridPosition> start_other = last_open_cell(world.layout(zone));
+    std::optional<GridPosition> start_other = last_open_cell(layout);
     if (start_other && start_other != start)
     {
         flecs::entity other = world.create_entity(zone,
-            placement_type(world.layout(zone).cell_position(*start_other), vector_type(value_type(-1), value_type(0), value_type(0))));
+            placement_type(layout.cell_position(*start_other), vector_type(value_type(-1), value_type(0), value_type(0))));
 
         other.add<Blocking>();
         other.set<Pursue>(Pursue {static_cast<id_type>(player.id()), point_type(), false});

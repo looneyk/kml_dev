@@ -3,8 +3,8 @@ add_library(quetzal_stratum_sim STATIC
     Clock.cpp
     CommandQueue.cpp
     commands.cpp
+    DiscreteLayout.cpp
     EventQueue.cpp
-    Layout.cpp
     load_layout.cpp
     load_layout_catagen.cpp
     load_layout_dungen.cpp
@@ -17,6 +17,8 @@ add_library(quetzal_stratum_sim STATIC
     Command.hpp
     CommandQueue.hpp
     commands.hpp
+    ContinuousLayout.hpp
+    DiscreteLayout.hpp
     Event.hpp
     EventQueue.hpp
     Intent.hpp

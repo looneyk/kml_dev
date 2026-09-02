@@ -9,6 +9,7 @@
 #include "types.hpp"
 #include <flecs.h>
 #include <map>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -30,7 +31,7 @@ namespace quetzal::stratum_sim
 
     //--------------------------------------------------------------------------
     // The set of Zones and everything in them. One flecs world holds the entities, each
-    // Zone an entity whose contents are its children; the Layouts are held alongside
+    // Zone an entity whose contents are its children; the layouts are held alongside
     // rather than in it, being static topology rather than game objects
     class World
     {
@@ -49,10 +50,15 @@ namespace quetzal::stratum_sim
         flecs::world& entities();
         const flecs::world& entities() const;
 
-        flecs::entity create_zone(const std::string& name);
+        // The zone takes the layout it was built with. Which class that is comes from what
+        // was loaded rather than from here, so nothing about a Zone privileges one of them
+        flecs::entity create_zone(const std::string& name, std::unique_ptr<Layout> layout);
+
         flecs::entity zone(const std::string& name) const; // Null when there is no such zone
         size_t zone_count() const;
 
+        // The interface, whatever kind of layout the zone holds. A caller needing more than
+        // it says reaches for the concrete class with layout_as
         Layout& layout(flecs::entity zone);
         const Layout& layout(flecs::entity zone) const;
 
@@ -61,28 +67,32 @@ namespace quetzal::stratum_sim
 
         flecs::entity zone_of(flecs::entity e) const;
 
-        // Where the mover ends up, topology and occupancy together. A Layout answers for its
+        // Where the mover ends up, topology and occupancy together. A layout answers for its
         // own geometry and knows nothing of entities; this holds both, so it is where the two
         // meet rather than either of them reaching into the other
         // Blocking entities stop a mover, itself excepted. Rules ask this rather than the
-        // Layout underneath
+        // layout underneath
         MoveResult move(flecs::entity e, const vector_type& direction, value_type distance) const;
 
         // Occupancy. Ordered by entity id, so a run gives the same answer every time
+        // What counts as the same place is the layout's to say, which is what keeps the
+        // placement form model-neutral; the cell form is for a caller that genuinely counts
+        // cells and holds a layout that has them
+        entities_type entities_at(flecs::entity zone, const placement_type& placement) const;
         entities_type entities_at(flecs::entity zone, const GridPosition& cell) const;
         entities_type entities_within(flecs::entity zone, const placement_type& placement, value_type range) const;
 
         // Migration keeps the entity's id, so references to it survive
         void relocate(flecs::entity e, flecs::entity zone, const placement_type& placement);
 
-        // Discards a Zone, its contents, and its Layout. Writing that state out first is
+        // Discards a Zone, its contents, and its layout. Writing that state out first is
         // the persistence boundary's job, not this one's
         void unload_zone(flecs::entity zone);
 
     private:
 
         flecs::world m_world;
-        std::map<flecs::entity_t, Layout> m_layouts;
+        std::map<flecs::entity_t, std::unique_ptr<Layout>> m_layouts;
     };
 
 } // namespace quetzal::stratum_sim

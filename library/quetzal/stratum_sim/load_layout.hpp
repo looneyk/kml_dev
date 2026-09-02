@@ -5,9 +5,10 @@
 // load_layout.hpp
 //------------------------------------------------------------------------------
 
-#include "Layout.hpp"
+#include "DiscreteLayout.hpp"
 #include <filesystem>
 #include <map>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -43,9 +44,14 @@ namespace quetzal::stratum_sim
     // A Room is built per contiguous run of the cells the format called room floor, and a
     // format that names none builds none
     //
+    // Both formats are grids of cells, so both build a DiscreteLayout and this says so
+    // rather than answering with the interface. A format describing something else is a
+    // reader of its own rather than another return from this one
+    //
     // Throws std::runtime_error when the file cannot be opened, holds no rows, names a
-    // generator or version this does not read, or does not match its own header
-    void load_layout(const std::filesystem::path& filepath, Layout& layout, value_type height_ceiling = value_type(1));
+    // generator or version this does not read, or does not match its own header. Nothing is
+    // built until every one of those has passed, so a throw leaves no half-built layout
+    std::unique_ptr<DiscreteLayout> load_layout(const std::filesystem::path& filepath, value_type height_ceiling = value_type(1));
 
     //--------------------------------------------------------------------------
     // What a format reader produces and what reading one needs. Shared by the readers in
@@ -83,7 +89,7 @@ namespace quetzal::stratum_sim
         };
 
         //----------------------------------------------------------------------
-        // What both formats reduce to before a Layout is built: which cells are open, which
+        // What both formats reduce to before a layout is built: which cells are open, which
         // of them belong together, and where two of those groups meet
         struct Map
         {

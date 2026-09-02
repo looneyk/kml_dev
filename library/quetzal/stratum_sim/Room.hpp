@@ -15,7 +15,7 @@ namespace quetzal::stratum_sim
     //--------------------------------------------------------------------------
     // A named area within a Zone: the outline around it and the cells it covers
     // Metadata for the player and the level designer. Nothing here answers whether a cell
-    // is open or whether a mover may pass, those being the Layout's to answer
+    // is open or whether a mover may pass, those being the layout's to answer
     class Room
     {
     public:
