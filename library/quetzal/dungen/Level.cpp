@@ -219,7 +219,7 @@ void quetzal::dungen::Level::create_shaft(position_type position)
 void quetzal::dungen::Level::render(ostream& os) const
 {
     auto [nx, ny] = size();
-    for (coord_type y = 0; y < ny; ++y)
+    for (coord_type y = ny - 1; y >= 0; --y)
     {
         for (coord_type x = 0; x < nx; ++x)
         {

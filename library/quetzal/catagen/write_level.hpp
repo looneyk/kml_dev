@@ -13,8 +13,9 @@ namespace quetzal::catagen
 {
 
     // The version of the file format, recorded in the header so that a reader knows what the
-    // grid below it means
-    constexpr int format_version = 1;
+    // grid below it means. A leading zero says pre-release: the glyphs and the shape are still
+    // free to change, and every level regenerates when they do
+    constexpr auto format_version = "0.2";
 
     // A header row naming the generator, the format version and the parameters of the run,
     // then the grid. A grid row never begins with a letter, so a reader can tell them apart

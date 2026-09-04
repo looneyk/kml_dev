@@ -14,12 +14,12 @@ namespace quetzal::catagen
 
     //--------------------------------------------------------------------------
     // A cell coordinate within a Level's extent, cell (0, 0) being its lower left
-    struct Cell
+    struct CellPosition
     {
         coord_type i = 0;
         coord_type j = 0;
 
-        friend auto operator<=>(const Cell&, const Cell&) = default;
+        friend auto operator<=>(const CellPosition&, const CellPosition&) = default;
     };
 
     //--------------------------------------------------------------------------
@@ -36,7 +36,7 @@ namespace quetzal::catagen
     // A half open cell range, position to position plus extent exclusive
     struct Rectangle
     {
-        Cell position;
+        CellPosition position;
         Extent extent;
 
         friend bool operator==(const Rectangle&, const Rectangle&) = default;

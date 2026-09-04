@@ -7,6 +7,7 @@
 
 #include "quetzal/common/id.hpp"
 #include "quetzal/math/DiscreteVector.hpp"
+#include "quetzal/math/Random.hpp"
 
 namespace quetzal::dungen
 {
@@ -15,6 +16,10 @@ namespace quetzal::dungen
     using vector_type = math::DiscreteVector<coord_type, 2>;
     using position_type = vector_type;
     using dimensions_type = vector_type;
+
+    // What a generation run draws from, seeded once from the parameters so that the run is
+    // reproducible from the seed its header records
+    using random_type = math::Random<>;
 
 } // namespace quetzal::dungen
 

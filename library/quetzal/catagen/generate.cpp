@@ -14,19 +14,17 @@
 #include <cstdlib>
 
 using namespace std;
+using namespace quetzal;
+using namespace quetzal::catagen;
 
 namespace
 {
 
-    using namespace quetzal::catagen;
-    using quetzal::id_type;
-    using quetzal::nullid;
-
-    using random_type = quetzal::math::Random<>;
+    using random_type = math::Random<>;
     using rectangles_type = vector<Rectangle>;
-    using regions_type = vector<id_type>; // One region per cell, nullid where there is rock
+    using cell_region_mapping = vector<id_type>; // The region id for each cell in order
     using pair_type = pair<id_type, id_type>; // Two regions, lower id first
-    using site_type = pair<Cell, Direction>; // A cell edge, named from one of its two sides
+    using site_type = pair<CellPosition, Direction>; // A cell edge, named from one of its two sides
     using sites_type = map<pair_type, vector<site_type>>;
 
     //--------------------------------------------------------------------------
@@ -36,21 +34,21 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    Cell center(const Rectangle& rectangle)
+    CellPosition center(const Rectangle& rectangle)
     {
         return {rectangle.position.i + rectangle.extent.nx / 2, rectangle.position.j + rectangle.extent.ny / 2};
     }
 
     //--------------------------------------------------------------------------
-    bool contains(const Extent& extent, const Cell& cell)
+    bool contains(const Extent& extent, const CellPosition& position)
     {
-        return cell.i >= 0 && cell.j >= 0 && cell.i < extent.nx && cell.j < extent.ny;
+        return position.i >= 0 && position.j >= 0 && position.i < extent.nx && position.j < extent.ny;
     }
 
     //--------------------------------------------------------------------------
-    size_t cell_slot(const Extent& extent, const Cell& cell)
+    size_t cell_slot(const Extent& extent, const CellPosition& position)
     {
-        return static_cast<size_t>(cell.j) * extent.nx + cell.i;
+        return static_cast<size_t>(position.j) * extent.nx + position.i;
     }
 
     //--------------------------------------------------------------------------
@@ -189,9 +187,9 @@ namespace
     //--------------------------------------------------------------------------
     // A room's id is its position in the room list, so that a region id reaches back to the
     // rectangle it came from for as long as the corridors have not started numbering
-    regions_type room_regions(const Extent& extent, const rectangles_type& rooms)
+    cell_region_mapping cell_regions(const Extent& extent, const rectangles_type& rooms)
     {
-        regions_type regions(static_cast<size_t>(extent.nx) * extent.ny, nullid);
+        cell_region_mapping regions(static_cast<size_t>(extent.nx) * extent.ny, nullid);
 
         for (id_type id = 0; id < rooms.size(); ++id)
         {
@@ -212,40 +210,40 @@ namespace
     //--------------------------------------------------------------------------
     // The cells an L shaped path passes through, turning once. Which leg comes first is the
     // caller's, so that corridors do not all bend the same way
-    vector<Cell> path_cells(const Cell& from, const Cell& to, bool horizontal_first)
+    vector<CellPosition> path_cells(const CellPosition& from, const CellPosition& to, bool horizontal_first)
     {
-        vector<Cell> cells;
-        Cell corner = horizontal_first ? Cell {to.i, from.j} : Cell {from.i, to.j};
+        vector<CellPosition> positions;
+        CellPosition corner = horizontal_first ? CellPosition {to.i, from.j} : CellPosition {from.i, to.j};
 
-        auto run = [&cells](const Cell& a, const Cell& b)
+        auto run = [&positions](const CellPosition& a, const CellPosition& b)
         {
             coord_type di = b.i > a.i ? 1 : (b.i < a.i ? -1 : 0);
             coord_type dj = b.j > a.j ? 1 : (b.j < a.j ? -1 : 0);
 
-            for (Cell c = a; c != b; c.i += di, c.j += dj)
+            for (CellPosition c = a; c != b; c.i += di, c.j += dj)
             {
-                cells.push_back(c);
+                positions.push_back(c);
             }
         };
 
         run(from, corner);
         run(corner, to);
-        cells.push_back(to);
+        positions.push_back(to);
 
-        return cells;
+        return positions;
     }
 
     //--------------------------------------------------------------------------
     // Turns the rock a path crosses into corridor. Each unbroken run of rock becomes a
     // region of its own, so that a path crossing an existing room does not leave one region
     // in two disconnected pieces
-    void carve(const Extent& extent, const vector<Cell>& cells, regions_type& regions, id_type& region_count)
+    void carve(const Extent& extent, const vector<CellPosition>& positions, cell_region_mapping& regions, id_type& region_count)
     {
         id_type region = nullid;
 
-        for (const Cell& cell : cells)
+        for (const CellPosition& position : positions)
         {
-            size_t slot = cell_slot(extent, cell);
+            size_t slot = cell_slot(extent, position);
 
             if (regions[slot] != nullid)
             {
@@ -268,7 +266,7 @@ namespace
     // Every cell edge with a different region on each side, gathered by the pair it
     // separates. Two regions are adjacent exactly when they have such an edge, and each one
     // is somewhere a door between them could go
-    sites_type door_sites(const Extent& extent, const regions_type& regions)
+    sites_type door_sites(const Extent& extent, const cell_region_mapping& regions)
     {
         sites_type sites;
 
@@ -284,7 +282,7 @@ namespace
 
                 for (Direction direction : {Direction::East, Direction::North})
                 {
-                    Cell other = neighbor({i, j}, direction);
+                    CellPosition other = neighbor({i, j}, direction);
                     if (!contains(extent, other))
                     {
                         continue;
@@ -309,7 +307,7 @@ namespace
     // Joins what selection left separated, one corridor at a time between the closest pair
     // of rooms still out of reach of each other. Components are recounted after each, so a
     // corridor that happens to join more than two is not followed by a redundant one
-    void connect_components(const Extent& extent, const rectangles_type& rooms, regions_type& regions,
+    void connect_components(const Extent& extent, const rectangles_type& rooms, cell_region_mapping& regions,
         id_type& region_count, random_type& random)
     {
         for (size_t pass = 0; pass < rooms.size(); ++pass)
@@ -333,8 +331,8 @@ namespace
                         continue;
                     }
 
-                    Cell center_a = center(rooms[a]);
-                    Cell center_b = center(rooms[b]);
+                    CellPosition center_a = center(rooms[a]);
+                    CellPosition center_b = center(rooms[b]);
                     coord_type distance = abs(center_a.i - center_b.i) + abs(center_a.j - center_b.j);
 
                     if (room_a == nullid || distance < separation)
@@ -361,27 +359,33 @@ namespace
     //--------------------------------------------------------------------------
     // Cells and walls follow from the region map: a cell is floor where it belongs to a
     // region, and the edge between two cells is open only where both belong to the same one
-    void realize(Level& level, const regions_type& regions)
+    // A wall faces open floor on the side it belongs to, so an edge with floor on neither
+    // side carries none at all -- the outer boundary included, where the cell across is the
+    // rock outside the level
+    void realize(Level& level, const cell_region_mapping& regions)
     {
         const Extent& extent = level.extent();
+
+        auto region_of = [&](const CellPosition& position)
+        {
+            return contains(extent, position) ? regions[cell_slot(extent, position)] : nullid;
+        };
 
         for (coord_type j = 0; j < extent.ny; ++j)
         {
             for (coord_type i = 0; i < extent.nx; ++i)
             {
-                id_type region = regions[cell_slot(extent, {i, j})];
+                id_type region = region_of({i, j});
                 level.set_cell({i, j}, region == nullid ? CellType::Solid : CellType::Open);
 
-                for (Direction direction : {Direction::East, Direction::North})
+                for (Direction direction : {Direction::East, Direction::North, Direction::West, Direction::South})
                 {
-                    Cell other = neighbor({i, j}, direction);
-                    if (!contains(extent, other))
-                    {
-                        continue;
-                    }
+                    id_type other = region_of(neighbor({i, j}, direction));
 
-                    bool open = region != nullid && region == regions[cell_slot(extent, other)];
-                    level.set_wall({i, j}, direction, open ? WallType::Open : WallType::Solid);
+                    bool joined = region != nullid && region == other;
+                    bool faced = region != nullid || other != nullid;
+
+                    level.set_wall({i, j}, direction, !joined && faced ? WallType::Solid : WallType::Open);
                 }
             }
         }
@@ -401,7 +405,7 @@ namespace
     // A door on enough walls for every region to reach every other, by taking the
     // adjacencies in a random order and keeping the ones joining two regions not yet joined.
     // What that leaves over is where a loop can be added
-    void place_doors(Level& level, const regions_type& regions, id_type region_count, double loop, random_type& random)
+    void place_doors(Level& level, const cell_region_mapping& regions, id_type region_count, double loop, random_type& random)
     {
         sites_type sites = door_sites(level.extent(), regions);
 
@@ -482,7 +486,7 @@ quetzal::catagen::Level quetzal::catagen::generate(const Parameters& parameters)
     partition({{0, 0}, parameters.extent}, parameters, random, leaves);
 
     rectangles_type rooms = select(leaves, parameters.density, random);
-    regions_type regions = room_regions(parameters.extent, rooms);
+    cell_region_mapping regions = cell_regions(parameters.extent, rooms);
     id_type region_count = rooms.size();
 
     connect_components(parameters.extent, rooms, regions, region_count, random);

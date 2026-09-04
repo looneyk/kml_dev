@@ -1,0 +1,24 @@
+#if !defined(QUETZAL_DUNGEN_GENERATE_HPP)
+#define QUETZAL_DUNGEN_GENERATE_HPP
+//------------------------------------------------------------------------------
+// dungen
+// generate.hpp
+//------------------------------------------------------------------------------
+
+#include "Level.hpp"
+#include "Parameters.hpp"
+#include <string>
+
+namespace quetzal::dungen
+{
+
+    // Builds the layout parameters.algorithm names. The id and name are what the Level is
+    // given to carry; generation itself reads neither
+    // Deterministic in its parameters, the seed included, so that a recorded header
+    // reproduces the level exactly
+    // Throws std::invalid_argument by way of validate
+    Level generate(id_type id, const std::string& name, const Parameters& parameters);
+
+} // namespace quetzal::dungen
+
+#endif // QUETZAL_DUNGEN_GENERATE_HPP

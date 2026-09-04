@@ -19,17 +19,16 @@ namespace
     constexpr char glyph_open = ' ';
     constexpr char glyph_stairs_down = '>';
     constexpr char glyph_stairs_up = '<';
-    constexpr char glyph_wall_horizontal = '_';
+    constexpr char glyph_wall_horizontal = '-';
     constexpr char glyph_wall_vertical = '|';
     constexpr char glyph_door = '/';
     constexpr char glyph_corner = '+';
 
     //--------------------------------------------------------------------------
-    // Whatever lies outside the extent is rock, so that the outer boundary of the filled
-    // area reads the same as any other edge of it
+    // Whatever lies outside the extent is solid
     bool rock(const Level& level, coord_type i, coord_type j)
     {
-        Cell cell {i, j};
+        CellPosition cell {i, j};
         return !level.contains(cell) || level.cell(cell) == CellType::Solid;
     }
 
@@ -64,36 +63,36 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // A wall with rock on both sides is buried in it, so the rock is what shows
     char horizontal_glyph(const Level& level, coord_type i, coord_type j)
     {
-        return rock(level, i, j - 1) && rock(level, i, j)
-            ? glyph_solid
-            : wall_glyph(level.wall_horizontal(i, j), glyph_wall_horizontal);
+        if (rock(level, i, j - 1) && rock(level, i, j))
+        {
+            assert(level.wall_horizontal(i, j) == WallType::Open);
+            return glyph_solid;
+        }
+
+        return wall_glyph(level.wall_horizontal(i, j), glyph_wall_horizontal);
     }
 
     //--------------------------------------------------------------------------
     char vertical_glyph(const Level& level, coord_type i, coord_type j)
     {
-        return rock(level, i - 1, j) && rock(level, i, j)
-            ? glyph_solid
-            : wall_glyph(level.wall_vertical(i, j), glyph_wall_vertical);
+        if (rock(level, i - 1, j) && rock(level, i, j))
+        {
+            assert(level.wall_vertical(i, j) == WallType::Open);
+            return glyph_solid;
+        }
+
+        return wall_glyph(level.wall_vertical(i, j), glyph_wall_vertical);
     }
 
     //--------------------------------------------------------------------------
-    // Whether something was actually drawn there, an absent wall and a buried one both
-    // leaving the lattice points either end of them with nothing to join
     bool drawn(char glyph)
     {
         return glyph != glyph_open && glyph != glyph_solid;
     }
 
     //--------------------------------------------------------------------------
-    // A lattice point takes the shape of whatever reaches it: a junction where walls arrive
-    // from both directions, the run itself where one passes straight through, and nothing
-    // where four open cells meet. Rock swallows it, as it does the walls buried in it
-    // Nothing reads it back, the walls either side of it saying the same thing, so this is
-    // legibility alone
     char corner_glyph(const Level& level, coord_type i, coord_type j)
     {
         if (rock(level, i - 1, j - 1) && rock(level, i, j - 1) && rock(level, i - 1, j) && rock(level, i, j))

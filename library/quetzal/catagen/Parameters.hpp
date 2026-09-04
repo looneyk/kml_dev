@@ -33,7 +33,7 @@ namespace quetzal::catagen
         coord_type spacing_max = 0;
 
         // Fraction of the extent the rooms are drawn from; 1.0 keeps every one of them, so
-        // with no spacing it leaves no rock at all
+        // with no spacing it leaves nothing solid at all
         double density = 1.0;
         double loop = 0.1; // Probability of a door beyond the ones connectivity needs
 

@@ -1,10 +1,11 @@
 //------------------------------------------------------------------------------
-// catagen_test
+// catagen
 // main.cpp
 //------------------------------------------------------------------------------
 
 #include "quetzal/catagen/generate.hpp"
 #include "quetzal/catagen/write_level.hpp"
+#include "quetzal/math/Random.hpp"
 #include <exception>
 #include <format>
 #include <fstream>
@@ -67,7 +68,7 @@ namespace
     //--------------------------------------------------------------------------
     void usage(ostream& os)
     {
-        os << "Usage: catagen_test [level] [--extent nx,ny] [--scale min-max] [--spacing min-max]"
+        os << "Usage: catagen [level] [--extent nx,ny] [--scale min-max] [--spacing min-max]"
             << " [--density d] [--loop l] [--seed n] [--quiet]" << endl;
         return;
     }
@@ -114,7 +115,7 @@ int main(int argc, char* argv[])
             }
             else if (arg == "--seed" && i + 1 < argc)
             {
-                parameters.seed = static_cast<catagen::Parameters::seed_type>(to_integer(argv[++i]));
+                parameters.seed = math::to_seed(argv[++i]);
             }
             else if (arg == "--quiet")
             {

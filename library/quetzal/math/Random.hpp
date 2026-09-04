@@ -5,7 +5,11 @@
 // Random.hpp
 //------------------------------------------------------------------------------
 
+#include <format>
+#include <limits>
 #include <random>
+#include <stdexcept>
+#include <string>
 
 namespace quetzal::math
 {
@@ -45,6 +49,10 @@ namespace quetzal::math
         std::random_device m_rd;
         E m_engine;
     };
+
+    //--------------------------------------------------------------------------
+    template<typename E = std::default_random_engine>
+    E::result_type to_seed(const std::string& s);
 
 } // namespace quetzal::math
 
@@ -129,6 +137,26 @@ template<typename E>
 E& quetzal::math::Random<E>::engine()
 {
     return m_engine;
+}
+
+//------------------------------------------------------------------------------
+template<typename E>
+E::result_type quetzal::math::to_seed(const std::string& s)
+{
+    size_t n = 0;
+    unsigned long long value = std::stoull(s, &n);
+
+    if (n != s.size())
+    {
+        throw std::invalid_argument(std::format("\"{}\" is not a whole number", s));
+    }
+
+    if (value > std::numeric_limits<typename E::result_type>::max())
+    {
+        throw std::invalid_argument(std::format("\"{}\" is larger than a seed can be", s));
+    }
+
+    return static_cast<typename E::result_type>(value);
 }
 
 #endif // QUETZAL_MATH_RANDOM_HPP

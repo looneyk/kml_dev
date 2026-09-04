@@ -66,7 +66,7 @@ void quetzal::dungen::Cells::print(std::ostream& os, position_type position, dim
     auto [nx, ny] = size;
     os << "(" << position.x() << ", " << position.y() << ")\t(" << nx << ", " << ny << ")" << endl;
 
-    for (coord_type y = 0; y < ny; ++y)
+    for (coord_type y = ny - 1; y >= 0; --y)
     {
         for (coord_type x = 0; x < nx; ++x)
         {
