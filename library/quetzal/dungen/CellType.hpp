@@ -18,7 +18,7 @@ namespace quetzal::dungen
         Room,
         Corridor,
         Door,
-        Shaft
+        Stair
     };
 
     std::ostream& operator<<(std::ostream& os, const CellType& type);

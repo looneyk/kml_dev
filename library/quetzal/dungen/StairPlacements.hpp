@@ -1,8 +1,8 @@
-#if !defined(QUETZAL_DUNGEN_SHAFTPLACEMENTS_HPP)
-#define QUETZAL_DUNGEN_SHAFTPLACEMENTS_HPP
+#if !defined(QUETZAL_DUNGEN_STAIRPLACEMENTS_HPP)
+#define QUETZAL_DUNGEN_STAIRPLACEMENTS_HPP
 //------------------------------------------------------------------------------
 // dungen
-// ShaftPlacements.hpp
+// StairPlacements.hpp
 //------------------------------------------------------------------------------
 
 #include <iosfwd>
@@ -13,22 +13,22 @@ namespace quetzal::dungen
 {
 
     //--------------------------------------------------------------------------
-    // How many shafts a level is given and which way they lead
-    enum class ShaftPlacements
+    // How many stairs a level is given and which way they lead
+    enum class StairPlacements
     {
-        None,     // No shafts at all
+        None,     // No stairs at all
         Paired,   // One down and one up
         Multiple  // Several, each direction drawn at random after the first pair
     };
 
     // The command line and file header spelling, lower case
-    std::string to_string(ShaftPlacements placements);
+    std::string to_string(StairPlacements placements);
 
     // Throws std::invalid_argument naming what was not a placement
-    ShaftPlacements to_shaft_placements(std::string_view s);
+    StairPlacements to_stair_placements(std::string_view s);
 
-    std::ostream& operator<<(std::ostream& os, const ShaftPlacements& placements);
+    std::ostream& operator<<(std::ostream& os, const StairPlacements& placements);
 
 } // namespace quetzal::dungen
 
-#endif // QUETZAL_DUNGEN_SHAFTPLACEMENTS_HPP
+#endif // QUETZAL_DUNGEN_STAIRPLACEMENTS_HPP

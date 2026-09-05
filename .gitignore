@@ -74,6 +74,8 @@
 !/test/*/data/*
 !/test/*/reference/
 !/test/*/reference/*
+!/tool/
+!/tool/**
 !/utility/
 !/utility/**
 !/script/

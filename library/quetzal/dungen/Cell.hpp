@@ -51,7 +51,7 @@ namespace quetzal::dungen
         id_type m_room_id;
         std::array<Wall, 4> m_walls;
 /*
-        room, corridor, door, shaft
+        room, corridor, door, stair
 
         material/hardness/...
         feature (door type, stair type (up/down, stairs/ramp), ...)

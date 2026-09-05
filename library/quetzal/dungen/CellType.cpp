@@ -34,8 +34,8 @@ ostream& quetzal::dungen::operator<<(ostream& os, const CellType& type)
             os << "Door";
             break;
 
-        case CellType::Shaft:
-            os << "Shaft";
+        case CellType::Stair:
+            os << "Stairway";
             break;
 
         default:

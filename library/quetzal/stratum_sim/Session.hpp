@@ -9,6 +9,7 @@
 #include "Command.hpp"
 #include "EventQueue.hpp"
 #include "Layout.hpp"
+#include "load_layout.hpp"
 #include "Scheduler.hpp"
 #include "World.hpp"
 #include <filesystem>
@@ -43,6 +44,10 @@ namespace quetzal::stratum_sim
             double units_per_second = Clock::units_per_second_default);
 
         bool loaded() const;
+
+        // Which format the loaded level was written in. Both load into the same structure, so
+        // this is for a caller with something else to decide by it. Block until one is loaded
+        Format format() const;
 
         World& world();
         const World& world() const;
@@ -82,6 +87,7 @@ namespace quetzal::stratum_sim
         Command m_command_pending;
         flecs::entity m_zone;
         flecs::entity m_player;
+        Format m_format = Format::Block;
     };
 
 } // namespace quetzal::stratum_sim

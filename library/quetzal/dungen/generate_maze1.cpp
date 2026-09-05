@@ -5,7 +5,7 @@
 
 #include "generate_maze1.hpp"
 #include "Pattern.hpp"
-#include "place_shafts.hpp"
+#include "place_stairs.hpp"
 #include "quetzal/math/math_util.hpp"
 #include <algorithm>
 #include <array>
@@ -399,9 +399,9 @@ namespace
     }
 
     //------------------------------------------------------------------------------
-    // A shaft stands where a corridor ends, so the dead ends left before they are pruned are
-    // the cells a shaft may take
-    vector<position_type> shaft_candidates(const Level& level)
+    // A stairway stands where a corridor ends, so the dead ends left before they are pruned are
+    // the cells a stairway may take
+    vector<position_type> stair_candidates(const Level& level)
     {
         vector<position_type> candidates;
 
@@ -546,8 +546,8 @@ quetzal::dungen::Level quetzal::dungen::generate_maze1(id_type id, const string&
     // Corridors
     excavate(level, maze1.corridor_straightness, random);
 
-    // Shafts, before the dead ends they stand in are pruned
-    place_shafts(level, shaft_candidates(level), parameters.shaft_placements, random);
+    // Stairways, before the dead ends they stand in are pruned
+    place_stairs(level, stair_candidates(level), parameters.stair_placements, random);
 
     // Dead end and loop removal
     shorten_dead_ends(level, maze1.probability_dead_end_removal, random);

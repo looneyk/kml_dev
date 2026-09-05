@@ -24,8 +24,8 @@ StratumWorld::StratumWorld() :
 //------------------------------------------------------------------------------
 void StratumWorld::_bind_methods()
 {
-    godot::ClassDB::bind_method(godot::D_METHOD("default_level_path"), &StratumWorld::default_level_path);
-    godot::ClassDB::bind_method(godot::D_METHOD("load_level", "filepath"), &StratumWorld::load_level);
+    godot::ClassDB::bind_method(godot::D_METHOD("default_zone_path"), &StratumWorld::default_zone_path);
+    godot::ClassDB::bind_method(godot::D_METHOD("load_zone", "filepath"), &StratumWorld::load_zone);
     godot::ClassDB::bind_method(godot::D_METHOD("extent"), &StratumWorld::extent);
     godot::ClassDB::bind_method(godot::D_METHOD("cell"), &StratumWorld::cell);
     godot::ClassDB::bind_method(godot::D_METHOD("render"), &StratumWorld::render);
@@ -34,6 +34,8 @@ void StratumWorld::_bind_methods()
     BIND_ENUM_CONSTANT(KindRock);
     BIND_ENUM_CONSTANT(KindFloor);
     BIND_ENUM_CONSTANT(KindActor);
+    BIND_ENUM_CONSTANT(KindWall);
+    BIND_ENUM_CONSTANT(KindDoor);
     godot::ClassDB::bind_method(godot::D_METHOD("step", "di", "dj"), &StratumWorld::step);
     godot::ClassDB::bind_method(godot::D_METHOD("turn"), &StratumWorld::turn);
 
@@ -41,23 +43,23 @@ void StratumWorld::_bind_methods()
 }
 
 //------------------------------------------------------------------------------
-godot::String StratumWorld::default_level_path() const
+godot::String StratumWorld::default_zone_path() const
 {
     return godot::String::utf8(KML_DEV_ASSETS_ROOT "/level/dungeon.level");
 }
 
 //------------------------------------------------------------------------------
-bool StratumWorld::load_level(const godot::String& filepath)
+bool StratumWorld::load_zone(const godot::String& filepath)
 {
     // Anything thrown here would cross into Godot's own frame, so it stops at this boundary.
-    // A failed load leaves the previous level standing, which is the session's guarantee
+    // A failed load leaves the previous zone standing, which is the session's guarantee
     try
     {
         m_session.load(std::string(filepath.utf8().get_data()));
     }
     catch (const std::exception& e)
     {
-        godot::UtilityFunctions::push_error("unable to load level: ", godot::String::utf8(e.what()));
+        godot::UtilityFunctions::push_error("unable to load zone: ", godot::String::utf8(e.what()));
         return false;
     }
 
@@ -121,7 +123,7 @@ godot::PackedByteArray StratumWorld::cells() const
     {
         for (size_t i = 0; i < cells.width(); ++i)
         {
-            codes[static_cast<int64_t>(j * cells.width() + i)] = static_cast<uint8_t>(cells.at(i, j));
+            codes[static_cast<int64_t>(j * cells.width() + i)] = static_cast<uint8_t>(cells.at(i, j).kind);
         }
     }
 

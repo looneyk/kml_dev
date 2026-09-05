@@ -1,0 +1,129 @@
+-- initial
++---+---+
+|@  /   |
+|   |   |
+|   |   |
+|   |   |
+|   |   |
++---+---+
+   cell (0, 2)  facing east
+
+-- command 'l'
++---+---+
+|  @/   |
+|   |   |
+|   |   |
+|   |   |
+|   |   |
++---+---+
+   cell (1, 2)  facing east
+   moved to (1, 2)
+
+-- command 'l'
++---+---+
+|  @/   |
+|   |   |
+|   |   |
+|   |   |
+|   |   |
++---+---+
+   cell (1, 2)  facing east
+   blocked by wall 4
+
+-- command ' '
++---+---+
+|  @\   |
+|   |   |
+|   |   |
+|   |   |
+|   |   |
++---+---+
+   cell (1, 2)  facing east
+   opened wall 4
+
+-- command 'l'
++---+---+
+|   \@  |
+|   |   |
+|   |   |
+|   |   |
+|   |   |
++---+---+
+   cell (2, 2)  facing east
+   moved to (2, 2)
+
+-- command ' '
++---+---+
+|   \@  |
+|   |   |
+|   |   |
+|   |   |
+|   |   |
++---+---+
+   cell (2, 2)  facing east
+
+-- command 'l'
++---+---+
+|   \  @|
+|   |   |
+|   |   |
+|   |   |
+|   |   |
++---+---+
+   cell (3, 2)  facing east
+   moved to (3, 2)
+
+-- command 'h'
++---+---+
+|   \@  |
+|   |   |
+|   |   |
+|   |   |
+|   |   |
++---+---+
+   cell (2, 2)  facing east
+   moved to (2, 2)
+
+-- command '<'
++---+---+
+|   \@  |
+|   |   |
+|   |   |
+|   |   |
+|   |   |
++---+---+
+   cell (2, 2)  facing north
+   turned to face north
+
+-- command '<'
++---+---+
+|   \@  |
+|   |   |
+|   |   |
+|   |   |
+|   |   |
++---+---+
+   cell (2, 2)  facing west
+   turned to face west
+
+-- command 'h'
++---+---+
+|  @\   |
+|   |   |
+|   |   |
+|   |   |
+|   |   |
++---+---+
+   cell (1, 2)  facing west
+   moved to (1, 2)
+
+-- command ' '
++---+---+
+|  @\   |
+|   |   |
+|   |   |
+|   |   |
+|   |   |
++---+---+
+   cell (1, 2)  facing west
+

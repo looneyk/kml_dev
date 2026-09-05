@@ -6,7 +6,7 @@
 //------------------------------------------------------------------------------
 
 #include "Algorithm.hpp"
-#include "ShaftPlacements.hpp"
+#include "StairPlacements.hpp"
 #include "types.hpp"
 #include <optional>
 #include <random>
@@ -74,7 +74,7 @@ namespace quetzal::dungen
 
         Algorithm algorithm = Algorithm::Maze1;
         dimensions_type size {32, 32};
-        ShaftPlacements shaft_placements = ShaftPlacements::Paired;
+        StairPlacements stair_placements = StairPlacements::Paired;
 
         Maze1Parameters maze1;
         Grid1Parameters grid1;

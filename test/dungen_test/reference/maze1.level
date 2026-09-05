@@ -1,4 +1,4 @@
-dungen 0.2 algorithm=maze1 size=31,21 shaft_placements=paired room_dimension_base=3 room_dimension_variation=8 room_density=0.25 room_merge=false corridor_straightness=0.5 probability_dead_end_removal=0.5 probability_loop_removal=1 seed=1
+dungen 0.2 algorithm=maze1 size=31,21 stair_placements=paired room_dimension_base=3 room_dimension_variation=8 room_density=0.25 room_merge=false corridor_straightness=0.5 probability_dead_end_removal=0.5 probability_loop_removal=1 seed=1
 ###############################
 #.......#   #...|       |...###
 #.#.###.#   #.#.#       #.#####

@@ -19,7 +19,7 @@ namespace quetzal::stratum_sim::detail
     // (2i, 2j + 1), the wall south of it at (2i + 1, 2j), and their corners at the even
     // positions in both, which are read as decoration. A cell is ' ' open, '#' rock, or '>'
     // and '<' stairs, which are floor until something reads them as more; a wall is ' '
-    // absent, '_' or '|' solid, '#' buried in rock, or '/' a door
+    // absent, '-' or '|' solid, '#' the rock standing there instead, or '/' a door
     // The first line given is the highest row, the grid origin being lower left
 
     // The extent the file covers: what its header says, or what its own geometry says when

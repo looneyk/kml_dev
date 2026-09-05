@@ -1,5 +1,6 @@
 add_library(quetzal_stratum_sim STATIC
     ai.cpp
+    attachments.cpp
     Clock.cpp
     CommandQueue.cpp
     commands.cpp
@@ -13,6 +14,7 @@ add_library(quetzal_stratum_sim STATIC
     Session.cpp
     World.cpp
     ai.hpp
+    attachments.hpp
     Clock.hpp
     Command.hpp
     CommandQueue.hpp

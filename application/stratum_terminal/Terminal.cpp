@@ -186,7 +186,7 @@ void stratum_terminal::Terminal::draw(const stratum_view::Console& console, cons
     size_t rows_wanted = height + row_count_below_map;
     size_t columns_wanted = std::max({console.width(), status.size(), help.size()});
 
-    // Once, at the first frame, the level's size not being known before then. A later
+    // Once, at the first frame, the zone's size not being known before then. A later
     // resize by hand is left alone rather than fought over
     if (!m_sized)
     {
@@ -194,7 +194,7 @@ void stratum_terminal::Terminal::draw(const stratum_view::Console& console, cons
         m_size_original = terminal_size();
 
         // Grown where it falls short and left alone otherwise. Windows Terminal will not
-        // take the size back on exit, so a window narrowed to fit a small level would stay
+        // take the size back on exit, so a window narrowed to fit a small zone would stay
         // narrow afterwards; this way it is never returned smaller than it was found
         Size wanted {std::max(rows_wanted, m_size_original.rows), std::max(columns_wanted, m_size_original.columns)};
 
@@ -233,7 +233,7 @@ void stratum_terminal::Terminal::draw(const stratum_view::Console& console, cons
     {
         std::cout << escape_clear_string
             << std::format("This terminal is {} rows by {} columns.\n", size.rows, size.columns)
-            << std::format("The level needs {} by {}.\n\n", rows_wanted, columns_wanted)
+            << std::format("The zone needs {} by {}.\n\n", rows_wanted, columns_wanted)
             << "Resize the window, then press a key." << std::flush;
 
         redraw();

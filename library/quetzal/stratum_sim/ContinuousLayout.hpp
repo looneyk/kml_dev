@@ -57,6 +57,11 @@ namespace quetzal::stratum_sim
         // A ray against the wall polygons rather than a walk over the cells it crosses
         bool visible(const placement_type& from, const placement_type& to) const override = 0;
 
+        // What the facing ray first meets, out to whatever reach the zone gives an actor's
+        // arm. There is no cell edge to name, so the answer comes from the geometry and the
+        // reach is the layout's rather than implied by a cell being one step wide
+        id_type ahead(const placement_type& placement) const override = 0;
+
         // A property of the zone rather than the grid's spacing
         value_type step_distance() const override = 0;
     };

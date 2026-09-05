@@ -66,7 +66,7 @@ void quetzal::dungen::write_level(ostream& os, const Level& level, const Paramet
     os << "dungen " << format_version
         << " algorithm=" << parameters.algorithm
         << " size=" << nx << "," << ny
-        << " shaft_placements=" << parameters.shaft_placements;
+        << " stair_placements=" << parameters.stair_placements;
 
     switch (parameters.algorithm)
     {

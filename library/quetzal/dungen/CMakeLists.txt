@@ -14,10 +14,10 @@ add_library(quetzal_dungen STATIC
     Level.cpp
     Parameters.cpp
     Pattern.cpp
-    place_shafts.cpp
+    place_stairs.cpp
     Room.cpp
-    Shaft.cpp
-    ShaftPlacements.cpp
+    Stair.cpp
+    StairPlacements.cpp
     Wall.cpp
     write_level.cpp
     Algorithm.hpp
@@ -33,10 +33,10 @@ add_library(quetzal_dungen STATIC
     Level.hpp
     Parameters.hpp
     Pattern.hpp
-    place_shafts.hpp
+    place_stairs.hpp
     Room.hpp
-    Shaft.hpp
-    ShaftPlacements.hpp
+    Stair.hpp
+    StairPlacements.hpp
     types.hpp
     Wall.hpp
     write_level.hpp

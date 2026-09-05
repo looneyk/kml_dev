@@ -5,6 +5,7 @@
 
 #include "Session.hpp"
 #include "ai.hpp"
+#include "attachments.hpp"
 #include "load_layout.hpp"
 #include <format>
 #include <optional>
@@ -76,7 +77,15 @@ void quetzal::stratum_sim::Session::load(const std::filesystem::path& filepath, 
     // Built alongside and moved in only once the whole load has succeeded. The clock's
     // references are to these members rather than to what is moved from, so they stand
     World world;
-    flecs::entity zone = world.create_zone("zone", load_layout(filepath));
+
+    // The loader reports the walls a door stands on rather than placing one, having no world
+    // to place it in. Nothing may be crossed until the doors are built
+    door_walls_type doors;
+    Format format = Format::Block;
+    flecs::entity zone = world.create_zone("zone",
+        load_layout(filepath, value_type(1), [&](const std::vector<id_type>& walls) { doors.push_back(walls); }, &format));
+
+    create_doors(world, zone, doors);
 
     // Where the player starts is asked in cells, which is the loaded layout's own vocabulary
     const DiscreteLayout& layout = layout_as<DiscreteLayout>(world.layout(zone));
@@ -112,6 +121,7 @@ void quetzal::stratum_sim::Session::load(const std::filesystem::path& filepath, 
     m_command_pending = Command();
     m_zone = zone;
     m_player = player;
+    m_format = format;
     m_clock.set_driver(driver, units_per_second);
 
     return;
@@ -121,6 +131,12 @@ void quetzal::stratum_sim::Session::load(const std::filesystem::path& filepath, 
 bool quetzal::stratum_sim::Session::loaded() const
 {
     return static_cast<bool>(m_zone);
+}
+
+//------------------------------------------------------------------------------
+quetzal::stratum_sim::Format quetzal::stratum_sim::Session::format() const
+{
+    return m_format;
 }
 
 //------------------------------------------------------------------------------

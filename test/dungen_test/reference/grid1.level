@@ -1,4 +1,4 @@
-dungen 0.2 algorithm=grid1 size=33,25 shaft_placements=paired divisions=3,3 room_density=1 room_dimension_min=3 room_margin=1 loop=0.15 seed=42
+dungen 0.2 algorithm=grid1 size=33,25 stair_placements=paired divisions=3,3 room_density=1 room_dimension_min=3 room_margin=1 loop=0.15 seed=42
 #################################
 #################################
 ###     #########################

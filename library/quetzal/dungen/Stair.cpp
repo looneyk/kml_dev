@@ -1,15 +1,15 @@
 //------------------------------------------------------------------------------
 // dungen
-// Shaft.cpp
+// Stair.cpp
 //------------------------------------------------------------------------------
 
-#include "Shaft.hpp"
+#include "Stair.hpp"
 #include <iostream>
 
 using namespace std;
 
 //------------------------------------------------------------------------------
-quetzal::dungen::Shaft::Shaft(id_type id, const string& name, position_type position) :
+quetzal::dungen::Stair::Stair(id_type id, const string& name, position_type position) :
     m_id(id),
     m_name(name),
     m_position(position)
@@ -17,47 +17,47 @@ quetzal::dungen::Shaft::Shaft(id_type id, const string& name, position_type posi
 }
 
 //------------------------------------------------------------------------------
-quetzal::id_type quetzal::dungen::Shaft::id() const
+quetzal::id_type quetzal::dungen::Stair::id() const
 {
     return m_id;
 }
 
 //------------------------------------------------------------------------------
-string quetzal::dungen::Shaft::name() const
+string quetzal::dungen::Stair::name() const
 {
     return m_name;
 }
 
 //------------------------------------------------------------------------------
-void quetzal::dungen::Shaft::set_name(const string& name)
+void quetzal::dungen::Stair::set_name(const string& name)
 {
     m_name = name;
     return;
 }
 
 //------------------------------------------------------------------------------
-quetzal::dungen::position_type quetzal::dungen::Shaft::position() const
+quetzal::dungen::position_type quetzal::dungen::Stair::position() const
 {
     return m_position;
 }
 
 //------------------------------------------------------------------------------
-void quetzal::dungen::Shaft::set_position(position_type position)
+void quetzal::dungen::Stair::set_position(position_type position)
 {
     m_position = position;
     return;
 }
 
 //------------------------------------------------------------------------------
-void quetzal::dungen::Shaft::print(ostream& os) const
+void quetzal::dungen::Stair::print(ostream& os) const
 {
-    os << "Shaft " << m_id << "\t" << m_name << "\tposition (" << m_position[0] << ", " << m_position[1] << ")" << endl;
+    os << "Stair " << m_id << "\t" << m_name << "\tposition (" << m_position[0] << ", " << m_position[1] << ")" << endl;
     return;
 }
 
 //------------------------------------------------------------------------------
-ostream& quetzal::dungen::operator<<(ostream& os, const Shaft& shaft)
+ostream& quetzal::dungen::operator<<(ostream& os, const Stair& stair)
 {
-    shaft.print(os);
+    stair.print(os);
     return os;
 }

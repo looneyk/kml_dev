@@ -7,6 +7,7 @@
 
 #include "DiscreteLayout.hpp"
 #include <filesystem>
+#include <functional>
 #include <map>
 #include <memory>
 #include <string>
@@ -22,8 +23,10 @@ namespace quetzal::stratum_sim
     //
     // dungen's block format is one character per cell in its own symbols: '#' solid and
     // '0' null are rock, ' ' room and '.' corridor are open floor, '|' is a doorway and
-    // '>' a shaft. Nothing separates two open cells, so a doorway or a shaft is outlined on
-    // its own even where nothing separates it, and every passage is one a mover may cross
+    // '>' a stairway. Nothing separates two open cells, so a doorway or a stairway is a block: a
+    // cell of wall a mover may stand in, belonging to the area around it, walled on the sides
+    // it presents to rock by that area's own outline and ringed with four walls of its own
+    // that carry the door. Two areas never share an edge, a block always standing between
     // Room floor and corridor floor are laid out alike and differ only in what the level
     // calls them, which is the one thing either format says about rooms
     //
@@ -32,7 +35,7 @@ namespace quetzal::stratum_sim
     // (2i, 2j + 1), the wall south of it at (2i + 1, 2j), and their corners at the even
     // positions in both, which are read as decoration. A cell is ' ' open, '#' rock, or
     // '>' and '<' stairs, which are floor until something reads them as more; a wall is
-    // ' ' absent, '_' or '|' solid, '#' buried in rock, or '/' a door. Its extent comes from
+    // ' ' absent, '-' or '|' solid, '#' the rock standing there instead, or '/' a door. Its extent comes from
     // the header, and where the header does not carry one it is derived from the grid: the
     // last column is a boundary wall or one of its corners and so is never blank, which
     // means no row can have been trimmed and the widest is the width. Given one, the extent
@@ -44,6 +47,26 @@ namespace quetzal::stratum_sim
     // A Room is built per contiguous run of the cells the format called room floor, and a
     // format that names none builds none
     //
+    //--------------------------------------------------------------------------
+    // Told of each pair of walls the file called a door, as the walls are built. The loader
+    // builds geometry and has no world to build entities in, so it reports rather than places
+    // -- which is what lets a caller with a world attach a door without the loader knowing
+    // what a door is
+    // One wall per side it presents: two for a door in a wall and for a doorway between two
+    // areas, one for a doorway into a dead end
+    using door_type = std::function<void(const std::vector<id_type>& wall_ids)>;
+
+    //--------------------------------------------------------------------------
+    // Which of the two a file was written in, told by the header naming its generator and a
+    // file with no header being the block format. Both load into the same structure, so this
+    // is for a caller that has something else to decide by it -- what a view of it shows
+    // without losing anything, being the one so far
+    enum class Format
+    {
+        Block,
+        Wall
+    };
+
     // Both formats are grids of cells, so both build a DiscreteLayout and this says so
     // rather than answering with the interface. A format describing something else is a
     // reader of its own rather than another return from this one
@@ -51,7 +74,9 @@ namespace quetzal::stratum_sim
     // Throws std::runtime_error when the file cannot be opened, holds no rows, names a
     // generator or version this does not read, or does not match its own header. Nothing is
     // built until every one of those has passed, so a throw leaves no half-built layout
-    std::unique_ptr<DiscreteLayout> load_layout(const std::filesystem::path& filepath, value_type height_ceiling = value_type(1));
+    // format, where given, is told which of the two was read, and is left alone by a throw
+    std::unique_ptr<DiscreteLayout> load_layout(const std::filesystem::path& filepath,
+        value_type height_ceiling = value_type(1), const door_type& door = {}, Format* format = nullptr);
 
     //--------------------------------------------------------------------------
     // What a format reader produces and what reading one needs. Shared by the readers in
@@ -89,15 +114,31 @@ namespace quetzal::stratum_sim
         };
 
         //----------------------------------------------------------------------
+        // A cell of wall a mover may stand in: the block format's doorway and stairway. It is
+        // part of the area around it, so that area's outline walls the sides it presents to
+        // rock, and a ring of its own carries the faces it presents to floor. Those are wound
+        // about the floor either side, so a door hangs on them and a mover inside meets only
+        // backs -- which are not walls to a query and so do not stop it leaving
+        struct Block
+        {
+            Vertex cell;
+            std::vector<Vertex> neighbors; // The open cells its faces adjoin
+        };
+
+        //----------------------------------------------------------------------
         // What both formats reduce to before a layout is built: which cells are open, which
         // of them belong together, and where two of those groups meet
         struct Map
         {
             size_t w = 0;
             size_t h = 0;
-            std::vector<size_t> cell_components; // w by h, npos where the cell is not open
+
+            std::vector<bool> cell_open; // w by h, true where a mover may stand
+
+            std::vector<size_t> cell_components; // w by h, npos where the cell is not in one
             std::vector<std::vector<Vertex>> component_cells;
             std::vector<Passage> passages;
+            std::vector<Block> blocks;
 
             // w by h, true where the format said the cell is room floor rather than
             // corridor, doorway or anything else open. Empty when the format names no
@@ -108,10 +149,12 @@ namespace quetzal::stratum_sim
         //----------------------------------------------------------------------
         // The row a generator writes ahead of the grid, naming itself, the version of the
         // format it wrote, and the parameters of the run as name=value tokens
+        // The version is a string rather than a number: it is a label a reader matches, and a
+        // pre-release one carries a dot
         struct Header
         {
             std::string generator;
-            int version = 0;
+            std::string version;
             std::map<std::string, std::string> values;
         };
 

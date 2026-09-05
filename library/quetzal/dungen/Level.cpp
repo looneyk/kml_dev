@@ -17,7 +17,7 @@ quetzal::dungen::Level::Level(id_type id, const string& name, dimensions_type si
     m_cells(size, {cell_type}, 0),
     m_rooms(),
     m_doors(),
-    m_shafts()
+    m_stairs()
 {
 }
 
@@ -178,39 +178,39 @@ void quetzal::dungen::Level::create_door(position_type position)
 }
 
 //------------------------------------------------------------------------------
-const quetzal::dungen::Level::shafts_type& quetzal::dungen::Level::shafts() const
+const quetzal::dungen::Level::stairs_type& quetzal::dungen::Level::stairs() const
 {
-    return m_shafts;
+    return m_stairs;
 }
 
 //------------------------------------------------------------------------------
-quetzal::dungen::Level::shafts_type& quetzal::dungen::Level::shafts()
+quetzal::dungen::Level::stairs_type& quetzal::dungen::Level::stairs()
 {
-    return m_shafts;
+    return m_stairs;
 }
 
 //------------------------------------------------------------------------------
-const quetzal::dungen::Shaft& quetzal::dungen::Level::shaft(id_type id) const
+const quetzal::dungen::Stair& quetzal::dungen::Level::stair(id_type id) const
 {
-    assert(id < m_shafts.size());
-    return m_shafts[id];
+    assert(id < m_stairs.size());
+    return m_stairs[id];
 }
 
 //------------------------------------------------------------------------------
-quetzal::dungen::Shaft& quetzal::dungen::Level::shaft(id_type id)
+quetzal::dungen::Stair& quetzal::dungen::Level::stair(id_type id)
 {
-    assert(id < m_shafts.size());
-    return m_shafts[id];
+    assert(id < m_stairs.size());
+    return m_stairs[id];
 }
 
 //------------------------------------------------------------------------------
-void quetzal::dungen::Level::create_shaft(position_type position)
+void quetzal::dungen::Level::create_stair(position_type position)
 {
     Cell& c = cell(position);
-    c.set_type(CellType::Shaft);
+    c.set_type(CellType::Stair);
 
-    id_type shaft_id = m_shafts.size();
-    m_shafts.emplace_back(shaft_id, to_string(shaft_id), position);
+    id_type stair_id = m_stairs.size();
+    m_stairs.emplace_back(stair_id, to_string(stair_id), position);
 
     return;
 }
@@ -247,9 +247,9 @@ void quetzal::dungen::Level::print(ostream& os) const
         os << door;
     }
 
-    for (const auto& shaft : m_shafts)
+    for (const auto& stair : m_stairs)
     {
-        os << shaft;
+        os << stair;
     }
 
     render(os);

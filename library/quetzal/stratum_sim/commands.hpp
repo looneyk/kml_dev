@@ -15,13 +15,19 @@ namespace quetzal::stratum_sim
 
     // The movement vocabulary every view maps its input onto. A first person view sends
     // Step and Turn relative to facing; a top down view sends Step with a direction it
-    // chose, which leaves facing alone
+    // chose, which leaves facing alone; a view with no facing of its own to show sends Step
+    // with face set, which slaves facing to movement
 
     //--------------------------------------------------------------------------
     struct Step
     {
         vector_type direction; // Zero to step along the actor's own facing
         value_type distance = value_type(1);
+
+        // Turn to direction before moving, as part of the same action rather than at the
+        // cost of one of its own. The turn stands even where the step that followed it did
+        // not, so walking into a wall still leaves the mover facing it
+        bool face = false;
     };
 
     //--------------------------------------------------------------------------
@@ -65,10 +71,22 @@ namespace quetzal::stratum_sim
     };
 
     //--------------------------------------------------------------------------
+    //--------------------------------------------------------------------------
+    // What acting on something did, so that a view can say it. Nothing is the honest answer
+    // for a bare wall and for anything acting on it does not yet reach
+    enum class Interaction
+    {
+        Nothing,
+        Opened,
+        Closed
+    };
+
+    //--------------------------------------------------------------------------
     struct Interacted
     {
         id_type entity_id = nullid;
         id_type wall_id = nullid;
+        Interaction interaction = Interaction::Nothing;
     };
 
     // Applies one command, appending whatever it produced. Returns the energy it cost,

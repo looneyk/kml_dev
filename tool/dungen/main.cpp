@@ -83,7 +83,7 @@ namespace
     void usage(ostream& os)
     {
         os << "Usage: dungen [level] [--algorithm maze1|grid1|cave1] [--size nx,ny]"
-            << " [--shaft-placements none|paired|multiple] [--room-density d] [--seed n]" << endl;
+            << " [--stair-placements none|paired|multiple] [--room-density d] [--seed n]" << endl;
         os << "  maze1: [--room-dimension-base n] [--room-dimension-variation n] [--room-merge]"
             << " [--corridor-straightness s] [--probability-dead-end-removal p]"
             << " [--probability-loop-removal p]" << endl;
@@ -116,9 +116,9 @@ int main(int argc, char* argv[])
                 auto [nx, ny] = to_pair(argv[++i], ',');
                 parameters.size = {static_cast<dungen::coord_type>(nx), static_cast<dungen::coord_type>(ny)};
             }
-            else if (arg == "--shaft-placements" && i + 1 < argc)
+            else if (arg == "--stair-placements" && i + 1 < argc)
             {
-                parameters.shaft_placements = dungen::to_shaft_placements(argv[++i]);
+                parameters.stair_placements = dungen::to_stair_placements(argv[++i]);
             }
             else if (arg == "--room-density" && i + 1 < argc)
             {

@@ -5,7 +5,7 @@
 // Terminal.hpp
 //------------------------------------------------------------------------------
 
-#include "quetzal/stratum_view/Console.hpp"
+#include "quetzal/stratum_view/ascii.hpp"
 #include <string>
 
 namespace stratum_terminal
@@ -57,10 +57,10 @@ namespace stratum_terminal
 
         quetzal::stratum_view::Console m_console_previous;
         Size m_size_previous;
-        Size m_size_original; // What the terminal was before it was sized to the level
+        Size m_size_original; // What the terminal was before it was sized to the zone
         Size m_size_set;      // And what it became, so a later resize by hand can be told apart
         bool m_incremental;
-        bool m_sized = false; // The level's size is not known until the first frame arrives
+        bool m_sized = false; // The zone's size is not known until the first frame arrives
     };
 
 } // namespace stratum_terminal

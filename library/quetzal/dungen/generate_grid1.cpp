@@ -4,7 +4,7 @@
 //------------------------------------------------------------------------------
 
 #include "generate_grid1.hpp"
-#include "place_shafts.hpp"
+#include "place_stairs.hpp"
 #include <algorithm>
 #include <numeric>
 #include <utility>
@@ -273,8 +273,8 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // A shaft stands in a room, or in a corridor where the density left no rooms at all
-    vector<position_type> shaft_candidates(const Level& level)
+    // A stairway stands in a room, or in a corridor where the density left no rooms at all
+    vector<position_type> stair_candidates(const Level& level)
     {
         vector<position_type> rooms;
         vector<position_type> corridors;
@@ -345,7 +345,7 @@ quetzal::dungen::Level quetzal::dungen::generate_grid1(id_type id, const string&
         connect(level, sectors[connection.slot_a], sectors[connection.slot_b], connection.horizontal, random);
     }
 
-    place_shafts(level, shaft_candidates(level), parameters.shaft_placements, random);
+    place_stairs(level, stair_candidates(level), parameters.stair_placements, random);
 
     return level;
 }

@@ -5,11 +5,13 @@
 
 #include "quetzal/common/FileValidator.hpp"
 #include "quetzal/common/file_util.hpp"
+#include "quetzal/stratum_sim/attachments.hpp"
 #include "quetzal/stratum_sim/commands.hpp"
 #include "quetzal/stratum_sim/load_layout.hpp"
 #include "quetzal/stratum_sim/World.hpp"
 #include "quetzal/stratum_view/ascii.hpp"
 #include "quetzal/stratum_view/cells.hpp"
+#include "quetzal/stratum_view/read_glyphs.hpp"
 #include <format>
 #include <fstream>
 #include <iostream>
@@ -161,42 +163,204 @@ namespace
     }
 
     //--------------------------------------------------------------------------
+    // A level in a zone, with the doors the file named standing on the walls it named. This
+    // is what Session::load does: the loader reports where a door goes, having no world to
+    // put one in, and something holding a world builds it
+    flecs::entity load_zone(stratum_sim::World& world, const string& name, const string& filepath)
+    {
+        stratum_sim::door_walls_type doors;
+
+        flecs::entity zone = world.create_zone(name, stratum_sim::load_layout(filepath, 1.0f,
+            [&](const std::vector<id_type>& walls) { doors.push_back(walls); }));
+
+        stratum_sim::create_doors(world, zone, doors);
+
+        return zone;
+    }
+
+    //--------------------------------------------------------------------------
     // The reduction both views consume, before either decides how to show it
     void test_cells()
     {
         report_group("cells");
 
         stratum_sim::World world;
-        flecs::entity zone = world.create_zone("crypt", stratum_sim::load_layout("data/corridor.level"));
+        flecs::entity zone = load_zone(world, "crypt", "data/corridor.level");
 
         stratum_view::Cells cells = stratum_view::cells(world, zone);
 
         report_case_equal("it covers the zone's grid", cells.width(), 7);
         report_case_equal("in both directions", cells.height(), 3);
-        report_case("rock where the level says rock", cells.at(0, 1) == stratum_view::Kind::Rock);
-        report_case("floor where it says open", cells.at(1, 1) == stratum_view::Kind::Floor);
-        report_case("no actor before one exists", cells.at(3, 1) != stratum_view::Kind::Actor);
+        report_case("rock where the level says rock", cells.at(0, 1).kind == stratum_view::Kind::Rock);
+        report_case("floor where it says open", cells.at(1, 1).kind == stratum_view::Kind::Floor);
+        report_case("no actor before one exists", cells.at(3, 1).kind != stratum_view::Kind::Actor);
 
         const stratum_sim::DiscreteLayout& layout = stratum_sim::layout_as<stratum_sim::DiscreteLayout>(world.layout(zone));
         world.create_entity(zone, stratum_sim::placement_type(layout.cell_position(stratum_sim::GridPosition {3, 1}),
             stratum_sim::vector_type(1.0f, 0.0f, 0.0f)));
 
         cells = stratum_view::cells(world, zone);
-        report_case("an entity takes the cell it stands in", cells.at(3, 1) == stratum_view::Kind::Actor);
-        report_case("and only that one", cells.at(2, 1) == stratum_view::Kind::Floor);
+        report_case("an entity takes the cell it stands in", cells.at(3, 1).kind == stratum_view::Kind::Actor);
+        report_case("and only that one", cells.at(2, 1).kind == stratum_view::Kind::Floor);
 
-        // A view's mapping is its own; the terminal's is Glyphs
-        stratum_view::Glyphs glyphs;
-        report_case("glyphs map each kind", glyphs(stratum_view::Kind::Rock) == '#'
-            && glyphs(stratum_view::Kind::Floor) == '.' && glyphs(stratum_view::Kind::Actor) == '@');
+        // A view's mapping is its own; the terminal's is a table of Glyph
+        const stratum_view::Glyphs& glyphs = stratum_view::cell_glyphs();
+        report_case("glyphs map each kind", glyphs(stratum_view::Place {stratum_view::Kind::Rock}) == '#'
+            && glyphs(stratum_view::Place {stratum_view::Kind::Floor}) == '.'
+            && glyphs(stratum_view::Place {stratum_view::Kind::Actor}) == '@');
+
+        // What a set can say is the set's, so a line naming a state beats one that does not
+        const stratum_view::Glyphs& lattice_set = stratum_view::lattice_glyphs();
+        report_case("a state named draws apart from one not named",
+            lattice_set(stratum_view::Place {stratum_view::Kind::Door}) == '/'
+            && lattice_set(stratum_view::Place {stratum_view::Kind::Door, stratum_view::State::Open}) == '\\');
+        report_case("and a set saying nothing of a state draws both alike",
+            stratum_view::Glyphs(std::vector<stratum_view::Glyph> {{stratum_view::Kind::Door, stratum_view::State::None, {}, '+'}})
+                (stratum_view::Place {stratum_view::Kind::Door, stratum_view::State::Open}) == '+');
 
         report_case("rendering from cells matches rendering from the world",
             stratum_view::render(cells).to_string() == stratum_view::render(world, zone).to_string());
 
         // difference serves any buffer, which is what having one implementation buys
         stratum_view::Cells other = cells;
-        other.set(5, 1, stratum_view::Kind::Rock);
+        other.set(5, 1, stratum_view::Place {stratum_view::Kind::Rock});
         report_case_equal("differencing works over kinds too", stratum_view::difference(cells, other).size(), 1);
+
+        return;
+    }
+
+    //--------------------------------------------------------------------------
+    // A glyph set as a file, and the built-in sets as the contents of the two shipped
+    void test_glyph_files()
+    {
+        report_group("glyph files");
+
+        auto same = [](const stratum_view::Glyphs& a, const stratum_view::Glyphs& b)
+        {
+            if (a.glyphs().size() != b.glyphs().size())
+            {
+                return false;
+            }
+
+            for (size_t n = 0; n < a.glyphs().size(); ++n)
+            {
+                const stratum_view::Glyph& x = a.glyphs()[n];
+                const stratum_view::Glyph& y = b.glyphs()[n];
+
+                if (x.kind != y.kind || x.state != y.state || x.mask != y.mask || x.c != y.c)
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        };
+
+        string root = string(KML_DEV_ASSETS_ROOT) + "/glyphs/";
+
+        report_case("the shipped cell set is the built-in one",
+            same(stratum_view::read_glyphs(root + "ascii_cells.glyphs"), stratum_view::cell_glyphs()));
+        report_case("and the shipped lattice set is the built-in one",
+            same(stratum_view::read_glyphs(root + "ascii_lattice.glyphs"), stratum_view::lattice_glyphs()));
+
+        auto read = [](const string& text)
+        {
+            istringstream is(text);
+            return stratum_view::read_glyphs(is);
+        };
+
+        stratum_view::Glyphs set = read("glyphs 0.1\ndoor open '\\'\nwall mask=EW '-'\nfloor ' '\n");
+        report_case_equal("a set holds a line per row that names one", set.glyphs().size(), 3);
+        report_case("an escaped backslash is the character it names",
+            set(stratum_view::Place {stratum_view::Kind::Door, stratum_view::State::Open}) == '\\');
+        report_case("a quoted space is a glyph like any other",
+            set(stratum_view::Place {stratum_view::Kind::Floor}) == ' ');
+        report_case("a mask is asked for only where it is named",
+            set(stratum_view::Place {stratum_view::Kind::Wall, stratum_view::State::None,
+                stratum_view::Mask::East | stratum_view::Mask::West}) == '-'
+            && set(stratum_view::Place {stratum_view::Kind::Wall}) == ' ');
+
+        auto throws = [&](const string& text)
+        {
+            try
+            {
+                read(text);
+            }
+            catch (const std::runtime_error&)
+            {
+                return true;
+            }
+
+            return false;
+        };
+
+        report_case("a file naming no format is rejected", throws("door '/'\n"));
+        report_case("as is one naming another version", throws("glyphs 9.9\n"));
+        report_case("a kind that is not one is rejected", throws("glyphs 0.1\nchasm '/'\n"));
+        report_case("as is a state that is not one", throws("glyphs 0.1\ndoor ajar '/'\n"));
+        report_case("a state its kind cannot be in is rejected",
+            throws("glyphs 0.1\nwall open '|'\n"));
+        report_case("as is a line with nothing to draw", throws("glyphs 0.1\ndoor open\n"));
+
+        return;
+    }
+
+    //--------------------------------------------------------------------------
+    // The reduction the wall-aware view consumes: the cells and what stands between them
+    void test_lattice()
+    {
+        report_group("lattice");
+
+        // Two rooms of two by three cells sharing one wall, with a door in the middle of it
+        stratum_sim::World world;
+        flecs::entity zone = load_zone(world, "rooms", "data/walls.level");
+
+        stratum_view::Lattice lattice = stratum_view::lattice(world, zone);
+
+        report_case_equal("it covers twice the grid plus one", lattice.width(), 9);
+        report_case_equal("in both directions", lattice.height(), 7);
+
+        report_case("a cell sits at an odd position both ways", lattice.at(1, 1).kind == stratum_view::Kind::Floor);
+        report_case("the wall two rooms share stands between them", lattice.at(4, 1).kind == stratum_view::Kind::Wall);
+        report_case("and the door in it is a door", lattice.at(4, 5).kind == stratum_view::Kind::Door);
+        report_case("shut, which is a state rather than a kind of its own",
+            !stratum_view::any(lattice.at(4, 5).state & stratum_view::State::Open));
+        report_case("a state a wall cannot be in is rejected",
+            !stratum_view::applies(stratum_view::Kind::Wall, stratum_view::State::Open)
+            && stratum_view::applies(stratum_view::Kind::Door, stratum_view::State::Open));
+        report_case("an edge within one room holds nothing", lattice.at(2, 1).kind == stratum_view::Kind::Rock);
+        report_case("the boundary is walled", lattice.at(0, 1).kind == stratum_view::Kind::Wall
+            && lattice.at(8, 1).kind == stratum_view::Kind::Wall);
+
+        report_case("a corner walls reach is a joint", lattice.at(0, 0).kind == stratum_view::Kind::Wall);
+        report_case("so is one a run passes through", lattice.at(2, 0).kind == stratum_view::Kind::Wall);
+        report_case("a corner inside a room is not", lattice.at(2, 2).kind == stratum_view::Kind::Rock);
+
+        // The block format reduces onto the same lattice, its walls standing only against rock
+        stratum_sim::World block;
+        flecs::entity corridor = load_zone(block, "corridor", "data/corridor.level");
+
+        stratum_view::Lattice cells = stratum_view::lattice(block, corridor);
+
+        report_case_equal("a block level covers the same shape", cells.width(), 15);
+        report_case("a rock cell reads as rock", cells.at(1, 1).kind == stratum_view::Kind::Rock);
+        report_case("an open cell reads as floor", cells.at(3, 3).kind == stratum_view::Kind::Floor);
+        report_case("open meeting rock is walled", cells.at(2, 3).kind == stratum_view::Kind::Wall);
+
+        // A wall stands only on the side facing open space, so an edge has to be asked of
+        // both cells: this one carries its wall on the west side, the other on the east
+        report_case("and so is rock meeting open", cells.at(12, 3).kind == stratum_view::Kind::Wall);
+        report_case("as is the floor's own boundary", cells.at(3, 2).kind == stratum_view::Kind::Wall
+            && cells.at(3, 4).kind == stratum_view::Kind::Wall);
+
+        report_case("two open cells of one area are not", cells.at(4, 3).kind == stratum_view::Kind::Rock);
+
+        const stratum_sim::DiscreteLayout& layout = stratum_sim::layout_as<stratum_sim::DiscreteLayout>(block.layout(corridor));
+        block.create_entity(corridor, stratum_sim::placement_type(layout.cell_position(stratum_sim::GridPosition {1, 1}),
+            stratum_sim::vector_type(1.0f, 0.0f, 0.0f)));
+
+        cells = stratum_view::lattice(block, corridor);
+        report_case("an entity takes the cell it stands in", cells.at(3, 3).kind == stratum_view::Kind::Actor);
 
         return;
     }
@@ -208,7 +372,7 @@ namespace
         report_group("ascii render");
 
         stratum_sim::World world;
-        flecs::entity zone = world.create_zone("crypt", stratum_sim::load_layout("data/corridor.level"));
+        flecs::entity zone = load_zone(world, "crypt", "data/corridor.level");
 
         stratum_view::Console console = stratum_view::render(world, zone);
 
@@ -232,6 +396,40 @@ namespace
     }
 
     //--------------------------------------------------------------------------
+    // The wall-aware mapping, on a block format level, where the file is not the lattice
+    void test_render_lattice()
+    {
+        report_group("wall render");
+
+        stratum_sim::World world;
+        flecs::entity zone = load_zone(world, "corridor", "data/corridor.level");
+
+        stratum_view::Console console = stratum_view::render_lattice(world, zone);
+
+        report_case_equal("the console covers the lattice", console.width(), 15);
+        report_case_equal("in both directions", console.height(), 7);
+
+        report_case("an open cell is a space, not a dot", console.at(3, 3) == ' ');
+        report_case("a rock cell is rock", console.at(1, 1) == '#');
+        report_case("open meeting rock is a vertical wall", console.at(2, 3) == '|');
+        report_case("open over rock is a horizontal one", console.at(3, 2) == '-');
+        report_case("two open cells of one area have nothing between them", console.at(4, 3) == ' ');
+
+        report_case("a corner with rock all around it is rock", console.at(0, 0) == '#');
+        report_case("a corner two walls turn at is a junction", console.at(2, 2) == '+');
+        report_case("and one a run passes through is the run", console.at(4, 2) == '-');
+
+        const stratum_sim::DiscreteLayout& layout = stratum_sim::layout_as<stratum_sim::DiscreteLayout>(world.layout(zone));
+        world.create_entity(zone, stratum_sim::placement_type(layout.cell_position(stratum_sim::GridPosition {1, 1}),
+            stratum_sim::vector_type(1.0f, 0.0f, 0.0f)));
+
+        console = stratum_view::render_lattice(world, zone);
+        report_case("an actor draws over the cell it stands in", console.at(3, 3) == '@');
+
+        return;
+    }
+
+    //--------------------------------------------------------------------------
     // An unoccupied level of nothing but rock and floor renders back to the file it
     // was loaded from. vault.level is asymmetric top to bottom, so this pins row order too
     void test_round_trip()
@@ -243,26 +441,61 @@ namespace
             string filepath = format("data/{}.level", name);
 
             stratum_sim::World world;
-            flecs::entity zone = world.create_zone(name, stratum_sim::load_layout(filepath));
+            flecs::entity zone = load_zone(world, name, filepath);
 
             string s = stratum_view::render(world, zone).to_string();
-            report_case(format("{} renders back to its own file", name), s == read_file(filepath), "\n" + s);
+
+            // The header is the generator's, not the grid's, so the grid is what is compared
+            string expected = read_file(filepath);
+            expected.erase(0, expected.find('\n') + 1);
+
+            report_case(format("{} renders back to its own file", name), s == expected, "\n" + s);
+        }
+
+        // The wall format is the lattice written out, so the same gate applies to it: the
+        // glyphs, the corner shaping and where rock shows all have to agree with the
+        // generator that wrote the file, without either knowing of the other
+        {
+            string filepath = "data/walls.level";
+
+            stratum_sim::World world;
+            flecs::entity zone = load_zone(world, "walls", filepath);
+
+            string s = stratum_view::render_lattice(world, zone).to_string();
+
+            // The header is the generator's, not the grid's, so the grid is what is compared
+            string expected = read_file(filepath);
+            expected.erase(0, expected.find('\n') + 1);
+
+            // Stairs are the one thing the reader loses: it takes '<' and '>' as floor, so
+            // the view has only floor to draw. Comparing against what the reader can carry
+            // keeps the walls, doors, corners and rock gated; this goes when stairs reach
+            // somewhere, which is stage 6 of work_plan.md
+            for (char& c : expected)
+            {
+                c = c == '<' || c == '>' ? ' ' : c;
+            }
+
+            report_case("a wall format level renders back to its own file", s == expected, "\n" + s);
         }
 
         return;
     }
 
     //--------------------------------------------------------------------------
-    // A generated dungeon, which has doorways and shafts as well as rooms and corridors.
-    // All of them are open, so every cell the file does not call rock must render as floor
+    // A generated dungeon, which has doorways and stairs as well as rooms and corridors. All
+    // of them are open, and a block is where the block format puts a door, so a doorway and a
+    // stairway render as one rather than as the floor they also are
     void test_dungeon()
     {
         report_group("generated dungeon");
 
+        // The header is the generator's, not the grid's, so the grid is what is compared
         string source = read_file("data/dungeon.level");
+        source.erase(0, source.find('\n') + 1);
 
         stratum_sim::World world;
-        flecs::entity zone = world.create_zone("dungeon", stratum_sim::load_layout("data/dungeon.level"));
+        flecs::entity zone = load_zone(world, "dungeon", "data/dungeon.level");
 
         stratum_view::Console console = stratum_view::render(world, zone);
 
@@ -283,7 +516,12 @@ namespace
 
                 rock ? ++rock_count : ++floor_count;
 
-                if (console.at(i, j) != (rock ? '#' : '.'))
+                // A doorway and a stairway are both blocks, and the loader reports every block as
+                // somewhere a door goes, so both carry one and both draw as one
+                bool block = source_character == '|' || source_character == '>';
+                char expected = rock ? '#' : block ? '/' : '.';
+
+                if (console.at(i, j) != expected)
                 {
                     ++mismatch_count;
                 }
@@ -367,21 +605,34 @@ namespace
 
         if (const stratum_sim::Interacted* pevent = event.try_get<stratum_sim::Interacted>())
         {
-            return format("interacted with wall {}", pevent->wall_id);
+            return pevent->interaction == stratum_sim::Interaction::Opened ? format("opened wall {}", pevent->wall_id)
+                : pevent->interaction == stratum_sim::Interaction::Closed ? format("shut wall {}", pevent->wall_id)
+                : format("interacted with wall {}", pevent->wall_id);
         }
 
         return "unrecognized event";
     }
 
     //--------------------------------------------------------------------------
-    string frame(const stratum_sim::World& world, flecs::entity zone, flecs::entity player, const string& label, const stratum_sim::EventQueue& events)
+    // Which view a scenario's frames are drawn with. The two are gated separately: one shows
+    // one glyph per cell, the other what stands on the edges between them
+    enum class View
+    {
+        Cells,
+        Walls
+    };
+
+    //--------------------------------------------------------------------------
+    string frame(const stratum_sim::World& world, flecs::entity zone, flecs::entity player, const string& label,
+        const stratum_sim::EventQueue& events, View view)
     {
         const stratum_sim::DiscreteLayout& layout = stratum_sim::layout_as<stratum_sim::DiscreteLayout>(world.layout(zone));
         const stratum_sim::placement_type& placement = player.get<stratum_sim::placement_type>();
         stratum_sim::GridPosition cell = layout.cell_at(placement.position());
 
         string s = format("-- {}\n", label);
-        s += stratum_view::render(world, zone).to_string();
+        s += view == View::Walls ? stratum_view::render_lattice(world, zone).to_string()
+            : stratum_view::render(world, zone).to_string();
         s += format("   cell ({}, {})  facing {}\n", cell.i, cell.j, name_of(placement.direction()));
 
         for (const stratum_sim::Event& event : events.events())
@@ -396,22 +647,22 @@ namespace
 
     //--------------------------------------------------------------------------
     // Plays a fixed command sequence, rendering after each, and returns every frame
-    string play(const string& filepath, const stratum_sim::GridPosition& start, const string& script)
+    string play(const string& filepath, const stratum_sim::GridPosition& start, const string& script, View view)
     {
         stratum_sim::World world;
-        flecs::entity zone = world.create_zone("zone", stratum_sim::load_layout(filepath));
+        flecs::entity zone = load_zone(world, "zone", filepath);
 
         const stratum_sim::DiscreteLayout& layout = stratum_sim::layout_as<stratum_sim::DiscreteLayout>(world.layout(zone));
         flecs::entity player = world.create_entity(zone, stratum_sim::placement_type(layout.cell_position(start), stratum_sim::vector_type(1.0f, 0.0f, 0.0f)));
 
         stratum_sim::EventQueue events;
-        string s = frame(world, zone, player, "initial", events);
+        string s = frame(world, zone, player, "initial", events, view);
 
         for (char c : script)
         {
             events.clear();
             stratum_sim::apply(world, command_of(c, player, layout), events);
-            s += frame(world, zone, player, format("command '{}'", c), events);
+            s += frame(world, zone, player, format("command '{}'", c), events, view);
         }
 
         return s;
@@ -439,13 +690,21 @@ namespace
             string level;
             stratum_sim::GridPosition start;
             string script;
+            View view;
         };
 
+        // The last two are the wall view, which is the only one of these that shows what a
+        // mover is stopped by: the others are block levels through a cell per glyph, which
+        // loses nothing where a wall stands only against rock
+        // The two differ in where the door is. A wall format door is an edge between two
+        // cells and is drawn on it; a block format door is a cell, and is drawn in it
         const Scenario scenarios[]
         {
-            {"corridor_walk", "corridor", {1, 1}, "lllllhh"},
-            {"vault_tour", "vault", {1, 1}, "llkk<h >j "},
-            {"dungeon_walk", "dungeon", {1, 1}, "llllllkkk< j"}
+            {"corridor_walk", "corridor", {1, 1}, "lllllhh", View::Cells},
+            {"vault_tour", "vault", {1, 1}, "llkk<h >j ", View::Cells},
+            {"dungeon_walk", "dungeon", {1, 1}, "llllll< kkk< j", View::Cells},
+            {"walls_door", "walls", {0, 2}, "ll l lh<<h ", View::Walls},
+            {"door_cell", "door", {1, 1}, " l l ", View::Walls}
         };
 
         // Constructed first, so that it can tell frames written now from ones left behind
@@ -453,7 +712,8 @@ namespace
 
         for (const Scenario& scenario : scenarios)
         {
-            write_file(format("out/{}.txt", scenario.name), play(format("data/{}.level", scenario.level), scenario.start, scenario.script));
+            write_file(format("out/{}.txt", scenario.name),
+                play(format("data/{}.level", scenario.level), scenario.start, scenario.script, scenario.view));
         }
 
         validator.report_results();
@@ -470,7 +730,10 @@ int main()
     test_console();
     test_difference();
     test_cells();
+    test_glyph_files();
+    test_lattice();
     test_render();
+    test_render_lattice();
     test_round_trip();
     test_dungeon();
     test_reference();

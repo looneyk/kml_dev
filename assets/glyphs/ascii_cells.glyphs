@@ -1,0 +1,10 @@
+glyphs 0.1
+
+# One glyph per cell, so there is nowhere to put an edge: no wall is drawn at all, and a door
+# only where one stands in a cell of its own
+rock '#'
+floor '.'
+actor '@'
+
+door '/'
+door open '\'

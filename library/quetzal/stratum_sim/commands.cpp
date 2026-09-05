@@ -4,7 +4,7 @@
 //------------------------------------------------------------------------------
 
 #include "commands.hpp"
-#include "DiscreteLayout.hpp" // Interact, which still does cell arithmetic of its own
+#include "attachments.hpp"
 #include "Scheduler.hpp"
 #include <cmath>
 
@@ -32,6 +32,18 @@ int quetzal::stratum_sim::apply(World& world, const Command& command, EventQueue
     {
         // A zero direction means step along the actor's own facing
         vector_type direction = grid_step(pstep->direction).zero() ? placement.direction() : pstep->direction;
+
+        if (pstep->face)
+        {
+            placement_type faced = layout.face(placement, direction);
+
+            if (faced.direction() != placement.direction())
+            {
+                placement = faced;
+                e.set<placement_type>(placement);
+                events.push(Turned {command.entity_id(), placement});
+            }
+        }
 
         // Asked of the world rather than the layout, so that a wall and something standing in
         // the way stop the mover in one answer
@@ -80,25 +92,31 @@ int quetzal::stratum_sim::apply(World& world, const Command& command, EventQueue
 
     if (command.is<Interact>())
     {
-        discrete_vector_type step = grid_step(placement.direction());
-        if (step.zero())
-        {
-            return 0;
-        }
-
-        // Cell arithmetic in the rules layer, which is the one thing here the interface does
-        // not cover. It goes when the layout is asked what is in front instead
-        const DiscreteLayout& cells = layout_as<DiscreteLayout>(layout);
-
-        GridPosition cell = cells.cell_at(placement.position());
-        id_type wall_id = cells.wall_toward(cell, step);
+        id_type wall_id = layout.ahead(placement);
 
         if (wall_id == nullid)
         {
             return 0; // Nothing in front to act on
         }
 
-        events.push(Interacted {command.entity_id(), wall_id});
+        // A door opens and shuts. Anything else in front is reported and does nothing, there
+        // being nothing else yet that acting on has any effect upon
+        Interaction interaction = Interaction::Nothing;
+        flecs::entity facing = facing_on(zone, wall_id);
+
+        if (facing)
+        {
+            flecs::entity door = door_of(facing);
+
+            if (door.has<Openable>())
+            {
+                bool open = !door.get<Openable>().open;
+                door.set<Openable>(Openable {open});
+                interaction = open ? Interaction::Opened : Interaction::Closed;
+            }
+        }
+
+        events.push(Interacted {command.entity_id(), wall_id, interaction});
         return Scheduler::action_cost;
     }
 

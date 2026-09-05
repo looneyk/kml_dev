@@ -1,8 +1,8 @@
-#if !defined(QUETZAL_DUNGEN_SHAFT_HPP)
-#define QUETZAL_DUNGEN_SHAFT_HPP
+#if !defined(QUETZAL_DUNGEN_STAIR_HPP)
+#define QUETZAL_DUNGEN_STAIR_HPP
 //------------------------------------------------------------------------------
 // dungen
-// Shaft.hpp
+// Stair.hpp
 //------------------------------------------------------------------------------
 
 #include "types.hpp"
@@ -13,15 +13,15 @@ namespace quetzal::dungen
 {
 
     //--------------------------------------------------------------------------
-    class Shaft
+    class Stair
     {
     public:
 
-        Shaft(id_type id, const std::string& name, position_type position);
-        Shaft(const Shaft&) = default;
-        ~Shaft() = default;
+        Stair(id_type id, const std::string& name, position_type position);
+        Stair(const Stair&) = default;
+        ~Stair() = default;
 
-        Shaft& operator=(const Shaft&) = default;
+        Stair& operator=(const Stair&) = default;
 
         id_type id() const;
 
@@ -40,8 +40,8 @@ namespace quetzal::dungen
         position_type m_position;
     };
 
-    std::ostream& operator<<(std::ostream& os, const Shaft& shaft);
+    std::ostream& operator<<(std::ostream& os, const Stair& stair);
 
 } // namespace quetzal::dungen
 
-#endif // QUETZAL_DUNGEN_SHAFT_HPP
+#endif // QUETZAL_DUNGEN_STAIR_HPP

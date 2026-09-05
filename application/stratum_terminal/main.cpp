@@ -11,9 +11,10 @@
 //------------------------------------------------------------------------------
 int main(int argc, char* argv[])
 {
-    std::string filepath_level = std::string(KML_DEV_ASSETS_ROOT) + "/level/dungeon.level";
+    std::string filepath_zone = std::string(KML_DEV_ASSETS_ROOT) + "/level/dungeon.level";
     std::string script;
     bool incremental = false;
+    stratum_terminal::View view = stratum_terminal::View::Null;
 
     for (int i = 1; i < argc; ++i)
     {
@@ -27,20 +28,28 @@ int main(int argc, char* argv[])
         {
             incremental = true;
         }
+        else if (arg == "--cell")
+        {
+            view = stratum_terminal::View::Cell;
+        }
+        else if (arg == "--wall")
+        {
+            view = stratum_terminal::View::Wall;
+        }
         else if (arg.starts_with("--"))
         {
-            std::cerr << "Usage: stratum_terminal [level] [--script keys] [--incremental]" << std::endl;
+            std::cerr << "Usage: stratum_terminal [zone] [--cell|--wall] [--script keys] [--incremental]" << std::endl;
             return 1;
         }
         else
         {
-            filepath_level = arg;
+            filepath_zone = arg;
         }
     }
 
     try
     {
-        stratum_terminal::Application application(filepath_level, script, incremental || script.empty());
+        stratum_terminal::Application application(filepath_zone, view, script, incremental || script.empty());
         return application.run();
     }
     catch (const std::exception& e)

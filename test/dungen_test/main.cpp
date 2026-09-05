@@ -150,7 +150,7 @@ namespace
         dungen::Parameters parameters;
 
         parameters.algorithm = dungen::to_algorithm(values.at("algorithm"));
-        parameters.shaft_placements = dungen::to_shaft_placements(values.at("shaft_placements"));
+        parameters.stair_placements = dungen::to_stair_placements(values.at("stair_placements"));
         parameters.seed = math::to_seed(values.at("seed"));
 
         const string& size = values.at("size");
@@ -233,13 +233,13 @@ namespace
         cave1.seed = 12345u;
         v.push_back({"cave1", cave1});
 
-        // No shafts at all, which is the placement the other three do not cover
-        dungen::Parameters unshafted;
-        unshafted.algorithm = dungen::Algorithm::Maze1;
-        unshafted.size = {21, 15};
-        unshafted.shaft_placements = dungen::ShaftPlacements::None;
-        unshafted.seed = 7u;
-        v.push_back({"no_shafts", unshafted});
+        // No stairs at all, which is the placement the other three do not cover
+        dungen::Parameters unstaired;
+        unstaired.algorithm = dungen::Algorithm::Maze1;
+        unstaired.size = {21, 15};
+        unstaired.stair_placements = dungen::StairPlacements::None;
+        unstaired.seed = 7u;
+        v.push_back({"no_stairs", unstaired});
 
         // A seed past the halfway mark of its range, which a signed read would lose
         dungen::Parameters wide;

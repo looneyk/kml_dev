@@ -20,7 +20,7 @@ namespace
         Room,
         Corridor,
         Doorway,
-        Shaft
+        Stairway
     };
 
     //--------------------------------------------------------------------------
@@ -35,7 +35,7 @@ namespace
             case ' ': return Kind::Room;
             case '.': return Kind::Corridor;
             case '|': return Kind::Doorway;
-            case '>': return Kind::Shaft;
+            case '>': return Kind::Stairway;
         }
 
         assert(false); // Unrecognized cell code
@@ -50,12 +50,14 @@ namespace
         return k != Kind::Rock;
     }
 
-    // A doorway or a shaft is its own component even where nothing separates it from its
-    // neighbours, so that its walls can carry a door, or a portal, and their attachments
     //--------------------------------------------------------------------------
-    bool solitary(Kind k)
+    // A doorway or stairway is a cell of wall a mover may stand in rather than part of the
+    // area around it. The boundary of each neighbouring area runs along its face, wound about
+    // that area like the rest of that area's wall, so a door hangs on the face and a mover
+    // inside meets only backs -- which are no walls at all to a query, and so let it out
+    bool block(Kind k)
     {
-        return k == Kind::Doorway || k == Kind::Shaft;
+        return k == Kind::Doorway || k == Kind::Stairway;
     }
 
 } // namespace
@@ -91,9 +93,52 @@ quetzal::stratum_sim::detail::Map quetzal::stratum_sim::detail::read_block(const
             : kinds[static_cast<size_t>(j) * map.w + i];
     };
 
+    // A block is part of the area it stands in, so the area's boundary wraps around the rock
+    // either side of it and its own sides are walled by that boundary rather than by nothing
     find_components(map,
         [&](int i, int j) { return open(at(i, j)); },
-        [&](const Vertex& a, const Vertex& b) { return !solitary(at(a.i, a.j)) && !solitary(at(b.i, b.j)); });
+        [&](const Vertex&, const Vertex&) { return true; });
+
+    map.cell_open.assign(map.w * map.h, false);
+
+    for (size_t j = 0; j < map.h; ++j)
+    {
+        for (size_t i = 0; i < map.w; ++i)
+        {
+            map.cell_open[j * map.w + i] = open(at(static_cast<int>(i), static_cast<int>(j)));
+        }
+    }
+
+    // Each block and the open cells its faces adjoin, which is where a door hangs
+    for (size_t j = 0; j < map.h; ++j)
+    {
+        for (size_t i = 0; i < map.w; ++i)
+        {
+            int bi = static_cast<int>(i);
+            int bj = static_cast<int>(j);
+
+            if (!block(at(bi, bj)))
+            {
+                continue;
+            }
+
+            Block b;
+            b.cell = {bi, bj};
+
+            for (const Vertex& step : {Vertex {1, 0}, Vertex {0, 1}, Vertex {-1, 0}, Vertex {0, -1}})
+            {
+                int ni = bi + step.i;
+                int nj = bj + step.j;
+
+                if (open(at(ni, nj)) && !block(at(ni, nj)))
+                {
+                    b.neighbors.push_back({ni, nj});
+                }
+            }
+
+            map.blocks.push_back(b);
+        }
+    }
 
     // The one thing either format says about rooms: dungen writes room floor and corridor
     // floor as different symbols
@@ -104,33 +149,8 @@ quetzal::stratum_sim::detail::Map quetzal::stratum_sim::detail::read_block(const
         map.cell_room[slot] = kinds[slot] == Kind::Room;
     }
 
-    for (size_t j = 0; j < map.h; ++j)
-    {
-        for (size_t i = 0; i < map.w; ++i)
-        {
-            if (at(static_cast<int>(i), static_cast<int>(j)) == Kind::Rock)
-            {
-                continue;
-            }
-
-            const Vertex cell {static_cast<int>(i), static_cast<int>(j)};
-            const Vertex neighbors[2] {{cell.i + 1, cell.j}, {cell.i, cell.j + 1}};
-
-            for (const Vertex& n : neighbors)
-            {
-                if (at(n.i, n.j) == Kind::Rock)
-                {
-                    continue;
-                }
-
-                size_t n_slot = static_cast<size_t>(n.j) * map.w + n.i;
-                if (map.cell_components[n_slot] != map.cell_components[j * map.w + i])
-                {
-                    map.passages.push_back({cell, n, true});
-                }
-            }
-        }
-    }
+    // No passages: nothing separates two open cells in this format except a block, and a
+    // block is not somewhere two areas meet -- it is a cell of wall between them
 
     return map;
 }

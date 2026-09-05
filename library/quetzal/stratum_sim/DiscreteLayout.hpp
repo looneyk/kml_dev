@@ -26,9 +26,8 @@ namespace quetzal::stratum_sim
         id_type next_id = nullid;
         id_type prev_id = nullid;
         point_type position; // Start vertex, the far end being the position of next
-        bool passable = false; // Crossing outward through this one wall, per side, so that
-                               // one-way and secret doors need no special case
-                               // no, all doors are attachments, this is deprecated.
+                             // Whether a mover may cross is what stands on the wall, not the
+                             // wall: see attachments.hpp
 
         // A deleted wall keeps its slot, ids being slots and every one held elsewhere having
         // to stay pointing at what it named
@@ -204,10 +203,6 @@ namespace quetzal::stratum_sim
         // on itself amounts to: a free standing wall's two sides are partners
         size_t connect_folds(const ids_type& wall_ids);
 
-        // Sets whether a mover may cross this one wall outward. Its partner is untouched,
-        // which is what leaves one-way passages expressible
-        void set_passable(id_type wall_id, bool passable);
-
         void set_grid(const point_type& origin, value_type spacing, const discrete_vector_type& extent);
         const Grid& grid() const;
 
@@ -259,6 +254,10 @@ namespace quetzal::stratum_sim
         // field of view algorithm gives a different, more roguelike answer and would
         // replace this
         bool visible(const placement_type& from, const placement_type& to) const override;
+
+        // The wall on the near side of the edge the placement faces. The facing snaps to one
+        // of the grid's own directions, and a facing that snaps to nothing faces nothing
+        id_type ahead(const placement_type& placement) const override;
 
         void clear();
 

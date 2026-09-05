@@ -418,13 +418,6 @@ size_t quetzal::stratum_sim::DiscreteLayout::connect_folds(const ids_type& wall_
 }
 
 //------------------------------------------------------------------------------
-void quetzal::stratum_sim::DiscreteLayout::set_passable(id_type wall_id, bool passable)
-{
-    wall(wall_id).passable = passable;
-    return;
-}
-
-//------------------------------------------------------------------------------
 void quetzal::stratum_sim::DiscreteLayout::set_grid(const point_type& origin, value_type spacing, const discrete_vector_type& extent)
 {
     assert(spacing > value_type(0));
@@ -558,8 +551,13 @@ quetzal::id_type quetzal::stratum_sim::DiscreteLayout::wall_toward(const GridPos
 //------------------------------------------------------------------------------
 bool quetzal::stratum_sim::DiscreteLayout::blocked(const GridPosition& cell, const discrete_vector_type& direction) const
 {
+    if (!grid().contains(cell + direction))
+    {
+        return true;
+    }
+
     id_type id = wall_toward(cell, direction);
-    return id != nullid && !wall(id).passable;
+    return id != nullid && !crossable(id);
 }
 
 //------------------------------------------------------------------------------
@@ -585,15 +583,16 @@ quetzal::stratum_sim::MoveResult quetzal::stratum_sim::DiscreteLayout::move(cons
     {
         id_type wall_id = wall_toward(cell, step);
 
-        if (wall_id != nullid && !wall(wall_id).passable)
+        GridPosition next = cell + step;
+
+        if (blocked(cell, step))
         {
-            result.obstruction_wall_id = wall_id;
+            // Named when a wall is what stopped it, which leaves the grid edge unnamed
+            result.obstruction_wall_id = wall_id != nullid && !crossable(wall_id) ? wall_id : nullid;
             break;
         }
 
-        // Every boundary cell carries an impassable wall outward, so passing the test above
-        // is what keeps the mover on the grid
-        GridPosition next = cell + step;
+        // Nothing open lies off the grid, so the test above is what keeps the mover on it
         assert(g.contains(next));
 
         if (obstructed)
@@ -770,6 +769,18 @@ bool quetzal::stratum_sim::DiscreteLayout::visible(const placement_type& from, c
     }
 
     return false;
+}
+
+//------------------------------------------------------------------------------
+quetzal::id_type quetzal::stratum_sim::DiscreteLayout::ahead(const placement_type& placement) const
+{
+    discrete_vector_type step = grid_step(placement.direction());
+    if (step.zero())
+    {
+        return nullid; // Facing nothing the grid names, so facing nothing
+    }
+
+    return wall_toward(cell_at(placement.position()), step);
 }
 
 //------------------------------------------------------------------------------

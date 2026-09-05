@@ -4,7 +4,7 @@
 //------------------------------------------------------------------------------
 
 #include "generate_cave1.hpp"
-#include "place_shafts.hpp"
+#include "place_stairs.hpp"
 #include <vector>
 #include <cassert>
 
@@ -180,7 +180,7 @@ quetzal::dungen::Level quetzal::dungen::generate_cave1(id_type id, const string&
     }
 
     // The open ground is all of one region, so any of it will do
-    place_shafts(level, region, parameters.shaft_placements, random);
+    place_stairs(level, region, parameters.stair_placements, random);
 
     return level;
 }

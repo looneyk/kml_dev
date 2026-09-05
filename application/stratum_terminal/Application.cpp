@@ -14,7 +14,7 @@ using namespace quetzal;
 namespace
 {
 
-    static constexpr auto help_string = "arrows or hjkl move, < > turn, space acts, . waits, ^L redraws, q quits";
+    static constexpr auto help_string = "arrows or hjkl move, space acts, . waits, ^L redraws, q quits";
 
     static constexpr char key_redraw = '\x0c'; // Ctrl-L, as curses and the roguelikes bind it
 
@@ -34,8 +34,9 @@ namespace
 } // namespace
 
 //------------------------------------------------------------------------------
-stratum_terminal::Application::Application(const std::string& filepath_level, const std::string& script, bool incremental) :
+stratum_terminal::Application::Application(const std::string& filepath_zone, View view, const std::string& script, bool incremental) :
     m_session(),
+    m_view(view),
     m_view_glyphs(),
     m_terminal(incremental),
     m_message(),
@@ -43,7 +44,15 @@ stratum_terminal::Application::Application(const std::string& filepath_level, co
     m_script_slot(0),
     m_running(true)
 {
-    m_session.load(filepath_level);
+    m_session.load(filepath_zone);
+
+    // The zone decides where nothing was asked for, which it can only do once it is loaded
+    if (m_view == View::Null)
+    {
+        m_view = m_session.format() == stratum_sim::Format::Wall ? View::Wall : View::Cell;
+    }
+
+    m_view_glyphs = m_view == View::Cell ? stratum_view::cell_glyphs() : stratum_view::lattice_glyphs();
 }
 
 //------------------------------------------------------------------------------
@@ -116,7 +125,11 @@ stratum_terminal::KeyPress stratum_terminal::Application::next_key()
 //------------------------------------------------------------------------------
 void stratum_terminal::Application::draw()
 {
-    m_terminal.draw(stratum_view::render(m_session.world(), m_session.zone(), m_view_glyphs), status(), help_string);
+    stratum_view::Console console = m_view == View::Cell
+        ? stratum_view::render(m_session.world(), m_session.zone(), m_view_glyphs)
+        : stratum_view::render_lattice(m_session.world(), m_session.zone(), m_view_glyphs);
+
+    m_terminal.draw(console, status(), help_string);
     return;
 }
 
@@ -125,21 +138,12 @@ void stratum_terminal::Application::submit_key(const KeyPress& key_press, id_typ
 {
     using value_type = stratum_sim::value_type;
 
+    // Nothing in this view shows which way the mover faces, so there is nothing to turn on
+    // its own: a step is taken facing the way it goes, which is the same vector twice
     auto step = [this](value_type dx, value_type dy)
     {
-        m_session.set_intent(stratum_sim::Intent {stratum_sim::vector_type(dx, dy, value_type(0)),
-            value_type(1), stratum_sim::vector_type()});
-    };
-
-    // A relative turn is resolved against the layout here, the intent carrying the absolute
-    // facing it arrived at
-    auto turn = [&](stratum_sim::Rotation rotation)
-    {
-        flecs::entity e = m_session.world().entities().entity(id);
-        const stratum_sim::placement_type& placement = e.get<stratum_sim::placement_type>();
-
-        m_session.set_intent(stratum_sim::Intent {stratum_sim::vector_type(), value_type(1),
-            m_session.layout().turn(placement, rotation).direction()});
+        stratum_sim::vector_type direction(dx, dy, value_type(0));
+        m_session.set_intent(stratum_sim::Intent {direction, value_type(1), direction});
     };
 
     switch (key_press.key)
@@ -157,9 +161,6 @@ void stratum_terminal::Application::submit_key(const KeyPress& key_press, id_typ
         case 'j': step(value_type(0), value_type(-1)); return;
         case 'h': step(value_type(-1), value_type(0)); return;
         case 'l': step(value_type(1), value_type(0)); return;
-
-        case '<': turn(stratum_sim::Rotation::CCW); return;
-        case '>': turn(stratum_sim::Rotation::CW); return;
 
         case ' ': m_session.submit(stratum_sim::Command(id, stratum_sim::Interact {})); return;
     }
@@ -190,7 +191,9 @@ void stratum_terminal::Application::report(const quetzal::stratum_sim::EventQueu
         }
         else if (const stratum_sim::Interacted* pinteracted = event.try_get<stratum_sim::Interacted>())
         {
-            m_message = std::format("Nothing happens at wall {}.", pinteracted->wall_id);
+            m_message = pinteracted->interaction == stratum_sim::Interaction::Opened ? "The door opens."
+                : pinteracted->interaction == stratum_sim::Interaction::Closed ? "The door shuts."
+                : std::format("Nothing happens at wall {}.", pinteracted->wall_id);
         }
     }
 

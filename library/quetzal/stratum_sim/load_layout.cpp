@@ -10,6 +10,7 @@
 #include <format>
 #include <fstream>
 #include <map>
+#include <set>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -25,6 +26,11 @@ namespace
     using quetzal::nullid;
 
     using namespace quetzal::stratum_sim::detail;
+
+    //--------------------------------------------------------------------------
+    // The one format version this reads, both generators writing the same. A leading zero
+    // says pre-release: no file older than it survives a change, and none is kept readable
+    constexpr auto format_version = "0.2";
 
     //--------------------------------------------------------------------------
     // A grid row never begins with a letter, so a file whose first row does not is one
@@ -183,7 +189,8 @@ namespace
     // Returns the wall lying on each directed boundary edge, which is what naming an area
     // then needs to say what stands on its border
     WallIndex build(quetzal::stratum_sim::DiscreteLayout& layout, const Map& map, const Outlines& outlines,
-        quetzal::stratum_sim::value_type height_ceiling)
+        quetzal::stratum_sim::value_type height_ceiling,
+        const quetzal::stratum_sim::door_type& door, std::set<quetzal::id_type>& doors)
     {
         using namespace quetzal::stratum_sim;
 
@@ -217,10 +224,17 @@ namespace
                 }
             }
 
-            // Openness comes from what the file said of each cell, both formats stating it
-            for (const Vertex& c : map.component_cells[component])
+        }
+
+        // Openness comes from what the file said of each cell, both formats stating it
+        for (size_t j = 0; j < map.h; ++j)
+        {
+            for (size_t i = 0; i < map.w; ++i)
             {
-                layout.set_cell_open(GridPosition {c.i, c.j}, true);
+                if (map.cell_open[j * map.w + i])
+                {
+                    layout.set_cell_open(GridPosition {static_cast<long>(i), static_cast<long>(j)}, true);
+                }
             }
         }
 
@@ -235,8 +249,75 @@ namespace
             assert(a != walls.end() && b != walls.end()); // A passage not on either boundary
 
             layout.connect(a->second, b->second);
-            layout.set_passable(a->second, passage.passable);
-            layout.set_passable(b->second, passage.passable);
+
+            // What the file called a door is reported as one pair, for a caller with a world
+            // to hang something on. The walls themselves say nothing about crossing
+            if (passage.passable)
+            {
+                doors.insert(a->second);
+                doors.insert(b->second);
+
+                if (door)
+                {
+                    door({a->second, b->second});
+                }
+            }
+        }
+
+        // A block is a cell of wall a mover may stand in. It belongs to the area around it,
+        // so the area's own outline walls the sides it presents to rock and a mover leaving
+        // sideways meets the wall end wrapping around into the next area. What it presents
+        // to open floor is interior to that area and carries no outline wall, so the block
+        // is ringed with four walls of its own, each wound about the cell outside it
+        // A face toward floor therefore carries a wall the area sees and the block does not,
+        // which is what a door hangs on and what leaves the way out of a block empty
+        if (!map.blocks.empty())
+        {
+            std::vector<polygon_type> polygons;
+            std::vector<Ring> rings;
+            polygons.reserve(map.blocks.size());
+            rings.reserve(map.blocks.size());
+
+            for (const Block& block : map.blocks)
+            {
+                int i = block.cell.i;
+                int j = block.cell.j;
+                rings.push_back({{i + 1, j + 1}, {i + 1, j}, {i, j}, {i, j + 1}});
+                polygons.push_back(to_polygon(rings.back()));
+            }
+
+            DiscreteLayout::ids_type block_starts = layout.create_walls(polygons);
+
+            for (size_t n = 0; n < rings.size(); ++n)
+            {
+                const Ring& ring = rings[n];
+                for (size_t i = 0; i < ring.size(); ++i)
+                {
+                    walls[{ring[i], ring[(i + 1) % ring.size()]}] = block_starts[n] + i;
+                }
+            }
+        }
+
+        for (const Block& block : map.blocks)
+        {
+            quetzal::stratum_sim::DiscreteLayout::ids_type block_walls;
+
+            for (const Vertex& neighbor : block.neighbors)
+            {
+                Edge edge = boundary_edge(neighbor, block.cell);
+                auto w = walls.find({edge.from, edge.to});
+
+                if (w != walls.end())
+                {
+                    block_walls.push_back(w->second);
+                    doors.insert(w->second);
+                }
+            }
+
+            if (door && !block_walls.empty())
+            {
+                door(block_walls);
+            }
         }
 
         return walls;
@@ -245,10 +326,11 @@ namespace
     //--------------------------------------------------------------------------
     // One Room per contiguous run of the cells the format called room floor, its outline
     // traced the same way a component's is. A format that names no rooms builds none, and
-    // corridors, doorways and shafts are never rooms in either
+    // corridors, doorways and stairs are never rooms in either
     // A room's outline edge carries the wall standing on it, or nullid where the room opens
     // onto a corridor with nothing between them
-    void create_rooms(quetzal::stratum_sim::DiscreteLayout& layout, const Map& map, const WallIndex& walls)
+    void create_rooms(quetzal::stratum_sim::DiscreteLayout& layout, const Map& map, const WallIndex& walls,
+        const std::set<quetzal::id_type>& doors)
     {
         using namespace quetzal::stratum_sim;
 
@@ -283,8 +365,12 @@ namespace
                 vertex.position = point_type(static_cast<value_type>(ring[i].i),
                     static_cast<value_type>(ring[i].j), value_type(0));
                 vertex.wall_id = w != walls.end() ? w->second : nullid;
-                vertex.type = vertex.wall_id == nullid || layout.wall(vertex.wall_id).passable
-                    ? Room::Type::Open
+
+                // No wall is an opening, a wall the file called a door is a door, and what is
+                // left is wall. Nothing here asks whether the door is open: a room's outline
+                // says what stands on its border, not what state it is in
+                vertex.type = vertex.wall_id == nullid ? Room::Type::Open
+                    : doors.contains(vertex.wall_id) ? Room::Type::Door
                     : Room::Type::Wall;
 
                 room.outline().push_back(vertex);
@@ -337,7 +423,8 @@ bool quetzal::stratum_sim::detail::read_pair(const std::string& s, char separato
 }
 
 //------------------------------------------------------------------------------
-std::unique_ptr<quetzal::stratum_sim::DiscreteLayout> quetzal::stratum_sim::load_layout(const std::filesystem::path& filepath, value_type height_ceiling)
+std::unique_ptr<quetzal::stratum_sim::DiscreteLayout> quetzal::stratum_sim::load_layout(const std::filesystem::path& filepath,
+    value_type height_ceiling, const door_type& door, Format* format)
 {
     std::ifstream is(filepath, std::ios_base::binary);
     if (!is)
@@ -365,7 +452,7 @@ std::unique_ptr<quetzal::stratum_sim::DiscreteLayout> quetzal::stratum_sim::load
         header = read_header(lines.front());
         lines.erase(lines.begin());
 
-        if (header.version != 1)
+        if (header.version != format_version)
         {
             throw std::runtime_error(std::format("level file {} is {} format version {}, which is not one this reads",
                 filepath.string(), header.generator, header.version));
@@ -378,11 +465,13 @@ std::unique_ptr<quetzal::stratum_sim::DiscreteLayout> quetzal::stratum_sim::load
     }
 
     Map map;
+    Format format_read = Format::Block;
 
     if (header.generator == "catagen")
     {
         auto [nx, ny] = wall_extent(header, lines, filepath);
         map = read_walls(lines, nx, ny, filepath);
+        format_read = Format::Wall;
     }
     else if (header.generator.empty() || header.generator == "dungen")
     {
@@ -398,8 +487,15 @@ std::unique_ptr<quetzal::stratum_sim::DiscreteLayout> quetzal::stratum_sim::load
     auto layout = std::make_unique<DiscreteLayout>();
 
     Outlines outlines = trace_outlines(map);
-    WallIndex walls = build(*layout, map, outlines, height_ceiling);
-    create_rooms(*layout, map, walls);
+    std::set<id_type> doors;
+
+    WallIndex walls = build(*layout, map, outlines, height_ceiling, door, doors);
+    create_rooms(*layout, map, walls, doors);
+
+    if (format != nullptr)
+    {
+        *format = format_read;
+    }
 
     return layout;
 }

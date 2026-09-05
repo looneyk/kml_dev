@@ -9,11 +9,23 @@
 #include "Terminal.hpp"
 #include "quetzal/stratum_sim/EventQueue.hpp"
 #include "quetzal/stratum_sim/Session.hpp"
-#include "quetzal/stratum_view/ascii.hpp"
 #include <string>
 
 namespace stratum_terminal
 {
+
+    //--------------------------------------------------------------------------
+    // Which reduction the host draws. The cell view is a glyph per cell, which is what a
+    // roguelike shows; the wall view is the lattice, which also draws what stands on the
+    // edges between cells and so is the only one that shows a door or a wall two rooms share
+    // Unasked, the zone decides: a block format zone loses nothing through the cell view,
+    // and a wall format one loses every wall between two open cells
+    enum class View
+    {
+        Null,
+        Cell,
+        Wall
+    };
 
     //--------------------------------------------------------------------------
     // A terminal host for the simulation: keys in, characters out, no engine between
@@ -24,7 +36,8 @@ namespace stratum_terminal
         // A non empty script is played in place of the keyboard, one character per turn,
         // and the run ends when it is exhausted. A scripted run writes whole frames unless
         // asked for incremental, which is how the terminal writer's own output is examined
-        Application(const std::string& filepath_level, const std::string& script = {}, bool incremental = true);
+        Application(const std::string& filepath_zone, View view = View::Null,
+            const std::string& script = {}, bool incremental = true);
         Application(const Application&) = delete;
         ~Application() = default;
 
@@ -47,6 +60,11 @@ namespace stratum_terminal
         std::string status() const;
 
         quetzal::stratum_sim::Session m_session;
+
+        // Resolved once the zone is loaded, so it is never Null by the time anything draws
+        View m_view = View::Null;
+
+        // The set the chosen view is drawn with, taken once rather than asked for per frame
         quetzal::stratum_view::Glyphs m_view_glyphs;
         Terminal m_terminal;
         std::string m_message;

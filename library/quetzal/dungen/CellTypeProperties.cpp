@@ -56,5 +56,5 @@ unordered_map<quetzal::dungen::CellType, quetzal::dungen::CellTypeProperties> qu
     {CellType::Room, {CellType::Room, "Room", " "}},
     {CellType::Corridor, {CellType::Corridor, "Corridor", "."}},
     {CellType::Door, {CellType::Door, "Door", "|"}},
-    {CellType::Shaft, {CellType::Shaft, "Shaft", ">"}},
+    {CellType::Stair, {CellType::Stair, "Stair", ">"}},
 };

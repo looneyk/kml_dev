@@ -28,12 +28,12 @@ public:
     StratumWorld();
     ~StratumWorld() override = default;
 
-    // Where the shared level files are, configured in at build time rather than found
+    // Where the shared zone files are, configured in at build time rather than found
     // relative to wherever Godot was started from
-    godot::String default_level_path() const;
+    godot::String default_zone_path() const;
 
     // False, with the reason pushed to Godot's error list, when the file cannot be read
-    bool load_level(const godot::String& filepath);
+    bool load_zone(const godot::String& filepath);
 
     godot::Vector2i extent() const;
     godot::Vector2i cell() const;
@@ -44,11 +44,15 @@ public:
     // What occupies each cell, one code per cell, row major from row zero. A tile view wants
     // this rather than render's characters. The codes are stratum_view::Kind, repeated here
     // only because Godot has to be told the names of the constants it can use
+    // KindWall is never emitted by this reduction, which has nowhere to put an edge, and is
+    // here so that the values line up with stratum_view::Kind rather than being renumbered
     enum Kind
     {
         KindRock,
         KindFloor,
-        KindActor
+        KindActor,
+        KindWall,
+        KindDoor
     };
 
     godot::PackedByteArray cells() const;

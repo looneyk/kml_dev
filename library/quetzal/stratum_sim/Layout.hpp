@@ -52,6 +52,15 @@ namespace quetzal::stratum_sim
         // stays ignorant of entities while still stopping for them
         using obstructed_type = std::function<id_type(const placement_type&)>;
 
+        // Whether a mover may cross one wall. What stands on a wall is an entity and a layout
+        // knows nothing of entities, so it asks rather than looks
+        // Held rather than passed, unlike obstructed_type, because the answer is a property of
+        // the wall rather than of whoever is asking. World sets it when it takes the layout,
+        // and until something does, every wall is solid
+        using crossable_type = std::function<bool(id_type)>;
+
+        void set_crossable(crossable_type crossable);
+
         virtual ~Layout() = default;
 
         // Where the mover ends up, stopping at the first thing that blocks it, and what that
@@ -79,11 +88,20 @@ namespace quetzal::stratum_sim
 
         virtual bool visible(const placement_type& from, const placement_type& to) const = 0;
 
+        // What stands directly in front of a placement, nullid when nothing does. The layout
+        // says what is there and at what granularity, snapping the facing the way move snaps
+        // the direction it travels in; what it is -- a door, a lever, a basin -- is the
+        // caller's to interpret
+        virtual id_type ahead(const placement_type& placement) const = 0;
+
         // How far one action of movement covers, which is what a move's cost is measured
         // against
         virtual value_type step_distance() const = 0;
 
     protected:
+
+        // What the held predicate says, and solid where nothing has set one
+        bool crossable(id_type wall_id) const;
 
         // Copied and moved as the derived layout it is, never as this. Protected rather than
         // deleted, so a concrete layout stays a value the way it was before it had a base
@@ -93,12 +111,29 @@ namespace quetzal::stratum_sim
 
         Layout& operator=(const Layout&) = default;
         Layout& operator=(Layout&&) noexcept = default;
+
+    private:
+
+        crossable_type m_crossable;
     };
 
     //--------------------------------------------------------------------------
     inline MoveResult Layout::move(const placement_type& placement, const vector_type& direction, value_type distance) const
     {
         return move(placement, direction, distance, obstructed_type());
+    }
+
+    //--------------------------------------------------------------------------
+    inline void Layout::set_crossable(crossable_type crossable)
+    {
+        m_crossable = std::move(crossable);
+        return;
+    }
+
+    //--------------------------------------------------------------------------
+    inline bool Layout::crossable(id_type wall_id) const
+    {
+        return m_crossable && m_crossable(wall_id);
     }
 
     //--------------------------------------------------------------------------

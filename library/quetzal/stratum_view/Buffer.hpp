@@ -1,8 +1,8 @@
-#if !defined(QUETZAL_STRATUM_VIEW_CONSOLE_HPP)
-#define QUETZAL_STRATUM_VIEW_CONSOLE_HPP
+#if !defined(QUETZAL_STRATUM_VIEW_BUFFER_HPP)
+#define QUETZAL_STRATUM_VIEW_BUFFER_HPP
 //------------------------------------------------------------------------------
 // stratum_view
-// Console.hpp
+// Buffer.hpp
 //------------------------------------------------------------------------------
 
 #include <concepts>
@@ -14,8 +14,7 @@ namespace quetzal::stratum_view
 {
 
     //--------------------------------------------------------------------------
-    // A grid of cells to be drawn, not a device that draws them. The term is libtcod's and
-    // curses', where a console is an offscreen buffer that is later blitted
+    // A grid of cells to be drawn.
     // Row 0 is the lowest, matching the simulation, so writing it out reverses them
     // Templated over what a cell holds because a view consumes what occupies a cell, not
     // characters: the terminal wants characters, a tile view wants what to look the tile up by
@@ -53,8 +52,6 @@ namespace quetzal::stratum_view
         size_t m_height = 0;
         std::vector<T> m_values;
     };
-
-    using Console = Buffer<char>;
 
     //--------------------------------------------------------------------------
     // A run of cells within one row
@@ -183,4 +180,4 @@ quetzal::stratum_view::spans_type quetzal::stratum_view::difference(const Buffer
     return spans;
 }
 
-#endif // QUETZAL_STRATUM_VIEW_CONSOLE_HPP
+#endif // QUETZAL_STRATUM_VIEW_BUFFER_HPP

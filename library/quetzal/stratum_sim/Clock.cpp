@@ -83,7 +83,15 @@ quetzal::id_type quetzal::stratum_sim::Clock::run(EventQueue& events, id_type ac
         Command command;
         bool turning = false;
 
-        if (pintent != nullptr && asked(pintent->facing))
+        // Asked to face the way it is going, a mover cannot do one without the other, so the
+        // two are a single faced step. Asked to face elsewhere while moving, they are two
+        // things and the turn is an action of its own
+        if (pintent != nullptr && asked(pintent->facing) && asked(pintent->direction)
+            && grid_step(pintent->facing) == grid_step(pintent->direction))
+        {
+            command = Command(actor_id, Step {pintent->direction, pintent->distance, true});
+        }
+        else if (pintent != nullptr && asked(pintent->facing))
         {
             command = Command(actor_id, TurnTo {pintent->facing});
             turning = true;
@@ -123,7 +131,14 @@ quetzal::id_type quetzal::stratum_sim::Clock::run(EventQueue& events, id_type ac
             }
             else
             {
+                // A faced step consumed the facing along with the direction, and where the
+                // two differ the facing is still owed
                 remaining.direction = vector_type();
+
+                if (asked(remaining.facing) && grid_step(remaining.facing) == grid_step(pintent->direction))
+                {
+                    remaining.facing = vector_type();
+                }
             }
 
             e.set<Intent>(remaining);

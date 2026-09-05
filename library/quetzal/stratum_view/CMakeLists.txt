@@ -1,9 +1,11 @@
 add_library(quetzal_stratum_view STATIC
     ascii.cpp
     cells.cpp
+    read_glyphs.cpp
+    Buffer.hpp
     ascii.hpp
     cells.hpp
-    Console.hpp
+    read_glyphs.hpp
 )
 
 set_property(TARGET quetzal_stratum_view PROPERTY FOLDER "library")

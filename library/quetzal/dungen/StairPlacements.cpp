@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 // dungen
-// ShaftPlacements.cpp
+// StairPlacements.cpp
 //------------------------------------------------------------------------------
 
-#include "ShaftPlacements.hpp"
+#include "StairPlacements.hpp"
 #include <format>
 #include <iostream>
 #include <stdexcept>
@@ -12,17 +12,17 @@
 using namespace std;
 
 //------------------------------------------------------------------------------
-string quetzal::dungen::to_string(ShaftPlacements placements)
+string quetzal::dungen::to_string(StairPlacements placements)
 {
     switch (placements)
     {
-        case ShaftPlacements::None:
+        case StairPlacements::None:
             return "none";
 
-        case ShaftPlacements::Paired:
+        case StairPlacements::Paired:
             return "paired";
 
-        case ShaftPlacements::Multiple:
+        case StairPlacements::Multiple:
             return "multiple";
 
         default:
@@ -33,26 +33,26 @@ string quetzal::dungen::to_string(ShaftPlacements placements)
 }
 
 //------------------------------------------------------------------------------
-quetzal::dungen::ShaftPlacements quetzal::dungen::to_shaft_placements(string_view s)
+quetzal::dungen::StairPlacements quetzal::dungen::to_stair_placements(string_view s)
 {
     if (s == "none")
     {
-        return ShaftPlacements::None;
+        return StairPlacements::None;
     }
     else if (s == "paired")
     {
-        return ShaftPlacements::Paired;
+        return StairPlacements::Paired;
     }
     else if (s == "multiple")
     {
-        return ShaftPlacements::Multiple;
+        return StairPlacements::Multiple;
     }
 
     throw invalid_argument(format("\"{}\" is not none, paired or multiple", s));
 }
 
 //------------------------------------------------------------------------------
-ostream& quetzal::dungen::operator<<(ostream& os, const ShaftPlacements& placements)
+ostream& quetzal::dungen::operator<<(ostream& os, const StairPlacements& placements)
 {
     os << to_string(placements);
     return os;

@@ -38,13 +38,13 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // A wall buried in rock is written as rock, so '#' reads as one
+    // Rock stands where a wall would be written, and is no more crossable than one
     WallKind wall_glyph(char c, const std::filesystem::path& filepath)
     {
         switch (c)
         {
             case ' ': return WallKind::Open;
-            case '_': return WallKind::Solid;
+            case '-': return WallKind::Solid;
             case '|': return WallKind::Solid;
             case '#': return WallKind::Solid;
             case '/': return WallKind::Door;
@@ -154,6 +154,15 @@ quetzal::stratum_sim::detail::Map quetzal::stratum_sim::detail::read_walls(const
     find_components(map,
         [&](int i, int j) { return open[static_cast<size_t>(j) * w + i]; },
         [&](const Vertex& a, const Vertex& b) { return between(a, b) == WallKind::Open; });
+
+    // Every open cell belongs to an area here: the wall format spends nothing on a doorway,
+    // so it has no blocks
+    map.cell_open.assign(map.w * map.h, false);
+
+    for (size_t slot = 0; slot < map.cell_open.size(); ++slot)
+    {
+        map.cell_open[slot] = open[slot];
+    }
 
     // The wall format has one open cell symbol and so names no rooms. cell_room is left
     // empty rather than guessed at, and a catagen level loads with none until the format
