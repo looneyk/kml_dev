@@ -13,7 +13,7 @@ namespace quetzal::catagen
 {
 
     //--------------------------------------------------------------------------
-    // The generation parameters of one run, recorded in the level file so that a level
+    // The generation parameters of one run, written into the level file so that a level
     // names what produced it and can be produced again
     struct Parameters
     {
@@ -22,13 +22,13 @@ namespace quetzal::catagen
         Extent extent {48, 32}; // The area to fill, in cells
 
         // Target room size in cells. The partition splits while a room exceeds scale_max and
-        // never below scale_min, so a room lands within the range unless the range is too
+        // never below scale_min, so a room falls within the range unless the range is too
         // narrow to split into -- scale_max below twice scale_min leaves rooms oversized
         coord_type scale_min = 4;
         coord_type scale_max = 8;
 
         // Rock left between rooms, in cells, as a range. Zero has them share a wall; anything
-        // more stands them apart, and what separates them is what the corridors then cross
+        // more sets them apart, and what separates them is what the corridors then cross
         coord_type spacing_min = 0;
         coord_type spacing_max = 0;
 
@@ -43,7 +43,7 @@ namespace quetzal::catagen
     };
 
     // A seed drawn from the platform's entropy source, for a caller wanting a different
-    // level each run. Generation itself takes the seed it is given, so that a recorded
+    // level each run. Generation itself takes the seed it is given, so that a written
     // seed reproduces a level exactly
     Parameters::seed_type random_seed();
 

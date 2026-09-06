@@ -4,7 +4,7 @@
 //------------------------------------------------------------------------------
 
 #include "World.hpp"
-#include "attachments.hpp" // What a wall carries, which is what says a mover may cross it
+#include "attachments.hpp" // What is attached to a wall, which is what says a mover may cross it
 #include "DiscreteLayout.hpp" // The cell form of entities_at, which asks for cells
 #include <algorithm>
 #include <cassert>
@@ -51,14 +51,14 @@ const flecs::world& quetzal::stratum_sim::World::entities() const
 //------------------------------------------------------------------------------
 flecs::entity quetzal::stratum_sim::World::create_zone(const std::string& name, std::unique_ptr<Layout> layout)
 {
-    assert(!zone(name)); // Not is_alive: flecs asserts rather than answering for a null entity
+    assert(!zone(name)); // Not is_alive: flecs asserts rather than reporting for a null entity
     assert(layout != nullptr);
 
     flecs::entity e = m_world.entity(name.c_str()).add<Zone>();
     m_layouts.emplace(e.id(), std::move(layout));
 
-    // The layout asks rather than looks: what stands on a wall is an entity, and this is the
-    // only place holding both. Every wall is solid until something is attached to it
+    // The layout asks rather than looks: what is attached to a wall is an entity, and this is the
+    // only place with both. Every wall is solid until something is attached to it
     m_layouts[e.id()]->set_crossable([this, e](id_type wall_id) { return stratum_sim::crossable(e, wall_id); });
 
     return e;

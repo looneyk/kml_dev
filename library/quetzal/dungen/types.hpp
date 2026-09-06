@@ -18,7 +18,7 @@ namespace quetzal::dungen
     using dimensions_type = vector_type;
 
     // What a generation run draws from, seeded once from the parameters so that the run is
-    // reproducible from the seed its header records
+    // reproducible from the seed its header holds
     using random_type = math::Random<>;
 
 } // namespace quetzal::dungen

@@ -138,7 +138,7 @@ void stratum_terminal::Application::submit_key(const KeyPress& key_press, id_typ
 {
     using value_type = stratum_sim::value_type;
 
-    // Nothing in this view shows which way the mover faces, so there is nothing to turn on
+    // Nothing in this view shows which way the actor faces, so there is nothing to turn on
     // its own: a step is taken facing the way it goes, which is the same vector twice
     auto step = [this](value_type dx, value_type dy)
     {

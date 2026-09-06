@@ -149,7 +149,7 @@ int main(int argc, char* argv[])
 
         catagen::write_level(os, level, parameters);
 
-        // The same header the file carries, so that a run names the seed that reproduces it
+        // The same header the file holds, so that a run names the seed that reproduces it
         if (!quiet)
         {
             catagen::write_level(cout, level, parameters);

@@ -32,7 +32,7 @@ namespace
 
     //--------------------------------------------------------------------------
     // Two sectors that adjoin, and which way round they do. A single column of sectors puts
-    // its neighbors one slot apart just as a row does, so the orientation is carried here
+    // its neighbors one slot apart just as a row does, so the orientation is stored here
     // rather than read back out of the slots
     struct Adjacency
     {
@@ -111,7 +111,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // A room somewhere inside the sector, or the one cell that stands for a sector holding
+    // A room somewhere inside the sector, or the one cell that substitutes for a sector holding
     // none, the margin left clear on every side so that a corridor has rock to run through
     // and no two rooms share a wall
     Sector place_sector(Level& level, position_type position, dimensions_type size, const Grid1Parameters& grid1, bool room, random_type& random)
@@ -143,7 +143,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Every orthogonal adjacency in the grid, each named once
+    // Every orthogonal adjacency in the grid, each listed once
     vector<Adjacency> sector_adjacencies(dimensions_type divisions)
     {
         auto [divisions_x, divisions_y] = divisions;
@@ -273,7 +273,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // A stairway stands in a room, or in a corridor where the density left no rooms at all
+    // A stairway goes in a room, or in a corridor where the density left no rooms at all
     vector<position_type> stair_candidates(const Level& level)
     {
         vector<position_type> rooms;

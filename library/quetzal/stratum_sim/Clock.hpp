@@ -16,9 +16,9 @@ namespace quetzal::stratum_sim
 {
 
     //--------------------------------------------------------------------------
-    // How a clock gives time out, which is the whole of what makes a world turn-based or real
+    // How a clock hands out time, which is the whole of what makes a world turn-based or real
     // time. Chosen when a world is loaded rather than by whatever is hosting it, so a host
-    // implements neither and does not know which it is running
+    // implements neither and never has to check which it is running
     enum class Driver
     {
         TurnBased,

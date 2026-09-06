@@ -17,7 +17,7 @@ namespace quetzal::stratum_sim
     // and gives that up on arriving there having found nothing
     // Where it was last seen is what makes this more than a reaction, and it is held on the
     // entity rather than beside it, so it unloads, migrates and saves with everything else the
-    // entity holds. A decision asked for per action would have nowhere to keep it
+    // entity has. A decision asked for per action would have nowhere to keep it
     struct Pursue
     {
         id_type target_id = nullid;

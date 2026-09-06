@@ -13,7 +13,7 @@ namespace quetzal::catagen
     using coord_type = int;
 
     //--------------------------------------------------------------------------
-    // A cell coordinate within a Level's extent, cell (0, 0) being its lower left
+    // Origin is lower left
     struct CellPosition
     {
         coord_type i = 0;
@@ -23,7 +23,6 @@ namespace quetzal::catagen
     };
 
     //--------------------------------------------------------------------------
-    // Cell counts, not coordinates
     struct Extent
     {
         coord_type nx = 0;
@@ -33,7 +32,7 @@ namespace quetzal::catagen
     };
 
     //--------------------------------------------------------------------------
-    // A half open cell range, position to position plus extent exclusive
+    // A half open cell range
     struct Rectangle
     {
         CellPosition position;
@@ -43,8 +42,6 @@ namespace quetzal::catagen
     };
 
     //--------------------------------------------------------------------------
-    // What occupies a cell. Rock is Solid; everything else is floor, the stairs
-    // differing from open floor only in what stands on them
     enum class CellType
     {
         Solid,
@@ -54,8 +51,6 @@ namespace quetzal::catagen
     };
 
     //--------------------------------------------------------------------------
-    // What stands on the edge between two cells. Solid stops a mover, Door does not, and
-    // Open is the absence of a wall rather than a wall that happens to be passable
     enum class WallType
     {
         Open,

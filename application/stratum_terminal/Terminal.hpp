@@ -24,7 +24,7 @@ namespace stratum_terminal
     // is a pipe rather than a console
     Size terminal_size();
 
-    // Asks for a text area of this size, clamped to what the screen can hold. False when
+    // Asks for a text area of this size, clamped to what the screen can fit. False when
     // the request could not be made at all; on anything but Windows it is a request with
     // no reply, so true does not promise the terminal obliged
     bool set_terminal_size(const Size& size);

@@ -23,6 +23,7 @@ add_library(quetzal_stratum_sim STATIC
     DiscreteLayout.hpp
     Event.hpp
     EventQueue.hpp
+    Generator.hpp
     Intent.hpp
     Layout.hpp
     load_layout.hpp

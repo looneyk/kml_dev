@@ -16,21 +16,20 @@ namespace quetzal::stratum_sim
 {
 
     //--------------------------------------------------------------------------
-    // One side of what stands on an edge. The walls on opposite sides of one edge are
+    // One side of an edge. The walls on opposite sides of one edge are
     // partners, and next and prev link a run of them into a closed outline
-    // A nullid partner means solid rock: nothing behind it, and not minable. Since a
-    // Zone's extent is finite and bounded by rock, that is also its outer boundary
+    // A nullid partner makes it a border wall, with nothing behind it
     struct Wall
     {
         id_type partner_id = nullid;
         id_type next_id = nullid;
         id_type prev_id = nullid;
         point_type position; // Start vertex, the far end being the position of next
-                             // Whether a mover may cross is what stands on the wall, not the
-                             // wall: see attachments.hpp
+                             // Whether a mover may cross is decided by what is attached to
+                             // the wall, not by the wall: see attachments.hpp
 
         // A deleted wall keeps its slot, ids being slots and every one held elsewhere having
-        // to stay pointing at what it named
+        // to stay pointing at what it referred to
         // Invisible metadata as Flags treats it: logically const, so mutable and set through
         // a const method
         bool deleted() const;
@@ -47,12 +46,9 @@ namespace quetzal::stratum_sim
     {
         point_type origin; // Corner of cell (0, 0)
         value_type spacing = value_type(1);
-        discrete_vector_type extent; // Cell counts, which is a displacement rather than a position
+        discrete_vector_type extent; // Cell counts
 
-        // Whether a cell lies on the grid at all. Cells run from (0, 0) to the extent, so
-        // anything negative is off it, as is anything at or past the extent. cell_at maps
-        // any position to a cell and a step off the edge is expressible, so this is what
-        // every caller that indexes by cell asks first
+        // Checks whether the position given is within the grid
         bool contains(const GridPosition& cell) const;
 
         // The cell a position falls in, and the centre of a cell. Total in both directions:
@@ -63,9 +59,9 @@ namespace quetzal::stratum_sim
 
     //--------------------------------------------------------------------------
     // A horizontal surface bounding the layout, one below and one above. The two differ by
-    // role and nothing else, a stalactite and a stalagmite being one thing inverted
+    // role and nothing else, a stalactite and a stalagmite being one shape inverted
     // A height field rather than a plane. A constant height is the ordinary case and is what
-    // a level carrying no height data loads, so it costs one value and no table; sampling is
+    // a level with no height data loads, so it costs one value and no table; sampling is
     // what a sloped floor, an arched ceiling or a flight of steps needs, and the two are one
     // record with more or fewer of its features used
     // Sampling is over a grid of the surface's own, which need not be the movement grid: a
@@ -86,7 +82,7 @@ namespace quetzal::stratum_sim
         // Where the surface is at a position in the zone, and nothing where it is absent. A
         // pit, a shaft, and a hole dug through the floor are all somewhere the surface is not,
         // rather than somewhere it is low
-        // A position off the sampling grid is off the surface and answers with nothing
+        // A position off the sampling grid is off the surface and returns nothing
         std::optional<value_type> height(const point_type& position) const;
 
         // The constant the surface takes wherever it is not sampled, which is everywhere
@@ -113,13 +109,13 @@ namespace quetzal::stratum_sim
     };
 
     //--------------------------------------------------------------------------
-    // How one Zone is laid out: its walls, its flats, and the rooms named over them, on a
+    // How one Zone is laid out: its walls, its flats, and the rooms defined over them, on a
     // grid that quantizes movement
     // Static topology rather than game objects, so it is held as arrays indexed by id rather
     // than as entities. Entities refer into it by id
-    // A level carrying no height data loads a constant floor rather than a different class, so
+    // A level with no height data loads a constant floor rather than a different class, so
     // which data a game style loads is what differs rather than which class is built. Flat is
-    // implied here, which is why the name does not say it
+    // implied here, which is why the name does not mention it
     // No provision for continuous movement, which is ContinuousLayout's, and none for a wall
     // spanning more than one cell edge: one wall lies on one cell edge, which is what lets a
     // partner be found by exact match. See sim_zone_model.md
@@ -157,32 +153,26 @@ namespace quetzal::stratum_sim
         size_t flat_store_count() const;
         const flats_type& flat_store() const;
 
-        // The floor and the ceiling bounding the layout, one apiece however many rooms it
-        // holds. nullid until set
+        // The floor and the ceiling bounding the layout, one apiece
         id_type floor_id() const;
         id_type ceiling_id() const;
         void set_flats(value_type height_floor, value_type height_ceiling);
 
         // One Wall per outline edge, linked into a closed ring in outline order. Every
-        // partner is nullid, so new walls are surrounded by solid rock until something is
-        // connected to them
+        // partner is nullid, so new walls are border walls
         // Returns the wall each outline starts at. A ring's walls are contiguous from there,
-        // so a caller that knows an outline's length knows which walls came from it
+        // so a caller given an outline's length can derive which walls came from it
         ids_type create_walls(const std::vector<polygon_type>& outlines);
 
         // A room the caller has built the outline and cell list of. Rooms are metadata: what
-        // one covers is recorded here and read back, and nothing in movement consults them
+        // one covers is stored here and read back, and nothing in movement consults them
         id_type create_room(const Room& room);
 
-        // The room whose outline contains the point, height disregarded. nullid when none
-        // does, which every cell outside a room answers with, corridors included
-        // Tests every room's outline, so prefer the cell form
+        // The room whose outline contains the point, height disregarded. nullid when none does
+        // Tests every room's outline, so prefer the cell form ...
         id_type room_at(const point_type& point) const;
 
-        // The room occupying a cell, nullid where none does. A direct lookup into a table
-        // filled as the rooms are created
-        // The cell must lie on the grid, an off-grid cell being the caller's error rather
-        // than a question with an answer
+        // The room containing a given cell
         id_type room_at(const GridPosition& cell) const;
         void set_cell_room(const GridPosition& cell, id_type room_id);
 
@@ -196,7 +186,7 @@ namespace quetzal::stratum_sim
         // Connects every opposed pair the two sets of walls share, skipping walls already
         // connected. Returns the number of connections made
         // Walls rather than any grouping over them: what is connected to what is topology,
-        // and a caller that built the walls knows which they are
+        // and a caller that built the walls already has their ids
         size_t connect_walls(const ids_type& wall_ids_a, const ids_type& wall_ids_b);
 
         // Connects the opposed walls within one set, which is what a wall run folding back
@@ -206,8 +196,8 @@ namespace quetzal::stratum_sim
         void set_grid(const point_type& origin, value_type spacing, const discrete_vector_type& extent);
         const Grid& grid() const;
 
-        // Whether a cell holds floor. Taken from what a level file says of each cell, over a
-        // table of its own, and answered without consulting anything else
+        // Whether a cell is open floor. Taken from what a level file encodes per cell, over a
+        // table of its own, and read without consulting anything else
         // The cell must lie on the grid, an off-grid cell being the caller's error rather
         // than a question with an answer
         bool open(const GridPosition& cell) const;
@@ -222,19 +212,13 @@ namespace quetzal::stratum_sim
         GridPosition cell_at(const point_type& point) const;
         point_type cell_position(const GridPosition& cell) const; // Cell centre, at the grid's height
 
-        // The wall on this cell's side of the edge it presents in that direction, nullid
-        // when nothing stands there. The direction is one step along an axis
-        // Nothing beyond the cell itself is read, so the neighbour need not exist: a cell on
-        // the boundary answers with the wall that closes the layout
-        // One wall lies on one cell edge, so the two match end for end. Scans the walls
-        // rather than consulting an index; an edge keyed index would replace the scan
-        // without changing this signature
+        // The wall on this cell's side in the given direction, if any
         id_type wall_toward(const GridPosition& cell, const discrete_vector_type& direction) const;
 
-        // Stopped by the wall standing that way, an absent wall being an opening
+        // Stopped by the wall in the given direction
         bool blocked(const GridPosition& cell, const discrete_vector_type& direction) const;
 
-        // Stops at the first wall that blocks it or the first cell the caller says is
+        // Stops at the first wall that blocks it or the first cell the caller reports
         // occupied. The direction snaps to one of the grid's own and the distance rounds to
         // whole cells
         MoveResult move(const placement_type& placement, const vector_type& direction, value_type distance,
@@ -245,13 +229,13 @@ namespace quetzal::stratum_sim
         // Snapped to one of the grid's own directions
         placement_type face(const placement_type& placement, const vector_type& direction) const override;
 
-        // Whether the two stand in the same cell
+        // Whether the two occupy the same cell
         bool same_location(const placement_type& a, const placement_type& b) const override;
 
         placements_type neighbors(const placement_type& placement) const override;
 
         // Line of sight, by walking the cells the ray between them passes through. A grid
-        // field of view algorithm gives a different, more roguelike answer and would
+        // field of view algorithm produces a different, more roguelike result and would
         // replace this
         bool visible(const placement_type& from, const placement_type& to) const override;
 
@@ -269,7 +253,7 @@ namespace quetzal::stratum_sim
         id_type m_floor_id = nullid;
         id_type m_ceiling_id = nullid;
         std::optional<Grid> m_grid;
-        std::vector<bool> m_cell_open; // Grid extent, false where there is rock
+        std::vector<bool> m_cell_open; // Grid extent, false where the cell is solid
         ids_type m_cell_rooms; // Grid extent, nullid where no room covers the cell
     };
 

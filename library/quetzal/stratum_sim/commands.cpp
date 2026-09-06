@@ -45,8 +45,8 @@ int quetzal::stratum_sim::apply(World& world, const Command& command, EventQueue
             }
         }
 
-        // Asked of the world rather than the layout, so that a wall and something standing in
-        // the way stop the mover in one answer
+        // Asked of the world rather than the layout, so that a wall and something occupying
+        // the cell ahead stop the actor in one query
         MoveResult result = world.move(e, direction, pstep->distance);
         bool moved = !layout.same_location(result.placement, placement);
 

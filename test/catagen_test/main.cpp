@@ -115,9 +115,9 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // The header row read back into the parameters it names, which is the whole of what a
+    // The header row read back into the parameters it specifies, which is the whole of what a
     // level says about how to produce it again
-    // Throws std::invalid_argument where a row names something this does not read, so a
+    // Throws std::invalid_argument where a row specifies something this does not read, so a
     // parameter added to the writer and not to this is a failure rather than a silent pass
     catagen::Parameters parameters_of(const string& header)
     {
@@ -345,7 +345,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // The grid alone, which is what a caller with nothing to record writes
+    // The grid alone, which is what a caller with no parameters to write emits
     void test_grid_shape()
     {
         report_group("grid shape");

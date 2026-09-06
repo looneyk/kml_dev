@@ -57,8 +57,8 @@ namespace quetzal::stratum_sim
         flecs::entity zone(const std::string& name) const; // Null when there is no such zone
         size_t zone_count() const;
 
-        // The interface, whatever kind of layout the zone holds. A caller needing more than
-        // it says reaches for the concrete class with layout_as
+        // The interface, whatever kind of layout the zone has. A caller needing more than
+        // it exposes uses layout_as to get the concrete class
         Layout& layout(flecs::entity zone);
         const Layout& layout(flecs::entity zone) const;
 
@@ -67,17 +67,17 @@ namespace quetzal::stratum_sim
 
         flecs::entity zone_of(flecs::entity e) const;
 
-        // Where the mover ends up, topology and occupancy together. A layout answers for its
-        // own geometry and knows nothing of entities; this holds both, so it is where the two
+        // Where the mover ends up, topology and occupancy together. A layout resolves its
+        // own geometry and is independent of entities; this owns both, so it is where the two
         // meet rather than either of them reaching into the other
         // Blocking entities stop a mover, itself excepted. Rules ask this rather than the
         // layout underneath
         MoveResult move(flecs::entity e, const vector_type& direction, value_type distance) const;
 
-        // Occupancy. Ordered by entity id, so a run gives the same answer every time
-        // What counts as the same place is the layout's to say, which is what keeps the
+        // Occupancy. Ordered by entity id, so a run produces the same result every time
+        // What counts as the same place is the layout's to decide, which is what keeps the
         // placement form model-neutral; the cell form is for a caller that genuinely counts
-        // cells and holds a layout that has them
+        // cells and whose layout has them
         entities_type entities_at(flecs::entity zone, const placement_type& placement) const;
         entities_type entities_at(flecs::entity zone, const GridPosition& cell) const;
         entities_type entities_within(flecs::entity zone, const placement_type& placement, value_type range) const;

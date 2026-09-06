@@ -12,7 +12,7 @@ namespace
 {
 
     // A room's outline is horizontal, so containment is tested in two dimensions. The
-    // outline vertices carry a height that plays no part in it
+    // outline vertices have a height that plays no part in it
     using projection_type = quetzal::stratum_sim::point_projection_type;
     using footprint_type = quetzal::geometry::Polygon<projection_type::projected_traits>;
 

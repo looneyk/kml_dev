@@ -399,7 +399,7 @@ namespace
     }
 
     //------------------------------------------------------------------------------
-    // A stairway stands where a corridor ends, so the dead ends left before they are pruned are
+    // A stairway goes where a corridor ends, so the dead ends left before they are pruned are
     // the cells a stairway may take
     vector<position_type> stair_candidates(const Level& level)
     {
@@ -546,7 +546,7 @@ quetzal::dungen::Level quetzal::dungen::generate_maze1(id_type id, const string&
     // Corridors
     excavate(level, maze1.corridor_straightness, random);
 
-    // Stairways, before the dead ends they stand in are pruned
+    // Stairways, before the dead ends they occupy are pruned
     place_stairs(level, stair_candidates(level), parameters.stair_placements, random);
 
     // Dead end and loop removal

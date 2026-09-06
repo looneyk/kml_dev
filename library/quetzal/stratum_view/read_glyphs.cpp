@@ -15,30 +15,30 @@ namespace
 {
 
     using quetzal::stratum_view::Glyph;
-    using quetzal::stratum_view::Kind;
+    using quetzal::stratum_view::PlaceType;
     using quetzal::stratum_view::Mask;
     using quetzal::stratum_view::State;
 
     //--------------------------------------------------------------------------
-    // The one format version this reads. A leading zero says pre-release: no file older than
+    // The one format version this reads. A leading zero marks pre-release: no file older than
     // it survives a change, and none is kept readable
     constexpr auto format_version = "0.1";
 
     //--------------------------------------------------------------------------
-    // The names a file writes, which are the names the code uses for the same things
+    // The names a file writes, which are the names the code uses for the same values
     struct Named
     {
         const char* name;
-        Kind kind;
+        PlaceType type;
     };
 
-    constexpr Named kinds[]
+    constexpr Named types[]
     {
-        {"rock", Kind::Rock},
-        {"floor", Kind::Floor},
-        {"actor", Kind::Actor},
-        {"wall", Kind::Wall},
-        {"door", Kind::Door}
+        {"none", PlaceType::None},
+        {"solid", PlaceType::Solid},
+        {"floor", PlaceType::Floor},
+        {"wall", PlaceType::Wall},
+        {"door", PlaceType::Door}
     };
 
     struct NamedState
@@ -51,8 +51,7 @@ namespace
     {
         {"open", State::Open},
         {"passable", State::Passable},
-        {"concealed", State::Concealed},
-        {"solid", State::Solid}
+        {"concealed", State::Concealed}
     };
 
     //--------------------------------------------------------------------------
@@ -170,18 +169,18 @@ quetzal::stratum_view::Glyphs quetzal::stratum_view::read_glyphs(std::istream& i
         Glyph glyph;
         bool named = false;
 
-        for (const Named& kind : kinds)
+        for (const Named& type : types)
         {
-            if (token == kind.name)
+            if (token == type.name)
             {
-                glyph.kind = kind.kind;
+                glyph.type = type.type;
                 named = true;
             }
         }
 
         if (!named)
         {
-            fail(name, row, std::format("{} is not a kind", token));
+            fail(name, row, std::format("{} is not a place type", token));
         }
 
         // The character runs to the end of the line rather than being a token of its own,
@@ -196,15 +195,23 @@ quetzal::stratum_view::Glyphs quetzal::stratum_view::read_glyphs(std::istream& i
         size_t end = line.find_last_not_of(" \t");
         glyph.c = read_character(line.substr(quote, end + 1 - quote), name, row);
 
-        // Everything between the kind and the character, in whatever order it was written
+        // Everything between the type and the character, in whatever order it was written
         std::istringstream rest(line.substr(0, quote));
-        rest >> token; // the kind, read again to step over it
+        rest >> token; // the type, read again to step over it
 
         while (rest >> token)
         {
             if (token.starts_with("mask="))
             {
                 glyph.mask = read_mask(token.substr(5), name, row);
+                continue;
+            }
+
+            // Not a state: an actor is what stands on a place rather than something the
+            // place itself is in
+            if (token == "actor")
+            {
+                glyph.actor = true;
                 continue;
             }
 
@@ -225,11 +232,11 @@ quetzal::stratum_view::Glyphs quetzal::stratum_view::read_glyphs(std::istream& i
             }
         }
 
-        // A state a kind can never be in would be a line that never matches, which is a
-        // mistake in the file rather than a set with nothing to say
-        if (!applies(glyph.kind, glyph.state))
+        // A state a type can never be in would be a line that never matches, which is a
+        // mistake in the file rather than a set with nothing to express
+        if (!applies(glyph.type, glyph.state))
         {
-            fail(name, row, "a state that kind cannot be in");
+            fail(name, row, "a state that place type cannot be in");
         }
 
         glyphs.push_back(glyph);

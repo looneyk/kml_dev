@@ -77,6 +77,63 @@ namespace
     }
 
     //--------------------------------------------------------------------------
+    // A generator in place of an application's, this library linking none of the
+    // real ones. It builds the geometry `data/door.level` describes rather than reading it,
+    // so what is exercised is the seam rather than the reader behind it
+    class TestGenerator : public stratum_sim::Generator
+    {
+    public:
+
+        std::unique_ptr<stratum_sim::Layout> generate(const stratum_sim::door_type& door) const override
+        {
+            auto layout = make_unique<stratum_sim::DiscreteLayout>();
+
+            layout->set_grid(stratum_sim::point_type(0.0f, 0.0f, 0.0f), 1.0f,
+                stratum_sim::discrete_vector_type(5, 3));
+
+            for (long i = 1; i <= 3; ++i)
+            {
+                layout->set_cell_open(stratum_sim::GridPosition {i, 1}, true);
+            }
+
+            // The three open cells as one area, and the doorway block ringed inside it, which
+            // is what the block format's loader builds
+            // A vertex per cell corner, so a wall is one cell edge as the loader builds them
+            stratum_sim::points_type outline
+            {
+                {1.0f, 1.0f, 0.0f}, {2.0f, 1.0f, 0.0f}, {3.0f, 1.0f, 0.0f}, {4.0f, 1.0f, 0.0f},
+                {4.0f, 2.0f, 0.0f}, {3.0f, 2.0f, 0.0f}, {2.0f, 2.0f, 0.0f}, {1.0f, 2.0f, 0.0f}
+            };
+
+            stratum_sim::points_type ring
+            {
+                {3.0f, 2.0f, 0.0f}, {3.0f, 1.0f, 0.0f}, {2.0f, 1.0f, 0.0f}, {2.0f, 2.0f, 0.0f}
+            };
+
+            vector<stratum_sim::polygon_type> polygons
+            {
+                stratum_sim::polygon_type(outline.begin(), outline.end()),
+                stratum_sim::polygon_type(ring.begin(), ring.end())
+            };
+
+            stratum_sim::DiscreteLayout::ids_type starts = layout->create_walls(polygons);
+
+            // The ring's two faces toward floor, which is where a door on a block goes
+            if (door)
+            {
+                door({starts[1] + 0, starts[1] + 2});
+            }
+
+            return layout;
+        }
+
+        stratum_sim::Format format() const override
+        {
+            return stratum_sim::Format::Block;
+        }
+    };
+
+    //--------------------------------------------------------------------------
     int report_results()
     {
         if (g_failure_count == 0)
@@ -89,7 +146,7 @@ namespace
         return 1;
     }
 
-    // Stand-in command types, sim defines no commands of its own
+    // Substitute command types, sim defines no commands of its own
     //--------------------------------------------------------------------------
     struct Move
     {
@@ -102,7 +159,7 @@ namespace
     {
     };
 
-    // Stand-in event types, sim defines no events of its own
+    // Substitute event types, sim defines no events of its own
     //--------------------------------------------------------------------------
     struct EntityMoved
     {
@@ -153,7 +210,7 @@ namespace
 
     //--------------------------------------------------------------------------
     // Marks a hand built layout's cells open, a loaded one taking this from the file. Nowhere
-    // to stand stops a mover as a wall does, so a layout that says nothing is closed
+    // to go stops a mover as a wall does, so an unmarked layout is closed throughout
     void mark_open(stratum_sim::DiscreteLayout& layout, long i0, long j0, long i1, long j1)
     {
         for (long j = j0; j < j1; ++j)
@@ -169,8 +226,8 @@ namespace
 
     //--------------------------------------------------------------------------
     // A layout on its own, with what the file called doors set crossable. A layout asks rather
-    // than looks and nothing has attached anything to these walls, so this stands in for the
-    // door entities World builds and asks — and for what Wall::passable used to say
+    // than looks and nothing has attached anything to these walls, so this substitutes for the
+    // door entities World builds and asks -- and for what Wall::passable used to encode
     std::unique_ptr<stratum_sim::DiscreteLayout> load_open(const string& filepath)
     {
         std::set<id_type> doors;
@@ -186,7 +243,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // A zone's layout as the kind it is. World answers with the interface, and most of what
+    // A zone's layout as the kind it is. World returns the interface, and most of what
     // is checked here is cells and walls, which live below it
     stratum_sim::DiscreteLayout& zone_layout(stratum_sim::World& world, flecs::entity zone)
     {
@@ -209,7 +266,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // The walls of one outline, built and named in one step, as most structural tests want
+    // The walls of one outline, built and returned in one step, as most structural tests need
     stratum_sim::DiscreteLayout::ids_type build_outline(stratum_sim::DiscreteLayout& layout, const stratum_sim::polygon_type& outline)
     {
         return outline_walls(layout.create_walls({outline}).front(), outline.vertex_count());
@@ -233,7 +290,7 @@ namespace
 
     //--------------------------------------------------------------------------
     // The closed outlines the walls form, by length. Every wall belongs to exactly one, so
-    // this is what an area's boundary count is read from now that no record holds it
+    // this is what an area's boundary count is read from now that no record stores it
     vector<size_t> outline_lengths(const stratum_sim::DiscreteLayout& layout)
     {
         vector<bool> seen(layout.wall_store_count(), false);
@@ -263,7 +320,8 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    size_t rock_count(const stratum_sim::DiscreteLayout& layout, const stratum_sim::DiscreteLayout::ids_type& ids)
+    // How many of the walls are border walls, a nullid partner being nothing behind it
+    size_t border_wall_count(const stratum_sim::DiscreteLayout& layout, const stratum_sim::DiscreteLayout::ids_type& ids)
     {
         size_t n = 0;
         for (id_type id : ids)
@@ -292,7 +350,7 @@ namespace
 
         const stratum_sim::Command& command = queue.front();
         report_case("front is the first command submitted", command.is<Move>());
-        report_case_equal("a command carries its entity id", command.entity_id(), 7);
+        report_case_equal("a command names its entity id", command.entity_id(), 7);
         report_case("get returns the command", command.get<Move>().dx == 1 && command.get<Move>().dy == 0);
         report_case("try_get is null for another command type", command.try_get<Wait>() == nullptr);
 
@@ -335,7 +393,7 @@ namespace
         const stratum_sim::Event& event = queue.front();
         report_case("front is the first event recorded", event.is<EntityMoved>());
         report_case("get returns the event", event.get<EntityMoved>().x == 3 && event.get<EntityMoved>().y == 4);
-        report_case_equal("an event payload carries its own fields", event.get<EntityMoved>().entity_id, 7);
+        report_case_equal("an event payload has its own fields", event.get<EntityMoved>().entity_id, 7);
         report_case("try_get is null for another event type", event.try_get<DoorOpened>() == nullptr);
 
         queue.pop();
@@ -346,7 +404,7 @@ namespace
         report_case("events iterate in occurrence order", queue.events().front().is<DoorOpened>() && queue.events().back().is<EntityMoved>());
 
         // Guards the constrained converting constructor, an unconstrained one would win
-        // over the copy constructor here and produce an Event holding an Event
+        // over the copy constructor here and produce an Event containing an Event
         stratum_sim::Event event_source(DoorOpened {5});
         stratum_sim::Event event_copy(event_source);
         report_case("copying an event does not nest it", event_copy.is<DoorOpened>());
@@ -362,8 +420,8 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // The layouts that are named and not written. Compiling their headers at all is most of
-    // what this checks; the cases state the two things a skeleton promises
+    // The layouts that are declared and not written. Compiling their headers at all is most of
+    // what this checks; the cases state the two properties a skeleton promises
     void test_layout_hierarchy()
     {
         report_group("layout hierarchy");
@@ -393,7 +451,7 @@ namespace
 
         report_case_equal("one wall per outline edge", layout.wall_store_count(), outline.vertex_count());
         report_case_equal("the outline's walls run contiguously from its start", walls.size(), outline.vertex_count());
-        report_case_equal("new walls are surrounded by solid rock", rock_count(layout, walls), walls.size());
+        report_case_equal("new walls are all border walls", border_wall_count(layout, walls), walls.size());
 
         bool outline_ordered = true;
         bool prev_inverse = true;
@@ -437,11 +495,11 @@ namespace
         stratum_sim::DiscreteLayout::ids_type walls_b = build_outline(layout, rectangle(4.0f, 0.0f, 8.0f, 3.0f));
         stratum_sim::DiscreteLayout::ids_type walls_far = build_outline(layout, rectangle(20.0f, 0.0f, 24.0f, 3.0f));
 
-        report_case_equal("every wall starts as rock", rock_count(layout, walls_a) + rock_count(layout, walls_b), 8);
+        report_case_equal("every wall starts as a border wall", border_wall_count(layout, walls_a) + border_wall_count(layout, walls_b), 8);
 
         report_case_equal("adjacent outlines share exactly one edge", layout.connect_walls(walls_a, walls_b), 1);
-        report_case_equal("only the shared wall of one outline leaves rock", rock_count(layout, walls_a), 3);
-        report_case_equal("only the shared wall of the other leaves rock", rock_count(layout, walls_b), 3);
+        report_case_equal("only the shared wall of one outline stops being a border wall", border_wall_count(layout, walls_a), 3);
+        report_case_equal("only the shared wall of the other does too", border_wall_count(layout, walls_b), 3);
 
         id_type connected_a = nullid;
         for (id_type id : walls_a)
@@ -464,8 +522,8 @@ namespace
         report_case_equal("outlines that share no edge connect nothing", layout.connect_walls(walls_a, walls_far), 0);
 
         layout.disconnect(connected_a);
-        report_case_equal("disconnect returns one outline's wall to rock", rock_count(layout, walls_a), 4);
-        report_case_equal("disconnect returns the partner to rock too", rock_count(layout, walls_b), 4);
+        report_case_equal("disconnect returns one outline's wall to a border wall", border_wall_count(layout, walls_a), 4);
+        report_case_equal("disconnect returns the partner to one too", border_wall_count(layout, walls_b), 4);
 
         return;
     }
@@ -495,10 +553,10 @@ namespace
 
         report_case_equal("a spur outline produces one wall per edge", walls.size(), 7);
         report_case_equal("the outline closes over a spur", walls.size(), points.size());
-        report_case_equal("every wall starts as rock", rock_count(layout, walls), 7);
+        report_case_equal("every wall starts as a border wall", border_wall_count(layout, walls), 7);
 
         report_case_equal("a fold connects exactly one pair", layout.connect_folds(walls), 1);
-        report_case_equal("only the partition's two faces leave rock", rock_count(layout, walls), 5);
+        report_case_equal("only the partition's two faces stop being border walls", border_wall_count(layout, walls), 5);
 
         // The front face runs from the north wall down to the tip
         id_type face_front = nullid;
@@ -530,7 +588,7 @@ namespace
         report_case("the two faces of the partition are partners", faces_are_partners);
 
         layout.disconnect(face_front);
-        report_case_equal("disconnect restores the partition to rock", rock_count(layout, walls), 7);
+        report_case_equal("disconnect restores the partition to border walls", border_wall_count(layout, walls), 7);
 
         return;
     }
@@ -620,7 +678,7 @@ namespace
     {
         report_group("flats");
 
-        // A constant is what a level carrying no height data loads, and it answers everywhere
+        // A constant is what a level with no height data loads, and it applies everywhere
         stratum_sim::Flat floor(2.0f);
 
         report_case("a flat is a floor unless it says otherwise", !floor.ceiling());
@@ -654,7 +712,7 @@ namespace
         report_case("a height map may be finer than the cells", fine.height(stratum_sim::point_type(0.75f, 0.25f, 0.0f)) == 1.0f
             && fine.height(stratum_sim::point_type(0.25f, 0.25f, 0.0f)) == 0.0f);
 
-        // A cell sits on the floor, which is the one thing in the layout that reads a flat
+        // A cell sits on the floor, which is the one query in the layout that reads a flat
         stratum_sim::DiscreteLayout layout;
         layout.set_grid(stratum_sim::point_type(0.0f, 0.0f, 0.0f), 1.0f, stratum_sim::discrete_vector_type(8, 8));
 
@@ -691,7 +749,7 @@ namespace
         report_case("cells inside one area never block", !layout.blocked(stratum_sim::GridPosition {0, 0}, stratum_sim::Direction::East));
         report_case("blocking within an area is symmetric", !layout.blocked(stratum_sim::GridPosition {1, 0}, stratum_sim::Direction::West));
 
-        // Across the boundary the two are still rock, so the wall blocks
+        // Across the boundary the two are still solid, so the wall blocks
         report_case("an unconnected boundary blocks", layout.blocked(stratum_sim::GridPosition {1, 0}, stratum_sim::Direction::East));
 
         report_case_equal("the two areas share one wall pair", layout.connect_walls(walls_a, walls_b), 1);
@@ -711,7 +769,7 @@ namespace
         report_case("the wall on the shared edge was found", wall_a != nullid);
 
         // What may be crossed is asked of the layout rather than stored on the wall, so a bare
-        // layout answers with whatever is set here. World asks the attachments instead
+        // layout uses whatever is set here. World asks the attachments instead
         std::set<id_type> crossable {wall_a};
         layout.set_crossable([&](id_type id) { return crossable.contains(id); });
 
@@ -818,7 +876,7 @@ namespace
         report_case("but the fast one, having banked three, is readier", scheduler.ready() == 1);
         report_case_equal("with elapsed counting every granted unit", scheduler.elapsed(), 4);
 
-        // next is those two composed, so it lands where granting one at a time would
+        // next is those two composed, so it arrives where granting one at a time would
         scheduler.clear();
         scheduler.add(1, 25);
 
@@ -895,14 +953,14 @@ namespace
         clock.run(events, controlled);
         report_case("facing is taken first", player.get<stratum_sim::placement_type>().direction().y() == 1.0f);
         report_case("and the movement asked for is still owed", player.get<stratum_sim::Intent>().direction.x() == 1.0f);
-        report_case("which stands until a turn is granted for it",
+        report_case("which remains until a turn is granted for it",
             layout.cell_at(player.get<stratum_sim::placement_type>().position()) == stratum_sim::GridPosition {2, 1});
 
         clock.grant_turn();
         clock.run(events, controlled);
         report_case("the movement follows on the next turn", layout.cell_at(player.get<stratum_sim::placement_type>().position()) == stratum_sim::GridPosition {3, 1});
 
-        // An action that achieves nothing costs no turn, so walking into rock is free
+        // An action that achieves nothing costs no turn, so walking into a wall is free
         clock.grant_turn();
         while (layout.cell_at(player.get<stratum_sim::placement_type>().position()).i > 1)
         {
@@ -992,7 +1050,7 @@ namespace
         // Two units a second, so an actor of speed 100 gets two actions a second
         restart(2.0);
         report_case("the driver is what it was set to", clock.driver() == stratum_sim::Driver::RealTime);
-        report_case("and carries the rate with it", clock.units_per_second() == 2.0);
+        report_case("and keeps the rate with it", clock.units_per_second() == 2.0);
 
         clock.advance(events, controlled, stratum_sim::Clock::duration_type(0.5));
         report_case_equal("half a second at two units a second is one unit", scheduler.elapsed(), 1);
@@ -1022,7 +1080,7 @@ namespace
         report_case("an actor made ready by elapsed time acts",
             layout.cell_at(player.get<stratum_sim::placement_type>().position()) == stratum_sim::GridPosition(2, 1));
 
-        auto stand = [&](const stratum_sim::GridPosition& cell, const stratum_sim::vector_type& direction)
+        auto place = [&](const stratum_sim::GridPosition& cell, const stratum_sim::vector_type& direction)
         {
             player.set<stratum_sim::placement_type>(stratum_sim::placement_type(layout.cell_position(cell), east));
             player.set<stratum_sim::Intent>(stratum_sim::Intent {direction, 1.0f, stratum_sim::vector_type()});
@@ -1030,7 +1088,7 @@ namespace
 
         // A direction held goes on producing steps without being asked for again
         restart(2.0);
-        stand(stratum_sim::GridPosition {1, 1}, east);
+        place(stratum_sim::GridPosition {1, 1}, east);
 
         for (int n = 0; n < 3; ++n)
         {
@@ -1045,7 +1103,7 @@ namespace
         scheduler.clear();
         scheduler.add(player.id(), 100);
         clock.set_driver(stratum_sim::Driver::TurnBased);
-        stand(stratum_sim::GridPosition {1, 1}, east);
+        place(stratum_sim::GridPosition {1, 1}, east);
 
         for (int n = 0; n < 3; ++n)
         {
@@ -1055,18 +1113,18 @@ namespace
         report_case("turn-based takes one step from one intent",
             layout.cell_at(player.get<stratum_sim::placement_type>().position()) == stratum_sim::GridPosition(2, 1));
 
-        // Held against rock it stops asking rather than trying without end. That this returns
+        // Held against a wall it stops asking rather than trying without end. That this returns
         // at all is the case: an intent kept over an action that achieved nothing would spin
         restart(2.0);
-        stand(stratum_sim::GridPosition {1, 1}, stratum_sim::vector_type(-1.0f, 0.0f, 0.0f));
+        place(stratum_sim::GridPosition {1, 1}, stratum_sim::vector_type(-1.0f, 0.0f, 0.0f));
         clock.advance(events, controlled, stratum_sim::Clock::duration_type(0.5));
 
-        report_case("a mover held against rock does not move",
+        report_case("a mover held against a wall does not move",
             layout.cell_at(player.get<stratum_sim::placement_type>().position()) == stratum_sim::GridPosition(1, 1));
         report_case("and stops asking for what it could not have",
             player.get<stratum_sim::Intent>().direction.x() == 0.0f);
 
-        // A host calls the same thing either way and is told nothing about which it is running
+        // A host calls the same entry either way and is told nothing about which it is running
         stratum_sim::Session session_turn;
         session_turn.load("data/corridor.level");
 
@@ -1122,9 +1180,9 @@ namespace
         report_case("an opened wall no longer stops it", layout.cell_at(through.placement.position()) == stratum_sim::GridPosition(4, 0));
         report_case("it stops at the next block instead", through.obstruction_wall_id != nullid && through.obstruction_wall_id != far.obstruction_wall_id);
 
-        // Rock in every other direction
+        // Solid in every other direction
         stratum_sim::MoveResult blocked = layout.move(start, north, 3.0f);
-        report_case("a mover held against rock does not move", layout.cell_at(blocked.placement.position()) == stratum_sim::GridPosition(0, 0));
+        report_case("a mover held against a wall does not move", layout.cell_at(blocked.placement.position()) == stratum_sim::GridPosition(0, 0));
         report_case("and still reports the obstruction", blocked.obstruction_wall_id != nullid);
 
         report_case("a zero direction moves nothing", layout.cell_at(layout.move(start, stratum_sim::vector_type(0.0f, 0.0f, 0.0f), 3.0f).placement.position()) == stratum_sim::GridPosition(0, 0));
@@ -1148,7 +1206,7 @@ namespace
         report_case("four counterclockwise turns return the original facing",
             layout.turn(layout.turn(layout.turn(left, stratum_sim::Rotation::CCW), stratum_sim::Rotation::CCW), stratum_sim::Rotation::CCW).direction().x() == 1.0f);
 
-        // Facing absolutely, which is what a command carries and what the layout snaps
+        // Facing absolutely, which is what a command asks for and what the layout snaps
         stratum_sim::placement_type faced = layout.face(facing_east, north);
         report_case("facing north from east faces north", faced.direction().x() == 0.0f && faced.direction().y() == 1.0f);
         report_case("facing does not move", layout.same_location(facing_east, faced));
@@ -1195,7 +1253,7 @@ namespace
         auto at = [&](int i, int j) { return stratum_sim::placement_type(layout.cell_position(stratum_sim::GridPosition {i, j}), east); };
 
         // The doorway is a block belonging to the floor around it, so the floor's boundary
-        // takes in its sides and the block carries a ring of four of its own
+        // encloses its sides and the block has a ring of four of its own
         report_case("the doorway widens the floor's outline", outline_lengths(layout) == vector<size_t> {14, 4});
         report_case_equal("and the file names no rooms, its floor being corridor", layout.room_store_count(), 0);
 
@@ -1210,10 +1268,10 @@ namespace
 
         id_type doorway = layout.wall_toward(stratum_sim::GridPosition {3, 2}, stratum_sim::Direction::East);
         report_case("the wall into the doorway is found", doorway != nullid);
-        report_case("and has no partner, the doorway carrying no wall of its own",
+        report_case("and has no partner, the doorway having no wall of its own",
             layout.wall(doorway).partner_id == nullid);
 
-        // What is in front is the layout's own answer, so a rule never steps a cell of its own
+        // What is in front is the layout's own to decide, so a rule never steps a cell of its own
         report_case("the layout names what a placement faces", layout.ahead(at(3, 2)) == doorway);
         report_case("and nothing where the facing meets no wall", layout.ahead(at(1, 1)) == nullid);
         report_case("a facing the grid names nothing faces nothing", layout.ahead(
@@ -1230,7 +1288,7 @@ namespace
         // Sight
         report_case("a cell sees itself", layout.visible(at(2, 2), at(2, 2)));
         report_case("open floor is visible across", layout.visible(at(1, 1), at(3, 3)));
-        report_case("sight is blocked by rock", !layout.visible(at(2, 2), at(2, 4)));
+        report_case("sight is blocked by a solid cell", !layout.visible(at(2, 2), at(2, 4)));
         report_case("sight reaches through an open doorway", layout.visible(at(3, 2), at(4, 2)));
 
         open_walls.erase(doorway);
@@ -1245,7 +1303,7 @@ namespace
     {
         report_group("load layout");
 
-        // A ring of eight open cells around one enclosed rock cell
+        // A ring of eight open cells around one enclosed solid cell
         auto ploop = load_open("data/loop.level");
         const stratum_sim::DiscreteLayout& loop = *ploop;
 
@@ -1253,31 +1311,31 @@ namespace
         report_case_equal("a layout has one floor and one ceiling", loop.flat_store_count(), 2);
 
         // One contiguous area, its boundary two closed outlines: around the outside and
-        // around the rock it encloses
+        // around the solid cell it encloses
         report_case("the enclosure becomes a second outline", outline_lengths(loop) == vector<size_t> {12, 4});
         report_case_equal("every outline is one wall per cell edge", loop.wall_store_count(), 16);
 
         // Nothing borders it, inside or out
-        size_t rock = 0;
+        size_t border_walls = 0;
         for (const stratum_sim::Wall& wall : loop.wall_store())
         {
-            rock += wall.partner_id == nullid ? 1 : 0;
+            border_walls += wall.partner_id == nullid ? 1 : 0;
         }
 
-        report_case_equal("an isolated area is rock all round", rock, 16);
+        report_case_equal("an isolated area is border wall all round", border_walls, 16);
 
         report_case("an open cell reads as open", loop.open(stratum_sim::GridPosition {1, 1}));
-        report_case("the enclosed rock cell does not", !loop.open(stratum_sim::GridPosition {2, 2}));
-        report_case("rock outside the ring does not", !loop.open(stratum_sim::GridPosition {0, 0}));
+        report_case("the enclosed solid cell does not", !loop.open(stratum_sim::GridPosition {2, 2}));
+        report_case("a solid cell outside the ring does not", !loop.open(stratum_sim::GridPosition {0, 0}));
 
         report_case("adjacent open cells do not block", !loop.blocked(stratum_sim::GridPosition {1, 1}, stratum_sim::Direction::East));
-        report_case("an open cell blocks against rock", loop.blocked(stratum_sim::GridPosition {1, 1}, stratum_sim::Direction::South));
-        report_case("an open cell blocks against enclosed rock", loop.blocked(stratum_sim::GridPosition {2, 1}, stratum_sim::Direction::North));
+        report_case("an open cell blocks against solid", loop.blocked(stratum_sim::GridPosition {1, 1}, stratum_sim::Direction::South));
+        report_case("an open cell blocks against enclosed solid", loop.blocked(stratum_sim::GridPosition {2, 1}, stratum_sim::Direction::North));
 
         // The file's first line is the highest row, so the origin is lower left
         report_case("row order puts the origin at the lower left", loop.open(stratum_sim::GridPosition {3, 1}));
 
-        // A doorway joins the cells either side into one area, its own ring standing apart
+        // A doorway joins the cells either side into one area, its own ring separate
         auto pdoor = load_open("data/door.level");
         const stratum_sim::DiscreteLayout& door = *pdoor;
 
@@ -1293,11 +1351,11 @@ namespace
         report_case("a block sees no wall on the way out", door.wall_toward(stratum_sim::GridPosition {2, 1}, stratum_sim::Direction::East) == nullid);
         report_case("but the floor sees one on the way in", door.wall_toward(stratum_sim::GridPosition {3, 1}, stratum_sim::Direction::West) != nullid);
 
-        // Corridor floor is not room floor, so a file written entirely in it names no rooms
+        // Corridor floor is not room floor, so a file written entirely in it defines no rooms
         report_case_equal("a level of corridor alone has no rooms", door.room_store_count(), 0);
 
         // Both load into the same structure, so which format a file was written in is the
-        // loader's to report rather than anything the layout carries
+        // loader's to report rather than a property of the layout
         stratum_sim::Format level_format = stratum_sim::Format::Wall;
         stratum_sim::load_layout("data/door.level", 1.0f, {}, &level_format);
         report_case("a headerless file is the block format", level_format == stratum_sim::Format::Block);
@@ -1312,7 +1370,7 @@ namespace
         report_case("a generated level reads", generated.wall_store_count() > 0);
         report_case("its grid matches the file", generated.grid().extent == stratum_sim::discrete_vector_type(31, 31));
 
-        // 292 of its 961 cells are room floor and 247 corridor, the rest rock, doorways
+        // 292 of its 961 cells are room floor and 247 corridor, the rest solid, doorways
         // and stairways. Rooms come from the first alone
         report_case("its room floor becomes rooms", generated.room_store_count() > 0,
             format("{} rooms", generated.room_store_count()));
@@ -1329,8 +1387,8 @@ namespace
         report_case("a room's outline closes", generated.room_store().front().vertex_count() >= 4);
 
         // Two areas never share an edge in this format: a block separates them, and a wall
-        // faces either rock or a block. So nothing is partnered, which is the whole of what
-        // the block format cannot say and the wall format can
+        // faces either a solid cell or a block. So nothing is partnered, which is the whole of what
+        // the block format cannot express and the wall format can
         size_t connected = 0;
         for (const stratum_sim::Wall& wall : generated.wall_store())
         {
@@ -1415,7 +1473,7 @@ namespace
         report_group("load wall layout");
 
         // Two rooms of two by three cells sharing one wall, with a door in the middle of it
-        // The loader reports the wall pairs a door stands on rather than marking the walls
+        // The loader reports the wall pairs a door is attached to rather than marking the walls
         stratum_sim::door_walls_type door_walls;
         auto pwalls = stratum_sim::load_layout("data/walls.level", 1.0f,
             [&](const std::vector<id_type>& walls) { door_walls.push_back(walls); });
@@ -1432,7 +1490,7 @@ namespace
         report_case("areas sharing a wall are outlined separately", outline_lengths(walls) == vector<size_t> {10, 10});
         report_case_equal("both outlines account for every wall", walls.wall_store_count(), 20);
 
-        // The wall format has one open cell symbol, so it says nothing about rooms yet
+        // The wall format has one open cell symbol, so it encodes nothing about rooms yet
         report_case_equal("the wall format names no rooms", walls.room_store_count(), 0);
 
         size_t partnered = 0;
@@ -1441,7 +1499,7 @@ namespace
             partnered += wall.partner_id != nullid ? 1 : 0;
         }
 
-        // What the block format cannot say: a wall with a room behind it rather than rock
+        // What the block format cannot express: a wall with a room behind it rather than a solid cell
         report_case_equal("the shared wall is partnered along its whole length", partnered, 6);
         report_case_equal("one pair of it is the door", door_walls.size(), 1);
 
@@ -1475,16 +1533,16 @@ namespace
         report_case("a generated level reads", generated.wall_store_count() > 0);
         report_case("its grid is the header's extent", generated.grid().extent == stratum_sim::discrete_vector_type(24, 14));
 
-        size_t rock = 0;
+        size_t solid = 0;
         for (int j = 0; j < 14; ++j)
         {
             for (int i = 0; i < 24; ++i)
             {
-                rock += generated.open(stratum_sim::GridPosition {i, j}) ? 0 : 1;
+                solid += generated.open(stratum_sim::GridPosition {i, j}) ? 0 : 1;
             }
         }
 
-        report_case("a level below full density leaves rock", rock > 0, format("{} rock cells", rock));
+        report_case("a level below full density leaves solid cells", solid > 0, format("{} solid cells", solid));
 
         size_t connected = 0;
         for (const stratum_sim::Wall& wall : generated.wall_store())
@@ -1497,7 +1555,7 @@ namespace
         report_case_equal("every open cell is reachable from the first", cells_reached(generated),
             open_cells(generated));
 
-        // At full density with no spacing every cell is room, so rock here is the spacing
+        // At full density with no spacing every cell is room, so a solid cell here is the spacing
         // and nothing else, and nothing but a corridor joins any two rooms
         auto pspaced = load_open("data/catagen_spaced.level");
         const stratum_sim::DiscreteLayout& spaced = *pspaced;
@@ -1505,17 +1563,17 @@ namespace
         report_case("a spaced level reads", spaced.wall_store_count() > 0);
         report_case("its grid is the header's extent", spaced.grid().extent == stratum_sim::discrete_vector_type(30, 18));
 
-        size_t spaced_rock = 0;
+        size_t spaced_solid = 0;
         for (int j = 0; j < 18; ++j)
         {
             for (int i = 0; i < 30; ++i)
             {
-                spaced_rock += spaced.open(stratum_sim::GridPosition {i, j}) ? 0 : 1;
+                spaced_solid += spaced.open(stratum_sim::GridPosition {i, j}) ? 0 : 1;
             }
         }
 
-        report_case("spacing leaves rock where full density would leave none", spaced_rock > 0,
-            format("{} rock cells", spaced_rock));
+        report_case("spacing leaves solid cells where full density would leave none", spaced_solid > 0,
+            format("{} solid cells", spaced_solid));
 
         report_case_equal("every open cell is still reachable from the first", cells_reached(spaced),
             open_cells(spaced));
@@ -1654,7 +1712,7 @@ namespace
 
         flecs::entity monster = world.create_entity(crypt, where);
         report_case("an entity is placed in its zone", world.zone_of(monster) == crypt);
-        report_case("and carries its placement", monster.try_get<stratum_sim::placement_type>() != nullptr);
+        report_case("and has its placement", monster.try_get<stratum_sim::placement_type>() != nullptr);
 
         // Migration keeps the id, which is what quests and leashes depend on
         flecs::entity_t id_before = monster.id();
@@ -1705,7 +1763,7 @@ namespace
 
         events.clear();
 
-        // Walking into rock reports the obstruction and does not move
+        // Walking into a wall reports the obstruction and does not move
         commands.push(actor.id(), stratum_sim::Step {north, 5.0f});
         stratum_sim::apply(world, commands, events);
 
@@ -1716,7 +1774,7 @@ namespace
 
         events.clear();
 
-        // Held against rock, nothing happens and nothing is spent
+        // Held against a wall, nothing happens and nothing is spent
         stratum_sim::Command held(actor.id(), stratum_sim::Step {north, 1.0f});
         report_case_equal("a step that cannot move costs nothing", static_cast<size_t>(stratum_sim::apply(world, held, events)), 0);
         report_case("and reports only the block", events.size() == 1 && events.front().is<stratum_sim::Blocked>());
@@ -1751,7 +1809,7 @@ namespace
 
         report_case("a step stopped short costs less than it asked for",
             cost_short > 0 && cost_short < 4 * stratum_sim::Scheduler::action_cost);
-        report_case("and stopped where the rock is", cell_of() == stratum_sim::GridPosition(3, 1));
+        report_case("and stopped where the wall is", cell_of() == stratum_sim::GridPosition(3, 1));
         report_case_equal("charged an action per cell it did reach",
             static_cast<size_t>(cost_short), static_cast<size_t>(2 * stratum_sim::Scheduler::action_cost));
 
@@ -1770,8 +1828,8 @@ namespace
         events.clear();
 
         // Interact with what the actor faces
-        stratum_sim::Command interact_rock(actor.id(), stratum_sim::Interact {});
-        report_case_equal("interacting with open floor does nothing", static_cast<size_t>(stratum_sim::apply(world, interact_rock, events)), 0);
+        stratum_sim::Command interact_floor(actor.id(), stratum_sim::Interact {});
+        report_case_equal("interacting with open floor does nothing", static_cast<size_t>(stratum_sim::apply(world, interact_floor, events)), 0);
         report_case("and reports nothing", events.empty());
 
         // Face the doorway and interact
@@ -1846,7 +1904,7 @@ namespace
         flecs::entity mover = world.create_entity(zone, place(1, 1));
         mover.add<stratum_sim::Blocking>();
 
-        // Nothing in the way, so the world answers what the layout alone would
+        // Nothing in the way, so the world returns what the layout alone would
         stratum_sim::MoveResult clear = world.move(mover, east, 2.0f);
         report_case("an unobstructed move reaches its distance", layout.cell_at(clear.placement.position()) == stratum_sim::GridPosition(3, 1));
         report_case("and reports neither kind of obstruction", clear.obstruction_wall_id == nullid && clear.obstruction_entity_id == nullid);
@@ -1888,7 +1946,7 @@ namespace
             events.events().back().get<stratum_sim::Blocked>().obstruction_entity_id == static_cast<id_type>(boulder.id())
             && events.events().back().get<stratum_sim::Blocked>().obstruction_wall_id == nullid);
 
-        // A layout asked directly still answers for its own geometry and nothing else
+        // A layout asked directly still resolves its own geometry and nothing else
         stratum_sim::MoveResult geometric = layout.move(place(1, 1), east, 4.0f);
         report_case("the layout alone does not stop for entities", layout.cell_at(geometric.placement.position()).i > 3);
 
@@ -1920,7 +1978,7 @@ namespace
 
         id_type controlled = static_cast<id_type>(player.id());
 
-        // Down one corridor, so it is seen and where it stands is recorded
+        // Down one corridor, so it is seen and where it stands is remembered
         stratum_sim::think(world, controlled);
 
         report_case("a pursuer that can see its target records where", monster.get<stratum_sim::Pursue>().seen);
@@ -1962,7 +2020,7 @@ namespace
         report_case("and stops where its target stands", cell_of(monster) == stratum_sim::GridPosition(2, 1));
         report_case("which is the target's own cell it did not take", cell_of(player) == stratum_sim::GridPosition(1, 1));
 
-        // What it knows outlives the sight of it: moved away unseen, it goes to where it was
+        // What it recorded outlives the sight of it: moved away unseen, it goes to where it was
         flecs::entity blind = world.create_entity(zone, at(5));
         blind.set<stratum_sim::Pursue>(stratum_sim::Pursue {nullid, layout.cell_position(stratum_sim::GridPosition {3, 1}), true});
 
@@ -1978,9 +2036,35 @@ namespace
         report_case("arriving there with nothing to find, it stops going", !blind.get<stratum_sim::Pursue>().seen);
 
         // Something with no behaviour at all is left alone
-        flecs::entity rock = world.create_entity(zone, at(4));
+        flecs::entity inert = world.create_entity(zone, at(4));
         stratum_sim::think(world, controlled);
-        report_case("an entity that decides nothing is not decided for", rock.try_get<stratum_sim::Intent>() == nullptr);
+        report_case("an entity that decides nothing is not decided for", inert.try_get<stratum_sim::Intent>() == nullptr);
+
+        // A zone constructed rather than read, which is how one normally arrives. The generator
+        // is the seam: an interface here and an implementation wherever one was chosen
+        {
+            stratum_sim::Session created;
+            TestGenerator generator;
+            created.create(generator);
+
+            report_case("a constructed zone is loaded", created.loaded());
+            report_case("with the format its generator named", created.format() == stratum_sim::Format::Block);
+            report_case("and a player in it", created.player().is_alive());
+
+            // The doorway has a door, which is what proves the reported walls were built on
+            report_case("its doors are attached to the walls the generator reported",
+                stratum_sim::facing_on(created.zone(), stratum_sim::layout_as<stratum_sim::DiscreteLayout>(
+                    created.layout()).wall_toward(stratum_sim::GridPosition {1, 1}, stratum_sim::Direction::East)).is_alive());
+
+            // Reading the same geometry arrives at the same zone, a file being a snapshot of
+            // part of what a construction produces
+            stratum_sim::Session loaded;
+            loaded.load("data/door.level");
+            report_case("and a zone read whole agrees with it",
+                loaded.format() == created.format()
+                && stratum_sim::layout_as<stratum_sim::DiscreteLayout>(loaded.layout()).wall_store_count()
+                    == stratum_sim::layout_as<stratum_sim::DiscreteLayout>(created.layout()).wall_store_count());
+        }
 
         // The whole of it through a Session, which is what a host drives
         stratum_sim::Session session;

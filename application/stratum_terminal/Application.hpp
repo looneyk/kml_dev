@@ -16,7 +16,7 @@ namespace stratum_terminal
 
     //--------------------------------------------------------------------------
     // Which reduction the host draws. The cell view is a glyph per cell, which is what a
-    // roguelike shows; the wall view is the lattice, which also draws what stands on the
+    // roguelike shows; the wall view is the lattice, which also draws what lies on the
     // edges between cells and so is the only one that shows a door or a wall two rooms share
     // Unasked, the zone decides: a block format zone loses nothing through the cell view,
     // and a wall format one loses every wall between two open cells

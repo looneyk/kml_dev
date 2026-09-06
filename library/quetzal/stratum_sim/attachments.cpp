@@ -97,7 +97,7 @@ bool quetzal::stratum_sim::crossable(flecs::entity zone, id_type wall_id)
 
     if (!facing)
     {
-        return false; // A wall carrying nothing is solid
+        return false; // A wall with nothing attached is solid
     }
 
     if (facing.has<Concealed>() && !facing.get<Concealed>().found)

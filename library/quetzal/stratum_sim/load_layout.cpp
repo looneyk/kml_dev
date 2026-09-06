@@ -29,7 +29,7 @@ namespace
 
     //--------------------------------------------------------------------------
     // The one format version this reads, both generators writing the same. A leading zero
-    // says pre-release: no file older than it survives a change, and none is kept readable
+    // marks pre-release: no file older than it survives a change, and none is kept readable
     constexpr auto format_version = "0.2";
 
     //--------------------------------------------------------------------------
@@ -185,9 +185,9 @@ namespace
 
     //--------------------------------------------------------------------------
     // Everything a mover meets: the flats and the grid, a wall per outline edge, which cells
-    // hold floor, and one partnered pair per passage between two components
-    // Returns the wall lying on each directed boundary edge, which is what naming an area
-    // then needs to say what stands on its border
+    // are floor, and one partnered pair per passage between two components
+    // Returns the wall lying on each directed boundary edge, which is what describing an area
+    // then needs to describe what its border is made of
     WallIndex build(quetzal::stratum_sim::DiscreteLayout& layout, const Map& map, const Outlines& outlines,
         quetzal::stratum_sim::value_type height_ceiling,
         const quetzal::stratum_sim::door_type& door, std::set<quetzal::id_type>& doors)
@@ -251,7 +251,7 @@ namespace
             layout.connect(a->second, b->second);
 
             // What the file called a door is reported as one pair, for a caller with a world
-            // to hang something on. The walls themselves say nothing about crossing
+            // to hang something on. The walls themselves settle nothing about crossing
             if (passage.passable)
             {
                 doors.insert(a->second);
@@ -265,11 +265,11 @@ namespace
         }
 
         // A block is a cell of wall a mover may stand in. It belongs to the area around it,
-        // so the area's own outline walls the sides it presents to rock and a mover leaving
+        // so the area's own outline walls the sides it presents to solid cells and a mover leaving
         // sideways meets the wall end wrapping around into the next area. What it presents
-        // to open floor is interior to that area and carries no outline wall, so the block
+        // to open floor is interior to that area and has no outline wall, so the block
         // is ringed with four walls of its own, each wound about the cell outside it
-        // A face toward floor therefore carries a wall the area sees and the block does not,
+        // A face toward floor therefore has a wall the area sees and the block does not,
         // which is what a door hangs on and what leaves the way out of a block empty
         if (!map.blocks.empty())
         {
@@ -325,9 +325,9 @@ namespace
 
     //--------------------------------------------------------------------------
     // One Room per contiguous run of the cells the format called room floor, its outline
-    // traced the same way a component's is. A format that names no rooms builds none, and
+    // traced the same way a component's is. A format that defines no rooms builds none, and
     // corridors, doorways and stairs are never rooms in either
-    // A room's outline edge carries the wall standing on it, or nullid where the room opens
+    // A room's outline edge references the wall lying on it, or nullid where the room opens
     // onto a corridor with nothing between them
     void create_rooms(quetzal::stratum_sim::DiscreteLayout& layout, const Map& map, const WallIndex& walls,
         const std::set<quetzal::id_type>& doors)
@@ -354,7 +354,7 @@ namespace
             Room room;
 
             // The first outline alone. A room enclosing something it is not needs the rest,
-            // which waits on a format that can say so
+            // which waits on a format that can express it
             const Ring& ring = outlines[component].front();
 
             for (size_t i = 0; i < ring.size(); ++i)
@@ -368,7 +368,7 @@ namespace
 
                 // No wall is an opening, a wall the file called a door is a door, and what is
                 // left is wall. Nothing here asks whether the door is open: a room's outline
-                // says what stands on its border, not what state it is in
+                // describes what its border is made of, not what state it is in
                 vertex.type = vertex.wall_id == nullid ? Room::Type::Open
                     : doors.contains(vertex.wall_id) ? Room::Type::Door
                     : Room::Type::Wall;

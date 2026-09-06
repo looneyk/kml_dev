@@ -17,7 +17,7 @@ namespace quetzal::stratum_sim
     // Both parts are directions in world space, absolute rather than relative, which the
     // layout snaps to its own
     // Being a component it belongs to the entity: it survives unload and migration with
-    // everything else the entity holds, which is what an actor pursuing a goal over many
+    // everything else the entity has, which is what an actor pursuing a goal over many
     // turns needs and what a decision asked for per action has nowhere to put
     struct Intent
     {

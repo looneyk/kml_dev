@@ -16,8 +16,8 @@ namespace quetzal::stratum_view
     //--------------------------------------------------------------------------
     // A grid of cells to be drawn.
     // Row 0 is the lowest, matching the simulation, so writing it out reverses them
-    // Templated over what a cell holds because a view consumes what occupies a cell, not
-    // characters: the terminal wants characters, a tile view wants what to look the tile up by
+    // Templated over what a cell contains because a view consumes what occupies a cell, not
+    // characters: the terminal needs characters, a tile view needs what to look the tile up by
     template<typename T>
     class Buffer
     {
@@ -43,7 +43,7 @@ namespace quetzal::stratum_view
         void fill(T value);
 
         // Highest row first, so that it reads as a map. Characters only, there being nothing
-        // to write for a cell that does not hold one
+        // to write for a cell without one
         std::string to_string() const requires std::same_as<T, char>;
 
     private:

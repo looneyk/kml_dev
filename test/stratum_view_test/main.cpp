@@ -152,7 +152,7 @@ namespace
         spans = stratum_view::difference(a, c);
         report_case_equal("a gap splits a run", spans.size(), 2);
 
-        // Differing sizes give the whole of b, so that a device knows to repaint
+        // Differing sizes give the whole of b, as the cue for a device to repaint
         spans = stratum_view::difference(stratum_view::Console(2, 2, '.'), a);
         report_case_equal("a size change reports every row", spans.size(), 3);
         report_case("each row entire", !spans.empty() && spans[0] == stratum_view::Span {0, 0, 6});
@@ -163,9 +163,6 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // A level in a zone, with the doors the file named standing on the walls it named. This
-    // is what Session::load does: the loader reports where a door goes, having no world to
-    // put one in, and something holding a world builds it
     flecs::entity load_zone(stratum_sim::World& world, const string& name, const string& filepath)
     {
         stratum_sim::door_walls_type doors;
@@ -191,40 +188,52 @@ namespace
 
         report_case_equal("it covers the zone's grid", cells.width(), 7);
         report_case_equal("in both directions", cells.height(), 3);
-        report_case("rock where the level says rock", cells.at(0, 1).kind == stratum_view::Kind::Rock);
-        report_case("floor where it says open", cells.at(1, 1).kind == stratum_view::Kind::Floor);
-        report_case("no actor before one exists", cells.at(3, 1).kind != stratum_view::Kind::Actor);
+        report_case("a closed cell is solid", cells.at(0, 1).type == stratum_view::PlaceType::Solid);
+        report_case("floor where it says open", cells.at(1, 1).type == stratum_view::PlaceType::Floor);
+        report_case("no actor before one exists", !cells.at(3, 1).actor);
 
         const stratum_sim::DiscreteLayout& layout = stratum_sim::layout_as<stratum_sim::DiscreteLayout>(world.layout(zone));
         world.create_entity(zone, stratum_sim::placement_type(layout.cell_position(stratum_sim::GridPosition {3, 1}),
             stratum_sim::vector_type(1.0f, 0.0f, 0.0f)));
 
         cells = stratum_view::cells(world, zone);
-        report_case("an entity takes the cell it stands in", cells.at(3, 1).kind == stratum_view::Kind::Actor);
-        report_case("and only that one", cells.at(2, 1).kind == stratum_view::Kind::Floor);
+        report_case("an entity stands in its cell", cells.at(3, 1).actor);
+        report_case("and only that one", !cells.at(2, 1).actor);
+
+        // The whole point of the actor being a layer: the floor it stands on is still there
+        report_case("the floor under it is kept", cells.at(3, 1).type == stratum_view::PlaceType::Floor);
 
         // A view's mapping is its own; the terminal's is a table of Glyph
         const stratum_view::Glyphs& glyphs = stratum_view::cell_glyphs();
-        report_case("glyphs map each kind", glyphs(stratum_view::Place {stratum_view::Kind::Rock}) == '#'
-            && glyphs(stratum_view::Place {stratum_view::Kind::Floor}) == '.'
-            && glyphs(stratum_view::Place {stratum_view::Kind::Actor}) == '@');
+        report_case("glyphs map each place type", glyphs(stratum_view::Place {stratum_view::PlaceType::Solid}) == '#'
+            && glyphs(stratum_view::Place {stratum_view::PlaceType::Floor}) == '.');
 
-        // What a set can say is the set's, so a line naming a state beats one that does not
+        report_case("and an actor over whatever it stands on",
+            glyphs(stratum_view::Place {stratum_view::PlaceType::Floor, stratum_view::State::None,
+                stratum_view::Mask::None, true}) == '@');
+
+        // A line asking for an actor beats one asking for a state, so an actor in an open
+        // doorway draws as the actor
+        report_case("an actor in an open doorway draws as the actor",
+            glyphs(stratum_view::Place {stratum_view::PlaceType::Door, stratum_view::State::Open,
+                stratum_view::Mask::None, true}) == '@');
+
+        // A set's expressive range is the set's own, so a line specifying a state beats one that does not
         const stratum_view::Glyphs& lattice_set = stratum_view::lattice_glyphs();
         report_case("a state named draws apart from one not named",
-            lattice_set(stratum_view::Place {stratum_view::Kind::Door}) == '/'
-            && lattice_set(stratum_view::Place {stratum_view::Kind::Door, stratum_view::State::Open}) == '\\');
+            lattice_set(stratum_view::Place {stratum_view::PlaceType::Door}) == '/'
+            && lattice_set(stratum_view::Place {stratum_view::PlaceType::Door, stratum_view::State::Open}) == '\\');
         report_case("and a set saying nothing of a state draws both alike",
-            stratum_view::Glyphs(std::vector<stratum_view::Glyph> {{stratum_view::Kind::Door, stratum_view::State::None, {}, '+'}})
-                (stratum_view::Place {stratum_view::Kind::Door, stratum_view::State::Open}) == '+');
+            stratum_view::Glyphs(std::vector<stratum_view::Glyph> {{stratum_view::PlaceType::Door, stratum_view::State::None, {}, false, '+'}})
+                (stratum_view::Place {stratum_view::PlaceType::Door, stratum_view::State::Open}) == '+');
 
         report_case("rendering from cells matches rendering from the world",
             stratum_view::render(cells).to_string() == stratum_view::render(world, zone).to_string());
 
-        // difference serves any buffer, which is what having one implementation buys
+        // difference works over any buffer, which is what having one implementation buys
         stratum_view::Cells other = cells;
-        other.set(5, 1, stratum_view::Place {stratum_view::Kind::Rock});
-        report_case_equal("differencing works over kinds too", stratum_view::difference(cells, other).size(), 1);
+        other.set(5, 1, stratum_view::Place {stratum_view::PlaceType::Solid});
+        report_case_equal("differencing works over places too", stratum_view::difference(cells, other).size(), 1);
 
         return;
     }
@@ -247,7 +256,7 @@ namespace
                 const stratum_view::Glyph& x = a.glyphs()[n];
                 const stratum_view::Glyph& y = b.glyphs()[n];
 
-                if (x.kind != y.kind || x.state != y.state || x.mask != y.mask || x.c != y.c)
+                if (x.type != y.type || x.state != y.state || x.mask != y.mask || x.c != y.c)
                 {
                     return false;
                 }
@@ -272,13 +281,13 @@ namespace
         stratum_view::Glyphs set = read("glyphs 0.1\ndoor open '\\'\nwall mask=EW '-'\nfloor ' '\n");
         report_case_equal("a set holds a line per row that names one", set.glyphs().size(), 3);
         report_case("an escaped backslash is the character it names",
-            set(stratum_view::Place {stratum_view::Kind::Door, stratum_view::State::Open}) == '\\');
+            set(stratum_view::Place {stratum_view::PlaceType::Door, stratum_view::State::Open}) == '\\');
         report_case("a quoted space is a glyph like any other",
-            set(stratum_view::Place {stratum_view::Kind::Floor}) == ' ');
+            set(stratum_view::Place {stratum_view::PlaceType::Floor}) == ' ');
         report_case("a mask is asked for only where it is named",
-            set(stratum_view::Place {stratum_view::Kind::Wall, stratum_view::State::None,
+            set(stratum_view::Place {stratum_view::PlaceType::Wall, stratum_view::State::None,
                 stratum_view::Mask::East | stratum_view::Mask::West}) == '-'
-            && set(stratum_view::Place {stratum_view::Kind::Wall}) == ' ');
+            && set(stratum_view::Place {stratum_view::PlaceType::Wall}) == ' ');
 
         auto throws = [&](const string& text)
         {
@@ -296,9 +305,9 @@ namespace
 
         report_case("a file naming no format is rejected", throws("door '/'\n"));
         report_case("as is one naming another version", throws("glyphs 9.9\n"));
-        report_case("a kind that is not one is rejected", throws("glyphs 0.1\nchasm '/'\n"));
+        report_case("a type that is not one is rejected", throws("glyphs 0.1\nchasm '/'\n"));
         report_case("as is a state that is not one", throws("glyphs 0.1\ndoor ajar '/'\n"));
-        report_case("a state its kind cannot be in is rejected",
+        report_case("a state its type cannot be in is rejected",
             throws("glyphs 0.1\nwall open '|'\n"));
         report_case("as is a line with nothing to draw", throws("glyphs 0.1\ndoor open\n"));
 
@@ -306,7 +315,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // The reduction the wall-aware view consumes: the cells and what stands between them
+    // The reduction the wall-aware view consumes: the cells and what lies between them
     void test_lattice()
     {
         report_group("lattice");
@@ -320,47 +329,48 @@ namespace
         report_case_equal("it covers twice the grid plus one", lattice.width(), 9);
         report_case_equal("in both directions", lattice.height(), 7);
 
-        report_case("a cell sits at an odd position both ways", lattice.at(1, 1).kind == stratum_view::Kind::Floor);
-        report_case("the wall two rooms share stands between them", lattice.at(4, 1).kind == stratum_view::Kind::Wall);
-        report_case("and the door in it is a door", lattice.at(4, 5).kind == stratum_view::Kind::Door);
-        report_case("shut, which is a state rather than a kind of its own",
+        report_case("a cell sits at an odd position both ways", lattice.at(1, 1).type == stratum_view::PlaceType::Floor);
+        report_case("the wall two rooms share lies between them", lattice.at(4, 1).type == stratum_view::PlaceType::Wall);
+        report_case("and the door in it is a door", lattice.at(4, 5).type == stratum_view::PlaceType::Door);
+        report_case("shut, which is a state rather than a type of its own",
             !stratum_view::any(lattice.at(4, 5).state & stratum_view::State::Open));
         report_case("a state a wall cannot be in is rejected",
-            !stratum_view::applies(stratum_view::Kind::Wall, stratum_view::State::Open)
-            && stratum_view::applies(stratum_view::Kind::Door, stratum_view::State::Open));
-        report_case("an edge within one room holds nothing", lattice.at(2, 1).kind == stratum_view::Kind::Rock);
-        report_case("the boundary is walled", lattice.at(0, 1).kind == stratum_view::Kind::Wall
-            && lattice.at(8, 1).kind == stratum_view::Kind::Wall);
+            !stratum_view::applies(stratum_view::PlaceType::Wall, stratum_view::State::Open)
+            && stratum_view::applies(stratum_view::PlaceType::Door, stratum_view::State::Open));
+        report_case("an edge within one room holds nothing", lattice.at(2, 1).type == stratum_view::PlaceType::None);
+        report_case("the boundary is walled", lattice.at(0, 1).type == stratum_view::PlaceType::Wall
+            && lattice.at(8, 1).type == stratum_view::PlaceType::Wall);
 
-        report_case("a corner walls reach is a joint", lattice.at(0, 0).kind == stratum_view::Kind::Wall);
-        report_case("so is one a run passes through", lattice.at(2, 0).kind == stratum_view::Kind::Wall);
-        report_case("a corner inside a room is not", lattice.at(2, 2).kind == stratum_view::Kind::Rock);
+        report_case("a corner walls reach is a joint", lattice.at(0, 0).type == stratum_view::PlaceType::Wall);
+        report_case("so is one a run passes through", lattice.at(2, 0).type == stratum_view::PlaceType::Wall);
+        report_case("a corner inside a room is not", lattice.at(2, 2).type == stratum_view::PlaceType::None);
 
-        // The block format reduces onto the same lattice, its walls standing only against rock
+        // The block format reduces onto the same lattice, its walls existing only against solid
         stratum_sim::World block;
         flecs::entity corridor = load_zone(block, "corridor", "data/corridor.level");
 
         stratum_view::Lattice cells = stratum_view::lattice(block, corridor);
 
         report_case_equal("a block level covers the same shape", cells.width(), 15);
-        report_case("a rock cell reads as rock", cells.at(1, 1).kind == stratum_view::Kind::Rock);
-        report_case("an open cell reads as floor", cells.at(3, 3).kind == stratum_view::Kind::Floor);
-        report_case("open meeting rock is walled", cells.at(2, 3).kind == stratum_view::Kind::Wall);
+        report_case("a closed cell reads as solid", cells.at(1, 1).type == stratum_view::PlaceType::Solid);
+        report_case("an open cell reads as floor", cells.at(3, 3).type == stratum_view::PlaceType::Floor);
+        report_case("open meeting solid is walled", cells.at(2, 3).type == stratum_view::PlaceType::Wall);
 
-        // A wall stands only on the side facing open space, so an edge has to be asked of
-        // both cells: this one carries its wall on the west side, the other on the east
-        report_case("and so is rock meeting open", cells.at(12, 3).kind == stratum_view::Kind::Wall);
-        report_case("as is the floor's own boundary", cells.at(3, 2).kind == stratum_view::Kind::Wall
-            && cells.at(3, 4).kind == stratum_view::Kind::Wall);
+        // A wall exists only on the side facing open space, so an edge has to be asked of
+        // both cells: this one has its wall on the west side, the other on the east
+        report_case("and so is solid meeting open", cells.at(12, 3).type == stratum_view::PlaceType::Wall);
+        report_case("as is the floor's own boundary", cells.at(3, 2).type == stratum_view::PlaceType::Wall
+            && cells.at(3, 4).type == stratum_view::PlaceType::Wall);
 
-        report_case("two open cells of one area are not", cells.at(4, 3).kind == stratum_view::Kind::Rock);
+        report_case("two open cells of one area are not", cells.at(4, 3).type == stratum_view::PlaceType::None);
 
         const stratum_sim::DiscreteLayout& layout = stratum_sim::layout_as<stratum_sim::DiscreteLayout>(block.layout(corridor));
         block.create_entity(corridor, stratum_sim::placement_type(layout.cell_position(stratum_sim::GridPosition {1, 1}),
             stratum_sim::vector_type(1.0f, 0.0f, 0.0f)));
 
         cells = stratum_view::lattice(block, corridor);
-        report_case("an entity takes the cell it stands in", cells.at(3, 3).kind == stratum_view::Kind::Actor);
+        report_case("an entity stands in its cell", cells.at(3, 3).actor);
+        report_case("with the floor under it kept", cells.at(3, 3).type == stratum_view::PlaceType::Floor);
 
         return;
     }
@@ -379,10 +389,10 @@ namespace
         report_case_equal("the console covers the zone's grid", console.width(), 7);
         report_case_equal("in both directions", console.height(), 3);
 
-        report_case("rock renders as rock", console.at(0, 1) == '#');
+        report_case("a solid cell renders as solid", console.at(0, 1) == '#');
         report_case("open floor renders as floor", console.at(1, 1) == '.');
         report_case("the far end is floor too", console.at(5, 1) == '.');
-        report_case("beyond it is rock", console.at(6, 1) == '#');
+        report_case("beyond it is solid", console.at(6, 1) == '#');
 
         // An actor draws over the floor it stands on
         const stratum_sim::DiscreteLayout& layout = stratum_sim::layout_as<stratum_sim::DiscreteLayout>(world.layout(zone));
@@ -410,12 +420,12 @@ namespace
         report_case_equal("in both directions", console.height(), 7);
 
         report_case("an open cell is a space, not a dot", console.at(3, 3) == ' ');
-        report_case("a rock cell is rock", console.at(1, 1) == '#');
-        report_case("open meeting rock is a vertical wall", console.at(2, 3) == '|');
-        report_case("open over rock is a horizontal one", console.at(3, 2) == '-');
+        report_case("a solid cell is solid", console.at(1, 1) == '#');
+        report_case("open meeting solid is a vertical wall", console.at(2, 3) == '|');
+        report_case("open over solid is a horizontal one", console.at(3, 2) == '-');
         report_case("two open cells of one area have nothing between them", console.at(4, 3) == ' ');
 
-        report_case("a corner with rock all around it is rock", console.at(0, 0) == '#');
+        report_case("a corner with solid all around it is solid", console.at(0, 0) == '#');
         report_case("a corner two walls turn at is a junction", console.at(2, 2) == '+');
         report_case("and one a run passes through is the run", console.at(4, 2) == '-');
 
@@ -430,7 +440,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // An unoccupied level of nothing but rock and floor renders back to the file it
+    // An unoccupied level of nothing but solid and floor renders back to the file it
     // was loaded from. vault.level is asymmetric top to bottom, so this pins row order too
     void test_round_trip()
     {
@@ -452,9 +462,9 @@ namespace
             report_case(format("{} renders back to its own file", name), s == expected, "\n" + s);
         }
 
-        // The wall format is the lattice written out, so the same gate applies to it: the
-        // glyphs, the corner shaping and where rock shows all have to agree with the
-        // generator that wrote the file, without either knowing of the other
+        // The wall format is the lattice written out, so the same check applies to it: the
+        // glyphs, the corner shaping and where solid shows all have to agree with the
+        // generator that wrote the file, without either depending on the other
         {
             string filepath = "data/walls.level";
 
@@ -467,9 +477,9 @@ namespace
             string expected = read_file(filepath);
             expected.erase(0, expected.find('\n') + 1);
 
-            // Stairs are the one thing the reader loses: it takes '<' and '>' as floor, so
-            // the view has only floor to draw. Comparing against what the reader can carry
-            // keeps the walls, doors, corners and rock gated; this goes when stairs reach
+            // Stairs are the one symbol the reader loses: it takes '<' and '>' as floor, so
+            // the view has only floor to draw. Comparing against what the reader can represent
+            // keeps the walls, doors, corners and solid checked; this goes when stairs reach
             // somewhere, which is stage 6 of work_plan.md
             for (char& c : expected)
             {
@@ -502,7 +512,7 @@ namespace
         report_case_equal("the console is as wide as the file", console.width(), 31);
         report_case_equal("and as tall", console.height(), 31);
 
-        size_t rock_count = 0;
+        size_t solid_count = 0;
         size_t floor_count = 0;
         size_t mismatch_count = 0;
 
@@ -512,14 +522,14 @@ namespace
             {
                 // File line 0 is the highest row
                 char source_character = source[(console.height() - 1 - j) * (console.width() + 1) + i];
-                bool rock = source_character == '#';
+                bool solid = source_character == '#';
 
-                rock ? ++rock_count : ++floor_count;
+                solid ? ++solid_count : ++floor_count;
 
                 // A doorway and a stairway are both blocks, and the loader reports every block as
-                // somewhere a door goes, so both carry one and both draw as one
+                // somewhere a door goes, so both have one and both draw as one
                 bool block = source_character == '|' || source_character == '>';
-                char expected = rock ? '#' : block ? '/' : '.';
+                char expected = solid ? '#' : block ? '/' : '.';
 
                 if (console.at(i, j) != expected)
                 {
@@ -529,7 +539,7 @@ namespace
         }
 
         report_case_equal("every cell agrees with the file", mismatch_count, 0);
-        report_case("it found rock", rock_count > 0);
+        report_case("it found solid cells", solid_count > 0);
         report_case("and open cells", floor_count > 0);
 
         return;
@@ -560,7 +570,7 @@ namespace
             return stratum_sim::Command(entity_id, stratum_sim::Step {stratum_sim::vector_type(dx, dy, 0.0f), 1.0f});
         };
 
-        // A relative turn is resolved against the layout here, the command itself carrying
+        // A relative turn is resolved against the layout here, the command itself sending
         // the absolute facing it arrived at
         auto turn = [&](stratum_sim::Rotation rotation)
         {
@@ -614,8 +624,8 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Which view a scenario's frames are drawn with. The two are gated separately: one shows
-    // one glyph per cell, the other what stands on the edges between them
+    // Which view a scenario's frames are drawn with. The two are checked separately: one shows
+    // one glyph per cell, the other what lies on the edges between them
     enum class View
     {
         Cells,
@@ -677,7 +687,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Fixed command sequences rendered to text and gated byte for byte against
+    // Fixed command sequences rendered to text and compared byte for byte against
     // checked-in reference frames, which is what keeps the ASCII view from rotting once
     // it stops being the view anyone looks at
     void test_reference()
@@ -695,7 +705,7 @@ namespace
 
         // The last two are the wall view, which is the only one of these that shows what a
         // mover is stopped by: the others are block levels through a cell per glyph, which
-        // loses nothing where a wall stands only against rock
+        // loses nothing where a wall exists only against solid
         // The two differ in where the door is. A wall format door is an edge between two
         // cells and is drawn on it; a block format door is a cell, and is drawn in it
         const Scenario scenarios[]

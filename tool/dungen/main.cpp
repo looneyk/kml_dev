@@ -216,7 +216,7 @@ int main(int argc, char* argv[])
 
         dungen::write_level(os, level, parameters);
 
-        // The same header the file carries, so that a run names the seed that reproduces it
+        // The same header the file holds, so that a run names the seed that reproduces it
         dungen::write_level(cout, level, parameters);
     }
     catch (const exception& e)

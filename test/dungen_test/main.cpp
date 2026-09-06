@@ -115,10 +115,10 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // The header row read back into the parameters it names, which is the whole of what a
+    // The header row read back into the parameters it specifies, which is the whole of what a
     // level says about how to produce it again. Only the chosen algorithm's group is written,
     // so only that one is read
-    // Throws std::invalid_argument where a row names something this does not read, so a
+    // Throws std::invalid_argument where a row specifies something this does not read, so a
     // parameter added to the writer and not to this is a failure rather than a silent pass
     dungen::Parameters parameters_of(const string& header)
     {
@@ -310,7 +310,7 @@ namespace
         other.seed = 8u;
         report_case("and another seed gives another", level_text(other) != level_text(parameters));
 
-        // The id and name are carried rather than read, so neither reaches the grid
+        // The id and name are held rather than read, so neither reaches the grid
         dungen::Level a = dungen::generate(0, "one", parameters);
         dungen::Level b = dungen::generate(7, "another", parameters);
 
@@ -318,7 +318,7 @@ namespace
         ostringstream os_b;
         dungen::write_level(os_a, a, parameters);
         dungen::write_level(os_b, b, parameters);
-        report_case("the id and name a level carries do not reach it", os_a.str() == os_b.str());
+        report_case("the id and name a level holds do not reach it", os_a.str() == os_b.str());
 
         report_case("a random seed is not the same one every time",
             dungen::random_seed() != dungen::random_seed());
@@ -369,7 +369,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Every algorithm produces a grid of the size asked for, in the symbols the format names
+    // Every algorithm produces a grid of the size asked for, in the symbols the format defines
     void test_grid_shape()
     {
         report_group("grid shape");

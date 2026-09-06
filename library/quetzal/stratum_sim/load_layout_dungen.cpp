@@ -14,9 +14,9 @@ namespace
     using quetzal::stratum_sim::detail::Vertex;
 
     //--------------------------------------------------------------------------
-    enum class Kind
+    enum class CellType
     {
-        Rock,
+        Solid,
         Room,
         Corridor,
         Doorway,
@@ -26,28 +26,28 @@ namespace
     //--------------------------------------------------------------------------
     // dungen's symbols, from dungen::cell_types. '0' is its Null type, marking a cell the
     // generator never assigned
-    Kind kind(char c)
+    CellType cell_type(char c)
     {
         switch (c)
         {
-            case '#': return Kind::Rock;
-            case '0': return Kind::Rock;
-            case ' ': return Kind::Room;
-            case '.': return Kind::Corridor;
-            case '|': return Kind::Doorway;
-            case '>': return Kind::Stairway;
+            case '#': return CellType::Solid;
+            case '0': return CellType::Solid;
+            case ' ': return CellType::Room;
+            case '.': return CellType::Corridor;
+            case '|': return CellType::Doorway;
+            case '>': return CellType::Stairway;
         }
 
         assert(false); // Unrecognized cell code
-        return Kind::Rock;
+        return CellType::Solid;
     }
 
     //--------------------------------------------------------------------------
     // Room and corridor are both open floor and are laid out alike. They differ only in
     // what the level calls them, which is what makes the rooms nameable
-    bool open(Kind k)
+    bool open(CellType type)
     {
-        return k != Kind::Rock;
+        return type != CellType::Solid;
     }
 
     //--------------------------------------------------------------------------
@@ -55,9 +55,9 @@ namespace
     // area around it. The boundary of each neighbouring area runs along its face, wound about
     // that area like the rest of that area's wall, so a door hangs on the face and a mover
     // inside meets only backs -- which are no walls at all to a query, and so let it out
-    bool block(Kind k)
+    bool block(CellType type)
     {
-        return k == Kind::Doorway || k == Kind::Stairway;
+        return type == CellType::Doorway || type == CellType::Stairway;
     }
 
 } // namespace
@@ -75,25 +75,27 @@ quetzal::stratum_sim::detail::Map quetzal::stratum_sim::detail::read_block(const
     }
 
     // Trailing spaces may have been trimmed, and a short line is room floor
-    std::vector<Kind> kinds(map.w * map.h, Kind::Room);
+    std::vector<CellType> cell_types(map.w * map.h, CellType::Room);
 
     for (size_t j = 0; j < map.h; ++j)
     {
         const std::string& line = lines[map.h - 1 - j]; // The first line of the file is the highest row
         for (size_t i = 0; i < map.w; ++i)
         {
-            kinds[j * map.w + i] = kind(i < line.size() ? line[i] : ' ');
+            cell_types[j * map.w + i] = cell_type(i < line.size() ? line[i] : ' ');
         }
     }
 
+    // Off the grid is nowhere a mover may be, so it reads as closed and the outer boundary
+    // needs no case of its own
     auto at = [&](int i, int j)
     {
         return i < 0 || j < 0 || i >= static_cast<int>(map.w) || j >= static_cast<int>(map.h)
-            ? Kind::Rock
-            : kinds[static_cast<size_t>(j) * map.w + i];
+            ? CellType::Solid
+            : cell_types[static_cast<size_t>(j) * map.w + i];
     };
 
-    // A block is part of the area it stands in, so the area's boundary wraps around the rock
+    // A block is part of the area it lies in, so the area's boundary wraps around the solid cells
     // either side of it and its own sides are walled by that boundary rather than by nothing
     find_components(map,
         [&](int i, int j) { return open(at(i, j)); },
@@ -140,13 +142,13 @@ quetzal::stratum_sim::detail::Map quetzal::stratum_sim::detail::read_block(const
         }
     }
 
-    // The one thing either format says about rooms: dungen writes room floor and corridor
+    // The one property either format encodes about rooms: dungen writes room floor and corridor
     // floor as different symbols
     map.cell_room.assign(map.w * map.h, false);
 
-    for (size_t slot = 0; slot < kinds.size(); ++slot)
+    for (size_t slot = 0; slot < cell_types.size(); ++slot)
     {
-        map.cell_room[slot] = kinds[slot] == Kind::Room;
+        map.cell_room[slot] = cell_types[slot] == CellType::Room;
     }
 
     // No passages: nothing separates two open cells in this format except a block, and a

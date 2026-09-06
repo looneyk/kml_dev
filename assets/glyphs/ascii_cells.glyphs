@@ -1,10 +1,16 @@
 glyphs 0.1
 
 # One glyph per cell, so there is nowhere to put an edge: no wall is drawn at all, and a door
-# only where one stands in a cell of its own
-rock '#'
+# only where one occupies a cell of its own
+
+# An actor stands on a place rather than being one, so it asks for what is under it. These
+# come first to win the tie against a line asking for one state: a mover in an open doorway
+# draws as the mover
+floor actor '@'
+door actor '@'
+
+solid '#'
 floor '.'
-actor '@'
 
 door '/'
 door open '\'

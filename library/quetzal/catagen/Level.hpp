@@ -15,7 +15,7 @@ namespace quetzal::catagen
     // A rectangle of cells and the walls between them. A wall belongs to the edge two cells
     // share rather than to either of them, so adjoining rooms cost nothing to separate and
     // the grid holds one more line of walls than cells in each direction
-    // The whole of what a generator produces; rooms, doors and stairs are recorded here as
+    // The whole of what a generator produces; rooms, doors and stairs are held here as
     // cell and wall state rather than as objects of their own
     class Level
     {

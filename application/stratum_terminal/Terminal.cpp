@@ -153,10 +153,10 @@ stratum_terminal::Terminal::~Terminal()
         return;
     }
 
-    // Only when it is still the size it was put at, so that a resize by hand stands
+    // Only when it is still the size it was put at, so that a resize by hand is left alone
     // Emitted correctly and honoured on a terminal driven directly, but Windows Terminal
     // does not act on it: the pseudoconsole reports the new size while the window keeps
-    // the one the game asked for. Harmless where it does not take, so it stands
+    // the one the game asked for. Harmless where it does not take, so it is left in
     bool restore = m_size_set.rows != 0 && terminal_size() == m_size_set;
 
     if (restore)
@@ -167,8 +167,8 @@ stratum_terminal::Terminal::~Terminal()
 
     std::cout << escape_cursor_show_string << escape_screen_primary_string << std::flush;
 
-    // The console API answers for the pseudoconsole rather than the terminal, and reports
-    // a request as done before the terminal has read it, so exiting at once would lose the
+    // The console API reports for the pseudoconsole rather than the terminal, and marks
+    // a request done before the terminal has read it, so exiting at once would lose the
     // last escapes
     std::this_thread::sleep_for(wait_settle_size);
 }
@@ -216,7 +216,7 @@ void stratum_terminal::Terminal::draw(const stratum_view::Console& console, cons
     if (size != m_size_previous)
     {
         // A change after the first frame is the window being resized by hand. The size is
-        // read again after settling, since the pseudoconsole answers before the terminal
+        // read again after settling, since the pseudoconsole reports before the terminal
         // has finished, and a frame painted too early scrolls off the top
         if (m_size_previous.rows != 0)
         {

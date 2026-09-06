@@ -22,36 +22,36 @@ namespace quetzal::stratum_sim
     // highest row in both, the grid origin being lower left
     //
     // dungen's block format is one character per cell in its own symbols: '#' solid and
-    // '0' null are rock, ' ' room and '.' corridor are open floor, '|' is a doorway and
+    // '0' null are both solid, ' ' room and '.' corridor are open floor, '|' is a doorway and
     // '>' a stairway. Nothing separates two open cells, so a doorway or a stairway is a block: a
     // cell of wall a mover may stand in, belonging to the area around it, walled on the sides
-    // it presents to rock by that area's own outline and ringed with four walls of its own
-    // that carry the door. Two areas never share an edge, a block always standing between
+    // it presents to solid cells by that area's own outline and ringed with four walls of its own
+    // the door hangs on. Two areas never share an edge, a block always lying between
     // Room floor and corridor floor are laid out alike and differ only in what the level
-    // calls them, which is the one thing either format says about rooms
+    // calls them, which is the one property either format encodes about rooms
     //
     // catagen's wall format puts the walls between the cells, so the grid is two characters
     // across per cell plus one: cell (i, j) is at (2i + 1, 2j + 1), the wall west of it at
     // (2i, 2j + 1), the wall south of it at (2i + 1, 2j), and their corners at the even
-    // positions in both, which are read as decoration. A cell is ' ' open, '#' rock, or
+    // positions in both, which are read as decoration. A cell is ' ' open, '#' solid, or
     // '>' and '<' stairs, which are floor until something reads them as more; a wall is
-    // ' ' absent, '-' or '|' solid, '#' the rock standing there instead, or '/' a door. Its extent comes from
-    // the header, and where the header does not carry one it is derived from the grid: the
-    // last column is a boundary wall or one of its corners and so is never blank, which
-    // means no row can have been trimmed and the widest is the width. Given one, the extent
+    // ' ' absent, '-' or '|' solid, '#' where the position is solid instead, or '/' a door. Its
+    // extent comes from the header, and where the header does not name one it is derived from
+    // the grid: the last column is a boundary wall or one of its corners and so is never blank,
+    // which means no row can have been trimmed and the widest is the width. Given one, the extent
     // is also what a truncated file is caught by
     //
     // Cells with nothing between them become one area, its boundary traced into one outline
     // per closed run of it. Two areas meeting are partnered wherever they touch, and
-    // passable only where the format says a mover may cross
+    // passable only where the format marks a crossing
     // A Room is built per contiguous run of the cells the format called room floor, and a
-    // format that names none builds none
+    // format that defines none builds none
     //
     //--------------------------------------------------------------------------
     // Told of each pair of walls the file called a door, as the walls are built. The loader
     // builds geometry and has no world to build entities in, so it reports rather than places
-    // -- which is what lets a caller with a world attach a door without the loader knowing
-    // what a door is
+    // -- which is what lets a caller with a world attach a door without the loader having any
+    // notion of what a door is
     // One wall per side it presents: two for a door in a wall and for a doorway between two
     // areas, one for a doorway into a dead end
     using door_type = std::function<void(const std::vector<id_type>& wall_ids)>;
@@ -67,11 +67,11 @@ namespace quetzal::stratum_sim
         Wall
     };
 
-    // Both formats are grids of cells, so both build a DiscreteLayout and this says so
-    // rather than answering with the interface. A format describing something else is a
+    // Both formats are grids of cells, so both build a DiscreteLayout and this declares it
+    // rather than returning the interface. A format describing something else is a
     // reader of its own rather than another return from this one
     //
-    // Throws std::runtime_error when the file cannot be opened, holds no rows, names a
+    // Throws std::runtime_error when the file cannot be opened, has no rows, names a
     // generator or version this does not read, or does not match its own header. Nothing is
     // built until every one of those has passed, so a throw leaves no half-built layout
     // format, where given, is told which of the two was read, and is left alone by a throw
@@ -104,8 +104,8 @@ namespace quetzal::stratum_sim
         };
 
         //----------------------------------------------------------------------
-        // Somewhere two components meet. Whether a mover may cross is the format's to say: a
-        // block layout separates by spending a cell, a wall layout by what stands on the edge
+        // Somewhere two components meet. Whether a mover may cross is the format's to decide: a
+        // block layout separates by spending a cell, a wall layout by what is on the edge
         struct Passage
         {
             Vertex cell;
@@ -116,7 +116,7 @@ namespace quetzal::stratum_sim
         //----------------------------------------------------------------------
         // A cell of wall a mover may stand in: the block format's doorway and stairway. It is
         // part of the area around it, so that area's outline walls the sides it presents to
-        // rock, and a ring of its own carries the faces it presents to floor. Those are wound
+        // solid cells, and a ring of its own supplies the faces it presents to floor. Those are wound
         // about the floor either side, so a door hangs on them and a mover inside meets only
         // backs -- which are not walls to a query and so do not stop it leaving
         struct Block
@@ -141,7 +141,7 @@ namespace quetzal::stratum_sim
             std::vector<Block> blocks;
 
             // w by h, true where the format said the cell is room floor rather than
-            // corridor, doorway or anything else open. Empty when the format names no
+            // corridor, doorway or anything else open. Empty when the format defines no
             // rooms at all, which loads a zone with none
             std::vector<bool> cell_room;
         };
@@ -150,7 +150,7 @@ namespace quetzal::stratum_sim
         // The row a generator writes ahead of the grid, naming itself, the version of the
         // format it wrote, and the parameters of the run as name=value tokens
         // The version is a string rather than a number: it is a label a reader matches, and a
-        // pre-release one carries a dot
+        // pre-release one has a dot
         struct Header
         {
             std::string generator;
@@ -162,7 +162,7 @@ namespace quetzal::stratum_sim
         bool read_pair(const std::string& s, char separator, long& first, long& second);
 
         //----------------------------------------------------------------------
-        // Groups open cells, a caller's predicate saying whether two adjacent ones belong
+        // Groups open cells, a caller's predicate deciding whether two adjacent ones belong
         // together and whether a cell is open at all
         template<typename Open, typename Joined>
         void find_components(Map& map, Open open, Joined joined)

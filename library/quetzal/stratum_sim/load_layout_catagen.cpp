@@ -14,7 +14,7 @@ namespace
     using quetzal::stratum_sim::detail::Vertex;
 
     //--------------------------------------------------------------------------
-    enum class WallKind
+    enum class WallType
     {
         Open,
         Solid,
@@ -22,7 +22,7 @@ namespace
     };
 
     //--------------------------------------------------------------------------
-    // catagen's symbols. A cell is open unless it is rock; the stairs are floor until
+    // catagen's symbols. A cell is open unless it is solid; the stairs are floor until
     // something reads them as anything more
     bool open_glyph(char c, const std::filesystem::path& filepath)
     {
@@ -38,16 +38,16 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Rock stands where a wall would be written, and is no more crossable than one
-    WallKind wall_glyph(char c, const std::filesystem::path& filepath)
+    // A solid position is written where a wall would be, and is no more crossable than one
+    WallType wall_glyph(char c, const std::filesystem::path& filepath)
     {
         switch (c)
         {
-            case ' ': return WallKind::Open;
-            case '-': return WallKind::Solid;
-            case '|': return WallKind::Solid;
-            case '#': return WallKind::Solid;
-            case '/': return WallKind::Door;
+            case ' ': return WallType::Open;
+            case '-': return WallType::Solid;
+            case '|': return WallType::Solid;
+            case '#': return WallType::Solid;
+            case '/': return WallType::Door;
         }
 
         throw std::runtime_error(std::format("unrecognized wall '{}' in level file {}", c, filepath.string()));
@@ -97,7 +97,7 @@ std::pair<size_t, size_t> quetzal::stratum_sim::detail::wall_extent(const Header
 }
 
 //------------------------------------------------------------------------------
-// Corners are not read, the walls either side of one saying the same thing
+// Corners are not read, the walls either side of one determining the same shape
 quetzal::stratum_sim::detail::Map quetzal::stratum_sim::detail::read_walls(const std::vector<std::string>& lines,
     size_t w, size_t h, const std::filesystem::path& filepath)
 {
@@ -138,8 +138,8 @@ quetzal::stratum_sim::detail::Map quetzal::stratum_sim::detail::read_walls(const
         }
     }
 
-    // A wall named from the cell it lies west or south of, which is how the grid stores the
-    // line it sits on rather than the cells either side of it
+    // A wall addressed from the cell it lies west or south of, which is how the grid stores the
+    // line it lies on rather than the cells either side of it
     auto wall_west = [&](int i, int j) { return wall_glyph(glyph(2 * i, 2 * j + 1), filepath); };
     auto wall_south = [&](int i, int j) { return wall_glyph(glyph(2 * i + 1, 2 * j), filepath); };
 
@@ -153,7 +153,7 @@ quetzal::stratum_sim::detail::Map quetzal::stratum_sim::detail::read_walls(const
 
     find_components(map,
         [&](int i, int j) { return open[static_cast<size_t>(j) * w + i]; },
-        [&](const Vertex& a, const Vertex& b) { return between(a, b) == WallKind::Open; });
+        [&](const Vertex& a, const Vertex& b) { return between(a, b) == WallType::Open; });
 
     // Every open cell belongs to an area here: the wall format spends nothing on a doorway,
     // so it has no blocks
@@ -164,9 +164,9 @@ quetzal::stratum_sim::detail::Map quetzal::stratum_sim::detail::read_walls(const
         map.cell_open[slot] = open[slot];
     }
 
-    // The wall format has one open cell symbol and so names no rooms. cell_room is left
+    // The wall format has one open cell symbol and so defines no rooms. cell_room is left
     // empty rather than guessed at, and a catagen level loads with none until the format
-    // carries them
+    // defines them
 
     for (size_t j = 0; j < h; ++j)
     {
@@ -189,7 +189,7 @@ quetzal::stratum_sim::detail::Map quetzal::stratum_sim::detail::read_walls(const
 
                 if (map.cell_components[static_cast<size_t>(n.j) * w + n.i] != map.cell_components[j * w + i])
                 {
-                    map.passages.push_back({cell, n, between(cell, n) == WallKind::Door});
+                    map.passages.push_back({cell, n, between(cell, n) == WallType::Door});
                 }
             }
         }

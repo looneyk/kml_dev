@@ -13,17 +13,19 @@ namespace quetzal::stratum_view
 {
 
     //--------------------------------------------------------------------------
-    // What stands at a place, which is as far as the simulation is reduced before a view has
-    // any say. Every view consumes these; what each turns them into is its own business
-    // One entry per type of thing and none per state it can be in: what state it is in
-    // travels beside it, so a door that can be shut, locked or concealed is one Kind
-    // Rock is nothing standing here at all, which is what a closed cell and an edge with no
-    // wall on it are alike. Which of the two a position is, the position itself says
-    enum class Kind : uint8_t
+    // The fixed structure at a place, which is as far as the simulation is reduced before a
+    // view is involved. Every view consumes these; what each turns them into is its own business
+    // One entry per type of structure and none per state it can be in: what state it is in
+    // travels beside it, so a door that can be shut, locked or concealed is one type
+    // None is nothing here -- an edge no wall lies on, a corner nothing reaches. Solid is a
+    // closed cell, or a lattice position every cell around which is closed
+    // Nothing that moves is in here. What stands on a place is Place::actor, layered over the
+    // structure rather than replacing it, so a view keeps the floor under an actor
+    enum class PlaceType : uint8_t
     {
-        Rock,
+        None,
+        Solid,
         Floor,
-        Actor,
         Wall,
         Door
     };
@@ -32,20 +34,13 @@ namespace quetzal::stratum_view
     // The states a view draws apart, one flag each. Named after the component data they are
     // read from -- whichever of a component or its field reads as the state itself -- so
     // that a glyph set names what the simulation already calls it
-    // Only what changes the drawing belongs here: a lock enters when a locked door is drawn
-    // differently and not before
+    // Only what affects the drawing
     enum class State : uint16_t
     {
         None = 0,
         Open = 1 << 0, // Openable::open
         Passable = 1 << 1, // the Passable tag
-        Concealed = 1 << 2, // the Concealed tag, its found field being the inverse
-
-        // Every cell this position touches is rock, which is what tells rock from an edge
-        // with no wall on it. The two are one absence and this is the context that says
-        // which, so nothing needs a second way of standing for nothing
-        // Read from the layout rather than from a component, there being no entity here
-        Solid = 1 << 3
+        Concealed = 1 << 2 // the Concealed tag, its found field being the inverse
     };
 
     constexpr State operator|(State a, State b);
@@ -53,14 +48,14 @@ namespace quetzal::stratum_view
     constexpr State& operator|=(State& a, State b);
     constexpr bool any(State state);
 
-    // Whether a state can stand on a kind at all, which is what rejects a glyph set naming
+    // Whether a state can apply to a place type at all, which is what rejects a glyph set specifying
     // one that never applies rather than leaving it a line that can never match
-    bool applies(Kind kind, State state);
+    bool applies(PlaceType type, State state);
 
     //--------------------------------------------------------------------------
     // Where the wall line continues from a position, one bit per direction. Sixteen patterns
-    // is the whole of a box drawing set; a glyph set that can say less maps many of them onto
-    // one glyph, which is the shape of a set with less to say rather than a key too wide
+    // is the whole of a box drawing set; a glyph set that can express less maps many of them onto
+    // one glyph, which is the shape of a narrower set rather than a key too wide
     enum class Mask : uint8_t
     {
         None = 0,
@@ -76,12 +71,16 @@ namespace quetzal::stratum_view
     constexpr bool any(Mask mask);
 
     //--------------------------------------------------------------------------
-    // What stands at one position, the state it is in, and what reaches it
+    // What is at one position: the fixed structure, the state it is in, what reaches it, and
+    // whether something stands on it
+    // actor is a layer over the other three rather than one of their values, so the floor an
+    // actor stands on is still here to be drawn under it
     struct Place
     {
-        Kind kind = Kind::Rock;
+        PlaceType type = PlaceType::None;
         State state = State::None;
         Mask mask = Mask::None;
+        bool actor = false;
 
         friend bool operator==(const Place&, const Place&) = default;
     };
@@ -90,17 +89,17 @@ namespace quetzal::stratum_view
     using Lattice = Buffer<Place>;
 
     // The whole zone reduced to what occupies each cell, shaped by the layout's grid. One
-    // Place per grid position and no more: what stands on the edges between cells is not in
+    // Place per grid position and no more: what lies on the edges between cells is not in
     // it, so a wall or a door between two open cells reduces to Floor on both sides
-    // Emits Rock, Floor, Actor and the Door that stands in a cell of its own, which is what
-    // a doorway is in the block format. A door on an edge has no position here
+    // Emits Solid, Floor and the Door that occupies a cell of its own, which is what a
+    // doorway is in the block format. A door on an edge has no position here
     Cells cells(const stratum_sim::World& world, flecs::entity zone);
 
     // The whole zone reduced onto the lattice the wall format writes: the cells and what
-    // stands on the edges between them. (2W+1) by (2H+1) for a W by H grid, with cell (i, j)
+    // lies on the edges between them. (2W+1) by (2H+1) for a W by H grid, with cell (i, j)
     // at (2i+1, 2j+1), the wall west of it at (2i, 2j+1), the wall south of it at (2i+1, 2j),
     // and the corners at the even positions in both
-    // A corner answers Wall where any of the four edges touching it holds a wall or a door.
+    // A corner is Wall where any of the four edges touching it has a wall or a door on it.
     // What a view makes of that -- a box drawing character, a column covering the joint -- is
     // its own, and the four edges are beside it in the buffer to decide from
     Lattice lattice(const stratum_sim::World& world, flecs::entity zone);
@@ -109,10 +108,9 @@ namespace quetzal::stratum_view
     namespace detail
     {
 
-        constexpr State state_of(Kind kind)
+        constexpr State state_of(PlaceType type)
         {
-            return kind == Kind::Door ? State::Open | State::Passable | State::Concealed
-                : kind == Kind::Rock ? State::Solid
+            return type == PlaceType::Door ? State::Open | State::Passable | State::Concealed
                 : State::None;
         }
 
@@ -140,9 +138,9 @@ namespace quetzal::stratum_view
         return static_cast<uint16_t>(state) != 0;
     }
 
-    inline bool applies(Kind kind, State state)
+    inline bool applies(PlaceType type, State state)
     {
-        return (state & detail::state_of(kind)) == state;
+        return (state & detail::state_of(type)) == state;
     }
 
     //--------------------------------------------------------------------------

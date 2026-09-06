@@ -83,9 +83,9 @@ quetzal::id_type quetzal::stratum_sim::Clock::run(EventQueue& events, id_type ac
         Command command;
         bool turning = false;
 
-        // Asked to face the way it is going, a mover cannot do one without the other, so the
+        // Asked to face the way it is going, an actor cannot do one without the other, so the
         // two are a single faced step. Asked to face elsewhere while moving, they are two
-        // things and the turn is an action of its own
+        // actions and the turn is an action of its own
         if (pintent != nullptr && asked(pintent->facing) && asked(pintent->direction)
             && grid_step(pintent->facing) == grid_step(pintent->direction))
         {
@@ -120,7 +120,7 @@ quetzal::id_type quetzal::stratum_sim::Clock::run(EventQueue& events, id_type ac
         // time keeps it, so that a direction held goes on producing steps as the actor earns
         // them without being asked again every frame
         // Either way it is dropped when the action achieved nothing, which is what stops a
-        // mover held against rock from trying the same thing without end and is why the pass
+        // actor held against a wall from trying the same step without end and is why the pass
         // below always terminates
         if (m_driver == Driver::TurnBased || cost == 0)
         {
@@ -146,7 +146,7 @@ quetzal::id_type quetzal::stratum_sim::Clock::run(EventQueue& events, id_type ac
 
         // An action that achieved nothing costs no time, so the actor is still owed a turn.
         // What it asked for is dropped in that case, so the next pass finds nothing asked for
-        // and hands control back or waits rather than trying the same thing again
+        // and hands control back or waits rather than trying the same action again
         if (cost > 0)
         {
             m_scheduler.spend(actor_id, cost);

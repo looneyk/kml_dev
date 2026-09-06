@@ -12,7 +12,7 @@
 namespace quetzal::catagen
 {
 
-    // The version of the file format, recorded in the header so that a reader knows what the
+    // The version of the file format, written into the header so that a reader knows what the
     // grid below it means. A leading zero says pre-release: the glyphs and the shape are still
     // free to change, and every level regenerates when they do
     constexpr auto format_version = "0.2";
@@ -23,7 +23,7 @@ namespace quetzal::catagen
     // that cannot reproduce its own level
     void write_level(std::ostream& os, const Level& level, const Parameters& parameters);
 
-    // The grid alone, for a caller with nothing to record -- printing to a terminal
+    // The grid alone, for a caller with no parameters to write -- printing to a terminal
     // Walls fall between the cells, so the grid is two characters across per cell plus one:
     // cell (i, j) is at (2i + 1, 2j + 1), the wall east of it at (2i + 2, 2j + 1), the wall
     // north of it at (2i + 1, 2j + 2), and their corners at the even positions in both.

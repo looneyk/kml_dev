@@ -12,18 +12,18 @@ namespace
 
     using quetzal::stratum_view::Glyph;
     using quetzal::stratum_view::Glyphs;
-    using quetzal::stratum_view::Kind;
+    using quetzal::stratum_view::PlaceType;
     using quetzal::stratum_view::Mask;
     using quetzal::stratum_view::Place;
     using quetzal::stratum_view::State;
     using quetzal::stratum_view::any;
 
     //--------------------------------------------------------------------------
-    // How much of a place a line names, a state flag and a mask counting one each. A line
-    // naming more of it is preferred to one naming less
+    // How much of a place a line specifies, a state flag, a mask and an actor counting one
+    // each. A line specifying more of it is preferred to one specifying less
     int specificity(const Glyph& glyph)
     {
-        int n = glyph.mask.has_value() ? 1 : 0;
+        int n = (glyph.mask.has_value() ? 1 : 0) + (glyph.actor ? 1 : 0);
 
         for (uint16_t bit = 1; bit != 0; bit = static_cast<uint16_t>(bit << 1))
         {
@@ -36,9 +36,10 @@ namespace
     //--------------------------------------------------------------------------
     bool matches(const Glyph& glyph, const Place& place)
     {
-        return glyph.kind == place.kind
+        return glyph.type == place.type
             && (glyph.state & place.state) == glyph.state
-            && (!glyph.mask.has_value() || *glyph.mask == place.mask);
+            && (!glyph.mask.has_value() || *glyph.mask == place.mask)
+            && (!glyph.actor || place.actor);
     }
 
     //--------------------------------------------------------------------------
@@ -54,7 +55,7 @@ namespace
             bool across = any(mask & (Mask::East | Mask::West));
             bool along = any(mask & (Mask::North | Mask::South));
 
-            glyphs.push_back(Glyph {Kind::Wall, State::None, mask,
+            glyphs.push_back(Glyph {PlaceType::Wall, State::None, mask, false,
                 across && along ? corner : across ? horizontal : along ? vertical : opening});
         }
 
@@ -99,14 +100,17 @@ const std::vector<quetzal::stratum_view::Glyph>& quetzal::stratum_view::Glyphs::
 const quetzal::stratum_view::Glyphs& quetzal::stratum_view::cell_glyphs()
 {
     // A cell per glyph has nowhere to put an edge, so the reduction feeding this emits no
-    // wall at all and a door only where one stands in a cell of its own
+    // wall at all and a door only where one occupies a cell of its own
+    // An actor line first, so that it wins the tie against a line asking for one state flag:
+    // an actor in an open doorway draws as the actor rather than as the doorway
     static const Glyphs glyphs(std::vector<Glyph>
     {
-        {Kind::Rock, State::None, {}, '#'},
-        {Kind::Floor, State::None, {}, '.'},
-        {Kind::Actor, State::None, {}, '@'},
-        {Kind::Door, State::None, {}, '/'},
-        {Kind::Door, State::Open, {}, '\\'}
+        {PlaceType::Floor, State::None, {}, true, '@'},
+        {PlaceType::Door, State::None, {}, true, '@'},
+        {PlaceType::Solid, State::None, {}, false, '#'},
+        {PlaceType::Floor, State::None, {}, false, '.'},
+        {PlaceType::Door, State::None, {}, false, '/'},
+        {PlaceType::Door, State::Open, {}, false, '\\'}
     });
 
     return glyphs;
@@ -119,12 +123,13 @@ const quetzal::stratum_view::Glyphs& quetzal::stratum_view::lattice_glyphs()
     {
         std::vector<Glyph> v
         {
-            {Kind::Rock, State::Solid, {}, '#'},
-            {Kind::Rock, State::None, {}, ' '},
-            {Kind::Floor, State::None, {}, ' '},
-            {Kind::Actor, State::None, {}, '@'},
-            {Kind::Door, State::None, {}, '/'},
-            {Kind::Door, State::Open, {}, '\\'}
+            {PlaceType::Floor, State::None, {}, true, '@'},
+            {PlaceType::Door, State::None, {}, true, '@'},
+            {PlaceType::Solid, State::None, {}, false, '#'},
+            {PlaceType::None, State::None, {}, false, ' '},
+            {PlaceType::Floor, State::None, {}, false, ' '},
+            {PlaceType::Door, State::None, {}, false, '/'},
+            {PlaceType::Door, State::Open, {}, false, '\\'}
         };
 
         add_walls(v, '-', '|', '+', ' ');

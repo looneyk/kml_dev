@@ -3,10 +3,15 @@ glyphs 0.1
 # The glyphs the wall format writes, so that a level rendered onto the lattice reproduces
 # the file it was loaded from
 
-rock solid '#'
-rock ' '
+# An actor stands on a place rather than being one, so it asks for what is under it. These
+# come first to win the tie against a line asking for one state: a mover in an open doorway
+# draws as the mover
+floor actor '@'
+door actor '@'
+
+solid '#'
+none ' '
 floor ' '
-actor '@'
 
 door '/'
 door open '\'

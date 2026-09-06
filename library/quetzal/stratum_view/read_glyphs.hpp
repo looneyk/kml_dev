@@ -17,21 +17,24 @@ namespace quetzal::stratum_view
     // equally specific
     //
     //     glyphs 0.1
-    //     rock solid '#'
-    //     rock ' '
+    //     floor actor '@'
+    //     solid '#'
+    //     none ' '
     //     door open '\'
     //     wall mask=EW '-'
     //
-    // The first row names the format and its version. A line is a kind, then the state names
-    // it asks for in any order, then mask= and the directions it asks for, then the character
-    // in single quotes -- quoted so that a space is a glyph like any other. \\ and \' are the
-    // two escapes, there being nothing else a single character needs
-    // Naming no state matches whatever state a place is in, and leaving out mask= matches
-    // whatever reaches it. mask= with no directions asks for nothing reaching it at all
+    // The first row names the format and its version. A line is a place type, then the state names
+    // it asks for in any order, actor where it asks for one standing there, then mask= and the
+    // directions it asks for, then the character in single quotes -- quoted so that a space is
+    // a glyph like any other. \\ and \' are the two escapes, there being nothing else a single
+    // character needs
+    // Naming no state matches whatever state a place is in, leaving out actor matches whether
+    // or not one stands there, and leaving out mask= matches whatever reaches it. mask= with
+    // no directions asks for nothing reaching it at all
     // A line beginning with # is a comment, a glyph never beginning one
     //
     // Throws std::runtime_error when the file cannot be opened, names a format or version
-    // this does not read, or holds a line it cannot read -- naming the line, since a set is
+    // this does not read, or has a line it cannot read -- reporting the line, since a set is
     // written by hand. Nothing is built until every line has passed
     Glyphs read_glyphs(const std::filesystem::path& filepath);
 

@@ -474,9 +474,9 @@ quetzal::stratum_sim::point_type quetzal::stratum_sim::DiscreteLayout::cell_posi
 {
     point_type position = grid().cell_position(cell);
 
-    // The floor is what says where the ground is. A layout with no floor stands on the grid's
-    // own plane instead, which is what one under construction has; so does a cell the floor is
-    // absent under, that being a hole rather than a place to stand
+    // The floor is what fixes where the ground is. A layout with no floor falls back to the
+    // grid's own plane, which is what one under construction has; so does a cell the floor is
+    // absent under, that being a hole rather than a floor to walk on
     if (m_floor_id != nullid)
     {
         std::optional<value_type> height = flat(m_floor_id).height(position);
@@ -508,8 +508,8 @@ quetzal::id_type quetzal::stratum_sim::DiscreteLayout::wall_toward(const GridPos
     value_type y1 = y0 + sp;
     value_type z = oz;
 
-    // Wound so that the cell lies to the left, which is the side its own wall is traversed
-    // from
+    // Wound so that the cell lies to the left
+    // Change to wall normals ...
     point_type p0;
     point_type p1;
 
@@ -544,7 +544,6 @@ quetzal::id_type quetzal::stratum_sim::DiscreteLayout::wall_toward(const GridPos
         }
     }
 
-    // No wall on that edge means nothing stands that way
     return nullid;
 }
 
@@ -777,7 +776,7 @@ quetzal::id_type quetzal::stratum_sim::DiscreteLayout::ahead(const placement_typ
     discrete_vector_type step = grid_step(placement.direction());
     if (step.zero())
     {
-        return nullid; // Facing nothing the grid names, so facing nothing
+        return nullid; // Facing no direction the grid has, so facing nothing
     }
 
     return wall_toward(cell_at(placement.position()), step);

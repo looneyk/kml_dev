@@ -41,21 +41,27 @@ public:
     // The whole zone as characters, one line per row, highest row first
     godot::String render() const;
 
-    // What occupies each cell, one code per cell, row major from row zero. A tile view wants
-    // this rather than render's characters. The codes are stratum_view::Kind, repeated here
-    // only because Godot has to be told the names of the constants it can use
-    // KindWall is never emitted by this reduction, which has nowhere to put an edge, and is
-    // here so that the values line up with stratum_view::Kind rather than being renumbered
-    enum Kind
+    // The fixed structure at each cell, one code per cell, row major from row zero. A tile
+    // view needs this rather than render's characters. The codes are stratum_view::PlaceType,
+    // repeated here only because Godot has to be told the names of the constants it can use
+    // None and Wall are never emitted by this reduction -- every grid position is solid, floor
+    // or door, and it has nowhere to put an edge -- and are here so that the values line
+    // up with stratum_view::PlaceType rather than being renumbered
+    enum PlaceType
     {
-        KindRock,
-        KindFloor,
-        KindActor,
-        KindWall,
-        KindDoor
+        PlaceTypeNone,
+        PlaceTypeSolid,
+        PlaceTypeFloor,
+        PlaceTypeWall,
+        PlaceTypeDoor
     };
 
     godot::PackedByteArray cells() const;
+
+    // Where something stands, one byte per cell on the same shape and order as cells(). An
+    // actor is layered over the structure rather than replacing it, so a view draws the floor
+    // from cells() and the mover from this
+    godot::PackedByteArray actors() const;
 
     // The cell arrived at, unchanged when something blocked the way or it was not this
     // entity's turn
@@ -69,6 +75,6 @@ private:
     quetzal::stratum_sim::Session m_session;
 };
 
-VARIANT_ENUM_CAST(StratumWorld::Kind);
+VARIANT_ENUM_CAST(StratumWorld::PlaceType);
 
 #endif // STRATUM_GODOT_STRATUMWORLD_HPP

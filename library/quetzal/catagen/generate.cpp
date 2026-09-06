@@ -24,7 +24,7 @@ namespace
     using rectangles_type = vector<Rectangle>;
     using cell_region_mapping = vector<id_type>; // The region id for each cell in order
     using pair_type = pair<id_type, id_type>; // Two regions, lower id first
-    using site_type = pair<CellPosition, Direction>; // A cell edge, named from one of its two sides
+    using site_type = pair<CellPosition, Direction>; // A cell edge, addressed from one of its two sides
     using sites_type = map<pair_type, vector<site_type>>;
 
     //--------------------------------------------------------------------------
@@ -360,7 +360,7 @@ namespace
     // Cells and walls follow from the region map: a cell is floor where it belongs to a
     // region, and the edge between two cells is open only where both belong to the same one
     // A wall faces open floor on the side it belongs to, so an edge with floor on neither
-    // side carries none at all -- the outer boundary included, where the cell across is the
+    // side has none at all -- the outer boundary included, where the cell across is the
     // rock outside the level
     void realize(Level& level, const cell_region_mapping& regions)
     {

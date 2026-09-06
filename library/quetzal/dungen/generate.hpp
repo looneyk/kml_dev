@@ -12,9 +12,9 @@
 namespace quetzal::dungen
 {
 
-    // Builds the layout parameters.algorithm names. The id and name are what the Level is
-    // given to carry; generation itself reads neither
-    // Deterministic in its parameters, the seed included, so that a recorded header
+    // Builds the layout parameters.algorithm selects. The id and name are what the Level is
+    // given to hold; generation itself reads neither
+    // Deterministic in its parameters, the seed included, so that a written header
     // reproduces the level exactly
     // Throws std::invalid_argument by way of validate
     Level generate(id_type id, const std::string& name, const Parameters& parameters);

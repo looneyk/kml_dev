@@ -1,0 +1,16 @@
+dungen 0.2 algorithm=maze1 size=21,15 stair_placements=none room_dimension_base=3 room_dimension_variation=8 room_density=0.25 room_merge=false corridor_straightness=0.5 probability_dead_end_removal=0.5 probability_loop_removal=1 seed=7
+#####################
+###...#     |.......#
+###.#.#     #.#####.#
+###.#.|     #.#####.#
+###.#.#     #.#####.#
+#...#.|     #.#####.#
+#|#######|###.#####.#
+#       #.###.#   #.#
+#       #.###.#   #.#
+#       |.....|   #.#
+#########.#####   #.#
+###.....#.....#   #.#
+#######.#######|#|#.#
+#######.............#
+#####################

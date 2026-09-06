@@ -16,10 +16,10 @@ namespace quetzal::stratum_sim
 {
 
     //--------------------------------------------------------------------------
-    // A record of something that has happened in the simulation, consumed by views
+    // Something that has happened in the simulation, consumed by views
     // The event itself is any copyable type and is held type erased, so that a module
     // can introduce events that the core has no knowledge of
-    // An event carries only plain data, never a reference into simulation internals, so
+    // An event is plain data throughout, never a reference into simulation internals, so
     // that it stays valid after the simulation has moved on
     class Event
     {

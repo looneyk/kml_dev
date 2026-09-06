@@ -64,7 +64,7 @@ namespace quetzal::dungen
     };
 
     //--------------------------------------------------------------------------
-    // The generation parameters of one run, recorded in the level file so that a level names
+    // The generation parameters of one run, written into the level file so that a level names
     // what produced it and can be produced again
     // Only the group belonging to the chosen algorithm is read, so the others may hold
     // whatever a command line or a header put there
@@ -86,7 +86,7 @@ namespace quetzal::dungen
     };
 
     // A seed drawn from the platform's entropy source, for a caller wanting a different level
-    // each run. Generation itself takes the seed it is given, so that a recorded seed
+    // each run. Generation itself takes the seed it is given, so that a written seed
     // reproduces a level exactly
     Parameters::seed_type random_seed();
 

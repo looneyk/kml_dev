@@ -1,4 +1,4 @@
-# The 2D tile view. Consumes cell kinds rather than the characters the terminal host draws,
+# The 2D tile view. Consumes place types rather than the characters the terminal host draws,
 # which is the whole reason for having a second view at all.
 
 extends Node2D
@@ -7,14 +7,23 @@ const TILE_SIZE := 16
 
 # Built here rather than imported, so the repository carries no binary art for what is three
 # flat colours. A real tileset replaces this without anything else changing
-const KIND_COLORS: Array[Color] = [
-	Color(0.13, 0.13, 0.16),  # rock
-	Color(0.55, 0.52, 0.45),  # floor
-	Color(0.95, 0.80, 0.25),  # actor
+# Indexed by StratumWorld.PlaceType, so every value needs an entry even where the cell
+# reduction never emits it
+const PLACE_COLORS: Array[Color] = [
+	Color(0.00, 0.00, 0.00, 0.0),  # none, which this reduction does not emit
+	Color(0.13, 0.13, 0.16),       # solid
+	Color(0.55, 0.52, 0.45),       # floor
+	Color(0.30, 0.28, 0.26),       # wall, which this reduction does not emit
+	Color(0.70, 0.45, 0.20),       # door
 ]
+
+# An actor is not a place type: it stands on one. It gets a tile after the place tiles and is
+# painted on a layer above them, so the floor under a mover is still drawn
+const ACTOR_COLOR := Color(0.95, 0.80, 0.25)
 
 var _world: StratumWorld
 var _layer: TileMapLayer
+var _actor_layer: TileMapLayer
 var _status: Label
 var _extent: Vector2i
 
@@ -28,10 +37,18 @@ func _ready() -> void:
 
 	_extent = _world.extent()
 
+	var tile_set := _build_tile_set()
+
 	_layer = TileMapLayer.new()
 	_layer.name = "Tiles"
-	_layer.tile_set = _build_tile_set()
+	_layer.tile_set = tile_set
 	add_child(_layer)
+
+	# Above the places, so a mover covers its floor without the reduction having thrown it away
+	_actor_layer = TileMapLayer.new()
+	_actor_layer.name = "Actors"
+	_actor_layer.tile_set = tile_set
+	add_child(_actor_layer)
 
 	# On its own layer so it stays put while the camera moves
 	var ui := CanvasLayer.new()
@@ -53,17 +70,20 @@ func _ready() -> void:
 
 
 func _build_tile_set() -> TileSet:
-	var image := Image.create(TILE_SIZE * KIND_COLORS.size(), TILE_SIZE, false, Image.FORMAT_RGBA8)
+	var tiles := PLACE_COLORS.size() + 1
+	var image := Image.create(TILE_SIZE * tiles, TILE_SIZE, false, Image.FORMAT_RGBA8)
 
-	for kind in KIND_COLORS.size():
-		image.fill_rect(Rect2i(kind * TILE_SIZE, 0, TILE_SIZE, TILE_SIZE), KIND_COLORS[kind])
+	for place in PLACE_COLORS.size():
+		image.fill_rect(Rect2i(place * TILE_SIZE, 0, TILE_SIZE, TILE_SIZE), PLACE_COLORS[place])
+
+	image.fill_rect(Rect2i(PLACE_COLORS.size() * TILE_SIZE, 0, TILE_SIZE, TILE_SIZE), ACTOR_COLOR)
 
 	var source := TileSetAtlasSource.new()
 	source.texture = ImageTexture.create_from_image(image)
 	source.texture_region_size = Vector2i(TILE_SIZE, TILE_SIZE)
 
-	for kind in KIND_COLORS.size():
-		source.create_tile(Vector2i(kind, 0))
+	for tile in tiles:
+		source.create_tile(Vector2i(tile, 0))
 
 	var tile_set := TileSet.new()
 	tile_set.tile_size = Vector2i(TILE_SIZE, TILE_SIZE)
@@ -74,13 +94,21 @@ func _build_tile_set() -> TileSet:
 
 func _refresh() -> void:
 	var cells := _world.cells()
+	var actors := _world.actors()
 
 	for j in _extent.y:
 		for i in _extent.x:
-			var kind := cells[j * _extent.x + i]
+			var slot := j * _extent.x + i
 
 			# Row zero is the lowest in the simulation and y grows downward in Godot
-			_layer.set_cell(Vector2i(i, _extent.y - 1 - j), 0, Vector2i(kind, 0))
+			var at := Vector2i(i, _extent.y - 1 - j)
+
+			_layer.set_cell(at, 0, Vector2i(cells[slot], 0))
+
+			if actors[slot] != 0:
+				_actor_layer.set_cell(at, 0, Vector2i(PLACE_COLORS.size(), 0))
+			else:
+				_actor_layer.erase_cell(at)
 
 	_status.text = "cell %s   turn %d" % [_world.cell(), _world.turn()]
 

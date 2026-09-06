@@ -14,14 +14,14 @@ namespace quetzal::stratum_sim
 
     //--------------------------------------------------------------------------
     // A named area within a Zone: the outline around it and the cells it covers
-    // Metadata for the player and the level designer. Nothing here answers whether a cell
-    // is open or whether a mover may pass, those being the layout's to answer
+    // Metadata for the player and the level designer. Nothing here decides whether a cell
+    // is open or whether a mover may pass, those being the layout's to decide
     class Room
     {
     public:
 
         //----------------------------------------------------------------------
-        // What stands on the outline leaving a vertex
+        // The wall on the outline leaving a vertex
         enum class Type
         {
             Wall,
@@ -31,7 +31,7 @@ namespace quetzal::stratum_sim
 
         //----------------------------------------------------------------------
         // One vertex of the outline, with what leaves it toward the next
-        // id and type are recorded for reference and acted on nowhere yet
+        // id and type are kept for reference and acted on nowhere yet
         struct Vertex
         {
             point_type position;
@@ -68,7 +68,7 @@ namespace quetzal::stratum_sim
         size_t vertex_count() const;
         const Vertex& vertex(size_t n) const;
 
-        // The cells the room covers, which is what containment is answered from. A room is
+        // The cells the room covers, which is what containment is tested against. A room is
         // not required to be one contiguous run of them
         const cells_type& cells() const;
         cells_type& cells();

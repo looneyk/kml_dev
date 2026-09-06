@@ -30,12 +30,13 @@ void StratumWorld::_bind_methods()
     godot::ClassDB::bind_method(godot::D_METHOD("cell"), &StratumWorld::cell);
     godot::ClassDB::bind_method(godot::D_METHOD("render"), &StratumWorld::render);
     godot::ClassDB::bind_method(godot::D_METHOD("cells"), &StratumWorld::cells);
+    godot::ClassDB::bind_method(godot::D_METHOD("actors"), &StratumWorld::actors);
 
-    BIND_ENUM_CONSTANT(KindRock);
-    BIND_ENUM_CONSTANT(KindFloor);
-    BIND_ENUM_CONSTANT(KindActor);
-    BIND_ENUM_CONSTANT(KindWall);
-    BIND_ENUM_CONSTANT(KindDoor);
+    BIND_ENUM_CONSTANT(PlaceTypeNone);
+    BIND_ENUM_CONSTANT(PlaceTypeSolid);
+    BIND_ENUM_CONSTANT(PlaceTypeFloor);
+    BIND_ENUM_CONSTANT(PlaceTypeWall);
+    BIND_ENUM_CONSTANT(PlaceTypeDoor);
     godot::ClassDB::bind_method(godot::D_METHOD("step", "di", "dj"), &StratumWorld::step);
     godot::ClassDB::bind_method(godot::D_METHOD("turn"), &StratumWorld::turn);
 
@@ -52,7 +53,7 @@ godot::String StratumWorld::default_zone_path() const
 bool StratumWorld::load_zone(const godot::String& filepath)
 {
     // Anything thrown here would cross into Godot's own frame, so it stops at this boundary.
-    // A failed load leaves the previous zone standing, which is the session's guarantee
+    // A failed load leaves the previous zone intact, which is the session's guarantee
     try
     {
         m_session.load(std::string(filepath.utf8().get_data()));
@@ -123,11 +124,36 @@ godot::PackedByteArray StratumWorld::cells() const
     {
         for (size_t i = 0; i < cells.width(); ++i)
         {
-            codes[static_cast<int64_t>(j * cells.width() + i)] = static_cast<uint8_t>(cells.at(i, j).kind);
+            codes[static_cast<int64_t>(j * cells.width() + i)] = static_cast<uint8_t>(cells.at(i, j).type);
         }
     }
 
     return codes;
+}
+
+//------------------------------------------------------------------------------
+godot::PackedByteArray StratumWorld::actors() const
+{
+    godot::PackedByteArray flags;
+
+    if (!m_session.loaded())
+    {
+        return flags;
+    }
+
+    view::Cells cells = view::cells(m_session.world(), m_session.zone());
+
+    flags.resize(static_cast<int64_t>(cells.width() * cells.height()));
+
+    for (size_t j = 0; j < cells.height(); ++j)
+    {
+        for (size_t i = 0; i < cells.width(); ++i)
+        {
+            flags[static_cast<int64_t>(j * cells.width() + i)] = cells.at(i, j).actor ? 1 : 0;
+        }
+    }
+
+    return flags;
 }
 
 //------------------------------------------------------------------------------

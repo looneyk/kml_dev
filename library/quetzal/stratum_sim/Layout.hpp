@@ -30,14 +30,14 @@ namespace quetzal::stratum_sim
     {
         placement_type placement;
         id_type obstruction_wall_id = nullid; // The wall it was stopped by
-        id_type obstruction_entity_id = nullid; // What was standing in the way, whatever the caller counts as one
+        id_type obstruction_entity_id = nullid; // What was occupying the cell ahead, whatever the caller counts as one
     };
 
     //--------------------------------------------------------------------------
     // How one Zone is arranged and what can be asked of it: where a mover ends up, what it
-    // faces, what is adjacent, what is visible, and how far one action of movement covers
-    // Nothing here names a cell or a wall, and nothing here implies that either exists. A
-    // layout that quantizes movement and one that integrates it answer all of this alike,
+    // faces, what is adjacent, what is visible, and how far one action of movement travels
+    // Nothing here mentions a cell or a wall, and nothing here implies that either exists. A
+    // layout that quantizes movement and one that integrates it satisfy all of this alike,
     // rounding being the layout's business rather than the caller's
     // Geometry travels outward through this toward the view and never inward: a caller asks
     // where a move ends up rather than computing a destination and handing it back
@@ -47,14 +47,14 @@ namespace quetzal::stratum_sim
 
         using placements_type = std::vector<placement_type>;
 
-        // Whatever stands at a placement and stops a mover entering it, nullid when nothing
+        // Whatever occupies a placement and stops a mover entering it, nullid when nothing
         // does. What counts as one is the caller's business; the layout only asks, so it
         // stays ignorant of entities while still stopping for them
         using obstructed_type = std::function<id_type(const placement_type&)>;
 
-        // Whether a mover may cross one wall. What stands on a wall is an entity and a layout
-        // knows nothing of entities, so it asks rather than looks
-        // Held rather than passed, unlike obstructed_type, because the answer is a property of
+        // Whether a mover may cross one wall. What is attached to a wall is an entity and a layout
+        // is independent of entities, so it asks rather than looks
+        // Held rather than passed, unlike obstructed_type, because crossability is a property of
         // the wall rather than of whoever is asking. World sets it when it takes the layout,
         // and until something does, every wall is solid
         using crossable_type = std::function<bool(id_type)>;
@@ -63,9 +63,9 @@ namespace quetzal::stratum_sim
 
         virtual ~Layout() = default;
 
-        // Where the mover ends up, stopping at the first thing that blocks it, and what that
+        // Where the mover ends up, stopping at the first wall or entity that blocks it, and what that
         // was. The result may be short of the distance asked for, or unmoved
-        // Topology and occupancy are answered in one sweep rather than one after the other,
+        // Topology and occupancy are resolved in one sweep rather than one after the other,
         // a blocker partway along a path being able to change where the rest of it goes
         virtual MoveResult move(const placement_type& placement, const vector_type& direction, value_type distance,
             const obstructed_type& obstructed) const = 0;
@@ -80,7 +80,7 @@ namespace quetzal::stratum_sim
         // when the direction is zero, there being nothing asked for
         virtual placement_type face(const placement_type& placement, const vector_type& direction) const = 0;
 
-        // Whether the two stand in the same place, in whatever sense this layout resolves one
+        // Whether the two occupy the same place, in whatever sense this layout resolves one
         virtual bool same_location(const placement_type& a, const placement_type& b) const = 0;
 
         // Adjacency for AI, the placements reachable in one step
@@ -88,19 +88,19 @@ namespace quetzal::stratum_sim
 
         virtual bool visible(const placement_type& from, const placement_type& to) const = 0;
 
-        // What stands directly in front of a placement, nullid when nothing does. The layout
-        // says what is there and at what granularity, snapping the facing the way move snaps
+        // The wall directly in front of a placement, nullid when there is none. The layout
+        // determines what is there and at what granularity, snapping the facing the way move snaps
         // the direction it travels in; what it is -- a door, a lever, a basin -- is the
         // caller's to interpret
         virtual id_type ahead(const placement_type& placement) const = 0;
 
-        // How far one action of movement covers, which is what a move's cost is measured
+        // How far one action of movement travels, which is what a move's cost is measured
         // against
         virtual value_type step_distance() const = 0;
 
     protected:
 
-        // What the held predicate says, and solid where nothing has set one
+        // What the predicate returns, and solid where nothing has set one
         bool crossable(id_type wall_id) const;
 
         // Copied and moved as the derived layout it is, never as this. Protected rather than
@@ -138,8 +138,8 @@ namespace quetzal::stratum_sim
 
     //--------------------------------------------------------------------------
     // The layout as the kind of layout it is, for a caller that needs more than the interface
-    // says. Asking a zone for cells it has none of is the caller's error rather than a
-    // question with an answer, so this asserts rather than answering with nothing
+    // exposes. Asking a zone for cells it has none of is the caller's error rather than a
+    // question with an answer, so this asserts rather than returning nothing
     template<typename L>
     L& layout_as(Layout& layout)
     {
