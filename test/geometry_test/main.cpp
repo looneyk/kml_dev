@@ -55,9 +55,9 @@ namespace
 
     //--------------------------------------------------------------------------
     template<typename Traits>
-    geometry::Vector<Traits> random_vector(typename Traits::value_type dimension_extent)
+    math::Vector<Traits> random_vector(typename Traits::value_type dimension_extent)
     {
-        geometry::Vector<Traits> v;
+        math::Vector<Traits> v;
         for (size_t i = 0; i < Traits::dimension; ++i)
         {
             v[i] = random_value<Traits>(Traits::val(dimension_extent));
@@ -67,7 +67,7 @@ namespace
 
     //--------------------------------------------------------------------------
     template<typename Traits>
-    geometry::Vector<Traits> random_unit_vector()
+    math::Vector<Traits> random_unit_vector()
     {
         return normalize(random_vector<Traits>(Traits::val(10)));
     }

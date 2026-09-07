@@ -61,19 +61,18 @@ namespace quetzal::math
         value_type& z();
         value_type& w();
 
-        template<typename U> requires std::convertible_to<U, value_type>
-        void set(const U& x, const U& y, const U& z,const U& w)
+        void set(value_type x, value_type y, value_type z, value_type w)
         {
-            m_rep = {value_type(x), value_type(y), value_type(z), value_type(w)};
+            m_rep = {x, y, z, w};
             return;
         }
 
-        template<size_t I, typename U> requires (I < component_count) && std::convertible_to<U, value_type>
-        void set(const U& u)
+        template<size_t I> requires (I < component_count)
+        void set(value_type u)
         {
-            m_rep[I] = value_type(u);
+            m_rep[I] = u;
             return;
-        } 
+        }
 
         template<size_t I> requires (I < Quaternion<T>::component_count)
         value_type get() const

@@ -7,6 +7,7 @@
 
 #include "floating_point.hpp"
 #include "math_util.hpp"
+#include "quetzal/common/string_util.hpp"
 #include <array>
 #include <charconv>
 #include <concepts>
@@ -187,12 +188,6 @@ namespace quetzal::math
 //        static std::ostream& insert(std::ostream& os, const rep_type& rep, const std::string& element_delimiter = ", ", const std::optional<std::pair<char, char>>& object_delimiters = std::make_optional(std::pair<char, char>{'(', ')'}));
         static std::ostream& insert(std::ostream& os, const rep_type& rep, const std::string& element_delimiter = " ", const std::optional<std::pair<char, char>>& object_delimiters = std::nullopt);
 
-        template<size_t I = N - 1> requires (I < N)
-        static std::from_chars_result from_chars(const char* first, const char* last, rep_type& rep);
-
-        template<size_t I = N - 1> requires (I < N)
-        static std::to_chars_result to_chars(char* first, char* last, const rep_type& rep, const std::string& element_delimiter = " ");
-
         template<typename FormatContext, size_t I = N - 1> requires (I < N)
         static typename FormatContext::iterator format_to(FormatContext& ctx, const std::formatter<T>& element_formatter, const rep_type& rep, const std::string& element_delimiter = " ", const std::optional<std::pair<char, char>>& object_delimiters = std::nullopt);
 
@@ -208,12 +203,6 @@ namespace quetzal::math
         static void conclude(rep_type& rep, value_type w);
 
     private:
-    
-        // refactor these out ...
-        std::istream& skip_object_delimiter(std::istream& is, char delimiter);
-        std::istream& skip_element_delimiter(std::istream& is, const std::string& delimiter_pattern);
-
-        static const char* skip_whitespace(const char* first, const char* last);
 
         // tolerance? should be exact? used where tolerance not available ...
         //static bool is_vector(const rep_type& rep, int tolerance = 64);
@@ -801,62 +790,6 @@ std::ostream& quetzal::math::HomogeneousTraits<T, N>::insert(std::ostream& os, c
 
 //------------------------------------------------------------------------------
 template<typename T, size_t N>
-template<size_t I> requires (I < N)
-std::from_chars_result quetzal::math::HomogeneousTraits<T, N>::from_chars(const char* first, const char* last, rep_type& rep)
-{
-    if constexpr (I == 0)
-    {
-        return std::from_chars(skip_whitespace(first, last), last, get<0>(rep));
-    }
-    else
-    {
-        auto result = from_chars<I - 1>(first, last, rep);
-//        if (!result) ...
-        if (result.ec != std::errc{})
-        {
-            return result;
-        }
-
-        return std::from_chars(skip_whitespace(result.ptr, last), last, get<I>(rep));
-    }
-}
-
-//------------------------------------------------------------------------------
-template<typename T, size_t N>
-template<size_t I> requires (I < N)
-std::to_chars_result quetzal::math::HomogeneousTraits<T, N>::to_chars(char* first, char* last, const rep_type& rep, const std::string& element_delimiter)
-{
-    // Conditional expression ensures that -0 displays as 0
-
-    if constexpr (I == 0)
-    {
-        return std::to_chars(first, last, get<0>(rep) == T(0) ? T(0) : get<0>(rep));
-    }
-    else
-    {
-        auto result = to_chars<I - 1>(first, last, rep, element_delimiter);
-        if (result.ec != std::errc{})
-        {
-            return result;
-        }
-
-        char* p = result.ptr;
-        if (static_cast<size_t>(last - p) < element_delimiter.size())
-        {
-            return {p, std::errc::value_too_large};
-        }
-
-        for (char c : element_delimiter)
-        {
-            *p++ = c;
-        }
-
-        return std::to_chars(p, last, get<I>(rep) == T(0) ? T(0) : get<I>(rep));
-    }
-}
-
-//------------------------------------------------------------------------------
-template<typename T, size_t N>
 template<typename FormatContext, size_t I> requires (I < N)
 typename FormatContext::iterator quetzal::math::HomogeneousTraits<T, N>::format_to(FormatContext& ctx, const std::formatter<T>& element_formatter, const rep_type& rep, const std::string& element_delimiter, const std::optional<std::pair<char, char>>& object_delimiters)
 {
@@ -990,57 +923,6 @@ void quetzal::math::HomogeneousTraits<T, N>::reduce(const rep_type& lhs, rep_typ
     assign_divide(assign_multiply(rhs, get<N>(lhs)), get<N>(rhs));
     conclude<N>(rhs, get<N>(lhs)); // exact
     return;
-}
-
-//------------------------------------------------------------------------------
-template<typename T, size_t N>
-std::istream& quetzal::math::HomogeneousTraits<T, N>::skip_object_delimiter(std::istream& is, char delimiter)
-{
-    is.skipws();
-    char c = is.peek();
-    if (c == delimiter)
-    {
-        is.ignore();
-    }
-    else
-    {
-        is.setstate(std::ios::failbit);
-    }
-    return is;
-}
-
-//------------------------------------------------------------------------------
-template<typename T, size_t N>
-std::istream& quetzal::math::HomogeneousTraits<T, N>::skip_element_delimiter(std::istream& is, const std::string& delimiter_pattern)
-{
-    // shortcut for now, probably fine forever ...
-    is.skipws();
-    if (delimiter_pattern.empty())
-    {
-        return is;
-    }
-    // for (each char in delimiter_pattern) ...
-    char c = is.peek();
-    if (c == delimiter_pattern[0]) // wrong, check each pattern section in sequence ...
-    {
-        is.ignore();
-    }
-    else
-    {
-        is.setstate(std::ios::failbit);
-    }
-    return is;
-}
-
-//------------------------------------------------------------------------------
-template<typename T, size_t N>
-const char* quetzal::math::HomogeneousTraits<T, N>::skip_whitespace(const char* first, const char* last)
-{
-    while (first != last && (*first == ' ' || *first == '\t'))
-    {
-        ++first;
-    }
-    return first;
 }
 
 #endif // QUETZAL_MATH_HOMOGENEOUSTRAITS_HPP

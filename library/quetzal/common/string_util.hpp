@@ -7,6 +7,7 @@
 
 #include <charconv>
 #include <format>
+#include <istream>
 #include <optional>
 #include <ostream>
 #include <string>
@@ -35,6 +36,76 @@ namespace quetzal
 
     element_delim_manip element_delim(std::string s);
     std::ostream& operator<<(std::ostream& os, const element_delim_manip& manip);
+
+    //--------------------------------------------------------------------------
+    // Reading counterparts to the delimiters above, for the element sequences an array type
+    // writes. skip_whitespace returns the first position that is neither a space nor a tab;
+    // the two stream forms consume the delimiter they name and set failbit where it is absent,
+    // an empty element delimiter pattern skipping nothing and succeeding
+    const char* skip_whitespace(const char* first, const char* last);
+
+    std::istream& skip_object_delimiter(std::istream& is, char delimiter);
+    std::istream& skip_element_delimiter(std::istream& is, const std::string& delimiter_pattern);
+
+    //--------------------------------------------------------------------------
+    // The delimited component sequence of an array type, as its operator<< writes it. T supplies
+    // dimension, a value_type the standard conversions accept, and indexing, which the vector and
+    // point types all do, discrete and not. Homogeneous coordinates are dimension components and
+    // so carry no weight here: supplying one on read and reducing before write belong to the
+    // caller, which is where they already are
+    // A component that cannot be read leaves the ones before it assigned and reports where it
+    // stopped, which is what std::from_chars does with a single value
+    template<typename T>
+    std::from_chars_result array_from_chars(const char* first, const char* last, T& t)
+    {
+        std::from_chars_result result {first, std::errc {}};
+
+        for (size_t i = 0; i < T::dimension; ++i)
+        {
+            result = std::from_chars(skip_whitespace(result.ptr, last), last, t[i]);
+            if (result.ec != std::errc {})
+            {
+                return result;
+            }
+        }
+
+        return result;
+    }
+
+    //--------------------------------------------------------------------------
+    template<typename T>
+    std::to_chars_result array_to_chars(char* first, char* last, const T& t, const std::string& element_delimiter = " ")
+    {
+        using element_type = typename T::value_type;
+
+        std::to_chars_result result {first, std::errc {}};
+
+        for (size_t i = 0; i < T::dimension; ++i)
+        {
+            if (i > 0)
+            {
+                if (static_cast<size_t>(last - result.ptr) < element_delimiter.size())
+                {
+                    return {result.ptr, std::errc::value_too_large};
+                }
+
+                for (char c : element_delimiter)
+                {
+                    *result.ptr++ = c;
+                }
+            }
+
+            // The conditional is what keeps a negative zero from being written as one
+            element_type element = t[i];
+            result = std::to_chars(result.ptr, last, element == element_type(0) ? element_type(0) : element);
+            if (result.ec != std::errc {})
+            {
+                return result;
+            }
+        }
+
+        return result;
+    }
 
     //--------------------------------------------------------------------------
     // Using this with array types (Vector, Point, and higher level objects) produces a string of space separated values
@@ -105,8 +176,7 @@ namespace quetzal
         T t{};
         using std::from_chars;
         auto result = from_chars(str.data(), str.data() + str.size(), t);
-//        return result ? make_optional(t) : std::nullopt; ...
-        return result.ec == std::errc{} ? make_optional(t) : std::nullopt;
+        return result.ec == std::errc{} ? std::make_optional(t) : std::nullopt; // result ? ...
     }
 
     template<>

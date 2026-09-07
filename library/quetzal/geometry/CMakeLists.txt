@@ -9,6 +9,7 @@ add_custom_target(quetzal_geometry SOURCES
     Curve.hpp
     CurveNURBS.hpp
     DirectedPoint.hpp
+    DiscretePoint.hpp
     distance.hpp
     geometry_util.hpp
     HalfPlane.hpp
@@ -41,7 +42,6 @@ add_custom_target(quetzal_geometry SOURCES
     Sphere.hpp
     transformation_matrix.hpp
     triangle_util.hpp
-    Vector.hpp
 )
 
 set_property(TARGET quetzal_geometry PROPERTY FOLDER "library")

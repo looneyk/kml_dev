@@ -5,6 +5,7 @@
 // Random.hpp
 //------------------------------------------------------------------------------
 
+#include <charconv>
 #include <format>
 #include <limits>
 #include <random>
@@ -143,10 +144,15 @@ E& quetzal::math::Random<E>::engine()
 template<typename E>
 E::result_type quetzal::math::to_seed(const std::string& s)
 {
-    size_t n = 0;
-    unsigned long long value = std::stoull(s, &n);
+    unsigned long long value = 0;
+    auto result = std::from_chars(s.data(), s.data() + s.size(), value);
 
-    if (n != s.size())
+    if (result.ec == std::errc::result_out_of_range)
+    {
+        throw std::invalid_argument(std::format("\"{}\" is too large for a seed", s));
+    }
+
+    if (result.ec != std::errc {} || result.ptr != s.data() + s.size())
     {
         throw std::invalid_argument(std::format("\"{}\" is not a whole number", s));
     }

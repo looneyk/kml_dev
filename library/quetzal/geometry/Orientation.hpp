@@ -5,8 +5,8 @@
 // Orientation.hpp
 //------------------------------------------------------------------------------
 
-#include "Vector.hpp"
 #include "quetzal/common/string_util.hpp"
+#include "quetzal/math/Vector.hpp"
 #include <format>
 #include <iostream>
 
@@ -24,7 +24,7 @@ namespace quetzal::geometry
 		static_assert(Traits::dimension >= 3);
 
         using value_type = Traits::value_type;
-        using vector_type = Vector<Traits>;
+        using vector_type = math::Vector<Traits>;
 
         Orientation();
         Orientation(const vector_type& direction, const vector_type& right);

@@ -5,20 +5,20 @@
 // random.hpp
 //------------------------------------------------------------------------------
 
-#include "Vector.hpp"
 #include "quetzal/math/Random.hpp"
+#include "quetzal/math/Vector.hpp"
 
 namespace quetzal::geometry
 {
 
     template<typename Traits>
-    Vector<Traits> random_vector(typename Traits::value_type length, Random& random)
+    math::Vector<Traits> random_vector(typename Traits::value_type length, Random& random);
 
 } // namespace quetzal::geometry
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-quetzal::geometry::Vector<Traits> quetzal::geometry::random_vector(typename Traits::value_type length, Random& random)
+quetzal::math::Vector<Traits> quetzal::geometry::random_vector(typename Traits::value_type length, Random& random)
 {
     using T = typename Traits::value_type;
 

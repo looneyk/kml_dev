@@ -1,6 +1,7 @@
 add_library(quetzal_math STATIC
     math_xm.cpp
     CartesianTraits.hpp
+    DiscreteVector.hpp
     floating_point.hpp
     HomogeneousTraits.hpp
     Interval.hpp

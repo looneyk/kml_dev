@@ -13,18 +13,21 @@ using namespace std;
 namespace
 {
 
+    //--------------------------------------------------------------------------
     int array_object_delim_index()
     {
         static int index = ios_base::xalloc();
         return index;
     }
 
+    //--------------------------------------------------------------------------
     int array_element_delim_index()
     {
         static int index = ios_base::xalloc();
         return index;
     }
 
+    //--------------------------------------------------------------------------
     // pword is a raw void*, so its lifetime (copy on copyfmt, delete on stream destruction) has to be
     // managed manually via this callback, per the standard idiom for storing non-trivial per-stream state
     void array_element_delim_callback(ios_base::event event, ios_base& stream, int index)
@@ -80,6 +83,54 @@ ostream& quetzal::operator<<(ostream& os, const element_delim_manip& manip)
     delete static_cast<string*>(os.pword(index));
     os.pword(index) = new string(manip.value);
     return os;
+}
+
+//------------------------------------------------------------------------------
+const char* quetzal::skip_whitespace(const char* first, const char* last)
+{
+    while (first != last && (*first == ' ' || *first == '\t'))
+    {
+        ++first;
+    }
+    return first;
+}
+
+//------------------------------------------------------------------------------
+istream& quetzal::skip_object_delimiter(istream& is, char delimiter)
+{
+    is >> ws;
+    istream::int_type c = is.peek();
+    if (c == istream::traits_type::to_int_type(delimiter))
+    {
+        is.ignore();
+    }
+    else
+    {
+        is.setstate(ios::failbit);
+    }
+    return is;
+}
+
+//------------------------------------------------------------------------------
+istream& quetzal::skip_element_delimiter(istream& is, const string& delimiter_pattern)
+{
+    // shortcut for now, probably fine forever ...
+    is >> ws;
+    if (delimiter_pattern.empty())
+    {
+        return is;
+    }
+    // for (each char in delimiter_pattern) ...
+    istream::int_type c = is.peek();
+    if (c == istream::traits_type::to_int_type(delimiter_pattern[0])) // wrong, check each pattern section in sequence ...
+    {
+        is.ignore();
+    }
+    else
+    {
+        is.setstate(ios::failbit);
+    }
+    return is;
 }
 
 //------------------------------------------------------------------------------

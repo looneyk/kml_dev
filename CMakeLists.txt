@@ -112,6 +112,8 @@ add_subdirectory(test/mesh_diff_test)
 add_subdirectory(test/projection_test)
 add_subdirectory(test/stratum_sim_test)
 add_subdirectory(test/stratum_view_test)
+add_subdirectory(test/string_util_test)
+add_subdirectory(test/vector_point_test)
 add_subdirectory(test/to_utf8_test)
 
 add_subdirectory(tool/catagen)

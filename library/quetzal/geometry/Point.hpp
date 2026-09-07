@@ -5,8 +5,8 @@
 // Point.hpp
 //------------------------------------------------------------------------------
 
-#include "Vector.hpp"
 #include "quetzal/common/string_util.hpp"
+#include "quetzal/math/Vector.hpp"
 #include "quetzal/math/floating_point.hpp"
 #include "quetzal/math/traits.hpp"
 #include <charconv>
@@ -16,6 +16,7 @@
 #include <optional>
 #include <span>
 #include <sstream>
+#include <tuple>
 #include <cmath>
 #include <cassert>
 
@@ -35,7 +36,7 @@ namespace quetzal::geometry
         static constexpr size_type component_count = Traits::size;
         using rep_type = Traits::rep_type;
 
-        using vector_type = Vector<Traits>;
+        using vector_type = math::Vector<Traits>;
 
         Point();
         Point(const vector_type& v);
@@ -46,17 +47,10 @@ namespace quetzal::geometry
         Point(std::initializer_list<const value_type> elements); // waiting for the fix ...
         Point(const rep_type& rep);
 
-        template<typename U> requires Traits::template accepts<1> && std::convertible_to<U, typename Traits::value_type>
-        Point(const U& x);
-
-        template<typename U> requires Traits::template accepts<2> && std::convertible_to<U, typename Traits::value_type>
-        Point(const U& x, const U& y);
-
-        template<typename U> requires Traits::template accepts<3> && std::convertible_to<U, typename Traits::value_type>
-        Point(const U& x, const U& y, const U& z);
-
-        template<typename U> requires Traits::template accepts<4> && std::convertible_to<U, typename Traits::value_type>
-        Point(const U& x, const U& y, const U& z, const U& w);
+        Point(value_type x) requires Traits::template accepts<1>;
+        Point(value_type x, value_type y) requires Traits::template accepts<2>;
+        Point(value_type x, value_type y, value_type z) requires Traits::template accepts<3>;
+        Point(value_type x, value_type y, value_type z, value_type w) requires Traits::template accepts<4>;
 
         Point(const Point&) = default;
         Point(Point&&) = default;
@@ -68,8 +62,8 @@ namespace quetzal::geometry
         template<size_t M> requires Traits::template accepts<M>
         Point& operator=(std::span<value_type, M> values);
 
-        Point& operator+=(const vector_type& other); // Translation shorthand
-        Point& operator-=(const vector_type& other); // Translation shorthand
+        Point& operator+=(const vector_type& other);
+        Point& operator-=(const vector_type& other);
         Point& operator*=(value_type factor); // Scaling shorthand
         Point& operator/=(value_type divisor); // Scaling shorthand
 
@@ -89,29 +83,15 @@ namespace quetzal::geometry
         value_type& z() requires (Traits::size >= 3);
         value_type& w() requires (Traits::size >= 4);
 
-        template<typename U> requires (Traits::size >= 1) && std::convertible_to<U, typename Traits::value_type>
-        void set_x(const U& x);
+        void set_x(value_type x) requires (Traits::size >= 1);
+        void set_y(value_type y) requires (Traits::size >= 2);
+        void set_z(value_type z) requires (Traits::size >= 3);
+        void set_w(value_type w) requires (Traits::size >= 4);
 
-        template<typename U> requires (Traits::size >= 2) && std::convertible_to<U, typename Traits::value_type>
-        void set_y(const U& y);
-
-        template<typename U> requires (Traits::size >= 3) && std::convertible_to<U, typename Traits::value_type>
-        void set_z(const U& z);
-
-        template<typename U> requires (Traits::size >= 4) && std::convertible_to<U, typename Traits::value_type>
-        void set_w(const U& w);
-
-        template<typename U> requires Traits::template accepts<1> && std::convertible_to<U, typename Traits::value_type>
-        void set(const U& x);
-
-        template<typename U> requires Traits::template accepts<2> && std::convertible_to<U, typename Traits::value_type>
-        void set(const U& x, const U& y);
-
-        template<typename U> requires Traits::template accepts<3> && std::convertible_to<U, typename Traits::value_type>
-        void set(const U& x, const U& y, const U& z);
-
-        template<typename U> requires Traits::template accepts<4> && std::convertible_to<U, typename Traits::value_type>
-        void set(const U& x, const U& y, const U& z, const U& w);
+        void set(value_type x) requires Traits::template accepts<1>;
+        void set(value_type x, value_type y) requires Traits::template accepts<2>;
+        void set(value_type x, value_type y, value_type z) requires Traits::template accepts<3>;
+        void set(value_type x, value_type y, value_type z, value_type w) requires Traits::template accepts<4>;
 
         template<size_type I> requires (I < Traits::size)
         value_type get() const;
@@ -119,8 +99,8 @@ namespace quetzal::geometry
         template<size_type I> requires (I < Traits::size)
         value_type& get();
 
-        template<size_type I, typename U> requires (I < Traits::size) && std::convertible_to<U, typename Traits::value_type>
-        void set(const U& u);
+        template<size_type I> requires (I < Traits::size)
+        void set(value_type u);
 
         Point position() const; // For compatibility with Positional concept
 
@@ -220,7 +200,7 @@ namespace quetzal::geometry
     typename Point<Traits>::vector_type to_vector(const Point<Traits>& point);
 
     template<typename Traits>
-    Point<Traits> to_point(const Vector<Traits>& v);
+    Point<Traits> to_point(const math::Vector<Traits>& v);
 
     // denoise, abs, min, max are componentwise
 
@@ -336,41 +316,37 @@ quetzal::geometry::Point<Traits>::Point(const rep_type& rep) :
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-template<typename U> requires Traits::template accepts<1> && std::convertible_to<U, typename Traits::value_type>
-quetzal::geometry::Point<Traits>::Point(const U& x) :
+quetzal::geometry::Point<Traits>::Point(value_type x) requires Traits::template accepts<1> :
     m_rep()
 {
-    Traits::assign(m_rep, {value_type(x)});
+    Traits::assign(m_rep, {x});
     Traits::conclude<1>(m_rep, value_type(1));
 }
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-template<typename U> requires Traits::template accepts<2> && std::convertible_to<U, typename Traits::value_type>
-quetzal::geometry::Point<Traits>::Point(const U& x, const U& y) :
+quetzal::geometry::Point<Traits>::Point(value_type x, value_type y) requires Traits::template accepts<2> :
     m_rep()
 {
-    Traits::assign(m_rep, {value_type(x), value_type(y)});
+    Traits::assign(m_rep, {x, y});
     Traits::conclude<2>(m_rep, value_type(1));
 }
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-template<typename U> requires Traits::template accepts<3> && std::convertible_to<U, typename Traits::value_type>
-quetzal::geometry::Point<Traits>::Point(const U& x, const U& y, const U& z) :
+quetzal::geometry::Point<Traits>::Point(value_type x, value_type y, value_type z) requires Traits::template accepts<3> :
     m_rep()
 {
-    Traits::assign(m_rep, {value_type(x), value_type(y), value_type(z)});
+    Traits::assign(m_rep, {x, y, z});
     Traits::conclude<3>(m_rep, value_type(1));
 }
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-template<typename U> requires Traits::template accepts<4> && std::convertible_to<U, typename Traits::value_type>
-quetzal::geometry::Point<Traits>::Point(const U& x, const U& y, const U& z, const U& w) :
+quetzal::geometry::Point<Traits>::Point(value_type x, value_type y, value_type z, value_type w) requires Traits::template accepts<4> :
     m_rep()
 {
-    Traits::assign(m_rep, {value_type(x), value_type(y), value_type(z), value_type(w)});
+    Traits::assign(m_rep, {x, y, z, w});
     Traits::conclude<4>(m_rep, value_type(1));
 }
 
@@ -499,8 +475,7 @@ typename Traits::value_type& quetzal::geometry::Point<Traits>::w() requires (Tra
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-template<typename U> requires (Traits::size >= 1) && std::convertible_to<U, typename Traits::value_type>
-void quetzal::geometry::Point<Traits>::set_x(const U& x)
+void quetzal::geometry::Point<Traits>::set_x(value_type x) requires (Traits::size >= 1)
 {
     Traits::get<0>(m_rep) = x;
     return;
@@ -508,8 +483,7 @@ void quetzal::geometry::Point<Traits>::set_x(const U& x)
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-template<typename U> requires (Traits::size >= 2) && std::convertible_to<U, typename Traits::value_type>
-void quetzal::geometry::Point<Traits>::set_y(const U& y)
+void quetzal::geometry::Point<Traits>::set_y(value_type y) requires (Traits::size >= 2)
 {
     Traits::get<1>(m_rep) = y;
     return;
@@ -517,8 +491,7 @@ void quetzal::geometry::Point<Traits>::set_y(const U& y)
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-template<typename U> requires (Traits::size >= 3) && std::convertible_to<U, typename Traits::value_type>
-void quetzal::geometry::Point<Traits>::set_z(const U& z)
+void quetzal::geometry::Point<Traits>::set_z(value_type z) requires (Traits::size >= 3)
 {
     Traits::get<2>(m_rep) = z;
     return;
@@ -526,8 +499,7 @@ void quetzal::geometry::Point<Traits>::set_z(const U& z)
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-template<typename U> requires (Traits::size >= 4) && std::convertible_to<U, typename Traits::value_type>
-void quetzal::geometry::Point<Traits>::set_w(const U& w)
+void quetzal::geometry::Point<Traits>::set_w(value_type w) requires (Traits::size >= 4)
 {
     Traits::get<3>(m_rep) = w;
     return;
@@ -535,40 +507,36 @@ void quetzal::geometry::Point<Traits>::set_w(const U& w)
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-template<typename U> requires Traits::template accepts<1> && std::convertible_to<U, typename Traits::value_type>
-void quetzal::geometry::Point<Traits>::set(const U& x)
+void quetzal::geometry::Point<Traits>::set(value_type x) requires Traits::template accepts<1>
 {
-    Traits::assign(m_rep, {value_type(x)});
+    Traits::assign(m_rep, {x});
     Traits::conclude<1>(m_rep, value_type(1));
     return;
 }
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-template<typename U> requires Traits::template accepts<2> && std::convertible_to<U, typename Traits::value_type>
-void quetzal::geometry::Point<Traits>::set(const U& x, const U& y)
+void quetzal::geometry::Point<Traits>::set(value_type x, value_type y) requires Traits::template accepts<2>
 {
-    Traits::assign(m_rep, {value_type(x), value_type(y)});
+    Traits::assign(m_rep, {x, y});
     Traits::conclude<2>(m_rep, value_type(1));
     return;
 }
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-template<typename U> requires Traits::template accepts<3> && std::convertible_to<U, typename Traits::value_type>
-void quetzal::geometry::Point<Traits>::set(const U& x, const U& y, const U& z)
+void quetzal::geometry::Point<Traits>::set(value_type x, value_type y, value_type z) requires Traits::template accepts<3>
 {
-    Traits::assign(m_rep, {value_type(x), value_type(y), value_type(z)});
+    Traits::assign(m_rep, {x, y, z});
     Traits::conclude<3>(m_rep, value_type(1));
     return;
 }
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-template<typename U> requires Traits::template accepts<4> && std::convertible_to<U, typename Traits::value_type>
-void quetzal::geometry::Point<Traits>::set(const U& x, const U& y, const U& z, const U& w)
+void quetzal::geometry::Point<Traits>::set(value_type x, value_type y, value_type z, value_type w) requires Traits::template accepts<4>
 {
-    Traits::assign(m_rep, {value_type(x), value_type(y), value_type(z), value_type(w)});
+    Traits::assign(m_rep, {x, y, z, w});
     Traits::conclude<4>(m_rep, value_type(1));
     return;
 }
@@ -591,10 +559,10 @@ typename Traits::value_type& quetzal::geometry::Point<Traits>::get()
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-template<Traits::size_type I, typename U> requires (I < Traits::size) && std::convertible_to<U, typename Traits::value_type>
-void quetzal::geometry::Point<Traits>::set(const U& u)
+template<Traits::size_type I> requires (I < Traits::size)
+void quetzal::geometry::Point<Traits>::set(value_type u)
 {
-    Traits::get<I>(m_rep) = value_type(u);
+    Traits::get<I>(m_rep) = u;
     return;
 }
 
@@ -904,7 +872,7 @@ typename quetzal::geometry::Point<Traits>::vector_type quetzal::geometry::to_vec
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-quetzal::geometry::Point<Traits> quetzal::geometry::to_point(const Vector<Traits>& v)
+quetzal::geometry::Point<Traits> quetzal::geometry::to_point(const math::Vector<Traits>& v)
 {
     typename Traits::rep_type rep = v.rep();
     Traits::conclude<Traits::dimension>(rep, Traits::value_type(1));
@@ -1014,9 +982,8 @@ std::ostream& quetzal::geometry::operator<<(std::ostream& os, const Point<Traits
 template<typename Traits>
 std::from_chars_result quetzal::geometry::from_chars(const char* first, const char* last, Point<Traits>& point)
 {
-    auto result = Traits::from_chars(first, last, point.rep());
-//    if (result) ...
-    if (result.ec == std::errc{})
+    auto result = array_from_chars(first, last, point);
+    if (result.ec == std::errc{}) // if (result) ...
     {
         Traits::conclude<Traits::dimension>(point.rep(), typename Traits::value_type(1));
     }
@@ -1029,7 +996,7 @@ template<typename Traits>
 std::to_chars_result quetzal::geometry::to_chars(char* first, char* last, Point<Traits> point)
 {
     Traits::prepare(point.rep());
-    return Traits::to_chars(first, last, point.rep());
+    return array_to_chars(first, last, point);
 }
 
 //------------------------------------------------------------------------------
@@ -1146,6 +1113,21 @@ struct std::formatter<quetzal::geometry::Point<Traits>>
         Traits::prepare(point.rep());
         return Traits::format_to(ctx, m_element_formatter, point.rep(), m_element_delimiter, m_object_delimiters);
     }
+};
+
+// Structured bindings by Traits::size instead of Traits::dimension
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+struct std::tuple_size<quetzal::geometry::Point<Traits>> : std::integral_constant<size_t, Traits::size>
+{
+};
+
+//------------------------------------------------------------------------------
+template<size_t I, typename Traits>
+struct std::tuple_element<I, quetzal::geometry::Point<Traits>>
+{
+    using type = typename Traits::value_type;
 };
 
 #endif // QUETZAL_GEOMETRY_POINT_HPP

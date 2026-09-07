@@ -7,7 +7,7 @@
 
 #include "quetzal/common/id.hpp"
 #include "quetzal/geometry/Point.hpp"
-#include "quetzal/geometry/Vector.hpp"
+#include "quetzal/math/Vector.hpp"
 #include "quetzal/math/HomogeneousTraits.hpp"
 #include "quetzal/wavefront_obj/Reader.hpp"
 #include "quetzal/wavefront_obj/symbols.hpp"
