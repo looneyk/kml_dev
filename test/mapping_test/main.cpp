@@ -154,7 +154,7 @@ namespace
         check_correspondences("quad affine", mapping, positions, texcoords);
         check_edge_agrees_with_lerp("quad affine edge 0-1", mapping, positions[0], positions[1], texcoords[0], texcoords[1]);
         check_edge_agrees_with_lerp("quad affine edge 1-2", mapping, positions[1], positions[2], texcoords[1], texcoords[2]);
-        check(std::format("quad affine: centre maps to (0.5, 0.5)"), near(mapping(point_type(1.0, 1.5, 0.0)), texcoord_type(0.5, 0.5)),
+        check(std::format("quad affine: center maps to (0.5, 0.5)"), near(mapping(point_type(1.0, 1.5, 0.0)), texcoord_type(0.5, 0.5)),
             std::format("got {}", to_string(mapping(point_type(1.0, 1.5, 0.0)))));
         return;
     }
@@ -301,7 +301,7 @@ namespace
         polygon_mapping_type mapping_parallelogram(parallelogram, n);
         check_polygon_corners("parallelogram", mapping_parallelogram, parallelogram);
         check_polygon_edge("parallelogram edge 1-2", mapping_parallelogram, parallelogram[1], parallelogram[2]);
-        check("parallelogram: centre", near(mapping_parallelogram(point_type(1.0, 1.5, 0.0)), texcoord_type(0.5, 0.5)),
+        check("parallelogram: center", near(mapping_parallelogram(point_type(1.0, 1.5, 0.0)), texcoord_type(0.5, 0.5)),
             std::format("got {}", to_string(mapping_parallelogram(point_type(1.0, 1.5, 0.0)))));
 
         // Trapezoid, the case the least squares affine fit could not reproduce
@@ -325,7 +325,7 @@ namespace
     // The dodecahedron top face, verbatim from the primitives model. Five corners, so the bilinear
     // patch is fit through four of them and the fifth is dropped. That costs nothing here: a regular
     // pentagon and its regular uv pentagon are related by a similarity, and a bilinear patch through
-    // any four corners of an affinely related pair reproduces the whole relation. So the centre must
+    // any four corners of an affinely related pair reproduces the whole relation. So the center must
     // map to the uv centroid, whichever corner the perimeter happens to start at.
     //
     // Run at float as well as double. A regular pentagon makes the inverse bilinear twist term
@@ -354,7 +354,7 @@ namespace
             {pentagon_point_type(T( 4.91123), T(-3.56822), z), n, pentagon_texcoord_type(T(1.0),      T(0.412215))}};
 
         pentagon_texcoord_type centroid(T(0.5), T(0.574675));
-        pentagon_point_type centre(T(0), T(0), z);
+        pentagon_point_type center(T(0), T(0), z);
 
         for (size_t start = 0; start < pentagon.size(); ++start)
         {
@@ -374,9 +374,9 @@ namespace
                     std::format("got ({:.6f}, {:.6f}) expected ({:.6f}, {:.6f})", tc.x(), tc.y(), rotated[i].texcoord().x(), rotated[i].texcoord().y()));
             }
 
-            pentagon_texcoord_type t = mapping(centre);
+            pentagon_texcoord_type t = mapping(center);
             bool b = abs(t.x() - centroid.x()) <= tolerance && abs(t.y() - centroid.y()) <= tolerance;
-            check(std::format("pentagon {} start {}: centre maps to uv centroid", precision, start), b,
+            check(std::format("pentagon {} start {}: center maps to uv centroid", precision, start), b,
                 std::format("got ({:.6f}, {:.6f}) expected ({:.6f}, {:.6f})", t.x(), t.y(), centroid.x(), centroid.y()));
         }
 

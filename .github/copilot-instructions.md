@@ -5,10 +5,10 @@
 Modern C++ geometry, graphics and simulation libraries (namespace `quetzal::`) with applications,
 test projects and command-line utilities. Header-heavy, template-based, targeting Windows with MSVC.
 
-Three largely independent projects share the repository and the libraries under `library/quetzal/`.
+Largely independent projects share the repository and the libraries under `library/quetzal/`.
 Work in one rarely touches another; establish which one a request belongs to before searching.
 
-- **stratum** --- headless dungeon-crawler simulation, its ASCII and tile views, and two level
+- **stratum** --- headless dungeon-crawler simulation, its ASCII and tile views, and its level
   generators. `library/quetzal/stratum_sim`, `stratum_view`, `dungen`, `catagen`;
   `application/stratum_terminal`, `stratum_godot`; `tool/dungen`, `tool/catagen`
 - **mesh_operations** --- boundary-representation solid modelling: intersection, splitting, boolean
@@ -85,15 +85,14 @@ assertion.
 - [build/PropertySheet.props](../build/PropertySheet.props): global compiler settings for the
   standalone solutions
 - [library/quetzal/model/primitives.hpp](../library/quetzal/model/primitives.hpp): core geometry API
-- [library/quetzal/vulkan/CLAUDE.md](../library/quetzal/vulkan/CLAUDE.md): the rendering engine in
-  its own right
+- [doc/vulkan.md](../doc/vulkan.md): the rendering engine in its own right
 - [notes](../notes): active design notes and TODOs for mesh operations
-- `doc/`: stratum's documents; the other two projects keep their notes with their code
+- `doc/`: the document directory
 - `application/`, `test/`, `tool/`, `utility/`, `model/`: apps, suites, side programs, CLI tools,
   and the model programs
 
 ## Documentation
-- `doc/game_system_reference.md` describes what stratum is and how it is built --- read it first.
-  `doc/work_plan.md` is the work queue and holds the open items from every plan
 - `*_plan.md` files are intent; `*_reference.md` files are what exists
+- For stratum, `doc/game_system_reference.md` describes what it is and how it is built --- read it
+  first. `doc/work_plan.md` is the work queue and holds the open items from every plan
 - README.md is minimal; mesh_operations design thoughts are in [notes](../notes)

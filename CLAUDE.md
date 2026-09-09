@@ -1,16 +1,16 @@
 # kml_dev
 
-Three largely independent projects share this repository and the `quetzal` libraries under
+Largely independent projects share this repository and the `quetzal` libraries under
 `library/quetzal/`. Work in one rarely touches another; check which one a request belongs to before
 searching, and stay inside it.
 
 | Project | What it is | Where |
 | --- | --- | --- |
-| **stratum** | A headless dungeon-crawler simulation, its ASCII and tile views, and two level generators | `library/quetzal/stratum_sim`, `stratum_view`, `dungen`, `catagen`; `application/stratum_terminal`, `stratum_godot`; `tool/dungen`, `tool/catagen` |
+| **stratum** | A headless dungeon-crawler simulation, its ASCII and tile views, and its level generators | `library/quetzal/stratum_sim`, `stratum_view`, `dungen`, `catagen`; `application/stratum_terminal`, `stratum_godot`; `tool/dungen`, `tool/catagen` |
 | **mesh_operations** | Boundary-representation solid modelling --- intersection, splitting, boolean operations --- and the model programs that exercise it | `library/quetzal/brep`, `geometry`, `math`; `model/*`; `utility/mesh_diff` |
 | **Vulkan applications** | Real-time 3D rendering | `library/quetzal/vulkan`, `scene_graph`, `game`; `application/lightmatrix`, `gallery`, `cubes`, `toot1` |
 
-`library/quetzal/vulkan/CLAUDE.md` covers the rendering engine in its own right.
+`doc/vulkan.md` covers the rendering engine in its own right.
 
 ## Scope
 
@@ -67,11 +67,10 @@ failed assertion.
 
 ## Documents
 
-`doc/` is stratum's; the other two projects keep their notes with their code. Read
-`doc/game_system_reference.md` first --- it describes what exists. `doc/work_plan.md` is the work
-queue and holds the open items from every plan. The `*_plan.md` files are intent; the `*_reference.md`
-files are what is built. `notes` files anywhere in the tree belong to the author: read them, never
-edit them.
+`doc/` is the document directory. The `*_plan.md` files are intent; the `*_reference.md` files are
+what is built. For stratum, read `doc/game_system_reference.md` first --- it describes what exists,
+and `doc/work_plan.md` is the work queue holding the open items from every plan. `notes` files
+anywhere in the tree belong to the author: read them, never edit them.
 
 ## Git
 
