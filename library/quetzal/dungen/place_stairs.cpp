@@ -32,7 +32,7 @@ namespace
 } // namespace
 
 //------------------------------------------------------------------------------
-void quetzal::dungen::place_stairs(Level& level, vector<position_type> candidates, StairPlacements placements, random_type& random)
+void quetzal::dungen::place_stairs(Level& level, vector<point_type> candidates, StairPlacements placements, random_type& random)
 {
     if (placements == StairPlacements::None)
     {

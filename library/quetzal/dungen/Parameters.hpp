@@ -39,7 +39,7 @@ namespace quetzal::dungen
     // corridors that bend once in the rock between
     struct Grid1Parameters
     {
-        dimensions_type divisions {3, 3}; // Sectors across and up
+        vector_type divisions {3, 3}; // Sectors across and up
 
         // Fraction of sectors holding a room. A sector without one still joins its neighbors,
         // through a single cell rather than a room
@@ -73,7 +73,7 @@ namespace quetzal::dungen
         using seed_type = std::default_random_engine::result_type;
 
         Algorithm algorithm = Algorithm::Maze1;
-        dimensions_type size {32, 32};
+        vector_type size {32, 32};
         StairPlacements stair_placements = StairPlacements::Paired;
 
         Maze1Parameters maze1;

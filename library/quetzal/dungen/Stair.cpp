@@ -9,7 +9,7 @@
 using namespace std;
 
 //------------------------------------------------------------------------------
-quetzal::dungen::Stair::Stair(id_type id, const string& name, position_type position) :
+quetzal::dungen::Stair::Stair(id_type id, const string& name, point_type position) :
     m_id(id),
     m_name(name),
     m_position(position)
@@ -36,13 +36,13 @@ void quetzal::dungen::Stair::set_name(const string& name)
 }
 
 //------------------------------------------------------------------------------
-quetzal::dungen::position_type quetzal::dungen::Stair::position() const
+quetzal::dungen::point_type quetzal::dungen::Stair::position() const
 {
     return m_position;
 }
 
 //------------------------------------------------------------------------------
-void quetzal::dungen::Stair::set_position(position_type position)
+void quetzal::dungen::Stair::set_position(point_type position)
 {
     m_position = position;
     return;

@@ -15,19 +15,19 @@ using namespace std;
 namespace
 {
 
-    using quetzal::dungen::position_type;
-    using quetzal::dungen::dimensions_type;
+    using quetzal::dungen::point_type;
+    using quetzal::dungen::vector_type;
 
-    const array<function<position_type(position_type, dimensions_type)>, 4> rotator =
+    const array<function<point_type(point_type, vector_type)>, 4> rotator =
     {
-        [](position_type position, dimensions_type size) -> position_type { size; return {position.x(), position.y()}; },
-        [](position_type position, dimensions_type size) -> position_type { return {size.y() - 1 - position.y(), position.x()}; },
-        [](position_type position, dimensions_type size) -> position_type { return {size.x() - 1 - position.x(), size.y() - 1 - position.y()}; },
-        [](position_type position, dimensions_type size) -> position_type { return {position.y(), size.x() - 1 - position.x()}; },
+        [](point_type position, vector_type size) -> point_type { size; return {position.x(), position.y()}; },
+        [](point_type position, vector_type size) -> point_type { return {size.y() - 1 - position.y(), position.x()}; },
+        [](point_type position, vector_type size) -> point_type { return {size.x() - 1 - position.x(), size.y() - 1 - position.y()}; },
+        [](point_type position, vector_type size) -> point_type { return {position.y(), size.x() - 1 - position.x()}; },
     };
 
     //--------------------------------------------------------------------------
-    bool contains(position_type position, dimensions_type dimensions)
+    bool contains(point_type position, vector_type dimensions)
     {
         return position.x() >= 0 && position.x() <= dimensions.x() && position.y() >= 0 && position.y() <= dimensions.y();
     }
@@ -63,9 +63,9 @@ ostream& quetzal::dungen::operator<<(ostream& os, const Pattern& pattern)
 }
 
 //------------------------------------------------------------------------------
-bool quetzal::dungen::match(const Cells& cells, position_type position, const Pattern& pattern, size_t rotation)
+bool quetzal::dungen::match(const Cells& cells, point_type position, const Pattern& pattern, size_t rotation)
 {
-    vector_type origin = rotator[rotation](pattern.m_origin, pattern.m_cells.size());
+    point_type origin = rotator[rotation](pattern.m_origin, pattern.m_cells.size());
     if (!contains(position - origin, cells.size() - pattern.m_cells.size()))
     {
         return false;
@@ -76,11 +76,11 @@ bool quetzal::dungen::match(const Cells& cells, position_type position, const Pa
     {
         for (coord_type x = 0; x < dx; ++x)
         {
-            position_type cell_position = rotator[rotation]({x, y}, pattern.m_cells.size());
+            point_type cell_position = rotator[rotation]({x, y}, pattern.m_cells.size());
             Cell cell_pattern = pattern.m_cells.cell(cell_position);
             if (cell_pattern.type() != CellType::Null)
             {
-                if (cells.cell(position - pattern.m_origin + position_type{x, y}).type() != cell_pattern.type())
+                if (cells.cell(position - pattern.m_origin + vector_type{x, y}).type() != cell_pattern.type())
                 {
                     return false;
                 }
@@ -92,7 +92,7 @@ bool quetzal::dungen::match(const Cells& cells, position_type position, const Pa
 }
 
 //------------------------------------------------------------------------------
-bool quetzal::dungen::match(const Cells& cells, position_type position, const Pattern& pattern)
+bool quetzal::dungen::match(const Cells& cells, point_type position, const Pattern& pattern)
 {
     for (size_t rotation = 0; rotation < 4; ++rotation)
     {
@@ -106,9 +106,9 @@ bool quetzal::dungen::match(const Cells& cells, position_type position, const Pa
 }
 
 //------------------------------------------------------------------------------
-void quetzal::dungen::replace(Cells& cells, position_type position, const Pattern& pattern, size_t rotation)
+void quetzal::dungen::replace(Cells& cells, point_type position, const Pattern& pattern, size_t rotation)
 {
-    vector_type origin = rotator[rotation](pattern.m_origin, pattern.m_cells.size());
+    point_type origin = rotator[rotation](pattern.m_origin, pattern.m_cells.size());
     if (!contains(position - origin, cells.size() - pattern.m_cells.size()))
     {
         return;
@@ -119,11 +119,11 @@ void quetzal::dungen::replace(Cells& cells, position_type position, const Patter
     {
         for (coord_type x = 0; x < dx; ++x)
         {
-            position_type cell_position = rotator[rotation]({x, y}, pattern.m_cells.size());
+            point_type cell_position = rotator[rotation]({x, y}, pattern.m_cells.size());
             Cell cell_pattern = pattern.m_cells.cell(cell_position);
             if (cell_pattern.type() != CellType::Null)
             {
-                cells.cell(position - pattern.m_origin + position_type{x, y}).set_type(cell_pattern.type());
+                cells.cell(position - pattern.m_origin + vector_type{x, y}).set_type(cell_pattern.type());
             }
         }
     }
@@ -132,7 +132,7 @@ void quetzal::dungen::replace(Cells& cells, position_type position, const Patter
 }
 
 //------------------------------------------------------------------------------
-tuple<bool, quetzal::dungen::vector_type> quetzal::dungen::match_replace(Cells& cells, position_type position, const Pattern& matcher, const Pattern& replacer)
+tuple<bool, quetzal::dungen::vector_type> quetzal::dungen::match_replace(Cells& cells, point_type position, const Pattern& matcher, const Pattern& replacer)
 {
     for (size_t rotation = 0; rotation < 4; ++rotation)
     {

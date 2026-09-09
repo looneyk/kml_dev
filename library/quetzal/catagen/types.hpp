@@ -5,41 +5,17 @@
 // types.hpp
 //------------------------------------------------------------------------------
 
+#include "quetzal/geometry/DiscreteBox.hpp"
+#include "quetzal/geometry/DiscretePoint.hpp"
 #include <compare>
 
 namespace quetzal::catagen
 {
 
-    using coord_type = int;
-
-    //--------------------------------------------------------------------------
-    // Origin is lower left
-    struct CellPosition
-    {
-        coord_type i = 0;
-        coord_type j = 0;
-
-        friend auto operator<=>(const CellPosition&, const CellPosition&) = default;
-    };
-
-    //--------------------------------------------------------------------------
-    struct Extent
-    {
-        coord_type nx = 0;
-        coord_type ny = 0;
-
-        friend bool operator==(const Extent&, const Extent&) = default;
-    };
-
-    //--------------------------------------------------------------------------
-    // A half open cell range
-    struct Rectangle
-    {
-        CellPosition position;
-        Extent extent;
-
-        friend bool operator==(const Rectangle&, const Rectangle&) = default;
-    };
+    using coord_type = long;
+    using vector_type = math::DiscreteVector<coord_type, 2>;
+    using point_type = geometry::DiscretePoint<coord_type, 2>;
+    using box_type = geometry::DiscreteBox<coord_type, 2>;
 
     //--------------------------------------------------------------------------
     enum class CellType

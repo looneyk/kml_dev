@@ -20,17 +20,17 @@ namespace
     //--------------------------------------------------------------------------
     // The lowest open cell, where the controlled entity starts. Empty when the layout has
     // no open cell at all
-    std::optional<quetzal::stratum_sim::GridPosition> first_open_cell(const quetzal::stratum_sim::DiscreteLayout& layout)
+    std::optional<quetzal::stratum_sim::discrete_point_type> first_open_cell(const quetzal::stratum_sim::DiscreteLayout& layout)
     {
-        const quetzal::stratum_sim::Grid& grid = layout.grid();
+        const quetzal::stratum_sim::GridMapping& grid = layout.grid();
 
         for (long j = 0; j < grid.extent.y(); ++j)
         {
             for (long i = 0; i < grid.extent.x(); ++i)
             {
-                if (layout.open(quetzal::stratum_sim::GridPosition {i, j}))
+                if (layout.open(quetzal::stratum_sim::discrete_point_type {i, j}))
                 {
-                    return quetzal::stratum_sim::GridPosition {i, j};
+                    return quetzal::stratum_sim::discrete_point_type {i, j};
                 }
             }
         }
@@ -40,17 +40,17 @@ namespace
 
     //--------------------------------------------------------------------------
     // The highest open cell, as far from the controlled entity as this cares to look
-    std::optional<quetzal::stratum_sim::GridPosition> last_open_cell(const quetzal::stratum_sim::DiscreteLayout& layout)
+    std::optional<quetzal::stratum_sim::discrete_point_type> last_open_cell(const quetzal::stratum_sim::DiscreteLayout& layout)
     {
-        const quetzal::stratum_sim::Grid& grid = layout.grid();
+        const quetzal::stratum_sim::GridMapping& grid = layout.grid();
 
         for (long j = grid.extent.y(); j-- > 0; )
         {
             for (long i = grid.extent.x(); i-- > 0; )
             {
-                if (layout.open(quetzal::stratum_sim::GridPosition {i, j}))
+                if (layout.open(quetzal::stratum_sim::discrete_point_type {i, j}))
                 {
-                    return quetzal::stratum_sim::GridPosition {i, j};
+                    return quetzal::stratum_sim::discrete_point_type {i, j};
                 }
             }
         }
@@ -69,7 +69,7 @@ namespace
     {
         using namespace quetzal::stratum_sim;
 
-        std::optional<GridPosition> start = first_open_cell(layout);
+        std::optional<discrete_point_type> start = first_open_cell(layout);
 
         if (!start)
         {
@@ -77,7 +77,7 @@ namespace
         }
 
         flecs::entity player = world.create_entity(zone,
-            placement_type(layout.cell_position(*start), vector_type(value_type(1), value_type(0), value_type(0))));
+            placement_type(layout.position(*start), vector_type(value_type(1), value_type(0), value_type(0))));
 
         player.add<Blocking>(); // Obstructs anything else that moves
         scheduler.add(player.id(), player_speed);
@@ -96,15 +96,15 @@ namespace
     {
         using namespace quetzal::stratum_sim;
 
-        std::optional<GridPosition> start = last_open_cell(layout);
+        std::optional<discrete_point_type> start = last_open_cell(layout);
 
-        if (!start || layout.cell_at(player.get<placement_type>().position()) == *start)
+        if (!start || layout.grid_position_at(player.get<placement_type>().position()) == *start)
         {
             return;
         }
 
         flecs::entity other = world.create_entity(zone,
-            placement_type(layout.cell_position(*start), vector_type(value_type(-1), value_type(0), value_type(0))));
+            placement_type(layout.position(*start), vector_type(value_type(-1), value_type(0), value_type(0))));
 
         other.add<Blocking>();
         other.set<Pursue>(Pursue {static_cast<quetzal::id_type>(player.id()), point_type(), false});

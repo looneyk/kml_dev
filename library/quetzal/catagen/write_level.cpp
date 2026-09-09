@@ -28,7 +28,7 @@ namespace
     // Whatever lies outside the extent is solid
     bool rock(const Level& level, coord_type i, coord_type j)
     {
-        CellPosition cell {i, j};
+        point_type cell {i, j};
         return !level.contains(cell) || level.cell(cell) == CellType::Solid;
     }
 
@@ -100,12 +100,12 @@ namespace
             return glyph_solid;
         }
 
-        const Extent& extent = level.extent();
+        const vector_type& extent = level.extent();
 
         bool horizontal = (i > 0 && drawn(horizontal_glyph(level, i - 1, j)))
-            || (i < extent.nx && drawn(horizontal_glyph(level, i, j)));
+            || (i < extent.i() && drawn(horizontal_glyph(level, i, j)));
         bool vertical = (j > 0 && drawn(vertical_glyph(level, i, j - 1)))
-            || (j < extent.ny && drawn(vertical_glyph(level, i, j)));
+            || (j < extent.j() && drawn(vertical_glyph(level, i, j)));
 
         if (horizontal && vertical)
         {
@@ -131,7 +131,7 @@ namespace
 void quetzal::catagen::write_level(ostream& os, const Level& level, const Parameters& parameters)
 {
     os << "catagen " << format_version
-        << " extent=" << parameters.extent.nx << "," << parameters.extent.ny
+        << " extent=" << parameters.extent.i() << "," << parameters.extent.j()
         << " scale=" << parameters.scale_min << "-" << parameters.scale_max
         << " spacing=" << parameters.spacing_min << "-" << parameters.spacing_max
         << " density=" << parameters.density
@@ -146,9 +146,9 @@ void quetzal::catagen::write_level(ostream& os, const Level& level, const Parame
 //------------------------------------------------------------------------------
 void quetzal::catagen::write_grid(ostream& os, const Level& level)
 {
-    const Extent& extent = level.extent();
-    coord_type width = 2 * extent.nx + 1;
-    coord_type height = 2 * extent.ny + 1;
+    const vector_type& extent = level.extent();
+    coord_type width = 2 * extent.i() + 1;
+    coord_type height = 2 * extent.j() + 1;
 
     for (coord_type y = height - 1; y >= 0; --y)
     {

@@ -11,7 +11,6 @@ namespace
 {
 
     using quetzal::stratum_sim::detail::Map;
-    using quetzal::stratum_sim::detail::Vertex;
 
     //--------------------------------------------------------------------------
     enum class CellType
@@ -52,7 +51,7 @@ namespace
 
     //--------------------------------------------------------------------------
     // A doorway or stairway is a cell of wall a mover may stand in rather than part of the
-    // area around it. The boundary of each neighbouring area runs along its face, wound about
+    // area around it. The boundary of each neighboring area runs along its face, wound about
     // that area like the rest of that area's wall, so a door hangs on the face and a mover
     // inside meets only backs -- which are no walls at all to a query, and so let it out
     bool block(CellType type)
@@ -66,75 +65,75 @@ namespace
 quetzal::stratum_sim::detail::Map quetzal::stratum_sim::detail::read_block(const std::vector<std::string>& lines)
 {
     Map map;
-    map.h = lines.size();
-    map.w = 0;
+    size_t width = 0;
 
     for (const std::string& s : lines)
     {
-        map.w = std::max(map.w, s.size());
+        width = std::max(width, s.size());
     }
 
-    // Trailing spaces may have been trimmed, and a short line is room floor
-    std::vector<CellType> cell_types(map.w * map.h, CellType::Room);
+    map.extent = discrete_vector_type(static_cast<long>(width), static_cast<long>(lines.size()));
 
-    for (size_t j = 0; j < map.h; ++j)
+    // Trailing spaces may have been trimmed, and a short line is room floor
+    std::vector<CellType> cell_types(map.cell_count(), CellType::Room);
+
+    for (long j = 0; j < map.extent.y(); ++j)
     {
-        const std::string& line = lines[map.h - 1 - j]; // The first line of the file is the highest row
-        for (size_t i = 0; i < map.w; ++i)
+        const std::string& line = lines[static_cast<size_t>(map.extent.y() - 1 - j)]; // The first line of the file is the highest row
+        for (long i = 0; i < map.extent.x(); ++i)
         {
-            cell_types[j * map.w + i] = cell_type(i < line.size() ? line[i] : ' ');
+            cell_types[map.slot({i, j})] = cell_type(static_cast<size_t>(i) < line.size() ? line[static_cast<size_t>(i)] : ' ');
         }
     }
 
     // Off the grid is nowhere a mover may be, so it reads as closed and the outer boundary
     // needs no case of its own
-    auto at = [&](int i, int j)
+    auto at = [&](const discrete_point_type& grid_position)
     {
-        return i < 0 || j < 0 || i >= static_cast<int>(map.w) || j >= static_cast<int>(map.h)
+        return grid_position.i() < 0 || grid_position.j() < 0
+            || grid_position.i() >= map.extent.x() || grid_position.j() >= map.extent.y()
             ? CellType::Solid
-            : cell_types[static_cast<size_t>(j) * map.w + i];
+            : cell_types[map.slot(grid_position)];
     };
 
     // A block is part of the area it lies in, so the area's boundary wraps around the solid cells
     // either side of it and its own sides are walled by that boundary rather than by nothing
     find_components(map,
-        [&](int i, int j) { return open(at(i, j)); },
-        [&](const Vertex&, const Vertex&) { return true; });
+        [&](long i, long j) { return open(at({i, j})); },
+        [&](const discrete_point_type&, const discrete_point_type&) { return true; });
 
-    map.cell_open.assign(map.w * map.h, false);
+    map.cell_open.assign(map.cell_count(), false);
 
-    for (size_t j = 0; j < map.h; ++j)
+    for (long j = 0; j < map.extent.y(); ++j)
     {
-        for (size_t i = 0; i < map.w; ++i)
+        for (long i = 0; i < map.extent.x(); ++i)
         {
-            map.cell_open[j * map.w + i] = open(at(static_cast<int>(i), static_cast<int>(j)));
+            map.cell_open[map.slot({i, j})] = open(at({i, j}));
         }
     }
 
     // Each block and the open cells its faces adjoin, which is where a door hangs
-    for (size_t j = 0; j < map.h; ++j)
+    for (long j = 0; j < map.extent.y(); ++j)
     {
-        for (size_t i = 0; i < map.w; ++i)
+        for (long i = 0; i < map.extent.x(); ++i)
         {
-            int bi = static_cast<int>(i);
-            int bj = static_cast<int>(j);
+            const discrete_point_type grid_position {i, j};
 
-            if (!block(at(bi, bj)))
+            if (!block(at(grid_position)))
             {
                 continue;
             }
 
             Block b;
-            b.cell = {bi, bj};
+            b.grid_position = grid_position;
 
-            for (const Vertex& step : {Vertex {1, 0}, Vertex {0, 1}, Vertex {-1, 0}, Vertex {0, -1}})
+            for (const auto& direction : {Direction::East, Direction::North, Direction::West, Direction::South})
             {
-                int ni = bi + step.i;
-                int nj = bj + step.j;
+                discrete_point_type neighbor = grid_position + direction;
 
-                if (open(at(ni, nj)) && !block(at(ni, nj)))
+                if (open(at(neighbor)) && !block(at(neighbor)))
                 {
-                    b.neighbors.push_back({ni, nj});
+                    b.neighbor_grid_positions.push_back(neighbor);
                 }
             }
 
@@ -144,7 +143,7 @@ quetzal::stratum_sim::detail::Map quetzal::stratum_sim::detail::read_block(const
 
     // The one property either format encodes about rooms: dungen writes room floor and corridor
     // floor as different symbols
-    map.cell_room.assign(map.w * map.h, false);
+    map.cell_room.assign(map.cell_count(), false);
 
     for (size_t slot = 0; slot < cell_types.size(); ++slot)
     {

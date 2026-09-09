@@ -40,7 +40,7 @@ namespace quetzal::stratum_sim
         };
 
         using outline_type = std::vector<Vertex>;
-        using cells_type = std::vector<GridPosition>;
+        using cells_type = std::vector<discrete_point_type>;
 
         Room() = default;
         explicit Room(const outline_type& outline);
@@ -73,10 +73,10 @@ namespace quetzal::stratum_sim
         const cells_type& cells() const;
         cells_type& cells();
         void set_cells(const cells_type& cells);
-        void add_cell(const GridPosition& cell);
+        void add_cell(const discrete_point_type& grid_position);
 
         size_t cell_count() const;
-        bool contains(const GridPosition& cell) const;
+        bool contains(const discrete_point_type& grid_position) const;
 
         // Containment by position, the outline being horizontal so height is disregarded.
         // A point enclosed by an odd number of outline crossings is within it

@@ -9,11 +9,10 @@
 using namespace std;
 
 //------------------------------------------------------------------------------
-quetzal::dungen::Room::Room(id_type id, const string& name, position_type position, dimensions_type size) :
+quetzal::dungen::Room::Room(id_type id, const string& name, const box_type& rectangle) :
     m_id(id),
     m_name(name),
-    m_position(position),
-    m_size(size),
+    m_rectangle(rectangle),
     m_door_ids()
 {
 }
@@ -38,28 +37,15 @@ void quetzal::dungen::Room::set_name(const string& name)
 }
 
 //------------------------------------------------------------------------------
-quetzal::dungen::position_type quetzal::dungen::Room::position() const
+const quetzal::dungen::box_type& quetzal::dungen::Room::rectangle() const
 {
-    return m_position;
+    return m_rectangle;
 }
 
 //------------------------------------------------------------------------------
-void quetzal::dungen::Room::set_position(position_type position)
+void quetzal::dungen::Room::set_rectangle(const box_type& rectangle)
 {
-    m_position = position;
-    return;
-}
-
-//------------------------------------------------------------------------------
-quetzal::dungen::dimensions_type quetzal::dungen::Room::size() const
-{
-    return m_size;
-}
-
-//------------------------------------------------------------------------------
-void quetzal::dungen::Room::set_size(dimensions_type size)
-{
-    m_size = size;
+    m_rectangle = rectangle;
     return;
 }
 
@@ -85,7 +71,7 @@ void quetzal::dungen::Room::attach_door(id_type door_id)
 //------------------------------------------------------------------------------
 void quetzal::dungen::Room::print(ostream& os) const
 {
-    os << "Room " << m_id << "\t" << m_name << "\tposition (" << m_position[0] << ", " << m_position[1] << ")\tsize (" << m_size[0] << ", " << m_size[1] << ")" << endl;
+    os << "Room " << m_id << "\t" << m_name << "\tposition (" << m_rectangle.position()[0] << ", " << m_rectangle.position()[1] << ")\tsize (" << m_rectangle.extent()[0] << ", " << m_rectangle.extent()[1] << ")" << endl;
     os << "    doors: [";
     bool first = true;
     for (auto id : m_door_ids)

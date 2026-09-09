@@ -29,7 +29,7 @@ namespace quetzal::dungen
         using doors_type = std::vector<Door>;
         using stairs_type = std::vector<Stair>;
 
-        Level(id_type id, const std::string& name, dimensions_type size, CellType cell_type = CellType::Null);
+        Level(id_type id, const std::string& name, vector_type size, CellType cell_type = CellType::Null);
         Level(const Level&) = default;
         ~Level() = default;
 
@@ -40,13 +40,13 @@ namespace quetzal::dungen
         std::string name() const;
         void set_name(const std::string& name);
 
-        dimensions_type size() const;
+        vector_type size() const;
 
         const Cells& cells() const;
         Cells& cells();
 
-        const Cell& cell(position_type position) const;
-        Cell& cell(position_type position);
+        const Cell& cell(point_type position) const;
+        Cell& cell(point_type position);
 
         const Cell& cell(coord_type x, coord_type y) const;
         Cell& cell(coord_type x, coord_type y);
@@ -57,8 +57,8 @@ namespace quetzal::dungen
         const Room& room(id_type id) const;
         Room& room(id_type id);
 
-        void create_room(position_type position, dimensions_type size); // name? ...
-        void expand_room(id_type room_id, position_type position, dimensions_type size);
+        void create_room(const box_type& rectangle); // name? ...
+        void expand_room(id_type room_id, const box_type& rectangle);
 
         const doors_type& doors() const;
         doors_type& doors();
@@ -66,7 +66,7 @@ namespace quetzal::dungen
         const Door& door(id_type id) const;
         Door& door(id_type id);
 
-        void create_door(position_type position); // name? facing ...
+        void create_door(point_type position); // name? facing ...
 
         const stairs_type& stairs() const;
         stairs_type& stairs();
@@ -74,7 +74,7 @@ namespace quetzal::dungen
         const Stair& stair(id_type id) const;
         Stair& stair(id_type id);
 
-        void create_stair(position_type position); // name? direction ...
+        void create_stair(point_type position); // name? direction ...
 
         void render(std::ostream& os) const;
         void print(std::ostream& os) const;
@@ -83,7 +83,6 @@ namespace quetzal::dungen
 
         id_type m_id;
         std::string m_name;
-        dimensions_type m_size;
         Cells m_cells;
         rooms_type m_rooms;
         doors_type m_doors;

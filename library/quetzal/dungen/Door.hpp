@@ -17,7 +17,7 @@ namespace quetzal::dungen
     {
     public:
 
-        Door(id_type id, const std::string& name, position_type position);
+        Door(id_type id, const std::string& name, point_type position);
         Door(const Door&) = default;
         ~Door() = default;
 
@@ -28,8 +28,8 @@ namespace quetzal::dungen
         std::string name() const;
         void set_name(const std::string& name);
 
-        position_type position() const;
-        void set_position(position_type position);
+        point_type position() const;
+        void set_position(point_type position);
 
         void print(std::ostream& os) const;
 
@@ -37,7 +37,7 @@ namespace quetzal::dungen
 
         id_type m_id;
         std::string m_name;
-        position_type m_position;
+        point_type m_position;
 
         id_type m_room_id_outer = nullid;
         id_type m_room_id_inner = nullid;

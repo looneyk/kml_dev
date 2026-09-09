@@ -119,12 +119,12 @@ namespace quetzal::stratum_view
     //--------------------------------------------------------------------------
     constexpr State operator|(State a, State b)
     {
-        return static_cast<State>(static_cast<uint16_t>(a) | static_cast<uint16_t>(b));
+        return static_cast<State>(std::to_underlying(a) | std::to_underlying(b));
     }
 
     constexpr State operator&(State a, State b)
     {
-        return static_cast<State>(static_cast<uint16_t>(a) & static_cast<uint16_t>(b));
+        return static_cast<State>(std::to_underlying(a) & std::to_underlying(b));
     }
 
     constexpr State& operator|=(State& a, State b)
@@ -135,7 +135,7 @@ namespace quetzal::stratum_view
 
     constexpr bool any(State state)
     {
-        return static_cast<uint16_t>(state) != 0;
+        return state != State::None;
     }
 
     inline bool applies(PlaceType type, State state)
@@ -146,12 +146,12 @@ namespace quetzal::stratum_view
     //--------------------------------------------------------------------------
     constexpr Mask operator|(Mask a, Mask b)
     {
-        return static_cast<Mask>(static_cast<uint8_t>(a) | static_cast<uint8_t>(b));
+        return static_cast<Mask>(std::to_underlying(a) | std::to_underlying(b));
     }
 
     constexpr Mask operator&(Mask a, Mask b)
     {
-        return static_cast<Mask>(static_cast<uint8_t>(a) & static_cast<uint8_t>(b));
+        return static_cast<Mask>(std::to_underlying(a) & std::to_underlying(b));
     }
 
     constexpr Mask& operator|=(Mask& a, Mask b)
@@ -162,7 +162,7 @@ namespace quetzal::stratum_view
 
     constexpr bool any(Mask mask)
     {
-        return static_cast<uint8_t>(mask) != 0;
+        return mask != Mask::None;
     }
 
 } // namespace quetzal::stratum_view

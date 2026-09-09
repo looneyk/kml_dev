@@ -20,13 +20,11 @@ namespace quetzal::stratum_sim
     // See attachment_plan.md for the shape and sim_zone_model.md for why it is that shape
 
     //--------------------------------------------------------------------------
-    // Where an attachment sits on the surface it hangs on, along it from its start and up
-    // from the floor. A door facing fills its wall, so both are zero until something places
-    // an attachment that does not
+    // Where an attachment sits on the surface it hangs on, in that surface's own frame:
+    // along it from its start, up from the floor, and into it
     struct Attachment
     {
-        value_type along = value_type(0);
-        value_type up = value_type(0);
+        point_type position;
     };
 
     //--------------------------------------------------------------------------

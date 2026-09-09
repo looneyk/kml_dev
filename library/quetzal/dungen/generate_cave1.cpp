@@ -21,14 +21,14 @@ namespace
     using grid_type = vector<bool>;
 
     //--------------------------------------------------------------------------
-    size_t slot(dimensions_type size, coord_type x, coord_type y)
+    size_t slot(vector_type size, coord_type x, coord_type y)
     {
         return static_cast<size_t>(y * size.x() + x);
     }
 
     //--------------------------------------------------------------------------
     // Anything off the grid counts as rock, so that the border holds the cavern in
-    bool solid(const grid_type& grid, dimensions_type size, coord_type x, coord_type y)
+    bool solid(const grid_type& grid, vector_type size, coord_type x, coord_type y)
     {
         if (x < 0 || y < 0 || x >= size.x() || y >= size.y())
         {
@@ -39,7 +39,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    size_t solid_neighbors(const grid_type& grid, dimensions_type size, coord_type x, coord_type y)
+    size_t solid_neighbors(const grid_type& grid, vector_type size, coord_type x, coord_type y)
     {
         size_t n = 0;
 
@@ -60,7 +60,7 @@ namespace
     //--------------------------------------------------------------------------
     // Every cell drawn rock or open at random, the border left rock so that no cavern opens
     // onto the edge of the level
-    grid_type noise(dimensions_type size, double fill, random_type& random)
+    grid_type noise(vector_type size, double fill, random_type& random)
     {
         auto [nx, ny] = size;
         grid_type grid(static_cast<size_t>(nx * ny), true);
@@ -80,7 +80,7 @@ namespace
     // One pass of the automaton over every cell off the border: rock stays rock while enough
     // of its eight neighbors are rock, and open ground turns to rock where more of them are.
     // The pass reads the grid it was given throughout, so every cell turns on the same state
-    grid_type smooth(const grid_type& grid, dimensions_type size, const Cave1Parameters& cave1)
+    grid_type smooth(const grid_type& grid, vector_type size, const Cave1Parameters& cave1)
     {
         auto [nx, ny] = size;
         grid_type result = grid;
@@ -100,14 +100,14 @@ namespace
     //--------------------------------------------------------------------------
     // The cells of the largest region of open ground, a region being what can be reached from
     // one of its cells without crossing rock
-    vector<position_type> largest_region(const grid_type& grid, dimensions_type size)
+    vector<point_type> largest_region(const grid_type& grid, vector_type size)
     {
         auto [nx, ny] = size;
 
         vector<bool> seen(static_cast<size_t>(nx * ny), false);
-        vector<position_type> largest;
-        vector<position_type> region;
-        vector<position_type> pending;
+        vector<point_type> largest;
+        vector<point_type> region;
+        vector<point_type> pending;
 
         for (coord_type y = 0; y < ny; ++y)
         {
@@ -119,18 +119,18 @@ namespace
                 }
 
                 region.clear();
-                pending.assign(1, position_type {x, y});
+                pending.assign(1, point_type {x, y});
                 seen[slot(size, x, y)] = true;
 
                 while (!pending.empty())
                 {
-                    position_type position = pending.back();
+                    point_type position = pending.back();
                     pending.pop_back();
                     region.push_back(position);
 
                     for (const vector_type& step : {vector_type {1, 0}, vector_type {0, 1}, vector_type {-1, 0}, vector_type {0, -1}})
                     {
-                        position_type neighbor = position + step;
+                        point_type neighbor = position + step;
                         if (solid(grid, size, neighbor.x(), neighbor.y()) || seen[slot(size, neighbor.x(), neighbor.y())])
                         {
                             continue;
@@ -173,8 +173,8 @@ quetzal::dungen::Level quetzal::dungen::generate_cave1(id_type id, const string&
 
     // Only the largest region is kept, so that what the smoothing walled off stays rock and
     // everything the level does hold is reachable from everywhere else it holds
-    vector<position_type> region = largest_region(grid, parameters.size);
-    for (position_type position : region)
+    vector<point_type> region = largest_region(grid, parameters.size);
+    for (point_type position : region)
     {
         level.cell(position).set_type(CellType::Corridor);
     }

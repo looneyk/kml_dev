@@ -18,7 +18,7 @@ namespace quetzal::dungen
     // thousand cells, drawn at random. The candidates are shuffled first, so they may be
     // supplied in any order, and running out of them places fewer than were asked for
     // Each algorithm supplies the cells its own layout allows a stair to be placed in
-    void place_stairs(Level& level, std::vector<position_type> candidates, StairPlacements placements, random_type& random);
+    void place_stairs(Level& level, std::vector<point_type> candidates, StairPlacements placements, random_type& random);
 
 } // namespace quetzal::dungen
 

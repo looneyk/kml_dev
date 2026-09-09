@@ -10,10 +10,9 @@
 using namespace std;
 
 //------------------------------------------------------------------------------
-quetzal::dungen::Level::Level(id_type id, const string& name, dimensions_type size, CellType cell_type) :
+quetzal::dungen::Level::Level(id_type id, const string& name, vector_type size, CellType cell_type) :
     m_id(id),
     m_name(name),
-    m_size{size},
     m_cells(size, {cell_type}, 0),
     m_rooms(),
     m_doors(),
@@ -41,9 +40,9 @@ void quetzal::dungen::Level::set_name(const string& name)
 }
 
 //------------------------------------------------------------------------------
-quetzal::dungen::dimensions_type quetzal::dungen::Level::size() const
+quetzal::dungen::vector_type quetzal::dungen::Level::size() const
 {
-    return m_size;
+    return m_cells.size();
 }
 
 //------------------------------------------------------------------------------
@@ -59,13 +58,13 @@ quetzal::dungen::Cells& quetzal::dungen::Level::cells()
 }
 
 //------------------------------------------------------------------------------
-const quetzal::dungen::Cell& quetzal::dungen::Level::cell(position_type position) const
+const quetzal::dungen::Cell& quetzal::dungen::Level::cell(point_type position) const
 {
     return m_cells.cell(position);
 }
 
 //------------------------------------------------------------------------------
-quetzal::dungen::Cell& quetzal::dungen::Level::cell(position_type position)
+quetzal::dungen::Cell& quetzal::dungen::Level::cell(point_type position)
 {
     return m_cells.cell(position);
 }
@@ -109,19 +108,19 @@ quetzal::dungen::Room& quetzal::dungen::Level::room(id_type id)
 }
 
 //------------------------------------------------------------------------------
-void quetzal::dungen::Level::create_room(position_type position, dimensions_type size)
+void quetzal::dungen::Level::create_room(const box_type& rectangle)
 {
     id_type room_id = m_rooms.size();
-    m_rooms.emplace_back(room_id, to_string(room_id), position, size);
-    expand_room(room_id, position, size);
+    m_rooms.emplace_back(room_id, to_string(room_id), rectangle);
+    expand_room(room_id, rectangle);
     return;
 }
 
 //------------------------------------------------------------------------------
-void quetzal::dungen::Level::expand_room(id_type room_id, position_type position, dimensions_type size)
+void quetzal::dungen::Level::expand_room(id_type room_id, const box_type& rectangle)
 {
-    auto [x0, y0] = position;
-    auto [nx, ny] = size;
+    auto [x0, y0] = rectangle.position();
+    auto [nx, ny] = rectangle.extent();
 
     for (coord_type x = x0; x < x0 + nx; ++x)
     {
@@ -163,7 +162,7 @@ quetzal::dungen::Door& quetzal::dungen::Level::door(id_type id)
 }
 
 //------------------------------------------------------------------------------
-void quetzal::dungen::Level::create_door(position_type position)
+void quetzal::dungen::Level::create_door(point_type position)
 {
     Cell& c = cell(position);
     c.set_type(CellType::Door);
@@ -204,7 +203,7 @@ quetzal::dungen::Stair& quetzal::dungen::Level::stair(id_type id)
 }
 
 //------------------------------------------------------------------------------
-void quetzal::dungen::Level::create_stair(position_type position)
+void quetzal::dungen::Level::create_stair(point_type position)
 {
     Cell& c = cell(position);
     c.set_type(CellType::Stair);
@@ -235,7 +234,7 @@ void quetzal::dungen::Level::render(ostream& os) const
 //------------------------------------------------------------------------------
 void quetzal::dungen::Level::print(ostream& os) const
 {
-    os << "Level " << m_id << "\t" << m_name << "\tsize (" << m_size[0] << ", " << m_size[1] << ")" << endl;
+    os << "Level " << m_id << "\t" << m_name << "\tsize (" << size()[0] << ", " << size()[1] << ")" << endl;
 
     for (const auto& room : m_rooms)
     {

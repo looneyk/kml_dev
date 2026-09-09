@@ -109,9 +109,9 @@ void quetzal::stratum_sim::Room::set_cells(const cells_type& cells)
 }
 
 //------------------------------------------------------------------------------
-void quetzal::stratum_sim::Room::add_cell(const GridPosition& cell)
+void quetzal::stratum_sim::Room::add_cell(const discrete_point_type& grid_position)
 {
-    m_cells.push_back(cell);
+    m_cells.push_back(grid_position);
     return;
 }
 
@@ -122,9 +122,9 @@ size_t quetzal::stratum_sim::Room::cell_count() const
 }
 
 //------------------------------------------------------------------------------
-bool quetzal::stratum_sim::Room::contains(const GridPosition& cell) const
+bool quetzal::stratum_sim::Room::contains(const discrete_point_type& grid_position) const
 {
-    return std::find(m_cells.begin(), m_cells.end(), cell) != m_cells.end();
+    return std::find(m_cells.begin(), m_cells.end(), grid_position) != m_cells.end();
 }
 
 //------------------------------------------------------------------------------
@@ -140,9 +140,9 @@ bool quetzal::stratum_sim::Room::contains(const point_type& position) const
     std::vector<projection_type::projected_type> points;
     points.reserve(m_outline.size());
 
-    for (const Vertex& v : m_outline)
+    for (const auto& vertex : m_outline)
     {
-        points.push_back(project(v.position));
+        points.push_back(project(vertex.position));
     }
 
     return footprint_type(points.begin(), points.end()).contains(project(position));

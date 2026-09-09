@@ -26,142 +26,6 @@ namespace
 } // namespace
 
 //------------------------------------------------------------------------------
-bool quetzal::stratum_sim::Wall::deleted() const
-{
-    return m_deleted;
-}
-
-//------------------------------------------------------------------------------
-void quetzal::stratum_sim::Wall::set_deleted(bool b) const
-{
-    m_deleted = b;
-    return;
-}
-
-//------------------------------------------------------------------------------
-bool quetzal::stratum_sim::Grid::contains(const GridPosition& cell) const
-{
-    return cell.i >= 0 && cell.j >= 0 && cell.i < extent.x() && cell.j < extent.y();
-}
-
-//------------------------------------------------------------------------------
-quetzal::stratum_sim::GridPosition quetzal::stratum_sim::Grid::cell_at(const point_type& position) const
-{
-    auto [px, py, pz] = position.rep();
-    auto [ox, oy, oz] = origin.rep();
-
-    value_type i = std::floor((px - ox) / spacing);
-    value_type j = std::floor((py - oy) / spacing);
-
-    return {static_cast<long>(i), static_cast<long>(j)};
-}
-
-//------------------------------------------------------------------------------
-quetzal::stratum_sim::point_type quetzal::stratum_sim::Grid::cell_position(const GridPosition& cell) const
-{
-    auto [ox, oy, oz] = origin.rep();
-
-    value_type x = ox + (static_cast<value_type>(cell.i) + value_type(0.5)) * spacing;
-    value_type y = oy + (static_cast<value_type>(cell.j) + value_type(0.5)) * spacing;
-
-    return point_type(x, y, oz);
-}
-
-//------------------------------------------------------------------------------
-quetzal::stratum_sim::Flat::Flat(value_type height, bool ceiling) :
-    m_height(height),
-    m_ceiling(ceiling),
-    m_sampling(),
-    m_heights()
-{
-}
-
-//------------------------------------------------------------------------------
-bool quetzal::stratum_sim::Flat::ceiling() const
-{
-    return m_ceiling;
-}
-
-//------------------------------------------------------------------------------
-void quetzal::stratum_sim::Flat::set_ceiling(bool b)
-{
-    m_ceiling = b;
-    return;
-}
-
-//------------------------------------------------------------------------------
-std::optional<quetzal::stratum_sim::value_type> quetzal::stratum_sim::Flat::height(const point_type& position) const
-{
-    if (!sampled())
-    {
-        return m_height;
-    }
-
-    GridPosition p = m_sampling->cell_at(position);
-    if (!m_sampling->contains(p))
-    {
-        return {}; // Off the sampling grid is off the surface
-    }
-
-    return sample(p);
-}
-
-//------------------------------------------------------------------------------
-quetzal::stratum_sim::value_type quetzal::stratum_sim::Flat::height() const
-{
-    return m_height;
-}
-
-//------------------------------------------------------------------------------
-void quetzal::stratum_sim::Flat::set_height(value_type height)
-{
-    m_height = height;
-    return;
-}
-
-//------------------------------------------------------------------------------
-void quetzal::stratum_sim::Flat::set_sampling(const Grid& grid)
-{
-    m_sampling = grid;
-    m_heights.assign(static_cast<size_t>(grid.extent.x()) * static_cast<size_t>(grid.extent.y()), m_height);
-
-    return;
-}
-
-//------------------------------------------------------------------------------
-bool quetzal::stratum_sim::Flat::sampled() const
-{
-    return m_sampling.has_value();
-}
-
-//------------------------------------------------------------------------------
-const quetzal::stratum_sim::Grid& quetzal::stratum_sim::Flat::sampling() const
-{
-    assert(sampled());
-    return *m_sampling;
-}
-
-//------------------------------------------------------------------------------
-std::optional<quetzal::stratum_sim::value_type> quetzal::stratum_sim::Flat::sample(const GridPosition& position) const
-{
-    assert(sampled());
-    assert(m_sampling->contains(position));
-
-    return m_heights[static_cast<size_t>(position.j) * static_cast<size_t>(m_sampling->extent.x()) + static_cast<size_t>(position.i)];
-}
-
-//------------------------------------------------------------------------------
-void quetzal::stratum_sim::Flat::set_sample(const GridPosition& position, std::optional<value_type> height)
-{
-    assert(sampled());
-    assert(m_sampling->contains(position));
-
-    m_heights[static_cast<size_t>(position.j) * static_cast<size_t>(m_sampling->extent.x()) + static_cast<size_t>(position.i)] = height;
-
-    return;
-}
-
-//------------------------------------------------------------------------------
 const quetzal::stratum_sim::Wall& quetzal::stratum_sim::DiscreteLayout::wall(id_type wall_id) const
 {
     assert(wall_id < m_wall_store.size());
@@ -299,7 +163,7 @@ quetzal::id_type quetzal::stratum_sim::DiscreteLayout::create_room(const Room& r
     id_type room_id = m_room_store.size();
     m_room_store.push_back(room);
 
-    for (const GridPosition& cell : room.cells())
+    for (const discrete_point_type& cell : room.cells())
     {
         set_cell_room(cell, room_id);
     }
@@ -322,22 +186,15 @@ quetzal::id_type quetzal::stratum_sim::DiscreteLayout::room_at(const point_type&
 }
 
 //------------------------------------------------------------------------------
-quetzal::id_type quetzal::stratum_sim::DiscreteLayout::room_at(const GridPosition& cell) const
+quetzal::id_type quetzal::stratum_sim::DiscreteLayout::room_at(const discrete_point_type& grid_position) const
 {
-    const Grid& g = grid();
-    assert(g.contains(cell));
-
-    return m_cell_rooms[static_cast<size_t>(cell.j) * g.extent.x() + cell.i];
+    return cell(grid_position).room_id;
 }
 
 //------------------------------------------------------------------------------
-void quetzal::stratum_sim::DiscreteLayout::set_cell_room(const GridPosition& cell, id_type room_id)
+void quetzal::stratum_sim::DiscreteLayout::set_cell_room(const discrete_point_type& grid_position, id_type room_id)
 {
-    const Grid& g = grid();
-    assert(g.contains(cell));
-
-    m_cell_rooms[static_cast<size_t>(cell.j) * g.extent.x() + cell.i] = room_id;
-
+    cell(grid_position).room_id = room_id;
     return;
 }
 
@@ -418,40 +275,50 @@ size_t quetzal::stratum_sim::DiscreteLayout::connect_folds(const ids_type& wall_
 }
 
 //------------------------------------------------------------------------------
-void quetzal::stratum_sim::DiscreteLayout::set_grid(const point_type& origin, value_type spacing, const discrete_vector_type& extent)
+void quetzal::stratum_sim::DiscreteLayout::set_grid(const point_type& origin, value_type scale, const discrete_vector_type& extent)
 {
-    assert(spacing > value_type(0));
+    assert(scale > value_type(0));
     assert(extent.x() >= 0 && extent.y() >= 0);
 
-    m_grid = Grid {origin, spacing, extent};
-    m_cell_open.assign(static_cast<size_t>(extent.x()) * extent.y(), false);
-    m_cell_rooms.assign(static_cast<size_t>(extent.x()) * extent.y(), nullid);
+    m_grid = GridMapping {origin, scale, extent};
+    m_cells.assign(static_cast<size_t>(extent.x()) * extent.y(), Cell {});
 
     return;
 }
 
 //------------------------------------------------------------------------------
-bool quetzal::stratum_sim::DiscreteLayout::open(const GridPosition& cell) const
+bool quetzal::stratum_sim::DiscreteLayout::open(const discrete_point_type& grid_position) const
 {
-    const Grid& g = grid();
-    assert(g.contains(cell));
-
-    return m_cell_open[static_cast<size_t>(cell.j) * g.extent.x() + cell.i];
+    return cell(grid_position).open;
 }
 
 //------------------------------------------------------------------------------
-void quetzal::stratum_sim::DiscreteLayout::set_cell_open(const GridPosition& cell, bool open)
+void quetzal::stratum_sim::DiscreteLayout::set_cell_open(const discrete_point_type& grid_position, bool open)
 {
-    const Grid& g = grid();
-    assert(g.contains(cell));
-
-    m_cell_open[static_cast<size_t>(cell.j) * g.extent.x() + cell.i] = open;
-
+    cell(grid_position).open = open;
     return;
 }
 
 //------------------------------------------------------------------------------
-const quetzal::stratum_sim::Grid& quetzal::stratum_sim::DiscreteLayout::grid() const
+const quetzal::stratum_sim::Cell& quetzal::stratum_sim::DiscreteLayout::cell(const discrete_point_type& grid_position) const
+{
+    const GridMapping& g = grid();
+    assert(g.contains(grid_position));
+
+    return m_cells[static_cast<size_t>(grid_position.j()) * g.extent.x() + grid_position.i()];
+}
+
+//------------------------------------------------------------------------------
+quetzal::stratum_sim::Cell& quetzal::stratum_sim::DiscreteLayout::cell(const discrete_point_type& grid_position)
+{
+    const GridMapping& g = grid();
+    assert(g.contains(grid_position));
+
+    return m_cells[static_cast<size_t>(grid_position.j()) * g.extent.x() + grid_position.i()];
+}
+
+//------------------------------------------------------------------------------
+const quetzal::stratum_sim::GridMapping& quetzal::stratum_sim::DiscreteLayout::grid() const
 {
     assert(m_grid.has_value());
     return *m_grid;
@@ -460,40 +327,40 @@ const quetzal::stratum_sim::Grid& quetzal::stratum_sim::DiscreteLayout::grid() c
 //------------------------------------------------------------------------------
 quetzal::stratum_sim::value_type quetzal::stratum_sim::DiscreteLayout::step_distance() const
 {
-    return grid().spacing;
+    return grid().scale;
 }
 
 //------------------------------------------------------------------------------
-quetzal::stratum_sim::GridPosition quetzal::stratum_sim::DiscreteLayout::cell_at(const point_type& point) const
+quetzal::stratum_sim::discrete_point_type quetzal::stratum_sim::DiscreteLayout::grid_position_at(const point_type& point) const
 {
-    return grid().cell_at(point);
+    return grid().grid_position_at(point);
 }
 
 //------------------------------------------------------------------------------
-quetzal::stratum_sim::point_type quetzal::stratum_sim::DiscreteLayout::cell_position(const GridPosition& cell) const
+quetzal::stratum_sim::point_type quetzal::stratum_sim::DiscreteLayout::position(const discrete_point_type& grid_position) const
 {
-    point_type position = grid().cell_position(cell);
+    point_type result = grid().position(grid_position);
 
     // The floor is what fixes where the ground is. A layout with no floor falls back to the
     // grid's own plane, which is what one under construction has; so does a cell the floor is
     // absent under, that being a hole rather than a floor to walk on
     if (m_floor_id != nullid)
     {
-        std::optional<value_type> height = flat(m_floor_id).height(position);
+        std::optional<value_type> height = flat(m_floor_id).height(result);
         if (height)
         {
-            position.set_z(*height);
+            result.set_z(*height);
         }
     }
 
-    return position;
+    return result;
 }
 
 //------------------------------------------------------------------------------
-quetzal::id_type quetzal::stratum_sim::DiscreteLayout::wall_toward(const GridPosition& cell, const discrete_vector_type& direction) const
+quetzal::id_type quetzal::stratum_sim::DiscreteLayout::wall_toward(const discrete_point_type& grid_position, const discrete_vector_type& direction) const
 {
-    const Grid& g = grid();
-    assert(g.contains(cell));
+    const GridMapping& g = grid();
+    assert(g.contains(grid_position));
 
     long di = direction.x();
     long dj = direction.y();
@@ -501,9 +368,9 @@ quetzal::id_type quetzal::stratum_sim::DiscreteLayout::wall_toward(const GridPos
 
     auto [ox, oy, oz] = g.origin.rep();
 
-    value_type sp = g.spacing;
-    value_type x0 = ox + static_cast<value_type>(cell.i) * sp;
-    value_type y0 = oy + static_cast<value_type>(cell.j) * sp;
+    value_type sp = g.scale;
+    value_type x0 = ox + static_cast<value_type>(grid_position.i()) * sp;
+    value_type y0 = oy + static_cast<value_type>(grid_position.j()) * sp;
     value_type x1 = x0 + sp;
     value_type y1 = y0 + sp;
     value_type z = oz;
@@ -548,7 +415,7 @@ quetzal::id_type quetzal::stratum_sim::DiscreteLayout::wall_toward(const GridPos
 }
 
 //------------------------------------------------------------------------------
-bool quetzal::stratum_sim::DiscreteLayout::blocked(const GridPosition& cell, const discrete_vector_type& direction) const
+bool quetzal::stratum_sim::DiscreteLayout::blocked(const discrete_point_type& cell, const discrete_vector_type& direction) const
 {
     if (!grid().contains(cell + direction))
     {
@@ -573,16 +440,16 @@ quetzal::stratum_sim::MoveResult quetzal::stratum_sim::DiscreteLayout::move(cons
         return result;
     }
 
-    const Grid& g = grid();
-    int steps = static_cast<int>(std::lround(distance / g.spacing));
+    const GridMapping& g = grid();
+    int steps = static_cast<int>(std::lround(distance / g.scale));
 
-    GridPosition cell = cell_at(placement.position());
+    discrete_point_type cell = grid_position_at(placement.position());
 
     for (int n = 0; n < steps; ++n)
     {
         id_type wall_id = wall_toward(cell, step);
 
-        GridPosition next = cell + step;
+        discrete_point_type next = cell + step;
 
         if (blocked(cell, step))
         {
@@ -596,7 +463,7 @@ quetzal::stratum_sim::MoveResult quetzal::stratum_sim::DiscreteLayout::move(cons
 
         if (obstructed)
         {
-            point_type p = cell_position(next);
+            point_type p = position(next);
             placement_type candidate(point_type(p.x(), p.y(), placement.position().z()), placement.direction());
 
             id_type obstruction = obstructed(candidate);
@@ -610,7 +477,7 @@ quetzal::stratum_sim::MoveResult quetzal::stratum_sim::DiscreteLayout::move(cons
         cell = next;
     }
 
-    point_type p = cell_position(cell);
+    point_type p = position(cell);
     result.placement.set_position(point_type(p.x(), p.y(), placement.position().z()));
 
     return result;
@@ -663,16 +530,16 @@ quetzal::stratum_sim::placement_type quetzal::stratum_sim::DiscreteLayout::face(
 //------------------------------------------------------------------------------
 bool quetzal::stratum_sim::DiscreteLayout::same_location(const placement_type& a, const placement_type& b) const
 {
-    return cell_at(a.position()) == cell_at(b.position());
+    return grid_position_at(a.position()) == grid_position_at(b.position());
 }
 
 //------------------------------------------------------------------------------
 quetzal::stratum_sim::DiscreteLayout::placements_type quetzal::stratum_sim::DiscreteLayout::neighbors(const placement_type& placement) const
 {
     placements_type result;
-    GridPosition cell = cell_at(placement.position());
+    discrete_point_type cell = grid_position_at(placement.position());
 
-    const Grid& g = grid();
+    const GridMapping& g = grid();
     const discrete_vector_type steps[4] {Direction::East, Direction::West, Direction::North, Direction::South};
 
     for (const discrete_vector_type& step : steps)
@@ -683,10 +550,10 @@ quetzal::stratum_sim::DiscreteLayout::placements_type quetzal::stratum_sim::Disc
         }
 
         // The boundary blocks outward, so an unblocked step is one onto the grid
-        GridPosition next = cell + step;
+        discrete_point_type next = cell + step;
         assert(g.contains(next));
 
-        point_type p = cell_position(next);
+        point_type p = position(next);
         result.push_back(placement_type(point_type(p.x(), p.y(), placement.position().z()), placement.direction()));
     }
 
@@ -696,15 +563,15 @@ quetzal::stratum_sim::DiscreteLayout::placements_type quetzal::stratum_sim::Disc
 //------------------------------------------------------------------------------
 bool quetzal::stratum_sim::DiscreteLayout::visible(const placement_type& from, const placement_type& to) const
 {
-    GridPosition cell = cell_at(from.position());
-    GridPosition target = cell_at(to.position());
+    discrete_point_type grid_position = grid_position_at(from.position());
+    discrete_point_type target = grid_position_at(to.position());
 
-    if (cell == target)
+    if (grid_position == target)
     {
         return true;
     }
 
-    const Grid& g = grid();
+    const GridMapping& g = grid();
 
     auto [fx, fy, fz] = from.position().rep();
     auto [ox, oy, oz] = g.origin.rep();
@@ -724,15 +591,15 @@ bool quetzal::stratum_sim::DiscreteLayout::visible(const placement_type& from, c
             return far;
         }
 
-        value_type edge = origin + static_cast<value_type>(step > 0 ? index + 1 : index) * g.spacing;
+        value_type edge = origin + static_cast<value_type>(step > 0 ? index + 1 : index) * g.scale;
         return (edge - position) / d;
     };
 
-    value_type t_i = boundary(cell.i, step_i, ox, fx, dx);
-    value_type t_j = boundary(cell.j, step_j, oy, fy, dy);
+    value_type t_i = boundary(grid_position.i(), step_i, ox, fx, dx);
+    value_type t_j = boundary(grid_position.j(), step_j, oy, fy, dy);
 
-    value_type delta_i = step_i == 0 ? far : g.spacing / std::abs(dx);
-    value_type delta_j = step_j == 0 ? far : g.spacing / std::abs(dy);
+    value_type delta_i = step_i == 0 ? far : g.scale / std::abs(dx);
+    value_type delta_j = step_j == 0 ? far : g.scale / std::abs(dy);
 
     // One step per cell edge crossed, so the walk cannot exceed the grid
     size_t limit = static_cast<size_t>(g.extent.x() + g.extent.y()) + 2;
@@ -741,13 +608,13 @@ bool quetzal::stratum_sim::DiscreteLayout::visible(const placement_type& from, c
     {
         discrete_vector_type step = t_i < t_j ? discrete_vector_type(step_i, 0) : discrete_vector_type(0, step_j);
 
-        if (blocked(cell, step))
+        if (blocked(grid_position, step))
         {
             return false;
         }
 
         // The boundary blocks outward, so the ray is stopped before it can leave the grid
-        GridPosition next = cell + step;
+        discrete_point_type next = grid_position + step;
         assert(g.contains(next));
 
         if (t_i < t_j)
@@ -759,9 +626,9 @@ bool quetzal::stratum_sim::DiscreteLayout::visible(const placement_type& from, c
             t_j += delta_j;
         }
 
-        cell = next;
+        grid_position = next;
 
-        if (cell == target)
+        if (grid_position == target)
         {
             return true;
         }
@@ -779,7 +646,7 @@ quetzal::id_type quetzal::stratum_sim::DiscreteLayout::ahead(const placement_typ
         return nullid; // Facing no direction the grid has, so facing nothing
     }
 
-    return wall_toward(cell_at(placement.position()), step);
+    return wall_toward(grid_position_at(placement.position()), step);
 }
 
 //------------------------------------------------------------------------------
@@ -791,7 +658,6 @@ void quetzal::stratum_sim::DiscreteLayout::clear()
     m_floor_id = nullid;
     m_ceiling_id = nullid;
     m_grid.reset();
-    m_cell_open.clear();
-    m_cell_rooms.clear();
+    m_cells.clear();
     return;
 }

@@ -79,7 +79,7 @@ namespace quetzal::stratum_sim
         // placement form model-neutral; the cell form is for a caller that genuinely counts
         // cells and whose layout has them
         entities_type entities_at(flecs::entity zone, const placement_type& placement) const;
-        entities_type entities_at(flecs::entity zone, const GridPosition& cell) const;
+        entities_type entities_at(flecs::entity zone, const discrete_point_type& grid_position) const;
         entities_type entities_within(flecs::entity zone, const placement_type& placement, value_type range) const;
 
         // Migration keeps the entity's id, so references to it survive

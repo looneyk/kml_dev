@@ -87,20 +87,10 @@ namespace quetzal::stratum_sim
         constexpr size_t npos = static_cast<size_t>(-1);
 
         //----------------------------------------------------------------------
-        // Lattice point, so that boundary edges chain by exact comparison
-        struct Vertex
-        {
-            int i = 0;
-            int j = 0;
-
-            friend auto operator<=>(const Vertex&, const Vertex&) = default;
-        };
-
-        //----------------------------------------------------------------------
         struct Edge
         {
-            Vertex from;
-            Vertex to;
+            discrete_point_type grid_position_from;
+            discrete_point_type grid_position_to;
         };
 
         //----------------------------------------------------------------------
@@ -108,8 +98,8 @@ namespace quetzal::stratum_sim
         // block layout separates by spending a cell, a wall layout by what is on the edge
         struct Passage
         {
-            Vertex cell;
-            Vertex other;
+            discrete_point_type grid_position;
+            discrete_point_type grid_position_other;
             bool passable = false;
         };
 
@@ -121,8 +111,8 @@ namespace quetzal::stratum_sim
         // backs -- which are not walls to a query and so do not stop it leaving
         struct Block
         {
-            Vertex cell;
-            std::vector<Vertex> neighbors; // The open cells its faces adjoin
+            discrete_point_type grid_position;
+            std::vector<discrete_point_type> neighbor_grid_positions; // The open cells its faces adjoin
         };
 
         //----------------------------------------------------------------------
@@ -130,21 +120,35 @@ namespace quetzal::stratum_sim
         // of them belong together, and where two of those groups meet
         struct Map
         {
-            size_t w = 0;
-            size_t h = 0;
+            discrete_vector_type extent;
 
-            std::vector<bool> cell_open; // w by h, true where a mover may stand
+            std::vector<bool> cell_open; // By extent, true where a mover may stand
 
-            std::vector<size_t> cell_components; // w by h, npos where the cell is not in one
-            std::vector<std::vector<Vertex>> component_cells;
+            std::vector<size_t> cell_components; // By extent, npos where the cell is not in one
+            std::vector<std::vector<discrete_point_type>> component_cells; // name? ...
             std::vector<Passage> passages;
             std::vector<Block> blocks;
 
-            // w by h, true where the format said the cell is room floor rather than
+            // By extent, true where the format said the cell is room floor rather than
             // corridor, doorway or anything else open. Empty when the format defines no
             // rooms at all, which loads a zone with none
             std::vector<bool> cell_room;
+
+            size_t slot(const discrete_point_type& grid_position) const;
+            size_t cell_count() const;
         };
+
+        //----------------------------------------------------------------------
+        inline size_t Map::slot(const discrete_point_type& grid_position) const
+        {
+            return static_cast<size_t>(grid_position.j() * extent.x() + grid_position.i());
+        }
+
+        //----------------------------------------------------------------------
+        inline size_t Map::cell_count() const
+        {
+            return static_cast<size_t>(extent.x() * extent.y());
+        }
 
         //----------------------------------------------------------------------
         // The row a generator writes ahead of the grid, naming itself, the version of the
@@ -167,14 +171,16 @@ namespace quetzal::stratum_sim
         template<typename Open, typename Joined>
         void find_components(Map& map, Open open, Joined joined)
         {
-            map.cell_components.assign(map.w * map.h, npos);
+            map.cell_components.assign(map.cell_count(), npos);
 
-            for (size_t j = 0; j < map.h; ++j)
+            for (long j = 0; j < map.extent.y(); ++j)
             {
-                for (size_t i = 0; i < map.w; ++i)
+                for (long i = 0; i < map.extent.x(); ++i)
                 {
-                    size_t slot = j * map.w + i;
-                    if (!open(static_cast<int>(i), static_cast<int>(j)) || map.cell_components[slot] != npos)
+                    discrete_point_type grid_position_start {i, j};
+                    size_t slot = map.slot(grid_position_start);
+
+                    if (!open(i, j) || map.cell_components[slot] != npos)
                     {
                         continue;
                     }
@@ -182,33 +188,33 @@ namespace quetzal::stratum_sim
                     size_t component = map.component_cells.size();
                     map.component_cells.push_back({});
 
-                    std::vector<Vertex> pending {Vertex {static_cast<int>(i), static_cast<int>(j)}};
+                    std::vector<discrete_point_type> pending {grid_position_start};
                     map.cell_components[slot] = component;
 
                     while (!pending.empty())
                     {
-                        Vertex v = pending.back();
+                        auto grid_position = pending.back();
                         pending.pop_back();
-                        map.component_cells[component].push_back(v);
+                        map.component_cells[component].push_back(grid_position);
 
-                        const Vertex neighbors[4] {{v.i + 1, v.j}, {v.i - 1, v.j}, {v.i, v.j + 1}, {v.i, v.j - 1}};
-                        for (const Vertex& n : neighbors)
+                        const discrete_point_type neighbors[4] {grid_position + Direction::East, grid_position + Direction::West, grid_position + Direction::North, grid_position + Direction::South};  // order ...
+                        for (const auto& neighbor : neighbors)
                         {
-                            if (n.i < 0 || n.j < 0 || n.i >= static_cast<int>(map.w) || n.j >= static_cast<int>(map.h))
+                            if (neighbor.i() < 0 || neighbor.j() < 0 || neighbor.i() >= map.extent.x() || neighbor.j() >= map.extent.y())
                             {
                                 continue;
                             }
 
-                            if (!open(n.i, n.j) || !joined(v, n))
+                            if (!open(neighbor.i(), neighbor.j()) || !joined(grid_position, neighbor))
                             {
                                 continue;
                             }
 
-                            size_t n_slot = static_cast<size_t>(n.j) * map.w + n.i;
-                            if (map.cell_components[n_slot] == npos)
+                            size_t neighbor_slot = map.slot(neighbor);
+                            if (map.cell_components[neighbor_slot] == npos)
                             {
-                                map.cell_components[n_slot] = component;
-                                pending.push_back(n);
+                                map.cell_components[neighbor_slot] = component;
+                                pending.push_back(neighbor);
                             }
                         }
                     }

@@ -7,6 +7,7 @@
 #include "load_layout_catagen.hpp"
 #include "load_layout_dungen.hpp"
 #include "quetzal/common/file_util.hpp"
+#include <charconv>
 #include <format>
 #include <fstream>
 #include <map>
@@ -26,6 +27,8 @@ namespace
     using quetzal::nullid;
 
     using namespace quetzal::stratum_sim::detail;
+
+    using quetzal::stratum_sim::discrete_point_type;
 
     //--------------------------------------------------------------------------
     // The one format version this reads, both generators writing the same. A leading zero
@@ -61,7 +64,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    quetzal::stratum_sim::polygon_type to_polygon(const std::vector<Vertex>& ring)
+    quetzal::stratum_sim::polygon_type to_polygon(const std::vector<discrete_point_type>& ring)
     {
         using quetzal::stratum_sim::point_type;
         using quetzal::stratum_sim::value_type;
@@ -69,9 +72,9 @@ namespace
         quetzal::stratum_sim::points_type points;
         points.reserve(ring.size());
 
-        for (const Vertex& v : ring)
+        for (const auto& grid_position : ring)
         {
-            points.push_back(point_type(static_cast<value_type>(v.i), static_cast<value_type>(v.j), value_type(0)));
+            points.push_back(point_type(static_cast<value_type>(grid_position.i()), static_cast<value_type>(grid_position.j()), value_type(0)));
         }
 
         return quetzal::stratum_sim::polygon_type(points.begin(), points.end());
@@ -81,31 +84,31 @@ namespace
     // The edge one cell shares with an orthogonally adjacent one, as the directed boundary
     // edge that lies on it wound for that cell. The other cell's is its reverse, which is
     // what makes the two walls on it partners
-    Edge boundary_edge(const Vertex& cell, const Vertex& other)
+    Edge boundary_edge(const discrete_point_type& grid_position, const discrete_point_type& grid_position_other)
     {
-        if (other.i > cell.i)
+        if (grid_position_other.i() > grid_position.i())
         {
-            return {{cell.i + 1, cell.j}, {cell.i + 1, cell.j + 1}};
+            return {{grid_position.i() + 1, grid_position.j()}, {grid_position.i() + 1, grid_position.j() + 1}};
         }
 
-        if (other.i < cell.i)
+        if (grid_position_other.i() < grid_position.i())
         {
-            return {{cell.i, cell.j + 1}, {cell.i, cell.j}};
+            return {{grid_position.i(), grid_position.j() + 1}, {grid_position.i(), grid_position.j()}};
         }
 
-        if (other.j > cell.j)
+        if (grid_position_other.j() > grid_position.j())
         {
-            return {{cell.i + 1, cell.j + 1}, {cell.i, cell.j + 1}};
+            return {{grid_position.i() + 1, grid_position.j() + 1}, {grid_position.i(), grid_position.j() + 1}};
         }
 
-        return {{cell.i, cell.j}, {cell.i + 1, cell.j}};
+        return {{grid_position.i(), grid_position.j()}, {grid_position.i() + 1, grid_position.j()}};
     }
 
     //--------------------------------------------------------------------------
-    using Ring = std::vector<Vertex>;
+    using Ring = std::vector<discrete_point_type>;
     using Rings = std::vector<Ring>; // The outlines of one component
     using Outlines = std::vector<Rings>; // By component
-    using WallIndex = std::map<std::pair<Vertex, Vertex>, id_type>; // The wall lying on one directed boundary edge
+    using WallIndex = std::map<std::pair<discrete_point_type, discrete_point_type>, id_type>; // The wall lying on one directed boundary edge
 
     //--------------------------------------------------------------------------
     // The boundary of every component, as closed outlines. Geometry derived from the map and
@@ -118,40 +121,40 @@ namespace
 
         for (size_t component = 0; component < map.component_cells.size(); ++component)
         {
-            std::map<Vertex, Edge> edges;
+            std::map<discrete_point_type, Edge> edges;
 
-            auto add = [&](const Vertex& from, const Vertex& to)
+            auto add = [&](const discrete_point_type& from, const discrete_point_type& to)
             {
                 assert(!edges.contains(from)); // A vertex with two exits is a diagonal pinch
                 edges[from] = Edge {from, to};
             };
 
-            for (const Vertex& c : map.component_cells[component])
+            for (const auto& grid_position : map.component_cells[component])
             {
-                auto outside = [&](int i, int j)
+                auto outside = [&](long i, long j)
                 {
-                    return i < 0 || j < 0 || i >= static_cast<int>(map.w) || j >= static_cast<int>(map.h)
-                        || map.cell_components[static_cast<size_t>(j) * map.w + i] != component;
+                    return i < 0 || j < 0 || i >= map.extent.x() || j >= map.extent.y()
+                        || map.cell_components[map.slot({i, j})] != component;
                 };
 
-                if (outside(c.i, c.j - 1))
+                if (outside(grid_position.i(), grid_position.j() - 1))
                 {
-                    add({c.i, c.j}, {c.i + 1, c.j});
+                    add({grid_position.i(), grid_position.j()}, {grid_position.i() + 1, grid_position.j()});
                 }
 
-                if (outside(c.i + 1, c.j))
+                if (outside(grid_position.i() + 1, grid_position.j()))
                 {
-                    add({c.i + 1, c.j}, {c.i + 1, c.j + 1});
+                    add({grid_position.i() + 1, grid_position.j()}, {grid_position.i() + 1, grid_position.j() + 1});
                 }
 
-                if (outside(c.i, c.j + 1))
+                if (outside(grid_position.i(), grid_position.j() + 1))
                 {
-                    add({c.i + 1, c.j + 1}, {c.i, c.j + 1});
+                    add({grid_position.i() + 1, grid_position.j() + 1}, {grid_position.i(), grid_position.j() + 1});
                 }
 
-                if (outside(c.i - 1, c.j))
+                if (outside(grid_position.i() - 1, grid_position.j()))
                 {
-                    add({c.i, c.j + 1}, {c.i, c.j});
+                    add({grid_position.i(), grid_position.j() + 1}, {grid_position.i(), grid_position.j()});
                 }
             }
 
@@ -161,17 +164,17 @@ namespace
             while (!edges.empty())
             {
                 Ring ring;
-                Vertex start = edges.begin()->first;
-                Vertex v = start;
+                auto start_grid_position = edges.begin()->first;
+                auto grid_position = start_grid_position;
 
                 do
                 {
-                    auto i = edges.find(v);
+                    auto i = edges.find(grid_position);
                     assert(i != edges.end()); // A boundary that does not close
-                    ring.push_back(v);
-                    v = i->second.to;
+                    ring.push_back(grid_position);
+                    grid_position = i->second.grid_position_to;
                     edges.erase(i);
-                } while (v != start);
+                } while (grid_position != start_grid_position);
 
                 rings.push_back(ring);
             }
@@ -196,8 +199,7 @@ namespace
 
         layout.clear();
         layout.set_flats(value_type(0), height_ceiling);
-        layout.set_grid(point_type(value_type(0), value_type(0), value_type(0)), value_type(1),
-            discrete_vector_type(static_cast<long>(map.w), static_cast<long>(map.h)));
+        layout.set_grid(point_type(value_type(0), value_type(0), value_type(0)), value_type(1), map.extent);
 
         WallIndex walls;
 
@@ -207,7 +209,7 @@ namespace
 
             std::vector<polygon_type> polygons;
             polygons.reserve(rings.size());
-            for (const Ring& ring : rings)
+            for (const auto& ring : rings)
             {
                 polygons.push_back(to_polygon(ring));
             }
@@ -227,25 +229,27 @@ namespace
         }
 
         // Openness comes from what the file said of each cell, both formats stating it
-        for (size_t j = 0; j < map.h; ++j)
+        for (long j = 0; j < map.extent.y(); ++j)
         {
-            for (size_t i = 0; i < map.w; ++i)
+            for (long i = 0; i < map.extent.x(); ++i)
             {
-                if (map.cell_open[j * map.w + i])
+                discrete_point_type grid_position {i, j};
+
+                if (map.cell_open[map.slot(grid_position)])
                 {
-                    layout.set_cell_open(GridPosition {static_cast<long>(i), static_cast<long>(j)}, true);
+                    layout.set_cell_open(grid_position, true);
                 }
             }
         }
 
         // Walls are one cell edge each, so a shared edge is one pair
-        for (const Passage& passage : map.passages)
+        for (const auto& passage : map.passages)
         {
-            Edge edge_a = boundary_edge(passage.cell, passage.other);
-            Edge edge_b = boundary_edge(passage.other, passage.cell);
+            Edge edge_a = boundary_edge(passage.grid_position, passage.grid_position_other);
+            Edge edge_b = boundary_edge(passage.grid_position_other, passage.grid_position);
 
-            auto a = walls.find({edge_a.from, edge_a.to});
-            auto b = walls.find({edge_b.from, edge_b.to});
+            auto a = walls.find({edge_a.grid_position_from, edge_a.grid_position_to});
+            auto b = walls.find({edge_b.grid_position_from, edge_b.grid_position_to});
             assert(a != walls.end() && b != walls.end()); // A passage not on either boundary
 
             layout.connect(a->second, b->second);
@@ -280,8 +284,8 @@ namespace
 
             for (const Block& block : map.blocks)
             {
-                int i = block.cell.i;
-                int j = block.cell.j;
+                int i = block.grid_position.i();
+                int j = block.grid_position.j();
                 rings.push_back({{i + 1, j + 1}, {i + 1, j}, {i, j}, {i, j + 1}});
                 polygons.push_back(to_polygon(rings.back()));
             }
@@ -302,10 +306,10 @@ namespace
         {
             quetzal::stratum_sim::DiscreteLayout::ids_type block_walls;
 
-            for (const Vertex& neighbor : block.neighbors)
+            for (const auto& neighbor : block.neighbor_grid_positions)
             {
-                Edge edge = boundary_edge(neighbor, block.cell);
-                auto w = walls.find({edge.from, edge.to});
+                Edge edge = boundary_edge(neighbor, block.grid_position);
+                auto w = walls.find({edge.grid_position_from, edge.grid_position_to});
 
                 if (w != walls.end())
                 {
@@ -340,12 +344,11 @@ namespace
         }
 
         Map rooms;
-        rooms.w = map.w;
-        rooms.h = map.h;
+        rooms.extent = map.extent;
 
         find_components(rooms,
-            [&](int i, int j) { return map.cell_room[static_cast<size_t>(j) * map.w + i]; },
-            [](const Vertex&, const Vertex&) { return true; });
+            [&](long i, long j) { return map.cell_room[map.slot({i, j})]; },
+            [](const discrete_point_type&, const discrete_point_type&) { return true; });
 
         Outlines outlines = trace_outlines(rooms);
 
@@ -362,8 +365,8 @@ namespace
                 auto w = walls.find({ring[i], ring[(i + 1) % ring.size()]});
 
                 Room::Vertex vertex;
-                vertex.position = point_type(static_cast<value_type>(ring[i].i),
-                    static_cast<value_type>(ring[i].j), value_type(0));
+                vertex.position = point_type(static_cast<value_type>(ring[i].i()),
+                    static_cast<value_type>(ring[i].j()), value_type(0));
                 vertex.wall_id = w != walls.end() ? w->second : nullid;
 
                 // No wall is an opening, a wall the file called a door is a door, and what is
@@ -376,9 +379,9 @@ namespace
                 room.outline().push_back(vertex);
             }
 
-            for (const Vertex& c : rooms.component_cells[component])
+            for (const auto& grid_position : rooms.component_cells[component])
             {
-                room.add_cell(GridPosition {c.i, c.j});
+                room.add_cell(discrete_point_type {grid_position.i(), grid_position.j()});
             }
 
             layout.create_room(room);
@@ -398,23 +401,17 @@ bool quetzal::stratum_sim::detail::read_pair(const std::string& s, char separato
         return false;
     }
 
-    try
-    {
-        size_t used = 0;
-        first = std::stol(s.substr(0, n), &used);
-        if (used != n)
-        {
-            return false;
-        }
+    const char* begin = s.data();
+    const char* end = begin + s.size();
 
-        std::string rest = s.substr(n + 1);
-        second = std::stol(rest, &used);
-        if (used != rest.size())
-        {
-            return false;
-        }
+    auto first_result = std::from_chars(begin, begin + n, first);
+    if (first_result.ec != std::errc {} || first_result.ptr != begin + n)
+    {
+        return false;
     }
-    catch (const std::exception&)
+
+    auto second_result = std::from_chars(begin + n + 1, end, second);
+    if (second_result.ec != std::errc {} || second_result.ptr != end)
     {
         return false;
     }
@@ -469,8 +466,7 @@ std::unique_ptr<quetzal::stratum_sim::DiscreteLayout> quetzal::stratum_sim::load
 
     if (header.generator == "catagen")
     {
-        auto [nx, ny] = wall_extent(header, lines, filepath);
-        map = read_walls(lines, nx, ny, filepath);
+        map = read_walls(lines, wall_extent(header, lines, filepath), filepath);
         format_read = Format::Wall;
     }
     else if (header.generator.empty() || header.generator == "dungen")

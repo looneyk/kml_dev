@@ -8,6 +8,7 @@
 #include "quetzal/dungen/generate.hpp"
 #include "quetzal/dungen/write_level.hpp"
 #include "quetzal/math/Random.hpp"
+#include <charconv>
 #include <format>
 #include <fstream>
 #include <iostream>
@@ -115,6 +116,50 @@ namespace
     }
 
     //--------------------------------------------------------------------------
+    // The whole string or nothing, so that trailing rubbish in a header value is an error
+    // rather than something quietly ignored
+    long to_integer(const string& s)
+    {
+        long value = 0;
+        auto result = from_chars(s.data(), s.data() + s.size(), value);
+
+        if (result.ec != errc {} || result.ptr != s.data() + s.size())
+        {
+            throw invalid_argument(format("\"{}\" is not a whole number", s));
+        }
+
+        return value;
+    }
+
+    //--------------------------------------------------------------------------
+    double to_real(const string& s)
+    {
+        double value = 0.0;
+        auto result = from_chars(s.data(), s.data() + s.size(), value);
+
+        if (result.ec != errc {} || result.ptr != s.data() + s.size())
+        {
+            throw invalid_argument(format("\"{}\" is not a number", s));
+        }
+
+        return value;
+    }
+
+    //--------------------------------------------------------------------------
+    // The parameters hold their counts as size_t, which a negative is not
+    size_t to_count(const string& s)
+    {
+        long value = to_integer(s);
+
+        if (value < 0)
+        {
+            throw invalid_argument(format("\"{}\" is not a count", s));
+        }
+
+        return static_cast<size_t>(value);
+    }
+
+    //--------------------------------------------------------------------------
     // The header row read back into the parameters it specifies, which is the whole of what a
     // level says about how to produce it again. Only the chosen algorithm's group is written,
     // so only that one is read
@@ -155,19 +200,19 @@ namespace
 
         const string& size = values.at("size");
         size_t n = size.find(',');
-        parameters.size = {static_cast<dungen::coord_type>(stol(size.substr(0, n))),
-            static_cast<dungen::coord_type>(stol(size.substr(n + 1)))};
+        parameters.size = {static_cast<dungen::coord_type>(to_integer(size.substr(0, n))),
+            static_cast<dungen::coord_type>(to_integer(size.substr(n + 1)))};
 
         if (parameters.algorithm == dungen::Algorithm::Maze1)
         {
             dungen::Maze1Parameters& maze1 = parameters.maze1;
-            maze1.room_dimension_base = static_cast<dungen::coord_type>(stol(values.at("room_dimension_base")));
-            maze1.room_dimension_variation = static_cast<dungen::coord_type>(stol(values.at("room_dimension_variation")));
-            maze1.room_density = stod(values.at("room_density"));
+            maze1.room_dimension_base = static_cast<dungen::coord_type>(to_integer(values.at("room_dimension_base")));
+            maze1.room_dimension_variation = static_cast<dungen::coord_type>(to_integer(values.at("room_dimension_variation")));
+            maze1.room_density = to_real(values.at("room_density"));
             maze1.room_merge = values.at("room_merge") == "true";
-            maze1.corridor_straightness = stod(values.at("corridor_straightness"));
-            maze1.probability_dead_end_removal = stod(values.at("probability_dead_end_removal"));
-            maze1.probability_loop_removal = stod(values.at("probability_loop_removal"));
+            maze1.corridor_straightness = to_real(values.at("corridor_straightness"));
+            maze1.probability_dead_end_removal = to_real(values.at("probability_dead_end_removal"));
+            maze1.probability_loop_removal = to_real(values.at("probability_loop_removal"));
         }
         else if (parameters.algorithm == dungen::Algorithm::Grid1)
         {
@@ -175,21 +220,21 @@ namespace
 
             const string& divisions = values.at("divisions");
             size_t d = divisions.find(',');
-            grid1.divisions = {static_cast<dungen::coord_type>(stol(divisions.substr(0, d))),
-                static_cast<dungen::coord_type>(stol(divisions.substr(d + 1)))};
+            grid1.divisions = {static_cast<dungen::coord_type>(to_integer(divisions.substr(0, d))),
+                static_cast<dungen::coord_type>(to_integer(divisions.substr(d + 1)))};
 
-            grid1.room_density = stod(values.at("room_density"));
-            grid1.room_dimension_min = static_cast<dungen::coord_type>(stol(values.at("room_dimension_min")));
-            grid1.room_margin = static_cast<dungen::coord_type>(stol(values.at("room_margin")));
-            grid1.loop = stod(values.at("loop"));
+            grid1.room_density = to_real(values.at("room_density"));
+            grid1.room_dimension_min = static_cast<dungen::coord_type>(to_integer(values.at("room_dimension_min")));
+            grid1.room_margin = static_cast<dungen::coord_type>(to_integer(values.at("room_margin")));
+            grid1.loop = to_real(values.at("loop"));
         }
         else
         {
             dungen::Cave1Parameters& cave1 = parameters.cave1;
-            cave1.fill = stod(values.at("fill"));
-            cave1.smoothing_passes = static_cast<size_t>(stoul(values.at("smoothing_passes")));
-            cave1.birth_threshold = static_cast<size_t>(stoul(values.at("birth_threshold")));
-            cave1.survival_threshold = static_cast<size_t>(stoul(values.at("survival_threshold")));
+            cave1.fill = to_real(values.at("fill"));
+            cave1.smoothing_passes = to_count(values.at("smoothing_passes"));
+            cave1.birth_threshold = to_count(values.at("birth_threshold"));
+            cave1.survival_threshold = to_count(values.at("survival_threshold"));
         }
 
         return parameters;

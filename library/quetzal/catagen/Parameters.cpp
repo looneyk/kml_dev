@@ -19,9 +19,9 @@ quetzal::catagen::Parameters::seed_type quetzal::catagen::random_seed()
 //------------------------------------------------------------------------------
 void quetzal::catagen::validate(const Parameters& parameters)
 {
-    if (parameters.extent.nx <= 0 || parameters.extent.ny <= 0)
+    if (parameters.extent.i() <= 0 || parameters.extent.j() <= 0)
     {
-        throw invalid_argument(format("extent {},{} is empty", parameters.extent.nx, parameters.extent.ny));
+        throw invalid_argument(format("extent {},{} is empty", parameters.extent.i(), parameters.extent.j()));
     }
 
     if (parameters.scale_min < 1)

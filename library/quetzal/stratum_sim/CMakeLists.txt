@@ -6,16 +6,20 @@ add_library(quetzal_stratum_sim STATIC
     commands.cpp
     DiscreteLayout.cpp
     EventQueue.cpp
+    Flat.cpp
+    GridMapping.cpp
     load_layout.cpp
     load_layout_catagen.cpp
     load_layout_dungen.cpp
     Room.cpp
+    Wall.cpp
     Scheduler.cpp
     Session.cpp
     World.cpp
     ai.hpp
     attachments.hpp
     Clock.hpp
+    Cell.hpp
     Command.hpp
     CommandQueue.hpp
     commands.hpp
@@ -23,7 +27,9 @@ add_library(quetzal_stratum_sim STATIC
     DiscreteLayout.hpp
     Event.hpp
     EventQueue.hpp
+    Flat.hpp
     Generator.hpp
+    GridMapping.hpp
     Intent.hpp
     Layout.hpp
     load_layout.hpp
@@ -33,6 +39,7 @@ add_library(quetzal_stratum_sim STATIC
     Scheduler.hpp
     Session.hpp
     types.hpp
+    Wall.hpp
     World.hpp
 )
 

@@ -23,11 +23,11 @@ namespace quetzal::dungen
 
     std::ostream& operator<<(std::ostream& os, const Pattern& pattern);
 
-    bool match(const Cells& cells, position_type position, const Pattern& pattern, size_t rotation);
-    bool match(const Cells& cells, position_type position, const Pattern& pattern);
+    bool match(const Cells& cells, point_type position, const Pattern& pattern, size_t rotation);
+    bool match(const Cells& cells, point_type position, const Pattern& pattern);
 
-    void replace(Cells& cells, position_type position, const Pattern& pattern, size_t rotation);
-    std::tuple<bool, vector_type> match_replace(Cells& cells, position_type position, const Pattern& matcher, const Pattern& replacer);
+    void replace(Cells& cells, point_type position, const Pattern& pattern, size_t rotation);
+    std::tuple<bool, vector_type> match_replace(Cells& cells, point_type position, const Pattern& matcher, const Pattern& replacer);
 
 } // namespace quetzal::dungen
 

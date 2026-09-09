@@ -19,7 +19,7 @@ namespace quetzal::catagen
     {
         using seed_type = std::default_random_engine::result_type;
 
-        Extent extent {48, 32}; // The area to fill, in cells
+        vector_type extent {48, 32}; // The area to fill, in cells
 
         // Target room size in cells. The partition splits while a room exceeds scale_max and
         // never below scale_min, so a room falls within the range unless the range is too

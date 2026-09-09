@@ -20,25 +20,26 @@ namespace quetzal::dungen
 
         using cells_type = std::vector<Cell>;
 
-        explicit Cells(dimensions_type size);
-        Cells(dimensions_type size, Cell cell, int);
-        Cells(dimensions_type size, std::initializer_list<Cell> cells);
+        explicit Cells(vector_type size);
+        Cells(vector_type size, Cell cell, int);
+        Cells(vector_type size, std::initializer_list<Cell> cells);
         Cells(const Cells&) = default;
         ~Cells() = default;
 
         Cells& operator=(const Cells&) = default;
 
-        dimensions_type size() const;
+        vector_type size() const;
+        bool contains(point_type position) const;
 
-        const Cell& cell(position_type position) const;
-        Cell& cell(position_type position);
+        const Cell& cell(point_type position) const;
+        Cell& cell(point_type position);
 
         void print(std::ostream& os) const;
-        void print(std::ostream& os, position_type position, dimensions_type size) const;
+        void print(std::ostream& os, const box_type& rectangle) const;
 
     private:
 
-        dimensions_type m_size;
+        box_type m_bounds;
         cells_type m_cells;
     };
 

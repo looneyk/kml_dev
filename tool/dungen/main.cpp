@@ -6,6 +6,7 @@
 #include "quetzal/dungen/generate.hpp"
 #include "quetzal/dungen/write_level.hpp"
 #include "quetzal/math/Random.hpp"
+#include <charconv>
 #include <exception>
 #include <format>
 #include <fstream>
@@ -21,14 +22,12 @@ namespace
 {
 
     //--------------------------------------------------------------------------
-    // The whole string or nothing, so that trailing rubbish is an error rather than
-    // something quietly ignored
     long to_integer(const string& s)
     {
-        size_t n = 0;
-        long value = stol(s, &n);
+        long value = 0;
+        auto result = from_chars(s.data(), s.data() + s.size(), value);
 
-        if (n != s.size())
+        if (result.ec != errc {} || result.ptr != s.data() + s.size())
         {
             throw invalid_argument(format("\"{}\" is not a whole number", s));
         }
@@ -39,10 +38,10 @@ namespace
     //--------------------------------------------------------------------------
     double to_real(const string& s)
     {
-        size_t n = 0;
-        double value = stod(s, &n);
+        double value = 0.0;
+        auto result = from_chars(s.data(), s.data() + s.size(), value);
 
-        if (n != s.size())
+        if (result.ec != errc {} || result.ptr != s.data() + s.size())
         {
             throw invalid_argument(format("\"{}\" is not a number", s));
         }
@@ -65,8 +64,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Two numbers with a separator between them, written as the level file header writes
-    // them so that a header can be read back as a command line
+    // Two numbers with a separator between them
     pair<long, long> to_pair(const string& s, char separator)
     {
         size_t n = s.find(separator);

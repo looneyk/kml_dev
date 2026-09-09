@@ -106,7 +106,7 @@ namespace
 
         console.set(1, 0, '@');
         report_case("a set cell holds its character", console.at(1, 0) == '@');
-        report_case("and its neighbours are untouched", console.at(0, 0) == '.' && console.at(2, 0) == '.');
+        report_case("and its neighbors are untouched", console.at(0, 0) == '.' && console.at(2, 0) == '.');
 
         // Row 0 is the lowest, so it prints last
         string s = console.to_string();
@@ -193,7 +193,7 @@ namespace
         report_case("no actor before one exists", !cells.at(3, 1).actor);
 
         const stratum_sim::DiscreteLayout& layout = stratum_sim::layout_as<stratum_sim::DiscreteLayout>(world.layout(zone));
-        world.create_entity(zone, stratum_sim::placement_type(layout.cell_position(stratum_sim::GridPosition {3, 1}),
+        world.create_entity(zone, stratum_sim::placement_type(layout.position(stratum_sim::discrete_point_type {3, 1}),
             stratum_sim::vector_type(1.0f, 0.0f, 0.0f)));
 
         cells = stratum_view::cells(world, zone);
@@ -365,7 +365,7 @@ namespace
         report_case("two open cells of one area are not", cells.at(4, 3).type == stratum_view::PlaceType::None);
 
         const stratum_sim::DiscreteLayout& layout = stratum_sim::layout_as<stratum_sim::DiscreteLayout>(block.layout(corridor));
-        block.create_entity(corridor, stratum_sim::placement_type(layout.cell_position(stratum_sim::GridPosition {1, 1}),
+        block.create_entity(corridor, stratum_sim::placement_type(layout.position(stratum_sim::discrete_point_type {1, 1}),
             stratum_sim::vector_type(1.0f, 0.0f, 0.0f)));
 
         cells = stratum_view::lattice(block, corridor);
@@ -396,7 +396,7 @@ namespace
 
         // An actor draws over the floor it stands on
         const stratum_sim::DiscreteLayout& layout = stratum_sim::layout_as<stratum_sim::DiscreteLayout>(world.layout(zone));
-        world.create_entity(zone, stratum_sim::placement_type(layout.cell_position(stratum_sim::GridPosition {3, 1}), stratum_sim::vector_type(1.0f, 0.0f, 0.0f)));
+        world.create_entity(zone, stratum_sim::placement_type(layout.position(stratum_sim::discrete_point_type {3, 1}), stratum_sim::vector_type(1.0f, 0.0f, 0.0f)));
 
         console = stratum_view::render(world, zone);
         report_case("an actor draws over its floor", console.at(3, 1) == '@');
@@ -430,7 +430,7 @@ namespace
         report_case("and one a run passes through is the run", console.at(4, 2) == '-');
 
         const stratum_sim::DiscreteLayout& layout = stratum_sim::layout_as<stratum_sim::DiscreteLayout>(world.layout(zone));
-        world.create_entity(zone, stratum_sim::placement_type(layout.cell_position(stratum_sim::GridPosition {1, 1}),
+        world.create_entity(zone, stratum_sim::placement_type(layout.position(stratum_sim::discrete_point_type {1, 1}),
             stratum_sim::vector_type(1.0f, 0.0f, 0.0f)));
 
         console = stratum_view::render_lattice(world, zone);
@@ -597,8 +597,8 @@ namespace
     {
         if (const stratum_sim::Moved* pevent = event.try_get<stratum_sim::Moved>())
         {
-            stratum_sim::GridPosition cell = layout.cell_at(pevent->placement.position());
-            return format("moved to ({}, {})", cell.i, cell.j);
+            stratum_sim::discrete_point_type grid_position = layout.grid_position_at(pevent->placement.position());
+            return format("moved to ({}, {})", grid_position.i(), grid_position.j());
         }
 
         if (const stratum_sim::Blocked* pevent = event.try_get<stratum_sim::Blocked>())
@@ -638,12 +638,12 @@ namespace
     {
         const stratum_sim::DiscreteLayout& layout = stratum_sim::layout_as<stratum_sim::DiscreteLayout>(world.layout(zone));
         const stratum_sim::placement_type& placement = player.get<stratum_sim::placement_type>();
-        stratum_sim::GridPosition cell = layout.cell_at(placement.position());
+        stratum_sim::discrete_point_type grid_position = layout.grid_position_at(placement.position());
 
         string s = format("-- {}\n", label);
         s += view == View::Walls ? stratum_view::render_lattice(world, zone).to_string()
             : stratum_view::render(world, zone).to_string();
-        s += format("   cell ({}, {})  facing {}\n", cell.i, cell.j, name_of(placement.direction()));
+        s += format("   cell ({}, {})  facing {}\n", grid_position.i(), grid_position.j(), name_of(placement.direction()));
 
         for (const stratum_sim::Event& event : events.events())
         {
@@ -657,13 +657,13 @@ namespace
 
     //--------------------------------------------------------------------------
     // Plays a fixed command sequence, rendering after each, and returns every frame
-    string play(const string& filepath, const stratum_sim::GridPosition& start, const string& script, View view)
+    string play(const string& filepath, const stratum_sim::discrete_point_type& start, const string& script, View view)
     {
         stratum_sim::World world;
         flecs::entity zone = load_zone(world, "zone", filepath);
 
         const stratum_sim::DiscreteLayout& layout = stratum_sim::layout_as<stratum_sim::DiscreteLayout>(world.layout(zone));
-        flecs::entity player = world.create_entity(zone, stratum_sim::placement_type(layout.cell_position(start), stratum_sim::vector_type(1.0f, 0.0f, 0.0f)));
+        flecs::entity player = world.create_entity(zone, stratum_sim::placement_type(layout.position(start), stratum_sim::vector_type(1.0f, 0.0f, 0.0f)));
 
         stratum_sim::EventQueue events;
         string s = frame(world, zone, player, "initial", events, view);
@@ -698,7 +698,7 @@ namespace
         {
             string name;
             string level;
-            stratum_sim::GridPosition start;
+            stratum_sim::discrete_point_type start;
             string script;
             View view;
         };

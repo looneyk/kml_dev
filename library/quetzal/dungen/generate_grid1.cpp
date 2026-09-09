@@ -23,8 +23,7 @@ namespace
     // still offers its neighbors to join through
     struct Sector
     {
-        position_type position;
-        dimensions_type size;
+        box_type rectangle;
         bool room = false;
     };
 
@@ -97,7 +96,7 @@ namespace
     //--------------------------------------------------------------------------
     // The half open cell range sector (i, j) covers, an uneven division spreading its
     // remainder across the sectors rather than leaving it all at one end
-    pair<position_type, dimensions_type> sector_bounds(dimensions_type size, dimensions_type divisions, coord_type i, coord_type j)
+    box_type sector_bounds(vector_type size, vector_type divisions, coord_type i, coord_type j)
     {
         auto [nx, ny] = size;
         auto [divisions_x, divisions_y] = divisions;
@@ -107,36 +106,36 @@ namespace
         coord_type y0 = j * ny / divisions_y;
         coord_type y1 = (j + 1) * ny / divisions_y;
 
-        return {{x0, y0}, {x1 - x0, y1 - y0}};
+        return {point_type {x0, y0}, point_type {x1, y1}};
     }
 
     //--------------------------------------------------------------------------
     // A room somewhere inside the sector, or the one cell that substitutes for a sector holding
     // none, the margin left clear on every side so that a corridor has rock to run through
     // and no two rooms share a wall
-    Sector place_sector(Level& level, position_type position, dimensions_type size, const Grid1Parameters& grid1, bool room, random_type& random)
+    Sector place_sector(Level& level, const box_type& bounds, const Grid1Parameters& grid1, bool room, random_type& random)
     {
-        position_type origin = position + dimensions_type {grid1.room_margin, grid1.room_margin};
-        dimensions_type span = size - dimensions_type {2 * grid1.room_margin, 2 * grid1.room_margin};
+        point_type origin = bounds.position() + vector_type {grid1.room_margin, grid1.room_margin};
+        vector_type span = bounds.extent() - vector_type {2 * grid1.room_margin, 2 * grid1.room_margin};
 
         Sector sector;
         sector.room = room;
-        sector.size = room
-            ? dimensions_type {random.gen(grid1.room_dimension_min, span.x()), random.gen(grid1.room_dimension_min, span.y())}
-            : dimensions_type {1, 1};
-        sector.position =
+        sector.rectangle.set_extent(room
+            ? vector_type {random.gen(grid1.room_dimension_min, span.x()), random.gen(grid1.room_dimension_min, span.y())}
+            : vector_type {1, 1});
+        sector.rectangle.set_position(
         {
-            origin.x() + random.gen(span.x() - sector.size.x() + 1),
-            origin.y() + random.gen(span.y() - sector.size.y() + 1)
-        };
+            origin.x() + random.gen(span.x() - sector.rectangle.extent().x() + 1),
+            origin.y() + random.gen(span.y() - sector.rectangle.extent().y() + 1)
+        });
 
         if (room)
         {
-            level.create_room(sector.position, sector.size);
+            level.create_room(sector.rectangle);
         }
         else
         {
-            level.cell(sector.position).set_type(CellType::Corridor);
+            level.cell(sector.rectangle.position()).set_type(CellType::Corridor);
         }
 
         return sector;
@@ -144,7 +143,7 @@ namespace
 
     //--------------------------------------------------------------------------
     // Every orthogonal adjacency in the grid, each listed once
-    vector<Adjacency> sector_adjacencies(dimensions_type divisions)
+    vector<Adjacency> sector_adjacencies(vector_type divisions)
     {
         auto [divisions_x, divisions_y] = divisions;
 
@@ -195,7 +194,7 @@ namespace
     //--------------------------------------------------------------------------
     // Rock along a horizontal or vertical line, its ends included, turned to corridor. What
     // is already open is left as it is, so a corridor crossing another one joins it
-    void carve(Level& level, position_type from, position_type to)
+    void carve(Level& level, point_type from, point_type to)
     {
         coord_type dx = to.x() - from.x();
         coord_type dy = to.y() - from.y();
@@ -204,7 +203,7 @@ namespace
         coord_type steps = dx != 0 ? (dx > 0 ? dx : -dx) : (dy > 0 ? dy : -dy);
         vector_type step {dx > 0 ? 1 : (dx < 0 ? -1 : 0), dy > 0 ? 1 : (dy < 0 ? -1 : 0)};
 
-        position_type position = from;
+        point_type position = from;
         for (coord_type i = 0; i <= steps; ++i)
         {
             if (level.cell(position).type() == CellType::Solid)
@@ -221,7 +220,7 @@ namespace
     //--------------------------------------------------------------------------
     // Where a corridor meets a room it becomes a door in the wall it entered by; where it
     // meets a sector holding no room it stays corridor
-    void place_door(Level& level, position_type position, bool room)
+    void place_door(Level& level, point_type position, bool room)
     {
         if (room && level.cell(position).type() != CellType::Door)
         {
@@ -240,10 +239,10 @@ namespace
     {
         if (horizontal)
         {
-            coord_type ya = a.position.y() + random.gen(a.size.y());
-            coord_type yb = b.position.y() + random.gen(b.size.y());
-            coord_type xa = a.position.x() + a.size.x(); // The wall cell east of a
-            coord_type xb = b.position.x() - 1; // The wall cell west of b
+            coord_type ya = a.rectangle.position().y() + random.gen(a.rectangle.extent().y());
+            coord_type yb = b.rectangle.position().y() + random.gen(b.rectangle.extent().y());
+            coord_type xa = a.rectangle.upper().x(); // The wall cell east of a
+            coord_type xb = b.rectangle.position().x() - 1; // The wall cell west of b
             coord_type xm = xa + random.gen(xb - xa + 1); // Where it turns
 
             carve(level, {xa, ya}, {xm, ya});
@@ -255,10 +254,10 @@ namespace
         }
         else
         {
-            coord_type xa = a.position.x() + random.gen(a.size.x());
-            coord_type xb = b.position.x() + random.gen(b.size.x());
-            coord_type ya = a.position.y() + a.size.y(); // The wall cell north of a
-            coord_type yb = b.position.y() - 1; // The wall cell south of b
+            coord_type xa = a.rectangle.position().x() + random.gen(a.rectangle.extent().x());
+            coord_type xb = b.rectangle.position().x() + random.gen(b.rectangle.extent().x());
+            coord_type ya = a.rectangle.upper().y(); // The wall cell north of a
+            coord_type yb = b.rectangle.position().y() - 1; // The wall cell south of b
             coord_type ym = ya + random.gen(yb - ya + 1); // Where it turns
 
             carve(level, {xa, ya}, {xa, ym});
@@ -274,10 +273,10 @@ namespace
 
     //--------------------------------------------------------------------------
     // A stairway goes in a room, or in a corridor where the density left no rooms at all
-    vector<position_type> stair_candidates(const Level& level)
+    vector<point_type> stair_candidates(const Level& level)
     {
-        vector<position_type> rooms;
-        vector<position_type> corridors;
+        vector<point_type> rooms;
+        vector<point_type> corridors;
 
         auto [nx, ny] = level.size();
         for (coord_type y = 0; y < ny; ++y)
@@ -335,8 +334,7 @@ quetzal::dungen::Level quetzal::dungen::generate_grid1(id_type id, const string&
         for (coord_type i = 0; i < divisions_x; ++i)
         {
             size_t slot = static_cast<size_t>(j * divisions_x + i);
-            auto [position, size] = sector_bounds(parameters.size, grid1.divisions, i, j);
-            sectors[slot] = place_sector(level, position, size, grid1, room[slot], random);
+            sectors[slot] = place_sector(level, sector_bounds(parameters.size, grid1.divisions, i, j), grid1, room[slot], random);
         }
     }
 

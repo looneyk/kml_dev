@@ -8,6 +8,7 @@
 #include "quetzal/common/FileValidator.hpp"
 #include "quetzal/common/file_util.hpp"
 #include "quetzal/math/Random.hpp"
+#include <charconv>
 #include <format>
 #include <fstream>
 #include <iostream>
@@ -115,6 +116,36 @@ namespace
     }
 
     //--------------------------------------------------------------------------
+    // The whole string or nothing, so that trailing rubbish in a header value is an error
+    // rather than something quietly ignored
+    long to_integer(const string& s)
+    {
+        long value = 0;
+        auto result = from_chars(s.data(), s.data() + s.size(), value);
+
+        if (result.ec != errc {} || result.ptr != s.data() + s.size())
+        {
+            throw invalid_argument(format("\"{}\" is not a whole number", s));
+        }
+
+        return value;
+    }
+
+    //--------------------------------------------------------------------------
+    double to_real(const string& s)
+    {
+        double value = 0.0;
+        auto result = from_chars(s.data(), s.data() + s.size(), value);
+
+        if (result.ec != errc {} || result.ptr != s.data() + s.size())
+        {
+            throw invalid_argument(format("\"{}\" is not a number", s));
+        }
+
+        return value;
+    }
+
+    //--------------------------------------------------------------------------
     // The header row read back into the parameters it specifies, which is the whole of what a
     // level says about how to produce it again
     // Throws std::invalid_argument where a row specifies something this does not read, so a
@@ -149,7 +180,7 @@ namespace
         auto pair_of = [](const string& s, char separator)
         {
             size_t n = s.find(separator);
-            return make_pair(stol(s.substr(0, n)), stol(s.substr(n + 1)));
+            return make_pair(to_integer(s.substr(0, n)), to_integer(s.substr(n + 1)));
         };
 
         catagen::Parameters parameters;
@@ -165,8 +196,8 @@ namespace
         parameters.spacing_min = static_cast<catagen::coord_type>(spacing_min);
         parameters.spacing_max = static_cast<catagen::coord_type>(spacing_max);
 
-        parameters.density = stod(values.at("density"));
-        parameters.loop = stod(values.at("loop"));
+        parameters.density = to_real(values.at("density"));
+        parameters.loop = to_real(values.at("loop"));
         parameters.seed = math::to_seed(values.at("seed"));
 
         return parameters;

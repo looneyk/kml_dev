@@ -11,8 +11,6 @@
 namespace
 {
 
-    using quetzal::stratum_sim::detail::Vertex;
-
     //--------------------------------------------------------------------------
     enum class WallType
     {
@@ -60,7 +58,7 @@ namespace
 // and so never blank, which means nothing can have been trimmed and the widest row is the
 // width. The grid is two characters across per cell plus one in each direction, so an even
 // count in either is not one
-std::pair<size_t, size_t> quetzal::stratum_sim::detail::wall_extent(const Header& header,
+quetzal::stratum_sim::discrete_vector_type quetzal::stratum_sim::detail::wall_extent(const Header& header,
     const std::vector<std::string>& lines, const std::filesystem::path& filepath)
 {
     auto extent = header.values.find("extent");
@@ -76,7 +74,7 @@ std::pair<size_t, size_t> quetzal::stratum_sim::detail::wall_extent(const Header
                 filepath.string()));
         }
 
-        return {static_cast<size_t>(nx), static_cast<size_t>(ny)};
+        return {nx, ny};
     }
 
     size_t width = 0;
@@ -93,16 +91,16 @@ std::pair<size_t, size_t> quetzal::stratum_sim::detail::wall_extent(const Header
             filepath.string(), width, height));
     }
 
-    return {(width - 1) / 2, (height - 1) / 2};
+    return {static_cast<long>((width - 1) / 2), static_cast<long>((height - 1) / 2)};
 }
 
 //------------------------------------------------------------------------------
 // Corners are not read, the walls either side of one determining the same shape
 quetzal::stratum_sim::detail::Map quetzal::stratum_sim::detail::read_walls(const std::vector<std::string>& lines,
-    size_t w, size_t h, const std::filesystem::path& filepath)
+    const discrete_vector_type& extent, const std::filesystem::path& filepath)
 {
-    size_t width = 2 * w + 1;
-    size_t height = 2 * h + 1;
+    size_t width = static_cast<size_t>(2 * extent.x() + 1);
+    size_t height = static_cast<size_t>(2 * extent.y() + 1);
 
     if (lines.size() != height)
     {
@@ -110,10 +108,10 @@ quetzal::stratum_sim::detail::Map quetzal::stratum_sim::detail::read_walls(const
             filepath.string(), lines.size(), height));
     }
 
-    auto glyph = [&](size_t x, size_t y) -> char
+    auto glyph = [&](long x, long y) -> char
     {
-        const std::string& line = lines[height - 1 - y]; // The first line of the file is the highest row
-        return x < line.size() ? line[x] : ' ';
+        const std::string& line = lines[height - 1 - static_cast<size_t>(y)]; // The first line of the file is the highest row
+        return static_cast<size_t>(x) < line.size() ? line[static_cast<size_t>(x)] : ' ';
     };
 
     for (const std::string& s : lines)
@@ -126,38 +124,37 @@ quetzal::stratum_sim::detail::Map quetzal::stratum_sim::detail::read_walls(const
     }
 
     Map map;
-    map.w = w;
-    map.h = h;
+    map.extent = extent;
 
-    std::vector<bool> open(w * h);
-    for (size_t j = 0; j < h; ++j)
+    std::vector<bool> open(map.cell_count());
+    for (long j = 0; j < extent.y(); ++j)
     {
-        for (size_t i = 0; i < w; ++i)
+        for (long i = 0; i < extent.x(); ++i)
         {
-            open[j * w + i] = open_glyph(glyph(2 * i + 1, 2 * j + 1), filepath);
+            open[map.slot({i, j})] = open_glyph(glyph(2 * i + 1, 2 * j + 1), filepath);
         }
     }
 
     // A wall addressed from the cell it lies west or south of, which is how the grid stores the
     // line it lies on rather than the cells either side of it
-    auto wall_west = [&](int i, int j) { return wall_glyph(glyph(2 * i, 2 * j + 1), filepath); };
-    auto wall_south = [&](int i, int j) { return wall_glyph(glyph(2 * i + 1, 2 * j), filepath); };
+    auto wall_west = [&](long i, long j) { return wall_glyph(glyph(2 * i, 2 * j + 1), filepath); };
+    auto wall_south = [&](long i, long j) { return wall_glyph(glyph(2 * i + 1, 2 * j), filepath); };
 
-    auto between = [&](const Vertex& a, const Vertex& b)
+    auto between = [&](const discrete_point_type& grid_position, const discrete_point_type& grid_position_other)
     {
-        if (b.i > a.i) return wall_west(b.i, b.j);
-        if (b.i < a.i) return wall_west(a.i, a.j);
-        if (b.j > a.j) return wall_south(b.i, b.j);
-        return wall_south(a.i, a.j);
+        if (grid_position_other.i() > grid_position.i()) return wall_west(grid_position_other.i(), grid_position_other.j());
+        if (grid_position_other.i() < grid_position.i()) return wall_west(grid_position.i(), grid_position.j());
+        if (grid_position_other.j() > grid_position.j()) return wall_south(grid_position_other.i(), grid_position_other.j());
+        return wall_south(grid_position.i(), grid_position.j());
     };
 
     find_components(map,
-        [&](int i, int j) { return open[static_cast<size_t>(j) * w + i]; },
-        [&](const Vertex& a, const Vertex& b) { return between(a, b) == WallType::Open; });
+        [&](long i, long j) { return open[map.slot({i, j})]; },
+        [&](const discrete_point_type& grid_position, const discrete_point_type& grid_position_other) { return between(grid_position, grid_position_other) == WallType::Open; });
 
     // Every open cell belongs to an area here: the wall format spends nothing on a doorway,
     // so it has no blocks
-    map.cell_open.assign(map.w * map.h, false);
+    map.cell_open.assign(map.cell_count(), false);
 
     for (size_t slot = 0; slot < map.cell_open.size(); ++slot)
     {
@@ -168,28 +165,29 @@ quetzal::stratum_sim::detail::Map quetzal::stratum_sim::detail::read_walls(const
     // empty rather than guessed at, and a catagen level loads with none until the format
     // defines them
 
-    for (size_t j = 0; j < h; ++j)
+    for (long j = 0; j < extent.y(); ++j)
     {
-        for (size_t i = 0; i < w; ++i)
+        for (long i = 0; i < extent.x(); ++i)
         {
-            if (!open[j * w + i])
+            const discrete_point_type grid_position {i, j};
+
+            if (!open[map.slot(grid_position)])
             {
                 continue;
             }
 
-            const Vertex cell {static_cast<int>(i), static_cast<int>(j)};
-            const Vertex neighbors[2] {{cell.i + 1, cell.j}, {cell.i, cell.j + 1}};
+            const discrete_point_type neighbors[2] {grid_position + Direction::East, grid_position + Direction::North};
 
-            for (const Vertex& n : neighbors)
+            for (const auto& neighbor : neighbors)
             {
-                if (n.i >= static_cast<int>(w) || n.j >= static_cast<int>(h) || !open[static_cast<size_t>(n.j) * w + n.i])
+                if (neighbor.i() >= extent.x() || neighbor.j() >= extent.y() || !open[map.slot(neighbor)])
                 {
                     continue;
                 }
 
-                if (map.cell_components[static_cast<size_t>(n.j) * w + n.i] != map.cell_components[j * w + i])
+                if (map.cell_components[map.slot(neighbor)] != map.cell_components[map.slot(grid_position)])
                 {
-                    map.passages.push_back({cell, n, between(cell, n) == WallType::Door});
+                    map.passages.push_back({grid_position, neighbor, between(grid_position, neighbor) == WallType::Door});
                 }
             }
         }

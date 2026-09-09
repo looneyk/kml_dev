@@ -27,7 +27,7 @@ namespace quetzal::stratum_sim
 
     // Writes an Intent for everything that decides for itself, which is everything but the
     // entity a host controls
-    // An actor with no behaviour is left alone, and one that asks for nothing waits rather
+    // An actor with no behavior is left alone, and one that asks for nothing waits rather
     // than stopping the turn order
     void think(World& world, id_type actor_controlled);
 

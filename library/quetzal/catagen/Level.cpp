@@ -9,35 +9,35 @@
 using namespace std;
 
 //------------------------------------------------------------------------------
-quetzal::catagen::Level::Level(const Extent& extent) :
-    m_extent(extent),
-    m_cells(static_cast<size_t>(extent.nx) * extent.ny, CellType::Solid),
-    m_walls_vertical(static_cast<size_t>(extent.nx + 1) * extent.ny, WallType::Solid),
-    m_walls_horizontal(static_cast<size_t>(extent.nx) * (extent.ny + 1), WallType::Solid)
+quetzal::catagen::Level::Level(const vector_type& extent) :
+    m_bounds(point_type {0, 0}, extent),
+    m_cells(static_cast<size_t>(extent.i()) * extent.j(), CellType::Solid),
+    m_walls_vertical(static_cast<size_t>(extent.i() + 1) * extent.j(), WallType::Solid),
+    m_walls_horizontal(static_cast<size_t>(extent.i()) * (extent.j() + 1), WallType::Solid)
 {
-    assert(extent.nx > 0 && extent.ny > 0);
+    assert(extent.i() > 0 && extent.j() > 0);
 }
 
 //------------------------------------------------------------------------------
-const quetzal::catagen::Extent& quetzal::catagen::Level::extent() const
+const quetzal::catagen::vector_type& quetzal::catagen::Level::extent() const
 {
-    return m_extent;
+    return m_bounds.extent();
 }
 
 //------------------------------------------------------------------------------
-bool quetzal::catagen::Level::contains(const CellPosition& position) const
+bool quetzal::catagen::Level::contains(const point_type& position) const
 {
-    return position.i >= 0 && position.j >= 0 && position.i < m_extent.nx && position.j < m_extent.ny;
+    return m_bounds.contains(position);
 }
 
 //------------------------------------------------------------------------------
-quetzal::catagen::CellType quetzal::catagen::Level::cell(const CellPosition& position) const
+quetzal::catagen::CellType quetzal::catagen::Level::cell(const point_type& position) const
 {
     return m_cells[cell_slot(position)];
 }
 
 //------------------------------------------------------------------------------
-void quetzal::catagen::Level::set_cell(const CellPosition& position, CellType type)
+void quetzal::catagen::Level::set_cell(const point_type& position, CellType type)
 {
     m_cells[cell_slot(position)] = type;
     return;
@@ -70,14 +70,14 @@ void quetzal::catagen::Level::set_wall_horizontal(coord_type i, coord_type j, Wa
 }
 
 //------------------------------------------------------------------------------
-quetzal::catagen::WallType quetzal::catagen::Level::wall(const CellPosition& position, Direction direction) const
+quetzal::catagen::WallType quetzal::catagen::Level::wall(const point_type& position, Direction direction) const
 {
     switch (direction)
     {
-        case Direction::East: return wall_vertical(position.i + 1, position.j);
-        case Direction::West: return wall_vertical(position.i, position.j);
-        case Direction::North: return wall_horizontal(position.i, position.j + 1);
-        case Direction::South: return wall_horizontal(position.i, position.j);
+        case Direction::East: return wall_vertical(position.i() + 1, position.j());
+        case Direction::West: return wall_vertical(position.i(), position.j());
+        case Direction::North: return wall_horizontal(position.i(), position.j() + 1);
+        case Direction::South: return wall_horizontal(position.i(), position.j());
     }
 
     assert(false);
@@ -85,14 +85,14 @@ quetzal::catagen::WallType quetzal::catagen::Level::wall(const CellPosition& pos
 }
 
 //------------------------------------------------------------------------------
-void quetzal::catagen::Level::set_wall(const CellPosition& position, Direction direction, WallType type)
+void quetzal::catagen::Level::set_wall(const point_type& position, Direction direction, WallType type)
 {
     switch (direction)
     {
-        case Direction::East: set_wall_vertical(position.i + 1, position.j, type); return;
-        case Direction::West: set_wall_vertical(position.i, position.j, type); return;
-        case Direction::North: set_wall_horizontal(position.i, position.j + 1, type); return;
-        case Direction::South: set_wall_horizontal(position.i, position.j, type); return;
+        case Direction::East: set_wall_vertical(position.i() + 1, position.j(), type); return;
+        case Direction::West: set_wall_vertical(position.i(), position.j(), type); return;
+        case Direction::North: set_wall_horizontal(position.i(), position.j() + 1, type); return;
+        case Direction::South: set_wall_horizontal(position.i(), position.j(), type); return;
     }
 
     assert(false);
@@ -102,7 +102,7 @@ void quetzal::catagen::Level::set_wall(const CellPosition& position, Direction d
 //------------------------------------------------------------------------------
 void quetzal::catagen::Level::clear()
 {
-    m_extent = {};
+    m_bounds.clear();
     m_cells.clear();
     m_walls_vertical.clear();
     m_walls_horizontal.clear();
@@ -110,35 +110,35 @@ void quetzal::catagen::Level::clear()
 }
 
 //------------------------------------------------------------------------------
-size_t quetzal::catagen::Level::cell_slot(const CellPosition& position) const
+size_t quetzal::catagen::Level::cell_slot(const point_type& position) const
 {
     assert(contains(position));
-    return static_cast<size_t>(position.j) * m_extent.nx + position.i;
+    return static_cast<size_t>(position.j()) * m_bounds.extent().i() + position.i();
 }
 
 //------------------------------------------------------------------------------
 size_t quetzal::catagen::Level::wall_vertical_slot(coord_type i, coord_type j) const
 {
-    assert(i >= 0 && i <= m_extent.nx && j >= 0 && j < m_extent.ny);
-    return static_cast<size_t>(j) * (m_extent.nx + 1) + i;
+    assert(i >= 0 && i <= m_bounds.extent().i() && j >= 0 && j < m_bounds.extent().j());
+    return static_cast<size_t>(j) * (m_bounds.extent().i() + 1) + i;
 }
 
 //------------------------------------------------------------------------------
 size_t quetzal::catagen::Level::wall_horizontal_slot(coord_type i, coord_type j) const
 {
-    assert(i >= 0 && i < m_extent.nx && j >= 0 && j <= m_extent.ny);
-    return static_cast<size_t>(j) * m_extent.nx + i;
+    assert(i >= 0 && i < m_bounds.extent().i() && j >= 0 && j <= m_bounds.extent().j());
+    return static_cast<size_t>(j) * m_bounds.extent().i() + i;
 }
 
 //------------------------------------------------------------------------------
-quetzal::catagen::CellPosition quetzal::catagen::neighbor(const CellPosition& position, Direction direction)
+quetzal::catagen::point_type quetzal::catagen::neighbor(const point_type& position, Direction direction)
 {
     switch (direction)
     {
-        case Direction::East: return {position.i + 1, position.j};
-        case Direction::North: return {position.i, position.j + 1};
-        case Direction::West: return {position.i - 1, position.j};
-        case Direction::South: return {position.i, position.j - 1};
+        case Direction::East: return {position.i() + 1, position.j()};
+        case Direction::North: return {position.i(), position.j() + 1};
+        case Direction::West: return {position.i() - 1, position.j()};
+        case Direction::South: return {position.i(), position.j() - 1};
     }
 
     assert(false);

@@ -6,6 +6,7 @@
 //------------------------------------------------------------------------------
 
 #include "quetzal/geometry/DirectedPoint.hpp"
+#include "quetzal/geometry/DiscretePoint.hpp"
 #include "quetzal/geometry/MinProjection.hpp"
 #include "quetzal/geometry/Point.hpp"
 #include "quetzal/geometry/Polygon.hpp"
@@ -23,15 +24,17 @@ namespace quetzal::stratum_sim
     using points_type = std::vector<point_type>;
     using polygon_type = geometry::Polygon<traits_type>;
 
-    // Where a mover is and which way it faces
-    using placement_type = geometry::DirectedPoint<traits_type>;
+    // Mover position and facing direction
+    using placement_type = geometry::DirectedPoint<traits_type>; // rename ...
 
-    //--------------------------------------------------------------------------
-    // A displacement in the grid
+    // Simple projection along the z-axis onto the xy_plane 
+    using point_projection_type = geometry::MinProjection<point_type>;
+    using vector_projection_type = geometry::MinProjection<vector_type>;
+
     using discrete_vector_type = math::DiscreteVector<long, 2>;
+    using discrete_point_type = geometry::DiscretePoint<long, 2>;
 
     //--------------------------------------------------------------------------
-    // The four steps a flat grid can take, named
     struct Direction
     {
         inline static const discrete_vector_type East = discrete_vector_type(1, 0);
@@ -40,48 +43,11 @@ namespace quetzal::stratum_sim
         inline static const discrete_vector_type South = discrete_vector_type(0, -1);
     };
 
-    //--------------------------------------------------------------------------
-    // Simple projection along the z-axis onto the xy_plane 
-    using point_projection_type = geometry::MinProjection<point_type>;
-    using vector_projection_type = geometry::MinProjection<vector_type>;
-
     // The cell step a direction through space most nearly asks for, height disregarded
     inline discrete_vector_type grid_step(const vector_type& direction)
     {
         static const vector_projection_type project;
         return math::direction<discrete_vector_type>(project(direction));
-    }
-
-    //--------------------------------------------------------------------------
-    // The coordinates of a cell in the grid
-    struct GridPosition
-    {
-        long i = 0;
-        long j = 0;
-
-        GridPosition& operator+=(const discrete_vector_type& v);
-
-        friend bool operator==(const GridPosition&, const GridPosition&) = default;
-    };
-
-    //--------------------------------------------------------------------------
-    inline GridPosition& GridPosition::operator+=(const discrete_vector_type& v)
-    {
-        i += v.x();
-        j += v.y();
-        return *this;
-    }
-
-    //--------------------------------------------------------------------------
-    inline GridPosition operator+(GridPosition position, const discrete_vector_type& v)
-    {
-        return position += v;
-    }
-
-    //--------------------------------------------------------------------------
-    inline discrete_vector_type operator-(const GridPosition& a, const GridPosition& b)
-    {
-        return discrete_vector_type(a.i - b.i, a.j - b.j);
     }
 
 } // namespace quetzal::stratum_sim

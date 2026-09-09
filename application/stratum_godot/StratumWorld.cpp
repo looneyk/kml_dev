@@ -75,7 +75,7 @@ godot::Vector2i StratumWorld::extent() const
         return {};
     }
 
-    const sim::Grid& grid = sim::layout_as<sim::DiscreteLayout>(m_session.layout()).grid();
+    const sim::GridMapping& grid = sim::layout_as<sim::DiscreteLayout>(m_session.layout()).grid();
 
     return godot::Vector2i(static_cast<int32_t>(grid.extent.x()), static_cast<int32_t>(grid.extent.y()));
 }
@@ -89,9 +89,9 @@ godot::Vector2i StratumWorld::cell() const
     }
 
     const sim::placement_type& placement = m_session.player().get<sim::placement_type>();
-    sim::GridPosition c = sim::layout_as<sim::DiscreteLayout>(m_session.layout()).cell_at(placement.position());
+    sim::discrete_point_type grid_position = sim::layout_as<sim::DiscreteLayout>(m_session.layout()).grid_position_at(placement.position());
 
-    return godot::Vector2i(c.i, c.j);
+    return godot::Vector2i(grid_position.i(), grid_position.j());
 }
 
 //------------------------------------------------------------------------------

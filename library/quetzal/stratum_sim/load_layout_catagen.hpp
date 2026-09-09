@@ -26,14 +26,15 @@ namespace quetzal::stratum_sim::detail
     // the header omits it
     // Throws std::runtime_error when the header's extent is unreadable, or when there is
     // none and the grid is not a wall grid
-    std::pair<size_t, size_t> wall_extent(const Header& header, const std::vector<std::string>& lines,
+    discrete_vector_type wall_extent(const Header& header, const std::vector<std::string>& lines,
         const std::filesystem::path& filepath);
 
     // Cells are joined into a component only across a wall that is absent, so a door
     // separates two of them, and only a door is a passage a mover may cross
     // Throws std::runtime_error when the grid does not match the extent or has a symbol
     // this does not read
-    Map read_walls(const std::vector<std::string>& lines, size_t w, size_t h, const std::filesystem::path& filepath);
+    Map read_walls(const std::vector<std::string>& lines, const discrete_vector_type& extent,
+        const std::filesystem::path& filepath);
 
 } // namespace quetzal::stratum_sim::detail
 

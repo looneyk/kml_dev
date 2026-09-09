@@ -22,7 +22,7 @@ namespace quetzal::catagen
     public:
 
         Level() = default;
-        explicit Level(const Extent& extent); // Solid layout, no open areas
+        explicit Level(const vector_type& extent); // Solid layout, no open areas
         Level(const Level&) = default;
         Level(Level&&) noexcept = default;
         ~Level() = default;
@@ -30,11 +30,11 @@ namespace quetzal::catagen
         Level& operator=(const Level&) = default;
         Level& operator=(Level&&) noexcept = default;
 
-        const Extent& extent() const;
-        bool contains(const CellPosition& cell) const;
+        const vector_type& extent() const;
+        bool contains(const point_type& cell) const;
 
-        CellType cell(const CellPosition& cell) const;
-        void set_cell(const CellPosition& cell, CellType type);
+        CellType cell(const point_type& cell) const;
+        void set_cell(const point_type& cell, CellType type);
 
         // Walls addressed by the line they lie on rather than by a cell and a side, which is
         // how they are stored and the only form that reaches the outermost line of each
@@ -50,24 +50,24 @@ namespace quetzal::catagen
 
         // The wall on one side of a cell. The east wall of (i, j) and the west wall of
         // (i + 1, j) are one wall, so either name reaches it
-        WallType wall(const CellPosition& cell, Direction direction) const;
-        void set_wall(const CellPosition& cell, Direction direction, WallType type);
+        WallType wall(const point_type& cell, Direction direction) const;
+        void set_wall(const point_type& cell, Direction direction, WallType type);
 
         void clear();
 
     private:
 
-        size_t cell_slot(const CellPosition& position) const;
+        size_t cell_slot(const point_type& position) const;
         size_t wall_vertical_slot(coord_type i, coord_type j) const;
         size_t wall_horizontal_slot(coord_type i, coord_type j) const;
 
-        Extent m_extent;
+        box_type m_bounds;
         std::vector<CellType> m_cells;
         std::vector<WallType> m_walls_vertical; // (nx + 1) by ny
         std::vector<WallType> m_walls_horizontal; // nx by (ny + 1)
     };
 
-    CellPosition neighbor(const CellPosition& cell, Direction direction);
+    point_type neighbor(const point_type& cell, Direction direction);
     Direction opposite(Direction direction);
 
 } // namespace quetzal::catagen

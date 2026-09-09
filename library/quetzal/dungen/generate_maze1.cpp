@@ -67,9 +67,9 @@ namespace
     const Pattern replacer_loop = {replacement_loop, {1, 1}, {0, 2}};
 
     //--------------------------------------------------------------------------
-    bool contains(const Level& level, position_type position)
+    bool contains(const Level& level, point_type position)
     {
-        return position.x() >= 0 && position.x() < level.cells().size().x() && position.y() >= 0 && position.y() < level.cells().size().y();
+        return level.cells().contains(position);
     }
 
     //--------------------------------------------------------------------------
@@ -83,29 +83,29 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    array<dimensions_type, 2> room_dimensions(const Level& level, function<coord_type()> dimensionalizer, random_type& random)
+    box_type room_dimensions(const Level& level, function<coord_type()> dimensionalizer, random_type& random)
     {
         auto [nx, ny] = level.size();
 
         coord_type dx = dimensionalizer() | 1;
         coord_type dy = dimensionalizer() | 1;
-        dimensions_type size = {dx, dy};
+        vector_type size = {dx, dy};
 
         coord_type x = random.gen(nx - dx) | 1;
         coord_type y = random.gen(ny - dy) | 1;
-        position_type position = {x, y};
+        point_type position = {x, y};
 
         return {position, size};
     }
 
     //--------------------------------------------------------------------------
-    set<size_t> room_intersections(const Level& level, position_type position, dimensions_type size)
+    set<size_t> room_intersections(const Level& level, const box_type& rectangle)
     {
         set<size_t> intersections;
 
-        for (coord_type y = position[1]; y < position[1] + size[1]; ++y)
+        for (coord_type y = rectangle.lower(1); y < rectangle.upper(1); ++y)
         {
-            for (coord_type x = position[0]; x < position[0] + size[0]; ++x)
+            for (coord_type x = rectangle.lower(0); x < rectangle.upper(0); ++x)
             {
                 Cell cell = level.cell(x, y);
                 if (cell.type() == CellType::Room)
@@ -121,8 +121,8 @@ namespace
     //--------------------------------------------------------------------------
     bool attempt_room_placement(Level& level, function<coord_type()> dimensionalizer, bool room_merge, random_type& random)
     {
-        auto [position, size] = room_dimensions(level, dimensionalizer, random);
-        auto intersections = room_intersections(level, position, size);
+        box_type rectangle = room_dimensions(level, dimensionalizer, random);
+        auto intersections = room_intersections(level, rectangle);
         if (intersections.size() > 1)
         {
             return false;
@@ -131,14 +131,14 @@ namespace
         {
             if (room_merge) // and probability?
             {
-                level.expand_room(*intersections.begin(), position, size);
+                level.expand_room(*intersections.begin(), rectangle);
                 return true;
             }
 
             return false;
         }
 
-        level.create_room(position, size);
+        level.create_room(rectangle);
         return true;
     }
 
@@ -167,7 +167,7 @@ namespace
 
     //--------------------------------------------------------------------------
     // Given a door position, determine if it connects two rooms
-    tuple<bool, connection_type> room_connection(const Level& level, position_type position)
+    tuple<bool, connection_type> room_connection(const Level& level, point_type position)
     {
         Cell cell_left = level.cell(position.x() - 1, position.y());
         Cell cell_right = level.cell(position.x() + 1, position.y());
@@ -187,12 +187,12 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    tuple<vector<position_type>, size_t> door_candidates(const Level& level, const Room& room)
+    tuple<vector<point_type>, size_t> door_candidates(const Level& level, const Room& room)
     {
-        vector<position_type> candidates;
+        vector<point_type> candidates;
 
-        position_type position0 = room.position();
-        position_type position1 = position0 + room.size();
+        point_type position0 = room.rectangle().lower();
+        point_type position1 = room.rectangle().upper();
 
         size_t n_existing = 0;
 
@@ -260,7 +260,7 @@ namespace
     //--------------------------------------------------------------------------
     size_t door_placements(const Room& room, random_type& random)
     {
-        auto [dx, dy] = room.size();
+        auto [dx, dy] = room.rectangle().extent();
 
         size_t sx = (dx - 1) / 2 + 1;
         size_t sy = (dy - 1) / 2 + 1;
@@ -309,10 +309,9 @@ namespace
     }
 
     //------------------------------------------------------------------------------
-    bool available(const Level& level, position_type position)
+    bool available(const Level& level, point_type position)
     {
-        auto [nx, ny] = level.size();
-        if (position.x() < 0 || position.x() >= nx || position.y() < 0 || position.y() >= ny)
+        if (!level.cells().contains(position))
         {
             return false;
         }
@@ -321,15 +320,15 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    void excavate(Level& level, position_type position_from, position_type position_to)
+    void excavate(Level& level, point_type position_from, point_type position_to)
     {
-        level.cell((position_from + position_to) / 2).set_type(CellType::Corridor);
+        level.cell(position_from + (position_to - position_from) / 2).set_type(CellType::Corridor);
         level.cell(position_to).set_type(CellType::Corridor);
         return;
     }
 
     //--------------------------------------------------------------------------
-    bool attempt_excavate(Level& level, position_type position_from, position_type position_to)
+    bool attempt_excavate(Level& level, point_type position_from, point_type position_to)
     {
         if (available(level, position_to))
         {
@@ -341,7 +340,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    void excavate_cell(Level& level, position_type position_from, directions_type directions, double corridor_straightness, random_type& random)
+    void excavate_cell(Level& level, point_type position_from, directions_type directions, double corridor_straightness, random_type& random)
     {
         auto first = directions.begin();
         if (random.gen() < corridor_straightness)
@@ -352,7 +351,7 @@ namespace
 
         for (auto direction : directions)
         {
-            position_type position_to = position_from + direction;
+            point_type position_to = position_from + direction;
             if (attempt_excavate(level, position_from, position_to))
             {
                 for (size_t i = 1; i < 4; ++i)
@@ -401,16 +400,16 @@ namespace
     //------------------------------------------------------------------------------
     // A stairway goes where a corridor ends, so the dead ends left before they are pruned are
     // the cells a stairway may take
-    vector<position_type> stair_candidates(const Level& level)
+    vector<point_type> stair_candidates(const Level& level)
     {
-        vector<position_type> candidates;
+        vector<point_type> candidates;
 
         auto [nx, ny] = level.size();
         for (coord_type y = 1; y < ny; y += 2)
         {
             for (coord_type x = 1; x < nx; x += 2)
             {
-                position_type position = {x, y};
+                point_type position = {x, y};
                 if (match(level.cells(), position, matcher_end))
                 {
                     candidates.push_back(position);
@@ -437,7 +436,7 @@ namespace
         {
             for (coord_type y = 1; y < ny; y += 2)
             {
-                position_type position = {x, y};
+                point_type position = {x, y};
                 bool again = true;
                 while (again && contains(level, position) && level.cell(position).type() == CellType::Corridor)
                 {
@@ -472,7 +471,7 @@ namespace
         {
             for (coord_type y = 1; y < ny; y += 2)
             {
-                position_type position = {x, y};
+                point_type position = {x, y};
                 bool again = true;
                 while (again && contains(level, position) && level.cell(position).type() == CellType::Solid)
                 {
