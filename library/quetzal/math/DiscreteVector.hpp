@@ -737,4 +737,15 @@ struct std::tuple_size<quetzal::math::DiscreteVector<T, N>> : std::integral_cons
 template<size_t I, typename T, size_t N>
 struct std::tuple_element<I, quetzal::math::DiscreteVector<T, N>> { using type = T; };
 
+//------------------------------------------------------------------------------
+template<std::signed_integral T, size_t N> requires (N > 0)
+struct std::formatter<quetzal::math::DiscreteVector<T, N>> : quetzal::array_formatter<T>
+{
+    template<typename FormatContext>
+    auto format(const quetzal::math::DiscreteVector<T, N>& v, FormatContext& ctx) const
+    {
+        return this->format_elements(v, ctx);
+    }
+};
+
 #endif // QUETZAL_MATH_DISCRETEVECTOR_HPP

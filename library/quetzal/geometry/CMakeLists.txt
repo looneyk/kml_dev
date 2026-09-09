@@ -9,6 +9,7 @@ add_custom_target(quetzal_geometry SOURCES
     Curve.hpp
     CurveNURBS.hpp
     DirectedPoint.hpp
+    DiscreteBox.hpp
     DiscretePoint.hpp
     distance.hpp
     geometry_util.hpp

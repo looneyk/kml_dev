@@ -176,9 +176,6 @@ namespace quetzal::math
 //        static std::ostream& insert(std::ostream& os, const rep_type& rep, const std::string& element_delimiter = ", ", const std::optional<std::pair<char, char>>& object_delimiters = std::make_optional(std::pair<char, char>{'(', ')'}));
         static std::ostream& insert(std::ostream& os, const rep_type& rep, const std::string& element_delimiter = " ", const std::optional<std::pair<char, char>>& object_delimiters = std::nullopt);
 
-        template<typename FormatContext, size_t I = N - 1> requires (I < N)
-        static typename FormatContext::iterator format_to(FormatContext& ctx, const std::formatter<T>& element_formatter, const rep_type& rep, const std::string& element_delimiter = " ", const std::optional<std::pair<char, char>>& object_delimiters = std::nullopt);
-
         static constexpr const T* data(const rep_type& rep) noexcept;
         static constexpr T* data(rep_type& rep) noexcept;
 
@@ -702,49 +699,6 @@ std::ostream& quetzal::math::CartesianTraits<T, N>::insert(std::ostream& os, con
         }
 
         return os;
-    }
-}
-
-//------------------------------------------------------------------------------
-template<typename T, size_t N>
-template<typename FormatContext, size_t I> requires (I < N)
-typename FormatContext::iterator quetzal::math::CartesianTraits<T, N>::format_to(FormatContext& ctx, const std::formatter<T>& element_formatter, const rep_type& rep, const std::string& element_delimiter, const std::optional<std::pair<char, char>>& object_delimiters)
-{
-    // Conditional expression ensures that -0 displays as 0
-
-    if constexpr (I == 0)
-    {
-        if (object_delimiters)
-        {
-            auto out = ctx.out();
-            *out++ = object_delimiters->first;
-            ctx.advance_to(out);
-        }
-
-        return element_formatter.format(get<0>(rep) == T(0) ? T(0) : get<0>(rep), ctx);
-    }
-    else
-    {
-        auto out = format_to<FormatContext, I - 1>(ctx, element_formatter, rep, element_delimiter, object_delimiters);
-        ctx.advance_to(out);
-        for (char c : element_delimiter)
-        {
-            *out++ = c;
-        }
-
-        ctx.advance_to(out);
-        out = element_formatter.format(get<I>(rep) == T(0) ? T(0) : get<I>(rep), ctx);
-
-        if constexpr (I == N - 1)
-        {
-            if (object_delimiters)
-            {
-                ctx.advance_to(out);
-                *out++ = object_delimiters->second;
-            }
-        }
-
-        return out;
     }
 }
 

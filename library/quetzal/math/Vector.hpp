@@ -1118,52 +1118,12 @@ quetzal::math::Vector<Traits>& quetzal::math::operator*=(Vector<Traits>& lhs, co
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-struct std::formatter<quetzal::math::Vector<Traits>>
+struct std::formatter<quetzal::math::Vector<Traits>> : quetzal::array_formatter<typename Traits::value_type>
 {
-    std::formatter<typename Traits::value_type> m_element_formatter;
-
-    // Leading format-spec characters: an optional '[' or '(' selects a bracket pair to wrap the elements
-    // ('[' -> "[ ]", '(' -> "( )"), followed by an optional run of characters drawn from ",;: _" that
-    // becomes the literal element separator verbatim, with '_' standing in for a space (so the separator
-    // can be spelled out unambiguously in a spec string without relying on trailing/embedded raw spaces,
-    // e.g. "[,_" -> bracket '[' + separator ", "; "_:_"  -> separator " : "). Neither of these leading
-    // sections appears in the output otherwise. Whatever remains of the spec after them is handed to the
-    // element type's own formatter (precision, etc.).
-    std::optional<std::pair<char, char>> m_object_delimiters;
-    std::string m_element_delimiter = " ";
-
-    constexpr auto parse(std::format_parse_context& ctx)
-    {
-        auto it = ctx.begin();
-
-        if (it != ctx.end() && (*it == '[' || *it == '('))
-        {
-            m_object_delimiters = (*it == '[') ? std::make_pair('[', ']') : std::make_pair('(', ')');
-            ++it;
-        }
-
-        std::string delimiter;
-        bool has_delimiter = false;
-        while (it != ctx.end() && (*it == ',' || *it == ';' || *it == ':' || *it == ' ' || *it == '_'))
-        {
-            delimiter += (*it == '_') ? ' ' : *it;
-            has_delimiter = true;
-            ++it;
-        }
-
-        if (has_delimiter)
-        {
-            m_element_delimiter = std::move(delimiter);
-        }
-
-        ctx.advance_to(it);
-        return m_element_formatter.parse(ctx);
-    }
-
     template<typename FormatContext>
     auto format(const quetzal::math::Vector<Traits>& vector, FormatContext& ctx) const
     {
-        return Traits::format_to(ctx, m_element_formatter, vector.rep(), m_element_delimiter, m_object_delimiters);
+        return this->format_elements(vector, ctx);
     }
 };
 

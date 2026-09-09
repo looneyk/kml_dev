@@ -11,6 +11,7 @@
 #include <optional>
 #include <ostream>
 #include <string>
+#include <utility>
 
 namespace quetzal
 {
@@ -106,6 +107,89 @@ namespace quetzal
 
         return result;
     }
+
+    //--------------------------------------------------------------------------
+    // The std::formatter body an array type inherits, holding the spec an array shares and the
+    // loop that writes one. T is the element type; the object formatted supplies dimension, a
+    // value_type its own formatter accepts, and indexing
+    //
+    // Leading format-spec characters: an optional '[' or '(' selects a bracket pair to wrap the
+    // elements ('[' -> "[ ]", '(' -> "( )"), followed by an optional run of characters drawn from
+    // ",;: _" that becomes the literal element separator verbatim, with '_' standing in for a space
+    // (e.g. "[,_" -> bracket '[' + separator ", "; "_:_" -> separator " : "). Whatever remains of
+    // the spec after them is handed to the element type's own formatter
+    template<typename T>
+    struct array_formatter
+    {
+        std::formatter<T> m_element_formatter;
+        std::optional<std::pair<char, char>> m_object_delimiters;
+        std::string m_element_delimiter = " ";
+
+        constexpr auto parse(std::format_parse_context& ctx)
+        {
+            auto it = ctx.begin();
+
+            if (it != ctx.end() && (*it == '[' || *it == '('))
+            {
+                m_object_delimiters = (*it == '[') ? std::make_pair('[', ']') : std::make_pair('(', ')');
+                ++it;
+            }
+
+            std::string delimiter;
+            bool has_delimiter = false;
+            while (it != ctx.end() && (*it == ',' || *it == ';' || *it == ':' || *it == ' ' || *it == '_'))
+            {
+                delimiter += (*it == '_') ? ' ' : *it;
+                has_delimiter = true;
+                ++it;
+            }
+
+            if (has_delimiter)
+            {
+                m_element_delimiter = std::move(delimiter);
+            }
+
+            ctx.advance_to(it);
+            return m_element_formatter.parse(ctx);
+        }
+
+        template<typename A, typename FormatContext>
+        auto format_elements(const A& a, FormatContext& ctx) const
+        {
+            auto out = ctx.out();
+
+            if (m_object_delimiters)
+            {
+                *out++ = m_object_delimiters->first;
+                ctx.advance_to(out);
+            }
+
+            for (size_t i = 0; i < A::dimension; ++i)
+            {
+                if (i > 0)
+                {
+                    for (char c : m_element_delimiter)
+                    {
+                        *out++ = c;
+                    }
+
+                    ctx.advance_to(out);
+                }
+
+                // The conditional is what keeps a negative zero from being written as one
+                T element = a[i];
+                out = m_element_formatter.format(element == T(0) ? T(0) : element, ctx);
+                ctx.advance_to(out);
+            }
+
+            if (m_object_delimiters)
+            {
+                *out++ = m_object_delimiters->second;
+            }
+
+            return out;
+        }
+    };
 
     //--------------------------------------------------------------------------
     // Using this with array types (Vector, Point, and higher level objects) produces a string of space separated values

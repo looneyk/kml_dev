@@ -693,4 +693,15 @@ struct std::tuple_size<quetzal::geometry::DiscretePoint<T, N>> : std::integral_c
 template<size_t I, typename T, size_t N>
 struct std::tuple_element<I, quetzal::geometry::DiscretePoint<T, N>> { using type = T; };
 
+//------------------------------------------------------------------------------
+template<std::signed_integral T, size_t N> requires (N > 0)
+struct std::formatter<quetzal::geometry::DiscretePoint<T, N>> : quetzal::array_formatter<T>
+{
+    template<typename FormatContext>
+    auto format(const quetzal::geometry::DiscretePoint<T, N>& point, FormatContext& ctx) const
+    {
+        return this->format_elements(point, ctx);
+    }
+};
+
 #endif // QUETZAL_GEOMETRY_DISCRETEPOINT_HPP

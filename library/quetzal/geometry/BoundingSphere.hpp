@@ -8,6 +8,7 @@
 #include "BoundingVolume.hpp"
 #include "quetzal/common/string_util.hpp"
 #include "quetzal/math/floating_point.hpp"
+#include "quetzal/math/math_util.hpp"
 #include <format>
 #include <iostream>
 #include <limits>
@@ -43,6 +44,8 @@ namespace quetzal::geometry
         void set_bounds(const point_type& center, value_type radius);
 
         point_type centroid() const override;
+
+        value_type volume() const override;
 
         void clear() override;
 
@@ -122,6 +125,28 @@ template<typename Traits>
 typename quetzal::geometry::BoundingSphere<Traits>::point_type quetzal::geometry::BoundingSphere<Traits>::centroid() const
 {
     return m_center;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+typename quetzal::geometry::BoundingSphere<Traits>::value_type quetzal::geometry::BoundingSphere<Traits>::volume() const
+{
+    if constexpr (Traits::dimension == 1)
+    {
+        return value_type(2) * m_radius;
+    }
+    else if constexpr (Traits::dimension == 2)
+    {
+        return math::Pi<value_type> * m_radius * m_radius;
+    }
+    else if constexpr (Traits::dimension == 3)
+    {
+        return value_type(4) / value_type(3) * math::Pi<value_type> * m_radius * m_radius * m_radius;
+    }
+    else
+    {
+        static_assert(false, "Dimension not supported.");
+    }
 }
 
 //------------------------------------------------------------------------------

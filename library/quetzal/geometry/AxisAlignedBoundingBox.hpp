@@ -57,13 +57,13 @@ namespace quetzal::geometry
         void insert(const AxisAlignedBoundingBox& bounds);
 
         point_type centroid() const override;
+        value_type volume() const override;
+        bool empty() const override;
 
         void clear() override;
 
         // Returns less, equivalent, greater for interior, boundary, exterior respectively
         std::partial_ordering compare(const point_type& point, int tolerance = math::tolerance_default) const override;
-
-        bool empty() const override;
 
         void print(std::ostream& os) const override;
 
@@ -230,6 +230,29 @@ typename quetzal::geometry::AxisAlignedBoundingBox<Traits>::point_type quetzal::
 
 //------------------------------------------------------------------------------
 template<typename Traits>
+typename quetzal::geometry::AxisAlignedBoundingBox<Traits>::value_type quetzal::geometry::AxisAlignedBoundingBox<Traits>::volume() const
+{
+    auto result = value_type(1);
+
+    for (size_t i = 0; i < Traits::dimension; ++i)
+    {
+        result *= extent(i);
+    }
+
+    return result;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+bool quetzal::geometry::AxisAlignedBoundingBox<Traits>::empty() const
+{
+    // this is only the extreme case, that created from default constructor ...
+    // any inverted condition should also work, check for that instead? ...
+    return m_lower == point_type::highest() && m_upper == point_type::lowest();
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
 void quetzal::geometry::AxisAlignedBoundingBox<Traits>::clear()
 {
     m_lower = point_type::highest();
@@ -273,15 +296,6 @@ std::partial_ordering quetzal::geometry::AxisAlignedBoundingBox<Traits>::compare
     }
 
     return result;
-}
-
-//------------------------------------------------------------------------------
-template<typename Traits>
-bool quetzal::geometry::AxisAlignedBoundingBox<Traits>::empty() const
-{
-    // this is only the extreme case, that created from default constructor ...
-    // any inverted condition should also work, check for that instead? ...
-    return m_lower == point_type::highest() && m_upper == point_type::lowest();
 }
 
 //------------------------------------------------------------------------------

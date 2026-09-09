@@ -18,6 +18,7 @@ namespace quetzal::geometry
     {
     public:
 
+        using value_type = Traits::value_type;
         using point_type = Point<Traits>;
         using vector_type = point_type::vector_type;
 
@@ -30,13 +31,13 @@ namespace quetzal::geometry
         BoundingVolume& operator=(BoundingVolume&&) = default;
 
         virtual point_type centroid() const = 0;
+        virtual value_type volume() const = 0;
+        virtual bool empty() const = 0;
 
         virtual void clear() = 0;
 
         // Returns less, equivalent, greater for interior, boundary, exterior respectively
         virtual std::partial_ordering compare(const point_type& point, int tolerance = math::tolerance_default) const = 0;
-
-        virtual bool empty() const = 0;
 
         virtual void print(std::ostream& os) const = 0;
 
