@@ -9,7 +9,7 @@ loader reconstructs rooms from it, and because the same decision is about to be 
 for the wall format. `loader_plan.md` covers the structures that do the reconstructing.
 
 Confidence varies by row. The Rogue and NetHack entries and the Angband room flag are solid; the
-ToME and Qud entries are the weakest and are marked where they are inferred.
+ADOM, ToME and Qud entries are the weakest and are marked where they are inferred.
 
 ## Terms
 
@@ -62,6 +62,7 @@ not a room in either.
 | **Angband** | `.` for both | a per-grid room flag, nothing else | none; vaults get a flag of their own | room lit by flood fill over the flag |
 | **DCSS** | `.` for both | nothing for ordinary rooms; a vault mask per square | vaults only, named and tagged in `.des` | line of sight; no room lighting |
 | **Brogue** | `.` for both | nothing for ordinary rooms; a machine number per cell | machines only | physical light model; no room rule |
+| **ADOM** | `.` for both *(uncertain)* | generated rooms carry a kind; whole levels are authored outright | special room types --- shop, kitchen, treasure chamber, fungus and swamp rooms, big room | dark rooms and dark levels; light sources matter |
 | **ToME 4** | `.` for both, tiles by default | rooms are a generator-side concept; the grid keeps terrain *(inferred)* | vaults and greater vaults | lite radius, inherited from Angband |
 | **Caves of Qud** | `.` for both, tiles by default | zone builders; ruins do carve rooms *(inferred)* | villages, sites and named structures, at and above zone scale | light radius |
 | **stratum** | `' '` room, `'.'` corridor in the block format file; view glyphs are chosen separately | per-cell flag in the file; `Room` objects and `Cell::room_id` after load | `Room` with outline, cells, `zone_id` and `entity_id`; no type | none |
@@ -80,8 +81,23 @@ case that needs it. Both work; they differ in what can be asked afterward.
 
 **Identity.** Every game that discards room records still keeps identity for the rooms that carry
 meaning: Angband and DCSS for vaults, Brogue for machines. What varies is where the line falls
-between a room that is merely a shape and a room that is a thing. NetHack draws it furthest toward
-"everything is a thing", giving ordinary rooms a type as well as shops and temples.
+between a room that is merely a shape and a room that is a thing. NetHack and ADOM draw it furthest
+toward "everything is a thing", giving ordinary rooms a kind as well as shops and temples.
+
+### Persistence is what decides determination
+
+Whether a level survives being left tracks closely with whether room records are kept.
+
+Angband keeps the least identity and is also the game that discards the level: leave and return and
+it is generated afresh, so nothing is lost by discarding what generation knew. NetHack and ADOM both
+persist levels and both keep room tables. DCSS and Brogue persist levels too, and keep records for
+the regions that carry meaning while letting ordinary rooms go.
+
+The reason is that flood fill recovers a region from the level as it now stands, not as it was
+generated. Against a level that will never be seen again that is free. Against a persistent level a
+player digs, burns and blasts through, it is not: two rooms become one the moment a hole is knocked
+between them, and no amount of care in the recovery can tell that they were ever two. A record
+written at generation survives what happens to the terrain afterward; a flag does not.
 
 Qud belongs on the identity axis rather than the notation one. Its structures --- a village with
 named inhabitants and a history, a named site --- are the equivalent of a NetHack room type in the
@@ -99,7 +115,9 @@ design.
 
 That works while a room is only a shape, and its limits follow from the flag:
 
-- Two rooms meeting with no wall between them come back as one room. A flag cannot say which.
+- Two rooms meeting with no wall between them come back as one room. A flag cannot say which. A
+  `Zone` being independently loadable, this is the persistence case above rather than a generation
+  one: whatever opens a way between two rooms merges them for good.
 - No room can carry a type, a name or anything else from the file, because there is nowhere in the
   format to write one. `Room` has a `zone_id` and an `entity_id` for exactly that kind of thing, and
   nothing can currently fill them from a level file.
@@ -118,4 +136,5 @@ layout can express, and how it is drawn already move together.
 Room identity is the decision the survey does not settle, because the genre does not settle it:
 recording rooms at generation and reading them back, or flagging cells and recovering regions, are
 both current practice in shipped games. What it does settle is that they are the only two answers,
-and that every game choosing the second keeps records anyway for the rooms that mean something.
+that every game choosing the second keeps records anyway for the rooms that mean something, and that
+the games choosing it are the ones whose levels do not have to survive being left.
