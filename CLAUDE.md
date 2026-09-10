@@ -59,11 +59,28 @@ failed assertion.
   shell commands.
 - **Names**: `snake_case` variables; type aliases end in `_type` and are never named after the type
   they alias; member variables spell the full class name (`m_surface_resources`, not `m_surface`).
-- **Comments** may be added sparingly, and only for non-obvious conditions, to code blocks or lines
-  added entirely by Claude. Do not auto-complete, extend, or add to comments at any time on
-  pre-existing code.
+- **Comments are a last resort.** Prefer code that reads without one --- a named value, a smaller
+  function, a clearer type. Write one only where the code is the way it is for a legitimately
+  unusual reason, and then give that reason in a line or two. Not the decision process, not a
+  restatement of what the code does, not a reference to callers or to other modules. Nothing an
+  experienced engineer already knows, and nothing that is an invariant or a common practice in
+  this codebase --- those get no comment at all. Only on code added entirely by Claude: do not
+  auto-complete, extend, or add to comments on pre-existing code at any time.
 - **Be specific in prose and in names.** No vague terms, and no one word stretched across several
-  related meanings.
+  related meanings. The words below are ones to watch, listed as they come up. Every one of them
+  has its place, and that place is not everywhere: what is wrong is the reach for a word loose
+  enough to fit anywhere in place of the one that says what is meant. Ordinary use, fixed
+  idioms included, is not the problem and is not to be edited out.
+
+  | Word | Ordinary use, which is fine | The reach to watch for |
+  | --- | --- | --- |
+  | **stands** | an actor stands on a place; solve as it stands; what stands in for an exact zero; the offer stands | a general verb of place where a real relation exists --- a doorway *is one cell of* a wall line, it does not stand in one |
+
+- **Choose the words when writing a comment or a document, not after.** A word that would fit a
+  dozen unrelated sentences is a fallback rather than a choice. Stop on it, work out what the
+  specific relation is --- what the thing is, does, holds, or is part of --- and name that. The
+  general word is right only where nothing narrower is true, and then it stays. This is the check
+  the list above is a record of, and it applies to words the list does not name.
 
 ## Documents
 

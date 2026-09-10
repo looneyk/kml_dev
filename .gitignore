@@ -14,7 +14,6 @@
 !/application/
 !/application/**
 /application/*/project/bin/
-/application/*/project/.godot/
 !/assets/
 !/assets/**
 !/doc/
@@ -96,5 +95,6 @@
 !**/*.sh
 **/*.user
 **/.vs
+**/.godot
 **/build
 **/target
