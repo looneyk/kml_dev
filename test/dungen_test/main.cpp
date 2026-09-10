@@ -410,6 +410,11 @@ namespace
         unread.cave1.fill = -1.0;
         report_case("a group the algorithm does not read is not judged", !rejected(unread));
 
+        dungen::Parameters pinched = parameters;
+        pinched.algorithm = dungen::Algorithm::Grid1;
+        pinched.grid1.room_dimension_min = 1;
+        report_case("a room of a single cell is allowed", !rejected(pinched));
+
         return;
     }
 
@@ -454,6 +459,145 @@ namespace
         return;
     }
 
+    //--------------------------------------------------------------------------
+    // A doorway is itself a cell of wall, so two side by side are one doorway two cells wide
+    // rather than a break in the line
+    bool doorways_in_wall_lines(const string& level, string& detail)
+    {
+        vector<string> rows;
+        string row;
+        istringstream is(level);
+        getline(is, row); // The header
+
+        while (getline(is, row))
+        {
+            rows.push_back(row);
+        }
+
+        auto off_grid = '#';
+
+        auto at = [&rows, off_grid](long x, long y)
+        {
+            if (y < 0 || static_cast<size_t>(y) >= rows.size())
+            {
+                return off_grid;
+            }
+
+            const string& r = rows[static_cast<size_t>(y)];
+            return x >= 0 && static_cast<size_t>(x) < r.size() ? r[static_cast<size_t>(x)] : off_grid;
+        };
+
+        auto wall = [](char c) { return c == '#' || c == '0' || c == '|'; };
+
+        for (long y = 0; y < static_cast<long>(rows.size()); ++y)
+        {
+            for (long x = 0; x < static_cast<long>(rows[static_cast<size_t>(y)].size()); ++x)
+            {
+                if (at(x, y) != '|')
+                {
+                    continue;
+                }
+
+                if (!(wall(at(x, y - 1)) && wall(at(x, y + 1)))
+                    && !(wall(at(x - 1, y)) && wall(at(x + 1, y))))
+                {
+                    detail = format("doorway at column {}, row {} has wall on neither axis", x, y);
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    //--------------------------------------------------------------------------
+    // Swept over seeds as well as the checked in levels, a placement fault turning on where a
+    // room happens to land
+    void test_door_placement()
+    {
+        report_group("doorway placement");
+
+        constexpr dungen::Parameters::seed_type seed_count = 64;
+
+        for (const Scenario& scenario : scenarios())
+        {
+            string detail;
+            report_case(format("{} places every doorway in a wall line", scenario.name),
+                doorways_in_wall_lines(level_text(scenario.parameters), detail), detail);
+        }
+
+        for (const Scenario& scenario : scenarios())
+        {
+            string detail;
+            size_t failures = 0;
+
+            for (dungen::Parameters::seed_type seed = 1; seed <= seed_count; ++seed)
+            {
+                dungen::Parameters parameters = scenario.parameters;
+                parameters.seed = seed;
+
+                string seed_detail;
+                if (!doorways_in_wall_lines(level_text(parameters), seed_detail))
+                {
+                    if (failures == 0)
+                    {
+                        detail = format("seed {}, {}", seed, seed_detail);
+                    }
+
+                    ++failures;
+                }
+            }
+
+            report_case(format("{} holds over {} seeds", scenario.name, seed_count), failures == 0,
+                format("{} seeds failed, first at {}", failures, detail));
+        }
+
+        // A density below one leaves sectors holding a single cell instead of a room, and the
+        // smallest dimension allows rooms one cell across. Both reach corridor shapes the
+        // defaults never do, and the second is what placement has to draw again to avoid
+        struct Variant
+        {
+            string name;
+            double room_density;
+            dungen::coord_type room_dimension_min;
+        };
+
+        const Variant variants[] {{"sparse rooms", 0.4, 3}, {"sparsest rooms", 0.2, 3},
+            {"rooms of a single cell", 1.0, 1}, {"sparse rooms of a single cell", 0.4, 1}};
+
+        for (const Variant& variant : variants)
+        {
+            string detail;
+            size_t failures = 0;
+
+            for (dungen::Parameters::seed_type seed = 1; seed <= seed_count; ++seed)
+            {
+                dungen::Parameters parameters;
+                parameters.algorithm = dungen::Algorithm::Grid1;
+                parameters.size = {33, 25};
+                parameters.seed = seed;
+                parameters.grid1.room_density = variant.room_density;
+                parameters.grid1.room_dimension_min = variant.room_dimension_min;
+
+                string seed_detail;
+                if (!doorways_in_wall_lines(level_text(parameters), seed_detail))
+                {
+                    if (failures == 0)
+                    {
+                        detail = format("seed {}, {}", seed, seed_detail);
+                    }
+
+                    ++failures;
+                }
+            }
+
+            report_case(format("grid1 holds with {}", variant.name), failures == 0,
+                format("{} seeds failed, first at {}", failures, detail));
+        }
+
+        return;
+    }
+
 } // namespace
 
 //------------------------------------------------------------------------------
@@ -466,6 +610,7 @@ int main()
         test_determinism();
         test_validate();
         test_grid_shape();
+        test_door_placement();
     }
     catch (const exception& e)
     {

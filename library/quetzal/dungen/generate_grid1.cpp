@@ -113,7 +113,7 @@ namespace
     // A room somewhere inside the sector, or the one cell that substitutes for a sector holding
     // none, the margin left clear on every side so that a corridor has rock to run through
     // and no two rooms share a wall
-    Sector place_sector(Level& level, const box_type& bounds, const Grid1Parameters& grid1, bool room, random_type& random)
+    Sector choose_sector(const box_type& bounds, const Grid1Parameters& grid1, bool room, random_type& random)
     {
         point_type origin = bounds.position() + vector_type {grid1.room_margin, grid1.room_margin};
         vector_type span = bounds.extent() - vector_type {2 * grid1.room_margin, 2 * grid1.room_margin};
@@ -129,7 +129,13 @@ namespace
             origin.y() + random.gen(span.y() - sector.rectangle.extent().y() + 1)
         });
 
-        if (room)
+        return sector;
+    }
+
+    //--------------------------------------------------------------------------
+    void write_sector(Level& level, const Sector& sector)
+    {
+        if (sector.room)
         {
             level.create_room(sector.rectangle);
         }
@@ -138,7 +144,7 @@ namespace
             level.cell(sector.rectangle.position()).set_type(CellType::Corridor);
         }
 
-        return sector;
+        return;
     }
 
     //--------------------------------------------------------------------------
@@ -231,38 +237,257 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // A corridor from one sector to the other, leaving each through the wall it faces the
-    // other across and turning once in the rock between them
-    // The turn is taken on a line that no room reaches, the rooms being held off the edges of
-    // their own sectors, so the corridor never crosses one on its way
+    // The wall of from that faces to, and the rows of to a corridor leaving by that wall may
+    // run along. The range is empty where to is one cell tall and lies too near that wall for
+    // its one row to be clear of the doorway
+    void around_rows(const Sector& from, const Sector& to, coord_type& wall_y, coord_type& y0, coord_type& y1)
+    {
+        bool above = to.rectangle.position().y() >= from.rectangle.upper().y();
+        wall_y = above ? from.rectangle.upper().y() : from.rectangle.position().y() - 1;
+        y0 = above ? max(to.rectangle.position().y(), wall_y + 1) : to.rectangle.position().y();
+        y1 = above ? to.rectangle.upper().y() - 1 : min(to.rectangle.upper().y() - 1, wall_y - 1);
+        return;
+    }
+
+    //--------------------------------------------------------------------------
+    void around_columns(const Sector& from, const Sector& to, coord_type& wall_x, coord_type& x0, coord_type& x1)
+    {
+        bool right = to.rectangle.position().x() >= from.rectangle.upper().x();
+        wall_x = right ? from.rectangle.upper().x() : from.rectangle.position().x() - 1;
+        x0 = right ? max(to.rectangle.position().x(), wall_x + 1) : to.rectangle.position().x();
+        x1 = right ? to.rectangle.upper().x() - 1 : min(to.rectangle.upper().x() - 1, wall_x - 1);
+        return;
+    }
+
+    //--------------------------------------------------------------------------
+    // Out through the wall of from that faces to, turning alongside from and coming in across
+    // to's near wall. Fails where to leaves no row for it, and is then worth trying the other
+    // way round
+    bool connect_around_rows(Level& level, const Sector& from, const Sector& to, coord_type to_wall_x,
+        random_type& random)
+    {
+        coord_type y = 0;
+        coord_type y0 = 0;
+        coord_type y1 = 0;
+        around_rows(from, to, y, y0, y1);
+
+        if (y0 > y1)
+        {
+            return false;
+        }
+
+        coord_type x = from.rectangle.position().x() + random.gen(from.rectangle.extent().x());
+        coord_type ym = random.gen(y0, y1);
+
+        carve(level, {x, y}, {x, ym});
+        carve(level, {x, ym}, {to_wall_x, ym});
+
+        place_door(level, {x, y}, from.room);
+        place_door(level, {to_wall_x, ym}, to.room);
+        return true;
+    }
+
+    //--------------------------------------------------------------------------
+    bool connect_around_columns(Level& level, const Sector& from, const Sector& to, coord_type to_wall_y,
+        random_type& random)
+    {
+        coord_type x = 0;
+        coord_type x0 = 0;
+        coord_type x1 = 0;
+        around_columns(from, to, x, x0, x1);
+
+        if (x0 > x1)
+        {
+            return false;
+        }
+
+        coord_type y = from.rectangle.position().y() + random.gen(from.rectangle.extent().y());
+        coord_type xm = random.gen(x0, x1);
+
+        carve(level, {x, y}, {xm, y});
+        carve(level, {xm, y}, {xm, to_wall_y});
+
+        place_door(level, {x, y}, from.room);
+        place_door(level, {xm, to_wall_y}, to.room);
+        return true;
+    }
+
+    //--------------------------------------------------------------------------
+    // Whether a corridor can join the two leaving no doorway at a corner. Only two rooms both
+    // one cell across, and too near each other for either to be left by a side wall, cannot be
+    // joined: a sector holding no room takes no doorway, so a corner there is only a bend
+    bool joinable(const Sector& a, const Sector& b, bool horizontal)
+    {
+        if (!a.room || !b.room)
+        {
+            return true;
+        }
+
+        coord_type wall = 0;
+        coord_type first = 0;
+        coord_type last = 0;
+
+        if (horizontal)
+        {
+            if (b.rectangle.position().x() - 1 - a.rectangle.upper().x() >= 2)
+            {
+                return true;
+            }
+
+            if (max(a.rectangle.position().y(), b.rectangle.position().y())
+                <= min(a.rectangle.upper().y(), b.rectangle.upper().y()) - 1)
+            {
+                return true;
+            }
+
+            around_rows(a, b, wall, first, last);
+            if (first <= last)
+            {
+                return true;
+            }
+
+            around_rows(b, a, wall, first, last);
+            return first <= last;
+        }
+
+        if (b.rectangle.position().y() - 1 - a.rectangle.upper().y() >= 2)
+        {
+            return true;
+        }
+
+        if (max(a.rectangle.position().x(), b.rectangle.position().x())
+            <= min(a.rectangle.upper().x(), b.rectangle.upper().x()) - 1)
+        {
+            return true;
+        }
+
+        around_columns(a, b, wall, first, last);
+        if (first <= last)
+        {
+            return true;
+        }
+
+        around_columns(b, a, wall, first, last);
+        return first <= last;
+    }
+
+    //--------------------------------------------------------------------------
+    // A corridor from one sector to the other. The turn is kept off both wall lines because a
+    // doorway needs rock to either side of it, which is what the three shapes below are for
     void connect(Level& level, const Sector& a, const Sector& b, bool horizontal, random_type& random)
     {
         if (horizontal)
         {
-            coord_type ya = a.rectangle.position().y() + random.gen(a.rectangle.extent().y());
-            coord_type yb = b.rectangle.position().y() + random.gen(b.rectangle.extent().y());
             coord_type xa = a.rectangle.upper().x(); // The wall cell east of a
             coord_type xb = b.rectangle.position().x() - 1; // The wall cell west of b
-            coord_type xm = xa + random.gen(xb - xa + 1); // Where it turns
 
-            carve(level, {xa, ya}, {xm, ya});
-            carve(level, {xm, ya}, {xm, yb});
-            carve(level, {xm, yb}, {xb, yb});
+            if (xb - xa >= 2)
+            {
+                coord_type ya = a.rectangle.position().y() + random.gen(a.rectangle.extent().y());
+                coord_type yb = b.rectangle.position().y() + random.gen(b.rectangle.extent().y());
+                coord_type xm = random.gen(xa + 1, xb - 1); // Where it turns
+
+                carve(level, {xa, ya}, {xm, ya});
+                carve(level, {xm, ya}, {xm, yb});
+                carve(level, {xm, yb}, {xb, yb});
+
+                place_door(level, {xa, ya}, a.room);
+                place_door(level, {xb, yb}, b.room);
+                return;
+            }
+
+            coord_type y0 = max(a.rectangle.position().y(), b.rectangle.position().y());
+            coord_type y1 = min(a.rectangle.upper().y(), b.rectangle.upper().y()) - 1;
+
+            if (y0 <= y1)
+            {
+                coord_type y = random.gen(y0, y1);
+
+                carve(level, {xa, y}, {xb, y});
+
+                place_door(level, {xa, y}, a.room);
+                place_door(level, {xb, y}, b.room);
+                return;
+            }
+
+            if (connect_around_rows(level, a, b, xb, random) || connect_around_rows(level, b, a, xa, random))
+            {
+                return;
+            }
+
+            // The turn has to fall on one of the two wall lines here, which leaves that end a
+            // corner. Placement keeps a room off it, so the turn goes on the side holding none
+            coord_type ya = a.rectangle.position().y() + random.gen(a.rectangle.extent().y());
+            coord_type yb = b.rectangle.position().y() + random.gen(b.rectangle.extent().y());
+
+            if (a.room)
+            {
+                carve(level, {xa, ya}, {xb, ya});
+                carve(level, {xb, ya}, {xb, yb});
+            }
+            else
+            {
+                carve(level, {xa, ya}, {xa, yb});
+                carve(level, {xa, yb}, {xb, yb});
+            }
 
             place_door(level, {xa, ya}, a.room);
             place_door(level, {xb, yb}, b.room);
         }
         else
         {
-            coord_type xa = a.rectangle.position().x() + random.gen(a.rectangle.extent().x());
-            coord_type xb = b.rectangle.position().x() + random.gen(b.rectangle.extent().x());
             coord_type ya = a.rectangle.upper().y(); // The wall cell north of a
             coord_type yb = b.rectangle.position().y() - 1; // The wall cell south of b
-            coord_type ym = ya + random.gen(yb - ya + 1); // Where it turns
 
-            carve(level, {xa, ya}, {xa, ym});
-            carve(level, {xa, ym}, {xb, ym});
-            carve(level, {xb, ym}, {xb, yb});
+            if (yb - ya >= 2)
+            {
+                coord_type xa = a.rectangle.position().x() + random.gen(a.rectangle.extent().x());
+                coord_type xb = b.rectangle.position().x() + random.gen(b.rectangle.extent().x());
+                coord_type ym = random.gen(ya + 1, yb - 1); // Where it turns
+
+                carve(level, {xa, ya}, {xa, ym});
+                carve(level, {xa, ym}, {xb, ym});
+                carve(level, {xb, ym}, {xb, yb});
+
+                place_door(level, {xa, ya}, a.room);
+                place_door(level, {xb, yb}, b.room);
+                return;
+            }
+
+            coord_type x0 = max(a.rectangle.position().x(), b.rectangle.position().x());
+            coord_type x1 = min(a.rectangle.upper().x(), b.rectangle.upper().x()) - 1;
+
+            if (x0 <= x1)
+            {
+                coord_type x = random.gen(x0, x1);
+
+                carve(level, {x, ya}, {x, yb});
+
+                place_door(level, {x, ya}, a.room);
+                place_door(level, {x, yb}, b.room);
+                return;
+            }
+
+            if (connect_around_columns(level, a, b, yb, random) || connect_around_columns(level, b, a, ya, random))
+            {
+                return;
+            }
+
+            // The turn has to fall on one of the two wall lines here, which leaves that end a
+            // corner. Placement keeps a room off it, so the turn goes on the side holding none
+            coord_type xa = a.rectangle.position().x() + random.gen(a.rectangle.extent().x());
+            coord_type xb = b.rectangle.position().x() + random.gen(b.rectangle.extent().x());
+
+            if (a.room)
+            {
+                carve(level, {xa, ya}, {xa, yb});
+                carve(level, {xa, yb}, {xb, yb});
+            }
+            else
+            {
+                carve(level, {xa, ya}, {xb, ya});
+                carve(level, {xb, ya}, {xb, yb});
+            }
 
             place_door(level, {xa, ya}, a.room);
             place_door(level, {xb, yb}, b.room);
@@ -328,13 +553,33 @@ quetzal::dungen::Level quetzal::dungen::generate_grid1(id_type id, const string&
         room[slots[i]] = true;
     }
 
+    // A placement its neighbor could only be reached from through a corner doorway is not a
+    // level, so it is drawn again. Only rooms one cell across produce one, and the draw is
+    // bounded because a sector with no room to move the draw in would otherwise never settle
+    constexpr size_t placement_attempts = 16;
+
     sectors_type sectors(n_sectors);
     for (coord_type j = 0; j < divisions_y; ++j)
     {
         for (coord_type i = 0; i < divisions_x; ++i)
         {
             size_t slot = static_cast<size_t>(j * divisions_x + i);
-            sectors[slot] = place_sector(level, sector_bounds(parameters.size, grid1.divisions, i, j), grid1, room[slot], random);
+            box_type bounds = sector_bounds(parameters.size, grid1.divisions, i, j);
+            Sector sector;
+
+            for (size_t attempt = 0; attempt < placement_attempts; ++attempt)
+            {
+                sector = choose_sector(bounds, grid1, room[slot], random);
+
+                if ((i == 0 || joinable(sectors[slot - 1], sector, true))
+                    && (j == 0 || joinable(sectors[slot - static_cast<size_t>(divisions_x)], sector, false)))
+                {
+                    break;
+                }
+            }
+
+            sectors[slot] = sector;
+            write_sector(level, sector);
         }
     }
 
