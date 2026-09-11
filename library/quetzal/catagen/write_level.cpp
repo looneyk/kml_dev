@@ -4,6 +4,7 @@
 //------------------------------------------------------------------------------
 
 #include "write_level.hpp"
+#include "quetzal/common/string_util.hpp"
 #include <ostream>
 #include <string>
 #include <cassert>
@@ -131,9 +132,9 @@ namespace
 void quetzal::catagen::write_level(ostream& os, const Level& level, const Parameters& parameters)
 {
     os << "catagen " << format_version
-        << " extent=" << parameters.extent.i() << "," << parameters.extent.j()
-        << " scale=" << parameters.scale_min << "-" << parameters.scale_max
-        << " spacing=" << parameters.spacing_min << "-" << parameters.spacing_max
+        << " extent=" << element_delim(",") << parameters.extent << element_delim(" ")
+        << " scale=" << parameters.scale.lower() << "-" << parameters.scale.upper()
+        << " spacing=" << parameters.spacing.lower() << "-" << parameters.spacing.upper()
         << " density=" << parameters.density
         << " loop=" << parameters.loop
         << " seed=" << parameters.seed.value() // Throws rather than write a header that cannot reproduce

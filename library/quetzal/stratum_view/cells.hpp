@@ -6,6 +6,7 @@
 //------------------------------------------------------------------------------
 
 #include "Buffer.hpp"
+#include "types.hpp"
 #include "quetzal/stratum_sim/World.hpp"
 #include <cstdint>
 
@@ -56,7 +57,7 @@ namespace quetzal::stratum_view
     // Where the wall line continues from a position, one bit per direction. Sixteen patterns
     // is the whole of a box drawing set; a glyph set that can express less maps many of them onto
     // one glyph, which is the shape of a narrower set rather than a key too wide
-    enum class Mask : uint8_t
+    enum class DirectionMask : uint8_t
     {
         None = 0,
         East = 1 << 0,
@@ -65,10 +66,10 @@ namespace quetzal::stratum_view
         South = 1 << 3
     };
 
-    constexpr Mask operator|(Mask a, Mask b);
-    constexpr Mask operator&(Mask a, Mask b);
-    constexpr Mask& operator|=(Mask& a, Mask b);
-    constexpr bool any(Mask mask);
+    constexpr DirectionMask operator|(DirectionMask a, DirectionMask b);
+    constexpr DirectionMask operator&(DirectionMask a, DirectionMask b);
+    constexpr DirectionMask& operator|=(DirectionMask& a, DirectionMask b);
+    constexpr bool any(DirectionMask mask);
 
     //--------------------------------------------------------------------------
     // What is at one position: the fixed structure, the state it is in, what reaches it, and
@@ -79,7 +80,7 @@ namespace quetzal::stratum_view
     {
         PlaceType type = PlaceType::None;
         State state = State::None;
-        Mask mask = Mask::None;
+        DirectionMask mask = DirectionMask::None;
         bool actor = false;
 
         friend bool operator==(const Place&, const Place&) = default;
@@ -144,25 +145,25 @@ namespace quetzal::stratum_view
     }
 
     //--------------------------------------------------------------------------
-    constexpr Mask operator|(Mask a, Mask b)
+    constexpr DirectionMask operator|(DirectionMask a, DirectionMask b)
     {
-        return static_cast<Mask>(std::to_underlying(a) | std::to_underlying(b));
+        return static_cast<DirectionMask>(std::to_underlying(a) | std::to_underlying(b));
     }
 
-    constexpr Mask operator&(Mask a, Mask b)
+    constexpr DirectionMask operator&(DirectionMask a, DirectionMask b)
     {
-        return static_cast<Mask>(std::to_underlying(a) & std::to_underlying(b));
+        return static_cast<DirectionMask>(std::to_underlying(a) & std::to_underlying(b));
     }
 
-    constexpr Mask& operator|=(Mask& a, Mask b)
+    constexpr DirectionMask& operator|=(DirectionMask& a, DirectionMask b)
     {
         a = a | b;
         return a;
     }
 
-    constexpr bool any(Mask mask)
+    constexpr bool any(DirectionMask mask)
     {
-        return mask != Mask::None;
+        return mask != DirectionMask::None;
     }
 
 } // namespace quetzal::stratum_view

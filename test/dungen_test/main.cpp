@@ -118,9 +118,9 @@ namespace
     //--------------------------------------------------------------------------
     // The whole string or nothing, so that trailing rubbish in a header value is an error
     // rather than something quietly ignored
-    long to_integer(const string& s)
+    dungen::coord_type to_integer(const string& s)
     {
-        long value = 0;
+        dungen::coord_type value = 0;
         auto result = from_chars(s.data(), s.data() + s.size(), value);
 
         if (result.ec != errc {} || result.ptr != s.data() + s.size())
@@ -149,7 +149,7 @@ namespace
     // The parameters hold their counts as size_t, which a negative is not
     size_t to_count(const string& s)
     {
-        long value = to_integer(s);
+        dungen::coord_type value = to_integer(s);
 
         if (value < 0)
         {
@@ -200,14 +200,13 @@ namespace
 
         const string& size = values.at("size");
         size_t n = size.find(',');
-        parameters.size = {static_cast<dungen::coord_type>(to_integer(size.substr(0, n))),
-            static_cast<dungen::coord_type>(to_integer(size.substr(n + 1)))};
+        parameters.size = {to_integer(size.substr(0, n)), to_integer(size.substr(n + 1))};
 
         if (parameters.algorithm == dungen::Algorithm::Maze1)
         {
             dungen::Maze1Parameters& maze1 = parameters.maze1;
-            maze1.room_dimension_base = static_cast<dungen::coord_type>(to_integer(values.at("room_dimension_base")));
-            maze1.room_dimension_variation = static_cast<dungen::coord_type>(to_integer(values.at("room_dimension_variation")));
+            maze1.room_dimension_base = to_integer(values.at("room_dimension_base"));
+            maze1.room_dimension_variation = to_integer(values.at("room_dimension_variation"));
             maze1.room_density = to_real(values.at("room_density"));
             maze1.room_merge = values.at("room_merge") == "true";
             maze1.corridor_straightness = to_real(values.at("corridor_straightness"));
@@ -220,12 +219,11 @@ namespace
 
             const string& divisions = values.at("divisions");
             size_t d = divisions.find(',');
-            grid1.divisions = {static_cast<dungen::coord_type>(to_integer(divisions.substr(0, d))),
-                static_cast<dungen::coord_type>(to_integer(divisions.substr(d + 1)))};
+            grid1.divisions = {to_integer(divisions.substr(0, d)), to_integer(divisions.substr(d + 1))};
 
             grid1.room_density = to_real(values.at("room_density"));
-            grid1.room_dimension_min = static_cast<dungen::coord_type>(to_integer(values.at("room_dimension_min")));
-            grid1.room_margin = static_cast<dungen::coord_type>(to_integer(values.at("room_margin")));
+            grid1.room_dimension_min = to_integer(values.at("room_dimension_min"));
+            grid1.room_margin = to_integer(values.at("room_margin"));
             grid1.loop = to_real(values.at("loop"));
         }
         else
@@ -476,7 +474,7 @@ namespace
 
         auto off_grid = '#';
 
-        auto at = [&rows, off_grid](long x, long y)
+        auto at = [&rows, off_grid](dungen::coord_type x, dungen::coord_type y)
         {
             if (y < 0 || static_cast<size_t>(y) >= rows.size())
             {
@@ -489,9 +487,9 @@ namespace
 
         auto wall = [](char c) { return c == '#' || c == '0' || c == '|'; };
 
-        for (long y = 0; y < static_cast<long>(rows.size()); ++y)
+        for (dungen::coord_type y = 0; y < static_cast<dungen::coord_type>(rows.size()); ++y)
         {
-            for (long x = 0; x < static_cast<long>(rows[static_cast<size_t>(y)].size()); ++x)
+            for (dungen::coord_type x = 0; x < static_cast<dungen::coord_type>(rows[static_cast<size_t>(y)].size()); ++x)
             {
                 if (at(x, y) != '|')
                 {

@@ -11,23 +11,17 @@
 namespace stratum_terminal
 {
 
-    //--------------------------------------------------------------------------
-    struct Size
-    {
-        size_t rows = 0;
-        size_t columns = 0;
+    using quetzal::stratum_view::coord_type;
+    using quetzal::stratum_view::vector_type;
 
-        friend bool operator==(const Size&, const Size&) = default;
-    };
-
-    // The terminal's text area, zero in both when it cannot be determined, as when output
-    // is a pipe rather than a console
-    Size terminal_size();
+    // The terminal's text area in columns by rows, zero in both when it cannot be determined,
+    // as when output is a pipe rather than a console
+    vector_type terminal_size();
 
     // Asks for a text area of this size, clamped to what the screen can fit. False when
     // the request could not be made at all; on anything but Windows it is a request with
     // no reply, so true does not promise the terminal obliged
-    bool set_terminal_size(const Size& size);
+    bool set_terminal_size(const vector_type& size);
 
     //--------------------------------------------------------------------------
     // Writes a Console to a character terminal, emitting only the cells that changed
@@ -56,9 +50,9 @@ namespace stratum_terminal
     private:
 
         quetzal::stratum_view::Console m_console_previous;
-        Size m_size_previous;
-        Size m_size_original; // What the terminal was before it was sized to the zone
-        Size m_size_set;      // And what it became, so a later resize by hand can be told apart
+        vector_type m_size_previous;
+        vector_type m_size_original; // What the terminal was before it was sized to the zone
+        vector_type m_size_set;      // And what it became, so a later resize by hand can be told apart
         bool m_incremental;
         bool m_sized = false; // The zone's size is not known until the first frame arrives
     };

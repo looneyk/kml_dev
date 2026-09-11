@@ -21,7 +21,7 @@ quetzal::stratum_sim::discrete_point_type quetzal::stratum_sim::GridMapping::gri
     value_type i = std::floor((px - ox) / scale);
     value_type j = std::floor((py - oy) / scale);
 
-    return {static_cast<long>(i), static_cast<long>(j)};
+    return {static_cast<coord_type>(i), static_cast<coord_type>(j)};
 }
 
 //------------------------------------------------------------------------------

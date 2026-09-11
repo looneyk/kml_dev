@@ -118,13 +118,14 @@ godot::PackedByteArray StratumWorld::cells() const
     // The same reduction the terminal host renders characters from, taken one step earlier
     view::Cells cells = view::cells(m_session.world(), m_session.zone());
 
-    codes.resize(static_cast<int64_t>(cells.width() * cells.height()));
+    const view::vector_type& extent = cells.extent();
+    codes.resize(static_cast<int64_t>(extent.x()) * extent.y());
 
-    for (size_t j = 0; j < cells.height(); ++j)
+    for (view::coord_type j = 0; j < extent.y(); ++j)
     {
-        for (size_t i = 0; i < cells.width(); ++i)
+        for (view::coord_type i = 0; i < extent.x(); ++i)
         {
-            codes[static_cast<int64_t>(j * cells.width() + i)] = static_cast<uint8_t>(cells.at(i, j).type);
+            codes[static_cast<int64_t>(j) * extent.x() + i] = static_cast<uint8_t>(cells.at({i, j}).type);
         }
     }
 
@@ -143,13 +144,14 @@ godot::PackedByteArray StratumWorld::actors() const
 
     view::Cells cells = view::cells(m_session.world(), m_session.zone());
 
-    flags.resize(static_cast<int64_t>(cells.width() * cells.height()));
+    const view::vector_type& extent = cells.extent();
+    flags.resize(static_cast<int64_t>(extent.x()) * extent.y());
 
-    for (size_t j = 0; j < cells.height(); ++j)
+    for (view::coord_type j = 0; j < extent.y(); ++j)
     {
-        for (size_t i = 0; i < cells.width(); ++i)
+        for (view::coord_type i = 0; i < extent.x(); ++i)
         {
-            flags[static_cast<int64_t>(j * cells.width() + i)] = cells.at(i, j).actor ? 1 : 0;
+            flags[static_cast<int64_t>(j) * extent.x() + i] = cells.at({i, j}).actor ? 1 : 0;
         }
     }
 

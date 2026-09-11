@@ -24,24 +24,24 @@ void quetzal::catagen::validate(const Parameters& parameters)
         throw invalid_argument(format("extent {},{} is empty", parameters.extent.i(), parameters.extent.j()));
     }
 
-    if (parameters.scale_min < 1)
+    if (parameters.scale.lower() < 1)
     {
-        throw invalid_argument(format("scale minimum {} is below one cell", parameters.scale_min));
+        throw invalid_argument(format("scale minimum {} is below one cell", parameters.scale.lower()));
     }
 
-    if (parameters.scale_max < parameters.scale_min)
+    if (parameters.scale.upper() < parameters.scale.lower())
     {
-        throw invalid_argument(format("scale maximum {} is below the minimum {}", parameters.scale_max, parameters.scale_min));
+        throw invalid_argument(format("scale maximum {} is below the minimum {}", parameters.scale.upper(), parameters.scale.lower()));
     }
 
-    if (parameters.spacing_min < 0)
+    if (parameters.spacing.lower() < 0)
     {
-        throw invalid_argument(format("spacing minimum {} is negative", parameters.spacing_min));
+        throw invalid_argument(format("spacing minimum {} is negative", parameters.spacing.lower()));
     }
 
-    if (parameters.spacing_max < parameters.spacing_min)
+    if (parameters.spacing.upper() < parameters.spacing.lower())
     {
-        throw invalid_argument(format("spacing maximum {} is below the minimum {}", parameters.spacing_max, parameters.spacing_min));
+        throw invalid_argument(format("spacing maximum {} is below the minimum {}", parameters.spacing.upper(), parameters.spacing.lower()));
     }
 
     if (parameters.density <= 0.0 || parameters.density > 1.0)

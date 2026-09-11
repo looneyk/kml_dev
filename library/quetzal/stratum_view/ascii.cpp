@@ -13,7 +13,7 @@ namespace
     using quetzal::stratum_view::Glyph;
     using quetzal::stratum_view::Glyphs;
     using quetzal::stratum_view::PlaceType;
-    using quetzal::stratum_view::Mask;
+    using quetzal::stratum_view::DirectionMask;
     using quetzal::stratum_view::Place;
     using quetzal::stratum_view::State;
     using quetzal::stratum_view::any;
@@ -50,10 +50,10 @@ namespace
     {
         for (uint8_t bits = 0; bits < 16; ++bits)
         {
-            Mask mask = static_cast<Mask>(bits);
+            DirectionMask mask = static_cast<DirectionMask>(bits);
 
-            bool across = any(mask & (Mask::East | Mask::West));
-            bool along = any(mask & (Mask::North | Mask::South));
+            bool across = any(mask & (DirectionMask::East | DirectionMask::West));
+            bool along = any(mask & (DirectionMask::North | DirectionMask::South));
 
             glyphs.push_back(Glyph {PlaceType::Wall, State::None, mask, false,
                 across && along ? corner : across ? horizontal : along ? vertical : opening});
@@ -142,13 +142,14 @@ const quetzal::stratum_view::Glyphs& quetzal::stratum_view::lattice_glyphs()
 //------------------------------------------------------------------------------
 quetzal::stratum_view::Console quetzal::stratum_view::render(const Cells& cells, const Glyphs& glyphs)
 {
-    Console console(cells.width(), cells.height(), ' ');
+    const vector_type& extent = cells.extent();
+    Console console(extent, ' ');
 
-    for (size_t j = 0; j < cells.height(); ++j)
+    for (coord_type j = 0; j < extent.y(); ++j)
     {
-        for (size_t i = 0; i < cells.width(); ++i)
+        for (coord_type i = 0; i < extent.x(); ++i)
         {
-            console.set(i, j, glyphs(cells.at(i, j)));
+            console.set({i, j}, glyphs(cells.at({i, j})));
         }
     }
 
@@ -164,13 +165,14 @@ quetzal::stratum_view::Console quetzal::stratum_view::render(const sim::World& w
 //------------------------------------------------------------------------------
 quetzal::stratum_view::Console quetzal::stratum_view::render_lattice(const Lattice& lattice, const Glyphs& glyphs)
 {
-    Console console(lattice.width(), lattice.height(), ' ');
+    const vector_type& extent = lattice.extent();
+    Console console(extent, ' ');
 
-    for (size_t j = 0; j < lattice.height(); ++j)
+    for (coord_type j = 0; j < extent.y(); ++j)
     {
-        for (size_t i = 0; i < lattice.width(); ++i)
+        for (coord_type i = 0; i < extent.x(); ++i)
         {
-            console.set(i, j, glyphs(lattice.at(i, j)));
+            console.set({i, j}, glyphs(lattice.at({i, j})));
         }
     }
 

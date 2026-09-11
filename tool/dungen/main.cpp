@@ -5,7 +5,9 @@
 
 #include "quetzal/dungen/generate.hpp"
 #include "quetzal/dungen/write_level.hpp"
+#include "quetzal/common/string_util.hpp"
 #include "quetzal/math/Random.hpp"
+#include <algorithm>
 #include <charconv>
 #include <exception>
 #include <format>
@@ -22,9 +24,9 @@ namespace
 {
 
     //--------------------------------------------------------------------------
-    long to_integer(const string& s)
+    dungen::coord_type to_integer(const string& s)
     {
-        long value = 0;
+        dungen::coord_type value = 0;
         auto result = from_chars(s.data(), s.data() + s.size(), value);
 
         if (result.ec != errc {} || result.ptr != s.data() + s.size())
@@ -53,7 +55,7 @@ namespace
     // The parameters hold their counts as size_t, which a negative is not
     size_t to_count(const string& s)
     {
-        long value = to_integer(s);
+        dungen::coord_type value = to_integer(s);
 
         if (value < 0)
         {
@@ -64,17 +66,18 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Two numbers with a separator between them
-    pair<long, long> to_pair(const string& s, char separator)
+    dungen::vector_type to_vector(const string& s, const string& separator)
     {
-        size_t n = s.find(separator);
+        dungen::vector_type v;
+        auto result = math::from_chars(s.data(), s.data() + s.size(), v, separator);
 
-        if (n == string::npos)
+        if (result.ec != errc {} || result.ptr != s.data() + s.size())
         {
-            throw invalid_argument(format("\"{}\" is not two values separated by '{}'", s, separator));
+            throw invalid_argument(format("\"{}\" is not {} values separated by '{}'",
+                s, dungen::vector_type::dimension, separator));
         }
 
-        return {to_integer(s.substr(0, n)), to_integer(s.substr(n + 1))};
+        return v;
     }
 
     //--------------------------------------------------------------------------
@@ -111,8 +114,7 @@ int main(int argc, char* argv[])
             }
             else if (arg == "--size" && i + 1 < argc)
             {
-                auto [nx, ny] = to_pair(argv[++i], ',');
-                parameters.size = {static_cast<dungen::coord_type>(nx), static_cast<dungen::coord_type>(ny)};
+                parameters.size = to_vector(argv[++i], ",");
             }
             else if (arg == "--stair-placements" && i + 1 < argc)
             {
@@ -127,11 +129,11 @@ int main(int argc, char* argv[])
             }
             else if (arg == "--room-dimension-base" && i + 1 < argc)
             {
-                parameters.maze1.room_dimension_base = static_cast<dungen::coord_type>(to_integer(argv[++i]));
+                parameters.maze1.room_dimension_base = to_integer(argv[++i]);
             }
             else if (arg == "--room-dimension-variation" && i + 1 < argc)
             {
-                parameters.maze1.room_dimension_variation = static_cast<dungen::coord_type>(to_integer(argv[++i]));
+                parameters.maze1.room_dimension_variation = to_integer(argv[++i]);
             }
             else if (arg == "--room-merge")
             {
@@ -151,16 +153,15 @@ int main(int argc, char* argv[])
             }
             else if (arg == "--divisions" && i + 1 < argc)
             {
-                auto [nx, ny] = to_pair(argv[++i], ',');
-                parameters.grid1.divisions = {static_cast<dungen::coord_type>(nx), static_cast<dungen::coord_type>(ny)};
+                parameters.grid1.divisions = to_vector(argv[++i], ",");
             }
             else if (arg == "--room-dimension-min" && i + 1 < argc)
             {
-                parameters.grid1.room_dimension_min = static_cast<dungen::coord_type>(to_integer(argv[++i]));
+                parameters.grid1.room_dimension_min = to_integer(argv[++i]);
             }
             else if (arg == "--room-margin" && i + 1 < argc)
             {
-                parameters.grid1.room_margin = static_cast<dungen::coord_type>(to_integer(argv[++i]));
+                parameters.grid1.room_margin = to_integer(argv[++i]);
             }
             else if (arg == "--loop" && i + 1 < argc)
             {

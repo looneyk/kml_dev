@@ -24,9 +24,9 @@ namespace
     {
         const quetzal::stratum_sim::GridMapping& grid = layout.grid();
 
-        for (long j = 0; j < grid.extent.y(); ++j)
+        for (quetzal::stratum_sim::coord_type j = 0; j < grid.extent.y(); ++j)
         {
-            for (long i = 0; i < grid.extent.x(); ++i)
+            for (quetzal::stratum_sim::coord_type i = 0; i < grid.extent.x(); ++i)
             {
                 if (layout.open(quetzal::stratum_sim::discrete_point_type {i, j}))
                 {
@@ -44,9 +44,9 @@ namespace
     {
         const quetzal::stratum_sim::GridMapping& grid = layout.grid();
 
-        for (long j = grid.extent.y(); j-- > 0; )
+        for (quetzal::stratum_sim::coord_type j = grid.extent.y(); j-- > 0; )
         {
-            for (long i = grid.extent.x(); i-- > 0; )
+            for (quetzal::stratum_sim::coord_type i = grid.extent.x(); i-- > 0; )
             {
                 if (layout.open(quetzal::stratum_sim::discrete_point_type {i, j}))
                 {

@@ -23,7 +23,7 @@ namespace quetzal::stratum_view
     {
         PlaceType type = PlaceType::None;
         State state = State::None;
-        std::optional<Mask> mask;
+        std::optional<DirectionMask> mask;
         bool actor = false;
         char c = ' ';
     };

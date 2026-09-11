@@ -48,9 +48,6 @@ namespace quetzal::dungen
         const Cell& cell(point_type position) const;
         Cell& cell(point_type position);
 
-        const Cell& cell(coord_type x, coord_type y) const;
-        Cell& cell(coord_type x, coord_type y);
-
         const rooms_type& rooms() const;
         rooms_type& rooms();
 

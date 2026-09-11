@@ -7,15 +7,26 @@
 
 #include "quetzal/geometry/DiscreteBox.hpp"
 #include "quetzal/geometry/DiscretePoint.hpp"
+#include "quetzal/math/DiscreteVector.hpp"
 #include <compare>
+#include <cstdint>
 
 namespace quetzal::catagen
 {
 
-    using coord_type = long;
+    using coord_type = std::int32_t;
     using vector_type = math::DiscreteVector<coord_type, 2>;
     using point_type = geometry::DiscretePoint<coord_type, 2>;
     using box_type = geometry::DiscreteBox<coord_type, 2>;
+
+    using math::CardinalDirection;
+
+    inline const auto& cardinal_directions = math::cardinal_directions<coord_type, 2>;
+
+    inline const vector_type& cardinal_direction(CardinalDirection direction)
+    {
+        return math::cardinal_direction<coord_type, 2>(direction);
+    }
 
     //--------------------------------------------------------------------------
     enum class CellType
@@ -32,15 +43,6 @@ namespace quetzal::catagen
         Open,
         Solid,
         Door
-    };
-
-    //--------------------------------------------------------------------------
-    enum class Direction
-    {
-        East,
-        North,
-        West,
-        South
     };
 
 } // namespace quetzal::catagen

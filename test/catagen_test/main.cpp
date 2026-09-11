@@ -7,6 +7,8 @@
 #include "quetzal/catagen/write_level.hpp"
 #include "quetzal/common/FileValidator.hpp"
 #include "quetzal/common/file_util.hpp"
+#include "quetzal/common/string_util.hpp"
+#include "quetzal/math/Interval.hpp"
 #include "quetzal/math/Random.hpp"
 #include <charconv>
 #include <format>
@@ -118,9 +120,9 @@ namespace
     //--------------------------------------------------------------------------
     // The whole string or nothing, so that trailing rubbish in a header value is an error
     // rather than something quietly ignored
-    long to_integer(const string& s)
+    catagen::coord_type to_integer(const string& s)
     {
-        long value = 0;
+        catagen::coord_type value = 0;
         auto result = from_chars(s.data(), s.data() + s.size(), value);
 
         if (result.ec != errc {} || result.ptr != s.data() + s.size())
@@ -177,24 +179,20 @@ namespace
             values[token.substr(0, n)] = token.substr(n + 1);
         }
 
-        auto pair_of = [](const string& s, char separator)
+        auto interval_of = [](const string& s, char separator)
         {
             size_t n = s.find(separator);
-            return make_pair(to_integer(s.substr(0, n)), to_integer(s.substr(n + 1)));
+            return math::Interval<catagen::coord_type> {
+                to_integer(s.substr(0, n)), to_integer(s.substr(n + 1))};
         };
 
         catagen::Parameters parameters;
 
-        auto [nx, ny] = pair_of(values.at("extent"), ',');
-        parameters.extent = {static_cast<catagen::coord_type>(nx), static_cast<catagen::coord_type>(ny)};
+        const string& extent = values.at("extent");
+        math::from_chars(extent.data(), extent.data() + extent.size(), parameters.extent, ",");
 
-        auto [scale_min, scale_max] = pair_of(values.at("scale"), '-');
-        parameters.scale_min = static_cast<catagen::coord_type>(scale_min);
-        parameters.scale_max = static_cast<catagen::coord_type>(scale_max);
-
-        auto [spacing_min, spacing_max] = pair_of(values.at("spacing"), '-');
-        parameters.spacing_min = static_cast<catagen::coord_type>(spacing_min);
-        parameters.spacing_max = static_cast<catagen::coord_type>(spacing_max);
+        parameters.scale = interval_of(values.at("scale"), '-');
+        parameters.spacing = interval_of(values.at("spacing"), '-');
 
         parameters.density = to_real(values.at("density"));
         parameters.loop = to_real(values.at("loop"));
@@ -226,10 +224,8 @@ namespace
         // The shipped level's own parameters, so the asset and the suite gate the same run
         catagen::Parameters shipped;
         shipped.extent = {20, 10};
-        shipped.scale_min = 2;
-        shipped.scale_max = 5;
-        shipped.spacing_min = 0;
-        shipped.spacing_max = 4;
+        shipped.scale = {2, 5};
+        shipped.spacing = {0, 4};
         shipped.density = 0.5;
         shipped.loop = 0.1;
         shipped.seed = 2614047767u;
@@ -238,8 +234,7 @@ namespace
         // Rooms sharing walls, which is the case the block format cannot express
         catagen::Parameters shared;
         shared.extent = {16, 12};
-        shared.scale_min = 3;
-        shared.scale_max = 7;
+        shared.scale = {3, 7};
         shared.density = 1.0;
         shared.loop = 0.0;
         shared.seed = 1u;
@@ -248,10 +243,8 @@ namespace
         // Rooms stood apart, so corridors cross the rock between them
         catagen::Parameters spaced;
         spaced.extent = {24, 16};
-        spaced.scale_min = 3;
-        spaced.scale_max = 6;
-        spaced.spacing_min = 1;
-        spaced.spacing_max = 3;
+        spaced.scale = {3, 6};
+        spaced.spacing = {1, 3};
         spaced.density = 0.7;
         spaced.loop = 0.3;
         spaced.seed = 42u;
@@ -260,8 +253,7 @@ namespace
         // A seed past the halfway mark of its range, which a signed read would lose
         catagen::Parameters wide;
         wide.extent = {12, 12};
-        wide.scale_min = 2;
-        wide.scale_max = 5;
+        wide.scale = {2, 5};
         wide.seed = 4294967295u;
         v.push_back({"wide_seed", wide});
 
@@ -364,8 +356,7 @@ namespace
         report_case("no seed is rejected rather than quietly fixed", rejected(seedless));
 
         catagen::Parameters inverted = parameters;
-        inverted.scale_min = 8;
-        inverted.scale_max = 4;
+        inverted.scale = {8, 4};
         report_case("a scale range that runs backwards is rejected", rejected(inverted));
 
         catagen::Parameters empty = parameters;

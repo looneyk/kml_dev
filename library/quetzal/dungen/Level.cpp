@@ -70,18 +70,6 @@ quetzal::dungen::Cell& quetzal::dungen::Level::cell(point_type position)
 }
 
 //------------------------------------------------------------------------------
-const quetzal::dungen::Cell& quetzal::dungen::Level::cell(coord_type x, coord_type y) const
-{
-    return m_cells.cell({x, y});
-}
-
-//------------------------------------------------------------------------------
-quetzal::dungen::Cell& quetzal::dungen::Level::cell(coord_type x, coord_type y)
-{
-    return m_cells.cell({x, y});
-}
-
-//------------------------------------------------------------------------------
 const quetzal::dungen::Level::rooms_type& quetzal::dungen::Level::rooms() const
 {
     return m_rooms;

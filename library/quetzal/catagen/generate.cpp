@@ -24,7 +24,7 @@ namespace
     using rectangles_type = vector<box_type>;
     using cell_region_mapping = vector<id_type>; // The region id for each cell in order
     using pair_type = pair<id_type, id_type>; // Two regions, lower id first
-    using site_type = pair<point_type, Direction>; // A cell edge, addressed from one of its two sides
+    using site_type = pair<point_type, CardinalDirection>; // A cell edge, addressed from one of its two sides
     using sites_type = map<pair_type, vector<site_type>>;
 
     //--------------------------------------------------------------------------
@@ -109,16 +109,16 @@ namespace
         // spacing every cut spaces every pair
         // Drawn only where the range offers a choice, so that a range of one -- no spacing,
         // the default -- leaves the random sequence where it was
-        coord_type spacing = parameters.spacing_min;
-        if (parameters.spacing_max > parameters.spacing_min)
+        coord_type spacing = parameters.spacing.lower();
+        if (parameters.spacing.proper())
         {
-            spacing += random.gen(parameters.spacing_max - parameters.spacing_min + 1);
+            spacing += random.gen(parameters.spacing.length() + 1);
         }
 
-        coord_type span = 2 * parameters.scale_min + spacing; // What a side must have to be worth cutting
+        coord_type span = 2 * parameters.scale.lower() + spacing; // What a side must have to be worth cutting
 
-        bool split_x = nx > parameters.scale_max && nx >= span;
-        bool split_y = ny > parameters.scale_max && ny >= span;
+        bool split_x = nx > parameters.scale.upper() && nx >= span;
+        bool split_y = ny > parameters.scale.upper() && ny >= span;
 
         if (!split_x && !split_y)
         {
@@ -130,13 +130,13 @@ namespace
 
         if (vertical)
         {
-            coord_type cut = parameters.scale_min + random.gen(nx - spacing - 2 * parameters.scale_min + 1);
+            coord_type cut = parameters.scale.lower() + random.gen(nx - spacing - 2 * parameters.scale.lower() + 1);
             partition({rectangle.position(), vector_type {cut, ny}}, parameters, random, leaves);
             partition({point_type {rectangle.position().i() + cut + spacing, rectangle.position().j()}, vector_type {nx - cut - spacing, ny}}, parameters, random, leaves);
         }
         else
         {
-            coord_type cut = parameters.scale_min + random.gen(ny - spacing - 2 * parameters.scale_min + 1);
+            coord_type cut = parameters.scale.lower() + random.gen(ny - spacing - 2 * parameters.scale.lower() + 1);
             partition({rectangle.position(), vector_type {nx, cut}}, parameters, random, leaves);
             partition({point_type {rectangle.position().i(), rectangle.position().j() + cut + spacing}, vector_type {nx, ny - cut - spacing}}, parameters, random, leaves);
         }
@@ -280,7 +280,7 @@ namespace
                     continue;
                 }
 
-                for (Direction direction : {Direction::East, Direction::North})
+                for (CardinalDirection direction : {CardinalDirection::East, CardinalDirection::North})
                 {
                     point_type other = neighbor({i, j}, direction);
                     if (!contains(extent, other))
@@ -378,7 +378,7 @@ namespace
                 id_type region = region_of({i, j});
                 level.set_cell({i, j}, region == nullid ? CellType::Solid : CellType::Open);
 
-                for (Direction direction : {Direction::East, Direction::North, Direction::West, Direction::South})
+                for (CardinalDirection direction : {CardinalDirection::East, CardinalDirection::North, CardinalDirection::West, CardinalDirection::South})
                 {
                     id_type other = region_of(neighbor({i, j}, direction));
 

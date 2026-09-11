@@ -50,8 +50,8 @@ namespace quetzal::catagen
 
         // The wall on one side of a cell. The east wall of (i, j) and the west wall of
         // (i + 1, j) are one wall, so either name reaches it
-        WallType wall(const point_type& cell, Direction direction) const;
-        void set_wall(const point_type& cell, Direction direction, WallType type);
+        WallType wall(const point_type& cell, CardinalDirection direction) const;
+        void set_wall(const point_type& cell, CardinalDirection direction, WallType type);
 
         void clear();
 
@@ -67,8 +67,7 @@ namespace quetzal::catagen
         std::vector<WallType> m_walls_horizontal; // nx by (ny + 1)
     };
 
-    point_type neighbor(const point_type& cell, Direction direction);
-    Direction opposite(Direction direction);
+    point_type neighbor(const point_type& cell, CardinalDirection direction);
 
 } // namespace quetzal::catagen
 

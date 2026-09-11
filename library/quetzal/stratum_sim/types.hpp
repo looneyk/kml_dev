@@ -13,6 +13,7 @@
 #include "quetzal/math/CartesianTraits.hpp"
 #include "quetzal/math/DiscreteVector.hpp"
 #include <vector>
+#include <cstdint>
 
 namespace quetzal::stratum_sim
 {
@@ -31,17 +32,18 @@ namespace quetzal::stratum_sim
     using point_projection_type = geometry::MinProjection<point_type>;
     using vector_projection_type = geometry::MinProjection<vector_type>;
 
-    using discrete_vector_type = math::DiscreteVector<long, 2>;
-    using discrete_point_type = geometry::DiscretePoint<long, 2>;
+    using coord_type = std::int32_t;
+    using discrete_vector_type = math::DiscreteVector<coord_type, 2>;
+    using discrete_point_type = geometry::DiscretePoint<coord_type, 2>;
 
-    //--------------------------------------------------------------------------
-    struct Direction
+    using math::CardinalDirection;
+
+    inline const auto& cardinal_directions = math::cardinal_directions<coord_type, 2>;
+
+    inline const discrete_vector_type& cardinal_direction(CardinalDirection direction)
     {
-        inline static const discrete_vector_type East = discrete_vector_type(1, 0);
-        inline static const discrete_vector_type North = discrete_vector_type(0, 1);
-        inline static const discrete_vector_type West = discrete_vector_type(-1, 0);
-        inline static const discrete_vector_type South = discrete_vector_type(0, -1);
-    };
+        return math::cardinal_direction<coord_type, 2>(direction);
+    }
 
     // The cell step a direction through space most nearly asks for, height disregarded
     inline discrete_vector_type grid_step(const vector_type& direction)

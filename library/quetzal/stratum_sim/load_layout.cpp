@@ -28,6 +28,7 @@ namespace
 
     using namespace quetzal::stratum_sim::detail;
 
+    using quetzal::stratum_sim::coord_type;
     using quetzal::stratum_sim::discrete_point_type;
 
     //--------------------------------------------------------------------------
@@ -131,7 +132,7 @@ namespace
 
             for (const auto& grid_position : map.component_cells[component])
             {
-                auto outside = [&](long i, long j)
+                auto outside = [&](coord_type i, coord_type j)
                 {
                     return i < 0 || j < 0 || i >= map.extent.x() || j >= map.extent.y()
                         || map.cell_components[map.slot({i, j})] != component;
@@ -229,9 +230,9 @@ namespace
         }
 
         // Openness comes from what the file said of each cell, both formats stating it
-        for (long j = 0; j < map.extent.y(); ++j)
+        for (coord_type j = 0; j < map.extent.y(); ++j)
         {
-            for (long i = 0; i < map.extent.x(); ++i)
+            for (coord_type i = 0; i < map.extent.x(); ++i)
             {
                 discrete_point_type grid_position {i, j};
 
@@ -347,7 +348,7 @@ namespace
         rooms.extent = map.extent;
 
         find_components(rooms,
-            [&](long i, long j) { return map.cell_room[map.slot({i, j})]; },
+            [&](coord_type i, coord_type j) { return map.cell_room[map.slot({i, j})]; },
             [](const discrete_point_type&, const discrete_point_type&) { return true; });
 
         Outlines outlines = trace_outlines(rooms);
@@ -391,33 +392,6 @@ namespace
     }
 
 } // namespace
-
-//------------------------------------------------------------------------------
-bool quetzal::stratum_sim::detail::read_pair(const std::string& s, char separator, long& first, long& second)
-{
-    size_t n = s.find(separator);
-    if (n == std::string::npos)
-    {
-        return false;
-    }
-
-    const char* begin = s.data();
-    const char* end = begin + s.size();
-
-    auto first_result = std::from_chars(begin, begin + n, first);
-    if (first_result.ec != std::errc {} || first_result.ptr != begin + n)
-    {
-        return false;
-    }
-
-    auto second_result = std::from_chars(begin + n + 1, end, second);
-    if (second_result.ec != std::errc {} || second_result.ptr != end)
-    {
-        return false;
-    }
-
-    return true;
-}
 
 //------------------------------------------------------------------------------
 std::unique_ptr<quetzal::stratum_sim::DiscreteLayout> quetzal::stratum_sim::load_layout(const std::filesystem::path& filepath,

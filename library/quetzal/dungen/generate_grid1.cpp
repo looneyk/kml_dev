@@ -508,7 +508,7 @@ namespace
         {
             for (coord_type x = 0; x < nx; ++x)
             {
-                CellType type = level.cell(x, y).type();
+                CellType type = level.cell({x, y}).type();
                 if (type == CellType::Room)
                 {
                     rooms.push_back({x, y});

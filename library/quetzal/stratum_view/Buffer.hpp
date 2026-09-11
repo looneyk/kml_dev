@@ -5,6 +5,8 @@
 // Buffer.hpp
 //------------------------------------------------------------------------------
 
+#include "types.hpp"
+#include <algorithm>
 #include <concepts>
 #include <string>
 #include <vector>
@@ -26,7 +28,7 @@ namespace quetzal::stratum_view
         using value_type = T;
 
         Buffer() = default;
-        Buffer(size_t width, size_t height, T fill = T());
+        Buffer(const vector_type& extent, T fill = T());
         Buffer(const Buffer&) = default;
         Buffer(Buffer&&) noexcept = default;
         ~Buffer() = default;
@@ -34,11 +36,11 @@ namespace quetzal::stratum_view
         Buffer& operator=(const Buffer&) = default;
         Buffer& operator=(Buffer&&) noexcept = default;
 
-        size_t width() const;
-        size_t height() const;
+        const vector_type& extent() const;
+        bool contains(const point_type& position) const;
 
-        T at(size_t i, size_t j) const;
-        void set(size_t i, size_t j, T value);
+        T at(const point_type& position) const;
+        void set(const point_type& position, T value);
 
         void fill(T value);
 
@@ -48,8 +50,9 @@ namespace quetzal::stratum_view
 
     private:
 
-        size_t m_width = 0;
-        size_t m_height = 0;
+        size_t offset(const point_type& position) const;
+
+        vector_type m_extent;
         std::vector<T> m_values;
     };
 
@@ -57,9 +60,8 @@ namespace quetzal::stratum_view
     // A run of cells within one row
     struct Span
     {
-        size_t i = 0;
-        size_t j = 0;
-        size_t count = 0;
+        point_type position;
+        coord_type count = 0;
 
         friend bool operator==(const Span&, const Span&) = default;
     };
@@ -76,42 +78,39 @@ namespace quetzal::stratum_view
 
 //------------------------------------------------------------------------------
 template<typename T>
-quetzal::stratum_view::Buffer<T>::Buffer(size_t width, size_t height, T fill) :
-    m_width(width),
-    m_height(height),
-    m_values(width * height, fill)
+quetzal::stratum_view::Buffer<T>::Buffer(const vector_type& extent, T fill) :
+    m_extent(extent),
+    m_values(static_cast<size_t>(extent.x() * extent.y()), fill)
 {
 }
 
 //------------------------------------------------------------------------------
 template<typename T>
-size_t quetzal::stratum_view::Buffer<T>::width() const
+const quetzal::stratum_view::vector_type& quetzal::stratum_view::Buffer<T>::extent() const
 {
-    return m_width;
+    return m_extent;
 }
 
 //------------------------------------------------------------------------------
 template<typename T>
-size_t quetzal::stratum_view::Buffer<T>::height() const
+bool quetzal::stratum_view::Buffer<T>::contains(const point_type& position) const
 {
-    return m_height;
+    return position.i() >= 0 && position.i() < m_extent.x()
+        && position.j() >= 0 && position.j() < m_extent.y();
 }
 
 //------------------------------------------------------------------------------
 template<typename T>
-T quetzal::stratum_view::Buffer<T>::at(size_t i, size_t j) const
+T quetzal::stratum_view::Buffer<T>::at(const point_type& position) const
 {
-    assert(i < m_width && j < m_height);
-    return m_values[j * m_width + i];
+    return m_values[offset(position)];
 }
 
 //------------------------------------------------------------------------------
 template<typename T>
-void quetzal::stratum_view::Buffer<T>::set(size_t i, size_t j, T value)
+void quetzal::stratum_view::Buffer<T>::set(const point_type& position, T value)
 {
-    assert(i < m_width && j < m_height);
-    m_values[j * m_width + i] = value;
-
+    m_values[offset(position)] = value;
     return;
 }
 
@@ -119,7 +118,7 @@ void quetzal::stratum_view::Buffer<T>::set(size_t i, size_t j, T value)
 template<typename T>
 void quetzal::stratum_view::Buffer<T>::fill(T value)
 {
-    m_values.assign(m_width * m_height, value);
+    std::fill(m_values.begin(), m_values.end(), value);
     return;
 }
 
@@ -128,11 +127,15 @@ template<typename T>
 std::string quetzal::stratum_view::Buffer<T>::to_string() const requires std::same_as<T, char>
 {
     std::string s;
-    s.reserve(m_height * (m_width + 1));
+    s.reserve(static_cast<size_t>(m_extent.y() * (m_extent.x() + 1)));
 
-    for (size_t j = m_height; j-- > 0; )
+    for (coord_type j = m_extent.y() - 1; j >= 0; --j)
     {
-        s.append(&m_values[j * m_width], m_width);
+        for (coord_type i = 0; i < m_extent.x(); ++i)
+        {
+            s += m_values[offset({i, j})];
+        }
+
         s += '\n';
     }
 
@@ -141,39 +144,49 @@ std::string quetzal::stratum_view::Buffer<T>::to_string() const requires std::sa
 
 //------------------------------------------------------------------------------
 template<typename T>
+size_t quetzal::stratum_view::Buffer<T>::offset(const point_type& position) const
+{
+    assert(contains(position));
+    return static_cast<size_t>(position.j() * m_extent.x() + position.i());
+}
+
+//------------------------------------------------------------------------------
+template<typename T>
 quetzal::stratum_view::spans_type quetzal::stratum_view::difference(const Buffer<T>& a, const Buffer<T>& b)
 {
     spans_type spans;
 
-    if (a.width() != b.width() || a.height() != b.height())
+    const vector_type& extent = b.extent();
+
+    if (a.extent() != extent)
     {
-        for (size_t j = 0; j < b.height(); ++j)
+        for (coord_type j = 0; j < extent.y(); ++j)
         {
-            spans.push_back(Span {0, j, b.width()});
+            spans.push_back(Span {{0, j}, extent.x()});
         }
 
         return spans;
     }
 
-    for (size_t j = 0; j < b.height(); ++j)
+    for (coord_type j = 0; j < extent.y(); ++j)
     {
-        size_t i = 0;
+        coord_type i = 0;
 
-        while (i < b.width())
+        while (i < extent.x())
         {
-            if (a.at(i, j) == b.at(i, j))
+            if (a.at({i, j}) == b.at({i, j}))
             {
                 ++i;
                 continue;
             }
 
-            size_t i_first = i;
-            while (i < b.width() && a.at(i, j) != b.at(i, j))
+            coord_type i_first = i;
+            while (i < extent.x() && a.at({i, j}) != b.at({i, j}))
             {
                 ++i;
             }
 
-            spans.push_back(Span {i_first, j, i - i_first});
+            spans.push_back(Span {{i_first, j}, i - i_first});
         }
     }
 

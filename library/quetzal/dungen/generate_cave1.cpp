@@ -128,7 +128,7 @@ namespace
                     pending.pop_back();
                     region.push_back(position);
 
-                    for (const vector_type& step : {vector_type {1, 0}, vector_type {0, 1}, vector_type {-1, 0}, vector_type {0, -1}})
+                    for (const auto& step : cardinal_directions)
                     {
                         point_type neighbor = position + step;
                         if (solid(grid, size, neighbor.x(), neighbor.y()) || seen[slot(size, neighbor.x(), neighbor.y())])

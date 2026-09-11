@@ -6,6 +6,7 @@
 //------------------------------------------------------------------------------
 
 #include "types.hpp"
+#include "quetzal/math/Interval.hpp"
 #include <optional>
 #include <random>
 
@@ -21,16 +22,14 @@ namespace quetzal::catagen
 
         vector_type extent {48, 32}; // The area to fill, in cells
 
-        // Target room size in cells. The partition splits while a room exceeds scale_max and
-        // never below scale_min, so a room falls within the range unless the range is too
-        // narrow to split into -- scale_max below twice scale_min leaves rooms oversized
-        coord_type scale_min = 4;
-        coord_type scale_max = 8;
+        // Target room size in cells. The partition splits while a room exceeds the upper bound
+        // and never below the lower, so a room falls within the range unless the range is too
+        // narrow to split into -- an upper below twice the lower leaves rooms oversized
+        math::Interval<coord_type> scale {4, 8};
 
-        // Rock left between rooms, in cells, as a range. Zero has them share a wall; anything
-        // more sets them apart, and what separates them is what the corridors then cross
-        coord_type spacing_min = 0;
-        coord_type spacing_max = 0;
+        // Rock left between rooms, in cells. Zero has them share a wall; anything more sets
+        // them apart, and what separates them is what the corridors then cross
+        math::Interval<coord_type> spacing {0, 0};
 
         // Fraction of the extent the rooms are drawn from; 1.0 keeps every one of them, so
         // with no spacing it leaves nothing solid at all

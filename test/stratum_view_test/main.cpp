@@ -16,6 +16,7 @@
 #include <fstream>
 #include <iostream>
 #include <string>
+#include <type_traits>
 
 using namespace std;
 using namespace quetzal;
@@ -58,7 +59,9 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    void report_case_equal(const string& name, size_t value, size_t value_expected)
+    // The expected value follows what it is compared against, so a literal needs no suffix
+    template<typename T>
+    void report_case_equal(const string& name, T value, std::type_identity_t<T> value_expected)
     {
         report_case(name, value == value_expected, format("expected {}, got {}", value_expected, value));
         return;
@@ -98,15 +101,15 @@ namespace
     {
         report_group("console");
 
-        stratum_view::Console console(4, 3, '.');
+        stratum_view::Console console({4, 3}, '.');
 
-        report_case_equal("it has the width asked for", console.width(), 4);
-        report_case_equal("and the height", console.height(), 3);
-        report_case("every cell starts filled", console.at(0, 0) == '.' && console.at(3, 2) == '.');
+        report_case_equal("it has the width asked for", console.extent().x(), 4);
+        report_case_equal("and the height", console.extent().y(), 3);
+        report_case("every cell starts filled", console.at({0, 0}) == '.' && console.at({3, 2}) == '.');
 
-        console.set(1, 0, '@');
-        report_case("a set cell holds its character", console.at(1, 0) == '@');
-        report_case("and its neighbors are untouched", console.at(0, 0) == '.' && console.at(2, 0) == '.');
+        console.set({1, 0}, '@');
+        report_case("a set cell holds its character", console.at({1, 0}) == '@');
+        report_case("and its neighbors are untouched", console.at({0, 0}) == '.' && console.at({2, 0}) == '.');
 
         // Row 0 is the lowest, so it prints last
         string s = console.to_string();
@@ -115,7 +118,7 @@ namespace
         report_case("and row zero last", s.substr(10, 4) == ".@..");
 
         console.fill('#');
-        report_case("fill replaces everything", console.at(1, 0) == '#');
+        report_case("fill replaces everything", console.at({1, 0}) == '#');
 
         return;
     }
@@ -125,37 +128,37 @@ namespace
     {
         report_group("console difference");
 
-        stratum_view::Console a(6, 3, '.');
+        stratum_view::Console a({6, 3}, '.');
         stratum_view::Console b = a;
 
         report_case("two identical consoles differ nowhere", stratum_view::difference(a, b).empty());
 
-        b.set(2, 1, '@');
+        b.set({2, 1}, '@');
         stratum_view::spans_type spans = stratum_view::difference(a, b);
         report_case_equal("one changed cell is one span", spans.size(), 1);
-        report_case("covering just that cell", !spans.empty() && spans[0] == stratum_view::Span {2, 1, 1});
+        report_case("covering just that cell", !spans.empty() && spans[0] == stratum_view::Span {{2, 1}, 1});
 
-        b.set(3, 1, '@');
+        b.set({3, 1}, '@');
         spans = stratum_view::difference(a, b);
         report_case_equal("two adjacent cells merge into one span", spans.size(), 1);
-        report_case("of two", !spans.empty() && spans[0] == stratum_view::Span {2, 1, 2});
+        report_case("of two", !spans.empty() && spans[0] == stratum_view::Span {{2, 1}, 2});
 
-        b.set(0, 0, '#');
+        b.set({0, 0}, '#');
         spans = stratum_view::difference(a, b);
         report_case_equal("a separate row is a separate span", spans.size(), 2);
-        report_case("and rows come lowest first", spans.size() == 2 && spans[0].j == 0 && spans[1].j == 1);
+        report_case("and rows come lowest first", spans.size() == 2 && spans[0].position.j() == 0 && spans[1].position.j() == 1);
 
         // A cell that matches again ends the run
         stratum_view::Console c = a;
-        c.set(1, 2, 'x');
-        c.set(3, 2, 'x');
+        c.set({1, 2}, 'x');
+        c.set({3, 2}, 'x');
         spans = stratum_view::difference(a, c);
         report_case_equal("a gap splits a run", spans.size(), 2);
 
         // Differing sizes give the whole of b, as the cue for a device to repaint
-        spans = stratum_view::difference(stratum_view::Console(2, 2, '.'), a);
+        spans = stratum_view::difference(stratum_view::Console({2, 2}, '.'), a);
         report_case_equal("a size change reports every row", spans.size(), 3);
-        report_case("each row entire", !spans.empty() && spans[0] == stratum_view::Span {0, 0, 6});
+        report_case("each row entire", !spans.empty() && spans[0] == stratum_view::Span {{0, 0}, 6});
 
         report_case("difference is oriented, reporting b's content", stratum_view::difference(b, a).size() == stratum_view::difference(a, b).size());
 
@@ -186,22 +189,22 @@ namespace
 
         stratum_view::Cells cells = stratum_view::cells(world, zone);
 
-        report_case_equal("it covers the zone's grid", cells.width(), 7);
-        report_case_equal("in both directions", cells.height(), 3);
-        report_case("a closed cell is solid", cells.at(0, 1).type == stratum_view::PlaceType::Solid);
-        report_case("floor where it says open", cells.at(1, 1).type == stratum_view::PlaceType::Floor);
-        report_case("no actor before one exists", !cells.at(3, 1).actor);
+        report_case_equal("it covers the zone's grid", cells.extent().x(), 7);
+        report_case_equal("in both directions", cells.extent().y(), 3);
+        report_case("a closed cell is solid", cells.at({0, 1}).type == stratum_view::PlaceType::Solid);
+        report_case("floor where it says open", cells.at({1, 1}).type == stratum_view::PlaceType::Floor);
+        report_case("no actor before one exists", !cells.at({3, 1}).actor);
 
         const stratum_sim::DiscreteLayout& layout = stratum_sim::layout_as<stratum_sim::DiscreteLayout>(world.layout(zone));
         world.create_entity(zone, stratum_sim::placement_type(layout.position(stratum_sim::discrete_point_type {3, 1}),
             stratum_sim::vector_type(1.0f, 0.0f, 0.0f)));
 
         cells = stratum_view::cells(world, zone);
-        report_case("an entity stands in its cell", cells.at(3, 1).actor);
-        report_case("and only that one", !cells.at(2, 1).actor);
+        report_case("an entity stands in its cell", cells.at({3, 1}).actor);
+        report_case("and only that one", !cells.at({2, 1}).actor);
 
         // The whole point of the actor being a layer: the floor it stands on is still there
-        report_case("the floor under it is kept", cells.at(3, 1).type == stratum_view::PlaceType::Floor);
+        report_case("the floor under it is kept", cells.at({3, 1}).type == stratum_view::PlaceType::Floor);
 
         // A view's mapping is its own; the terminal's is a table of Glyph
         const stratum_view::Glyphs& glyphs = stratum_view::cell_glyphs();
@@ -210,13 +213,13 @@ namespace
 
         report_case("and an actor over whatever it stands on",
             glyphs(stratum_view::Place {stratum_view::PlaceType::Floor, stratum_view::State::None,
-                stratum_view::Mask::None, true}) == '@');
+                stratum_view::DirectionMask::None, true}) == '@');
 
         // A line asking for an actor beats one asking for a state, so an actor in an open
         // doorway draws as the actor
         report_case("an actor in an open doorway draws as the actor",
             glyphs(stratum_view::Place {stratum_view::PlaceType::Door, stratum_view::State::Open,
-                stratum_view::Mask::None, true}) == '@');
+                stratum_view::DirectionMask::None, true}) == '@');
 
         // A set's expressive range is the set's own, so a line specifying a state beats one that does not
         const stratum_view::Glyphs& lattice_set = stratum_view::lattice_glyphs();
@@ -232,7 +235,7 @@ namespace
 
         // difference works over any buffer, which is what having one implementation buys
         stratum_view::Cells other = cells;
-        other.set(5, 1, stratum_view::Place {stratum_view::PlaceType::Solid});
+        other.set({5, 1}, stratum_view::Place {stratum_view::PlaceType::Solid});
         report_case_equal("differencing works over places too", stratum_view::difference(cells, other).size(), 1);
 
         return;
@@ -286,7 +289,7 @@ namespace
             set(stratum_view::Place {stratum_view::PlaceType::Floor}) == ' ');
         report_case("a mask is asked for only where it is named",
             set(stratum_view::Place {stratum_view::PlaceType::Wall, stratum_view::State::None,
-                stratum_view::Mask::East | stratum_view::Mask::West}) == '-'
+                stratum_view::DirectionMask::East | stratum_view::DirectionMask::West}) == '-'
             && set(stratum_view::Place {stratum_view::PlaceType::Wall}) == ' ');
 
         auto throws = [&](const string& text)
@@ -326,24 +329,24 @@ namespace
 
         stratum_view::Lattice lattice = stratum_view::lattice(world, zone);
 
-        report_case_equal("it covers twice the grid plus one", lattice.width(), 9);
-        report_case_equal("in both directions", lattice.height(), 7);
+        report_case_equal("it covers twice the grid plus one", lattice.extent().x(), 9);
+        report_case_equal("in both directions", lattice.extent().y(), 7);
 
-        report_case("a cell sits at an odd position both ways", lattice.at(1, 1).type == stratum_view::PlaceType::Floor);
-        report_case("the wall two rooms share lies between them", lattice.at(4, 1).type == stratum_view::PlaceType::Wall);
-        report_case("and the door in it is a door", lattice.at(4, 5).type == stratum_view::PlaceType::Door);
+        report_case("a cell sits at an odd position both ways", lattice.at({1, 1}).type == stratum_view::PlaceType::Floor);
+        report_case("the wall two rooms share lies between them", lattice.at({4, 1}).type == stratum_view::PlaceType::Wall);
+        report_case("and the door in it is a door", lattice.at({4, 5}).type == stratum_view::PlaceType::Door);
         report_case("shut, which is a state rather than a type of its own",
-            !stratum_view::any(lattice.at(4, 5).state & stratum_view::State::Open));
+            !stratum_view::any(lattice.at({4, 5}).state & stratum_view::State::Open));
         report_case("a state a wall cannot be in is rejected",
             !stratum_view::applies(stratum_view::PlaceType::Wall, stratum_view::State::Open)
             && stratum_view::applies(stratum_view::PlaceType::Door, stratum_view::State::Open));
-        report_case("an edge within one room holds nothing", lattice.at(2, 1).type == stratum_view::PlaceType::None);
-        report_case("the boundary is walled", lattice.at(0, 1).type == stratum_view::PlaceType::Wall
-            && lattice.at(8, 1).type == stratum_view::PlaceType::Wall);
+        report_case("an edge within one room holds nothing", lattice.at({2, 1}).type == stratum_view::PlaceType::None);
+        report_case("the boundary is walled", lattice.at({0, 1}).type == stratum_view::PlaceType::Wall
+            && lattice.at({8, 1}).type == stratum_view::PlaceType::Wall);
 
-        report_case("a corner walls reach is a joint", lattice.at(0, 0).type == stratum_view::PlaceType::Wall);
-        report_case("so is one a run passes through", lattice.at(2, 0).type == stratum_view::PlaceType::Wall);
-        report_case("a corner inside a room is not", lattice.at(2, 2).type == stratum_view::PlaceType::None);
+        report_case("a corner walls reach is a joint", lattice.at({0, 0}).type == stratum_view::PlaceType::Wall);
+        report_case("so is one a run passes through", lattice.at({2, 0}).type == stratum_view::PlaceType::Wall);
+        report_case("a corner inside a room is not", lattice.at({2, 2}).type == stratum_view::PlaceType::None);
 
         // The block format reduces onto the same lattice, its walls existing only against solid
         stratum_sim::World block;
@@ -351,26 +354,26 @@ namespace
 
         stratum_view::Lattice cells = stratum_view::lattice(block, corridor);
 
-        report_case_equal("a block level covers the same shape", cells.width(), 15);
-        report_case("a closed cell reads as solid", cells.at(1, 1).type == stratum_view::PlaceType::Solid);
-        report_case("an open cell reads as floor", cells.at(3, 3).type == stratum_view::PlaceType::Floor);
-        report_case("open meeting solid is walled", cells.at(2, 3).type == stratum_view::PlaceType::Wall);
+        report_case_equal("a block level covers the same shape", cells.extent().x(), 15);
+        report_case("a closed cell reads as solid", cells.at({1, 1}).type == stratum_view::PlaceType::Solid);
+        report_case("an open cell reads as floor", cells.at({3, 3}).type == stratum_view::PlaceType::Floor);
+        report_case("open meeting solid is walled", cells.at({2, 3}).type == stratum_view::PlaceType::Wall);
 
         // A wall exists only on the side facing open space, so an edge has to be asked of
         // both cells: this one has its wall on the west side, the other on the east
-        report_case("and so is solid meeting open", cells.at(12, 3).type == stratum_view::PlaceType::Wall);
-        report_case("as is the floor's own boundary", cells.at(3, 2).type == stratum_view::PlaceType::Wall
-            && cells.at(3, 4).type == stratum_view::PlaceType::Wall);
+        report_case("and so is solid meeting open", cells.at({12, 3}).type == stratum_view::PlaceType::Wall);
+        report_case("as is the floor's own boundary", cells.at({3, 2}).type == stratum_view::PlaceType::Wall
+            && cells.at({3, 4}).type == stratum_view::PlaceType::Wall);
 
-        report_case("two open cells of one area are not", cells.at(4, 3).type == stratum_view::PlaceType::None);
+        report_case("two open cells of one area are not", cells.at({4, 3}).type == stratum_view::PlaceType::None);
 
         const stratum_sim::DiscreteLayout& layout = stratum_sim::layout_as<stratum_sim::DiscreteLayout>(block.layout(corridor));
         block.create_entity(corridor, stratum_sim::placement_type(layout.position(stratum_sim::discrete_point_type {1, 1}),
             stratum_sim::vector_type(1.0f, 0.0f, 0.0f)));
 
         cells = stratum_view::lattice(block, corridor);
-        report_case("an entity stands in its cell", cells.at(3, 3).actor);
-        report_case("with the floor under it kept", cells.at(3, 3).type == stratum_view::PlaceType::Floor);
+        report_case("an entity stands in its cell", cells.at({3, 3}).actor);
+        report_case("with the floor under it kept", cells.at({3, 3}).type == stratum_view::PlaceType::Floor);
 
         return;
     }
@@ -386,21 +389,21 @@ namespace
 
         stratum_view::Console console = stratum_view::render(world, zone);
 
-        report_case_equal("the console covers the zone's grid", console.width(), 7);
-        report_case_equal("in both directions", console.height(), 3);
+        report_case_equal("the console covers the zone's grid", console.extent().x(), 7);
+        report_case_equal("in both directions", console.extent().y(), 3);
 
-        report_case("a solid cell renders as solid", console.at(0, 1) == '#');
-        report_case("open floor renders as floor", console.at(1, 1) == '.');
-        report_case("the far end is floor too", console.at(5, 1) == '.');
-        report_case("beyond it is solid", console.at(6, 1) == '#');
+        report_case("a solid cell renders as solid", console.at({0, 1}) == '#');
+        report_case("open floor renders as floor", console.at({1, 1}) == '.');
+        report_case("the far end is floor too", console.at({5, 1}) == '.');
+        report_case("beyond it is solid", console.at({6, 1}) == '#');
 
         // An actor draws over the floor it stands on
         const stratum_sim::DiscreteLayout& layout = stratum_sim::layout_as<stratum_sim::DiscreteLayout>(world.layout(zone));
         world.create_entity(zone, stratum_sim::placement_type(layout.position(stratum_sim::discrete_point_type {3, 1}), stratum_sim::vector_type(1.0f, 0.0f, 0.0f)));
 
         console = stratum_view::render(world, zone);
-        report_case("an actor draws over its floor", console.at(3, 1) == '@');
-        report_case("and only its own cell", console.at(2, 1) == '.');
+        report_case("an actor draws over its floor", console.at({3, 1}) == '@');
+        report_case("and only its own cell", console.at({2, 1}) == '.');
 
         return;
     }
@@ -416,25 +419,25 @@ namespace
 
         stratum_view::Console console = stratum_view::render_lattice(world, zone);
 
-        report_case_equal("the console covers the lattice", console.width(), 15);
-        report_case_equal("in both directions", console.height(), 7);
+        report_case_equal("the console covers the lattice", console.extent().x(), 15);
+        report_case_equal("in both directions", console.extent().y(), 7);
 
-        report_case("an open cell is a space, not a dot", console.at(3, 3) == ' ');
-        report_case("a solid cell is solid", console.at(1, 1) == '#');
-        report_case("open meeting solid is a vertical wall", console.at(2, 3) == '|');
-        report_case("open over solid is a horizontal one", console.at(3, 2) == '-');
-        report_case("two open cells of one area have nothing between them", console.at(4, 3) == ' ');
+        report_case("an open cell is a space, not a dot", console.at({3, 3}) == ' ');
+        report_case("a solid cell is solid", console.at({1, 1}) == '#');
+        report_case("open meeting solid is a vertical wall", console.at({2, 3}) == '|');
+        report_case("open over solid is a horizontal one", console.at({3, 2}) == '-');
+        report_case("two open cells of one area have nothing between them", console.at({4, 3}) == ' ');
 
-        report_case("a corner with solid all around it is solid", console.at(0, 0) == '#');
-        report_case("a corner two walls turn at is a junction", console.at(2, 2) == '+');
-        report_case("and one a run passes through is the run", console.at(4, 2) == '-');
+        report_case("a corner with solid all around it is solid", console.at({0, 0}) == '#');
+        report_case("a corner two walls turn at is a junction", console.at({2, 2}) == '+');
+        report_case("and one a run passes through is the run", console.at({4, 2}) == '-');
 
         const stratum_sim::DiscreteLayout& layout = stratum_sim::layout_as<stratum_sim::DiscreteLayout>(world.layout(zone));
         world.create_entity(zone, stratum_sim::placement_type(layout.position(stratum_sim::discrete_point_type {1, 1}),
             stratum_sim::vector_type(1.0f, 0.0f, 0.0f)));
 
         console = stratum_view::render_lattice(world, zone);
-        report_case("an actor draws over the cell it stands in", console.at(3, 3) == '@');
+        report_case("an actor draws over the cell it stands in", console.at({3, 3}) == '@');
 
         return;
     }
@@ -509,19 +512,21 @@ namespace
 
         stratum_view::Console console = stratum_view::render(world, zone);
 
-        report_case_equal("the console is as wide as the file", console.width(), 31);
-        report_case_equal("and as tall", console.height(), 31);
+        const stratum_view::vector_type& extent = console.extent();
+
+        report_case_equal("the console is as wide as the file", extent.x(), 31);
+        report_case_equal("and as tall", extent.y(), 31);
 
         size_t solid_count = 0;
         size_t floor_count = 0;
         size_t mismatch_count = 0;
 
-        for (size_t j = 0; j < console.height(); ++j)
+        for (stratum_view::coord_type j = 0; j < extent.y(); ++j)
         {
-            for (size_t i = 0; i < console.width(); ++i)
+            for (stratum_view::coord_type i = 0; i < extent.x(); ++i)
             {
                 // File line 0 is the highest row
-                char source_character = source[(console.height() - 1 - j) * (console.width() + 1) + i];
+                char source_character = source[static_cast<size_t>((extent.y() - 1 - j) * (extent.x() + 1) + i)];
                 bool solid = source_character == '#';
 
                 solid ? ++solid_count : ++floor_count;
@@ -531,7 +536,7 @@ namespace
                 bool block = source_character == '|' || source_character == '>';
                 char expected = solid ? '#' : block ? '/' : '.';
 
-                if (console.at(i, j) != expected)
+                if (console.at({i, j}) != expected)
                 {
                     ++mismatch_count;
                 }

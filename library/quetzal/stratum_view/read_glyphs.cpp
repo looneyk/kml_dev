@@ -16,7 +16,7 @@ namespace
 
     using quetzal::stratum_view::Glyph;
     using quetzal::stratum_view::PlaceType;
-    using quetzal::stratum_view::Mask;
+    using quetzal::stratum_view::DirectionMask;
     using quetzal::stratum_view::State;
 
     //--------------------------------------------------------------------------
@@ -85,18 +85,18 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    Mask read_mask(const std::string& token, const std::string& name, size_t row)
+    DirectionMask read_mask(const std::string& token, const std::string& name, size_t row)
     {
-        Mask mask = Mask::None;
+        DirectionMask mask = DirectionMask::None;
 
         for (char c : token)
         {
             switch (c)
             {
-                case 'E': mask |= Mask::East; break;
-                case 'N': mask |= Mask::North; break;
-                case 'W': mask |= Mask::West; break;
-                case 'S': mask |= Mask::South; break;
+                case 'E': mask |= DirectionMask::East; break;
+                case 'N': mask |= DirectionMask::North; break;
+                case 'W': mask |= DirectionMask::West; break;
+                case 'S': mask |= DirectionMask::South; break;
                 default: fail(name, row, std::format("{} is not a direction", c));
             }
         }

@@ -162,9 +162,6 @@ namespace quetzal::stratum_sim
             std::map<std::string, std::string> values;
         };
 
-        // Two whole numbers with a separator between them, as a header writes a pair
-        bool read_pair(const std::string& s, char separator, long& first, long& second);
-
         //----------------------------------------------------------------------
         // Groups open cells, a caller's predicate deciding whether two adjacent ones belong
         // together and whether a cell is open at all
@@ -173,9 +170,9 @@ namespace quetzal::stratum_sim
         {
             map.cell_components.assign(map.cell_count(), npos);
 
-            for (long j = 0; j < map.extent.y(); ++j)
+            for (coord_type j = 0; j < map.extent.y(); ++j)
             {
-                for (long i = 0; i < map.extent.x(); ++i)
+                for (coord_type i = 0; i < map.extent.x(); ++i)
                 {
                     discrete_point_type grid_position_start {i, j};
                     size_t slot = map.slot(grid_position_start);
@@ -197,9 +194,10 @@ namespace quetzal::stratum_sim
                         pending.pop_back();
                         map.component_cells[component].push_back(grid_position);
 
-                        const discrete_point_type neighbors[4] {grid_position + Direction::East, grid_position + Direction::West, grid_position + Direction::North, grid_position + Direction::South};  // order ...
-                        for (const auto& neighbor : neighbors)
+                        for (const auto& direction : cardinal_directions)
                         {
+                            discrete_point_type neighbor = grid_position + direction;
+
                             if (neighbor.i() < 0 || neighbor.j() < 0 || neighbor.i() >= map.extent.x() || neighbor.j() >= map.extent.y())
                             {
                                 continue;

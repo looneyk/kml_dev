@@ -5,7 +5,10 @@
 
 #include "quetzal/catagen/generate.hpp"
 #include "quetzal/catagen/write_level.hpp"
+#include "quetzal/common/string_util.hpp"
+#include "quetzal/math/Interval.hpp"
 #include "quetzal/math/Random.hpp"
+#include <algorithm>
 #include <charconv>
 #include <exception>
 #include <format>
@@ -22,9 +25,9 @@ namespace
 {
 
     //--------------------------------------------------------------------------
-    long to_integer(const string& s)
+    catagen::coord_type to_integer(const string& s)
     {
-        long value = 0;
+        catagen::coord_type value = 0;
         auto result = from_chars(s.data(), s.data() + s.size(), value);
 
         if (result.ec != errc {} || result.ptr != s.data() + s.size())
@@ -50,8 +53,23 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Two numbers with a separator between them
-    pair<long, long> to_pair(const string& s, char separator)
+    catagen::vector_type to_vector(const string& s, const string& separator)
+    {
+        catagen::vector_type v;
+        auto result = math::from_chars(s.data(), s.data() + s.size(), v, separator);
+
+        if (result.ec != errc {} || result.ptr != s.data() + s.size())
+        {
+            throw invalid_argument(format("\"{}\" is not {} values separated by '{}'",
+                s, catagen::vector_type::dimension, separator));
+        }
+
+        return v;
+    }
+
+    //--------------------------------------------------------------------------
+    // A closed range, written low to high with the separator between
+    math::Interval<catagen::coord_type> to_interval(const string& s, char separator)
     {
         size_t n = s.find(separator);
 
@@ -88,20 +106,15 @@ int main(int argc, char* argv[])
 
             if (arg == "--extent" && i + 1 < argc)
             {
-                auto [nx, ny] = to_pair(argv[++i], ',');
-                parameters.extent = {static_cast<catagen::coord_type>(nx), static_cast<catagen::coord_type>(ny)};
+                parameters.extent = to_vector(argv[++i], ",");
             }
             else if (arg == "--scale" && i + 1 < argc)
             {
-                auto [scale_min, scale_max] = to_pair(argv[++i], '-');
-                parameters.scale_min = static_cast<catagen::coord_type>(scale_min);
-                parameters.scale_max = static_cast<catagen::coord_type>(scale_max);
+                parameters.scale = to_interval(argv[++i], '-');
             }
             else if (arg == "--spacing" && i + 1 < argc)
             {
-                auto [spacing_min, spacing_max] = to_pair(argv[++i], '-');
-                parameters.spacing_min = static_cast<catagen::coord_type>(spacing_min);
-                parameters.spacing_max = static_cast<catagen::coord_type>(spacing_max);
+                parameters.spacing = to_interval(argv[++i], '-');
             }
             else if (arg == "--density" && i + 1 < argc)
             {

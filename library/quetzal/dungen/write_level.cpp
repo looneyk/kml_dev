@@ -4,6 +4,7 @@
 //------------------------------------------------------------------------------
 
 #include "write_level.hpp"
+#include "quetzal/common/string_util.hpp"
 #include <ostream>
 #include <cassert>
 
@@ -34,7 +35,7 @@ namespace
     {
         const auto& grid1 = parameters.grid1;
 
-        os << " divisions=" << grid1.divisions.x() << "," << grid1.divisions.y()
+        os << " divisions=" << quetzal::element_delim(",") << grid1.divisions << quetzal::element_delim(" ")
             << " room_density=" << grid1.room_density
             << " room_dimension_min=" << grid1.room_dimension_min
             << " room_margin=" << grid1.room_margin
@@ -61,11 +62,9 @@ void quetzal::dungen::write_level(ostream& os, const Level& level, const Paramet
 {
     // The level's own size rather than the requested one, an algorithm being free to round
     // what it was given to something its layout can use
-    auto [nx, ny] = level.size();
-
     os << "dungen " << format_version
         << " algorithm=" << parameters.algorithm
-        << " size=" << nx << "," << ny
+        << " size=" << quetzal::element_delim(",") << level.size() << quetzal::element_delim(" ")
         << " stair_placements=" << parameters.stair_placements;
 
     switch (parameters.algorithm)

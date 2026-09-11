@@ -70,14 +70,14 @@ void quetzal::catagen::Level::set_wall_horizontal(coord_type i, coord_type j, Wa
 }
 
 //------------------------------------------------------------------------------
-quetzal::catagen::WallType quetzal::catagen::Level::wall(const point_type& position, Direction direction) const
+quetzal::catagen::WallType quetzal::catagen::Level::wall(const point_type& position, CardinalDirection direction) const
 {
     switch (direction)
     {
-        case Direction::East: return wall_vertical(position.i() + 1, position.j());
-        case Direction::West: return wall_vertical(position.i(), position.j());
-        case Direction::North: return wall_horizontal(position.i(), position.j() + 1);
-        case Direction::South: return wall_horizontal(position.i(), position.j());
+        case CardinalDirection::East: return wall_vertical(position.i() + 1, position.j());
+        case CardinalDirection::West: return wall_vertical(position.i(), position.j());
+        case CardinalDirection::North: return wall_horizontal(position.i(), position.j() + 1);
+        case CardinalDirection::South: return wall_horizontal(position.i(), position.j());
     }
 
     assert(false);
@@ -85,14 +85,14 @@ quetzal::catagen::WallType quetzal::catagen::Level::wall(const point_type& posit
 }
 
 //------------------------------------------------------------------------------
-void quetzal::catagen::Level::set_wall(const point_type& position, Direction direction, WallType type)
+void quetzal::catagen::Level::set_wall(const point_type& position, CardinalDirection direction, WallType type)
 {
     switch (direction)
     {
-        case Direction::East: set_wall_vertical(position.i() + 1, position.j(), type); return;
-        case Direction::West: set_wall_vertical(position.i(), position.j(), type); return;
-        case Direction::North: set_wall_horizontal(position.i(), position.j() + 1, type); return;
-        case Direction::South: set_wall_horizontal(position.i(), position.j(), type); return;
+        case CardinalDirection::East: set_wall_vertical(position.i() + 1, position.j(), type); return;
+        case CardinalDirection::West: set_wall_vertical(position.i(), position.j(), type); return;
+        case CardinalDirection::North: set_wall_horizontal(position.i(), position.j() + 1, type); return;
+        case CardinalDirection::South: set_wall_horizontal(position.i(), position.j(), type); return;
     }
 
     assert(false);
@@ -131,31 +131,7 @@ size_t quetzal::catagen::Level::wall_horizontal_slot(coord_type i, coord_type j)
 }
 
 //------------------------------------------------------------------------------
-quetzal::catagen::point_type quetzal::catagen::neighbor(const point_type& position, Direction direction)
+quetzal::catagen::point_type quetzal::catagen::neighbor(const point_type& position, CardinalDirection direction)
 {
-    switch (direction)
-    {
-        case Direction::East: return {position.i() + 1, position.j()};
-        case Direction::North: return {position.i(), position.j() + 1};
-        case Direction::West: return {position.i() - 1, position.j()};
-        case Direction::South: return {position.i(), position.j() - 1};
-    }
-
-    assert(false);
-    return position;
-}
-
-//------------------------------------------------------------------------------
-quetzal::catagen::Direction quetzal::catagen::opposite(Direction direction)
-{
-    switch (direction)
-    {
-        case Direction::East: return Direction::West;
-        case Direction::North: return Direction::South;
-        case Direction::West: return Direction::East;
-        case Direction::South: return Direction::North;
-    }
-
-    assert(false);
-    return direction;
+    return position + cardinal_direction(direction);
 }

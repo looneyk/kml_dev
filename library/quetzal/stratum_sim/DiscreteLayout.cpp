@@ -362,8 +362,8 @@ quetzal::id_type quetzal::stratum_sim::DiscreteLayout::wall_toward(const discret
     const GridMapping& g = grid();
     assert(g.contains(grid_position));
 
-    long di = direction.x();
-    long dj = direction.y();
+    auto di = direction.x();
+    auto dj = direction.y();
     assert(std::abs(di) + std::abs(dj) == 1); // One step along an axis
 
     auto [ox, oy, oz] = g.origin.rep();
@@ -540,7 +540,7 @@ quetzal::stratum_sim::DiscreteLayout::placements_type quetzal::stratum_sim::Disc
     discrete_point_type cell = grid_position_at(placement.position());
 
     const GridMapping& g = grid();
-    const discrete_vector_type steps[4] {Direction::East, Direction::West, Direction::North, Direction::South};
+    const auto& steps = cardinal_directions;
 
     for (const discrete_vector_type& step : steps)
     {

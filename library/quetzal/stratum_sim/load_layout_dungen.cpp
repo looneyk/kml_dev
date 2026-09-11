@@ -65,24 +65,24 @@ namespace
 quetzal::stratum_sim::detail::Map quetzal::stratum_sim::detail::read_block(const std::vector<std::string>& lines)
 {
     Map map;
-    size_t width = 0;
+    coord_type width = 0;
 
     for (const std::string& s : lines)
     {
-        width = std::max(width, s.size());
+        width = std::max(width, static_cast<coord_type>(s.size()));
     }
 
-    map.extent = discrete_vector_type(static_cast<long>(width), static_cast<long>(lines.size()));
+    map.extent = discrete_vector_type(width, static_cast<coord_type>(lines.size()));
 
     // Trailing spaces may have been trimmed, and a short line is room floor
     std::vector<CellType> cell_types(map.cell_count(), CellType::Room);
 
-    for (long j = 0; j < map.extent.y(); ++j)
+    for (coord_type j = 0; j < map.extent.y(); ++j)
     {
         const std::string& line = lines[static_cast<size_t>(map.extent.y() - 1 - j)]; // The first line of the file is the highest row
-        for (long i = 0; i < map.extent.x(); ++i)
+        for (coord_type i = 0; i < map.extent.x(); ++i)
         {
-            cell_types[map.slot({i, j})] = cell_type(static_cast<size_t>(i) < line.size() ? line[static_cast<size_t>(i)] : ' ');
+            cell_types[map.slot({i, j})] = cell_type(i < static_cast<coord_type>(line.size()) ? line[static_cast<size_t>(i)] : ' ');
         }
     }
 
@@ -99,23 +99,23 @@ quetzal::stratum_sim::detail::Map quetzal::stratum_sim::detail::read_block(const
     // A block is part of the area it lies in, so the area's boundary wraps around the solid cells
     // either side of it and its own sides are walled by that boundary rather than by nothing
     find_components(map,
-        [&](long i, long j) { return open(at({i, j})); },
+        [&](coord_type i, coord_type j) { return open(at({i, j})); },
         [&](const discrete_point_type&, const discrete_point_type&) { return true; });
 
     map.cell_open.assign(map.cell_count(), false);
 
-    for (long j = 0; j < map.extent.y(); ++j)
+    for (coord_type j = 0; j < map.extent.y(); ++j)
     {
-        for (long i = 0; i < map.extent.x(); ++i)
+        for (coord_type i = 0; i < map.extent.x(); ++i)
         {
             map.cell_open[map.slot({i, j})] = open(at({i, j}));
         }
     }
 
     // Each block and the open cells its faces adjoin, which is where a door hangs
-    for (long j = 0; j < map.extent.y(); ++j)
+    for (coord_type j = 0; j < map.extent.y(); ++j)
     {
-        for (long i = 0; i < map.extent.x(); ++i)
+        for (coord_type i = 0; i < map.extent.x(); ++i)
         {
             const discrete_point_type grid_position {i, j};
 
@@ -127,7 +127,7 @@ quetzal::stratum_sim::detail::Map quetzal::stratum_sim::detail::read_block(const
             Block b;
             b.grid_position = grid_position;
 
-            for (const auto& direction : {Direction::East, Direction::North, Direction::West, Direction::South})
+            for (const auto& direction : cardinal_directions)
             {
                 discrete_point_type neighbor = grid_position + direction;
 

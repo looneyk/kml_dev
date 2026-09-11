@@ -645,14 +645,19 @@ is a cell, an edge or a corner. Sixteen patterns is the whole of a box drawing s
 to express maps many of them onto one glyph, and that duplication is the shape of the set rather
 than of the key.
 
-`Buffer<T>` is the grid those live in, `at`/`set`/`fill`, row 0 lowest to match the simulation.
+`Buffer<T>` is the grid those live in, `at`/`set`/`fill`, row 0 lowest to match the simulation. A
+position is a `point_type` and the extent a `vector_type`, the same discrete types the simulation
+addresses its grid with, so a `GridMapping`'s extent reaches a buffer whole and a grid position
+indexes one without conversion. A single private `offset` is where a position becomes a subscript,
+and it is the only place the bounds are asserted.
 `Console` is `Buffer<char>`, and `Cells` and `Lattice` are both `Buffer<Place>`, named apart for what
 they are indexed by rather than for any difference in type; the payload is a parameter because a
 terminal needs characters and a tile view has no use for them. `to_string` is constrained to the
 character case, there being nothing to write for a cell without one, and it emits the
 highest row first so the result reads as a map.
 
-`difference(a, b)` returns the runs in which `b` differs from `a`, as `Span {i, j, count}`, in row
+`difference(a, b)` returns the runs in which `b` differs from `a`, as a `Span` of a position and a
+count of cells along the row from it, in row
 order lowest first. It is empty when the two are the same, and the whole of `b` when they differ in
 size --- which a caller repainting a device takes as its cue to clear first. One implementation
 handles any payload, so a tile view differences places exactly as the terminal differences characters.
@@ -719,9 +724,10 @@ hide the cursor, the alternate screen buffer, and XTWINOPS to resize.
   shell's own screen and scrollback come back untouched.
 - On Windows it sets `ENABLE_VIRTUAL_TERMINAL_PROCESSING` explicitly rather than relying on the
   host's default, which conhost does not turn on.
-- `terminal_size` reads the text area; `set_terminal_size` asks for one with
-  `CSI 8 ; rows ; columns t`, honoured by Windows Terminal and, unlike the Windows console API,
-  leaving the scrollback intact.
+- `terminal_size` reads the text area and `set_terminal_size` asks for one, both in columns by rows
+  as every other extent is. The request is `CSI 8 ; rows ; columns t`, honoured by Windows Terminal
+  and, unlike the Windows console API, leaving the scrollback intact; the escape names height first,
+  so the order is reversed there rather than in the type.
 - The window is grown on the first frame where the frame would not otherwise fit, and never shrunk.
   The original size is restored on exit, but only while the window is still the size it was put at,
   so a resize by hand is left alone.

@@ -73,7 +73,7 @@ namespace
 } // namespace
 
 //------------------------------------------------------------------------------
-stratum_terminal::Size stratum_terminal::terminal_size()
+stratum_terminal::vector_type stratum_terminal::terminal_size()
 {
 #if defined(_WIN32)
 
@@ -84,8 +84,8 @@ stratum_terminal::Size stratum_terminal::terminal_size()
     }
 
     // The window rather than the buffer, which is what is actually visible
-    return {static_cast<size_t>(info.srWindow.Bottom - info.srWindow.Top + 1),
-        static_cast<size_t>(info.srWindow.Right - info.srWindow.Left + 1)};
+    return {static_cast<coord_type>(info.srWindow.Right - info.srWindow.Left + 1),
+        static_cast<coord_type>(info.srWindow.Bottom - info.srWindow.Top + 1)};
 
 #else
 
@@ -95,15 +95,15 @@ stratum_terminal::Size stratum_terminal::terminal_size()
         return {};
     }
 
-    return {static_cast<size_t>(ws.ws_row), static_cast<size_t>(ws.ws_col)};
+    return {static_cast<coord_type>(ws.ws_col), static_cast<coord_type>(ws.ws_row)};
 
 #endif
 }
 
 //------------------------------------------------------------------------------
-bool stratum_terminal::set_terminal_size(const Size& size)
+bool stratum_terminal::set_terminal_size(const vector_type& size)
 {
-    if (size.rows == 0 || size.columns == 0)
+    if (size.x() <= 0 || size.y() <= 0)
     {
         return false;
     }
@@ -111,7 +111,8 @@ bool stratum_terminal::set_terminal_size(const Size& size)
     // XTWINOPS, an xterm extension rather than ECMA-48, honoured by Windows Terminal as
     // well. Preferred over the Windows console API, which does the same job but discards
     // the terminal's scrollback doing it
-    std::cout << std::format("\x1b[8;{};{}t", size.rows, size.columns) << std::flush;
+    // Height then width, which is the escape's own order rather than the extent's
+    std::cout << std::format("\x1b[8;{};{}t", size.y(), size.x()) << std::flush;
 
     // The request goes unanswered, so the result is read back rather than reported, and
     // a terminal that cannot or will not comply simply never arrives at it
@@ -157,7 +158,7 @@ stratum_terminal::Terminal::~Terminal()
     // Emitted correctly and honoured on a terminal driven directly, but Windows Terminal
     // does not act on it: the pseudoconsole reports the new size while the window keeps
     // the one the game asked for. Harmless where it does not take, so it is left in
-    bool restore = m_size_set.rows != 0 && terminal_size() == m_size_set;
+    bool restore = !m_size_set.zero() && terminal_size() == m_size_set;
 
     if (restore)
     {
@@ -182,9 +183,11 @@ void stratum_terminal::Terminal::draw(const stratum_view::Console& console, cons
         return;
     }
 
-    size_t height = console.height();
-    size_t rows_wanted = height + row_count_below_map;
-    size_t columns_wanted = std::max({console.width(), status.size(), help.size()});
+    const vector_type& extent = console.extent();
+
+    coord_type rows_wanted = extent.y() + row_count_below_map;
+    coord_type columns_wanted = std::max({extent.x(),
+        static_cast<coord_type>(status.size()), static_cast<coord_type>(help.size())});
 
     // Once, at the first frame, the zone's size not being known before then. A later
     // resize by hand is left alone rather than fought over
@@ -196,7 +199,7 @@ void stratum_terminal::Terminal::draw(const stratum_view::Console& console, cons
         // Grown where it falls short and left alone otherwise. Windows Terminal will not
         // take the size back on exit, so a window narrowed to fit a small zone would stay
         // narrow afterwards; this way it is never returned smaller than it was found
-        Size wanted {std::max(rows_wanted, m_size_original.rows), std::max(columns_wanted, m_size_original.columns)};
+        vector_type wanted {std::max(columns_wanted, m_size_original.x()), std::max(rows_wanted, m_size_original.y())};
 
         if (wanted != m_size_original && set_terminal_size(wanted))
         {
@@ -212,13 +215,13 @@ void stratum_terminal::Terminal::draw(const stratum_view::Console& console, cons
 
     // A resize reflows and scrolls what is on screen, so nothing already there can be
     // patched and the cached frame no longer describes anything
-    Size size = terminal_size();
+    vector_type size = terminal_size();
     if (size != m_size_previous)
     {
         // A change after the first frame is the window being resized by hand. The size is
         // read again after settling, since the pseudoconsole reports before the terminal
         // has finished, and a frame painted too early scrolls off the top
-        if (m_size_previous.rows != 0)
+        if (!m_size_previous.zero())
         {
             std::this_thread::sleep_for(wait_settle_size);
             size = terminal_size();
@@ -229,10 +232,10 @@ void stratum_terminal::Terminal::draw(const stratum_view::Console& console, cons
     }
 
     // Zero means the size is unknown, in which case drawing is the best that can be done
-    if (size.rows != 0 && (size.rows < rows_wanted || size.columns < columns_wanted))
+    if (!size.zero() && (size.y() < rows_wanted || size.x() < columns_wanted))
     {
         std::cout << escape_clear_string
-            << std::format("This terminal is {} rows by {} columns.\n", size.rows, size.columns)
+            << std::format("This terminal is {} rows by {} columns.\n", size.y(), size.x())
             << std::format("The zone needs {} by {}.\n\n", rows_wanted, columns_wanted)
             << "Resize the window, then press a key." << std::flush;
 
@@ -241,7 +244,7 @@ void stratum_terminal::Terminal::draw(const stratum_view::Console& console, cons
     }
 
     // A size change, the first frame included, cannot be patched into what is already there
-    if (m_console_previous.width() != console.width() || m_console_previous.height() != height)
+    if (m_console_previous.extent() != extent)
     {
         std::cout << escape_clear_string << console.to_string()
             << '\n' << status << escape_erase_line_string
@@ -252,16 +255,16 @@ void stratum_terminal::Terminal::draw(const stratum_view::Console& console, cons
         for (const stratum_view::Span& span : stratum_view::difference(m_console_previous, console))
         {
             // Console row zero is the lowest, terminal row one the highest
-            std::cout << std::format(escape_position_pattern, height - span.j, span.i + 1);
+            std::cout << std::format(escape_position_pattern, extent.y() - span.position.j(), span.position.i() + 1);
 
-            for (size_t i = span.i; i < span.i + span.count; ++i)
+            for (auto i = span.position.i(); i < span.position.i() + span.count; ++i)
             {
-                std::cout << console.at(i, span.j);
+                std::cout << console.at({i, span.position.j()});
             }
         }
 
         // The status varies in length, so what it no longer covers has to be erased
-        std::cout << std::format(escape_position_pattern, height + 2, 1) << status << escape_erase_line_string;
+        std::cout << std::format(escape_position_pattern, extent.y() + 2, 1) << status << escape_erase_line_string;
     }
 
     std::cout << std::flush;

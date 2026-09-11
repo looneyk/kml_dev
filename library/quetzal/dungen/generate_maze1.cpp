@@ -107,7 +107,7 @@ namespace
         {
             for (coord_type x = rectangle.lower(0); x < rectangle.upper(0); ++x)
             {
-                Cell cell = level.cell(x, y);
+                Cell cell = level.cell({x, y});
                 if (cell.type() == CellType::Room)
                 {
                     intersections.insert(cell.room_id());
@@ -169,15 +169,15 @@ namespace
     // Given a door position, determine if it connects two rooms
     tuple<bool, connection_type> room_connection(const Level& level, point_type position)
     {
-        Cell cell_left = level.cell(position.x() - 1, position.y());
-        Cell cell_right = level.cell(position.x() + 1, position.y());
+        Cell cell_left = level.cell({position.x() - 1, position.y()});
+        Cell cell_right = level.cell({position.x() + 1, position.y()});
         if (cell_left.type() == CellType::Room && cell_right.type() == CellType::Room)
         {
             return {true, {cell_left.room_id(), cell_right.room_id()}};
         }
 
-        Cell cell_below = level.cell(position.x(), position.y() - 1);
-        Cell cell_above = level.cell(position.x(), position.y() + 1);
+        Cell cell_below = level.cell({position.x(), position.y() - 1});
+        Cell cell_above = level.cell({position.x(), position.y() + 1});
         if (cell_below.type() == CellType::Room && cell_above.type() == CellType::Room)
         {
             return {true, {cell_below.room_id(), cell_above.room_id()}};
@@ -201,11 +201,11 @@ namespace
             if (position0.y() > 2)
             {
                 coord_type y = position0.y() - 1;
-                if (level.cell(x, y).type() == CellType::Solid)
+                if (level.cell({x, y}).type() == CellType::Solid)
                 {
                     candidates.push_back({x, y});
                 }
-                else if (level.cell(x, y).type() == CellType::Door)
+                else if (level.cell({x, y}).type() == CellType::Door)
                 {
                     ++n_existing;
                 }
@@ -214,11 +214,11 @@ namespace
             if (position1.y() < level.size().y() - 2)
             {
                 coord_type y = position1.y();
-                if (level.cell(x, y).type() == CellType::Solid)
+                if (level.cell({x, y}).type() == CellType::Solid)
                 {
                     candidates.push_back({x, y});
                 }
-                else if (level.cell(x, y).type() == CellType::Door)
+                else if (level.cell({x, y}).type() == CellType::Door)
                 {
                     ++n_existing;
                 }
@@ -230,11 +230,11 @@ namespace
             if (position0.x() > 2)
             {
                 coord_type x = position0.x() - 1;
-                if (level.cell(x, y).type() == CellType::Solid)
+                if (level.cell({x, y}).type() == CellType::Solid)
                 {
                     candidates.push_back({x, y});
                 }
-                else if (level.cell(x, y).type() == CellType::Door)
+                else if (level.cell({x, y}).type() == CellType::Door)
                 {
                     ++n_existing;
                 }
@@ -243,11 +243,11 @@ namespace
             if (position1.x() < level.size().x() - 2)
             {
                 coord_type x = position1.x();
-                if (level.cell(x, y).type() == CellType::Solid)
+                if (level.cell({x, y}).type() == CellType::Solid)
                 {
                     candidates.push_back({x, y});
                 }
-                else if (level.cell(x, y).type() == CellType::Door)
+                else if (level.cell({x, y}).type() == CellType::Door)
                 {
                     ++n_existing;
                 }
@@ -373,12 +373,13 @@ namespace
     //--------------------------------------------------------------------------
     void excavate(Level& level, double corridor_straightness, random_type& random)
     {
+        // A maze cell every other cell, so a step crosses the wall between two of them
         directions_type directions =
         {{
-            {2, 0},
-            {0, 2},
-            {-2, 0},
-            {0, -2},
+            2 * cardinal_direction(CardinalDirection::East),
+            2 * cardinal_direction(CardinalDirection::North),
+            2 * cardinal_direction(CardinalDirection::West),
+            2 * cardinal_direction(CardinalDirection::South),
         }};
         shuffle(directions.begin(), directions.end(), random.engine());
 
@@ -387,7 +388,7 @@ namespace
         {
             for (coord_type x = 1; x < nx; x += 2)
             {
-                if (level.cell(x, y).type() == CellType::Solid)
+                if (level.cell({x, y}).type() == CellType::Solid)
                 {
                     excavate_cell(level, {x, y}, directions, corridor_straightness, random);
                 }

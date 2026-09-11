@@ -6,6 +6,7 @@ add_library(quetzal_stratum_view STATIC
     ascii.hpp
     cells.hpp
     read_glyphs.hpp
+    types.hpp
 )
 
 set_property(TARGET quetzal_stratum_view PROPERTY FOLDER "library")

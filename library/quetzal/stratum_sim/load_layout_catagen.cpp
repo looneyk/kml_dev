@@ -5,6 +5,7 @@
 
 #include "load_layout_catagen.hpp"
 #include <algorithm>
+#include <charconv>
 #include <format>
 #include <stdexcept>
 
@@ -65,25 +66,27 @@ quetzal::stratum_sim::discrete_vector_type quetzal::stratum_sim::detail::wall_ex
 
     if (extent != header.values.end())
     {
-        long nx = 0;
-        long ny = 0;
+        const std::string& s = extent->second;
+        discrete_vector_type v;
 
-        if (!read_pair(extent->second, ',', nx, ny) || nx <= 0 || ny <= 0)
+        auto result = math::from_chars(s.data(), s.data() + s.size(), v, ",");
+
+        if (result.ec != std::errc {} || result.ptr != s.data() + s.size() || v.x() <= 0 || v.y() <= 0)
         {
             throw std::runtime_error(std::format("level file {} has an unreadable extent in its header",
                 filepath.string()));
         }
 
-        return {nx, ny};
+        return v;
     }
 
-    size_t width = 0;
+    coord_type width = 0;
     for (const std::string& s : lines)
     {
-        width = std::max(width, s.size());
+        width = std::max(width, static_cast<coord_type>(s.size()));
     }
 
-    size_t height = lines.size();
+    coord_type height = static_cast<coord_type>(lines.size());
 
     if (width < 3 || height < 3 || width % 2 == 0 || height % 2 == 0)
     {
@@ -91,7 +94,7 @@ quetzal::stratum_sim::discrete_vector_type quetzal::stratum_sim::detail::wall_ex
             filepath.string(), width, height));
     }
 
-    return {static_cast<long>((width - 1) / 2), static_cast<long>((height - 1) / 2)};
+    return {(width - 1) / 2, (height - 1) / 2};
 }
 
 //------------------------------------------------------------------------------
@@ -99,24 +102,24 @@ quetzal::stratum_sim::discrete_vector_type quetzal::stratum_sim::detail::wall_ex
 quetzal::stratum_sim::detail::Map quetzal::stratum_sim::detail::read_walls(const std::vector<std::string>& lines,
     const discrete_vector_type& extent, const std::filesystem::path& filepath)
 {
-    size_t width = static_cast<size_t>(2 * extent.x() + 1);
-    size_t height = static_cast<size_t>(2 * extent.y() + 1);
+    coord_type width = 2 * extent.x() + 1;
+    coord_type height = 2 * extent.y() + 1;
 
-    if (lines.size() != height)
+    if (lines.size() != static_cast<size_t>(height))
     {
         throw std::runtime_error(std::format("level file {} holds {} rows where its extent asks for {}",
             filepath.string(), lines.size(), height));
     }
 
-    auto glyph = [&](long x, long y) -> char
+    auto glyph = [&](coord_type x, coord_type y) -> char
     {
-        const std::string& line = lines[height - 1 - static_cast<size_t>(y)]; // The first line of the file is the highest row
-        return static_cast<size_t>(x) < line.size() ? line[static_cast<size_t>(x)] : ' ';
+        const std::string& line = lines[static_cast<size_t>(height - 1 - y)]; // The first line of the file is the highest row
+        return x < static_cast<coord_type>(line.size()) ? line[static_cast<size_t>(x)] : ' ';
     };
 
     for (const std::string& s : lines)
     {
-        if (s.size() > width)
+        if (static_cast<coord_type>(s.size()) > width)
         {
             throw std::runtime_error(std::format("level file {} holds a row of {} where its extent asks for {}",
                 filepath.string(), s.size(), width));
@@ -127,9 +130,9 @@ quetzal::stratum_sim::detail::Map quetzal::stratum_sim::detail::read_walls(const
     map.extent = extent;
 
     std::vector<bool> open(map.cell_count());
-    for (long j = 0; j < extent.y(); ++j)
+    for (coord_type j = 0; j < extent.y(); ++j)
     {
-        for (long i = 0; i < extent.x(); ++i)
+        for (coord_type i = 0; i < extent.x(); ++i)
         {
             open[map.slot({i, j})] = open_glyph(glyph(2 * i + 1, 2 * j + 1), filepath);
         }
@@ -137,8 +140,8 @@ quetzal::stratum_sim::detail::Map quetzal::stratum_sim::detail::read_walls(const
 
     // A wall addressed from the cell it lies west or south of, which is how the grid stores the
     // line it lies on rather than the cells either side of it
-    auto wall_west = [&](long i, long j) { return wall_glyph(glyph(2 * i, 2 * j + 1), filepath); };
-    auto wall_south = [&](long i, long j) { return wall_glyph(glyph(2 * i + 1, 2 * j), filepath); };
+    auto wall_west = [&](coord_type i, coord_type j) { return wall_glyph(glyph(2 * i, 2 * j + 1), filepath); };
+    auto wall_south = [&](coord_type i, coord_type j) { return wall_glyph(glyph(2 * i + 1, 2 * j), filepath); };
 
     auto between = [&](const discrete_point_type& grid_position, const discrete_point_type& grid_position_other)
     {
@@ -149,7 +152,7 @@ quetzal::stratum_sim::detail::Map quetzal::stratum_sim::detail::read_walls(const
     };
 
     find_components(map,
-        [&](long i, long j) { return open[map.slot({i, j})]; },
+        [&](coord_type i, coord_type j) { return open[map.slot({i, j})]; },
         [&](const discrete_point_type& grid_position, const discrete_point_type& grid_position_other) { return between(grid_position, grid_position_other) == WallType::Open; });
 
     // Every open cell belongs to an area here: the wall format spends nothing on a doorway,
@@ -165,9 +168,9 @@ quetzal::stratum_sim::detail::Map quetzal::stratum_sim::detail::read_walls(const
     // empty rather than guessed at, and a catagen level loads with none until the format
     // defines them
 
-    for (long j = 0; j < extent.y(); ++j)
+    for (coord_type j = 0; j < extent.y(); ++j)
     {
-        for (long i = 0; i < extent.x(); ++i)
+        for (coord_type i = 0; i < extent.x(); ++i)
         {
             const discrete_point_type grid_position {i, j};
 
@@ -176,7 +179,11 @@ quetzal::stratum_sim::detail::Map quetzal::stratum_sim::detail::read_walls(const
                 continue;
             }
 
-            const discrete_point_type neighbors[2] {grid_position + Direction::East, grid_position + Direction::North};
+            const discrete_point_type neighbors[2]
+            {
+                grid_position + cardinal_direction(CardinalDirection::East),
+                grid_position + cardinal_direction(CardinalDirection::North)
+            };
 
             for (const auto& neighbor : neighbors)
             {
