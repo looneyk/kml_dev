@@ -258,6 +258,79 @@ namespace
     }
 
     //--------------------------------------------------------------------------
+    // A delimiter names what a writer put between components, so reading matches it exactly
+    // rather than accepting whatever separates them
+    void test_element_delimiters()
+    {
+        report_group("element delimiters");
+
+        {
+            discrete_vector_type v;
+            string s = "16,10,4";
+            auto result = math::from_chars(s.data(), s.data() + s.size(), v, ",");
+            report_case("a named delimiter reads the components it separates",
+                result.ec == errc {} && result.ptr == s.data() + s.size() && v == discrete_vector_type(16L, 10L, 4L));
+        }
+
+        {
+            discrete_vector_type v;
+            string s = "16 10 4";
+            auto result = math::from_chars(s.data(), s.data() + s.size(), v, ",");
+            report_case("and rejects a string the delimiter is absent from", result.ec == errc::invalid_argument);
+            report_case("reporting where it expected one", result.ptr == s.data() + 2);
+        }
+
+        {
+            char buffer[64];
+            discrete_vector_type v(16L, 10L, 4L);
+            auto result = math::to_chars(buffer, buffer + sizeof buffer, v, ",");
+            report_case("writing uses the delimiter given", string(buffer, result.ptr) == "16,10,4");
+        }
+
+        {
+            char buffer[64];
+            discrete_vector_type v(7L, -3L, 0L);
+            discrete_vector_type w;
+            auto written = math::to_chars(buffer, buffer + sizeof buffer, v, ", ");
+            auto read = math::from_chars(buffer, written.ptr, w, ", ");
+            report_case("a multi-character delimiter round trips",
+                read.ec == errc {} && read.ptr == written.ptr && w == v);
+        }
+
+        {
+            point_type p;
+            string s = "1.5,-2.5,3";
+            auto result = geometry::from_chars(s.data(), s.data() + s.size(), p, ",");
+            report_case("a cartesian point takes one too",
+                result.ec == errc {} && p.x() == 1.5 && p.y() == -2.5 && p.z() == 3.0);
+        }
+
+        {
+            istringstream is("16,10,4");
+            discrete_vector_type v;
+            is >> element_delim(",") >> v;
+            report_case("a stream reads what the manipulator names",
+                !is.fail() && v == discrete_vector_type(16L, 10L, 4L));
+        }
+
+        {
+            ostringstream os;
+            os << element_delim(",") << discrete_vector_type(16L, 10L, 4L);
+            report_case("and writes the same", os.str() == "16,10,4");
+        }
+
+        {
+            istringstream is("1,2,3");
+            vector_type v;
+            is >> element_delim(",") >> v;
+            report_case("a traits vector reads every component past the first",
+                !is.fail() && v.x() == 1.0 && v.y() == 2.0 && v.z() == 3.0);
+        }
+
+        return;
+    }
+
+    //--------------------------------------------------------------------------
     void test_array_to_chars()
     {
         report_group("array_to_chars");
@@ -453,6 +526,7 @@ int main()
         test_skip_whitespace();
         test_skip_delimiters();
         test_array_from_chars();
+        test_element_delimiters();
         test_array_to_chars();
         test_round_trip();
         test_to_type();

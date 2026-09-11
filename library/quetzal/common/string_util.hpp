@@ -11,10 +11,14 @@
 #include <optional>
 #include <ostream>
 #include <string>
+#include <type_traits>
 #include <utility>
 
 namespace quetzal
 {
+
+    // array type here refer to objects such as vector and point types that have a sequence of values
+    // along with their higher level constructs and which supply dimension, value_type, and element addressing
 
     //--------------------------------------------------------------------------
     // Stream manipulators for the object and element delimiters used by array_format_spec, giving
@@ -38,32 +42,40 @@ namespace quetzal
     element_delim_manip element_delim(std::string s);
     std::ostream& operator<<(std::ostream& os, const element_delim_manip& manip);
 
-    //--------------------------------------------------------------------------
-    // Reading counterparts to the delimiters above, for the element sequences an array type
-    // writes. skip_whitespace returns the first position that is neither a space nor a tab;
-    // the two stream forms consume the delimiter they name and set failbit where it is absent,
-    // an empty element delimiter pattern skipping nothing and succeeding
+    // The same state on the reading side, so a stream reads back what its counterpart wrote
+    std::istream& operator>>(std::istream& is, object_delim_manip manip);
+    std::istream& operator>>(std::istream& is, const element_delim_manip& manip);
+
+    // What the manipulators put on the stream, or the default where none was set
+    std::string array_element_delimiter(std::ios_base& stream, const std::string& default_delimiter = " ");
+
+    // Returns the first position that is neither a space nor a tab
     const char* skip_whitespace(const char* first, const char* last);
 
     std::istream& skip_object_delimiter(std::istream& is, char delimiter);
     std::istream& skip_element_delimiter(std::istream& is, const std::string& delimiter_pattern);
 
+    // Matched exactly, except that whitespace in the pattern skips a run of it.
+    const char* skip_element_delimiter(const char* first, const char* last, const std::string& delimiter_pattern);
+
     //--------------------------------------------------------------------------
-    // The delimited component sequence of an array type, as its operator<< writes it. T supplies
-    // dimension, a value_type the standard conversions accept, and indexing, which the vector and
-    // point types all do, discrete and not. Homogeneous coordinates are dimension components and
-    // so carry no weight here: supplying one on read and reducing before write belong to the
-    // caller, which is where they already are
-    // A component that cannot be read leaves the ones before it assigned and reports where it
-    // stopped, which is what std::from_chars does with a single value
     template<typename T>
-    std::from_chars_result array_from_chars(const char* first, const char* last, T& t)
+    std::from_chars_result array_from_chars(const char* first, const char* last, T& t, const std::string& element_delimiter = " ")
     {
         std::from_chars_result result {first, std::errc {}};
 
         for (size_t i = 0; i < T::dimension; ++i)
         {
-            result = std::from_chars(skip_whitespace(result.ptr, last), last, t[i]);
+            const char* position = i == 0
+                ? skip_whitespace(result.ptr, last)
+                : skip_element_delimiter(result.ptr, last, element_delimiter);
+
+            if (position == nullptr)
+            {
+                return {result.ptr, std::errc::invalid_argument};
+            }
+
+            result = std::from_chars(position, last, t[i]);
             if (result.ec != std::errc {})
             {
                 return result;
@@ -96,7 +108,7 @@ namespace quetzal
                 }
             }
 
-            // The conditional is what keeps a negative zero from being written as one
+            // The conditional translates negative zero
             element_type element = t[i];
             result = std::to_chars(result.ptr, last, element == element_type(0) ? element_type(0) : element);
             if (result.ec != std::errc {})
@@ -110,12 +122,11 @@ namespace quetzal
 
     //--------------------------------------------------------------------------
     // The std::formatter body an array type inherits, holding the spec an array shares and the
-    // loop that writes one. T is the element type; the object formatted supplies dimension, a
-    // value_type its own formatter accepts, and indexing
+    // loop that writes one.
     //
-    // Leading format-spec characters: an optional '[' or '(' selects a bracket pair to wrap the
-    // elements ('[' -> "[ ]", '(' -> "( )"), followed by an optional run of characters drawn from
-    // ",;: _" that becomes the literal element separator verbatim, with '_' standing in for a space
+    // Format-spec characters: an optional leading '[' or '(' selects a bracket pair to wrap the
+    // elements ('[' -> "[ ]", '(' -> "( )"), followed by an optional run of characters typically drawn from
+    // ",;: _" that becomes the literal element separator verbatim, with '_' representing a space
     // (e.g. "[,_" -> bracket '[' + separator ", "; "_:_" -> separator " : "). Whatever remains of
     // the spec after them is handed to the element type's own formatter
     template<typename T>
@@ -176,7 +187,7 @@ namespace quetzal
                     ctx.advance_to(out);
                 }
 
-                // The conditional is what keeps a negative zero from being written as one
+                // The conditional translates negative zero
                 T element = a[i];
                 out = m_element_formatter.format(element == T(0) ? T(0) : element, ctx);
                 ctx.advance_to(out);
@@ -211,9 +222,11 @@ namespace quetzal
     //--------------------------------------------------------------------------
     // Reflects an ostream's currently active object_delim/element_delim manipulators, precision,
     // and fixed/scientific formatting flags into an equivalent std::format spec fragment.
-    // The defaults match std::format's own empty-spec default (no bracket, single-space element delimiter),
-    // so this is what puts operator<< and format({}) in agreement.
-    std::string array_format_spec(const std::ostream& os, char default_object_delim = '\0', const std::string& default_element_delim = " ");
+    // The defaults match std::format's empty-spec default (no bracket, single-space element delimiter),
+    // rendering operator<< and format({}) to produce the same output.
+    // Precision supports floating point conversions
+    std::string array_format_spec(const std::ostream& os, char default_object_delim = '\0',
+        const std::string& default_element_delim = " ", bool precision = true);
 
     //--------------------------------------------------------------------------
     // Stream-state-aware form of to_string: matches to_string(t)'s unbracketed, space-separated output
@@ -222,7 +235,8 @@ namespace quetzal
     template<typename T>
     std::string to_string(const T& t, const std::ostream& os)
     {
-        return std::vformat("{:" + array_format_spec(os) + "}", std::make_format_args(t));
+        constexpr bool precision = !std::is_integral_v<typename T::value_type>;
+        return std::vformat("{:" + array_format_spec(os, '\0', " ", precision) + "}", std::make_format_args(t));
     }
 
     //--------------------------------------------------------------------------

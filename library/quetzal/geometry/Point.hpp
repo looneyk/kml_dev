@@ -246,10 +246,10 @@ namespace quetzal::geometry
     std::ostream& operator<<(std::ostream& os, const Point<Traits>& point);
 
     template<typename Traits>
-    std::from_chars_result from_chars(const char* first, const char* last, Point<Traits>& point);
+    std::from_chars_result from_chars(const char* first, const char* last, Point<Traits>& point, const std::string& element_delimiter = " ");
 
     template<typename Traits>
-    std::to_chars_result to_chars(char* first, char* last, Point<Traits> point);
+    std::to_chars_result to_chars(char* first, char* last, Point<Traits> point, const std::string& element_delimiter = " ");
 
     // Matrix operations
 
@@ -967,7 +967,7 @@ bool quetzal::geometry::float_priority_less(const Point<Traits>& lhs, const Poin
 template<typename Traits>
 std::istream& quetzal::geometry::operator>>(std::istream& is, Point<Traits>& point)
 {
-    return Traits::extract(is, point.rep()); // add provision for specific format, as is should infer format ...
+    return Traits::extract(is, point.rep(), quetzal::array_element_delimiter(is));
 }
 
 //------------------------------------------------------------------------------
@@ -980,9 +980,9 @@ std::ostream& quetzal::geometry::operator<<(std::ostream& os, const Point<Traits
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-std::from_chars_result quetzal::geometry::from_chars(const char* first, const char* last, Point<Traits>& point)
+std::from_chars_result quetzal::geometry::from_chars(const char* first, const char* last, Point<Traits>& point, const std::string& element_delimiter)
 {
-    auto result = array_from_chars(first, last, point);
+    auto result = array_from_chars(first, last, point, element_delimiter);
     if (result.ec == std::errc{}) // if (result) ...
     {
         Traits::conclude<Traits::dimension>(point.rep(), typename Traits::value_type(1));
@@ -993,10 +993,10 @@ std::from_chars_result quetzal::geometry::from_chars(const char* first, const ch
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-std::to_chars_result quetzal::geometry::to_chars(char* first, char* last, Point<Traits> point)
+std::to_chars_result quetzal::geometry::to_chars(char* first, char* last, Point<Traits> point, const std::string& element_delimiter)
 {
     Traits::prepare(point.rep());
-    return array_to_chars(first, last, point);
+    return array_to_chars(first, last, point, element_delimiter);
 }
 
 //------------------------------------------------------------------------------

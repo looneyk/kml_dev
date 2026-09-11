@@ -12,6 +12,7 @@
 #include "OrientedPoint.hpp"
 #include "Point.hpp"
 #include "transformation_matrix.hpp"
+#include "quetzal/math/traits.hpp"
 #include <functional>
 #include <cmath>
 #include <cassert>

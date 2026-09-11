@@ -151,10 +151,10 @@ namespace quetzal::math
     std::ostream& operator<<(std::ostream& os, const DiscreteVector<T, N>& v);
 
     template<std::signed_integral T, size_t N> requires (N > 0)
-    std::from_chars_result from_chars(const char* first, const char* last, DiscreteVector<T, N>& v);
+    std::from_chars_result from_chars(const char* first, const char* last, DiscreteVector<T, N>& v, const std::string& element_delimiter = " ");
 
     template<std::signed_integral T, size_t N> requires (N > 0)
-    std::to_chars_result to_chars(char* first, char* last, const DiscreteVector<T, N>& v);
+    std::to_chars_result to_chars(char* first, char* last, const DiscreteVector<T, N>& v, const std::string& element_delimiter = " ");
 
     template<std::signed_integral T, size_t N> requires (N > 0)
     DiscreteVector<T, N> direction(const DiscreteVector<T, N>& v);
@@ -164,6 +164,38 @@ namespace quetzal::math
     // Undefined for null vectors
     template<typename V, typename Traits> requires (Traits::dimension == V::dimension)
     V direction(const Vector<Traits>& v);
+
+    // Cardinal directions
+    // Unit vectors along the 4 axes in conventional CCW order
+
+    //--------------------------------------------------------------------------
+    enum class CardinalDirection
+    {
+        East,
+        North,
+        West,
+        South
+    };
+
+    template<std::signed_integral T, size_t N = 2>
+    using cardinal_direction_type = DiscreteVector<T, N>;
+
+    template<std::signed_integral T, size_t N = 2>
+    using cardinal_directions_type = std::array<cardinal_direction_type<T, N>, 4>;
+
+    template<std::signed_integral T, size_t N = 2>
+    const cardinal_directions_type<T, N> cardinal_directions
+    {
+        cardinal_direction_type<T, N>{1, 0},   // East
+        cardinal_direction_type<T, N>{0, 1},   // North
+        cardinal_direction_type<T, N>{-1, 0},  // West
+        cardinal_direction_type<T, N>{0, -1}   // South
+    };
+
+    template<std::signed_integral T, size_t N = 2>
+    const cardinal_direction_type<T, N>& cardinal_direction(CardinalDirection direction);
+
+    CardinalDirection opposite(CardinalDirection direction);
 
 } // namespace quetzal::math
 
@@ -654,8 +686,15 @@ std::strong_ordering quetzal::math::operator<=>(const DiscreteVector<T, N>& lhs,
 template<std::signed_integral T, size_t N> requires (N > 0)
 std::istream& quetzal::math::operator>>(std::istream& is, DiscreteVector<T, N>& v)
 {
+    std::string element_delimiter = array_element_delimiter(is);
+
     for (size_t i = 0; i < N; ++i)
     {
+        if (i > 0 && !skip_element_delimiter(is, element_delimiter))
+        {
+            return is;
+        }
+
         is >> v[i];
     }
 
@@ -666,26 +705,22 @@ std::istream& quetzal::math::operator>>(std::istream& is, DiscreteVector<T, N>& 
 template<std::signed_integral T, size_t N> requires (N > 0)
 std::ostream& quetzal::math::operator<<(std::ostream& os, const DiscreteVector<T, N>& v)
 {
-    for (size_t i = 0; i < N; ++i)
-    {
-        os << (i > 0 ? " " : "") << v[i];
-    }
-
+    os << to_string(v, os);
     return os;
 }
 
 //------------------------------------------------------------------------------
 template<std::signed_integral T, size_t N> requires (N > 0)
-std::from_chars_result quetzal::math::from_chars(const char* first, const char* last, DiscreteVector<T, N>& v)
+std::from_chars_result quetzal::math::from_chars(const char* first, const char* last, DiscreteVector<T, N>& v, const std::string& element_delimiter)
 {
-    return array_from_chars(first, last, v);
+    return array_from_chars(first, last, v, element_delimiter);
 }
 
 //------------------------------------------------------------------------------
 template<std::signed_integral T, size_t N> requires (N > 0)
-std::to_chars_result quetzal::math::to_chars(char* first, char* last, const DiscreteVector<T, N>& v)
+std::to_chars_result quetzal::math::to_chars(char* first, char* last, const DiscreteVector<T, N>& v, const std::string& element_delimiter)
 {
-    return array_to_chars(first, last, v);
+    return array_to_chars(first, last, v, element_delimiter);
 }
 
 //------------------------------------------------------------------------------
@@ -725,6 +760,19 @@ V quetzal::math::direction(const Vector<Traits>& v)
     result[axis] = v[axis] > component_type(0) ? value_type(1) : value_type(-1);
 
     return result;
+}
+
+//------------------------------------------------------------------------------
+template<std::signed_integral T, size_t N>
+const quetzal::math::cardinal_direction_type<T, N>& quetzal::math::cardinal_direction(CardinalDirection direction)
+{
+    return cardinal_directions<T, N>[std::to_underlying(direction)];
+}
+
+//------------------------------------------------------------------------------
+inline quetzal::math::CardinalDirection quetzal::math::opposite(CardinalDirection direction)
+{
+    return static_cast<CardinalDirection>((std::to_underlying(direction) + 2) % 4);
 }
 
 // Structured bindings

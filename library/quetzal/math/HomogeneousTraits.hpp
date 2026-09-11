@@ -727,23 +727,28 @@ std::istream& quetzal::math::HomogeneousTraits<T, N>::extract(std::istream& is, 
 {
     if constexpr (I == 0)
     {
-        if (skip_object_delimiter(is, object_delimiters->first))
+        if (object_delimiters && !skip_object_delimiter(is, object_delimiters->first))
         {
-            is >> get<0>(rep);
+            return is;
         }
+
+        is >> get<0>(rep);
         return is;
     }
     else
     {
-        extract<I - 1>(is, rep);
+        extract<I - 1>(is, rep, element_delimiter_pattern, object_delimiters);
+
         if (skip_element_delimiter(is, element_delimiter_pattern))
         {
             is >> get<I>(rep);
-            if (I == N - 1)
+
+            if constexpr (I == N - 1)
             {
-                skip_object_delimiter(is, object_delimiters->second);
+                if (object_delimiters) skip_object_delimiter(is, object_delimiters->second);
             }
         }
+
         return is;
     }
 }

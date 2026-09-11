@@ -44,15 +44,13 @@ namespace quetzal::geometry
         void set_bounds(const point_type& center, value_type radius);
 
         point_type centroid() const override;
-
         value_type volume() const override;
+        bool empty() const override;
 
         void clear() override;
 
         // Returns less, equivalent, greater for interior, boundary, exterior respectively
         std::partial_ordering compare(const point_type& point, int tolerance = math::tolerance_default) const override;
-
-        bool empty() const override;
 
         void print(std::ostream& os) const override;
 
@@ -151,6 +149,13 @@ typename quetzal::geometry::BoundingSphere<Traits>::value_type quetzal::geometry
 
 //------------------------------------------------------------------------------
 template<typename Traits>
+bool quetzal::geometry::BoundingSphere<Traits>::empty() const
+{
+    return m_radius < value_type(0);
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
 void quetzal::geometry::BoundingSphere<Traits>::clear()
 {
     m_center.clear();
@@ -178,13 +183,6 @@ std::partial_ordering quetzal::geometry::BoundingSphere<Traits>::compare(const p
     }
 
     return std::partial_ordering::greater;
-}
-
-//------------------------------------------------------------------------------
-template<typename Traits>
-bool quetzal::geometry::BoundingSphere<Traits>::empty() const
-{
-    return m_radius < value_type(0);
 }
 
 //------------------------------------------------------------------------------

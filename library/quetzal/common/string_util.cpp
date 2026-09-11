@@ -44,6 +44,24 @@ namespace
         }
     }
 
+    //--------------------------------------------------------------------------
+    void set_element_delim(ios_base& stream, const string& value)
+    {
+        if (value.empty()) // leave whatever element delimiter is already in effect unchanged
+        {
+            return;
+        }
+
+        int index = array_element_delim_index();
+        if (stream.pword(index) == nullptr)
+        {
+            stream.register_callback(array_element_delim_callback, index);
+        }
+
+        delete static_cast<string*>(stream.pword(index));
+        stream.pword(index) = new string(value);
+    }
+
 } // namespace
 
 //------------------------------------------------------------------------------
@@ -69,20 +87,29 @@ quetzal::element_delim_manip quetzal::element_delim(string s)
 //------------------------------------------------------------------------------
 ostream& quetzal::operator<<(ostream& os, const element_delim_manip& manip)
 {
-    if (manip.value.empty()) // leave whatever element delimiter is already in effect unchanged
-    {
-        return os;
-    }
-
-    int index = array_element_delim_index();
-    if (os.pword(index) == nullptr)
-    {
-        os.register_callback(array_element_delim_callback, index);
-    }
-
-    delete static_cast<string*>(os.pword(index));
-    os.pword(index) = new string(manip.value);
+    set_element_delim(os, manip.value);
     return os;
+}
+
+//------------------------------------------------------------------------------
+istream& quetzal::operator>>(istream& is, object_delim_manip manip)
+{
+    is.iword(array_object_delim_index()) = manip.value;
+    return is;
+}
+
+//------------------------------------------------------------------------------
+istream& quetzal::operator>>(istream& is, const element_delim_manip& manip)
+{
+    set_element_delim(is, manip.value);
+    return is;
+}
+
+//------------------------------------------------------------------------------
+string quetzal::array_element_delimiter(ios_base& stream, const string& default_delimiter)
+{
+    void* p = stream.pword(array_element_delim_index());
+    return p != nullptr ? *static_cast<string*>(p) : default_delimiter;
 }
 
 //------------------------------------------------------------------------------
@@ -114,35 +141,57 @@ istream& quetzal::skip_object_delimiter(istream& is, char delimiter)
 //------------------------------------------------------------------------------
 istream& quetzal::skip_element_delimiter(istream& is, const string& delimiter_pattern)
 {
-    // shortcut for now, probably fine forever ...
-    is >> ws;
-    if (delimiter_pattern.empty())
+    for (char c : delimiter_pattern)
     {
-        return is;
-    }
-    // for (each char in delimiter_pattern) ...
-    istream::int_type c = is.peek();
-    if (c == istream::traits_type::to_int_type(delimiter_pattern[0])) // wrong, check each pattern section in sequence ...
-    {
+        if (c == ' ' || c == '\t')
+        {
+            is >> ws;
+            continue;
+        }
+
+        if (is.peek() != istream::traits_type::to_int_type(c))
+        {
+            is.setstate(ios::failbit);
+            return is;
+        }
+
         is.ignore();
     }
-    else
-    {
-        is.setstate(ios::failbit);
-    }
+
     return is;
 }
 
 //------------------------------------------------------------------------------
-string quetzal::array_format_spec(const ostream& os, char default_object_delim, const string& default_element_delim)
+const char* quetzal::skip_element_delimiter(const char* first, const char* last, const string& delimiter_pattern)
+{
+    for (char c : delimiter_pattern)
+    {
+        if (c == ' ' || c == '\t')
+        {
+            first = skip_whitespace(first, last);
+            continue;
+        }
+
+        if (first == last || *first != c)
+        {
+            return nullptr;
+        }
+
+        ++first;
+    }
+
+    return first;
+}
+
+//------------------------------------------------------------------------------
+string quetzal::array_format_spec(const ostream& os, char default_object_delim, const string& default_element_delim, bool precision)
 {
     auto& mutable_os = const_cast<ostream&>(os); // iword/pword aren't const, though this only reads
 
     long object_delim_value = mutable_os.iword(array_object_delim_index());
     char object_delim_char = object_delim_value != 0 ? static_cast<char>(object_delim_value) : default_object_delim;
 
-    void* element_delim_ptr = mutable_os.pword(array_element_delim_index());
-    string element_delim_value = element_delim_ptr != nullptr ? *static_cast<string*>(element_delim_ptr) : default_element_delim;
+    string element_delim_value = array_element_delimiter(mutable_os, default_element_delim);
 
     string spec;
     if (object_delim_char != '\0')
@@ -153,8 +202,11 @@ string quetzal::array_format_spec(const ostream& os, char default_object_delim, 
     {
         spec += (c == ' ') ? '_' : c;
     }
-    spec += '.';
-    spec += std::to_string(os.precision());
+    if (precision)
+    {
+        spec += '.';
+        spec += std::to_string(os.precision());
+    }
 
     if (os.flags() & ios::fixed)
     {

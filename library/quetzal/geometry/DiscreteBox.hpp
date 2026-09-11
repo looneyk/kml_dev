@@ -19,8 +19,7 @@ namespace quetzal::geometry
 {
 
     //--------------------------------------------------------------------------
-    // A half open range on the lattice: lower is included, upper is not, so the extent is the
-    // count of positions along each axis and a zero component makes the box empty
+    // A half open range
     template<std::signed_integral T, size_t N> requires (N > 0)
     class DiscreteBox
     {
@@ -74,10 +73,8 @@ namespace quetzal::geometry
         bool contains(const point_type& point) const;
         bool contains(const DiscreteBox& other) const;
 
-        // Moves the box without changing its extent
         void translate(const vector_type& v);
 
-        // Adds margin to each side, lower and upper of each dimension
         void expand(value_type margin);
 
     private:
@@ -95,15 +92,12 @@ namespace quetzal::geometry
     template<std::signed_integral T, size_t N> requires (N > 0)
     DiscreteBox<T, N> operator-(DiscreteBox<T, N> box, const typename DiscreteBox<T, N>::vector_type& v);
 
-    // The boxes do not intersect
     template<std::signed_integral T, size_t N> requires (N > 0)
     bool disjoint(const DiscreteBox<T, N>& a, const DiscreteBox<T, N>& b);
 
-    // The minimum box that contains both
     template<std::signed_integral T, size_t N> requires (N > 0)
     DiscreteBox<T, N> op_union(const DiscreteBox<T, N>& a, const DiscreteBox<T, N>& b);
 
-    // Empty where the two do not overlap
     template<std::signed_integral T, size_t N> requires (N > 0)
     DiscreteBox<T, N> op_intersection(const DiscreteBox<T, N>& a, const DiscreteBox<T, N>& b);
 
@@ -113,12 +107,11 @@ namespace quetzal::geometry
     template<std::signed_integral T, size_t N> requires (N > 0)
     std::ostream& operator<<(std::ostream& os, const DiscreteBox<T, N>& box);
 
-    // The position followed by the extent, whitespace separated, as operator<< writes them
     template<std::signed_integral T, size_t N> requires (N > 0)
-    std::from_chars_result from_chars(const char* first, const char* last, DiscreteBox<T, N>& box);
+    std::from_chars_result from_chars(const char* first, const char* last, DiscreteBox<T, N>& box, const std::string& element_delimiter = " ");
 
     template<std::signed_integral T, size_t N> requires (N > 0)
-    std::to_chars_result to_chars(char* first, char* last, const DiscreteBox<T, N>& box);
+    std::to_chars_result to_chars(char* first, char* last, const DiscreteBox<T, N>& box, const std::string& element_delimiter = " ");
 
 } // namespace quetzal::geometry
 
@@ -458,7 +451,13 @@ quetzal::geometry::DiscreteBox<T, N> quetzal::geometry::op_intersection(const Di
 template<std::signed_integral T, size_t N> requires (N > 0)
 std::istream& quetzal::geometry::operator>>(std::istream& is, DiscreteBox<T, N>& box)
 {
-    is >> box.position() >> box.extent();
+    is >> box.position();
+
+    if (quetzal::skip_element_delimiter(is, quetzal::array_element_delimiter(is)))
+    {
+        is >> box.extent();
+    }
+
     return is;
 }
 
@@ -472,39 +471,47 @@ std::ostream& quetzal::geometry::operator<<(std::ostream& os, const DiscreteBox<
 
 //------------------------------------------------------------------------------
 template<std::signed_integral T, size_t N> requires (N > 0)
-std::from_chars_result quetzal::geometry::from_chars(const char* first, const char* last, DiscreteBox<T, N>& box)
+std::from_chars_result quetzal::geometry::from_chars(const char* first, const char* last, DiscreteBox<T, N>& box, const std::string& element_delimiter)
 {
-    auto result = from_chars(first, last, box.position());
+    auto result = from_chars(first, last, box.position(), element_delimiter);
     if (result.ec != std::errc {})
     {
         return result;
     }
 
-    return math::from_chars(result.ptr, last, box.extent());
+    const char* position = quetzal::skip_element_delimiter(result.ptr, last, element_delimiter);
+    if (position == nullptr)
+    {
+        return {result.ptr, std::errc::invalid_argument};
+    }
+
+    return math::from_chars(position, last, box.extent(), element_delimiter);
 }
 
 //------------------------------------------------------------------------------
 template<std::signed_integral T, size_t N> requires (N > 0)
-std::to_chars_result quetzal::geometry::to_chars(char* first, char* last, const DiscreteBox<T, N>& box)
+std::to_chars_result quetzal::geometry::to_chars(char* first, char* last, const DiscreteBox<T, N>& box, const std::string& element_delimiter)
 {
-    auto result = to_chars(first, last, box.position());
+    auto result = to_chars(first, last, box.position(), element_delimiter);
     if (result.ec != std::errc {})
     {
         return result;
     }
 
-    if (result.ptr == last)
+    if (static_cast<size_t>(last - result.ptr) < element_delimiter.size())
     {
         return {result.ptr, std::errc::value_too_large};
     }
 
-    *result.ptr++ = ' ';
+    for (char c : element_delimiter)
+    {
+        *result.ptr++ = c;
+    }
 
-    return math::to_chars(result.ptr, last, box.extent());
+    return math::to_chars(result.ptr, last, box.extent(), element_delimiter);
 }
 
 //------------------------------------------------------------------------------
-// The position and then the extent, separated by the element delimiter, as operator<< writes them
 template<std::signed_integral T, size_t N> requires (N > 0)
 struct std::formatter<quetzal::geometry::DiscreteBox<T, N>> : quetzal::array_formatter<T>
 {

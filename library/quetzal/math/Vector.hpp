@@ -242,10 +242,10 @@ namespace quetzal::math
     std::ostream& operator<<(std::ostream& os, const Vector<Traits>& v);
 
     template<typename Traits>
-    std::from_chars_result from_chars(const char* first, const char* last, Vector<Traits>& v);
+    std::from_chars_result from_chars(const char* first, const char* last, Vector<Traits>& v, const std::string& element_delimiter = " ");
 
     template<typename Traits>
-    std::to_chars_result to_chars(char* first, char* last, const Vector<Traits>& v);
+    std::to_chars_result to_chars(char* first, char* last, const Vector<Traits>& v, const std::string& element_delimiter = " ");
 
     // Matrix operations
 
@@ -1024,7 +1024,7 @@ bool quetzal::math::float_priority_less(const Vector<Traits>& lhs, const Vector<
 template<typename Traits>
 std::istream& quetzal::math::operator>>(std::istream& is, quetzal::math::Vector<Traits>& v)
 {
-    return Traits::extract(is, v.rep()); // add provision for specific format, as is should infer format ...
+    return Traits::extract(is, v.rep(), array_element_delimiter(is));
 }
 
 //------------------------------------------------------------------------------
@@ -1037,9 +1037,9 @@ std::ostream& quetzal::math::operator<<(std::ostream& os, const quetzal::math::V
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-std::from_chars_result quetzal::math::from_chars(const char* first, const char* last, Vector<Traits>& v)
+std::from_chars_result quetzal::math::from_chars(const char* first, const char* last, Vector<Traits>& v, const std::string& element_delimiter)
 {
-    auto result = array_from_chars(first, last, v);
+    auto result = array_from_chars(first, last, v, element_delimiter);
     if (result.ec == std::errc{}) // if (result) ...
     {
         Traits::conclude<Traits::dimension>(v.rep(), typename Traits::value_type(0));
@@ -1050,9 +1050,9 @@ std::from_chars_result quetzal::math::from_chars(const char* first, const char* 
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-std::to_chars_result quetzal::math::to_chars(char* first, char* last, const Vector<Traits>& v)
+std::to_chars_result quetzal::math::to_chars(char* first, char* last, const Vector<Traits>& v, const std::string& element_delimiter)
 {
-    return array_to_chars(first, last, v);
+    return array_to_chars(first, last, v, element_delimiter);
 }
 
 //------------------------------------------------------------------------------

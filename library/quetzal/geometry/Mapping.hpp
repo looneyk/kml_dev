@@ -74,8 +74,7 @@ void quetzal::geometry::Mapping<From, To, Proj1>::init(std::span<const From> fro
     std::ranges::transform(from, back_inserter(projected), [this](const From& from) { return m_projection(from); });
     std::span<const To> mapped_from(projected);
 
-    // How many correspondences select which kind of map is dimension relative, not fixed at the two
-    // dimensional counts: linear takes dimension of them, affine one more, projective one more again
+    // The number of correspondences select the type of map and is dimension relative
     if (from.size() == To::dimension)
     {
         m_matrix = linear_mapping<To>(mapped_from.template first<To::dimension>(), to.template first<To::dimension>());
