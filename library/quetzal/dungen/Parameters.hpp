@@ -6,8 +6,8 @@
 //------------------------------------------------------------------------------
 
 #include "Algorithm.hpp"
-#include "StairPlacements.hpp"
 #include "types.hpp"
+#include "quetzal/math/Interval.hpp"
 #include <optional>
 #include <random>
 #include <cstddef>
@@ -32,6 +32,8 @@ namespace quetzal::dungen
 
         double probability_dead_end_removal = 0.5;
         double probability_loop_removal = 1.0;
+
+        double door_probability = 1.0; // Probability of a corridor exiting a room having a door
     };
 
     //--------------------------------------------------------------------------
@@ -49,6 +51,7 @@ namespace quetzal::dungen
         coord_type room_margin = 1; // Rock kept between a room and the edge of its sector
 
         double loop = 0.15; // Probability of a corridor beyond the ones connectivity needs
+        double door_probability = 1.0; // Probability of a corridor exiting a room having a door
     };
 
     //--------------------------------------------------------------------------
@@ -74,7 +77,10 @@ namespace quetzal::dungen
 
         Algorithm algorithm = Algorithm::Maze1;
         vector_type size {32, 32};
-        StairPlacements stair_placements = StairPlacements::Paired;
+
+        // How many staircases lead down and how many up, each a count drawn from its closed range
+        math::Interval<size_t> staircase_down_count {1, 1};
+        math::Interval<size_t> staircase_up_count {1, 1};
 
         Maze1Parameters maze1;
         Grid1Parameters grid1;

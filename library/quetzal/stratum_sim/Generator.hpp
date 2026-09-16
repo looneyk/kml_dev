@@ -33,7 +33,7 @@ namespace quetzal::stratum_sim
         virtual std::unique_ptr<Layout> generate(const door_type& door) const = 0;
 
         // Which geometry model was built, a constructed zone having no file to supply it
-        virtual Format format() const = 0;
+        virtual stratum_format::Notation notation() const = 0;
     };
 
 } // namespace quetzal::stratum_sim

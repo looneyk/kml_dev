@@ -4,14 +4,13 @@
 //------------------------------------------------------------------------------
 
 #include "Flat.hpp"
-#include <cassert>
 
 //------------------------------------------------------------------------------
 quetzal::stratum_sim::Flat::Flat(value_type height, bool ceiling) :
     m_height(height),
     m_ceiling(ceiling),
-    m_sampling(),
-    m_heights()
+    m_room_heights(),
+    m_cell_heights()
 {
 }
 
@@ -29,23 +28,6 @@ void quetzal::stratum_sim::Flat::set_ceiling(bool b)
 }
 
 //------------------------------------------------------------------------------
-std::optional<quetzal::stratum_sim::value_type> quetzal::stratum_sim::Flat::height(const point_type& position) const
-{
-    if (!sampled())
-    {
-        return m_height;
-    }
-
-    discrete_point_type grid_position = m_sampling->grid_position_at(position);
-    if (!m_sampling->contains(grid_position))
-    {
-        return {}; // Off the sampling grid is off the surface
-    }
-
-    return sample(grid_position);
-}
-
-//------------------------------------------------------------------------------
 quetzal::stratum_sim::value_type quetzal::stratum_sim::Flat::height() const
 {
     return m_height;
@@ -59,43 +41,29 @@ void quetzal::stratum_sim::Flat::set_height(value_type height)
 }
 
 //------------------------------------------------------------------------------
-void quetzal::stratum_sim::Flat::set_sampling(const GridMapping& grid)
+std::optional<quetzal::stratum_sim::value_type> quetzal::stratum_sim::Flat::room_height(id_type room_id) const
 {
-    m_sampling = grid;
-    m_heights.assign(static_cast<size_t>(grid.extent.x()) * static_cast<size_t>(grid.extent.y()), m_height);
+    auto i = m_room_heights.find(room_id);
+    return i != m_room_heights.end() ? std::optional<value_type>(i->second) : std::nullopt;
+}
 
+//------------------------------------------------------------------------------
+void quetzal::stratum_sim::Flat::set_room_height(id_type room_id, value_type height)
+{
+    m_room_heights[room_id] = height;
     return;
 }
 
 //------------------------------------------------------------------------------
-bool quetzal::stratum_sim::Flat::sampled() const
+std::optional<quetzal::stratum_sim::value_type> quetzal::stratum_sim::Flat::cell_height(const discrete_point_type& cell_position) const
 {
-    return m_sampling.has_value();
+    auto i = m_cell_heights.find(cell_position);
+    return i != m_cell_heights.end() ? std::optional<value_type>(i->second) : std::nullopt;
 }
 
 //------------------------------------------------------------------------------
-const quetzal::stratum_sim::GridMapping& quetzal::stratum_sim::Flat::sampling() const
+void quetzal::stratum_sim::Flat::set_cell_height(const discrete_point_type& cell_position, value_type height)
 {
-    assert(sampled());
-    return *m_sampling;
-}
-
-//------------------------------------------------------------------------------
-std::optional<quetzal::stratum_sim::value_type> quetzal::stratum_sim::Flat::sample(const discrete_point_type& grid_position) const
-{
-    assert(sampled());
-    assert(m_sampling->contains(grid_position));
-
-    return m_heights[static_cast<size_t>(grid_position.j()) * static_cast<size_t>(m_sampling->extent.x()) + static_cast<size_t>(grid_position.i())];
-}
-
-//------------------------------------------------------------------------------
-void quetzal::stratum_sim::Flat::set_sample(const discrete_point_type& grid_position, std::optional<value_type> height)
-{
-    assert(sampled());
-    assert(m_sampling->contains(grid_position));
-
-    m_heights[static_cast<size_t>(grid_position.j()) * static_cast<size_t>(m_sampling->extent.x()) + static_cast<size_t>(grid_position.i())] = height;
-
+    m_cell_heights[cell_position] = height;
     return;
 }

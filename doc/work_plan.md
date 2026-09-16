@@ -1,7 +1,7 @@
 # Work Plan
 
-Status: stages 1 to 5 complete; stage 6 all but three items; stage 7 in progress
-Date: 2026-08-28, revised 2026-09-05
+Status: stages 1 to 5 complete; stage 6 all but two items; stages 7 and 8 in progress
+Date: 2026-08-28, revised 2026-09-14
 
 The ordered work queue from the session 2 evaluation. `game_system_principles.md` owns the phased
 plan and the principles behind it; this is the near-term ordering within Phase 3 and the run up to
@@ -11,7 +11,10 @@ A stage large enough to need its own detail gets a plan of its own: `intent_plan
 `layout_plan.md` stage 4, `view_plan.md` stage 5, and `attachment_plan.md` and `glyph_plan.md` two
 items of stage 6, all complete. `dungen_plan.md` and `catagen_plan.md` cover the two generators, also
 complete. `placement_plan.md` is the one not started, and it is not a stage here --- it is the shape
-placement takes whenever it is built.
+placement takes whenever it is built. `discrete_layout_plan.md` covers stage 8, with `discrete_layout.md`
+the format it builds to and `discrete_layout_rework.md` the reading of the current code against it.
+`addressing.md` specifies ids and addressing --- geometry, entities, attachments, references --- and
+`addressing_plan.md` is the design of the part of stage 8 not built.
 
 **Open items live here**, under `Open` below, rather than in the plan that raised them. A plan marked
 complete is not somewhere anyone looks, and its own list going quiet is what made the residue
@@ -108,7 +111,18 @@ out of reached them.
       mask joins the key so walls and corners resolve alike; and the mapping to characters becomes
       a table a file can supply rather than a struct and a chain of conditions.
       `glyph_plan.md` gives the shape.
-- [ ] **Somewhere for the stairs to reach.** `>` and `<` load as floor.
+- [x] **Staircases state where they lead.** Both generators write each staircase as a `staircase` entity
+      with its facing and a `relocator` whose `target` is `level_down` or `level_up` as its glyph says,
+      and `stratum_format` reads and writes it as content. Loading a zone (stage 8) builds the relocator
+      from it.
+- [ ] **Relocating through a relocator.** An entity with a relocator --- a staircase, a portal, a
+      waypoint --- moves a mover to its target. Resolve the target, bound (the relocator arrived at, by
+      persistent id) or unbound (a destination such as `level_down`), to a zone the world has or
+      generates, write the resolution back as a bound target, and move the mover there. Arriving
+      through a relocator not yet bound places the mover at one of the zone's entry points not yet
+      bound --- a staircase leading up, or leading down in a tower entered from below, or any other
+      relocator arrived at --- and going through binds both ends to each other. `addressing.md`
+      (`### Relocators and entries`) specifies the two kinds.
 - [x] **Suites for both generators, and the drivers out of `application/`.** The drivers were named
       as tests and were not tests. They are `tool/dungen` and `tool/catagen` now, taking the plain
       names --- the `quetzal_` prefix on the library targets is the distinction, as it already is
@@ -137,9 +151,8 @@ out of reached them.
       symbols, which the reader had been discarding; one `Room` per contiguous run of room cells
       comes from that. catagen has one open-cell symbol and so builds none until its format
       defines rooms --- a level that defines none loads with none rather than guessing.
-- [ ] **Index the walls by cell edge.** A flat wall id per edge in the shape `catagen::Level`
-      stores, replacing `wall_toward`'s scan of every wall --- a cell step is O(walls) today and a
-      sight line O(cells x walls), run once per pursuing actor per turn.
+- [x] **Index the walls by cell edge.** A wall is a bit on the cell it faces and its id encodes the
+      cell and the side, so `wall_toward` is a bit test rather than a scan of every wall.
 - [x] **Every outline alike.** Walls are created an outline set at a time with none
       distinguished, and containment counts how many outlines enclose a point.
 - [x] **Dropped the loop enumeration, kept the connectivity.** `region_walls`, `ring_walls` and
@@ -171,6 +184,70 @@ constructs one zone and the player together and has no way to reach a second.
 
 The three are one change rather than three: the player cannot move to the session until a zone can
 be added to it, and neither matters until a session outlives the zone it started with.
+
+## Stage 8 --- the discrete layout format
+
+**In progress.** One JSON level file for both generators, with rooms, flats, styles and attachments
+the two grid formats could not express. Detail in `discrete_layout_plan.md`.
+
+- [x] **Settle the structures and read the current code against them.** `discrete_layout_rework.md`
+      is the reading: the interface, the view, the entity side and the session are untouched, and
+      the change is concentrated in `DiscreteLayout` and `load_layout`, most of it deletion.
+- [x] **The format, with nothing behind it.** `quetzal_stratum_format` reads a file into a
+      `Document`, validating its geometry and keeping its content as written, and writes one back in
+      the written form. `stratum_format_test` checks every rejection and that the round trip is equivalent.
+- [x] **The generators write 0.3.** dungen and catagen write through `stratum_format`, their suites
+      check reference levels are equivalent and every generated level is one the reader accepts.
+- [x] **Staircases have a facing.** Both generators write each staircase with a `facing` component, the
+      direction that opens into the space it is in: a random side with no wall, a side with a door
+      only where no side is open. A staircase placed blocking a doorway first moves one cell in a
+      random available direction. The format specifies the component and `discrete_layout_rework.md`
+      (`### Staircase placement and facing`) how it is chosen and written.
+- [x] **Every zone has an entry.** `layout.components.entry` is required: a list of at least one cell,
+      each written `<`, the entrance glyph of any non-local transporter, or `>`, as a tower entered
+      from below has, with an entity attached to the floor there that has a relocator, whatever its
+      type, and a file missing one, hand-written or not, is rejected. The caller arriving chooses among
+      the cells by what it arrives through. Every stair cell in the test levels has its entity and is
+      listed. Both generators list every staircase they place; `validate` rejects staircase counts
+      whose minimums are both zero and `generate` throws where none could be placed. Once a layout is
+      read, `level_down` into it is a real target.
+- [x] **Doors have entries.** Both generators write each door as a `door` entity in `attachments` at
+      the walls `stratum_format::door_walls` finds for its glyph, as they write each staircase, and
+      every hand-written level, the assets included, has one per door. The generator suites check it
+      over their seed sweeps and the sim and view suites over their levels. The loader reads none of
+      it yet; loading a zone is what builds from it.
+- [x] **Counts of staircases each way.** dungen's `StairPlacements` is gone, and in both generators
+      `staircase_down_count` and `staircase_up_count` are closed ranges, `--stairs-down` and
+      `--stairs-up` on the command line. dungen writes a staircase leading up as `<`, as catagen did.
+- [x] **The structures, then the reader filling them.** `Cell` has the wall mask, `Wall` and `Room`
+      are gone, and `load_layout` builds a `DiscreteLayout` from a `Document` through the same
+      `stratum_format` functions that validate it. Every level a suite or a host loads is 0.3.
+- [ ] **Ids and addressing: settle the choices.** `addressing_plan.md` lists twelve choices the design
+      needed and the discussion did not settle --- how a reference is written, whether glyphs require
+      entities, a staircase's facing direction as `orientation`, a door always having door facing parts,
+      parts by `flecs::Parent`, the index's reach, the saved zone's form, what decides passage, whether
+      an actor is attached to its cell, and the order of work. `addressing.md` is the spec.
+- [ ] **Format 0.4.** One list of entities with `attached` and `parent` as components the format
+      defines and parts derived from `parent`, references in content, the entry as references, every
+      cell position written `cell_position` and every wall address as a cell position and a normal, a
+      saved zone's `zone` section, and the reader's checks for all of it (`addressing_plan.md`, steps 1
+      and 2): `stratum_format`, both generators and every zone file.
+- [ ] **`flecs::Parent` checked in `flecs_test`,** for cascading deletion, iterating children and a JSON
+      round trip (step 3).
+- [ ] **Persistent ids.** `persistent_id_type`, the allocator, the loaded-entity map, the world index
+      and references that re-resolve (step 4).
+- [ ] **Loading a zone.** Everything that is not geometry loads into `Content`, and `World` builds a
+      zone from the layout and it: an entity for every component object and attachment, a property
+      resolved when queried from the object, its room, the layout and its type's default, and each
+      staircase's relocator with its target. Making a zone allocates persistent ids and translates
+      references, attachment links both ways through `Attached`, `AttachedEntities` and the places'
+      entities, and a parent has its `Parts`, so `crossable` searches nothing. Wall ids are encoded from
+      the normal by `encode_wall_id`. `World`
+      contains zones rather than layouts. Outlined in
+      `discrete_layout_rework.md`, against 0.4 and with persistent ids in `addressing_plan.md` (step 5).
+      Relocating through a relocator is stage 6's item.
+- [ ] **Migration across zones and entities in no zone** (step 6), then **saved zones** with the session
+      lifecycle of stage 7 (step 7).
 
 ## Done ahead of the plan
 
@@ -297,12 +374,22 @@ raised them, because a plan marked complete is not somewhere anyone looks.
   every layout includes, so the discrete vocabulary is in the neutral header. Moving it under
   `DiscreteLayout.hpp` is the honest arrangement and touches every file in the library; it is not
   worth doing on its own and is worth doing alongside something else.
-- **Whether `Room` rises to `Layout`.** A room is a named area with an outline, which is neutral,
-  and a list of cells, which is not. It stays on `DiscreteLayout` until something continuous needs
-  one.
-- **`Flat` has no attachments.** An attachment is one mechanism over walls and flats alike, and
-  only walls have them.
-- **`room_at(point)` tests every room's outline**, which is why the cell table exists beside it.
+- **Whether rooms rise to `Layout`.** A room is `room_id` on a `DiscreteLayout`'s cells and an entity
+  with its components. The entity is neutral and the cells are not, so it stays on `DiscreteLayout`
+  until something continuous needs one.
+- **`Flat` has no attachments yet.** An attachment is one mechanism over walls and flat cells alike;
+  loading a zone (`discrete_layout_rework.md`) builds both, and until then only walls have them.
+
+### Discrete layout format
+
+- **Perimeter validation passes some invalid perimeters.** Each cell edge is checked on its own, and a
+  wall facing a floor/stair/door cell on either side satisfies one. A perimeter whose walls all face
+  outward, around a pillar or solid ground, passes and encloses no floor/stair/door cell. The reader
+  already determines which side of each edge is inside; a check of the enclosed region is needed to
+  reject these.
+- **Whether the layout interface hands back a wall id.** An address encodes into one, so it can.
+  Whether a handle to a wall belongs on an interface that mentions neither cells nor walls is an
+  older question.
 
 ### Intent
 
@@ -329,6 +416,20 @@ None of the six steps needed an answer and nothing since has forced one.
   a box-drawing character and a 3D view puts a column. Neither is decided, and the 3D one is the
   reason the corner is in the reduction at all rather than being invented by the mapping.
 
+## Consider
+
+Not planned. Revisited only if the need arises.
+
+- **A value type of `stratum_format`'s own in place of `nlohmann::ordered_json`.** `Document` content is
+  `values_type`, the JSON library's value tree, and linking it PUBLIC hands that dependency to every
+  consumer. Its costs grow with the data: a linear scan of string keys per lookup, a heap allocation
+  per string, array and object, deep copies, and a parser slow for its class. Its own variant of
+  null, bool, integer, real, string, list and ordered map, with nlohmann private to reading and
+  writing, would remove both.
+
 ## Loose
 
 Not ordered, worth a pass: `Scheduler::advance` integer overflow and its `operator[]` on `m_speeds`.
+
+- **cave1's staircase candidates.** maze1 falls back to the rooms where a maze has no dead end; cave1
+  offers its whole open region and has had no such look. To revisit.

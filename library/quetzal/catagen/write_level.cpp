@@ -5,8 +5,13 @@
 
 #include "write_level.hpp"
 #include "quetzal/common/string_util.hpp"
+#include "quetzal/stratum_format/grid.hpp"
+#include "quetzal/stratum_format/write.hpp"
+#include <optional>
 #include <ostream>
+#include <sstream>
 #include <string>
+#include <vector>
 #include <cassert>
 
 using namespace std;
@@ -15,22 +20,23 @@ namespace
 {
 
     using namespace quetzal::catagen;
-
-    constexpr char glyph_solid = '#';
-    constexpr char glyph_open = ' ';
-    constexpr char glyph_stairs_down = '>';
-    constexpr char glyph_stairs_up = '<';
-    constexpr char glyph_wall_horizontal = '-';
-    constexpr char glyph_wall_vertical = '|';
-    constexpr char glyph_door = '/';
-    constexpr char glyph_corner = '+';
+    using values_type = quetzal::stratum_format::values_type;
 
     //--------------------------------------------------------------------------
-    // Whatever lies outside the extent is solid
-    bool rock(const Level& level, coord_type i, coord_type j)
+    // A parameter as the token its option takes
+    template<typename T>
+    string token(const T& value)
     {
-        point_type cell {i, j};
-        return !level.contains(cell) || level.cell(cell) == CellType::Solid;
+        ostringstream os;
+        os << quetzal::element_delim(",") << value;
+        return os.str();
+    }
+
+    //--------------------------------------------------------------------------
+    template<typename T>
+    string interval_token(const quetzal::math::Interval<T>& interval)
+    {
+        return token(interval.lower()) + "-" + token(interval.upper());
     }
 
     //--------------------------------------------------------------------------
@@ -38,14 +44,14 @@ namespace
     {
         switch (type)
         {
-            case CellType::Solid: return glyph_solid;
-            case CellType::Open: return glyph_open;
-            case CellType::StairsDown: return glyph_stairs_down;
-            case CellType::StairsUp: return glyph_stairs_up;
+            case CellType::Solid: return ' ';
+            case CellType::Open: return '.';
+            case CellType::StairsDown: return '>';
+            case CellType::StairsUp: return '<';
         }
 
         assert(false);
-        return glyph_solid;
+        return ' ';
     }
 
     //--------------------------------------------------------------------------
@@ -54,9 +60,9 @@ namespace
     {
         switch (type)
         {
-            case WallType::Open: return glyph_open;
+            case WallType::Open: return ' ';
             case WallType::Solid: return glyph_wall;
-            case WallType::Door: return glyph_door;
+            case WallType::Door: return '+';
         }
 
         assert(false);
@@ -64,66 +70,44 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    char horizontal_glyph(const Level& level, coord_type i, coord_type j)
+    // The first row is the highest, the origin being the lower left cell
+    vector<string> rows(const Level& level)
     {
-        if (rock(level, i, j - 1) && rock(level, i, j))
-        {
-            assert(level.wall_horizontal(i, j) == WallType::Open);
-            return glyph_solid;
-        }
-
-        return wall_glyph(level.wall_horizontal(i, j), glyph_wall_horizontal);
-    }
-
-    //--------------------------------------------------------------------------
-    char vertical_glyph(const Level& level, coord_type i, coord_type j)
-    {
-        if (rock(level, i - 1, j) && rock(level, i, j))
-        {
-            assert(level.wall_vertical(i, j) == WallType::Open);
-            return glyph_solid;
-        }
-
-        return wall_glyph(level.wall_vertical(i, j), glyph_wall_vertical);
-    }
-
-    //--------------------------------------------------------------------------
-    bool drawn(char glyph)
-    {
-        return glyph != glyph_open && glyph != glyph_solid;
-    }
-
-    //--------------------------------------------------------------------------
-    char corner_glyph(const Level& level, coord_type i, coord_type j)
-    {
-        if (rock(level, i - 1, j - 1) && rock(level, i, j - 1) && rock(level, i - 1, j) && rock(level, i, j))
-        {
-            return glyph_solid;
-        }
-
         const vector_type& extent = level.extent();
+        coord_type width = 2 * extent.i() + 1;
+        coord_type height = 2 * extent.j() + 1;
 
-        bool horizontal = (i > 0 && drawn(horizontal_glyph(level, i - 1, j)))
-            || (i < extent.i() && drawn(horizontal_glyph(level, i, j)));
-        bool vertical = (j > 0 && drawn(vertical_glyph(level, i, j - 1)))
-            || (j < extent.j() && drawn(vertical_glyph(level, i, j)));
+        vector<string> result;
 
-        if (horizontal && vertical)
+        for (coord_type y = height - 1; y >= 0; --y)
         {
-            return glyph_corner;
+            string row(static_cast<size_t>(width), ' ');
+
+            for (coord_type x = 0; x < width; ++x)
+            {
+                coord_type i = x / 2;
+                coord_type j = y / 2;
+                bool cell_x = x % 2 != 0;
+                bool cell_y = y % 2 != 0;
+
+                if (cell_x && cell_y)
+                {
+                    row[x] = cell_glyph(level.cell({i, j}));
+                }
+                else if (cell_x)
+                {
+                    row[x] = wall_glyph(level.wall_horizontal(i, j), '-');
+                }
+                else if (cell_y)
+                {
+                    row[x] = wall_glyph(level.wall_vertical(i, j), '|');
+                }
+            }
+
+            result.push_back(std::move(row));
         }
 
-        if (horizontal)
-        {
-            return glyph_wall_horizontal;
-        }
-
-        if (vertical)
-        {
-            return glyph_wall_vertical;
-        }
-
-        return glyph_open;
+        return result;
     }
 
 } // namespace
@@ -131,56 +115,78 @@ namespace
 //------------------------------------------------------------------------------
 void quetzal::catagen::write_level(ostream& os, const Level& level, const Parameters& parameters)
 {
-    os << "catagen " << format_version
-        << " extent=" << element_delim(",") << parameters.extent << element_delim(" ")
-        << " scale=" << parameters.scale.lower() << "-" << parameters.scale.upper()
-        << " spacing=" << parameters.spacing.lower() << "-" << parameters.spacing.upper()
-        << " density=" << parameters.density
-        << " loop=" << parameters.loop
-        << " seed=" << parameters.seed.value() // Throws rather than write a header that cannot reproduce
-        << '\n';
+    values_type values = values_type::object();
+    values["extent"] = token(parameters.extent);
+    values["scale"] = interval_token(parameters.scale);
+    values["spacing"] = interval_token(parameters.spacing);
+    values["density"] = token(parameters.density);
+    values["loop"] = token(parameters.loop);
+    values["stairs_down"] = interval_token(parameters.staircase_down_count);
+    values["stairs_up"] = interval_token(parameters.staircase_up_count);
+    values["seed"] = token(parameters.seed.value());
 
-    write_grid(os, level);
+    stratum_format::Document document;
+    document.generator = {{"name", "catagen"}, {"parameters", values}};
+    document.components = values_type::object();
+    document.components["entry"] = values_type::array();
+    document.cells.notation = stratum_format::Notation::Wall;
+    document.cells.extent = level.extent();
+    document.cells.rows = rows(level);
+
+    // The walls the reader finds for each door glyph, so the entity is at the placement it reads the door at
+    for (auto& walls : stratum_format::door_walls(document.cells))
+    {
+        values_type entity = values_type::object();
+        entity["type"] = "door";
+
+        document.attachments.push_back({std::move(walls), nullopt, values_type::array({std::move(entity)})});
+    }
+
+    // Every staircase is an entry, the caller choosing among them by what it arrives from
+    for (coord_type j = 0; j < level.extent().j(); ++j)
+    {
+        for (coord_type i = 0; i < level.extent().i(); ++i)
+        {
+            CellType type = level.cell({i, j});
+            if (type != CellType::StairsDown && type != CellType::StairsUp)
+            {
+                continue;
+            }
+
+            document.components["entry"].push_back(values_type::array({i, j}));
+
+            values_type relocator = values_type::object();
+            relocator["target"] = type == CellType::StairsDown ? "level_down" : "level_up";
+
+            values_type components = values_type::object();
+            optional<CardinalDirection> facing = level.staircase_facing({i, j});
+            if (facing.has_value())
+            {
+                const vector_type& step = cardinal_direction(*facing);
+                components["facing"] = values_type::array({step.x(), step.y()});
+            }
+
+            components["relocator"] = std::move(relocator);
+
+            values_type entity = values_type::object();
+            entity["type"] = "staircase";
+            entity["components"] = std::move(components);
+
+            document.attachments.push_back({stratum_format::FlatCell {stratum_format::FlatRole::Floor, point_type {i, j}}, nullopt,
+                values_type::array({std::move(entity)})});
+        }
+    }
+
+    stratum_format::write(os, document);
     return;
 }
 
 //------------------------------------------------------------------------------
 void quetzal::catagen::write_grid(ostream& os, const Level& level)
 {
-    const vector_type& extent = level.extent();
-    coord_type width = 2 * extent.i() + 1;
-    coord_type height = 2 * extent.j() + 1;
-
-    for (coord_type y = height - 1; y >= 0; --y)
+    for (const auto& row : rows(level))
     {
-        string line(static_cast<size_t>(width), glyph_open);
-
-        for (coord_type x = 0; x < width; ++x)
-        {
-            coord_type i = x / 2;
-            coord_type j = y / 2;
-            bool cell_x = x % 2 != 0;
-            bool cell_y = y % 2 != 0;
-
-            if (cell_x && cell_y)
-            {
-                line[x] = cell_glyph(level.cell({i, j}));
-            }
-            else if (cell_x)
-            {
-                line[x] = horizontal_glyph(level, i, j);
-            }
-            else if (cell_y)
-            {
-                line[x] = vertical_glyph(level, i, j);
-            }
-            else
-            {
-                line[x] = corner_glyph(level, i, j);
-            }
-        }
-
-        os << line << '\n';
+        os << row << '\n';
     }
 
     return;

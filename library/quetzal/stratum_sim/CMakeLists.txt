@@ -9,10 +9,6 @@ add_library(quetzal_stratum_sim STATIC
     Flat.cpp
     GridMapping.cpp
     load_layout.cpp
-    load_layout_catagen.cpp
-    load_layout_dungen.cpp
-    Room.cpp
-    Wall.cpp
     Scheduler.cpp
     Session.cpp
     World.cpp
@@ -24,6 +20,7 @@ add_library(quetzal_stratum_sim STATIC
     CommandQueue.hpp
     commands.hpp
     ContinuousLayout.hpp
+    DirectionMask.hpp
     DiscreteLayout.hpp
     Event.hpp
     EventQueue.hpp
@@ -33,13 +30,9 @@ add_library(quetzal_stratum_sim STATIC
     Intent.hpp
     Layout.hpp
     load_layout.hpp
-    load_layout_catagen.hpp
-    load_layout_dungen.hpp
-    Room.hpp
     Scheduler.hpp
     Session.hpp
     types.hpp
-    Wall.hpp
     World.hpp
 )
 
@@ -51,4 +44,4 @@ target_include_directories(quetzal_stratum_sim PUBLIC
 
 # Plain name rather than flecs::flecs_static: library3 is added after library/ in the root
 # CMakeLists, and a namespaced target must already exist when it is referenced
-target_link_libraries(quetzal_stratum_sim PUBLIC quetzal_common flecs_static)
+target_link_libraries(quetzal_stratum_sim PUBLIC quetzal_common quetzal_stratum_format flecs_static)

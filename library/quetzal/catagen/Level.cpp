@@ -100,12 +100,28 @@ void quetzal::catagen::Level::set_wall(const point_type& position, CardinalDirec
 }
 
 //------------------------------------------------------------------------------
+optional<quetzal::math::CardinalDirection> quetzal::catagen::Level::staircase_facing(const point_type& position) const
+{
+    auto i = m_staircase_facings.find(position);
+    return i == m_staircase_facings.end() ? optional<CardinalDirection>() : optional<CardinalDirection>(i->second);
+}
+
+//------------------------------------------------------------------------------
+void quetzal::catagen::Level::set_staircase_facing(const point_type& position, CardinalDirection facing)
+{
+    assert(cell(position) == CellType::StairsDown || cell(position) == CellType::StairsUp);
+    m_staircase_facings[position] = facing;
+    return;
+}
+
+//------------------------------------------------------------------------------
 void quetzal::catagen::Level::clear()
 {
     m_bounds.clear();
     m_cells.clear();
     m_walls_vertical.clear();
     m_walls_horizontal.clear();
+    m_staircase_facings.clear();
     return;
 }
 

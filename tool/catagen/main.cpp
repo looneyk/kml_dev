@@ -82,10 +82,24 @@ namespace
     }
 
     //--------------------------------------------------------------------------
+    // A closed range of counts, written low to high with a hyphen between
+    math::Interval<size_t> to_count_interval(const string& s)
+    {
+        math::Interval<catagen::coord_type> interval = to_interval(s, '-');
+
+        if (interval.lower() < 0 || interval.upper() < 0)
+        {
+            throw invalid_argument(format("\"{}\" is not two counts", s));
+        }
+
+        return {static_cast<size_t>(interval.lower()), static_cast<size_t>(interval.upper())};
+    }
+
+    //--------------------------------------------------------------------------
     void usage(ostream& os)
     {
         os << "Usage: catagen [level] [--extent nx,ny] [--scale min-max] [--spacing min-max]"
-            << " [--density d] [--loop l] [--seed n] [--quiet]" << endl;
+            << " [--density d] [--loop l] [--stairs-down min-max] [--stairs-up min-max] [--seed n] [--quiet]" << endl;
         return;
     }
 
@@ -123,6 +137,14 @@ int main(int argc, char* argv[])
             else if (arg == "--loop" && i + 1 < argc)
             {
                 parameters.loop = to_real(argv[++i]);
+            }
+            else if (arg == "--stairs-down" && i + 1 < argc)
+            {
+                parameters.staircase_down_count = to_count_interval(argv[++i]);
+            }
+            else if (arg == "--stairs-up" && i + 1 < argc)
+            {
+                parameters.staircase_up_count = to_count_interval(argv[++i]);
             }
             else if (arg == "--seed" && i + 1 < argc)
             {

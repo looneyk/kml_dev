@@ -37,7 +37,7 @@
 #....@#
 #######
    cell (5, 1)  facing east
-   blocked by wall 5
+   blocked by wall 48
 
 -- command 'h'
 #######

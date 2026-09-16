@@ -9,8 +9,6 @@
 #include "Flat.hpp"
 #include "GridMapping.hpp"
 #include "Layout.hpp"
-#include "Room.hpp"
-#include "Wall.hpp"
 #include "types.hpp"
 #include "quetzal/common/id.hpp"
 #include <optional>
@@ -27,18 +25,14 @@ namespace quetzal::stratum_sim
     // A level with no height data loads a constant floor rather than a different class, so
     // which data a game style loads is what differs rather than which class is built. Flat is
     // implied here, which is why the name does not mention it
-    // No provision for continuous movement, which is ContinuousLayout's, and none for a wall
-    // spanning more than one cell edge: one wall lies on one cell edge, which is what lets a
-    // partner be found by exact match. See sim_zone_model.md
+    // No provision for continuous movement, which is ContinuousLayout's. A wall is one side of one cell edge, stored as a
+    // bit on the cell it faces, and the other side of the edge is independent of it. See sim_zone_model.md
     class DiscreteLayout : public Layout
     {
     public:
 
-        using walls_type = std::vector<Wall>;
-        using rooms_type = std::vector<Room>;
         using flats_type = std::vector<Flat>;
         using cells_type = std::vector<Cell>;
-        using ids_type = std::vector<id_type>;
 
         using Layout::move; // The interface's topology-only overload, which overriding move hides
 
@@ -50,16 +44,6 @@ namespace quetzal::stratum_sim
         DiscreteLayout& operator=(const DiscreteLayout&) = default;
         DiscreteLayout& operator=(DiscreteLayout&&) noexcept = default;
 
-        const Wall& wall(id_type wall_id) const;
-        Wall& wall(id_type wall_id);
-        size_t wall_store_count() const;
-        const walls_type& wall_store() const;
-
-        const Room& room(id_type room_id) const;
-        Room& room(id_type room_id);
-        size_t room_store_count() const;
-        const rooms_type& room_store() const;
-
         const Flat& flat(id_type flat_id) const;
         Flat& flat(id_type flat_id);
         size_t flat_store_count() const;
@@ -70,40 +54,16 @@ namespace quetzal::stratum_sim
         id_type ceiling_id() const;
         void set_flats(value_type height_floor, value_type height_ceiling);
 
-        // One Wall per outline edge, linked into a closed ring in outline order. Every
-        // partner is nullid, so new walls are border walls
-        // Returns the wall each outline starts at. A ring's walls are contiguous from there,
-        // so a caller given an outline's length can derive which walls came from it
-        ids_type create_walls(const std::vector<polygon_type>& outlines);
+        // A flat's height at a cell: the cell's own, failing that the room covering it, failing that the flat's
+        value_type height(id_type flat_id, const discrete_point_type& cell_position) const;
 
-        // A room the caller has built the outline and cell list of. Rooms are metadata: what
-        // one covers is stored here and read back, and nothing in movement consults them
-        id_type create_room(const Room& room);
-
-        // The room whose outline contains the point, height disregarded. nullid when none does
-        // Tests every room's outline, so prefer the cell form ...
-        id_type room_at(const point_type& point) const;
+        // Rooms are metadata: what one covers is stored here and read back, and nothing in movement consults them
+        size_t room_count() const;
+        void set_room_count(size_t room_count);
 
         // The room containing a given cell
-        id_type room_at(const discrete_point_type& grid_position) const;
-        void set_cell_room(const discrete_point_type& grid_position, id_type room_id);
-
-        // Each wall's start is the other's end, so the two describe one edge from opposite
-        // sides. This is what makes them eligible to be partners
-        bool opposed(id_type wall_id_a, id_type wall_id_b) const;
-
-        void connect(id_type wall_id_a, id_type wall_id_b);
-        void disconnect(id_type wall_id);
-
-        // Connects every opposed pair the two sets of walls share, skipping walls already
-        // connected. Returns the number of connections made
-        // Walls rather than any grouping over them: what is connected to what is topology,
-        // and a caller that built the walls already has their ids
-        size_t connect_walls(const ids_type& wall_ids_a, const ids_type& wall_ids_b);
-
-        // Connects the opposed walls within one set, which is what a wall run folding back
-        // on itself amounts to: a free standing wall's two sides are partners
-        size_t connect_folds(const ids_type& wall_ids);
+        id_type room_at(const discrete_point_type& cell_position) const;
+        void set_cell_room(const discrete_point_type& cell_position, id_type room_id);
 
         void set_grid(const point_type& origin, value_type scale, const discrete_vector_type& extent);
         const GridMapping& grid() const;
@@ -112,8 +72,12 @@ namespace quetzal::stratum_sim
         // table of its own, and read without consulting anything else
         // The cell must lie on the grid, an off-grid cell being the caller's error rather
         // than a question with an answer
-        bool open(const discrete_point_type& grid_position) const;
-        void set_cell_open(const discrete_point_type& grid_position, bool open);
+        bool open(const discrete_point_type& cell_position) const;
+        void set_cell_open(const discrete_point_type& cell_position, bool open);
+
+        // The sides of a cell with a wall facing into it
+        DirectionMask walls(const discrete_point_type& cell_position) const;
+        void set_cell_walls(const discrete_point_type& cell_position, DirectionMask walls);
 
         // The grid's own granularity, so that crossing one cell costs one action and
         // crossing four costs four
@@ -121,14 +85,14 @@ namespace quetzal::stratum_sim
 
         // Total: any position floors into a cell without bounds check or clamp, so a position
         // off the grid maps to a cell off the grid rather than failing
-        discrete_point_type grid_position_at(const point_type& point) const;
-        point_type position(const discrete_point_type& grid_position) const; // Cell center, at the grid's height
+        discrete_point_type cell_position_at(const point_type& point) const;
+        point_type position(const discrete_point_type& cell_position) const; // Cell center, on the floor
 
-        // The wall on this cell's side in the given direction, if any
-        id_type wall_toward(const discrete_point_type& grid_position, const discrete_vector_type& direction) const;
+        // The wall on this cell's side in the given direction, if any. Its id encodes the cell and the direction
+        id_type wall_toward(const discrete_point_type& cell_position, const discrete_vector_type& direction) const;
 
         // Stopped by the wall in the given direction
-        bool blocked(const discrete_point_type& grid_position, const discrete_vector_type& direction) const;
+        bool blocked(const discrete_point_type& cell_position, const discrete_vector_type& direction) const;
 
         // Stops at the first wall that blocks it or the first cell the caller reports
         // occupied. The direction snaps to one of the grid's own and the distance rounds to
@@ -160,16 +124,16 @@ namespace quetzal::stratum_sim
     private:
 
         // The cell a grid position addresses, which must lie on the grid
-        const Cell& cell(const discrete_point_type& grid_position) const;
-        Cell& cell(const discrete_point_type& grid_position);
+        size_t slot(const discrete_point_type& cell_position) const;
+        const Cell& cell(const discrete_point_type& cell_position) const;
+        Cell& cell(const discrete_point_type& cell_position);
 
-        walls_type m_wall_store;
-        rooms_type m_room_store;
         flats_type m_flat_store;
         id_type m_floor_id = nullid;
         id_type m_ceiling_id = nullid;
         std::optional<GridMapping> m_grid;
-        cells_type m_cells; // The grid's extent
+        cells_type m_cells; // The grid's cells
+        size_t m_room_count = 0;
     };
 
 } // namespace quetzal::stratum_sim

@@ -209,20 +209,26 @@ generated content, saves --- so it has to survive a machine round trip, and comm
 parsing with `ignore_comments`. It matches the field: Cataclysm DDA and Minecraft data packs are
 JSON.
 
-**Per-edge walls, in partnered pairs.** Decided, ahead of Phase 1. Solid cells cannot express a wall
+**Per-edge walls, one per side.** Decided, ahead of Phase 1. Solid cells cannot express a wall
 or a door between two open cells without spending a whole cell on it, so per-edge subsumes them and
-not the reverse. What lies on an edge is two walls, one per side, which are each other's partners. Everything is
-therefore per side --- decoration, the door, and passability itself --- so one-way doors and secret
-doors need no special case, and no orientation convention is required to say which side data belongs
-to. An opening is the absence of a wall rather than a flag on one, which is what non-rectangular
-rooms need, having no predefined wall slots to flag. A `nullid` partner means solid rock: nothing
-behind it, and not minable. The structures in `library/quetzal/dungeon` are the starting point.
+not the reverse. What lies on an edge is up to two walls, one per side, each separate from the other:
+a mover interacts with the wall on its own side, and the other side is out of reach until it is
+there. Everything is therefore per side --- decoration, a door's facing, and passability itself --- so
+one-way doors and secret doors need no special case, and no orientation convention is required to say
+which side data belongs to. An opening is the absence of a wall rather than a flag on one, which is
+what non-rectangular rooms need, having no predefined wall slots to flag. The structures in `library/quetzal/dungeon` are the starting point.
 
 **Data-level inheritance only.** A prototype references a parent, and the chain is resolved by merge at
 load time and flattened; the parent relationship does not exist at runtime. Multiple parents and mixins are
-reasonable here because merging property bags is well defined. Merge semantics must be specified
-explicitly --- whether a child component replaces or merges field-by-field, how lists combine, and
-whether flattening order is deterministic with multiple parents.
+reasonable here because merging property bags is well defined. A child's component merges over its
+parent's property by property: what the child states replaces the parent's value, and what it does not
+state keeps it. How lists combine, and a deterministic flattening order with multiple parents, are
+still to be specified.
+
+That is a prototype's own chain of parents. An object in a zone refers to its type rather than copying
+it, and a property is resolved when queried: the object's own value, then the room covering it, then
+the layout, then the type's default. The object's type determines whether it looks to the room and
+the layout at all.
 
 **Data describes what exists; behavior lives in code or script.** The escape hatch to a real
 scripting language is chosen before it is needed, not after conditionals have accumulated in JSON.

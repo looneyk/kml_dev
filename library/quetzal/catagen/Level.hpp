@@ -6,6 +6,8 @@
 //------------------------------------------------------------------------------
 
 #include "types.hpp"
+#include <map>
+#include <optional>
 #include <vector>
 
 namespace quetzal::catagen
@@ -15,8 +17,8 @@ namespace quetzal::catagen
     // A rectangle of cells and the walls between them. A wall belongs to the edge two cells
     // share rather than to either of them, so adjoining rooms cost nothing to separate and
     // the grid holds one more line of walls than cells in each direction
-    // The whole of what a generator produces; rooms, doors and stairs are held here as
-    // cell and wall state rather than as objects of their own
+    // The whole of what a generator produces; rooms, doors and staircases are held here as
+    // cell and wall state, with a staircase's facing beside it, rather than as objects of their own
     class Level
     {
     public:
@@ -53,6 +55,10 @@ namespace quetzal::catagen
         WallType wall(const point_type& cell, CardinalDirection direction) const;
         void set_wall(const point_type& cell, CardinalDirection direction, WallType type);
 
+        // The side of a staircase cell it opens onto
+        std::optional<CardinalDirection> staircase_facing(const point_type& cell) const;
+        void set_staircase_facing(const point_type& cell, CardinalDirection facing);
+
         void clear();
 
     private:
@@ -65,6 +71,7 @@ namespace quetzal::catagen
         std::vector<CellType> m_cells;
         std::vector<WallType> m_walls_vertical; // (nx + 1) by ny
         std::vector<WallType> m_walls_horizontal; // nx by (ny + 1)
+        std::map<point_type, CardinalDirection> m_staircase_facings;
     };
 
     point_type neighbor(const point_type& cell, CardinalDirection direction);

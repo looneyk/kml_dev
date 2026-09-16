@@ -5,18 +5,25 @@
 
 #include "quetzal/catagen/generate.hpp"
 #include "quetzal/catagen/write_level.hpp"
-#include "quetzal/common/FileValidator.hpp"
 #include "quetzal/common/file_util.hpp"
 #include "quetzal/common/string_util.hpp"
 #include "quetzal/math/Interval.hpp"
 #include "quetzal/math/Random.hpp"
+#include "quetzal/stratum_format/grid.hpp"
+#include "quetzal/stratum_format/read.hpp"
+#include <nlohmann/json.hpp>
+#include <algorithm>
 #include <charconv>
+#include <filesystem>
 #include <format>
 #include <fstream>
 #include <iostream>
 #include <map>
 #include <sstream>
+#include <stdexcept>
 #include <string>
+#include <utility>
+#include <variant>
 #include <vector>
 
 using namespace std;
@@ -27,6 +34,9 @@ namespace
 
     static constexpr auto escape_reset_string = "\x1b[0m";
     static constexpr auto escape_rendition_pattern = "\x1b[38;5;{}m";
+
+    // Key order plays no part in its comparison, which is what lets two level files compare as equivalent
+    using map_type = nlohmann::json;
 
     size_t g_case_count = 0;
     size_t g_failure_count = 0;
@@ -148,35 +158,30 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // The header row read back into the parameters it specifies, which is the whole of what a
-    // level says about how to produce it again
-    // Throws std::invalid_argument where a row specifies something this does not read, so a
-    // parameter added to the writer and not to this is a failure rather than a silent pass
-    catagen::Parameters parameters_of(const string& header)
+    // The level as the reader decodes it. Throws std::runtime_error where the reader rejects it
+    stratum_format::Document document_of(const string& level)
     {
-        istringstream is(header);
+        istringstream is(level);
+        return stratum_format::read(is, "level");
+    }
 
-        string generator;
-        string version;
-        is >> generator >> version;
-
-        if (generator != "catagen" || version != catagen::format_version)
+    //--------------------------------------------------------------------------
+    // The generator a level names, read back into the parameters it specifies, which is the whole of what a level says
+    // about how to produce it again
+    // Throws std::invalid_argument where the level specifies something this does not read, so a parameter added to the
+    // writer and not to this is a failure rather than a silent pass
+    catagen::Parameters parameters_of(const stratum_format::values_type& generator)
+    {
+        if (!generator.is_object() || generator.value("name", "") != "catagen")
         {
-            throw invalid_argument(format("\"{}\" is not a catagen {} header", header, catagen::format_version));
+            throw invalid_argument(format("\"{}\" is not a catagen generator", generator.dump()));
         }
 
         map<string, string> values;
-        string token;
 
-        while (is >> token)
+        for (const auto& [key, value] : generator.at("parameters").items())
         {
-            size_t n = token.find('=');
-            if (n == string::npos)
-            {
-                throw invalid_argument(format("\"{}\" is not a name=value pair", token));
-            }
-
-            values[token.substr(0, n)] = token.substr(n + 1);
+            values[key] = value.get<string>();
         }
 
         auto interval_of = [](const string& s, char separator)
@@ -186,26 +191,50 @@ namespace
                 to_integer(s.substr(0, n)), to_integer(s.substr(n + 1))};
         };
 
+        // Each value read is removed, so what remains at the end is what this does not read
+        auto take = [&values](const string& key)
+        {
+            auto i = values.find(key);
+            if (i == values.end())
+            {
+                throw invalid_argument(format("the level specifies no {}", key));
+            }
+
+            string value = std::move(i->second);
+            values.erase(i);
+            return value;
+        };
+
         catagen::Parameters parameters;
 
-        const string& extent = values.at("extent");
+        string extent = take("extent");
         math::from_chars(extent.data(), extent.data() + extent.size(), parameters.extent, ",");
 
-        parameters.scale = interval_of(values.at("scale"), '-');
-        parameters.spacing = interval_of(values.at("spacing"), '-');
+        parameters.scale = interval_of(take("scale"), '-');
+        parameters.spacing = interval_of(take("spacing"), '-');
 
-        parameters.density = to_real(values.at("density"));
-        parameters.loop = to_real(values.at("loop"));
-        parameters.seed = math::to_seed(values.at("seed"));
+        parameters.density = to_real(take("density"));
+        parameters.loop = to_real(take("loop"));
+
+        for (auto [key, count] : {pair {"stairs_down", &parameters.staircase_down_count}, pair {"stairs_up", &parameters.staircase_up_count}})
+        {
+            math::Interval<catagen::coord_type> interval = interval_of(take(key), '-');
+            if (interval.lower() < 0 || interval.upper() < 0)
+            {
+                throw invalid_argument(format("{} is not two counts", key));
+            }
+
+            *count = {static_cast<size_t>(interval.lower()), static_cast<size_t>(interval.upper())};
+        }
+
+        parameters.seed = math::to_seed(take("seed"));
+
+        if (!values.empty())
+        {
+            throw invalid_argument(format("the level specifies {}, which this does not read", values.begin()->first));
+        }
 
         return parameters;
-    }
-
-    //--------------------------------------------------------------------------
-    // What a level file's first line is, the rest being the grid
-    string header_of(const string& level)
-    {
-        return level.substr(0, level.find('\n'));
     }
 
     //--------------------------------------------------------------------------
@@ -261,44 +290,209 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Levels written now against levels checked in, gated byte for byte. A generator change
-    // that alters what any of these produces reports here rather than months later
+    // Levels written now against levels checked in, which are to be equivalent. A generator change that alters what any of these
+    // produces reports here rather than months later
     void test_reference_levels()
     {
         report_group("reference levels");
 
-        FileValidator validator("out", "reference", "catagen_test");
+        filesystem::create_directories("out");
 
         for (const Scenario& scenario : scenarios())
         {
-            write_file(format("out/{}.level", scenario.name), level_text(scenario.parameters));
-        }
+            string level = level_text(scenario.parameters);
+            write_file(format("out/{}.level", scenario.name), level);
 
-        validator.report_results();
-        report_case("every level matches its reference", validator.result() <= FileValidator::ResultStatus::Unchanged);
+            string reference = read_file(format("reference/{}.level", scenario.name));
+            if (reference.empty())
+            {
+                report_case(format("{} is equivalent to its reference", scenario.name), false, "no reference is checked in");
+                continue;
+            }
+
+            try
+            {
+                map_type map = map_type::parse(level);
+                map_type map_expected = map_type::parse(reference);
+                report_case(format("{} is equivalent to its reference", scenario.name), map == map_expected, map_type::diff(map_expected, map).dump());
+            }
+            catch (const map_type::parse_error& e)
+            {
+                report_case(format("{} is equivalent to its reference", scenario.name), false, e.what());
+            }
+        }
 
         return;
     }
 
     //--------------------------------------------------------------------------
-    // The claim the format rests on: a header names everything a run needs, so a level can be
-    // produced again from the file alone
-    void test_header_reproduces()
+    // The claim the format rests on: a level names everything its run needs, so it can be produced again from the file alone
+    void test_parameters_reproduce()
     {
-        report_group("header reproduces its level");
+        report_group("parameters reproduce their level");
 
         for (const Scenario& scenario : scenarios())
         {
-            string level = read_file(format("reference/{}.level", scenario.name));
-            report_case(format("{} is checked in", scenario.name), !level.empty());
+            string reference = read_file(format("reference/{}.level", scenario.name));
+            report_case(format("{} is checked in", scenario.name), !reference.empty());
 
-            if (level.empty())
+            if (reference.empty())
             {
                 continue;
             }
 
-            catagen::Parameters parameters = parameters_of(header_of(level));
-            report_case(format("{} regenerates from its own header", scenario.name), level_text(parameters) == level);
+            try
+            {
+                catagen::Parameters parameters = parameters_of(document_of(reference).generator);
+                report_case(format("{} regenerates from its own parameters", scenario.name),
+                    map_type::parse(level_text(parameters)) == map_type::parse(reference));
+            }
+            catch (const exception& e)
+            {
+                report_case(format("{} regenerates from its own parameters", scenario.name), false, e.what());
+            }
+        }
+
+        stratum_format::values_type generator = document_of(level_text(scenarios().front().parameters)).generator;
+        generator["parameters"]["unread"] = "1";
+
+        bool rejected = false;
+        try
+        {
+            parameters_of(generator);
+        }
+        catch (const invalid_argument&)
+        {
+            rejected = true;
+        }
+
+        report_case("a parameter this does not read is rejected", rejected);
+
+        return;
+    }
+
+    //--------------------------------------------------------------------------
+    void test_levels_read()
+    {
+        report_group("levels the reader accepts");
+
+        for (const Scenario& scenario : scenarios())
+        {
+            try
+            {
+                document_of(level_text(scenario.parameters));
+                report_case(format("{} is a level the reader accepts", scenario.name), true);
+            }
+            catch (const runtime_error& e)
+            {
+                report_case(format("{} is a level the reader accepts", scenario.name), false, e.what());
+            }
+        }
+
+        return;
+    }
+
+    //--------------------------------------------------------------------------
+    // Read from the written level alone: one door entity attached at the walls of each door glyph, and none elsewhere
+    bool doors_have_entities(const string& level, string& detail)
+    {
+        stratum_format::Document document;
+
+        try
+        {
+            document = document_of(level);
+        }
+        catch (const runtime_error& e)
+        {
+            detail = e.what();
+            return false;
+        }
+
+        vector<vector<stratum_format::WallAddress>> doors = stratum_format::door_walls(document.cells);
+        vector<bool> matched(doors.size(), false);
+
+        for (const stratum_format::Attachment& attachment : document.attachments)
+        {
+            const auto* walls = get_if<vector<stratum_format::WallAddress>>(&attachment.attached_to);
+            bool door = any_of(attachment.entities.begin(), attachment.entities.end(),
+                [](const auto& entity) { return entity.is_object() && entity.value("type", "") == "door"; });
+
+            if (walls == nullptr || !door)
+            {
+                continue;
+            }
+
+            auto i = find(doors.begin(), doors.end(), *walls);
+            if (i == doors.end() || matched[static_cast<size_t>(i - doors.begin())])
+            {
+                const stratum_format::WallAddress& wall = walls->front();
+                detail = format("a door entity at wall {}, {}, {}, {} that is {}", wall.cell_position.i(), wall.cell_position.j(), wall.normal.x(),
+                    wall.normal.y(), i == doors.end() ? "not a door's" : "a door's second");
+                return false;
+            }
+
+            matched[static_cast<size_t>(i - doors.begin())] = true;
+        }
+
+        size_t missing_count = static_cast<size_t>(count(matched.begin(), matched.end(), false));
+        if (missing_count > 0)
+        {
+            detail = format("{} of {} doors have no door entity", missing_count, doors.size());
+            return false;
+        }
+
+        return true;
+    }
+
+    //--------------------------------------------------------------------------
+    void test_doors()
+    {
+        report_group("doors");
+
+        constexpr catagen::Parameters::seed_type seed_count = 64;
+
+        for (const Scenario& scenario : scenarios())
+        {
+            string detail;
+            report_case(format("{} writes a door entity at each door", scenario.name), doors_have_entities(level_text(scenario.parameters), detail),
+                detail);
+        }
+
+        for (const Scenario& scenario : scenarios())
+        {
+            string detail;
+            size_t failures = 0;
+
+            for (catagen::Parameters::seed_type seed = 1; seed <= seed_count; ++seed)
+            {
+                catagen::Parameters parameters = scenario.parameters;
+                parameters.seed = seed;
+
+                string seed_detail;
+                string level;
+
+                try
+                {
+                    level = level_text(parameters);
+                }
+                catch (const exception& e)
+                {
+                    seed_detail = e.what();
+                }
+
+                if (level.empty() || !doors_have_entities(level, seed_detail))
+                {
+                    if (failures == 0)
+                    {
+                        detail = format("seed {}, {}", seed, seed_detail);
+                    }
+
+                    ++failures;
+                }
+            }
+
+            report_case(format("{} writes a door entity at each door over {} seeds", scenario.name, seed_count), failures == 0,
+                format("{} seeds failed, first at {}", failures, detail));
         }
 
         return;
@@ -400,9 +594,267 @@ namespace
             ragged = ragged || r.size() != rows.front().size();
         }
 
-        // The last column is a boundary wall or one of its corners and so is never blank,
-        // which is what lets a reader derive the extent from the grid
         report_case("with no row trimmed", !ragged);
+
+        return;
+    }
+
+    //--------------------------------------------------------------------------
+    // Read from the written level alone: as many staircases each way as the counts allow, no staircase blocking a doorway
+    // while a cell beside it would not, every staircase with an entity whose facing is a side with no wall, or with a
+    // door where no side is free of a wall, and the entry listing every staircase cell
+    bool staircases_placed_and_faced(const string& level, const catagen::Parameters& parameters, string& detail)
+    {
+        using stratum_format::coord_type;
+        using stratum_format::discrete_point_type;
+        using stratum_format::discrete_vector_type;
+
+        stratum_format::Document document;
+
+        try
+        {
+            document = document_of(level);
+        }
+        catch (const runtime_error& e)
+        {
+            detail = e.what();
+            return false;
+        }
+
+        const stratum_format::Cells& cells = document.cells;
+        const auto& directions = math::cardinal_directions<coord_type, 2>;
+
+        // In the written grid, a cell at its odd position and the edge on its side one step from there
+        auto glyph_at = [&cells](coord_type x, coord_type y) { return cells.rows[cells.rows.size() - 1 - static_cast<size_t>(y)][static_cast<size_t>(x)]; };
+
+        auto cell_glyph = [&](const discrete_point_type& cell_position)
+        {
+            return stratum_format::on_grid(cells, cell_position) ? glyph_at(2 * cell_position.i() + 1, 2 * cell_position.j() + 1) : ' ';
+        };
+
+        auto edge_glyph = [&](const discrete_point_type& cell_position, const discrete_vector_type& direction)
+        {
+            return glyph_at(2 * cell_position.i() + 1 + direction.x(), 2 * cell_position.j() + 1 + direction.y());
+        };
+
+        auto blocks_doorway = [&](const discrete_point_type& cell_position)
+        {
+            return any_of(directions.begin(), directions.end(), [&](const discrete_vector_type& direction) { return edge_glyph(cell_position, direction) == '+'; });
+        };
+
+        size_t down_count = 0;
+        size_t up_count = 0;
+        set<discrete_point_type> staircase_cells;
+
+        for (coord_type j = 0; j < cells.extent.y(); ++j)
+        {
+            for (coord_type i = 0; i < cells.extent.x(); ++i)
+            {
+                discrete_point_type cell_position {i, j};
+                if (cell_glyph(cell_position) != '>' && cell_glyph(cell_position) != '<')
+                {
+                    continue;
+                }
+
+                ++(cell_glyph(cell_position) == '>' ? down_count : up_count);
+                staircase_cells.insert(cell_position);
+
+                if (blocks_doorway(cell_position) && any_of(directions.begin(), directions.end(), [&](const discrete_vector_type& direction)
+                    {
+                        discrete_point_type neighbor = cell_position + direction;
+                        return edge_glyph(cell_position, direction) == ' ' && cell_glyph(neighbor) == '.' && !blocks_doorway(neighbor);
+                    }))
+                {
+                    detail = format("staircase at {}, {} blocks a doorway with a cell free beside it", i, j);
+                    return false;
+                }
+
+                vector<discrete_vector_type> facings;
+
+                for (const stratum_format::Attachment& attachment : document.attachments)
+                {
+                    const auto* flat_cell = get_if<stratum_format::FlatCell>(&attachment.attached_to);
+                    if (flat_cell == nullptr || flat_cell->role != stratum_format::FlatRole::Floor || flat_cell->cell_position != cell_position)
+                    {
+                        continue;
+                    }
+
+                    for (const auto& entity : attachment.entities)
+                    {
+                        // Whatever the entity's type, it is the one with a relocator
+                        if (entity.contains("components") && entity["components"].contains("relocator"))
+                        {
+                            const auto& components = entity["components"];
+                            if (!components.contains("facing"))
+                            {
+                                detail = format("staircase at {}, {} has no facing", i, j);
+                                return false;
+                            }
+
+                            const auto& facing = components["facing"];
+                            facings.push_back({facing[0].get<coord_type>(), facing[1].get<coord_type>()});
+
+                            string target = cell_glyph(cell_position) == '>' ? "level_down" : "level_up";
+                            if (components["relocator"].value("target", "") != target)
+                            {
+                                detail = format("staircase at {}, {} does not lead to {}", i, j, target);
+                                return false;
+                            }
+                        }
+                    }
+                }
+
+                if (facings.size() != 1)
+                {
+                    detail = format("staircase at {}, {} has {} facings", i, j, facings.size());
+                    return false;
+                }
+
+                const discrete_vector_type& facing = facings.front();
+                bool open_side = any_of(directions.begin(), directions.end(), [&](const discrete_vector_type& direction) { return edge_glyph(cell_position, direction) == ' '; });
+                bool step = find(directions.begin(), directions.end(), facing) != directions.end();
+
+                if (!step || !(edge_glyph(cell_position, facing) == ' ' || (edge_glyph(cell_position, facing) == '+' && !open_side)))
+                {
+                    detail = format("staircase at {}, {} faces {}, {}", i, j, facing.x(), facing.y());
+                    return false;
+                }
+            }
+        }
+
+        // Running out of rooms places fewer, and those leading up are placed first, so a count below its minimum is
+        // allowed only where nothing was left for the staircases leading down
+        const math::Interval<size_t>& down = parameters.staircase_down_count;
+        const math::Interval<size_t>& up = parameters.staircase_up_count;
+
+        if (down_count > down.upper() || up_count > up.upper() || (up_count < up.lower() && down_count > 0))
+        {
+            detail = format("{} staircases down for {}-{} and {} up for {}-{}", down_count, down.lower(), down.upper(), up_count, up.lower(), up.upper());
+            return false;
+        }
+
+        const auto* entry = document.components.contains("entry") ? &document.components["entry"] : nullptr;
+        set<discrete_point_type> entry_cells;
+
+        if (entry != nullptr && entry->is_array())
+        {
+            for (const auto& cell : *entry)
+            {
+                entry_cells.insert({cell[0].get<coord_type>(), cell[1].get<coord_type>()});
+            }
+        }
+
+        if (entry == nullptr || !entry->is_array() || entry->size() != entry_cells.size() || entry_cells != staircase_cells)
+        {
+            detail = format("the entry {} is not every staircase cell", entry == nullptr ? "is absent and" : entry->dump());
+            return false;
+        }
+
+        return true;
+    }
+
+    //--------------------------------------------------------------------------
+    void test_staircases()
+    {
+        report_group("staircases");
+
+        constexpr catagen::Parameters::seed_type seed_count = 64;
+
+        for (const Scenario& scenario : scenarios())
+        {
+            string detail;
+            report_case(format("{} places and faces its staircases", scenario.name),
+                staircases_placed_and_faced(level_text(scenario.parameters), scenario.parameters, detail), detail);
+        }
+
+        for (const Scenario& scenario : scenarios())
+        {
+            string detail;
+            size_t failures = 0;
+
+            for (catagen::Parameters::seed_type seed = 1; seed <= seed_count; ++seed)
+            {
+                catagen::Parameters parameters = scenario.parameters;
+                parameters.seed = seed;
+                parameters.staircase_down_count = {0, 2};
+                parameters.staircase_up_count = {1, 3};
+
+                string seed_detail;
+                string level;
+
+                try
+                {
+                    level = level_text(parameters);
+                }
+                catch (const exception& e)
+                {
+                    seed_detail = e.what();
+                }
+
+                if (level.empty() || !staircases_placed_and_faced(level, parameters, seed_detail))
+                {
+                    if (failures == 0)
+                    {
+                        detail = format("seed {}, {}", seed, seed_detail);
+                    }
+
+                    ++failures;
+                }
+            }
+
+            report_case(format("{} places and faces ranges of staircases over {} seeds", scenario.name, seed_count), failures == 0,
+                format("{} seeds failed, first at {}", failures, detail));
+        }
+
+        catagen::Parameters reversed;
+        reversed.seed = 1u;
+        reversed.staircase_up_count = {2, 1};
+
+        bool rejected = false;
+        try
+        {
+            catagen::validate(reversed);
+        }
+        catch (const invalid_argument&)
+        {
+            rejected = true;
+        }
+
+        report_case("a staircase count whose maximum is below its minimum is rejected", rejected);
+
+        catagen::Parameters entryless;
+        entryless.seed = 1u;
+        entryless.staircase_down_count = {0, 1};
+        entryless.staircase_up_count = {0, 1};
+
+        rejected = false;
+        try
+        {
+            catagen::validate(entryless);
+        }
+        catch (const invalid_argument&)
+        {
+            rejected = true;
+        }
+
+        report_case("staircase counts that may both be zero, leaving no entry, are rejected", rejected);
+
+        catagen::Parameters down_only;
+        down_only.seed = 1u;
+        down_only.staircase_down_count = {1, 1};
+        down_only.staircase_up_count = {0, 0};
+
+        bool accepted = true;
+        try
+        {
+            catagen::validate(down_only);
+        }
+        catch (const invalid_argument&)
+        {
+            accepted = false;
+        }
+
+        report_case("a staircase down alone, as a tower entered from below has, is accepted as the entry", accepted);
 
         return;
     }
@@ -415,10 +867,13 @@ int main()
     try
     {
         test_reference_levels();
-        test_header_reproduces();
+        test_parameters_reproduce();
+        test_levels_read();
         test_determinism();
         test_validate();
         test_grid_shape();
+        test_doors();
+        test_staircases();
     }
     catch (const exception& e)
     {

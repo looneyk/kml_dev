@@ -81,10 +81,24 @@ namespace
     }
 
     //--------------------------------------------------------------------------
+    // A closed range of counts, written low to high with a hyphen between
+    math::Interval<size_t> to_count_interval(const string& s)
+    {
+        size_t n = s.find('-');
+
+        if (n == string::npos)
+        {
+            throw invalid_argument(format("\"{}\" is not two counts separated by '-'", s));
+        }
+
+        return {to_count(s.substr(0, n)), to_count(s.substr(n + 1))};
+    }
+
+    //--------------------------------------------------------------------------
     void usage(ostream& os)
     {
         os << "Usage: dungen [level] [--algorithm maze1|grid1|cave1] [--size nx,ny]"
-            << " [--stair-placements none|paired|multiple] [--room-density d] [--seed n]" << endl;
+            << " [--stairs-down min-max] [--stairs-up min-max] [--room-density d] [--door-probability p] [--seed n]" << endl;
         os << "  maze1: [--room-dimension-base n] [--room-dimension-variation n] [--room-merge]"
             << " [--corridor-straightness s] [--probability-dead-end-removal p]"
             << " [--probability-loop-removal p]" << endl;
@@ -116,16 +130,26 @@ int main(int argc, char* argv[])
             {
                 parameters.size = to_vector(argv[++i], ",");
             }
-            else if (arg == "--stair-placements" && i + 1 < argc)
+            else if (arg == "--stairs-down" && i + 1 < argc)
             {
-                parameters.stair_placements = dungen::to_stair_placements(argv[++i]);
+                parameters.staircase_down_count = to_count_interval(argv[++i]);
+            }
+            else if (arg == "--stairs-up" && i + 1 < argc)
+            {
+                parameters.staircase_up_count = to_count_interval(argv[++i]);
             }
             else if (arg == "--room-density" && i + 1 < argc)
             {
-                // The one name two algorithms share, so it sets both and the chosen one reads it
+                // A name two algorithms share, so it sets both and the chosen one reads it
                 double room_density = to_real(argv[++i]);
                 parameters.maze1.room_density = room_density;
                 parameters.grid1.room_density = room_density;
+            }
+            else if (arg == "--door-probability" && i + 1 < argc)
+            {
+                double door_probability = to_real(argv[++i]);
+                parameters.maze1.door_probability = door_probability;
+                parameters.grid1.door_probability = door_probability;
             }
             else if (arg == "--room-dimension-base" && i + 1 < argc)
             {

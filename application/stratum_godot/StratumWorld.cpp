@@ -89,9 +89,9 @@ godot::Vector2i StratumWorld::cell() const
     }
 
     const sim::placement_type& placement = m_session.player().get<sim::placement_type>();
-    sim::discrete_point_type grid_position = sim::layout_as<sim::DiscreteLayout>(m_session.layout()).grid_position_at(placement.position());
+    sim::discrete_point_type cell_position = sim::layout_as<sim::DiscreteLayout>(m_session.layout()).cell_position_at(placement.position());
 
-    return godot::Vector2i(grid_position.i(), grid_position.j());
+    return godot::Vector2i(cell_position.i(), cell_position.j());
 }
 
 //------------------------------------------------------------------------------

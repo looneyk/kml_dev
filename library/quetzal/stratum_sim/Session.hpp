@@ -5,19 +5,21 @@
 // Session.hpp
 //------------------------------------------------------------------------------
 
-#include "attachments.hpp"
 #include "Clock.hpp"
 #include "Command.hpp"
 #include "Generator.hpp"
 #include "EventQueue.hpp"
 #include "Layout.hpp"
-#include "load_layout.hpp"
 #include "Scheduler.hpp"
 #include "World.hpp"
+#include "attachments.hpp"
+#include "load_layout.hpp"
 #include <filesystem>
 
 namespace quetzal::stratum_sim
 {
+
+    // The creation, loading, and population here are a mess. we need to define better exactly what the responsibilities are and restructure this to follow that ...
 
     //--------------------------------------------------------------------------
     // A loaded world and what is needed to run it: its zones, the turn order over them, the
@@ -44,16 +46,20 @@ namespace quetzal::stratum_sim
         void create(const Generator& generator, Driver driver = Driver::TurnBased,
             double units_per_second = Clock::units_per_second_default);
 
-        // A zone read whole. Today's files contain geometry alone, so what is read is a snapshot
-        // of part of a construction and the rest is placed as though generated
-        // Throws also when the file cannot be read
+        // Load a zone file.
+        // We need two versions of this, one for pre-generated zones which have geometry and entities, but need to be populated,
+        // and another for saved zones which include the last population placement.
+        // Split this or otherwise support conditional populating ...
         void load(const std::filesystem::path& filepath, Driver driver = Driver::TurnBased,
             double units_per_second = Clock::units_per_second_default);
 
         // Geometry already built, populated as a constructed zone is. Not how a zone normally
         // arrives: this is the entry for a caller with geometry from somewhere else, and
         // what the other two are written in terms of
-        void populate(std::unique_ptr<Layout> layout, const door_walls_type& doors, Format format,
+        // Why are doors not added in the create step? Zone geometry belongs there ...
+        // create also calls populate, so that contradicts the above ...
+        // populate should not be creating player, that belongs in session itself ...
+        void populate(std::unique_ptr<Layout> layout, const door_walls_type& doors, stratum_format::Notation notation,
             Driver driver = Driver::TurnBased,
             double units_per_second = Clock::units_per_second_default);
 
@@ -62,7 +68,7 @@ namespace quetzal::stratum_sim
         // Which of the two geometry models the zone is, whether it was read or constructed.
         // Both build the same structure, so this is for a caller with something else to
         // decide by it. Block until a zone exists
-        Format format() const;
+        stratum_format::Notation notation() const;
 
         World& world();
         const World& world() const;
@@ -102,7 +108,7 @@ namespace quetzal::stratum_sim
         Command m_command_pending;
         flecs::entity m_zone;
         flecs::entity m_player;
-        Format m_format = Format::Block;
+        stratum_format::Notation m_notation = stratum_format::Notation::Block;
     };
 
 } // namespace quetzal::stratum_sim

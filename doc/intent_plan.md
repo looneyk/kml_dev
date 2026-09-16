@@ -18,7 +18,7 @@ Two cases need the level form:
 
 - **Actor state has to serialize.** A monster's goal --- last known player position, leash target,
   patrol index --- spans many turns. A callback re-invoked per action must cache that outside the
-  ECS, where it does not unload with the zone, does not migrate through a portal, and is not in a
+  ECS, where it does not unload with the zone, does not migrate through a relocator, and is not in a
   save. This bites in turn-based, ahead of any real-time work.
 - **Real-time is the direction.** Holding a direction is a level, and re-sending it as one-shot
   commands per tick makes the stable state transient and leaves no field for a rule to read.

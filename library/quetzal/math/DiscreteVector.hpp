@@ -775,16 +775,6 @@ inline quetzal::math::CardinalDirection quetzal::math::opposite(CardinalDirectio
     return static_cast<CardinalDirection>((std::to_underlying(direction) + 2) % 4);
 }
 
-// Structured bindings
-
-//------------------------------------------------------------------------------
-template<typename T, size_t N>
-struct std::tuple_size<quetzal::math::DiscreteVector<T, N>> : std::integral_constant<size_t, N> {};
-
-//------------------------------------------------------------------------------
-template<size_t I, typename T, size_t N>
-struct std::tuple_element<I, quetzal::math::DiscreteVector<T, N>> { using type = T; };
-
 //------------------------------------------------------------------------------
 template<std::signed_integral T, size_t N> requires (N > 0)
 struct std::formatter<quetzal::math::DiscreteVector<T, N>> : quetzal::array_formatter<T>
@@ -795,5 +785,15 @@ struct std::formatter<quetzal::math::DiscreteVector<T, N>> : quetzal::array_form
         return this->format_elements(v, ctx);
     }
 };
+
+// Structured bindings
+
+//------------------------------------------------------------------------------
+template<typename T, size_t N>
+struct std::tuple_size<quetzal::math::DiscreteVector<T, N>> : std::integral_constant<size_t, N> {};
+
+//------------------------------------------------------------------------------
+template<size_t I, typename T, size_t N>
+struct std::tuple_element<I, quetzal::math::DiscreteVector<T, N>> { using type = T; };
 
 #endif // QUETZAL_MATH_DISCRETEVECTOR_HPP

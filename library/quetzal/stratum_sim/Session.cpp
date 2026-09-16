@@ -98,7 +98,7 @@ namespace
 
         std::optional<discrete_point_type> start = last_open_cell(layout);
 
-        if (!start || layout.grid_position_at(player.get<placement_type>().position()) == *start)
+        if (!start || layout.cell_position_at(player.get<placement_type>().position()) == *start)
         {
             return;
         }
@@ -136,13 +136,13 @@ void quetzal::stratum_sim::Session::create(const Generator& generator, Driver dr
     std::unique_ptr<Layout> layout = generator.generate(
         [&](const std::vector<id_type>& walls) { doors.push_back(walls); });
 
-    populate(std::move(layout), doors, generator.format(), driver, units_per_second);
+    populate(std::move(layout), doors, generator.notation(), driver, units_per_second);
     return;
 }
 
 //------------------------------------------------------------------------------
 void quetzal::stratum_sim::Session::populate(std::unique_ptr<Layout> layout, const door_walls_type& doors,
-    Format format, Driver driver, double units_per_second)
+    stratum_format::Notation notation, Driver driver, double units_per_second)
 {
     // Built alongside and moved in only once the whole of it has succeeded. The clock's
     // references are to these members rather than to what is moved from, so they remain valid
@@ -171,7 +171,7 @@ void quetzal::stratum_sim::Session::populate(std::unique_ptr<Layout> layout, con
     m_command_pending = Command();
     m_zone = zone;
     m_player = player;
-    m_format = format;
+    m_notation = notation;
     m_clock.set_driver(driver, units_per_second);
 
     return;
@@ -183,14 +183,14 @@ void quetzal::stratum_sim::Session::load(const std::filesystem::path& filepath, 
     // The loader reports the walls a door is attached to rather than placing one, having no world
     // to place it in
     door_walls_type doors;
-    Format format = Format::Block;
+    stratum_format::Notation notation = stratum_format::Notation::Block;
 
-    std::unique_ptr<DiscreteLayout> layout = load_layout(filepath, value_type(1),
-        [&](const std::vector<id_type>& walls) { doors.push_back(walls); }, &format);
+    std::unique_ptr<DiscreteLayout> layout = load_layout(filepath,
+        [&](const std::vector<id_type>& walls) { doors.push_back(walls); }, &notation);
 
     try
     {
-        populate(std::move(layout), doors, format, driver, units_per_second);
+        populate(std::move(layout), doors, notation, driver, units_per_second);
     }
     catch (const std::runtime_error&)
     {
@@ -208,9 +208,9 @@ bool quetzal::stratum_sim::Session::loaded() const
 }
 
 //------------------------------------------------------------------------------
-quetzal::stratum_sim::Format quetzal::stratum_sim::Session::format() const
+quetzal::stratum_format::Notation quetzal::stratum_sim::Session::notation() const
 {
-    return m_format;
+    return m_notation;
 }
 
 //------------------------------------------------------------------------------

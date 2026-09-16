@@ -1,6 +1,24 @@
-dungen 0.2
-######
-#...##
-#...|#
-#...##
-######
+{
+  "format": "quetzal.discrete_layout",
+  "version": "0.3",
+  "layout": {
+    "components": { "entry": [[1, 3]] }
+  },
+  "cells": {
+    "notation": "block",
+    "extent": [6, 5],
+    "origin": [0.0, 0.0, 0.0],
+    "scale": 1.0,
+    "rows": [
+      "######",
+      "#<..##",
+      "#...+#",
+      "#...##",
+      "######"
+    ]
+  },
+  "attachments": [
+    { "walls": [[3, 2, -1, 0]], "entities": [ { "type": "door" } ] },
+    { "flat": "floor", "cell": [1, 3], "entities": [ { "type": "waypoint", "components": { "relocator": { "target": "level_up" } } } ] }
+  ]
+}

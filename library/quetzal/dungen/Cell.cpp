@@ -47,7 +47,7 @@ quetzal::dungen::CellTypeProperties& quetzal::dungen::Cell::properties()
 //------------------------------------------------------------------------------
 quetzal::id_type quetzal::dungen::Cell::room_id() const
 {
-    assert(m_type == CellType::Room);
+    assert(m_type == CellType::Room || m_type == CellType::Stair);
     return m_room_id;
 }
 

@@ -12,4 +12,5 @@ target_link_libraries(catagen_test PRIVATE
     quetzal_catagen
     quetzal_common
     quetzal_math
+    quetzal_stratum_format
 )

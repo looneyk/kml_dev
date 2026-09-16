@@ -5,7 +5,8 @@
 
 #include "generate_maze1.hpp"
 #include "Pattern.hpp"
-#include "place_stairs.hpp"
+#include "place_staircases.hpp"
+#include "remove_doors.hpp"
 #include "quetzal/math/math_util.hpp"
 #include <algorithm>
 #include <array>
@@ -399,9 +400,10 @@ namespace
     }
 
     //------------------------------------------------------------------------------
-    // A stairway goes where a corridor ends, so the dead ends left before they are pruned are
-    // the cells a stairway may take
-    vector<point_type> stair_candidates(const Level& level)
+    // A staircase goes where a corridor ends, so the dead ends left before they are pruned are
+    // the cells a staircase may take. Rooms and loops can leave a maze with no dead end at all,
+    // and then the rooms take them, one cell at the center of each
+    vector<point_type> staircase_candidates(const Level& level)
     {
         vector<point_type> candidates;
 
@@ -416,6 +418,18 @@ namespace
                     candidates.push_back(position);
                 }
             }
+        }
+
+        if (!candidates.empty())
+        {
+            return candidates;
+        }
+
+        for (const auto& room : level.rooms())
+        {
+            point_type lower = room.rectangle().lower();
+            vector_type extent = room.rectangle().extent();
+            candidates.push_back({lower.x() + extent.x() / 2, lower.y() + extent.y() / 2});
         }
 
         return candidates;
@@ -546,12 +560,16 @@ quetzal::dungen::Level quetzal::dungen::generate_maze1(id_type id, const string&
     // Corridors
     excavate(level, maze1.corridor_straightness, random);
 
-    // Stairways, before the dead ends they occupy are pruned
-    place_stairs(level, stair_candidates(level), parameters.stair_placements, random);
+    // Staircases, before the dead ends they occupy are pruned
+    place_staircases(level, staircase_candidates(level), parameters.staircase_down_count, parameters.staircase_up_count, random);
 
     // Dead end and loop removal
     shorten_dead_ends(level, maze1.probability_dead_end_removal, random);
     shorten_loops(level, maze1.probability_loop_removal, random);
+
+    remove_doors(level, maze1.door_probability, random);
+    move_staircases_off_doorways(level, random);
+    face_staircases(level, random);
 
     return level;
 }

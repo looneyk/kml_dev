@@ -6,7 +6,7 @@ searching, and stay inside it.
 
 | Project | What it is | Where |
 | --- | --- | --- |
-| **stratum** | A headless dungeon-crawler simulation, its ASCII and tile views, and its level generators | `library/quetzal/stratum_sim`, `stratum_view`, `dungen`, `catagen`; `application/stratum_terminal`, `stratum_godot`; `tool/dungen`, `tool/catagen` |
+| **stratum** | A headless dungeon-crawler simulation, its ASCII and tile views, its level file format, and its level generators | `library/quetzal/stratum_sim`, `stratum_view`, `stratum_format`, `dungen`, `catagen`; `application/stratum_terminal`, `stratum_godot`; `tool/dungen`, `tool/catagen` |
 | **mesh_operations** | Boundary-representation solid modelling --- intersection, splitting, boolean operations --- and the model programs that exercise it | `library/quetzal/brep`, `geometry`, `math`; `model/*`; `utility/mesh_diff` |
 | **Vulkan applications** | Real-time 3D rendering | `library/quetzal/vulkan`, `scene_graph`, `game`; `application/lightmatrix`, `gallery`, `cubes`, `toot1` |
 
@@ -45,14 +45,15 @@ repository root:
     cd test/stratum_view_test && ../../bin/Debug/stratum_view_test.exe
     cd model/mesh_operations && ../../bin/Debug/mesh_operations.exe
 
-`stratum_view_test` and the generator suites compare rendered output byte for byte against
-checked-in reference files, so an unintended change shows up as a file mismatch rather than a
-failed assertion.
+`stratum_view_test` checks that rendered frames are identical to checked-in reference files, byte for
+byte, and the generator suites that level files are equivalent to theirs, so an unintended change shows
+up as a mismatch rather than a failed assertion.
 
 ## Conventions
 
 - **Braces on their own line** (Allman), 4-space indentation, pointers aligned to type (`int* ptr`).
-- **LF line endings** in every file, on Windows included.
+- **Wrap at 150 columns**, code and comments alike. Fill the line before breaking it; the more of a class, function, or file fits on screen, the more of its context is visible at once.
+- **LF line endings, UTF-8 with no byte order mark, and a final newline** in every file, on Windows included.
 - **ASCII only** in source. In comments, `--` is the em dash. Markdown uses `---`.
 - **Forward slashes** in paths, on Windows included.
 - **No absolute paths in code.** Use paths relative to a runtime root. Absolute paths are fine in
@@ -67,7 +68,7 @@ failed assertion.
   this codebase --- those get no comment at all. Only on code added entirely by Claude: do not
   auto-complete, extend, or add to comments on pre-existing code at any time.
 - **Be specific in prose and in names.** No vague terms, and no one word stretched across several
-  related meanings. The words below are ones to watch, listed as they come up. Every one of them
+  related meanings. The words below are a watch list, not a blacklist. Every one of them
   has its place, and that place is not everywhere: what is wrong is the reach for a word loose
   enough to fit anywhere in place of the one that says what is meant. Ordinary use, fixed
   idioms included, is not the problem and is not to be edited out.
@@ -75,6 +76,23 @@ failed assertion.
   | Word | Ordinary use, which is fine | The reach to watch for |
   | --- | --- | --- |
   | **stands** | an actor stands on a place; solve as it stands; what stands in for an exact zero; the offer stands | a general verb of place where a real relation exists --- a doorway *is one cell of* a wall line, it does not stand in one |
+  | **carries** | a person carries a load; an addition carries a digit | a general verb of having --- a struct *has* a field or *tracks* a count |
+  | **names** | naming a variable; a message mentions a file by its name | referring or selecting --- a parameter *refers to* a cell |
+  | **lands** | a plane lands; a blow lands | where a result ends up --- a value *is stored in* a slot |
+  | **answers** | a question or a message is answered | returning or reporting --- a function *returns* a distance |
+  | **record** (verb) | recording audio, video, or a vote; `record` as a noun for a struct | storing or noting --- a pass *stores* a count |
+  | **holds** | an invariant holds; a hand holds a cup | storing, containing, owning --- a vector *contains* cells |
+  | **says** | speech; a quoted message | declaring or encoding --- a flag *indicates* a state, a field *encodes* a direction |
+  | **wants** | a person wants something | needing --- a function *requires* an argument |
+  | **knows** | a person knows a fact; dependency direction, as a deliberate idiom | having or referring --- an object *has* a pointer |
+  | **sits** | physical placement --- a cell sits on the ground | being declared or stored --- a function *is declared in* a header |
+  | **gives** | gives up; gives way; an equation gives a result | returning or producing --- a function *returns* a value |
+  | **serves** | a server serves a request; serves a purpose | sufficing or representing --- a value *represents* an empty cell |
+  | **takes in** | a hull takes in water; a household takes in a stray | enclosing or including --- a bound *encloses* a region |
+  | **reaches for** | physical reach | depending on or using --- a pass *uses* a table |
+  | **covers** | area covered; a document covers a topic | distance or handling --- a mover *travels* a distance, a case *handles* an input |
+  | **gate** | a gate in a fence; blocking progress --- this gates stage 5 | a test that compares output --- a validator *compares* files |
+  | **thing** | fixed idioms --- "one more thing", "the whole thing" | a placeholder noun where a specific one exists --- a *cell*, a *wall*, an *actor* |
 
 - **Choose the words when writing a comment or a document, not after.** A word that would fit a
   dozen unrelated sentences is a fallback rather than a choice. Stop on it, work out what the

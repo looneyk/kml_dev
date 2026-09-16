@@ -45,7 +45,7 @@
 #......#
 ########
    cell (3, 2)  facing east
-   blocked by wall 25
+   blocked by wall 77
 
 -- command '<'
 ########
@@ -65,7 +65,7 @@
 #......#
 ########
    cell (3, 2)  facing north
-   blocked by wall 26
+   blocked by wall 78
 
 -- command ' '
 ########
@@ -75,7 +75,7 @@
 #......#
 ########
    cell (3, 2)  facing north
-   interacted with wall 25
+   interacted with wall 77
 
 -- command '>'
 ########

@@ -14,10 +14,10 @@ add_library(quetzal_dungen STATIC
     Level.cpp
     Parameters.cpp
     Pattern.cpp
-    place_stairs.cpp
+    place_staircases.cpp
+    remove_doors.cpp
     Room.cpp
-    Stair.cpp
-    StairPlacements.cpp
+    Staircase.cpp
     Wall.cpp
     write_level.cpp
     Algorithm.hpp
@@ -33,10 +33,10 @@ add_library(quetzal_dungen STATIC
     Level.hpp
     Parameters.hpp
     Pattern.hpp
-    place_stairs.hpp
+    place_staircases.hpp
+    remove_doors.hpp
     Room.hpp
-    Stair.hpp
-    StairPlacements.hpp
+    Staircase.hpp
     types.hpp
     Wall.hpp
     write_level.hpp
@@ -48,4 +48,4 @@ target_include_directories(quetzal_dungen PUBLIC
     ${DEV_ROOT}/library
 )
 
-target_link_libraries(quetzal_dungen PUBLIC quetzal_common quetzal_math)
+target_link_libraries(quetzal_dungen PUBLIC quetzal_common quetzal_math PRIVATE quetzal_stratum_format)

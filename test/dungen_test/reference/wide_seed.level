@@ -1,20 +1,71 @@
-dungen 0.2 algorithm=grid1 size=25,19 stair_placements=paired divisions=3,3 room_density=1 room_dimension_min=3 room_margin=1 loop=0.15 seed=4294967295
-#########################
-#      #####>  ##########
-#      #...|   ####    ##
-#      |.###   ####    ##
-#      #####   ####    ##
-#      #####|######    ##
-#####|###....#######|####
-#####|###.#########..####
-#      ##|#########|#####
-#      ||    |.##       #
-#      ##    #.##       #
-#      ##    #..|       #
-#####|#####|#######|#####
-#####|#####|#######|#####
-####   ##     ###       #
-####   ##     ###       #
-####   ##    >###       #
-#########     ###########
-#########################
+{
+  "format": "quetzal.discrete_layout",
+  "version": "0.3",
+  "generator": {
+    "name": "dungen",
+    "parameters": { "algorithm": "grid1", "size": "25,19", "stairs_down": "1-1", "stairs_up": "1-1", "divisions": "3,3", "room_density": "1", "room_dimension_min": "3", "room_margin": "1", "loop": "0.15", "door_probability": "1", "seed": "4294967295" }
+  },
+  "layout": {
+    "components": { "entry": [[12, 17], [13, 2]] }
+  },
+  "cells": {
+    "notation": "block",
+    "extent": [25, 19],
+    "origin": [0.0, 0.0, 0.0],
+    "scale": 1.0,
+    "rows": [
+      "#########################",
+      "#......#####<..##########",
+      "#......#...+...####....##",
+      "#......+.###...####....##",
+      "#......#####...####....##",
+      "#......#####+######....##",
+      "#####+###....#######+####",
+      "#####+###.#########..####",
+      "#......##+#########+#####",
+      "#......++....+.##.......#",
+      "#......##....#.##.......#",
+      "#......##....#..+.......#",
+      "#####+#####+#######+#####",
+      "#####+#####+#######+#####",
+      "####...##.....###.......#",
+      "####...##.....###.......#",
+      "####...##....>###.......#",
+      "#########.....###########",
+      "#########################"
+    ]
+  },
+  "rooms": [
+    { "location": [4, 2] },
+    { "location": [9, 1] },
+    { "location": [17, 2] },
+    { "location": [1, 7] },
+    { "location": [9, 7] },
+    { "location": [17, 7] },
+    { "location": [1, 13] },
+    { "location": [12, 14] },
+    { "location": [19, 13] }
+  ],
+  "attachments": [
+    { "walls": [[5, 4, 0, -1]], "entities": [ { "type": "door" } ] },
+    { "walls": [[11, 4, 0, -1]], "entities": [ { "type": "door" } ] },
+    { "walls": [[19, 4, 0, -1]], "entities": [ { "type": "door" } ] },
+    { "walls": [[5, 7, 0, 1]], "entities": [ { "type": "door" } ] },
+    { "walls": [[11, 7, 0, 1]], "entities": [ { "type": "door" } ] },
+    { "walls": [[19, 7, 0, 1]], "entities": [ { "type": "door" } ] },
+    { "walls": [[17, 7, 1, 0], [15, 7, -1, 0]], "entities": [ { "type": "door" } ] },
+    { "walls": [[6, 9, -1, 0]], "entities": [ { "type": "door" } ] },
+    { "walls": [[9, 9, 1, 0]], "entities": [ { "type": "door" } ] },
+    { "walls": [[14, 9, 1, 0], [12, 9, -1, 0]], "entities": [ { "type": "door" } ] },
+    { "walls": [[9, 11, 0, 1], [9, 9, 0, -1]], "entities": [ { "type": "door" } ] },
+    { "walls": [[19, 11, 0, 1], [19, 9, 0, -1]], "entities": [ { "type": "door" } ] },
+    { "walls": [[5, 10, 0, -1]], "entities": [ { "type": "door" } ] },
+    { "walls": [[5, 13, 0, 1]], "entities": [ { "type": "door" } ] },
+    { "walls": [[20, 13, 0, 1], [20, 11, 0, -1]], "entities": [ { "type": "door" } ] },
+    { "walls": [[12, 14, 0, 1], [12, 12, 0, -1]], "entities": [ { "type": "door" } ] },
+    { "walls": [[8, 15, 1, 0], [6, 15, -1, 0]], "entities": [ { "type": "door" } ] },
+    { "walls": [[12, 16, 1, 0], [10, 16, -1, 0]], "entities": [ { "type": "door" } ] },
+    { "flat": "floor", "cell": [12, 17], "entities": [ { "type": "staircase", "components": { "facing": [0, -1], "relocator": { "target": "level_up" } } } ] },
+    { "flat": "floor", "cell": [13, 2], "entities": [ { "type": "staircase", "components": { "facing": [0, -1], "relocator": { "target": "level_down" } } } ] }
+  ]
+}

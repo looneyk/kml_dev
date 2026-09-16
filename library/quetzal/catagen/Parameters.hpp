@@ -9,6 +9,7 @@
 #include "quetzal/math/Interval.hpp"
 #include <optional>
 #include <random>
+#include <cstddef>
 
 namespace quetzal::catagen
 {
@@ -35,6 +36,10 @@ namespace quetzal::catagen
         // with no spacing it leaves nothing solid at all
         double density = 1.0;
         double loop = 0.1; // Probability of a door beyond the ones connectivity needs
+
+        // How many staircases lead down and how many up, each a count drawn from its closed range
+        math::Interval<size_t> staircase_down_count {1, 1};
+        math::Interval<size_t> staircase_up_count {1, 1};
 
         // Empty until one is assigned, so that a caller who never did is caught by validate
         // rather than quietly handed the same level every run

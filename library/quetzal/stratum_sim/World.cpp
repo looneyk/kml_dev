@@ -143,13 +143,13 @@ quetzal::stratum_sim::World::entities_type quetzal::stratum_sim::World::entities
 }
 
 //------------------------------------------------------------------------------
-quetzal::stratum_sim::World::entities_type quetzal::stratum_sim::World::entities_at(flecs::entity zone, const discrete_point_type& grid_position) const
+quetzal::stratum_sim::World::entities_type quetzal::stratum_sim::World::entities_at(flecs::entity zone, const discrete_point_type& cell_position) const
 {
     const DiscreteLayout& zone_layout = layout_as<DiscreteLayout>(layout(zone));
 
     return placed_in(zone, [&](const placement_type& placement)
     {
-        return zone_layout.grid_position_at(placement.position()) == grid_position;
+        return zone_layout.cell_position_at(placement.position()) == cell_position;
     });
 }
 

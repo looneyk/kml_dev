@@ -4,7 +4,7 @@ What the system is and how it is put together, as implemented.
 
 Three layers, with no engine in any of them. `quetzal::stratum_sim` simulates,
 `quetzal::stratum_view` turns a simulation state into characters, and `stratum_terminal` puts those
-characters on a terminal. `stratum_sim` links `quetzal_common` and flecs; `stratum_view` links
+characters on a terminal. `stratum_sim` links `quetzal_common`, `stratum_format` and flecs; `stratum_view` links
 `stratum_sim`; the host links `stratum_view`.
 
 The `stratum_` prefix names the layout class the two share: open ground extruded vertically between
@@ -16,11 +16,12 @@ own at `quetzal::`.
 | `assets/` | shared data, owned by no host |
 | `library/quetzal/stratum_sim/` | `quetzal_stratum_sim` |
 | `library/quetzal/stratum_view/` | `quetzal_stratum_view` |
+| `library/quetzal/stratum_format/` | `quetzal_stratum_format` --- the level file format |
 | `application/stratum_terminal/` | `stratum_terminal` |
 | `application/stratum_godot/` | `stratum_godot` |
 | `library/quetzal/godot/` | `quetzal_godot` |
 | `tool/dungen/`, `tool/catagen/` | `dungen`, `catagen` --- the generator drivers |
-| `test/stratum_sim_test/`, `test/stratum_view_test/`, `test/dungen_test/`, `test/catagen_test/`, `test/flecs_test/` | test executables |
+| `test/stratum_sim_test/`, `test/stratum_view_test/`, `test/stratum_format_test/`, `test/dungen_test/`, `test/catagen_test/`, `test/flecs_test/` | test executables |
 
 ## Simulation
 
@@ -101,21 +102,21 @@ settling first, every vertex being grid derived and exactly representable today.
 
 ### DiscreteLayout
 
-The static topology of one zone: its walls, its flats, and the rooms defined over them. Held as
-plain arrays indexed by `quetzal::id_type` rather than as entities; entities refer into it by id.
+The static topology of one zone: its walls, its flats, and the rooms defined over them. Held as a
+table of cells over the grid rather than as entities; entities refer into it by id.
 
-Arrays rather than entities because of the count. A wall per cell edge puts thousands in a zone,
+A table rather than entities because of the count. A wall per cell side puts thousands in a zone,
 and a zone serialises its whole subtree when it unloads, so entities would take all of them into
 every save. An attachment --- anything on a wall or a flat, from an alcove to a door to a torch ---
-stores the id instead, and the reverse direction is a query filtered by that id rather than a
+stores the wall id instead, and the reverse direction is a query filtered by that id rather than a
 relationship, which is affordable because attachments run to hundreds where walls run to
-thousands. It rests on wall ids being stable, nothing removing records from the arrays.
+thousands. A wall id encodes the cell and the side, so it is stable with no store behind it.
 
 | Type | |
 | --- | --- |
-| `Wall` | One side of the barrier on a cell edge. `partner_id`, `next_id`, `prev_id`, `position` (its start vertex, the far end being `next_id`'s position), and a `deleted` flag with the same interface `Flags` gives a halfedge. It settles nothing about crossing: whether a mover may is decided by what is *attached to* the wall, which is an attachment. A `nullid` partner makes it a **border wall**, with nothing behind it, which is also the zone's outer boundary. A wall refers to no area: what a room covers is the room's to decide. |
-| `Flat` | A horizontal surface, one floor and one ceiling per zone, their ids held by the layout, differing by `ceiling` and nothing else. A height field rather than a plane: a constant until something is sampled into it, which is what a level with no height data --- every level today --- loads, and it costs one value and no table. `set_sampling` gives it a `Grid` of its own and starts every sample at the constant; `sample` and `set_sample` reach one. A sample is `std::optional<value_type>`, absent meaning the surface is not there --- a pit, a shaft, a hole dug through the floor --- rather than low. `height(position)` is what a caller asks, giving the constant when unsampled, the sample when not, and nothing off the sampling grid. |
-| `Room` | A named area within a zone, in `Room.hpp`: an outline of `{position, wall_id, type}` vertices, the cells it covers, the zone it is in, and an entity id for its name, description and appearance. Metadata --- nothing in movement, sight or adjacency consults one. `type` is `Wall`, `Door` or `Open`, `Open` being where the room gives onto a corridor with nothing between them. |
+| `Cell` | What the layout stores for one grid position: `open`, whether a mover may stand there; `walls`, a `DirectionMask` of the sides with a wall facing into the cell; and `room_id`, the room covering it or `nullid`. A wall settles nothing about crossing: whether a mover may is decided by what is *attached to* it, which is an attachment. |
+| `DirectionMask` | Any of the four directions of a flat grid, a bit each in `CardinalDirection`'s order, with `direction_mask` from a direction. The view uses the same mask for where a wall line continues. |
+| `Flat` | A horizontal surface, one floor and one ceiling per zone, their ids held by the layout, differing by `ceiling` and nothing else. A height at the three levels a level file states it: the flat's constant, `room_height` per room and `cell_height` per cell, each a sparse table overriding the level above. |
 | `GridPosition` | The coordinates of a cell in the grid: `long i`, `long j`. Not a stored record. `operator+=` and `operator+` take a `discrete_vector_type`, and subtracting two gives one. |
 | `Grid` | `origin`, `spacing`, `extent` (a `discrete_vector_type`, cell counts being a displacement), `contains(GridPosition)`, and `cell_at`/`cell_position` for the arithmetic both ways. A `Flat` samples over one of its own, so the arithmetic belongs here rather than on the layout, which delegates to it. |
 | `Rotation` | `CCW`, `CW`, `Half`. In `Layout.hpp`, being interface vocabulary. |
@@ -127,37 +128,27 @@ the grid. `Grid::contains` is the one place that comparison is written, and it i
 assertions only: the loader guarantees a walled boundary, so a step off the grid cannot arise and
 is not a case to be handled at run time.
 
-An opening is the absence of a wall rather than a flag on one, a non-rectangular area having no
-predefined wall slots to flag. Where a wall run stops at an opening the boundary folds: it runs
-along one side, around the tip, and back along the other, both walls lying on the same outline.
-That is what `connect_folds` pairs, and it is why nothing within a thin wall is ever `nullid`.
+A wall is one side of one cell edge, and the two sides of an edge are independent: a wall notation
+wall between two rooms is a wall on each side, and a doorway block's wall toward floor is on the
+floor's side alone. An opening is the absence of a wall rather than a flag on one.
 
 This is the whole of the discrete side, with no interface between it and `Layout`. A level with no
 height data loads a constant floor rather than a different class, so which data a game style
 loads is what differs rather than which class is built; `decision_rationale.md` argues why. It has no
-provision for continuous movement, which is `ContinuousLayout`'s, and none for a wall spanning more
-than one cell edge --- one wall lies on one cell edge, which is what lets a partner be found by exact
-match.
+provision for continuous movement, which is `ContinuousLayout`'s.
 
-Walls are created an outline set at a time with `create_walls`, which returns the wall each outline
-starts at. An outline's walls run contiguously from there, so a caller given an outline's
-length can derive which walls came from it --- which is why nothing needs to walk the loop to enumerate
-them. Walls are joined with `connect`, `disconnect`, `connect_walls` and `connect_folds`, and tested
-with `opposed`.
-
-Rooms are built with `create_room`, which takes a `Room` the caller has filled in and stores the
-cells it covers. `room`, `room_store` and `room_store_count` read them back; `room_at` locates one
-by point or by cell, and `set_cell_room` stores the latter. A cell no room covers gives `nullid`,
-which every corridor cell does.
+Walls are set a cell at a time with `set_cell_walls` and read back with `walls`. Rooms are
+`room_count`, and `room_at` and `set_cell_room` per cell; everything else about a room is an entity's.
+A cell no room covers gives `nullid`.
 
 The grid side is `set_grid`, `grid`, `open`, `set_cell_open`, `cell_at` and `cell_position`, and
 `wall_toward` and `blocked` read what is attached to it. `move`, `turn`, `face`, `same_location`,
 `neighbors`, `visible` and `step_distance` are what it overrides from `Layout`.
 
 `wall_toward(position, direction)` returns the wall on that cell's side of the edge it presents in
-that direction, and `blocked(position, direction)` whether a mover stepping that way is stopped.
-Both read the cell alone, so the neighbour need not exist and a boundary cell returns the wall
-that closes the layout.
+that direction, a bit test, and `blocked(position, direction)` whether a mover stepping that way is
+stopped. Both read the cell alone, so the neighbour need not exist and a boundary cell returns the
+wall that closes the layout.
 
 `cell_at` is total: it floors any position into a cell without bounds check or clamp, so a position
 off the grid maps to a cell off the grid rather than failing. The cell-indexed accessors are the
@@ -166,10 +157,10 @@ the position is on the grid, an off-grid one being the caller's error rather tha
 an answer.
 
 `cell_position` is the one place the layout reads a flat. It takes x and y from the grid and z from
-the floor, sampled at that point, so a cell sits on the ground rather than on the grid's datum. A
-layout with no floor yet, and a cell the floor is absent under, both fall back to the grid's own
-plane --- the first is a layout under construction and the second is a hole rather than a floor to
-walk on, and neither has a ground height to give.
+the floor's height at that cell, so a cell sits on the ground rather than on the grid's datum.
+`height(flat_id, position)` resolves it: the cell's own, failing that the room covering the cell,
+failing that the flat's constant. A layout with no floor yet is one under construction, and a cell
+in it falls back to the grid's own plane.
 
 `turn` is relative and `face` is absolute, and the two divide the work of turning: a view with a
 relative turn asks `turn` what lies that way and sends the answer as a facing, so the quantization
@@ -183,16 +174,16 @@ the cell it reached rather than accumulating offsets --- so the position is rege
 and rounding error never builds up. Rounding is the layout's business, not the
 caller's, and blocking is reported as where the mover ended up rather than as a success flag.
 
-A mover is held on the grid by the boundary itself. `load_layout` traces the outline of every
-component treating out-of-grid as outside it, so an edge cell always has a wall outward, with no
-partner and impassable --- a step off the grid cannot be taken and is not tested for. `move`,
+A mover is held on the grid by the boundary itself. An open cell on the grid's edge always has a wall
+outward --- the reader rejects a wall notation file without one, and the block notation walls it ---
+so a step off the grid cannot be taken and is not tested for. `move`,
 `neighbors`, `visible` and `ahead` assert `Grid::contains` on the cell they reach, stating that
 the wall test above is what kept it on.
 
 `ahead(placement)` is the wall directly in front, `nullid` when there is none. It snaps the facing
 to one of the grid's own directions as `move` snaps the direction it travels in, and returns
 the wall on the near side of the edge that way --- so a rule asking what an actor faces steps no cell
-of its own and references no wall record to find it.
+of its own and searches nothing to find it.
 
 A layout is independent of entities and resolves only its own geometry. It takes a predicate
 reporting whether something occupies a placement, calls it before entering each step, and
@@ -201,78 +192,50 @@ stays with the caller while the sweep stays with the layout. `World::move` is wh
 
 A `MoveResult` reports what stopped a mover as `obstruction_wall_id` or `obstruction_entity_id`, one
 or the other and never both. `Blocked` has the same pair. Two fields rather than one because a
-wall is a record in the layout's arrays and an entity is an entity, so the ids are not
+wall id encodes a side of a cell in the layout and an entity is an entity, so the ids are not
 interchangeable.
 
-Two flat tables sized by the grid extent are stored alongside the arrays. One stores whether each cell is
-open, which is what `open` reads and the only question a mover or a view asks; the other stores which
-room covers a cell and backs `room_at(GridPosition)`, the outline test being too dear to run per cell.
-Openness is its own table because a room is a label and decides nothing about passage.
+The cells are one table sized by the grid extent. Openness is a field of its own because a room is a
+label and decides nothing about passage.
 
 ### load_layout
 
-Reads either format a generator writes, the first line being the highest row and the grid origin
-lower left in both. A header row names the generator, the version of the format, and the parameters
-of the run; a grid row never begins with a letter, so its absence marks a file written before
-headers existed, which is dungen's block format. `catagen_reference.md` describes the wall format.
+Reads a discrete layout file with `stratum_format::read` and builds the layout from the `Document`,
+through the same `stratum_format` functions that validated it, so the glyph rules exist once. Each
+floor/stair/door cell is open, and its walls are the sides `has_wall` gives one. Each room's cells,
+from `room_cells`, take its id, and `room_count` is the number the file defines. The flats take the
+file's heights at their three levels, the floor at 0 and the ceiling at 1 where the file has none.
+Stairs load as floor. `notation`, where given, is told which notation the rows were written in, which
+is what `Session::notation` hands a host to choose a view by.
 
-The version is a label rather than a number --- `0.2` today, both generators writing the same one and
-the reader accepting only that. A leading zero marks pre-release: nothing older is kept readable, so
-a change to the glyphs or the shape regenerates every level rather than adding a case to the reader.
-
-dungen's block format is one character per cell, its symbols from `dungen::cell_types` --- `#` solid
-and `0` null are both solid, ` ` room and `.` corridor are open floor, `|` is a doorway and `>` a
-stairway. A doorway or a stairway is a **block**: a cell of wall a mover may stand in. It belongs to
-the area around it, so the area's boundary encloses the sides the block presents to solid cells, and
-a mover leaving one sideways meets that wall end wrapping around into the next area. The faces it presents to floor
-are interior to the area and have no outline wall, so the block is ringed with four walls of its
-own, each wound about the cell outside it. A door hangs on the faces toward floor, whose winding
-matches the area's own run; from inside the block those are backs, which `wall_toward` does not
-report at all, so one opening passes the whole doorway and leaving is free. Room floor and
-corridor floor are laid out alike and differ only in what the level calls them.
-
-Two areas therefore never share an edge in this format, a block always lying between them, so no
-wall of a block layout is partnered. Partnering is what the wall format has and this one does not.
-
-catagen's wall format puts the walls between the cells, so its grid is two characters across per
-cell plus one. Cells are joined into one area only across a wall that is absent, so a door separates
-two of them, and two rooms sharing a solid wall are partnered along its
-whole length and passable nowhere. That last is what the block format cannot express --- a wall with a
-room behind it rather than a solid cell --- and a block layout is therefore a subset of a wall layout
-rather than a different model, which is why both load into the same structure.
-
-Both reduce to the same intermediate before anything is built: which cells are open, which of them
-belong to an area, where two areas meet, which cells are blocks, and which the format called room
-floor. Each
-group's boundary is traced with the open space on the left and chained into closed outlines, all of
-them alike. Two walls are matched by the directed boundary edge they lie on, from an index built as
-the walls are created. Openness comes from what the file said of each cell, both formats stating it.
-
-Rooms come from the last of those. dungen writes room floor and corridor floor as different symbols,
-so one `Room` is built per contiguous run of its room cells, with the outline traced the same way
-and each outline edge referencing the wall that lies on it --- or `nullid` where the room opens onto a
-corridor with nothing between them. catagen has one open-cell symbol and so defines no rooms, and a
-level of either format that defines none loads with none rather than having them guessed at.
+A doorway block is a cell a mover may stand in, walled toward solid on its own side and toward floor
+on the floor's side alone, so one opening passes the whole doorway and leaving is free. Two areas
+therefore never share an edge in the block notation, a block always lying between them. The wall
+notation's walls lie between cells, and two rooms sharing a wall are walled from both sides along its
+whole length --- what the block notation cannot express, and why a block layout is a subset of a wall
+layout rather than a different model.
 
 Returns the layout it built, as a `std::unique_ptr<DiscreteLayout>` rather than as the
-interface: both formats are grids of cells, so both build that class and the signature declares it. A
+interface: both notations are grids of cells, so both build that class and the signature declares it. A
 format describing something else is a reader of its own rather than another return from this one.
 `World::create_zone` takes what comes back, so what class a zone's layout is comes from what was
 loaded.
 
 It builds geometry and no entities, having no world to build them in, so where the file specifies a door
-goes it *reports* rather than places: an optional `door_type` is called with the pair of walls, and
-a caller with a world turns that into a door. That is what `Session::populate` does, and it is the
-answer to what creates an attachment at load --- the loader never learns what a door is.
+goes it *reports* rather than places: an optional `door_type` is called with the walls of each door
+`door_walls` finds --- both sides of a door edge in the wall notation, the walls floor presents to a
+doorway block in the block notation --- and a caller with a world turns that into a door. That is what
+`Session::populate` does, and it is the answer to what creates an attachment at load --- the loader
+never learns what a door is.
 
-Throws `std::runtime_error` when the file cannot be opened, has no rows, names a generator or
-version it does not read, or does not match its own header. Nothing is built until every one of
-those has passed, so a throw leaves no half-built layout behind.
+Throws `std::runtime_error` when the reader rejects the file. Nothing is built until it has accepted
+it, so a throw leaves no half-built layout behind.
 
 ### World
 
 Zones and everything in them. One flecs world holds the entities; a zone is an entity whose contents
-are its children, so migration and unload are subtree operations and entity ids survive both.
+are its children, so migration and unload are subtree operations, and migration keeps each entity's
+id.
 Layouts are kept alongside in a map keyed by zone, being static topology rather than game objects. They
 are held as `std::unique_ptr<Layout>` because a layout is polymorphic and the map cannot store an
 abstract class by value; `World` itself is a plain value, a member of `Session` that is moved once.
@@ -313,10 +276,10 @@ same way. A mover is never stopped by itself.
 ### Attachments
 
 What is attached to a wall --- a door for now, an alcove, a basin, a button or a torch later. One mechanism
-for all of them is what keeps `Wall` a small dense record. `attachment_plan.md` gives the shape and
-the argument.
+for all of them is what keeps a wall a bit on the cell it bounds. `attachment_plan.md` gives the shape
+and the argument.
 
-An attachment is an entity, so mutable state is allowed on it in a way it is not on a wall record.
+An attachment is an entity, so mutable state is allowed on it in a way it is not on a wall.
 `Attachment` is where it sits on the surface, along and up; `OnWall` references the wall by id, a wall
 being a record rather than an entity, and the reverse direction is a query filtered by that id.
 
@@ -326,14 +289,14 @@ cannot be open from one side and shut from the other --- and each facing has `Do
 its parent rather than a field, the other facing is its sibling, and the whole assembly is one
 subtree: it unloads with the zone and one delete removes it.
 
-The two walls need not be a partnered pair. In the wall format they are the two sides of one cell
-edge; in the block format a doorway is a *cell*, so they are the two walls that cell presents to its
-neighbours, and entering the cell is passing through the door. `create_door` is told which two, and
+The walls are the sides a door presents. In the wall notation they are the two sides of one cell
+edge; in the block notation a doorway is a *cell*, so they are the walls the floor either side has
+toward it, and entering the cell is passing through the door. `create_door` is told which two, and
 nothing else notices the difference.
 
 `create_doors(world, zone, doors)` builds one on each set of walls the loader reported, which is
-what both formats' doors and doorways load as, and `Session::populate` calls it. They are generic and
-**closed**, the formats having no properties of their own yet, so a level's doors all have to be
+what both notations' doors and doorways load as, and `Session::populate` calls it. They are generic and
+**closed**: the loader reads no `attachments` entry and no component, so a level's doors all have to be
 opened.
 
 `facing_on(zone, wall_id)` is the facing attached to a wall, a wall id identifying a wall in one zone's layout so
@@ -351,10 +314,10 @@ than name a wall id at a player.
 `World` sets to `crossable` when it takes a layout, so a wall is solid unless an attachment on it
 makes it otherwise. `Wall` has no flag, and a layout never given a predicate has every wall solid.
 
-A solid cell is never met in any way. Every boundary between floor and solid has a wall, so `blocked`
-decides from the wall alone and refuses only a step off the grid. A doorway block is no exception:
-it belongs to the area around it, so that area's outline encloses the sides the block presents to
-solid cells, and a mover leaving one sideways meets the wall end wrapping around into the next area.
+A solid cell is never met in any way. Every boundary between floor and solid, and every cell side on
+the border of the grid, has a wall, so `blocked` decides from the wall alone. A doorway block is no
+exception: it has walls toward solid cells and the border of the grid, so a mover leaving one sideways
+meets a wall, and none toward floor, so leaving it forward or back meets nothing.
 
 ### Scheduler
 
@@ -478,10 +441,11 @@ the general one. `populate` is the third --- geometry already built, populated a
 is --- and it is what the other two are written in terms of, so no route can drift from another.
 
 `Generator` is an interface here and an implementation wherever a generator was chosen: `stratum_sim`
-links `quetzal_common` and flecs and nothing else, reading both file formats with readers of its own
-rather than depending on either generator. Which one runs decides which parameters apply, so the
-concrete generator declares its own. It returns the geometry, reports the walls each door is attached
-to exactly as the loader does, and gives the `Format` a constructed zone has no file to supply.
+links `quetzal_common`, `quetzal_stratum_format` and flecs and nothing else, reading level files
+through `stratum_format` rather than depending on either generator. Which one runs decides which
+parameters apply, so the concrete generator declares its own. It returns the geometry, reports the
+walls each door is attached to exactly as the loader does, and gives the notation a constructed zone
+has no file to supply.
 `placement_plan.md` gives the shape.
 
 `populate` builds the doors, places the controlled entity in the lowest open cell facing east, and
@@ -558,6 +522,47 @@ a move stopped short is charged for the distance actually reached. That is what 
 per-tick step possible, a fraction of a step costing a fraction of an action. Turning and
 interacting cost one action, the result they derive from being whether they happened at all: a
 `TurnTo` asking for the facing already held and an `Interact` with nothing in front both cost nothing.
+
+## Level file format
+
+`quetzal::stratum_format` reads and writes the JSON level file `discrete_layout.md` specifies, version
+`0.3`. It depends on `quetzal_common` and nlohmann/json and on neither `stratum_sim` nor `stratum_view`.
+`load_layout` builds a layout from what it reads, and both generators write through it.
+
+`grid.hpp` has the geometry the rows determine --- `floor_stair_cell`, `floor_stair_door_cell`,
+`has_wall`, `room_cells` and `door_walls` --- which `read` validates a file with and `load_layout`
+builds a layout from.
+
+`Document` is the file in data structures. The geometry is decoded into types --- the grid and its rows,
+expanded from runs, the barriers, each room's perimeter or location, wall addresses, each flat's height
+at its three levels, and where each attachment is. Everything else is `values_type`, nlohmann's
+`ordered_json`, exactly as the file wrote it: the generator, every component object and each
+attachment's entities. Nothing is resolved into it: a room is kept as the file identified it, and no
+inherited component is followed down its chain.
+
+`read` validates the geometry before it returns, and throws `std::runtime_error` giving the path within
+the document and what was wrong there. Beyond each section's structure it checks what the rows
+determine: in the wall notation, a wall between every floor/stair cell and a blank cell or the edge of
+the grid; a wall in the grid at every wall address, a doorway block's walls toward floor being on the
+floor's side; a perimeter within the grid and along cell edges that never meets itself, each of its cell
+edges a wall facing a floor/stair/door cell on either side or a virtual wall between two such cells;
+and no cell in two rooms. For that last it finds each room's cells --- a fill from the location that
+walls, doors and barriers stop, or the floor/stair/door cells within the perimeter, row by row --- and a
+box bounding them, compares cells only for rooms whose boxes intersect, and keeps none of it. Every
+file must also have an entry: `layout.components.entry` lists at least one cell, each written `<`, the
+entrance glyph of any non-local transporter, or `>`, a staircase leading down as a tower entered from
+below has, with an entity attached to the floor there that has a `relocator` component, whatever the
+entity's type, and a file without one is rejected however it was made. The list does not choose among
+its cells; a caller arriving picks by what it arrives through. `grid.hpp`'s `stair_cell` answers the glyph half. Keys the format does not define are not
+tracked.
+
+`write` emits the written form: two-space indentation, a grid row per line, an entry per line with a
+flat's per-room and per-cell entries each on a line of its own, and floats as the shortest digits that
+read back as the same value, without an exponent. Top-level sections follow the format's key table;
+within an entry, what it addresses or how it is identified comes first, then the rest in its section's
+table order, and content keys stay in the order they were read. In
+runs, a count is written for a run of three glyphs or more. A document `read` produces
+is written back equivalent to it.
 
 ## Presentation
 
@@ -675,8 +680,8 @@ An edge is asked of the side that faces it, which for a map is the open cell: a 
 the side facing open space, so a closed cell has nothing to report. Asking a fixed side instead is
 what left every wall with its closed cell to the east or north undrawn.
 
-Where both cells are open the edge has a partnered pair, and a file writes the two the same
-character --- one character per edge is all the wall format can express. So either will do, and a pair made
+Where both cells are open the edge has a wall on each side, and a file writes the two as one
+character --- one character per edge is all the wall notation can express. So either will do, and a pair made
 to differ from code, a one-way door, is the case a single `PlaceType` cannot express.
 
 `Solid` is decided in the reduction and is one rule over every position: a position is solid when
@@ -699,10 +704,10 @@ range a property of the set.
 
 `cell_glyphs()` is six lines: the three types a cell can be, a door shut and open, and an actor
 over each of the two types it can stand on.
-`lattice_glyphs()` is what the wall format writes: floor a space rather than a `.`, which is what
-makes a wall format level render back to the file it was loaded from, checked by `stratum_view_test`
-the same way the block format's round trip is --- the corner shaping and where solid shows agree with
-`catagen`'s writer without either depending on the other. Its wall is sixteen lines, ASCII having
+`lattice_glyphs()` draws the lattice the wall notation is written on, floor a space rather than a `.`
+and a joint at each corner walls reach. `stratum_view_test` takes a rendered wall notation level back
+to the notation's glyphs and compares it with the file's rows, so floor, walls, doors and solid agree
+with `catagen`'s writer without either depending on the other. Its wall is sixteen lines, ASCII having
 three glyphs for the joints the mask tells apart.
 
 `read_glyphs` reads a set from a file, `assets/glyphs/` shipping the two the code builds in. A line
@@ -759,12 +764,12 @@ what a roguelike shows; the wall view also draws what lies on the edges between 
 or a wall two rooms share is only in that one. Each takes the glyph set built for it, and the choice
 is made once rather than per frame.
 
-Asked for neither, the zone decides: a block format zone draws through the cell view, which loses
-nothing of it, and a wall format zone through the wall view, the cell view having nowhere to put
-the walls between its open cells. `load_layout` reports which format it read through an optional
-`Format*` and `Session` keeps it, so the host asks the session rather than reading the file again.
-Both formats still load into the same structure --- the format is what a caller decides *by*, not
-a property of the layout.
+Asked for neither, the zone decides: a block notation zone draws through the cell view, which loses
+nothing of it, and a wall notation zone through the wall view, the cell view having nowhere to put
+the walls between its open cells. `load_layout` reports which notation it read through an optional
+`stratum_format::Notation*` and `Session::notation` keeps it, so the host asks the session rather than
+reading the file again. Both notations load into the same structure --- the notation is what a caller
+decides *by*, not a property of the layout.
 
 Level files live in `assets/level/`, which belongs to no host. The host reaches them through
 `KML_DEV_ASSETS_ROOT`, a compile definition CMake sets from the source tree root, so the working
@@ -826,11 +831,12 @@ locked and the build fails.
 
 ## Tests
 
-`stratum_sim_test`, 396 cases, covers the layout hierarchy, layout structure, partner linking, wall
-folds, point location, the grid, flats, blocking, the scheduler, the clock, movement, adjacency and
-sight, loading, doors, world, commands and occupancy.
+`stratum_sim_test`, 354 cases, covers the layout hierarchy, layout structure, rooms, the grid, flats,
+blocking, the scheduler, the clock, movement, adjacency and sight, loading, doors, world, commands and
+occupancy. It and `stratum_view_test` each check that every level in their `data/` has one `door`
+entity attached at the walls `stratum_format::door_walls` finds for each door glyph, and none elsewhere.
 
-`stratum_view_test`, 96 cases, covers the console buffer, frame differencing, glyph sets and the
+`stratum_view_test`, 101 cases, covers the console buffer, frame differencing, glyph sets and the
 files they load from, the cell and lattice
 reductions, both renderings and both round trips, and owns the reference
 frames: fixed command sequences rendered to text and compared byte for byte by `FileValidator` against
@@ -839,22 +845,37 @@ than through the host, whose key mapping is not what they check.
 
 A scenario selects which view it is played through, so the two are checked separately. Three are block
 levels through the cell view, where a wall exists only against a solid cell and a glyph per cell
-loses nothing. Two are the wall view, and they differ in where the door is. `walls_door` is a wall format
+loses nothing. Two are the wall view, and they differ in where the door is. `walls_door` is a wall notation
 level: through a door, back, and into the wall two rooms share, which reports blocking it and then
 interacts with it while it is drawn beside the actor --- the whole of what a glyph per cell cannot
-show. `door_cell` is a block format level, where the door is a cell rather than an edge and is drawn
+show. `door_cell` is a block notation level, where the door is a cell rather than an edge and is drawn
 in it, the actor stepping into the doorway and out the far side.
 
-`dungen_test`, 34 cases, and `catagen_test`, 19 cases, check the generators the same way: reference
-levels written now against levels checked in, byte for byte, plus determinism, parameter validation
-and grid shape. Each also reads a reference level's own header back into parameters and regenerates
-from them, which is the claim the format rests on --- a level names what produced it --- and the one
-nothing was checking. A parameter a writer emits and the reader does not recognise fails there rather
-than passing silently.
+`dungen_test`, 101 cases, and `catagen_test`, 46 cases, check the generators the same way: reference
+levels written now against levels checked in, which are to be equivalent as parsed JSON, plus determinism,
+parameter validation, grid shape and every generated level being one the reader accepts. Both check,
+for their scenarios and over a sweep of seeds, that a level has one `door` entity attached at the
+walls of each door glyph and none elsewhere. `dungen_test`
+also reads back the rooms of levels with every door, half and none, over a sweep of seeds, and checks
+each room covers exactly the cells generated as it, which a barrier missing at an open doorway fails.
+Both suites, over another sweep with ranges of staircases each way, check from the written level alone that
+neither count exceeds its maximum, that a count leading up falls short of its minimum only where no
+staircase leads down, that no staircase blocks a doorway while a cell beside it would not, that every
+staircase has one entry, leading to `level_down` or `level_up` as its glyph says, and facing a side with
+no wall, or a door where no side is free of one, and that the level's `entry` lists exactly its
+staircase cells. Validation rejects staircase counts whose minimums are both zero and accepts a
+staircase down alone. Each also
+reads a reference level's generator parameters back and regenerates from them, which is the claim the
+format rests on --- a level names what produced it. A parameter a writer emits and the suite does not
+recognise fails there rather than passing silently, as does one the suite reads and the level lacks.
 
 The two suites are what the drivers never were. `tool/dungen` and `tool/catagen` take the plain
 names, the `quetzal_` prefix on the library targets being the distinction, and the `_test` names
 belong to the suites under `test/`.
+
+`stratum_format_test`, 124 cases, reads four levels and checks what they decode to, rejects every error
+the reader raises from a valid level with one change made to it, and writes each level through both
+`write` overloads and reads it back, comparing the two documents as maps rather than as bytes.
 
 `flecs_test` confirms the ECS supports zone partitioning, relationships, migration, unload,
 serialisation and determinism.
@@ -869,8 +890,10 @@ manual, and the reference frames do not reach either of them.
 
 CMake, with the solution at `build/kml_dev.slnx`. `/std:c++latest /bigobj /W4` throughout, with
 third-party sources at `/W1`, and both flecs and godot-cpp included as SYSTEM so their headers stay
-quiet in whatever compiles them. `quetzal_stratum_sim` links `quetzal_common` and `flecs_static`,
+quiet in whatever compiles them. `quetzal_stratum_sim` links `quetzal_common`, `quetzal_stratum_format` and `flecs_static`,
 `quetzal_stratum_view` links `quetzal_stratum_sim`, and both hosts link `quetzal_stratum_view`.
+`quetzal_stratum_format` links `quetzal_common` and `nlohmann_json`, vendored at `library3/json` with
+its headers SYSTEM.
 
 `KML_DEV_GODOT` governs the Godot half and defaults on. Configured off, godot-cpp is not processed
 at all and neither `quetzal_godot` nor `stratum_godot` exists --- 844 projects rather than 866.

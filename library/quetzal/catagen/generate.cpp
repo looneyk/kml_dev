@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <map>
 #include <numeric>
+#include <stdexcept>
 #include <utility>
 #include <vector>
 #include <cstdlib>
@@ -446,33 +447,151 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Stairs down and up at the centers of two different rooms. Corridors are passed over,
-    // being what joins rooms rather than somewhere to arrive
-    void place_stairs(Level& level, const rectangles_type& rooms, random_type& random)
+    // A range of one draws nothing, so a fixed count leaves every draw after it where it was
+    size_t draw_count(const quetzal::math::Interval<size_t>& count, random_type& random)
     {
+        return count.lower() == count.upper() ? count.lower() : random.gen(count.lower(), count.upper());
+    }
+
+    //--------------------------------------------------------------------------
+    // Staircases at the centers of rooms, a room to each, those leading up first. Corridors are passed over, being what
+    // joins rooms rather than somewhere to arrive, and running out of rooms places fewer, those leading down going short
+    // before those leading up
+    void place_staircases(Level& level, const rectangles_type& rooms, const Parameters& parameters, random_type& random)
+    {
+        size_t down_count = draw_count(parameters.staircase_down_count, random);
+        size_t up_count = draw_count(parameters.staircase_up_count, random);
+
+        // Every staircase is an entry, and a level needs one
         if (rooms.empty())
         {
-            return;
+            throw runtime_error("the level has no room a staircase can take, and so no entry");
         }
 
-        size_t down = random.gen(rooms.size());
-        level.set_cell(center(rooms[down]), CellType::StairsDown);
+        vector<size_t> available(rooms.size());
+        iota(available.begin(), available.end(), size_t(0));
 
-        if (rooms.size() < 2)
+        for (size_t i = 0; i < down_count + up_count && !available.empty(); ++i)
         {
-            return;
+            size_t slot = random.gen(available.size());
+            level.set_cell(center(rooms[available[slot]]), i < up_count ? CellType::StairsUp : CellType::StairsDown);
+            available.erase(available.begin() + static_cast<ptrdiff_t>(slot));
         }
 
-        size_t up = random.gen(rooms.size() - 1);
-        if (up >= down)
-        {
-            ++up;
-        }
-
-        level.set_cell(center(rooms[up]), CellType::StairsUp);
         return;
     }
 
+    //--------------------------------------------------------------------------
+    vector<point_type> staircase_cells(const Level& level)
+    {
+        vector<point_type> cells;
+
+        for (coord_type j = 0; j < level.extent().j(); ++j)
+        {
+            for (coord_type i = 0; i < level.extent().i(); ++i)
+            {
+                CellType type = level.cell({i, j});
+                if (type == CellType::StairsDown || type == CellType::StairsUp)
+                {
+                    cells.push_back({i, j});
+                }
+            }
+        }
+
+        return cells;
+    }
+
+    //--------------------------------------------------------------------------
+    // A mover coming through a door on any side of the cell steps straight onto it
+    bool blocks_doorway(const Level& level, const point_type& cell)
+    {
+        for (size_t index = 0; index < cardinal_directions.size(); ++index)
+        {
+            if (level.wall(cell, static_cast<CardinalDirection>(index)) == WallType::Door)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    //--------------------------------------------------------------------------
+    // Each staircase blocking a doorway moves one cell, in a random direction across an open wall onto floor that blocks no
+    // doorway, and stays where there is no such direction. An open wall joins two cells of one region, so the staircase
+    // stays in its own space
+    void move_staircases_off_doorways(Level& level, random_type& random)
+    {
+        for (const point_type& cell : staircase_cells(level))
+        {
+            if (!blocks_doorway(level, cell))
+            {
+                continue;
+            }
+
+            vector<point_type> available;
+
+            for (size_t index = 0; index < cardinal_directions.size(); ++index)
+            {
+                CardinalDirection direction = static_cast<CardinalDirection>(index);
+                if (level.wall(cell, direction) != WallType::Open)
+                {
+                    continue;
+                }
+
+                point_type next = neighbor(cell, direction);
+                if (level.cell(next) == CellType::Open && !blocks_doorway(level, next))
+                {
+                    available.push_back(next);
+                }
+            }
+
+            if (available.empty())
+            {
+                continue;
+            }
+
+            point_type destination = available[random.gen(available.size())];
+            level.set_cell(destination, level.cell(cell));
+            level.set_cell(cell, CellType::Open);
+        }
+
+        return;
+    }
+
+    //--------------------------------------------------------------------------
+    // A random facing for each staircase among the sides of its cell with no wall, or where there are none, with a door
+    void face_staircases(Level& level, random_type& random)
+    {
+        for (const point_type& cell : staircase_cells(level))
+        {
+            vector<CardinalDirection> open;
+            vector<CardinalDirection> doors;
+
+            for (size_t index = 0; index < cardinal_directions.size(); ++index)
+            {
+                CardinalDirection direction = static_cast<CardinalDirection>(index);
+                WallType wall = level.wall(cell, direction);
+
+                if (wall == WallType::Open)
+                {
+                    open.push_back(direction);
+                }
+                else if (wall == WallType::Door)
+                {
+                    doors.push_back(direction);
+                }
+            }
+
+            const vector<CardinalDirection>& sides = open.empty() ? doors : open;
+            if (!sides.empty())
+            {
+                level.set_staircase_facing(cell, sides[random.gen(sides.size())]);
+            }
+        }
+
+        return;
+    }
 } // namespace
 
 //------------------------------------------------------------------------------
@@ -494,7 +613,9 @@ quetzal::catagen::Level quetzal::catagen::generate(const Parameters& parameters)
     Level level(parameters.extent);
     realize(level, regions);
     place_doors(level, regions, region_count, parameters.loop, random);
-    place_stairs(level, rooms, random);
+    place_staircases(level, rooms, parameters, random);
+    move_staircases_off_doorways(level, random);
+    face_staircases(level, random);
 
     return level;
 }

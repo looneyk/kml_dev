@@ -28,7 +28,7 @@
 |   |   |
 +---+---+
    cell (1, 2)  facing east
-   blocked by wall 4
+   blocked by wall 36
 
 -- command ' '
 +---+---+
@@ -39,7 +39,7 @@
 |   |   |
 +---+---+
    cell (1, 2)  facing east
-   opened wall 4
+   opened wall 36
 
 -- command 'l'
 +---+---+

@@ -20,9 +20,9 @@ namespace
     //--------------------------------------------------------------------------
     // Where a cell lies on the lattice, cell (i, j) being at (2i + 1, 2j + 1). A wall on one
     // of its edges is that position stepped once in the direction it faces
-    point_type lattice_position(const point_type& grid_position)
+    point_type lattice_position(const point_type& cell_position)
     {
-        return 2 * grid_position + vector_type {1, 1};
+        return 2 * cell_position + vector_type {1, 1};
     }
 
     //--------------------------------------------------------------------------
@@ -80,20 +80,20 @@ namespace
         {
             for (coord_type i = 0; i < grid.extent.x(); ++i)
             {
-                sim::discrete_point_type grid_position {i, j};
+                sim::discrete_point_type cell_position {i, j};
 
-                if (!layout.open(grid_position))
+                if (!layout.open(cell_position))
                 {
                     continue;
                 }
 
                 for (const sim::discrete_vector_type& direction : directions)
                 {
-                    quetzal::id_type wall_id = layout.wall_toward(grid_position, direction);
+                    quetzal::id_type wall_id = layout.wall_toward(cell_position, direction);
                     flecs::entity facing = wall_id != quetzal::nullid
                         ? sim::facing_on(zone, wall_id) : flecs::entity();
 
-                    sim::discrete_point_type beyond = grid_position + direction;
+                    sim::discrete_point_type beyond = cell_position + direction;
 
                     if (facing && door_in_cell(layout, beyond, direction))
                     {
@@ -120,10 +120,10 @@ namespace
             .build()
             .each([&](const sim::placement_type& placement)
             {
-                sim::discrete_point_type grid_position = layout.grid_position_at(placement.position());
-                if (grid.contains(grid_position))
+                sim::discrete_point_type cell_position = layout.cell_position_at(placement.position());
+                if (grid.contains(cell_position))
                 {
-                    f(grid_position);
+                    f(cell_position);
                 }
             });
 
@@ -158,16 +158,16 @@ quetzal::stratum_view::Cells quetzal::stratum_view::cells(const sim::World& worl
 
     // A door occupying a cell has a position here; one on an edge between two cells does
     // not, so the wall format's doors are what this reduction cannot show
-    each_door_cell(layout, zone, [&](const sim::discrete_point_type& grid_position, State state)
+    each_door_cell(layout, zone, [&](const sim::discrete_point_type& cell_position, State state)
     {
-        cells.set(grid_position, Place {PlaceType::Door, state});
+        cells.set(cell_position, Place {PlaceType::Door, state});
     });
 
-    each_actor_cell(layout, zone, [&](const sim::discrete_point_type& grid_position)
+    each_actor_cell(layout, zone, [&](const sim::discrete_point_type& cell_position)
     {
-        Place place = cells.at(grid_position);
+        Place place = cells.at(cell_position);
         place.actor = true;
-        cells.set(grid_position, place);
+        cells.set(cell_position, place);
     });
 
     return cells;
@@ -193,18 +193,18 @@ quetzal::stratum_view::Lattice quetzal::stratum_view::lattice(const sim::World& 
     {
         for (coord_type i = 0; i < w; ++i)
         {
-            sim::discrete_point_type grid_position {i, j};
+            sim::discrete_point_type cell_position {i, j};
 
-            if (!layout.open(grid_position))
+            if (!layout.open(cell_position))
             {
                 continue;
             }
 
-            lattice.set(lattice_position(grid_position), Place {PlaceType::Floor});
+            lattice.set(lattice_position(cell_position), Place {PlaceType::Floor});
 
             for (const sim::discrete_vector_type& direction : directions)
             {
-                id_type wall_id = layout.wall_toward(grid_position, direction);
+                id_type wall_id = layout.wall_toward(cell_position, direction);
 
                 if (wall_id == nullid)
                 {
@@ -217,14 +217,14 @@ quetzal::stratum_view::Lattice quetzal::stratum_view::lattice(const sim::World& 
 
                 if (!facing)
                 {
-                    lattice.set(lattice_position(grid_position) + direction, Place {PlaceType::Wall});
+                    lattice.set(lattice_position(cell_position) + direction, Place {PlaceType::Wall});
                     continue;
                 }
 
                 Place place {PlaceType::Door, state_of(sim::door_of(facing))};
 
                 // Placed once however many ways into the cell there are
-                sim::discrete_point_type beyond = grid_position + direction;
+                sim::discrete_point_type beyond = cell_position + direction;
 
                 if (door_in_cell(layout, beyond, direction))
                 {
@@ -232,7 +232,7 @@ quetzal::stratum_view::Lattice quetzal::stratum_view::lattice(const sim::World& 
                     continue;
                 }
 
-                lattice.set(lattice_position(grid_position) + direction, place);
+                lattice.set(lattice_position(cell_position) + direction, place);
             }
         }
     }
@@ -319,9 +319,9 @@ quetzal::stratum_view::Lattice quetzal::stratum_view::lattice(const sim::World& 
         }
     }
 
-    each_actor_cell(layout, zone, [&](const sim::discrete_point_type& grid_position)
+    each_actor_cell(layout, zone, [&](const sim::discrete_point_type& cell_position)
     {
-        point_type position = lattice_position(grid_position);
+        point_type position = lattice_position(cell_position);
 
         Place place = lattice.at(position);
         place.actor = true;

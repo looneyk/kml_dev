@@ -49,7 +49,7 @@ stratum_terminal::Application::Application(const std::string& filepath_zone, Vie
     // The zone decides where nothing was asked for, which it can only do once it is loaded
     if (m_view == View::Null)
     {
-        m_view = m_session.format() == stratum_sim::Format::Wall ? View::Wall : View::Cell;
+        m_view = m_session.notation() == stratum_format::Notation::Wall ? View::Wall : View::Cell;
     }
 
     m_view_glyphs = m_view == View::Cell ? stratum_view::cell_glyphs() : stratum_view::lattice_glyphs();
@@ -204,8 +204,8 @@ void stratum_terminal::Application::report(const quetzal::stratum_sim::EventQueu
 std::string stratum_terminal::Application::status() const
 {
     const stratum_sim::placement_type& placement = m_session.player().get<stratum_sim::placement_type>();
-    stratum_sim::discrete_point_type grid_position = stratum_sim::layout_as<stratum_sim::DiscreteLayout>(m_session.layout()).grid_position_at(placement.position());
+    stratum_sim::discrete_point_type cell_position = stratum_sim::layout_as<stratum_sim::DiscreteLayout>(m_session.layout()).cell_position_at(placement.position());
 
     // The message shares this line so that the frame keeps its height as it comes and goes
-    return std::format("cell ({}, {})  facing {}  turn {}  {}", grid_position.i(), grid_position.j(), name_of(placement.direction()), m_session.scheduler().elapsed(), m_message);
+    return std::format("cell ({}, {})  facing {}  turn {}  {}", cell_position.i(), cell_position.j(), name_of(placement.direction()), m_session.scheduler().elapsed(), m_message);
 }

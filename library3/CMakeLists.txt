@@ -15,6 +15,13 @@ add_subdirectory(glfw)
 
 add_subdirectory(simdjson)
 
+# JSON_SystemInclude marks the headers SYSTEM, which is the same treatment flecs gets below and for
+# the same reason: they compile as part of whatever includes them and would report at /W4
+set(JSON_BuildTests OFF CACHE BOOL "" FORCE)
+set(JSON_Install OFF CACHE BOOL "" FORCE)
+set(JSON_SystemInclude ON CACHE BOOL "" FORCE)
+add_subdirectory(json)
+
 set(FLECS_STATIC ON CACHE BOOL "" FORCE)
 set(FLECS_SHARED OFF CACHE BOOL "" FORCE) # Defaults ON, independently of BUILD_SHARED_LIBS
 set(FLECS_TESTS OFF CACHE BOOL "" FORCE)

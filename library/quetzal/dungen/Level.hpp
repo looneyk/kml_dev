@@ -10,7 +10,7 @@
 #include "CellType.hpp"
 #include "Room.hpp"
 #include "Door.hpp"
-#include "Stair.hpp"
+#include "Staircase.hpp"
 #include "types.hpp"
 #include <array>
 #include <iosfwd>
@@ -27,7 +27,7 @@ namespace quetzal::dungen
 
         using rooms_type = std::vector<Room>;
         using doors_type = std::vector<Door>;
-        using stairs_type = std::vector<Stair>;
+        using staircases_type = std::vector<Staircase>;
 
         Level(id_type id, const std::string& name, vector_type size, CellType cell_type = CellType::Null);
         Level(const Level&) = default;
@@ -65,13 +65,13 @@ namespace quetzal::dungen
 
         void create_door(point_type position); // name? facing ...
 
-        const stairs_type& stairs() const;
-        stairs_type& stairs();
+        const staircases_type& staircases() const;
+        staircases_type& staircases();
 
-        const Stair& stair(id_type id) const;
-        Stair& stair(id_type id);
+        const Staircase& staircase(id_type id) const;
+        Staircase& staircase(id_type id);
 
-        void create_stair(point_type position); // name? direction ...
+        void create_staircase(point_type position, StaircaseDirection direction); // name? ...
 
         void render(std::ostream& os) const;
         void print(std::ostream& os) const;
@@ -83,7 +83,7 @@ namespace quetzal::dungen
         Cells m_cells;
         rooms_type m_rooms;
         doors_type m_doors;
-        stairs_type m_stairs;
+        staircases_type m_staircases;
     };
 
     std::ostream& operator<<(std::ostream& os, const Level& level);

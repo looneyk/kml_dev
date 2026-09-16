@@ -5,6 +5,7 @@
 // Cell.hpp
 //------------------------------------------------------------------------------
 
+#include "DirectionMask.hpp"
 #include "quetzal/common/id.hpp"
 
 namespace quetzal::stratum_sim
@@ -16,6 +17,7 @@ namespace quetzal::stratum_sim
     struct Cell
     {
         bool open = false; // Whether a mover may stand here
+        DirectionMask walls = DirectionMask::None; // The sides with a wall facing into the cell
         id_type room_id = nullid; // The room covering it, or nullid where none does
     };
 

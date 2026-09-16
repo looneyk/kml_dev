@@ -1,0 +1,51 @@
+{
+  "format": "quetzal.discrete_layout",
+  "version": "0.3",
+  "generator": {
+    "name": "dungen",
+    "parameters": { "algorithm": "maze1", "size": "21,15", "stairs_down": "0-0", "stairs_up": "1-1", "room_dimension_base": "3", "room_dimension_variation": "8", "room_density": "0.25", "room_merge": "false", "corridor_straightness": "0.5", "probability_dead_end_removal": "0.5", "probability_loop_removal": "1", "door_probability": "1", "seed": "7" }
+  },
+  "layout": {
+    "components": { "entry": [[13, 3]] }
+  },
+  "cells": {
+    "notation": "block",
+    "extent": [21, 15],
+    "origin": [0.0, 0.0, 0.0],
+    "scale": 1.0,
+    "rows": [
+      "#####################",
+      "#.....#.....+.......#",
+      "#.#.#.#.....#.#####.#",
+      "#.#.#.+.....#.#...#.#",
+      "###.#.#.....#.#.#.#.#",
+      "#...#.+.....#...#.#.#",
+      "#+#######+###.#####.#",
+      "#.......#...#.#...#.#",
+      "#.......#.###.#...#.#",
+      "#.......+.....+...#.#",
+      "#########.#####...#.#",
+      "#.......#....<#...#.#",
+      "#.#####.#######+#+#.#",
+      "#.#.................#",
+      "#####################"
+    ]
+  },
+  "rooms": [
+    { "location": [15, 3] },
+    { "location": [1, 5] },
+    { "location": [7, 9] }
+  ],
+  "attachments": [
+    { "walls": [[15, 3, 0, 1], [15, 1, 0, -1]], "entities": [ { "type": "door" } ] },
+    { "walls": [[17, 3, 0, 1], [17, 1, 0, -1]], "entities": [ { "type": "door" } ] },
+    { "walls": [[9, 5, 1, 0], [7, 5, -1, 0]], "entities": [ { "type": "door" } ] },
+    { "walls": [[15, 5, 1, 0], [13, 5, -1, 0]], "entities": [ { "type": "door" } ] },
+    { "walls": [[1, 9, 0, 1], [1, 7, 0, -1]], "entities": [ { "type": "door" } ] },
+    { "walls": [[9, 9, 0, 1], [9, 7, 0, -1]], "entities": [ { "type": "door" } ] },
+    { "walls": [[7, 9, 1, 0], [5, 9, -1, 0]], "entities": [ { "type": "door" } ] },
+    { "walls": [[7, 11, 1, 0], [5, 11, -1, 0]], "entities": [ { "type": "door" } ] },
+    { "walls": [[13, 13, 1, 0], [11, 13, -1, 0]], "entities": [ { "type": "door" } ] },
+    { "flat": "floor", "cell": [13, 3], "entities": [ { "type": "staircase", "components": { "facing": [-1, 0], "relocator": { "target": "level_up" } } } ] }
+  ]
+}

@@ -16,7 +16,8 @@ namespace quetzal::catagen
     // between them to make every room reachable
     // Deterministic in its parameters, the seed included, so the written header reproduces
     // the level exactly
-    // Throws std::invalid_argument by way of validate
+    // Throws std::invalid_argument by way of validate, and std::runtime_error where no staircase can be placed to be the
+    // level's entry
     Level generate(const Parameters& parameters);
 
 } // namespace quetzal::catagen

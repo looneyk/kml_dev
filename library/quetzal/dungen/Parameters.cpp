@@ -28,6 +28,17 @@ namespace
     }
 
     //--------------------------------------------------------------------------
+    void validate_count(const quetzal::math::Interval<size_t>& count, const char* name)
+    {
+        if (count.upper() < count.lower())
+        {
+            throw invalid_argument(format("{} maximum {} is below the minimum {}", name, count.upper(), count.lower()));
+        }
+
+        return;
+    }
+
+    //--------------------------------------------------------------------------
     void validate_maze1(const Parameters& parameters)
     {
         const auto& maze1 = parameters.maze1;
@@ -63,6 +74,7 @@ namespace
         validate_probability(maze1.corridor_straightness, "corridor straightness");
         validate_probability(maze1.probability_dead_end_removal, "dead end removal probability");
         validate_probability(maze1.probability_loop_removal, "loop removal probability");
+        validate_probability(maze1.door_probability, "door probability");
         return;
     }
 
@@ -102,6 +114,7 @@ namespace
 
         validate_probability(grid1.room_density, "room density");
         validate_probability(grid1.loop, "loop probability");
+        validate_probability(grid1.door_probability, "door probability");
         return;
     }
 
@@ -153,6 +166,15 @@ void quetzal::dungen::validate(const Parameters& parameters)
     if (!parameters.seed)
     {
         throw invalid_argument("no seed was assigned");
+    }
+
+    validate_count(parameters.staircase_down_count, "staircase down count");
+    validate_count(parameters.staircase_up_count, "staircase up count");
+
+    // Every staircase is an entry, so counts that may both be zero may leave the level none
+    if (parameters.staircase_down_count.lower() + parameters.staircase_up_count.lower() == 0)
+    {
+        throw invalid_argument("staircase down and up count minimums of zero may leave the level no entry");
     }
 
     switch (parameters.algorithm)

@@ -4,7 +4,8 @@
 //------------------------------------------------------------------------------
 
 #include "generate_grid1.hpp"
-#include "place_stairs.hpp"
+#include "place_staircases.hpp"
+#include "remove_doors.hpp"
 #include <algorithm>
 #include <numeric>
 #include <utility>
@@ -497,8 +498,8 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // A stairway goes in a room, or in a corridor where the density left no rooms at all
-    vector<point_type> stair_candidates(const Level& level)
+    // A staircase goes in a room, or in a corridor where the density left no rooms at all
+    vector<point_type> staircase_candidates(const Level& level)
     {
         vector<point_type> rooms;
         vector<point_type> corridors;
@@ -588,7 +589,10 @@ quetzal::dungen::Level quetzal::dungen::generate_grid1(id_type id, const string&
         connect(level, sectors[connection.slot_a], sectors[connection.slot_b], connection.horizontal, random);
     }
 
-    place_stairs(level, stair_candidates(level), parameters.stair_placements, random);
+    place_staircases(level, staircase_candidates(level), parameters.staircase_down_count, parameters.staircase_up_count, random);
+    remove_doors(level, grid1.door_probability, random);
+    move_staircases_off_doorways(level, random);
+    face_staircases(level, random);
 
     return level;
 }

@@ -7,6 +7,7 @@
 
 #include "Buffer.hpp"
 #include "types.hpp"
+#include "quetzal/stratum_sim/DirectionMask.hpp"
 #include "quetzal/stratum_sim/World.hpp"
 #include <cstdint>
 
@@ -57,19 +58,7 @@ namespace quetzal::stratum_view
     // Where the wall line continues from a position, one bit per direction. Sixteen patterns
     // is the whole of a box drawing set; a glyph set that can express less maps many of them onto
     // one glyph, which is the shape of a narrower set rather than a key too wide
-    enum class DirectionMask : uint8_t
-    {
-        None = 0,
-        East = 1 << 0,
-        North = 1 << 1,
-        West = 1 << 2,
-        South = 1 << 3
-    };
-
-    constexpr DirectionMask operator|(DirectionMask a, DirectionMask b);
-    constexpr DirectionMask operator&(DirectionMask a, DirectionMask b);
-    constexpr DirectionMask& operator|=(DirectionMask& a, DirectionMask b);
-    constexpr bool any(DirectionMask mask);
+    using stratum_sim::DirectionMask;
 
     //--------------------------------------------------------------------------
     // What is at one position: the fixed structure, the state it is in, what reaches it, and
@@ -142,28 +131,6 @@ namespace quetzal::stratum_view
     inline bool applies(PlaceType type, State state)
     {
         return (state & detail::state_of(type)) == state;
-    }
-
-    //--------------------------------------------------------------------------
-    constexpr DirectionMask operator|(DirectionMask a, DirectionMask b)
-    {
-        return static_cast<DirectionMask>(std::to_underlying(a) | std::to_underlying(b));
-    }
-
-    constexpr DirectionMask operator&(DirectionMask a, DirectionMask b)
-    {
-        return static_cast<DirectionMask>(std::to_underlying(a) & std::to_underlying(b));
-    }
-
-    constexpr DirectionMask& operator|=(DirectionMask& a, DirectionMask b)
-    {
-        a = a | b;
-        return a;
-    }
-
-    constexpr bool any(DirectionMask mask)
-    {
-        return mask != DirectionMask::None;
     }
 
 } // namespace quetzal::stratum_view

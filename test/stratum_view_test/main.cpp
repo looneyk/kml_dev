@@ -4,7 +4,8 @@
 //------------------------------------------------------------------------------
 
 #include "quetzal/common/FileValidator.hpp"
-#include "quetzal/common/file_util.hpp"
+#include "quetzal/stratum_format/grid.hpp"
+#include "quetzal/stratum_format/read.hpp"
 #include "quetzal/stratum_sim/attachments.hpp"
 #include "quetzal/stratum_sim/commands.hpp"
 #include "quetzal/stratum_sim/load_layout.hpp"
@@ -12,11 +13,14 @@
 #include "quetzal/stratum_view/ascii.hpp"
 #include "quetzal/stratum_view/cells.hpp"
 #include "quetzal/stratum_view/read_glyphs.hpp"
+#include <algorithm>
 #include <format>
 #include <fstream>
 #include <iostream>
 #include <string>
 #include <type_traits>
+#include <variant>
+#include <vector>
 
 using namespace std;
 using namespace quetzal;
@@ -81,16 +85,13 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    string read_file(const string& filepath)
+    // A level's rows, a row per line
+    string rows_of(const string& filepath)
     {
-        ifstream is(filepath, ios_base::binary);
         string s;
-        string line;
-
-        while (read_line(is, line))
+        for (const string& row : stratum_format::read(filepath).cells.rows)
         {
-            s += line;
-            s += '\n';
+            s += row + '\n';
         }
 
         return s;
@@ -170,7 +171,7 @@ namespace
     {
         stratum_sim::door_walls_type doors;
 
-        flecs::entity zone = world.create_zone(name, stratum_sim::load_layout(filepath, 1.0f,
+        flecs::entity zone = world.create_zone(name, stratum_sim::load_layout(filepath,
             [&](const std::vector<id_type>& walls) { doors.push_back(walls); }));
 
         stratum_sim::create_doors(world, zone, doors);
@@ -443,7 +444,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // An unoccupied level of nothing but solid and floor renders back to the file it
+    // An unoccupied level of nothing but solid, floor and its entrance renders back to the file it
     // was loaded from. vault.level is asymmetric top to bottom, so this pins row order too
     void test_round_trip()
     {
@@ -457,17 +458,20 @@ namespace
             flecs::entity zone = load_zone(world, name, filepath);
 
             string s = stratum_view::render(world, zone).to_string();
+            string expected = rows_of(filepath);
 
-            // The header is the generator's, not the grid's, so the grid is what is compared
-            string expected = read_file(filepath);
-            expected.erase(0, expected.find('\n') + 1);
+            // The entrance loads as floor, so the view has only floor to draw there
+            for (char& c : expected)
+            {
+                c = c == '<' || c == '>' ? '.' : c;
+            }
 
-            report_case(format("{} renders back to its own file", name), s == expected, "\n" + s);
+            report_case(format("{} renders back to its own rows", name), s == expected, "\n" + s);
         }
 
-        // The wall format is the lattice written out, so the same check applies to it: the
-        // glyphs, the corner shaping and where solid shows all have to agree with the
-        // generator that wrote the file, without either depending on the other
+        // The wall notation is the lattice written out, so the same check applies to it once the view's glyphs are
+        // taken back to the notation's: floor, walls, doors and solid all have to agree with the generator that wrote the
+        // file, without either depending on the other. The notation leaves corners blank, so they are not compared
         {
             string filepath = "data/walls.level";
 
@@ -475,37 +479,53 @@ namespace
             flecs::entity zone = load_zone(world, "walls", filepath);
 
             string s = stratum_view::render_lattice(world, zone).to_string();
+            string expected = rows_of(filepath);
 
-            // The header is the generator's, not the grid's, so the grid is what is compared
-            string expected = read_file(filepath);
-            expected.erase(0, expected.find('\n') + 1);
-
-            // Stairs are the one symbol the reader loses: it takes '<' and '>' as floor, so
-            // the view has only floor to draw. Comparing against what the reader can represent
-            // keeps the walls, doors, corners and solid checked; this goes when stairs reach
-            // somewhere, which is stage 6 of work_plan.md
+            // Stairs load as floor, so the view has only floor to draw there
             for (char& c : expected)
             {
-                c = c == '<' || c == '>' ? ' ' : c;
+                c = c == '<' || c == '>' ? '.' : c;
             }
 
-            report_case("a wall format level renders back to its own file", s == expected, "\n" + s);
+            size_t width = expected.find('\n');
+            for (size_t n = 0; n < s.size(); ++n)
+            {
+                size_t x = n % (width + 1);
+                size_t y = n / (width + 1);
+
+                if (s[n] == '\n')
+                {
+                    continue;
+                }
+
+                if (x % 2 == 0 && y % 2 == 0)
+                {
+                    s[n] = ' ';
+                }
+                else if (x % 2 == 1 && y % 2 == 1)
+                {
+                    s[n] = s[n] == '#' ? ' ' : '.';
+                }
+                else
+                {
+                    s[n] = s[n] == '#' ? ' ' : s[n] == '/' ? '+' : s[n];
+                }
+            }
+
+            report_case("a wall notation level renders back to its own rows", s == expected, "\n" + s);
         }
 
         return;
     }
 
     //--------------------------------------------------------------------------
-    // A generated dungeon, which has doorways and stairs as well as rooms and corridors. All
-    // of them are open, and a block is where the block format puts a door, so a doorway and a
-    // stairway render as one rather than as the floor they also are
+    // A generated dungeon, which has doorways and stairs as well as rooms and corridors. All of them are open, and a
+    // doorway is a block with a door on it, so it renders as the door rather than as the floor it also is
     void test_dungeon()
     {
         report_group("generated dungeon");
 
-        // The header is the generator's, not the grid's, so the grid is what is compared
-        string source = read_file("data/dungeon.level");
-        source.erase(0, source.find('\n') + 1);
+        string source = rows_of("data/dungeon.level");
 
         stratum_sim::World world;
         flecs::entity zone = load_zone(world, "dungeon", "data/dungeon.level");
@@ -531,10 +551,7 @@ namespace
 
                 solid ? ++solid_count : ++floor_count;
 
-                // A doorway and a stairway are both blocks, and the loader reports every block as
-                // somewhere a door goes, so both have one and both draw as one
-                bool block = source_character == '|' || source_character == '>';
-                char expected = solid ? '#' : block ? '/' : '.';
+                char expected = solid ? '#' : source_character == '+' ? '/' : '.';
 
                 if (console.at({i, j}) != expected)
                 {
@@ -602,8 +619,8 @@ namespace
     {
         if (const stratum_sim::Moved* pevent = event.try_get<stratum_sim::Moved>())
         {
-            stratum_sim::discrete_point_type grid_position = layout.grid_position_at(pevent->placement.position());
-            return format("moved to ({}, {})", grid_position.i(), grid_position.j());
+            stratum_sim::discrete_point_type cell_position = layout.cell_position_at(pevent->placement.position());
+            return format("moved to ({}, {})", cell_position.i(), cell_position.j());
         }
 
         if (const stratum_sim::Blocked* pevent = event.try_get<stratum_sim::Blocked>())
@@ -643,12 +660,12 @@ namespace
     {
         const stratum_sim::DiscreteLayout& layout = stratum_sim::layout_as<stratum_sim::DiscreteLayout>(world.layout(zone));
         const stratum_sim::placement_type& placement = player.get<stratum_sim::placement_type>();
-        stratum_sim::discrete_point_type grid_position = layout.grid_position_at(placement.position());
+        stratum_sim::discrete_point_type cell_position = layout.cell_position_at(placement.position());
 
         string s = format("-- {}\n", label);
         s += view == View::Walls ? stratum_view::render_lattice(world, zone).to_string()
             : stratum_view::render(world, zone).to_string();
-        s += format("   cell ({}, {})  facing {}\n", grid_position.i(), grid_position.j(), name_of(placement.direction()));
+        s += format("   cell ({}, {})  facing {}\n", cell_position.i(), cell_position.j(), name_of(placement.direction()));
 
         for (const stratum_sim::Event& event : events.events())
         {
@@ -737,6 +754,62 @@ namespace
         return;
     }
 
+    //--------------------------------------------------------------------------
+    // One door entity attached at the walls of each door glyph, and none elsewhere
+    bool doors_have_entities(const stratum_format::Document& document, string& detail)
+    {
+        vector<vector<stratum_format::WallAddress>> doors = stratum_format::door_walls(document.cells);
+        vector<bool> matched(doors.size(), false);
+
+        for (const stratum_format::Attachment& attachment : document.attachments)
+        {
+            const auto* walls = get_if<vector<stratum_format::WallAddress>>(&attachment.attached_to);
+            bool door = any_of(attachment.entities.begin(), attachment.entities.end(),
+                [](const auto& entity) { return entity.is_object() && entity.value("type", "") == "door"; });
+
+            if (walls == nullptr || !door)
+            {
+                continue;
+            }
+
+            auto i = find(doors.begin(), doors.end(), *walls);
+            if (i == doors.end() || matched[static_cast<size_t>(i - doors.begin())])
+            {
+                const stratum_format::WallAddress& wall = walls->front();
+                detail = format("a door entity at wall {}, {}, {}, {} that is {}", wall.cell_position.i(), wall.cell_position.j(), wall.normal.x(),
+                    wall.normal.y(), i == doors.end() ? "not a door's" : "a door's second");
+                return false;
+            }
+
+            matched[static_cast<size_t>(i - doors.begin())] = true;
+        }
+
+        size_t missing_count = static_cast<size_t>(count(matched.begin(), matched.end(), false));
+        if (missing_count > 0)
+        {
+            detail = format("{} of {} doors have no door entity", missing_count, doors.size());
+            return false;
+        }
+
+        return true;
+    }
+
+    //--------------------------------------------------------------------------
+    // Reads from data/, so stratum_view_test runs from its own directory
+    void test_door_entities()
+    {
+        report_group("door entities");
+
+        for (const string name : {"corridor", "door", "dungeon", "vault", "walls"})
+        {
+            string detail;
+            report_case(format("{} has a door entity at each door", name), doors_have_entities(stratum_format::read(format("data/{}.level", name)), detail),
+                detail);
+        }
+
+        return;
+    }
+
 } // namespace
 
 //------------------------------------------------------------------------------
@@ -752,6 +825,7 @@ int main()
     test_round_trip();
     test_dungeon();
     test_reference();
+    test_door_entities();
 
     return report_results();
 }

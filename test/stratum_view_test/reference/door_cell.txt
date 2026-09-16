@@ -17,7 +17,7 @@
 ###########
 ###########
    cell (1, 1)  facing east
-   opened wall 10
+   opened wall 24
 
 -- command 'l'
 ###########
@@ -60,5 +60,5 @@
 ###########
 ###########
    cell (3, 1)  facing east
-   interacted with wall 3
+   interacted with wall 32
 

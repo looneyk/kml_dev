@@ -1,22 +1,26 @@
 # Attachments --- Plan
 
 Status: complete. Doors work: they load shut, space opens one, a wall has no flag, and the view
-draws shut and open apart
+draws shut and open apart. The links replacing the searches below are part of loading a zone,
+`discrete_layout_rework.md`
 Date: 2026-09-02
 
 Detail for the first item of stage 6 in `work_plan.md`. A door is the case being worked through, but
 the mechanism is what is being designed: `sim_zone_model.md` settles that *everything* on a wall or
 a flat is an attachment --- an alcove, a basin, a door, a button, a torch --- so one mechanism covers
-all of them and `Wall` stays a small dense record. What is built goes to `game_system_reference.md`.
+all of them and a wall stays a bit on the cell it bounds. What is built goes to `game_system_reference.md`.
 
 ## What is already settled
 
 Repeated here only as the constraints the shape has to satisfy; the argument is elsewhere.
 
 - **A wall is a record, not an entity.** A wall per cell edge puts thousands in a zone and a zone
-  serialises its whole subtree when it unloads. `decision_rationale.md`.
-- **What targets a wall stores its id.** The reverse direction is a query filtered by that id, which
-  is affordable because attachments run to hundreds where walls run to thousands.
+  serialises its whole subtree when it unloads. A wall with components or something attached has an
+  entity of its own, found by wall id, which is sparse. `decision_rationale.md`.
+- **A wall is one side of an edge.** An edge is what a level file writes as one glyph for both sides.
+  A mover interacts with the wall on its own side, and the other side is separate.
+- **Attachments and walls link both ways.** A facing links to its wall, and the wall's entity links
+  to the facing, so nothing is found by searching.
 - **An attachment reached from more than one side is one entity owning the shared fact, and per-side
   entities owning what genuinely differs,** each referencing it. Mirroring the same fact into two
   places and reconciling them is the arrangement this was chosen over.
@@ -25,14 +29,16 @@ Repeated here only as the constraints the shape has to satisfy; the argument is 
   not an entity.
 - **A zone's contents are its children,** so unload and migration are subtree operations.
 
-## The two kinds of link
+## The links
 
-Every link in what follows is one of two, and which it is falls out of what is on each end.
+Every link in what follows is one of these, and which it is falls out of what is on each end.
 
 | From | To | Link |
 |---|---|---|
-| an attachment | the wall it hangs on | `id_type`, because a wall is a record |
-| an attachment | the entity it belongs to | `ChildOf`, a relationship, because a door is an entity |
+| a facing | the wall it hangs on | the wall id, which also provides the wall's normal |
+| a wall's entity | what hangs on it | a link to the facing |
+| a facing | the entity it belongs to | `ChildOf`, because a door is an entity |
+| a door | its facings | a link to each |
 | an attachment | where it sits on that surface | its own component, the same either way |
 
 Position is separated from target deliberately. A keyhole on a door facing and a torch on a wall are
@@ -40,8 +46,9 @@ positioned the same way --- along and up --- and differ only in what they are po
 
 ## A door
 
-**A door is two facings and a common part.** Exactly two, always. What hangs on a wall is a *facing*;
-the common part hangs on nothing and is the facings' parent.
+**A door is its facings and a common part.** A facing per wall it is on: two in the ordinary case,
+one where a doorway leads into a dead end. What hangs on a wall is a *facing*; the common part hangs
+on nothing, is the facings' parent, and links to each of them. The zone lists its doors.
 
 A door is one variety of a more general attachment, and the general one is what queries ask about:
 **what is attached to this wall and decides passage.** A working door is one, a door smashed to a hole is
@@ -62,14 +69,13 @@ zone                                    (Zone)
 A facing is a child of its door, and what belongs to a facing is a child of that facing. The whole
 assembly is therefore one subtree: it unloads with the zone, and removing a door is one delete.
 
-`ChildOf` is how a facing references its door, rather than an id in a component beside it. It is a
-relationship --- flecs stores a pair the same way it stores a component, so "the facing's door" is
-`parent()` and "every facing of this door" is a child query, both without a field to keep in step
-with the hierarchy. `sim_zone_model.md` already asks for a relationship rather than an id here, on
+`ChildOf` is how a facing references its door, rather than an id in a component beside it: "the
+facing's door" is `parent()`. The door links to each of its facings, so reaching the other side's
+facing is following a link rather than querying for siblings. `sim_zone_model.md` already asks for a relationship rather than an id here, on
 the grounds that a door is an entity while a wall is not.
 
 **A facing has no direction.** Which way it points is the wall's to decide, and the wall already
-determines it: it faces the open space its outline is wound about. Construction is what puts each facing on
+determines it: its id provides the normal, pointing into the cell it bounds. Construction is what puts each facing on
 the right side, and after that nothing stores an orientation that could disagree with the geometry.
 
 ### The common part
@@ -86,7 +92,7 @@ the right side, and after that nothing stores an orientation that could disagree
 | Component | |
 |---|---|
 | `Attachment` | `value_type along, up` --- where on the surface it sits. |
-| `OnWall` | `id_type wall_id`. Only a facing has this; a keyhole hangs on its facing, not on a wall. |
+| `OnWall` | `id_type wall_id`, the facing's link to its wall, whose id also provides the normal and so the facing's absolute direction. Only a facing has this; a keyhole hangs on its facing, not on a wall. |
 | `DoorFacing` | Tag. Which door it belongs to is its parent, not a field. |
 | `Concealed` | `bool found`. Secret from *this* side until found --- the classic secret door is concealed on one facing and an ordinary door on the other. |
 | `Appearance` | The surface this facing shows, once there are asset ids to name. |
@@ -97,30 +103,24 @@ over one state they share.
 
 ## The two walls need not be a pair
 
-This is what makes one door shape fit both formats, and it is why the facings are attached
-individually rather than to a partnered pair.
+This is what makes one door shape fit both notations, and it is why each facing is on a wall of its
+own rather than the door being on an edge.
 
 | | The two walls | Crossing it |
 |---|---|---|
-| wall format | the two sides of one cell edge, partners | passing through the edge |
-| block format | the faces a doorway *block* presents to the floor either side, from its own ring | entering the block |
+| wall notation | the two sides of one edge | passing through the edge |
+| block notation | the walls the floor either side of a doorway *block* has toward it | entering the block |
 
-**In the block format a doorway is a cell of wall a mover may stand in.** It belongs to the area
-around it, which decides both of its jobs.
+**In the block notation a doorway is a cell of wall a mover may stand in.** A floor cell has a wall
+toward it, and the doorway cell has walls toward solid cells and toward the edge of the grid but none
+toward floor (`discrete_layout.md`, `### The block notation`).
 
-The sides it presents to solid cells lie on that area's own boundary, so the outline encloses them:
-the wall run comes along the solid cell, wraps around into the next area, and that wall end is what a
-mover leaving the block sideways meets. Nothing there is a special case, and a solid cell is never
-met in any way.
+The walls the floor has toward the doorway are what the door hangs on, a facing on each. The doorway's
+own walls toward solid are what a mover leaving the block sideways meets.
 
-The faces it presents to floor lie inside the area and have no outline wall, so the block is ringed
-with four walls of its own, each wound about the cell outside it. A face toward floor therefore
-has a wall the area sees and the block does not. That is what the door hangs on, and from inside
-a room its winding matches the wall run either side of it --- one run, interrupted at the block.
-
-That is also what makes leaving free with nothing to ask. From inside the block the door face is a
-back, and a back is not a wall to `wall_toward` at all --- there is nothing there, and the mover walks
-out. One opening passes the whole doorway.
+That is also what makes leaving free with nothing to ask. From inside the block there is no wall
+toward the floor for `wall_toward` to find, and the mover walks out. One opening passes the whole
+doorway.
 
 Nothing in the door notices which format it came from. Construction is told which walls and puts a
 facing on each --- two in the ordinary case, one where a doorway leads into a dead end.
@@ -146,7 +146,7 @@ Three operations, and only the last is a delete.
   swap of entities, and identity survives it. That matters for everything that references it: a
   lever wired to the door, a key that fits it, a quest referring to it, a save.
 - **Unlink.** The entity survives and stops being on the wall. A door taken off its hinges and
-  carried away is an item in a pack, its facings losing their `OnWall`, and the doorway is empty.
+  carried away is an item in a pack, its facings unlinked from their walls, and the doorway is empty.
 - **Delete.** An editor taking a door out of a level, and the zone unloading. The only place the
   cascade is what is wanted.
 
@@ -163,7 +163,7 @@ because a secret door is a wall until it is found.
 
 ```
 crossable(wall_id):
-    facing = the facing whose OnWall references wall_id      -- none: false
+    facing = the facing the wall's entity links to          -- no entity or no facing: false
     if facing has Concealed and not found:                     false
 
     barrier = parent(facing)
@@ -174,15 +174,14 @@ crossable(wall_id):
 Which is one query over every variety rather than a door query with the rest bolted on: a door is
 the case that has `Openable`, and everything else is the case that does not.
 
-**What is on this wall?** Every attachment whose `OnWall` references it --- the filtered scan the count
-already justifies. This is what a view asks to draw a facing and what `Interact` asks to act on one.
+**What is on this wall?** What the wall's entity links to. This is what a view asks to draw a facing
+and what `Interact` asks to act on one.
 
-**What is the other facing?** The sibling: the other child of the same door.
+**What are a door's facings?** Its links to them.
 
 The first is called from `blocked`, which feeds `move`, `neighbors` *and* `visible`, so it is asked
-per step per actor per turn and again per cell along a sight line. That is the one that will need an
-index --- attachments keyed by wall id --- and the point at which the scan stops being affordable is
-worth measuring rather than guessing.
+per step per actor per turn and again per cell along a sight line. The wall's entity found by id and a
+link followed is what keeps it affordable there.
 
 ## What this replaces
 
@@ -201,14 +200,13 @@ Removing the flag settles it:
 | a door | wall pair, passable | wall pair, a facing on each, one door |
 | a dungen doorway cell | walls outlined, passable | a facing on each room-facing wall, one door |
 
-Wall ids stay stable throughout, which every attachment depends on: adding a door later appends
-walls rather than renumbering them.
+Wall ids stay stable throughout, which every attachment depends on: an id encodes the cell and the
+side, so nothing renumbers one.
 
-**Both formats will grow properties of their own** --- for rooms, for doors, for whatever else has
-state worth storing --- addressed by map position, so a property block identifies the cell or the edge it
-belongs to. That is what will settle whether a doorway has a door at all, and what it is like: locked,
-concealed, which way it opens. Not designed here, and the reason this note exists is that the shape
-above has to be what a property block builds, rather than something a loader has to translate into.
+**The level file has the properties.** `discrete_layout.md` gives components to rooms, walls and flats
+and has an `attachments` section addressed by wall and by flat cell, which is where a door's lock,
+concealment and which way it opens are written. Loading a zone builds the shape above from them
+(`discrete_layout_rework.md`, `## Loading a zone`).
 
 ## The seam
 

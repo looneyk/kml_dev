@@ -54,6 +54,24 @@ void quetzal::catagen::validate(const Parameters& parameters)
         throw invalid_argument(format("loop {} is outside [0, 1]", parameters.loop));
     }
 
+    if (parameters.staircase_down_count.upper() < parameters.staircase_down_count.lower())
+    {
+        throw invalid_argument(format("staircase down count maximum {} is below the minimum {}",
+            parameters.staircase_down_count.upper(), parameters.staircase_down_count.lower()));
+    }
+
+    if (parameters.staircase_up_count.upper() < parameters.staircase_up_count.lower())
+    {
+        throw invalid_argument(format("staircase up count maximum {} is below the minimum {}",
+            parameters.staircase_up_count.upper(), parameters.staircase_up_count.lower()));
+    }
+
+    // Every staircase is an entry, so counts that may both be zero may leave the level none
+    if (parameters.staircase_down_count.lower() + parameters.staircase_up_count.lower() == 0)
+    {
+        throw invalid_argument("staircase down and up count minimums of zero may leave the level no entry");
+    }
+
     if (!parameters.seed)
     {
         throw invalid_argument("no seed was assigned");

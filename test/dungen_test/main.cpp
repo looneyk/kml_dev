@@ -3,18 +3,26 @@
 // main.cpp
 //------------------------------------------------------------------------------
 
-#include "quetzal/common/FileValidator.hpp"
 #include "quetzal/common/file_util.hpp"
 #include "quetzal/dungen/generate.hpp"
 #include "quetzal/dungen/write_level.hpp"
 #include "quetzal/math/Random.hpp"
+#include "quetzal/stratum_format/grid.hpp"
+#include "quetzal/stratum_format/read.hpp"
+#include <nlohmann/json.hpp>
+#include <algorithm>
 #include <charconv>
+#include <filesystem>
 #include <format>
 #include <fstream>
 #include <iostream>
 #include <map>
+#include <optional>
+#include <set>
 #include <sstream>
+#include <stdexcept>
 #include <string>
+#include <variant>
 #include <vector>
 
 using namespace std;
@@ -25,6 +33,9 @@ namespace
 
     static constexpr auto escape_reset_string = "\x1b[0m";
     static constexpr auto escape_rendition_pattern = "\x1b[38;5;{}m";
+
+    // Key order plays no part in its comparison, which is what lets two level files compare as equivalent
+    using map_type = nlohmann::json;
 
     size_t g_case_count = 0;
     size_t g_failure_count = 0;
@@ -89,6 +100,21 @@ namespace
         dungen::write_level(os, level, parameters);
 
         return os.str();
+    }
+
+    //--------------------------------------------------------------------------
+    // A level as level_text writes it, or empty with the generator's error where it could not be generated
+    string level_text_or_error(const dungen::Parameters& parameters, string& error)
+    {
+        try
+        {
+            return level_text(parameters);
+        }
+        catch (const exception& e)
+        {
+            error = e.what();
+            return {};
+        }
     }
 
     //--------------------------------------------------------------------------
@@ -160,89 +186,112 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // The header row read back into the parameters it specifies, which is the whole of what a
-    // level says about how to produce it again. Only the chosen algorithm's group is written,
-    // so only that one is read
-    // Throws std::invalid_argument where a row specifies something this does not read, so a
-    // parameter added to the writer and not to this is a failure rather than a silent pass
-    dungen::Parameters parameters_of(const string& header)
+    // A closed range of counts, written low to high with a hyphen between
+    math::Interval<size_t> to_count_interval(const string& s)
     {
-        istringstream is(header);
+        size_t n = s.find('-');
 
-        string generator;
-        string version;
-        is >> generator >> version;
-
-        if (generator != "dungen" || version != dungen::format_version)
+        if (n == string::npos)
         {
-            throw invalid_argument(format("\"{}\" is not a dungen {} header", header, dungen::format_version));
+            throw invalid_argument(format("\"{}\" is not two counts separated by '-'", s));
+        }
+
+        return {to_count(s.substr(0, n)), to_count(s.substr(n + 1))};
+    }
+
+    //--------------------------------------------------------------------------
+    // The level as the reader decodes it. Throws std::runtime_error where the reader rejects it
+    stratum_format::Document document_of(const string& level)
+    {
+        istringstream is(level);
+        return stratum_format::read(is, "level");
+    }
+
+    //--------------------------------------------------------------------------
+    // The generator a level names, read back into the parameters it specifies, which is the whole of what a level says
+    // about how to produce it again. Only the chosen algorithm's group is written, so only that one is read
+    // Throws std::invalid_argument where the level specifies something this does not read, so a parameter added to the
+    // writer and not to this is a failure rather than a silent pass
+    dungen::Parameters parameters_of(const stratum_format::values_type& generator)
+    {
+        if (!generator.is_object() || generator.value("name", "") != "dungen")
+        {
+            throw invalid_argument(format("\"{}\" is not a dungen generator", generator.dump()));
         }
 
         map<string, string> values;
-        string token;
 
-        while (is >> token)
+        for (const auto& [key, value] : generator.at("parameters").items())
         {
-            size_t n = token.find('=');
-            if (n == string::npos)
+            values[key] = value.get<string>();
+        }
+
+        // Each value read is removed, so what remains at the end is what this does not read
+        auto take = [&values](const string& key)
+        {
+            auto i = values.find(key);
+            if (i == values.end())
             {
-                throw invalid_argument(format("\"{}\" is not a name=value pair", token));
+                throw invalid_argument(format("the level specifies no {}", key));
             }
 
-            values[token.substr(0, n)] = token.substr(n + 1);
-        }
+            string value = std::move(i->second);
+            values.erase(i);
+            return value;
+        };
 
         dungen::Parameters parameters;
 
-        parameters.algorithm = dungen::to_algorithm(values.at("algorithm"));
-        parameters.stair_placements = dungen::to_stair_placements(values.at("stair_placements"));
-        parameters.seed = math::to_seed(values.at("seed"));
+        parameters.algorithm = dungen::to_algorithm(take("algorithm"));
+        parameters.staircase_down_count = to_count_interval(take("stairs_down"));
+        parameters.staircase_up_count = to_count_interval(take("stairs_up"));
+        parameters.seed = math::to_seed(take("seed"));
 
-        const string& size = values.at("size");
+        string size = take("size");
         size_t n = size.find(',');
         parameters.size = {to_integer(size.substr(0, n)), to_integer(size.substr(n + 1))};
 
         if (parameters.algorithm == dungen::Algorithm::Maze1)
         {
             dungen::Maze1Parameters& maze1 = parameters.maze1;
-            maze1.room_dimension_base = to_integer(values.at("room_dimension_base"));
-            maze1.room_dimension_variation = to_integer(values.at("room_dimension_variation"));
-            maze1.room_density = to_real(values.at("room_density"));
-            maze1.room_merge = values.at("room_merge") == "true";
-            maze1.corridor_straightness = to_real(values.at("corridor_straightness"));
-            maze1.probability_dead_end_removal = to_real(values.at("probability_dead_end_removal"));
-            maze1.probability_loop_removal = to_real(values.at("probability_loop_removal"));
+            maze1.room_dimension_base = to_integer(take("room_dimension_base"));
+            maze1.room_dimension_variation = to_integer(take("room_dimension_variation"));
+            maze1.room_density = to_real(take("room_density"));
+            maze1.room_merge = take("room_merge") == "true";
+            maze1.corridor_straightness = to_real(take("corridor_straightness"));
+            maze1.probability_dead_end_removal = to_real(take("probability_dead_end_removal"));
+            maze1.probability_loop_removal = to_real(take("probability_loop_removal"));
+            maze1.door_probability = to_real(take("door_probability"));
         }
         else if (parameters.algorithm == dungen::Algorithm::Grid1)
         {
             dungen::Grid1Parameters& grid1 = parameters.grid1;
 
-            const string& divisions = values.at("divisions");
+            string divisions = take("divisions");
             size_t d = divisions.find(',');
             grid1.divisions = {to_integer(divisions.substr(0, d)), to_integer(divisions.substr(d + 1))};
 
-            grid1.room_density = to_real(values.at("room_density"));
-            grid1.room_dimension_min = to_integer(values.at("room_dimension_min"));
-            grid1.room_margin = to_integer(values.at("room_margin"));
-            grid1.loop = to_real(values.at("loop"));
+            grid1.room_density = to_real(take("room_density"));
+            grid1.room_dimension_min = to_integer(take("room_dimension_min"));
+            grid1.room_margin = to_integer(take("room_margin"));
+            grid1.loop = to_real(take("loop"));
+            grid1.door_probability = to_real(take("door_probability"));
         }
         else
         {
             dungen::Cave1Parameters& cave1 = parameters.cave1;
-            cave1.fill = to_real(values.at("fill"));
-            cave1.smoothing_passes = to_count(values.at("smoothing_passes"));
-            cave1.birth_threshold = to_count(values.at("birth_threshold"));
-            cave1.survival_threshold = to_count(values.at("survival_threshold"));
+            cave1.fill = to_real(take("fill"));
+            cave1.smoothing_passes = to_count(take("smoothing_passes"));
+            cave1.birth_threshold = to_count(take("birth_threshold"));
+            cave1.survival_threshold = to_count(take("survival_threshold"));
+        }
+
+        if (!values.empty())
+        {
+            throw invalid_argument(format("the level specifies {}, which this does not read", values.begin()->first));
         }
 
         return parameters;
-    }
-
-    //--------------------------------------------------------------------------
-    // What a level file's first line is, the rest being the grid
-    string header_of(const string& level)
-    {
-        return level.substr(0, level.find('\n'));
     }
 
     //--------------------------------------------------------------------------
@@ -276,13 +325,13 @@ namespace
         cave1.seed = 12345u;
         v.push_back({"cave1", cave1});
 
-        // No stairs at all, which is the placement the other three do not cover
-        dungen::Parameters unstaired;
-        unstaired.algorithm = dungen::Algorithm::Maze1;
-        unstaired.size = {21, 15};
-        unstaired.stair_placements = dungen::StairPlacements::None;
-        unstaired.seed = 7u;
-        v.push_back({"no_stairs", unstaired});
+        // No staircase leading down, which the default counts do not cover
+        dungen::Parameters up_only;
+        up_only.algorithm = dungen::Algorithm::Maze1;
+        up_only.size = {21, 15};
+        up_only.staircase_down_count = {0, 0};
+        up_only.seed = 7u;
+        v.push_back({"up_only", up_only});
 
         // A seed past the halfway mark of its range, which a signed read would lose
         dungen::Parameters wide;
@@ -291,49 +340,96 @@ namespace
         wide.seed = 4294967295u;
         v.push_back({"wide_seed", wide});
 
+        // Doorways left open, which barriers close off from the rooms they lead into
+        dungen::Parameters grid1_open = grid1;
+        grid1_open.grid1.door_probability = 0.5;
+        v.push_back({"grid1_open_doorways", grid1_open});
+
+        dungen::Parameters maze1_open = maze1;
+        maze1_open.maze1.door_probability = 0.5;
+        v.push_back({"maze1_open_doorways", maze1_open});
+
         return v;
     }
 
     //--------------------------------------------------------------------------
-    // Levels written now against levels checked in, gated byte for byte. A generator change
-    // that alters what any of these produces reports here rather than months later
+    // Levels written now against levels checked in, which are to be equivalent. A generator change that alters what any of these
+    // produces reports here rather than months later
     void test_reference_levels()
     {
         report_group("reference levels");
 
-        FileValidator validator("out", "reference", "dungen_test");
+        filesystem::create_directories("out");
 
         for (const Scenario& scenario : scenarios())
         {
-            write_file(format("out/{}.level", scenario.name), level_text(scenario.parameters));
-        }
+            string level = level_text(scenario.parameters);
+            write_file(format("out/{}.level", scenario.name), level);
 
-        validator.report_results();
-        report_case("every level matches its reference", validator.result() <= FileValidator::ResultStatus::Unchanged);
+            string reference = read_file(format("reference/{}.level", scenario.name));
+            if (reference.empty())
+            {
+                report_case(format("{} is equivalent to its reference", scenario.name), false, "no reference is checked in");
+                continue;
+            }
+
+            try
+            {
+                map_type map = map_type::parse(level);
+                map_type map_expected = map_type::parse(reference);
+                report_case(format("{} is equivalent to its reference", scenario.name), map == map_expected, map_type::diff(map_expected, map).dump());
+            }
+            catch (const map_type::parse_error& e)
+            {
+                report_case(format("{} is equivalent to its reference", scenario.name), false, e.what());
+            }
+        }
 
         return;
     }
 
     //--------------------------------------------------------------------------
-    // The claim the format rests on: a header names everything a run needs, so a level can be
-    // produced again from the file alone
-    void test_header_reproduces()
+    // The claim the format rests on: a level names everything its run needs, so it can be produced again from the file alone
+    void test_parameters_reproduce()
     {
-        report_group("header reproduces its level");
+        report_group("parameters reproduce their level");
 
         for (const Scenario& scenario : scenarios())
         {
-            string level = read_file(format("reference/{}.level", scenario.name));
-            report_case(format("{} is checked in", scenario.name), !level.empty());
+            string reference = read_file(format("reference/{}.level", scenario.name));
+            report_case(format("{} is checked in", scenario.name), !reference.empty());
 
-            if (level.empty())
+            if (reference.empty())
             {
                 continue;
             }
 
-            dungen::Parameters parameters = parameters_of(header_of(level));
-            report_case(format("{} regenerates from its own header", scenario.name), level_text(parameters) == level);
+            try
+            {
+                dungen::Parameters parameters = parameters_of(document_of(reference).generator);
+                report_case(format("{} regenerates from its own parameters", scenario.name),
+                    map_type::parse(level_text(parameters)) == map_type::parse(reference));
+            }
+            catch (const exception& e)
+            {
+                report_case(format("{} regenerates from its own parameters", scenario.name), false, e.what());
+            }
         }
+
+        stratum_format::values_type generator = document_of(level_text(scenarios().front().parameters)).generator;
+        generator["parameters"]["unread"] = "1";
+
+        bool rejected = false;
+        try
+        {
+            parameters_of(generator);
+        }
+        catch (const invalid_argument&)
+        {
+            rejected = true;
+        }
+
+        report_case("a parameter this does not read is rejected", rejected);
 
         return;
     }
@@ -417,23 +513,24 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Every algorithm produces a grid of the size asked for, in the symbols the format defines
+    // Every algorithm produces a level the reader accepts, of the size asked for
     void test_grid_shape()
     {
         report_group("grid shape");
 
         for (const Scenario& scenario : scenarios())
         {
-            string level = level_text(scenario.parameters);
-
             vector<string> rows;
-            string row;
-            istringstream is(level);
-            getline(is, row); // The header
 
-            while (getline(is, row))
+            try
             {
-                rows.push_back(row);
+                rows = document_of(level_text(scenario.parameters)).cells.rows;
+                report_case(format("{} is a level the reader accepts", scenario.name), true);
+            }
+            catch (const runtime_error& e)
+            {
+                report_case(format("{} is a level the reader accepts", scenario.name), false, e.what());
+                continue;
             }
 
             auto [nx, ny] = scenario.parameters.size.rep();
@@ -441,17 +538,6 @@ namespace
             report_case_equal(format("{} has a row per cell", scenario.name), rows.size(), static_cast<size_t>(ny));
             report_case(format("{} has a column per cell", scenario.name),
                 !rows.empty() && rows.front().size() == static_cast<size_t>(nx));
-
-            bool known = true;
-            for (const string& r : rows)
-            {
-                for (char c : r)
-                {
-                    known = known && (c == '#' || c == '0' || c == ' ' || c == '.' || c == '|' || c == '>');
-                }
-            }
-
-            report_case(format("{} writes only symbols the format names", scenario.name), known);
         }
 
         return;
@@ -463,13 +549,15 @@ namespace
     bool doorways_in_wall_lines(const string& level, string& detail)
     {
         vector<string> rows;
-        string row;
-        istringstream is(level);
-        getline(is, row); // The header
 
-        while (getline(is, row))
+        try
         {
-            rows.push_back(row);
+            rows = document_of(level).cells.rows;
+        }
+        catch (const runtime_error& e)
+        {
+            detail = e.what();
+            return false;
         }
 
         auto off_grid = '#';
@@ -485,13 +573,13 @@ namespace
             return x >= 0 && static_cast<size_t>(x) < r.size() ? r[static_cast<size_t>(x)] : off_grid;
         };
 
-        auto wall = [](char c) { return c == '#' || c == '0' || c == '|'; };
+        auto wall = [](char c) { return c == '#' || c == '+'; };
 
         for (dungen::coord_type y = 0; y < static_cast<dungen::coord_type>(rows.size()); ++y)
         {
             for (dungen::coord_type x = 0; x < static_cast<dungen::coord_type>(rows[static_cast<size_t>(y)].size()); ++x)
             {
-                if (at(x, y) != '|')
+                if (at(x, y) != '+')
                 {
                     continue;
                 }
@@ -503,6 +591,58 @@ namespace
                     return false;
                 }
             }
+        }
+
+        return true;
+    }
+
+    //--------------------------------------------------------------------------
+    // Read from the written level alone: one door entity attached at the walls of each door glyph, and none elsewhere
+    bool doors_have_entities(const string& level, string& detail)
+    {
+        stratum_format::Document document;
+
+        try
+        {
+            document = document_of(level);
+        }
+        catch (const runtime_error& e)
+        {
+            detail = e.what();
+            return false;
+        }
+
+        vector<vector<stratum_format::WallAddress>> doors = stratum_format::door_walls(document.cells);
+        vector<bool> matched(doors.size(), false);
+
+        for (const stratum_format::Attachment& attachment : document.attachments)
+        {
+            const auto* walls = get_if<vector<stratum_format::WallAddress>>(&attachment.attached_to);
+            bool door = any_of(attachment.entities.begin(), attachment.entities.end(),
+                [](const auto& entity) { return entity.is_object() && entity.value("type", "") == "door"; });
+
+            if (walls == nullptr || !door)
+            {
+                continue;
+            }
+
+            auto i = find(doors.begin(), doors.end(), *walls);
+            if (i == doors.end() || matched[static_cast<size_t>(i - doors.begin())])
+            {
+                const stratum_format::WallAddress& wall = walls->front();
+                detail = format("a door entity at wall {}, {}, {}, {} that is {}", wall.cell_position.i(), wall.cell_position.j(), wall.normal.x(),
+                    wall.normal.y(), i == doors.end() ? "not a door's" : "a door's second");
+                return false;
+            }
+
+            matched[static_cast<size_t>(i - doors.begin())] = true;
+        }
+
+        size_t missing_count = static_cast<size_t>(count(matched.begin(), matched.end(), false));
+        if (missing_count > 0)
+        {
+            detail = format("{} of {} doors have no door entity", missing_count, doors.size());
+            return false;
         }
 
         return true;
@@ -527,6 +667,13 @@ namespace
         for (const Scenario& scenario : scenarios())
         {
             string detail;
+            report_case(format("{} writes a door entity at each door", scenario.name), doors_have_entities(level_text(scenario.parameters), detail),
+                detail);
+        }
+
+        for (const Scenario& scenario : scenarios())
+        {
+            string detail;
             size_t failures = 0;
 
             for (dungen::Parameters::seed_type seed = 1; seed <= seed_count; ++seed)
@@ -535,7 +682,8 @@ namespace
                 parameters.seed = seed;
 
                 string seed_detail;
-                if (!doorways_in_wall_lines(level_text(parameters), seed_detail))
+                string level = level_text_or_error(parameters, seed_detail);
+                if (level.empty() || !doorways_in_wall_lines(level, seed_detail) || !doors_have_entities(level, seed_detail))
                 {
                     if (failures == 0)
                     {
@@ -578,7 +726,8 @@ namespace
                 parameters.grid1.room_dimension_min = variant.room_dimension_min;
 
                 string seed_detail;
-                if (!doorways_in_wall_lines(level_text(parameters), seed_detail))
+                string level = level_text_or_error(parameters, seed_detail);
+                if (level.empty() || !doorways_in_wall_lines(level, seed_detail) || !doors_have_entities(level, seed_detail))
                 {
                     if (failures == 0)
                     {
@@ -596,6 +745,420 @@ namespace
         return;
     }
 
+    //--------------------------------------------------------------------------
+    // Whether the rooms the reader finds cover exactly the cells generation laid out as each room, which fails wherever a
+    // barrier is missing and a room's fill leaks out through an open doorway
+    bool rooms_read_back(const dungen::Parameters& parameters, string& detail)
+    {
+        optional<dungen::Level> generated;
+
+        try
+        {
+            generated.emplace(dungen::generate(0, "level", parameters));
+        }
+        catch (const exception& e)
+        {
+            detail = e.what();
+            return false;
+        }
+
+        const dungen::Level& level = *generated;
+
+        vector<set<stratum_format::discrete_point_type>> cells_expected(level.rooms().size());
+        auto [nx, ny] = level.size().rep();
+
+        for (dungen::coord_type y = 0; y < ny; ++y)
+        {
+            for (dungen::coord_type x = 0; x < nx; ++x)
+            {
+                const dungen::Cell& cell = level.cell({x, y});
+                if (cell.type() == dungen::CellType::Room || cell.type() == dungen::CellType::Stair)
+                {
+                    if (cell.room_id() != nullid)
+                    {
+                        cells_expected[cell.room_id()].insert({x, y});
+                    }
+                }
+            }
+        }
+
+        ostringstream os;
+        dungen::write_level(os, level, parameters);
+
+        vector<set<stratum_format::discrete_point_type>> cells;
+
+        try
+        {
+            cells = stratum_format::room_cells(document_of(os.str()));
+        }
+        catch (const runtime_error& e)
+        {
+            detail = e.what();
+            return false;
+        }
+
+        if (cells.size() != cells_expected.size())
+        {
+            detail = format("{} rooms read back, {} generated", cells.size(), cells_expected.size());
+            return false;
+        }
+
+        for (size_t room_id = 0; room_id < cells.size(); ++room_id)
+        {
+            if (cells[room_id] != cells_expected[room_id])
+            {
+                detail = format("room {} reads back {} cells, {} generated", room_id, cells[room_id].size(), cells_expected[room_id].size());
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    //--------------------------------------------------------------------------
+    void test_barriers()
+    {
+        report_group("barriers");
+
+        constexpr dungen::Parameters::seed_type seed_count = 64;
+
+        struct Variant
+        {
+            string name;
+            dungen::Algorithm algorithm;
+            double door_probability;
+        };
+
+        const Variant variants[] {{"grid1 with every door", dungen::Algorithm::Grid1, 1.0},
+            {"grid1 with half its doors", dungen::Algorithm::Grid1, 0.5}, {"grid1 with no doors", dungen::Algorithm::Grid1, 0.0},
+            {"maze1 with every door", dungen::Algorithm::Maze1, 1.0}, {"maze1 with half its doors", dungen::Algorithm::Maze1, 0.5},
+            {"maze1 with no doors", dungen::Algorithm::Maze1, 0.0}};
+
+        for (const Variant& variant : variants)
+        {
+            string detail;
+            size_t failures = 0;
+
+            for (dungen::Parameters::seed_type seed = 1; seed <= seed_count; ++seed)
+            {
+                dungen::Parameters parameters;
+                parameters.algorithm = variant.algorithm;
+                parameters.size = {33, 25};
+                parameters.seed = seed;
+                parameters.grid1.door_probability = variant.door_probability;
+                parameters.maze1.door_probability = variant.door_probability;
+
+                string seed_detail;
+                if (!rooms_read_back(parameters, seed_detail))
+                {
+                    if (failures == 0)
+                    {
+                        detail = format("seed {}, {}", seed, seed_detail);
+                    }
+
+                    ++failures;
+                }
+            }
+
+            report_case(format("{} reads back its rooms over {} seeds", variant.name, seed_count), failures == 0,
+                format("{} seeds failed, first at {}", failures, detail));
+        }
+
+        dungen::Parameters doorless;
+        doorless.algorithm = dungen::Algorithm::Grid1;
+        doorless.size = {33, 25};
+        doorless.seed = 42u;
+        doorless.grid1.door_probability = 0.0;
+
+        const vector<string> rows = document_of(level_text(doorless)).cells.rows;
+        report_case("a door probability of zero leaves no door",
+            none_of(rows.begin(), rows.end(), [](const string& row) { return row.find('+') != string::npos; }));
+
+        return;
+    }
+
+    //--------------------------------------------------------------------------
+    // Read from the written level alone: as many staircases each way as the counts allow, no staircase blocking a doorway
+    // while a cell beside it would not, every staircase with an entity whose facing is a side with no wall, or with a
+    // door where no side is free of a wall, and the entry listing every staircase cell
+    bool staircases_placed_and_faced(const string& level, const dungen::Parameters& parameters, string& detail)
+    {
+        using stratum_format::coord_type;
+        using stratum_format::discrete_point_type;
+        using stratum_format::discrete_vector_type;
+
+        stratum_format::Document document;
+
+        try
+        {
+            document = document_of(level);
+        }
+        catch (const runtime_error& e)
+        {
+            detail = e.what();
+            return false;
+        }
+
+        const stratum_format::Cells& cells = document.cells;
+        const auto& directions = math::cardinal_directions<coord_type, 2>;
+
+        map<discrete_point_type, size_t> room_of;
+        vector<set<discrete_point_type>> rooms = stratum_format::room_cells(document);
+
+        for (size_t room_id = 0; room_id < rooms.size(); ++room_id)
+        {
+            for (const discrete_point_type& cell_position : rooms[room_id])
+            {
+                room_of[cell_position] = room_id;
+            }
+        }
+
+        auto glyph = [&cells](const discrete_point_type& cell_position)
+        {
+            return stratum_format::on_grid(cells, cell_position)
+                ? cells.rows[cells.rows.size() - 1 - static_cast<size_t>(cell_position.j())][static_cast<size_t>(cell_position.i())] : '#';
+        };
+
+        auto space = [&room_of](const discrete_point_type& cell_position)
+        {
+            auto i = room_of.find(cell_position);
+            return i == room_of.end() ? optional<size_t>() : optional<size_t>(i->second);
+        };
+
+        auto floor_stair = [](char c) { return c == '.' || c == '>' || c == '<'; };
+
+        auto doorway = [&](const discrete_point_type& cell_position)
+        {
+            if (glyph(cell_position) == '+')
+            {
+                return true;
+            }
+
+            if (glyph(cell_position) != '.' || space(cell_position).has_value())
+            {
+                return false;
+            }
+
+            return any_of(directions.begin(), directions.end(), [&](const discrete_vector_type& direction)
+                { return floor_stair(glyph(cell_position + direction)) && space(cell_position + direction).has_value(); });
+        };
+
+        auto blocks_doorway = [&](const discrete_point_type& cell_position)
+        {
+            return any_of(directions.begin(), directions.end(), [&](const discrete_vector_type& direction) { return doorway(cell_position + direction); });
+        };
+
+        size_t down_count = 0;
+        size_t up_count = 0;
+        set<discrete_point_type> staircase_cells;
+
+        for (coord_type j = 0; j < cells.extent.y(); ++j)
+        {
+            for (coord_type i = 0; i < cells.extent.x(); ++i)
+            {
+                discrete_point_type cell_position {i, j};
+                if (glyph(cell_position) != '>' && glyph(cell_position) != '<')
+                {
+                    continue;
+                }
+
+                ++(glyph(cell_position) == '>' ? down_count : up_count);
+                staircase_cells.insert(cell_position);
+
+                if (blocks_doorway(cell_position) && any_of(directions.begin(), directions.end(), [&](const discrete_vector_type& direction)
+                    {
+                        discrete_point_type neighbor = cell_position + direction;
+                        return glyph(neighbor) == '.' && space(neighbor) == space(cell_position) && !doorway(neighbor) && !blocks_doorway(neighbor);
+                    }))
+                {
+                    detail = format("staircase at {}, {} blocks a doorway with a cell free beside it", i, j);
+                    return false;
+                }
+
+                vector<discrete_vector_type> facings;
+
+                for (const stratum_format::Attachment& attachment : document.attachments)
+                {
+                    const auto* flat_cell = get_if<stratum_format::FlatCell>(&attachment.attached_to);
+                    if (flat_cell == nullptr || flat_cell->role != stratum_format::FlatRole::Floor || flat_cell->cell_position != cell_position)
+                    {
+                        continue;
+                    }
+
+                    for (const auto& entity : attachment.entities)
+                    {
+                        // Whatever the entity's type, it is the one with a relocator
+                        if (entity.contains("components") && entity["components"].contains("relocator"))
+                        {
+                            const auto& components = entity["components"];
+                            if (!components.contains("facing"))
+                            {
+                                detail = format("staircase at {}, {} has no facing", i, j);
+                                return false;
+                            }
+
+                            const auto& facing = components["facing"];
+                            facings.push_back({facing[0].get<coord_type>(), facing[1].get<coord_type>()});
+
+                            string target = glyph(cell_position) == '>' ? "level_down" : "level_up";
+                            if (components["relocator"].value("target", "") != target)
+                            {
+                                detail = format("staircase at {}, {} does not lead to {}", i, j, target);
+                                return false;
+                            }
+                        }
+                    }
+                }
+
+                if (facings.size() != 1)
+                {
+                    detail = format("staircase at {}, {} has {} facings", i, j, facings.size());
+                    return false;
+                }
+
+                const discrete_vector_type& facing = facings.front();
+                bool open_side = any_of(directions.begin(), directions.end(), [&](const discrete_vector_type& direction) { return floor_stair(glyph(cell_position + direction)); });
+                bool step = find(directions.begin(), directions.end(), facing) != directions.end();
+                char faced = glyph(cell_position + facing);
+
+                if (!step || !(floor_stair(faced) || (faced == '+' && !open_side)))
+                {
+                    detail = format("staircase at {}, {} faces {}, {}", i, j, facing.x(), facing.y());
+                    return false;
+                }
+            }
+        }
+
+        // Running out of candidates places fewer, and those leading up are placed first, so a count below its minimum is
+        // allowed only where nothing was left for the staircases leading down
+        const math::Interval<size_t>& down = parameters.staircase_down_count;
+        const math::Interval<size_t>& up = parameters.staircase_up_count;
+
+        if (down_count > down.upper() || up_count > up.upper() || (up_count < up.lower() && down_count > 0))
+        {
+            detail = format("{} staircases down for {}-{} and {} up for {}-{}", down_count, down.lower(), down.upper(), up_count, up.lower(), up.upper());
+            return false;
+        }
+
+        const auto* entry = document.components.contains("entry") ? &document.components["entry"] : nullptr;
+        set<discrete_point_type> entry_cells;
+
+        if (entry != nullptr && entry->is_array())
+        {
+            for (const auto& cell : *entry)
+            {
+                entry_cells.insert({cell[0].get<coord_type>(), cell[1].get<coord_type>()});
+            }
+        }
+
+        if (entry == nullptr || !entry->is_array() || entry->size() != entry_cells.size() || entry_cells != staircase_cells)
+        {
+            detail = format("the entry {} is not every staircase cell", entry == nullptr ? "is absent and" : entry->dump());
+            return false;
+        }
+
+        return true;
+    }
+
+    //--------------------------------------------------------------------------
+    void test_staircases()
+    {
+        report_group("staircases");
+
+        constexpr dungen::Parameters::seed_type seed_count = 64;
+
+        for (const Scenario& scenario : scenarios())
+        {
+            string detail;
+            report_case(format("{} places and faces its staircases", scenario.name),
+                staircases_placed_and_faced(level_text(scenario.parameters), scenario.parameters, detail), detail);
+        }
+
+        for (const Scenario& scenario : scenarios())
+        {
+            string detail;
+            size_t failures = 0;
+
+            for (dungen::Parameters::seed_type seed = 1; seed <= seed_count; ++seed)
+            {
+                dungen::Parameters parameters = scenario.parameters;
+                parameters.seed = seed;
+                parameters.staircase_down_count = {0, 2};
+                parameters.staircase_up_count = {1, 3};
+
+                string seed_detail;
+                string level = level_text_or_error(parameters, seed_detail);
+                if (level.empty() || !staircases_placed_and_faced(level, parameters, seed_detail))
+                {
+                    if (failures == 0)
+                    {
+                        detail = format("seed {}, {}", seed, seed_detail);
+                    }
+
+                    ++failures;
+                }
+            }
+
+            report_case(format("{} places and faces ranges of staircases over {} seeds", scenario.name, seed_count), failures == 0,
+                format("{} seeds failed, first at {}", failures, detail));
+        }
+
+        dungen::Parameters reversed;
+        reversed.size = {21, 15};
+        reversed.seed = 1u;
+        reversed.staircase_down_count = {3, 2};
+
+        bool rejected = false;
+        try
+        {
+            dungen::validate(reversed);
+        }
+        catch (const invalid_argument&)
+        {
+            rejected = true;
+        }
+
+        report_case("a staircase count whose maximum is below its minimum is rejected", rejected);
+
+        dungen::Parameters entryless;
+        entryless.size = {21, 15};
+        entryless.seed = 1u;
+        entryless.staircase_down_count = {0, 1};
+        entryless.staircase_up_count = {0, 1};
+
+        rejected = false;
+        try
+        {
+            dungen::validate(entryless);
+        }
+        catch (const invalid_argument&)
+        {
+            rejected = true;
+        }
+
+        report_case("staircase counts that may both be zero, leaving no entry, are rejected", rejected);
+
+        dungen::Parameters down_only;
+        down_only.size = {21, 15};
+        down_only.seed = 1u;
+        down_only.staircase_down_count = {1, 1};
+        down_only.staircase_up_count = {0, 0};
+
+        bool accepted = true;
+        try
+        {
+            dungen::validate(down_only);
+        }
+        catch (const invalid_argument&)
+        {
+            accepted = false;
+        }
+
+        report_case("a staircase down alone, as a tower entered from below has, is accepted as the entry", accepted);
+
+        return;
+    }
+
 } // namespace
 
 //------------------------------------------------------------------------------
@@ -604,11 +1167,13 @@ int main()
     try
     {
         test_reference_levels();
-        test_header_reproduces();
+        test_parameters_reproduce();
         test_determinism();
         test_validate();
         test_grid_shape();
         test_door_placement();
+        test_barriers();
+        test_staircases();
     }
     catch (const exception& e)
     {

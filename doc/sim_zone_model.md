@@ -16,7 +16,7 @@ undecided is marked **Future**. Names are working names throughout.
 **Settled.**
 
 ```
-World      the set of Zones, and the portals between them
+World      the set of Zones, and the relocators between them
 Zone       one coordinate space: its Layout, and the entities in it
 Layout     geometry and topology, and the queries over them   has positions, exposes none
 entities   ids and composed components                        has placements, not coordinates
@@ -38,7 +38,7 @@ from two places and only `World` has both. See The Layout interface.
 ## World, Zones, and Levels
 
 **Settled.** `World` is the set of `Zone`s --- dungeons and outdoor areas alike --- together with the
-portals between them. A `Zone` is loaded on entry, and residency is a bounded working set rather
+relocators between them. A `Zone` is loaded on entry, and residency is a bounded working set rather
 than everything ever visited: keeping a continent and all its locations in memory is not practical,
 so unloading is routine rather than exceptional.
 
@@ -47,20 +47,22 @@ no spatial relationship to one another. Surface to dungeon is always a teleport:
 difference precludes any vertical correspondence between them.
 
 **A `Zone` is one slab,** bounded by its two `Flat`s above and below. The levels of a
-dungeon are separate zones, and a stairway between them is a portal.
+dungeon are separate zones, and a staircase between them is an entity with a relocator.
 
 Within a `Zone` there is one coordinate system, so what lies above or below a point is a geometric
-question. Across `Zone`s there are portals with explicit targets. **No partner ever crosses a `Zone`
+question. Across `Zone`s there are relocators with explicit targets. **No partner ever crosses a `Zone`
 boundary**, so a partner is always resolvable once its own `Zone` is loaded.
 
 **Future: a `Zone` spanning several levels.** One coordinate space over stacked levels, with a stairway
-as ordinary geometry rather than a portal. A pair of height fields cannot bound it, so it needs more
+as ordinary geometry rather than a relocator. A pair of height fields cannot bound it, so it needs more
 than a `Flat` above and below. Not designed, and nothing depends on it.
 
-**Portals are the only cross-`Zone` link, and they are entities rather than structure.** A portal
-references a target --- a `Zone` and a placement within it --- and its traversal behaviour, whether
-walking, falling, levitating, or blinking, is script over an engine default. Being entities they are
-enumerable, which is what tells `World` which `Zone`s are reachable from where.
+**Relocators are the only cross-`Zone` link, and they are components of entities rather than
+structure.** A relocator is what a staircase, a portal or a waypoint has: it references a target, a
+destination not yet bound or the relocator arrived at by its persistent id (`addressing.md`,
+`### Relocators and entries`), and its traversal behaviour, whether walking, falling, levitating, or
+blinking, is script over an engine default. Being on entities they are enumerable, which is what tells
+`World` which `Zone`s are reachable from where.
 
 ### Level
 
@@ -84,14 +86,15 @@ unloading a `Zone` is serialising and then deleting that subtree, which is what 
 affordable at all. The partition is a subtree, not a separate registry.
 
 **Ownership follows current location, not origin.** A monster that chases the player through a
-portal migrates into the destination's store, so the `Zone` it came from can unload without taking
+relocator migrates into the destination's store, so the `Zone` it came from can unload without taking
 it along. The player is the same rule at its extreme --- always in a resident `Zone` by definition,
 and needing no special case for it.
 
-**Entity ids are allocated globally even though entities are partitioned by `Zone`.** Otherwise
-migration renumbers, and every reference to that monster --- a quest, a leash, a summoner --- breaks on
-the way through the door. One flecs world supplies this inherently, and reparenting leaves the id
-untouched, which `test/flecs_test` verifies.
+**Entity ids are global even though entities are partitioned by `Zone`.** Otherwise migration
+renumbers, and every reference to that monster --- a quest, a leash, a summoner --- breaks on the way
+through the door. Between loaded zones one flecs world supplies this inherently, and reparenting leaves
+the runtime entity untouched, which `test/flecs_test` verifies. Across an unload, a save and a session
+it is the entity's persistent id, which no zone is part of (`addressing.md`, `### Ids`).
 
 **A monster's home is data, not ownership.** Origin `Zone` and leash point are fields on the
 entity, which is what lets it belong to the crypt while standing in the corridor outside.
@@ -118,9 +121,9 @@ The resident set is a *set* whose size is policy, currently one, rather than a s
 one. That distinction is the whole reason to state it: growing the set later should be a policy
 change, not a redesign.
 
-Were it to span more than one, "near the player" could only mean portal-graph distance --- `Zone`s
-share no coordinate system, so spatial proximity between them is undefined, and the portal graph is
-the only metric available. It is enumerable precisely because portals are entities.
+Were it to span more than one, "near the player" could only mean relocator-graph distance --- `Zone`s
+share no coordinate system, so spatial proximity between them is undefined, and the relocator graph is
+the only metric available. It is enumerable precisely because relocators are on entities.
 
 A single resident `Zone` costs nothing that residency was originally wanted for. That concern was
 that state should survive being left, and it is delivered by serialisation at the persistence
@@ -142,7 +145,7 @@ substantially scaled back before release.
 **Settled.**
 
 - **`Zone`** is an independently loadable area --- a dungeon, a town, a moor. Taken from the MMO
-  lineage, where *zoning* also labels the transition, which is a description for what portals do.
+  lineage, where *zoning* also labels the transition, which is a description for what relocators do.
 - **`Layout`** is how a `Zone` is arranged, and the queries over it.
 - **`World`** is the set of `Zone`s, which is exactly one `flecs::world` with each `Zone` an entity
   inside it.
@@ -169,9 +172,9 @@ A zone spans rooms. The rooms, halls and corridors within a dungeon level are la
 that one zone --- nothing about a room bounds a zone, and a zone is not divided by having several.
 Where a zone's parts need unrelated heights, they are separate zones.
 
-**A `Room` is a label.** `quetzal::dungeon::Room` is its shape: a named set of cell ids. There is no
-structural room, nothing is built for one, and nothing structural consults it. `Level` and `Room`
-are both names with a referent, and what they refer to is a zone and part of a zone.
+**A room is a label.** It is `room_id` on the cells it covers, and an entity with its components.
+There is no structural room and nothing structural consults it. `Level` and `Room` are both names
+with a referent, and what they refer to is a zone and part of a zone.
 
 **Structure is stored per cell in a discrete `Zone`.** A wall is stored where one exists and nowhere
 else, so the interior of an unbroken open area costs nothing and only its boundary is stored. In the
@@ -179,37 +182,33 @@ block format a wall exists only where open space meets a solid cell, nothing the
 separate two open cells. In the wall format one exists wherever the format put it, as often between
 two open cells as against a solid one.
 
-**A door is an attachment on a partnered pair of walls.** It specifies whether it is open, closed,
-locked or trapped, and whether a mover may cross is what it decides. It is reached from either side
-through `partner`, so one door is one entity however many sides see it.
+**A door is an attachment with a facing on each wall it is on.** The door specifies whether it is
+open, closed, locked or trapped, and whether a mover may cross is what it decides. Each facing is on
+the wall of one side and has what is reached from that side, so one door is one entity however many
+sides see it.
 
-In the block format a doorway is a cell rather than an edge, so a door there is attached to the faces
-that cell presents to the floor either side --- the cell being a block of wall a mover may stand in,
-ringed with walls wound about the floor outside it, so from inside it there is nothing to open on
-the way out.
+In the block format a doorway is a cell rather than an edge, so a door there is on the walls the
+floor either side has toward that cell --- the cell being a block of wall a mover may stand in, with no
+wall of its own toward floor, so from inside it there is nothing to open on the way out.
 What it is does not change with the format; only what it hangs on does.
 
-Two shapes, then, one per format, rather than one forced on both. What remains open is what creates
-either at load: `load_layout` builds a layout and returns it and nothing else, so nothing in it can
-place an entity or an attachment.
+Loading a zone creates it: the level file's door glyphs and `attachments` entries become attachments,
+and the world builds the door and its facings from them (`discrete_layout_rework.md`).
 
 ### Walls
 
-**Settled.** A wall is one side of the barrier on an edge. Walls interconnect two ways, and between
-them those are the whole of how a wall reaches its neighbours.
+**Settled.** An edge is what a level file writes as one glyph for both sides, and a wall is one side
+of an edge, stored as a bit on the cell it bounds. A wall's id encodes that cell and side, and
+everything else about it follows from the grid: its ends, its normal, and the wall on the other side
+of its edge. Walls are not linked to one another.
 
-**Along a side, into a continuous outline.** A wall's `next` and `prev` run to the walls either side
-of it, so a run of them is a closed outline. Each outline is wound locally counterclockwise about
-the open space it faces, which is what makes the open side the inside of it. Nothing needs to
-distinguish an outline bounding a room from one ringing a block in the middle of one: an actor meets a wall
-the same way either way.
+**Each side is separate.** A mover can always determine which wall it can interact with, and the wall
+on the other side of the edge is out of its reach until it is on that side.
 
-**Across an edge, into partners.** The wall on each side of a shared edge is the other's partner.
-
-Everything is per side --- surface treatment, attachments, and the door. No orientation convention is
-needed to decide which side a piece of data belongs to, because each wall already faces one open
-space. One-way and secret doors need no special case: they are simply attachments that
-disagree between partners, so nothing is required to be symmetric.
+Everything is per side --- surface treatment, attachments, and a door's facing. No orientation
+convention is needed to decide which side a piece of data belongs to, because each wall already faces
+one cell. One-way and secret doors need no special case: they are a door whose facings differ, so
+nothing is required to be symmetric.
 
 **Settled, and done: `passable` came off the record.** A wall is there or it is not, and whether a
 mover may cross it is decided by what is attached to it. A flag on the geometry is mutable state on level data,
@@ -231,12 +230,9 @@ other.
 
 - **An opening is the absence of a wall,** not a flag on one. Non-rectangular rooms have no
   predefined wall slots to flag, so absence has to mean absence.
-- **A `nullid` partner makes it a border wall** --- nothing behind it. Since the level's
-  extent is finite and bounded by solid, this is also effectively the map border; the two coincide
-  rather than being alternatives.
-- **Wall runs fold at their ends.** Where a wall stops at an opening, the boundary walk goes along
-  the front face, around the tip, and back along the rear face. Nothing in a thin wall is ever
-  `nullid`.
+- **A wall with no floor behind it is a border wall** --- nothing is on the other side of its edge.
+  Since the level's extent is finite and bounded by solid, this is also effectively the map border;
+  the two coincide rather than being alternatives.
 - **A minable block is a destructible container entity.** It occupies its cell, blocks while it is
   there, and drops its contents when destroyed. Mining destroys the entity; the layout is not
   touched, so no wall is created, removed, or renumbered and every attachment id stays where it
@@ -263,11 +259,10 @@ duplicated.
   appearance over one shared state. A corner block is two faces and two veins over one block that
   owns the ore and is destroyed once.
 
-Two walls referring to one entity is not how it is done, and neither is a partnered pair that mirror
+Two walls referring to one entity is not how it is done, and neither are two walls that mirror
 each other: mirroring puts the same fact in two places and needs something to reconcile them when
-they disagree. The reference from a side to the entity it belongs to is entity to entity, so it is a
-relationship rather than an id --- unlike attachment to a wall, which is an id because a wall is not
-an entity.
+they disagree. A side is a child of the entity it belongs to, and that entity links to each of its
+sides.
 
 A wall never consults stored cell data, which would make cells a second kind of attachment
 target. The block entity is that data, and being an entity it is referenced directly rather than
@@ -281,21 +276,23 @@ is on is implied by what it is attached to.
 
 **Settled: a wall is a record, not an entity.** The count decides it: a wall per cell edge puts
 thousands in a zone, and since unloading a zone serialises its subtree, every save would include them.
+A wall with components or with something attached is the exception the count allows, an entity its
+zone finds by wall id, sparse because what is written on walls runs to hundreds rather than thousands.
 
-What targets a wall instead is an id held by the attachment, the reverse direction being a query
-over the zone's attachments filtered by that id. Attachments run to hundreds per level at most
-against thousands of walls, and mining is one action, so the scan needs no index behind it.
+What targets a wall is a link both ways: a door facing, or whatever else is attached to the wall, links
+to the wall's entity, which the zone finds by wall id, and the wall's entity links back to it. Nothing
+is found by searching.
 
 Everything on a wall or a flat is an attachment --- an alcove, a basin, a door, a button, a torch --- so
-one mechanism covers all of them and `Wall` stays a small dense record with only what every one
-of them has.
+one mechanism covers all of them and a wall stays a bit on the cell it bounds.
 
-This depends on wall ids being stable. A minable cell is a phantom cell carved at generation, so
-mining reveals geometry rather than creating or destroying records and nothing renumbers. Anything that
-compacted the wall array would silently retarget every attachment.
+This depends on wall ids being stable. A wall id encodes its cell and side, and a minable cell is a
+phantom cell carved at generation, so mining reveals geometry rather than creating or destroying walls
+and nothing renumbers. Anything that changed the grid a wall id encodes against would silently
+retarget every link.
 
-Containment is unaffected: an alcove containing an item is entity to entity, which flecs
-relationships handle natively. Only attachment targets a wall, so the two are not one problem.
+Containment is the same mechanism: an item in an alcove is attached to the alcove, `contained_in`,
+the target being an entity rather than a wall or a flat cell (`addressing.md`, `### Entities`).
 
 ### Flats
 
@@ -392,7 +389,7 @@ where two cases differ in behaviour rather than in data.
 
 **Geometry is not a second axis of classes.** A level with no height data has a floor at a constant
 height, which is a `Flat` with fewer of its features used --- the same structure the sampled case
-lives in, as one `Wall` record represents both a block's face and a thin wall's side. A level with
+lives in, as one wall represents both a block's face and one side of an edge. A level with
 height and flat attachments and one with neither load the same class from different data, so a
 game style chooses by what it loads rather than by which class is built. That is why neither name
 mentions `Flat`: it is implied for every discrete layout, and for a continuous one the level is ordinary
@@ -526,11 +523,18 @@ over: attachment, containment, and `Zone` partitioning. EnTT models none of them
 attachment there would be ids in components plus reverse indexes maintained by hand, which is what
 the hand-rolled storage already did.
 
-`test/flecs_test` verified the fit empirically rather than by argument. Everything the model needs
-is native: `Zone`s as entities with contents as children, attachment and containment as
-relationship pairs, reverse traversal from a wall to what is attached to it, migration by
-reparenting with the entity id unchanged, unload as a subtree delete, per-`Zone` serialisation, and
-whole-world JSON round trip preserving `ChildOf` and multi-member components.
+`test/flecs_test` verified the fit empirically rather than by argument: `Zone`s as entities with
+contents as children, migration by reparenting with the entity id unchanged, unload as a subtree
+delete, per-`Zone` serialisation, and whole-world JSON round trip preserving `ChildOf` and
+multi-member components.
+
+Attachment and containment are not relationship pairs. A pair per target puts each distinct target in
+a table of its own, which at a world's scale splits storage into a table per wall or cell with
+something on it, so an attachment is a component naming its target, and the target has a component
+listing what is attached to it (`decision_rationale.md`, "Attachments and walls link both ways"). That
+is ids in components with a reverse index kept by hand, which was EnTT's shortcoming above; it is a
+choice made for the count, and flecs still supplies the zones as subtrees, the hierarchy, prefabs,
+queries and reflection.
 
 Two obligations come with it. Component reflection has to be registered member by member or `to_json`
 emits names without values. And iteration is deterministic but **not ordered** --- entities are visited

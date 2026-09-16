@@ -15,8 +15,8 @@ it with nothing in between. Geometry is not a second axis of classes.
 
 **Flat is the default, not a restriction.** A discrete layout with no height data has a floor at a
 constant height, and a constant height is a `Flat` with fewer of its features used --- the same
-structure a sampled height field lives in, as a block's faces and a thin wall's two sides are both
-`Wall` records. A level with height and flat attachments and one with neither load the same
+structure a sampled height field lives in, as a block's faces and the two sides of an edge are both
+walls. A level with height and flat attachments and one with neither load the same
 class from different data, and game styles differ in which data they load. That is why neither name
 says `Flat`: it is implied for every discrete layout, and for a continuous one the level is ordinary
 3D models, where being level is no more a category than any other shape.
@@ -35,30 +35,108 @@ That is behaviour rather than data, so `ContinuousLayout` is a class of its own.
 
 ## A wall is a record, not an entity
 
-Walls are held in the layout's arrays and addressed by `id_type`. They are not flecs entities.
+A wall is a bit on the cell it bounds, addressed by an `id_type` that encodes the cell and the side.
+Walls are not flecs entities.
 
 The argument for making them entities was that attachments, doors and mining all need to target a
 wall, and a flecs relationship can only target an entity. That is real, and it is addressed by
 addressing a wall by id instead --- see below.
 
 The count is what decides it. A wall per cell edge puts thousands in a zone, and unloading a zone
-serialises its subtree, so walls as entities would take all of them into every save. Nothing about
-a wall needs identity in the ECS sense: it has no behaviour, no lifetime of its own, and nothing to
+serialises its subtree, so walls as entities would take all of them into every save. A bare wall
+needs no identity in the ECS sense: it has no behaviour, no lifetime of its own, and nothing to
 relate to that an id cannot express.
 
-## An attachment holds an id, and the reverse is a query
+A wall with components or with something attached to it is the exception the count allows: it has an
+entity, which its zone finds by wall id. Those run to what is written on walls, hundreds rather than
+thousands.
 
-An attachment --- anything on a wall or a flat, from an alcove to a door to a torch --- holds the id of
-what it is attached to. Going the other way is a query over the zone's attachments filtered by that
-id.
+## Attachments and walls link both ways
 
-The alternative was a flecs relationship, which would have required walls to be entities and lost
-the argument above. The scan is affordable because the two counts are nothing alike: attachments run
-to hundreds per level where walls run to thousands, and the reverse lookup happens on a player
-action rather than in a loop, so it needs no index behind it.
+An entity attached to a wall links to the wall's entity, and the wall's entity links back to it. A
+door is on two walls through its parts, a door facing attached to each, and the door links to its door
+facings. An entity attached to a flat cell and that cell's entity link the same way. Nothing is found
+by searching.
 
-It depends on those ids being stable. Nothing may remove a record from the arrays or renumber one,
-or every attachment silently retargets. That constraint is what shaped the mining decision below.
+The alternative was a query over the zone's attachments filtered by wall id, which `crossable` would
+run per step per actor per turn and per cell along every sight line. With the wall's entity found by
+id, the question is a lookup and a link.
+
+The link is a component with the target as data, `Attached` on the attached entity and
+`AttachedEntities` on the target, rather than a Flecs pair such as `(LyingOn, cell)`. Flecs stores
+each distinct pair in an archetype table of its own, so objects on thousands of different cells split
+storage into thousands of small tables, and a world several orders of magnitude past the test levels
+multiplies that. A pair marked `DontFragment` avoids the split at a cost to iteration, and a
+component with the target and no list on the target leaves finding what is on a cell a scan of every
+object. Reverse links make both directions a lookup, with the zone's location map reaching a wall's
+or a cell's entity from its id. The cost is keeping both ends in step when an entity moves or is
+destroyed (`addressing_plan.md`).
+
+It depends on wall ids being stable. An id encodes the cell and the side, so it is stable with no store
+behind it; what must not change is the grid it encodes against, or every link by wall id silently
+retargets. That constraint is what shaped the mining decision below.
+
+## Where an entity is and what it is part of are components
+
+A level file lists its entities once, and what an entity is attached to and the whole it is part of
+are its `attached` and `parent` components (`addressing.md`, `### Entities`, in parts 1 and 2).
+
+**An attachment is not a kind of thing.** There are places, which are geometry, and entities, which have
+identity; an attachment is the link from one to the other, and in the world it is already a component
+on the entity. A list of attachments beside the entities made the link a record of its own, and a door,
+being on two walls, needed two of them --- which then needed components of their own for what each side
+has, ids so that a keyhole could be attached to one, and an entity with a single attachment treated
+differently from one with several.
+
+**A door's sides are entities.** In the world a door facing is a child of its door with components of
+its own, so the file writes it as one: a part, with a `parent` and its own `attached`. Every entity then
+has at most one attachment, and nothing about attachment has a second case.
+
+**Parts are derived rather than listed.** A whole listing its parts would state each part-whole link
+twice, once on each end, and the two could disagree. The part's `parent` states it once, and a whole's
+list is made from those when the zone loads, as a place's list of what is attached to it is.
+
+**How the file is arranged costs nothing at run time.** A file is read once when its zone loads, and
+the same links and location maps are built whichever way it is arranged. What is on a wall is a lookup
+because an entity is attached by address, which is the key to the zone's map of places, not because the
+file is grouped by place. Level files are written by generators and tools, so grouping them by place
+for a reader would buy nothing either.
+
+## An entity has three ids
+
+A local id in a level file, a persistent id in a world, and a runtime entity while loaded
+(`addressing.md`, `### Ids`).
+
+**The persistent id cannot include the zone.** A key carried from one zone to another, or an item
+dropped in a zone that persists, would change id on the way or keep referring to the zone it left.
+
+**It is not the Flecs id.** Flecs recycles ids, so the same entity is a different runtime entity once
+its zone has been unloaded and loaded again, and nothing written can depend on one. Flecs can create
+an entity with a chosen id, but it divides the 64 bits between an index and a generation count, and its
+entity index is paged over the index range, so ids spread across a whole game's history would allocate
+pages for ids that no longer exist.
+
+**A level file has local ids rather than persistent ones.** A level file is a template made into a
+zone once, or into several zones: the same file made twice gives two sets of entities, which need
+different ids, so making a zone allocates them either way. Local ids keep a generated file the same
+for the same parameters, which is what the generator suites compare.
+
+## Persistent ids are a 64-bit count, not UUIDs
+
+A UUID's advantage is that it can be created with no coordination. Level files with local ids remove
+the one place that needed it, a generator run as a tool with no world to ask, and once a world exists
+it is the one place ids are made, so a count saved with the world suffices.
+
+A UUID is 16 bytes where a count is 8, in the component on every persistent entity, in every reference
+that may reach another zone, and in the world index, which has an entry for every entity in every zone
+ever made, loaded or not, and whose keys hash more cheaply at 8. None of it is on a path a loaded zone
+runs every turn, since that uses runtime entities, but the index grows with the world.
+
+Multiplayer does not reverse it. One server allocating is the same count; several servers divide the
+bits between which one allocated and its own count, as Twitter's Snowflake ids and Bethesda's form
+ids do. Only creation with no coordination at all needs UUIDs, and then as the alias throughout or at
+the boundary between worlds alone, which the rules in `addressing.md` keep a change to the allocator
+and the alias.
 
 ## Topology and occupancy compose on `World`
 
@@ -113,48 +191,23 @@ The cost is count, and it is the same argument that keeps walls out of the entit
 digging volume is a large number of entities. A layout's size stays a direct function of how much
 digging is permitted.
 
-## Walls decide collision alone, and the loops decide nothing
+## Walls decide collision alone, as bits on the cells
 
-Background for removing the outlines and indexing the walls.
+**Collision reads the walls and nothing else.** `Layout::move` steps cell to cell calling
+`wall_toward`, and asks whether the wall there may be crossed. `blocked`, `neighbors` and `visible`
+all route through the same call, and `World::move` adds the occupancy predicate above it. None of
+that path touches a room. Rooms are metadata, and movement, sight and adjacency are untouched by
+them.
 
-**Collision reads the wall store and nothing else.** `Layout::move` steps cell to cell calling
-`wall_toward`, which searches for the wall lying on that cell edge and then asks whether it may be
-crossed. `blocked`, `neighbors` and `visible` all route through the same call, and `World::move`
-adds the occupancy predicate above it. None of that path touches the room store, the cell-to-room
-table, or anything a room says. Rooms are metadata, and movement, sight and adjacency are untouched
-by them.
+**A wall is a bit on the cell it bounds.** Every wall comes from one glyph and its two neighbors, so
+nothing has to be grouped, traced or linked to be built, and `wall_toward` is a bit test rather than
+a search. A wall's id encodes the cell and the side. Everything a wall record once stored follows
+from that address: whether the wall is there, the wall on the other side of its edge, its two ends,
+and its id. `discrete_layout_plan.md` has the table.
 
-**The search is the cost.** `wall_toward` scans every wall, so a cell step is O(walls) and a
-sight line --- which walks the grid's extent in cells --- is O(cells x walls). `think` runs one
-per pursuing actor per turn.
-
-**A flat wall id per cell edge replaces the scan**, in the shape `catagen::Level` already stores:
-`(nx + 1)` by `ny` vertical and `nx` by `(ny + 1)` horizontal. One lookup, no hashing, built once
-beside the cell table. One wall lies on one cell edge, so an edge holds one id per side. For a 48 by
-32 level that is about 3,100 ids, some 25KB.
-`load_layout::build` already constructs an equivalent index keyed by directed edge and discards it
-as a local when it returns.
-
-**Nothing needs to walk a loop.** Outline traversal has three callers and each is replaceable:
-
-- `connect_walls` searches the walls of two areas for opposed pairs, at O(n x m). With the edge
-  index a partner is one lookup --- take a wall's own directed edge and look up its reverse. That is
-  already how `load_layout` pairs passages.
-- `load_layout` walked an outline only to line its traced ring up with wall ids. It need not:
-  `create_walls` pushes walls contiguously, so the wall for outline vertex *i* is `id0 + i`, and the
-  loader was asking `Layout` for ids it holds the means to compute.
-- Containment by point is a room query, and a `Room` holds its own outline rather than walking one.
-
-What local connectivity is still for is the two things that are one hop rather than a walk: a
-wall's far endpoint, and `opposed`, which compares one wall's endpoints against another's.
-
-**A wall stores one vertex and takes its far end from `next`.** Adjacent walls share that vertex, so
-holding both ends on each would store it twice and let the two drift apart. `wall_toward` and
-`opposed` reading `wall(next_id).position` is the link doing what it is for, not two jobs to be
-separated. `prev_id` is unread today and is the backward half of the same connectivity.
-
-The link stays. What goes is the enumeration over it --- a start id per outline, and the walks that
-follow one around.
+**Nothing walks an outline.** Outlines existed to give each area a boundary to trace, and the loader
+built them for nothing else to read. A room's cells are one sweep over `room_id`, and a polygon for a
+caller that needs one is traced from them.
 
 ## A grid position is a position and a discrete vector is a displacement
 
@@ -193,9 +246,9 @@ through space reduces to the plane first --- `stratum_sim::grid_step` does that 
 
 `Grid::contains` is called from assertions only. Nothing branches on it.
 
-**The loader builds the guarantee.** `trace_outlines` treats out-of-grid as outside the component,
-so every edge cell is given a an impassable border wall. Passages are set passable
-only between two components.
+**The loader builds the guarantee.** `stratum_format::has_wall` treats beyond the grid as solid, so
+every cell on the border of the grid has a wall on its border side; in the wall notation, where the
+rows write that wall, the reader rejects a file that leaves one out.
 
 **So a runtime bounds test would be dead code.** `move`, `neighbors`, `visible` and `Interact`
 briefly had one; it never fired on a loaded layout, and the four tests written to exercise it

@@ -5,12 +5,14 @@
             "includePath": [
                 "${workspaceFolder}",
                 "${workspaceFolder}/library",
+                "${workspaceFolder}/library3/flecs/include",
                 "${workspaceFolder}/library3/glfw/include",
                 "${workspaceFolder}/library3/glm",
+                "${workspaceFolder}/library3/json/include",
                 "${workspaceFolder}/library3/stb",
                 "${workspaceFolder}/library3/tinyobjloader",
                 "${workspaceFolder}/library3/VulkanMemoryAllocator/include",
-                "${workspaceFolder}/library3/KTX-Software/include",
+                "${workspaceFolder}/library3/KTX-Software/lib/include",
                 "${env:VULKAN_SDK}/Include"
             ],
             "browse": {
@@ -24,8 +26,6 @@
                 "UNICODE",
                 "_UNICODE"
             ],
-            "windowsSdkVersion": "10.0.26100.0",
-            "compilerPath": "C:/Program Files/Microsoft Visual Studio/18/Community/VC/Tools/MSVC/14.50.35717/bin/Hostx64/x64/cl.exe",
             "cStandard": "c17",
             "cppStandard": "c++26",
             "intelliSenseMode": "windows-msvc-x64"

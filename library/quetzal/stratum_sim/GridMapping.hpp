@@ -17,16 +17,14 @@ namespace quetzal::stratum_sim
     {
         point_type origin; // Corner of cell (0, 0)
         value_type scale = value_type(1);
-        discrete_vector_type extent; // Cell counts
+        discrete_vector_type extent; // Cell count in each dimension
 
         // Checks whether the grid position given is within the grid
-        bool contains(const discrete_point_type& grid_position) const;
+        bool contains(const discrete_point_type& cell_position) const;
 
-        // The grid position a point falls in, and the center of a grid position. Total in both
-        // directions: no bounds check and no clamp, so a point off the grid maps to a grid
-        // position off it
-        discrete_point_type grid_position_at(const point_type& position) const;
-        point_type position(const discrete_point_type& grid_position) const;
+        // These do no bounds check or clamping
+        discrete_point_type cell_position_at(const point_type& position) const; // The cell position of a point
+        point_type position(const discrete_point_type& cell_position) const; // The position of the center of a cell
     };
 
 } // namespace quetzal::stratum_sim

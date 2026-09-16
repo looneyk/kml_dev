@@ -26,7 +26,7 @@ namespace quetzal::stratum_sim
     using polygon_type = geometry::Polygon<traits_type>;
 
     // Mover position and facing direction
-    using placement_type = geometry::DirectedPoint<traits_type>; // rename ...
+    using placement_type = geometry::DirectedPoint<traits_type>;
 
     // Simple projection along the z-axis onto the xy_plane 
     using point_projection_type = geometry::MinProjection<point_type>;
