@@ -225,6 +225,79 @@ namespace
     }
 
     //--------------------------------------------------------------------------
+    // What a door and its door facings need of the Parent storage: a door per zone has two
+    // children, which is the small structured hierarchy Parent is for, where ChildOf would put
+    // each door's children in a table of their own
+    void test_parent_hierarchy()
+    {
+        report_group("parent hierarchy");
+
+        flecs::world world;
+        register_reflection(world);
+
+        flecs::entity zone = world.entity("zone").add<Zone>();
+        flecs::entity door = world.entity("door").child_of(zone).set<Health>({4});
+        flecs::entity facing_west = world.entity(flecs::Parent {door}, "facing_west").add<Facing>();
+        flecs::entity facing_east = world.entity(flecs::Parent {door}, "facing_east").add<Facing>().set<Health>({1});
+
+        report_case("a child knows its parent", facing_west.parent() == door && facing_east.parent() == door);
+
+        size_t child_count = 0;
+        door.children([&](flecs::entity) { ++child_count; });
+        report_case_equal("a parent iterates its children", child_count, 2);
+
+        // A door facing is in the zone through its door rather than directly, an entity having one
+        // storage or the other and never both
+        size_t zone_child_count = 0;
+        world.query_builder<>().with(flecs::ChildOf, zone).build().each([&](flecs::entity) { ++zone_child_count; });
+        report_case_equal("the zone's own children are the doors, not their facings", zone_child_count, 1);
+        report_case("a facing is not a ChildOf the zone", !facing_west.has(flecs::ChildOf, zone));
+
+        // Every facing of every door at once, which crossable and the view ask for
+        size_t facing_count = 0;
+        world.query_builder<const Facing>().build().each([&](flecs::entity, const Facing&) { ++facing_count; });
+        report_case_equal("children of many parents are queryable together", facing_count, 2);
+
+        // Flecs 4.1.6 writes a Parent hierarchy and cannot read one back: from_json aborts the process
+        // on a world holding one, a bare parent and child being enough to do it. Nothing here may rely
+        // on flecs JSON for a hierarchy, and a saved zone writes each child's parent itself
+        string json_world = world.to_json().c_str();
+
+        report_case("a parent hierarchy serialises", json_world.find("flecs.core.Parent") != string::npos);
+        report_case("a child's components serialise with it", json_world.find("\"value\":1") != string::npos);
+
+        // Nesting to any depth, one entity inside the next: the restriction is that an entity has one
+        // parent in one storage, not that a child cannot be a parent
+        flecs::entity chest = world.entity("chest").child_of(zone);
+        flecs::entity box = world.entity(flecs::Parent {chest}, "box");
+        flecs::entity tin = world.entity(flecs::Parent {box}, "tin");
+        flecs::entity coin = world.entity(flecs::Parent {tin}, "coin");
+
+        report_case("a child of a child of a child knows its parent", coin.parent() == tin && tin.parent() == box && box.parent() == chest);
+        report_case("each level iterates its own children", [&]
+        {
+            size_t count = 0;
+            box.children([&](flecs::entity e) { ++count; if (e != tin) { count = 0; } });
+            return count == 1;
+        }());
+
+        report_case("the whole chain is reached by path", world.lookup("zone::chest::box::tin::coin") == coin);
+
+        door.destruct();
+
+        report_case("deleting a parent deletes its children", !facing_west.is_alive() && !facing_east.is_alive());
+        report_case("the zone is untouched", zone.is_alive());
+
+        // Deleting the zone reaches what is nested below it through both storages
+        zone.destruct();
+
+        report_case("deleting a zone deletes its own children", !chest.is_alive());
+        report_case("and everything nested below them", !box.is_alive() && !tin.is_alive() && !coin.is_alive());
+
+        return;
+    }
+
+    //--------------------------------------------------------------------------
     void test_migration()
     {
         report_group("migration between Zones");
@@ -390,6 +463,7 @@ int main()
     test_multi_component_query();
     test_zone_partitioning();
     test_relationships();
+    test_parent_hierarchy();
     test_migration();
     test_unload();
     test_serialization();

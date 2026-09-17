@@ -1,0 +1,27 @@
+{
+  "format": "quetzal.discrete_layout",
+  "version": "0.3",
+  "layout": {
+    "components": { "entry": [[0, 0]] }
+  },
+  "cells": {
+    "notation": "wall",
+    "extent": [4, 3],
+    "rows": [
+      " - - - - ",
+      "|. . . .|",
+      "   -     ",
+      "|.| |. .|",
+      "   -     ",
+      "|< . . .|",
+      " - - - - "
+    ]
+  },
+  "rooms": [
+    { "perimeter": [[0, 0], [2, 0], [2, 3], [0, 3]] },
+    { "perimeter": [[2, 0], [4, 0], [4, 3], [2, 3]] }
+  ],
+  "attachments": [
+    { "flat": "floor", "cell": [0, 0], "entities": [ { "type": "waypoint", "components": { "relocator": { "target": "level_up" } } } ] }
+  ]
+}

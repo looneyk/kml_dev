@@ -54,7 +54,7 @@ thousands.
 ## Attachments and walls link both ways
 
 An entity attached to a wall links to the wall's entity, and the wall's entity links back to it. A
-door is on two walls through its parts, a door facing attached to each, and the door links to its door
+door is on two walls through its children, a door facing attached to each, and the door links to its door
 facings. An entity attached to a flat cell and that cell's entity link the same way. Nothing is found
 by searching.
 
@@ -69,42 +69,49 @@ storage into thousands of small tables, and a world several orders of magnitude 
 multiplies that. A pair marked `DontFragment` avoids the split at a cost to iteration, and a
 component with the target and no list on the target leaves finding what is on a cell a scan of every
 object. Reverse links make both directions a lookup, with the zone's location map reaching a wall's
-or a cell's entity from its id. The cost is keeping both ends in step when an entity moves or is
+or a cell's entity from its id. The cost is keeping both ends in sync when an entity moves or is
 destroyed (`addressing_plan.md`).
 
 It depends on wall ids being stable. An id encodes the cell and the side, so it is stable with no store
 behind it; what must not change is the grid it encodes against, or every link by wall id silently
 retargets. That constraint is what shaped the mining decision below.
 
-## Where an entity is and what it is part of are components
+## Where an entity is and what its parent is are file components
 
-A level file lists its entities once, and what an entity is attached to and the whole it is part of
-are its `attached` and `parent` components (`addressing.md`, `### Entities`, in parts 1 and 2).
+A zone file lists its entities once, and what an entity is attached to and its parent are its
+`attached` and `parent` file components (`addressing.md`, `### Entities`, in parts 1 and 2).
 
 **An attachment is not a kind of thing.** There are places, which are geometry, and entities, which have
 identity; an attachment is the link from one to the other, and in the world it is already a component
 on the entity. A list of attachments beside the entities made the link a record of its own, and a door,
-being on two walls, needed two of them --- which then needed components of their own for what each side
+being on two walls, needed two of them --- which then needed file components of their own for what each side
 has, ids so that a keyhole could be attached to one, and an entity with a single attachment treated
 differently from one with several.
 
 **A door's sides are entities.** In the world a door facing is a child of its door with components of
-its own, so the file writes it as one: a part, with a `parent` and its own `attached`. Every entity then
+its own, so the file writes it as one: a child, with a `parent` and its own `attached`. Every entity then
 has at most one attachment, and nothing about attachment has a second case.
 
-**Parts are derived rather than listed.** A whole listing its parts would state each part-whole link
-twice, once on each end, and the two could disagree. The part's `parent` states it once, and a whole's
-list is made from those when the zone loads, as a place's list of what is attached to it is.
+**Children are derived rather than listed.** A parent listing its children would state each link twice,
+once on each end, and the two could disagree. The child's `parent` states it once, and Flecs keeps each
+parent's children from those once the zone loads, as a place's list of what is attached to it is built
+from `attached`.
+
+**Relationships are optional.** Most attachments need nothing beyond their target: a door facing on its
+wall, a chest on a floor cell. Requiring a relationship gave every one of them a name that decided
+nothing, and pushed the vocabulary toward names such as `fills`, which is wrong for a door that rarely
+fills its opening. A relationship is written only where it distinguishes one way of being attached from
+another, as `contained_in` does.
 
 **How the file is arranged costs nothing at run time.** A file is read once when its zone loads, and
 the same links and location maps are built whichever way it is arranged. What is on a wall is a lookup
 because an entity is attached by address, which is the key to the zone's map of places, not because the
-file is grouped by place. Level files are written by generators and tools, so grouping them by place
+file is grouped by place. Zone files are written by generators and tools, so grouping them by place
 for a reader would buy nothing either.
 
 ## An entity has three ids
 
-A local id in a level file, a persistent id in a world, and a runtime entity while loaded
+A local id in a template, a persistent id in a world, and a runtime entity while loaded
 (`addressing.md`, `### Ids`).
 
 **The persistent id cannot include the zone.** A key carried from one zone to another, or an item
@@ -116,20 +123,20 @@ an entity with a chosen id, but it divides the 64 bits between an index and a ge
 entity index is paged over the index range, so ids spread across a whole game's history would allocate
 pages for ids that no longer exist.
 
-**A level file has local ids rather than persistent ones.** A level file is a template made into a
-zone once, or into several zones: the same file made twice gives two sets of entities, which need
+**A template has local ids rather than persistent ones.** A template is made into a zone once, or into
+several zones: the same file made twice gives two sets of entities, which need
 different ids, so making a zone allocates them either way. Local ids keep a generated file the same
 for the same parameters, which is what the generator suites compare.
 
 ## Persistent ids are a 64-bit count, not UUIDs
 
-A UUID's advantage is that it can be created with no coordination. Level files with local ids remove
+A UUID's advantage is that it can be created with no coordination. Templates with local ids remove
 the one place that needed it, a generator run as a tool with no world to ask, and once a world exists
 it is the one place ids are made, so a count saved with the world suffices.
 
 A UUID is 16 bytes where a count is 8, in the component on every persistent entity, in every reference
-that may reach another zone, and in the world index, which has an entry for every entity in every zone
-ever made, loaded or not, and whose keys hash more cheaply at 8. None of it is on a path a loaded zone
+that may reach another zone, and in the world index, which has an entry for every entity something
+refers to, loaded or not, and whose keys hash more cheaply at 8. None of it is on a path a loaded zone
 runs every turn, since that uses runtime entities, but the index grows with the world.
 
 Multiplayer does not reverse it. One server allocating is the same count; several servers divide the
@@ -138,9 +145,19 @@ ids do. Only creation with no coordination at all needs UUIDs, and then as the a
 the boundary between worlds alone, which the rules in `addressing.md` keep a change to the allocator
 and the alias.
 
+## The world index has only the entities something refers to
+
+The index is there so that a reference can find the zone its entity is in when that zone is not loaded.
+An entity that nothing refers to is never looked up that way. A dropped object is indexed in its zone,
+by the place it is attached to, and is accessible while the actor is in that zone; from another zone the
+actor moves to, it is not accessible at all. Indexing every entity in every zone ever made would grow
+with the world for lookups nobody makes. An entity enters the index when
+the first reference to it is made, so a reference finds it even after the entity has moved to another
+zone.
+
 ## Topology and occupancy compose on `World`
 
-`World::move` resolves where a mover ends up, composing the layout's geometry with whatever is
+`World::move` resolves where an actor ends up, composing the layout's geometry with whatever is
 occupying the cell ahead. `Layout` takes a predicate and stays ignorant of entities.
 
 Two other homes were considered. Putting it on `Layout` --- which an earlier revision of
@@ -159,10 +176,28 @@ against.
 It also settles that a pushed boulder blocks the way a monster standing in a doorway does, which is
 what would otherwise diverge between the two layout models.
 
+## Actors are found through a zone actor index
+
+An actor keeps its `placement_type`, and each zone has an index of its actors by place, derived from the
+placements (`addressing.md`, `### Actors`).
+
+**Not a scan.** Checking every placed entity in the zone costs more as the zone fills, and `World::move`
+asks what is at a cell for every cell it moves into.
+
+**Not an attachment.** Attaching an actor to the cell it stands on would make what is at a cell one
+lookup for actors as for everything else. But every move would detach and attach, and could make or
+delete a cell's entity. An actor's place would be stated twice, in its placement and its attachment,
+which could disagree. A `ContinuousLayout` has no cells to attach to. And attachment would mean two
+things: a torch stays on its wall, while an actor is only standing somewhere this turn.
+
+**An index.** A move costs two map updates and no entities. The placement remains the one record of
+where an actor is, the index being rebuilt from it, and each kind of layout indexes in its own way.
+
 ## `passable` comes off the record
 
-A wall is there or it is not. Whether a mover may cross it is decided by what is attached to it, not a field on the
-geometry.
+A wall is there or it is not. Whether an actor may cross it is decided by what is attached to it, not a field on the
+geometry: `crossable` asks each attached entity whether its properties let the actor through, and knows nothing about
+doors or concealment. Nothing on the wall or the cell marks it crossable, so no state is kept twice.
 
 A flag on the record is mutable state on level data, which is the line the entity model is drawn on:
 level data is topology and appearance, entities are identity and mutable state. A lever toggling a
@@ -172,6 +207,21 @@ The consequence to note is that `Layout::blocked` feeds `move`, `neighbors` *and
 openness lives on an attachment, none of the three can decide alone and all three compose on `World`
 the way movement already composes occupancy. Sight through an open door is the case that makes it
 three call sites rather than one.
+
+## A staircase is a block
+
+A stair cell is a block with a wall on each side, and the staircase entity is attached to the wall on its
+open side (`addressing.md`, `### Places`). A staircase attached to the floor had to be given an
+orientation of its own and kept consistent with the walls around it.
+
+**Its direction is its wall's.** The normal of the wall on the open side is the direction of travel from
+the staircase into the room, so there is no orientation to write, choose or check.
+
+**Each side is a wall.** The sides the staircase does not open onto are walls like any other, so each can
+look different.
+
+**Passage is a door's.** An actor goes through the open side as through an open door, so moving into a
+staircase needs nothing beyond what `crossable` already asks.
 
 ## A minable block is a destructible container entity
 
@@ -242,7 +292,7 @@ result to have the same dimension, so a caller taking a step across a flat grid 
 through space reduces to the plane first --- `stratum_sim::grid_step` does that with
 `geometry::MinProjection`, keeping the dropped height in the layer that knows the layout is flat.
 
-## The boundary holds a mover in, and the bounds test is an assertion
+## The boundary holds an actor in, and the bounds test is an assertion
 
 `Grid::contains` is called from assertions only. Nothing branches on it.
 

@@ -11,7 +11,6 @@
 #include "Layout.hpp"
 #include "types.hpp"
 #include "quetzal/common/id.hpp"
-#include <optional>
 #include <vector>
 
 namespace quetzal::stratum_sim
@@ -36,7 +35,8 @@ namespace quetzal::stratum_sim
 
         using Layout::move; // The interface's topology-only overload, which overriding move hides
 
-        DiscreteLayout() = default;
+        // The grid is what the cells are sized against, so a layout has one from the start
+        DiscreteLayout(const point_type& origin, value_type scale, const discrete_vector_type& extent);
         DiscreteLayout(const DiscreteLayout&) = default;
         DiscreteLayout(DiscreteLayout&&) noexcept = default;
         ~DiscreteLayout() = default;
@@ -65,7 +65,6 @@ namespace quetzal::stratum_sim
         id_type room_at(const discrete_point_type& cell_position) const;
         void set_cell_room(const discrete_point_type& cell_position, id_type room_id);
 
-        void set_grid(const point_type& origin, value_type scale, const discrete_vector_type& extent);
         const GridMapping& grid() const;
 
         // Whether a cell is open floor. Taken from what a level file encodes per cell, over a
@@ -119,8 +118,6 @@ namespace quetzal::stratum_sim
         // of the grid's own directions, and a facing that snaps to nothing faces nothing
         id_type ahead(const placement_type& placement) const override;
 
-        void clear();
-
     private:
 
         // The cell a grid position addresses, which must lie on the grid
@@ -131,7 +128,7 @@ namespace quetzal::stratum_sim
         flats_type m_flat_store;
         id_type m_floor_id = nullid;
         id_type m_ceiling_id = nullid;
-        std::optional<GridMapping> m_grid;
+        GridMapping m_grid;
         cells_type m_cells; // The grid's cells
         size_t m_room_count = 0;
     };

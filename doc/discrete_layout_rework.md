@@ -140,7 +140,7 @@ The reader's overlap check becomes a check over `room_cells`, its bounding boxes
 ```cpp
 load_layout(filepath, door) -> unique_ptr<DiscreteLayout>
     document = stratum_format::read(filepath)     // throws, and nothing is built before it returns
-    layout.set_grid(origin, scale, extent)
+    layout = DiscreteLayout(origin, scale, extent)
 
     for each cell p
         cell.open = floor_stair_door_cell(cells, p)
@@ -148,8 +148,8 @@ load_layout(filepath, door) -> unique_ptr<DiscreteLayout>
             if cell.open and has_wall(cells, p, d)
                 cell.walls |= d
 
-    for each room_id, grid_positions in room_cells(document)
-        for each p in grid_positions
+    for each room_id, cell_positions in room_cells(document)
+        for each p in cell_positions
             cell(p).room_id = room_id
     layout.set_room_count(document.rooms.size())
 
@@ -401,7 +401,7 @@ same way.
 
 Loading a zone as outlined above reads the 0.3 `attachments`, where entities are listed under the place
 they are attached. The format's next version replaces that with one list of entities, where what an
-entity is attached to and what it is part of are its `attached` and `parent` components, and a zone's
+entity is attached to and what its parent is are its `attached` and `parent` file components, and a zone's
 entities get persistent ids when it is made. `addressing.md`
 specifies both and `addressing_plan.md` is the design, including the order in which it and loading a
 zone are built.

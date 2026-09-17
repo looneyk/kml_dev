@@ -122,8 +122,10 @@ thousands. A wall id encodes the cell and the side, so it is stable with no stor
 | `Rotation` | `CCW`, `CW`, `Half`. In `Layout.hpp`, being interface vocabulary. |
 | `MoveResult` | The placement reached, which may be short of what was asked, and the wall or the entity that stopped it --- `nullid` when nothing did. In `Layout.hpp` with `Rotation`. |
 
-A `Grid` is set at load from the extent the file covers, rather than derived from the wall
-geometry afterwards. Cells run from `(0, 0)` to the extent, so a negative component is always off
+A layout takes its grid at construction, from the extent the file covers rather than derived from the
+wall geometry afterwards, and the cell table is sized by it there. So a layout has a grid for its whole
+life, and nothing reads one that is not there. A layout is destroyed with the zone that holds it and
+has no way to be emptied in place; a resident set at its limit moves a new layout in over an old one. Cells run from `(0, 0)` to the extent, so a negative component is always off
 the grid. `Grid::contains` is the one place that comparison is written, and it is used in
 assertions only: the loader guarantees a walled boundary, so a step off the grid cannot arise and
 is not a case to be handled at run time.
@@ -141,7 +143,7 @@ Walls are set a cell at a time with `set_cell_walls` and read back with `walls`.
 `room_count`, and `room_at` and `set_cell_room` per cell; everything else about a room is an entity's.
 A cell no room covers gives `nullid`.
 
-The grid side is `set_grid`, `grid`, `open`, `set_cell_open`, `cell_at` and `cell_position`, and
+The grid side is `grid`, `open`, `set_cell_open`, `cell_at` and `cell_position`, and
 `wall_toward` and `blocked` read what is attached to it. `move`, `turn`, `face`, `same_location`,
 `neighbors`, `visible` and `step_distance` are what it overrides from `Layout`.
 

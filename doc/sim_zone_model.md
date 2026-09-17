@@ -60,7 +60,7 @@ than a `Flat` above and below. Not designed, and nothing depends on it.
 **Relocators are the only cross-`Zone` link, and they are components of entities rather than
 structure.** A relocator is what a staircase, a portal or a waypoint has: it references a target, a
 destination not yet bound or the relocator arrived at by its persistent id (`addressing.md`,
-`### Relocators and entries`), and its traversal behaviour, whether walking, falling, levitating, or
+`### Relocators and access points`), and its traversal behaviour, whether walking, falling, levitating, or
 blinking, is script over an engine default. Being on entities they are enumerable, which is what tells
 `World` which `Zone`s are reachable from where.
 
@@ -85,10 +85,17 @@ Nothing structural consults a `Level`. Movement never does. Generation, the auto
 unloading a `Zone` is serialising and then deleting that subtree, which is what makes a large world
 affordable at all. The partition is a subtree, not a separate registry.
 
+**A `Zone`'s contents are its subtree rather than its children.** An entity with a parent of its own,
+such as a door facing whose parent is its door, belongs to the `Zone` through that parent, so a query
+for the `Zone`'s children finds what is placed directly in it --- which is what occupancy and the view
+ask for --- while anything covering the `Zone` entirely walks the subtree. Deletion already reaches all
+of it (`addressing.md`, `### Children`).
+
 **Ownership follows current location, not origin.** A monster that chases the player through a
 relocator migrates into the destination's store, so the `Zone` it came from can unload without taking
-it along. The player is the same rule at its extreme --- always in a resident `Zone` by definition,
-and needing no special case for it.
+it along. The player is the exception: always in a resident `Zone` by definition, but owned by the
+session rather than by that `Zone`, so unloading or saving the `Zone` leaves it out (`addressing.md`,
+`### The player`).
 
 **Entity ids are global even though entities are partitioned by `Zone`.** Otherwise migration
 renumbers, and every reference to that monster --- a quest, a leash, a summoner --- breaks on the way
@@ -527,6 +534,11 @@ the hand-rolled storage already did.
 contents as children, migration by reparenting with the entity id unchanged, unload as a subtree
 delete, per-`Zone` serialisation, and whole-world JSON round trip preserving `ChildOf` and
 multi-member components.
+
+A `Parent` hierarchy is the exception, and it is what a door's facings use: flecs writes one and
+cannot read it back, `from_json` aborting on a world that holds one (Flecs 4.1.6). So a zone is written
+out in the zone file format, where a child states its own parent, rather than through flecs JSON
+(`addressing_plan.md`, `## Flecs`).
 
 Attachment and containment are not relationship pairs. A pair per target puts each distinct target in
 a table of its own, which at a world's scale splits storage into a table per wall or cell with

@@ -91,9 +91,7 @@ namespace
 
         std::unique_ptr<stratum_sim::Layout> generate(const stratum_sim::door_type& door) const override
         {
-            auto layout = make_unique<stratum_sim::DiscreteLayout>();
-
-            layout->set_grid(stratum_sim::point_type(0.0f, 0.0f, 0.0f), 1.0f,
+            auto layout = make_unique<stratum_sim::DiscreteLayout>(stratum_sim::point_type(0.0f, 0.0f, 0.0f), 1.0f,
                 stratum_sim::discrete_vector_type(5, 3));
 
             for (stratum_sim::coord_type i = 1; i <= 3; ++i)
@@ -387,8 +385,7 @@ namespace
     {
         report_group("level layout");
 
-        stratum_sim::DiscreteLayout layout;
-        layout.set_grid(stratum_sim::point_type(0.0f, 0.0f, 0.0f), 1.0f, stratum_sim::discrete_vector_type(4, 3));
+        stratum_sim::DiscreteLayout layout {stratum_sim::point_type(0.0f, 0.0f, 0.0f), 1.0f, stratum_sim::discrete_vector_type(4, 3)};
         open_walled(layout, 0, 0, 4, 3);
 
         report_case_equal("a wall on every side the rectangle faces out of", wall_counts(layout).sides, 14);
@@ -407,9 +404,14 @@ namespace
         report_case("the ceiling keeps its height", layout.flat(layout.ceiling_id()).height() == 2.5f);
 
         layout.set_room_count(2);
-        layout.clear();
-        report_case("clear empties every store", layout.room_count() == 0 && layout.flat_store_count() == 0);
-        report_case("and forgets its flats", layout.floor_id() == nullid && layout.ceiling_id() == nullid);
+        report_case_equal("a layout keeps the room count it was given", layout.room_count(), 2);
+
+        // A zone's layout is moved into place and destroyed with the zone, so moving one is what a
+        // resident set at its limit does rather than emptying one in place
+        stratum_sim::DiscreteLayout moved = std::move(layout);
+        report_case("a moved layout takes the grid", moved.grid().extent == stratum_sim::discrete_vector_type(4, 3));
+        report_case("and the cells", moved.open(stratum_sim::discrete_point_type {1, 1}));
+        report_case("and the flats", moved.flat_store_count() == 2 && moved.flat(moved.ceiling_id()).height() == 2.5f);
 
         return;
     }
@@ -419,8 +421,7 @@ namespace
     {
         report_group("rooms");
 
-        stratum_sim::DiscreteLayout layout;
-        layout.set_grid(stratum_sim::point_type(0.0f, 0.0f, 0.0f), 1.0f, stratum_sim::discrete_vector_type(8, 8));
+        stratum_sim::DiscreteLayout layout {stratum_sim::point_type(0.0f, 0.0f, 0.0f), 1.0f, stratum_sim::discrete_vector_type(8, 8)};
         layout.set_room_count(1);
         layout.set_cell_room(stratum_sim::discrete_point_type {0, 0}, 0);
         layout.set_cell_room(stratum_sim::discrete_point_type {1, 0}, 0);
@@ -437,8 +438,7 @@ namespace
     {
         report_group("grid");
 
-        stratum_sim::DiscreteLayout layout;
-        layout.set_grid(stratum_sim::point_type(0.0f, 0.0f, 0.0f), 1.0f, stratum_sim::discrete_vector_type(8, 8));
+        stratum_sim::DiscreteLayout layout {stratum_sim::point_type(0.0f, 0.0f, 0.0f), 1.0f, stratum_sim::discrete_vector_type(8, 8)};
 
         report_case("a point maps to its cell", layout.cell_position_at(stratum_sim::point_type(2.7f, 3.2f, 0.0f)) == stratum_sim::discrete_point_type(2, 3));
         report_case("a cell maps back to its center", layout.position(stratum_sim::discrete_point_type {2, 3}).x() == 2.5f);
@@ -465,8 +465,7 @@ namespace
         report_case("and a cell height", floor.cell_height(stratum_sim::discrete_point_type {1, 1}) == 0.5f);
 
         // A cell sits on the floor, its height resolved from the cell, then the room covering it, then the flat
-        stratum_sim::DiscreteLayout layout;
-        layout.set_grid(stratum_sim::point_type(0.0f, 0.0f, 0.0f), 1.0f, stratum_sim::discrete_vector_type(8, 8));
+        stratum_sim::DiscreteLayout layout {stratum_sim::point_type(0.0f, 0.0f, 0.0f), 1.0f, stratum_sim::discrete_vector_type(8, 8)};
 
         report_case("with no floor a cell sits on the grid's own plane", layout.position(stratum_sim::discrete_point_type {1, 1}).z() == 0.0f);
 
@@ -491,8 +490,7 @@ namespace
     {
         report_group("blocking");
 
-        stratum_sim::DiscreteLayout layout;
-        layout.set_grid(stratum_sim::point_type(0.0f, 0.0f, 0.0f), 1.0f, stratum_sim::discrete_vector_type(8, 8));
+        stratum_sim::DiscreteLayout layout {stratum_sim::point_type(0.0f, 0.0f, 0.0f), 1.0f, stratum_sim::discrete_vector_type(8, 8)};
 
         // Two rooms one cell tall side by side, so their shared boundary is exactly one cell edge, walled from both sides
         open_walled(layout, 0, 0, 2, 1);
@@ -893,8 +891,7 @@ namespace
         report_group("movement");
 
         // A corridor four cells long, walled at both ends, and a cell beyond its east end
-        stratum_sim::DiscreteLayout layout;
-        layout.set_grid(stratum_sim::point_type(0.0f, 0.0f, 0.0f), 1.0f, stratum_sim::discrete_vector_type(8, 8));
+        stratum_sim::DiscreteLayout layout {stratum_sim::point_type(0.0f, 0.0f, 0.0f), 1.0f, stratum_sim::discrete_vector_type(8, 8)};
 
         open_walled(layout, 0, 0, 4, 1);
         open_walled(layout, 4, 0, 5, 1);
@@ -1448,7 +1445,8 @@ namespace
         report_case_equal("a new world has no zones", world.zone_count(), 0);
 
         flecs::entity crypt = world.create_zone("crypt", stratum_sim::load_layout("data/room.level"));
-        flecs::entity moor = world.create_zone("moor", make_unique<stratum_sim::DiscreteLayout>());
+        flecs::entity moor = world.create_zone("moor", make_unique<stratum_sim::DiscreteLayout>(stratum_sim::point_type(0.0f, 0.0f, 0.0f),
+            1.0f, stratum_sim::discrete_vector_type(4, 4)));
 
         report_case_equal("zones are created", world.zone_count(), 2);
         report_case("a zone is found by name", world.zone("crypt") == crypt);

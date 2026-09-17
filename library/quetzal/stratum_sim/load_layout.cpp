@@ -16,8 +16,7 @@ std::unique_ptr<quetzal::stratum_sim::DiscreteLayout> quetzal::stratum_sim::load
     stratum_format::Document document = stratum_format::read(filepath);
     const stratum_format::Cells& cells = document.cells;
 
-    auto layout = std::make_unique<DiscreteLayout>();
-    layout->set_grid(cells.origin, cells.scale, cells.extent);
+    auto layout = std::make_unique<DiscreteLayout>(cells.origin, cells.scale, cells.extent);
 
     for (coord_type j = 0; j < cells.extent.y(); ++j)
     {

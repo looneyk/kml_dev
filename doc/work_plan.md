@@ -1,7 +1,7 @@
 # Work Plan
 
-Status: stages 1 to 5 complete; stage 6 all but two items; stages 7 and 8 in progress
-Date: 2026-08-28, revised 2026-09-14
+Status: stages 1 to 5 complete; stage 6 all but one item; stages 7 and 8 in progress
+Date: 2026-08-28, revised 2026-09-16
 
 The ordered work queue from the session 2 evaluation. `game_system_principles.md` owns the phased
 plan and the principles behind it; this is the near-term ordering within Phase 3 and the run up to
@@ -19,6 +19,25 @@ the format it builds to and `discrete_layout_rework.md` the reading of the curre
 **Open items live here**, under `Open` below, rather than in the plan that raised them. A plan marked
 complete is not somewhere anyone looks, and its own list going quiet is what made the residue
 invisible.
+
+## Plans
+
+One box per plan that keeps steps of its own, checked when every step in that plan is done.
+
+- [ ] [`addressing_plan.md`](addressing_plan.md) --- ids and addressing: format 0.4, persistent ids,
+      links, loading a zone against them, and a zone actor index. 9 steps, step 3 done.
+- [ ] [`placement_plan.md`](placement_plan.md) --- what fills a zone: sites, selection, distribution,
+      acceptance and emission. 4 steps, none started.
+- [x] [`intent_plan.md`](intent_plan.md) --- stage 2, intent and the schedule.
+- [x] [`layout_plan.md`](layout_plan.md) --- stage 4, the layout interface and its structures.
+- [x] [`view_plan.md`](view_plan.md) --- stage 5, the views and the reference frames.
+- [x] [`attachment_plan.md`](attachment_plan.md) --- stage 6, doors and what hangs on walls.
+- [x] [`glyph_plan.md`](glyph_plan.md) --- stage 6, glyph sets that load from a file.
+- [x] [`dungen_plan.md`](dungen_plan.md) --- the dungen generator.
+- [x] [`catagen_plan.md`](catagen_plan.md) --- the catagen generator.
+
+`discrete_layout_plan.md`, `discrete_layout_rework.md`, `addressing.md`, `discrete_layout.md` and
+`sim_zone_model.md` carry no steps of their own; what they specify is tracked by the stage items below.
 
 ## Stage 1 --- one place for it
 
@@ -115,14 +134,9 @@ out of reached them.
       with its facing and a `relocator` whose `target` is `level_down` or `level_up` as its glyph says,
       and `stratum_format` reads and writes it as content. Loading a zone (stage 8) builds the relocator
       from it.
-- [ ] **Relocating through a relocator.** An entity with a relocator --- a staircase, a portal, a
-      waypoint --- moves a mover to its target. Resolve the target, bound (the relocator arrived at, by
-      persistent id) or unbound (a destination such as `level_down`), to a zone the world has or
-      generates, write the resolution back as a bound target, and move the mover there. Arriving
-      through a relocator not yet bound places the mover at one of the zone's entry points not yet
-      bound --- a staircase leading up, or leading down in a tower entered from below, or any other
-      relocator arrived at --- and going through binds both ends to each other. `addressing.md`
-      (`### Relocators and entries`) specifies the two kinds.
+- **Relocating through a relocator** --- an entity with a relocator moving an actor to its target, and
+      both ends binding to each other --- is [`addressing_plan.md`](addressing_plan.md) step 8, boxed
+      under Plans. `addressing.md` (`### Relocators and access points`) specifies the two kinds of target.
 - [x] **Suites for both generators, and the drivers out of `application/`.** The drivers were named
       as tests and were not tests. They are `tool/dungen` and `tool/catagen` now, taking the plain
       names --- the `quetzal_` prefix on the library targets is the distinction, as it already is
@@ -222,32 +236,14 @@ the two grid formats could not express. Detail in `discrete_layout_plan.md`.
 - [x] **The structures, then the reader filling them.** `Cell` has the wall mask, `Wall` and `Room`
       are gone, and `load_layout` builds a `DiscreteLayout` from a `Document` through the same
       `stratum_format` functions that validate it. Every level a suite or a host loads is 0.3.
-- [ ] **Ids and addressing: settle the choices.** `addressing_plan.md` lists twelve choices the design
-      needed and the discussion did not settle --- how a reference is written, whether glyphs require
-      entities, a staircase's facing direction as `orientation`, a door always having door facing parts,
-      parts by `flecs::Parent`, the index's reach, the saved zone's form, what decides passage, whether
-      an actor is attached to its cell, and the order of work. `addressing.md` is the spec.
-- [ ] **Format 0.4.** One list of entities with `attached` and `parent` as components the format
-      defines and parts derived from `parent`, references in content, the entry as references, every
-      cell position written `cell_position` and every wall address as a cell position and a normal, a
-      saved zone's `zone` section, and the reader's checks for all of it (`addressing_plan.md`, steps 1
-      and 2): `stratum_format`, both generators and every zone file.
-- [ ] **`flecs::Parent` checked in `flecs_test`,** for cascading deletion, iterating children and a JSON
-      round trip (step 3).
-- [ ] **Persistent ids.** `persistent_id_type`, the allocator, the loaded-entity map, the world index
-      and references that re-resolve (step 4).
-- [ ] **Loading a zone.** Everything that is not geometry loads into `Content`, and `World` builds a
-      zone from the layout and it: an entity for every component object and attachment, a property
-      resolved when queried from the object, its room, the layout and its type's default, and each
-      staircase's relocator with its target. Making a zone allocates persistent ids and translates
-      references, attachment links both ways through `Attached`, `AttachedEntities` and the places'
-      entities, and a parent has its `Parts`, so `crossable` searches nothing. Wall ids are encoded from
-      the normal by `encode_wall_id`. `World`
-      contains zones rather than layouts. Outlined in
-      `discrete_layout_rework.md`, against 0.4 and with persistent ids in `addressing_plan.md` (step 5).
-      Relocating through a relocator is stage 6's item.
-- [ ] **Migration across zones and entities in no zone** (step 6), then **saved zones** with the session
-      lifecycle of stage 7 (step 7).
+The rest of stage 8 is [`addressing_plan.md`](addressing_plan.md), boxed under Plans above: its twelve
+choices, then format 0.4, persistent ids, loading a zone, migration and saved zones.
+
+- [x] **A `DiscreteLayout` takes its grid at construction.** An optional means absent, never "set
+      later". The constructor takes the origin, the scale and the extent and sizes the cell table;
+      `set_grid` is gone, `m_grid` is a plain `GridMapping` and `grid()` asserts nothing. `clear` went
+      with it, a layout being destroyed with its zone or moved over, and the suite checks a move
+      instead.
 
 ## Done ahead of the plan
 
@@ -426,6 +422,15 @@ Not planned. Revisited only if the need arises.
   per string, array and object, deep copies, and a parser slow for its class. Its own variant of
   null, bool, integer, real, string, list and ordered map, with nlohmann private to reading and
   writing, would remove both.
+
+## Revisit later
+
+Set aside on purpose. No effort goes into these until one is picked up again.
+
+- **A doorway leading into a dead end,** which has a wall on one side only: what a door glyph there
+  requires, and what the generators and the reader do with one.
+- **Naming a wall address's `normal` `facing`,** once the format settles. Only the name would change, to
+  match door facings; that the value is also the surface normal a texture uses argues against it.
 
 ## Loose
 

@@ -1,0 +1,25 @@
+{
+  "format": "quetzal.discrete_layout",
+  "version": "0.3",
+  "layout": {
+    "components": { "entry": [[3, 2], [3, 0]] }
+  },
+  "cells": {
+    "notation": "wall",
+    "encoding": "runs",
+    "extent": [4, 3],
+    "rows": [
+      " - -3 - ",
+      "|. .| |>|",
+      "5 -3 ",
+      "|. .+. .|",
+      "5 -3 ",
+      "|. .| |<|",
+      " - -3 - "
+    ]
+  },
+  "attachments": [
+    { "flat": "floor", "cell": [3, 2], "entities": [ { "type": "staircase", "components": { "relocator": { "target": "level_down" } } } ] },
+    { "flat": "floor", "cell": [3, 0], "entities": [ { "type": "staircase", "components": { "relocator": { "target": "level_up" } } } ] }
+  ]
+}

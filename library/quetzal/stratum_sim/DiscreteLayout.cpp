@@ -8,6 +8,7 @@
 #include <cassert>
 #include <cmath>
 #include <limits>
+#include <optional>
 
 namespace
 {
@@ -31,6 +32,16 @@ namespace
     }
 
 } // namespace
+
+//------------------------------------------------------------------------------
+quetzal::stratum_sim::DiscreteLayout::DiscreteLayout(const point_type& origin, value_type scale, const discrete_vector_type& extent) :
+    Layout(),
+    m_grid {origin, scale, extent},
+    m_cells(static_cast<size_t>(extent.x()) * extent.y())
+{
+    assert(scale > value_type(0));
+    assert(extent.x() >= 0 && extent.y() >= 0);
+}
 
 //------------------------------------------------------------------------------
 const quetzal::stratum_sim::Flat& quetzal::stratum_sim::DiscreteLayout::flat(id_type flat_id) const
@@ -132,18 +143,6 @@ void quetzal::stratum_sim::DiscreteLayout::set_cell_room(const discrete_point_ty
 }
 
 //------------------------------------------------------------------------------
-void quetzal::stratum_sim::DiscreteLayout::set_grid(const point_type& origin, value_type scale, const discrete_vector_type& extent)
-{
-    assert(scale > value_type(0));
-    assert(extent.x() >= 0 && extent.y() >= 0);
-
-    m_grid = GridMapping {origin, scale, extent};
-    m_cells.assign(static_cast<size_t>(extent.x()) * extent.y(), Cell {});
-
-    return;
-}
-
-//------------------------------------------------------------------------------
 bool quetzal::stratum_sim::DiscreteLayout::open(const discrete_point_type& cell_position) const
 {
     return cell(cell_position).open;
@@ -193,8 +192,7 @@ quetzal::stratum_sim::Cell& quetzal::stratum_sim::DiscreteLayout::cell(const dis
 //------------------------------------------------------------------------------
 const quetzal::stratum_sim::GridMapping& quetzal::stratum_sim::DiscreteLayout::grid() const
 {
-    assert(m_grid.has_value());
-    return *m_grid;
+    return m_grid;
 }
 
 //------------------------------------------------------------------------------
@@ -470,14 +468,3 @@ quetzal::id_type quetzal::stratum_sim::DiscreteLayout::ahead(const placement_typ
     return wall_toward(cell_position_at(placement.position()), step);
 }
 
-//------------------------------------------------------------------------------
-void quetzal::stratum_sim::DiscreteLayout::clear()
-{
-    m_flat_store.clear();
-    m_floor_id = nullid;
-    m_ceiling_id = nullid;
-    m_grid.reset();
-    m_cells.clear();
-    m_room_count = 0;
-    return;
-}

@@ -1,0 +1,46 @@
+{
+  "format": "quetzal.discrete_layout",
+  "version": "0.3",
+  "generator": {
+    "name": "catagen",
+    "parameters": { "extent": "4,3", "scale": "3-7", "spacing": "2", "density": "1.0", "loop": "0.1", "seed": "20260829" }
+  },
+  "layout": {
+    "components": { "name": "The Flooded Cistern", "type": "dungeon", "difficulty": 3, "style": "cistern", "entry": [[3, 2], [3, 0]] }
+  },
+  "cells": {
+    "notation": "wall",
+    "extent": [4, 3],
+    "origin": [0.0, 0.0, 0.0],
+    "scale": 1.0,
+    "rows": [
+      " - -   - ",
+      "|. .| |>|",
+      "     -   ",
+      "|. .+. .|",
+      "     -   ",
+      "|. .| |<|",
+      " - -   - "
+    ]
+  },
+  "barriers": [[3, 1, 1, 0]],
+  "rooms": [
+    { "perimeter": [[0, 0], [2, 0], [2, 3], [0, 3]], "components": { "name": "the cistern", "style": { "terrain": "water" } } },
+    { "location": [3, 1], "components": { "name": "the stair head" } }
+  ],
+  "walls": [
+    { "wall": [1, 1, -1, 0], "components": { "style": "buttressed" } }
+  ],
+  "flats": [
+    { "role": "floor", "height": 0.0, "components": { "terrain": "flagstone" },
+      "rooms": [
+        { "room": 0, "height": -0.25, "components": { "terrain": "water" } }
+      ] },
+    { "role": "ceiling", "height": 3.0 }
+  ],
+  "attachments": [
+    { "walls": [[1, 1, -1, 0], [2, 1, 1, 0]], "entities": [ { "type": "door", "components": { "material": "oak", "open": false } } ] },
+    { "flat": "floor", "cell": [3, 2], "entities": [ { "type": "staircase", "components": { "facing": [0, -1], "relocator": { "target": "level_down" } } } ] },
+    { "flat": "floor", "cell": [3, 0], "entities": [ { "type": "staircase", "components": { "facing": [0, 1], "relocator": { "target": "level_up" } } } ] }
+  ]
+}

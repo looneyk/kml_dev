@@ -128,6 +128,17 @@ with placement but a random engine, which is evidence that `procgen` is not natu
 
 Step 1 changes no output, so it is the one that can be checked exactly.
 
+## Blockers
+
+- **Step 1's subject is being deleted.** `create_doors`, `door_walls_type` and `load_layout`'s door
+  callback go when a zone is loaded from its entities rather than from its glyphs
+  (`addressing_plan.md`, step 5). Step 1 waits for that, and what it then reimplements through the
+  interface is how a zone's doors are built from its file, with the reference frames unchanged as
+  before.
+- **Step 2 has no table to draw from.** Weighted selection over prototypes needs `content`, which does
+  not exist. Where the boundary with it falls is open below.
+- **Where it lives is unsettled,** which decides what it may depend on and therefore what a site can be.
+
 ## Open
 
 - **Where it lives.** `procgen` is a slot rather than a library, and placement may not belong beside
