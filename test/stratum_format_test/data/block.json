@@ -19,7 +19,7 @@
   },
   "rooms": [
     { "location": [1, 1], "barriers": [[2, 3]], "components": { "name": "the west room" } },
-    { "perimeter": [[3, 2], [4, 2], [4, 1], [6, 1], [6, 4], [4, 4], [4, 3], [3, 3]], "components": { "style": { "name": "hall", "lit": true } } }
+    { "perimeter": [[3, 2], [4, 2], [4, 1], [5, 1], [5, 3], [6, 3], [6, 4], [4, 4], [4, 3], [3, 3]], "components": { "style": { "name": "hall", "lit": true } } }
   ],
   "walls": [
     { "wall": [1, 1, 0, 1], "components": { "moss": 0.5 } },

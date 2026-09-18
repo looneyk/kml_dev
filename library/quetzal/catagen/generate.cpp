@@ -12,6 +12,7 @@
 #include <stdexcept>
 #include <utility>
 #include <vector>
+#include <cassert>
 #include <cstdlib>
 
 using namespace std;
@@ -454,9 +455,101 @@ namespace
     }
 
     //--------------------------------------------------------------------------
+    bool staircase(CellType type)
+    {
+        return type == CellType::StairsDown || type == CellType::StairsUp;
+    }
+
+    //--------------------------------------------------------------------------
+    // Across an open wall or a door, a door being passable once opened, onto an open cell
+    bool passable_side(const Level& level, const point_type& cell, CardinalDirection direction)
+    {
+        point_type next = neighbor(cell, direction);
+        return level.wall(cell, direction) != WallType::Solid && level.contains(next) && level.cell(next) == CellType::Open;
+    }
+
+    //--------------------------------------------------------------------------
+    // Whether a staircase's block at an open cell leaves what staircases need: a passable side of its own to face, one
+    // still beside each staircase next to it, and the cells across its passable sides still reaching one another around it
+    bool block_allowed(const Level& level, const point_type& cell)
+    {
+        assert(level.cell(cell) == CellType::Open);
+
+        auto has_open_side = [&](const point_type& from)
+        {
+            for (size_t index = 0; index < cardinal_directions.size(); ++index)
+            {
+                CardinalDirection direction = static_cast<CardinalDirection>(index);
+                if (neighbor(from, direction) != cell && passable_side(level, from, direction))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        };
+
+        vector<point_type> sides;
+
+        for (size_t index = 0; index < cardinal_directions.size(); ++index)
+        {
+            CardinalDirection direction = static_cast<CardinalDirection>(index);
+            point_type next = neighbor(cell, direction);
+
+            if (passable_side(level, cell, direction))
+            {
+                sides.push_back(next);
+            }
+            else if (level.contains(next) && staircase(level.cell(next)) && !has_open_side(next))
+            {
+                return false;
+            }
+        }
+
+        if (sides.empty())
+        {
+            return false;
+        }
+
+        const vector_type& extent = level.extent();
+        vector<bool> reached(static_cast<size_t>(extent.i()) * extent.j(), false);
+        reached[cell_slot(extent, sides.front())] = true;
+
+        vector<point_type> pending {sides.front()};
+        size_t sides_unreached = sides.size() - 1;
+
+        while (!pending.empty() && sides_unreached > 0)
+        {
+            point_type position = pending.back();
+            pending.pop_back();
+
+            for (size_t index = 0; index < cardinal_directions.size(); ++index)
+            {
+                CardinalDirection direction = static_cast<CardinalDirection>(index);
+                point_type next = neighbor(position, direction);
+
+                if (next == cell || !passable_side(level, position, direction) || reached[cell_slot(extent, next)])
+                {
+                    continue;
+                }
+
+                reached[cell_slot(extent, next)] = true;
+                pending.push_back(next);
+
+                if (find(sides.begin(), sides.end(), next) != sides.end())
+                {
+                    --sides_unreached;
+                }
+            }
+        }
+
+        return sides_unreached == 0;
+    }
+
+    //--------------------------------------------------------------------------
     // Staircases at the centers of rooms, a room to each, those leading up first. Corridors are passed over, being what
-    // joins rooms rather than somewhere to arrive, and running out of rooms places fewer, those leading down going short
-    // before those leading up
+    // joins rooms rather than somewhere to arrive, as is a room whose center would cut a passage or leave a staircase
+    // nothing to face, and running out of rooms places fewer, those leading down going short before those leading up
     void place_staircases(Level& level, const rectangles_type& rooms, const Parameters& parameters, random_type& random)
     {
         size_t down_count = draw_count(parameters.staircase_down_count, random);
@@ -471,11 +564,24 @@ namespace
         vector<size_t> available(rooms.size());
         iota(available.begin(), available.end(), size_t(0));
 
-        for (size_t i = 0; i < down_count + up_count && !available.empty(); ++i)
+        size_t placed = 0;
+
+        while (placed < down_count + up_count && !available.empty())
         {
             size_t slot = random.gen(available.size());
-            level.set_cell(center(rooms[available[slot]]), i < up_count ? CellType::StairsUp : CellType::StairsDown);
+            point_type cell = center(rooms[available[slot]]);
             available.erase(available.begin() + static_cast<ptrdiff_t>(slot));
+
+            if (block_allowed(level, cell))
+            {
+                level.set_cell(cell, placed < up_count ? CellType::StairsUp : CellType::StairsDown);
+                ++placed;
+            }
+        }
+
+        if (placed == 0)
+        {
+            throw runtime_error("the level has no room a staircase can take without closing off a passage, and so no entry");
         }
 
         return;
@@ -518,7 +624,7 @@ namespace
 
     //--------------------------------------------------------------------------
     // Each staircase blocking a doorway moves one cell, in a random direction across an open wall onto floor that blocks no
-    // doorway, and stays where there is no such direction. An open wall joins two cells of one region, so the staircase
+    // doorway and where its block is allowed, and stays where there is no such direction. An open wall joins two cells of one region, so the staircase
     // stays in its own space
     void move_staircases_off_doorways(Level& level, random_type& random)
     {
@@ -530,6 +636,10 @@ namespace
             }
 
             vector<point_type> available;
+            CellType type = level.cell(cell);
+
+            // Floor again while its destination is chosen, so the block there is judged without this one
+            level.set_cell(cell, CellType::Open);
 
             for (size_t index = 0; index < cardinal_directions.size(); ++index)
             {
@@ -540,7 +650,7 @@ namespace
                 }
 
                 point_type next = neighbor(cell, direction);
-                if (level.cell(next) == CellType::Open && !blocks_doorway(level, next))
+                if (level.cell(next) == CellType::Open && !blocks_doorway(level, next) && block_allowed(level, next))
                 {
                     available.push_back(next);
                 }
@@ -548,19 +658,20 @@ namespace
 
             if (available.empty())
             {
+                level.set_cell(cell, type);
                 continue;
             }
 
             point_type destination = available[random.gen(available.size())];
-            level.set_cell(destination, level.cell(cell));
-            level.set_cell(cell, CellType::Open);
+            level.set_cell(destination, type);
         }
 
         return;
     }
 
     //--------------------------------------------------------------------------
-    // A random facing for each staircase among the sides of its cell with no wall, or where there are none, with a door
+    // A random facing for each staircase among the sides of its cell with no wall and floor beyond, or where there are none,
+    // with a door
     void face_staircases(Level& level, random_type& random)
     {
         for (const point_type& cell : staircase_cells(level))
@@ -573,7 +684,7 @@ namespace
                 CardinalDirection direction = static_cast<CardinalDirection>(index);
                 WallType wall = level.wall(cell, direction);
 
-                if (wall == WallType::Open)
+                if (wall == WallType::Open && level.cell(neighbor(cell, direction)) == CellType::Open)
                 {
                     open.push_back(direction);
                 }

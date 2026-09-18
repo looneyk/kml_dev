@@ -31,12 +31,13 @@ first row written is the highest, the origin being the lower left cell.
 | corner   | space                                                             |
 
 An edge between two solid cells has no wall, `realize` giving one only to an edge with floor on a side
-of it. catagen writes no rooms, though generation knows which cells it laid out as rooms and the format
+of it. A stair cell is a block: the rows write a wall on every edge between one and floor, even where
+the level's wall is open, and none on its other edges. catagen writes no rooms, though generation knows which cells it laid out as rooms and the format
 has a section for them.
 
 Each door has an `attachments` entry at the walls `stratum_format::door_walls` finds for its glyph, the
 two sides of its edge, a `door` entity. Each staircase has an `attachments` entry at its cell, a `staircase` entity whose `facing` is the side
-of the cell it opens onto and whose `relocator` has the `target` `level_down` or `level_up`.
+of the cell it opens onto, always floor or a door and whose `relocator` has the `target` `level_down` or `level_up`.
 `layout.components.entry` lists the cells of every staircase, each being an entry.
 
 ## The library
@@ -96,7 +97,7 @@ a seed leaf: scattered rooms are what make a sparse level read as a dungeon rath
 complete one, and corridors are what join them.
 
 **3. Corridors.** While two rooms are out of reach of each other, the closest such pair by Manhattan
-distance between centres is joined by an L shaped path, turning once, with the leading leg chosen at
+distance between centers is joined by an L shaped path, turning once, with the leading leg chosen at
 random. Only a closed cell along the path is carved; a path crossing an existing room leaves it
 alone. Each unbroken run of carved cells becomes a region of its own, so that a path crossing a room
 does not leave one region in two disconnected pieces. Components are recounted after each corridor,
@@ -114,18 +115,21 @@ that joins two regions not yet joined, which is a random spanning tree over the 
 is what makes every region reachable. Each remaining pair takes a door with probability `loop`.
 
 **6. Staircases.** A count leading down is drawn from `staircase_down_count` and a count leading up
-from `staircase_up_count`, a range of one drawing nothing, and each staircase takes the centre of a
+from `staircase_up_count`, a range of one drawing nothing, and each staircase takes the center of a
 room chosen at random from those not yet holding one, those leading up first. Corridors are passed
-over, being what joins rooms rather than somewhere to arrive, and running out of rooms places fewer,
-those leading down going short first. A level with no room to place one in is an error: `generate`
-throws `std::runtime_error`.
+over, being what joins rooms rather than somewhere to arrive, and so is a room whose center would cut a
+passage, the cells across its passable sides no longer reaching one another around it, or leave it or a
+staircase beside it no passable side to face, a door counting as passable. Running out of rooms places
+fewer, those leading down going short first. A level with no room to place one in is an error:
+`generate` throws `std::runtime_error`.
 
 **7. Staircases off doorways.** A staircase with a door on a side of its cell moves one cell, in a
-random direction across an open wall onto floor with no door on any side, and stays where there is no
-such direction. An open wall joins two cells of one region, so it stays in its own space.
+random direction across an open wall onto floor with no door on any side that takes a block as step 6
+allows one, and stays where there is no such direction. An open wall joins two cells of one region, so
+it stays in its own space.
 
-**8. Facing.** Each staircase's facing is drawn from the sides of its cell with an open wall, or where
-there are none, from those with a door. These last three passes draw after every other, so nothing
+**8. Facing.** Each staircase's facing is drawn from the sides of its cell with an open wall and floor
+beyond, or where there are none, from those with a door. These last three passes draw after every other, so nothing
 before them changes.
 
 ## The tool
@@ -161,8 +165,8 @@ describes. The parameters are there to reproduce a level rather than to read one
 
 A door is both sides of one edge, and two rooms sharing a solid wall are walled from both sides along
 its whole length and passable nowhere, which is the thing the block notation cannot say: a wall with a
-room behind it rather than a solid cell. Staircases are floor to the loader until something reads them
-as more, and a catagen level loads with no rooms.
+room behind it rather than a solid cell. A stair cell is a block to the loader, closed like solid, and a
+catagen level loads with no rooms.
 
 ## Decisions
 
@@ -201,17 +205,19 @@ carving another corridor would change the layout rather than its connectivity.
 - **One character per edge can only describe a symmetric one.** A wall is per side, and the loader
   builds a wall on each side from the single glyph. A door open from one side only, or secret from one
   side, is components on the attachment rather than anything the rows say.
-- **Staircases go nowhere.** They are floor to the loader, there being nothing yet for them to reach.
-  `stratum_view_test` renders a wall notation level back to its own rows with `<` and `>` taken as
-  floor, because floor is all the view has to draw.
+- **Staircases go nowhere.** They are blocks to the loader, there being nothing yet to let an actor
+  through the open side or for them to reach. `stratum_view_test` renders a wall notation level back to
+  its own rows with `<` and `>` taken as blank, because solid is all the view has to draw there.
 
 ## Tests
 
 `test/catagen_test` checks that what the generator writes now is equivalent to its reference levels,
 regenerates each from its own parameters, and checks every level it generates is one the reader
 accepts. Over a sweep of seeds with ranges of staircases each way, it checks from the written level
-alone that the counts keep to their ranges, that no staircase has a door beside it while a free cell
-does not, and that every staircase has one facing that follows the rule. `assets/level/catagen.level`
+that the counts keep to their ranges, that every floor cell is reachable from every other, that every
+edge between a stair cell and floor is a wall, that no staircase has a door beside it while a free cell
+does not, and that every staircase has one facing that follows the rule, which sides of a stair cell were
+open coming from the level generated again. `assets/level/catagen.level`
 is the `shipped` reference level. `test/stratum_sim_test` has a `load wall layout` group over two files in its `data`:
 `walls.level`, two rooms of two by three cells sharing one wall with a door in the middle of it; and
 `catagen.level`, a generated level checked for solid cells, edges walled from both sides counting in

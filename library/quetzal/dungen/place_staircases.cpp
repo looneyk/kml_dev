@@ -6,6 +6,7 @@
 #include "place_staircases.hpp"
 #include <algorithm>
 #include <stdexcept>
+#include <cassert>
 
 using namespace std;
 
@@ -78,6 +79,90 @@ namespace
         return false;
     }
 
+    //--------------------------------------------------------------------------
+    // A door counts, being passable once opened
+    bool passable_at(const Level& level, point_type position)
+    {
+        if (!level.cells().contains(position))
+        {
+            return false;
+        }
+
+        CellType type = level.cell(position).type();
+        return type == CellType::Room || type == CellType::Corridor || type == CellType::Door;
+    }
+
+    //--------------------------------------------------------------------------
+    // Whether a staircase's block at a passable position leaves what staircases need: a passable side of its own to face,
+    // one still beside each staircase next to it, and its passable neighbors still reaching one another around it
+    bool block_allowed(const Level& level, point_type position)
+    {
+        assert(passable_at(level, position));
+
+        auto has_open_side = [&](point_type cell)
+        {
+            return any_of(cardinal_directions.begin(), cardinal_directions.end(), [&](const vector_type& direction)
+            {
+                point_type neighbor = cell + direction;
+                return neighbor != position && passable_at(level, neighbor);
+            });
+        };
+
+        vector<point_type> sides;
+
+        for (const auto& direction : cardinal_directions)
+        {
+            point_type neighbor = position + direction;
+            if (passable_at(level, neighbor))
+            {
+                sides.push_back(neighbor);
+            }
+            else if (level.cells().contains(neighbor) && level.cell(neighbor).type() == CellType::Stair && !has_open_side(neighbor))
+            {
+                return false;
+            }
+        }
+
+        if (sides.empty())
+        {
+            return false;
+        }
+
+        auto [nx, ny] = level.size().rep();
+        auto slot = [nx](point_type cell) { return static_cast<size_t>(cell.y()) * static_cast<size_t>(nx) + static_cast<size_t>(cell.x()); };
+
+        vector<bool> reached(static_cast<size_t>(nx) * static_cast<size_t>(ny), false);
+        reached[slot(sides.front())] = true;
+
+        vector<point_type> pending {sides.front()};
+        size_t sides_unreached = sides.size() - 1;
+
+        while (!pending.empty() && sides_unreached > 0)
+        {
+            point_type cell = pending.back();
+            pending.pop_back();
+
+            for (const auto& direction : cardinal_directions)
+            {
+                point_type neighbor = cell + direction;
+                if (neighbor == position || !passable_at(level, neighbor) || reached[slot(neighbor)])
+                {
+                    continue;
+                }
+
+                reached[slot(neighbor)] = true;
+                pending.push_back(neighbor);
+
+                if (find(sides.begin(), sides.end(), neighbor) != sides.end())
+                {
+                    --sides_unreached;
+                }
+            }
+        }
+
+        return sides_unreached == 0;
+    }
+
 } // namespace
 
 //------------------------------------------------------------------------------
@@ -95,9 +180,20 @@ void quetzal::dungen::place_staircases(Level& level, vector<point_type> candidat
 
     shuffle(candidates.begin(), candidates.end(), random.engine());
 
-    for (size_t i = 0; i < count; ++i)
+    size_t placed = 0;
+
+    for (size_t i = 0; i < candidates.size() && placed < count; ++i)
     {
-        level.create_staircase(candidates[i], i < up_count ? StaircaseDirection::Up : StaircaseDirection::Down);
+        if (block_allowed(level, candidates[i]))
+        {
+            level.create_staircase(candidates[i], placed < up_count ? StaircaseDirection::Up : StaircaseDirection::Down);
+            ++placed;
+        }
+    }
+
+    if (placed == 0)
+    {
+        throw runtime_error("the level has no cell a staircase can take without closing off a passage, and so no entry");
     }
 
     return;
@@ -118,6 +214,9 @@ void quetzal::dungen::move_staircases_off_doorways(Level& level, random_type& ra
         id_type space = space_of(level.cell(position));
         vector<point_type> available;
 
+        // Floor again while its destination is chosen, so the block there is judged without this one
+        level.cell(position).set_type(space == nullid ? CellType::Corridor : CellType::Room);
+
         for (const auto& direction : cardinal_directions)
         {
             point_type neighbor = position + direction;
@@ -128,7 +227,7 @@ void quetzal::dungen::move_staircases_off_doorways(Level& level, random_type& ra
 
             const Cell& cell = level.cell(neighbor);
             if ((cell.type() == CellType::Room || cell.type() == CellType::Corridor) && space_of(cell) == space
-                && !doorway(level, neighbor) && !blocks_doorway(level, neighbor))
+                && !doorway(level, neighbor) && !blocks_doorway(level, neighbor) && block_allowed(level, neighbor))
             {
                 available.push_back(neighbor);
             }
@@ -136,12 +235,12 @@ void quetzal::dungen::move_staircases_off_doorways(Level& level, random_type& ra
 
         if (available.empty())
         {
+            level.cell(position).set_type(CellType::Stair);
             continue;
         }
 
         point_type destination = available[random.gen(available.size())];
 
-        level.cell(position).set_type(space == nullid ? CellType::Corridor : CellType::Room);
         level.cell(destination).set_type(CellType::Stair);
         staircase.set_position(destination);
     }
@@ -166,7 +265,7 @@ void quetzal::dungen::face_staircases(Level& level, random_type& random)
             }
 
             CellType type = level.cell(neighbor).type();
-            if (floor_staircase(type))
+            if (type == CellType::Room || type == CellType::Corridor)
             {
                 open.push_back(direction);
             }

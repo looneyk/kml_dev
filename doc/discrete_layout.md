@@ -40,8 +40,8 @@ what the level is called for a player to read.
 ## An example
 
 A zone of four cells by three in the wall notation: a room of two by three on the left, a corridor
-cell joining it eastward through a door, and a room of one by three on the right with a staircase down
-at its top and the entrance, a staircase up, at its bottom.
+cell joining it eastward through a door, and on the right the stair head, one cell between two stair
+blocks, a staircase down above it and the entrance, a staircase up, below it.
 
 ```json
 {
@@ -62,9 +62,9 @@ at its top and the entrance, a staircase up, at its bottom.
     "rows": [
       " - -   - ",
       "|. .| |>|",
-      "     -   ",
+      "     - - ",
       "|. .+. .|",
-      "     -   ",
+      "     - - ",
       "|. .| |<|",
       " - -   - "
     ]
@@ -281,9 +281,10 @@ One character per cell: `extent.x` characters on each of `extent.y` rows.
 A wall is a cell here, so a door is a cell too: a block of wall a mover may stand in. Two areas
 never share an edge in this notation, a block always lying between them.
 
-A wall is a face of a block, on the side of the cell it faces. A floor/stair cell has a wall toward a
-`#`, a `+` or the border of the grid; a door cell has one toward a `#` or the border of the grid, and none
-toward floor, so a mover inside a doorway meets no wall on the way out.
+A wall is a face of a block, on the side of the cell it faces. A floor cell has a wall toward a `#`, a
+`+`, a stair cell or the border of the grid; a door cell has one toward a `#`, a stair cell or the border of
+the grid, and none toward floor, so a mover inside a doorway meets no wall on the way out. A stair cell is
+a block and has none.
 
 ### The wall notation
 
@@ -310,15 +311,18 @@ A corner position is always blank, and so is a cell with no floor. The edges eit
 express everything a corner could, and a solid cell is the absence of floor. A level draws its floor and the
 walls around it, and nothing else.
 
-A wall always separates a floor/stair cell from a blank cell, and from the border of the grid.
+A wall always separates a floor cell from a blank cell, from a stair cell, and from the border of the grid.
+A stair cell is a block with no walls of its own, so nothing is required between one and a blank cell or
+the border.
 
 An edge glyph is one character standing for both sides, so what it writes is symmetric. A door
 open from one side alone, or secret from one side, is components on the attachment.
 
 ### Staircases and entrances
 
-A stair glyph marks where a staircase is: a `staircase` entity attached to the floor at that cell, with
-a `relocator` whose target is where it leads, as the attachments section sets out.
+A stair glyph marks where a staircase is: a block, with a wall toward it on every side where there is
+floor, and a `staircase` entity attached to the floor at that cell, with a `relocator` whose target is
+where it leads, as the attachments section sets out.
 
 `<` marks more than a staircase leading up. It is the entrance glyph, the up exit or entrance point of
 any non-local transporter --- a staircase, a waypoint, a portal --- as `+` is the glyph of any threshold
@@ -330,7 +334,7 @@ the glyph implies, down for `>` and up for `<`. Every staircase leads somewhere,
 specifies nothing about where its staircases go is playable as it is.
 
 A staircase has a facing, written as a `facing` component on the staircase: the direction a mover
-steps from the stair cell into the space the staircase opens into. See `### A staircase's facing`.
+steps from the stair cell into the space the staircase opens into, its open side. See `### A staircase's facing`.
 
 ## rooms
 
@@ -342,22 +346,21 @@ A room is identified one of two ways, and specifies exactly one of them:
 | | |
 | --- | --- |
 | `perimeter` | A polygon in junction coordinates, within the grid, its sides horizontal or vertical and never crossing or touching one another. Each cell edge along it is a wall or a virtual wall |
-| `location` | A floor/stair cell anywhere in the room, the barriers closing it off |
+| `location` | A floor cell anywhere in the room, the barriers closing it off |
 
-**By location.** `location` is a cell written `.`, `>` or `<`, never a doorway: a room may be
-nothing but the stairway in it, and a doorway is what a room is reached through. The fill spreads
-from there through floor/stair cells, across edges with no wall and no door, and stops at a
-barrier. The location alone suffices wherever a room is closed by its own walls, which is
+**By location.** `location` is a cell written `.`, never a doorway, which is what a room is reached
+through, or a stair cell, which is a block. The fill spreads from there through floor cells, across
+edges with no wall and no door, and stops at a barrier. The location alone suffices wherever a room is closed by its own walls, which is
 the ordinary generated case; barriers close what is open, an egress cell or a gap where one area
 runs into the next.
 
-**By perimeter.** The polygon is the room's, and the room's cells are the floor/stair/door cells
-within it. It expresses what a fill cannot: a room whose perimeter crosses open ground, or one that
+**By perimeter.** The polygon is the room's, and the room's cells are the floor/door cells within
+it. It expresses what a fill cannot: a room whose perimeter crosses open ground, or one that
 includes part of a hall.
 
-Every cell edge along a perimeter is either a wall facing a floor/stair/door cell on either side of
-it, or a virtual wall: an edge with no wall, between two floor/stair/door cells. An edge with no wall
-and a blank or solid cell on either side is an error. A pillar on a perimeter may lie inside the room however.
+Every cell edge along a perimeter is either a wall facing a floor/door cell on either side of it, or a
+virtual wall: an edge with no wall, between two floor/door cells. An edge with no wall and a blank, solid
+or stair cell on either side is an error. A pillar on a perimeter may lie inside the room however.
 
 Either way the layout stores one result: the room's cells. Nothing that uses the layout has two
 cases.
@@ -502,7 +505,7 @@ where it leads is its `target`, bound or unbound.
 ```
 
 **Bound: the relocator arrived at,** by its persistent id (`addressing.md`, `### Relocators and
-entries`). A target is bound by having been travelled: until a way has been gone through, nothing has
+access points`). A target is bound by having been travelled: until a way has been gone through, nothing has
 fixed where it arrives. A zone long since generated still has access points nobody has used, and
 every one of them is unbound. A level file is a template, so its relocators are unbound; a bound target
 is written only in a saved zone, in the form `addressing_plan.md` sets out.
@@ -535,8 +538,8 @@ Which way a staircase opens, written as a `facing` component on the staircase:
 
 The value is one of the four steps across a cell's faces, `[1, 0]`, `[0, 1]`, `[-1, 0]` or `[0, -1]`,
 from the stair cell toward the space the staircase opens into, which is the way a mover arriving by it
-steps off. It is a direction on the grid rather than a wall address, a staircase being on a flat cell
-rather than on a wall. Like the relocator, the reader passes it on as written. A generator writes a
+steps off: a side with floor beyond, or a doorway where the stair cell has no floor beside it. It is a
+direction on the grid rather than a wall address, a staircase being on a flat cell rather than on a wall. Like the relocator, the reader passes it on as written. A generator writes a
 facing for every staircase it places.
 
 ## What a reader must do with it
@@ -569,19 +572,19 @@ every check has passed, so a rejected file leaves nothing behind.
   extent sets.
 - A run count of zero, or a count with no glyph after it.
 - A glyph the notation does not define, or one at a position that does not take it.
-- In the wall notation, a floor/stair cell with no wall between it and a blank cell, or the border of
-  the grid.
+- In the wall notation, a floor cell with no wall between it and a blank cell, a stair cell, or the
+  border of the grid.
 - An address's normal is not one of the four steps across a cell's faces, or a barrier is neither two
   numbers nor four.
 - A room specifies both `perimeter` and `location`, or neither.
-- A room's location is not a floor/stair cell, or is a cell closed off by a barrier.
+- A room's location is not a floor cell, or is a cell closed off by a barrier.
 - A room's perimeter has fewer than four junctions, a junction off the grid, a side neither
   horizontal nor vertical, or two sides that cross or touch.
-- A cell edge along a perimeter is neither a wall facing a floor/stair/door cell nor an edge between
-  two floor/stair/door cells.
+- A cell edge along a perimeter is neither a wall facing a floor/door cell nor an edge between two
+  floor/door cells.
 - Two rooms cover one cell.
 - A barrier is at a position off the grid.
-- A wall address has no wall in the grid, or its cell is not a floor/stair/door cell.
+- A wall address has no wall in the grid, or its cell is not a floor/door cell.
 - More than one entry in `walls` for one wall.
 - A flat refers to a room that does not exist, or to a cell off the grid, or has more than one entry
   for one room or one cell.

@@ -347,7 +347,11 @@ namespace
 
         report_case("a corner walls reach is a joint", lattice.at({0, 0}).type == stratum_view::PlaceType::Wall);
         report_case("so is one a run passes through", lattice.at({2, 0}).type == stratum_view::PlaceType::Wall);
-        report_case("a corner inside a room is not", lattice.at({2, 2}).type == stratum_view::PlaceType::None);
+
+        // Every corner inside these rooms meets a stair's walls, so the corner with nothing at it is one in the vault
+        stratum_sim::World open_world;
+        flecs::entity vault = load_zone(open_world, "vault", "data/vault.level");
+        report_case("a corner inside a room is not", stratum_view::lattice(open_world, vault).at({10, 4}).type == stratum_view::PlaceType::None);
 
         // The block format reduces onto the same lattice, its walls existing only against solid
         stratum_sim::World block;
@@ -460,10 +464,10 @@ namespace
             string s = stratum_view::render(world, zone).to_string();
             string expected = rows_of(filepath);
 
-            // The entrance loads as floor, so the view has only floor to draw there
+            // The entrance is a block, so the view has only solid to draw there
             for (char& c : expected)
             {
-                c = c == '<' || c == '>' ? '.' : c;
+                c = c == '<' || c == '>' ? '#' : c;
             }
 
             report_case(format("{} renders back to its own rows", name), s == expected, "\n" + s);
@@ -481,10 +485,10 @@ namespace
             string s = stratum_view::render_lattice(world, zone).to_string();
             string expected = rows_of(filepath);
 
-            // Stairs load as floor, so the view has only floor to draw there
+            // Stairs are blocks, so the view has only solid to draw there, which the notation leaves blank
             for (char& c : expected)
             {
-                c = c == '<' || c == '>' ? '.' : c;
+                c = c == '<' || c == '>' ? ' ' : c;
             }
 
             size_t width = expected.find('\n');
@@ -519,8 +523,8 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // A generated dungeon, which has doorways and stairs as well as rooms and corridors. All of them are open, and a
-    // doorway is a block with a door on it, so it renders as the door rather than as the floor it also is
+    // A generated dungeon, which has doorways and stairs as well as rooms and corridors. A stair is a block, so it renders
+    // as solid, and a doorway is a block with a door on it, so it renders as the door rather than as the floor it also is
     void test_dungeon()
     {
         report_group("generated dungeon");
@@ -547,7 +551,7 @@ namespace
             {
                 // File line 0 is the highest row
                 char source_character = source[static_cast<size_t>((extent.y() - 1 - j) * (extent.x() + 1) + i)];
-                bool solid = source_character == '#';
+                bool solid = source_character == '#' || source_character == '<' || source_character == '>';
 
                 solid ? ++solid_count : ++floor_count;
 

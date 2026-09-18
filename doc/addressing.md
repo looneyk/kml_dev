@@ -24,6 +24,7 @@ Date: 2026-09-14, revised 2026-09-16
 | Wall ids, cell slots, room ids and flat ids in a layout | Built: `DiscreteLayout` |
 | Entities attached to places | Built in the 0.3 form in the format and both generators; nothing in `stratum_sim` reads them yet |
 | Runtime entities, and migration between zones keeping them | Built |
+| Stair cells as blocks, and staircases placed where their blocks cut no passage | Built, the staircase attached to its cell's floor as 0.3 writes it |
 | One list of entities in a file, with `attached` and `parent` file components | Designed |
 | Persistent ids, the id allocator and the world index | Designed |
 | Links in both directions between an entity and what it is attached to; location maps | Designed |
@@ -304,9 +305,10 @@ and slot to flat cell entity.
   list.
 - **What is in that chest:** read the chest's list, keeping those attached `contained_in`.
 - **Where an entity is:** read its `attached`.
-- **Whether a wall can be crossed:** ask each entity on the wall's list whether its properties let the
-  actor through.
-  `crossable` knows nothing about doors or concealment; each entity decides for itself.
+- **Whether a wall can be crossed:** ask each entity on the wall's list whether its access is open and
+  it is not concealed from the actor, each property read from the entity or, where it has none, from its
+  direct ancestor. An entity with no access at all, a torch or a lever, is no way through. `crossable` names
+  neither doors nor staircases nor concealment.
 
 ### Children
 
@@ -373,8 +375,8 @@ session too. Both are saved with the session.
 - **A relationship can be written.** 0.3 implies it from the place.
 - **A door is a parent with door facings as children.** 0.3 writes a door as one entry listing both
   walls.
-- **A staircase is a block, attached to the wall on its open side.** 0.3 writes a stair cell as open
-  floor, and the staircase attached to the floor with a `facing` file component.
+- **A staircase is attached to the wall on its open side.** 0.3 attaches it to its stair cell's floor,
+  with a `facing` file component giving the open side.
 - **Contents are attached.** 0.3 nests an entity's contents in its `contains`, which goes.
 - **Wall addresses are a cell position and a normal, written separately.** 0.3 writes one array,
   `[i, j, ni, nj]`, in `walls`, `attachments` and `barriers`.

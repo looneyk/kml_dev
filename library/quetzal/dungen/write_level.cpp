@@ -133,15 +133,15 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    bool floor_stair(CellType type)
+    bool floor(CellType type)
     {
-        return type == CellType::Room || type == CellType::Corridor || type == CellType::Stair;
+        return type == CellType::Room || type == CellType::Corridor;
     }
 
     //--------------------------------------------------------------------------
     id_type room_of(const Cell& cell)
     {
-        return cell.type() == CellType::Room || cell.type() == CellType::Stair ? cell.room_id() : nullid;
+        return cell.type() == CellType::Room ? cell.room_id() : nullid;
     }
 
 } // namespace
@@ -188,8 +188,8 @@ void quetzal::dungen::write_level(ostream& os, const Level& level, const Paramet
         }
     }
 
-    // Room floor lies against corridor floor with nothing between, so an edge between two floor/stair cells of different
-    // rooms, or of a room and none, is a barrier
+    // Room floor lies against corridor floor with nothing between, so an edge between two floor cells of different rooms,
+    // or of a room and none, is a barrier
     vector<optional<point_type>> locations(level.rooms().size());
     const vector_type east {1, 0};
     const vector_type north {0, 1};
@@ -199,7 +199,7 @@ void quetzal::dungen::write_level(ostream& os, const Level& level, const Paramet
         for (coord_type x = 0; x < nx; ++x)
         {
             const Cell& cell = level.cell({x, y});
-            if (!floor_stair(cell.type()))
+            if (!floor(cell.type()))
             {
                 continue;
             }
@@ -213,7 +213,7 @@ void quetzal::dungen::write_level(ostream& os, const Level& level, const Paramet
             for (const vector_type& direction : {east, north})
             {
                 point_type neighbor = point_type {x, y} + direction;
-                if (level.cells().contains(neighbor) && floor_stair(level.cell(neighbor).type()) && room_of(level.cell(neighbor)) != room_id)
+                if (level.cells().contains(neighbor) && floor(level.cell(neighbor).type()) && room_of(level.cell(neighbor)) != room_id)
                 {
                     document.barriers.push_back({{x, y}, -direction});
                 }

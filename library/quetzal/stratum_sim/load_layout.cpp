@@ -23,7 +23,7 @@ std::unique_ptr<quetzal::stratum_sim::DiscreteLayout> quetzal::stratum_sim::load
         for (coord_type i = 0; i < cells.extent.x(); ++i)
         {
             discrete_point_type cell_position {i, j};
-            if (!stratum_format::floor_stair_door_cell(cells, cell_position))
+            if (!stratum_format::floor_door_cell(cells, cell_position))
             {
                 continue;
             }

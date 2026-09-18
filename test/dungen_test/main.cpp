@@ -771,8 +771,9 @@ namespace
         {
             for (dungen::coord_type x = 0; x < nx; ++x)
             {
+                // A stair cell is a block, and in no room
                 const dungen::Cell& cell = level.cell({x, y});
-                if (cell.type() == dungen::CellType::Room || cell.type() == dungen::CellType::Stair)
+                if (cell.type() == dungen::CellType::Room)
                 {
                     if (cell.room_id() != nullid)
                     {
@@ -878,9 +879,10 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Read from the written level alone: as many staircases each way as the counts allow, no staircase blocking a doorway
-    // while a cell beside it would not, every staircase with an entity whose facing is a side with no wall, or with a
-    // door where no side is free of a wall, and the entry listing every staircase cell
+    // Read from the written level, and a stair cell's space, which a block in no room leaves the file without, from the level
+    // generated again: as many staircases each way as the counts allow, no floor cut off by a stair block, no staircase
+    // blocking a doorway while a cell beside it would not, every staircase with an entity whose facing is a side with floor beyond, or with a door where no side
+    // has floor beyond, and the entry listing every staircase cell
     bool staircases_placed_and_faced(const string& level, const dungen::Parameters& parameters, string& detail)
     {
         using stratum_format::coord_type;
@@ -919,13 +921,21 @@ namespace
                 ? cells.rows[cells.rows.size() - 1 - static_cast<size_t>(cell_position.j())][static_cast<size_t>(cell_position.i())] : '#';
         };
 
-        auto space = [&room_of](const discrete_point_type& cell_position)
+        auto floor_stair = [](char c) { return c == '.' || c == '>' || c == '<'; };
+
+        dungen::Level generated = dungen::generate(0, "level", parameters);
+
+        auto space = [&](const discrete_point_type& cell_position)
         {
+            if (glyph(cell_position) == '>' || glyph(cell_position) == '<')
+            {
+                id_type room_id = generated.cell(cell_position).room_id();
+                return room_id == nullid ? optional<size_t>() : optional<size_t>(room_id);
+            }
+
             auto i = room_of.find(cell_position);
             return i == room_of.end() ? optional<size_t>() : optional<size_t>(i->second);
         };
-
-        auto floor_stair = [](char c) { return c == '.' || c == '>' || c == '<'; };
 
         auto doorway = [&](const discrete_point_type& cell_position)
         {
@@ -947,6 +957,55 @@ namespace
         {
             return any_of(directions.begin(), directions.end(), [&](const discrete_vector_type& direction) { return doorway(cell_position + direction); });
         };
+
+        // With every stair block in place, each floor and doorway cell is reachable from every other, a door being
+        // passable once opened
+        auto passable = [&](const discrete_point_type& cell_position) { return glyph(cell_position) == '.' || glyph(cell_position) == '+'; };
+        set<discrete_point_type> passable_cells;
+
+        for (coord_type j = 0; j < cells.extent.y(); ++j)
+        {
+            for (coord_type i = 0; i < cells.extent.x(); ++i)
+            {
+                if (passable({i, j}))
+                {
+                    passable_cells.insert({i, j});
+                }
+            }
+        }
+
+        set<discrete_point_type> reached;
+        vector<discrete_point_type> pending;
+
+        if (!passable_cells.empty())
+        {
+            reached.insert(*passable_cells.begin());
+            pending.push_back(*passable_cells.begin());
+        }
+
+        while (!pending.empty())
+        {
+            discrete_point_type cell_position = pending.back();
+            pending.pop_back();
+
+            for (const discrete_vector_type& direction : directions)
+            {
+                if (passable(cell_position + direction) && reached.insert(cell_position + direction).second)
+                {
+                    pending.push_back(cell_position + direction);
+                }
+            }
+        }
+
+        // maze1 can leave corridor that no door reaches, so is not held to this yet
+        for (const discrete_point_type& cell_position : passable_cells)
+        {
+            if (parameters.algorithm != dungen::Algorithm::Maze1 && !reached.contains(cell_position))
+            {
+                detail = format("floor at {}, {} is cut off", cell_position.i(), cell_position.j());
+                return false;
+            }
+        }
 
         size_t down_count = 0;
         size_t up_count = 0;
@@ -1017,11 +1076,11 @@ namespace
                 }
 
                 const discrete_vector_type& facing = facings.front();
-                bool open_side = any_of(directions.begin(), directions.end(), [&](const discrete_vector_type& direction) { return floor_stair(glyph(cell_position + direction)); });
+                bool open_side = any_of(directions.begin(), directions.end(), [&](const discrete_vector_type& direction) { return glyph(cell_position + direction) == '.'; });
                 bool step = find(directions.begin(), directions.end(), facing) != directions.end();
                 char faced = glyph(cell_position + facing);
 
-                if (!step || !(floor_stair(faced) || (faced == '+' && !open_side)))
+                if (!step || !(faced == '.' || (faced == '+' && !open_side)))
                 {
                     detail = format("staircase at {}, {} faces {}, {}", i, j, facing.x(), facing.y());
                     return false;

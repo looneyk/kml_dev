@@ -70,6 +70,41 @@ namespace
     }
 
     //--------------------------------------------------------------------------
+    bool stair_cell(const Level& level, const point_type& cell)
+    {
+        if (!level.contains(cell))
+        {
+            return false;
+        }
+
+        CellType type = level.cell(cell);
+        return type == CellType::StairsDown || type == CellType::StairsUp;
+    }
+
+    //--------------------------------------------------------------------------
+    bool floor_cell(const Level& level, const point_type& cell)
+    {
+        return level.contains(cell) && level.cell(cell) == CellType::Open;
+    }
+
+    //--------------------------------------------------------------------------
+    // A stair cell is a block, so beside one there is a wall where floor is, even across an open wall, and none elsewhere
+    WallType written_wall(const Level& level, WallType type, const point_type& a, const point_type& b)
+    {
+        if (!stair_cell(level, a) && !stair_cell(level, b))
+        {
+            return type;
+        }
+
+        if (!floor_cell(level, a) && !floor_cell(level, b))
+        {
+            return WallType::Open;
+        }
+
+        return type == WallType::Open ? WallType::Solid : type;
+    }
+
+    //--------------------------------------------------------------------------
     // The first row is the highest, the origin being the lower left cell
     vector<string> rows(const Level& level)
     {
@@ -96,11 +131,11 @@ namespace
                 }
                 else if (cell_x)
                 {
-                    row[x] = wall_glyph(level.wall_horizontal(i, j), '-');
+                    row[x] = wall_glyph(written_wall(level, level.wall_horizontal(i, j), {i, j - 1}, {i, j}), '-');
                 }
                 else if (cell_y)
                 {
-                    row[x] = wall_glyph(level.wall_vertical(i, j), '|');
+                    row[x] = wall_glyph(written_wall(level, level.wall_vertical(i, j), {i - 1, j}, {i, j}), '|');
                 }
             }
 

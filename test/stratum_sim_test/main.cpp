@@ -1203,11 +1203,11 @@ namespace
         pwalls->set_crossable([door_wall_ids](id_type wall_id) { return door_wall_ids.contains(wall_id); });
 
         report_case("the grid is the file's extent", walls.grid().extent == stratum_sim::discrete_vector_type(4, 3));
-        report_case_equal("each room is walled on every side it presents", wall_counts(walls).sides, 20);
+        report_case_equal("each room is walled on every side it presents", wall_counts(walls).sides, 24);
         report_case_equal("a level defining no rooms has none", walls.room_count(), 0);
 
         // What the block notation cannot express: a wall with a room behind it rather than a solid cell
-        report_case_equal("the shared wall is walled from both sides along its whole length", wall_counts(walls).both_sides, 6);
+        report_case_equal("the shared wall is walled from both sides wherever both are floor", wall_counts(walls).both_sides, 4);
         report_case_equal("one pair of it is the door", door_walls.size(), 1);
 
         // The generator puts the door in the top row of the shared wall at this seed, and the
@@ -1215,7 +1215,7 @@ namespace
         // fixture would put them
         report_case("a mover crosses at the door", !walls.blocked(stratum_sim::discrete_point_type {1, 2}, cardinal_direction(CardinalDirection::East)));
         report_case("and back through it", !walls.blocked(stratum_sim::discrete_point_type {2, 2}, cardinal_direction(CardinalDirection::West)));
-        report_case("but not below it", walls.blocked(stratum_sim::discrete_point_type {1, 1}, cardinal_direction(CardinalDirection::East)));
+        report_case("but not below it", walls.blocked(stratum_sim::discrete_point_type {2, 1}, cardinal_direction(CardinalDirection::West)));
         report_case("nor two below", walls.blocked(stratum_sim::discrete_point_type {1, 0}, cardinal_direction(CardinalDirection::East)));
         report_case("and never within one room", !walls.blocked(stratum_sim::discrete_point_type {0, 0}, cardinal_direction(CardinalDirection::East)));
 

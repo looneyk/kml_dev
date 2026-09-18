@@ -30,7 +30,10 @@ across zones; and an actor index for each zone. Open steps are listed in `work_p
   on its open side, the side facing the room it opens into, and has whether it leads up or down, its
   relocator and its target. That wall's normal is the direction of travel from the staircase into the
   room, so a staircase has no orientation of its own. Its other sides are ordinary walls, each of which
-  can have file components of its own, such as a texture.
+  can have file components of its own, such as a texture. Where a stair block may go is the generators'
+  concern, not the loader's: it must not cut a passage in two, and at a dead end its open side faces the
+  one open neighbor. The geometry, the placement and the walls around a stair cell are built already,
+  on 0.3 (`work_plan.md`, stage 8).
 - **A reference is written `{ "entity": id }`,** an object with that one key, so making a zone translates
   every reference without knowing what a file component means.
 - **Relationships are optional, and the caller's vocabulary.** `relationship` is written only where it
@@ -41,10 +44,11 @@ across zones; and an actor index for each zone. Open steps are listed in `work_p
   what is attached to it, and the same goes for a staircase: an actor moves into one through its open
   side, which the staircase attached there lets it cross.
 - **`crossable` looks at each entity attached to the wall** and whether that entity's properties allow
-  movement, through a function of the entity's type that takes the entity and the actor crossing. So
-  `crossable` knows nothing about doors or concealment, and concealment that differs by actor
-  (`action_state_script.md`) is the door facing's function's to decide. Nothing on the wall or the cell
-  marks it crossable; a tag on an attached entity, which its type's function reads, remains possible.
+  movement: its access state, open, closed or locked, and its detection state for the actor asking. A
+  property is resolved from the entity, then its parent; an entity with no access state
+  anywhere in that chain is not something to pass through, and so is not crossable. One rule reads the
+  properties, naming no type, so `crossable` knows nothing about doors, staircases or concealment, and
+  nothing on the wall or the cell marks it crossable (`## Crossing a wall`).
 - **An actor keeps its `placement_type`** and is not attached to where it stands. Each zone has an actor
   index, derived from the placements, which finds the actors at a place without a search (`## Actors`).
 - **The player is in a zone, and owned by the session.** It is in its zone's actor index like any
@@ -141,8 +145,8 @@ written `<` or `>`.
   floor on either side presents to the doorway block. `stratum_format::door_walls` is what finds them.
 - **A stair glyph:** one entity with a `relocator` file component, attached to one of the walls the
   stair cell's open neighbors present to it, which is then its open side, and no other entity with a
-  relocator on those walls. In the wall notation, every edge between a stair cell and an open cell is
-  written as a wall.
+  relocator on those walls. In the wall notation, every edge between a stair cell and a floor cell is
+  written as a wall, as 0.3 already requires.
 
 ### Cell positions and wall addresses in the other sections
 
@@ -279,10 +283,9 @@ Both write 0.4 through `stratum_format` as they write 0.3 now.
   same parameters give the same ids, which the reference zone files compare.
 - **A door** is a `door` entity and a `door_facing` child per wall, each attached to its wall.
 - **A staircase** is a `staircase` entity with its `relocator`, attached to the wall on its open side.
-  The open side is the side each generator chooses as a staircase's facing now: a side with no wall,
-  avoiding a door.
-- **The stair cell is a block.** catagen writes a wall on every edge between a stair cell and an open
-  cell; dungen's block notation needs nothing more.
+  The open side is the side each generator writes as a staircase's `facing` in 0.3, and the `facing`
+  file component goes.
+- **Stair blocks, their placement and the walls around them** are built already, on 0.3.
 - **The access points** are references to every staircase.
 
 `staircases_placed_and_faced` and `doors_have_entities` in the generator, sim and view suites read the
@@ -521,24 +524,51 @@ Encoding a wall address is a function of its own, taking the normal as it is:
 ```cpp
 namespace quetzal::stratum_sim
 {
-    // On a type's prefab, inherited by its entities: whether an entity of the type, attached to a wall,
-    // lets the actor move through that wall
-    struct CrossingRule
+    enum class AccessState { Open, Closed, Locked };
+    enum class DetectionState { Visible, Concealed, Revealed };
+
+    // On an entity there is a way through, such as a door or a staircase
+    struct Access
     {
-        std::function<bool(flecs::entity entity, flecs::entity actor)> allows;
+        AccessState state = AccessState::Closed;
     };
+
+    // On an entity that is not seen by everything, with the state of the actors that have their own
+    struct Detection
+    {
+        DetectionState state = DetectionState::Visible;
+        std::unordered_map<persistent_id_type, DetectionState> actor_states;
+    };
+
+    // A property of an entity, from the entity, then its parent, and so on. None where nothing in that
+    // chain has it
+    std::optional<AccessState> access(flecs::entity entity);
+    std::optional<DetectionState> detection(flecs::entity entity, flecs::entity actor);
 
     // Whether any entity attached to the wall lets the actor through
     bool crossable(flecs::entity zone, id_type wall_id, flecs::entity actor);
 }
 ```
 
-- **`crossable`** takes the wall's entity, then asks the `CrossingRule` of each entity in its
-  `AttachedEntities`. A wall with no entity, or with nothing attached that has a rule, cannot be crossed.
-- **A door facing's rule** reads its door's state and its own concealment. A staircase's allows every
-  actor. A type whose answer is the same for every actor can have its rule read a tag on the entity.
-- **The answer depends on the actor,** so `Layout::set_crossable` goes: `move`, `neighbors` and `visible`
-  take the crossing predicate as `move` takes `obstructed`, and `World` binds it to the actor asking.
+- **`crossable`** takes the wall's entity, then asks each entity in its `AttachedEntities`: it lets the
+  actor through when its access is open and its detection for that actor is not concealed. A wall with no
+  entity, or with nothing attached that any of this is true of, cannot be crossed.
+- **No access is no way through.** An entity whose chain has no `Access` at all --- a torch, a lever --- is
+  not something to pass through, so nothing looks further at it.
+- **A property comes from the entity or from an ancestor.** A door facing has no `Access` of its own and
+  its door has one, which is what makes both sides of a door open together. A staircase's own is open and
+  stays open. Nothing is read from a parent an entity does not have.
+- **One rule, naming no type.** `crossable` reads `Access` and `Detection` and nothing else, so a new kind
+  of way through is a matter of what it has rather than of code here.
+- **The answer depends on the actor,** so `Layout::set_crossable`, `m_crossable` and the protected
+  `Layout::crossable` go: `move`, `neighbors` and `visible` take the crossing predicate as `move` takes
+  `obstructed`, and `World` binds it to the actor asking. `World` also gains `neighbors` and `visible` beside
+  its `move`, so nothing outside it binds a predicate and `ai.cpp` stops holding a layout.
+- **One wall question in the layout,** `DiscreteLayout::blocked` and the predicate's call site becoming
+  `passable(cell_position, direction, crossable)`: no wall ahead is passable, a wall is what the predicate
+  answers for. The grid boundary is no longer a branch of its own. An open cell at the edge has a wall, which
+  the reader requires and a generator that omits it is wrong about, and a wall with nothing attached is not
+  crossable, so the walk stops there. Absence of a wall asserts that the cell beyond is on the grid.
 
 ### What the queries become
 
@@ -685,8 +715,10 @@ Bethesda's form ids between a plugin's place in the load order and its own count
   - a file's `parent` making a Flecs child, and deleting a parent deleting its children;
   - `encode_wall_id` and `wall_toward` giving the same id for the same wall, for all four normals;
   - a place's entity made when something is attached and gone when nothing is;
-  - `crossable` asking each attached entity's rule, with a door open, closed, and concealed from one side
-    for one actor and not another; a staircase crossed from its open side and from no other;
+  - `crossable` through `Access` and `Detection`: a door open, closed and locked; a door facing taking its
+    door's access, and concealed for one actor and not another; an entity with no `Access` in its chain
+    never crossable; a staircase crossed from its open side and from no other;
+  - the predicate passed per call: one wall crossed by one actor and not by another, in the same layout;
   - the actor index following every move, migration, creation and deletion, and `entities_at` and
     `entities_within` returning what a scan of the zone returns;
   - migration keeping the persistent id and the runtime entity, and updating the index;
@@ -702,9 +734,9 @@ Bethesda's form ids between a plugin's place in the load order and its own count
       `references.hpp`, `cell_position` and separate wall addresses throughout, and the format suite's
       data and mutations.
 - [ ] **2. The generators and every zone file in 0.4.** Both generators, their suites and references,
-      the sim and view data, the assets and the tool samples. `load_layout` reads a stair cell as a block
-      in both notations and otherwise still reads geometry alone, so the sim and view suites change only
-      where a stair cell is now a block.
+      the sim and view data, the assets and the tool samples. `load_layout` still reads geometry alone,
+      stair cells being blocks already (`work_plan.md`, stage 8). Each staircase's attachment moves from
+      its cell's floor to the wall on its open side, and `facing` goes.
 - [x] **3. `flecs::Parent` checked in `flecs_test`.** Done: `## Flecs` has what it found, including that
       a hierarchy cannot be read back from flecs JSON.
 - [ ] **4. Persistent ids.** `persistent_id_type`, `IdAllocator`, `CountingIdAllocator`, `PersistentId`,
@@ -716,7 +748,7 @@ Bethesda's form ids between a plugin's place in the load order and its own count
       layout and its type's default. Making a zone allocates persistent ids and translates references,
       attachment links both ways through `Attached`, `AttachedEntities` and the places' entities, and a
       parent has its children, so `crossable` searches nothing, asking each attached entity's
-      `CrossingRule` for the actor crossing. Each staircase gets its relocator with its target. Wall ids
+      `Access` and `Detection` for the actor crossing. Each staircase gets its relocator with its target. Wall ids
       are encoded from the normal by `encode_wall_id`. `World` contains zones rather than layouts, and the
       door functions go.
 - [ ] **6. Migration and the player's ownership.** `relocate` across zones through the links and the
@@ -732,8 +764,11 @@ Bethesda's form ids between a plugin's place in the load order and its own count
       observers, and `entities_at` and `entities_within` asking the index. It builds against the zones as
       they are now.
 
-Steps 1 and 9 change no behavior and no frame, and step 2 changes them only where a stair cell is now a
-block. Step 5 is where behavior moves from the glyphs to the entities, and the frames confirm that
+**Steps 1 and 2 are one change to the build.** After step 1 alone the generators do not compile, being
+written against the 0.3 document, and no checked-in zone file reads, the reader accepting 0.4 only. The
+build is clean again once both are done.
+
+Steps 1, 2 and 9 change no behavior and no frame. Step 5 is where behavior moves from the glyphs to the entities, and the frames confirm that
 nothing a player sees changed apart from the wall ids they print.
 
 ## Blockers
@@ -747,7 +782,7 @@ nothing a player sees changed apart from the wall ids they print.
 ## Open
 
 - **Names.** `attached`, `parent`, `door_facing`, `file_id_type`, `EntityTarget`, `PersistentId`,
-  `EntityReference`, `make_reference`, `ZonePlaces`, `CrossingRule` and `ActorIndex` are working names. `placement` is
+  `EntityReference`, `make_reference`, `ZonePlaces`, `Access`, `Detection` and `ActorIndex` are working names. `placement` is
   not a candidate for the file's `attached`, `placement_type` already being an actor's position and
   direction.
 - **Where a saved zone is written,** and how a world's zones are found by persistent id on disk. The

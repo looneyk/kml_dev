@@ -416,23 +416,30 @@ The generators write every staircase as a `staircase` entity with a facing and a
 { "flat": "floor", "cell": [3, 2], "entities": [ { "type": "staircase", "components": { "facing": [0, -1], "relocator": { "target": "level_down" } } } ] }
 ```
 
+- **A stair cell is a block.** Floor beside it is walled toward it, and it is in no room. A staircase is
+  placed only where its block cuts no passage, its passable neighbors still reaching one another around
+  it, and leaves it and every staircase beside it a passable side to face, a door counting as passable.
+  catagen writes a wall on every edge between a stair cell and floor, and none on its other edges; the
+  block notation needs nothing written.
 - **Off a doorway.** A staircase placed where it blocks a doorway is moved one cell, in a random
   direction among those available. It blocks a doorway where a mover coming through the doorway
   steps straight onto it. An available direction is a side with no wall and no doorway, onto a floor
-  cell of the same space that blocks no doorway itself and holds no other staircase. Where no direction
-  is available the staircase stays.
-- **The facing chosen.** A random choice among the stair cell's sides with no wall on them. A side
-  with a door is avoided, and chosen from only where no side is open.
+  cell of the same space that blocks no doorway itself, holds no other staircase, and takes a block as
+  placing one allows. Where no direction is available the staircase stays.
+- **The facing chosen.** A random choice among the stair cell's sides with floor beyond, which is its
+  open side. A side with a door is avoided, and chosen from only where there is no such side.
 - **The generator's last pass.** Each generator moves staircases off doorways and then draws the
   facings, from its own random source, after every other pass, so no earlier draw moves and a
   reference level's rows change only where a staircase moved.
   - dungen, built: `Staircase` stores its facing, and `move_staircases_off_doorways` and
     `face_staircases` follow `remove_doors`, which decides which doorways keep a door. A doorway is a
     `Door` cell, or the cell a door was removed from, which is floor of a different space from the room
-    it opens into. A side is open where the neighbor is `Room`, `Corridor` or `Stair`. Moving a
-    staircase restores the cell it leaves to what it was and updates the `Staircase`'s position.
-  - catagen, built: `Level` stores a facing for each stair cell, beside its cells and walls. A
-    doorway is a wall of `WallType::Door`, and a side is open where the wall on it is `WallType::Open`.
+    it opens into. A side is open where the neighbor is `Room` or `Corridor`. Moving a staircase
+    restores the cell it leaves to what it was and updates the `Staircase`'s position.
+  - catagen, built: `Level` stores a facing for each stair cell, beside its cells and walls, which stay
+    open where the generator laid them out so and are written as walls. A doorway is a wall of
+    `WallType::Door`, and a side is open where the wall on it is `WallType::Open` and the cell beyond is
+    floor.
 - **Written by `write_level`.** Each generator adds an entry for each staircase to the document: a
   `staircase` entity with its facing and a relocator whose target is `level_down` for `>` and
   `level_up` for `<`. Both are built.
@@ -460,9 +467,11 @@ The generators write every staircase as a `staircase` entity with a facing and a
   relocator, or with the relocator on the floor cell rather than on an entity rejected, and an entry
   cell on a waypoint, on a type no one has defined, or on a staircase leading down alone as a tower's
   entry accepted.
-- `dungen_test` and `catagen_test`: over the seed sweeps, no staircase blocks a doorway it had an
-  available direction off, and every stair glyph has an entry whose `facing` is a side with no wall,
-  or a side with a door where the stair cell has no side without a wall. Built, every level's `entry`
+- `dungen_test` and `catagen_test`: over the seed sweeps, every floor cell reachable from every other
+  with the stair blocks in place (maze1 excepted, `work_plan.md`, Revisit later), no staircase blocks a
+  doorway it had an available direction off, and every stair glyph has an entry whose `facing` is a side
+  with floor beyond, or a side with a door where the stair cell has no such side; in catagen, a wall on
+  every edge between a stair cell and floor. Built, every level's `entry`
   lists exactly its staircase cells, staircase counts whose minimums are both zero are rejected, and a
   staircase down alone is accepted.
 - `stratum_sim_test`: `load_content` over data files with component objects for the layout, rooms,

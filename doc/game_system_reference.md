@@ -204,10 +204,10 @@ label and decides nothing about passage.
 
 Reads a discrete layout file with `stratum_format::read` and builds the layout from the `Document`,
 through the same `stratum_format` functions that validated it, so the glyph rules exist once. Each
-floor/stair/door cell is open, and its walls are the sides `has_wall` gives one. Each room's cells,
-from `room_cells`, take its id, and `room_count` is the number the file defines. The flats take the
-file's heights at their three levels, the floor at 0 and the ceiling at 1 where the file has none.
-Stairs load as floor. `notation`, where given, is told which notation the rows were written in, which
+floor/door cell is open, and its walls are the sides `has_wall` gives one. Each room's cells, from
+`room_cells`, take its id, and `room_count` is the number the file defines. The flats take the file's
+heights at their three levels, the floor at 0 and the ceiling at 1 where the file has none. A stair
+cell is a block, closed like solid, and the floor beside it is walled toward it, so no actor enters one. `notation`, where given, is told which notation the rows were written in, which
 is what `Session::notation` hands a host to choose a view by.
 
 A doorway block is a cell a mover may stand in, walled toward solid on its own side and toward floor
@@ -544,12 +544,13 @@ inherited component is followed down its chain.
 
 `read` validates the geometry before it returns, and throws `std::runtime_error` giving the path within
 the document and what was wrong there. Beyond each section's structure it checks what the rows
-determine: in the wall notation, a wall between every floor/stair cell and a blank cell or the edge of
-the grid; a wall in the grid at every wall address, a doorway block's walls toward floor being on the
-floor's side; a perimeter within the grid and along cell edges that never meets itself, each of its cell
-edges a wall facing a floor/stair/door cell on either side or a virtual wall between two such cells;
-and no cell in two rooms. For that last it finds each room's cells --- a fill from the location that
-walls, doors and barriers stop, or the floor/stair/door cells within the perimeter, row by row --- and a
+determine: in the wall notation, a wall between every floor cell and a blank cell, a stair cell or the
+edge of the grid; a wall in the grid at every wall address, whose cell is a floor or door cell, a
+doorway block's walls toward floor being on the floor's side and a stair cell, being a block, having
+none; a room location on a floor cell; a perimeter within the grid and along cell edges that never meets
+itself, each of its cell edges a wall facing a floor/door cell on either side or a virtual wall between
+two such cells; and no cell in two rooms. For that last it finds each room's cells --- a fill from the
+location that walls, doors and barriers stop, or the floor/door cells within the perimeter, row by row --- and a
 box bounding them, compares cells only for rooms whose boxes intersect, and keeps none of it. Every
 file must also have an entry: `layout.components.entry` lists at least one cell, each written `<`, the
 entrance glyph of any non-local transporter, or `>`, a staircase leading down as a tower entered from
@@ -860,12 +861,15 @@ for their scenarios and over a sweep of seeds, that a level has one `door` entit
 walls of each door glyph and none elsewhere. `dungen_test`
 also reads back the rooms of levels with every door, half and none, over a sweep of seeds, and checks
 each room covers exactly the cells generated as it, which a barrier missing at an open doorway fails.
-Both suites, over another sweep with ranges of staircases each way, check from the written level alone that
+Both suites, over another sweep with ranges of staircases each way, check from the written level that
 neither count exceeds its maximum, that a count leading up falls short of its minimum only where no
-staircase leads down, that no staircase blocks a doorway while a cell beside it would not, that every
-staircase has one entry, leading to `level_down` or `level_up` as its glyph says, and facing a side with
-no wall, or a door where no side is free of one, and that the level's `entry` lists exactly its
-staircase cells. Validation rejects staircase counts whose minimums are both zero and accepts a
+staircase leads down, that every floor cell is reachable from every other with the stair blocks in place
+(maze1 excepted, which can leave corridor no door reaches), that no staircase blocks a doorway while a
+cell beside it would not, that every staircase has one entry, leading to `level_down` or `level_up` as
+its glyph says, and facing a side with floor beyond, or a door where there is none, and that the level's
+`entry` lists exactly its staircase cells. What the written level no longer shows about a stair cell, its
+space in dungen and which of its sides were open in catagen, they take from the level generated again.
+`catagen_test` also checks that every edge between a stair cell and floor is written as a wall. Validation rejects staircase counts whose minimums are both zero and accepts a
 staircase down alone. Each also
 reads a reference level's generator parameters back and regenerates from them, which is the claim the
 format rests on --- a level names what produced it. A parameter a writer emits and the suite does not
@@ -875,7 +879,7 @@ The two suites are what the drivers never were. `tool/dungen` and `tool/catagen`
 names, the `quetzal_` prefix on the library targets being the distinction, and the `_test` names
 belong to the suites under `test/`.
 
-`stratum_format_test`, 124 cases, reads four levels and checks what they decode to, rejects every error
+`stratum_format_test`, 132 cases, reads four levels and checks what they decode to, rejects every error
 the reader raises from a valid level with one change made to it, and writes each level through both
 `write` overloads and reads it back, comparing the two documents as maps rather than as bytes.
 

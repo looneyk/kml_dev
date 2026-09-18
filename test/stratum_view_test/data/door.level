@@ -2,7 +2,7 @@
   "format": "quetzal.discrete_layout",
   "version": "0.3",
   "layout": {
-    "components": { "entry": [[1, 1]] }
+    "components": { "entry": [[1, 2]] }
   },
   "cells": {
     "notation": "block",
@@ -10,13 +10,13 @@
     "origin": [0.0, 0.0, 0.0],
     "scale": 1.0,
     "rows": [
-      "#####",
-      "#<+.#",
+      "#<###",
+      "#.+.#",
       "#####"
     ]
   },
   "attachments": [
     { "walls": [[3, 1, 1, 0], [1, 1, -1, 0]], "entities": [ { "type": "door" } ] },
-    { "flat": "floor", "cell": [1, 1], "entities": [ { "type": "waypoint", "components": { "relocator": { "target": "level_up" } } } ] }
+    { "flat": "floor", "cell": [1, 2], "entities": [ { "type": "waypoint", "components": { "relocator": { "target": "level_up" } } } ] }
   ]
 }

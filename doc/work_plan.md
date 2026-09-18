@@ -213,8 +213,8 @@ the two grid formats could not express. Detail in `discrete_layout_plan.md`.
 - [x] **The generators write 0.3.** dungen and catagen write through `stratum_format`, their suites
       check reference levels are equivalent and every generated level is one the reader accepts.
 - [x] **Staircases have a facing.** Both generators write each staircase with a `facing` component, the
-      direction that opens into the space it is in: a random side with no wall, a side with a door
-      only where no side is open. A staircase placed blocking a doorway first moves one cell in a
+      direction that opens into the space it is in: a random side with floor beyond, a side with a door
+      only where there is none. A staircase placed blocking a doorway first moves one cell in a
       random available direction. The format specifies the component and `discrete_layout_rework.md`
       (`### Staircase placement and facing`) how it is chosen and written.
 - [x] **Every zone has an entry.** `layout.components.entry` is required: a list of at least one cell,
@@ -236,14 +236,49 @@ the two grid formats could not express. Detail in `discrete_layout_plan.md`.
 - [x] **The structures, then the reader filling them.** `Cell` has the wall mask, `Wall` and `Room`
       are gone, and `load_layout` builds a `DiscreteLayout` from a `Document` through the same
       `stratum_format` functions that validate it. Every level a suite or a host loads is 0.3.
-The rest of stage 8 is [`addressing_plan.md`](addressing_plan.md), boxed under Plans above: its twelve
-choices, then format 0.4, persistent ids, loading a zone, migration and saved zones.
-
 - [x] **A `DiscreteLayout` takes its grid at construction.** An optional means absent, never "set
       later". The constructor takes the origin, the scale and the extent and sizes the cell table;
       `set_grid` is gone, `m_grid` is a plain `GridMapping` and `grid()` asserts nothing. `clear` went
       with it, a layout being destroyed with its zone or moved over, and the suite checks a move
       instead.
+
+A stair cell is a block with a wall on each side (`addressing_plan.md`, `## Decided`). These four items
+are that change to the geometry, done on 0.3 ahead of format 0.4; a staircase stays attached to its
+cell's floor with its `facing` until 0.4 moves it to the wall on its open side.
+
+- [x] **Stair cells are blocks in `stratum_format`.** `floor_stair_cell` and `floor_stair_door_cell` are
+      `floor_cell` and `floor_door_cell`, and `has_wall` gives floor and doorway cells in the block
+      notation a wall toward a stair cell. The wall notation requires a wall between a floor cell and a
+      stair cell, as between floor and a blank cell, and none between a stair cell and anything else. A
+      room's location is a floor cell, the room fill and a perimeter's cells leave stair cells out, a
+      perimeter edge needs floor or a doorway on one side, a wall address's cell is a floor or door
+      cell, and `door_walls` finds walls on floor alone. `stratum_format_test` has a case for each, and
+      its levels route their perimeters around their stair cells and wall them in.
+- [x] **`load_layout` reads a stair cell as a block,** closed, with the floor beside it walled toward it,
+      so no actor moves onto it. Until a staircase is attached to its open side and lets an actor cross
+      (`addressing_plan.md` step 5), none can enter one. The hand-drawn sim and view levels have their
+      entrance moved into the solid ring beside the cell it stood on, which leaves their floor as it
+      was; the catagen levels among them have their stair cells walled in. The view suite's round trip
+      reads `<` and `>` as solid, its lattice case for a bare corner uses the vault, and the reference
+      frames change only at stair cells.
+- [x] **The generators face a staircase toward a floor neighbor and wall it in.** The facing, the open
+      side, is drawn from the sides with floor beyond, a stair cell not counting, with a door only where
+      there is none. catagen's `Level` keeps its walls as generated, and its rows write a wall on every
+      edge between a stair cell and floor and none on the stair cell's other edges; dungen's block
+      notation needs nothing written, and its rooms and barriers leave stair cells out. Both suites'
+      facing checks follow, taking what the written level no longer shows about a stair cell from the
+      level generated again.
+- [x] **Staircase placement keeps every passage open.** Each generator passes over a candidate whose
+      block would cut a passage, its passable neighbors no longer reaching one another around it, or
+      would leave it or a staircase beside it nothing passable to face, a door counting as passable, and
+      moving a staircase off a doorway holds its destination to the same rule. cave1, whose candidates
+      are its whole open region, is held to it like the others. Both generator suites check over their seed sweeps that every floor cell
+      is reachable from every other with the stair blocks in place, maze1 excepted until its unreachable
+      corridor, under Revisit later, is done. Only the catagen references changed, by the walls around
+      their stair cells.
+
+The rest of stage 8 is [`addressing_plan.md`](addressing_plan.md), boxed under Plans above: format 0.4,
+persistent ids, loading a zone, migration, saved zones and the zone actor index.
 
 ## Done ahead of the plan
 
@@ -429,12 +464,13 @@ Set aside on purpose. No effort goes into these until one is picked up again.
 
 - **A doorway leading into a dead end,** which has a wall on one side only: what a door glyph there
   requires, and what the generators and the reader do with one.
+- **maze1's unreachable corridor.** Excavation can leave corridor that no door reaches, which dead-end pruning
+  removes only by chance, and a staircase placed at its end stops the pruning, so the staircase is unreachable too
+  (`up_only` seeds 1 and 40 in `dungen_test`). The suite's check that every floor cell is reachable skips maze1
+  until this is done.
 - **Naming a wall address's `normal` `facing`,** once the format settles. Only the name would change, to
   match door facings; that the value is also the surface normal a texture uses argues against it.
 
 ## Loose
 
 Not ordered, worth a pass: `Scheduler::advance` integer overflow and its `operator[]` on `m_speeds`.
-
-- **cave1's staircase candidates.** maze1 falls back to the rooms where a maze has no dead end; cave1
-  offers its whole open region and has had no such look. To revisit.

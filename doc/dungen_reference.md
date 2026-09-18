@@ -32,8 +32,9 @@ The origin is the lower left cell, and the highest row is written first, so the 
 and is oriented the same way up as the display.
 
 Each dungen room is a room of the file, identified by the first of its room cells. Room floor lies
-against corridor floor with nothing between, so every edge between two floor/stair cells in different
-rooms, or in a room and none, is a barrier. A stair is floor, and one placed in a room is part of it.
+against corridor floor with nothing between, so every edge between two floor cells in different rooms,
+or in a room and none, is a barrier. A stair cell is a block, which the floor beside it is walled
+against in the block notation without anything written, and it is part of no room.
 
 Each door has an `attachments` entry at the walls `stratum_format::door_walls` finds for its glyph, a
 `door` entity. Each staircase has an `attachments` entry at its cell, a `staircase` entity whose `facing` is the side
@@ -74,17 +75,20 @@ Generation:
 - `place_staircases` --- shared. Each algorithm hands it the cells its own layout allows a staircase to
   occupy. It draws a count leading down from `staircase_down_count` and a count leading up from
   `staircase_up_count`, a range of one drawing nothing, then shuffles the candidates and places the
-  staircases leading up first. Running out of candidates places fewer, those leading down going short
-  first, and having none to place throws.
+  staircases leading up first. A candidate is passed over where its block would cut a passage, its
+  passable neighbors no longer reaching one another around it, or would leave it or a staircase beside it
+  no passable side to face, a door counting as passable. Running out of candidates places fewer, those
+  leading down going short first, and having none to place throws.
 - `remove_doors` --- shared, and run by `maze1` and `grid1` after every pass but the staircases'. Each
   algorithm places every doorway as a door and reads it as one; this keeps each door with probability
   `door_probability`, in the algorithm's group, and leaves the rest of the doorways open as corridor.
 - `move_staircases_off_doorways` and `face_staircases` --- shared, and the last two passes of every
   algorithm. A doorway is a `Door` cell, or a corridor cell beside room floor, which is what a removed
   door leaves. A staircase beside one moves a cell, in a random direction onto `Room` or `Corridor`
-  floor of its own space that is not a doorway and is beside none, and stays where there is no such
-  direction. Its facing is then drawn from the sides of its cell onto floor or staircase, or where there
-  are none, from the sides onto a door, and `Staircase::facing` stores it. Both draw last, so nothing
+  floor of its own space that is not a doorway, is beside none, and takes a block as `place_staircases`
+  allows one, and stays where there is no such direction. Its facing is then drawn from the sides of its
+  cell onto `Room` or `Corridor` floor, or where there are none, from the sides onto a door, and
+  `Staircase::facing` stores it. Both draw last, so nothing
   before them changes.
 - `write_level` --- the level file.
 
@@ -191,7 +195,8 @@ describes. The parameters are content the loader passes over, so three algorithm
 parameters share one file shape.
 
 A doorway is a cell a mover may stand in, walled toward solid on its own side and toward floor on the
-floor's side alone. Staircases are floor to the loader.
+floor's side alone. A stair cell is a block to the loader, closed like solid, and the floor and doorways
+beside it are walled toward it.
 
 ## Known limits
 
