@@ -54,7 +54,7 @@ void quetzal::stratum_sim::think(World& world, id_type actor_controlled)
         const placement_type* ptarget = target.is_alive() ? target.try_get<placement_type>() : nullptr;
 
         // Seen now, so where it is replaces where it was
-        if (ptarget != nullptr && layout.visible(*pplacement, *ptarget))
+        if (ptarget != nullptr && world.visible(e, *ptarget))
         {
             pursue.position_last_seen = ptarget->position();
             pursue.seen = true;
@@ -80,7 +80,7 @@ void quetzal::stratum_sim::think(World& world, id_type actor_controlled)
         vector_type direction;
         value_type nearest = distance2(pplacement->position(), pursue.position_last_seen);
 
-        for (const placement_type& neighbor : layout.neighbors(*pplacement))
+        for (const placement_type& neighbor : world.neighbors(e))
         {
             value_type d = distance2(neighbor.position(), pursue.position_last_seen);
             if (d < nearest)

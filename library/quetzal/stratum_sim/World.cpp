@@ -12,6 +12,7 @@
 namespace
 {
 
+    //--------------------------------------------------------------------------
     // Every placed entity of a zone that satisfies the predicate, in id order
     template<typename F>
     quetzal::stratum_sim::World::entities_type placed_in(flecs::entity zone, F accept)
@@ -32,6 +33,12 @@ namespace
         std::sort(entities.begin(), entities.end(), [](flecs::entity a, flecs::entity b) { return a.id() < b.id(); });
 
         return entities;
+    }
+
+    //--------------------------------------------------------------------------
+    auto is_crossable(flecs::entity zone)
+    {
+        return [zone](quetzal::id_type wall_id) { return quetzal::stratum_sim::crossable(zone, wall_id); };
     }
 
 } // namespace
@@ -56,10 +63,6 @@ flecs::entity quetzal::stratum_sim::World::create_zone(const std::string& name, 
 
     flecs::entity e = m_world.entity(name.c_str()).add<Zone>();
     m_layouts.emplace(e.id(), std::move(layout));
-
-    // The layout asks rather than looks: what is attached to a wall is an entity, and this is the
-    // only place with both. Every wall is solid until something is attached to it
-    m_layouts[e.id()]->set_crossable([this, e](id_type wall_id) { return stratum_sim::crossable(e, wall_id); });
 
     return e;
 }
@@ -115,9 +118,9 @@ quetzal::stratum_sim::MoveResult quetzal::stratum_sim::World::move(flecs::entity
     const Layout& zone_layout = layout(zone);
 
     // The mover is standing where it starts, so it is not something it can be stopped by
-    Layout::obstructed_type obstructed = [&](const placement_type& candidate)
+    auto blocker_at = [&](const placement_type& candidate_placement)
     {
-        for (flecs::entity other : entities_at(zone, candidate))
+        for (flecs::entity other : entities_at(zone, candidate_placement))
         {
             if (other != e && other.has<Blocking>())
             {
@@ -128,7 +131,25 @@ quetzal::stratum_sim::MoveResult quetzal::stratum_sim::World::move(flecs::entity
         return nullid;
     };
 
-    return zone_layout.move(e.get<placement_type>(), direction, distance, obstructed);
+    return zone_layout.move(e.get<placement_type>(), direction, distance, is_crossable(zone), blocker_at);
+}
+
+//------------------------------------------------------------------------------
+quetzal::stratum_sim::Layout::placements_type quetzal::stratum_sim::World::neighbors(flecs::entity e) const
+{
+    flecs::entity zone = zone_of(e);
+    assert(zone);
+
+    return layout(zone).neighbors(e.get<placement_type>(), is_crossable(zone));
+}
+
+//------------------------------------------------------------------------------
+bool quetzal::stratum_sim::World::visible(flecs::entity e, const placement_type& to) const
+{
+    flecs::entity zone = zone_of(e);
+    assert(zone);
+
+    return layout(zone).visible(e.get<placement_type>(), to, is_crossable(zone));
 }
 
 //------------------------------------------------------------------------------

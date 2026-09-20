@@ -17,21 +17,17 @@ namespace quetzal::stratum_sim
 {
 
     //--------------------------------------------------------------------------
-    // How one Zone is laid out: its walls, its flats, and the rooms defined over them, on a
-    // grid that quantizes movement
+    // The way a zone is laid out with its geometry snapped to a grid
     // Static topology rather than game objects, so it is held as arrays indexed by id rather
-    // than as entities. Entities refer into it by id
-    // A level with no height data loads a constant floor rather than a different class, so
-    // which data a game style loads is what differs rather than which class is built. Flat is
-    // implied here, which is why the name does not mention it
-    // No provision for continuous movement, which is ContinuousLayout's. A wall is one side of one cell edge, stored as a
-    // bit on the cell it faces, and the other side of the edge is independent of it. See sim_zone_model.md
+    // than as entities. Entities refer into it by id.
+    // A wall is one side of one cell edge, stored as a bit on the cell it faces, and the other side of the edge is independent of it. See sim_zone_model.md
     class DiscreteLayout : public Layout
     {
     public:
 
         using flats_type = std::vector<Flat>;
         using cells_type = std::vector<Cell>;
+        using cell_positions_type = std::vector<discrete_point_type>;
 
         using Layout::move; // The interface's topology-only overload, which overriding move hides
 
@@ -49,15 +45,14 @@ namespace quetzal::stratum_sim
         size_t flat_store_count() const;
         const flats_type& flat_store() const;
 
-        // The floor and the ceiling bounding the layout, one apiece
+        // The floor and the ceiling flats bounding the layout
         id_type floor_id() const;
         id_type ceiling_id() const;
         void set_flats(value_type height_floor, value_type height_ceiling);
 
-        // A flat's height at a cell: the cell's own, failing that the room covering it, failing that the flat's
+        // The height of a cell if it has one, the height of the room if not, the flat height if neither
         value_type height(id_type flat_id, const discrete_point_type& cell_position) const;
 
-        // Rooms are metadata: what one covers is stored here and read back, and nothing in movement consults them
         size_t room_count() const;
         void set_room_count(size_t room_count);
 
@@ -67,14 +62,11 @@ namespace quetzal::stratum_sim
 
         const GridMapping& grid() const;
 
-        // Whether a cell is open floor. Taken from what a level file encodes per cell, over a
-        // table of its own, and read without consulting anything else
-        // The cell must lie on the grid, an off-grid cell being the caller's error rather
-        // than a question with an answer
+        // Open floor
         bool open(const discrete_point_type& cell_position) const;
         void set_cell_open(const discrete_point_type& cell_position, bool open);
 
-        // The sides of a cell with a wall facing into it
+        // The walls facing into a cell
         DirectionMask walls(const discrete_point_type& cell_position) const;
         void set_cell_walls(const discrete_point_type& cell_position, DirectionMask walls);
 
@@ -82,22 +74,21 @@ namespace quetzal::stratum_sim
         // crossing four costs four
         value_type step_distance() const override;
 
-        // Total: any position floors into a cell without bounds check or clamp, so a position
-        // off the grid maps to a cell off the grid rather than failing
+        // These do not perform bounds check or clamp
         discrete_point_type cell_position_at(const point_type& point) const;
         point_type position(const discrete_point_type& cell_position) const; // Cell center, on the floor
 
         // The wall on this cell's side in the given direction, if any. Its id encodes the cell and the direction
         id_type wall_toward(const discrete_point_type& cell_position, const discrete_vector_type& direction) const;
 
-        // Stopped by the wall in the given direction
-        bool blocked(const discrete_point_type& cell_position, const discrete_vector_type& direction) const;
+        // Whether a mover may cross out of this cell in the given direction: the wall there, if there
+        // is one, is the predicate's to answer for, and where there is none there is nothing to cross
+        bool crossable(const discrete_point_type& cell_position, const discrete_vector_type& direction, const crossable_function_type& is_wall_crossable) const;
 
         // Stops at the first wall that blocks it or the first cell the caller reports
-        // occupied. The direction snaps to one of the grid's own and the distance rounds to
-        // whole cells
+        // occupied. The direction snaps to the grid and the distance rounds to whole cells
         MoveResult move(const placement_type& placement, const vector_type& direction, value_type distance,
-            const obstructed_type& obstructed) const override;
+            const crossable_function_type& is_wall_crossable, const blocker_function_type& blocker_at) const override;
 
         placement_type turn(const placement_type& placement, Rotation rotation) const override;
 
@@ -107,12 +98,13 @@ namespace quetzal::stratum_sim
         // Whether the two occupy the same cell
         bool same_location(const placement_type& a, const placement_type& b) const override;
 
-        placements_type neighbors(const placement_type& placement) const override;
+        placements_type neighbors(const placement_type& placement, const crossable_function_type& is_wall_crossable) const override;
 
-        // Line of sight, by walking the cells the ray between them passes through. A grid
-        // field of view algorithm produces a different, more roguelike result and would
-        // replace this
-        bool visible(const placement_type& from, const placement_type& to) const override;
+        // Line of sight, by walking the cells the ray between them passes through
+        bool visible(const placement_type& from, const placement_type& to, const crossable_function_type& is_wall_crossable) const override;
+
+        // The set of cells visible by shadowcasting, not implemented ...
+        cell_positions_type field_of_view(const discrete_point_type& cell_position, coord_type range, const crossable_function_type& is_wall_crossable) const;
 
         // The wall on the near side of the edge the placement faces. The facing snaps to one
         // of the grid's own directions, and a facing that snaps to nothing faces nothing

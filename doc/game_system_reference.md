@@ -59,9 +59,9 @@ How one zone is arranged and what can be asked of it, as an interface: `move`, `
 `same_location`, `neighbors`, `visible`, `ahead` and `step_distance`, all pure virtual. Nothing on it mentions a
 cell or a wall, and nothing on it implies either exists --- a layout that quantizes movement and one
 that integrates it satisfy all of it alike, rounding being the layout's business rather than the
-caller's. `Rotation`, `MoveResult` and `obstructed_type` are its vocabulary and live with it.
+caller's. `Rotation`, `MoveResult`, `crossable_type` and `blocking_type` are its vocabulary and live with it.
 
-`move` has a second, non-virtual overload taking no `obstructed_type`, for the layout's own
+`move` has a second, non-virtual overload taking neither predicate, for the layout's own
 topology alone. It is non-virtual so that no default argument is declared on a virtual function, where the
 default would be taken from the static type; a derived layout brings it back into scope with
 `using Layout::move`.
@@ -144,13 +144,13 @@ Walls are set a cell at a time with `set_cell_walls` and read back with `walls`.
 A cell no room covers gives `nullid`.
 
 The grid side is `grid`, `open`, `set_cell_open`, `cell_at` and `cell_position`, and
-`wall_toward` and `blocked` read what is attached to it. `move`, `turn`, `face`, `same_location`,
+`wall_toward` and `crossable` read what is attached to it. `move`, `turn`, `face`, `same_location`,
 `neighbors`, `visible` and `step_distance` are what it overrides from `Layout`.
 
 `wall_toward(position, direction)` returns the wall on that cell's side of the edge it presents in
-that direction, a bit test, and `blocked(position, direction)` whether a mover stepping that way is
-stopped. Both read the cell alone, so the neighbour need not exist and a boundary cell returns the
-wall that closes the layout.
+that direction, a bit test, and `crossable(position, direction, crossable_wall)` whether a mover stepping
+that way has a way through: no wall is one, and a wall is the predicate's to answer for. Both read the cell
+alone, so the neighbor need not exist and a boundary cell returns the wall that closes the layout.
 
 `cell_at` is total: it floors any position into a cell without bounds check or clamp, so a position
 off the grid maps to a cell off the grid rather than failing. The cell-indexed accessors are the
@@ -189,10 +189,10 @@ of its own and searches nothing to find it.
 
 A layout is independent of entities and resolves only its own geometry. It takes a predicate
 reporting whether something occupies a placement, calls it before entering each step, and
-reports whatever it returned as the `obstruction_entity_id` --- so what counts as an obstruction
+reports whatever it returned as the `blocking_entity_id` --- so what counts as a blocker
 stays with the caller while the sweep stays with the layout. `World::move` is what supplies it.
 
-A `MoveResult` reports what stopped a mover as `obstruction_wall_id` or `obstruction_entity_id`, one
+A `MoveResult` reports what stopped a mover as `blocking_wall_id` or `blocking_entity_id`, one
 or the other and never both. `Blocked` has the same pair. Two fields rather than one because a
 wall id encodes a side of a cell in the layout and an entity is an entity, so the ids are not
 interchangeable.
@@ -262,9 +262,13 @@ entity survive the move.
 
 `move` is where topology and occupancy meet. What stops a mover comes from two places --- the zone's
 walls and whatever occupies the cell ahead --- and only `World` has both, so neither
-the layout beneath it nor the rule above it has to reach into the other. It hands the layout a
-predicate over its own entities and the layout does the sweep. Rules ask this rather than the
-layout directly.
+the layout beneath it nor the rule above it has to reach into the other. It hands the layout two
+predicates, one over what is attached to a wall and one over its own entities, and the layout does the
+sweep. Rules ask this rather than the layout directly.
+
+`neighbors` and `visible` are the same arrangement without the occupancy half: each takes an entity,
+asks its zone's layout, and supplies the wall predicate. A rule that asked the layout directly would
+have no way to reach an entity, and so would take every wall as solid.
 
 The two must not become a sequence. Continuous movement is one solve: a blocker partway along a
 swept path changes where the slide against a wall happens, so resolving topology first and occupancy
@@ -304,7 +308,7 @@ opened.
 `facing_on(zone, wall_id)` is the facing attached to a wall, a wall id identifying a wall in one zone's layout so
 the zone is what the search is over; `door_of` is its parent and `other_facing` its sibling.
 `crossable(zone, wall_id)` is the passage question: a wall with nothing attached is solid, an
-`Openable` attachment reports whether it is open, anything else whether it has `Passable` --- which is
+`Openable` attachment reports whether it is open, anything else whether it has `Crossable` --- which is
 what a door smashed to a hole leaves and blocking debris does not. A facing `Concealed` and not yet
 found refuses, a secret door being a wall until it is found, and from that side alone.
 
@@ -312,12 +316,13 @@ found refuses, a secret door being a wall until it is found, and from that side 
 reports which of `Interaction::Opened`, `Closed` or `Nothing` happened, so a view can show it rather
 than name a wall id at a player.
 
-**Passage is this, and nothing else.** `blocked` calls `Layout`'s `crossable_type`, which
-`World` sets to `crossable` when it takes a layout, so a wall is solid unless an attachment on it
-makes it otherwise. `Wall` has no flag, and a layout never given a predicate has every wall solid.
+**Passage is this, and nothing else.** The layout's `crossable` calls the `crossable_type` its caller passed, which
+`World` binds to `crossable` for the zone, so a wall is solid unless an attachment on it makes it
+otherwise. `Wall` has no flag, and a query given no predicate has every wall solid.
 
 A solid cell is never met in any way. Every boundary between floor and solid, and every cell side on
-the border of the grid, has a wall, so `blocked` decides from the wall alone. A doorway block is no
+the border of the grid, has a wall, so it decides from the wall alone and asserts that where
+there is no wall there is a cell beyond. A doorway block is no
 exception: it has walls toward solid cells and the border of the grid, so a mover leaving one sideways
 meets a wall, and none toward floor, so leaving it forward or back meets nothing.
 
@@ -623,7 +628,7 @@ per cell cannot show --- the same rule that decides where the lattice draws one,
 by both reductions.
 
 `State` is a set of flags named after the component data they are read from --- `open` from
-`Openable::open`, `passable` from the `Passable` tag, `concealed` from `Concealed`, whose `found`
+`Openable::open`, `crossable` from the `Crossable` tag, `concealed` from `Concealed`, whose `revealed`
 field is its inverse. Nothing is coined, and only what changes the drawing belongs there: a lock
 enters when a locked door is drawn differently and not before. The reduction is the one place either
 side is aware of the other, nothing downstream of it seeing a component. `applies(type, state)` reports

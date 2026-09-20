@@ -40,8 +40,8 @@ as the state a table would talk about:
 | component | name | |
 |---|---|---|
 | `Openable{open}` | `open` | the field, which is already the adjective |
-| `Passable` | `passable` | the tag |
-| `Concealed{found}` | `concealed` | the component, the field being its inverse |
+| `Crossable` | `crossable` | the tag |
+| `Concealed{revealed}` | `concealed` | the component, the field being its inverse |
 
 Nothing is coined. A component renamed makes glyph files stale, and they fail at load against a name
 that is not declared rather than drawing the wrong glyph.

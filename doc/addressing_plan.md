@@ -560,15 +560,11 @@ namespace quetzal::stratum_sim
   stays open. Nothing is read from a parent an entity does not have.
 - **One rule, naming no type.** `crossable` reads `Access` and `Detection` and nothing else, so a new kind
   of way through is a matter of what it has rather than of code here.
-- **The answer depends on the actor,** so `Layout::set_crossable`, `m_crossable` and the protected
-  `Layout::crossable` go: `move`, `neighbors` and `visible` take the crossing predicate as `move` takes
-  `obstructed`, and `World` binds it to the actor asking. `World` also gains `neighbors` and `visible` beside
-  its `move`, so nothing outside it binds a predicate and `ai.cpp` stops holding a layout.
-- **One wall question in the layout,** `DiscreteLayout::blocked` and the predicate's call site becoming
-  `passable(cell_position, direction, crossable)`: no wall ahead is passable, a wall is what the predicate
-  answers for. The grid boundary is no longer a branch of its own. An open cell at the edge has a wall, which
-  the reader requires and a generator that omits it is wrong about, and a wall with nothing attached is not
-  crossable, so the walk stops there. Absence of a wall asserts that the cell beyond is on the grid.
+- **The answer depends on the actor,** which is all this adds to what the layout already takes. Nothing is
+  held: `move`, `neighbors` and `visible` take a `crossable_type`, `DiscreteLayout::crossable` is the one
+  wall question, and `World::move`, `World::neighbors` and `World::visible` bind `crossable(zone, wall_id)`
+  (`work_plan.md`, Done ahead of the plan). Each binds `crossable(zone, wall_id, actor)` instead, for the
+  actor asking.
 
 ### What the queries become
 
@@ -718,7 +714,7 @@ Bethesda's form ids between a plugin's place in the load order and its own count
   - `crossable` through `Access` and `Detection`: a door open, closed and locked; a door facing taking its
     door's access, and concealed for one actor and not another; an entity with no `Access` in its chain
     never crossable; a staircase crossed from its open side and from no other;
-  - the predicate passed per call: one wall crossed by one actor and not by another, in the same layout;
+  - one wall crossed by one actor and not by another, in the same layout;
   - the actor index following every move, migration, creation and deletion, and `entities_at` and
     `entities_within` returning what a scan of the zone returns;
   - migration keeping the persistent id and the runtime entity, and updating the index;

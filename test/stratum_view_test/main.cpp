@@ -629,9 +629,9 @@ namespace
 
         if (const stratum_sim::Blocked* pevent = event.try_get<stratum_sim::Blocked>())
         {
-            return pevent->obstruction_entity_id != nullid
-                ? format("blocked by {}", pevent->obstruction_entity_id)
-                : format("blocked by wall {}", pevent->obstruction_wall_id);
+            return pevent->blocking_entity_id != nullid
+                ? format("blocked by {}", pevent->blocking_entity_id)
+                : format("blocked by wall {}", pevent->blocking_wall_id);
         }
 
         if (const stratum_sim::Turned* pevent = event.try_get<stratum_sim::Turned>())

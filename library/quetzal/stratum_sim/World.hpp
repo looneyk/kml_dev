@@ -22,9 +22,7 @@ namespace quetzal::stratum_sim
     };
 
     //--------------------------------------------------------------------------
-    // Tag, an entity another cannot move into. Presence rather than identity, so a dropped
-    // sword has a placement and no more, while a monster and a pushable boulder stop a mover
-    // the same way
+    // Tag, an entity another cannot move into.
     struct Blocking
     {
     };
@@ -50,19 +48,16 @@ namespace quetzal::stratum_sim
         flecs::world& entities();
         const flecs::world& entities() const;
 
-        // The zone takes the layout it was built with. Which class that is comes from what
-        // was loaded rather than from here, so nothing about a Zone privileges one of them
+        // Create a zone from a saved layout
         flecs::entity create_zone(const std::string& name, std::unique_ptr<Layout> layout);
 
         flecs::entity zone(const std::string& name) const; // Null when there is no such zone
         size_t zone_count() const;
 
-        // The interface, whatever kind of layout the zone has. A caller needing more than
-        // it exposes uses layout_as to get the concrete class
+        // The Layout interface for a zone entity
         Layout& layout(flecs::entity zone);
         const Layout& layout(flecs::entity zone) const;
 
-        // Placed in the Zone, which owns it until it moves elsewhere
         flecs::entity create_entity(flecs::entity zone, const placement_type& placement);
 
         flecs::entity zone_of(flecs::entity e) const;
@@ -74,19 +69,19 @@ namespace quetzal::stratum_sim
         // layout underneath
         MoveResult move(flecs::entity e, const vector_type& direction, value_type distance) const;
 
-        // Occupancy. Ordered by entity id, so a run produces the same result every time
-        // What counts as the same place is the layout's to decide, which is what keeps the
-        // placement form model-neutral; the cell form is for a caller that genuinely counts
-        // cells and whose layout has them
+        // The layout's queries that depend on what is attached to a wall, asked of the entity's own
+        // zone and placement. Rules ask these rather than the layout, which has no way to reach an
+        // entity and so would take every wall as solid
+        Layout::placements_type neighbors(flecs::entity e) const;
+        bool visible(flecs::entity e, const placement_type& to) const;
+
         entities_type entities_at(flecs::entity zone, const placement_type& placement) const;
         entities_type entities_at(flecs::entity zone, const discrete_point_type& cell_position) const;
         entities_type entities_within(flecs::entity zone, const placement_type& placement, value_type range) const;
 
-        // Migration keeps the entity's id, so references to it survive
+        // Relocation retains the entity's id, so references to it remain valid
         void relocate(flecs::entity e, flecs::entity zone, const placement_type& placement);
 
-        // Discards a Zone, its contents, and its layout. Writing that state out first is
-        // the persistence boundary's job, not this one's
         void unload_zone(flecs::entity zone);
 
     private:

@@ -181,9 +181,9 @@ void stratum_terminal::Application::report(const quetzal::stratum_sim::EventQueu
         }
         else if (const stratum_sim::Blocked* pblocked = event.try_get<stratum_sim::Blocked>())
         {
-            m_message = pblocked->obstruction_entity_id != nullid
-                ? std::format("Blocked by {}.", pblocked->obstruction_entity_id)
-                : std::format("Blocked by wall {}.", pblocked->obstruction_wall_id);
+            m_message = pblocked->blocking_entity_id != nullid
+                ? std::format("Blocked by {}.", pblocked->blocking_entity_id)
+                : std::format("Blocked by wall {}.", pblocked->blocking_wall_id);
         }
         else if (event.is<stratum_sim::Turned>())
         {

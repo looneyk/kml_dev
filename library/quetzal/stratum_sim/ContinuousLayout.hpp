@@ -29,7 +29,7 @@ namespace quetzal::stratum_sim
         // Integrates along the direction rather than stepping cell by cell, and returns
         // wherever the collision left the mover
         MoveResult move(const placement_type& placement, const vector_type& direction, value_type distance,
-            const obstructed_type& obstructed) const override = 0;
+            const crossable_function_type& is_wall_crossable, const blocker_function_type& blocker_at) const override = 0;
 
         placement_type turn(const placement_type& placement, Rotation rotation) const override = 0;
 
@@ -40,10 +40,10 @@ namespace quetzal::stratum_sim
 
         // Navmesh nodes rather than cells. Both models express adjacency as a discrete graph,
         // which is why this is on the interface at all
-        placements_type neighbors(const placement_type& placement) const override = 0;
+        placements_type neighbors(const placement_type& placement, const crossable_function_type& is_wall_crossable) const override = 0;
 
         // A ray against the wall polygons
-        bool visible(const placement_type& from, const placement_type& to) const override = 0;
+        bool visible(const placement_type& from, const placement_type& to, const crossable_function_type& is_wall_crossable) const override = 0;
 
         // What the facing ray first meets, out to whatever reach the zone allows an actor's
         // arm.

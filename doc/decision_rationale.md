@@ -203,7 +203,7 @@ A flag on the record is mutable state on level data, which is the line the entit
 level data is topology and appearance, entities are identity and mutable state. A lever toggling a
 `bool` inside the layout's arrays is precisely what that line was drawn to prevent.
 
-The consequence to note is that `Layout::blocked` feeds `move`, `neighbors` *and* `visible`. Once
+The consequence to note is that `DiscreteLayout::crossable` feeds `move`, `neighbors` *and* `visible`. Once
 openness lives on an attachment, none of the three can decide alone and all three compose on `World`
 the way movement already composes occupancy. Sight through an open door is the case that makes it
 three call sites rather than one.
@@ -244,8 +244,8 @@ digging is permitted.
 ## Walls decide collision alone, as bits on the cells
 
 **Collision reads the walls and nothing else.** `Layout::move` steps cell to cell calling
-`wall_toward`, and asks whether the wall there may be crossed. `blocked`, `neighbors` and `visible`
-all route through the same call, and `World::move` adds the occupancy predicate above it. None of
+`wall_toward`, and asks whether the wall there may be crossed. `move`, `neighbors` and `visible`
+all route through the layout's `crossable`, and `World::move` adds the occupancy predicate above it. None of
 that path touches a room. Rooms are metadata, and movement, sight and adjacency are untouched by
 them.
 

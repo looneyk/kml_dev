@@ -217,7 +217,7 @@ convention is needed to decide which side a piece of data belongs to, because ea
 one cell. One-way and secret doors need no special case: they are a door whose facings differ, so
 nothing is required to be symmetric.
 
-**Settled, and done: `passable` came off the record.** A wall is there or it is not, and whether a
+**Settled, and done: `Wall::passable` came off the record.** A wall is there or it is not, and whether a
 mover may cross it is decided by what is attached to it. A flag on the geometry is mutable state on level data,
 which is the line the entity model is drawn on, and a lever toggling a `bool` inside an array is the
 case it was drawn to prevent.
@@ -225,11 +225,15 @@ case it was drawn to prevent.
 A closed door blocks because it is closed, a secret door because it has not been found, and an
 invisible wall because that is what it is: an attachment that blocks and renders as nothing.
 
-`Layout` keeps a predicate that `World` sets --- the layout asks rather than looks, staying ignorant
-of entities --- so `blocked` composes on `World` without `move`, `neighbors` and `visible` each
-growing a parameter. Held rather than passed because crossability is a property of the wall and not of
-whoever asks; `attachment_plan.md` argues why that is the deciding test, and what an actor-specific
-rule would change.
+The predicate is the caller's to supply --- the layout asks rather than looks, staying ignorant of
+entities --- so `move`, `neighbors` and `visible` each take one and `World`, which has the layout and
+the entities both, binds it for the zone. Passed rather than held because the answer depends on who is
+crossing as much as on the wall, which is what an actor-specific rule needs.
+
+The layout has one wall question, `crossable`, asked of a step where the entity side's is asked of a wall:
+no wall is a way through, a wall is the predicate's to answer for. The grid boundary is not a case of its
+own --- floor encloses itself, so a wall stops the step there, and where there is no wall it asserts that
+the cell beyond is on the grid.
 
 Sight is still the case that makes it more than one question: a portcullis passes sight and not a
 mover, a curtain the reverse. One predicate suffices today because nothing yet is one and not the
@@ -434,8 +438,8 @@ does not contain --- no cells, no walls, and no suggestion that any of them exis
         // Where the mover ended up, and what stopped it if anything did. A discrete layout
         // quantizes and a continuous one integrates; both may return short of the requested
         // distance, or unmoved. Rounding is the layout's business, not the caller's
-        virtual MoveResult move(const placement_type& placement, const vector_type& direction,
-                                value_type distance, const obstructed_type& obstructed) const = 0;
+        virtual MoveResult move(const placement_type& placement, const vector_type& direction, value_type distance,
+                                const crossable_type& crossable_wall, const blocking_type& blocking) const = 0;
 
         virtual placement_type turn(const placement_type& placement, Rotation rotation) const = 0;
         virtual placement_type face(const placement_type& placement, const vector_type& direction) const = 0;
@@ -443,9 +447,9 @@ does not contain --- no cells, no walls, and no suggestion that any of them exis
         virtual bool same_location(const placement_type& a, const placement_type& b) const = 0;
 
         // Adjacency for AI. Both models express it as a discrete graph -- cells, or navmesh nodes
-        virtual placements_type neighbors(const placement_type& placement) const = 0;
+        virtual placements_type neighbors(const placement_type& placement, const crossable_type& crossable_wall) const = 0;
 
-        virtual bool visible(const placement_type& from, const placement_type& to) const = 0;
+        virtual bool visible(const placement_type& from, const placement_type& to, const crossable_type& crossable_wall) const = 0;
 
         virtual value_type step_distance() const = 0;
     };
@@ -456,9 +460,8 @@ placement is a `DirectedPoint` and has its own point, so there is nothing for th
 resolve. And `turn` divided in two, `turn` relative and `face` absolute, so that the quantization
 stays with the layout in both cases rather than a host storing a rotation.
 
-`move_result_type` is a placement and an optional obstruction, the obstruction absent meaning
-nothing stopped you. It reports "the door is locked" without the rule having to ask a second
-question.
+`MoveResult` is a placement and what stopped the mover, the wall or the entity, neither set meaning
+nothing did. It reports "the door is locked" without the rule having to ask a second question.
 
 Three distinctions this shape collapses:
 

@@ -24,21 +24,18 @@ namespace quetzal::stratum_sim
     };
 
     //--------------------------------------------------------------------------
-    // Where the mover ended up, which may be short of what was asked or unmoved, and what
-    // stopped it. Both nullid when nothing did, and never both set
+    // The destination of a move which may not be the full distance requested
+    // Holds the id of the object it was blocked by or nullid
     struct MoveResult
     {
         placement_type placement;
-        id_type obstruction_wall_id = nullid; // The wall it was stopped by
-        id_type obstruction_entity_id = nullid; // What was occupying the cell ahead, whatever the caller counts as one
+        id_type blocking_wall_id = nullid; // The wall it was stopped by
+        id_type blocking_entity_id = nullid; // What was occupying the cell ahead, whatever the caller counts as one
     };
 
     //--------------------------------------------------------------------------
-    // How one Zone is arranged and what can be asked of it: where a mover ends up, what it
+    // The arrangement of a Zone and what can be asked of it: where a mover ends up, what it
     // faces, what is adjacent, what is visible, and how far one action of movement travels
-    // Nothing here mentions a cell or a wall, and nothing here implies that either exists. A
-    // layout that quantizes movement and one that integrates it satisfy all of this alike,
-    // rounding being the layout's business rather than the caller's
     // Geometry travels outward through this toward the view and never inward: a caller asks
     // where a move ends up rather than computing a destination and handing it back
     class Layout
@@ -47,93 +44,54 @@ namespace quetzal::stratum_sim
 
         using placements_type = std::vector<placement_type>;
 
-        // Whatever occupies a placement and stops a mover entering it, nullid when nothing
-        // does. What counts as one is the caller's business; the layout only asks, so it
-        // stays ignorant of entities while still stopping for them
-        using obstructed_type = std::function<id_type(const placement_type&)>;
+        // A callback function type to allow callers to define what qualifies as a blocker
+        using blocker_function_type = std::function<id_type(const placement_type&)>;
 
-        // Whether a mover may cross one wall. What is attached to a wall is an entity and a layout
-        // is independent of entities, so it asks rather than looks
-        // Held rather than passed, unlike obstructed_type, because crossability is a property of
-        // the wall rather than of whoever is asking. World sets it when it takes the layout,
-        // and until something does, every wall is solid
-        using crossable_type = std::function<bool(id_type)>;
-
-        void set_crossable(crossable_type crossable);
+        // A callback function type to allow callers to define what qualifies as crossssable
+        using crossable_function_type = std::function<bool(id_type)>;
 
         virtual ~Layout() = default;
 
-        // Where the mover ends up, stopping at the first wall or entity that blocks it, and what that
-        // was. The result may be short of the distance asked for, or unmoved
-        // Topology and occupancy are resolved in one sweep rather than one after the other,
-        // a blocker partway along a path being able to change where the rest of it goes
+        // Returns the end point of a move and the blocker if it did not fully move as requested
         virtual MoveResult move(const placement_type& placement, const vector_type& direction, value_type distance,
-            const obstructed_type& obstructed) const = 0;
+            const crossable_function_type& is_wall_crossable, const blocker_function_type& blocker_at) const = 0;
 
-        // The layout's own topology alone, nothing counting as an obstruction
+        // The layout's own topology alone, no wall crossed and nothing counting as a blocker
         MoveResult move(const placement_type& placement, const vector_type& direction, value_type distance) const;
 
         virtual placement_type turn(const placement_type& placement, Rotation rotation) const = 0;
 
-        // The placement facing the direction most nearly asked for, snapped to whichever
-        // directions the layout owns, as move snaps the direction it travels in. Unchanged
-        // when the direction is zero, there being nothing asked for
+        // The resulting placement starting at the given position and most closely aligned with the requested direction
         virtual placement_type face(const placement_type& placement, const vector_type& direction) const = 0;
 
-        // Whether the two occupy the same place, in whatever sense this layout resolves one
         virtual bool same_location(const placement_type& a, const placement_type& b) const = 0;
 
         // Adjacency for AI, the placements reachable in one step
-        virtual placements_type neighbors(const placement_type& placement) const = 0;
+        virtual placements_type neighbors(const placement_type& placement, const crossable_function_type& is_wall_crossable) const = 0;
 
-        virtual bool visible(const placement_type& from, const placement_type& to) const = 0;
+        virtual bool visible(const placement_type& from, const placement_type& to, const crossable_function_type& is_wall_crossable) const = 0;
 
-        // The wall directly in front of a placement, nullid when there is none. The layout
-        // determines what is there and at what granularity, snapping the facing the way move snaps
-        // the direction it travels in; what it is -- a door, a lever, a basin -- is the
-        // caller's to interpret
+        // The wall directly in front of a placement if any. The layout determines what is there and
+        // at what granularity, snapping the facing the way move snaps the direction it travels in
         virtual id_type ahead(const placement_type& placement) const = 0;
 
-        // How far one action of movement travels, which is what a move's cost is measured
-        // against
+        // How far one action of movement travels, which is what a move's cost is measured against
         virtual value_type step_distance() const = 0;
 
     protected:
 
-        // What the predicate returns, and solid where nothing has set one
-        bool crossable(id_type wall_id) const;
-
-        // Copied and moved as the derived layout it is, never as this. Protected rather than
-        // deleted, so a concrete layout stays a value the way it was before it had a base
         Layout() = default;
         Layout(const Layout&) = default;
         Layout(Layout&&) noexcept = default;
 
         Layout& operator=(const Layout&) = default;
         Layout& operator=(Layout&&) noexcept = default;
-
-    private:
-
-        crossable_type m_crossable;
     };
 
     //--------------------------------------------------------------------------
     inline MoveResult Layout::move(const placement_type& placement, const vector_type& direction, value_type distance) const
     {
-        return move(placement, direction, distance, obstructed_type());
-    }
-
-    //--------------------------------------------------------------------------
-    inline void Layout::set_crossable(crossable_type crossable)
-    {
-        m_crossable = std::move(crossable);
-        return;
-    }
-
-    //--------------------------------------------------------------------------
-    inline bool Layout::crossable(id_type wall_id) const
-    {
-        return m_crossable && m_crossable(wall_id);
+        return move(placement, direction, distance, crossable_function_type(), blocker_function_type());
     }
 
     //--------------------------------------------------------------------------

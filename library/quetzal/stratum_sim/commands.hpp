@@ -59,8 +59,8 @@ namespace quetzal::stratum_sim
     struct Blocked
     {
         id_type entity_id = nullid;
-        id_type obstruction_wall_id = nullid; // The wall it was stopped by
-        id_type obstruction_entity_id = nullid; // The entity that was occupying the cell ahead
+        id_type blocking_wall_id = nullid; // The wall it was stopped by
+        id_type blocking_entity_id = nullid; // The entity that was occupying the cell ahead
     };
 
     //--------------------------------------------------------------------------

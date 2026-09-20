@@ -119,10 +119,10 @@ out of reached them.
 
 - [x] **Doors.** A door is an entity with a facing on each of two walls, and whether a mover may
       cross is what it decides. Both formats load theirs, they start shut, and space opens one.
-      `Wall::passable` is gone: `Layout` keeps a predicate `World` sets, so `blocked` composes on
-      `World` for `move`, `neighbors` and `visible` alike without any of them growing a parameter.
-      `attachment_plan.md` gives the shape --- the mechanism is attachments generally, a door being
-      the first of them, and what is left there is the view showing a door's state.
+      `Wall::passable` is gone: nothing on the geometry marks a wall crossable, the answer coming
+      from what is attached to it. `attachment_plan.md` gives the shape --- the mechanism is
+      attachments generally, a door being the first of them, and what is left there is the view
+      showing a door's state.
 - [x] **State beside the type, and a glyph set that loads.** `PlaceType` gained `DoorClosed` and
       `DoorOpen` so a shut door draws apart from an open one, which multiplies the enum for every
       state every attachment can be in. A position reports what it is and what state it is in
@@ -284,6 +284,21 @@ persistent ids, loading a zone, migration, saved zones and the zone actor index.
 
 Work the stages above did not call for, reached by what they turned up.
 
+- [x] **One wall question in the layout, and the predicate passed rather than held.**
+      `Layout::set_crossable`, `m_crossable` and the protected `Layout::crossable` are gone;
+      `move`, `neighbors` and `visible` take a `crossable_type`, and `World` binds it to the zone at
+      each of them. `DiscreteLayout::blocked` is `crossable(cell_position, direction, crossable_wall)`:
+      no wall is a way through, a wall is the predicate's to answer for, and the grid boundary is no
+      longer a case of its own, floor being enclosed and absence of a wall asserting a cell beyond.
+      `World::neighbors` and `World::visible` join `World::move`, so a rule asks the world rather than
+      reaching for the layout, and nothing outside `World` binds a predicate. Ahead of
+      `addressing_plan.md` step 5, which adds the actor the answer depends on.
+- [x] **Two words for the two questions.** Getting through a wall is `crossable` everywhere: the
+      `Crossable` tag, `crossable(zone, wall_id)` asked of a wall, `crossable(cell_position, direction,
+      crossable_wall)` asked of a step, and the view's `State::Crossable` with `crossable` as its glyph
+      name. Something in the way is `blocking`: the `Blocking` tag, `Layout::blocking_type`, and
+      `blocking_wall_id` and `blocking_entity_id` on `MoveResult` and on the `Blocked` event.
+      `Passable`, `passable` and `obstructed` are gone from the sim and the view.
 - [x] **A `GridPosition` is a position and a `discrete_vector_type` is a displacement.** `Cell` was
       serving as a coordinate, a step and a count at once. The three are separate now:
       `GridPosition` is `long i, j` and moves only by adding a displacement, subtracting two
@@ -410,6 +425,10 @@ raised them, because a plan marked complete is not somewhere anyone looks.
   until something continuous needs one.
 - **`Flat` has no attachments yet.** An attachment is one mechanism over walls and flat cells alike;
   loading a zone (`discrete_layout_rework.md`) builds both, and until then only walls have them.
+- **`DiscreteLayout::field_of_view` is declared and nothing defines it.** A shadowcasting sweep answers
+  for every cell around one origin at once, where `visible` walks the ray between one pair, and
+  `sim_zone_model.md` names the two as producing different results. The declaration fixes the signature
+  the sweep would have; a caller of it fails to link until one is written.
 
 ### Discrete layout format
 
@@ -470,6 +489,10 @@ Set aside on purpose. No effort goes into these until one is picked up again.
   until this is done.
 - **Naming a wall address's `normal` `facing`,** once the format settles. Only the name would change, to
   match door facings; that the value is also the surface normal a texture uses argues against it.
+- **`passable_at` and `block_allowed` in the generators.** The sim says `crossable` for getting through a
+  wall and `blocking` for something in the way; dungen and catagen still say `passable_at` for a cell a
+  mover can be in and `block_allowed` for where a staircase may go. Both are cell questions rather than
+  edge ones, so it is not the same rename, but the word is the one the sim just dropped.
 
 ## Loose
 

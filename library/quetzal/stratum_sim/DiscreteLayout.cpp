@@ -234,26 +234,28 @@ quetzal::id_type quetzal::stratum_sim::DiscreteLayout::wall_toward(const discret
 }
 
 //------------------------------------------------------------------------------
-bool quetzal::stratum_sim::DiscreteLayout::blocked(const discrete_point_type& cell, const discrete_vector_type& direction) const
+bool quetzal::stratum_sim::DiscreteLayout::crossable(const discrete_point_type& cell_position, const discrete_vector_type& direction,
+    const crossable_function_type& is_wall_crossable) const
 {
-    if (!grid().contains(cell + direction))
+    id_type wall_id = wall_toward(cell_position, direction);
+
+    if (wall_id == nullid)
     {
+        assert(grid().contains(cell_position + direction)); // Open floor encloses itself, so no wall means a cell beyond
         return true;
     }
 
-    id_type id = wall_toward(cell, direction);
-    return id != nullid && !crossable(id);
+    return is_wall_crossable && is_wall_crossable(wall_id);
 }
 
 //------------------------------------------------------------------------------
 quetzal::stratum_sim::MoveResult quetzal::stratum_sim::DiscreteLayout::move(const placement_type& placement, const vector_type& direction, value_type distance,
-    const obstructed_type& obstructed) const
+    const crossable_function_type& is_wall_crossable, const blocker_function_type& blocker_at) const
 {
     MoveResult result {placement, nullid};
 
     // Snap to whichever of the layout's own directions the caller most nearly asked for
     discrete_vector_type step = grid_step(direction);
-
     if (step.zero())
     {
         return result;
@@ -266,29 +268,25 @@ quetzal::stratum_sim::MoveResult quetzal::stratum_sim::DiscreteLayout::move(cons
 
     for (int n = 0; n < steps; ++n)
     {
-        id_type wall_id = wall_toward(cell, step);
-
         discrete_point_type next = cell + step;
 
-        if (blocked(cell, step))
+        if (!crossable(cell, step, is_wall_crossable))
         {
-            // Named when a wall is what stopped it, which leaves the grid edge unnamed
-            result.obstruction_wall_id = wall_id != nullid && !crossable(wall_id) ? wall_id : nullid;
+            result.blocking_wall_id = wall_toward(cell, step); // Only a wall stops a step, so there is one here
             break;
         }
 
-        // Nothing open lies off the grid, so the test above is what keeps the mover on it
-        assert(g.contains(next));
+        assert(open(next));
 
-        if (obstructed)
+        if (blocker_at)
         {
             point_type p = position(next);
-            placement_type candidate(point_type(p.x(), p.y(), placement.position().z()), placement.direction());
+            placement_type candidate_placement(point_type(p.x(), p.y(), placement.position().z()), placement.direction());
 
-            id_type obstruction = obstructed(candidate);
-            if (obstruction != nullid)
+            id_type blocker = blocker_at(candidate_placement);
+            if (blocker != nullid)
             {
-                result.obstruction_entity_id = obstruction;
+                result.blocking_entity_id = blocker;
                 break;
             }
         }
@@ -330,6 +328,8 @@ quetzal::stratum_sim::placement_type quetzal::stratum_sim::DiscreteLayout::turn(
 //------------------------------------------------------------------------------
 quetzal::stratum_sim::placement_type quetzal::stratum_sim::DiscreteLayout::face(const placement_type& placement, const vector_type& direction) const
 {
+    // assert that the direction is not a zero vector ...
+
     placement_type result = placement;
 
     auto [dx, dy, dz] = direction.rep();
@@ -353,24 +353,23 @@ bool quetzal::stratum_sim::DiscreteLayout::same_location(const placement_type& a
 }
 
 //------------------------------------------------------------------------------
-quetzal::stratum_sim::DiscreteLayout::placements_type quetzal::stratum_sim::DiscreteLayout::neighbors(const placement_type& placement) const
+quetzal::stratum_sim::DiscreteLayout::placements_type quetzal::stratum_sim::DiscreteLayout::neighbors(const placement_type& placement,
+    const crossable_function_type& is_wall_crossable) const
 {
     placements_type result;
-    discrete_point_type cell = cell_position_at(placement.position());
+    discrete_point_type cell_position = cell_position_at(placement.position());
 
-    const GridMapping& g = grid();
     const auto& steps = cardinal_directions;
 
     for (const discrete_vector_type& step : steps)
     {
-        if (blocked(cell, step))
+        if (!crossable(cell_position, step, is_wall_crossable))
         {
             continue;
         }
 
-        // The boundary blocks outward, so an unblocked step is one onto the grid
-        discrete_point_type next = cell + step;
-        assert(g.contains(next));
+        discrete_point_type next = cell_position + step;
+        assert(open(next));
 
         point_type p = position(next);
         result.push_back(placement_type(point_type(p.x(), p.y(), placement.position().z()), placement.direction()));
@@ -380,7 +379,7 @@ quetzal::stratum_sim::DiscreteLayout::placements_type quetzal::stratum_sim::Disc
 }
 
 //------------------------------------------------------------------------------
-bool quetzal::stratum_sim::DiscreteLayout::visible(const placement_type& from, const placement_type& to) const
+bool quetzal::stratum_sim::DiscreteLayout::visible(const placement_type& from, const placement_type& to, const crossable_function_type& is_wall_crossable) const
 {
     discrete_point_type cell_position = cell_position_at(from.position());
     discrete_point_type target = cell_position_at(to.position());
@@ -399,8 +398,7 @@ bool quetzal::stratum_sim::DiscreteLayout::visible(const placement_type& from, c
     int step_i = dx > value_type(0) ? 1 : (dx < value_type(0) ? -1 : 0);
     int step_j = dy > value_type(0) ? 1 : (dy < value_type(0) ? -1 : 0);
 
-    // Distance along the ray to the next cell boundary on each axis, and between
-    // successive boundaries. An axis with no motion never becomes the smaller of the two
+    // Distance along the ray to the next cell boundary on each axis, and between successive boundaries
     constexpr value_type far = std::numeric_limits<value_type>::max();
 
     auto boundary = [&](int index, int step, value_type origin, value_type position, value_type d)
@@ -427,14 +425,13 @@ bool quetzal::stratum_sim::DiscreteLayout::visible(const placement_type& from, c
     {
         discrete_vector_type step = t_i < t_j ? discrete_vector_type(step_i, 0) : discrete_vector_type(0, step_j);
 
-        if (blocked(cell_position, step))
+        if (!crossable(cell_position, step, is_wall_crossable))
         {
             return false;
         }
 
-        // The boundary blocks outward, so the ray is stopped before it can leave the grid
         discrete_point_type next = cell_position + step;
-        assert(g.contains(next));
+        assert(open(next));
 
         if (t_i < t_j)
         {

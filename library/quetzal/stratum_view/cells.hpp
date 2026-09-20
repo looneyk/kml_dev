@@ -41,8 +41,8 @@ namespace quetzal::stratum_view
     {
         None = 0,
         Open = 1 << 0, // Openable::open
-        Passable = 1 << 1, // the Passable tag
-        Concealed = 1 << 2 // the Concealed tag, its found field being the inverse
+        Crossable = 1 << 1, // the Crossable tag
+        Concealed = 1 << 2 // the Concealed tag, its revealed field being the inverse
     };
 
     constexpr State operator|(State a, State b);
@@ -100,7 +100,7 @@ namespace quetzal::stratum_view
 
         constexpr State state_of(PlaceType type)
         {
-            return type == PlaceType::Door ? State::Open | State::Passable | State::Concealed
+            return type == PlaceType::Door ? State::Open | State::Crossable | State::Concealed
                 : State::None;
         }
 

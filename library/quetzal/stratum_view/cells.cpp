@@ -44,13 +44,13 @@ namespace
             state |= State::Open;
         }
 
-        if (attachment.has<sim::Passable>())
+        if (attachment.has<sim::Crossable>())
         {
-            state |= State::Passable;
+            state |= State::Crossable;
         }
 
         // The component records the positive, so the state is what it has not been found to be
-        if (attachment.has<sim::Concealed>() && !attachment.get<sim::Concealed>().found)
+        if (attachment.has<sim::Concealed>() && !attachment.get<sim::Concealed>().revealed)
         {
             state |= State::Concealed;
         }

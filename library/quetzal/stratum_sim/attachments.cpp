@@ -68,7 +68,7 @@ flecs::entity quetzal::stratum_sim::facing_on(flecs::entity zone, id_type wall_i
 //------------------------------------------------------------------------------
 flecs::entity quetzal::stratum_sim::door_of(flecs::entity facing)
 {
-    assert(facing);
+    assert(facing && facing.has<DoorFacing>());
     return facing.parent();
 }
 
@@ -100,17 +100,16 @@ bool quetzal::stratum_sim::crossable(flecs::entity zone, id_type wall_id)
         return false; // A wall with nothing attached is solid
     }
 
-    if (facing.has<Concealed>() && !facing.get<Concealed>().found)
+    if (facing.has<Concealed>() && !facing.get<Concealed>().revealed)
     {
         return false; // A secret door is a wall until it is found
     }
 
-    flecs::entity barrier = door_of(facing);
-
-    if (barrier.has<Openable>())
+    flecs::entity door = door_of(facing);
+    if (door.has<Openable>())
     {
-        return barrier.get<Openable>().open;
+        return door.get<Openable>().open;
     }
 
-    return barrier.has<Passable>();
+    return door.has<Crossable>();
 }

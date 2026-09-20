@@ -58,7 +58,7 @@ namespace quetzal::stratum_sim
     //--------------------------------------------------------------------------
     // Crossed without being opened, which is what a door smashed to a hole leaves. Blocking
     // debris is the same attachment without this
-    struct Passable
+    struct Crossable
     {
     };
 
@@ -67,7 +67,7 @@ namespace quetzal::stratum_sim
     // secret door is concealed on one facing and an ordinary door on the other
     struct Concealed
     {
-        bool found = false;
+        bool revealed = false;
     };
 
     //--------------------------------------------------------------------------

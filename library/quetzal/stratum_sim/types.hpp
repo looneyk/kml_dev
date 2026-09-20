@@ -45,7 +45,7 @@ namespace quetzal::stratum_sim
         return math::cardinal_direction<coord_type, 2>(direction);
     }
 
-    // The cell step a direction through space most nearly asks for, height disregarded
+    // The cardinal direction vector nearest to the give direction
     inline discrete_vector_type grid_step(const vector_type& direction)
     {
         static const vector_projection_type project;

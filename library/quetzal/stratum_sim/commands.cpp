@@ -56,9 +56,9 @@ int quetzal::stratum_sim::apply(World& world, const Command& command, EventQueue
             events.push(Moved {command.entity_id(), result.placement});
         }
 
-        if (result.obstruction_wall_id != nullid || result.obstruction_entity_id != nullid)
+        if (result.blocking_wall_id != nullid || result.blocking_entity_id != nullid)
         {
-            events.push(Blocked {command.entity_id(), result.obstruction_wall_id, result.obstruction_entity_id});
+            events.push(Blocked{command.entity_id(), result.blocking_wall_id, result.blocking_entity_id});
         }
 
         if (!moved)

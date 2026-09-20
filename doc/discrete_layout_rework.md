@@ -23,7 +23,7 @@ Nothing here mentions a wall record or a room, so the structures can change unde
 | `GridMapping` | Origin, scale, extent and the two conversions. The plan's grid, already built |
 
 **A wall id is already opaque above the layout.** `OnWall`, `facing_on`, `crossable`, `ahead`,
-`Blocked::obstruction_wall_id` and the view's `wall_toward` then `facing_on` all pass one along
+`Blocked::blocking_wall_id` and the view's `wall_toward` then `facing_on` all pass one along
 without indexing anything with it. Making the id an encoded address changes none of them.
 
 ### Reshaped
@@ -128,7 +128,7 @@ The reader's overlap check becomes a check over `room_cells`, its bounding boxes
 - `Cell` is `open`, `walls` and `room_id`.
 - `Flat` is its role, a constant height and the room and cell height maps; the sampling grid goes.
 - `DiscreteLayout` is the grid, the cells, two flats and a room count. A wall id encodes the cell and
-  the direction's place among the four, so `wall_toward`, `blocked` and `ahead` are bit tests and
+  the direction's place among the four, so `wall_toward`, `crossable` and `ahead` are bit tests and
   the id stays opaque above the layout. A flat's height at a cell resolves cell, then room, then the
   constant.
 - Deleted: `Wall`, `Room`, the wall and room stores, `create_walls`, `connect`, `opposed`,

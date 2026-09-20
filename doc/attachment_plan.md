@@ -94,7 +94,7 @@ the right side, and after that nothing stores an orientation that could disagree
 | `Attachment` | `value_type along, up` --- where on the surface it sits. |
 | `OnWall` | `id_type wall_id`, the facing's link to its wall, whose id also provides the normal and so the facing's absolute direction. Only a facing has this; a keyhole hangs on its facing, not on a wall. |
 | `DoorFacing` | Tag. Which door it belongs to is its parent, not a field. |
-| `Concealed` | `bool found`. Secret from *this* side until found --- the classic secret door is concealed on one facing and an ordinary door on the other. |
+| `Concealed` | `bool revealed`. Secret from *this* side until revealed --- the classic secret door is concealed on one facing and an ordinary door on the other. |
 | `Appearance` | The surface this facing shows, once there are asset ids to name. |
 
 **Concealed is per facing and open is not**, which is the whole reason for the split. So is a
@@ -164,7 +164,7 @@ because a secret door is a wall until it is found.
 ```
 crossable(wall_id):
     facing = the facing the wall's entity links to          -- no entity or no facing: false
-    if facing has Concealed and not found:                     false
+    if facing has Concealed and not revealed:                  false
 
     barrier = parent(facing)
     if barrier has Openable:  return barrier.Openable.open  -- a working door
