@@ -14,10 +14,10 @@ namespace quetzal::catagen
 
     // A discrete layout file in the wall notation, the generator's parameters written as the tokens its options take so
     // that the file reproduces its own zone
-    // Throws std::bad_optional_access when no seed was assigned, rather than write a file that cannot reproduce its zone
+    // Throws std::bad_optional_access when no seed was assigned
     void write_level(std::ostream& os, const Level& level, const Parameters& parameters);
 
-    // The grid rows alone, a row per line, for a caller with no parameters to write -- printing to a terminal
+    // The grid rows alone, one per line
     void write_grid(std::ostream& os, const Level& level);
 
 } // namespace quetzal::catagen

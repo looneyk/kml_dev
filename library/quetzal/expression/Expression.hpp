@@ -16,9 +16,7 @@ namespace quetzal::expression
 {
 
     //--------------------------------------------------------------------------
-    // A thin, copyable value wrapping a parsed Node tree; evaluate<T> and
-    // operator<< just forward to Evaluator<T> and Printer respectively, so
-    // this class holds no behavior of its own
+    // A copyable parsed Node tree; evaluate<T> and operator<< forward to Evaluator<T> and Printer
     class Expression
     {
     public:

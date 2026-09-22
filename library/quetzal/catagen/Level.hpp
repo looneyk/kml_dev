@@ -14,11 +14,9 @@ namespace quetzal::catagen
 {
 
     //--------------------------------------------------------------------------
-    // A rectangle of cells and the walls between them. A wall belongs to the edge two cells
-    // share rather than to either of them, so adjoining rooms cost nothing to separate and
-    // the grid holds one more line of walls than cells in each direction
-    // The whole of what a generator produces; rooms, doors and staircases are held here as
-    // cell and wall state, with a staircase's facing beside it, rather than as objects of their own
+    // A rectangle of cells and the walls between them. A wall belongs to the edge two cells share, so the grid has one more
+    // line of walls than cells in each direction
+    // Rooms, doors and staircases are stored as cell and wall state, with each staircase's facing direction
     class Level
     {
     public:
@@ -38,8 +36,7 @@ namespace quetzal::catagen
         CellType cell(const point_type& cell) const;
         void set_cell(const point_type& cell, CellType type);
 
-        // Walls addressed by the line they lie on rather than by a cell and a side, which is
-        // how they are stored and the only form that reaches the outermost line of each
+        // Walls addressed by the line they lie on, which reaches the outermost lines too
         // A vertical wall separates cells east to west: wall_vertical(i, j) lies between
         // cells (i - 1, j) and (i, j), so i runs to nx inclusive and j over the cells
         WallType wall_vertical(coord_type i, coord_type j) const;
@@ -50,8 +47,7 @@ namespace quetzal::catagen
         WallType wall_horizontal(coord_type i, coord_type j) const;
         void set_wall_horizontal(coord_type i, coord_type j, WallType type);
 
-        // The wall on one side of a cell. The east wall of (i, j) and the west wall of
-        // (i + 1, j) are one wall, so either name reaches it
+        // The east wall of (i, j) and the west wall of (i + 1, j) are the same wall
         WallType wall(const point_type& cell, CardinalDirection direction) const;
         void set_wall(const point_type& cell, CardinalDirection direction, WallType type);
 

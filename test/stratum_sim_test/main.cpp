@@ -65,8 +65,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Every case reports its own line so that a failure is identifiable by name
-    // detail describes the discrepancy and is only written for a failure
+    // detail is written only for a failure
     void report_case(const string& name, bool b, const string& detail = {})
     {
         ++g_case_count;
@@ -95,9 +94,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // A generator in place of an application's, this library linking none of the
-    // real ones. It builds the geometry `data/door.level` describes rather than reading it,
-    // so what is exercised is the seam rather than the reader behind it
+    // Builds the geometry of data/door.level
     class TestGenerator : public stratum_sim::Generator
     {
     public:
@@ -176,8 +173,7 @@ namespace
     };
 
     //--------------------------------------------------------------------------
-    // Opens a hand built layout's rectangle of cells and walls every side of it that faces out of the rectangle, a loaded
-    // layout taking both from the file
+    // Opens a rectangle of cells in a hand built layout and walls its outward sides
     void open_walled(stratum_sim::DiscreteLayout& layout, stratum_sim::coord_type i0, stratum_sim::coord_type j0,
         stratum_sim::coord_type i1, stratum_sim::coord_type j1)
     {
@@ -261,9 +257,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // A layout and a predicate crossing what the file called doors. A layout asks rather than
-    // looks and nothing has attached anything to these walls, so this substitutes for the door
-    // entities World builds and asks
+    // A layout and a predicate crossing the file's door walls, in place of door entities
     struct OpenLayout
     {
         std::unique_ptr<stratum_sim::DiscreteLayout> playout;
@@ -283,8 +277,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // A zone's layout as the kind it is. World returns the interface, and most of what
-    // is checked here is cells and walls, which live below it
+    // A zone's layout as a DiscreteLayout
     stratum_sim::DiscreteLayout& zone_layout(stratum_sim::World& world, flecs::entity zone)
     {
         return stratum_sim::layout_as<stratum_sim::DiscreteLayout>(world.layout(zone));
@@ -378,8 +371,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // The layouts that are declared and not written. Compiling their headers at all is most of
-    // what this checks; the cases state the two properties a skeleton promises
+    // The layouts that are declared but not implemented; compiling their headers is most of the check
     void test_layout_hierarchy()
     {
         report_group("layout hierarchy");
@@ -412,7 +404,6 @@ namespace
             layout.wall_toward(stratum_sim::discrete_point_type {0, 0}, cardinal_direction(CardinalDirection::West))
                 != layout.wall_toward(stratum_sim::discrete_point_type {0, 0}, cardinal_direction(CardinalDirection::South)));
 
-        // Flats, which bound the layout rather than any one area within it
         layout.set_flats(0.0f, 2.5f);
         report_case_equal("a layout has two flats", layout.flat_store_count(), 2);
         report_case("the floor is not a ceiling", !layout.flat(layout.floor_id()).ceiling());
@@ -423,8 +414,6 @@ namespace
         layout.set_room_count(2);
         report_case_equal("a layout keeps the room count it was given", layout.room_count(), 2);
 
-        // A zone's layout is moved into place and destroyed with the zone, so moving one is what a
-        // resident set at its limit does rather than emptying one in place
         stratum_sim::DiscreteLayout moved = std::move(layout);
         report_case("a moved layout takes the grid", moved.grid().extent == stratum_sim::discrete_vector_type(4, 3));
         report_case("and the cells", moved.open(stratum_sim::discrete_point_type {1, 1}));
@@ -470,7 +459,7 @@ namespace
     {
         report_group("flats");
 
-        // A constant is what a zone with no height data loads
+        // A zone with no height data loads a constant
         stratum_sim::Flat floor(2.0f);
 
         report_case("a flat is a floor unless it says otherwise", !floor.ceiling());
@@ -481,7 +470,7 @@ namespace
         report_case("a room height is kept", floor.room_height(0) == -0.25f);
         report_case("and a cell height", floor.cell_height(stratum_sim::discrete_point_type {1, 1}) == 0.5f);
 
-        // A cell sits on the floor, its height resolved from the cell, then the room covering it, then the flat
+        // A cell's floor height comes from the cell, then its room, then the flat
         stratum_sim::DiscreteLayout layout {stratum_sim::point_type(0.0f, 0.0f, 0.0f), 1.0f, stratum_sim::discrete_vector_type(8, 8)};
 
         report_case("with no floor a cell sits on the grid's own plane", layout.position(stratum_sim::discrete_point_type {1, 1}).z() == 0.0f);
@@ -524,8 +513,7 @@ namespace
         id_type wall_b = layout.wall_toward(stratum_sim::discrete_point_type {2, 0}, cardinal_direction(CardinalDirection::West));
         report_case("the two sides of the shared edge are two walls", wall_a != nullid && wall_b != nullid && wall_a != wall_b);
 
-        // What may be crossed is the caller's to answer rather than the wall's to store, so a bare
-        // layout crosses whatever this names. World asks the attachments instead
+        // The caller's predicate decides which walls may be crossed
         std::set<id_type> open_walls {wall_a};
         stratum_sim::Layout::crossable_function_type crossable = [&](id_type id) { return open_walls.contains(id); };
 
@@ -618,8 +606,7 @@ namespace
         scheduler.remove(1);
         report_case("a removed actor is gone", !scheduler.contains(1) && scheduler.count() == 0);
 
-        // advance and ready are what a scheme other than turn-based uses: time is granted
-        // rather than skipped to, so a caller can stop partway and find nobody ready
+        // advance grants time without skipping ahead, so no actor need be ready
         scheduler.clear();
         scheduler.add(1, 100);
         scheduler.add(2, 25);
@@ -639,7 +626,7 @@ namespace
         report_case("but the fast one, having banked three, is readier", scheduler.ready() == 1);
         report_case_equal("with elapsed counting every granted unit", scheduler.elapsed(), 4);
 
-        // next is those two composed, so it arrives where granting one at a time would
+        // next arrives where granting one unit at a time would
         scheduler.clear();
         scheduler.add(1, 25);
 
@@ -684,13 +671,12 @@ namespace
                 stratum_sim::vector_type(dx, dy, 0.0f), 1.0f, stratum_sim::vector_type()});
         };
 
-        // Nobody has accrued anything, so there is nothing to run yet
         report_case("with no time granted nobody runs", clock.run(events, controlled) == nullid);
 
         clock.grant_turn();
         report_case("granting a turn makes an actor ready", scheduler.ready() == controlled);
 
-        // Asking for nothing hands the controlled actor back rather than running it
+        // With no Intent, the controlled actor is returned
         id_type waiting = clock.run(events, controlled);
         report_case("the controlled actor asking for nothing is returned", waiting == controlled);
         report_case_equal("and nothing has happened", events.size(), 0);
@@ -739,8 +725,7 @@ namespace
         report_case("its turn was not charged", scheduler.energy(player.id()) >= stratum_sim::Scheduler::action_cost);
         report_case_equal("and no time passed", scheduler.elapsed(), static_cast<size_t>(elapsed_before));
 
-        // An actor that is not the controlled one waits rather than stopping the turn order.
-        // Its own world, so that the energies reached here are not what decides the order
+        // Any other actor with no Intent waits. A world of its own, so the energies above do not decide the order
         {
             stratum_sim::World world_two;
             flecs::entity zone_two = world_two.create_zone("corridor", stratum_sim::load_layout("data/corridor.level"));
@@ -755,7 +740,7 @@ namespace
 
             stratum_sim::Scheduler scheduler_two;
             scheduler_two.add(driven.id(), 100);
-            scheduler_two.add(other.id(), 200); // The readier of the two, so it is reached first
+            scheduler_two.add(other.id(), 200); // Faster, so it is reached first
 
             stratum_sim::Clock clock_two(world_two, scheduler_two);
             stratum_sim::EventQueue events_two;
@@ -775,8 +760,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Which grant a clock uses is the whole of what makes a world turn-based or real time,
-    // and it comes from the load rather than from a host
+    // The clock's driver, set when the zone is loaded
     void test_driver()
     {
         report_group("time driver");
@@ -819,7 +803,7 @@ namespace
         report_case_equal("half a second at two units a second is one unit", scheduler.elapsed(), 1);
         report_case_equal("which is one action at that speed", scheduler.energy(player.id()), stratum_sim::Scheduler::action_cost);
 
-        // The remainder is what keeps a run of short frames from rounding away to nothing
+        // The fraction is kept, so short frames add up
         restart(2.0);
         clock.advance(events, controlled, stratum_sim::Clock::duration_type(0.125));
         report_case_equal("a frame too short to earn a unit grants none", scheduler.elapsed(), 0);
@@ -831,7 +815,7 @@ namespace
 
         report_case_equal("but the remainder carries, so four of them earn one", scheduler.elapsed(), 1);
 
-        // Skipping the wait is exactly what real time must not do
+        // Real time does not skip ahead
         restart(2.0);
         report_case("real time does not skip ahead to make an actor ready",
             clock.advance(events, controlled, stratum_sim::Clock::duration_type::zero()) == nullid);
@@ -849,7 +833,7 @@ namespace
             player.set<stratum_sim::Intent>(stratum_sim::Intent {direction, 1.0f, stratum_sim::vector_type()});
         };
 
-        // A direction held goes on producing steps without being asked for again
+        // A held direction keeps the actor moving
         restart(2.0);
         place(stratum_sim::discrete_point_type {1, 1}, east);
 
@@ -862,7 +846,7 @@ namespace
             layout.cell_position_at(stratum_sim::placement_of(player).position()) == stratum_sim::discrete_point_type(4, 1));
         report_case("and is still being asked for", player.get<stratum_sim::Intent>().direction.x() == 1.0f);
 
-        // Turn-based drops it instead, which is one step to an intent
+        // Turn-based clears the Intent after one move
         scheduler.clear();
         scheduler.add(player.id(), 100);
         clock.set_driver(stratum_sim::Driver::TurnBased);
@@ -876,8 +860,7 @@ namespace
         report_case("turn-based takes one step from one intent",
             layout.cell_position_at(stratum_sim::placement_of(player).position()) == stratum_sim::discrete_point_type(2, 1));
 
-        // Held against a wall it stops asking rather than trying without end. That this returns
-        // at all is the case: an intent kept over an action that achieved nothing would spin
+        // Against a wall the Intent is cleared; the case is that this returns at all
         restart(2.0);
         place(stratum_sim::discrete_point_type {1, 1}, stratum_sim::vector_type(-1.0f, 0.0f, 0.0f));
         clock.advance(events, controlled, stratum_sim::Clock::duration_type(0.5));
@@ -887,7 +870,7 @@ namespace
         report_case("and stops asking for what it could not have",
             player.get<stratum_sim::Intent>().direction.x() == 0.0f);
 
-        // A host calls the same entry either way and is told nothing about which it is running
+        // A host calls advance the same way under either driver
         stratum_sim::Session session_turn;
         session_turn.load("data/corridor.level");
 
@@ -948,7 +931,7 @@ namespace
         report_case("a zero direction moves nothing", layout.cell_position_at(layout.move(start, stratum_sim::vector_type(0.0f, 0.0f, 0.0f), 3.0f).placement.position()) == stratum_sim::discrete_point_type(0, 0));
         report_case("a zero distance moves nothing", layout.cell_position_at(layout.move(start, east, 0.0f).placement.position()) == stratum_sim::discrete_point_type(0, 0));
 
-        // Direction is snapped to one the layout owns
+        // The direction snaps to a cardinal direction
         stratum_sim::MoveResult skewed = layout.move(start, stratum_sim::vector_type(0.9f, 0.4f, 0.0f), 2.0f);
         report_case("a direction off axis snaps to the nearest", layout.cell_position_at(skewed.placement.position()) == stratum_sim::discrete_point_type(2, 0));
 
@@ -966,7 +949,7 @@ namespace
         report_case("four counterclockwise turns return the original facing",
             layout.turn(layout.turn(layout.turn(left, stratum_sim::Rotation::CCW), stratum_sim::Rotation::CCW), stratum_sim::Rotation::CCW).direction().x() == 1.0f);
 
-        // Facing absolutely, which is what a command asks for and what the layout snaps
+        // Turning to an absolute direction
         stratum_sim::placement_type faced = layout.face(facing_east, north);
         report_case("facing north from east faces north", faced.direction().x() == 0.0f && faced.direction().y() == 1.0f);
         report_case("facing does not move", layout.same_location(facing_east, faced));
@@ -983,7 +966,7 @@ namespace
         report_case("a resolved counterclockwise turn faces where turning does",
             layout.face(facing_east, layout.turn(facing_east, stratum_sim::Rotation::CCW).direction()).direction().y() == 1.0f);
 
-        // Absolute movement passes a direction the mover is not facing, and keeps its facing
+        // Moving in a direction other than the facing direction leaves the facing direction unchanged
         stratum_sim::placement_type facing_north(start.position(), north);
         stratum_sim::MoveResult sidestep = layout.move(facing_north, east, 2.0f);
         report_case("absolute movement ignores the mover's facing", layout.cell_position_at(sidestep.placement.position()) == stratum_sim::discrete_point_type(2, 0));
@@ -1017,7 +1000,6 @@ namespace
         report_case_equal("a corner cell is walled on two sides", layout.neighbors(at(1, 1), room.crossable).size(), 2);
         report_case_equal("an edge cell is walled on one", layout.neighbors(at(2, 1), room.crossable).size(), 3);
 
-        // The reader opens what it connects, so the doorway is reachable
         report_case_equal("an open doorway is a neighbor", layout.neighbors(at(3, 2), room.crossable).size(), 4);
         report_case("a neighbor keeps the mover's facing", layout.neighbors(at(2, 2), room.crossable).front().direction().x() == 1.0f);
 
@@ -1026,13 +1008,12 @@ namespace
         report_case("and the doorway has no wall facing back",
             layout.wall_toward(stratum_sim::discrete_point_type {4, 2}, cardinal_direction(CardinalDirection::West)) == nullid);
 
-        // What is in front is the layout's own to decide, so a rule never steps a cell of its own
         report_case("the layout names what a placement faces", layout.ahead(at(3, 2)) == doorway);
         report_case("and nothing where the facing meets no wall", layout.ahead(at(1, 1)) == nullid);
         report_case("a facing the grid names nothing faces nothing", layout.ahead(
             stratum_sim::placement_type(layout.position(stratum_sim::discrete_point_type {3, 2}), stratum_sim::vector_type())) == nullid);
 
-        // A doorway into a dead end presents one wall, which is what a mover crosses going in
+        // A doorway into a dead end has one wall
         std::set<id_type> open_walls {doorway};
         stratum_sim::Layout::crossable_function_type crossable = [&](id_type wall_id) { return open_walls.contains(wall_id); };
 
@@ -1097,8 +1078,7 @@ namespace
 
         report_case_equal("a zone defining no rooms has none", door.room_count(), 0);
 
-        // Both notations load into the same structure, so which one a file was written in is the
-        // loader's to report rather than a property of the layout
+        // The loader reports the notation, which the layout does not store
         stratum_format::Notation notation = stratum_format::Notation::Wall;
         stratum_sim::load_layout("data/door.level", {}, &notation);
         report_case("a block notation file reports it", notation == stratum_format::Notation::Block);
@@ -1153,8 +1133,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Open cells reachable from the first by crossing only walls a mover may pass, which is
-    // the connectivity movement itself sees rather than one read off an area graph
+    // Open cells reachable from the first, crossing only the walls crossable allows
     size_t cells_reached(const stratum_sim::DiscreteLayout& layout, const stratum_sim::Layout::crossable_function_type& crossable)
     {
         const stratum_sim::discrete_vector_type extent = layout.grid().extent;
@@ -1208,7 +1187,6 @@ namespace
         report_group("load wall layout");
 
         // Two rooms of two by three cells sharing one wall, with a door in the middle of it
-        // The loader reports the wall pairs a door is attached to rather than marking the walls
         stratum_sim::door_walls_type door_walls;
         auto pwalls = stratum_sim::load_layout("data/walls.level",
             [&](const std::vector<id_type>& walls) { door_walls.push_back(walls); });
@@ -1229,9 +1207,7 @@ namespace
         report_case_equal("the shared wall is walled from both sides wherever both are floor", wall_counts(walls).both_sides, 4);
         report_case_equal("one pair of it is the door", door_walls.size(), 1);
 
-        // The generator puts the door in the top row of the shared wall at this seed, and the
-        // stairs in the middle row of each room, which is why neither is where a hand drawn
-        // fixture would put them
+        // At this seed the door is in the top row of the shared wall, and the staircases in the middle row of each room
         report_case("a mover crosses at the door", walls.crossable(stratum_sim::discrete_point_type {1, 2}, cardinal_direction(CardinalDirection::East), crossable));
         report_case("and back through it", walls.crossable(stratum_sim::discrete_point_type {2, 2}, cardinal_direction(CardinalDirection::West), crossable));
         report_case("but not below it", !walls.crossable(stratum_sim::discrete_point_type {2, 1}, cardinal_direction(CardinalDirection::West), crossable));
@@ -1290,7 +1266,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // What a zone file's doors load as. Nothing reads them yet, so this checks the shape
+    // The door entities a zone file's doors load as
     void test_doors()
     {
         report_group("doors");
@@ -1304,7 +1280,7 @@ namespace
 
         report_case_equal("one door for the one the file names", stratum_sim::create_doors(world, zone, door_walls), 1);
 
-        // A door is an entity in the zone, and its facings are its children
+        // A door is an entity in the zone, and its door facings are its children
         flecs::entity door;
         world.entities().query_builder<const stratum_sim::Door>()
             .with(flecs::ChildOf, zone)
@@ -1346,7 +1322,7 @@ namespace
         report_case("and the other side is the other facing", stratum_sim::other_facing(facings[0]) == facings[1]
             && stratum_sim::other_facing(facings[1]) == facings[0]);
 
-        // What a mover may cross, which is what the flag will stop deciding
+        // Whether an actor may cross
         report_case("a closed door is not crossable", !stratum_sim::crossable(zone, wall_a));
 
         door.set<stratum_sim::Openable>(stratum_sim::Openable {true});
@@ -1385,7 +1361,7 @@ namespace
 
         actor.destruct();
 
-        // Deleting the door takes its facings with it, being one subtree
+        // Deleting the door deletes its door facings
         door.destruct();
 
         size_t remaining = 0;
@@ -1501,7 +1477,7 @@ namespace
         report_case("its id is unchanged", monster.id() == id_before);
         report_case("it is no longer in the old zone", !monster.has(flecs::ChildOf, crypt));
 
-        // One operation for every parent, so what an entity carries travels with it
+        // Reparenting moves an entity's children with it
         flecs::entity coin = world.entities().entity();
         stratum_sim::reparent(coin, monster, stratum_sim::Site {stratum_sim::Relation::In, {}, {}});
 
@@ -1544,7 +1520,7 @@ namespace
 
         auto cell_of = [&]() { return layout.cell_position_at(stratum_sim::placement_of(actor).position()); };
 
-        // A step along the actor's own facing
+        // A move in the actor's facing direction
         commands.push(actor.id(), stratum_sim::Step {stratum_sim::vector_type(0.0f, 0.0f, 0.0f), 1.0f});
         stratum_sim::apply(world, commands, events);
 
@@ -1574,7 +1550,7 @@ namespace
 
         events.clear();
 
-        // What a move costs is what it covered, not a flat action
+        // A move costs in proportion to the distance traveled
         auto place = [&](const stratum_sim::discrete_point_type& cell, const stratum_sim::vector_type& direction)
         {
             stratum_sim::set_placement(actor, stratum_sim::placement_type(layout.position(cell), direction));
@@ -1595,7 +1571,7 @@ namespace
 
         events.clear();
 
-        // Stopped short, so charged for the distance actually reached rather than the one asked for
+        // Stopped short, it is charged for the distance traveled
         place(stratum_sim::discrete_point_type {1, 1}, east);
         stratum_sim::Command overreach(actor.id(), stratum_sim::Step {east, 4.0f});
         int cost_short = stratum_sim::apply(world, overreach, events);
@@ -1682,7 +1658,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Topology and occupancy compose on World rather than on either layer alone
+    // World composes topology and occupancy
     void test_world_move()
     {
         report_group("world movement");
@@ -1712,7 +1688,7 @@ namespace
         report_case("and is named as the blocker", stopped.blocking_entity_id == static_cast<id_type>(boulder.id()));
         report_case("rather than as a wall", stopped.blocking_wall_id == nullid);
 
-        // Presence is what blocks, not merely having a placement
+        // Only a Blocking entity blocks
         boulder.remove<stratum_sim::Blocking>();
         stratum_sim::MoveResult past = world.move(mover, east, 4.0f);
         report_case("an entity that does not block is moved through", layout.cell_position_at(past.placement.position()).i() > 3);
@@ -1720,7 +1696,7 @@ namespace
 
         boulder.add<stratum_sim::Blocking>();
 
-        // A mover never blocks itself
+        // An entity never blocks itself
         stratum_sim::MoveResult alone = world.move(boulder, east, 1.0f);
         report_case("a mover is not stopped by itself", layout.cell_position_at(alone.placement.position()) == stratum_sim::discrete_point_type(4, 1));
 
@@ -1748,8 +1724,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Everything but the controlled entity decides for itself, and what it decides is held
-    // on the entity rather than beside it
+    // Every actor but the controlled one decides for itself
     void test_ai()
     {
         report_group("deciding for itself");
@@ -1772,7 +1747,7 @@ namespace
 
         id_type controlled = static_cast<id_type>(player.id());
 
-        // Down one corridor, so it is seen and where it stands is remembered
+        // Down one corridor, so it is seen and its position stored
         stratum_sim::think(world, controlled);
 
         report_case("a pursuer that can see its target records where", monster.get<stratum_sim::Pursue>().seen);
@@ -1787,8 +1762,7 @@ namespace
         stratum_sim::Clock clock(world, scheduler);
         stratum_sim::EventQueue events;
 
-        // The controlled entity is readiest on a tie, so the pass stops there for a decision it
-        // cannot get. Spending its turn is what lets everything else have one
+        // The controlled entity wins ties and has no Intent, so its turn is spent to let the others act
         auto round = [&]()
         {
             stratum_sim::think(world, controlled);
@@ -1814,7 +1788,7 @@ namespace
         report_case("and stops where its target stands", cell_of(monster) == stratum_sim::discrete_point_type(2, 1));
         report_case("which is the target's own cell it did not take", cell_of(player) == stratum_sim::discrete_point_type(1, 1));
 
-        // What it recorded outlives the sight of it: moved away unseen, it goes to where it was
+        // A target moved away unseen is sought where it was last seen
         flecs::entity blind = world.create_entity(zone, at(5));
         blind.set<stratum_sim::Pursue>(stratum_sim::Pursue {nullid, layout.position(stratum_sim::discrete_point_type {3, 1}), true});
 
@@ -1823,7 +1797,7 @@ namespace
             blind.get<stratum_sim::Intent>().direction.x() < 0.0f);
         report_case("and still knows where that was", blind.get<stratum_sim::Pursue>().seen);
 
-        // Arriving there and finding nothing, it gives up rather than standing on it forever
+        // Arriving there and finding nothing, it stops
         stratum_sim::set_placement(blind, at(3));
         stratum_sim::think(world, controlled);
 
@@ -1834,8 +1808,7 @@ namespace
         stratum_sim::think(world, controlled);
         report_case("an entity that decides nothing is not decided for", inert.try_get<stratum_sim::Intent>() == nullptr);
 
-        // A zone constructed rather than read, which is how one normally arrives. The generator
-        // is the seam: an interface here and an implementation wherever one was chosen
+        // A zone generated rather than read
         {
             stratum_sim::Session created;
             TestGenerator generator;
@@ -1845,13 +1818,12 @@ namespace
             report_case("with the notation its generator named", created.notation() == stratum_format::Notation::Block);
             report_case("and a player in it", created.player().is_alive());
 
-            // The doorway has a door, which is what proves the reported walls were built on
+            // A door on the doorway shows the reported walls were built
             report_case("its doors are attached to the walls the generator reported",
                 stratum_sim::facing_on(created.zone(), stratum_sim::layout_as<stratum_sim::DiscreteLayout>(
                     created.layout()).wall_toward(stratum_sim::discrete_point_type {1, 1}, cardinal_direction(CardinalDirection::East))).is_alive());
 
-            // Reading the same geometry arrives at the same zone, a file being a snapshot of
-            // part of what a construction produces
+            // Reading the same geometry from a file gives the same zone
             stratum_sim::Session loaded;
             loaded.load("data/door.level");
             report_case("and a zone read whole agrees with it",
@@ -1860,7 +1832,7 @@ namespace
                     stratum_sim::layout_as<stratum_sim::DiscreteLayout>(created.layout())));
         }
 
-        // The whole of it through a Session, which is what a host drives
+        // Through a Session
         stratum_sim::Session session;
         session.load("data/corridor.level");
 
@@ -1874,7 +1846,7 @@ namespace
         stratum_sim::EventQueue session_events;
         stratum_sim::discrete_point_type before = stratum_sim::layout_as<stratum_sim::DiscreteLayout>(session.layout()).cell_position_at(stratum_sim::placement_of(hunter).position());
 
-        // The controlled entity waits, which is the only decision a host has to supply
+        // The controlled entity waits
         for (int n = 0; n < 3; ++n)
         {
             session.scheduler().spend(session.advance(session_events));
@@ -1887,8 +1859,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Phase 1's claim: a dungeon read from a file is walkable, driven entirely by
-    // commands ordered by the scheduler, with no rendering
+    // A zone read from a file is walkable by commands ordered by the scheduler, with no rendering
     void test_walk()
     {
         report_group("walking a dungeon");
@@ -1958,8 +1929,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Covers geometry::Polygon's Cartesian containment path, which sim depends on and
-    // which nothing else exercises. Belongs in geometry_test once that has a harness
+    // geometry::Polygon's Cartesian containment, which stratum_sim depends on
     void test_polygon_containment()
     {
         report_group("polygon containment, cartesian traits");
@@ -2000,7 +1970,7 @@ namespace
         report_case("an interior point of a yz polygon is contained", yz.contains(stratum_sim::point_type(0.0f, 2.0f, 1.5f)));
         report_case("an exterior point of a yz polygon is not", !yz.contains(stratum_sim::point_type(0.0f, 9.0f, 1.5f)));
 
-        // Facing no axis in particular, the case axis selection exists for
+        // Tilted, with no dominant axis
         stratum_sim::polygon_type tilted = polygon_of({
             stratum_sim::point_type(1.0f, 0.0f, 0.0f),
             stratum_sim::point_type(0.0f, 1.0f, 0.0f),

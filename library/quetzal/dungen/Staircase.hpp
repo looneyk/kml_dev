@@ -41,7 +41,7 @@ namespace quetzal::dungen
 
         StaircaseDirection direction() const;
 
-        // The step from its cell into the space it opens into
+        // The direction from its cell into the space it opens onto
         const std::optional<vector_type>& facing() const;
         void set_facing(vector_type facing);
 

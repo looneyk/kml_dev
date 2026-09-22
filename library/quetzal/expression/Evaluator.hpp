@@ -18,9 +18,7 @@ namespace quetzal::expression
 {
 
     //--------------------------------------------------------------------------
-    // Walks a type-erased Node tree to compute a concrete T; all type-specific
-    // logic (literal conversion, symbol lookup, which operators T supports)
-    // lives here, not in Node or Parser
+    // Evaluates a Node tree to a T, with the literal conversion, symbol lookup and operators particular to T
     template<typename T>
     class Evaluator
     {

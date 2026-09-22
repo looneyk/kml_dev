@@ -244,9 +244,7 @@ std::ostream& quetzal::geometry::operator<<(std::ostream& os, const Intersection
 template<typename Traits>
 struct std::formatter<quetzal::geometry::Intersection<Traits>>
 {
-    // Intersection has no formatting knobs of its own; the whole spec belongs to (and is entirely
-    // consumed by) the Point formatter, whose parsed state is shared verbatim with whichever
-    // sub-formatter the active locus needs (they all expose the identical m_point_formatter field).
+    // Parses the whole format spec, which the active locus's formatter shares
     std::formatter<quetzal::geometry::Point<Traits>> m_point_formatter;
 
     constexpr auto parse(std::format_parse_context& ctx)

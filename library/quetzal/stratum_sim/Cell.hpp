@@ -12,12 +12,12 @@ namespace quetzal::stratum_sim
 {
 
     //--------------------------------------------------------------------------
-    // One square of a Zone's grid and what the layout records about it. What a zone file encodes per cell
+    // One square of a zone's grid
     struct Cell
     {
-        bool open = false; // Whether a mover may stand here
+        bool open = false; // Whether an actor may stand here
         DirectionMask walls = DirectionMask::None; // The sides with a wall facing into the cell
-        id_type room_id = nullid; // The room covering it, or nullid where none does
+        id_type room_id = nullid; // The room containing it, or nullid
     };
 
 } // namespace quetzal::stratum_sim

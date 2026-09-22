@@ -20,8 +20,7 @@ namespace
     using namespace quetzal::dungen;
 
     //--------------------------------------------------------------------------
-    // What one sector of the grid holds: a room, or the single cell a sector without one
-    // still offers its neighbors to join through
+    // A sector's room, or the single cell through which a sector without one joins its neighbors
     struct Sector
     {
         box_type rectangle;
@@ -31,9 +30,7 @@ namespace
     using sectors_type = vector<Sector>;
 
     //--------------------------------------------------------------------------
-    // Two sectors that adjoin, and which way round they do. A single column of sectors puts
-    // its neighbors one slot apart just as a row does, so the orientation is stored here
-    // rather than read back out of the slots
+    // Two adjacent sectors and their orientation, which the slots alone leave ambiguous for a single column of sectors
     struct Adjacency
     {
         size_t slot_a = 0;
@@ -42,8 +39,7 @@ namespace
     };
 
     //--------------------------------------------------------------------------
-    // Disjoint sets over sector slots, for asking whether two sectors are already reachable
-    // from one another
+    // Disjoint sets over sector slots
     class Components
     {
     public:
@@ -72,7 +68,7 @@ namespace
     {
         while (m_parents[slot] != slot)
         {
-            m_parents[slot] = m_parents[m_parents[slot]]; // Halving the path, so repeated queries stay cheap
+            m_parents[slot] = m_parents[m_parents[slot]]; // Path halving
             slot = m_parents[slot];
         }
 
@@ -95,8 +91,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // The half open cell range sector (i, j) covers, an uneven division spreading its
-    // remainder across the sectors rather than leaving it all at one end
+    // The half open cell range of sector (i, j), spreading the remainder of an uneven division across the sectors
     box_type sector_bounds(vector_type size, vector_type divisions, coord_type i, coord_type j)
     {
         auto [nx, ny] = size;
@@ -111,9 +106,8 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // A room somewhere inside the sector, or the one cell that substitutes for a sector holding
-    // none, the margin left clear on every side so that a corridor has rock to run through
-    // and no two rooms share a wall
+    // A room inside the sector, or a single cell when room is false, with the margin clear on every side so corridors run
+    // through solid cells and no two rooms share a wall
     Sector choose_sector(const box_type& bounds, const Grid1Parameters& grid1, bool room, random_type& random)
     {
         point_type origin = bounds.position() + vector_type {grid1.room_margin, grid1.room_margin};
@@ -178,8 +172,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // A random spanning tree over the sectors, so that every one of them is reachable, and
-    // the adjacencies it had no need of kept with probability loop
+    // A random spanning tree over the sectors, plus each remaining adjacency with probability loop
     vector<Adjacency> sector_connections(vector<Adjacency> adjacencies, size_t n_sectors, double loop, random_type& random)
     {
         shuffle(adjacencies.begin(), adjacencies.end(), random.engine());
@@ -199,8 +192,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Rock along a horizontal or vertical line, its ends included, turned to corridor. What
-    // is already open is left as it is, so a corridor crossing another one joins it
+    // Turns the solid cells along a horizontal or vertical line, ends included, into corridor
     void carve(Level& level, point_type from, point_type to)
     {
         coord_type dx = to.x() - from.x();
@@ -225,8 +217,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Where a corridor meets a room it becomes a door in the wall it entered by; where it
-    // meets a sector holding no room it stays corridor
+    // A door where a corridor enters a room; corridor where it enters a sector without one
     void place_door(Level& level, point_type position, bool room)
     {
         if (room && level.cell(position).type() != CellType::Door)
@@ -262,8 +253,7 @@ namespace
 
     //--------------------------------------------------------------------------
     // Out through the wall of from that faces to, turning alongside from and coming in across
-    // to's near wall. Fails where to leaves no row for it, and is then worth trying the other
-    // way round
+    // to's near wall. Fails where to leaves no row for it
     bool connect_around_rows(Level& level, const Sector& from, const Sector& to, coord_type to_wall_x,
         random_type& random)
     {
@@ -314,9 +304,8 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Whether a corridor can join the two leaving no doorway at a corner. Only two rooms both
-    // one cell across, and too near each other for either to be left by a side wall, cannot be
-    // joined: a sector holding no room takes no doorway, so a corner there is only a bend
+    // Whether a corridor can join the two with no doorway at a corner. Only two rooms both one cell across, too near each
+    // other for either to be left by a side wall, cannot be; a sector without a room has no doorway
     bool joinable(const Sector& a, const Sector& b, bool horizontal)
     {
         if (!a.room || !b.room)
@@ -373,8 +362,8 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // A corridor from one sector to the other. The turn is kept off both wall lines because a
-    // doorway needs rock to either side of it, which is what the three shapes below are for
+    // A corridor from one sector to the other, its turn kept off both wall lines, as a doorway needs solid cells to either
+    // side
     void connect(Level& level, const Sector& a, const Sector& b, bool horizontal, random_type& random)
     {
         if (horizontal)
@@ -416,8 +405,7 @@ namespace
                 return;
             }
 
-            // The turn has to fall on one of the two wall lines here, which leaves that end a
-            // corner. Placement keeps a room off it, so the turn goes on the side holding none
+            // The turn falls on a wall line here, making that end a corner, so it goes on the side without a room
             coord_type ya = a.rectangle.position().y() + random.gen(a.rectangle.extent().y());
             coord_type yb = b.rectangle.position().y() + random.gen(b.rectangle.extent().y());
 
@@ -474,8 +462,7 @@ namespace
                 return;
             }
 
-            // The turn has to fall on one of the two wall lines here, which leaves that end a
-            // corner. Placement keeps a room off it, so the turn goes on the side holding none
+            // The turn falls on a wall line here, making that end a corner, so it goes on the side without a room
             coord_type xa = a.rectangle.position().x() + random.gen(a.rectangle.extent().x());
             coord_type xb = b.rectangle.position().x() + random.gen(b.rectangle.extent().x());
 
@@ -540,8 +527,8 @@ quetzal::dungen::Level quetzal::dungen::generate_grid1(id_type id, const string&
     auto [divisions_x, divisions_y] = grid1.divisions;
     size_t n_sectors = static_cast<size_t>(divisions_x * divisions_y);
 
-    // Which sectors hold a room, the density being how many of them do rather than the
-    // chance of any one of them doing so, so that a zone is not left to come out empty
+    // Which sectors have a room. The density is a fraction of the sectors, not a per-sector probability, so a zone is never
+    // left empty
     vector<size_t> slots(n_sectors);
     iota(slots.begin(), slots.end(), size_t(0));
     shuffle(slots.begin(), slots.end(), random.engine());
@@ -554,9 +541,8 @@ quetzal::dungen::Level quetzal::dungen::generate_grid1(id_type id, const string&
         room[slots[i]] = true;
     }
 
-    // A placement its neighbor could only be reached from through a corner doorway is not a
-    // zone, so it is drawn again. Only rooms one cell across produce one, and the draw is
-    // bounded because a sector with no room to move the draw in would otherwise never settle
+    // A placement whose neighbor is reachable only through a corner doorway is drawn again. The attempts are bounded, as a
+    // sector with no space to vary the draw would never settle
     constexpr size_t placement_attempts = 16;
 
     sectors_type sectors(n_sectors);

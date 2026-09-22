@@ -1,11 +1,9 @@
-# Per-project clean targets, one clean_<name> per directory registered by add_subdirectory_ext.
-# BuildProjectReferences=false requires dependencies to be cleaned separately, and explicitly for speed
-# (MSBuild's Clean cascades into every library the project links, which can be redundant
-# when cleaning many projects that share the same libraries.)
-# Visual Studio generator only: `cmake --build --target clean` cleans the whole
-# solution, and there is no generator-agnostic equivalent for a single project.
-# Defined here rather than at the root so that the generated project, filters and scratch
-# directory for each target land under this one build subdirectory
+# Per-project clean targets, one clean_<name> per directory registered by add_subdirectory_ext
+# BuildProjectReferences=false keeps a clean from cascading into every library the project links, so dependencies are
+# cleaned separately
+# Visual Studio generator only, as there is no generator-agnostic clean for a single project
+# Defined here so the generated project, filters and scratch directory of each target are under this build
+# subdirectory
 
 if(NOT CMAKE_GENERATOR MATCHES "Visual Studio")
     return()

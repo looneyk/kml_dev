@@ -16,21 +16,16 @@ namespace quetzal::stratum_sim
 {
 
     //--------------------------------------------------------------------------
-    // Something that has happened in the simulation, consumed by views
-    // The event itself is any copyable type and is held type erased, so that a module
-    // can introduce events that the core has no knowledge of
-    // An event is plain data throughout, never a reference into simulation internals, so
-    // that it stays valid after the simulation has moved on
+    // Something that has happened in the simulation. Any copyable type, stored type erased so a module can add events
+    // Plain data, never a reference into the simulation, so it stays valid as the simulation advances
     class Event
     {
     public:
 
         Event();
 
-        // Constrained so that it does not take precedence over the copy constructor and
-        // wrap an Event inside an Event
-        // Fully qualified so that the constraint is token for token the one on the
-        // out of line definition, which is what makes them the same declaration
+        // Constrained to keep it from taking precedence over the copy constructor
+        // Fully qualified so the constraint matches the out of line definition token for token
         template<typename E>
             requires (!std::same_as<std::remove_cvref_t<E>, quetzal::stratum_sim::Event>)
         Event(E event);

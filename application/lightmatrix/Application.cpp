@@ -95,9 +95,8 @@ quetzal::lightmatrix::Application::Application(const quetzal::Config& config) :
 
     set_pattern(0);
 
-    // The default forward/up are (0,1,0)/(0,0,1); setting up directly to (0,1,0) or
-    // forward directly to (0,0,1) against those defaults yields a degenerate (parallel)
-    // cross product. Route through a safe intermediate forward to avoid that.
+    // Against the default forward (0,1,0) and up (0,0,1), setting up to (0,1,0) or forward to (0,0,1) directly gives a
+    // degenerate cross product, so forward is set to an intermediate first
     m_camera.set_forward({1.0f, 0.0f, 0.0f});
     m_camera.set_up({0.0f, 1.0f, 0.0f});
     m_camera.set_forward({0.0f, 0.0f, 1.0f});

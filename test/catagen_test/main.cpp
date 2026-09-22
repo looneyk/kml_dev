@@ -37,7 +37,7 @@ namespace
     static constexpr auto escape_reset_string = "\x1b[0m";
     static constexpr auto escape_rendition_pattern = "\x1b[38;5;{}m";
 
-    // Key order plays no part in its comparison, which is what lets two zone files compare as equivalent
+    // Compares regardless of key order
     using map_type = nlohmann::json;
 
     size_t g_case_count = 0;
@@ -63,7 +63,6 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Every case reports its own line so that a failure is identifiable by name
     void report_case(const string& name, bool b, const string& detail = {})
     {
         ++g_case_count;
@@ -105,8 +104,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // A zone as the tool writes one, header and grid, so that what is compared is what a
-    // zone file holds rather than the Level in memory
+    // A zone as the tool writes it, header and grid
     string zone_text(const catagen::Parameters& parameters)
     {
         catagen::Level level = catagen::generate(parameters);
@@ -142,8 +140,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // The whole string or nothing, so that trailing rubbish in a header value is an error
-    // rather than something quietly ignored
+    // The whole string or nothing; trailing characters are an error
     catagen::coord_type to_integer(const string& s)
     {
         catagen::coord_type value = 0;
@@ -180,10 +177,8 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // The generator a zone file names, read back into the parameters it specifies, which is the whole of what a zone file
-    // says about how to produce it again
-    // Throws std::invalid_argument where the file specifies something this does not read, so a parameter added to the
-    // writer and not to this is a failure rather than a silent pass
+    // The parameters in a zone file's generator section
+    // Throws std::invalid_argument for a value this does not read, so a parameter added to the writer alone fails
     catagen::Parameters parameters_of(const stratum_format::values_type& generator)
     {
         if (!generator.is_object() || generator.value("name", "") != "catagen")
@@ -252,8 +247,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // The runs the reference zone files are written from. Fixed parameters and fixed seeds, so
-    // that every one of them is reproducible from what is checked in
+    // The runs the reference zone files are written from, with fixed parameters and seeds
     struct Scenario
     {
         string name;
@@ -264,7 +258,7 @@ namespace
     {
         vector<Scenario> v;
 
-        // The shipped zone's own parameters, so the asset and the suite gate the same run
+        // The shipped zone's parameters, so the suite checks the run that produced the asset
         catagen::Parameters shipped;
         shipped.extent = {20, 10};
         shipped.scale = {2, 5};
@@ -274,7 +268,7 @@ namespace
         shipped.seed = 2614047767u;
         v.push_back({"shipped", shipped});
 
-        // Rooms sharing walls, which is the case the block format cannot express
+        // Rooms sharing walls, which the block notation cannot express
         catagen::Parameters shared;
         shared.extent = {16, 12};
         shared.scale = {3, 7};
@@ -283,7 +277,7 @@ namespace
         shared.seed = 1u;
         v.push_back({"shared_walls", shared});
 
-        // Rooms stood apart, so corridors cross the rock between them
+        // Rooms spaced apart, so corridors cross the solid cells between them
         catagen::Parameters spaced;
         spaced.extent = {24, 16};
         spaced.scale = {3, 6};
@@ -304,8 +298,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Zone files written now against those checked in, which are to be equivalent. A generator change that alters what any of
-    // these produces reports here rather than months later
+    // Zone files written now against those checked in, which must be equivalent
     void test_reference_zones()
     {
         report_group("reference zones");
@@ -340,7 +333,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // The claim the format rests on: a zone file names everything its run needs, so it can be produced again from the file alone
+    // A zone file has every parameter of its run, so it can be reproduced from the file alone
     void test_parameters_reproduce()
     {
         report_group("parameters reproduce their zone");
@@ -539,8 +532,7 @@ namespace
         other.seed = 8u;
         report_case("and another seed gives another", zone_text(other) != zone_text(parameters));
 
-        // Drawn from entropy rather than fixed, so a caller who wants a different zone each
-        // run gets one
+        // Drawn from entropy
         report_case("a random seed is not the same one every time",
             catagen::random_seed() != catagen::random_seed());
 
@@ -587,7 +579,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // The grid alone, which is what a caller with no parameters to write emits
+    // The grid alone, as write_grid emits it
     void test_grid_shape()
     {
         report_group("grid shape");
@@ -652,7 +644,7 @@ namespace
         const stratum_format::Cells& cells = document.cells;
         const auto& directions = math::cardinal_directions<coord_type, 2>;
 
-        // In the written grid, a cell at its odd position and the edge on its side one step from there
+        // In the written grid, a cell is at its odd position and the edge on each side one position from it
         auto glyph_at = [&cells](coord_type x, coord_type y) { return cells.rows[cells.rows.size() - 1 - static_cast<size_t>(y)][static_cast<size_t>(x)]; };
 
         auto cell_glyph = [&](const discrete_point_type& cell_position)

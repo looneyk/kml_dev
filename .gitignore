@@ -95,6 +95,8 @@
 !**/CMakePresets.json
 !**/*.ps1
 !**/*.sh
+**/*.cso
+**/*.suo
 **/*.user
 **/.vs
 **/.godot

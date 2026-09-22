@@ -1,8 +1,7 @@
 cmake_minimum_required(VERSION 3.25) # CXX26 dialect support
 project(kml_dev C CXX)
 
-# CMake has no CXX26 dialect flag for MSVC, so ask MSVC for the latest directly and let every other
-# compiler be told C++26 the documented way
+# CMake has no CXX26 dialect flag for MSVC, so MSVC is given /std:c++latest
 if(MSVC)
     set(CMAKE_CXX_STANDARD 23)
     add_compile_options(/std:c++latest /bigobj /W4) # heavily templated translation units exceed the default section count
@@ -18,9 +17,8 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 set(DEV_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
 set(LIBRARY3_DIR ${DEV_ROOT}/library3)
 
-# Forced into the cache rather than merely set: godot-cpp's windows.cmake caches MultiThreaded, the
-# static release CRT, even for a debug build, and quetzal's static libraries will not link into a
-# GDExtension unless the two agree
+# Forced into the cache, as godot-cpp's windows.cmake caches MultiThreaded, the static release CRT, even for a debug
+# build, and quetzal's static libraries link into a GDExtension only when the two agree
 set(CMAKE_MSVC_RUNTIME_LIBRARY "$<IF:$<CONFIG:Debug>,MultiThreadedDebug,MultiThreaded>"
     CACHE STRING "MSVC runtime library for targets using the MSVC ABI" FORCE)
 
@@ -33,15 +31,10 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${DEV_ROOT}/lib)
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
-# add_subdirectory_ext: drop-in replacement for add_subdirectory that also registers the
-# directory for a clean_<name> target running MSBuild's per-project Clean on the generated vcxproj.
-# An optional second argument gives the target name explicitly, for directories whose
-# target name doesn't match the directory name, quetzal libraries for example,
-# otherwise defaults to the directory name.
-# The targets themselves are created by support/, which keeps their generated projects and
-# scratch directories together there instead of scattering three entries per target through the
-# top of the build directory -- a function body runs in the scope of its caller, so creating them
-# here would place every one of them at the root regardless of the directory being added
+# add_subdirectory that also registers the directory for a clean_<name> target running MSBuild's per-project Clean on
+# the generated vcxproj. An optional second argument is the target name, which defaults to the directory name
+# support/ creates the targets, so their generated projects and scratch directories are under it; a function body runs
+# in its caller's scope, which would put them at the root
 function(add_subdirectory_ext dir)
     add_subdirectory(${dir})
     if(ARGC GREATER 1)

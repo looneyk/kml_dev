@@ -28,8 +28,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // pword is a raw void*, so its lifetime (copy on copyfmt, delete on stream destruction) has to be
-    // managed manually via this callback, per the standard idiom for storing non-trivial per-stream state
+    // pword is a raw void*, so this callback copies it on copyfmt and deletes it on stream destruction
     void array_element_delim_callback(ios_base::event event, ios_base& stream, int index)
     {
         if (event == ios_base::erase_event)

@@ -19,8 +19,7 @@ namespace
     using quetzal::stratum_view::any;
 
     //--------------------------------------------------------------------------
-    // How much of a place a line specifies, a state flag, a mask and an actor counting one
-    // each. A line specifying more of it is preferred to one specifying less
+    // Each state flag, a mask and an actor count one
     int specificity(const Glyph& glyph)
     {
         int n = (glyph.mask.has_value() ? 1 : 0) + (glyph.actor ? 1 : 0);
@@ -43,9 +42,8 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // ASCII has three glyphs for the sixteen joints the mask tells apart, so a wall is
-    // sixteen lines: a run passing through horizontally or vertically, a junction where both
-    // axes reach it, and nothing where neither does
+    // A line for each of the sixteen masks: horizontal, vertical, a corner where both axes reach the position, and an
+    // opening where neither does
     void add_walls(std::vector<Glyph>& glyphs, char horizontal, char vertical, char corner, char opening)
     {
         for (uint8_t bits = 0; bits < 16; ++bits)
@@ -99,10 +97,7 @@ const std::vector<quetzal::stratum_view::Glyph>& quetzal::stratum_view::Glyphs::
 //------------------------------------------------------------------------------
 const quetzal::stratum_view::Glyphs& quetzal::stratum_view::cell_glyphs()
 {
-    // A cell per glyph has nowhere to put an edge, so the reduction feeding this emits no
-    // wall at all and a door only where one occupies a cell of its own
-    // An actor line first, so that it wins the tie against a line asking for one state flag:
-    // an actor in an open doorway draws as the actor rather than as the doorway
+    // The actor line comes first to win the tie with a line of one state flag, so an actor in an open doorway is drawn
     static const Glyphs glyphs(std::vector<Glyph>
     {
         {PlaceType::Floor, State::None, {}, true, '@'},

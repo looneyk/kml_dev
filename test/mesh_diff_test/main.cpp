@@ -405,8 +405,7 @@ namespace
         {
             model::Comparison c = model::mesh_diff<vector_traits>(dir / "full.obj", dir / "no_vt.obj");
             const model::FaceDifferences& d = c.differences[0].differences;
-            // The first vertex carries vt 0 0, so this also covers a supplied
-            // attribute holding what would otherwise have been the default value
+            // The first vertex has vt 0 0, so this also tests a supplied attribute equal to the default
             check("missing vt differs in all three texcoords only", d.texcoords == 3 && d.normals == 0 && d.positions == 0,
                 std::format("[{} position, {} normal, {} texcoord]", d.positions, d.normals, d.texcoords));
         }
@@ -427,7 +426,7 @@ namespace
         }
 
         {
-            // Groups interleaved with their faces must land in the right surface
+            // Groups interleaved with their faces must be read into the right surface
             model_type full = model::detail::read_obj_model<model_type>(dir / "full.obj");
             bool b = full.surfaces().size() == 2
                 && full.surfaces()[0].face_ids.size() == 1 && full.surfaces()[1].face_ids.size() == 1

@@ -130,8 +130,7 @@ namespace
     {
         using T = Traits::value_type;
 
-        // Deliberately not representable in binary, so that the products forming the predicate do not
-        // cancel exactly and the test sees real rounding rather than an artificially clean zero
+        // Not representable in binary, so the products forming the predicate do not cancel exactly
         return make_point<Traits>((T(0.1) + t * T(1)) * scale, (T(0.2) + t * T(3)) * scale, (T(0.3) + t * T(2)) * scale);
     }
 
@@ -189,7 +188,7 @@ namespace
         geometry::Line<Traits> line_x(origin, vector_type::x_direction());
         geometry::Line<Traits> line_y(origin, vector_type::y_direction());
 
-        // The directional pair also requires that they meet, so this is perpendicular rather than skew
+        // Lines must also meet to be perpendicular
         check(d + " perpendicular: lines along x and y meeting at the origin", geometry::perpendicular(line_x, line_y));
         check(d + " perpendicular: line with itself is not", !geometry::perpendicular(line_x, line_x));
 
@@ -209,10 +208,8 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Whether three points are colinear cannot depend on how far from the origin they sit. The
-    // predicate compares a product of two edge vectors, so its rounding error grows with the square of
-    // the coordinates while a fixed tolerance does not, and past some scale genuinely colinear points
-    // start reading as not colinear
+    // Colinearity must not depend on distance from the origin. The predicate's rounding error grows with the square of
+    // the coordinates, so a fixed tolerance fails at large scales
     template<typename Traits>
     void test_colinear()
     {
@@ -226,8 +223,7 @@ namespace
 
             bool exact = geometry::colinear(a, b, c);
 
-            // Displaced perpendicular to the line by a thousandth of the scale, well clear of any
-            // rounding, so this has to read as not colinear at every scale
+            // Displaced from the line by a thousandth of the scale, well clear of rounding
             auto d = c;
             d.set_y(d.y() + scale / T(1000));
             bool displaced = geometry::colinear(a, b, d);
@@ -247,8 +243,7 @@ namespace
 
         using T = Traits::value_type;
 
-        // Plane intersection needs normal(), which is 3D and up, and Intersection holds a Polygon whose
-        // containment test needs Projection, which exists only for homogeneous traits
+        // Plane intersection needs normal(), which is 3D and up
         if constexpr (math::Homogeneous<Traits> && Traits::dimension >= 3)
         {
             for (size_t i = 0; i < 100; ++i)
@@ -304,8 +299,6 @@ namespace
         test_perpendicular<Traits>();
         if constexpr (math::Homogeneous<Traits>)
         {
-            // Intersection<Traits> holds a Polygon<Traits> member, and Polygon's containment
-            // test relies on Projection<Traits>, which only exists for homogeneous traits
             test_intersects<Traits>();
             test_intersection<Traits>();
         }
@@ -358,8 +351,6 @@ int main(int argc, char* argv[])
     std::cout << std::format("plane default [{}]", smoke_pl) << std::endl;
     std::cout << std::format("plane combo [{:[,_.2f}]", smoke_pl) << std::endl;
 
-    // Polygon (and anything holding one, like Intersection) needs Homogeneous traits -- see the
-    // Cartesian/Projection incompatibility discussed earlier.
     geometry::Polygon<math::HomogeneousTraits<double, 3>> smoke_poly
     {
         geometry::Point<math::HomogeneousTraits<double, 3>>(0.0, 0.0, 0.0),

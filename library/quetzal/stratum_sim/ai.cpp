@@ -22,8 +22,7 @@ namespace
 //------------------------------------------------------------------------------
 void quetzal::stratum_sim::think(World& world, id_type actor_controlled)
 {
-    // Gathered before anything is written, a component set during iteration being able to move
-    // the entity it belongs to
+    // Gathered first, as setting a component during iteration can move its entity to another table
     std::vector<flecs::entity> thinkers;
 
     world.entities().query_builder<const Pursue>()
@@ -57,14 +56,12 @@ void quetzal::stratum_sim::think(World& world, id_type actor_controlled)
         const Site* ptarget_site = target.is_alive() ? target.try_get<Site>() : nullptr;
         const placement_type* ptarget = ptarget_site != nullptr ? &ptarget_site->placement : nullptr;
 
-        // Seen now, so where it is replaces where it was
         if (ptarget != nullptr && world.visible(e, *ptarget))
         {
             pursue.position_last_seen = ptarget->position();
             pursue.seen = true;
         }
 
-        // Arrived where it last saw it and found nothing there, so it stops going there
         if (pursue.seen && layout.same_location(*pplacement, placement_type(pursue.position_last_seen, pplacement->direction())))
         {
             pursue.seen = false;
@@ -74,12 +71,10 @@ void quetzal::stratum_sim::think(World& world, id_type actor_controlled)
 
         if (!pursue.seen)
         {
-            continue; // Nowhere to go, so it asks for nothing and waits
+            continue;
         }
 
-        // The reachable step that closes the most distance, so a wall is gone around rather
-        // than walked into. Neighbours come back in a fixed order, so ties break the same way
-        // on every run
+        // The reachable neighbor nearest the goal. Neighbors are in a fixed order, so ties break the same way every run
         bool found = false;
         vector_type direction;
         value_type nearest = distance2(pplacement->position(), pursue.position_last_seen);

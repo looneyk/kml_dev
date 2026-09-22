@@ -48,10 +48,8 @@ namespace quetzal::math
     template<typename T> requires std::floating_point<T>
     bool float_eq0(T t, int tolerance = tolerance_default);
 
-    // Zero has no scale of its own, so t is judged against the magnitude it came from. Required where t
-    // is a difference of larger quantities: what stands in for an exact zero there is cancellation
-    // noise proportional to those quantities, which the form above cannot see. scale below one is
-    // treated as one, so this is never the tighter of the two
+    // t judged against the magnitude it came from, for t a difference of larger quantities, whose cancellation noise is
+    // proportional to them. A scale below one is treated as one, so this is never tighter than the form above
     template<typename T> requires std::floating_point<T>
     bool float_eq0(T t, T scale, int tolerance = tolerance_default);
 

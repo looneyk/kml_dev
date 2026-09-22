@@ -1,5 +1,4 @@
-# Header only so far, so a custom target as with the other header only quetzal libraries: it puts
-# the sources in the solution without producing anything to link
+# A custom target, as for the other header only quetzal libraries, puts the sources in the solution with nothing to link
 add_custom_target(quetzal_godot SOURCES
     gdextension.cmake
 )

@@ -19,21 +19,17 @@ namespace
     using quetzal::stratum_view::vector_type;
 
     //--------------------------------------------------------------------------
-    // Where a cell lies on the lattice, cell (i, j) being at (2i + 1, 2j + 1). A wall on one
-    // of its edges is that position stepped once in the direction it faces
+    // Cell (i, j) is at (2i + 1, 2j + 1), and the wall on its side in a direction is one position further that way
     point_type lattice_position(const point_type& cell_position)
     {
         return 2 * cell_position + vector_type {1, 1};
     }
 
     //--------------------------------------------------------------------------
-    // The four a cell can be asked about, in the order a wall lies on its edges
     const auto& directions = sim::cardinal_directions;
 
     //--------------------------------------------------------------------------
-    // The components an attachment has, as the states a view draws apart. This is the one
-    // place either side is aware of the other: nothing downstream sees a component, and nothing
-    // in the simulation depends on a view distinguishing these
+    // An attachment's components as the states a view draws apart
     quetzal::stratum_view::State state_of(flecs::entity attachment)
     {
         using quetzal::stratum_view::State;
@@ -50,7 +46,6 @@ namespace
             state |= State::Crossable;
         }
 
-        // The component records the positive, so the state is what it has not been found to be
         if (attachment.has<sim::Concealed>() && !attachment.get<sim::Concealed>().revealed)
         {
             state |= State::Concealed;
@@ -60,9 +55,8 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Whether a door reached from one side occupies the cell beyond it rather than lying on the
-    // edge between the two. A door seen from one side only hangs on a doorway block's ring,
-    // the far side of it being the bare back of that ring; a door both cells see is an edge
+    // Whether a door occupies the cell beyond, as a doorway block does, rather than lying on the edge between the two. A
+    // door in a cell has a wall on one side only
     bool door_in_cell(const sim::DiscreteLayout& layout, const sim::discrete_point_type& beyond,
         const sim::discrete_vector_type& direction)
     {
@@ -70,8 +64,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Every door occupying a cell, as the cell it occupies and the state it is in. A door
-    // on an edge has no cell of its own and is not reported
+    // Every door occupying a cell, with its state. A door on an edge is not reported
     template<typename F>
     void each_door_cell(const sim::DiscreteLayout& layout, flecs::entity zone, F f)
     {
@@ -108,9 +101,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // The cell each entity in the zone occupies, off-grid ones passed over. Both reductions
-    // ask this last and set a flag rather than a value, so what an actor stands on is still
-    // in the place beneath it
+    // The cell each entity in the zone occupies, skipping those off the grid
     template<typename F>
     void each_actor_cell(const sim::DiscreteLayout& layout, flecs::entity zone, F f)
     {
@@ -123,7 +114,7 @@ namespace
             {
                 if (site.address.has_value())
                 {
-                    return; // Placed in its address's frame rather than the zone's
+                    return; // Placed relative to its address
                 }
 
                 sim::discrete_point_type cell_position = layout.cell_position_at(site.placement.position());
@@ -141,14 +132,10 @@ namespace
 //------------------------------------------------------------------------------
 quetzal::stratum_view::Cells quetzal::stratum_view::cells(const sim::World& world, flecs::entity zone)
 {
-    // One cell per grid position is the shape of this reduction, so it asks for a layout
-    // that has cells. What lies on the edges between them is not in it and is not asked for
     const sim::DiscreteLayout& layout = sim::layout_as<sim::DiscreteLayout>(world.layout(zone));
 
     const sim::GridMapping& grid = layout.grid();
 
-    // Every grid position is one or the other, so there is no nothing here: closed until an
-    // open cell overrides it
     Cells cells(grid.extent, Place {PlaceType::Solid});
 
     for (coord_type j = 0; j < grid.extent.y(); ++j)
@@ -162,8 +149,6 @@ quetzal::stratum_view::Cells quetzal::stratum_view::cells(const sim::World& worl
         }
     }
 
-    // A door occupying a cell has a position here; one on an edge between two cells does
-    // not, so the wall format's doors are what this reduction cannot show
     each_door_cell(layout, zone, [&](const sim::discrete_point_type& cell_position, State state)
     {
         cells.set(cell_position, Place {PlaceType::Door, state});
@@ -191,10 +176,7 @@ quetzal::stratum_view::Lattice quetzal::stratum_view::lattice(const sim::World& 
 
     Lattice lattice(vector_type {2 * w + 1, 2 * h + 1}, Place {});
 
-    // Driven from the open cells, which are the only places a wall can be asked about: a wall
-    // exists on the side facing open floor, so a closed cell has nothing to report and is
-    // never asked.
-    // Every wall faces an open cell, so every wall is reached
+    // Every wall faces an open cell, so visiting the open cells reaches every wall
     for (coord_type j = 0; j < h; ++j)
     {
         for (coord_type i = 0; i < w; ++i)
@@ -217,8 +199,6 @@ quetzal::stratum_view::Lattice quetzal::stratum_view::lattice(const sim::World& 
                     continue;
                 }
 
-                // What is attached to the wall is what makes it a door, and the state it
-                // is in is read from the components the door has
                 flecs::entity facing = sim::facing_on(zone, wall_id);
 
                 if (!facing)
@@ -243,8 +223,7 @@ quetzal::stratum_view::Lattice quetzal::stratum_view::lattice(const sim::World& 
         }
     }
 
-    // Corners, from the edges already placed. A joint is where a view puts something to cover
-    // it, so the reduction marks one there and leaves what to make of it to the view
+    // Corners, from the edges already placed
     for (coord_type j = 0; j <= h; ++j)
     {
         for (coord_type i = 0; i <= w; ++i)
@@ -261,9 +240,7 @@ quetzal::stratum_view::Lattice quetzal::stratum_view::lattice(const sim::World& 
         }
     }
 
-    // What reaches each position, once everything lying on one is placed. A cell is never
-    // part of a wall line, so a door occupying one is a gap in the line rather than a
-    // continuation of it, and an edge is left with only the corners at its own two ends
+    // Whether a position is part of a wall line. A cell never is, so a door occupying one is a gap in the line
     auto line = [&](const point_type& position)
     {
         if (!lattice.contains(position) || (position.i() % 2 == 1 && position.j() % 2 == 1))
@@ -275,11 +252,8 @@ quetzal::stratum_view::Lattice quetzal::stratum_view::lattice(const sim::World& 
         return type == PlaceType::Wall || type == PlaceType::Door;
     };
 
-    // Whether every cell a position touches is closed, which is what tells solid from an edge
-    // with no wall on it. A cell touches itself, an edge the two it lies between and a corner
-    // the four meeting at it, so this is one rule over the three rather than a case for each
-    // A position off the grid touches no open cell, so the outer boundary is solid without
-    // anything beyond the grid being called a cell
+    // Whether every cell a position touches is closed: a cell touches itself, an edge the two it lies between and a corner
+    // the four meeting at it. Positions beyond the grid count as closed
     auto solid = [&](const point_type& position)
     {
         coord_type x = position.i();

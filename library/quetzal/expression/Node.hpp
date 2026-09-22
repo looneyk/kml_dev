@@ -22,9 +22,7 @@ namespace quetzal::expression
     };
 
     //--------------------------------------------------------------------------
-    // A purely structural parse tree node, carrying no notion of a value type
-    // and no behavior; Evaluator, Printer, and any future tree walk operate
-    // on it from the outside, so the same tree works with all of them
+    // A parse tree node, independent of any value type
     struct Node
     {
         using pointer_type = std::shared_ptr<Node>;

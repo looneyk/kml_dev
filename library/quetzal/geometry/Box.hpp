@@ -192,8 +192,7 @@ std::ostream& quetzal::geometry::operator<<(std::ostream& os, const Box<Traits>&
 template<typename Traits>
 struct std::formatter<quetzal::geometry::Box<Traits>>
 {
-    // Box has no formatting knobs of its own; the whole spec belongs to (and is entirely consumed
-    // by) the Point formatter, reused verbatim for lower and upper.
+    // Parses the whole format spec, and formats lower and upper
     std::formatter<quetzal::geometry::Point<Traits>> m_point_formatter;
 
     constexpr auto parse(std::format_parse_context& ctx)

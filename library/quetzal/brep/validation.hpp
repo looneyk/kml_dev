@@ -42,8 +42,7 @@ namespace quetzal::brep
         return os;
     }
 
-    // One check that did not pass, recorded so that a caller can act on which elements deviated and in
-    // what way rather than only on how many did
+    // One failed check: which element deviated and how
     struct Deviation
     {
         std::string m_check;
@@ -68,8 +67,7 @@ namespace quetzal::brep
             return *this;
         }
 
-        // Deviation count by check, which is what makes a count of 18 tell you whether it is one thing
-        // eighteen times or eighteen different things
+        // Deviation count by check
         std::map<std::string, size_t> check_counts() const
         {
             std::map<std::string, size_t> counts;
@@ -117,8 +115,7 @@ namespace quetzal::brep
             return bad() ? -1 : warn() ? 0 : 1;
         }
 
-        // check names the deviation so that it can be counted and located; unnamed until a call site
-        // has been given one
+        // check identifies the deviation for counting and locating
         void set_warn(const std::string& check = "unnamed", id_type id = nullid)
         {
             ++m_warn_count;
@@ -728,8 +725,7 @@ quetzal::brep::ValidationState quetzal::brep::check_face(const M& mesh, const ty
             state.set_bad();
         }
 
-        // A loop belongs to one face throughout, so a disagreement across next is where a reassignment
-        // stopped short rather than the loop genuinely leaving the face
+        // A loop belongs to one face throughout, so a difference across next is a face id reassignment that stopped short
         if (halfedge.face_id() != halfedge.next().face_id())
         {
             std::cout << "Bad: halfedge " << halfedge.id() << " face " << halfedge.face_id() << " != next " << halfedge.next_id() << " face " << halfedge.next().face_id() << eol;
@@ -753,15 +749,12 @@ quetzal::brep::ValidationState quetzal::brep::check_face(const M& mesh, const ty
                 auto t1 = to_point(halfedge.next().vertex_attributes().texcoord());
                 auto t2 = to_point(halfedge.prev().vertex_attributes().texcoord());
 
-                // Colinear corner texcoords leave no winding to test, so the corner says nothing either
-                // way. The spur left by a partial edge is the case that arises here: its tip halfedge has
-                // next and prev both at the anchor position carrying the same texcoord, collapsing the
-                // three points to two. Colinearity is judged relative to the magnitudes involved, which
-                // a comparison against the cross product alone cannot do
+                // Colinear corner texcoords have no winding to test, as at the tip of a spur, whose next and prev are both
+                // at the anchor position with the same texcoord. Colinearity is judged relative to the magnitudes involved
                 if (!colinear(t0, t1, t2))
                 {
-                    // Normalized because direction_compare requires a non-degenerate vector, which the
-                    // raw cross product of two texcoord differences is not once they get small
+                    // Normalized, as direction_compare requires a non-degenerate vector and the raw cross product of small
+                    // texcoord differences is not
                     auto texcoord_normal = normalize(cross(t1 - t0, t2 - t0));
 
                     // cross(next - this, prev - this) turns the other way at a reflex vertex, so the sign a
@@ -813,10 +806,8 @@ quetzal::brep::ValidationState quetzal::brep::check_face(const M& mesh, const ty
         state.set_bad();
     }
 
-    // Holes are not reached by the perimeter iteration above, so they are checked here. Each hole loop
-    // has to close, name this face throughout, and be disjoint from the perimeter and from every other
-    // hole of the face. A hole of two halfedges is a legitimate degenerate case, the pair being its own
-    // partner chain, so it is checked as such rather than rejected for being short
+    // Each hole loop has to close, have this face id throughout, and be disjoint from the perimeter and from every other
+    // hole of the face. A hole of two halfedges is a legitimate degenerate case, the pair being its own partner chain
     std::map<id_type, size_t> hole_halfedge_counts;
 
     std::map<id_type, size_t> perimeter_halfedge_counts;
@@ -856,7 +847,7 @@ quetzal::brep::ValidationState quetzal::brep::check_face(const M& mesh, const ty
                 state.set_bad("hole halfedge hole id", face.id());
             }
 
-            // As for the perimeter, a loop carries one face and one hole the whole way round
+            // As for the perimeter, a loop has one face id and one hole id throughout
             if (halfedge.face_id() != halfedge.next().face_id())
             {
                 std::cout << "Bad: hole halfedge " << halfedge.id() << " face " << halfedge.face_id() << " != next " << halfedge.next_id() << " face " << halfedge.next().face_id() << eol;
@@ -881,8 +872,7 @@ quetzal::brep::ValidationState quetzal::brep::check_face(const M& mesh, const ty
             std::cout << "Warn: hole.halfedge_count() == 2 :" << '\t' << face.id() << '\t' << n << eol;
             state.set_warn("degenerate hole, halfedge_count == 2", face.id());
 
-            // Degenerate but legitimate, so what makes it well formed is checked rather than assumed:
-            // the pair is its own partner chain, each halfedge being the other's partner and next
+            // Each halfedge of the pair must be the other's partner and next
             id_type halfedge_id = hole.halfedge_id();
             const auto& halfedge = mesh.halfedge(halfedge_id);
             if (halfedge.partner_id() != halfedge.next_id() || halfedge.next().next_id() != halfedge_id)

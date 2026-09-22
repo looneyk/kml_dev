@@ -15,9 +15,8 @@ namespace
 
     using namespace quetzal::dungen;
 
-    // The cells while the automaton is running over them, true where the cell is rock. The
-    // Level is not written until the shape has settled, a pass having to read the whole of
-    // the one before it
+    // The cells during smoothing, true where solid. Each pass reads the whole of the one before, so the Level is written
+    // only once smoothing is done
     using grid_type = vector<bool>;
 
     //--------------------------------------------------------------------------
@@ -27,7 +26,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Anything off the grid counts as rock, so that the border holds the cavern in
+    // Off the grid counts as solid
     bool solid(const grid_type& grid, vector_type size, coord_type x, coord_type y)
     {
         if (x < 0 || y < 0 || x >= size.x() || y >= size.y())
@@ -58,8 +57,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Every cell drawn rock or open at random, the border left rock so that no cavern opens
-    // onto the edge of the zone
+    // Every cell drawn solid or open at random, the border left solid
     grid_type noise(vector_type size, double fill, random_type& random)
     {
         auto [nx, ny] = size;
@@ -77,9 +75,8 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // One pass of the automaton over every cell off the border: rock stays rock while enough
-    // of its eight neighbors are rock, and open ground turns to rock where more of them are.
-    // The pass reads the grid it was given throughout, so every cell turns on the same state
+    // One automaton pass over every cell off the border: a solid cell stays solid with at least survival_threshold solid
+    // neighbors, and an open cell turns solid with at least birth_threshold. Every cell is computed from the input grid
     grid_type smooth(const grid_type& grid, vector_type size, const Cave1Parameters& cave1)
     {
         auto [nx, ny] = size;
@@ -98,8 +95,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // The cells of the largest region of open ground, a region being what can be reached from
-    // one of its cells without crossing rock
+    // The cells of the largest connected region of open cells
     vector<point_type> largest_region(const grid_type& grid, vector_type size)
     {
         auto [nx, ny] = size;
@@ -171,15 +167,13 @@ quetzal::dungen::Level quetzal::dungen::generate_cave1(id_type id, const string&
 
     Level level(id, name, parameters.size, CellType::Solid);
 
-    // Only the largest region is kept, so that what the smoothing walled off stays rock and
-    // everything the zone does hold is reachable from everywhere else it holds
+    // Only the largest region is kept, so every open cell is reachable from every other
     vector<point_type> region = largest_region(grid, parameters.size);
     for (point_type position : region)
     {
         level.cell(position).set_type(CellType::Corridor);
     }
 
-    // The open ground is all of one region, so any of it will do
     place_staircases(level, region, parameters.staircase_down_count, parameters.staircase_up_count, random);
     move_staircases_off_doorways(level, random);
     face_staircases(level, random);

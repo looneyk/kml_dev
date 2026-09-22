@@ -5,6 +5,7 @@
 // Document.hpp
 //------------------------------------------------------------------------------
 
+#include "Notation.hpp"
 #include "types.hpp"
 #include "quetzal/common/id.hpp"
 #include <map>
@@ -19,14 +20,6 @@ namespace quetzal::stratum_format
 
     constexpr std::string_view format_name = "quetzal.discrete_layout";
     constexpr std::string_view format_version = "0.4";
-
-    //--------------------------------------------------------------------------
-    // Which glyph vocabulary the grid rows are written in
-    enum class Notation
-    {
-        Block,
-        Wall
-    };
 
     //--------------------------------------------------------------------------
     // How the grid rows are written. Rows are stored expanded either way, so this affects only what
@@ -45,7 +38,7 @@ namespace quetzal::stratum_format
     };
 
     //--------------------------------------------------------------------------
-    // Whether an entity is within what it is sited on or against its surface
+    // The relative position of one entity to another
     enum class Relation
     {
         In,
@@ -151,8 +144,8 @@ namespace quetzal::stratum_format
     };
 
     //--------------------------------------------------------------------------
-    // One of the zone's entities. The site and parent file components are decoded into fields of
-    // their own, being structure the reader checks; components holds every other one as written
+    // One of the zone's entities. The site and parent file components are decoded into fields, which the reader validates;
+    // components contains the rest as written
     struct Entity
     {
         stored_entity_id_type id = 0;
@@ -169,7 +162,7 @@ namespace quetzal::stratum_format
         std::string version;
         values_type generator;
         values_type components; // The layout's own
-        std::optional<stored_entity_id_type> zone_id; // The zone's own persistent id, which a zone template has none of
+        std::optional<stored_entity_id_type> zone_id; // Persistent id, empty in a zone template
         Cells cells;
         std::vector<Barrier> barriers;
         std::vector<Room> rooms;
@@ -178,12 +171,10 @@ namespace quetzal::stratum_format
         std::vector<Entity> entities;
     };
 
-    std::string_view name(Notation notation);
     std::string_view name(Encoding encoding);
     std::string_view name(FlatRole role);
     std::string_view name(Relation relation);
 
-    std::optional<Notation> to_notation(std::string_view name);
     std::optional<Encoding> to_encoding(std::string_view name);
     std::optional<FlatRole> to_flat_role(std::string_view name);
     std::optional<Relation> to_relation(std::string_view name);

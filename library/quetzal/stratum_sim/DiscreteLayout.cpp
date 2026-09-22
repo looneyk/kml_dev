@@ -14,7 +14,7 @@ namespace
 {
 
     //--------------------------------------------------------------------------
-    // The direction's place among the grid's own, which is the bit it has in a mask and its part of a wall id
+    // The direction's position in cardinal_directions, which is its bit in a mask and its part of a wall id
     size_t direction_index(const quetzal::stratum_sim::discrete_vector_type& direction)
     {
         const auto& directions = quetzal::stratum_sim::cardinal_directions;
@@ -27,7 +27,7 @@ namespace
             }
         }
 
-        assert(false); // One step along an axis
+        assert(false); // Not a cardinal direction
         return 0;
     }
 
@@ -84,7 +84,7 @@ quetzal::id_type quetzal::stratum_sim::DiscreteLayout::ceiling_id() const
 //------------------------------------------------------------------------------
 void quetzal::stratum_sim::DiscreteLayout::set_flats(value_type height_floor, value_type height_ceiling)
 {
-    assert(m_floor_id == nullid); // The two bound the layout, so they are set once
+    assert(m_floor_id == nullid); // Set once
 
     m_floor_id = m_flat_store.size();
     m_flat_store.emplace_back(height_floor, false);
@@ -212,7 +212,7 @@ quetzal::stratum_sim::point_type quetzal::stratum_sim::DiscreteLayout::position(
 {
     point_type result = grid().position(cell_position);
 
-    // A layout with no floor is one under construction, and a cell in it is on the grid's own plane
+    // A layout under construction has no floor yet
     if (m_floor_id != nullid)
     {
         result.set_z(height(m_floor_id, cell_position));
@@ -241,7 +241,7 @@ bool quetzal::stratum_sim::DiscreteLayout::crossable(const discrete_point_type& 
 
     if (wall_id == nullid)
     {
-        assert(grid().contains(cell_position + direction)); // Open floor encloses itself, so no wall means a cell beyond
+        assert(grid().contains(cell_position + direction)); // Open floor is enclosed by walls
         return true;
     }
 
@@ -254,7 +254,6 @@ quetzal::stratum_sim::MoveResult quetzal::stratum_sim::DiscreteLayout::move(cons
 {
     MoveResult result {placement, nullid};
 
-    // Snap to whichever of the layout's own directions the caller most nearly asked for
     discrete_vector_type step = grid_step(direction);
     if (step.zero())
     {
@@ -272,7 +271,7 @@ quetzal::stratum_sim::MoveResult quetzal::stratum_sim::DiscreteLayout::move(cons
 
         if (!crossable(cell, step, is_wall_crossable))
         {
-            result.blocking_wall_id = wall_toward(cell, step); // Only a wall stops a step, so there is one here
+            result.blocking_wall_id = wall_toward(cell, step);
             break;
         }
 
@@ -459,7 +458,7 @@ quetzal::id_type quetzal::stratum_sim::DiscreteLayout::ahead(const placement_typ
     discrete_vector_type step = grid_step(placement.direction());
     if (step.zero())
     {
-        return nullid; // Facing no direction the grid has, so facing nothing
+        return nullid;
     }
 
     return wall_toward(cell_position_at(placement.position()), step);

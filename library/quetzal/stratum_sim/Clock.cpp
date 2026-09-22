@@ -12,7 +12,7 @@ namespace
 {
 
     //--------------------------------------------------------------------------
-    // Whether a direction asks for anything. Horizontal, as the layout's own directions are
+    // Whether a direction is nonzero in the horizontal plane
     bool asked(const quetzal::stratum_sim::vector_type& direction)
     {
         auto [dx, dy, dz] = direction.rep();
@@ -83,9 +83,7 @@ quetzal::id_type quetzal::stratum_sim::Clock::run(EventQueue& events, id_type ac
         Command command;
         bool turning = false;
 
-        // Asked to face the way it is going, an actor cannot do one without the other, so the
-        // two are a single faced step. Asked to face elsewhere while moving, they are two
-        // actions and the turn is an action of its own
+        // Turning toward the direction of movement is part of the step; turning another way is a separate action
         if (pintent != nullptr && asked(pintent->facing) && asked(pintent->direction)
             && grid_step(pintent->facing) == grid_step(pintent->direction))
         {
@@ -103,8 +101,6 @@ quetzal::id_type quetzal::stratum_sim::Clock::run(EventQueue& events, id_type ac
 
         if (command.empty())
         {
-            // The controlled actor hands control out rather than waiting, which is the whole
-            // of what tells it apart from everything else
             if (actor_id == actor_controlled)
             {
                 return actor_id;
@@ -116,12 +112,7 @@ quetzal::id_type quetzal::stratum_sim::Clock::run(EventQueue& events, id_type ac
 
         int cost = apply(m_world, command, events);
 
-        // Turn-based takes one action's worth of what was asked for and is done with it. Real
-        // time keeps it, so that a direction held goes on producing steps as the actor earns
-        // them without being asked again every frame
-        // Either way it is dropped when the action achieved nothing, which is what stops a
-        // actor held against a wall from trying the same step without end and is why the pass
-        // below always terminates
+        // Clearing an intent whose action achieved nothing keeps an actor against a wall from retrying without end
         if (m_driver == Driver::TurnBased || cost == 0)
         {
             Intent remaining = *pintent;
@@ -131,8 +122,7 @@ quetzal::id_type quetzal::stratum_sim::Clock::run(EventQueue& events, id_type ac
             }
             else
             {
-                // A faced step consumed the facing along with the direction, and where the
-                // two differ the facing is still owed
+                // A faced step also used the facing direction; a different one remains
                 remaining.direction = vector_type();
 
                 if (asked(remaining.facing) && grid_step(remaining.facing) == grid_step(pintent->direction))
@@ -144,9 +134,6 @@ quetzal::id_type quetzal::stratum_sim::Clock::run(EventQueue& events, id_type ac
             e.set<Intent>(remaining);
         }
 
-        // An action that achieved nothing costs no time, so the actor is still owed a turn.
-        // What it asked for is dropped in that case, so the next pass finds nothing asked for
-        // and hands control back or waits rather than trying the same action again
         if (cost > 0)
         {
             m_scheduler.spend(actor_id, cost);
@@ -163,7 +150,7 @@ quetzal::id_type quetzal::stratum_sim::Clock::advance(EventQueue& events, id_typ
         return run(events, actor_controlled);
     }
 
-    // Skipping ahead to the moment the next actor can act, which is the whole of turn-based
+    // Turn-based skips ahead to the next actor's turn
     for (;;)
     {
         id_type actor_id = run(events, actor_controlled);
@@ -175,7 +162,7 @@ quetzal::id_type quetzal::stratum_sim::Clock::advance(EventQueue& events, id_typ
         grant_turn();
         if (m_scheduler.ready() == nullid)
         {
-            return nullid; // Nobody can act, and passing time did not change that
+            return nullid; // No actor will ever act
         }
     }
 }

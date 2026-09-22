@@ -29,8 +29,7 @@ namespace
     static constexpr auto escape_cursor_hide_string = "\x1b[?25l";
     static constexpr auto escape_cursor_show_string = "\x1b[?25h";
 
-    // The alternate screen buffer, as vim, less and htop use it: the game draws on a
-    // screen of its own and the shell's own screen and scrollback come back untouched
+    // The alternate screen buffer, leaving the shell's screen and scrollback untouched
     static constexpr auto escape_screen_alternate_string = "\x1b[?1049h";
     static constexpr auto escape_screen_primary_string = "\x1b[?1049l";
     static constexpr auto escape_position_pattern = "\x1b[{};{}H"; // Row and column both count from one
@@ -38,22 +37,18 @@ namespace
     // The map, then a blank, then the status, then the help
     static constexpr size_t row_count_below_map = 3;
 
-    // How long a resize request is given to take effect before it is called a failure.
-    // Generous because it only ever costs this much when the terminal will not comply,
-    // and a request that is merely slow must not be mistaken for one that was refused
+    // Polls for a resize to take effect. Generous, as it runs out only when the terminal does not comply
     static constexpr int wait_count_size = 100;
     static constexpr auto wait_interval_size = std::chrono::milliseconds(10);
 
-    // What the terminal is given to act on the last escape before the process exits
+    // Time for the terminal to act on the last escape before the process exits
     static constexpr auto wait_settle_size = std::chrono::milliseconds(250);
 
-    // And to finish resizing before the first frame is painted into it. Longer, since the
-    // whole frame is wrong if it is too short, and it is paid once at startup
+    // Time for the terminal to finish resizing before the first frame is painted
     static constexpr auto wait_resize_size = std::chrono::milliseconds(400);
 
     //--------------------------------------------------------------------------
-    // Windows Terminal turns this on for itself, conhost does not, so relying on the
-    // default leaves the escapes showing as text under some hosts
+    // Windows Terminal enables this itself, but conhost does not
     void enable_virtual_terminal()
     {
 #if defined(_WIN32)
@@ -83,7 +78,7 @@ stratum_terminal::vector_type stratum_terminal::terminal_size()
         return {};
     }
 
-    // The window rather than the buffer, which is what is actually visible
+    // The visible window, not the buffer
     return {static_cast<coord_type>(info.srWindow.Right - info.srWindow.Left + 1),
         static_cast<coord_type>(info.srWindow.Bottom - info.srWindow.Top + 1)};
 
@@ -108,14 +103,11 @@ bool stratum_terminal::set_terminal_size(const vector_type& size)
         return false;
     }
 
-    // XTWINOPS, an xterm extension rather than ECMA-48, honoured by Windows Terminal as
-    // well. Preferred over the Windows console API, which does the same job but discards
-    // the terminal's scrollback doing it
-    // Height then width, which is the escape's own order rather than the extent's
+    // XTWINOPS, an xterm extension Windows Terminal also honors, which keeps the scrollback that the Windows console API
+    // discards. Height then width
     std::cout << std::format("\x1b[8;{};{}t", size.y(), size.x()) << std::flush;
 
-    // The request goes unanswered, so the result is read back rather than reported, and
-    // a terminal that cannot or will not comply simply never arrives at it
+    // The request has no reply, so the size is polled
     for (int i = 0; i < wait_count_size; ++i)
     {
         if (terminal_size() == size)
@@ -139,8 +131,7 @@ stratum_terminal::Terminal::Terminal(bool incremental) :
 {
     if (m_incremental)
     {
-        // Before any sizing, so that the shell's own screen keeps the size and the
-        // scrollback it had
+        // Before any sizing, so the shell's screen keeps its size and scrollback
         enable_virtual_terminal();
         std::cout << escape_screen_alternate_string << escape_cursor_hide_string << std::flush;
     }
@@ -154,10 +145,8 @@ stratum_terminal::Terminal::~Terminal()
         return;
     }
 
-    // Only when it is still the size it was put at, so that a resize by hand is left alone
-    // Emitted correctly and honoured on a terminal driven directly, but Windows Terminal
-    // does not act on it: the pseudoconsole reports the new size while the window keeps
-    // the one the game asked for. Harmless where it does not take, so it is left in
+    // Only when it is still the size set, so a manual resize is kept. Windows Terminal does not act on it: the
+    // pseudoconsole reports the new size while the window keeps the old one
     bool restore = !m_size_set.zero() && terminal_size() == m_size_set;
 
     if (restore)
@@ -168,9 +157,8 @@ stratum_terminal::Terminal::~Terminal()
 
     std::cout << escape_cursor_show_string << escape_screen_primary_string << std::flush;
 
-    // The console API reports for the pseudoconsole rather than the terminal, and marks
-    // a request done before the terminal has read it, so exiting at once would lose the
-    // last escapes
+    // The console API reports for the pseudoconsole and marks a request done before the terminal has read it, so exiting at
+    // once would lose the last escapes
     std::this_thread::sleep_for(wait_settle_size);
 }
 
@@ -189,38 +177,31 @@ void stratum_terminal::Terminal::draw(const stratum_view::Console& console, cons
     coord_type columns_wanted = std::max({extent.x(),
         static_cast<coord_type>(status.size()), static_cast<coord_type>(help.size())});
 
-    // Once, at the first frame, the zone's size not being known before then. A later
-    // resize by hand is left alone rather than fought over
+    // Once, at the first frame, when the zone's size is first known
     if (!m_sized)
     {
         m_sized = true;
         m_size_original = terminal_size();
 
-        // Grown where it falls short and left alone otherwise. Windows Terminal will not
-        // take the size back on exit, so a window narrowed to fit a small zone would stay
-        // narrow afterwards; this way it is never returned smaller than it was found
+        // Only grown, as Windows Terminal does not restore the size on exit
         vector_type wanted {std::max(columns_wanted, m_size_original.x()), std::max(rows_wanted, m_size_original.y())};
 
         if (wanted != m_size_original && set_terminal_size(wanted))
         {
-            m_size_set = terminal_size(); // What it actually became, clamping included
+            m_size_set = terminal_size(); // Clamping included
 
-            // The pseudoconsole reports the new size before the terminal has resized to
-            // it, and a frame painted into the old one scrolls off the top. So the
-            // terminal is given time to catch up and the frame is painted again after
+            // The pseudoconsole reports the new size before the terminal has resized, and a frame painted too early
+            // scrolls off the top
             std::this_thread::sleep_for(wait_resize_size);
             redraw();
         }
     }
 
-    // A resize reflows and scrolls what is on screen, so nothing already there can be
-    // patched and the cached frame no longer describes anything
+    // A resize reflows and scrolls the screen, so the cached frame no longer matches it
     vector_type size = terminal_size();
     if (size != m_size_previous)
     {
-        // A change after the first frame is the window being resized by hand. The size is
-        // read again after settling, since the pseudoconsole reports before the terminal
-        // has finished, and a frame painted too early scrolls off the top
+        // A manual resize; the size is read again once the terminal has settled
         if (!m_size_previous.zero())
         {
             std::this_thread::sleep_for(wait_settle_size);
@@ -231,7 +212,7 @@ void stratum_terminal::Terminal::draw(const stratum_view::Console& console, cons
         redraw();
     }
 
-    // Zero means the size is unknown, in which case drawing is the best that can be done
+    // Zero means the size is unknown, so the frame is drawn anyway
     if (!size.zero() && (size.y() < rows_wanted || size.x() < columns_wanted))
     {
         std::cout << escape_clear_string
@@ -263,7 +244,7 @@ void stratum_terminal::Terminal::draw(const stratum_view::Console& console, cons
             }
         }
 
-        // The status varies in length, so what it no longer covers has to be erased
+        // The status varies in length, so the rest of its line is erased
         std::cout << std::format(escape_position_pattern, extent.y() + 2, 1) << status << escape_erase_line_string;
     }
 

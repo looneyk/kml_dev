@@ -16,76 +16,62 @@
 namespace quetzal::stratum_sim
 {
 
-    // What is attached to a wall or a flat: an alcove, a basin, a door, a button, a torch. One
-    // mechanism covers all of them, which is what keeps Wall a small dense record
-    // See site_plan.md for the shape and sim_zone_model.md for why it is that shape
+    // Entities attached to a wall or a flat: an alcove, a basin, a door, a button, a torch
 
     //--------------------------------------------------------------------------
-    // Attached to a wall and allows passage. Door is the variety that has Openable
+    // Its DoorFacing children are sited on its walls
     struct Door
     {
     };
 
     //--------------------------------------------------------------------------
-    // One side of a door. The door it belongs to is its parent rather than a field, and the
-    // other facing is its sibling
+    // One side of a door, and a child of it
     struct DoorFacing
     {
     };
 
     //--------------------------------------------------------------------------
-    // Shared by both facings: one door cannot be open from one side and shut from the other
+    // On the door, so both of its sides are open or shut together
     struct Openable
     {
         bool open = false;
     };
 
     //--------------------------------------------------------------------------
-    // Crossed without being opened, which is what a door smashed to a hole leaves. Blocking
-    // debris is the same attachment without this
+    // Crossed without being opened, as a smashed door is
     struct Crossable
     {
     };
 
     //--------------------------------------------------------------------------
-    // Secret from this side until it is found, so per facing rather than shared: the classic
-    // secret door is concealed on one facing and an ordinary door on the other
+    // Hidden from this side until revealed. On a door facing, so each side of a door is concealed separately
     struct Concealed
     {
         bool revealed = false;
     };
 
     //--------------------------------------------------------------------------
-    // A door on the walls it presents: one entity for what its sides share, and a facing on
-    // each wall. Two in the ordinary case -- the two sides of one edge in the wall format,
-    // the two faces a doorway block presents in the block format -- and one where a doorway
-    // leads into a dead end.
+    // A door with a door facing on each of its walls: usually two, and one where a doorway leads into a dead end
     flecs::entity create_door(World& world, flecs::entity zone, const std::vector<id_type>& wall_ids);
 
     //--------------------------------------------------------------------------
-    // The walls of each door a zone file describes, as load_layout reports them
+    // The wall ids of each door in a zone
     using door_walls_type = std::vector<std::vector<id_type>>;
 
-    // A door on each, built closed. Returns count
+    // Each door is created closed. Returns the count
     size_t create_doors(World& world, flecs::entity zone, const door_walls_type& doors);
 
     //--------------------------------------------------------------------------
-    // What is sited on a wall, and a null entity where nothing is. A wall id identifies a wall in
-    // one zone's layout, so the zone is what the search is over
+    // The entity sited on a wall of the zone, or a null entity
     flecs::entity facing_on(flecs::entity zone, id_type wall_id);
 
-    // What the facing belongs to, which is its parent
     flecs::entity door_of(flecs::entity facing);
 
-    // The other side of the same door, which is its sibling
     flecs::entity other_facing(flecs::entity facing);
 
     //--------------------------------------------------------------------------
-    // Whether a mover may cross this wall: what is attached to it, and what that permits. A wall
-    // with nothing attached is solid, an openable attachment reports whether it is open, and
-    // anything else whether it may simply be walked through
-    // A facing concealed and not yet found refuses, a secret door being a wall until it is
-    // found. See attachment_plan.md for why this takes no actor yet
+    // A wall with nothing sited on it, or with a concealed door facing not yet revealed, is solid. Otherwise an Openable
+    // door is crossable when open, and any other when it has Crossable
     bool crossable(flecs::entity zone, id_type wall_id);
 
 } // namespace quetzal::stratum_sim

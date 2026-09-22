@@ -1,24 +1,19 @@
-# The 2D tile view. Consumes place types rather than the characters the terminal host draws,
-# which is the whole reason for having a second view at all.
+# The 2D tile view, drawn from place types
 
 extends Node2D
 
 const TILE_SIZE := 16
 
-# Built here rather than imported, so the repository carries no binary art for what is three
-# flat colours. A real tileset replaces this without anything else changing
-# Indexed by StratumWorld.PlaceType, so every value needs an entry even where the cell
-# reduction never emits it
+# Flat color tiles, indexed by StratumWorld.PlaceType, with an entry for every value
 const PLACE_COLORS: Array[Color] = [
-	Color(0.00, 0.00, 0.00, 0.0),  # none, which this reduction does not emit
+	Color(0.00, 0.00, 0.00, 0.0),  # none, not emitted
 	Color(0.13, 0.13, 0.16),       # solid
 	Color(0.55, 0.52, 0.45),       # floor
-	Color(0.30, 0.28, 0.26),       # wall, which this reduction does not emit
+	Color(0.30, 0.28, 0.26),       # wall, not emitted
 	Color(0.70, 0.45, 0.20),       # door
 ]
 
-# An actor is not a place type: it stands on one. It gets a tile after the place tiles and is
-# painted on a layer above them, so the floor under a mover is still drawn
+# The actor tile follows the place tiles and is painted on a layer above them
 const ACTOR_COLOR := Color(0.95, 0.80, 0.25)
 
 var _world: StratumWorld
@@ -44,7 +39,7 @@ func _ready() -> void:
 	_layer.tile_set = tile_set
 	add_child(_layer)
 
-	# Above the places, so a mover covers its floor without the reduction having thrown it away
+	# Above the places
 	_actor_layer = TileMapLayer.new()
 	_actor_layer.name = "Actors"
 	_actor_layer.tile_set = tile_set

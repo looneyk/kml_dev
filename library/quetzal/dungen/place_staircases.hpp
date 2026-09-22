@@ -20,7 +20,6 @@ namespace quetzal::dungen
     // block would cut a passage, or leave a staircase nothing to face, is passed over
     // This should alternately place up and down staircases ...
     // Throws std::runtime_error where none can be placed, every staircase being an access point and a zone needing one
-    // Each algorithm supplies the cells its own layout allows a staircase to be placed in
     void place_staircases(Level& level, std::vector<point_type> candidates, const math::Interval<size_t>& staircase_down_count,
         const math::Interval<size_t>& staircase_up_count, random_type& random);
 
@@ -30,7 +29,7 @@ namespace quetzal::dungen
     // Run after every pass that places or removes a door
     void move_staircases_off_doorways(Level& level, random_type& random);
 
-    // A random facing for each staircase among the sides of its cell with floor beyond, or where there are none, with a door
+    // A random facing direction for each staircase among the sides of its cell with floor beyond, or where there are none, with a door
     void face_staircases(Level& level, random_type& random);
 
 } // namespace quetzal::dungen

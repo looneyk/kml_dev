@@ -11,8 +11,7 @@
 namespace quetzal::dungen
 {
 
-    // Keeps each door with probability door_probability, the doorway of each one removed left open as corridor. Run
-    // after every other pass, an algorithm placing its doorways as doors and reading them as such until then
+    // Keeps each door with probability door_probability, leaving a removed door's doorway open as corridor. Run after every other pass
     void remove_doors(Level& level, double door_probability, random_type& random);
 
 } // namespace quetzal::dungen

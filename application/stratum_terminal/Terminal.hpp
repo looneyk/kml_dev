@@ -18,24 +18,19 @@ namespace stratum_terminal
     // as when output is a pipe rather than a console
     vector_type terminal_size();
 
-    // Asks for a text area of this size, clamped to what the screen can fit. False when
-    // the request could not be made at all; on anything but Windows it is a request with
-    // no reply, so true does not promise the terminal obliged
+    // Requests a text area of this size, clamped to the screen. False when the request could not be made; outside
+    // Windows, true does not confirm the terminal complied
     bool set_terminal_size(const vector_type& size);
 
     //--------------------------------------------------------------------------
-    // Writes a Console to a character terminal, emitting only the cells that changed
-    // since the last frame so that the screen is never blanked and never scrolls
-    // The escapes are CUP, ED and EL of ECMA-48, plus DECTCEM to hide the cursor, which is
-    // a DEC private mode rather than a standard one and is only cosmetic
-    // On Windows these need a console with virtual terminal processing enabled, which
-    // Windows Terminal provides
+    // Writes a Console to a character terminal, emitting only the cells changed since the last frame
+    // Uses the ECMA-48 escapes CUP, ED and EL, and the DEC private mode DECTCEM to hide the cursor. On Windows these need
+    // virtual terminal processing enabled
     class Terminal
     {
     public:
 
-        // Not incremental writes every frame in full and in order, one after another,
-        // for a run whose output is read back rather than watched
+        // Non-incremental writes every frame in full, one after another
         Terminal(bool incremental = true);
         Terminal(const Terminal&) = delete;
         ~Terminal();
@@ -51,8 +46,8 @@ namespace stratum_terminal
 
         quetzal::stratum_view::Console m_console_previous;
         vector_type m_size_previous;
-        vector_type m_size_original; // What the terminal was before it was sized to the zone
-        vector_type m_size_set;      // And what it became, so a later resize by hand can be told apart
+        vector_type m_size_original; // Before sizing to the zone
+        vector_type m_size_set;      // After sizing to the zone, to detect a manual resize
         bool m_incremental;
         bool m_sized = false; // The zone's size is not known until the first frame arrives
     };

@@ -99,7 +99,7 @@ namespace
 
             std::string spike_name = std::format("spike{}", strip_root_name(mesh.face(face_id).surface().name())); // replace base name but retain surface counter, virtual submesh for lower levels
 
-            if (nLevel == 0) // Bottom face, just record base z coordinate
+            if (nLevel == 0) // Bottom face, just store base z coordinate
             {
                 z0 = mesh.face(face_id).halfedge().vertex_attributes().position().z();
                 mesh.rename_surface(mesh.face(face_id).surface_id(), spike_name);

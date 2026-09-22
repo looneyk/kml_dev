@@ -22,10 +22,7 @@ namespace quetzal::stratum_sim
     // The creation, loading, and population here are a mess. we need to define better exactly what the responsibilities are and restructure this to follow that ...
 
     //--------------------------------------------------------------------------
-    // A loaded world and what is needed to run it: its zones, the turn order over them, the
-    // clock advancing both, and the entity a host controls
-    // This is the simulation being played rather than a view of it, so a host is left with
-    // input mapping and drawing and nothing else
+    // A loaded world with its zones, their turn order, the clock that advances them, and the entity a host controls
     class Session
     {
     public:
@@ -36,13 +33,8 @@ namespace quetzal::stratum_sim
 
         Session& operator=(const Session&) = delete;
 
-        // A zone constructed whole, which is how one normally arrives: the generator builds
-        // the geometry and every content of it follows
-        // The driver comes in here rather than from a host, so that turn-based and real time
-        // are a property of the zone. It will come from the zone's own data once zones have
-        // any
-        // Throws std::runtime_error when the zone has no open cell. The session is left as
-        // it was rather than half built, so a failure leaves the previous zone intact
+        // Generates a zone and populates it
+        // Throws std::runtime_error when the zone has no open cell, leaving the previous zone intact
         void create(const Generator& generator, Driver driver = Driver::TurnBased,
             double units_per_second = Clock::units_per_second_default);
 
@@ -53,9 +45,7 @@ namespace quetzal::stratum_sim
         void load(const std::filesystem::path& filepath, Driver driver = Driver::TurnBased,
             double units_per_second = Clock::units_per_second_default);
 
-        // Geometry already built, populated as a constructed zone is. Not how a zone normally
-        // arrives: this is the entry for a caller with geometry from somewhere else, and
-        // what the other two are written in terms of
+        // Populates a layout built elsewhere
         // Why are doors not added in the create step? Zone geometry belongs there ...
         // create also calls populate, so that contradicts the above ...
         // populate should not be creating player, that belongs in session itself ...
@@ -65,16 +55,13 @@ namespace quetzal::stratum_sim
 
         bool loaded() const;
 
-        // Which of the two geometry models the zone is, whether it was read or constructed.
-        // Both build the same structure, so this is for a caller with something else to
-        // decide by it. Block until a zone exists
+        // Block until a zone exists
         stratum_format::Notation notation() const;
 
         World& world();
         const World& world() const;
 
-        // The loaded zone's layout. Must be loaded. A caller needing more than the interface
-        // exposes uses layout_as to get the concrete class
+        // Requires a loaded zone
         Layout& layout();
         const Layout& layout() const;
 
@@ -84,20 +71,15 @@ namespace quetzal::stratum_sim
         flecs::entity zone() const;
         flecs::entity player() const; // The entity the host controls
 
-        // What the controlled entity is trying to do. Movement and facing are held on the
-        // entity and last until something changes them
+        // The player's movement and facing direction, which persist until changed
         void set_intent(const Intent& intent);
 
-        // A one-shot action for the controlled entity, taken by the next advance and cleared.
-        // Interacting is an edge rather than a level, so it is asked for rather than held
+        // A one-shot action for the player, taken by the next advance
         void submit(const Command& command);
 
-        // Gives time out and runs, returning the controlled entity when it needs a decision
-        // that was not available
-        // The elapsed time is what a real-time host measured since it last called; a
-        // turn-based one has no use for it and need not pass any
-        // nullid means no actor will ever be ready, which is not the same as none being ready
-        // now: passing time is what the grant already tried
+        // Advances the clock and runs every ready actor, returning the player when it needs a command, or nullid when no
+        // actor will ever be ready
+        // elapsed is the real time since the last call; a turn-based host omits it
         id_type advance(EventQueue& events, Clock::duration_type elapsed = Clock::duration_type::zero());
 
     private:

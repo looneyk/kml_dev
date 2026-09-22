@@ -20,8 +20,8 @@ namespace quetzal::dungen
     // they left, then dead ends and loops pruned back
     struct Maze1Parameters
     {
-        // A room dimension is the base plus a value below the variation, forced odd, so the
-        // rooms sit on the same odd lattice the maze is flooded along
+        // A room dimension is the base plus a value below the variation, forced odd to align rooms with the maze's odd
+        // lattice
         coord_type room_dimension_base = 3;
         coord_type room_dimension_variation = 8;
 
@@ -37,18 +37,17 @@ namespace quetzal::dungen
     };
 
     //--------------------------------------------------------------------------
-    // A room inside most sectors of a coarse grid, orthogonally adjacent sectors joined by
-    // corridors that bend once in the rock between
+    // A room inside most sectors of a coarse grid, orthogonally adjacent sectors joined by corridors that bend once in the
+    // solid cells between
     struct Grid1Parameters
     {
         vector_type divisions {3, 3}; // Sectors across and up
 
-        // Fraction of sectors holding a room. A sector without one still joins its neighbors,
-        // through a single cell rather than a room
+        // Fraction of sectors with a room. A sector without one joins its neighbors through a single cell
         double room_density = 1.0;
 
         coord_type room_dimension_min = 3; // Smallest room, before its own sector limits it further
-        coord_type room_margin = 1; // Rock kept between a room and the edge of its sector
+        coord_type room_margin = 1; // Solid cells between a room and the edge of its sector
 
         double loop = 0.15; // Probability of a corridor beyond the ones connectivity needs
         double door_probability = 1.0; // Probability of a corridor exiting a room having a door
@@ -67,10 +66,8 @@ namespace quetzal::dungen
     };
 
     //--------------------------------------------------------------------------
-    // The generation parameters of one run, written into the zone file so that a zone names
-    // what produced it and can be produced again
-    // Only the group belonging to the chosen algorithm is read, so the others may hold
-    // whatever a command line or a header put there
+    // The generation parameters of one run, written into the zone file so the zone can be reproduced. Only the chosen
+    // algorithm's group is read
     struct Parameters
     {
         using seed_type = std::default_random_engine::result_type;
@@ -86,18 +83,15 @@ namespace quetzal::dungen
         Grid1Parameters grid1;
         Cave1Parameters cave1;
 
-        // Empty until one is assigned, so that a caller who never did is caught by validate
-        // rather than quietly handed the same zone every run
+        // Empty until assigned; validate rejects it empty
         std::optional<seed_type> seed;
     };
 
-    // A seed drawn from the platform's entropy source, for a caller wanting a different zone
-    // each run. Generation itself takes the seed it is given, so that a written seed
-    // reproduces a zone exactly
+    // A seed drawn from the platform's entropy source
     Parameters::seed_type random_seed();
 
-    // The shared parameters and the chosen algorithm's group, the other groups going unread
-    // Throws std::invalid_argument naming the parameter at fault
+    // Validates the shared parameters and the chosen algorithm's group
+    // Throws std::invalid_argument identifying the parameter at fault
     void validate(const Parameters& parameters);
 
 } // namespace quetzal::dungen

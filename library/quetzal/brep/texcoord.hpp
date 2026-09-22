@@ -36,8 +36,6 @@ namespace quetzal::brep
     void set_triangular_texcoords(M& mesh, id_type face_id);
 
     // Calculate texcoords for face or hole from a mapping
-    // Lets a caller build the mapping while the reference face is still pristine and apply it to any
-    // number of targets afterwards, rather than rederiving it from a face that is being modified
     template<typename FH, typename A> requires quetzal::geometry::Textured<typename FH::traits_type::vertex_attributes_type>
     void interpolate_texcoords(const geometry::PolygonMapping<A>& mapping, FH& target);
 

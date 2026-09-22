@@ -404,8 +404,7 @@ quetzal::geometry::AxisAlignedBoundingBox<Traits> quetzal::geometry::op_intersec
 template<typename Traits>
 struct std::formatter<quetzal::geometry::AxisAlignedBoundingBox<Traits>>
 {
-    // AxisAlignedBoundingBox has no formatting knobs of its own; the whole spec belongs to (and is
-    // entirely consumed by) the Point formatter, reused verbatim for lower and upper.
+    // Parses the whole format spec, and formats lower and upper
     std::formatter<quetzal::geometry::Point<Traits>> m_point_formatter;
 
     constexpr auto parse(std::format_parse_context& ctx)

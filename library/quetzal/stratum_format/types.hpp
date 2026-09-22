@@ -16,7 +16,7 @@
 namespace quetzal::stratum_format
 {
 
-    // These match stratum_sim's, so that what is read needs no conversion on the way into a layout
+    // These match stratum_sim's, so a layout is built without conversion
     using value_type = float;
     using traits_type = math::CartesianTraits<value_type, 3>;
     using point_type = geometry::Point<traits_type>;
@@ -28,11 +28,10 @@ namespace quetzal::stratum_format
     // An entity id in a zone file: a local id in a zone template, a persistent id in a saved zone
     using stored_entity_id_type = std::uint64_t;
 
-    // A type to store values that are passed unprocessed back to the caller.
-    // Original order is retained.
+    // Values passed back to the caller unprocessed, in their original order
     using values_type = nlohmann::ordered_json;
 
-    // Local addressing on a Wall or Flat cell's surface
+    // A position on the surface of a wall or a flat cell
     using surface_point_type = geometry::Point<math::CartesianTraits<value_type, 2>>;
 
 } // namespace quetzal::stratum_format

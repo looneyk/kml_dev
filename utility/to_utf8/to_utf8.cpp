@@ -86,10 +86,7 @@ namespace
             return bytes;
         }
 
-        // CP_ACP is not used here: on systems with the "Beta: Use Unicode UTF-8 for
-        // worldwide language support" option enabled, GetACP() returns 65001 (UTF-8),
-        // which would just re-run invalid UTF-8 through itself as UTF-8. 1252 is the
-        // legacy codepage these files were actually authored under.
+        // The legacy codepage these files were written in. CP_ACP is 65001 (UTF-8) where the Beta UTF-8 option is enabled
         constexpr UINT legacy_codepage = 1252;
 
         int wide_length = MultiByteToWideChar(legacy_codepage, 0, bytes.data(), static_cast<int>(bytes.size()), nullptr, 0);

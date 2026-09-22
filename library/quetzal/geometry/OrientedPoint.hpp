@@ -117,9 +117,7 @@ std::ostream& quetzal::geometry::operator<<(std::ostream& os, OrientedPoint<Trai
 template<typename Traits>
 struct std::formatter<quetzal::geometry::OrientedPoint<Traits>>
 {
-    // OrientedPoint has no formatting knobs of its own; the whole spec belongs to (and is entirely
-    // consumed by) the Point formatter, whose parsed state is shared with a Vector formatter (used
-    // to build the nested Orientation formatter, itself composed of two Vectors).
+    // Parses the whole format spec, which the nested formatters share
     std::formatter<quetzal::geometry::Point<Traits>> m_point_formatter;
 
     constexpr auto parse(std::format_parse_context& ctx)

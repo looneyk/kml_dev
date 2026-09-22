@@ -14,7 +14,6 @@ namespace quetzal::stratum_sim
 
     //--------------------------------------------------------------------------
     // Events produced by the simulation, in the order in which they occurred
-    // A consumer either drains the queue with front and pop or iterates events and clears
     class EventQueue
     {
     public:

@@ -4,9 +4,8 @@
 // brep
 // debug.hpp
 //
-// Diagnostic dumps used when working through degenerate intersection cases.
-// Leaf header, nothing in brep includes it, so it is free to depend on the
-// connection types in border.hpp that validation.hpp cannot reach
+// Diagnostic dumps for degenerate intersection cases. Kept apart from validation.hpp so it can depend on the connection
+// types in border.hpp
 //------------------------------------------------------------------------------
 
 #include "border.hpp"

@@ -1,15 +1,15 @@
 # Game System --- Reference
 
-What the system is and how it is put together, as implemented.
+What the system is and how it is put together, as implemented. The reasoning behind its larger decisions is in
+`decision_rationale.md`.
 
-Three layers, with no engine in any of them. `quetzal::stratum_sim` simulates,
-`quetzal::stratum_view` turns a simulation state into characters, and `stratum_terminal` puts those
-characters on a terminal. `stratum_sim` links `quetzal_common`, `stratum_format` and flecs; `stratum_view` links
-`stratum_sim`; the host links `stratum_view`.
+Three layers, with no engine in any of them. `quetzal::stratum_sim` simulates, `quetzal::stratum_view` turns a
+simulation state into characters or place codes, and a host puts those on a device. `stratum_sim` links
+`quetzal_common`, `quetzal_stratum_format` and flecs; `stratum_view` links `stratum_sim`; each host links
+`stratum_view`.
 
-The `stratum_` prefix names the layout class the two share: open ground extruded vertically between
-one floor and one ceiling. `sim` and `view` are accurate as roles and would claim too much on their
-own at `quetzal::`.
+The `stratum_` prefix names the layout class they share: open ground extruded vertically between one floor and one
+ceiling.
 
 | Directory | Target |
 | --- | --- |
@@ -25,62 +25,45 @@ own at `quetzal::`.
 
 ## Simulation
 
-A `World` holds `Zone`s. A zone is one independently loadable coordinate space, and it is 3D. Zones
-share no coordinate system and bear no spatial relationship to one another, so a placement means
-something only within its own zone --- and which zone that is comes from the entity's parent rather
-than from a field on the placement. Each zone has a layout, which is its geometry and topology, and
-the entities occupying it.
+A `World` contains zones. A zone is one independently loadable 3D coordinate space. Zones share no coordinate system,
+so a placement is meaningful only within its own zone, and an entity's zone is the zone among its ancestors. Each zone
+has a layout, its geometry and topology, and the entities in it.
 
-Geometry travels outward through the layout toward the view, and never inward. A caller asks the
-layout where a move ends up; it does not compute a destination and hand it back.
+A caller asks the layout where a move ends; it does not compute a destination and hand it back.
 
 ### Types
 
-`value_type` is `float` and `traits_type` is `math::CartesianTraits<value_type, 3>`, giving
-`point_type`, `vector_type`, `points_type` and `polygon_type`. `placement_type` is
-`geometry::DirectedPoint<traits_type>` --- a position and a facing.
+`value_type` is `float` and `traits_type` is `math::CartesianTraits<value_type, 3>`, giving `point_type`,
+`vector_type`, `points_type` and `polygon_type`. `placement_type` is `geometry::DirectedPoint<traits_type>`, a position
+and a facing direction.
 
-`discrete_vector_type` is `math::DiscreteVector<long, 2>`, a displacement in the grid, exact where
-`Vector` is approximate. `GridPosition` is a position and never a displacement: the two are
-separate types, a position is moved only by `position + discrete_vector_type`, and `b - a` over two
-of them gives the displacement between. Adding two positions does not compile. `Direction` names
-the four steps a flat grid can take as `discrete_vector_type` constants --- `East`, `North`, `West`,
-`South`.
+`coord_type` is `std::int32_t`. `discrete_vector_type` is `math::DiscreteVector<coord_type, 2>`, a displacement on
+the grid, and `discrete_point_type` is `geometry::DiscretePoint<coord_type, 2>`, a cell position. A cell position is
+moved by adding a `discrete_vector_type`, the difference of two is the displacement between them, and adding two does
+not compile. `cardinal_directions` are the four unit vectors `East`, `North`, `West`, `South`, in `CardinalDirection`
+order, and `cardinal_direction(d)` returns one.
 
-`point_projection_type` and `vector_projection_type` are `geometry::MinProjection` over
-`point_type` and `vector_type`. Default constructed they project along z onto the xy-plane, which
-is the only form a flat layout uses; the axis-choosing constructor takes a normal.
-`grid_step(vector_type)` composes the vector one with `math::direction` to give the cell step a
-direction most nearly asks for.
+`point_projection_type` and `vector_projection_type` are `geometry::MinProjection` along the z axis onto the xy plane.
+`grid_step(vector)` is the cardinal direction nearest a direction.
 
 ### Layout
 
-How one zone is arranged and what can be asked of it, as an interface: `move`, `turn`, `face`,
-`same_location`, `neighbors`, `visible`, `ahead` and `step_distance`, all pure virtual. Nothing on it mentions a
-cell or a wall, and nothing on it implies either exists --- a layout that quantizes movement and one
-that integrates it satisfy all of it alike, rounding being the layout's business rather than the
-caller's. `Rotation`, `MoveResult`, `crossable_type` and `blocking_type` are its vocabulary and live with it.
+An interface over one zone's arrangement: `move`, `turn`, `face`, `same_location`, `neighbors`, `visible`, `ahead`
+and `step_distance`, all pure virtual. None of them mentions a cell or a wall. `Rotation` (`CCW`, `CW`, `Half`),
+`MoveResult`, `crossable_function_type` and `blocker_function_type` are declared with it.
 
-`move` has a second, non-virtual overload taking neither predicate, for the layout's own
-topology alone. It is non-virtual so that no default argument is declared on a virtual function, where the
-default would be taken from the static type; a derived layout brings it back into scope with
-`using Layout::move`.
+A second, non-virtual `move` takes neither predicate, so no wall is crossable and no entity blocks. A derived layout
+brings it back into scope with `using Layout::move`.
 
-The destructor is public and virtual, since a zone owns its layout through a
-`std::unique_ptr<Layout>`. The other special members are protected and defaulted, so a concrete
-layout stays a value that can be copied and moved as itself while nothing can slice one through the
+The destructor is public and virtual, a zone owning its layout through a `std::unique_ptr<Layout>`. The other special
+members are protected and defaulted, so a concrete layout copies and moves as itself and cannot be sliced through the
 base.
 
-`layout_as<L>(layout)` is the way to the concrete class, a checked cast that asserts. A caller
-writing one has said it needs more than the interface offers --- the loader, the cell reduction both
-views consume, `Session`'s opening placement, `World::entities_at(cell)`, and the two host status
-readouts. No rule is among them: `commands.cpp` refers to no cell and depends on no concrete class.
+`layout_as<L>(layout)` is the layout as its concrete class, a checked cast that asserts. The loader, the view
+reductions, `Session`'s initial placement, `World::entities_at` by cell position and the host status readouts use it.
+`commands.cpp` refers to no cell and no concrete class.
 
-`DiscreteLayout` and `ContinuousLayout` are the two beneath it, and `DiscreteLayout` is the only one
-with an implementation. Neither name mentions `Flat`: it is implied for every discrete layout, and a
-continuous one takes ordinary 3D models where being level is no more a category than any other
-shape. `sim_zone_model.md` sets out the model, `decision_rationale.md` why geometry is not a second
-axis of classes, and `layout_plan.md` the order they arrived in.
+`DiscreteLayout` and `ContinuousLayout` are the two classes beneath it, and only `DiscreteLayout` is implemented.
 
 ### ContinuousLayout
 
@@ -102,865 +85,495 @@ settling first, every vertex being grid derived and exactly representable today.
 
 ### DiscreteLayout
 
-The static topology of one zone: its walls, its flats, and the rooms defined over them. Held as a
-table of cells over the grid rather than as entities; entities refer into it by id.
-
-A table rather than entities because of the count. A wall per cell side puts thousands in a zone,
-and a zone serialises its whole subtree when it unloads, so entities would take all of them into
-every save. An attachment --- anything on a wall or a flat, from an alcove to a door to a torch ---
-stores the wall id instead, and the reverse direction is a query filtered by that id rather than a
-relationship, which is affordable because attachments run to hundreds where walls run to
-thousands. A wall id encodes the cell and the side, so it is stable with no store behind it.
+The static topology of one zone: its walls, its flats, and its rooms, stored as a table of cells over the grid.
+Entities refer into it by id.
 
 | Type | |
 | --- | --- |
-| `Cell` | What the layout stores for one grid position: `open`, whether a mover may stand there; `walls`, a `DirectionMask` of the sides with a wall facing into the cell; and `room_id`, the room covering it or `nullid`. A wall settles nothing about crossing: whether a mover may is decided by what is *attached to* it, which is an attachment. |
-| `DirectionMask` | Any of the four directions of a flat grid, a bit each in `CardinalDirection`'s order, with `direction_mask` from a direction. The view uses the same mask for where a wall line continues. |
-| `Flat` | A horizontal surface, one floor and one ceiling per zone, their ids held by the layout, differing by `ceiling` and nothing else. A height at the three levels a zone file states it: the flat's constant, `room_height` per room and `cell_height` per cell, each a sparse table overriding the level above. |
-| `GridPosition` | The coordinates of a cell in the grid: `long i`, `long j`. Not a stored record. `operator+=` and `operator+` take a `discrete_vector_type`, and subtracting two gives one. |
-| `Grid` | `origin`, `spacing`, `extent` (a `discrete_vector_type`, cell counts being a displacement), `contains(GridPosition)`, and `cell_at`/`cell_position` for the arithmetic both ways. A `Flat` samples over one of its own, so the arithmetic belongs here rather than on the layout, which delegates to it. |
-| `Rotation` | `CCW`, `CW`, `Half`. In `Layout.hpp`, being interface vocabulary. |
-| `MoveResult` | The placement reached, which may be short of what was asked, and the wall or the entity that stopped it --- `nullid` when nothing did. In `Layout.hpp` with `Rotation`. |
+| `Cell` | One square of the grid: `open`, whether an actor may stand there; `walls`, a `DirectionMask` of the sides with a wall facing into the cell; and `room_id`, the room containing it, or `nullid`. |
+| `DirectionMask` | Any of the four cardinal directions, a bit each in `CardinalDirection` order, with `direction_mask(direction)`. The view uses it for the directions a wall line continues in. |
+| `Flat` | The floor or the ceiling, differing only by `ceiling`. Its height is given for the whole flat, per room (`room_height`) and per cell (`cell_height`), each overriding the one before; the per-room and per-cell tables are sparse. |
+| `GridMapping` | `origin`, the corner of cell `(0, 0)`; `scale`; and `extent`, the cell count along each axis as a `discrete_vector_type`. `contains(cell_position)`, `cell_position_at(point)` and `position(cell_position)`, the cell center. |
+| `MoveResult` | The placement reached, possibly short of the distance asked, and the `blocking_wall_id` or `blocking_entity_id` that stopped it, never both, `nullid` when nothing did. Declared in `Layout.hpp`. |
 
-A layout takes its grid at construction, from the extent the file covers rather than derived from the
-wall geometry afterwards, and the cell table is sized by it there. So a layout has a grid for its whole
-life, and nothing reads one that is not there. A layout is destroyed with the zone that holds it and
-has no way to be emptied in place; a resident set at its limit moves a new layout in over an old one. Cells run from `(0, 0)` to the extent, so a negative component is always off
-the grid. `Grid::contains` is the one place that comparison is written, and it is used in
-assertions only: the loader guarantees a walled boundary, so a step off the grid cannot arise and
-is not a case to be handled at run time.
+A layout is constructed with its origin, scale and extent, and sizes its cell table from them. Cells run from `(0, 0)`
+to the extent. `GridMapping::contains` is used in assertions only: the loader guarantees a walled boundary, so a move
+off the grid cannot arise. The cell accessors assert that the cell position is on the grid; `cell_position_at` floors
+any point to a cell position without a bounds check.
 
-A wall is one side of one cell edge, and the two sides of an edge are independent: a wall notation
-wall between two rooms is a wall on each side, and a doorway block's wall toward floor is on the
-floor's side alone. An opening is the absence of a wall rather than a flag on one.
+A wall is one side of one cell edge, and the two sides of an edge are independent: a wall notation wall between two
+rooms is a wall on each side, and a doorway block's wall toward floor is on the floor's side alone. An opening is the
+absence of a wall.
 
-This is the whole of the discrete side, with no interface between it and `Layout`. A zone with no
-height data loads a constant floor rather than a different class, so which data a game style
-loads is what differs rather than which class is built; `decision_rationale.md` argues why. It has no
-provision for continuous movement, which is `ContinuousLayout`'s.
+A zone with no height data loads a constant floor into the same class; which data a game style loads is what
+differs. The layout makes no provision for continuous movement.
 
-Walls are set a cell at a time with `set_cell_walls` and read back with `walls`. Rooms are
-`room_count`, and `room_at` and `set_cell_room` per cell; everything else about a room is an entity's.
-A cell no room covers gives `nullid`.
+Walls are set per cell with `set_cell_walls` and read with `walls`. Rooms are `room_count`/`set_room_count`, and
+`room_at` and `set_cell_room` per cell; everything else about a room belongs to an entity. Openness is `open` and
+`set_cell_open`, separate from the room, which decides nothing about passage.
 
-The grid side is `grid`, `open`, `set_cell_open`, `cell_at` and `cell_position`, and
-`wall_toward` and `crossable` read what is attached to it. `move`, `turn`, `face`, `same_location`,
-`neighbors`, `visible` and `step_distance` are what it overrides from `Layout`.
+`wall_toward(cell_position, direction)` is the id of the wall on that side of the cell, or `nullid`, a bit test. The
+id encodes the cell's slot and the direction. `crossable(cell_position, direction, is_wall_crossable)` is true where
+there is no wall, and otherwise what `is_wall_crossable` returns for the wall. Both read the one cell, so a cell on
+the boundary returns the wall that closes the layout.
 
-`wall_toward(position, direction)` returns the wall on that cell's side of the edge it presents in
-that direction, a bit test, and `crossable(position, direction, crossable_wall)` whether a mover stepping
-that way has a way through: no wall is one, and a wall is the predicate's to answer for. Both read the cell
-alone, so the neighbor need not exist and a boundary cell returns the wall that closes the layout.
+`set_flats(height_floor, height_ceiling)` creates the two flats, once; `floor_id` and `ceiling_id` identify them.
+`height(flat_id, cell_position)` is the cell's own height, else its room's, else the flat's. `position(cell_position)`
+is the cell center with z the floor height there, or on the grid's plane before the flats are set.
 
-`cell_at` is total: it floors any position into a cell without bounds check or clamp, so a position
-off the grid maps to a cell off the grid rather than failing. The cell-indexed accessors are the
-other way about --- `open`, `room_at(GridPosition)`, `set_cell_open` and `set_cell_room` assert that
-the position is on the grid, an off-grid one being the caller's error rather than a question with
-an answer.
+`turn` is relative and `face` absolute. A view with a relative turn asks `turn` for the resulting direction and sends
+it as a facing direction, so the layout does the quantizing in both cases. `face` snaps to a cardinal direction and
+leaves the facing direction unchanged for a zero direction.
 
-`cell_position` is the one place the layout reads a flat. It takes x and y from the grid and z from
-the floor's height at that cell, so a cell sits on the ground rather than on the grid's datum.
-`height(flat_id, position)` resolves it: the cell's own, failing that the room covering the cell,
-failing that the flat's constant. A layout with no floor yet is one under construction, and a cell
-in it falls back to the grid's own plane.
+`move` snaps the direction with `grid_step`, rounds the distance to whole cells, and moves cell by cell until a wall
+`crossable` rejects or the cell ahead is occupied, then sets the position from the cell reached, so rounding error
+never accumulates. `blocker_at` reports the entity occupying a placement; the layout calls it before entering each
+cell and reports what it returns as `blocking_entity_id`. `World::move` supplies it.
 
-`turn` is relative and `face` is absolute, and the two divide the work of turning: a view with a
-relative turn asks `turn` what lies that way and sends the answer as a facing, so the quantization
-belongs to the layout in both cases and neither the command nor the host stores a rotation. `face`
-snaps a direction as `move` snaps the one it steps in, and leaves the facing alone when asked for
-nothing.
+`step_distance` is the grid scale, the distance one action of movement travels.
 
-`move` snaps the direction it is given to whichever of the layout's own directions was most nearly
-asked for, steps cell by cell until an impassable wall stops it, and recomputes the position from
-the cell it reached rather than accumulating offsets --- so the position is regenerated on every move
-and rounding error never builds up. Rounding is the layout's business, not the
-caller's, and blocking is reported as where the mover ended up rather than as a success flag.
-
-A mover is held on the grid by the boundary itself. An open cell on the grid's edge always has a wall
-outward --- the reader rejects a wall notation file without one, and the block notation walls it ---
-so a step off the grid cannot be taken and is not tested for. `move`,
-`neighbors`, `visible` and `ahead` assert `Grid::contains` on the cell they reach, stating that
-the wall test above is what kept it on.
-
-`ahead(placement)` is the wall directly in front, `nullid` when there is none. It snaps the facing
-to one of the grid's own directions as `move` snaps the direction it travels in, and returns
-the wall on the near side of the edge that way --- so a rule asking what an actor faces steps no cell
-of its own and searches nothing to find it.
-
-A layout is independent of entities and resolves only its own geometry. It takes a predicate
-reporting whether something occupies a placement, calls it before entering each step, and
-reports whatever it returned as the `blocking_entity_id` --- so what counts as a blocker
-stays with the caller while the sweep stays with the layout. `World::move` is what supplies it.
-
-A `MoveResult` reports what stopped a mover as `blocking_wall_id` or `blocking_entity_id`, one
-or the other and never both. `Blocked` has the same pair. Two fields rather than one because a
-wall id encodes a side of a cell in the layout and an entity is an entity, so the ids are not
-interchangeable.
-
-The cells are one table sized by the grid extent. Openness is a field of its own because a room is a
-label and decides nothing about passage.
+`neighbors` is the placements reachable in one move. `visible` walks the cells the ray between two placements passes
+through, one edge at a time, and fails at the first wall that cannot be crossed. `field_of_view` is declared and not
+implemented. `ahead(placement)` is the wall of the placement's cell in its facing direction snapped to a cardinal
+direction, or `nullid`.
 
 ### load_layout
 
-Reads a discrete layout file with `stratum_format::read` and builds the layout from the `Document`,
-through the same `stratum_format` functions that validated it, so the glyph rules exist once. Each
-floor/door cell is open, and its walls are the sides `has_wall` gives one. Each room's cells, from
-`room_cells`, take its id, and `room_count` is the number the file defines. The flats take the file's
-heights at their three levels, the floor at 0 and the ceiling at 1 where the file has none. A stair
-cell is a block, closed like solid, and the floor beside it is walled toward it, so no actor enters one. `notation`, where given, is told which notation the rows were written in, which
-is what `Session::notation` hands a host to choose a view by.
+Reads a discrete layout file with `stratum_format::read` and builds the layout from the `Document` through the same
+`stratum_format` functions that validated it. Each floor/door cell is open, with a wall on each side `has_wall`
+reports. Each room's cells, from `room_cells`, take its id, and `room_count` is the number of rooms. The flats take the
+file's heights, the floor defaulting to 0 and the ceiling to 1. A stair cell is a block, closed like solid, and the
+floor beside it is walled toward it. `notation`, where given, receives the notation the rows were written in.
 
-A doorway block is a cell a mover may stand in, walled toward solid on its own side and toward floor
-on the floor's side alone, so one opening passes the whole doorway and leaving is free. Two areas
-therefore never share an edge in the block notation, a block always lying between them. The wall
-notation's walls lie between cells, and two rooms sharing a wall are walled from both sides along its
-whole length --- what the block notation cannot express, and why a block layout is a subset of a wall
-layout rather than a different model.
+A doorway block is a cell an actor may stand in, walled toward solid on its own side and toward floor on the floor's
+side alone. Two areas therefore never share an edge in the block notation. In the wall notation, two rooms sharing a
+wall are walled from both sides, which the block notation cannot express, so a block layout is a subset of a wall
+layout.
 
-Returns the layout it built, as a `std::unique_ptr<DiscreteLayout>` rather than as the
-interface: both notations are grids of cells, so both build that class and the signature declares it. A
-format describing something else is a reader of its own rather than another return from this one.
-`World::create_zone` takes what comes back, so what class a zone's layout is comes from what was
-loaded.
+Returns a `std::unique_ptr<DiscreteLayout>`, both notations being grids of cells. `World::create_zone` takes what it
+returns.
 
-It builds geometry and no entities, having no world to build them in, so where the file specifies a door
-goes it *reports* rather than places: an optional `door_type` is called with the walls of each door
-`door_walls` finds --- both sides of a door edge in the wall notation, the walls floor presents to a
-doorway block in the block notation --- and a caller with a world turns that into a door. That is what
-`Session::populate` does, and it is the answer to what creates an attachment at load --- the loader
-never learns what a door is.
+The loader has no world, so it builds no entities: an optional `door_type` callback receives the wall ids of each
+door `door_walls` finds --- both sides of a door edge in the wall notation, the walls floor has toward a doorway block
+in the block notation --- and `Session::populate` creates the doors from them.
 
-Throws `std::runtime_error` when the reader rejects the file. Nothing is built until it has accepted
-it, so a throw leaves no half-built layout behind.
+Throws `std::runtime_error` when the reader rejects the file, having built nothing.
 
 ### World
 
-Zones and everything in them. One flecs world holds the entities; a zone is an entity whose contents
-are its children, so migration and unload are subtree operations, and migration keeps each entity's
-id.
-Layouts are kept alongside in a map keyed by zone, being static topology rather than game objects. They
-are held as `std::unique_ptr<Layout>` because a layout is polymorphic and the map cannot store an
-abstract class by value; `World` itself is a plain value, a member of `Session` that is moved once.
+Zones and everything in them. One flecs world contains the entities; a zone is an entity whose contents are its
+children, so migration and unload are subtree operations, and migration keeps each entity's id. Layouts are stored
+beside it in a map keyed by zone, as `std::unique_ptr<Layout>`. `World` is a movable value, a member of `Session`.
 
-`create_zone` takes the layout the zone is to have and asserts it was given one --- there is no
-default, a default being what would put one concrete class back inside `World`. `zone`, `zone_count`
-and `layout` reach the zones, `layout` returning the interface; `create_entity`, `move` and
-`relocate` reach their contents; `unload_zone` discards a zone, its contents and its
-layout, leaving persistence to a caller.
+`create_zone(name, layout)` asserts it is given a layout and that the name is new. `zone`, `zone_count` and `layout`
+reach the zones, `layout` returning the interface; `create_entity`, `move` and `relocate` reach their contents; and
+`unload_zone` discards a zone, its contents and its layout.
 
-`zone_of(e)` is a free function rather than a member, taking no state from `World`: it follows an
-entity's parents to the `Zone` among them, depth being unbounded once an actor carries a pouch of
-coins, and returns a null entity for an entity in no zone.
+`zone_of(e)` follows an entity's parents to the zone among them, or returns a null entity. Entities nest, as coins
+in a pouch an actor carries do.
 
-`reparent(e, parent, site)` is the other, and it sets what an entity belongs to and where it is
-together. Taking something, putting it down and moving it between zones are one operation at
-different parents; `relocate` is that operation with a zone as the parent, and asserts as much. The
-entity's own children travel with it, being its subtree, and its id is retained, so references to it
-stay valid.
+`reparent(e, parent, site)` sets an entity's parent and site together: taking something, putting it down and moving
+it between zones are this one operation. `relocate` is `reparent` with a zone as the parent. The entity's children
+move with it and its id is kept, so references to it stay valid, and the zone it left can unload without it.
 
-Occupancy is `entities_at` and `entities_within`, both returning entities ordered by id so that a
-run gives the same result every time --- flecs iteration is deterministic but visits entities grouped
-by archetype rather than in id order, so the sort is explicit. `entities_at` takes a placement or a
-cell: the placement form asks the layout `same_location` and so involves no cells at all, and it is
-what `move` uses; the cell form is for a caller that genuinely counts cells and goes to
-`DiscreteLayout` to do it.
+Occupancy is `entities_at` and `entities_within`, over the zone's children with no site address, sorted by id,
+flecs iterating by archetype rather than id. `entities_at` takes a placement, compared with the layout's
+`same_location`, or a cell position, through `DiscreteLayout`.
 
-Ownership follows current location rather than origin: `relocate` reparents an entity into its
-destination zone, so the zone it came from can unload without taking it along. Entity ids are
-allocated by the one flecs world and reparenting leaves them untouched, so references to a migrated
-entity survive the move.
+`move`, `neighbors` and `visible` are the layout's queries from an entity's zone and placement, with each wall
+crossable as the entities sited on it allow. In `move`, every `Blocking` entity other than the one moving blocks. Topology and
+occupancy are resolved in one sweep.
 
-`move` is where topology and occupancy meet. What stops a mover comes from two places --- the zone's
-walls and whatever occupies the cell ahead --- and only `World` has both, so neither
-the layout beneath it nor the rule above it has to reach into the other. It hands the layout two
-predicates, one over what is attached to a wall and one over its own entities, and the layout does the
-sweep. Rules ask this rather than the layout directly.
+`Blocking` is the tag that makes an entity block movement.
 
-`neighbors` and `visible` are the same arrangement without the occupancy half: each takes an entity,
-asks its zone's layout, and supplies the wall predicate. A rule that asked the layout directly would
-have no way to reach an entity, and so would take every wall as solid.
+### Sites and doors
 
-The two must not become a sequence. Continuous movement is one solve: a blocker partway along a
-swept path changes where the slide against a wall happens, so resolving topology first and occupancy
-afterwards gives results that are wrong rather than approximate. A discrete zone tolerates the
-sequence because a cell is atomic, which is why it is not the case the shape was designed against.
+Where every entity is, and the entities sited on a wall or a flat cell. Doors are built; alcoves, basins, buttons and torches are planned
+(`attachment_plan.md`, `site_plan.md`).
 
-`Blocking` is the tag that makes an entity obstruct a mover. Presence rather than identity: a
-dropped sword has a placement and no more, while a monster and a pushable boulder stop a mover the
-same way. A mover is never stopped by itself.
+`Site` is where an entity is: a `Relation`, `In` or `On`; an optional address, a `WallAddress` of one wall id or a
+`FlatAddress` of a flat id and a cell position; and a `placement_type` relative to the address, or to the parent
+where there is none. An actor is `In` its zone with a placement and no address. An entity resting on a floor has a
+placement and no address. `wall_id_of(site)` is the site's wall id, if it has one. `placement_of(e)` and
+`set_placement(e, placement)` read and write the placement, leaving the rest of the site unchanged; `set_placement` on
+an entity with no site gives it one.
 
-### Attachments
+A door is an entity with `Door` and `Openable`, so both of its sides are open or shut together, and a `DoorFacing`
+child on each of its walls, sited `On` a `WallAddress`. The walls are the sides a door has: in the wall notation the
+two sides of one cell edge, in the block notation the walls the floor has toward the doorway block. A door with one
+wall is a doorway into a dead end.
 
-What is attached to a wall --- a door for now, an alcove, a basin, a button or a torch later. One mechanism
-for all of them is what keeps a wall a bit on the cell it bounds. `attachment_plan.md` gives the shape
-and the argument, and `site_plan.md` the form it takes now.
+`create_door(world, zone, wall_ids)` creates one door; `create_doors` creates one for each set of walls, closed.
 
-An attachment is an entity, so mutable state is allowed on it in a way it is not on a wall. `Site`
-is where an entity is: a `Relation`, `In` or `On`; an optional address, a `WallAddress` of one wall id
-or a `FlatAddress` of a flat id and a cell position; and a `placement_type`, its position and
-orientation in that frame. No address means the entity is sited on its parent. A wall is addressed by
-id rather than by a relationship, a wall being a record rather than an entity, and the reverse
-direction is a query filtered by that id --- `wall_id_of(site)` is the wall where there is one.
+`facing_on(zone, wall_id)` is the entity sited on a wall of the zone, found by a query over sited entities, wall ids
+being unique only within a zone. `door_of` is a door facing's parent and `other_facing` its sibling.
 
-One component states where every entity is, an actor included: an actor is `In` its zone with a
-placement and no address, so its position is in the zone's own frame. An address means fixed to a
-surface --- a wall, which has no position of its own and can be referred to only by id, or a cell of
-a flat. What rests on a floor has a placement and no address, a cell being a position already. `placement_of(e)` and
-`set_placement(e, placement)` read and write that placement, leaving the rest of the site as it was;
-`set_placement` on an entity with no site gives it one.
+`crossable(zone, wall_id)` decides passage. A wall with nothing sited on it is solid, and so is one with a `Concealed`
+door facing not yet revealed, from that side alone. Otherwise an `Openable` door is crossable when open, and any other
+when it has `Crossable`, as a smashed door does.
 
-A door is two facings and what they share. The shared part has `Door` and `Openable` --- one door
-cannot be open from one side and shut from the other --- and each facing has `DoorFacing`, a `Site`
-on its wall and its own per-side data. A facing is a child of its door, so which door it belongs to is
-its parent rather than a field, the other facing is its sibling, and the whole assembly is one
-subtree: it unloads with the zone and one delete removes it.
+`Interact` toggles the `Openable` of the door whose door facing is on the wall ahead, and reports
+`Interaction::Opened`, `Closed` or `Nothing`.
 
-The walls are the sides a door presents. In the wall notation they are the two sides of one cell
-edge; in the block notation a doorway is a *cell*, so they are the walls the floor either side has
-toward it, and entering the cell is passing through the door. `create_door` is told which two, and
-nothing else notices the difference.
-
-`create_doors(world, zone, doors)` builds one on each set of walls the loader reported, which is
-what both notations' doors and doorways load as, and `Session::populate` calls it. They are generic and
-**closed**: the loader reads no entity and no file component, so a zone's doors all have to be
-opened.
-
-`facing_on(zone, wall_id)` is the facing sited on a wall, a wall id identifying a wall in one zone's layout so
-the zone is what the search is over; `door_of` is its parent and `other_facing` its sibling.
-`crossable(zone, wall_id)` is the passage question: a wall with nothing sited on it is solid, an
-`Openable` attachment reports whether it is open, anything else whether it has `Crossable` --- which is
-what a door smashed to a hole leaves and blocking debris does not. A facing `Concealed` and not yet
-found refuses, a secret door being a wall until it is found, and from that side alone.
-
-`Interact` opens and shuts one: the facing on the wall ahead, its door, `Openable` flipped. It
-reports which of `Interaction::Opened`, `Closed` or `Nothing` happened, so a view can show it rather
-than name a wall id at a player.
-
-**Passage is this, and nothing else.** The layout's `crossable` calls the `crossable_type` its caller passed, which
-`World` binds to `crossable` for the zone, so a wall is solid unless an attachment on it makes it
-otherwise. `Wall` has no flag, and a query given no predicate has every wall solid.
-
-A solid cell is never met in any way. Every boundary between floor and solid, and every cell side on
-the border of the grid, has a wall, so it decides from the wall alone and asserts that where
-there is no wall there is a cell beyond. A doorway block is no
-exception: it has walls toward solid cells and the border of the grid, so a mover leaving one sideways
-meets a wall, and none toward floor, so leaving it forward or back meets nothing.
+A wall is solid unless something sited on it makes it crossable, and a query given no predicate has every wall
+solid. Every boundary between floor and solid, and every cell side on the border of the grid, has a wall, so where
+there is no wall there is a cell beyond, which `crossable` asserts. A doorway block has walls toward solid cells and
+the border of the grid, and none toward floor.
 
 ### Scheduler
 
-Turn order in abstract units. Each actor accumulates energy at its own speed and acts once it has
-banked `action_cost`, which is 100. `spend` charges it; `elapsed` reports the units passed. Speeds
-and energies are kept in ordered maps, so ties break identically on every run.
+Turn order in abstract units. Each actor accumulates energy at its own speed and acts once it has `action_cost`,
+which is 100. `spend` charges it; `elapsed` is the units passed. Speeds and energies are ordered maps, so ties break
+the same way every run.
 
-Ordering and timing are separate, and only the first is the scheduler's. `advance(units)` grants
-every actor the energy its speed earns and does nothing else; `ready` reports who can act now,
-readiest first and lowest id of those tied. `next` is those two composed --- advance to the moment
-the soonest actor can act, then take it --- which is the turn-based policy rather than anything the
-ordering requires. A scheme advancing on the wall clock converts elapsed time to units, calls
-`advance`, and never calls `next`, since skipping past the wait is exactly what it must not do.
+`advance(units)` grants every actor the energy its speed earns over the units. `ready` is the actor that can act now,
+the one with the most energy first and the lowest id among ties, or `nullid`. `next` advances to the moment the
+soonest actor can act and returns it, which is the turn-based policy; a real-time caller converts elapsed time to units
+and calls `advance`.
 
-The distinction is visible in what banking looks like: grant four units to actors of speed 100 and
-25 and the fast one banks four turns' worth while the slow one banks its first, so it stays the
-readier of the two. `next` would have stopped at the first.
+Granting four units to actors of speed 100 and 25 gives the fast one four actions' worth of energy while the slow one
+reaches its first; `next` would have stopped at the first.
 
 ### Clock
 
-Advancing a `World` through its `Scheduler`: grant time, then run whoever that made ready. Which
-grant is used is the whole of what makes a world turn-based or real time, and everything after the
-grant is identical either way. `grant_turn` skips to the moment the soonest actor can act;
-`grant(units)` credits what those units earn, leaving actors possibly still short.
+Advances a `World` through its `Scheduler`: grants time, then runs each actor that became ready. `grant_turn` grants
+enough for the soonest actor to become ready; `grant(units)` grants units, after which no actor need be ready.
 
-A `Driver` decides which, and `advance` is what a host calls. Turn-based skips ahead and goes again,
-so it returns only when a decision is wanted or nobody will ever act. Real time grants what the
-elapsed time earned and returns whether or not that made anyone ready, skipping the wait being
-exactly what it must not do --- and it ignores the elapsed time a turn-based driver is handed, which
-is why a host passes one without having to check which it is running.
+The `Driver` chooses between them in `advance`, which a host calls. Turn-based skips ahead and repeats, returning only
+when the controlled actor needs a command or no actor will ever act. Real time grants what the elapsed time earns and
+returns whether or not an actor became ready. Turn-based ignores the elapsed time, so a host passes it either way.
 
-`units_per_second` converts wall clock to units, one unit being one action for an actor of speed
-`action_cost`. The clock keeps the fractional remainder, so a run of frames each too short to earn a
-whole unit still advances rather than every one of them rounding away to nothing --- which is the
-accumulation every host would otherwise have to get right separately.
+`units_per_second` converts real time to units, one unit being one action for an actor of speed `action_cost`. The
+clock keeps the fraction of a unit, so frames too short to earn one still add up. `Session::populate` calls
+`set_driver`, so the driver belongs to the zone.
 
-`set_driver` is called by `Session::populate`, so the choice belongs to the zone rather than to the
-host.
+`run(events, actor_controlled)` runs each ready actor on its `Intent`, charging the action's cost, and returns the
+controlled actor once it is ready with nothing to do, or `nullid` when no actor is ready. Any other actor with nothing
+to do waits.
 
-`run(events, actor_controlled)` runs each ready actor on whatever its `Intent` asks for, charging
-what the action cost, and returns the controlled actor once it is up asking for nothing. `nullid`
-means none is ready at all.
+A move toward the facing direction asked for is one faced step. A facing direction other than the movement direction
+is a separate action, the turn taken first.
 
-Asked to face the way it is going, an actor cannot do one without the other, so the two are a single
-faced step. Asked to face elsewhere while moving --- a strafe that turns --- they are two actions: the
-turn is taken first and the movement is still owed, one action each.
+Turn-based clears the intent after one action, so a key pressed once moves once. Real time keeps it, so a held
+direction keeps the actor moving and a host writes an intent only when the input changes. Both clear an intent whose
+action achieved nothing, which ends the pass; such an action costs no time, so walking into a wall is free.
 
-What becomes of the intent afterwards is the driver's. Turn-based drops what it took --- one action to
-an intent, so a key pressed once moves once. Real time keeps it, so a direction held goes on
-producing steps as the actor earns them and a host writes an intent when the input changes rather
-than every frame.
-
-Either driver drops an intent whose action achieved nothing. That is what bounds a pass: an actor
-held against a wall under real time would otherwise be asked the same impossible step for as long as
-it had the time to try.
-
-Real time over a discrete layout makes the *timing* continuous, not the space. An actor still steps
-a whole cell at a time, and how often is what the wall clock decides --- which is the Dungeon Master
-arrangement rather than a compromise on the way to one. Sub-cell movement is a continuous layout,
-and that is Phase 7.
-
-An action that achieved nothing costs no time, since achieving nothing does not end a turn --- walking
-into a wall is free. What it asked for is spent either way, so the next pass finds nothing asked for
-rather than trying the same action again.
-
-Which actor is controlled is the whole of what tells one apart from the rest: it hands control out
-when it has nothing to do, and every other actor in that position waits instead. That is what keeps
-an actor with no intent from stopping the turn order, and it is an explicit binding rather than an
-actor recognised by returning nothing.
-
-This is the simulation running rather than a view of it, so a host supplies only the decision it
-alone can make and none of the ordering. That matters for more than tidiness --- before it existed,
-both hosts advanced the world only as a side effect of a keypress, and a non-player actor had
-nowhere to act at all.
+Real time over a discrete layout makes the timing continuous and leaves the space discrete: an actor moves a whole cell
+at a time, as often as the real time earns. Movement within a cell is a continuous layout.
 
 ### Intent
 
-What an actor is trying to do, held on the actor rather than asked for when it comes to act. A
-`Command` is an edge and an `Intent` is a level: "north was pressed" against "north is where I am
-trying to go".
+What an actor is trying to do, a component on the actor that persists until changed. `direction` is the movement
+asked for and `facing` the facing direction asked for, each zero when none is, and `distance` is how far. Both are
+absolute directions in world space, which a discrete layout snaps to its own. `Intent` registers no reflection, so it
+is not serialized.
 
-`direction` is the movement asked for and `facing` the facing asked for, both zero when nothing is,
-and `distance` is how far --- one action's worth in turn-based, and what a real-time driver sets per
-tick. Both parts are directions in world space, absolute rather than relative, which the layout
-snaps where it is discrete, so one representation works for a discrete layout and a continuous one
-alike.
+### ai
 
-Being a component it belongs to the entity, so it survives unload and migration with everything else
-the entity has. That is what an actor pursuing a goal across many turns needs and what a decision
-asked for per action has nowhere to put. It registers no reflection, so it does not serialise --- an
-action half issued is not state worth restoring.
+`think` sets an `Intent` for every actor with a behavior except the controlled one. It gathers the entities first, as
+setting a component during iteration can move an entity to another table.
 
-### Deciding for itself
+`Pursue` is the one behavior: move toward a target while it is visible, then toward where it was last seen, stopping
+there if it finds nothing. The position last seen is stored on the entity, so it unloads, migrates and saves with it.
 
-`think` writes an `Intent` for everything but the entity a host controls. An actor with no
-behaviour is left alone, and one that asks for nothing waits rather than stopping the turn order.
-It gathers the entities before writing any, a component set during iteration being able to move the
-entity it belongs to.
-
-`Pursue` is the one behaviour: go toward a target while it can be seen, toward where it was last
-seen when it cannot, and give that up on arriving there having found nothing. Where it was last seen
-is what makes it more than a reaction, and it lives on the entity, so it unloads, migrates and
-saves with everything else the entity has --- which a decision asked for per action would have
-nowhere to keep. That is the argument `Intent` was introduced on, demonstrated rather than asserted.
-
-The step taken is the reachable neighbour that closes the most distance, so a wall is gone around
-rather than walked into, and none is taken when none is nearer. `neighbors` returns in a fixed
-order, so ties break the same way on every run. It consults topology only, so a pursuer walks up to
-whatever occupies the cell ahead and is stopped there by `World::move` rather than by having avoided
-it.
+The move taken is to the reachable neighbor nearest the goal, if one is nearer than the current cell. `neighbors`
+returns placements in a fixed order, so ties break the same way every run. Only topology is consulted, so a pursuer
+is stopped by an occupied cell in `World::move`.
 
 ### Session
 
-A loaded world and what is needed to run it: a `World`, a `Scheduler`, a `Clock`, the entity a host
-controls, and that entity's pending one-shot command. A host is left with input mapping and drawing.
+A loaded world with a `World`, a `Scheduler`, a `Clock`, the entity a host controls, and that entity's pending one-shot
+command. A host supplies input mapping and drawing.
 
-**A zone is constructed whole when it is encountered**, geometry and every content of it, and
-`create` is that: it takes a `Generator` and builds the lot. The zone files are snapshots of part of
-the same construction, taken where only geometry existed, so `load` is the narrower entry rather than
-the general one. `populate` is the third --- geometry already built, populated as a constructed zone
-is --- and it is what the other two are written in terms of, so no route can drift from another.
+`create(generator)` generates a zone and populates it. `load(filepath)` loads a zone file and populates it.
+`populate(layout, doors, notation)` populates a layout built elsewhere; the other two call it.
 
-`Generator` is an interface here and an implementation wherever a generator was chosen: `stratum_sim`
-links `quetzal_common`, `quetzal_stratum_format` and flecs and nothing else, reading zone files
-through `stratum_format` rather than depending on either generator. Which one runs decides which
-parameters apply, so the concrete generator declares its own. It returns the geometry, reports the
-walls each door is attached to exactly as the loader does, and gives the notation a constructed zone
-has no file to supply.
-`placement_plan.md` gives the shape.
+`Generator` is an interface in `stratum_sim`, implemented where a generator is chosen, so `stratum_sim` depends on no
+generator. Each implementation declares its own parameters. `generate` returns the geometry and reports the walls of
+each door, as the loader does, and `notation` returns the notation (`placement_plan.md`).
 
-`populate` builds the doors, places the controlled entity in the lowest open cell facing east, and
-sets the clock's driver, throwing `std::runtime_error` where the layout has no open cell; `load`
-throws the same reporting the file, which is the context it has and `populate` does not. The scan for a
-cell returns `std::optional<GridPosition>`, an empty grid having no cell to name rather than a
-reserved one. Where the player starts is asked in cells, so this is one of the callers that reaches
-past `Session::layout`'s interface with `layout_as`. The driver arrives here rather than from a host
-so that turn-based and real time are a property of the zone; it will come from the zone's own data
-once zones have any.
+`populate` builds the world aside and moves it in only on success, so a failure leaves the previous zone intact; the
+clock refers to the session's members, which stay valid across the move. It creates the doors, places the controlled
+entity at the first open cell in row order facing east, adds one pursuer at the last open cell, and sets the clock's
+driver. It throws `std::runtime_error` where the layout has no open cell; `load` rethrows it with the file path.
 
-`create_player` and `create_monsters` are what put a zone's contents in it --- the player in the lowest
-open cell, and one pursuer in the highest so that something other than the host decides for itself.
-They are separate because they are where a zone's starting contents go when its file specifies them:
-selection and placement over a zone's contents, rather than the two fixed entities they are today.
+A session has one zone and its player, created together. Stage 7 of `work_plan.md` covers its lifecycle.
 
-The lifecycle around these entries is in progress rather than built. A session constructs one zone
-and its player together and has no route to a second, so the player cannot outlive the zone it was
-made in and there is nothing to clear on a new game. Stage 7 of `work_plan.md` states what it
-becomes.
+`set_intent` sets the controlled entity's movement and facing direction. `submit` leaves a one-shot command for it,
+taken by the next `advance`.
 
-`advance` calls `think` before the clock reads what anyone is asking for, so everything decides
-before anything acts. One decision per call: an actor fast enough to act twice between calls acts
-twice on the one decision it made, which is where that hook moves if it ever matters. It builds
-alongside and moves in only once the whole of it has succeeded, so a failure leaves the previous zone
-intact rather than half of a new one. The clock's references are to the session's own members
-rather than to what is moved from, so they survive that.
-
-`set_intent` specifies what the controlled entity is trying to do, movement and facing being kept on the
-entity until something changes them. `submit` leaves a one-shot action for it instead, interacting
-being an edge rather than a level.
-
-`advance` hands out time and runs, returning the controlled entity when it needs a decision that was
-not available. `nullid` means no actor will ever be ready rather than none being ready now, passing
-time being what the grant already tried. A pending one-shot is applied at that point, an `Intent`
-limited to movement and facing, which is why the session rather than the clock owns it --- and
-the pass that follows is given no elapsed time, a real-time driver otherwise being paid twice for
-one frame.
-
-The elapsed time is what a real-time host measured since it last called. A turn-based host passes
-none, and both hosts do exactly that today: neither specifies a driver, and neither would change if the
-zone it loaded specified the other.
-
-Both hosts had their own copy of all of this. What remains different between them is only what
-surrounds `advance`.
+`advance(events, elapsed)` calls `think`, then advances the clock, returning the controlled entity when it needs a
+command, or `nullid` when no actor will ever be ready. A pending command is applied when the controlled entity is
+ready, and the clock then advances again with no elapsed time, as that frame's time is already granted. `elapsed` is
+the real time since the last call; a turn-based host omits it.
 
 ### Commands and events
 
-`Command` and `Event` are type-erased over `std::any`, so a module can introduce either without the
-core being compiled against the type. A command also references the entity it acts for. `CommandQueue` and
-`EventQueue` are deques drained in submission and occurrence order.
+`Command` and `Event` are type erased over `std::any`, so a module can add either. A command has the id of the entity
+it acts for. `CommandQueue` and `EventQueue` are deques in submission and occurrence order.
 
-The vocabulary is `Step` (a direction and distance, a zero direction meaning along the actor's own
-facing, and `face` to turn to that direction as part of the same action rather than at the cost of
-one of its own), `TurnTo` (the facing asked for, absolute rather than relative) and `Interact`, which asks
-the layout what is `ahead` and acts on that. They produce `Moved`, `Blocked`, `Turned` and
-`Interacted`.
+The commands are `Step` (a direction, zero for the actor's facing direction; a distance; and `face`, to turn toward
+the direction within the same action), `TurnTo` (an absolute facing direction) and `Interact`, which acts on the wall
+`ahead`. They produce `Moved`, `Blocked`, `Turned` and `Interacted` events.
 
-`Step` and `TurnTo` are what the clock builds from an actor's `Intent` rather than anything a host
-sends. What a host still sends as a command is the one-shot half of the vocabulary --- `Interact` ---
-which is why `Command` narrowed rather than disappearing when intent arrived.
+The clock builds `Step` and `TurnTo` from an actor's `Intent`. A host sends `Interact` as a command.
 
-Both movement and facing are therefore direction vectors, which is one representation for a discrete
-layout and a continuous one alike: the discrete case snaps and the continuous case will not. A
-`TurnTo` asking for the facing already held costs nothing and reports nothing, as a `Step` into a
-wall does.
+`apply(world, command, events)` returns the command's cost, zero when it did nothing; the `CommandQueue` overload
+drains the queue. A move costs in proportion to the distance traveled against `step_distance`, so a move stopped short
+is charged for the distance reached and a fraction of a cell costs a fraction of an action. A turn and an interaction
+cost one action; a `TurnTo` to the current facing direction and an `Interact` with no wall ahead cost nothing.
 
-`apply(World&, const Command&, EventQueue&)` returns the energy the command cost, zero when nothing
-happened; the `CommandQueue` overload drains the queue.
+## Zone file format
 
-What a move costs is what it covered rather than a flat action: `step_distance` is what one
-action of movement is worth, so crossing one cell costs one action and crossing four costs four, and
-a move stopped short is charged for the distance actually reached. That is what makes a cheap
-per-tick step possible, a fraction of a step costing a fraction of an action. Turning and
-interacting cost one action, the result they derive from being whether they happened at all: a
-`TurnTo` asking for the facing already held and an `Interact` with nothing in front both cost nothing.
+`quetzal::stratum_format` reads and writes the JSON zone file `discrete_layout.md` specifies, version `0.4`. It
+depends on `quetzal_common` and nlohmann/json. `load_layout` builds a layout from what it reads, and both generators
+write through it.
 
-## Level file format
+`grid.hpp` has the geometry the rows define --- `on_grid`, `floor_cell`, `floor_door_cell`, `stair_cell`, `has_wall`,
+`room_cells` and `door_walls` --- used both by `read` to validate a file and by `load_layout` to build a layout.
 
-`quetzal::stratum_format` reads and writes the JSON zone file `discrete_layout.md` specifies, version
-`0.4`. It depends on `quetzal_common` and nlohmann/json and on neither `stratum_sim` nor `stratum_view`.
-`load_layout` builds a layout from what it reads, and both generators write through it.
+`references.hpp` finds and translates the references a file writes, `{ "entity": id }`: `make_reference` writes one,
+`reference_id` is the id where a value is one, `references` is every reference within an object of file components in
+the order written, and `translate_references` replaces each by what a function returns for it.
 
-`grid.hpp` has the geometry the rows determine --- `floor_cell`, `floor_door_cell`, `stair_cell`,
-`has_wall`, `room_cells` and `door_walls` --- which `read` validates a file with and `load_layout`
-builds a layout from.
+`Document` is the file as data structures. The geometry is decoded into types --- the grid and its rows, expanded from
+runs, the barriers, each room's perimeter or `RoomLocator`, wall addresses, each flat's heights --- and so are each
+entity's `site` and `parent` file components, which the reader validates. The generator and every other file
+component are `values_type`, nlohmann's `ordered_json`, as the file wrote them. A room is kept as the file identified
+it. `Notation` and its names are in `Notation.hpp` of their own, which is all `stratum_sim`'s headers include from the
+format, so nlohmann reaches only the files that read or write a document. A saved zone's `zone.id` is `Document::zone_id`, which makes every id in the file persistent; it is empty in a zone
+template.
 
-`references.hpp` finds and translates the references a file writes, `{ "entity": id }`: `reference_id`
-is the id where a value is one, `references` every reference within an object of file components in the
-order they are written, and `translate_references` replaces each by what a function returns for it.
-Neither needs to know what a file component means.
+`read` validates the file, throwing `std::runtime_error` with the path within the document and what was wrong there.
+Beyond each section's structure it checks what the rows determine: in the wall notation, a wall between every floor
+cell and a blank cell, a stair cell or the edge of the grid; a wall in the grid at every wall address, whose cell is a
+floor/door cell; a room's `RoomLocator` cell on a floor cell; a perimeter within the grid and along cell edges that
+never meets itself, each of its cell edges a wall toward a floor/door cell or a virtual wall between two; and no cell
+in two rooms, compared only for rooms whose bounding boxes intersect.
 
-`Document` is the file in data structures. The geometry is decoded into types --- the grid and its rows,
-expanded from runs, the barriers, each room's perimeter or identifying cell, wall addresses, each flat's
-height at its three levels --- and so is each entity's `site` and `parent`, being structure the reader
-checks. Everything else is `values_type`, nlohmann's `ordered_json`, exactly as the file wrote it: the
-generator and every file component. Nothing is resolved into it: a room is kept as the file identified
-it, and no inherited component is followed down its chain. A saved zone's `zone.id` is `Document::zone_id`,
-and its presence is what makes every id in the file persistent.
+It then checks the entities: ids whole, non-negative and unique; every entity sited on the geometry, a child or a
+parent, with an entity sited on the geometry in every hierarchy, a parent for every entity sited on one, and no
+`parent` leading back to its own entity; and, in a template, every reference an entity's id. A saved zone's references
+may refer to another zone and are not checked. Each door glyph requires one entity with a child sited on each wall of
+its doorway and on no other wall, and each stair glyph one entity with a `relocator` sited on a wall its open neighbors
+have toward it. `layout.components.access_points` must refer to at least one entity with a `relocator` sited on the
+open side of a cell written `<` or `>`. Keys the format does not define are not tracked.
 
-`read` validates the geometry before it returns, and throws `std::runtime_error` giving the path within
-the document and what was wrong there. Beyond each section's structure it checks what the rows
-determine: in the wall notation, a wall between every floor cell and a blank cell, a stair cell or the
-edge of the grid; a wall in the grid at every wall address, whose cell is a floor or door cell, a
-doorway block's walls toward floor being on the floor's side and a stair cell, being a block, having
-none; a room's identifying cell on a floor cell; a perimeter within the grid and along cell edges that
-never meets itself, each of its cell edges a wall facing a floor/door cell on either side or a virtual
-wall between two such cells; and no cell in two rooms. For that last it finds each room's cells --- a fill
-from its cell that walls, doors and barriers stop, or the floor/door cells within the perimeter, row by
-row --- and a box bounding them, compares cells only for rooms whose boxes intersect, and keeps none of it.
-
-It then checks the entities: ids whole, non-negative and unique; every entity sited on the geometry, a
-child or a parent, with an entity sited on the geometry in every hierarchy of parents and children, a
-parent for every entity sited on one, and no `parent` leading back to the entity it started from; and,
-in a template, every reference an entity's id.
-A saved zone's references may point into another zone and are not checked. Each door glyph requires one
-entity with a child sited on each wall of its doorway and on no wall outside it, and each stair glyph
-one entity with a `relocator` sited on a wall its open neighbors present to it and no second one.
-Every file must also have its access points: `layout.components.access_points` refers to at least one
-entity with a `relocator`, sited on the open side of a cell written `<`, the entrance glyph of any
-non-local transporter, or `>`, a staircase leading down as a tower entered from below has, whatever the
-entity's type, and a file without one is rejected however it was made. The list does not choose among
-them; a caller arriving picks by what it arrives through. Keys the format does not define are not tracked.
-
-`write` emits the written form: two-space indentation, a grid row per line, an entry per line with a
-flat's per-room and per-cell entries each on a line of its own, and floats as the shortest digits that
-read back as the same value, without an exponent. Top-level sections follow the format's key table;
-within an entry, what it addresses or how it is identified comes first, then the rest in its section's
-table order, and content keys stay in the order they were read. An entity's `parent` and `site` go
-back into its `components` ahead of the file components that were passed through. In
-runs, a count is written for a run of three glyphs or more. A document `read` produces
-is written back equivalent to it.
+`write` emits the written form: two-space indentation, a grid row per line, an entry per line with a flat's per-room
+and per-cell entries each on a line of its own, and floats as the shortest digits that read back as the same value,
+without an exponent. Top-level sections follow the format's key table; within an entry, its address or identification
+comes first, then the rest in its section's table order, and file components stay in the order read. An entity's
+`parent` and `site` are written into its `components` ahead of the rest. In runs, a count is written for a run of three
+glyphs or more. A document `read` produces is written back equivalent to it.
 
 ## Presentation
 
-Engine-neutral. It depends on `stratum_sim` and on no output device at all.
+Engine-neutral, depending on `stratum_sim` and no output device.
 
-Two stages, and no interface over them. A **reduction** takes a world and a zone to a
-`Buffer<Place>` --- `cells` and `lattice` --- and a **mapping** takes that to a `Buffer<T>` a device can
-emit, which is `render` and `render_lattice`. The Godot tile view consumes a reduction and stops;
-the terminal consumes a mapping. Nothing dispatches: neither host owns a view and asks it to draw,
-each being written against the one it needs, so a `View` interface would be a vtable with no call
-site. The consumer that would settle whether `Buffer<T>` is the shared shape is the first-person 3D
-view, which produces mesh instances rather than a buffer.
+A **reduction** takes a world and a zone to a `Buffer<Place>` --- `cells` and `lattice` --- and a **mapping** takes
+that to a `Buffer<T>` a device can emit --- `render` and `render_lattice`. The Godot tile view uses a reduction; the
+terminal uses a mapping. There is no view interface over them.
 
-`cells(world, zone)` reduces a zone to what is at each cell --- `PlaceType::Solid`, `Floor` or
-`Door` --- and that reduction is as far as the simulation is taken before any view is involved. What a
-consumer turns it into is its own business: `Glyphs` is a table taking a place to a character for
-the terminal, and the Godot tile view maps the same place types to tiles.
+`cells.hpp` declares the reductions, `ascii.hpp` the terminal's mapping, and `read_glyphs.hpp` the reader that fills a
+mapping from a file. `Buffer.hpp` defines the grid both produce.
 
-The files divide on that line. `cells.hpp` declares the reductions and is what a view includes to get
-one; `ascii.hpp` declares only the terminal's mapping, so the tile view has no reason to include it,
-and `read_glyphs.hpp` only the reader that fills one of those mappings from a file. `Buffer.hpp`
-is under both, defining the grid a reduction and a mapping each produce.
+A position reduces to a `Place`: a `PlaceType`, its `State`, its `mask`, and whether an actor is on it. `PlaceType`
+(`None`, `Solid`, `Floor`, `Wall`, `Door`) is the fixed structure, whatever its state, so a door that can be shut,
+locked or concealed is one type. `None` is an edge with no wall or a corner no wall line reaches, which only `lattice`
+produces. `actor` is a flag over the structure, so the floor under an actor is still there to draw.
 
-It is worth being exact about what `cells` is, because it looks more general than it is. It is the
-reduction one cell per grid position offers and no more: what lies on the edges between them is
-not in it, so a wall or a door between two open cells reduces to `Floor` on both sides.
+`State` is a set of flags named after the component data they are read from: `Open` from `Openable::open`,
+`Crossable` from the `Crossable` tag, `Concealed` from a `Concealed` door facing not revealed. Only what changes the
+drawing is a state. `applies(type, state)` is whether a place type can be in a state. The reduction is the only code
+that reads a component on behalf of a view.
 
-`lattice(world, zone)` is the reduction that produces them, onto the same shape the wall format
-writes: `(2W+1)` by `(2H+1)`, cell `(i, j)` at `(2i+1, 2j+1)`, the wall west of it at `(2i, 2j+1)`,
-the wall south of it at `(2i+1, 2j)`, corners at the even positions in both. It exists alongside
-`cells` rather than replacing it --- the tile view has no use for edges yet, and the two are not the
-same picture at a different scale.
+`cells(world, zone)` is one `Place` per grid cell: `Solid`, `Floor`, or `Door` for a door occupying a cell, as a
+doorway does in the block notation. A wall or door on an edge between two cells has no position there, so it reduces
+to `Floor` on both sides.
 
-A position reduces to a `Place` --- a `PlaceType`, the `State` it is in, the `Mask` of what reaches
-it, and whether an actor stands on it. `PlaceType` is one entry per type of structure and none per state
-it can be in, so a door that can be shut, locked or concealed stays one `PlaceType` and nothing has
-to enumerate the cross product. `cells` emits `Solid`, `Floor` and the `Door` that occupies a cell of
-its own; `lattice` emits those at cell positions, `Wall` at the others, and `Door` at whichever of
-the two the door is.
+`lattice(world, zone)` reduces onto the wall notation's lattice: `(2W+1)` by `(2H+1)`, cell `(i, j)` at
+`(2i+1, 2j+1)`, the wall west of it at `(2i, 2j+1)`, the wall south of it at `(2i+1, 2j)`, and corners at the even
+positions in both. It emits cells, `Wall` or `Door` on edges, and `Wall` at a corner any of whose four edges has a wall
+or a door.
 
-`PlaceType` covers only fixed structure. An actor is not one of its values but a flag beside them,
-because an actor is not a kind of place --- it is on one --- and giving it a value of its own overwrote
-the floor, the state and the mask underneath, which left a tile view with nothing to draw beneath an
-actor. `Place::actor` layers instead, and a glyph line asks for it the way it asks for a state:
-`floor actor '@'` matches an actor on floor, and a line that does not name `actor` matches whether or
-not one is there. An `actor` line and a one-state line are equally specific, so the actor lines come
-first in both shipped sets, which is what makes an actor in an open doorway draw as the actor.
-`None` is nothing at all, which only `lattice` produces: an edge or corner with no wall on it and an
-open cell beside it, such as the corner interior to a room. `cells` never emits it, assigning every
-position `Solid`, `Floor` or `Door`.
+A door occupies the cell beyond it when that cell is open and has no wall back toward it, as in a doorway block, and
+is then placed once in that cell; otherwise it is on the edge. Each wall is visited from the open cell it faces, which
+reaches every wall.
 
-A door has a position in `cells` only where the door *is* a cell, which is what a doorway is in the
-block format. A door on an edge has nowhere to go there, so the wall format's doors are what a glyph
-per cell cannot show --- the same rule that decides where the lattice draws one, asked once and shared
-by both reductions.
+`mask` is the set of directions in which the wall line continues from a position: a direction is set where a wall or a
+door is on the edge or corner that way. A cell is never part of a wall line, so a door occupying one is a gap in it.
+There are sixteen masks; a glyph set with fewer glyphs maps several of them to one.
 
-`State` is a set of flags named after the component data they are read from --- `open` from
-`Openable::open`, `crossable` from the `Crossable` tag, `concealed` from `Concealed`, whose `revealed`
-field is its inverse. Nothing is coined, and only what changes the drawing belongs there: a lock
-enters when a locked door is drawn differently and not before. The reduction is the one place either
-side is aware of the other, nothing downstream of it seeing a component. `applies(type, state)` reports
-whether a state can apply to a type at all, which is what rejects a glyph set specifying one that
-never can rather than leaving it a line that never matches.
+A position is `Solid` when every cell it touches is closed --- a cell touches itself, an edge the two it lies between,
+a corner the four meeting at it --- and positions beyond the grid count as closed. A wall faces open floor, so none is
+at a solid position, which the reduction asserts.
 
-Every flag in `State` comes from a component, so nothing about the shape of the map is in it. The
-two absences are told apart by the type instead: `Solid` where every cell the position touches is
-closed, read from the layout, and `None` where one of them is open and nothing is on the position.
+Both reductions set the actor flags last, from `each_actor_cell`.
 
-Where the door goes is derived rather than told. A door the cell beyond cannot see back across is
-one hanging on a doorway block's ring, so the door is that cell and is placed in it, once however
-many ways in it has, leaving its faces as the openings they are. A door both cells see is an edge
-between them and is drawn on the edge. That is one rule reading the two formats apart from their
-own geometry, without either being mentioned.
+`Buffer<T>` is the grid, with `extent`, `contains`, `at`, `set` and `fill`, row 0 lowest as in the simulation. Its
+position and extent are `stratum_view`'s discrete point and vector types, the same as the simulation's grid. A private
+`offset` converts a position to a subscript and asserts the bounds. `Console` is `Buffer<char>`, and `Cells` and
+`Lattice` are both `Buffer<Place>`. `to_string`, for characters only, writes the highest row first.
 
-A corner is `Wall` where any of the four edges touching it has a wall or a door on it. That is a
-derivation rather than a second store --- the walls determine it, which is why `load_layout` reads
-none --- but it is structure and not decoration: a first-person view puts a column on the joint, and
-what each view makes of a corner is its own.
+`difference(a, b)` is the runs in which `b` differs from `a`, each a `Span` of a position and a count along its row,
+lowest row first; empty when they are the same, and the whole of `b` when they differ in size.
 
-`Mask` is what reaches a position, one bit per direction, set where a wall or a door lies on the
-edge or corner that way. A cell is never part of a wall line, so a door occupying one is a gap in
-the line rather than a continuation of it, and an edge is left with only the corners at its own two
-ends --- which is what tells a vertical wall from a horizontal one without asking whether the position
-is a cell, an edge or a corner. Sixteen patterns is the whole of a box drawing set; a set with less
-to express maps many of them onto one glyph, and that duplication is the shape of the set rather
-than of the key.
+`render` takes cells to a `Console`, and an overload reduces a world's zone first. `render_lattice` does the same for
+the lattice, named apart because `Cells` and `Lattice` are the same type. A mapping is one lookup per position.
 
-`Buffer<T>` is the grid those live in, `at`/`set`/`fill`, row 0 lowest to match the simulation. A
-position is a `point_type` and the extent a `vector_type`, the same discrete types the simulation
-addresses its grid with, so a `GridMapping`'s extent reaches a buffer whole and a grid position
-indexes one without conversion. A single private `offset` is where a position becomes a subscript,
-and it is the only place the bounds are asserted.
-`Console` is `Buffer<char>`, and `Cells` and `Lattice` are both `Buffer<Place>`, named apart for what
-they are indexed by rather than for any difference in type; the payload is a parameter because a
-terminal needs characters and a tile view has no use for them. `to_string` is constrained to the
-character case, there being nothing to write for a cell without one, and it emits the
-highest row first so the result reads as a map.
+A `Glyph` is one line of a glyph set: a place type, the state flags it requires, optionally a mask, whether it
+requires an actor, and the character drawn. `Glyphs` returns the character of the most specific matching line, where
+each state flag, a mask and an actor count one; the first among equals; and a space where none matches. A set with a
+`door open` line draws an open door apart from a shut one, and a set with only `door` draws both alike.
 
-`difference(a, b)` returns the runs in which `b` differs from `a`, as a `Span` of a position and a
-count of cells along the row from it, in row
-order lowest first. It is empty when the two are the same, and the whole of `b` when they differ in
-size --- which a caller repainting a device takes as its cue to clear first. One implementation
-handles any payload, so a tile view differences places exactly as the terminal differences characters.
+`cell_glyphs()` covers the three types a cell can be, a door shut and open, and an actor on each type it can be on;
+its actor lines come first, so an actor in an open doorway is drawn. `lattice_glyphs()` draws in the wall notation's
+glyphs, floor a space, with a line for each of the sixteen wall masks.
 
-`render` takes cells to a `Console`, and an overload composes the two steps for a caller that needs
-characters from a world directly.
-
-`render_lattice` is the same for the lattice, with a name of its own rather than an overload because
-`Cells` and `Lattice` are the same type.
-
-Both reductions place actors last, through one `each_actor_cell`, so that an actor takes the cell it
-occupies rather than being drawn over by the floor under it.
-
-An edge is asked of the side that faces it, which for a map is the open cell: a wall exists only on
-the side facing open space, so a closed cell has nothing to report. Asking a fixed side instead is
-what left every wall with its closed cell to the east or north undrawn.
-
-Where both cells are open the edge has a wall on each side, and a file writes the two as one
-character --- one character per edge is all the wall notation can express. So either will do, and a pair made
-to differ from code, a one-way door, is the case a single `PlaceType` cannot express.
-
-`Solid` is decided in the reduction and is one rule over every position: a position is solid when
-every cell it touches is closed --- a cell touches itself, an edge the two it lies between, a corner
-the four that meet at it. A position off the grid touches no open cell, so the outer boundary comes
-out solid without anything beyond the grid being treated as a cell. A wall faces open floor on the
-side it belongs to, so none is ever at a solid position, and the reduction asserts it rather than
-deciding what to do about it.
-
-Rendering is then one lookup per position and no rule of its own. What a position is, what state it
-is in and what reaches it are all in the reduction, so cells, edges and corners resolve through the
-same table rather than through a branch on which of the three a position is.
-
-A `Glyph` is one line of that table: a type, the state flags it asks for, optionally a mask, and the
-character to draw. `Glyphs` keeps the lines and returns the most specific one matching --- a
-named state flag and a named mask counting one each, the first of them where two are equally
-specific. So a set naming `door open` draws an open door apart, and a set naming only `door` draws
-both alike, without the renderer being aware which it has. That is what makes a set's expressive
-range a property of the set.
-
-`cell_glyphs()` is six lines: the three types a cell can be, a door shut and open, and an actor
-over each of the two types it can stand on.
-`lattice_glyphs()` draws the lattice the wall notation is written on, floor a space rather than a `.`
-and a joint at each corner walls reach. `stratum_view_test` takes a rendered wall notation zone back
-to the notation's glyphs and compares it with the file's rows, so floor, walls, doors and solid agree
-with `catagen`'s writer without either depending on the other. Its wall is sixteen lines, ASCII having
-three glyphs for the joints the mask tells apart.
-
-`read_glyphs` reads a set from a file, `assets/glyphs/` shipping the two the code builds in. A line
-is a type, the state names it asks for in any order, `mask=` and the directions it asks for, then
-the character in single quotes --- quoted so that a space is a glyph like any other, with `\\` and
-`\'` the two escapes. Naming no state matches whatever state a place is in, and leaving out `mask=`
-matches whatever reaches it, `mask=` alone asking for nothing reaching it at all. A line beginning
-with `#` is a comment, a glyph never beginning one. It throws reporting the line, a set being written
-by hand, and a state a type can never be in is one of the errors it throws on. The two shipped files
-are compared against the built-in sets, so neither can drift from the other.
+`read_glyphs` reads a glyph set from a file; `assets/glyphs/` has the two built-in sets. The first line gives the
+format and version. A glyph line is a place type, the states it requires in any order, `actor` if it requires an
+actor, `mask=` and the directions it requires, then the character in single quotes, with `\\` and `\'` the escapes.
+Omitting the states, `actor` or `mask=` matches any; `mask=` with no directions requires that no wall line reach the
+position. A line beginning with `#` is a comment. It throws reporting the line, including for a state its type can
+never be in. The shipped files are compared against the built-in sets.
 
 ## Terminal host
 
-`Terminal` writes a `Console` to a character terminal, emitting only the cells that changed since
-the last frame. The escapes are CUP, ED and EL of ECMA-48, plus three DEC private modes: DECTCEM to
-hide the cursor, the alternate screen buffer, and XTWINOPS to resize.
+`Terminal` writes a `Console` to a character terminal, emitting only the cells changed since the last frame. It uses
+the ECMA-48 escapes CUP, ED and EL, and the DEC private modes DECTCEM, to hide the cursor, and the alternate screen
+buffer, with the xterm extension XTWINOPS to resize.
 
-- It enters the alternate screen buffer on construction and leaves it on destruction, so the
-  shell's own screen and scrollback come back untouched.
-- On Windows it sets `ENABLE_VIRTUAL_TERMINAL_PROCESSING` explicitly rather than relying on the
-  host's default, which conhost does not turn on.
-- `terminal_size` reads the text area and `set_terminal_size` asks for one, both in columns by rows
-  as every other extent is. The request is `CSI 8 ; rows ; columns t`, honoured by Windows Terminal
-  and, unlike the Windows console API, leaving the scrollback intact; the escape names height first,
-  so the order is reversed there rather than in the type.
-- The window is grown on the first frame where the frame would not otherwise fit, and never shrunk.
-  The original size is restored on exit, but only while the window is still the size it was put at,
-  so a resize by hand is left alone.
-- The pseudoconsole reports a new size before the terminal has finished resizing. A settling delay
-  therefore precedes the first paint and follows a detected resize; painting too early scrolls the
-  frame off the top.
-- A frame is the map rows, a blank, the status and the help. The help line is not newline
-  terminated, so a frame exactly the height of the window does not scroll it.
-- The map rows are `render_lattice`, so the host draws what lies between cells as well as what
-  occupies them, with `lattice_glyphs` --- open is a space, a room's interior being what the walls
-  around it enclose rather than something to fill. That makes a frame twice the grid's size plus
-  one in each direction, which is what the window growing below is sized against.
-- A frame that will not fit is replaced by the terminal's size and the size needed.
+- It enters the alternate screen buffer on construction and leaves it on destruction, so the shell's screen and
+  scrollback are untouched.
+- On Windows it enables `ENABLE_VIRTUAL_TERMINAL_PROCESSING`, which conhost does not by default.
+- `terminal_size` reads the text area and `set_terminal_size` requests one, in columns by rows. The request is
+  `CSI 8 ; rows ; columns t`, which Windows Terminal honors and which keeps the scrollback.
+- The window is grown on the first frame where the frame would not fit, and never shrunk. The original size is
+  restored on exit only while the window is still the size it was set to, so a manual resize is kept.
+- The pseudoconsole reports a new size before the terminal has resized, so a settling delay precedes the first paint
+  and follows a detected resize.
+- A frame is the map rows, a blank line, the status and the help. The help line has no newline, so a frame the
+  height of the window does not scroll it.
+- A frame that does not fit is replaced by the terminal's size and the size needed.
 
-`read_key` returns one key without waiting for a newline: `_getch` on Windows, termios raw mode
-elsewhere. Arrows arrive as a lead byte and code on Windows and as `ESC [ code` elsewhere, and
-become `Key::Up`, `Down`, `Left` or `Right` either way.
+`read_key` returns one key without waiting for a newline: `_getch` on Windows, termios raw mode elsewhere. Arrow keys
+become `Key::Up`, `Down`, `Left` or `Right`.
 
-The loop advances the session to whoever acts, draws, reads a key, and routes it: movement and
-facing become the actor's intent, and a one-shot action a command. Arrows or `hjkl` step, space
-interacts, `.` waits, `^L` redraws, and `q` or Escape quits. Nothing in this view shows which way
-the actor faces, so there is no key that only turns: a step is asked for facing the way it goes,
-which is the same vector as its direction and its facing. Waiting is charged by the host, the
-simulation having no wait command. `--script` plays a key sequence in place of the keyboard, and
-`--incremental` forces the cursor-addressed path within a scripted run.
+The loop advances the session to the actor it is waiting on, draws, reads a key, and submits it: movement and facing
+direction as the actor's intent, a one-shot action as a command. Arrows or `hjkl` move, space interacts, `.` waits,
+`^L` redraws, and `q` or Escape quits. The view does not show the facing direction, so a move also turns toward the
+way it goes. The host charges a wait. `--script` plays a key sequence instead of the keyboard, and `--incremental`
+uses the cursor-addressed output within a scripted run.
 
-`--cell` and `--wall` choose which reduction is drawn. The cell view is a glyph per cell, which is
-what a roguelike shows; the wall view also draws what lies on the edges between cells, so a door
-or a wall two rooms share is only in that one. Each takes the glyph set built for it, and the choice
-is made once rather than per frame.
+`--cell` and `--wall` choose the reduction drawn: a glyph per cell, or the lattice, which also draws walls and doors on
+edges. Each uses its own glyph set. With neither, a block notation zone uses the cell view and a wall notation zone the
+wall view; `Session::notation` reports which.
 
-Asked for neither, the zone decides: a block notation zone draws through the cell view, which loses
-nothing of it, and a wall notation zone through the wall view, the cell view having nowhere to put
-the walls between its open cells. `load_layout` reports which notation it read through an optional
-`stratum_format::Notation*` and `Session::notation` keeps it, so the host asks the session rather than
-reading the file again. Both notations load into the same structure --- the notation is what a caller
-decides *by*, not a property of the layout.
-
-Zone files live in `assets/level/`, which belongs to no host. The host reaches them through
-`KML_DEV_ASSETS_ROOT`, a compile definition CMake sets from the source tree root, so the working
-directory a program is started from does not matter.
+Zone files are in `assets/level/`. The host reaches them through `KML_DEV_ASSETS_ROOT`, a compile definition CMake
+sets from the source tree root, so the working directory does not matter.
 
 ## Godot host
 
-The inversion the other host does not have: Godot owns `main()` and the frame loop, and the
-simulation is a shared library Godot loads. `stratum_godot` builds that library --- a GDExtension ---
-and `application/stratum_godot/project/` is the Godot project that loads it, named by
-`stratum.gdextension`, which points at `res://bin/` where the build writes.
+Godot owns `main()` and the frame loop, and loads the simulation as a shared library. `stratum_godot` builds that
+library, a GDExtension, and `application/stratum_godot/project/` is the Godot project that loads it, through
+`stratum.gdextension`, which refers to `res://bin/` where the build writes.
 
-`StratumWorld` is the one registered class, a `RefCounted` owning a `Session`. `step` sets the
-player's intent and advances, so the two hosts differ only in what surrounds the advance: the
-terminal asks for a decision and then advances, Godot is handed one and then advances. Both advance
-through `grant_turn`, which is what makes both turn-based; a real-time driver would grant units from
-a per-frame callback instead, and nothing else about either host would change.
+`StratumWorld` is the one registered class, a `RefCounted` owning a `Session`, with Godot types only in its interface:
+`default_zone_path`, `load_zone`, `extent`, `cell`, `render`, `cells`, `actors`, `step` and `turn`. `step` sets the
+player's intent and advances, through the turn-based driver. A step ends with the next turn already granted, so
+`turn` is the turn awaiting input. Exceptions do not cross into Godot: a failed load pushes the reason to Godot's error
+list and returns false, and the previous zone stays intact.
 
-Because the session runs on until something needs a decision it does not have, a step ends with the
-next turn already granted. So `turn` reports the turn now awaiting input, which is what the terminal
-host's status line has always meant --- the terminal reports it before the action and Godot after. It returns Godot types only, so nothing above it sees a quetzal type:
-`default_zone_path`, `load_zone`, `extent`, `cell`, `render`, `cells`, `step` and `turn`. Exceptions stop at that
-boundary --- `Session::load` throws, and letting that cross into Godot's own frame is not an option, so
-a failed load pushes the reason to Godot's error list and returns false. The previous zone is left
-intact by the session rather than by anything the host does.
+`cells` is one code per cell from `stratum_view::cells`, row major from row zero; its `PlaceType` constants repeat
+`stratum_view::PlaceType` for Godot. `actors` is one byte per cell in the same order, set where an actor is.
 
-`game.tscn` is the tile view: a `TileMapLayer` fed from `cells`, a camera, and arrow or `hjkl` keys
-producing the same steps the terminal host sends. Its tileset is built at run time from three flat
-colours rather than imported, so no binary art is checked in for what a real tileset will replace
-without anything else changing. Row zero is the lowest in the simulation and y grows downward in
-Godot, so the view inverts j when it paints.
+`game.tscn` is the tile view: a `TileMapLayer` fed from `cells`, a second layer for actors, a camera, and arrow or
+`hjkl` keys. Its tileset is built at run time from flat colors. Row zero is the lowest in the simulation and y grows
+downward in Godot, so the view inverts j when it paints.
 
-`cells` hands GDScript one code per cell, straight from `stratum_view::cells` --- the same reduction
-the terminal host renders characters from, taken one step earlier. The `PlaceType` constants are
-repeated on the class only because Godot has to be told the names of the constants it can use.
+`quetzal_godot` provides what any Godot host needs: `gdextension.cmake` and its `quetzal_configure_gdextension`, which
+names the library as Godot expects and writes it into the project rather than a per-configuration subdirectory.
 
-`quetzal_godot` provides what any Godot host would need rather than anything about this game:
-`gdextension.cmake` and its `quetzal_configure_gdextension`, which supplies the naming Godot looks
-for and writes the library into the project rather than into a per-configuration subdirectory.
+`CMAKE_MSVC_RUNTIME_LIBRARY` is forced into the cache by the root, as godot-cpp caches the static release CRT even for a
+debug build and quetzal's static libraries then do not link. godot-cpp's headers are SYSTEM includes, as flecs' are, so
+they do not report `/W4` warnings in the extension's sources. `KML_DEV_GODOT` governs all of it; configured off,
+godot-cpp is not processed and neither the library nor the host exists.
 
-Two settings the build has to get right, both of which fail confusingly rather than loudly.
-`CMAKE_MSVC_RUNTIME_LIBRARY` is forced into the cache by the root, because godot-cpp otherwise
-caches the static release CRT even for a debug build and quetzal's static libraries then will not
-link. And godot-cpp's headers are marked as SYSTEM includes, as flecs' are, since they compile as
-part of whatever includes them and would otherwise report at `/W4` against the extension's sources.
+Two headless checks need no display: `--path project --script main.gd` exercises the extension directly, and
+`--path project --quit-after 5` runs the tile scene, which reports the cells it painted. A project has to be imported
+once (`--headless --path project --import`) before Godot sees the extension; otherwise the class is undeclared, with
+no indication why.
 
-`KML_DEV_GODOT` governs all of it. Configured off, godot-cpp is not processed and neither the
-library nor the host exists.
-
-Two headless checks, neither needing a display: `--path project --script main.gd` exercises the
-extension directly and prints what it found, and `--path project --quit-after 5` runs the tile
-scene, which reports the cells it painted. A project has to be imported once
-(`--headless --path project --import`) before Godot will see the extension at all --- without it the
-class is simply undeclared, with no indication why.
-
-Visual Studio launches Godot on the project when the extension is run, so breakpoints in the
-extension are live in a running game. Godot must not already have the project open, or the library is
-locked and the build fails.
+Visual Studio launches Godot on the project when the extension is run, so breakpoints in the extension are live. Godot
+must not already have the project open, or the library is locked and the build fails.
 
 ## Tests
 
-`stratum_sim_test`, 356 cases, covers the layout hierarchy, layout structure, rooms, the grid, flats,
-blocking, the scheduler, the clock, movement, adjacency and sight, loading, doors, world, commands and
-occupancy. It and `stratum_view_test` each check that every zone file in their `data/` has one `door`
-entity per door glyph, with a `door_facing` child on each wall `stratum_format::door_walls` finds for
-that glyph and no door facing anywhere else.
+`stratum_sim_test` covers the layout hierarchy, layout structure, rooms, the grid, flats, blocking, the scheduler, the
+clock, movement, adjacency and sight, loading, doors, the world, commands and occupancy. It and `stratum_view_test`
+each check that every zone file in their `data/` has one `door` entity per door glyph, with a `door_facing` child on
+each wall `stratum_format::door_walls` finds for that glyph and no door facing anywhere else.
 
-`stratum_view_test`, 101 cases, covers the console buffer, frame differencing, glyph sets and the
-files they load from, the cell and lattice
-reductions, both renderings and both round trips, and owns the reference
-frames: fixed command sequences rendered to text and compared byte for byte by `FileValidator` against
-`test/stratum_view_test/reference/`. Those sequences are played in process against the two libraries rather
-than through the host, whose key mapping is not what they check.
+`stratum_view_test` covers the console buffer, frame differencing, glyph sets and their files, the cell and lattice
+reductions, both renderings and both round trips, and the reference frames: fixed command sequences rendered to text
+and compared byte for byte by `FileValidator` against `test/stratum_view_test/reference/`. The sequences are played
+against the two libraries, not through a host. Three scenarios are block notation zones drawn through the cell view.
+Two use the wall view: `walls_door`, a wall notation zone, moves through a door, back, and into the wall two rooms
+share, which blocks, then interacts with it; `door_cell`, a block notation zone, moves into a doorway, where the door
+is drawn in its cell, and out the far side.
 
-A scenario selects which view it is played through, so the two are checked separately. Three are block
-zones through the cell view, where a wall exists only against a solid cell and a glyph per cell
-loses nothing. Two are the wall view, and they differ in where the door is. `walls_door` is a wall notation
-zone: through a door, back, and into the wall two rooms share, which reports blocking it and then
-interacts with it while it is drawn beside the actor --- the whole of what a glyph per cell cannot
-show. `door_cell` is a block notation zone, where the door is a cell rather than an edge and is drawn
-in it, the actor stepping into the doorway and out the far side.
+`dungen_test` and `catagen_test` compare reference zone files written now against those checked in, which must be
+equivalent as parsed JSON, and check determinism, parameter validation, grid shape and that the reader accepts every
+generated zone. Both check, for their scenarios and over a sweep of seeds, that each door glyph has one `door` entity
+whose door facings are on that doorway's walls in the order `door_walls` returns them, and that no door facing is
+anywhere else. `dungen_test` also reads back the rooms of zones with every door, half and none, over a sweep of seeds,
+and checks each room contains exactly the cells generated as it, which fails where a barrier is missing at an open
+doorway. Over another sweep with ranges of staircases each way, both check from the written zone that neither count
+exceeds its maximum, that a count leading up falls short of its minimum only where no staircase leads down, that every
+floor cell is reachable from every other with the stair blocks in place (maze1 excepted, which can leave corridor no
+door reaches), that no staircase blocks a doorway while a cell beside it would not, that every staircase is sited on
+exactly one of the walls around its block, leading `down` or `up` as its glyph indicates and opening onto a side with
+floor beyond, or a door where there is none, and that `access_points` refers to every staircase. What the written zone
+does not record about a stair cell, its space in dungen and which of its sides were open in catagen, they take from the
+zone generated again. `catagen_test` also checks that every edge between a stair cell and floor is written as a wall.
+Validation rejects staircase counts whose minimums are both zero and accepts a staircase down alone. Each suite also
+reads a reference zone's generator parameters back and regenerates from them, a zone file having every parameter of
+its run. A parameter the writer emits and the suite does not read fails, as does one the suite reads and the file lacks.
 
-`dungen_test`, 101 cases, and `catagen_test`, 46 cases, check the generators the same way: reference
-zone files written now against those checked in, which are to be equivalent as parsed JSON, plus
-determinism, parameter validation, grid shape and every generated zone being one the reader accepts. Both
-check, for their scenarios and over a sweep of seeds, that each door glyph has one `door` entity whose
-door facings are on that doorway's walls in the order `door_walls` returns them, and that no door facing
-is anywhere else. `dungen_test`
-also reads back the rooms of zones with every door, half and none, over a sweep of seeds, and checks
-each room covers exactly the cells generated as it, which a barrier missing at an open doorway fails.
-Both suites, over another sweep with ranges of staircases each way, check from the written zone that
-neither count exceeds its maximum, that a count leading up falls short of its minimum only where no
-staircase leads down, that every floor cell is reachable from every other with the stair blocks in place
-(maze1 excepted, which can leave corridor no door reaches), that no staircase blocks a doorway while a
-cell beside it would not, that every staircase is attached to exactly one of the walls around its block,
-leading to `down` or `up` as its glyph says and opening onto a side with floor beyond, or a
-door where there is none, and that `access_points` refers to every staircase. What the written zone no
-longer shows about a stair cell, its space in dungen and which of its sides were open in catagen, they
-take from the zone generated again.
-`catagen_test` also checks that every edge between a stair cell and floor is written as a wall. Validation rejects staircase counts whose minimums are both zero and accepts a
-staircase down alone. Each also
-reads a reference zone's generator parameters back and regenerates from them, which is the claim the
-format rests on --- a zone file names what produced it. A parameter a writer emits and the suite does not
-recognise fails there rather than passing silently, as does one the suite reads and the file lacks.
+`tool/dungen` and `tool/catagen` build the drivers `dungen` and `catagen`, the library targets having the `quetzal_`
+prefix and the suites the `_test` suffix.
 
-The two suites are what the drivers never were. `tool/dungen` and `tool/catagen` take the plain
-names, the `quetzal_` prefix on the library targets being the distinction, and the `_test` names
-belong to the suites under `test/`.
+`stratum_format_test` reads zone files and checks what they decode to, rejects every error the reader raises from a
+valid file with one change made to it, checks that references are found and translated wherever they are written, and
+writes each file through both `write` overloads and reads it back, comparing the two documents as maps.
 
-`stratum_format_test`, 175 cases, reads four zone files and checks what they decode to, rejects every
-error the reader raises from a valid file with one change made to it, checks that references are found
-and translated wherever they are written, and writes each file through both `write` overloads and reads
-it back, comparing the two documents as maps rather than as bytes.
+`flecs_test` checks that the ECS supports zone partitioning, relationships, migration, unload, serialization and
+deterministic iteration.
 
-`flecs_test` confirms the ECS supports zone partitioning, relationships, migration, unload,
-serialisation and determinism.
+Each test runs from its own directory, its data and reference paths being relative.
 
-Each test runs from its own directory, their data and reference paths being relative.
-
-Neither host is covered by a test executable. The terminal host is checked by running it with
-`--script` and reading the frames back; the Godot host by its two headless invocations. Both are
-manual, and the reference frames do not reach either of them.
+No test executable covers a host. The terminal host is checked by running it with `--script` and reading the frames
+back, and the Godot host by its two headless invocations.
 
 ## Build
 
-CMake, with the solution at `build/kml_dev.slnx`. `/std:c++latest /bigobj /W4` throughout, with
-third-party sources at `/W1`, and both flecs and godot-cpp included as SYSTEM so their headers stay
-quiet in whatever compiles them. `quetzal_stratum_sim` links `quetzal_common`, `quetzal_stratum_format` and `flecs_static`,
-`quetzal_stratum_view` links `quetzal_stratum_sim`, and both hosts link `quetzal_stratum_view`.
-`quetzal_stratum_format` links `quetzal_common` and `nlohmann_json`, vendored at `library3/json` with
-its headers SYSTEM.
+CMake, with the solution at `build/kml_dev.slnx`. `/std:c++latest /bigobj /W4` throughout, with third-party sources
+at `/W1` and flecs and godot-cpp included as SYSTEM. `quetzal_stratum_sim` links `quetzal_common`,
+`quetzal_stratum_format` and `flecs_static`; `quetzal_stratum_view` links `quetzal_stratum_sim`; both hosts link
+`quetzal_stratum_view`. `quetzal_stratum_format` links `quetzal_common` and `nlohmann_json`, vendored at
+`library3/json` with its headers SYSTEM.
 
-`KML_DEV_GODOT` governs the Godot half and defaults on. Configured off, godot-cpp is not processed
-at all and neither `quetzal_godot` nor `stratum_godot` exists --- 844 projects rather than 866.
+`KML_DEV_GODOT` governs the Godot targets and defaults on. Configured off, godot-cpp is not processed and neither
+`quetzal_godot` nor `stratum_godot` exists.
 
-`CMAKE_MSVC_RUNTIME_LIBRARY` is forced into the cache by the root rather than merely set, because
-godot-cpp caches the static release CRT even for a debug build and quetzal's static libraries then
-refuse to link into the extension.
+`KML_DEV_ASSETS_ROOT` is a per-target compile definition giving the shared data root, so no source file has an
+absolute path and no program depends on where it was started from. `KML_DEV_GODOT_VERSION` is the Godot release the
+host targets, and `KML_DEV_GODOT_EXECUTABLE`, found from it, is what Visual Studio launches.
 
-`KML_DEV_ASSETS_ROOT` is a per-target compile definition giving the shared data root, so no absolute
-path appears in any source file and no program depends on where it was started from.
-`KML_DEV_GODOT_VERSION` gives the Godot release the host targets and `KML_DEV_GODOT_EXECUTABLE` is
-found from it, which is what Visual Studio launches.
-
-`application/stratum_godot` is added after `library3` rather than beside the other applications,
-since configuring a GDExtension reads a property from the godot-cpp target and that target has to
-exist by then.
+`application/stratum_godot` is added after `library3`, as configuring a GDExtension reads a property of the godot-cpp
+target.
 
 ---
 
-*Current stage: Phase 3, all but presentation tables. `Glyphs` is a table a file supplies; the Godot
-view's colour array is still hardcoded, and making it data requires asset ids, which is Phase 4's work.*
+*Current stage: Phase 3, all but presentation tables. `Glyphs` is a table a file supplies; the Godot view's color
+array is still hardcoded, and making it data requires asset ids, which is Phase 4's work.*

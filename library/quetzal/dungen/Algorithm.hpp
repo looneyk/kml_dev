@@ -13,7 +13,7 @@ namespace quetzal::dungen
 {
 
     //--------------------------------------------------------------------------
-    // Which layout a run builds, each implemented in the generate_ file its name suffixes
+    // The layout algorithm, each implemented in the generate_ file with its name as the suffix
     enum class Algorithm
     {
         Maze1, // Rooms dropped at random, a maze flooded through every cell they left, pruned back
@@ -24,7 +24,7 @@ namespace quetzal::dungen
     // The command line and file header spelling, lower case
     std::string to_string(Algorithm algorithm);
 
-    // Throws std::invalid_argument naming what was not an algorithm
+    // Throws std::invalid_argument quoting s when it is not an algorithm
     Algorithm to_algorithm(std::string_view s);
 
     std::ostream& operator<<(std::ostream& os, const Algorithm& algorithm);

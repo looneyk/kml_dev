@@ -5,7 +5,7 @@
 // Checks that flecs supports the structural decisions in doc/sim_zone_model.md:
 // Zones as entities with their contents as children, attachment and containment as
 // relationships, migration between Zones without renumbering, unload as a subtree
-// delete, per-Zone serialisation, and deterministic iteration order.
+// delete, per-Zone serialization, and deterministic iteration order.
 //------------------------------------------------------------------------------
 
 #include <flecs.h>
@@ -202,7 +202,7 @@ namespace
         report_case("an attachment is a relationship pair", alcove.has<AttachedTo>(facing));
         report_case("containment is a relationship pair", coin.has<ContainedIn>(alcove));
 
-        // Reverse traversal, asked from the facing's side rather than the alcove's
+        // Reverse traversal, from the facing to what is attached to it
         size_t attached_count = 0;
         flecs::entity_t id_attached = 0;
         world.query_builder<>().with<AttachedTo>(facing).build().each([&](flecs::entity e)
@@ -214,7 +214,7 @@ namespace
         report_case_equal("a facing can find what is attached to it", attached_count, 1);
         report_case("the attachment found is the alcove", id_attached == alcove.id());
 
-        // Destroying the facing is what mining a wall amounts to
+        // Destroying the facing, as mining a wall does
         facing.destruct();
 
         report_case("destroying a facing leaves the alcove alive to be dealt with", alcove.is_alive());
@@ -225,9 +225,8 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // What a door and its door facings need of the Parent storage: a door per zone has two
-    // children, which is the small structured hierarchy Parent is for, where ChildOf would put
-    // each door's children in a table of their own
+    // A door and its two door facings in Parent storage, which is for small structured hierarchies; ChildOf would give each
+    // door's children a table of their own
     void test_parent_hierarchy()
     {
         report_group("parent hierarchy");
@@ -246,28 +245,25 @@ namespace
         door.children([&](flecs::entity) { ++child_count; });
         report_case_equal("a parent iterates its children", child_count, 2);
 
-        // A door facing is in the zone through its door rather than directly, an entity having one
-        // storage or the other and never both
+        // A door facing is in the zone through its door, as an entity has one storage or the other
         size_t zone_child_count = 0;
         world.query_builder<>().with(flecs::ChildOf, zone).build().each([&](flecs::entity) { ++zone_child_count; });
         report_case_equal("the zone's own children are the doors, not their facings", zone_child_count, 1);
         report_case("a facing is not a ChildOf the zone", !facing_west.has(flecs::ChildOf, zone));
 
-        // Every facing of every door at once, which crossable and the view ask for
+        // Every facing of every door at once
         size_t facing_count = 0;
         world.query_builder<const Facing>().build().each([&](flecs::entity, const Facing&) { ++facing_count; });
         report_case_equal("children of many parents are queryable together", facing_count, 2);
 
-        // Flecs 4.1.6 writes a Parent hierarchy and cannot read one back: from_json aborts the process
-        // on a world holding one, a bare parent and child being enough to do it. Nothing here may rely
-        // on flecs JSON for a hierarchy, and a saved zone writes each child's parent itself
+        // Flecs 4.1.6 writes a Parent hierarchy, but from_json aborts the process on reading one back, so a saved zone
+        // writes each child's parent itself
         string json_world = world.to_json().c_str();
 
-        report_case("a parent hierarchy serialises", json_world.find("flecs.core.Parent") != string::npos);
-        report_case("a child's components serialise with it", json_world.find("\"value\":1") != string::npos);
+        report_case("a parent hierarchy serializes", json_world.find("flecs.core.Parent") != string::npos);
+        report_case("a child's components serialize with it", json_world.find("\"value\":1") != string::npos);
 
-        // Nesting to any depth, one entity inside the next: the restriction is that an entity has one
-        // parent in one storage, not that a child cannot be a parent
+        // Nested entities, one inside the next: an entity has one parent in one storage, and a child may be a parent
         flecs::entity chest = world.entity("chest").child_of(zone);
         flecs::entity box = world.entity(flecs::Parent {chest}, "box");
         flecs::entity tin = world.entity(flecs::Parent {box}, "tin");
@@ -350,7 +346,7 @@ namespace
     //--------------------------------------------------------------------------
     void test_serialization()
     {
-        report_group("serialisation");
+        report_group("serialization");
 
         flecs::world world;
         register_reflection(world);
@@ -362,22 +358,22 @@ namespace
         world.entity("rat").child_of(zone_a).set<Health>({3});
 
         string json_entity = world.lookup("zone_a::goblin").to_json().c_str();
-        report_case("an entity serialises its component values", json_entity.find("12") != string::npos, json_entity);
+        report_case("an entity serializes its component values", json_entity.find("12") != string::npos, json_entity);
 
-        // One Zone's contents on their own, which is what unloading has to write
+        // One zone's contents alone, as unloading writes them
         string json_zone = world.query_builder<>().with(flecs::ChildOf, zone_a).build().to_json().c_str();
-        report_case("one Zone's contents serialise on their own", !json_zone.empty() && json_zone.find("goblin") != string::npos, json_zone);
+        report_case("one Zone's contents serialize on their own", !json_zone.empty() && json_zone.find("goblin") != string::npos, json_zone);
 
         // Whole world round trip
         string json_world = world.to_json().c_str();
-        report_case("the world serialises to non-empty JSON", !json_world.empty());
+        report_case("the world serializes to non-empty JSON", !json_world.empty());
 
         flecs::world world_restored;
         register_reflection(world_restored);
         world_restored.from_json(json_world.c_str());
 
         flecs::entity restored = world_restored.lookup("zone_a::goblin");
-        report_case("a serialised entity is found again after restore", restored.is_alive());
+        report_case("a serialized entity is found again after restore", restored.is_alive());
 
         const Health* phealth = restored.is_alive() ? restored.try_get<Health>() : nullptr;
         report_case("component values survive the round trip", phealth != nullptr && phealth->value == 12);
@@ -469,8 +465,7 @@ int main()
     test_serialization();
     test_determinism();
 
-    // Printed so that separate runs can be compared, which is the only way to see
-    // whether ordering varies across processes rather than within one
+    // Printed so that separate runs can be compared for ordering differences across processes
     cout << "fingerprint " << g_fingerprint << endl;
 
     return report_results();

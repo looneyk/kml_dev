@@ -13,27 +13,20 @@
 namespace quetzal::stratum_sim
 {
 
-    // The movement vocabulary every view maps its input onto. A first person view sends
-    // Step and Turn relative to facing; a top down view sends Step with a direction it
-    // chose, which leaves facing alone; a view with no facing of its own to show sends Step
-    // with face set, which slaves facing to movement
+    // Commands a view maps its input onto
 
     //--------------------------------------------------------------------------
     struct Step
     {
-        vector_type direction; // Zero to step along the actor's own facing
+        vector_type direction; // Zero to move in the actor's facing direction
         value_type distance = value_type(1);
 
-        // Turn to direction before moving, as part of the same action rather than at the
-        // cost of one of its own. The turn takes effect even where the step that followed it
-        // did not, so walking into a wall still leaves the actor facing it
+        // Turn to direction within the same action. The turn takes effect even when the move is blocked
         bool face = false;
     };
 
     //--------------------------------------------------------------------------
-    // The facing asked for, absolute rather than relative, which the layout snaps to one of
-    // its own. A view with a relative turn asks the layout's turn what lies that way and sends
-    // the result, so the quantization stays with the layout
+    // An absolute facing direction, which the layout snaps to one of its own
     struct TurnTo
     {
         vector_type direction;
@@ -59,8 +52,8 @@ namespace quetzal::stratum_sim
     struct Blocked
     {
         id_type entity_id = nullid;
-        id_type blocking_wall_id = nullid; // The wall it was stopped by
-        id_type blocking_entity_id = nullid; // The entity that was occupying the cell ahead
+        id_type blocking_wall_id = nullid;
+        id_type blocking_entity_id = nullid;
     };
 
     //--------------------------------------------------------------------------
@@ -71,9 +64,7 @@ namespace quetzal::stratum_sim
     };
 
     //--------------------------------------------------------------------------
-    //--------------------------------------------------------------------------
-    // What acting on something did, so that a view can report it. Nothing is the honest result
-    // for a bare wall and for anything acting on it does not yet reach
+    // The effect of an Interact: Nothing for a bare wall or for anything it has no effect on
     enum class Interaction
     {
         Nothing,
@@ -89,8 +80,7 @@ namespace quetzal::stratum_sim
         Interaction interaction = Interaction::Nothing;
     };
 
-    // Applies one command, appending whatever it produced. Returns the energy it cost,
-    // zero when the command did nothing
+    // Applies one command, appending its events. Returns its cost, zero when it did nothing
     int apply(World& world, const Command& command, EventQueue& events);
 
     // Drains the queue, applying each in submission order

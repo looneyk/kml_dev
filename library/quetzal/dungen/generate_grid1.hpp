@@ -14,7 +14,7 @@ namespace quetzal::dungen
 
     // The zone cut into a coarse grid of sectors, a room somewhere inside most of them and a
     // single junction cell inside the rest, then orthogonally adjacent sectors joined by
-    // corridors that bend once in the rock between and enter a room through a door
+    // corridors that bend once in the solid cells between and enter a room through a door
     // Reads parameters.grid1; parameters.algorithm is expected to be Algorithm::Grid1
     // Throws std::invalid_argument by way of validate
     Level generate_grid1(id_type id, const std::string& name, const Parameters& parameters);

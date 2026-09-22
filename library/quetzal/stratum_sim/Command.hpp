@@ -15,10 +15,8 @@ namespace quetzal::stratum_sim
 {
 
     //--------------------------------------------------------------------------
-    // Intent submitted to the simulation, produced by a view's input mapping or by an
-    // acting entity's own logic
-    // The command itself is any copyable type and is held type erased, so that a module
-    // can introduce commands that the core has no knowledge of
+    // An action requested of the simulation for an entity. Any copyable type, stored type erased so a module can add
+    // commands
     class Command
     {
     public:

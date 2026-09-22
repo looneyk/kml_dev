@@ -17,8 +17,7 @@ namespace quetzal::expression
 {
 
     //--------------------------------------------------------------------------
-    // Builds a Node tree only; carries no notion of a value type, so parse()
-    // need not be a template and the resulting tree is reusable across types
+    // Builds a Node tree, independent of any value type
     class Parser
     {
     public:
@@ -29,7 +28,7 @@ namespace quetzal::expression
 
         Parser& operator=(const Parser&) = delete;
 
-        // Returns std::nullopt on a syntax error rather than any kind of placeholder
+        // Returns std::nullopt on a syntax error
         std::optional<Expression> parse(const std::string& str);
 
         //----------------------------------------------------------------------

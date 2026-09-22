@@ -123,9 +123,7 @@ std::ostream& quetzal::geometry::operator<<(std::ostream& os, HalfPlane<Traits> 
 template<typename Traits>
 struct std::formatter<quetzal::geometry::HalfPlane<Traits>>
 {
-    // HalfPlane has no formatting knobs of its own; the whole spec belongs to (and is entirely
-    // consumed by) the Point formatter, shared with a Line formatter (for the line) and a Vector
-    // formatter (for the exterior direction).
+    // Parses the whole format spec, which the nested formatters share
     std::formatter<quetzal::geometry::Point<Traits>> m_point_formatter;
 
     constexpr auto parse(std::format_parse_context& ctx)

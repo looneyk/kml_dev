@@ -5,9 +5,8 @@
 // IntersectionSplitter.hpp
 //------------------------------------------------------------------------------
 
-// TEMP The high volume half of the trace logging: everything emitted per face pair, per halfedge, or
-// per segment beyond the one line that identifies it. These go to the console during a run, so on the
-// larger models they cost more in wall time than the work they describe. Define to get them back
+// TEMP Enables the trace logging emitted per face pair, halfedge or segment, which on the larger models takes longer
+// than the work it describes
 //#define QUETZAL_INTERSECTION_SPLITTER_TRACE_VERBOSE
 
 #include "Mesh.hpp"
@@ -117,7 +116,7 @@ namespace quetzal::brep
         };
 
         //----------------------------------------------------------------------
-        // An point along an intersection trace between face_a and face_b.
+        // A point along an intersection trace between face_a and face_b.
         // A halfedge_id that is nullid indicates that the intersection occurs in the interior as opposed to on the boundary of the face (floating).
         struct TracePoint
         {
@@ -158,13 +157,12 @@ namespace quetzal::brep
 
         void clear();
 
-        // Computes find_face_pair_segment for every bounding-box-overlapping pair of faces across the
-        // two submeshes -- the full set of independently discovered trace segments, before connecting them
+        // The trace segments of every pair of faces across the two submeshes whose bounding boxes overlap, before they are
+        // connected
         TraceSegments find_intersections(id_type submesh_id_a, id_type submesh_id_b);
 
-        // Computes the intersection trace segment between face_id_a and face_id_b, if any, in complete
-        // isolation from any other pair -- no continuation/search logic, no mutation, no notion of
-        // "current trace". Parallel (including coplanar) face pairs are out of scope, return nullopt
+        // The intersection trace segment of two faces, independent of any other pair. nullopt for parallel faces,
+        // coplanar included
         std::optional<TraceSegment> find_face_intersections(id_type face_id_a, id_type face_id_b);
 
         // Try to find an intersection of the two faces, used when looking for a new connection trace
@@ -214,12 +212,10 @@ namespace quetzal::brep
         // Updates the halfedge_id in trace points after a segment has been instantiated as required
         void update_trace_points_connection(Traces& traces, id_type halfedge_id_a_interior, id_type halfedge_id_b_interior);
 
-        // Connects a set of face/face intersection segments into closed-loop intersection traces
-        // Each segment is the intersection of one face pair, so a trace is a walk through face pairs and
-        // the successor of a segment follows from mesh connectivity at the endpoint it leaves through:
-        // crossing the interior of an edge moves to that edge's partner face, and the opposite side keeps
-        // its face. Endpoints that land on a vertex are the only ones with a choice, since the trace may
-        // continue into any face of that vertex fan, or stay in the same face having only touched it
+        // Connects face/face intersection segments into closed intersection traces
+        // A segment's successor follows from mesh connectivity at the end it leaves through: crossing the interior of an
+        // edge moves to that edge's partner face, and the other side keeps its face. Only an end at a vertex has a choice
+        // of faces
         Traces order_intersections(const TraceSegments& segments);
 
         // Reference to one endpoint of one segment, used internally by order_intersections
@@ -229,19 +225,14 @@ namespace quetzal::brep
             int endpoint_slot; // 0 = p0, 1 = p1
         };
 
-        // Every segment end, grouped by its position, which is all the connectivity ordering needs.
-        // Built once from the segments and not maintained, since ordering does not modify anything
+        // Every segment end, grouped by position
         using PositionIndex = std::map<point_type, std::vector<SegmentEndpointRef>>;
 
         PositionIndex index_positions(const TraceSegments& segments);
 
-        // The end continuing the trace out of trace_point. A segment is the intersection of one face
-        // pair, so leaving through an edge of one submesh moves to the adjacent face there while the
-        // face on the other side stays the same: the continuation is the end at this position sharing a
-        // face id with trace_point. Only an original vertex meeting a vertex changes both at once, and
-        // that is ambiguous only where more than one trace passes through the position
-        // side_a_face_changed is which submesh the arriving segment changed face on from the one before
-        // it, which settles the choice where several branches of the trace meet at one position
+        // The end continuing the trace from trace_point: the end at this position sharing a face id with it
+        // side_a_face_changed is the submesh on which the arriving segment changed face, which resolves the choice where
+        // several branches of the trace meet at one position
         std::optional<SegmentEndpointRef> successor_position(const TraceSegments& segments, const PositionIndex& position_index, const std::vector<bool>& used, const TracePoint& trace_point, size_t segment_pos, std::optional<bool> side_a_face_changed) const;
 
         // Instantiates all intersection traces, producing connection traces
@@ -264,9 +255,7 @@ namespace quetzal::brep
 
         void uncouple(connection_trace_type& connection);
 
-        // The position to texcoord mapping of a face, created on the first request for it
-        // Held so that it describes the face as it was found, since adding edges for the intersection
-        // points in a face changes the face that any later request would be calculated from
+        // The position to texcoord mapping of a face as it was at the first request, before intersection edges change it
         const geometry::PolygonMapping<typename M::vertex_attributes_type>& face_mapping(id_type face_id);
 
         // Create a pair of connected partner halfedges where neither originates at an existing vertex
@@ -285,10 +274,9 @@ namespace quetzal::brep
 
         void insert_trace_intersection(id_type halfedge_id_a_exterior, id_type halfedge_id_a_interior, id_type halfedge_id_b_exterior, id_type halfedge_id_b_interior);
 
-        // The halfedge at the same position on the same face whose corner holds direction_edge, a corner
-        // running counterclockwise from the halfedge leaving the position to the reverse of the one
-        // arriving. An edge running in direction_edge attaches to that one
-        // halfedge_id itself where the loop reaches its position only once
+        // The halfedge at the same position on the same face whose corner contains direction_edge, a corner running
+        // counterclockwise from the leaving halfedge to the reverse of the arriving one. halfedge_id itself where the loop
+        // reaches the position only once
         id_type face_corner_halfedge(id_type halfedge_id, const vector_type& direction_edge) const;
 
         id_type exterior_halfedge(id_type halfedge_id, const vector_type& exterior_direction) const;
@@ -324,7 +312,7 @@ namespace quetzal::brep
         std::map<id_type, geometry::PolygonMapping<typename M::vertex_attributes_type>> m_face_mappings;
 
         std::set<id_type> m_connection_halfedge_ids; // All of the halfedge ids that are part of any continuous connection trace
-        std::set<point_type> m_connection_positions; // All of the vertex positons that are part of any continuous connection trace
+        std::set<point_type> m_connection_positions; // All of the vertex positions that are part of any continuous connection trace
         connection_traces_type m_connections;
 
         size_t m_stage_count = 0; // logging ...
@@ -664,9 +652,8 @@ std::cout << std::format("s b1 {}", segment_b.endpoint(1)) << std::endl;
 
     if (!float_eq(segment.direction(), trace_direction))
     {
-        // The two per-face segments only share a single point along trace_direction (or a floating-point-scale
-        // sliver whose sign is noise, from computing that point two different ways) -- not a real segment of
-        // intersection. Report it as the single-point case the caller already knows how to ignore.
+        // The two per-face segments share only a point along trace_direction, or a sliver whose sign is rounding noise,
+        // so this is the single point case
         return {{id_a0, id_b0, segment.endpoint(0)}};
     }
 
@@ -947,8 +934,7 @@ void quetzal::brep::IntersectionSplitter<M>::create_isolated_intersection_point_
 
             id_type halfedge_id = create_edge_partial(ref_anchor.halfedge_id(), ref_floating.position());
 
-            // The halfedge the spur went in ahead of, which the tip runs back into and which is not
-            // necessarily the one the trace point named
+            // The halfedge the spur precedes, which the tip runs back into; not necessarily the trace point's halfedge
             id_type halfedge_id_anchor = m_mesh.halfedge(m_mesh.halfedge(halfedge_id).next_id()).next_id();
 
             set_trace_points_halfedge(segments, side_a, ref_floating.position(), m_mesh.halfedge(halfedge_id).next_id());
@@ -1018,9 +1004,8 @@ typename quetzal::brep::IntersectionSplitter<M>::Traces quetzal::brep::Intersect
     std::vector<bool> used(segments.size(), false);
     Traces traces;
 
-    // A trace is started clear of any position more than two ends meet at. Starting where such a position
-    // ends the segment would close the trace at it, the closing test being a position, and starting where
-    // it begins the segment would leave the first step with no previous segment to compare faces with
+    // A trace starts clear of any position where more than two ends meet: at the segment's end it would close the trace
+    // there, and at its start the first move would have no previous segment to compare faces with
     auto shared_position = [&position_index](const point_type& position)
     {
         auto i = position_index.find(position);
@@ -1065,8 +1050,7 @@ typename quetzal::brep::IntersectionSplitter<M>::Traces quetzal::brep::Intersect
             used[segment_pos] = true;
             const TraceSegment& segment = segments[segment_pos];
             const TracePoint& far_point = endpoint_slot == 0 ? segment.p1 : segment.p0;
-            // Oriented so .p0 == current_point, .p1 == far_point in traversal order, keeping each
-            // point's own face_id_a/face_id_b intact rather than collapsing to a single shared point
+            // Oriented in traversal order, each point keeping its own face ids
             trace.push_back(endpoint_slot == 0 ? segment : TraceSegment{segment.p1, segment.p0});
 
             if (far_point.position == position0)
@@ -1154,10 +1138,9 @@ std::optional<typename quetzal::brep::IntersectionSplitter<M>::SegmentEndpointRe
         }
     }
 
-    // More than two ends here means several branches of the trace meet at this position, each of them a
-    // separate trace. A branch keeps the face it did not change on across the position, so the two ends
-    // sharing that face are the one branch. With no segment before this one to compare faces with, side a
-    // is taken, either side giving a set of traces that closes
+    // More than two ends here means several branches, each a separate trace, meet at this position. A branch keeps the
+    // face it did not change on, so the two ends sharing that face are one branch. With no previous segment, side a is
+    // taken; either side gives a set of traces that closes
     if (i->second.size() > 2)
     {
         const bool side_a = !side_a_face_changed.value_or(false);
@@ -1195,9 +1178,8 @@ std::optional<typename quetzal::brep::IntersectionSplitter<M>::SegmentEndpointRe
         return matches.front();
     }
 
-    // A single end at this position is the continuation whether or not it shares a face. Both faces
-    // change where the position is a vertex of both submeshes, leaving no face shared, but with only one
-    // end available there is nothing to choose between
+    // A single end at this position is the continuation whether or not it shares a face, as where the position is a
+    // vertex of both submeshes
     if (candidates.size() == 1)
     {
         return candidates.front();
@@ -1256,9 +1238,8 @@ typename quetzal::brep::connection_trace_type quetzal::brep::IntersectionSplitte
     const size_t n = segments.size();
     for (size_t i = 0; i < n; ++i)
     {
-        // Each segment is self-consistent (both its own points share its own face_id_a/face_id_b, as
-        // discovered), so both endpoints are always resolved from the SAME segment -- never mixed with
-        // the neighboring segment's point at the same position, which may disagree on the exiting face
+        // Both ends are resolved from the same segment, as the neighboring segment's point at the same position may have a
+        // different face
         const TracePoint& point0 = segments[i].p0;
         const TracePoint& point1 = segments[i].p1;
 
@@ -1443,8 +1424,8 @@ quetzal::id_type quetzal::brep::IntersectionSplitter<M>::create_edge_partial(con
     id_type face_id = m_mesh.halfedge(halfedge_id0).face_id();
     auto normal = m_mesh.face(face_id).attributes().normal();
 
-    // The spur goes in ahead of its anchor halfedge, so which halfedge that is decides which corner of
-    // the face it lands in where an earlier spur has left the loop reaching this position more than once
+    // The spur precedes its anchor halfedge, so the anchor determines which corner of the face it goes into where an
+    // earlier spur has left the loop reaching this position more than once
     id_type halfedge_id_anchor = face_corner_halfedge(halfedge_id0, normalize(position1 - vertex_position(m_mesh.halfedge(halfedge_id0))));
 
     const auto& mapping = face_mapping(face_id);
@@ -1507,13 +1488,10 @@ std::cout << "    " << std::format("create_edge_connect h0 {} h1 {} split face {
         return m_mesh.halfedge(halfedge_id1).prev_id();
     }
 
-    // A hole is involved, so the loops are relinked without any face changing hands and only the hole
-    // records need bringing up to date
+    // A hole is involved, so the loops are relinked with no change of face, and only the holes are updated
 
-    // Ends on different loops makes them one, so one record ceases to describe anything. A hole joined
-    // to the perimeter is absorbed by it, a hole joined to another hole becomes part of that one. The
-    // record goes now, while its loop is still intact, since removing it walks the loop to clear the
-    // hole id it set
+    // Ends on different loops join them: a hole joined to the perimeter is absorbed by it, and one joined to another hole
+    // becomes part of it. The absorbed hole is removed now, as removing it walks its loop, which is still intact
     id_type hole_id_merged = hole_halfedge_id0;
     if (hole_halfedge_id0 != hole_halfedge_id1)
     {
@@ -1528,8 +1506,7 @@ std::cout << "    " << std::format("create_edge_connect h0 {} h1 {} split face {
 
     if (hole_halfedge_id0 != hole_halfedge_id1)
     {
-        // One loop now, so the surviving hole id applies the whole way round, setting it on the side
-        // whose hole was just removed along with the pair just created
+        // One loop now, so the surviving hole id is set the whole way round
         for (id_type i = halfedge_id_created0; ; )
         {
             m_mesh.halfedge(i).set_hole_id(hole_id_merged);
@@ -1542,9 +1519,8 @@ std::cout << "    " << std::format("create_edge_connect h0 {} h1 {} split face {
     }
     else
     {
-        // Ends on one hole loop divides it rather than joining, leaving the pair on either side of the
-        // division with the hole id that loop already had. Which side stays the hole and which
-        // becomes a face depends on which way the trace runs, so close_enclosed_loop finishes it
+        // Ends on one hole loop divide it, the pair keeping the loop's hole id. Which side stays the hole depends on the
+        // trace direction, so close_enclosed_loop finishes it
         m_mesh.halfedge(halfedge_id_created0).set_hole_id(hole_halfedge_id0);
         m_mesh.halfedge(halfedge_id_created1).set_hole_id(hole_halfedge_id0);
     }
@@ -1675,9 +1651,8 @@ void quetzal::brep::IntersectionSplitter<M>::align_segment_positions(TraceSegmen
         size_t m_count = 0;
     };
 
-    // Endpoint positions grouped by the tolerant comparator, so that separately computed values for the
-    // same point land in one group and can be given a single canonical value. Downstream comparisons are
-    // exact and depend on that
+    // Endpoint positions grouped by the tolerant comparator, so separately computed values for the same point share one
+    // canonical value, on which the exact comparisons downstream depend
     std::map<point_type, PositionGroup, decltype(point_less)> position_groups(point_less);
 
     for (auto& segment : segments)
@@ -1697,11 +1672,9 @@ void quetzal::brep::IntersectionSplitter<M>::align_segment_positions(TraceSegmen
 
             for (id_type halfedge_id : {ptrace_point->halfedge_id_a, ptrace_point->halfedge_id_b})
             {
-                // An existing vertex position takes precedence as the canonical value, aligning the trace to
-                // the mesh rather than moving the mesh to the trace. Only an intersection coincident with the
-                // halfedge's own vertex has one; one that lies within the halfedge has no vertex yet, and
-                // gets one at the exact position when the edge is split during instantiation. Checking the
-                // starting vertex is sufficient since halfedge_plane_intersection excludes the ending position
+                // An existing vertex position is the canonical value, aligning the trace to the mesh. Only an intersection at
+                // the halfedge's own vertex has one; one within the halfedge gets a vertex when the edge is split. The
+                // starting vertex suffices, as halfedge_plane_intersection excludes the ending position
                 if (halfedge_id != nullid && float_eq(vertex_position(m_mesh.halfedge(halfedge_id)), ptrace_point->position))
                 {
                     i->second.m_position = vertex_position(m_mesh.halfedge(halfedge_id));

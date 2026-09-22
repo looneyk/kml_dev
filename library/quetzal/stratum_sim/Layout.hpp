@@ -15,7 +15,6 @@ namespace quetzal::stratum_sim
 {
 
     //--------------------------------------------------------------------------
-    // How far around, in the sense the layout's own axes are wound
     enum class Rotation
     {
         CCW,
@@ -24,58 +23,52 @@ namespace quetzal::stratum_sim
     };
 
     //--------------------------------------------------------------------------
-    // The destination of a move which may not be the full distance requested
-    // Holds the id of the object it was blocked by or nullid
+    // Where a move ended, possibly short of the distance requested, and what blocked it
     struct MoveResult
     {
         placement_type placement;
-        id_type blocking_wall_id = nullid; // The wall it was stopped by
-        id_type blocking_entity_id = nullid; // What was occupying the cell ahead, whatever the caller counts as one
+        id_type blocking_wall_id = nullid;
+        id_type blocking_entity_id = nullid;
     };
 
     //--------------------------------------------------------------------------
-    // The arrangement of a Zone and what can be asked of it: where a mover ends up, what it
-    // faces, what is adjacent, what is visible, and how far one action of movement travels
-    // Geometry travels outward through this toward the view and never inward: a caller asks
-    // where a move ends up rather than computing a destination and handing it back
+    // A zone's geometry and topology: where a move ends, what is ahead, what is adjacent, and what is visible
     class Layout
     {
     public:
 
         using placements_type = std::vector<placement_type>;
 
-        // A callback function type to allow callers to define what qualifies as a blocker
+        // Returns the entity blocking a placement, or nullid
         using blocker_function_type = std::function<id_type(const placement_type&)>;
 
-        // A callback function type to allow callers to define what qualifies as crossssable
+        // Whether the wall with the given id may be crossed
         using crossable_function_type = std::function<bool(id_type)>;
 
         virtual ~Layout() = default;
 
-        // Returns the end point of a move and the blocker if it did not fully move as requested
         virtual MoveResult move(const placement_type& placement, const vector_type& direction, value_type distance,
             const crossable_function_type& is_wall_crossable, const blocker_function_type& blocker_at) const = 0;
 
-        // The layout's own topology alone, no wall crossed and nothing counting as a blocker
+        // No wall is crossable and no entity blocks
         MoveResult move(const placement_type& placement, const vector_type& direction, value_type distance) const;
 
         virtual placement_type turn(const placement_type& placement, Rotation rotation) const = 0;
 
-        // The resulting placement starting at the given position and most closely aligned with the requested direction
+        // The placement turned to the layout direction nearest the requested one
         virtual placement_type face(const placement_type& placement, const vector_type& direction) const = 0;
 
         virtual bool same_location(const placement_type& a, const placement_type& b) const = 0;
 
-        // Adjacency for AI, the placements reachable in one step
+        // The placements reachable in one move
         virtual placements_type neighbors(const placement_type& placement, const crossable_function_type& is_wall_crossable) const = 0;
 
         virtual bool visible(const placement_type& from, const placement_type& to, const crossable_function_type& is_wall_crossable) const = 0;
 
-        // The wall directly in front of a placement if any. The layout determines what is there and
-        // at what granularity, snapping the facing the way move snaps the direction it travels in
+        // The wall directly ahead of a placement, or nullid
         virtual id_type ahead(const placement_type& placement) const = 0;
 
-        // How far one action of movement travels, which is what a move's cost is measured against
+        // The distance one action of movement travels
         virtual value_type step_distance() const = 0;
 
     protected:
@@ -95,9 +88,7 @@ namespace quetzal::stratum_sim
     }
 
     //--------------------------------------------------------------------------
-    // The layout as the kind of layout it is, for a caller that needs more than the interface
-    // exposes. Asking a zone for cells it has none of is the caller's error rather than a
-    // question with an answer, so this asserts rather than returning nothing
+    // The layout as its concrete class, which must be L
     template<typename L>
     L& layout_as(Layout& layout)
     {

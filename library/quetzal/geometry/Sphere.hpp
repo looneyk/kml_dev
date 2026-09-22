@@ -127,9 +127,7 @@ std::ostream& quetzal::geometry::operator<<(std::ostream& os, const Sphere<Trait
 template<typename Traits>
 struct std::formatter<quetzal::geometry::Sphere<Traits>>
 {
-    // Sphere has no formatting knobs of its own; the whole spec belongs to (and is entirely
-    // consumed by) the Point formatter, reused for the center, with its element formatter reused
-    // directly for the bare scalar radius (no Vector-style wrapper needed for a single value).
+    // Parses the whole format spec, and formats the center; its element formatter formats the radius
     std::formatter<quetzal::geometry::Point<Traits>> m_point_formatter;
 
     constexpr auto parse(std::format_parse_context& ctx)

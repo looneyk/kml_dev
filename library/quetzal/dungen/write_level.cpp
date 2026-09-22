@@ -172,7 +172,7 @@ void quetzal::dungen::write_level(ostream& os, const Level& level, const Paramet
         document.cells.rows.push_back(std::move(row));
     }
 
-    // A staircase cell's type does not say which way it leads; its record does
+    // A staircase cell's type does not encode which way it leads; the Staircase does
     for (const auto& staircase : level.staircases())
     {
         if (staircase.direction() == StaircaseDirection::Up)

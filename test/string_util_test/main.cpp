@@ -36,7 +36,6 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Every case reports its own line so that a failure is identifiable by name
     void report_case(const string& name, bool b, const string& detail = {})
     {
         ++g_case_count;
@@ -90,8 +89,7 @@ namespace
     using discrete_point_type = geometry::DiscretePoint<long, 3>;
 
     //--------------------------------------------------------------------------
-    // What to_chars wrote, or a marker naming the error, so that a case reports the difference
-    // rather than only that there was one
+    // What to_chars wrote, or a marker identifying the error
     template<typename T>
     string written(const T& t)
     {
@@ -236,8 +234,8 @@ namespace
                 result.ec == errc {} && p.x() == 1.5 && p.y() == -2.5 && p.z() == 3.0);
         }
 
-        // Homogeneous coordinates are dimension components on the wire; the weight is the
-        // caller's to supply, and is what tells a direction from a position
+        // Homogeneous coordinates are written as dimension components; the caller supplies the weight, which
+        // distinguishes a direction from a position
         {
             homogeneous_vector_type v;
             string s = "1.5 -2.5 3";
@@ -258,8 +256,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // A delimiter names what a writer put between components, so reading matches it exactly
-    // rather than accepting whatever separates them
+    // Reading matches the delimiter between components exactly
     void test_element_delimiters()
     {
         report_group("element delimiters");

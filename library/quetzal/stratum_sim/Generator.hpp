@@ -13,11 +13,7 @@ namespace quetzal::stratum_sim
 {
 
     //--------------------------------------------------------------------------
-    // What constructs a zone. An interface here and an implementation wherever a generator
-    // was chosen: this library links neither of them, and which one runs decides which
-    // parameters apply, so the concrete generator declares its own
-    // A zone is constructed whole when it is encountered, so this is the general way one
-    // arrives; a zone file is a snapshot of part of the same construction
+    // Constructs a zone's geometry. Each implementation declares its own parameters
     class Generator
     {
     public:
@@ -28,11 +24,9 @@ namespace quetzal::stratum_sim
 
         Generator& operator=(const Generator&) = default;
 
-        // The geometry, reporting the walls each door is attached to rather than placing one, as
-        // the loader does -- a generator has no world to place anything in either
+        // Reports the walls of each door to door, having no world to create it in
         virtual std::unique_ptr<Layout> generate(const door_type& door) const = 0;
 
-        // Which geometry model was built, a constructed zone having no file to supply it
         virtual stratum_format::Notation notation() const = 0;
     };
 

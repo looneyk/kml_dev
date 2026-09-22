@@ -15,8 +15,7 @@ namespace quetzal::catagen
 {
 
     //--------------------------------------------------------------------------
-    // The generation parameters of one run, written into the zone file so that a zone
-    // names what produced it and can be produced again
+    // The generation parameters of one run, written into the zone file so the zone can be reproduced
     struct Parameters
     {
         using seed_type = std::default_random_engine::result_type;
@@ -28,12 +27,10 @@ namespace quetzal::catagen
         // narrow to split into -- an upper below twice the lower leaves rooms oversized
         math::Interval<coord_type> scale {4, 8};
 
-        // Rock left between rooms, in cells. Zero has them share a wall; anything more sets
-        // them apart, and what separates them is what the corridors then cross
+        // Solid cells between rooms. At zero, adjoining rooms share a wall
         math::Interval<coord_type> spacing {0, 0};
 
-        // Fraction of the extent the rooms are drawn from; 1.0 keeps every one of them, so
-        // with no spacing it leaves nothing solid at all
+        // Fraction of the extent kept as rooms
         double density = 1.0;
         double loop = 0.1; // Probability of a door beyond the ones connectivity needs
 
@@ -41,17 +38,14 @@ namespace quetzal::catagen
         math::Interval<size_t> staircase_down_count {1, 1};
         math::Interval<size_t> staircase_up_count {1, 1};
 
-        // Empty until one is assigned, so that a caller who never did is caught by validate
-        // rather than quietly handed the same zone every run
+        // Empty until assigned; validate rejects it empty
         std::optional<seed_type> seed;
     };
 
-    // A seed drawn from the platform's entropy source, for a caller wanting a different
-    // zone each run. Generation itself takes the seed it is given, so that a written
-    // seed reproduces a zone exactly
+    // A seed drawn from the platform's entropy source
     Parameters::seed_type random_seed();
 
-    // Throws std::invalid_argument naming the parameter at fault
+    // Throws std::invalid_argument identifying the parameter at fault
     void validate(const Parameters& parameters);
 
 } // namespace quetzal::catagen

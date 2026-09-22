@@ -14,10 +14,7 @@ namespace quetzal
 {
 
     //--------------------------------------------------------------------------
-    // Reads a line, dropping a trailing cr so that a file written with crlf
-    // endings reads identically on every platform.
-    // Neither stream mode does this on its own: text mode drops the cr only on
-    // Windows, and binary mode retains it everywhere
+    // Reads a line, dropping a trailing cr, so a file with crlf endings reads the same on every platform
     inline std::istream& read_line(std::istream& is, std::string& line)
     {
         std::getline(is, line);

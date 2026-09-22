@@ -20,12 +20,11 @@ namespace
     using quetzal::stratum_view::State;
 
     //--------------------------------------------------------------------------
-    // The one format version this reads. A leading zero marks pre-release: no file older than
-    // it survives a change, and none is kept readable
+    // Pre-release, so files of an older version are not readable
     constexpr auto format_version = "0.1";
 
     //--------------------------------------------------------------------------
-    // The names a file writes, which are the names the code uses for the same values
+    // Names as written in a file, the same as in the code
     struct Named
     {
         const char* name;
@@ -116,8 +115,7 @@ quetzal::stratum_view::Glyphs quetzal::stratum_view::read_glyphs(const std::file
         throw std::runtime_error(std::format("{} cannot be opened", filepath.string()));
     }
 
-    // Read whole so that line endings are filtered in the one place that does it, whatever
-    // wrote the file
+    // Read whole so line endings are filtered in one place
     std::string text;
     std::string line;
 
@@ -183,8 +181,7 @@ quetzal::stratum_view::Glyphs quetzal::stratum_view::read_glyphs(std::istream& i
             fail(name, row, std::format("{} is not a place type", token));
         }
 
-        // The character runs to the end of the line rather than being a token of its own,
-        // a quoted space being two tokens to anything reading words
+        // The quoted character is read to the end of the line, as a quoted space would split into two tokens
         size_t quote = line.find('\'');
 
         if (quote == std::string::npos)
@@ -197,7 +194,7 @@ quetzal::stratum_view::Glyphs quetzal::stratum_view::read_glyphs(std::istream& i
 
         // Everything between the type and the character, in whatever order it was written
         std::istringstream rest(line.substr(0, quote));
-        rest >> token; // the type, read again to step over it
+        rest >> token; // Skips the type
 
         while (rest >> token)
         {
@@ -207,8 +204,6 @@ quetzal::stratum_view::Glyphs quetzal::stratum_view::read_glyphs(std::istream& i
                 continue;
             }
 
-            // Not a state: an actor is what stands on a place rather than something the
-            // place itself is in
             if (token == "actor")
             {
                 glyph.actor = true;
@@ -232,8 +227,7 @@ quetzal::stratum_view::Glyphs quetzal::stratum_view::read_glyphs(std::istream& i
             }
         }
 
-        // A state a type can never be in would be a line that never matches, which is a
-        // mistake in the file rather than a set with nothing to express
+        // A line with a state its type can never be in would never match
         if (!applies(glyph.type, glyph.state))
         {
             fail(name, row, "a state that place type cannot be in");

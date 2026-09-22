@@ -19,8 +19,6 @@ namespace
     static constexpr int player_speed = 100;
 
     //--------------------------------------------------------------------------
-    // The lowest open cell, where the controlled entity starts. Empty when the layout has
-    // no open cell at all
     std::optional<quetzal::stratum_sim::discrete_point_type> first_open_cell(const quetzal::stratum_sim::DiscreteLayout& layout)
     {
         const quetzal::stratum_sim::GridMapping& grid = layout.grid();
@@ -40,7 +38,6 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // The highest open cell, as far from the controlled entity as this cares to look
     std::optional<quetzal::stratum_sim::discrete_point_type> last_open_cell(const quetzal::stratum_sim::DiscreteLayout& layout)
     {
         const quetzal::stratum_sim::GridMapping& grid = layout.grid();
@@ -60,11 +57,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // The controlled entity, at the first open cell. An empty entity where the layout has no
-    // open cell at all, which is the caller's to resolve rather than something to decide here
-    // Where a zone's starting contents come from is what this substitutes for: a zone file specifies
-    // its contents and a placement pass puts them there. Until one does, this is the whole of
-    // what a loaded zone contains
+    // The player, at the first open cell. An empty entity when the layout has no open cell
     flecs::entity create_player(quetzal::stratum_sim::World& world, flecs::entity zone,
         const quetzal::stratum_sim::DiscreteLayout& layout, quetzal::stratum_sim::Scheduler& scheduler)
     {
@@ -80,17 +73,14 @@ namespace
         flecs::entity player = world.create_entity(zone,
             placement_type(layout.position(*start), vector_type(value_type(1), value_type(0), value_type(0))));
 
-        player.add<Blocking>(); // Obstructs anything else that moves
+        player.add<Blocking>();
         scheduler.add(player.id(), player_speed);
 
         return player;
     }
 
     //--------------------------------------------------------------------------
-    // What else goes in the zone. One pursuer as far off as this bothers to look, so that
-    // something other than the host decides for itself
-    // This is where monster selection and placement belong: which monsters a zone gets and
-    // where they are placed, drawn against the zone rather than fixed as they are here
+    // One pursuer at the last open cell
     void create_monsters(quetzal::stratum_sim::World& world, flecs::entity zone,
         const quetzal::stratum_sim::DiscreteLayout& layout, quetzal::stratum_sim::Scheduler& scheduler,
         flecs::entity player)
@@ -130,8 +120,7 @@ quetzal::stratum_sim::Session::Session() :
 //------------------------------------------------------------------------------
 void quetzal::stratum_sim::Session::create(const Generator& generator, Driver driver, double units_per_second)
 {
-    // A generator reports the walls a door is attached to rather than placing one, having no world
-    // to place it in, which is the same seam the loader reports across
+    // A generator has no world to place a door in, so it reports the walls each door is attached to
     door_walls_type doors;
 
     std::unique_ptr<Layout> layout = generator.generate(
@@ -145,16 +134,13 @@ void quetzal::stratum_sim::Session::create(const Generator& generator, Driver dr
 void quetzal::stratum_sim::Session::populate(std::unique_ptr<Layout> layout, const door_walls_type& doors,
     stratum_format::Notation notation, Driver driver, double units_per_second)
 {
-    // Built alongside and moved in only once the whole of it has succeeded. The clock's
-    // references are to these members rather than to what is moved from, so they remain valid
+    // Built aside and moved in only on success. The clock refers to the members, which stay valid across the move
     World world;
 
     flecs::entity zone = world.create_zone("zone", std::move(layout));
 
-    // A door is attached to the walls it was told, and nothing may be crossed until they are built
     create_doors(world, zone, doors);
 
-    // Where a zone's contents go is asked in cells, which is the layout's own vocabulary
     const DiscreteLayout& discrete = layout_as<DiscreteLayout>(world.layout(zone));
 
     Scheduler scheduler;
@@ -181,8 +167,6 @@ void quetzal::stratum_sim::Session::populate(std::unique_ptr<Layout> layout, con
 //------------------------------------------------------------------------------
 void quetzal::stratum_sim::Session::load(const std::filesystem::path& filepath, Driver driver, double units_per_second)
 {
-    // The loader reports the walls a door is attached to rather than placing one, having no world
-    // to place it in
     door_walls_type doors;
     stratum_format::Notation notation = stratum_format::Notation::Block;
 
@@ -195,7 +179,6 @@ void quetzal::stratum_sim::Session::load(const std::filesystem::path& filepath, 
     }
     catch (const std::runtime_error&)
     {
-        // Reported here, where there is a file to report; populate has only the zone it was handed
         throw std::runtime_error(std::format("level has no open cell: {}", filepath.string()));
     }
 
@@ -285,10 +268,7 @@ quetzal::id_type quetzal::stratum_sim::Session::advance(EventQueue& events, Cloc
 {
     id_type actor_controlled = static_cast<id_type>(m_player.id());
 
-    // Everything but the controlled entity decides for itself, and does so before the clock
-    // reads what any of them are asking for
-    // One decision per call: an actor fast enough to act twice between them acts twice on the
-    // one it made, which is where this hook moves if that ever matters
+    // Every actor but the player decides once per call; an actor fast enough to act twice repeats its decision
     think(m_world, actor_controlled);
 
     id_type actor_id = m_clock.advance(events, actor_controlled, elapsed);
@@ -300,8 +280,6 @@ quetzal::id_type quetzal::stratum_sim::Session::advance(EventQueue& events, Cloc
             return nullid;
         }
 
-        // The controlled entity is up asking for nothing. A one-shot action is the other form
-        // a host can have asked for, an Intent limited to movement and facing
         if (m_command_pending.empty())
         {
             return actor_id;
@@ -315,8 +293,7 @@ quetzal::id_type quetzal::stratum_sim::Session::advance(EventQueue& events, Cloc
             m_scheduler.spend(actor_id, cost);
         }
 
-        // No elapsed time this pass: what the step earned has already been given out, and a
-        // real-time driver would otherwise be paid twice for one frame
+        // Zero elapsed time, as this frame's time has already been granted
         actor_id = m_clock.advance(events, actor_controlled, Clock::duration_type::zero());
     }
 }

@@ -144,9 +144,7 @@ std::ostream& quetzal::geometry::operator<<(std::ostream& os, Plane<Traits> plan
 template<typename Traits>
 struct std::formatter<quetzal::geometry::Plane<Traits>>
 {
-    // Plane has no formatting knobs of its own; the whole spec belongs to (and is entirely
-    // consumed by) the Point formatter, whose parsed state is then shared with a Vector
-    // formatter for the normal (they carry the identical set of fields).
+    // Parses the whole format spec, which the normal's Vector formatter shares
     std::formatter<quetzal::geometry::Point<Traits>> m_point_formatter;
 
     constexpr auto parse(std::format_parse_context& ctx)

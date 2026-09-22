@@ -35,7 +35,7 @@ namespace
     static constexpr auto escape_reset_string = "\x1b[0m";
     static constexpr auto escape_rendition_pattern = "\x1b[38;5;{}m";
 
-    // Key order plays no part in its comparison, which is what lets two zone files compare as equivalent
+    // Compares regardless of key order
     using map_type = nlohmann::json;
 
     size_t g_case_count = 0;
@@ -61,7 +61,6 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Every case reports its own line so that a failure is identifiable by name
     void report_case(const string& name, bool b, const string& detail = {})
     {
         ++g_case_count;
@@ -103,8 +102,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // A zone as the tool writes one, header and grid, so that what is compared is what a
-    // zone file holds rather than the Level in memory
+    // A zone as the tool writes it, header and grid
     string zone_text(const dungen::Parameters& parameters)
     {
         dungen::Level level = dungen::generate(0, "zone", parameters);
@@ -155,8 +153,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // The whole string or nothing, so that trailing rubbish in a header value is an error
-    // rather than something quietly ignored
+    // The whole string or nothing; trailing characters are an error
     dungen::coord_type to_integer(const string& s)
     {
         dungen::coord_type value = 0;
@@ -185,7 +182,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // The parameters hold their counts as size_t, which a negative is not
+    // Rejects a negative count, as counts are size_t
     size_t to_count(const string& s)
     {
         dungen::coord_type value = to_integer(s);
@@ -221,10 +218,8 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // The generator a zone file names, read back into the parameters it specifies, which is the whole of what a zone file
-    // says about how to produce it again. Only the chosen algorithm's group is written, so only that one is read
-    // Throws std::invalid_argument where the file specifies something this does not read, so a parameter added to the
-    // writer and not to this is a failure rather than a silent pass
+    // The parameters in a zone file's generator section, where only the chosen algorithm's group is written
+    // Throws std::invalid_argument for a value this does not read, so a parameter added to the writer alone fails
     dungen::Parameters parameters_of(const stratum_format::values_type& generator)
     {
         if (!generator.is_object() || generator.value("name", "") != "dungen")
@@ -308,8 +303,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // The runs the reference zone files are written from. Every algorithm at a fixed seed, so
-    // that each is reproducible from what is checked in
+    // The runs the reference zone files are written from, each algorithm at a fixed seed
     struct Scenario
     {
         string name;
@@ -366,8 +360,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Zone files written now against those checked in, which are to be equivalent. A generator change that alters what any of
-    // these produces reports here rather than months later
+    // Zone files written now against those checked in, which must be equivalent
     void test_reference_zones()
     {
         report_group("reference zones");
@@ -402,7 +395,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // The claim the format rests on: a zone file names everything its run needs, so it can be produced again from the file alone
+    // A zone file has every parameter of its run, so it can be reproduced from the file alone
     void test_parameters_reproduce()
     {
         report_group("parameters reproduce their zone");
@@ -462,7 +455,7 @@ namespace
         other.seed = 8u;
         report_case("and another seed gives another", zone_text(other) != zone_text(parameters));
 
-        // The id and name are held rather than read, so neither reaches the grid
+        // The id and name do not affect the grid
         dungen::Level a = dungen::generate(0, "one", parameters);
         dungen::Level b = dungen::generate(7, "another", parameters);
 
@@ -510,8 +503,7 @@ namespace
         empty.size = {0, 0};
         report_case("an empty size is rejected", rejected(empty));
 
-        // Only the chosen algorithm's group is read, so another group holding nonsense is not
-        // a reason to reject a run that never looks at it
+        // Only the chosen algorithm's group is read, so another group's invalid values are not rejected
         dungen::Parameters unread = parameters;
         unread.algorithm = dungen::Algorithm::Maze1;
         unread.cave1.fill = -1.0;
@@ -557,8 +549,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // A doorway is itself a cell of wall, so two side by side are one doorway two cells wide
-    // rather than a break in the line
+    // A doorway is one cell of a wall line, so two side by side are one doorway two cells wide
     bool doorways_in_wall_lines(const string& zone, string& detail)
     {
         vector<string> rows;
@@ -674,8 +665,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Swept over seeds as well as the checked in zone files, a placement fault turning on where a
-    // room happens to land
+    // Swept over seeds as well as the checked in zone files, as a placement fault depends on where the rooms are
     void test_door_placement()
     {
         report_group("doorway placement");
@@ -723,9 +713,8 @@ namespace
                 format("{} seeds failed, first at {}", failures, detail));
         }
 
-        // A density below one leaves sectors holding a single cell instead of a room, and the
-        // smallest dimension allows rooms one cell across. Both reach corridor shapes the
-        // defaults never do, and the second is what placement has to draw again to avoid
+        // A density below one leaves sectors with a single cell instead of a room, and the smallest dimension allows rooms
+        // one cell across; both produce corridor layouts the defaults do not
         struct Variant
         {
             string name;
@@ -904,8 +893,8 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Read from the written zone, and a stair cell's space, which a block in no room leaves the file without, from the zone
-    // generated again: as many staircases each way as the counts allow, no floor cut off by a stair block, no staircase
+    // Read from the written zone, and each stair cell's space, which the file does not record, from the zone generated
+    // again: as many staircases each way as the counts allow, no floor cut off by a stair block, no staircase
     // blocking a doorway while a cell beside it would not, every staircase attached to the wall on an open side with floor
     // beyond, or with a door where no side has floor beyond, and the access points referring to every staircase
     bool staircases_placed_and_faced(const string& zone, const dungen::Parameters& parameters, string& detail)

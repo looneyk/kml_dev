@@ -12,8 +12,7 @@ namespace quetzal::expression
 {
 
     //--------------------------------------------------------------------------
-    // Walks a Node tree to print it; parallels Evaluator, but needs no T since
-    // every Node already carries its own text
+    // Prints a Node tree from each Node's own text
     class Printer
     {
     public:

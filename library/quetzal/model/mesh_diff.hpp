@@ -127,9 +127,7 @@ namespace quetzal::model
         size_t n_unmatched_other = 0; // rhs faces with no counterpart
         size_t n_surface_differences = 0;
 
-        // Faces resolved as the same polygon triangulated differently, counted per side. The diagonal
-        // chosen across a planar polygon carries no information, so those are equivalent; across a
-        // non-planar one the two triangulations are genuinely different surfaces and are not
+        // Faces matched as the same polygon triangulated differently, counted per side. Only those of a planar polygon are equivalent
         size_t n_triangulation = 0;
         size_t n_triangulation_nonplanar = 0;
 
@@ -145,9 +143,7 @@ namespace detail
 {
 
     //--------------------------------------------------------------------------
-    // A mesh in the form a comparison needs it: face vertex loops grouped by
-    // surface and submesh, without the connectivity that brep::Mesh maintains
-    // and a comparison never reads
+    // Face vertex loops grouped by surface and submesh, without brep::Mesh connectivity
     template<typename Traits, typename V = geometry::PositionNormalTexture<Traits>>
     class MeshDiffModel
     {
@@ -164,9 +160,7 @@ namespace detail
         static constexpr size_t dimension = Traits::dimension;
 
         //----------------------------------------------------------------------
-        // An attribute the source did not supply is left unset rather than
-        // defaulted, so that an absent one is distinguishable from a present one
-        // that happens to hold the default value
+        // An attribute the source did not supply is left unset, distinct from one with the default value
         class Vertex
         {
         public:
@@ -207,9 +201,8 @@ namespace detail
         };
 
         //----------------------------------------------------------------------
-        // The vertices of a single face, modeling the point set interface that
-        // geometry::PositionAccessor provides by default so that normal,
-        // vertex_centroid, bounds, and area apply to a face directly
+        // The vertices of a face, modeling the point set interface of geometry::PositionAccessor so that normal,
+        // vertex_centroid, bounds and area apply to it
         class FaceVertices
         {
         public:
@@ -316,9 +309,7 @@ namespace detail
     template<typename M>
     Comparison compare_models(const M& lhs, const M& rhs, const Options& options = {});
 
-    // Align two vertex loops, nullopt when their vertex counts differ. Takes the loops rather than the
-    // faces so that a loop assembled from more than one face, as a merged triangulation is, is judged
-    // by the same rules as a face
+    // Align two vertex loops, nullopt when their vertex counts differ. A loop may be assembled from more than one face, as a merged triangulation is
     template<typename M, typename L, typename R>
     std::optional<FaceComparison> compare_loops(const L& vertices_lhs, const R& vertices_rhs, const Options& options);
 
@@ -327,8 +318,7 @@ namespace detail
     std::optional<FaceComparison> compare_faces(const M& lhs, id_type face_id_lhs, const M& rhs, id_type face_id_rhs, const Options& options);
 
     //--------------------------------------------------------------------------
-    // A vertex loop gathered from vertices that need not be contiguous in the model, which is what a
-    // loop merged from several faces requires. Reads the same way a face's own vertices do
+    // A loop of vertices that need not be contiguous in the model, as in a loop merged from several faces. Read as a face's own vertices are
     template<typename M>
     class VertexLoop
     {
@@ -811,7 +801,7 @@ quetzal::model::detail::model_of<Mesh> quetzal::model::detail::to_model(const Me
         {
             using attributes_type = model_type::attributes_type;
 
-            // A mesh vertex always carries the attributes its type provides
+            // A mesh vertex always has the attributes its type provides
             const auto& av = halfedge.vertex_attributes();
 
             typename model_type::Vertex vertex;
@@ -948,9 +938,8 @@ quetzal::model::Comparison quetzal::model::detail::compare_models(const M& lhs, 
         }
     }
 
-    // A polygon split along one diagonal on one side and the other diagonal on the other leaves both of
-    // its triangles unmatched on both sides. Merging each pair back into the polygon it triangulates
-    // recovers the correspondence the face by face comparison cannot see
+    // A polygon triangulated along different diagonals on the two sides leaves its triangles unmatched on both;
+    // merging each pair back into its polygon matches them
     std::vector<bool> merged_lhs(unmatched_lhs.size(), false);
     std::vector<bool> merged_rhs(unmatched_rhs.size(), false);
 
@@ -995,9 +984,7 @@ quetzal::model::Comparison quetzal::model::detail::compare_models(const M& lhs, 
                     merged_rhs[b0] = true;
                     merged_rhs[b1] = true;
 
-                    // The diagonal across a planar polygon is arbitrary, so those two triangulations
-                    // describe one surface. Across a non-planar one they do not, and saying otherwise
-                    // would hide a real difference
+                    // The two triangulations describe one surface only across a planar polygon
                     bool planar = coplanar_triangles(lhs, unmatched_lhs[a0], unmatched_lhs[a1], options)
                         && coplanar_triangles(rhs, unmatched_rhs[b0], unmatched_rhs[b1], options);
 

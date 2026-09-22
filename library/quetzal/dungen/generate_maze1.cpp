@@ -374,7 +374,7 @@ namespace
     //--------------------------------------------------------------------------
     void excavate(Level& level, double corridor_straightness, random_type& random)
     {
-        // A maze cell every other cell, so a step crosses the wall between two of them
+        // Maze cells are two apart, with a wall cell between
         directions_type directions =
         {{
             2 * cardinal_direction(CardinalDirection::East),
@@ -400,9 +400,7 @@ namespace
     }
 
     //------------------------------------------------------------------------------
-    // A staircase goes where a corridor ends, so the dead ends left before they are pruned are
-    // the cells a staircase may take. Rooms and loops can leave a maze with no dead end at all,
-    // and then the rooms take them, one cell at the center of each
+    // The dead ends before pruning, or the center cell of each room where rooms and loops have left none
     vector<point_type> staircase_candidates(const Level& level)
     {
         vector<point_type> candidates;
@@ -519,8 +517,7 @@ quetzal::dungen::Level quetzal::dungen::generate_maze1(id_type id, const string&
     coord_type room_dimension_base = maze1.room_dimension_base;
     coord_type room_dimension_variation = maze1.room_dimension_variation;
 
-    // Linear probability density. A variation of zero asks for no draw at all, which is not a
-    // range to draw from
+    // Linear probability density; a variation of zero draws nothing
     auto room_dimensionalizer = [&random, room_dimension_base, room_dimension_variation]() -> coord_type
     {
         return room_dimension_base + (room_dimension_variation > 0 ? random.gen(room_dimension_variation) : 0);

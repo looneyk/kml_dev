@@ -17,22 +17,19 @@ assembly on `Attachment` and `OnWall`; this generalizes both to every entity and
 
 An entity may belong without being sited, so the site is optional. Nothing is sited without belonging.
 
-**One component, whatever an entity is placed on.** A site is a relation, an optional address and a placement, and
-the placement is in the frame the address resolves to --- the wall or flat cell it refers to, and the parent's own
-space where there is none. An actor is `In` its zone with no address, a key `In` its parent chest with no address,
-a torch `On` a wall with one. Picking a mug up off a table and dropping it on the floor changes fields of one
-component rather than converting between two.
+**One component, whatever an entity is placed on.** A site is a relation, an optional address and a placement, the
+placement relative to the address --- the wall or flat cell it refers to --- or to the parent where there is none. An
+actor is `In` its zone with no address, a key `In` its parent chest with no address, a torch `On` a wall with one.
+Picking a mug up off a table and dropping it on the floor changes fields of one component.
 
-**The relation is stated even where it is implied.** Every child of a zone is `In` it, so that case could be left
-to a default; an optional whose absence means one value is a default in disguise, and every read would branch on it.
+**The relation is always stated,** including the `In` of every child of a zone.
 
-**An entity in or on another entity has that entity as its parent.** A site never refers to an entity, because that
-link is the parent. A key in a chest, coins in a pouch, a sword an actor carries, a mug on a table --- in each of
-these the entity it is in or on is the one it travels with, so one link states both.
+**An entity in or on another entity has that entity as its parent.** A site never refers to an entity; that link is
+the parent. A key in a chest, coins in a pouch, a sword an actor carries, a mug on a table --- in each, the entity it is
+in or on is the one it travels with, so one link states both.
 
-**A door facing is the case that needs two.** It belongs to its door, which is what it dies with and inherits from,
-and it is on a wall, which is geometry rather than an entity. The two links differ there and nowhere else, and that
-is what keeps them separate links rather than one.
+**A door facing has both links apart.** It belongs to its door, which it is destroyed with and inherits from, and it is
+on a wall, which is geometry rather than an entity. The two links differ there and nowhere else.
 
 ## Relation
 
@@ -49,11 +46,11 @@ The site's address is the wall or the flat cell it is in or on. **No address mea
 for a child of a zone is the zone. A torch in a sconce is `In` its parent sconce, and the sconce is `On` a wall.
 
 **An address means fixed to a surface; what rests on a floor has a placement and no address.** A wall has to be
-addressed, a wall id being its identity and a wall having no position of its own. A cell of a flat is a position, so
-addressing one writes a position a second way --- and an entity that can be picked up and put down would rewrite its
-address every time, in a frame the layout's own queries do not take. So a chest, a dropped item and an actor are all
-`In` their zone with a placement, and a zone with no cell grid places them the same way. What the file writes as a
-flat cell is where an entity was authored, which loading resolves to a placement.
+addressed, a wall id being its identity and a wall having no position of its own. A cell of a flat is a position, so an
+address to one would be a position written a second way, rewritten whenever the entity is picked up and put down, in a
+frame the layout's queries do not take. So a chest, a dropped item and an actor are all `In` their zone with a
+placement, and a zone with no cell grid places them the same way. A flat cell in the file is where an entity was
+authored, which loading resolves to a placement.
 
 ## The data
 
@@ -66,15 +63,15 @@ enum class Relation { In, On };
 // The site file component: what the entity is in or on, and where on it. No address is its parent
 struct Site
 {
-    Relation relation = Relation::On;
+    Relation relation = Relation::In;
     std::optional<std::variant<WallAddress, FlatCell>> address;
     std::optional<surface_point_type> position;
     std::optional<discrete_vector_type> orientation;
 };
 
 //--------------------------------------------------------------------------
-// One of the zone's entities. The site and parent file components are decoded into fields of
-// their own, being structure the reader checks; components holds every other one as written
+// One of the zone's entities. The site and parent file components are decoded into fields, which the reader validates;
+// components contains the rest as written
 struct Entity
 {
     stored_entity_id_type id = 0;
@@ -108,8 +105,7 @@ struct FlatAddress
 using address_type = std::variant<WallAddress, FlatAddress>;
 
 //--------------------------------------------------------------------------
-// Where an entity is. The placement is in the frame the address resolves to, and in the parent's
-// own where there is none -- a zone's child is placed in the zone
+// Where an entity is. The placement is relative to the address, or to the parent where there is none
 struct Site
 {
     Relation relation = Relation::In;
@@ -156,8 +152,8 @@ zone
            \-- coins         In their parent
 ```
 
-Kind is a component and queries filter on it, so there are no grouping nodes below the zone. Depth is unbounded ---
-coins in a pouch an actor carries --- so nothing calls `parent()` a fixed number of times.
+An entity's type is a component that queries filter on, so there are no grouping nodes below the zone. Nesting is
+unbounded --- coins in a pouch an actor carries --- so nothing calls `parent()` a fixed number of times.
 
 ## Operations
 
@@ -174,8 +170,8 @@ coins in a pouch an actor carries --- so nothing calls `parent()` a fixed number
 
 - [x] **1. `Relation` and `Site` in `stratum_format`.** The reader decodes the `site` file component, the writer emits
       it, and an entity a file places in or on another entity is read as the parent file component.
-- [x] **2. `Site` in `stratum_sim`,** replacing `Attachment` and `OnWall`. `create_door` builds a facing with a wall
-      address, and `facing_on` and `crossable` query it.
+- [x] **2. `Site` in `stratum_sim`,** replacing `Attachment` and `OnWall`. `create_door` builds a door facing with a
+      wall address, and `facing_on` and `crossable` query it.
 - [x] **3. `zone_of` and `facing_on` walk the parent chain** to its root rather than calling `parent()` a fixed
       number of times.
 - [x] **4. `placement_type` folds into `Site`,** so an actor is `In` its zone with a placement and no address, and
@@ -187,7 +183,7 @@ coins in a pouch an actor carries --- so nothing calls `parent()` a fixed number
 
 ## Open
 
-Tracked in `work_plan.md`, which collects the open items of every plan.
+Tracked in `work_plan.md`.
 
 ## Appendix: changes from the attached file component
 

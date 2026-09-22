@@ -4,7 +4,7 @@
 //------------------------------------------------------------------------------
 
 #include "Application.hpp"
-#include "quetzal/stratum_sim/DiscreteLayout.hpp" // The status line, which reports a cell
+#include "quetzal/stratum_sim/DiscreteLayout.hpp"
 #include "quetzal/stratum_sim/commands.hpp"
 #include "quetzal/stratum_sim/Site.hpp"
 #include <format>
@@ -47,7 +47,6 @@ stratum_terminal::Application::Application(const std::string& filepath_zone, Vie
 {
     m_session.load(filepath_zone);
 
-    // The zone decides where nothing was asked for, which it can only do once it is loaded
     if (m_view == View::Null)
     {
         m_view = m_session.notation() == stratum_format::Notation::Wall ? View::Wall : View::Cell;
@@ -59,15 +58,13 @@ stratum_terminal::Application::Application(const std::string& filepath_zone, Vie
 //------------------------------------------------------------------------------
 int stratum_terminal::Application::run()
 {
-    // Outlives an iteration: what the session produced while applying a command is reported
-    // against the frame drawn after it, not against the one it was issued from
+    // Outlives an iteration, so the events of a command are reported with the frame drawn after it
     stratum_sim::EventQueue events;
 
     while (m_running)
     {
         id_type actor_id = m_session.advance(events);
 
-        // Nobody will ever be ready, so there is no turn left to take
         if (actor_id == nullid)
         {
             break;
@@ -84,14 +81,12 @@ int stratum_terminal::Application::run()
             continue;
         }
 
-        // Costs no turn, so the scheduler is left where it is
         if (key_press.c == key_redraw)
         {
             m_terminal.redraw();
             continue;
         }
 
-        // Waiting asks the simulation for nothing, so the host spends the turn itself
         if (key_press.c == '.')
         {
             m_message.clear();
@@ -99,8 +94,6 @@ int stratum_terminal::Application::run()
             continue;
         }
 
-        // Taken on the next turn of the loop, which acts on it and charges whichever actor
-        // the session was waiting on
         submit_key(key_press, actor_id);
     }
 
@@ -139,8 +132,7 @@ void stratum_terminal::Application::submit_key(const KeyPress& key_press, id_typ
 {
     using value_type = stratum_sim::value_type;
 
-    // Nothing in this view shows which way the actor faces, so there is nothing to turn on
-    // its own: a step is taken facing the way it goes, which is the same vector twice
+    // This view does not show the facing direction, so a move also turns toward the way it goes
     auto step = [this](value_type dx, value_type dy)
     {
         stratum_sim::vector_type direction(dx, dy, value_type(0));

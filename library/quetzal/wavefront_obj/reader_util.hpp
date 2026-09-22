@@ -28,8 +28,7 @@ namespace quetzal::wavefront_obj
 
     std::vector<std::string> tokenize(const std::string& s, std::string delimiters = " ", empties e = empties::rejected);
 
-    // Tokenizes into views over s, reusing the caller's buffer so that repeated
-    // calls over the lines of a file do not allocate
+    // Tokenizes into views over s, reusing the caller's buffer to avoid allocating per line
     void tokenize(std::string_view s, std::vector<std::string_view>& tokens, std::string_view delimiters = " ", empties e = empties::rejected);
 
     bool parse_vertex_reference(std::string_view s, vertex_reference_type& vr);

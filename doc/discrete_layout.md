@@ -1,14 +1,12 @@
 # Discrete Layout File Format Specification
 
 Status: specification --- the reader and writer are built in `stratum_format`, both generators write it, and `stratum_sim` builds layouts from it
-Date: 2026-09-11, revised 2026-09-20
+Date: 2026-09-11, revised 2026-09-22
 
 What a discrete layout file contains. One file is one `Zone`: the cell grid that quantizes
 movement, the walls between the cells, the flats bounding it above and below, the rooms defined over
-it, and everything attached to any of those.
-
-It includes rooms and their names, surfaces with height, styles and the entities a zone places,
-none of which the two generator grids could express. `sim_zone_model.md` owns the model this serializes.
+it, and the entities sited on any of those: rooms and their names, surfaces with height, styles and entities.
+`sim_zone_model.md` owns the model this serializes.
 `discrete_layout_plan.md` has what a file loads into and the reader and writer either side of it.
 
 ## What a file is
@@ -140,7 +138,7 @@ those overrides them.
       room            the room's components, and each flat's components for that room
         wall, flat cell   the wall's components, and each flat's components for that cell
 
-A wall or a flat cell inherits from the room covering it, and from the layout where no room does. A
+A wall or a flat cell inherits from the room containing it, and from the layout where no room does. A
 flat states its own at every level of this hierarchy rather than having a second: a floor spans the
 whole zone, so its own components belong at the layout's level, and those it specifies for a room at
 the room's. Where both are specified at one level the flat's wins. `height` descends the same chain.
@@ -154,9 +152,9 @@ the level it was written.
 `style` is one: a theme and how it is built. Its value is a name, an object of properties, or an
 object with a `name` and properties overriding part of what the name refers to; `"style": "cistern"`
 is `"style": { "name": "cistern" }`. A name is an asset the consumer resolves, which lets a theme be
-shared across zones without being copied into each. The format defines no style property: `theme`,
-`ceiling` and `segmented` are what is written so far --- what a surface is made of, flat or arched,
-and whether a run is broken into bays. A generator writes the properties the caller it is written for
+shared across zones without being copied into each. The format defines no style property; the
+generators write `theme`, what a surface is made of, `ceiling`, flat or arched, and `segmented`,
+whether a run is broken into bays. A generator writes the properties the caller it is written for
 consumes, and nothing between them checks the pair.
 
 ### The written form
@@ -215,8 +213,7 @@ What the layout as a whole is called and is like. A component object; nothing el
 ```
 
 `name`, `type`, `difficulty` and `style` are components like any other. They are the zone metadata
-`sim_zone_model.md` describes, so depth, recipe, encounter and loot tables belong here too as the
-content that needs them arrives.
+`sim_zone_model.md` describes, so depth, recipe, encounter and loot tables belong here too.
 
 `access_points` is required: references to the relocators an arriving actor can be placed at, at least
 one. Every zone is built with them.
@@ -329,14 +326,14 @@ A wall always separates a floor cell from a blank cell, from a stair cell, and f
 A stair cell is a block with no walls of its own, so nothing is required between one and a blank cell or
 the border.
 
-An edge glyph is one character standing for both sides, so what it writes is symmetric. A door
+An edge glyph is one character representing both sides, so what it writes is symmetric. A door
 open from one side alone, or secret from one side, is components on that side's door facing.
 
 ### Staircases and access points
 
 A stair glyph marks where a staircase is: a block, with a wall toward it on every side where there is
 floor, and an entity with a `relocator` sited on one of those walls, whose target is where it leads.
-The wall it is sited on is the staircase's open side, the side facing the room it opens into, and
+The wall it is sited on is the staircase's open side, the side toward the room it opens into, and
 that wall's normal is the direction of travel from the staircase into the room, so a staircase has no
 orientation of its own. The other walls around a stair cell are ordinary walls with components of their
 own, such as a texture.
@@ -383,7 +380,7 @@ cases.
 { "cell_position": [3, 1], "components": { "name": "the stair head" } }
 ```
 
-A cell belongs to at most one room. Two rooms covering one cell is an error in the file.
+A cell belongs to at most one room. Two rooms sharing a cell is an error in the file.
 
 ## barriers
 
@@ -399,7 +396,7 @@ cell.
 A fill does not cross a barrier, and that is all a barrier does. It is never in the layout: it builds
 nothing and blocks nothing, and an actor crosses one with nothing to notice.
 
-What survives is the shape of the cells a room covers, so a perimeter traced from them later runs
+What remains is the room's cells, so a perimeter traced from them later runs
 along a barrier as it runs along a wall.
 
 The array is layout-wide and every room is filled against all of it, a barrier between two rooms
@@ -451,7 +448,7 @@ what it specifies:
         cell
 
 A cell takes its height from the properties specified for it, failing that from those specified for
-the room covering it, failing that from the flat's own. Inherited components resolve the same way,
+the room containing it, failing that from the flat's own. Inherited components resolve the same way,
 these being three levels of the hierarchy Inheritance sets out. A sunken room costs one entry.
 
 A flat is sampled at cell scale and has no grid of its own: a height belongs to a cell of the grid
@@ -465,7 +462,7 @@ pit lets one in and need not let it out. What happens at the hole belongs to tha
 
 A flat component that affects movement does so as an entity. Openness comes from the rows, so
 terrain, rocks and a trap door affect a mover through the entity built from them and that entity's
-`Blocking` tag; items and decoration are the same shape without it. The format does not distinguish
+`Blocking` tag; items and decoration are entities without it. The format does not distinguish
 them.
 
 ## entities
@@ -550,7 +547,7 @@ crossing; the door entity on those walls sets its material, lock and trap. A sta
 staircase; the entity on its open side sets the relocator and so where it leads. An entity may also be
 the whole of something the grid has no glyph for.
 
-More than one entity attaches at one place: a door facing and the lever that works it, a plaque beneath
+More than one entity may be sited at one place: a door facing and the lever that works it, a plaque beneath
 a torch. The caller resolves each `type`, types such as `staircase`, `waypoint` and `portal` being
 prefabs the world has, and the format restricts no value of it.
 
@@ -564,7 +561,7 @@ where it leads is its `target`, bound or unbound.
 ```
 
 **Bound: the relocator arrived at,** as a reference (`addressing.md`, `### Relocators and access
-points`). A target is bound by having been travelled: until a way has been gone through, nothing has
+points`). A target is bound by having been traveled: until a way has been gone through, nothing has
 fixed where it arrives. A zone long since generated still has access points nobody has used, and
 every one of them is unbound. A zone template's relocators are all unbound; a bound target
 is written only in a saved zone, `"target": { "entity": 90412 }`.
@@ -598,8 +595,8 @@ than placing one, and the same applies to every component object and every entit
 A key the format does not define is not tracked: inside content it is kept as written, and anywhere
 else it is ignored. A change to the structure of the geometry is a new version, which a reader rejects.
 
-It resolves one structure, the file's own rather than content: a room, into the cells it covers,
-however the file identified it. An inherited component is content, and its chain is the consumer's to resolve.
+It resolves one structure, the file's own rather than content: a room, into its cells, however the
+file identified it. An inherited component is content, and its chain is the consumer's to resolve.
 
 `discrete_layout_plan.md` has the structures and the passes.
 
@@ -628,7 +625,7 @@ every check has passed, so a rejected file leaves nothing behind.
   horizontal nor vertical, or two sides that cross or touch.
 - A cell edge along a perimeter is neither a wall facing a floor/door cell nor an edge between two
   floor/door cells.
-- Two rooms cover one cell.
+- Two rooms share a cell.
 - A barrier is at a position off the grid.
 - A wall address has no wall in the grid, or its cell is not a floor/door cell.
 - More than one entry in `walls` for one wall.
@@ -652,12 +649,3 @@ every check has passed, so a rejected file leaves nothing behind.
   with a second one.
 - `layout.components.access_points` is absent, is not a list, or lists nothing; or a value it lists is
   not a reference to an entity with a relocator sited on the open side of a cell written `<` or `>`.
-
-## What this supersedes
-
-The two grid formats, and the zone file section of `catagen_reference.md` and
-`dungen_reference.md` with them. Both generators write this, their parameter headers becoming
-`generator.parameters` with the same tokens.
-
-What it affects beyond the file --- what reads one, what writes one, and what each is built of ---
-is in `discrete_layout_plan.md`.

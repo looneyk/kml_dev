@@ -1,5 +1,3 @@
-# Bounds and Item sit in this directory but were not in dungen.vcxproj and are not built here
-# either; they are the only files that reach outside dungen, to quetzal/math
 add_library(quetzal_dungen STATIC
     Algorithm.cpp
     Cell.cpp

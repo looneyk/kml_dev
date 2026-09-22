@@ -31,7 +31,7 @@ namespace
     const filesystem::path data_directory = "data";
     const filesystem::path out_directory = "out";
 
-    // Key order plays no part in its comparison, which is what lets two documents compare as equivalent
+    // Compares regardless of key order
     using map_type = nlohmann::json;
 
     size_t g_case_count = 0;
@@ -45,8 +45,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Every case reports its own line so that a failure is identifiable by name
-    // detail describes the discrepancy and is only written for a failure
+    // detail is written only for a failure
     void report_case(const string& name, bool b, const string& detail = {})
     {
         ++g_case_count;
@@ -101,7 +100,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Reports whether the file reads, so that a file failing to read fails one case rather than the run
+    // Reports whether the file reads, so a file failing to read fails one case, not the run
     optional<stratum_format::Document> read_case(const string& name, const filesystem::path& filepath)
     {
         try

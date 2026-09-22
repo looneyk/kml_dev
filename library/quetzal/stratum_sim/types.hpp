@@ -25,10 +25,10 @@ namespace quetzal::stratum_sim
     using points_type = std::vector<point_type>;
     using polygon_type = geometry::Polygon<traits_type>;
 
-    // Mover position and facing direction
+    // Position and facing direction
     using placement_type = geometry::DirectedPoint<traits_type>;
 
-    // Simple projection along the z-axis onto the xy_plane 
+    // Projection along the z axis onto the xy plane
     using point_projection_type = geometry::MinProjection<point_type>;
     using vector_projection_type = geometry::MinProjection<vector_type>;
 
@@ -45,7 +45,7 @@ namespace quetzal::stratum_sim
         return math::cardinal_direction<coord_type, 2>(direction);
     }
 
-    // The cardinal direction vector nearest to the give direction
+    // The cardinal direction nearest the given direction
     inline discrete_vector_type grid_step(const vector_type& direction)
     {
         static const vector_projection_type project;

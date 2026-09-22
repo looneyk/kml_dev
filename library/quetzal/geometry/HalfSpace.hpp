@@ -129,9 +129,7 @@ std::ostream& quetzal::geometry::operator<<(std::ostream& os, HalfSpace<Traits> 
 template<typename Traits>
 struct std::formatter<quetzal::geometry::HalfSpace<Traits>>
 {
-    // HalfSpace has no formatting knobs of its own; the whole spec belongs to (and is entirely
-    // consumed by) the Point formatter. separator_type is a Plane, Line, or Point depending on
-    // dimension -- all of which either hold or are a Point formatter with the identical fields.
+    // Parses the whole format spec, which the separator's formatter shares
     std::formatter<quetzal::geometry::Point<Traits>> m_point_formatter;
 
     constexpr auto parse(std::format_parse_context& ctx)

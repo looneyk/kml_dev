@@ -31,7 +31,6 @@ int quetzal::stratum_sim::apply(World& world, const Command& command, EventQueue
 
     if (const Step* pstep = command.try_get<Step>())
     {
-        // A zero direction means step along the actor's own facing
         vector_type direction = grid_step(pstep->direction).zero() ? placement.direction() : pstep->direction;
 
         if (pstep->face)
@@ -46,8 +45,6 @@ int quetzal::stratum_sim::apply(World& world, const Command& command, EventQueue
             }
         }
 
-        // Asked of the world rather than the layout, so that a wall and something occupying
-        // the cell ahead stop the actor in one query
         MoveResult result = world.move(e, direction, pstep->distance);
         bool moved = !layout.same_location(result.placement, placement);
 
@@ -67,19 +64,16 @@ int quetzal::stratum_sim::apply(World& world, const Command& command, EventQueue
             return 0;
         }
 
-        // What it cost is what it covered rather than a flat action, so that crossing four
-        // cells costs four turns and a fraction of a step costs a fraction of one. Being
-        // stopped short is therefore charged for the distance actually reached
-        value_type covered = (result.placement.position() - placement.position()).norm();
+        // The cost is proportional to the distance traveled
+        value_type traveled = (result.placement.position() - placement.position()).norm();
 
-        return static_cast<int>(std::lround(Scheduler::action_cost * covered / layout.step_distance()));
+        return static_cast<int>(std::lround(Scheduler::action_cost * traveled / layout.step_distance()));
     }
 
     if (const TurnTo* pturn = command.try_get<TurnTo>())
     {
         placement_type turned = layout.face(placement, pturn->direction);
 
-        // Already facing that way, so nothing was asked of the turn
         if (turned.direction() == placement.direction())
         {
             return 0;
@@ -97,11 +91,9 @@ int quetzal::stratum_sim::apply(World& world, const Command& command, EventQueue
 
         if (wall_id == nullid)
         {
-            return 0; // Nothing in front to act on
+            return 0;
         }
 
-        // A door opens and shuts. Anything else in front is reported and does nothing, there
-        // being nothing else yet that acting on has any effect upon
         Interaction interaction = Interaction::Nothing;
         flecs::entity facing = facing_on(zone, wall_id);
 

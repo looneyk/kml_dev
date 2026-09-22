@@ -21,9 +21,8 @@ namespace quetzal::geometry
     // Maps a position within a polygon to the corresponding texcoord value given its vertices as Attribute values
     // Three vertices are required for an affine map, four for bilinear interpolation
     // Vertices must all be non-colinear
-    // Bilinear is used rather than projective to be compatibe with lerp (as used elsewhere) on edges
-    // Textured constrains the constructor rather than the class so that the type can still be named
-    // where A has no texcoord, which is what an optional member or local in such a context requires
+    // Bilinear, to agree with lerp along edges
+    // Textured constrains the constructor, not the class, so the type can be named where A has no texcoord
     template<typename A>
     class PolygonMapping
     {
@@ -100,8 +99,7 @@ typename quetzal::geometry::PolygonMapping<A>::texcoord_type quetzal::geometry::
 }
 
 //------------------------------------------------------------------------------
-// Barycentric blend of the three vertex texcoords. Equivalent to affine_mapping, kept explicit here
-// so that the mapping does not depend on the transformation matrix machinery
+// Barycentric blend of the three vertex texcoords, equivalent to affine_mapping
 //------------------------------------------------------------------------------
 template<typename A>
 typename quetzal::geometry::PolygonMapping<A>::texcoord_type quetzal::geometry::PolygonMapping<A>::affine(const projected_type& p) const
@@ -125,8 +123,7 @@ typename quetzal::geometry::PolygonMapping<A>::texcoord_type quetzal::geometry::
 //
 // With a = P0, b = P1 - P0, c = P3 - P0, d = P0 - P1 + P2 - P3, the patch is a + bu + cv + duv, and d
 // is the twist term that vanishes for a parallelogram. Writing q = p - a and eliminating u gives a
-// quadratic in v; when the twist vanishes that quadratic degenerates to linear, which is the affine
-// case and is handled separately rather than dividing by nearly zero
+// quadratic in v, which is linear when the twist vanishes
 //------------------------------------------------------------------------------
 template<typename A>
 typename quetzal::geometry::PolygonMapping<A>::texcoord_type quetzal::geometry::PolygonMapping<A>::bilinear(const projected_type& p) const
@@ -142,9 +139,8 @@ typename quetzal::geometry::PolygonMapping<A>::texcoord_type quetzal::geometry::
 
     value_type v = value_type(0);
 
-    // a2 is a difference of two products, so a twist that is mathematically zero survives only as
-    // cancellation noise proportional to them, and has to be judged against their scale. A regular
-    // polygon of more than four sides makes c and d exactly antiparallel and lands here every time
+    // a2 is a difference of two products, so a zero twist leaves cancellation noise proportional to them, judged against
+    // their scale. A regular polygon of more than four sides makes c and d exactly antiparallel
     if (math::float_eq0(a2, c.norm() * d.norm()))
     {
         assert(!math::float_eq0(a1));
@@ -156,10 +152,8 @@ typename quetzal::geometry::PolygonMapping<A>::texcoord_type quetzal::geometry::
         assert(discriminant >= value_type(0));
         value_type root = std::sqrt(discriminant);
 
-        // Adding the term that shares a1's sign avoids the cancellation the direct form suffers on
-        // whichever root is the smaller. Which of the two that produces depends on the sign of a1, so
-        // they are ordered back the way the direct form gives them, leaving the preference below
-        // deciding between the same two as before rather than silently swapping them
+        // Adding the term with a1's sign avoids cancellation on the smaller root. The roots are then put back in the order
+        // the direct form gives them, which depends on the sign of a1
         value_type q2 = -(a1 + (a1 < value_type(0) ? -root : root)) / value_type(2);
         value_type va = q2 / a2;
         value_type vb = math::float_eq0(q2) ? va : a0 / q2;

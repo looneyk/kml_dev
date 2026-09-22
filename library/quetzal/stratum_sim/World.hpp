@@ -29,20 +29,17 @@ namespace quetzal::stratum_sim
     };
 
     //--------------------------------------------------------------------------
-    // The zone an entity is in, found along its parents, and a null entity where it is in none.
-    // Depth is unbounded -- coins in a pouch an actor carries -- so the zone is not its parent
+    // The nearest ancestor that is a zone, or a null entity. Entities nest, as coins in a pouch an actor carries do
     flecs::entity zone_of(flecs::entity e);
 
     //--------------------------------------------------------------------------
-    // What an entity belongs to and where it is, set together: taking it, putting it down and
-    // moving it between zones are all this operation, at different parents. Its own children
-    // travel with it, being its subtree, and its id is retained, so references to it stay valid
+    // Sets an entity's parent and site together. Its children move with it and its id is kept, so references to it stay
+    // valid
     void reparent(flecs::entity e, flecs::entity parent, const Site& site);
 
     //--------------------------------------------------------------------------
-    // The set of Zones and everything in them. One flecs world holds the entities, each
-    // Zone an entity whose contents are its children; the layouts are held alongside
-    // rather than in it, being static topology rather than game objects
+    // The zones and everything in them. Entities are in one flecs world, a zone's contents being its children; each zone's
+    // layout is stored outside flecs
     class World
     {
     public:
@@ -60,28 +57,19 @@ namespace quetzal::stratum_sim
         flecs::world& entities();
         const flecs::world& entities() const;
 
-        // Create a zone from a saved layout
         flecs::entity create_zone(const std::string& name, std::unique_ptr<Layout> layout);
 
         flecs::entity zone(const std::string& name) const; // Null when there is no such zone
         size_t zone_count() const;
 
-        // The Layout interface for a zone entity
         Layout& layout(flecs::entity zone);
         const Layout& layout(flecs::entity zone) const;
 
         flecs::entity create_entity(flecs::entity zone, const placement_type& placement);
 
-        // Where the mover ends up, topology and occupancy together. A layout resolves its
-        // own geometry and is independent of entities; this owns both, so it is where the two
-        // meet rather than either of them reaching into the other
-        // Blocking entities stop a mover, itself excepted. Rules ask this rather than the
-        // layout underneath
+        // The layout's queries from the entity's zone and placement, each wall crossable as its attachments allow. In move,
+        // every Blocking entity other than e blocks
         MoveResult move(flecs::entity e, const vector_type& direction, value_type distance) const;
-
-        // The layout's queries that depend on what is attached to a wall, asked of the entity's own
-        // zone and placement. Rules ask these rather than the layout, which has no way to reach an
-        // entity and so would take every wall as solid
         Layout::placements_type neighbors(flecs::entity e) const;
         bool visible(flecs::entity e, const placement_type& to) const;
 

@@ -17,8 +17,7 @@ func _initialize() -> void:
 	print("extent -> ", world.extent())
 	print("start  -> ", world.cell())
 
-	# East twice, then north, the same sequence the terminal host's reference frames use.
-	# The blocked step must not advance the turn, the same as in the terminal host
+	# East twice, then north. A blocked move must not advance the turn
 	print("step E -> ", world.step(1, 0), "  turn ", world.turn())
 	print("step E -> ", world.step(1, 0), "  turn ", world.turn())
 	print("step N -> ", world.step(0, 1), "  turn ", world.turn())
@@ -29,6 +28,6 @@ func _initialize() -> void:
 
 	var codes := world.cells()
 	print("cells  -> ", codes.size(), " codes, ", codes.count(StratumWorld.PlaceTypeFloor), " floor, ",
-		codes.count(StratumWorld.PlaceTypeActor), " actor")
+		world.actors().count(1), " actor")
 
 	quit()

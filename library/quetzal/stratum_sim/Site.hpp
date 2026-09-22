@@ -15,7 +15,7 @@ namespace quetzal::stratum_sim
 {
 
     //--------------------------------------------------------------------------
-    // Whether an entity is within what it is sited on or against its surface
+    // Whether an entity is inside what it is sited on or on its surface
     enum class Relation
     {
         In,
@@ -23,16 +23,15 @@ namespace quetzal::stratum_sim
     };
 
     //--------------------------------------------------------------------------
-    // A wall of the zone's layout, whose id also provides its normal
+    // A wall of the zone's layout; its id encodes its normal
     struct WallAddress
     {
         id_type wall_id = nullid;
     };
 
     //--------------------------------------------------------------------------
-    // One cell of a flat, a flat being the whole floor or ceiling of the zone. For an entity fixed
-    // to that surface: what rests on a floor has a placement and no address, a cell being a position
-    // and an address to one a position written a second way
+    // One cell of a flat, the whole floor or ceiling of the zone, for an entity fixed to that surface. An entity resting on
+    // a floor has a placement and no address
     struct FlatAddress
     {
         id_type flat_id = nullid;
@@ -42,10 +41,7 @@ namespace quetzal::stratum_sim
     using address_type = std::variant<WallAddress, FlatAddress>;
 
     //--------------------------------------------------------------------------
-    // Where an entity is. The placement is in the frame the address resolves to, and in the parent's
-    // own where there is none -- a zone's child is placed in the zone. An address is an id rather
-    // than a relationship because a wall is a record and not an entity; the reverse direction is a
-    // query filtered by that id
+    // Where an entity is. The placement is relative to the address, or to the parent where there is none
     struct Site
     {
         Relation relation = Relation::In;
@@ -54,11 +50,11 @@ namespace quetzal::stratum_sim
     };
 
     //--------------------------------------------------------------------------
-    // The wall an entity is sited on, and none where it is sited on a flat cell or on its parent
+    // Empty for a site on a flat cell or on the parent
     std::optional<id_type> wall_id_of(const Site& site);
 
     //--------------------------------------------------------------------------
-    // An entity's placement, and where it is set the rest of its site is left as it was
+    // set_placement leaves the rest of the site unchanged
     const placement_type& placement_of(flecs::entity e);
     void set_placement(flecs::entity e, const placement_type& placement);
 

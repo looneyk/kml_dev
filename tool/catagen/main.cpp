@@ -165,8 +165,7 @@ int main(int argc, char* argv[])
             }
         }
 
-        // A run that asked for no seed gets one of its own, so that the header names a seed
-        // either way and any zone can be produced again
+        // A random seed when none is given, written to the header so the zone can be reproduced
         if (!parameters.seed)
         {
             parameters.seed = catagen::random_seed();
@@ -182,7 +181,6 @@ int main(int argc, char* argv[])
 
         catagen::write_level(os, level, parameters);
 
-        // The same header the file holds, so that a run names the seed that reproduces it
         if (!quiet)
         {
             catagen::write_level(cout, level, parameters);

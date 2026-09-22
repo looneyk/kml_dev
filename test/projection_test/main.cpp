@@ -70,7 +70,7 @@ namespace
         check("projection z: origin", near(projection_z(point_type(0.0, 0.0, 0.0)), projected_type(0.0, 0.0)),
             std::format("got {}", to_string(projection_z(point_type(0.0, 0.0, 0.0)))));
 
-        // Points differing only in the projection direction must land on the same projected point
+        // Points differing only in the projection direction must project to the same point
         projected_type a = projection_z(point_type(1.0, 2.0, 0.0));
         projected_type b = projection_z(point_type(1.0, 2.0, 5.0));
         check("projection z: depth is discarded", near(a, b), std::format("{} vs {}", to_string(a), to_string(b)));

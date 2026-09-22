@@ -4,13 +4,8 @@
 // physics
 // gjk.hpp
 //
-// GJK (Gilbert-Johnson-Keerthi) intersection testing for convex BoundingVolumes.
-// Works for any pair of concrete BoundingVolume subtypes (AxisAlignedBoundingBox,
-// BoundingSphere, ...) without either side needing to know the other's concrete
-// type, since it operates entirely through each shape's support() mapping.
-//
-// Scoped to Traits::dimension == 3: the terminal simplex case (tetrahedron) and
-// the intermediate cases (line, triangle) below are 3D-specific.
+// GJK (Gilbert-Johnson-Keerthi) intersection testing for convex BoundingVolumes of any concrete type, through each
+// shape's support mapping. Three dimensional only, as are the simplex cases
 //------------------------------------------------------------------------------
 
 #include "quetzal/geometry/BoundingVolume.hpp"
@@ -21,11 +16,7 @@
 namespace quetzal::physics
 {
 
-    // Generic convex-vs-convex intersection test via GJK, operating purely through support().
-    // This is the fallback stage only: it does no AABB pre-cull and no dispatch to the cheaper
-    // closed-form tests that exist for known pairs (disjoint(AABB,AABB), sphere-sphere,
-    // sphere-AABB); a full intersects() would try those first and only reach this for pairs it
-    // has no cheap answer for.
+    // Convex intersection test through support(), with no bounding box pre-cull and no closed-form tests for known pairs
     template<typename Traits> requires (Traits::dimension == 3)
     bool intersects_gjk(const geometry::BoundingVolume<Traits>& a, const geometry::BoundingVolume<Traits>& b);
 
@@ -34,9 +25,8 @@ namespace quetzal::physics
 namespace quetzal::physics::gjk_detail
 {
 
-    // A GJK simplex lives in Minkowski-difference space, so its points are Vectors (differences),
-    // not Points (positions). points[count - 1] is always the most recently added point ("A" in
-    // the Voronoi-region case analysis below); earlier points are in insertion order before that.
+    // A simplex in Minkowski-difference space, so its points are Vectors. points[count - 1] is the newest point, A in
+    // the cases below, and the others are in insertion order
     template<typename Traits>
     struct Simplex
     {
@@ -52,12 +42,9 @@ namespace quetzal::physics::gjk_detail
         }
     };
 
-    // Reduces simplex to the smallest sub-simplex closest to the origin and updates direction to
-    // point from that feature toward the origin. Returns true once the simplex (a tetrahedron) is
-    // found to actually contain the origin, meaning the two shapes intersect. By construction, the
-    // newest point (A) was just chosen as extremal along the previous direction, so the origin can
-    // never be closest to a lone vertex or to the "old" edge/face opposite A -- only to an edge or
-    // face touching A, or the simplex interior -- which is why the cases below skip those regions.
+    // Reduces the simplex to the sub-simplex closest to the origin and directs direction from it toward the origin.
+    // True once a tetrahedron contains the origin, so the shapes intersect. A was extremal along the previous direction,
+    // so the origin can be closest only to a feature touching A or to the interior
     template<typename Traits>
     bool do_simplex(Simplex<Traits>& simplex, math::Vector<Traits>& direction)
     {

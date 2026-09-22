@@ -106,7 +106,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // The members of an object or the elements of an array, separated as they are written within one
+    // Joins the members of an object or the elements of an array with separators
     std::string joined(const std::vector<std::string>& parts)
     {
         std::string text;
@@ -175,7 +175,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // A run of three or more is written as a count, the shortest form a run of fewer is not
+    // A run of three or more is written with a count, which is shorter only then
     std::string compressed_row(const std::string& row)
     {
         std::string text;
@@ -489,7 +489,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // site and parent go back into components, ahead of the file components the reader passed through
+    // site and parent are written into components, ahead of the rest
     entry_type entity_entry(const Entity& entity)
     {
         entry_type entry {{"id", std::format("{}", entity.id)}, {"type", string_text(entity.type)}};
@@ -523,7 +523,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Each section in the order of the format's key table, those a zone has none of omitted
+    // Sections in the order of the format's key table, omitting empty ones
     std::string document_text(const Document& document)
     {
         std::vector<std::string> sections

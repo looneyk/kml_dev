@@ -52,7 +52,6 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // The parameters hold their counts as size_t, which a negative is not
     size_t to_count(const string& s)
     {
         dungen::coord_type value = to_integer(s);
@@ -140,7 +139,6 @@ int main(int argc, char* argv[])
             }
             else if (arg == "--room-density" && i + 1 < argc)
             {
-                // A name two algorithms share, so it sets both and the chosen one reads it
                 double room_density = to_real(argv[++i]);
                 parameters.maze1.room_density = room_density;
                 parameters.grid1.room_density = room_density;
@@ -222,8 +220,7 @@ int main(int argc, char* argv[])
             }
         }
 
-        // A run that asked for no seed gets one of its own, so that the header names a seed
-        // either way and any zone can be produced again
+        // A random seed when none is given, written to the header so the zone can be reproduced
         if (!parameters.seed)
         {
             parameters.seed = dungen::random_seed();
@@ -238,8 +235,6 @@ int main(int argc, char* argv[])
         }
 
         dungen::write_level(os, level, parameters);
-
-        // The same header the file holds, so that a run names the seed that reproduces it
         dungen::write_level(cout, level, parameters);
     }
     catch (const exception& e)

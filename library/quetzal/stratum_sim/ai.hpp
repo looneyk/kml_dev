@@ -13,22 +13,15 @@ namespace quetzal::stratum_sim
 {
 
     //--------------------------------------------------------------------------
-    // Goes toward a target while it can be seen, toward where it was last seen when it cannot,
-    // and gives that up on arriving there having found nothing
-    // Where it was last seen is what makes this more than a reaction, and it is held on the
-    // entity rather than beside it, so it unloads, migrates and saves with everything else the
-    // entity has. A decision asked for per action would have nowhere to keep it
+    // Moves toward a target while it is visible, then toward where it was last seen, stopping there if it finds nothing
     struct Pursue
     {
         id_type target_id = nullid;
         point_type position_last_seen;
-        bool seen = false; // Whether position_last_seen means anything yet
+        bool seen = false; // Whether position_last_seen is set
     };
 
-    // Writes an Intent for everything that decides for itself, which is everything but the
-    // entity a host controls
-    // An actor with no behavior is left alone, and one that asks for nothing waits rather
-    // than stopping the turn order
+    // Sets an Intent for every actor with a behavior except the controlled one
     void think(World& world, id_type actor_controlled);
 
 } // namespace quetzal::stratum_sim

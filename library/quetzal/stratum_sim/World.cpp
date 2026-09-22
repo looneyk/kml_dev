@@ -4,8 +4,8 @@
 //------------------------------------------------------------------------------
 
 #include "World.hpp"
-#include "attachments.hpp" // What is attached to a wall, which is what says a mover may cross it
-#include "DiscreteLayout.hpp" // The cell form of entities_at, which asks for cells
+#include "attachments.hpp"
+#include "DiscreteLayout.hpp"
 #include "Site.hpp"
 #include <algorithm>
 #include <cassert>
@@ -14,9 +14,8 @@ namespace
 {
 
     //--------------------------------------------------------------------------
-    // Every placed entity of a zone that satisfies the predicate, in id order. A site with an
-    // address is placed in that address's frame rather than the zone's, so the predicate is not
-    // one it can be asked
+    // The zone's children with no site address whose placement satisfies accept, in id order. A placement with an
+    // address is relative to that address
     template<typename F>
     quetzal::stratum_sim::World::entities_type placed_in(flecs::entity zone, F accept)
     {
@@ -61,7 +60,7 @@ const flecs::world& quetzal::stratum_sim::World::entities() const
 //------------------------------------------------------------------------------
 flecs::entity quetzal::stratum_sim::World::create_zone(const std::string& name, std::unique_ptr<Layout> layout)
 {
-    assert(!zone(name)); // Not is_alive: flecs asserts rather than reporting for a null entity
+    assert(!zone(name)); // is_alive asserts on a null entity
     assert(layout != nullptr);
 
     flecs::entity e = m_world.entity(name.c_str()).add<Zone>();
@@ -138,7 +137,6 @@ quetzal::stratum_sim::MoveResult quetzal::stratum_sim::World::move(flecs::entity
 
     const Layout& zone_layout = layout(zone);
 
-    // The mover is standing where it starts, so it is not something it can be stopped by
     auto blocker_at = [&](const placement_type& candidate_placement)
     {
         for (flecs::entity other : entities_at(zone, candidate_placement))

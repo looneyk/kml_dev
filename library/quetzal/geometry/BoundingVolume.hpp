@@ -41,11 +41,7 @@ namespace quetzal::geometry
 
         virtual void print(std::ostream& os) const = 0;
 
-        // The point on the volume's surface farthest along direction -- the GJK support mapping.
-        // This is the one primitive GJK-based intersection testing needs; unlike compare()/centroid(),
-        // it generalizes to volume-vs-volume tests between different concrete shapes without needing
-        // to know the other shape's type, since GJK only ever calls a.support(d) and b.support(d)
-        // independently of each other.
+        // The point on the volume's surface farthest along direction, the GJK support mapping
         virtual point_type support(const vector_type& direction) const = 0;
     };
 

@@ -1453,9 +1453,8 @@ quetzal::geometry::Intersection<Traits> quetzal::geometry::intersection(const Pl
             assert(false);
     }
 
-    // point was derived through a cross product, an axis selection, and a 2x2 linear solve (a division by denom),
-    // so its deviation from either plane carries several steps of accumulated rounding error on top of what a
-    // single dot-product comparison budgets for by default; a larger, explicit tolerance reflects that chain.
+    // point comes from a cross product and a 2x2 linear solve, so its distance from either plane accumulates more rounding
+    // error than the default tolerance allows
     constexpr int intersection_tolerance = 4096;
     assert(plane_a.contains(point, intersection_tolerance));
     assert(plane_b.contains(point, intersection_tolerance));

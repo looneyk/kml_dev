@@ -4,7 +4,7 @@
 //------------------------------------------------------------------------------
 
 #include "StratumWorld.hpp"
-#include "quetzal/stratum_sim/DiscreteLayout.hpp" // The tile view, which is grid shaped
+#include "quetzal/stratum_sim/DiscreteLayout.hpp"
 #include "quetzal/stratum_sim/commands.hpp"
 #include "quetzal/stratum_sim/Site.hpp"
 #include "quetzal/stratum_view/ascii.hpp"
@@ -53,8 +53,7 @@ godot::String StratumWorld::default_zone_path() const
 //------------------------------------------------------------------------------
 bool StratumWorld::load_zone(const godot::String& filepath)
 {
-    // Anything thrown here would cross into Godot's own frame, so it stops at this boundary.
-    // A failed load leaves the previous zone intact, which is the session's guarantee
+    // Exceptions must not cross into Godot. A failed load leaves the previous zone intact
     try
     {
         m_session.load(std::string(filepath.utf8().get_data()));
@@ -116,7 +115,6 @@ godot::PackedByteArray StratumWorld::cells() const
         return codes;
     }
 
-    // The same reduction the terminal host renders characters from, taken one step earlier
     view::Cells cells = view::cells(m_session.world(), m_session.zone());
 
     const view::vector_type& extent = cells.extent();
@@ -171,8 +169,6 @@ godot::Vector2i StratumWorld::step(int32_t di, int32_t dj)
         sim::vector_type(static_cast<sim::value_type>(di), static_cast<sim::value_type>(dj), sim::value_type(0)),
         sim::value_type(1), sim::vector_type()});
 
-    // Produced and discarded: nothing here consumes them yet, where the terminal host reports
-    // them on its status line
     sim::EventQueue events;
     m_session.advance(events);
 

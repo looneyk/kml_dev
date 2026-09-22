@@ -187,8 +187,7 @@ void quetzal::brep::attach(M& mesh, id_type face_id_a, id_type face_id_b, bool s
     auto normal0 = af.normal();
     size_t n = face_a.halfedge_count();
 
-    // Built while face A is still pristine, since everything below modifies it and the texcoords being
-    // applied are those of the original face
+    // Built before face A is modified below, so the original face's texcoords are applied
     std::optional<geometry::PolygonMapping<typename M::vertex_attributes_type>> mapping_a;
     if constexpr (geometry::Textured<typename M::vertex_attributes_type>)
     {

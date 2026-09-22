@@ -15,11 +15,8 @@ namespace stratum_terminal
 {
 
     //--------------------------------------------------------------------------
-    // Which reduction the host draws. The cell view is a glyph per cell, which is what a
-    // roguelike shows; the wall view is the lattice, which also draws what lies on the
-    // edges between cells and so is the only one that shows a door or a wall two rooms share
-    // Unasked, the zone decides: a block format zone loses nothing through the cell view,
-    // and a wall format one loses every wall between two open cells
+    // Which reduction the host draws: a glyph per cell, or the lattice, which also draws the walls and doors on edges
+    // between cells. Null lets the zone's notation decide
     enum class View
     {
         Null,
@@ -33,9 +30,7 @@ namespace stratum_terminal
     {
     public:
 
-        // A non empty script is played in place of the keyboard, one character per turn,
-        // and the run ends when it is exhausted. A scripted run writes whole frames unless
-        // asked for incremental, which is how the terminal writer's own output is examined
+        // A non empty script replaces the keyboard, one character per turn, and the run ends when it is exhausted
         Application(const std::string& filepath_zone, View view = View::Null,
             const std::string& script = {}, bool incremental = true);
         Application(const Application&) = delete;
@@ -51,9 +46,8 @@ namespace stratum_terminal
 
         void draw();
 
-        // Routes a key to the session: movement and facing as intent, one-shot actions as
-        // commands. Nothing is submitted for a key that asks for neither
-        // For the actor the session is waiting on, not for the player by assumption
+        // Submits a key for the actor the session is waiting on: movement and facing direction as intent, one-shot actions
+        // as commands
         void submit_key(const KeyPress& key_press, quetzal::id_type actor_id);
 
         void report(const quetzal::stratum_sim::EventQueue& events);
@@ -61,10 +55,8 @@ namespace stratum_terminal
 
         quetzal::stratum_sim::Session m_session;
 
-        // Resolved once the zone is loaded, so it is never Null by the time anything draws
-        View m_view = View::Null;
+        View m_view = View::Null; // Never Null once the zone is loaded
 
-        // The set the chosen view is drawn with, taken once rather than asked for per frame
         quetzal::stratum_view::Glyphs m_view_glyphs;
         Terminal m_terminal;
         std::string m_message;

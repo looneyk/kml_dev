@@ -1,93 +1,58 @@
+# Scene Graph --- Plan
 
-  ---
-  Current Problems
+Separate three concerns that `Node` combined:
 
-  Node conflates three separate concerns:
-  - Scene graph identity — id, transform, hierarchy
-  - Renderable reference — which geometry, which material
-  - GPU rendering state — descriptor sets, pipeline layout, pipeline handle
+- scene graph identity --- id, transform, hierarchy
+- the renderable --- which geometry, which material
+- GPU rendering state --- descriptor sets, pipeline layout, pipeline
 
-  Renderer::insert<V>() does all of this inline (load geometry, load texture, build descriptors, create pipeline, construct node) with no separation.
+`Renderer::insert<V>()` loaded the geometry and texture, built the descriptors, created the pipeline and constructed the
+node in one function.
 
-  ---
-  Proposed Layer Structure
+## Layers
 
-  1. Node — base class only
+1. **`Node`**, the base class: identity, transform and hierarchy, and nothing GPU-specific.
 
-  Owns identity, transform, and hierarchy. Nothing GPU-specific.
-  id: string
-  local_transform: matrix_type
-  children: vector<Node*>
-  parent: Node*
-  World transform is computed top-down before draw. A dirty flag avoids recomputing unchanged branches.
+   ```
+   id: string
+   local_transform: matrix_type
+   children: vector<Node*>
+   parent: Node*
+   ```
 
-  2. Transform
+   The world transform is computed top down before drawing, with a dirty flag to skip unchanged branches.
 
-  A small separate struct worth extracting if you want TRS decomposition (translate/rotate/scale) rather than raw matrices. Optional but clean.
+2. **`Transform`**: a matrix with a dirty flag, optionally decomposed into translation, rotation and scale.
 
-  3. Material
+3. **`Material`**: the texture id (in `TextureCache`), the vertex and fragment shader paths, the descriptor sets per
+   swap frame, the pipeline layout (from `ResourceManager`) and the pipeline (from `PipelineManager`).
 
-  The missing abstraction. Currently the contents of insert<V>(). Owns:
-  - texture id (→ TextureCache)
-  - vertex/fragment shader paths (currently hardcoded)
-  - descriptor sets per swap frame
-  - pipeline layout (from ResourceManager)
-  - pipeline (from PipelineManager)
+4. **`MaterialCache`**: keyed by material description, as `ModelCache` and `TextureCache` are keyed.
 
-  4. MaterialCache
+5. **`GeometryNode : Node`**: a renderable node, with a geometry id (in `ModelCache`) and a material id (in
+   `MaterialCache`). `CameraNode`, `LightNode` and others follow the same form.
 
-  Same pattern as ModelCache/TextureCache — key by material description, reuse where possible.
+6. **`Scene`**: the node tree, with a root node, lookup by id, and traversal for transform propagation and drawing.
+   `Renderer` owns a `Scene` and traverses it to draw.
 
-  5. GeometryNode : Node
+## New files
 
-  A concrete Node subclass that is renderable. Holds:
-  - geometry id (→ ModelCache)
-  - material id (→ MaterialCache)
+| File | Purpose |
+| --- | --- |
+| `Transform.hpp` | Matrix, dirty flag, optional decomposition |
+| `Material.hpp` | Texture, shaders, pipeline and descriptors together |
+| `MaterialCache.hpp` | Material reuse |
+| `Scene.hpp` | Node tree ownership and traversal |
+| `GeometryNode.hpp` | Renderable node |
 
-  Other subclasses would follow: CameraNode, LightNode, etc.
+## Changes to existing files
 
-  6. Scene
+- `Node.hpp` --- reduced to id, transform and hierarchy.
+- `Renderer.hpp` --- the flat `m_nodes` vector replaced with a `Scene`; `insert<V>()` split into material creation and
+  node insertion; the camera data in `UniformBufferObject` moved toward a `CameraNode`.
+- `ModelCache` and `TextureCache` --- unchanged.
 
-  Owns the node tree (currently a flat vector<Node> in Renderer). Provides:
-  - hierarchical storage (root node + children)
-  - lookup by id
-  - traversal (for transform propagation, for draw)
+## Phases
 
-  Renderer owns a Scene and drives traversal during draw().
-
-  ---
-  Required Infrastructure (new files)
-
-  ┌───────────────────┬──────────────────────────────────────────────────┐
-  │       File        │                     Purpose                      │
-  ├───────────────────┼──────────────────────────────────────────────────┤
-  │ Transform.hpp     │ Wrap matrix, dirty flag, optional TRS            │
-  ├───────────────────┼──────────────────────────────────────────────────┤
-  │ Material.hpp      │ Group texture + shaders + pipeline + descriptors │
-  ├───────────────────┼──────────────────────────────────────────────────┤
-  │ MaterialCache.hpp │ Cache/reuse materials                            │
-  ├───────────────────┼──────────────────────────────────────────────────┤
-  │ Scene.hpp         │ Node tree ownership + traversal                  │
-  ├───────────────────┼──────────────────────────────────────────────────┤
-  │ GeometryNode.hpp  │ Concrete renderable node                         │
-  └───────────────────┴──────────────────────────────────────────────────┘
-
-  ---
-  Key Changes to Existing Files
-
-  - Node.hpp — strip to base (id + transform + hierarchy only)
-  - Renderer.hpp — replace m_nodes flat vector with Scene; split insert<V>() into material creation step and node insertion step; move UniformBufferObject camera data toward a CameraNode eventually
-  - ModelCache/TextureCache — no structural changes needed
-
-  ---
-  Immediate vs. Deferred
-
-  The minimum needed to get a proper scene graph working:
-
-  Phase 1 — foundation:
-  Transform, Material, GeometryNode, Scene, strip Node to base
-
-  Phase 2 — deferred:
-  MaterialCache (can start with ad-hoc material creation), CameraNode, LightNode, dirty-flag propagation optimization
-
-  Does this match where you want to go, or do you want to adjust scope before we start on any of it?
+1. `Transform`, `Material`, `GeometryNode`, `Scene`, and `Node` reduced to its base.
+2. `MaterialCache`, `CameraNode`, `LightNode`, and dirty-flag propagation.

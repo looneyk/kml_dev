@@ -286,8 +286,7 @@ std::ostream& quetzal::geometry::operator<<(std::ostream& os, Segment<Traits> se
 template<typename Traits>
 struct std::formatter<quetzal::geometry::Segment<Traits>>
 {
-    // Segment has no formatting knobs of its own; the whole spec belongs to (and is entirely
-    // consumed by) the Point formatter, reused verbatim for both endpoints.
+    // Parses the whole format spec, and formats both endpoints
     std::formatter<quetzal::geometry::Point<Traits>> m_point_formatter;
 
     constexpr auto parse(std::format_parse_context& ctx)

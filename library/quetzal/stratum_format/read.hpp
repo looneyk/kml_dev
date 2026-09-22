@@ -13,12 +13,10 @@
 namespace quetzal::stratum_format
 {
 
-    // Reads a layout file. Throws std::runtime_error stating what was wrong and where, and returns
-    // nothing until every check the format requires has passed
+    // Reads and validates a layout file. Throws std::runtime_error stating what was wrong and where
     Document read(const std::filesystem::path& filepath);
 
-    // The same over a stream already open
-    // name is for error identification
+    // name identifies the stream in error messages
     Document read(std::istream& is, const std::string& name);
 
 } // namespace quetzal::stratum_format

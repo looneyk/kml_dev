@@ -4,10 +4,8 @@
 //
 // Exercises geometry::Mapping and geometry::PolygonMapping, the position -> texcoord maps.
 //
-// PolygonMapping is what create_edge_internal/create_edge_partial use to give a new vertex its
-// texcoord, while split_edge instead interpolates along the edge being split. Those two have to
-// agree wherever both apply, or which one a vertex happens to go through changes the result.
-// That agreement is what the edge cases here check.
+// The edge cases check that PolygonMapping, which create_edge_internal and create_edge_partial use for a new vertex's
+// texcoord, agrees with split_edge's interpolation along the edge
 //------------------------------------------------------------------------------
 
 #include "quetzal/geometry/Attributes.hpp"
@@ -59,8 +57,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Absolute rather than ulp comparison, since what matters here is whether a texcoord is wrong
-    // by an amount that would show in a model, not whether it is bit exact
+    // An absolute tolerance, for an error that would show in a model
     bool near(const texcoord_type& a, const texcoord_type& b, value_type tolerance = 1.0e-9)
     {
         return abs(a.x() - b.x()) <= tolerance && abs(a.y() - b.y()) <= tolerance;
@@ -73,8 +70,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Every correspondence the mapping was built from has to come back out of it. A fit that cannot
-    // reproduce its own input points is not a mapping of that kind at all
+    // Every correspondence the mapping was built from must map back exactly
     void check_correspondences(const string& name, const mapping_type& mapping, const vector<point_type>& positions, const vector<texcoord_type>& texcoords)
     {
         for (size_t i = 0; i < positions.size(); ++i)
@@ -88,8 +84,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Along an edge of the face the mapping and a plain interpolation of the edge endpoints must
-    // agree -- this is exactly the invariant split_edge relies on when it lerps a split vertex
+    // Along an edge the mapping must agree with lerp of the edge endpoints, as split_edge relies on
     void check_edge_agrees_with_lerp(const string& name, const mapping_type& mapping, const point_type& p0, const point_type& p1, const texcoord_type& t0, const texcoord_type& t1)
     {
         for (value_type t : {0.25, 0.5, 0.75})
@@ -104,10 +99,8 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // A homography maps every straight line to a straight line, which is what distinguishes it from a
-    // bilinear patch. It does NOT preserve the parameterization along that line -- equal steps become
-    // unequal, transformed fractional-linearly -- so agreement with lerp is a bilinear property and is
-    // checked against PolygonMapping instead, not here
+    // A homography maps straight lines to straight lines, unlike a bilinear patch, but not their parameterization, so
+    // agreement with lerp is checked for PolygonMapping instead
     void check_straightness(const string& name, const mapping_type& mapping, const point_type& p0, const point_type& p1)
     {
         texcoord_type a = mapping(p0);
@@ -121,8 +114,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // A triangle gives three correspondences, so Mapping builds an affine transform. This is the
-    // case that should be exactly right, and it is the baseline the quad cases are judged against
+    // Three correspondences give an affine transform, which must be exact
     void test_triangle_affine()
     {
         cout << endl << "triangle, affine mapping" << endl;
@@ -139,9 +131,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // A parallelogram with texcoords assigned affinely. Four correspondences send Mapping down the
-    // projective path, but the correct answer here is still affine, so this isolates whether the
-    // four point path can reproduce a case the three point path handles
+    // A parallelogram with affine texcoords, which the four point projective path must reproduce
     void test_quad_affine()
     {
         cout << endl << "quad, affine texcoords" << endl;
@@ -160,9 +150,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // A trapezoid, the case that genuinely needs a projective map. The four corners cannot be
-    // reproduced by any affine transform, so this separates a real homography from a least squares
-    // affine fit through four points
+    // A trapezoid, which no affine transform reproduces
     void test_quad_projective()
     {
         cout << endl << "quad, projective (trapezoid)" << endl;
@@ -180,10 +168,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // More than four correspondences overdetermine the homography. Consistent data has an exact
-    // solution, which least squares must find rather than merely approach, so every correspondence
-    // still has to round trip. The extra points are generated through the four point map, so they
-    // lie on it by construction
+    // More than four consistent correspondences, which least squares must fit exactly
     void test_quad_overdetermined()
     {
         cout << endl << "quad, overdetermined (six correspondences)" << endl;
@@ -218,9 +203,8 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // The mesh_operations torus faces are quads off the xy-plane, which is the configuration where
-    // the splitter disagreed with itself. Texcoord values are in the range the box_torus4 outputs
-    // showed, where mapping and lerp derived vertices differed by about 1.8e-3
+    // A quad off the xy-plane, as the mesh_operations torus faces are, with texcoords in the range of the box_torus4
+    // outputs
     void test_quad_off_plane()
     {
         cout << endl << "quad, off axis plane (torus-like)" << endl;
@@ -237,7 +221,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // PolygonMapping, the bilinear replacement for the four point path
+    // PolygonMapping, the bilinear mapping
     //--------------------------------------------------------------------------
 
     using attributes_type = geometry::PositionNormalTexture<vector_traits>;
@@ -304,7 +288,7 @@ namespace
         check("parallelogram: center", near(mapping_parallelogram(point_type(1.0, 1.5, 0.0)), texcoord_type(0.5, 0.5)),
             std::format("got {}", to_string(mapping_parallelogram(point_type(1.0, 1.5, 0.0)))));
 
-        // Trapezoid, the case the least squares affine fit could not reproduce
+        // Trapezoid, which no affine map reproduces
         vector<attributes_type> trapezoid = {
             corner({0.0, 0.0, 0.0}, n, {0.0, 0.0}),
             corner({4.0, 0.0, 0.0}, n, {1.0, 0.0}),
@@ -316,22 +300,16 @@ namespace
         check_polygon_edge("trapezoid edge 2-3", mapping_trapezoid, trapezoid[2], trapezoid[3]);
         check_polygon_edge("trapezoid edge 3-0", mapping_trapezoid, trapezoid[3], trapezoid[0]);
 
-        // Colinear vertices, too few vertices and default construction are all rejected at compile
-        // time or by assert now, so none of them has a runtime rejection to test here
         return;
     }
 
     //--------------------------------------------------------------------------
-    // The dodecahedron top face, verbatim from the primitives model. Five corners, so the bilinear
-    // patch is fit through four of them and the fifth is dropped. That costs nothing here: a regular
-    // pentagon and its regular uv pentagon are related by a similarity, and a bilinear patch through
-    // any four corners of an affinely related pair reproduces the whole relation. So the center must
-    // map to the uv centroid, whichever corner the perimeter happens to start at.
+    // The dodecahedron top face from the primitives model. The bilinear patch through four of its five corners
+    // reproduces the similarity between a regular pentagon and its uv pentagon, so the center maps to the uv centroid
+    // whichever corner the perimeter starts at
     //
-    // Run at float as well as double. A regular pentagon makes the inverse bilinear twist term
-    // exactly zero, and at float the cancellation noise left in its place is large enough to be taken
-    // for a real value, which sends the solve down the quadratic branch and returns a wrong texcoord
-    // rather than a slightly imprecise one. Models are built at float
+    // At float, as models are built, the cancellation noise in the pentagon's zero twist term is large enough to send the
+    // solve down the quadratic branch
     template<typename T>
     void test_pentagon(const string& precision, T tolerance)
     {
@@ -384,13 +362,9 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Accuracy of the inverse bilinear solve, measured rather than assumed.
-    //
-    // A known (u, v) is pushed through the forward patch in double to get a position and the texcoord
-    // that position must map back to. The mapping then re-derives (u, v) from that position at the
-    // precision under test, so the gap is the inversion's own error. Near parallelogram quads are the
-    // hard case: the twist term is small, the quadratic is ill conditioned, and the smaller root comes
-    // out of the direct formula as a difference of near equal terms
+    // The error of the inverse bilinear solve. A known (u, v) is mapped through the forward patch in double, and the
+    // mapping recovers it at the precision under test. Near parallelogram quads have a small twist term and an ill
+    // conditioned quadratic
     template<typename T>
     double inverse_bilinear_error(const std::array<std::pair<double, double>, 4>& xy, const std::array<std::pair<double, double>, 4>& uv)
     {
@@ -448,8 +422,7 @@ namespace
             double ef = inverse_bilinear_error<float>(xy, uv);
             double ed = inverse_bilinear_error<double>(xy, uv);
 
-            // Tight enough to fail as soon as the conditioning regresses at all: the stable solve holds
-            // near one ulp at both precisions, while the direct formula misses these by orders
+            // Tight enough to fail on any conditioning regression; the stable solve is near one ulp at both precisions
             check(std::format("twist {:<8g} float error {:.3e}, double error {:.3e}", twist, ef, ed), ef >= 0.0 && ef < 1.0e-6 && ed < 1.0e-14);
         }
 

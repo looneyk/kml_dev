@@ -977,8 +977,7 @@ typename quetzal::brep::Face<Traits, M>::halfedges_ext_type::const_element_funct
 template<typename Traits, typename M>
 typename quetzal::brep::Face<Traits, M>::holes_type::size_function_type quetzal::brep::Face<Traits, M>::m_holes_size = [](const mesh_type& mesh, id_type id) -> size_t
 {
-    // The store rather than face(), as the other iterators do, since a deleted face is still asked for
-    // its holes and face() rejects one. A face with no id of its own has none
+    // The store, as face() rejects a deleted face, which is still asked for its holes. A face with no id has none
     return id != nullid ? mesh.face_store()[id].hole_ids().size() : 0;
 };
 

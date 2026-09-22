@@ -1,8 +1,8 @@
 # Ids and Addressing
 
-How stratum identifies places and entities, and how one refers to another. This is the one place
-that is specified. `discrete_layout.md` is the rest of the zone file format, `addressing_plan.md` is
-the detailed design of what is not built yet, and `decision_rationale.md` explains the decisions.
+How stratum identifies places and entities, and how one refers to another. `discrete_layout.md` specifies the rest of
+the zone file format, `addressing_plan.md` is the detailed design of what is not built yet, and `decision_rationale.md`
+explains the decisions.
 
 This document describes format version 0.4, which supersedes 0.3. The changes from 0.3 are listed in
 the appendix.
@@ -56,19 +56,17 @@ layout by the id it encodes the address as.
 junction is a corner where cells meet.
 
 **Edges and walls.** An edge is the boundary between two cells. The wall notation writes an edge as one
-glyph covering both sides. A wall is one side of an edge, and it belongs to the cell on that side: its
-surface faces into that cell, and it is that side that an actor in the cell sees. The two sides of an
-edge are two separate walls, one belonging to each cell. So a room's walls are the sides of its own
-cells, and a room of a single cell has all four of its walls on that cell. An actor can
-always tell which wall it can interact with. The wall on the other side of the same edge is out of its
-reach until the actor is on that side. Everything is per wall: surface treatment, what is sited on it, a
-door facing.
+glyph for both sides. A wall is one side of an edge, and it belongs to the cell on that side: its surface
+is toward that cell, and an actor in the cell sees that side. The two sides of an edge are two separate
+walls, one belonging to each cell, so a room's walls are the sides of its own cells, and a room of a
+single cell has all four of its walls on that cell. An actor interacts only with the wall on its own
+side of an edge. Everything is per wall: surface treatment, what is sited on it, a door facing.
 
 A wall exists only where open space meets something. The side of an edge toward a solid cell has no
 wall.
 
 **Stair cells.** A stair cell is a block, and like a solid cell it owns no wall: each open neighbor
-presents a wall to it. The staircase is sited on the wall on its open side, the side facing the room
+presents a wall to it. The staircase is sited on the wall on its open side, the side toward the room
 it opens into. Its other sides are ordinary walls, each with its own surface treatment.
 
 **Flats and flat cells.** A zone is bounded by two flats, a floor and a ceiling. A flat cell is one cell
@@ -115,11 +113,11 @@ hierarchy of parents and children is sited on the geometry somewhere in it.
 
 **An entity can refer to another.** A lever refers to the door it controls, a summoned monster to its
 summoner, a quest to its object. A generator makes these references while both entities are in front
-of it: it places a lever beside a door and gives the lever the door's id. What a reference does is up
+of it: it places a lever beside a door and writes the door's id into the lever. What a reference does is up
 to script, such as a triggered script that opens the door a lever controls.
 
 **A link to something that does not exist yet uses a shared value, not a reference.** A key in one
-zone for a door in a zone not yet generated has no id to refer to. The key and the lock carry the same
+zone for a door in a zone not yet generated has no id to refer to. The key and the lock have the same
 lock value, and they match whenever both exist.
 
 ### Zone files
@@ -215,8 +213,8 @@ what the file component means.
 ]
 ```
 
-`addressing_plan.md` has the full set of keys, the rules the reader checks, what door and stair glyphs
-require, and the design choices still open.
+`discrete_layout.md` (`## entities`) has the full set of keys, the rules the reader checks, and what door and stair
+glyphs require.
 
 ### Relocators and access points
 
@@ -230,7 +228,7 @@ actor (`discrete_layout.md`, `### A relocator's target`). Its target is one of t
 
 A zone's **access points** are the relocators an arriving actor can be placed at; a zone has at least
 one. `layout.components.access_points` is a list of references to them. Each is an entity with a
-relocator, attached to the open side of a cell written `<` or `>`.
+relocator, sited on the open side of a cell written `<` or `>`.
 
 ### A saved zone
 
@@ -304,8 +302,8 @@ and slot to flat cell entity.
 - **Where an entity is:** read its `site`, and its parent where the site has no address.
 - **Whether a wall can be crossed:** ask each entity on the wall's list whether its access is open and
   it is not concealed from the actor, each property read from the entity or, where it has none, from its
-  direct ancestor. An entity with no access at all, a torch or a lever, is no way through. `crossable` names
-  neither doors nor staircases nor concealment.
+  direct ancestor. An entity with no access at all, a torch or a lever, is no way through. `crossable` has
+  no case for a door, a staircase or concealment.
 
 ### Children
 
@@ -316,7 +314,7 @@ them, and reading a door's door facings, or the other side of a door, is reading
 A zone's entities are children of the zone, except the ones that are children of another entity, which
 belong to the zone through their parent. So **a zone's contents are its subtree, not its children**: a
 query for the zone's children finds what is placed directly in it, which is what occupancy and the view
-ask for, and whatever has to cover a zone entirely --- saving it, unloading it, dumping it --- walks the
+ask for, and whatever has to reach all of a zone --- saving it, unloading it, dumping it --- walks the
 subtree instead. Deleting the zone already reaches all of it. The player is in a zone without being in
 its subtree (`### The player`).
 
@@ -326,28 +324,17 @@ its subtree (`### The player`).
 may not be loaded. The world keeps an index of which zone each entity that something refers to is in,
 updated whenever such an entity moves between zones, and resolves references through it. An entity
 that nothing refers to is not in the index. A dropped object is indexed in its zone, as everything
-attached to a place is, and is accessible while the actor is in that zone, but not from another zone
+sited on a place is, and is accessible while the actor is in that zone, but not from another zone
 the actor moves to. A reference also caches the runtime entity it last resolved to, and resolves
 again once that runtime entity is gone.
 
 **Bound relocator targets** are references, so arriving through one finds the target relocator and its
 zone through the index.
 
-### Ids created in more than one place
-
-One allocator per world is enough for a single player, and for a game hosted by one server, since the
-server is then the only place ids are created. A client that predicts a spawn uses a temporary id,
-which the server replaces. Several servers allocating at the same time can split the 64 bits between
-which server created an id and that server's own count. Where there is no coordination at all --- peer
-to peer, merging worlds saved separately, carrying an entity from one save to another --- UUIDs are
-needed, either as `persistent_id_type` itself or only at the boundary between worlds, mapped there to
-each world's own ids. The rules for persistent ids above are what keep each of these a change to the
-allocator or the id type, and not to the code that uses ids.
-
 ### Actors
 
-An actor, such as the player or a monster, is located by its `placement_type`: a position and a
-direction. An actor has no site on what it stands on.
+An actor, such as the player or a monster, is `In` its zone, its site having a placement --- a position and a
+direction --- and no address.
 
 **Each zone has an actor index,** which finds the actors at a place with a lookup. The index is derived
 from the actors' placements: it is updated as they move and rebuilt when the zone loads, so it cannot

@@ -645,9 +645,8 @@ bool quetzal::geometry::Polygon<Traits>::contains_(const point_type& point, int 
 }
 
 //------------------------------------------------------------------------------
-// Cartesian traits do not support Projection. The polygon is projected instead by
-// dropping the axis it most nearly faces, leaving the two best conditioned components
-// That can reverse handedness, which a nonzero winding test does not notice
+// Cartesian traits do not support Projection, so the axis the polygon most nearly faces is dropped. That can reverse
+// handedness, which a nonzero winding test does not notice
 template<typename Traits>
 bool quetzal::geometry::Polygon<Traits>::contains_(const point_type& point, int tolerance) const requires (Traits::dimension == 3 && quetzal::math::Cartesian<Traits>)
 {
@@ -963,8 +962,7 @@ std::ostream& quetzal::geometry::operator<<(std::ostream& os, const Polygon<Trai
 template<typename Traits>
 struct std::formatter<quetzal::geometry::Polygon<Traits>>
 {
-    // Polygon has no formatting knobs of its own; the whole spec belongs to (and is entirely
-    // consumed by) the Point formatter, reused verbatim for every vertex.
+    // Parses the whole format spec, and formats every vertex
     std::formatter<quetzal::geometry::Point<Traits>> m_point_formatter;
 
     constexpr auto parse(std::format_parse_context& ctx)

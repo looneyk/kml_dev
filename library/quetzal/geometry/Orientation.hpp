@@ -165,8 +165,7 @@ std::ostream& quetzal::geometry::operator<<(std::ostream& os, Orientation<Traits
 template<typename Traits>
 struct std::formatter<quetzal::geometry::Orientation<Traits>>
 {
-    // Orientation has no formatting knobs of its own; the whole spec belongs to (and is entirely
-    // consumed by) the Vector formatter, reused verbatim for direction and right.
+    // Parses the whole format spec, and formats direction and right
     std::formatter<quetzal::math::Vector<Traits>> m_vector_formatter;
 
     constexpr auto parse(std::format_parse_context& ctx)

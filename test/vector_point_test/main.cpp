@@ -41,7 +41,6 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Every case reports its own line so that a failure is identifiable by name
     void report_case(const string& name, bool b, const string& detail = {})
     {
         ++g_case_count;
@@ -96,9 +95,8 @@ namespace
     using discrete_point_type = geometry::DiscretePoint<long, 3>;
 
     //--------------------------------------------------------------------------
-    // What the arity constraints on the constructors and the component setters admit. These
-    // replace the commented "// error" lines the two suites this replaces carried: a form that
-    // must not compile is a case that passes when it does not
+    // The forms the arity constraints on the constructors and component setters admit; a form that must not compile
+    // passes when it does not
     template<typename T, typename... Args>
     concept constructible_from = requires(Args... args) { T(args...); };
 
@@ -330,8 +328,6 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // A point is a position and a vector is a displacement, and the operations between them
-    // are what keeps the two apart
     void test_point_and_vector()
     {
         report_group("point and vector");
@@ -386,8 +382,6 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Homogeneous coordinates carry one component more than the dimension, and the weight is
-    // what tells a position from a direction
     void test_homogeneous()
     {
         report_group("homogeneous coordinates");

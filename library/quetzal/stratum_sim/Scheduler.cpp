@@ -102,7 +102,6 @@ quetzal::id_type quetzal::stratum_sim::Scheduler::ready() const
 //------------------------------------------------------------------------------
 quetzal::id_type quetzal::stratum_sim::Scheduler::next()
 {
-    // Straight to the unit at which the soonest actor is ready rather than one at a time
     long long wait = -1;
 
     for (const auto& [actor_id, speed] : m_speeds)
@@ -123,7 +122,7 @@ quetzal::id_type quetzal::stratum_sim::Scheduler::next()
 
     if (wait < 0)
     {
-        return nullid; // No actor accumulates anything
+        return nullid; // No actor has a positive speed
     }
 
     advance(wait);

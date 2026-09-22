@@ -12,10 +12,7 @@ namespace quetzal::stratum_sim
 {
 
     //--------------------------------------------------------------------------
-    // Orders actors in abstract units. Each accumulates energy at its own speed and acts
-    // once it has action_cost to spend
-    // Whether units advance on player command or on the wall clock is the driver's
-    // business, not this one's
+    // Orders actors in abstract units. Each accumulates energy at its own speed and acts once it has action_cost to spend
     class Scheduler
     {
     public:
@@ -41,18 +38,14 @@ namespace quetzal::stratum_sim
         void set_speed(id_type actor_id, int speed);
         int energy(id_type actor_id) const;
 
-        // Grants every actor the energy its speed earns over these units, and nothing else.
-        // A scheme that advances on the wall clock converts elapsed time to units and calls
-        // this; one that advances on player command does not call it at all
+        // Grants every actor the energy its speed earns over these units
         void advance(long long units);
 
-        // The actor that can act now, the readiest first and the lowest id of those tied.
-        // nullid when none can, which is not the same as none ever will
+        // The actor that can act now, the one with the most energy first and the lowest id among ties, or nullid when
+        // none can yet
         id_type ready() const;
 
-        // Advancing to the moment the soonest actor can act, then taking it. This is the
-        // turn-based composition of the two above rather than anything the ordering itself
-        // requires, and skipping past the wait is exactly what a real-time scheme must not do
+        // Advances to the moment the soonest actor can act and returns it. Turn-based only
         id_type next();
 
         void spend(id_type actor_id, int cost = action_cost);

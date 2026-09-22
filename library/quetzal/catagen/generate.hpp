@@ -13,7 +13,7 @@ namespace quetzal::catagen
 
     // Partitions the extent into rooms, keeps as many of them as the density asks for,
     // joins them with corridors, and adds doors so that all rooms are reachable
-    // Deterministic in its parameters, the seed included, so the written header reproduces the zone exactly
+    // Deterministic in its parameters, the seed included
     // Throws std::invalid_argument by way of validate, and std::runtime_error where no staircase can be placed to be an access point
     Level generate(const Parameters& parameters);
 

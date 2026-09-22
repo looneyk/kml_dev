@@ -505,19 +505,17 @@ void quetzal::brep::set_border_fragment_submesh_internal(M& mesh, id_type halfed
 template<typename M>
 void quetzal::brep::validate_connection_traces(const M& mesh, const connection_traces_type& connection_traces)
 {
-    // A halfedge and its partner run in opposite directions, so the exterior and interior borders of one
-    // side advance opposite ways around the trace, and side a takes its exterior direction opposite to
-    // side b. Between them that fixes a direction per slot, so each is read the one way that follows the
-    // trace: whether consecutive borders meet head to tail by side, and whether the trace is read
-    // forwards or backwards by whether the slot is exterior or interior
+    // A halfedge and its partner run in opposite directions, so the exterior and interior borders of one side advance
+    // opposite ways around the trace, and side a's exterior direction is opposite side b's. Each slot therefore has one
+    // direction: consecutive borders meet head to tail by side, and the trace is read forwards or backwards by whether
+    // the slot is exterior or interior
     using trace_index_type = std::function<size_t(size_t, size_t)>;
 
     trace_index_type index_forward = [](size_t step_count, size_t step_total) -> size_t { return step_count % step_total; };
     trace_index_type index_reverse = [](size_t step_count, size_t step_total) -> size_t { return (step_total - step_count) % step_total; };
 
-    // The recorded halfedges are the border, so the sequence is checked against itself rather than
-    // against a walk of the mesh. Where two traces meet at a vertex the border halfedges of both stand
-    // there and a walk cannot tell which trace it is on, while the record can
+    // The sequence is checked against itself, not a walk of the mesh, since a walk cannot tell which trace it is on
+    // where two traces meet at a vertex
     const std::array<std::pair<bool, trace_index_type>, 4> border_slot_reads =
     {{
         {true, index_reverse},  // A exterior

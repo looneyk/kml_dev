@@ -169,7 +169,7 @@ namespace
         spans = stratum_view::difference(a, c);
         report_case_equal("a gap splits a run", spans.size(), 2);
 
-        // Differing sizes give the whole of b, as the cue for a device to repaint
+        // Differing sizes give the whole of b
         spans = stratum_view::difference(stratum_view::Console({2, 2}, '.'), a);
         report_case_equal("a size change reports every row", spans.size(), 3);
         report_case("each row entire", !spans.empty() && spans[0] == stratum_view::Span {{0, 0}, 6});
@@ -193,7 +193,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // The reduction both views consume, before either decides how to show it
+    // The cell reduction
     void test_cells()
     {
         report_group("cells");
@@ -217,10 +217,8 @@ namespace
         report_case("an entity stands in its cell", cells.at({3, 1}).actor);
         report_case("and only that one", !cells.at({2, 1}).actor);
 
-        // The whole point of the actor being a layer: the floor it stands on is still there
         report_case("the floor under it is kept", cells.at({3, 1}).type == stratum_view::PlaceType::Floor);
 
-        // A view's mapping is its own; the terminal's is a table of Glyph
         const stratum_view::Glyphs& glyphs = stratum_view::cell_glyphs();
         report_case("glyphs map each place type", glyphs(stratum_view::Place {stratum_view::PlaceType::Solid}) == '#'
             && glyphs(stratum_view::Place {stratum_view::PlaceType::Floor}) == '.');
@@ -229,13 +227,11 @@ namespace
             glyphs(stratum_view::Place {stratum_view::PlaceType::Floor, stratum_view::State::None,
                 stratum_view::DirectionMask::None, true}) == '@');
 
-        // A line asking for an actor beats one asking for a state, so an actor in an open
-        // doorway draws as the actor
         report_case("an actor in an open doorway draws as the actor",
             glyphs(stratum_view::Place {stratum_view::PlaceType::Door, stratum_view::State::Open,
                 stratum_view::DirectionMask::None, true}) == '@');
 
-        // A set's expressive range is the set's own, so a line specifying a state beats one that does not
+        // A line specifying a state beats one that does not
         const stratum_view::Glyphs& lattice_set = stratum_view::lattice_glyphs();
         report_case("a state named draws apart from one not named",
             lattice_set(stratum_view::Place {stratum_view::PlaceType::Door}) == '/'
@@ -247,7 +243,7 @@ namespace
         report_case("rendering from cells matches rendering from the world",
             stratum_view::render(cells).to_string() == stratum_view::render(world, zone).to_string());
 
-        // difference works over any buffer, which is what having one implementation buys
+        // difference works over a buffer of any type
         stratum_view::Cells other = cells;
         other.set({5, 1}, stratum_view::Place {stratum_view::PlaceType::Solid});
         report_case_equal("differencing works over places too", stratum_view::difference(cells, other).size(), 1);
@@ -256,7 +252,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // A glyph set as a file, and the built-in sets as the contents of the two shipped
+    // Glyph set files, and the built-in sets against the shipped files
     void test_glyph_files()
     {
         report_group("glyph files");
@@ -332,7 +328,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // The reduction the wall-aware view consumes: the cells and what lies between them
+    // The lattice reduction: the cells and what lies between them
     void test_lattice()
     {
         report_group("lattice");
@@ -366,7 +362,7 @@ namespace
         flecs::entity vault = load_zone(open_world, "vault", "data/vault.level");
         report_case("a corner inside a room is not", stratum_view::lattice(open_world, vault).at({10, 4}).type == stratum_view::PlaceType::None);
 
-        // The block format reduces onto the same lattice, its walls existing only against solid
+        // The block notation reduces onto the same lattice, its walls only against solid
         stratum_sim::World block;
         flecs::entity corridor = load_zone(block, "corridor", "data/corridor.level");
 
@@ -377,8 +373,7 @@ namespace
         report_case("an open cell reads as floor", cells.at({3, 3}).type == stratum_view::PlaceType::Floor);
         report_case("open meeting solid is walled", cells.at({2, 3}).type == stratum_view::PlaceType::Wall);
 
-        // A wall exists only on the side facing open space, so an edge has to be asked of
-        // both cells: this one has its wall on the west side, the other on the east
+        // A wall is only on the side toward open space: this edge has its wall on the west side, the other on the east
         report_case("and so is solid meeting open", cells.at({12, 3}).type == stratum_view::PlaceType::Wall);
         report_case("as is the floor's own boundary", cells.at({3, 2}).type == stratum_view::PlaceType::Wall
             && cells.at({3, 4}).type == stratum_view::PlaceType::Wall);
@@ -427,7 +422,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // The wall-aware mapping, on a block format zone, where the file is not the lattice
+    // The lattice view of a block notation zone
     void test_render_lattice()
     {
         report_group("wall render");
@@ -486,9 +481,8 @@ namespace
             report_case(format("{} renders back to its own rows", name), s == expected, "\n" + s);
         }
 
-        // The wall notation is the lattice written out, so the same check applies to it once the view's glyphs are
-        // taken back to the notation's: floor, walls, doors and solid all have to agree with the generator that wrote the
-        // file, without either depending on the other. The notation leaves corners blank, so they are not compared
+        // The wall notation is the lattice written out, so the same check applies once the view's glyphs are mapped back
+        // to the notation's. The notation leaves corners blank, so they are not compared
         {
             string filepath = "data/walls.level";
 
@@ -498,7 +492,7 @@ namespace
             string s = stratum_view::render_lattice(world, zone).to_string();
             string expected = rows_of(filepath);
 
-            // Stairs are blocks, so the view has only solid to draw there, which the notation leaves blank
+            // A staircase is a block, which the view draws as solid and the notation leaves blank
             for (char& c : expected)
             {
                 c = c == '<' || c == '>' ? ' ' : c;
@@ -536,8 +530,8 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // A generated dungeon, which has doorways and stairs as well as rooms and corridors. A stair is a block, so it renders
-    // as solid, and a doorway is a block with a door on it, so it renders as the door rather than as the floor it also is
+    // A generated zone with doorways and staircases as well as rooms and corridors. A staircase is a block, rendered as
+    // solid, and a doorway is a block with a door on it, rendered as the door
     void test_dungeon()
     {
         report_group("generated dungeon");
@@ -598,8 +592,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // The command a script character asks for, empty for anything else. Mapped here rather
-    // than taken from the terminal host, which is not what these frames are checking
+    // The command for a script character, empty for anything else
     stratum_sim::Command command_of(char c, flecs::entity player, const stratum_sim::DiscreteLayout& layout)
     {
         id_type entity_id = player.id();
@@ -609,8 +602,7 @@ namespace
             return stratum_sim::Command(entity_id, stratum_sim::Step {stratum_sim::vector_type(dx, dy, 0.0f), 1.0f});
         };
 
-        // A relative turn is resolved against the layout here, the command itself sending
-        // the absolute facing it arrived at
+        // A relative turn is resolved against the layout, and the command sends the resulting absolute facing direction
         auto turn = [&](stratum_sim::Rotation rotation)
         {
             const stratum_sim::placement_type& placement = stratum_sim::placement_of(player);
@@ -663,8 +655,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Which view a scenario's frames are drawn with. The two are checked separately: one shows
-    // one glyph per cell, the other what lies on the edges between them
+    // Which view a scenario's frames are drawn with
     enum class View
     {
         Cells,
@@ -726,9 +717,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Fixed command sequences rendered to text and compared byte for byte against
-    // checked-in reference frames, which is what keeps the ASCII view from rotting once
-    // it stops being the view anyone looks at
+    // Fixed command sequences rendered to text and compared byte for byte against checked-in reference frames
     void test_reference()
     {
         report_group("reference frames");
@@ -742,11 +731,8 @@ namespace
             View view;
         };
 
-        // The last two are the wall view, which is the only one of these that shows what a
-        // mover is stopped by: the others are block zones through a cell per glyph, which
-        // loses nothing where a wall exists only against solid
-        // The two differ in where the door is. A wall format door is an edge between two
-        // cells and is drawn on it; a block format door is a cell, and is drawn in it
+        // The last two use the wall view. A door in the wall notation is drawn on the edge between two cells; in the block
+        // notation it is drawn in its cell
         const Scenario scenarios[]
         {
             {"corridor_walk", "corridor", {1, 1}, "lllllhh", View::Cells},
@@ -756,7 +742,7 @@ namespace
             {"door_cell", "door", {1, 1}, " l l ", View::Walls}
         };
 
-        // Constructed first, so that it can tell frames written now from ones left behind
+        // Constructed first, to tell frames written now from ones left behind
         FileValidator validator("out", "reference", "stratum_view_test");
 
         for (const Scenario& scenario : scenarios)

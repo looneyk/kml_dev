@@ -21,11 +21,9 @@ namespace quetzal
     // along with their higher level constructs and which supply dimension, value_type, and element addressing
 
     //--------------------------------------------------------------------------
-    // Stream manipulators for the object and element delimiters used by array_format_spec, giving
-    // operator<< the same array-string vocabulary as a std::format spec: os << object_delim('[')
-    // << element_delim(", ") << v matches std::format("{:[,_}", v). object_delim('\0') resets the
-    // stream back to no object delimiter (the default). element_delim("") is a no-op, leaving
-    // whatever element delimiter is already in effect unchanged.
+    // Stream manipulators for the object and element delimiters of array_format_spec, so that os << object_delim('[')
+    // << element_delim(", ") << v matches std::format("{:[,_}", v). object_delim('\0') restores the default of no object
+    // delimiter, and element_delim("") leaves the element delimiter unchanged
     struct object_delim_manip
     {
         char value;
@@ -121,8 +119,7 @@ namespace quetzal
     }
 
     //--------------------------------------------------------------------------
-    // The std::formatter body an array type inherits, holding the spec an array shares and the
-    // loop that writes one.
+    // The std::formatter base of an array type: the parsed spec and the loop that writes the elements
     //
     // Format-spec characters: an optional leading '[' or '(' selects a bracket pair to wrap the
     // elements ('[' -> "[ ]", '(' -> "( )"), followed by an optional run of characters typically drawn from
@@ -220,18 +217,13 @@ namespace quetzal
     }
 
     //--------------------------------------------------------------------------
-    // Reflects an ostream's currently active object_delim/element_delim manipulators, precision,
-    // and fixed/scientific formatting flags into an equivalent std::format spec fragment.
-    // The defaults match std::format's empty-spec default (no bracket, single-space element delimiter),
-    // rendering operator<< and format({}) to produce the same output.
-    // Precision supports floating point conversions
+    // The std::format spec fragment equivalent to an ostream's delimiter manipulators, precision and fixed/scientific
+    // flags. The defaults match the empty spec, so operator<< and format({}) produce the same output
     std::string array_format_spec(const std::ostream& os, char default_object_delim = '\0',
         const std::string& default_element_delim = " ", bool precision = true);
 
     //--------------------------------------------------------------------------
-    // Stream-state-aware form of to_string: matches to_string(t)'s unbracketed, space-separated output
-    // by default (same as format({}), see array_format_spec), but honors object_delim/element_delim manipulators
-    // in addition to standard floating point manipulators, so stream output has the same functionality as std::format.
+    // to_string following the stream's delimiter and floating point manipulators
     template<typename T>
     std::string to_string(const T& t, const std::ostream& os)
     {

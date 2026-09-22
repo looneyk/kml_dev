@@ -43,8 +43,7 @@ namespace
     {
         const auto& maze1 = parameters.maze1;
 
-        // The maze is flooded along the odd cells, so a zone below three cells across holds
-        // no lattice at all once its size is rounded down to odd
+        // The maze runs along the odd cells, so a zone under three cells across has none once rounded down to odd
         auto [nx, ny] = parameters.size;
         if (nx < 3 || ny < 3)
         {
@@ -61,8 +60,7 @@ namespace
             throw invalid_argument(format("room dimension variation {} is negative", maze1.room_dimension_variation));
         }
 
-        // A room is drawn up to the base plus the variation and then given a position inside
-        // the zone, so a zone no wider than the largest room leaves nowhere to place it
+        // The zone must be wider than the largest room to leave a position for it
         coord_type room_dimension_max = maze1.room_dimension_base + maze1.room_dimension_variation;
         if (room_dimension_max >= nx || room_dimension_max >= ny)
         {
@@ -99,8 +97,7 @@ namespace
             throw invalid_argument(format("room margin {} leaves no rock for a corridor to run through", grid1.room_margin));
         }
 
-        // A sector holds its room plus the margin on both sides of it, so divisions that cut
-        // the zone finer than that have nowhere to put a room
+        // A sector must fit its room plus the margin on both sides
         auto [nx, ny] = parameters.size;
         coord_type sector_x = nx / divisions_x;
         coord_type sector_y = ny / divisions_y;
@@ -131,7 +128,6 @@ namespace
 
         validate_probability(cave1.fill, "fill");
 
-        // A cell has eight neighbors, so a threshold above that never fires
         if (cave1.birth_threshold > 8)
         {
             throw invalid_argument(format("birth threshold {} is above the eight neighbors a cell has", cave1.birth_threshold));
@@ -171,7 +167,7 @@ void quetzal::dungen::validate(const Parameters& parameters)
     validate_count(parameters.staircase_down_count, "staircase down count");
     validate_count(parameters.staircase_up_count, "staircase up count");
 
-    // Every staircase is an access point, so counts that may both be zero may leave the zone none
+    // Every staircase is an access point, and a zone requires one
     if (parameters.staircase_down_count.lower() + parameters.staircase_up_count.lower() == 0)
     {
         throw invalid_argument("staircase down and up count minimums of zero may leave the level no entry");

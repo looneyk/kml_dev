@@ -33,7 +33,7 @@ namespace
     using discrete_box_type = quetzal::geometry::DiscreteBox<coord_type, 2>;
 
     //--------------------------------------------------------------------------
-    // Where in the document something is, as a path a reader of the message can follow
+    // A path into the document, for error messages
     std::string member_path(const std::string& path, std::string_view key)
     {
         return path.empty() ? std::string(key) : std::format("{}.{}", path, key);
@@ -54,8 +54,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // The value at a key, and nothing where the key is absent. An absent key and a key set to
-    // null are the same: the file did not specify a value
+    // The value at a key, or null where the key is absent or set to null
     const values_type* member(const values_type& v, std::string_view key)
     {
         auto i = v.find(key);
@@ -119,8 +118,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // A whole number within the coordinate range. A number with a fraction is an error rather than
-    // something to round: every coordinate the format states is exact
+    // A whole number within the coordinate range; a fraction is an error
     coord_type coord_value(const values_type& v, const std::string& path)
     {
         if (!v.is_number())
@@ -155,7 +153,6 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // An array of a stated length, which is how every coordinate in the format is written
     const values_type& fixed_array(const values_type& v, const std::string& path, size_t n)
     {
         const values_type& a = array(v, path);
@@ -191,7 +188,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // One of the four directions a cell's sides define, which is what a wall normal and an orientation are
+    // A cardinal direction
     discrete_vector_type read_direction(const values_type& v, const std::string& path)
     {
         const values_type& a = fixed_array(v, path, 2);
@@ -244,8 +241,7 @@ namespace
 {
 
     //--------------------------------------------------------------------------
-    // The glyphs each kind of position in a notation accepts. A corner accepts only a space, the
-    // grid writing nothing where there is nothing
+    // The glyphs a position in the notation accepts. A corner accepts only a space
     std::string_view glyphs(Notation notation, bool cell_x, bool cell_y)
     {
         if (notation == Notation::Block)
@@ -370,8 +366,8 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // The rows as the grid the extent and the notation call for, every glyph one that its
-    // position accepts. The first row written is the highest, so a row's height is counted from the last
+    // Checks the row count and width against the extent and notation, and each glyph against its position. The first row
+    // is the highest
     void read_rows(const values_type& v, const std::string& path, Cells& cells)
     {
         const values_type& a = array(v, path);
@@ -689,14 +685,14 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // A barrier closing off the whole of a location's cell leaves its fill nowhere to start
+    // Whether a barrier closes off the whole cell, leaving a fill nowhere to start
     bool location_barred(const std::vector<Barrier>& barriers, const discrete_point_type& cell_position)
     {
         return std::ranges::any_of(barriers, [&](const Barrier& barrier) { return !barrier.normal.has_value() && barrier.cell_position == cell_position; });
     }
 
     //--------------------------------------------------------------------------
-    // Rejects two rooms covering one cell. Cells are compared only for rooms whose boxes intersect
+    // Rejects two rooms containing one cell. Cells are compared only for rooms whose bounding boxes intersect
     void check_rooms(const Document& document)
     {
         for (size_t r = 0; r < document.rooms.size(); ++r)
@@ -845,7 +841,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Wall and flat are the two addresses, and neither is written where the entity is sited on its parent
+    // The address is a wall or a flat cell, and absent for an entity sited on its parent
     Site read_site(const values_type& v, const std::string& path, const Cells& cells)
     {
         object(v, path);
@@ -906,7 +902,6 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // site and parent are decoded into fields of their own, and every other file component is kept as written
     Entity read_entity(const values_type& v, const std::string& path, const Cells& cells)
     {
         object(v, path);
@@ -1029,7 +1024,7 @@ namespace
     //--------------------------------------------------------------------------
     // Every entity is sited on the geometry, has a parent or is a parent, and every hierarchy of parents and
     // children is sited on the geometry somewhere in it. An entity whose parent is no entity in the file is the
-    // root of its own hierarchy, which is what a saved zone's reference into another zone leaves
+    // root of its own hierarchy, as with a saved zone's reference into another zone
     void check_entities_placed(const std::vector<Entity>& entities, const EntityIndex& index)
     {
         for (size_t slot = 0; slot < entities.size(); ++slot)
@@ -1338,8 +1333,8 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Every zone is built with its access points, at least one: each an entity with a relocator sited on the open
-    // side of a cell written '<' or '>'
+    // A zone has at least one access point, each an entity with a relocator sited on the open side of a cell written '<'
+    // or '>'
     void check_access_points(const Document& document, const EntityIndex& index,
         const std::map<discrete_point_type, std::vector<WallAddress>>& stair_walls)
     {
@@ -1399,7 +1394,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Each section in turn, the grid first because everything addressed is addressed against it
+    // The grid is read first, as every address refers to it
     Document read_document(const values_type& v)
     {
         object(v, "");

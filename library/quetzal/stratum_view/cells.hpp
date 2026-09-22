@@ -15,14 +15,9 @@ namespace quetzal::stratum_view
 {
 
     //--------------------------------------------------------------------------
-    // The fixed structure at a place, which is as far as the simulation is reduced before a
-    // view is involved. Every view consumes these; what each turns them into is its own business
-    // One entry per type of structure and none per state it can be in: what state it is in
-    // travels beside it, so a door that can be shut, locked or concealed is one type
-    // None is nothing here -- an edge no wall lies on, a corner nothing reaches. Solid is a
-    // closed cell, or a lattice position every cell around which is closed
-    // Nothing that moves is in here. What stands on a place is Place::actor, layered over the
-    // structure rather than replacing it, so a view keeps the floor under an actor
+    // The fixed structure at a place, whatever its state
+    // None is an edge with no wall or a corner no wall line reaches. Solid is a closed cell, or a lattice position whose
+    // cells are all closed
     enum class PlaceType : uint8_t
     {
         None,
@@ -33,16 +28,13 @@ namespace quetzal::stratum_view
     };
 
     //--------------------------------------------------------------------------
-    // The states a view draws apart, one flag each. Named after the component data they are
-    // read from -- whichever of a component or its field reads as the state itself -- so
-    // that a glyph set names what the simulation already calls it
-    // Only what affects the drawing
+    // The states a view draws apart, one flag each, named after the component data they are read from
     enum class State : uint16_t
     {
         None = 0,
         Open = 1 << 0, // Openable::open
-        Crossable = 1 << 1, // the Crossable tag
-        Concealed = 1 << 2 // the Concealed tag, its revealed field being the inverse
+        Crossable = 1 << 1, // The Crossable tag
+        Concealed = 1 << 2 // The Concealed tag, not revealed
     };
 
     constexpr State operator|(State a, State b);
@@ -50,21 +42,16 @@ namespace quetzal::stratum_view
     constexpr State& operator|=(State& a, State b);
     constexpr bool any(State state);
 
-    // Whether a state can apply to a place type at all, which is what rejects a glyph set specifying
-    // one that never applies rather than leaving it a line that can never match
+    // Whether a place type can be in the state
     bool applies(PlaceType type, State state);
 
     //--------------------------------------------------------------------------
-    // Where the wall line continues from a position, one bit per direction. Sixteen patterns
-    // is the whole of a box drawing set; a glyph set that can express less maps many of them onto
-    // one glyph, which is the shape of a narrower set rather than a key too wide
+    // The directions in which the wall line continues from a position
     using stratum_sim::DirectionMask;
 
     //--------------------------------------------------------------------------
-    // What is at one position: the fixed structure, the state it is in, what reaches it, and
-    // whether something stands on it
-    // actor is a layer over the other three rather than one of their values, so the floor an
-    // actor stands on is still here to be drawn under it
+    // What is at one position: the fixed structure, its state, where the wall line continues from it, and whether an actor
+    // is on it
     struct Place
     {
         PlaceType type = PlaceType::None;
@@ -78,20 +65,14 @@ namespace quetzal::stratum_view
     using Cells = Buffer<Place>;
     using Lattice = Buffer<Place>;
 
-    // The whole zone reduced to what occupies each cell, shaped by the layout's grid. One
-    // Place per grid position and no more: what lies on the edges between cells is not in
-    // it, so a wall or a door between two open cells reduces to Floor on both sides
-    // Emits Solid, Floor and the Door that occupies a cell of its own, which is what a
-    // doorway is in the block format. A door on an edge has no position here
+    // The zone reduced to one Place per grid cell: Solid, Floor, or a Door occupying a cell, as a doorway does in the
+    // block notation. A wall or door on an edge between two cells has no position here
     Cells cells(const stratum_sim::World& world, flecs::entity zone);
 
-    // The whole zone reduced onto the lattice the wall format writes: the cells and what
-    // lies on the edges between them. (2W+1) by (2H+1) for a W by H grid, with cell (i, j)
-    // at (2i+1, 2j+1), the wall west of it at (2i, 2j+1), the wall south of it at (2i+1, 2j),
-    // and the corners at the even positions in both
-    // A corner is Wall where any of the four edges touching it has a wall or a door on it.
-    // What a view makes of that -- a box drawing character, a column covering the joint -- is
-    // its own, and the four edges are beside it in the buffer to decide from
+    // The zone reduced onto the lattice of the wall notation: (2W+1) by (2H+1) for a W by H grid, with cell (i, j) at
+    // (2i+1, 2j+1), the wall west of it at (2i, 2j+1), the wall south of it at (2i+1, 2j), and the corners at the even
+    // positions in both
+    // A corner is Wall where any of its four edges has a wall or a door
     Lattice lattice(const stratum_sim::World& world, flecs::entity zone);
 
     //--------------------------------------------------------------------------

@@ -44,6 +44,5 @@ target_include_directories(quetzal_stratum_sim PUBLIC
     ${DEV_ROOT}/library
 )
 
-# Plain name rather than flecs::flecs_static: library3 is added after library/ in the root
-# CMakeLists, and a namespaced target must already exist when it is referenced
+# Not flecs::flecs_static, as library3 is added after library/ and a namespaced target must already exist
 target_link_libraries(quetzal_stratum_sim PUBLIC quetzal_common quetzal_stratum_format flecs_static)

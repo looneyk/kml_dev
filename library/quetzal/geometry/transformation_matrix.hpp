@@ -805,9 +805,8 @@ quetzal::geometry::transformation_matrix_type<typename P::traits_type> quetzal::
 {
     constexpr size_t N = P::dimension;
 
-    // A linear map has no translation, so it is determined by dimension correspondences and lives in
-    // the leading dimension x dimension block. to_transformation_matrix cannot be used here: it reads
-    // component_count points, one more than a linear map is given
+    // A linear map has no translation, so dimension correspondences determine it, in the leading dimension x dimension
+    // block. to_transformation_matrix reads one more point than a linear map is given
     // consider changing to_transfoormation_matrix for this, cleaner code, less efficient ...
 
     // [from] X = [to]
@@ -853,14 +852,9 @@ quetzal::geometry::transformation_matrix_type<typename P::traits_type> quetzal::
 }
 
 //------------------------------------------------------------------------------
-// A homography has eight degrees of freedom and each correspondence carries its own scale,
-// [from]i H = ki [to]i. Solving pseudo_inverse([from]) [to] instead pins every ki to 1, which is
-// exactly the constraint that reduces projective to affine, so that cannot reproduce four
-// correspondences no affine map fits.
-//
-// Direct linear transformation: each correspondence contributes two equations in the eight unknowns,
-// fixing the ninth element at 1. Four correspondences determine the map exactly; more overdetermine
-// it and are fitted by least squares
+// Direct linear transformation. A homography has eight degrees of freedom, and each correspondence has its own scale,
+// [from]i H = ki [to]i. Each correspondence contributes two equations in the eight unknowns, the ninth element fixed at
+// 1. Four correspondences determine the map exactly; more are fitted by least squares
 template<typename P> requires (quetzal::math::Homogeneous<typename P::traits_type> && P::dimension == 2)
 quetzal::geometry::transformation_matrix_type<typename P::traits_type> quetzal::geometry::projective_mapping(std::span<const P> from, std::span<const P> to)
 {
@@ -888,8 +882,7 @@ quetzal::geometry::transformation_matrix_type<typename P::traits_type> quetzal::
 
     if (n == 4)
     {
-        // Exactly determined, so solve as it stands. Going through the normal equations here would
-        // square the condition number for no gain
+        // Exactly determined, so solved as it stands; the normal equations would square the condition number
         for (size_t i = 0; i < n; ++i)
         {
             auto rows = equations(from[i], to[i]);
@@ -904,9 +897,8 @@ quetzal::geometry::transformation_matrix_type<typename P::traits_type> quetzal::
     }
     else
     {
-        // Overdetermined, so least squares through the normal equations, transpose(A) A x =
-        // transpose(A) b. The rows are accumulated straight into the 8 by 9 rather than building the
-        // 2n by 8 system, whose height is not a compile time quantity
+        // Overdetermined, so least squares through the normal equations, transpose(A) A x = transpose(A) b, accumulated
+        // directly into the 8 by 9, as the height of the 2n by 8 system is not known at compile time
         for (size_t a = 0; a < 8; ++a)
         {
             for (size_t b = 0; b < 9; ++b)
