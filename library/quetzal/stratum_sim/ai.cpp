@@ -4,6 +4,7 @@
 //------------------------------------------------------------------------------
 
 #include "ai.hpp"
+#include "Site.hpp"
 #include <vector>
 
 namespace
@@ -39,19 +40,22 @@ void quetzal::stratum_sim::think(World& world, id_type actor_controlled)
             continue;
         }
 
-        flecs::entity zone = world.zone_of(e);
-        const placement_type* pplacement = e.try_get<placement_type>();
+        flecs::entity zone = zone_of(e);
+        const Site* psite = e.try_get<Site>();
 
-        if (!zone || pplacement == nullptr)
+        if (!zone || psite == nullptr)
         {
             continue;
         }
+
+        const placement_type* pplacement = &psite->placement;
 
         const Layout& layout = world.layout(zone);
         Pursue pursue = e.get<Pursue>();
 
         flecs::entity target = world.entities().entity(pursue.target_id);
-        const placement_type* ptarget = target.is_alive() ? target.try_get<placement_type>() : nullptr;
+        const Site* ptarget_site = target.is_alive() ? target.try_get<Site>() : nullptr;
+        const placement_type* ptarget = ptarget_site != nullptr ? &ptarget_site->placement : nullptr;
 
         // Seen now, so where it is replaces where it was
         if (ptarget != nullptr && world.visible(e, *ptarget))

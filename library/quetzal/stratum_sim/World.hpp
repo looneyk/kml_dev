@@ -6,6 +6,7 @@
 //------------------------------------------------------------------------------
 
 #include "Layout.hpp"
+#include "Site.hpp"
 #include "types.hpp"
 #include <flecs.h>
 #include <map>
@@ -26,6 +27,17 @@ namespace quetzal::stratum_sim
     struct Blocking
     {
     };
+
+    //--------------------------------------------------------------------------
+    // The zone an entity is in, found along its parents, and a null entity where it is in none.
+    // Depth is unbounded -- coins in a pouch an actor carries -- so the zone is not its parent
+    flecs::entity zone_of(flecs::entity e);
+
+    //--------------------------------------------------------------------------
+    // What an entity belongs to and where it is, set together: taking it, putting it down and
+    // moving it between zones are all this operation, at different parents. Its own children
+    // travel with it, being its subtree, and its id is retained, so references to it stay valid
+    void reparent(flecs::entity e, flecs::entity parent, const Site& site);
 
     //--------------------------------------------------------------------------
     // The set of Zones and everything in them. One flecs world holds the entities, each
@@ -59,8 +71,6 @@ namespace quetzal::stratum_sim
         const Layout& layout(flecs::entity zone) const;
 
         flecs::entity create_entity(flecs::entity zone, const placement_type& placement);
-
-        flecs::entity zone_of(flecs::entity e) const;
 
         // Where the mover ends up, topology and occupancy together. A layout resolves its
         // own geometry and is independent of entities; this owns both, so it is where the two

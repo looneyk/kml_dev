@@ -8,6 +8,10 @@ layout as what the two generators come to have in common. Placement is the first
 there which is not shared between them at all, and settling its shape is what decides whether
 `procgen` is one library or several. What is built goes to `game_system_reference.md`.
 
+**`site` in this document is owed a rename.** `site_plan.md` takes `site` for where an entity is, and what this
+document calls a site is a candidate place a run chooses among --- a wall id, a cell, a room. The replacement term
+is tracked in `work_plan.md`.
+
 ## Where a zone comes from
 
 **A zone is constructed whole when it is encountered.** Geometry and every content of it, in

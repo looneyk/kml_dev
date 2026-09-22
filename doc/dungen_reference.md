@@ -9,14 +9,14 @@ code with the other.
 
 - `library/quetzal/dungen` --- the structures and the generators
 - `tool/dungen` --- the driver
-- `library/quetzal/stratum_sim/load_layout.cpp` --- reads a level file into a `Layout`
+- `library/quetzal/stratum_sim/load_layout.cpp` --- reads a zone file into a `Layout`
 
-## The level file
+## The zone file
 
 A discrete layout file in the block notation, written through `stratum_format`; `discrete_layout.md`
 is the format. `generator.parameters` has the parameters of the run as the tokens its options take:
 the ones every algorithm shares, then the group belonging to the algorithm named, then the seed, which
-is what reproduces the level exactly.
+is what reproduces the zone exactly.
 
 One character per cell:
 
@@ -36,10 +36,12 @@ against corridor floor with nothing between, so every edge between two floor cel
 or in a room and none, is a barrier. A stair cell is a block, which the floor beside it is walled
 against in the block notation without anything written, and it is part of no room.
 
-Each door has an `attachments` entry at the walls `stratum_format::door_walls` finds for its glyph, a
-`door` entity. Each staircase has an `attachments` entry at its cell, a `staircase` entity whose `facing` is the side
-of the cell it opens onto and whose `relocator` has the `target` `level_down` or `level_up`.
-`layout.components.entry` lists the cells of every staircase, each being an entry.
+Each door is a `door` entity with a `door_facing` child on each wall `stratum_format::door_walls` finds
+for its glyph. Each staircase is a `staircase` entity attached to the wall the cell it opens onto
+presents to its block, with a `relocator` whose `target` is `down` or `up`.
+`layout.components.access_points` refers to every staircase. The local ids run in the order the entities
+are written --- each door, then its door facings, and the staircases last --- so the same parameters give
+the same ids.
 
 ## The library
 
@@ -50,7 +52,7 @@ Structures, unchanged by which algorithm fills them:
 - `Level` --- the cells plus the `Room`, `Door` and `Staircase` records over them, and a renderer for
   printing. `create_room`, `create_door` and `create_staircase` each set the cell type and add the
   record. A `Staircase` has its position, its `StaircaseDirection`, down or up, and its facing.
-- `Pattern` --- a `Cells` with an origin and a shift, matched and replaced over a level by `match`
+- `Pattern` --- a `Cells` with an origin and a shift, matched and replaced over a `Level` by `match`
   and `match_replace`. `maze1` prunes with these; nothing else uses them.
 - `types.hpp` --- `coord_type`, `vector_type` and its `position_type` and `dimensions_type` roles,
   and `random_type`, which is what a run draws from.
@@ -58,19 +60,19 @@ Structures, unchanged by which algorithm fills them:
 Generation:
 
 - `Algorithm` --- `Maze1`, `Grid1`, `Cave1`, with `to_string` and `to_algorithm` for the command line
-  and the level file's parameters.
+  and the zone file's parameters.
 - `Parameters` --- `algorithm`, `size`, `staircase_down_count`, `staircase_up_count` and `seed` in
   common, then one group per
   algorithm: `Maze1Parameters`, `Grid1Parameters`, `Cave1Parameters`. `validate` checks the shared
   fields and the chosen algorithm's group; the other groups go unread, so they may hold anything a
-  command line or a level file put there. `random_seed` draws one from the platform. The two
+  command line or a zone file put there. `random_seed` draws one from the platform. The two
   staircase counts are closed ranges of `size_t`, 1-1 by default, and `validate` rejects one whose
   maximum is below its minimum, and counts whose minimums are both zero, every staircase being an
-  entry and a level needing one.
+  access point and a zone needing one.
 - `generate` --- dispatches on `parameters.algorithm` to `generate_maze1`, `generate_grid1` or
   `generate_cave1`, one file each. Each asserts the algorithm it was given, validates, seeds its own
   `random_type` from `parameters.seed`, and is deterministic in what it was handed. It throws
-  `std::runtime_error` where no staircase could be placed to be the level's entry, which takes a level
+  `std::runtime_error` where no staircase could be placed to be an access point, which takes a zone
   with no candidate cell at all.
 - `place_staircases` --- shared. Each algorithm hands it the cells its own layout allows a staircase to
   occupy. It draws a count leading down from `staircase_down_count` and a count leading up from
@@ -90,14 +92,14 @@ Generation:
   cell onto `Room` or `Corridor` floor, or where there are none, from the sides onto a door, and
   `Staircase::facing` stores it. Both draw last, so nothing
   before them changes.
-- `write_level` --- the level file.
+- `write_level` --- the zone file.
 
 ## maze1
 
 Rooms dropped at random, a maze flooded through everything they left, then pruned back. Both
 dimensions are rounded down to odd, the rooms and the maze running along the odd cells.
 
-1. **Rooms.** A count drawn from the level area and `room_density` decides how many placements are
+1. **Rooms.** A count drawn from the grid area and `room_density` decides how many placements are
    attempted. Each draws a size from `room_dimension_base` plus a value below
    `room_dimension_variation`, forced odd, and a position on the odd lattice. A placement
    overlapping two or more rooms is dropped; one overlapping a single room is dropped as well,
@@ -116,12 +118,12 @@ dimensions are rounded down to odd, the rooms and the maze running along the odd
 
 ## grid1
 
-The level cut into `divisions` sectors, a room inside most of them, adjacent sectors joined.
+The zone cut into `divisions` sectors, a room inside most of them, adjacent sectors joined.
 
-1. **Sectors.** Sector bounds divide the level, an uneven division spreading its remainder across
+1. **Sectors.** Sector bounds divide the zone, an uneven division spreading its remainder across
    the sectors rather than leaving it all at one end.
 2. **Rooms.** `room_density` fixes how many of the sectors hold a room rather than the chance of any
-   one of them doing so, so a level does not come out empty. A room takes a random size from
+   one of them doing so, so a zone does not come out empty. A room takes a random size from
    `room_dimension_min` up to what its sector allows, and a random position inside it, with
    `room_margin` cells kept clear on every side. A sector holding no room gets a single cell instead,
    which its neighbours still join through.
@@ -145,7 +147,7 @@ does.
 ## cave1
 
 Noise smoothed into caverns. No rooms and no doors --- open floor is corridor, and the border is left
-solid so that no cavern opens onto the border of the level.
+solid so that no cavern opens onto the border of the zone.
 
 1. **Noise.** Every cell off the border drawn solid with probability `fill`.
 2. **Smoothing.** `smoothing_passes` passes of a cellular automaton over the eight neighbours of a
@@ -153,22 +155,22 @@ solid so that no cavern opens onto the border of the level.
    ground fills in where at least `birth_threshold` are. A pass reads the grid it was given
    throughout, so every cell turns on the same state.
 3. **One region.** The largest region of open ground is kept and the rest left solid, so everything
-   the level holds is reachable from everywhere else it holds.
+   the zone holds is reachable from everywhere else it holds.
 4. **Staircases,** anywhere on that region.
 5. **Staircases off doorways, and facing them.** `move_staircases_off_doorways`, which finds no
    doorway here, then `face_staircases`.
 
-Parameters at their extremes leave a level solid throughout --- `fill` at 1.0, `birth_threshold` at 0,
-or a level small enough that its every interior cell has eight solid neighbours. That is what those
+Parameters at their extremes leave a zone solid throughout --- `fill` at 1.0, `birth_threshold` at 0,
+or a zone small enough that its every interior cell has eight solid neighbours. That is what those
 parameters ask for, and it is generated rather than rejected.
 
 ## The tool
 
-`dungen` parses the command line, generates, and writes the level to a file and to standard
+`dungen` parses the command line, generates, and writes the zone to a file and to standard
 output. It holds no generation of its own.
 
 ```
-dungen [level] [--algorithm maze1|grid1|cave1] [--size nx,ny]
+dungen [zone] [--algorithm maze1|grid1|cave1] [--size nx,ny]
             [--stairs-down min-max] [--stairs-up min-max] [--room-density d] [--door-probability p] [--seed n]
   maze1: [--room-dimension-base n] [--room-dimension-variation n] [--room-merge]
          [--corridor-straightness s] [--probability-dead-end-removal p]
@@ -177,15 +179,15 @@ dungen [level] [--algorithm maze1|grid1|cave1] [--size nx,ny]
   cave1: [--fill f] [--smoothing-passes n] [--birth-threshold n] [--survival-threshold n]
 ```
 
-The level path defaults to `Level_0.level`. A run given no `--seed` draws one, so the file names a
-seed either way and any level can be produced again; `--seed` goes through `math::to_seed`, which
+The zone path defaults to `Level_0.level`. A run given no `--seed` draws one, so the file names a
+seed either way and any zone can be produced again; `--seed` goes through `math::to_seed`, which
 reads the whole of the seed's own unsigned range, wider than a `long` on Windows. `catagen` shares
 the helper.
 
 Each option sets the group it belongs to, whichever algorithm was named, so an option may be given
 before the `--algorithm` it applies to. `--room-density` and `--door-probability` are names two groups
 share and set both; the chosen algorithm reads its own. `--stairs-down` and `--stairs-up` take a
-closed range of counts, written in the level file's parameters as `stairs_down` and `stairs_up`; an
+closed range of counts, written in the zone file's parameters as `stairs_down` and `stairs_up`; an
 option keeps the shorter "stairs" to type, where names in code and prose say "staircase".
 
 ## Reading it back
@@ -201,7 +203,7 @@ beside it are walled toward it.
 ## Known limits
 
 - `pack_rooms`, which `maze1` calls where `room_density` reaches 1.0, is empty. That density leaves
-  a level with no rooms at all, only the maze.
+  a zone with no rooms at all, only the maze.
 - `Level::expand_room` repaints cells into a room but leaves that `Room`'s own position and size at
   what it was created with, so the record understates a merged room. `maze1`'s `door_candidates`
   reads that record and walks the four sides as straight runs, so a merged room is only offered

@@ -98,7 +98,7 @@ namespace
     //--------------------------------------------------------------------------
     void usage(ostream& os)
     {
-        os << "Usage: catagen [level] [--extent nx,ny] [--scale min-max] [--spacing min-max]"
+        os << "Usage: catagen [zone] [--extent nx,ny] [--scale min-max] [--spacing min-max]"
             << " [--density d] [--loop l] [--stairs-down min-max] [--stairs-up min-max] [--seed n] [--quiet]" << endl;
         return;
     }
@@ -166,7 +166,7 @@ int main(int argc, char* argv[])
         }
 
         // A run that asked for no seed gets one of its own, so that the header names a seed
-        // either way and any level can be produced again
+        // either way and any zone can be produced again
         if (!parameters.seed)
         {
             parameters.seed = catagen::random_seed();

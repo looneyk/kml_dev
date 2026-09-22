@@ -25,8 +25,7 @@ flecs::entity quetzal::stratum_sim::create_door(World& world, flecs::entity zone
         world.entities().entity()
             .child_of(door)
             .add<DoorFacing>()
-            .set<OnWall>(OnWall {wall_id})
-            .set<Attachment>(Attachment {});
+            .set<Site>(Site {Relation::On, WallAddress {wall_id}, {}});
     }
 
     return door;
@@ -50,13 +49,13 @@ flecs::entity quetzal::stratum_sim::facing_on(flecs::entity zone, id_type wall_i
 
     flecs::entity found;
 
-    // A facing is a child of its door and a door a child of its zone, so the zone two steps up
-    // is what tells one zone's wall ids from another's
-    zone.world().query_builder<const OnWall>()
+    // A wall id identifies a wall in one zone's layout, so the zone an entity is in is what tells
+    // one zone's wall ids from another's
+    zone.world().query_builder<const Site>()
         .build()
-        .each([&](flecs::entity e, const OnWall& on_wall)
+        .each([&](flecs::entity e, const Site& site)
         {
-            if (on_wall.wall_id == wall_id && e.parent().parent() == zone)
+            if (wall_id_of(site) == wall_id && zone_of(e) == zone)
             {
                 found = e;
             }
@@ -97,7 +96,7 @@ bool quetzal::stratum_sim::crossable(flecs::entity zone, id_type wall_id)
 
     if (!facing)
     {
-        return false; // A wall with nothing attached is solid
+        return false; // A wall with nothing sited on it is solid
     }
 
     if (facing.has<Concealed>() && !facing.get<Concealed>().revealed)

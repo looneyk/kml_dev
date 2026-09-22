@@ -14,10 +14,9 @@ namespace quetzal::dungen
 
     // Builds the layout parameters.algorithm selects. The id and name are what the Level is
     // given to hold; generation itself reads neither
-    // Deterministic in its parameters, the seed included, so that a written header
-    // reproduces the level exactly
-    // Throws std::invalid_argument by way of validate, and std::runtime_error where no staircase can be placed to be the
-    // level's entry
+    // Deterministic in its parameters, the seed included, so that the header reproduces the zone exactly
+    // Throws std::invalid_argument by way of validate, and std::runtime_error where no staircase can be placed to be an
+    // access point
     Level generate(id_type id, const std::string& name, const Parameters& parameters);
 
 } // namespace quetzal::dungen

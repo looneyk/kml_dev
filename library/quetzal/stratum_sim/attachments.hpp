@@ -5,6 +5,7 @@
 // attachments.hpp
 //------------------------------------------------------------------------------
 
+#include "Site.hpp"
 #include "World.hpp"
 #include "types.hpp"
 #include "quetzal/common/id.hpp"
@@ -17,23 +18,7 @@ namespace quetzal::stratum_sim
 
     // What is attached to a wall or a flat: an alcove, a basin, a door, a button, a torch. One
     // mechanism covers all of them, which is what keeps Wall a small dense record
-    // See attachment_plan.md for the shape and sim_zone_model.md for why it is that shape
-
-    //--------------------------------------------------------------------------
-    // Where an attachment sits on the surface it hangs on, in that surface's own frame:
-    // along it from its start, up from the floor, and into it
-    struct Attachment
-    {
-        point_type position;
-    };
-
-    //--------------------------------------------------------------------------
-    // The wall an attachment hangs on. An id rather than a relationship because a wall is a
-    // record and not an entity; the reverse direction is a query filtered by this
-    struct OnWall
-    {
-        id_type wall_id = nullid;
-    };
+    // See site_plan.md for the shape and sim_zone_model.md for why it is that shape
 
     //--------------------------------------------------------------------------
     // Attached to a wall and allows passage. Door is the variety that has Openable
@@ -78,14 +63,14 @@ namespace quetzal::stratum_sim
     flecs::entity create_door(World& world, flecs::entity zone, const std::vector<id_type>& wall_ids);
 
     //--------------------------------------------------------------------------
-    // The walls of each door a level file describes, as load_layout reports them
+    // The walls of each door a zone file describes, as load_layout reports them
     using door_walls_type = std::vector<std::vector<id_type>>;
 
     // A door on each, built closed. Returns count
     size_t create_doors(World& world, flecs::entity zone, const door_walls_type& doors);
 
     //--------------------------------------------------------------------------
-    // What is attached to a wall, and a null entity where nothing is. A wall id identifies a wall in
+    // What is sited on a wall, and a null entity where nothing is. A wall id identifies a wall in
     // one zone's layout, so the zone is what the search is over
     flecs::entity facing_on(flecs::entity zone, id_type wall_id);
 

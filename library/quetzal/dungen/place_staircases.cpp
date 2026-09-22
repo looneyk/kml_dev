@@ -32,7 +32,7 @@ namespace
 
     //--------------------------------------------------------------------------
     // The room a floor/staircase cell is in, nullid for corridor
-    id_type space_of(const Cell& cell)
+    id_type room(const Cell& cell)
     {
         return cell.type() == CellType::Room || cell.type() == CellType::Stair ? cell.room_id() : nullid;
     }
@@ -55,7 +55,7 @@ namespace
         for (const auto& direction : cardinal_directions)
         {
             point_type neighbor = position + direction;
-            if (level.cells().contains(neighbor) && floor_staircase(level.cell(neighbor).type()) && space_of(level.cell(neighbor)) != nullid)
+            if (level.cells().contains(neighbor) && floor_staircase(level.cell(neighbor).type()) && room(level.cell(neighbor)) != nullid)
             {
                 return true;
             }
@@ -211,11 +211,11 @@ void quetzal::dungen::move_staircases_off_doorways(Level& level, random_type& ra
             continue;
         }
 
-        id_type space = space_of(level.cell(position));
+        id_type room_id = room(level.cell(position));
         vector<point_type> available;
 
         // Floor again while its destination is chosen, so the block there is judged without this one
-        level.cell(position).set_type(space == nullid ? CellType::Corridor : CellType::Room);
+        level.cell(position).set_type(room_id == nullid ? CellType::Corridor : CellType::Room);
 
         for (const auto& direction : cardinal_directions)
         {
@@ -226,7 +226,7 @@ void quetzal::dungen::move_staircases_off_doorways(Level& level, random_type& ra
             }
 
             const Cell& cell = level.cell(neighbor);
-            if ((cell.type() == CellType::Room || cell.type() == CellType::Corridor) && space_of(cell) == space
+            if ((cell.type() == CellType::Room || cell.type() == CellType::Corridor) && room(cell) == room_id
                 && !doorway(level, neighbor) && !blocks_doorway(level, neighbor) && block_allowed(level, neighbor))
             {
                 available.push_back(neighbor);

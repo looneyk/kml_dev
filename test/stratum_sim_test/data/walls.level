@@ -1,12 +1,12 @@
 {
   "format": "quetzal.discrete_layout",
-  "version": "0.3",
+  "version": "0.4",
   "generator": {
     "name": "catagen",
     "parameters": { "extent": "4,3", "scale": "2-3", "spacing": "0-0", "density": "1", "loop": "0", "seed": "1" }
   },
   "layout": {
-    "components": { "entry": [[1, 1], [3, 1]] }
+    "components": { "access_points": [ { "entity": 4 }, { "entity": 5 } ] }
   },
   "cells": {
     "notation": "wall",
@@ -23,9 +23,11 @@
       " - - - - "
     ]
   },
-  "attachments": [
-    { "walls": [[1, 2, -1, 0], [2, 2, 1, 0]], "entities": [ { "type": "door" } ] },
-    { "flat": "floor", "cell": [1, 1], "entities": [ { "type": "staircase", "components": { "relocator": { "target": "level_up" } } } ] },
-    { "flat": "floor", "cell": [3, 1], "entities": [ { "type": "staircase", "components": { "relocator": { "target": "level_down" } } } ] }
+  "entities": [
+    { "id": 1, "type": "door" },
+    { "id": 2, "type": "door_facing", "components": { "parent": { "entity": 1 }, "site": { "relation": "on", "wall": { "cell_position": [1, 2], "normal": [-1, 0] } } } },
+    { "id": 3, "type": "door_facing", "components": { "parent": { "entity": 1 }, "site": { "relation": "on", "wall": { "cell_position": [2, 2], "normal": [1, 0] } } } },
+    { "id": 4, "type": "staircase", "components": { "site": { "relation": "on", "wall": { "cell_position": [2, 1], "normal": [1, 0] } }, "relocator": { "target": "up" } } },
+    { "id": 5, "type": "staircase", "components": { "site": { "relation": "on", "wall": { "cell_position": [2, 1], "normal": [-1, 0] } }, "relocator": { "target": "down" } } }
   ]
 }

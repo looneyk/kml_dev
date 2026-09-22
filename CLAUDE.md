@@ -69,7 +69,7 @@ up as a mismatch rather than a failed assertion.
   auto-complete, extend, or add to comments on pre-existing code at any time.
 - **Be specific in prose and in names.** No vague terms, and no one word stretched across several
   related meanings. The words below are a watch list, not a blacklist. Every one of them
-  has its place, and that place is not everywhere: what is wrong is the reach for a word loose
+  has a legitimate usage according to its conventional definition: what is wrong is the reach for a word loose
   enough to fit anywhere in place of the one that says what is meant. Ordinary use, fixed
   idioms included, is not the problem and is not to be edited out.
 
@@ -78,9 +78,9 @@ up as a mismatch rather than a failed assertion.
   | **stands** | an actor stands on a place; solve as it stands; what stands in for an exact zero; the offer stands | a general verb of place where a real relation exists --- a doorway *is one cell of* a wall line, it does not stand in one |
   | **carries** | a person carries a load; an addition carries a digit | a general verb of having --- a struct *has* a field or *tracks* a count |
   | **names** | naming a variable; a message mentions a file by its name | referring or selecting --- a parameter *refers to* a cell |
-  | **lands** | a plane lands; a blow lands | where a result ends up --- a value *is stored in* a slot |
+  | **lands** | a plane lands; a blow lands | where a result ends up, on completion --- a value *is stored in* a slot |
   | **answers** | a question or a message is answered | returning or reporting --- a function *returns* a distance |
-  | **record** (verb) | recording audio, video, or a vote; `record` as a noun for a struct | storing or noting --- a pass *stores* a count |
+  | **record** (verb) | recording audio, video, or a vote; `record` as a noun for a struct | storing or noting, referring to --- a pass *stores* a count |
   | **holds** | an invariant holds; a hand holds a cup | storing, containing, owning --- a vector *contains* cells |
   | **says** | speech; a quoted message | declaring or encoding --- a flag *indicates* a state, a field *encodes* a direction |
   | **wants** | a person wants something | needing --- a function *requires* an argument |

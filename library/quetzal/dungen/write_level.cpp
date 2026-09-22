@@ -6,6 +6,7 @@
 #include "write_level.hpp"
 #include "quetzal/common/string_util.hpp"
 #include "quetzal/stratum_format/grid.hpp"
+#include "quetzal/stratum_format/references.hpp"
 #include "quetzal/stratum_format/write.hpp"
 #include <optional>
 #include <ostream>
@@ -22,6 +23,7 @@ namespace
     using namespace quetzal::dungen;
     using quetzal::id_type;
     using quetzal::nullid;
+    using stored_entity_id_type = quetzal::stratum_format::stored_entity_id_type;
     using values_type = quetzal::stratum_format::values_type;
 
     //--------------------------------------------------------------------------
@@ -83,7 +85,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // The level's own size rather than the requested one, an algorithm being free to round what it was given to something
+    // The Level's own size rather than the requested one, an algorithm being free to round what it was given to something
     // its layout can use
     values_type generator(const Level& level, const Parameters& parameters)
     {
@@ -151,19 +153,11 @@ void quetzal::dungen::write_level(ostream& os, const Level& level, const Paramet
 {
     auto [nx, ny] = level.size().rep();
 
-    // Every staircase is an entry, the caller choosing among them by what it arrives from
     assert(!level.staircases().empty());
-    values_type entry = values_type::array();
-
-    for (const auto& staircase : level.staircases())
-    {
-        entry.push_back(values_type::array({staircase.position().x(), staircase.position().y()}));
-    }
 
     stratum_format::Document document;
     document.generator = generator(level, parameters);
     document.components = values_type::object();
-    document.components["entry"] = std::move(entry);
     document.cells.notation = stratum_format::Notation::Block;
     document.cells.extent = level.size();
 
@@ -227,35 +221,43 @@ void quetzal::dungen::write_level(ostream& os, const Level& level, const Paramet
         document.rooms.push_back({stratum_format::RoomLocator {*location, {}}, {}});
     }
 
-    // The walls the reader finds for each door glyph, so the entity is at the placement it reads the door at
-    for (auto& walls : stratum_format::door_walls(document.cells))
-    {
-        values_type entity = values_type::object();
-        entity["type"] = "door";
+    // Local ids in the order written, so the same parameters give the same ids: each door, then its door facings in
+    // the order of the walls the reader finds for its glyph, and the staircases last
+    stored_entity_id_type id = 0;
 
-        document.attachments.push_back({std::move(walls), nullopt, values_type::array({std::move(entity)})});
+    for (const auto& walls : stratum_format::door_walls(document.cells))
+    {
+        stored_entity_id_type door_id = ++id;
+        document.entities.push_back({door_id, "door", nullopt, nullopt, {}});
+
+        for (const auto& address : walls)
+        {
+            document.entities.push_back({++id, "door_facing", stratum_format::Site {stratum_format::Relation::On, address, nullopt, nullopt},
+                door_id, {}});
+        }
     }
+
+    values_type access_points = values_type::array();
 
     for (const auto& staircase : level.staircases())
     {
+        // The staircase's cell is a block, and it is sited on the wall its open neighbor presents to that block
+        assert(staircase.facing().has_value());
+        const vector_type& open_side = *staircase.facing();
+        stratum_format::WallAddress address {staircase.position() + open_side, open_side};
+
         values_type relocator = values_type::object();
-        relocator["target"] = staircase.direction() == StaircaseDirection::Down ? "level_down" : "level_up";
+        relocator["target"] = staircase.direction() == StaircaseDirection::Down ? "down" : "up";
 
         values_type components = values_type::object();
-        if (staircase.facing().has_value())
-        {
-            components["facing"] = values_type::array({staircase.facing()->x(), staircase.facing()->y()});
-        }
-
         components["relocator"] = std::move(relocator);
 
-        values_type entity = values_type::object();
-        entity["type"] = "staircase";
-        entity["components"] = std::move(components);
-
-        document.attachments.push_back({stratum_format::FlatCell {stratum_format::FlatRole::Floor, staircase.position()}, nullopt,
-            values_type::array({std::move(entity)})});
+        access_points.push_back(stratum_format::make_reference(++id));
+        document.entities.push_back({id, "staircase", stratum_format::Site {stratum_format::Relation::On, address, nullopt, nullopt}, nullopt,
+            std::move(components)});
     }
+
+    document.components["access_points"] = std::move(access_points);
 
     stratum_format::write(os, document);
     return;

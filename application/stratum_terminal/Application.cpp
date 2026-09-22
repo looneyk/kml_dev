@@ -6,6 +6,7 @@
 #include "Application.hpp"
 #include "quetzal/stratum_sim/DiscreteLayout.hpp" // The status line, which reports a cell
 #include "quetzal/stratum_sim/commands.hpp"
+#include "quetzal/stratum_sim/Site.hpp"
 #include <format>
 #include <iostream>
 
@@ -203,7 +204,7 @@ void stratum_terminal::Application::report(const quetzal::stratum_sim::EventQueu
 //------------------------------------------------------------------------------
 std::string stratum_terminal::Application::status() const
 {
-    const stratum_sim::placement_type& placement = m_session.player().get<stratum_sim::placement_type>();
+    const stratum_sim::placement_type& placement = stratum_sim::placement_of(m_session.player());
     stratum_sim::discrete_point_type cell_position = stratum_sim::layout_as<stratum_sim::DiscreteLayout>(m_session.layout()).cell_position_at(placement.position());
 
     // The message shares this line so that the frame keeps its height as it comes and goes

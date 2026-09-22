@@ -59,7 +59,7 @@ namespace
 
     //--------------------------------------------------------------------------
     // Every cell drawn rock or open at random, the border left rock so that no cavern opens
-    // onto the edge of the level
+    // onto the edge of the zone
     grid_type noise(vector_type size, double fill, random_type& random)
     {
         auto [nx, ny] = size;
@@ -172,7 +172,7 @@ quetzal::dungen::Level quetzal::dungen::generate_cave1(id_type id, const string&
     Level level(id, name, parameters.size, CellType::Solid);
 
     // Only the largest region is kept, so that what the smoothing walled off stays rock and
-    // everything the level does hold is reachable from everywhere else it holds
+    // everything the zone does hold is reachable from everywhere else it holds
     vector<point_type> region = largest_region(grid, parameters.size);
     for (point_type position : region)
     {

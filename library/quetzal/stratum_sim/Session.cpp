@@ -7,6 +7,7 @@
 #include "ai.hpp"
 #include "attachments.hpp"
 #include "load_layout.hpp"
+#include "Site.hpp"
 #include <format>
 #include <optional>
 #include <stdexcept>
@@ -61,7 +62,7 @@ namespace
     //--------------------------------------------------------------------------
     // The controlled entity, at the first open cell. An empty entity where the layout has no
     // open cell at all, which is the caller's to resolve rather than something to decide here
-    // Where a zone's starting contents come from is what this substitutes for: a level specifies
+    // Where a zone's starting contents come from is what this substitutes for: a zone file specifies
     // its contents and a placement pass puts them there. Until one does, this is the whole of
     // what a loaded zone contains
     flecs::entity create_player(quetzal::stratum_sim::World& world, flecs::entity zone,
@@ -98,7 +99,7 @@ namespace
 
         std::optional<discrete_point_type> start = last_open_cell(layout);
 
-        if (!start || layout.cell_position_at(player.get<placement_type>().position()) == *start)
+        if (!start || layout.cell_position_at(placement_of(player).position()) == *start)
         {
             return;
         }

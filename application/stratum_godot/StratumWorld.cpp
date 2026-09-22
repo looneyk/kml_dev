@@ -6,6 +6,7 @@
 #include "StratumWorld.hpp"
 #include "quetzal/stratum_sim/DiscreteLayout.hpp" // The tile view, which is grid shaped
 #include "quetzal/stratum_sim/commands.hpp"
+#include "quetzal/stratum_sim/Site.hpp"
 #include "quetzal/stratum_view/ascii.hpp"
 #include "quetzal/stratum_view/cells.hpp"
 #include <godot_cpp/variant/utility_functions.hpp>
@@ -88,7 +89,7 @@ godot::Vector2i StratumWorld::cell() const
         return {};
     }
 
-    const sim::placement_type& placement = m_session.player().get<sim::placement_type>();
+    const sim::placement_type& placement = sim::placement_of(m_session.player());
     sim::discrete_point_type cell_position = sim::layout_as<sim::DiscreteLayout>(m_session.layout()).cell_position_at(placement.position());
 
     return godot::Vector2i(cell_position.i(), cell_position.j());

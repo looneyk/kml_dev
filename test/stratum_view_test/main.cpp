@@ -17,6 +17,7 @@
 #include <format>
 #include <fstream>
 #include <iostream>
+#include <map>
 #include <string>
 #include <type_traits>
 #include <variant>
@@ -33,6 +34,18 @@ namespace
 
     size_t g_case_count = 0;
     size_t g_failure_count = 0;
+
+    //--------------------------------------------------------------------------
+    // The wall an entity is sited on, and none where it is sited on a flat cell or on its parent
+    const stratum_format::WallAddress* wall_address(const stratum_format::Entity& entity)
+    {
+        if (!entity.site.has_value() || !entity.site->address.has_value())
+        {
+            return nullptr;
+        }
+
+        return get_if<stratum_format::WallAddress>(&*entity.site->address);
+    }
 
     //--------------------------------------------------------------------------
     void report_group(const string& name)
@@ -85,7 +98,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // A level's rows, a row per line
+    // A zone's rows, a row per line
     string rows_of(const string& filepath)
     {
         string s;
@@ -359,7 +372,7 @@ namespace
 
         stratum_view::Lattice cells = stratum_view::lattice(block, corridor);
 
-        report_case_equal("a block level covers the same shape", cells.extent().x(), 15);
+        report_case_equal("a block zone covers the same shape", cells.extent().x(), 15);
         report_case("a closed cell reads as solid", cells.at({1, 1}).type == stratum_view::PlaceType::Solid);
         report_case("an open cell reads as floor", cells.at({3, 3}).type == stratum_view::PlaceType::Floor);
         report_case("open meeting solid is walled", cells.at({2, 3}).type == stratum_view::PlaceType::Wall);
@@ -414,7 +427,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // The wall-aware mapping, on a block format level, where the file is not the lattice
+    // The wall-aware mapping, on a block format zone, where the file is not the lattice
     void test_render_lattice()
     {
         report_group("wall render");
@@ -448,7 +461,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // An unoccupied level of nothing but solid, floor and its entrance renders back to the file it
+    // An unoccupied zone of nothing but solid, floor and its entrance renders back to the file it
     // was loaded from. vault.level is asymmetric top to bottom, so this pins row order too
     void test_round_trip()
     {
@@ -516,7 +529,7 @@ namespace
                 }
             }
 
-            report_case("a wall notation level renders back to its own rows", s == expected, "\n" + s);
+            report_case("a wall notation zone renders back to its own rows", s == expected, "\n" + s);
         }
 
         return;
@@ -600,7 +613,7 @@ namespace
         // the absolute facing it arrived at
         auto turn = [&](stratum_sim::Rotation rotation)
         {
-            const stratum_sim::placement_type& placement = player.get<stratum_sim::placement_type>();
+            const stratum_sim::placement_type& placement = stratum_sim::placement_of(player);
             return stratum_sim::Command(entity_id, stratum_sim::TurnTo {layout.turn(placement, rotation).direction()});
         };
 
@@ -663,7 +676,7 @@ namespace
         const stratum_sim::EventQueue& events, View view)
     {
         const stratum_sim::DiscreteLayout& layout = stratum_sim::layout_as<stratum_sim::DiscreteLayout>(world.layout(zone));
-        const stratum_sim::placement_type& placement = player.get<stratum_sim::placement_type>();
+        const stratum_sim::placement_type& placement = stratum_sim::placement_of(player);
         stratum_sim::discrete_point_type cell_position = layout.cell_position_at(placement.position());
 
         string s = format("-- {}\n", label);
@@ -723,14 +736,14 @@ namespace
         struct Scenario
         {
             string name;
-            string level;
+            string zone;
             stratum_sim::discrete_point_type start;
             string script;
             View view;
         };
 
         // The last two are the wall view, which is the only one of these that shows what a
-        // mover is stopped by: the others are block levels through a cell per glyph, which
+        // mover is stopped by: the others are block zones through a cell per glyph, which
         // loses nothing where a wall exists only against solid
         // The two differ in where the door is. A wall format door is an edge between two
         // cells and is drawn on it; a block format door is a cell, and is drawn in it
@@ -749,7 +762,7 @@ namespace
         for (const Scenario& scenario : scenarios)
         {
             write_file(format("out/{}.txt", scenario.name),
-                play(format("data/{}.level", scenario.level), scenario.start, scenario.script, scenario.view));
+                play(format("data/{}.level", scenario.zone), scenario.start, scenario.script, scenario.view));
         }
 
         validator.report_results();
@@ -759,40 +772,52 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // One door entity attached at the walls of each door glyph, and none elsewhere
+    // One door entity per door glyph, its door facings on the walls of that doorway, and no door facing anywhere else
     bool doors_have_entities(const stratum_format::Document& document, string& detail)
     {
         vector<vector<stratum_format::WallAddress>> doors = stratum_format::door_walls(document.cells);
-        vector<bool> matched(doors.size(), false);
+        map<stratum_format::stored_entity_id_type, vector<stratum_format::WallAddress>> walls_by_door;
+        size_t door_count = 0;
 
-        for (const stratum_format::Attachment& attachment : document.attachments)
+        for (const stratum_format::Entity& entity : document.entities)
         {
-            const auto* walls = get_if<vector<stratum_format::WallAddress>>(&attachment.attached_to);
-            bool door = any_of(attachment.entities.begin(), attachment.entities.end(),
-                [](const auto& entity) { return entity.is_object() && entity.value("type", "") == "door"; });
+            if (entity.type == "door")
+            {
+                ++door_count;
+                continue;
+            }
 
-            if (walls == nullptr || !door)
+            if (entity.type != "door_facing")
             {
                 continue;
             }
 
-            auto i = find(doors.begin(), doors.end(), *walls);
-            if (i == doors.end() || matched[static_cast<size_t>(i - doors.begin())])
+            const auto* address = wall_address(entity);
+            if (address == nullptr || !entity.parent_id.has_value())
             {
-                const stratum_format::WallAddress& wall = walls->front();
-                detail = format("a door entity at wall {}, {}, {}, {} that is {}", wall.cell_position.i(), wall.cell_position.j(), wall.normal.x(),
-                    wall.normal.y(), i == doors.end() ? "not a door's" : "a door's second");
+                detail = format("a door facing with id {} that is not a child attached to a wall", entity.id);
                 return false;
             }
 
-            matched[static_cast<size_t>(i - doors.begin())] = true;
+            walls_by_door[*entity.parent_id].push_back(*address);
         }
 
-        size_t missing_count = static_cast<size_t>(count(matched.begin(), matched.end(), false));
-        if (missing_count > 0)
+        if (door_count != doors.size() || walls_by_door.size() != doors.size())
         {
-            detail = format("{} of {} doors have no door entity", missing_count, doors.size());
+            detail = format("{} door glyphs, {} door entities and {} of them with door facings", doors.size(), door_count, walls_by_door.size());
             return false;
+        }
+
+        for (const vector<stratum_format::WallAddress>& walls : doors)
+        {
+            if (none_of(walls_by_door.begin(), walls_by_door.end(), [&walls](const auto& entry)
+                { return is_permutation(entry.second.begin(), entry.second.end(), walls.begin(), walls.end()); }))
+            {
+                const stratum_format::WallAddress& wall = walls.front();
+                detail = format("no door with a door facing on each wall of the doorway at [{}, {}] normal [{}, {}]",
+                    wall.cell_position.i(), wall.cell_position.j(), wall.normal.x(), wall.normal.y());
+                return false;
+            }
         }
 
         return true;

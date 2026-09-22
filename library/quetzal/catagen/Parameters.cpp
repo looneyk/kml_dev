@@ -66,7 +66,7 @@ void quetzal::catagen::validate(const Parameters& parameters)
             parameters.staircase_up_count.upper(), parameters.staircase_up_count.lower()));
     }
 
-    // Every staircase is an entry, so counts that may both be zero may leave the level none
+    // Every staircase is an access point, so counts that may both be zero may leave the zone none
     if (parameters.staircase_down_count.lower() + parameters.staircase_up_count.lower() == 0)
     {
         throw invalid_argument("staircase down and up count minimums of zero may leave the level no entry");

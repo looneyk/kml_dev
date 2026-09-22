@@ -299,7 +299,7 @@ namespace quetzal::stratum_sim
 - **Glyphs become attachments.** Each door glyph becomes a door attachment, a `door` entity on the
   wall ids of the addresses `door_walls` returns for it. Each stair glyph becomes a staircase
   attachment, a `staircase` entity on the floor at its cell whose `relocator` has a `target` of
-  `level_down` for `>` and `level_up` for `<`, as `discrete_layout.md` (`### Staircases and entrances`)
+  `down` for `>` and `up` for `<`, as `discrete_layout.md` (`### Staircases and entrances`)
   requires. An `attachments` entry at the same placement is the same attachment: its entities are
   added, an entity of the glyph's type being the glyph's entity with the components the entry writes,
   and a relocator target it gives replacing the default. A staircase's `facing` comes from its entry.
@@ -413,7 +413,7 @@ The generators write every staircase as a `staircase` entity with a facing and a
 `attachments` entry at the stair cell:
 
 ```json
-{ "flat": "floor", "cell": [3, 2], "entities": [ { "type": "staircase", "components": { "facing": [0, -1], "relocator": { "target": "level_down" } } } ] }
+{ "flat": "floor", "cell": [3, 2], "entities": [ { "type": "staircase", "components": { "facing": [0, -1], "relocator": { "target": "down" } } } ] }
 ```
 
 - **A stair cell is a block.** Floor beside it is walled toward it, and it is in no room. A staircase is
@@ -441,8 +441,8 @@ The generators write every staircase as a `staircase` entity with a facing and a
     `WallType::Door`, and a side is open where the wall on it is `WallType::Open` and the cell beyond is
     floor.
 - **Written by `write_level`.** Each generator adds an entry for each staircase to the document: a
-  `staircase` entity with its facing and a relocator whose target is `level_down` for `>` and
-  `level_up` for `<`. Both are built.
+  `staircase` entity with its facing and a relocator whose target is `down` for `>` and
+  `up` for `<`. Both are built.
 - **Written, not supplied.** A generated level states every staircase's relocator. `load_content`
   supplies the default target only for a stair glyph with no entry giving one, and supplies no facing:
   a staircase has the facing its entry writes. The `Document` stays as

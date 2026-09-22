@@ -1,8 +1,8 @@
 {
   "format": "quetzal.discrete_layout",
-  "version": "0.3",
+  "version": "0.4",
   "layout": {
-    "components": { "name": "Two Rooms", "entry": [[5, 2], [5, 1]] }
+    "components": { "name": "Two Rooms", "access_points": [ { "entity": 4 }, { "entity": 6 } ] }
   },
   "cells": {
     "notation": "block",
@@ -18,27 +18,29 @@
     ]
   },
   "rooms": [
-    { "location": [1, 1], "barriers": [[2, 3]], "components": { "name": "the west room" } },
+    { "cell_position": [1, 1], "barriers": [ { "cell_position": [2, 3] } ], "components": { "name": "the west room" } },
     { "perimeter": [[3, 2], [4, 2], [4, 1], [5, 1], [5, 3], [6, 3], [6, 4], [4, 4], [4, 3], [3, 3]], "components": { "style": { "name": "hall", "lit": true } } }
   ],
   "walls": [
-    { "wall": [1, 1, 0, 1], "components": { "moss": 0.5 } },
-    { "wall": [3, 2, 0, -1] }
+    { "wall": { "cell_position": [1, 1], "normal": [0, 1] }, "components": { "moss": 0.5 } },
+    { "wall": { "cell_position": [3, 2], "normal": [0, -1] } }
   ],
   "flats": [
     { "role": "floor",
       "cells": [
-        { "cell": [5, 2], "height": -0.5 }
+        { "cell_position": [5, 2], "height": -0.5 }
       ] },
     { "role": "ceiling", "height": 4.0, "components": { "style": "vaulted" },
       "rooms": [
         { "room": 1, "height": 6.0 }
       ] }
   ],
-  "attachments": [
-    { "walls": [[2, 2, -1, 0], [4, 2, 1, 0]], "position": [0.5, 0.0], "entities": [ { "type": "door", "components": { "locked": true } } ] },
-    { "flat": "ceiling", "cell": [1, 1], "entities": [ { "type": "lamp", "custom": { "anything": [1, 2, 3] } } ] },
-    { "flat": "floor", "cell": [5, 2], "entities": [ { "type": "staircase", "components": { "relocator": { "target": "level_down" } } } ] },
-    { "flat": "floor", "cell": [5, 1], "entities": [ { "type": "waypoint", "components": { "relocator": { "target": "level_up" } } } ] }
+  "entities": [
+    { "id": 1, "type": "door", "components": { "locked": true } },
+    { "id": 2, "type": "door_facing", "components": { "parent": { "entity": 1 }, "site": { "relation": "on", "wall": { "cell_position": [2, 2], "normal": [-1, 0] }, "position": [0.5, 0.0] } } },
+    { "id": 3, "type": "door_facing", "components": { "parent": { "entity": 1 }, "site": { "relation": "on", "wall": { "cell_position": [4, 2], "normal": [1, 0] }, "position": [0.5, 0.0] } } },
+    { "id": 4, "type": "staircase", "components": { "site": { "relation": "on", "wall": { "cell_position": [4, 2], "normal": [-1, 0] } }, "relocator": { "target": "down" } } },
+    { "id": 5, "type": "lamp", "components": { "site": { "relation": "on", "flat": "ceiling", "cell_position": [1, 1] }, "custom": { "anything": [1, 2, 3] } } },
+    { "id": 6, "type": "waypoint", "components": { "site": { "relation": "on", "wall": { "cell_position": [4, 1], "normal": [-1, 0] } }, "relocator": { "target": "up" } } }
   ]
 }

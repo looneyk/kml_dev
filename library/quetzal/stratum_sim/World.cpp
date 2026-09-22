@@ -6,6 +6,7 @@
 #include "World.hpp"
 #include "attachments.hpp" // What is attached to a wall, which is what says a mover may cross it
 #include "DiscreteLayout.hpp" // The cell form of entities_at, which asks for cells
+#include "Site.hpp"
 #include <algorithm>
 #include <cassert>
 
@@ -13,18 +14,20 @@ namespace
 {
 
     //--------------------------------------------------------------------------
-    // Every placed entity of a zone that satisfies the predicate, in id order
+    // Every placed entity of a zone that satisfies the predicate, in id order. A site with an
+    // address is placed in that address's frame rather than the zone's, so the predicate is not
+    // one it can be asked
     template<typename F>
     quetzal::stratum_sim::World::entities_type placed_in(flecs::entity zone, F accept)
     {
         quetzal::stratum_sim::World::entities_type entities;
 
-        zone.world().query_builder<const quetzal::stratum_sim::placement_type>()
+        zone.world().query_builder<const quetzal::stratum_sim::Site>()
             .with(flecs::ChildOf, zone)
             .build()
-            .each([&](flecs::entity e, const quetzal::stratum_sim::placement_type& placement)
+            .each([&](flecs::entity e, const quetzal::stratum_sim::Site& site)
             {
-                if (accept(placement))
+                if (!site.address.has_value() && accept(site.placement))
                 {
                     entities.push_back(e);
                 }
@@ -99,14 +102,32 @@ const quetzal::stratum_sim::Layout& quetzal::stratum_sim::World::layout(flecs::e
 flecs::entity quetzal::stratum_sim::World::create_entity(flecs::entity zone, const placement_type& placement)
 {
     assert(zone && zone.has<Zone>());
-    return m_world.entity().child_of(zone).set<placement_type>(placement);
+    return m_world.entity().child_of(zone).set<Site>(Site {Relation::In, {}, placement});
 }
 
 //------------------------------------------------------------------------------
-flecs::entity quetzal::stratum_sim::World::zone_of(flecs::entity e) const
+flecs::entity quetzal::stratum_sim::zone_of(flecs::entity e)
 {
-    flecs::entity parent = e.parent();
-    return parent && parent.has<Zone>() ? parent : flecs::entity();
+    for (flecs::entity parent = e.parent(); parent; parent = parent.parent())
+    {
+        if (parent.has<Zone>())
+        {
+            return parent;
+        }
+    }
+
+    return flecs::entity();
+}
+
+//------------------------------------------------------------------------------
+void quetzal::stratum_sim::reparent(flecs::entity e, flecs::entity parent, const Site& site)
+{
+    assert(e && parent && e != parent);
+
+    e.child_of(parent); // ChildOf is exclusive, so this removes the old parent
+    e.set<Site>(site);
+
+    return;
 }
 
 //------------------------------------------------------------------------------
@@ -131,7 +152,7 @@ quetzal::stratum_sim::MoveResult quetzal::stratum_sim::World::move(flecs::entity
         return nullid;
     };
 
-    return zone_layout.move(e.get<placement_type>(), direction, distance, is_crossable(zone), blocker_at);
+    return zone_layout.move(placement_of(e), direction, distance, is_crossable(zone), blocker_at);
 }
 
 //------------------------------------------------------------------------------
@@ -140,7 +161,7 @@ quetzal::stratum_sim::Layout::placements_type quetzal::stratum_sim::World::neigh
     flecs::entity zone = zone_of(e);
     assert(zone);
 
-    return layout(zone).neighbors(e.get<placement_type>(), is_crossable(zone));
+    return layout(zone).neighbors(placement_of(e), is_crossable(zone));
 }
 
 //------------------------------------------------------------------------------
@@ -149,7 +170,7 @@ bool quetzal::stratum_sim::World::visible(flecs::entity e, const placement_type&
     flecs::entity zone = zone_of(e);
     assert(zone);
 
-    return layout(zone).visible(e.get<placement_type>(), to, is_crossable(zone));
+    return layout(zone).visible(placement_of(e), to, is_crossable(zone));
 }
 
 //------------------------------------------------------------------------------
@@ -196,9 +217,7 @@ void quetzal::stratum_sim::World::relocate(flecs::entity e, flecs::entity zone, 
 {
     assert(zone && zone.has<Zone>());
 
-    e.child_of(zone); // ChildOf is exclusive, so this removes the old parent
-    e.set<placement_type>(placement);
-
+    reparent(e, zone, Site {Relation::In, {}, placement});
     return;
 }
 

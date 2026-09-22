@@ -541,7 +541,7 @@ quetzal::dungen::Level quetzal::dungen::generate_grid1(id_type id, const string&
     size_t n_sectors = static_cast<size_t>(divisions_x * divisions_y);
 
     // Which sectors hold a room, the density being how many of them do rather than the
-    // chance of any one of them doing so, so that a level is not left to come out empty
+    // chance of any one of them doing so, so that a zone is not left to come out empty
     vector<size_t> slots(n_sectors);
     iota(slots.begin(), slots.end(), size_t(0));
     shuffle(slots.begin(), slots.end(), random.engine());
@@ -555,7 +555,7 @@ quetzal::dungen::Level quetzal::dungen::generate_grid1(id_type id, const string&
     }
 
     // A placement its neighbor could only be reached from through a corner doorway is not a
-    // level, so it is drawn again. Only rooms one cell across produce one, and the draw is
+    // zone, so it is drawn again. Only rooms one cell across produce one, and the draw is
     // bounded because a sector with no room to move the draw in would otherwise never settle
     constexpr size_t placement_attempts = 16;
 

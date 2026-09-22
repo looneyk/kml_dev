@@ -16,7 +16,7 @@ own at `quetzal::`.
 | `assets/` | shared data, owned by no host |
 | `library/quetzal/stratum_sim/` | `quetzal_stratum_sim` |
 | `library/quetzal/stratum_view/` | `quetzal_stratum_view` |
-| `library/quetzal/stratum_format/` | `quetzal_stratum_format` --- the level file format |
+| `library/quetzal/stratum_format/` | `quetzal_stratum_format` --- the zone file format |
 | `application/stratum_terminal/` | `stratum_terminal` |
 | `application/stratum_godot/` | `stratum_godot` |
 | `library/quetzal/godot/` | `quetzal_godot` |
@@ -116,7 +116,7 @@ thousands. A wall id encodes the cell and the side, so it is stable with no stor
 | --- | --- |
 | `Cell` | What the layout stores for one grid position: `open`, whether a mover may stand there; `walls`, a `DirectionMask` of the sides with a wall facing into the cell; and `room_id`, the room covering it or `nullid`. A wall settles nothing about crossing: whether a mover may is decided by what is *attached to* it, which is an attachment. |
 | `DirectionMask` | Any of the four directions of a flat grid, a bit each in `CardinalDirection`'s order, with `direction_mask` from a direction. The view uses the same mask for where a wall line continues. |
-| `Flat` | A horizontal surface, one floor and one ceiling per zone, their ids held by the layout, differing by `ceiling` and nothing else. A height at the three levels a level file states it: the flat's constant, `room_height` per room and `cell_height` per cell, each a sparse table overriding the level above. |
+| `Flat` | A horizontal surface, one floor and one ceiling per zone, their ids held by the layout, differing by `ceiling` and nothing else. A height at the three levels a zone file states it: the flat's constant, `room_height` per room and `cell_height` per cell, each a sparse table overriding the level above. |
 | `GridPosition` | The coordinates of a cell in the grid: `long i`, `long j`. Not a stored record. `operator+=` and `operator+` take a `discrete_vector_type`, and subtracting two gives one. |
 | `Grid` | `origin`, `spacing`, `extent` (a `discrete_vector_type`, cell counts being a displacement), `contains(GridPosition)`, and `cell_at`/`cell_position` for the arithmetic both ways. A `Flat` samples over one of its own, so the arithmetic belongs here rather than on the layout, which delegates to it. |
 | `Rotation` | `CCW`, `CW`, `Half`. In `Layout.hpp`, being interface vocabulary. |
@@ -134,7 +134,7 @@ A wall is one side of one cell edge, and the two sides of an edge are independen
 wall between two rooms is a wall on each side, and a doorway block's wall toward floor is on the
 floor's side alone. An opening is the absence of a wall rather than a flag on one.
 
-This is the whole of the discrete side, with no interface between it and `Layout`. A level with no
+This is the whole of the discrete side, with no interface between it and `Layout`. A zone with no
 height data loads a constant floor rather than a different class, so which data a game style
 loads is what differs rather than which class is built; `decision_rationale.md` argues why. It has no
 provision for continuous movement, which is `ContinuousLayout`'s.
@@ -244,9 +244,19 @@ abstract class by value; `World` itself is a plain value, a member of `Session` 
 
 `create_zone` takes the layout the zone is to have and asserts it was given one --- there is no
 default, a default being what would put one concrete class back inside `World`. `zone`, `zone_count`
-and `layout` reach the zones, `layout` returning the interface; `create_entity`, `zone_of`,
-`move` and `relocate` reach their contents; `unload_zone` discards a zone, its contents and its
+and `layout` reach the zones, `layout` returning the interface; `create_entity`, `move` and
+`relocate` reach their contents; `unload_zone` discards a zone, its contents and its
 layout, leaving persistence to a caller.
+
+`zone_of(e)` is a free function rather than a member, taking no state from `World`: it follows an
+entity's parents to the `Zone` among them, depth being unbounded once an actor carries a pouch of
+coins, and returns a null entity for an entity in no zone.
+
+`reparent(e, parent, site)` is the other, and it sets what an entity belongs to and where it is
+together. Taking something, putting it down and moving it between zones are one operation at
+different parents; `relocate` is that operation with a zone as the parent, and asserts as much. The
+entity's own children travel with it, being its subtree, and its id is retained, so references to it
+stay valid.
 
 Occupancy is `entities_at` and `entities_within`, both returning entities ordered by id so that a
 run gives the same result every time --- flecs iteration is deterministic but visits entities grouped
@@ -283,15 +293,25 @@ same way. A mover is never stopped by itself.
 
 What is attached to a wall --- a door for now, an alcove, a basin, a button or a torch later. One mechanism
 for all of them is what keeps a wall a bit on the cell it bounds. `attachment_plan.md` gives the shape
-and the argument.
+and the argument, and `site_plan.md` the form it takes now.
 
-An attachment is an entity, so mutable state is allowed on it in a way it is not on a wall.
-`Attachment` is where it sits on the surface, along and up; `OnWall` references the wall by id, a wall
-being a record rather than an entity, and the reverse direction is a query filtered by that id.
+An attachment is an entity, so mutable state is allowed on it in a way it is not on a wall. `Site`
+is where an entity is: a `Relation`, `In` or `On`; an optional address, a `WallAddress` of one wall id
+or a `FlatAddress` of a flat id and a cell position; and a `placement_type`, its position and
+orientation in that frame. No address means the entity is sited on its parent. A wall is addressed by
+id rather than by a relationship, a wall being a record rather than an entity, and the reverse
+direction is a query filtered by that id --- `wall_id_of(site)` is the wall where there is one.
+
+One component states where every entity is, an actor included: an actor is `In` its zone with a
+placement and no address, so its position is in the zone's own frame. An address means fixed to a
+surface --- a wall, which has no position of its own and can be referred to only by id, or a cell of
+a flat. What rests on a floor has a placement and no address, a cell being a position already. `placement_of(e)` and
+`set_placement(e, placement)` read and write that placement, leaving the rest of the site as it was;
+`set_placement` on an entity with no site gives it one.
 
 A door is two facings and what they share. The shared part has `Door` and `Openable` --- one door
-cannot be open from one side and shut from the other --- and each facing has `DoorFacing`,
-`OnWall` and its own per-side data. A facing is a child of its door, so which door it belongs to is
+cannot be open from one side and shut from the other --- and each facing has `DoorFacing`, a `Site`
+on its wall and its own per-side data. A facing is a child of its door, so which door it belongs to is
 its parent rather than a field, the other facing is its sibling, and the whole assembly is one
 subtree: it unloads with the zone and one delete removes it.
 
@@ -302,12 +322,12 @@ nothing else notices the difference.
 
 `create_doors(world, zone, doors)` builds one on each set of walls the loader reported, which is
 what both notations' doors and doorways load as, and `Session::populate` calls it. They are generic and
-**closed**: the loader reads no `attachments` entry and no component, so a level's doors all have to be
+**closed**: the loader reads no entity and no file component, so a zone's doors all have to be
 opened.
 
-`facing_on(zone, wall_id)` is the facing attached to a wall, a wall id identifying a wall in one zone's layout so
+`facing_on(zone, wall_id)` is the facing sited on a wall, a wall id identifying a wall in one zone's layout so
 the zone is what the search is over; `door_of` is its parent and `other_facing` its sibling.
-`crossable(zone, wall_id)` is the passage question: a wall with nothing attached is solid, an
+`crossable(zone, wall_id)` is the passage question: a wall with nothing sited on it is solid, an
 `Openable` attachment reports whether it is open, anything else whether it has `Crossable` --- which is
 what a door smashed to a hole leaves and blocking debris does not. A facing `Concealed` and not yet
 found refuses, a secret door being a wall until it is found, and from that side alone.
@@ -442,13 +462,13 @@ A loaded world and what is needed to run it: a `World`, a `Scheduler`, a `Clock`
 controls, and that entity's pending one-shot command. A host is left with input mapping and drawing.
 
 **A zone is constructed whole when it is encountered**, geometry and every content of it, and
-`create` is that: it takes a `Generator` and builds the lot. The level files are snapshots of part of
+`create` is that: it takes a `Generator` and builds the lot. The zone files are snapshots of part of
 the same construction, taken where only geometry existed, so `load` is the narrower entry rather than
 the general one. `populate` is the third --- geometry already built, populated as a constructed zone
 is --- and it is what the other two are written in terms of, so no route can drift from another.
 
 `Generator` is an interface here and an implementation wherever a generator was chosen: `stratum_sim`
-links `quetzal_common`, `quetzal_stratum_format` and flecs and nothing else, reading level files
+links `quetzal_common`, `quetzal_stratum_format` and flecs and nothing else, reading zone files
 through `stratum_format` rather than depending on either generator. Which one runs decides which
 parameters apply, so the concrete generator declares its own. It returns the geometry, reports the
 walls each door is attached to exactly as the loader does, and gives the notation a constructed zone
@@ -466,7 +486,7 @@ once zones have any.
 
 `create_player` and `create_monsters` are what put a zone's contents in it --- the player in the lowest
 open cell, and one pursuer in the highest so that something other than the host decides for itself.
-They are separate because they are where a zone's starting contents go when a level specifies them:
+They are separate because they are where a zone's starting contents go when its file specifies them:
 selection and placement over a zone's contents, rather than the two fixed entities they are today.
 
 The lifecycle around these entries is in progress rather than built. A session constructs one zone
@@ -494,7 +514,7 @@ one frame.
 
 The elapsed time is what a real-time host measured since it last called. A turn-based host passes
 none, and both hosts do exactly that today: neither specifies a driver, and neither would change if the
-level it loaded specified the other.
+zone it loaded specified the other.
 
 Both hosts had their own copy of all of this. What remains different between them is only what
 surrounds `advance`.
@@ -532,43 +552,57 @@ interacting cost one action, the result they derive from being whether they happ
 
 ## Level file format
 
-`quetzal::stratum_format` reads and writes the JSON level file `discrete_layout.md` specifies, version
-`0.3`. It depends on `quetzal_common` and nlohmann/json and on neither `stratum_sim` nor `stratum_view`.
+`quetzal::stratum_format` reads and writes the JSON zone file `discrete_layout.md` specifies, version
+`0.4`. It depends on `quetzal_common` and nlohmann/json and on neither `stratum_sim` nor `stratum_view`.
 `load_layout` builds a layout from what it reads, and both generators write through it.
 
-`grid.hpp` has the geometry the rows determine --- `floor_stair_cell`, `floor_stair_door_cell`,
+`grid.hpp` has the geometry the rows determine --- `floor_cell`, `floor_door_cell`, `stair_cell`,
 `has_wall`, `room_cells` and `door_walls` --- which `read` validates a file with and `load_layout`
 builds a layout from.
 
+`references.hpp` finds and translates the references a file writes, `{ "entity": id }`: `reference_id`
+is the id where a value is one, `references` every reference within an object of file components in the
+order they are written, and `translate_references` replaces each by what a function returns for it.
+Neither needs to know what a file component means.
+
 `Document` is the file in data structures. The geometry is decoded into types --- the grid and its rows,
-expanded from runs, the barriers, each room's perimeter or location, wall addresses, each flat's height
-at its three levels, and where each attachment is. Everything else is `values_type`, nlohmann's
-`ordered_json`, exactly as the file wrote it: the generator, every component object and each
-attachment's entities. Nothing is resolved into it: a room is kept as the file identified it, and no
-inherited component is followed down its chain.
+expanded from runs, the barriers, each room's perimeter or identifying cell, wall addresses, each flat's
+height at its three levels --- and so is each entity's `site` and `parent`, being structure the reader
+checks. Everything else is `values_type`, nlohmann's `ordered_json`, exactly as the file wrote it: the
+generator and every file component. Nothing is resolved into it: a room is kept as the file identified
+it, and no inherited component is followed down its chain. A saved zone's `zone.id` is `Document::zone_id`,
+and its presence is what makes every id in the file persistent.
 
 `read` validates the geometry before it returns, and throws `std::runtime_error` giving the path within
 the document and what was wrong there. Beyond each section's structure it checks what the rows
 determine: in the wall notation, a wall between every floor cell and a blank cell, a stair cell or the
 edge of the grid; a wall in the grid at every wall address, whose cell is a floor or door cell, a
 doorway block's walls toward floor being on the floor's side and a stair cell, being a block, having
-none; a room location on a floor cell; a perimeter within the grid and along cell edges that never meets
-itself, each of its cell edges a wall facing a floor/door cell on either side or a virtual wall between
-two such cells; and no cell in two rooms. For that last it finds each room's cells --- a fill from the
-location that walls, doors and barriers stop, or the floor/door cells within the perimeter, row by row --- and a
-box bounding them, compares cells only for rooms whose boxes intersect, and keeps none of it. Every
-file must also have an entry: `layout.components.entry` lists at least one cell, each written `<`, the
-entrance glyph of any non-local transporter, or `>`, a staircase leading down as a tower entered from
-below has, with an entity attached to the floor there that has a `relocator` component, whatever the
+none; a room's identifying cell on a floor cell; a perimeter within the grid and along cell edges that
+never meets itself, each of its cell edges a wall facing a floor/door cell on either side or a virtual
+wall between two such cells; and no cell in two rooms. For that last it finds each room's cells --- a fill
+from its cell that walls, doors and barriers stop, or the floor/door cells within the perimeter, row by
+row --- and a box bounding them, compares cells only for rooms whose boxes intersect, and keeps none of it.
+
+It then checks the entities: ids whole, non-negative and unique; every entity sited on the geometry, a
+child or a parent, with an entity sited on the geometry in every hierarchy of parents and children, a
+parent for every entity sited on one, and no `parent` leading back to the entity it started from; and,
+in a template, every reference an entity's id.
+A saved zone's references may point into another zone and are not checked. Each door glyph requires one
+entity with a child sited on each wall of its doorway and on no wall outside it, and each stair glyph
+one entity with a `relocator` sited on a wall its open neighbors present to it and no second one.
+Every file must also have its access points: `layout.components.access_points` refers to at least one
+entity with a `relocator`, sited on the open side of a cell written `<`, the entrance glyph of any
+non-local transporter, or `>`, a staircase leading down as a tower entered from below has, whatever the
 entity's type, and a file without one is rejected however it was made. The list does not choose among
-its cells; a caller arriving picks by what it arrives through. `grid.hpp`'s `stair_cell` answers the glyph half. Keys the format does not define are not
-tracked.
+them; a caller arriving picks by what it arrives through. Keys the format does not define are not tracked.
 
 `write` emits the written form: two-space indentation, a grid row per line, an entry per line with a
 flat's per-room and per-cell entries each on a line of its own, and floats as the shortest digits that
 read back as the same value, without an exponent. Top-level sections follow the format's key table;
 within an entry, what it addresses or how it is identified comes first, then the rest in its section's
-table order, and content keys stay in the order they were read. In
+table order, and content keys stay in the order they were read. An entity's `parent` and `site` go
+back into its `components` ahead of the file components that were passed through. In
 runs, a count is written for a run of three glyphs or more. A document `read` produces
 is written back equivalent to it.
 
@@ -713,7 +747,7 @@ range a property of the set.
 `cell_glyphs()` is six lines: the three types a cell can be, a door shut and open, and an actor
 over each of the two types it can stand on.
 `lattice_glyphs()` draws the lattice the wall notation is written on, floor a space rather than a `.`
-and a joint at each corner walls reach. `stratum_view_test` takes a rendered wall notation level back
+and a joint at each corner walls reach. `stratum_view_test` takes a rendered wall notation zone back
 to the notation's glyphs and compares it with the file's rows, so floor, walls, doors and solid agree
 with `catagen`'s writer without either depending on the other. Its wall is sixteen lines, ASCII having
 three glyphs for the joints the mask tells apart.
@@ -779,7 +813,7 @@ the walls between its open cells. `load_layout` reports which notation it read t
 reading the file again. Both notations load into the same structure --- the notation is what a caller
 decides *by*, not a property of the layout.
 
-Level files live in `assets/level/`, which belongs to no host. The host reaches them through
+Zone files live in `assets/level/`, which belongs to no host. The host reaches them through
 `KML_DEV_ASSETS_ROOT`, a compile definition CMake sets from the source tree root, so the working
 directory a program is started from does not matter.
 
@@ -839,10 +873,11 @@ locked and the build fails.
 
 ## Tests
 
-`stratum_sim_test`, 354 cases, covers the layout hierarchy, layout structure, rooms, the grid, flats,
+`stratum_sim_test`, 356 cases, covers the layout hierarchy, layout structure, rooms, the grid, flats,
 blocking, the scheduler, the clock, movement, adjacency and sight, loading, doors, world, commands and
-occupancy. It and `stratum_view_test` each check that every level in their `data/` has one `door`
-entity attached at the walls `stratum_format::door_walls` finds for each door glyph, and none elsewhere.
+occupancy. It and `stratum_view_test` each check that every zone file in their `data/` has one `door`
+entity per door glyph, with a `door_facing` child on each wall `stratum_format::door_walls` finds for
+that glyph and no door facing anywhere else.
 
 `stratum_view_test`, 101 cases, covers the console buffer, frame differencing, glyph sets and the
 files they load from, the cell and lattice
@@ -852,41 +887,44 @@ frames: fixed command sequences rendered to text and compared byte for byte by `
 than through the host, whose key mapping is not what they check.
 
 A scenario selects which view it is played through, so the two are checked separately. Three are block
-levels through the cell view, where a wall exists only against a solid cell and a glyph per cell
+zones through the cell view, where a wall exists only against a solid cell and a glyph per cell
 loses nothing. Two are the wall view, and they differ in where the door is. `walls_door` is a wall notation
-level: through a door, back, and into the wall two rooms share, which reports blocking it and then
+zone: through a door, back, and into the wall two rooms share, which reports blocking it and then
 interacts with it while it is drawn beside the actor --- the whole of what a glyph per cell cannot
-show. `door_cell` is a block notation level, where the door is a cell rather than an edge and is drawn
+show. `door_cell` is a block notation zone, where the door is a cell rather than an edge and is drawn
 in it, the actor stepping into the doorway and out the far side.
 
 `dungen_test`, 101 cases, and `catagen_test`, 46 cases, check the generators the same way: reference
-levels written now against levels checked in, which are to be equivalent as parsed JSON, plus determinism,
-parameter validation, grid shape and every generated level being one the reader accepts. Both check,
-for their scenarios and over a sweep of seeds, that a level has one `door` entity attached at the
-walls of each door glyph and none elsewhere. `dungen_test`
-also reads back the rooms of levels with every door, half and none, over a sweep of seeds, and checks
+zone files written now against those checked in, which are to be equivalent as parsed JSON, plus
+determinism, parameter validation, grid shape and every generated zone being one the reader accepts. Both
+check, for their scenarios and over a sweep of seeds, that each door glyph has one `door` entity whose
+door facings are on that doorway's walls in the order `door_walls` returns them, and that no door facing
+is anywhere else. `dungen_test`
+also reads back the rooms of zones with every door, half and none, over a sweep of seeds, and checks
 each room covers exactly the cells generated as it, which a barrier missing at an open doorway fails.
-Both suites, over another sweep with ranges of staircases each way, check from the written level that
+Both suites, over another sweep with ranges of staircases each way, check from the written zone that
 neither count exceeds its maximum, that a count leading up falls short of its minimum only where no
 staircase leads down, that every floor cell is reachable from every other with the stair blocks in place
 (maze1 excepted, which can leave corridor no door reaches), that no staircase blocks a doorway while a
-cell beside it would not, that every staircase has one entry, leading to `level_down` or `level_up` as
-its glyph says, and facing a side with floor beyond, or a door where there is none, and that the level's
-`entry` lists exactly its staircase cells. What the written level no longer shows about a stair cell, its
-space in dungen and which of its sides were open in catagen, they take from the level generated again.
+cell beside it would not, that every staircase is attached to exactly one of the walls around its block,
+leading to `down` or `up` as its glyph says and opening onto a side with floor beyond, or a
+door where there is none, and that `access_points` refers to every staircase. What the written zone no
+longer shows about a stair cell, its space in dungen and which of its sides were open in catagen, they
+take from the zone generated again.
 `catagen_test` also checks that every edge between a stair cell and floor is written as a wall. Validation rejects staircase counts whose minimums are both zero and accepts a
 staircase down alone. Each also
-reads a reference level's generator parameters back and regenerates from them, which is the claim the
-format rests on --- a level names what produced it. A parameter a writer emits and the suite does not
-recognise fails there rather than passing silently, as does one the suite reads and the level lacks.
+reads a reference zone's generator parameters back and regenerates from them, which is the claim the
+format rests on --- a zone file names what produced it. A parameter a writer emits and the suite does not
+recognise fails there rather than passing silently, as does one the suite reads and the file lacks.
 
 The two suites are what the drivers never were. `tool/dungen` and `tool/catagen` take the plain
 names, the `quetzal_` prefix on the library targets being the distinction, and the `_test` names
 belong to the suites under `test/`.
 
-`stratum_format_test`, 132 cases, reads four levels and checks what they decode to, rejects every error
-the reader raises from a valid level with one change made to it, and writes each level through both
-`write` overloads and reads it back, comparing the two documents as maps rather than as bytes.
+`stratum_format_test`, 175 cases, reads four zone files and checks what they decode to, rejects every
+error the reader raises from a valid file with one change made to it, checks that references are found
+and translated wherever they are written, and writes each file through both `write` overloads and reads
+it back, comparing the two documents as maps rather than as bytes.
 
 `flecs_test` confirms the ECS supports zone partitioning, relationships, migration, unload,
 serialisation and determinism.

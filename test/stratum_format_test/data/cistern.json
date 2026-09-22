@@ -1,12 +1,12 @@
 {
   "format": "quetzal.discrete_layout",
-  "version": "0.3",
+  "version": "0.4",
   "generator": {
     "name": "catagen",
     "parameters": { "extent": "4,3", "scale": "3-7", "spacing": "2", "density": "1.0", "loop": "0.1", "seed": "20260829" }
   },
   "layout": {
-    "components": { "name": "The Flooded Cistern", "type": "dungeon", "difficulty": 3, "style": "cistern", "entry": [[3, 2], [3, 0]] }
+    "components": { "name": "The Flooded Cistern", "type": "dungeon", "difficulty": 3, "style": "cistern", "access_points": [ { "entity": 4 }, { "entity": 5 } ] }
   },
   "cells": {
     "notation": "wall",
@@ -23,13 +23,13 @@
       " - -   - "
     ]
   },
-  "barriers": [[3, 1, 1, 0]],
+  "barriers": [ { "cell_position": [3, 1], "normal": [1, 0] } ],
   "rooms": [
     { "perimeter": [[0, 0], [2, 0], [2, 3], [0, 3]], "components": { "name": "the cistern", "style": { "terrain": "water" } } },
-    { "location": [3, 1], "components": { "name": "the stair head" } }
+    { "cell_position": [3, 1], "components": { "name": "the stair head" } }
   ],
   "walls": [
-    { "wall": [1, 1, -1, 0], "components": { "style": "buttressed" } }
+    { "wall": { "cell_position": [1, 1], "normal": [-1, 0] }, "components": { "style": "buttressed" } }
   ],
   "flats": [
     { "role": "floor", "height": 0.0, "components": { "terrain": "flagstone" },
@@ -38,9 +38,13 @@
       ] },
     { "role": "ceiling", "height": 3.0 }
   ],
-  "attachments": [
-    { "walls": [[1, 1, -1, 0], [2, 1, 1, 0]], "entities": [ { "type": "door", "components": { "material": "oak", "open": false } } ] },
-    { "flat": "floor", "cell": [3, 2], "entities": [ { "type": "staircase", "components": { "facing": [0, -1], "relocator": { "target": "level_down" } } } ] },
-    { "flat": "floor", "cell": [3, 0], "entities": [ { "type": "staircase", "components": { "facing": [0, 1], "relocator": { "target": "level_up" } } } ] }
+  "entities": [
+    { "id": 1, "type": "door", "components": { "material": "oak", "open": false } },
+    { "id": 2, "type": "door_facing", "components": { "parent": { "entity": 1 }, "site": { "relation": "on", "wall": { "cell_position": [1, 1], "normal": [-1, 0] } } } },
+    { "id": 3, "type": "door_facing", "components": { "parent": { "entity": 1 }, "site": { "relation": "on", "wall": { "cell_position": [2, 1], "normal": [1, 0] } }, "concealed": true } },
+    { "id": 4, "type": "staircase", "components": { "site": { "relation": "on", "wall": { "cell_position": [3, 1], "normal": [0, -1] } }, "relocator": { "target": "down" } } },
+    { "id": 5, "type": "staircase", "components": { "site": { "relation": "on", "wall": { "cell_position": [3, 1], "normal": [0, 1] } }, "relocator": { "target": "up" } } },
+    { "id": 6, "type": "chest", "components": { "site": { "relation": "on", "flat": "floor", "cell_position": [0, 2], "orientation": [1, 0] } } },
+    { "id": 7, "type": "key", "components": { "parent": { "entity": 6 }, "site": { "relation": "in" }, "opens": { "entity": 1 } } }
   ]
 }

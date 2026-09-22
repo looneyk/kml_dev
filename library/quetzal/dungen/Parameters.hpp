@@ -67,7 +67,7 @@ namespace quetzal::dungen
     };
 
     //--------------------------------------------------------------------------
-    // The generation parameters of one run, written into the level file so that a level names
+    // The generation parameters of one run, written into the zone file so that a zone names
     // what produced it and can be produced again
     // Only the group belonging to the chosen algorithm is read, so the others may hold
     // whatever a command line or a header put there
@@ -87,13 +87,13 @@ namespace quetzal::dungen
         Cave1Parameters cave1;
 
         // Empty until one is assigned, so that a caller who never did is caught by validate
-        // rather than quietly handed the same level every run
+        // rather than quietly handed the same zone every run
         std::optional<seed_type> seed;
     };
 
-    // A seed drawn from the platform's entropy source, for a caller wanting a different level
+    // A seed drawn from the platform's entropy source, for a caller wanting a different zone
     // each run. Generation itself takes the seed it is given, so that a written seed
-    // reproduces a level exactly
+    // reproduces a zone exactly
     Parameters::seed_type random_seed();
 
     // The shared parameters and the chosen algorithm's group, the other groups going unread

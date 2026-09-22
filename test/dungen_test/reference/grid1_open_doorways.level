@@ -1,12 +1,12 @@
 {
   "format": "quetzal.discrete_layout",
-  "version": "0.3",
+  "version": "0.4",
   "generator": {
     "name": "dungen",
     "parameters": { "algorithm": "grid1", "size": "33,25", "stairs_down": "1-1", "stairs_up": "1-1", "divisions": "3,3", "room_density": "1", "room_dimension_min": "3", "room_margin": "1", "loop": "0.15", "door_probability": "0.5", "seed": "42" }
   },
   "layout": {
-    "components": { "entry": [[24, 19], [29, 19]] }
+    "components": { "access_points": [ { "entity": 23 }, { "entity": 24 } ] }
   },
   "cells": {
     "notation": "block",
@@ -41,28 +41,42 @@
       "#################################"
     ]
   },
-  "barriers": [[24, 4, -1, 0], [30, 5, 0, -1], [24, 8, 0, -1], [8, 10, 0, -1], [8, 13, 0, -1], [9, 13, -1, 0], [3, 16, 0, -1], [22, 17, -1, 0], [7, 19, -1, 0], [18, 19, -1, 0]],
+  "barriers": [ { "cell_position": [24, 4], "normal": [-1, 0] }, { "cell_position": [30, 5], "normal": [0, -1] }, { "cell_position": [24, 8], "normal": [0, -1] }, { "cell_position": [8, 10], "normal": [0, -1] }, { "cell_position": [8, 13], "normal": [0, -1] }, { "cell_position": [9, 13], "normal": [-1, 0] }, { "cell_position": [3, 16], "normal": [0, -1] }, { "cell_position": [22, 17], "normal": [-1, 0] }, { "cell_position": [7, 19], "normal": [-1, 0] }, { "cell_position": [18, 19], "normal": [-1, 0] } ],
   "rooms": [
-    { "location": [1, 1] },
-    { "location": [18, 2] },
-    { "location": [25, 3] },
-    { "location": [7, 11] },
-    { "location": [12, 9] },
-    { "location": [24, 9] },
-    { "location": [3, 17] },
-    { "location": [13, 19] },
-    { "location": [23, 17] }
+    { "cell_position": [1, 1] },
+    { "cell_position": [18, 2] },
+    { "cell_position": [25, 3] },
+    { "cell_position": [7, 11] },
+    { "cell_position": [12, 9] },
+    { "cell_position": [24, 9] },
+    { "cell_position": [3, 17] },
+    { "cell_position": [13, 19] },
+    { "cell_position": [23, 17] }
   ],
-  "attachments": [
-    { "walls": [[22, 2, 1, 0], [20, 2, -1, 0]], "entities": [ { "type": "door" } ] },
-    { "walls": [[6, 4, 1, 0], [4, 4, -1, 0]], "entities": [ { "type": "door" } ] },
-    { "walls": [[18, 4, 1, 0], [16, 4, -1, 0]], "entities": [ { "type": "door" } ] },
-    { "walls": [[1, 6, 0, 1], [1, 4, 0, -1]], "entities": [ { "type": "door" } ] },
-    { "walls": [[12, 13, 1, 0], [10, 13, -1, 0]], "entities": [ { "type": "door" } ] },
-    { "walls": [[27, 14, 0, -1]], "entities": [ { "type": "door" } ] },
-    { "walls": [[27, 17, 0, 1]], "entities": [ { "type": "door" } ] },
-    { "walls": [[13, 19, 1, 0], [11, 19, -1, 0]], "entities": [ { "type": "door" } ] },
-    { "flat": "floor", "cell": [24, 19], "entities": [ { "type": "staircase", "components": { "facing": [0, -1], "relocator": { "target": "level_up" } } } ] },
-    { "flat": "floor", "cell": [29, 19], "entities": [ { "type": "staircase", "components": { "facing": [0, 1], "relocator": { "target": "level_down" } } } ] }
+  "entities": [
+    { "id": 1, "type": "door" },
+    { "id": 2, "type": "door_facing", "components": { "parent": { "entity": 1 }, "site": { "relation": "on", "wall": { "cell_position": [22, 2], "normal": [1, 0] } } } },
+    { "id": 3, "type": "door_facing", "components": { "parent": { "entity": 1 }, "site": { "relation": "on", "wall": { "cell_position": [20, 2], "normal": [-1, 0] } } } },
+    { "id": 4, "type": "door" },
+    { "id": 5, "type": "door_facing", "components": { "parent": { "entity": 4 }, "site": { "relation": "on", "wall": { "cell_position": [6, 4], "normal": [1, 0] } } } },
+    { "id": 6, "type": "door_facing", "components": { "parent": { "entity": 4 }, "site": { "relation": "on", "wall": { "cell_position": [4, 4], "normal": [-1, 0] } } } },
+    { "id": 7, "type": "door" },
+    { "id": 8, "type": "door_facing", "components": { "parent": { "entity": 7 }, "site": { "relation": "on", "wall": { "cell_position": [18, 4], "normal": [1, 0] } } } },
+    { "id": 9, "type": "door_facing", "components": { "parent": { "entity": 7 }, "site": { "relation": "on", "wall": { "cell_position": [16, 4], "normal": [-1, 0] } } } },
+    { "id": 10, "type": "door" },
+    { "id": 11, "type": "door_facing", "components": { "parent": { "entity": 10 }, "site": { "relation": "on", "wall": { "cell_position": [1, 6], "normal": [0, 1] } } } },
+    { "id": 12, "type": "door_facing", "components": { "parent": { "entity": 10 }, "site": { "relation": "on", "wall": { "cell_position": [1, 4], "normal": [0, -1] } } } },
+    { "id": 13, "type": "door" },
+    { "id": 14, "type": "door_facing", "components": { "parent": { "entity": 13 }, "site": { "relation": "on", "wall": { "cell_position": [12, 13], "normal": [1, 0] } } } },
+    { "id": 15, "type": "door_facing", "components": { "parent": { "entity": 13 }, "site": { "relation": "on", "wall": { "cell_position": [10, 13], "normal": [-1, 0] } } } },
+    { "id": 16, "type": "door" },
+    { "id": 17, "type": "door_facing", "components": { "parent": { "entity": 16 }, "site": { "relation": "on", "wall": { "cell_position": [27, 14], "normal": [0, -1] } } } },
+    { "id": 18, "type": "door" },
+    { "id": 19, "type": "door_facing", "components": { "parent": { "entity": 18 }, "site": { "relation": "on", "wall": { "cell_position": [27, 17], "normal": [0, 1] } } } },
+    { "id": 20, "type": "door" },
+    { "id": 21, "type": "door_facing", "components": { "parent": { "entity": 20 }, "site": { "relation": "on", "wall": { "cell_position": [13, 19], "normal": [1, 0] } } } },
+    { "id": 22, "type": "door_facing", "components": { "parent": { "entity": 20 }, "site": { "relation": "on", "wall": { "cell_position": [11, 19], "normal": [-1, 0] } } } },
+    { "id": 23, "type": "staircase", "components": { "site": { "relation": "on", "wall": { "cell_position": [24, 18], "normal": [0, -1] } }, "relocator": { "target": "up" } } },
+    { "id": 24, "type": "staircase", "components": { "site": { "relation": "on", "wall": { "cell_position": [29, 20], "normal": [0, 1] } }, "relocator": { "target": "down" } } }
   ]
 }

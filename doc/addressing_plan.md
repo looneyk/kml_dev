@@ -1,7 +1,7 @@
 # Ids and Addressing --- Plan
 
-Status: designed, nothing built
-Date: 2026-09-14, revised 2026-09-16
+Status: steps 1, 2 and 3 built; the rest designed
+Date: 2026-09-14, revised 2026-09-20
 
 The design behind the spec in `addressing.md`: one list of entities in a zone file, with `attached` and
 `parent` as file components the format defines and children derived from `parent`; persistent ids; links
@@ -211,8 +211,8 @@ staircases open onto the cell between them, `[3, 1]`:
   { "id": 1, "type": "door", "components": { "material": "oak", "open": false } },
   { "id": 2, "type": "door_facing", "components": { "parent": { "entity": 1 }, "attached": { "wall": { "cell_position": [1, 1], "normal": [-1, 0] } } } },
   { "id": 3, "type": "door_facing", "components": { "parent": { "entity": 1 }, "attached": { "wall": { "cell_position": [2, 1], "normal": [1, 0] } } } },
-  { "id": 4, "type": "staircase", "components": { "attached": { "wall": { "cell_position": [3, 1], "normal": [0, -1] } }, "relocator": { "target": "level_down" } } },
-  { "id": 5, "type": "staircase", "components": { "attached": { "wall": { "cell_position": [3, 1], "normal": [0, 1] } }, "relocator": { "target": "level_up" } } }
+  { "id": 4, "type": "staircase", "components": { "attached": { "wall": { "cell_position": [3, 1], "normal": [0, -1] } }, "relocator": { "target": "down" } } },
+  { "id": 5, "type": "staircase", "components": { "attached": { "wall": { "cell_position": [3, 1], "normal": [0, 1] } }, "relocator": { "target": "up" } } }
 ]
 ```
 
@@ -225,13 +225,13 @@ checks, and every other file component is kept as written. The writer puts the t
 ```cpp
 namespace quetzal::stratum_format
 {
-    // An id as a file writes it: local in a template, persistent in a saved zone
-    using file_id_type = std::uint64_t;
+    // An entity id in a zone file: a local id in a zone template, a persistent id in a saved zone
+    using stored_entity_id_type = std::uint64_t;
 
     // An attached file component's target when it is an entity
     struct EntityTarget
     {
-        file_id_type id = 0;
+        stored_entity_id_type id = 0;
     };
 
     // The attached file component, decoded
@@ -245,17 +245,17 @@ namespace quetzal::stratum_format
 
     struct Entity
     {
-        file_id_type id = 0;
+        stored_entity_id_type id = 0;
         std::string type;
         std::optional<Attachment> attached;
-        std::optional<file_id_type> parent_id;
+        std::optional<stored_entity_id_type> parent_id;
         values_type components; // Every other file component, as written
     };
 
     struct Document
     {
         ...
-        std::optional<file_id_type> zone_id; // A saved zone's own
+        std::optional<stored_entity_id_type> zone_id; // The zone's own persistent id, which a zone template has none of
         std::vector<Entity> entities;
     };
 }
@@ -265,10 +265,10 @@ A new `references.hpp`, since both the reader and making a zone walk file compon
 
 ```cpp
     // Every reference inside an object of file components, in the order they are written
-    std::vector<file_id_type> references(const values_type& components);
+    std::vector<stored_entity_id_type> references(const values_type& components);
 
     // Each reference replaced by what translate returns for it
-    void translate_references(values_type& components, const std::function<file_id_type(file_id_type)>& translate);
+    void translate_references(values_type& components, const std::function<stored_entity_id_type(stored_entity_id_type)>& translate);
 ```
 
 `grid.hpp` keeps `door_walls` and `stair_cell`, which the glyph checks use. The reader's checks run
@@ -316,14 +316,14 @@ namespace quetzal::stratum_sim
 
         struct Entity
         {
-            stratum_format::file_id_type id = 0;
+            stratum_format::stored_entity_id_type id = 0;
             std::string type;
             std::optional<Attachment> attached;
-            std::optional<stratum_format::file_id_type> parent_id;
+            std::optional<stratum_format::stored_entity_id_type> parent_id;
             values_type components;
         };
 
-        std::optional<stratum_format::file_id_type> zone_id;
+        std::optional<stratum_format::stored_entity_id_type> zone_id;
         values_type layout;
         std::vector<values_type> rooms; // By room id
         std::map<id_type, values_type> walls; // By wall id
@@ -726,13 +726,13 @@ Bethesda's form ids between a plugin's place in the load order and its own count
 
 ## Steps
 
-- [ ] **1. Format 0.4 in `stratum_format`.** The document types, the reader's checks, the writer,
+- [x] **1. Format 0.4 in `stratum_format`.** Done: the document types, the reader's checks, the writer,
       `references.hpp`, `cell_position` and separate wall addresses throughout, and the format suite's
       data and mutations.
-- [ ] **2. The generators and every zone file in 0.4.** Both generators, their suites and references,
-      the sim and view data, the assets and the tool samples. `load_layout` still reads geometry alone,
-      stair cells being blocks already (`work_plan.md`, stage 8). Each staircase's attachment moves from
-      its cell's floor to the wall on its open side, and `facing` goes.
+- [x] **2. The generators and every zone file in 0.4.** Done: both generators, their suites and
+      references, the sim and view data, the assets and the tool samples. `load_layout` still reads
+      geometry alone, stair cells being blocks already (`work_plan.md`, stage 8). Each staircase's
+      attachment moved from its cell's floor to the wall on its open side, and `facing` went.
 - [x] **3. `flecs::Parent` checked in `flecs_test`.** Done: `## Flecs` has what it found, including that
       a hierarchy cannot be read back from flecs JSON.
 - [ ] **4. Persistent ids.** `persistent_id_type`, `IdAllocator`, `CountingIdAllocator`, `PersistentId`,
@@ -777,9 +777,9 @@ nothing a player sees changed apart from the wall ids they print.
 
 ## Open
 
-- **Names.** `attached`, `parent`, `door_facing`, `file_id_type`, `EntityTarget`, `PersistentId`,
+- **Names.** `attached`, `parent`, `door_facing`, `EntityTarget`, `PersistentId`,
   `EntityReference`, `make_reference`, `ZonePlaces`, `Access`, `Detection` and `ActorIndex` are working names. `placement` is
   not a candidate for the file's `attached`, `placement_type` already being an actor's position and
-  direction.
+  direction. `stored_entity_id_type` is settled.
 - **Where a saved zone is written,** and how a world's zones are found by persistent id on disk. The
   session lifecycle's to settle.

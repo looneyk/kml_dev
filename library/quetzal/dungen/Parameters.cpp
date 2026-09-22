@@ -43,7 +43,7 @@ namespace
     {
         const auto& maze1 = parameters.maze1;
 
-        // The maze is flooded along the odd cells, so a level below three cells across holds
+        // The maze is flooded along the odd cells, so a zone below three cells across holds
         // no lattice at all once its size is rounded down to odd
         auto [nx, ny] = parameters.size;
         if (nx < 3 || ny < 3)
@@ -62,7 +62,7 @@ namespace
         }
 
         // A room is drawn up to the base plus the variation and then given a position inside
-        // the level, so a level no wider than the largest room leaves nowhere to place it
+        // the zone, so a zone no wider than the largest room leaves nowhere to place it
         coord_type room_dimension_max = maze1.room_dimension_base + maze1.room_dimension_variation;
         if (room_dimension_max >= nx || room_dimension_max >= ny)
         {
@@ -100,7 +100,7 @@ namespace
         }
 
         // A sector holds its room plus the margin on both sides of it, so divisions that cut
-        // the level finer than that have nowhere to put a room
+        // the zone finer than that have nowhere to put a room
         auto [nx, ny] = parameters.size;
         coord_type sector_x = nx / divisions_x;
         coord_type sector_y = ny / divisions_y;
@@ -171,7 +171,7 @@ void quetzal::dungen::validate(const Parameters& parameters)
     validate_count(parameters.staircase_down_count, "staircase down count");
     validate_count(parameters.staircase_up_count, "staircase up count");
 
-    // Every staircase is an entry, so counts that may both be zero may leave the level none
+    // Every staircase is an access point, so counts that may both be zero may leave the zone none
     if (parameters.staircase_down_count.lower() + parameters.staircase_up_count.lower() == 0)
     {
         throw invalid_argument("staircase down and up count minimums of zero may leave the level no entry");

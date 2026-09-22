@@ -97,7 +97,7 @@ namespace
     //--------------------------------------------------------------------------
     void usage(ostream& os)
     {
-        os << "Usage: dungen [level] [--algorithm maze1|grid1|cave1] [--size nx,ny]"
+        os << "Usage: dungen [zone] [--algorithm maze1|grid1|cave1] [--size nx,ny]"
             << " [--stairs-down min-max] [--stairs-up min-max] [--room-density d] [--door-probability p] [--seed n]" << endl;
         os << "  maze1: [--room-dimension-base n] [--room-dimension-variation n] [--room-merge]"
             << " [--corridor-straightness s] [--probability-dead-end-removal p]"
@@ -223,7 +223,7 @@ int main(int argc, char* argv[])
         }
 
         // A run that asked for no seed gets one of its own, so that the header names a seed
-        // either way and any level can be produced again
+        // either way and any zone can be produced again
         if (!parameters.seed)
         {
             parameters.seed = dungen::random_seed();

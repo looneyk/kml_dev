@@ -1,25 +1,26 @@
 # Discrete Layout File Format Specification
 
 Status: specification --- the reader and writer are built in `stratum_format`, both generators write it, and `stratum_sim` builds layouts from it
-Date: 2026-09-11, revised 2026-09-13
+Date: 2026-09-11, revised 2026-09-20
 
 What a discrete layout file contains. One file is one `Zone`: the cell grid that quantizes
 movement, the walls between the cells, the flats bounding it above and below, the rooms defined over
 it, and everything attached to any of those.
 
-It includes rooms and their names, surfaces with height, styles and the entities a level places,
+It includes rooms and their names, surfaces with height, styles and the entities a zone places,
 none of which the two generator grids could express. `sim_zone_model.md` owns the model this serializes.
 `discrete_layout_plan.md` has what a file loads into and the reader and writer either side of it.
 
 ## What a file is
 
 One JSON object. `format`, `version` and `cells` are required; the rest are
-omitted where a level has none.
+omitted where a zone has none.
 
 | Key | |
 | --- | --- |
 | `format` | `"quetzal.discrete_layout"`. Identifies the file to a reader as this format |
 | `version` | The version of this format the file was written to |
+| `zone` | The zone's own persistent id, in a saved zone alone |
 | `generator` | Which generator produced it and the parameters of the run |
 | `layout` | What the layout as a whole is called and is like |
 | `cells` | The grid: its notation, its extent, its origin and scale, and its rows |
@@ -27,15 +28,16 @@ omitted where a level has none.
 | `rooms` | The areas defined over the grid |
 | `walls` | Per-wall data, for the walls that have any |
 | `flats` | The floor and the ceiling |
-| `attachments` | Everything attached to a wall or to a flat cell |
+| `entities` | The zone's entities, and where each is sited |
 
-A file is one zone. A staircase between two is an entity attached to the floor, and it has a relocator
-whose target is the other. A relocator is the component that moves a mover to its target; a staircase,
-a portal and a waypoint are entities that have one.
+A file is one zone. A staircase between two is an entity sited on the wall on its open side, and it
+has a relocator whose target is the other. A relocator is the component that moves an actor to its
+target; a staircase, a portal and a waypoint are entities that have one.
 
-A level file is a template a zone is made from, and the file does not store the zone's identity: a zone
-is an entity with a persistent id, given when it is made (`addressing.md`). `layout.components.name` is
-what the level is called for a player to read.
+A file is either a template a zone is made from or a saved zone. A template does not store the zone's
+identity, a zone being an entity with a persistent id given when it is made (`addressing.md`); a saved
+zone writes that id in `zone` and every id in the file is then persistent. `layout.components.name` is
+what the zone is called for a player to read.
 
 ## An example
 
@@ -46,13 +48,13 @@ blocks, a staircase down above it and the entrance, a staircase up, below it.
 ```json
 {
   "format": "quetzal.discrete_layout",
-  "version": "0.3",
+  "version": "0.4",
   "generator": {
     "name": "catagen",
     "parameters": { "extent": "4,3", "scale": "3-7", "spacing": "2", "density": "1.0", "loop": "0.1", "seed": "20260829" }
   },
   "layout": {
-    "components": { "name": "The Flooded Cistern", "type": "dungeon", "difficulty": 3, "style": "cistern", "entry": [[3, 2], [3, 0]] }
+    "components": { "name": "The Flooded Cistern", "type": "dungeon", "difficulty": 3, "style": "cistern", "access_points": [ { "entity": 4 }, { "entity": 5 } ] }
   },
   "cells": {
     "notation": "wall",
@@ -69,13 +71,13 @@ blocks, a staircase down above it and the entrance, a staircase up, below it.
       " - -   - "
     ]
   },
-  "barriers": [[3, 1, 1, 0]],
+  "barriers": [ { "cell_position": [3, 1], "normal": [1, 0] } ],
   "rooms": [
     { "perimeter": [[0, 0], [2, 0], [2, 3], [0, 3]], "components": { "name": "the cistern", "style": { "terrain": "water" } } },
-    { "location": [3, 1], "components": { "name": "the stair head" } }
+    { "cell_position": [3, 1], "components": { "name": "the stair head" } }
   ],
   "walls": [
-    { "wall": [1, 1, -1, 0], "components": { "style": "buttressed" } }
+    { "wall": { "cell_position": [1, 1], "normal": [-1, 0] }, "components": { "style": "buttressed" } }
   ],
   "flats": [
     { "role": "floor", "height": 0.0, "components": { "terrain": "flagstone" },
@@ -84,10 +86,12 @@ blocks, a staircase down above it and the entrance, a staircase up, below it.
       ] },
     { "role": "ceiling", "height": 3.0 }
   ],
-  "attachments": [
-    { "walls": [[1, 1, -1, 0], [2, 1, 1, 0]], "entities": [ { "type": "door", "components": { "material": "oak", "open": false } } ] },
-    { "flat": "floor", "cell": [3, 2], "entities": [ { "type": "staircase", "components": { "facing": [0, -1], "relocator": { "target": "level_down" } } } ] },
-    { "flat": "floor", "cell": [3, 0], "entities": [ { "type": "staircase", "components": { "facing": [0, 1], "relocator": { "target": "level_up" } } } ] }
+  "entities": [
+    { "id": 1, "type": "door", "components": { "material": "oak", "open": false } },
+    { "id": 2, "type": "door_facing", "components": { "parent": { "entity": 1 }, "site": { "relation": "on", "wall": { "cell_position": [1, 1], "normal": [-1, 0] } } } },
+    { "id": 3, "type": "door_facing", "components": { "parent": { "entity": 1 }, "site": { "relation": "on", "wall": { "cell_position": [2, 1], "normal": [1, 0] } } } },
+    { "id": 4, "type": "staircase", "components": { "site": { "relation": "on", "wall": { "cell_position": [3, 1], "normal": [0, -1] } }, "relocator": { "target": "down" } } },
+    { "id": 5, "type": "staircase", "components": { "site": { "relation": "on", "wall": { "cell_position": [3, 1], "normal": [0, 1] } }, "relocator": { "target": "up" } } }
   ]
 }
 ```
@@ -97,8 +101,9 @@ blocks, a staircase down above it and the entrance, a staircase up, below it.
 ### Coordinates
 
 Every coordinate outside `cells.rows` is a cell coordinate, whichever notation the grid uses.
-`[i, j]` is the cell `i` east and `j` north of the grid's corner. The two notations therefore differ
-only in the rows, and converting a level between them keeps every room, wall and attachment.
+`[i, j]` is the cell `i` east and `j` north of the grid's corner, and every key whose value is a cell
+position is `cell_position`. The two notations therefore differ only in the rows, and converting a zone
+between them keeps every room, wall and entity.
 
 A room's `perimeter` is the exception, in junction coordinates: the corners of cells. Junction
 `[u, v]` is the lower-left (SW) corner of the cell at `[u, v]`, so the cells from `[0, 0]` to
@@ -109,9 +114,9 @@ A position in the zone is three numbers, `[x, y, z]`. The grid lies in the xy-pl
 
 ### Addresses
 
-A wall address is `[i, j, ni, nj]`, a cell and the normal of the wall on one of its sides, pointing
-into the cell. A flat cell address is the flat's role and a cell, `"flat": "floor"` and
-`"cell": [i, j]`. The file never refers to a wall by id.
+A wall address is `{ "cell_position": [i, j], "normal": [ni, nj] }`, the cell the wall belongs to and
+the normal pointing out of the wall's surface into that cell. A flat cell address is the flat's role and
+a cell position, `"flat": "floor"` and `"cell_position": [i, j]`. The file never refers to a wall by id.
 
 What an edge, a wall, an address and every other identifier are, and the rules each follows, are
 specified in `addressing.md`.
@@ -149,36 +154,47 @@ the level it was written.
 `style` is one: a theme and how it is built. Its value is a name, an object of properties, or an
 object with a `name` and properties overriding part of what the name refers to; `"style": "cistern"`
 is `"style": { "name": "cistern" }`. A name is an asset the consumer resolves, which lets a theme be
-shared across levels without being copied into each. The format defines no style property: `theme`,
+shared across zones without being copied into each. The format defines no style property: `theme`,
 `ceiling` and `segmented` are what is written so far --- what a surface is made of, flat or arched,
 and whether a run is broken into bays. A generator writes the properties the caller it is written for
 consumes, and nothing between them checks the pair.
 
 ### The written form
 
-A reader accepts any valid JSON. A writer emits this form, so a level file diffs as a level:
+A reader accepts any valid JSON. A writer emits this form, so a zone file diffs as a zone:
 
 - Two spaces of indentation.
 - One grid row per line in `cells.rows`, so a changed row is a changed line. In characters rather
-  than runs wherever the grid is small enough to read as a picture of the level.
-- One entry per line for a room, a wall, a flat cell and an attachment, however long the line. A flat
+  than runs wherever the grid is small enough to read as a picture of the zone.
+- One entry per line for a room, a wall, a flat cell and an entity, however long the line. A flat
   with `rooms` or `cells` breaks before each of them, and writes their entries one per line.
-- Content written as it was read, each component object and entity inline on the line of the key it
-  belongs to.
-- Coordinates and coordinate arrays inline: `[3, 1, 1, 0]` on the line that uses it, never one
-  number per line.
+- Content written as it was read, each component object inline on the line of the key it belongs to.
+- Coordinates, coordinate arrays and wall addresses inline: `{ "cell_position": [3, 1], "normal": [1, 0] }`
+  on the line that uses it, never one number per line.
 - Numbers plainly, without an exponent.
 
 ## version
 
-A label a reader matches rather than a number it compares. `0.3`, the leading zero marking it
-pre-release: no older file is kept readable, and every checked-in level regenerates when the format
+A label a reader matches rather than a number it compares. `0.4`, the leading zero marking it
+pre-release: no older file is kept readable, and every checked-in zone file regenerates when the format
 moves. A reader given a version it does not know rejects the file.
+
+## zone
+
+The zone's own persistent id, written by a save and by nothing else:
+
+```json
+"zone": { "id": 7713 }
+```
+
+Its presence is what marks every id in the file as persistent --- entity ids, references, and bound
+relocator targets --- and a template has no `zone` section. A reference in a saved zone may point to an
+entity in another zone, so the reader does not check that it resolves.
 
 ## generator
 
 Which generator produced the file and the parameters of the run, so that the file reproduces its own
-level:
+zone:
 
 ```json
 "generator": { "name": "catagen", "parameters": { "extent": "4,3", "seed": "20260829" } }
@@ -198,29 +214,27 @@ What the layout as a whole is called and is like. A component object; nothing el
 "layout": { "components": { "name": "The Flooded Cistern", "type": "dungeon", "difficulty": 3, "style": "cistern" } }
 ```
 
-`name`, `type`, `difficulty` and `style` are components like any other. They are the level metadata
+`name`, `type`, `difficulty` and `style` are components like any other. They are the zone metadata
 `sim_zone_model.md` describes, so depth, recipe, encounter and loot tables belong here too as the
 content that needs them arrives.
 
-`entry` is required: the cells a mover arriving in the zone can be placed on, at least one. Every zone
-is built with them.
+`access_points` is required: references to the relocators an arriving actor can be placed at, at least
+one. Every zone is built with them.
 
 ```json
-"layout": { "components": { "entry": [[5, 5], [12, 3]] } }
+"layout": { "components": { "access_points": [ { "entity": 8 }, { "entity": 9 } ] } }
 ```
 
-Each entry cell is a cell written `<` or `>` with an entity attached to the floor there that has a
-`relocator` component, and the reader rejects a file whose entry is absent, lists no cell, or lists
-one that is not such a cell. `<` is the entrance glyph, and a waypoint or a portal is an entrance as
-much as a staircase leading up is; `>` is a staircase leading down, which is the entry of a tower
-entered from below. The entity's `type` is not what is checked. A relocator written on the floor cell
-itself, rather than on an entity attached there, does not count.
+Each is a reference to an entity with a `relocator` component, sited on the open side of a cell
+written `<` or `>`, and the reader rejects a file whose `access_points` is absent, lists nothing, or
+lists a value that is not such a reference. `<` is the entrance glyph, and a waypoint or a portal is an
+entrance as much as a staircase leading up is; `>` is a staircase leading down, which is the access
+point of a tower entered from below. The entity's `type` is not what is checked.
 
-Which entry cell an arriving mover is placed on depends on where it comes from, so the list does not
+Which access point an arriving actor is placed at depends on where it comes from, so the list does not
 choose: a caller arriving from above looks among the staircases leading up, one arriving by waypoint
-among the waypoints, and so on. A generator lists every staircase it places, and a file written by
-hand lists its entries as any file must. Once a layout is read, its entries are known, which is what
-an unbound `level_down` resolves to (`### A relocator's target`).
+among the waypoints, and so on. A generator lists every staircase it places. Once a layout is read, its
+access points are known, which is what an unbound `down` resolves to (`### A relocator's target`).
 
 ## cells
 
@@ -264,7 +278,7 @@ No notation uses a digit, so a run of digits at a position can only be a count. 
 an error, as is a row that does not expand to the grid's width.
 
 Compression is per row, so the grid is still one row per line. It is for a large zone, where a row
-is mostly one glyph repeated; a level small enough to read is written in characters.
+is mostly one glyph repeated; a zone small enough to read is written in characters.
 
 ### The block notation
 
@@ -308,7 +322,7 @@ and the corners at the even positions in both.
 A position's parity determines which of the three it is.
 
 A corner position is always blank, and so is a cell with no floor. The edges either side of a corner
-express everything a corner could, and a solid cell is the absence of floor. A level draws its floor and the
+express everything a corner could, and a solid cell is the absence of floor. A zone draws its floor and the
 walls around it, and nothing else.
 
 A wall always separates a floor cell from a blank cell, from a stair cell, and from the border of the grid.
@@ -316,25 +330,24 @@ A stair cell is a block with no walls of its own, so nothing is required between
 the border.
 
 An edge glyph is one character standing for both sides, so what it writes is symmetric. A door
-open from one side alone, or secret from one side, is components on the attachment.
+open from one side alone, or secret from one side, is components on that side's door facing.
 
-### Staircases and entrances
+### Staircases and access points
 
 A stair glyph marks where a staircase is: a block, with a wall toward it on every side where there is
-floor, and a `staircase` entity attached to the floor at that cell, with a `relocator` whose target is
-where it leads, as the attachments section sets out.
+floor, and an entity with a `relocator` sited on one of those walls, whose target is where it leads.
+The wall it is sited on is the staircase's open side, the side facing the room it opens into, and
+that wall's normal is the direction of travel from the staircase into the room, so a staircase has no
+orientation of its own. The other walls around a stair cell are ordinary walls with components of their
+own, such as a texture.
 
 `<` marks more than a staircase leading up. It is the entrance glyph, the up exit or entrance point of
 any non-local transporter --- a staircase, a waypoint, a portal --- as `+` is the glyph of any threshold
-that opens and closes. What stands there is the entity attached at the cell, whatever its `type`.
+that opens and closes. What is there is the entity sited on the open side, whatever its `type`.
 
-The reader reports a staircase at every stair glyph, whether the file has an attachment there or not.
-Where no staircase at that cell has a relocator with a target, the reader supplies the unbound target
-the glyph implies, down for `>` and up for `<`. Every staircase leads somewhere, and a level that
-specifies nothing about where its staircases go is playable as it is.
-
-A staircase has a facing, written as a `facing` component on the staircase: the direction a mover
-steps from the stair cell into the space the staircase opens into, its open side. See `### A staircase's facing`.
+Every stair glyph requires one such entity and no second one on the walls around it, and every door
+glyph requires one entity with a child sited on each wall of its doorway; a file missing either is
+rejected.
 
 ## rooms
 
@@ -346,9 +359,9 @@ A room is identified one of two ways, and specifies exactly one of them:
 | | |
 | --- | --- |
 | `perimeter` | A polygon in junction coordinates, within the grid, its sides horizontal or vertical and never crossing or touching one another. Each cell edge along it is a wall or a virtual wall |
-| `location` | A floor cell anywhere in the room, the barriers closing it off |
+| `cell_position` | A floor cell anywhere in the room, the barriers closing it off |
 
-**By location.** `location` is a cell written `.`, never a doorway, which is what a room is reached
+**By a cell in it.** `cell_position` is a cell written `.`, never a doorway, which is what a room is reached
 through, or a stair cell, which is a block. The fill spreads from there through floor cells, across
 edges with no wall and no door, and stops at a barrier. The location alone suffices wherever a room is closed by its own walls, which is
 the ordinary generated case; barriers close what is open, an egress cell or a gap where one area
@@ -367,7 +380,7 @@ cases.
 
 ```json
 { "perimeter": [[0, 0], [2, 0], [2, 3], [0, 3]], "components": { "name": "the cistern", "style": { "terrain": "water" } } }
-{ "location": [3, 1], "components": { "name": "the stair head" } }
+{ "cell_position": [3, 1], "components": { "name": "the stair head" } }
 ```
 
 A cell belongs to at most one room. Two rooms covering one cell is an error in the file.
@@ -377,14 +390,14 @@ A cell belongs to at most one room. Two rooms covering one cell is an error in t
 Where a room's fill is closed off: an array of positions beside the grid rather than a glyph in it.
 
 ```json
-"barriers": [[3, 1, 1, 0], [7, 4]]
+"barriers": [ { "cell_position": [3, 1], "normal": [1, 0] }, { "cell_position": [7, 4] } ]
 ```
 
-A wall address is a barrier across that edge; a cell address closes off the whole cell. Four numbers
-is the first, two the second.
+A cell position with a normal is a barrier across that edge; a cell position alone closes off the whole
+cell.
 
 A fill does not cross a barrier, and that is all a barrier does. It is never in the layout: it builds
-nothing and blocks nothing, and a mover crosses one with nothing to notice.
+nothing and blocks nothing, and an actor crosses one with nothing to notice.
 
 What survives is the shape of the cells a room covers, so a perimeter traced from them later runs
 along a barrier as it runs along a wall.
@@ -399,7 +412,7 @@ Per-wall data, for the walls that have any, one entry per wall. The grid creates
 address of a wall the grid does not have is an error.
 
 ```json
-{ "wall": [1, 1, -1, 0], "components": { "style": "buttressed" } }
+{ "wall": { "cell_position": [1, 1], "normal": [-1, 0] }, "components": { "style": "buttressed" } }
 ```
 
 Surface treatment is per side and every wall is one side, so an entry here needs no field for which side
@@ -416,7 +429,7 @@ ceiling. Where `flats` is absent the floor is at height 0 and the ceiling at 1.
     { "room": 0, "height": -0.25, "components": { "terrain": "water" } }
   ],
   "cells": [
-    { "cell": [3, 2], "height": 0.5, "components": { "terrain": "step" } }
+    { "cell_position": [3, 2], "height": 0.5, "components": { "terrain": "step" } }
   ] }
 ```
 
@@ -426,7 +439,7 @@ ceiling. Where `flats` is absent the floor is at height 0 and the ceiling at 1.
 | `height` | Where the surface is across the whole flat |
 | `components` | The surface's components across the whole flat |
 | `rooms` | Per room: a room id, and what that room overrides |
-| `cells` | Per cell: a cell of the cell grid, and what that cell overrides |
+| `cells` | Per cell: a cell position of the cell grid, and what that cell overrides |
 
 ### Height descends with components
 
@@ -446,7 +459,7 @@ the rows are written on. Generation is expected to work at the room level and le
 to authored detail.
 
 A hole in the floor is a component. The cell is floor in the grid and the flat has a height there;
-what makes it a hole is a component on that cell, or an attachment there, and the entity a caller
+what makes it a hole is a component on that cell, or an entity sited there, and the entity a caller
 builds from either. A shaft passes a mover the way a door does, downward rather than across, and a
 pit lets one in and need not let it out. What happens at the hole belongs to that entity.
 
@@ -455,45 +468,91 @@ terrain, rocks and a trap door affect a mover through the entity built from them
 `Blocking` tag; items and decoration are the same shape without it. The format does not distinguish
 them.
 
-## attachments
+## entities
 
-Everything attached to a wall or to a flat cell: a door, a stairway's far end, an alcove, a basin, a
-button, a torch. One section covers both.
+The zone's entities, one list, one object per entity, in id order: a door, a staircase, an alcove, a
+basin, a button, a torch, the key inside the basin.
 
 ```json
-{ "walls": [[1, 1, -1, 0], [2, 1, 1, 0]], "entities": [ { "type": "door", "components": { "material": "oak" } } ] }
-{ "flat": "floor", "cell": [3, 2], "entities": [ { "type": "staircase", "components": { "relocator": { } } } ] }
-{ "walls": [[0, 2, 0, -1]], "entities": [ { "type": "basin", "contains": [ { "type": "water" } ] } ] }
+{ "id": 1, "type": "door", "components": { "material": "oak" } }
+{ "id": 2, "type": "door_facing", "components": { "parent": { "entity": 1 }, "site": { "relation": "on", "wall": { "cell_position": [1, 1], "normal": [-1, 0] } } } }
+{ "id": 6, "type": "basin", "components": { "site": { "relation": "on", "flat": "floor", "cell_position": [0, 2] } } }
+{ "id": 7, "type": "water", "components": { "parent": { "entity": 6 }, "site": { "relation": "in" } } }
 ```
 
 | Key | |
 | --- | --- |
-| `walls` | One or more wall addresses. The sides the attachment presents |
-| `flat`, `cell` | A flat cell: the flat by role, and a cell of the cell grid |
-| `position` | Where on the surface: along and up on a wall, xy within the cell on a flat. Centered where absent, and an entity may specify its own |
-| `entities` | What is attached, as content the format does not check. Each is written so far as a `type`, a component object, and what it contains |
+| `id` | A whole number, unique among the file's entities: a local id in a zone template, a persistent id in a saved zone |
+| `type` | A string the format does not restrict, types being prefabs the world has |
+| `components` | The entity's file components, optional |
 
-An attachment is to a flat cell and never to a flat as a whole. A flat is the entire floor or
+Two file components are defined here, which the reader validates and uses to build the zone:
+`site`, where the entity is, and `parent`, whose child it is. Every other file component is content
+the reader passes to its caller as it was written.
+
+### site
+
+What the entity is in or on, and where on it.
+
+| Key | |
+| --- | --- |
+| `relation` | `in` or `on`. Required |
+| `wall` | A wall address, where the entity is sited on the zone's geometry |
+| `flat`, `cell_position` | A flat cell: the flat by role, and a cell position of the cell grid, where the entity is sited on a floor or ceiling |
+| `position` | Where on it: along and up on a wall, xy within the cell on a flat, in the parent's frame where there is no address. Centered where absent |
+| `orientation` | A direction, one of the four a cell's sides define |
+
+`wall` and `flat` are the two addresses, and never both. **Neither is written where the entity is sited
+on its parent**, which is what an entity in or on another entity is: a key in a chest, coins in a pouch,
+a mug on a table. An entity sited on its parent must have one.
+
+An entity is sited on a flat cell and never on a flat as a whole. A flat is the entire floor or
 ceiling of the zone; what a torch or a shaft is at is one cell of it.
 
-An attachment lists every side it presents. A door is two wall addresses, one per facing; a doorway
-into a dead end is one; a torch is one. The same shape works in both notations: in the wall
-notation the two walls are the sides of one edge, in the block notation the walls the floor either
-side has toward the doorway block.
+An entity has at most one `site`. Something that presents more than one side is a parent whose
+children each have their own: a door is a `door` entity with a `door_facing` child on each wall of its
+doorway. In the wall notation those two walls are the sides of one edge; in the block notation they are
+the walls the floor either side has toward the doorway block.
 
-The grid specifies where and the attachment specifies what. A door glyph creates the walls and marks
-the crossing; an attachment at the same walls sets that door's material, lock and trap. A stair
-glyph marks a staircase; an attachment at that cell sets the staircase's relocator and so where it
-leads. An attachment may also be
-the whole of an entity the grid has no glyph for.
+### parent
 
-What an entity contains is not a second entity at the same place. A basin with water in it is one
-entity containing another, written in the basin's `contains` and nested as far as it goes. The
-alcove that is itself a container is the same shape.
+A reference to the entity this one is a child of.
 
-`entities` is a list because more than one entity attaches at one place: a door and the lever that
-works it, a plaque beneath a torch. The caller resolves each `type`, types such as `staircase`,
-`waypoint` and `portal` being prefabs the world has, and the format restricts no value of it.
+```json
+"parent": { "entity": 1 }
+```
+
+A parent does not list its children; they are found on reading, from each child's `parent`. A parent
+owns its children, so deleting a door deletes its door facings, and a key in a chest is a child of the
+chest and sited `in` it.
+
+Every entity has a place: it is sited on the geometry, has a parent, or is a parent, and every hierarchy
+of parents and children is sited on the geometry somewhere in it. Following `parent` from any entity
+never leads back to it.
+
+### References
+
+A reference to an entity is an object whose only key is `entity`, written anywhere in a file component.
+`parent` is a reference in this form too, so a reader finds every reference by its form alone, without
+knowing what a file component means.
+
+```json
+{ "id": 5, "type": "lever", "components": { "controls": { "entity": 1 } } }
+```
+
+An object with an `entity` key and anything beside it is not a reference. In a template every reference
+is an entity's id in the same file; in a saved zone one may point into another zone, and is not checked.
+
+### What the grid and the entities each specify
+
+The grid specifies where and an entity specifies what. A door glyph creates the walls and marks the
+crossing; the door entity on those walls sets its material, lock and trap. A stair glyph marks a
+staircase; the entity on its open side sets the relocator and so where it leads. An entity may also be
+the whole of something the grid has no glyph for.
+
+More than one entity attaches at one place: a door facing and the lever that works it, a plaque beneath
+a torch. The caller resolves each `type`, types such as `staircase`, `waypoint` and `portal` being
+prefabs the world has, and the format restricts no value of it.
 
 ### A relocator's target
 
@@ -501,14 +560,14 @@ A relocator is a component of the entity that moves a mover --- a staircase, a p
 where it leads is its `target`, bound or unbound.
 
 ```json
-"relocator": { "target": "level_down" }
+"relocator": { "target": "down" }
 ```
 
-**Bound: the relocator arrived at,** by its persistent id (`addressing.md`, `### Relocators and
-access points`). A target is bound by having been travelled: until a way has been gone through, nothing has
+**Bound: the relocator arrived at,** as a reference (`addressing.md`, `### Relocators and access
+points`). A target is bound by having been travelled: until a way has been gone through, nothing has
 fixed where it arrives. A zone long since generated still has access points nobody has used, and
-every one of them is unbound. A level file is a template, so its relocators are unbound; a bound target
-is written only in a saved zone, in the form `addressing_plan.md` sets out.
+every one of them is unbound. A zone template's relocators are all unbound; a bound target
+is written only in a saved zone, `"target": { "entity": 90412 }`.
 
 **Unbound: a destination.** The next level down, the way back up, the surface town, the nearest
 surface access, a destination a quest specifies. It identifies one destination or asks for the
@@ -518,36 +577,23 @@ Resolving one finds a zone or makes one. Traversal passes the target to whatever
 returns a zone it has or generates one, and chooses the cell an arriving mover is placed in. What it
 resolves to is written back as a bound target, so leaving and returning arrive at the same place.
 
-`level_down` resolves to the zone below, and `level_up` into a tower to the zone above, so either is a
+`down` resolves to the zone below, and `up` into a tower to the zone above, so either is a
 real target as soon as that zone is generated or loaded. Arriving through a relocator not yet bound,
-the mover is placed at one of that zone's entry points not yet bound --- a relocator it can be arrived
+the actor is placed at one of that zone's access points not yet bound --- a relocator it can be arrived
 at, such as a staircase leading up, or leading down in a tower --- chosen among them, and going through
-binds both ends: the relocator gone through is bound to that entry point, and the entry point to the
-relocator it came from. The layout's `entry` lists the entry points, and every zone has at least one.
+binds both ends: the relocator gone through is bound to that access point, and the access point to the
+relocator it came from. The layout's `access_points` lists them, and every zone has at least one.
 
-The reader interprets neither shape. A relocator is a component like any other and both are passed to
-the caller as they were written.
-
-### A staircase's facing
-
-Which way a staircase opens, written as a `facing` component on the staircase:
-
-```json
-"facing": [0, -1]
-```
-
-The value is one of the four steps across a cell's faces, `[1, 0]`, `[0, 1]`, `[-1, 0]` or `[0, -1]`,
-from the stair cell toward the space the staircase opens into, which is the way a mover arriving by it
-steps off: a side with floor beyond, or a doorway where the stair cell has no floor beside it. It is a
-direction on the grid rather than a wall address, a staircase being on a flat cell rather than on a wall. Like the relocator, the reader passes it on as written. A generator writes a
-facing for every staircase it places.
+The reader interprets neither shape. A relocator is a file component like any other, and both are passed
+to the caller as they were written; a bound target is a reference, which the reader translates as it
+translates every other.
 
 ## What a reader must do with it
 
 Load and validate the geometry, and hand back everything else as the file wrote it. What was read,
 written back, is equivalent to the file and complete, if not identical to it.
 A reader has no world to build entities in, so where the file puts a door it reports the door rather
-than placing one, and the same applies to every component object and every attachment.
+than placing one, and the same applies to every component object and every entity.
 
 A key the format does not define is not tracked: inside content it is kept as written, and anywhere
 else it is ignored. A change to the structure of the geometry is a new version, which a reader rejects.
@@ -564,9 +610,10 @@ every check has passed, so a rejected file leaves nothing behind.
 
 - The file cannot be opened, or is not valid JSON.
 - A key the format requires is absent, or a value is not the kind the format sets: an object, an
-  array, a string or a number. Content is checked only for being an object, or an array of entities.
+  array, a string or a number. Content is checked only for being an object.
 - A coordinate is not a whole number, or is outside the coordinate range.
 - `format` is absent or is not this format; `version` is one the reader does not read.
+- `zone.id` is not a whole, non-negative number.
 - `cells` is absent, its notation or its encoding is not one of the two it offers, its extent has no
   cells, its scale is not positive, it has the wrong number of rows, or a row is not the width its
   extent sets.
@@ -574,10 +621,9 @@ every check has passed, so a rejected file leaves nothing behind.
 - A glyph the notation does not define, or one at a position that does not take it.
 - In the wall notation, a floor cell with no wall between it and a blank cell, a stair cell, or the
   border of the grid.
-- An address's normal is not one of the four steps across a cell's faces, or a barrier is neither two
-  numbers nor four.
-- A room specifies both `perimeter` and `location`, or neither.
-- A room's location is not a floor cell, or is a cell closed off by a barrier.
+- A normal or an orientation is not one of the four directions a cell's sides define.
+- A room specifies both `perimeter` and `cell_position`, or neither.
+- A room's cell is not a floor cell, or is a cell closed off by a barrier.
 - A room's perimeter has fewer than four junctions, a junction off the grid, a side neither
   horizontal nor vertical, or two sides that cross or touch.
 - A cell edge along a perimeter is neither a wall facing a floor/door cell nor an edge between two
@@ -589,15 +635,27 @@ every check has passed, so a rejected file leaves nothing behind.
 - A flat refers to a room that does not exist, or to a cell off the grid, or has more than one entry
   for one room or one cell.
 - More than one flat in a role.
-- An attachment specifies both `walls` and a flat cell, or neither, lists no wall, or is on a flat
-  cell off the grid.
-- `layout.components.entry` is absent, is not a list, or lists no cell; or a cell it lists is not a
-  cell, is off the grid, is not written `<` or `>`, or has no entity with a relocator attached to the
-  floor there.
+- `entities` is not a list, or an entity in it is not an object.
+- An entity's id is not a whole, non-negative number, or two entities have one id.
+- An entity has no `type`, or its `type` is not a string.
+- A `site` has no `relation` or one the format does not define, gives both a `wall` and a `flat`, or has
+  a `position` that is not two numbers.
+- A `parent` is not a reference.
+- A `site` has no address and the entity has no parent.
+- An entity is not sited on the geometry, is no entity's child and is no entity's parent; or a hierarchy
+  of parents and children is sited on the geometry nowhere in it.
+- Following `parent` references from an entity leads back to it.
+- In a template, a reference is not an entity's id.
+- A door glyph whose doorway has no one entity with a child sited on each of its walls, or has more
+  than one; or a door with a child sited on a wall outside its doorway.
+- A stair glyph with no entity with a relocator sited on a wall its open neighbors present to it, or
+  with a second one.
+- `layout.components.access_points` is absent, is not a list, or lists nothing; or a value it lists is
+  not a reference to an entity with a relocator sited on the open side of a cell written `<` or `>`.
 
 ## What this supersedes
 
-The two grid formats, and the level file section of `catagen_reference.md` and
+The two grid formats, and the zone file section of `catagen_reference.md` and
 `dungen_reference.md` with them. Both generators write this, their parameter headers becoming
 `generator.parameters` with the same tokens.
 

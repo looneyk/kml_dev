@@ -20,14 +20,13 @@ Date: 2026-09-14, revised 2026-09-16
 
 | | |
 | --- | --- |
-| Cell positions, junctions, positions, wall addresses, flat cells, rooms and flats in a file | Built, in the form the appendix lists as 0.3's |
+| Cell positions, junctions, positions, wall addresses, flat cells, rooms and flats in a file | Built, in the 0.4 form |
 | Wall ids, cell slots, room ids and flat ids in a layout | Built: `DiscreteLayout` |
-| Entities attached to places | Built in the 0.3 form in the format and both generators; nothing in `stratum_sim` reads them yet |
+| One list of entities in a file, with `site` and `parent` file components | Built in `stratum_format` and both generators; nothing in `stratum_sim` reads them yet |
 | Runtime entities, and migration between zones keeping them | Built |
-| Stair cells as blocks, and staircases placed where their blocks cut no passage | Built, the staircase attached to its cell's floor as 0.3 writes it |
-| One list of entities in a file, with `attached` and `parent` file components | Designed |
+| Stair cells as blocks, and staircases placed where their blocks cut no passage | Built, the staircase sited on the wall on its open side |
 | Persistent ids, the id allocator and the world index | Designed |
-| Links in both directions between an entity and what it is attached to; location maps | Designed |
+| Links in both directions between an entity and the place it is sited on; location maps | Designed |
 | References between entities, and relocator targets that are entities | Designed |
 | An actor index for each zone | Designed |
 
@@ -62,14 +61,14 @@ surface faces into that cell, and it is that side that an actor in the cell sees
 edge are two separate walls, one belonging to each cell. So a room's walls are the sides of its own
 cells, and a room of a single cell has all four of its walls on that cell. An actor can
 always tell which wall it can interact with. The wall on the other side of the same edge is out of its
-reach until the actor is on that side. Everything is per wall: surface treatment, what is attached, a
+reach until the actor is on that side. Everything is per wall: surface treatment, what is sited on it, a
 door facing.
 
 A wall exists only where open space meets something. The side of an edge toward a solid cell has no
 wall.
 
 **Stair cells.** A stair cell is a block, and like a solid cell it owns no wall: each open neighbor
-presents a wall to it. The staircase is attached to the wall on its open side, the side facing the room
+presents a wall to it. The staircase is sited on the wall on its open side, the side facing the room
 it opens into. Its other sides are ordinary walls, each with its own surface treatment.
 
 **Flats and flat cells.** A zone is bounded by two flats, a floor and a ceiling. A flat cell is one cell
@@ -79,11 +78,11 @@ of one flat. Anything on a floor or ceiling is on a flat cell, never on the flat
 
 **Directions.** A direction on the grid is one of the four directions defined by a cell's sides:
 `[1, 0]`, `[0, 1]`, `[-1, 0]` and `[0, -1]`. A wall's normal is a direction, and so is an entity's
-orientation. The normal of the wall a staircase is attached to is the direction of travel from the
+orientation. The normal of the wall a staircase is sited on is the direction of travel from the
 staircase into the room, so a staircase has no orientation of its own.
 
 **Places depend on the layout.** Cells, walls and flat cells are `DiscreteLayout`'s kinds of place. A
-`ContinuousLayout` will have places of its own kind, and an entity is attached to a place as its zone's
+`ContinuousLayout` will have places of its own kind, and an entity is sited on a place as its zone's
 layout defines one.
 
 ### Entities
@@ -92,29 +91,27 @@ An entity is anything with identity or physical presence: a door, a door facing,
 torch, a key, a monster. Topology, heights and surface appearance are geometry data, not entities
 (`sim_zone_model.md`, `## Entities and level data`).
 
-**Everything is attached to something.** A door facing is attached to a wall of its doorway, a torch to
-a wall, a chest to a floor cell, and a key to the floor cell it lies on or to the chest it is inside. An
-entity is attached to at most one target, which is a place or another entity. Where an entity can be
-attached to a target in more than one way, a relationship distinguishes them, such as `contained_in` for
-a key inside a chest rather than `on` it. Relationships are optional, and the set of them is the game's
-vocabulary, as entity types are.
+**Everything has a site.** A door facing is sited on a wall of its doorway, a torch on a wall, a chest
+on a floor cell, and a key on the floor cell it lies on or in the chest it is inside. An entity has at
+most one site, and its relation is `in` or `on`. A site whose address is a wall or a flat cell is on the
+zone's geometry; a site with no address is on the entity's parent, which is what a key in a chest is.
 
-**Passage comes from what is attached.** Walls are barriers to movement and define the borders of rooms.
-An actor can cross a wall when an entity attached to it can be crossed, such as the door facing of an
+**Passage comes from what is sited on a wall.** Walls are barriers to movement and define the borders of
+rooms. An actor can cross a wall when an entity sited on it can be crossed, such as the door facing of an
 open door. The same goes for a staircase: an actor moves into one through its open side, which the
-staircase attached there lets it cross.
+staircase sited there lets it cross.
 
 **Children are entities that share the same parent.** A door's children are its door facings, one on
-each wall of its doorway. Each door facing is attached to its own wall, and has what is reached from its
-side, such as concealment, or a keyhole or a knocker attached to it. The door itself has what both sides
-share, such as whether it is open or locked. Anything attached to more than one target is made of
-children in the same way. A parent owns its children: deleting a door deletes its door facings.
+each wall of its doorway. Each door facing is sited on its own wall, and has what is reached from its
+side, such as concealment, or a keyhole or a knocker sited on it. The door itself has what both sides
+share, such as whether it is open or locked. Anything presenting more than one side is made of children
+in the same way. A parent owns its children: deleting a door deletes its door facings.
 
-**Contents are attached, not children.** A key in a chest is attached to the chest, `contained_in`. It
-can be taken out, and the chest does not own it.
+**Contents are children.** A key in a chest is a child of the chest, sited `in` it, and travels with it.
+Taking the key out is a change of parent and of site together.
 
-**Every entity has a place.** It is attached, has a parent, or is a parent, and every hierarchy of
-parents and children has an attached entity in it.
+**Every entity has a place.** It is sited on the geometry, has a parent, or is a parent, and every
+hierarchy of parents and children is sited on the geometry somewhere in it.
 
 **An entity can refer to another.** A lever refers to the door it controls, a summoned monster to its
 summoner, a quest to its object. A generator makes these references while both entities are in front
@@ -191,30 +188,30 @@ A file never contains a wall id or any other layout id.
 
 A zone's entities are one list. Each has an `id`, a `type` and `components`. How an entity relates to a
 place or another entity is written as a file component. Two file components are defined in the format,
-which validates them and uses them to build the zone: `attached` and `parent`. The reader does not
+which validates them and uses them to build the zone: `site` and `parent`. The reader does not
 interpret any other file component.
 
-**`attached`** has one target --- a wall address, a flat cell, or a reference to an entity --- and a
-relationship where one is needed. It has a position and orientation on the target where the attachment
-needs them.
+**`site`** is where the entity is: a relation, `in` or `on`; an address, a wall or a flat cell, where it
+is sited on the zone's geometry and absent where it is sited on its parent; and a position and
+orientation on that where it needs them.
 
 **`parent`** is a reference to the entity this one is a child of. A parent does not list its children in
 the file; they are found on reading, from each child's `parent`.
 
-**A reference** to another entity is written `{ "entity": id }`, anywhere in a file component. `attached`
-targets that are entities and `parent` are references in this form too. Loading finds every reference
-by this form, without needing to know what the file component means.
+**A reference** to another entity is written `{ "entity": id }`, anywhere in a file component. `parent`
+is a reference in this form too. Loading finds every reference by this form, without needing to know
+what the file component means.
 
 ```json
 "entities": [
   { "id": 1, "type": "door", "components": { "material": "oak" } },
-  { "id": 2, "type": "door_facing", "components": { "parent": { "entity": 1 }, "attached": { "wall": { "cell_position": [1, 1], "normal": [-1, 0] } } } },
-  { "id": 3, "type": "door_facing", "components": { "parent": { "entity": 1 }, "attached": { "wall": { "cell_position": [2, 1], "normal": [1, 0] } }, "concealed": true } },
-  { "id": 4, "type": "keyhole", "components": { "attached": { "target": { "entity": 2 }, "relationship": "on" } } },
-  { "id": 5, "type": "lever", "components": { "attached": { "wall": { "cell_position": [1, 2], "normal": [0, -1] }, "position": [0.5, 1.2] }, "controls": { "entity": 1 } } },
-  { "id": 6, "type": "chest", "components": { "attached": { "flat": "floor", "cell_position": [0, 2] } } },
-  { "id": 7, "type": "key", "components": { "attached": { "target": { "entity": 6 }, "relationship": "contained_in" }, "lock": "vault" } },
-  { "id": 8, "type": "staircase", "components": { "attached": { "wall": { "cell_position": [3, 1], "normal": [0, -1] } }, "relocator": { "target": "level_down" } } }
+  { "id": 2, "type": "door_facing", "components": { "parent": { "entity": 1 }, "site": { "relation": "on", "wall": { "cell_position": [1, 1], "normal": [-1, 0] } } } },
+  { "id": 3, "type": "door_facing", "components": { "parent": { "entity": 1 }, "site": { "relation": "on", "wall": { "cell_position": [2, 1], "normal": [1, 0] } }, "concealed": true } },
+  { "id": 4, "type": "keyhole", "components": { "parent": { "entity": 2 }, "site": { "relation": "on" } } },
+  { "id": 5, "type": "lever", "components": { "site": { "relation": "on", "wall": { "cell_position": [1, 2], "normal": [0, -1] }, "position": [0.5, 1.2] }, "controls": { "entity": 1 } } },
+  { "id": 6, "type": "chest", "components": { "site": { "relation": "on", "flat": "floor", "cell_position": [0, 2] } } },
+  { "id": 7, "type": "key", "components": { "parent": { "entity": 6 }, "site": { "relation": "in" }, "lock": "vault" } },
+  { "id": 8, "type": "staircase", "components": { "site": { "relation": "on", "wall": { "cell_position": [3, 1], "normal": [0, -1] } }, "relocator": { "target": "down" } } }
 ]
 ```
 
@@ -226,7 +223,7 @@ require, and the design choices still open.
 A relocator is the component of an entity, such as a staircase, a portal or a waypoint, that moves an
 actor (`discrete_layout.md`, `### A relocator's target`). Its target is one of two kinds:
 
-- **Unbound:** a destination, such as `level_down`, the surface town, or a place a quest specifies.
+- **Unbound:** a destination, such as `down`, the surface town, or a place a quest specifies.
   Every relocator in a template is unbound.
 - **Bound:** a reference to the relocator it arrives at. A relocator becomes bound when it is first gone
   through, and both relocators are then bound to each other. Bound targets appear only in saved zones.
@@ -243,8 +240,8 @@ The file also has the zone's own persistent id, which a template does not have.
 
 What a zone saves is its geometry, the file components of its places, and its entities with all of
 theirs. Each fact is saved once, in the place it comes from. That a chest lies on a flat cell is saved in
-the chest's `attached`, and a wall's style in the zone's `walls` section. Nothing derived is saved: not
-places' entities, not the lists of what is attached to something, not a parent's children, not the
+the chest's `site`, and a wall's style in the zone's `walls` section. Nothing derived is saved: not
+places' entities, not the lists of what is sited on something, not a parent's children, not the
 actor index. They are all rebuilt when the zone loads. The world separately saves its id allocator's
 count and its index of which zone each entity that something refers to is in.
 
@@ -290,21 +287,21 @@ map from persistent id to runtime entity for everything loaded.
 **Migration.** Moving an entity between two loaded zones keeps its runtime entity, because the move is
 only a change of parent zone (`sim_zone_model.md`, `### Entity ownership and migration`).
 
-### Attachment
+### Sites
 
-**Links run both ways.** An attached entity has its target, and its relationship where it has one. The
-target has a list of everything attached to it. Neither direction needs a search.
+**Links run both ways.** A sited entity has its address, and the place at that address has a list of
+everything sited on it. Neither direction needs a search.
 
 **Places get entities only when needed.** A wall, flat cell or room has an entity only if it has
-components or something attached to it. Each zone has maps from wall id to wall entity, and from flat id
+components or something sited on it. Each zone has maps from wall id to wall entity, and from flat id
 and slot to flat cell entity.
 
 **Lookups.**
 
 - **What is on this wall or flat cell:** look up the place's entity in the zone's map, then read its
   list.
-- **What is in that chest:** read the chest's list, keeping those attached `contained_in`.
-- **Where an entity is:** read its `attached`.
+- **What is in that chest:** read the chest's children, keeping those sited `in` it.
+- **Where an entity is:** read its `site`, and its parent where the site has no address.
 - **Whether a wall can be crossed:** ask each entity on the wall's list whether its access is open and
   it is not concealed from the actor, each property read from the entity or, where it has none, from its
   direct ancestor. An entity with no access at all, a torch or a lever, is no way through. `crossable` names
@@ -350,7 +347,7 @@ allocator or the id type, and not to the code that uses ids.
 ### Actors
 
 An actor, such as the player or a monster, is located by its `placement_type`: a position and a
-direction. An actor is not attached to what it stands on.
+direction. An actor has no site on what it stands on.
 
 **Each zone has an actor index,** which finds the actors at a place with a lookup. The index is derived
 from the actors' placements: it is updated as they move and rebuilt when the zone loads, so it cannot
@@ -361,7 +358,7 @@ actors by cell. Until the index is built, `World::entities_at` checks every plac
 
 The player is in a zone, and owned by the session. It is in its zone's actor index like any actor, and
 moves between zones as any actor does, but it is not in the zone's subtree, so unloading or saving the
-zone leaves it out. What the player carries is attached to it, `contained_in`, and is owned by the
+zone leaves it out. What the player carries is a child of it, sited `on` it, and is owned by the
 session too. Both are saved with the session.
 
 `addressing_plan.md` has the structures and components for all of this.
@@ -369,15 +366,16 @@ session too. Both are saved with the session.
 ## Appendix: Changes from 0.3
 
 - **Entities are one list.** 0.3 writes an `attachments` section, each entry a place with the entities
-  attached there nested inside it. 0.4 writes one `entities` list, and where an entity is attached is
-  its `attached` file component.
+  attached there nested inside it. 0.4 writes one `entities` list, and where an entity is is its `site`
+  file component.
 - **Entities have ids.** 0.3 entities have none.
-- **A relationship can be written.** 0.3 implies it from the place.
+- **A relation is written.** 0.3 implies it from the place.
 - **A door is a parent with door facings as children.** 0.3 writes a door as one entry listing both
   walls.
-- **A staircase is attached to the wall on its open side.** 0.3 attaches it to its stair cell's floor,
+- **A staircase is sited on the wall on its open side.** 0.3 attaches it to its stair cell's floor,
   with a `facing` file component giving the open side.
-- **Contents are attached.** 0.3 nests an entity's contents in its `contains`, which goes.
+- **Contents are children, sited on their parent.** 0.3 nests an entity's contents in its `contains`,
+  which goes.
 - **Wall addresses are a cell position and a normal, written separately.** 0.3 writes one array,
   `[i, j, ni, nj]`, in `walls`, `attachments` and `barriers`.
 - **Every cell position is written `cell_position`.** 0.3 writes `cell` in flat cells and in the flats'

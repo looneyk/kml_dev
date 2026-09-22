@@ -167,7 +167,7 @@ substantially scaled back before release.
 
 ### Zones, rooms and cells
 
-**Settled.** A `Zone` is what a level file loads: a floor and a ceiling `Flat`, the walls between
+**Settled.** A `Zone` is what a zone file loads: a floor and a ceiling `Flat`, the walls between
 its cells, and the cells between the two flats. A surface zone has one flat, having no ceiling.
 A file is one zone whatever it contains.
 
@@ -199,12 +199,12 @@ floor either side has toward that cell --- the cell being a block of wall a move
 wall of its own toward floor, so from inside it there is nothing to open on the way out.
 What it is does not change with the format; only what it hangs on does.
 
-Loading a zone creates it: the level file's door glyphs and `attachments` entries become attachments,
-and the world builds the door and its facings from them (`discrete_layout_rework.md`).
+Loading a zone creates it: the zone file's door glyphs and its entities become the door and its door
+facings (`discrete_layout_rework.md`).
 
 ### Walls
 
-**Settled.** An edge is what a level file writes as one glyph for both sides, and a wall is one side
+**Settled.** An edge is what a zone file writes as one glyph for both sides, and a wall is one side
 of an edge, stored as a bit on the cell it bounds. A wall's id encodes that cell and side, and
 everything else about it follows from the grid: its ends, its normal, and the wall on the other side
 of its edge. Walls are not linked to one another.
@@ -242,7 +242,7 @@ other.
 - **An opening is the absence of a wall,** not a flag on one. Non-rectangular rooms have no
   predefined wall slots to flag, so absence has to mean absence.
 - **A wall with no floor behind it is a border wall** --- nothing is on the other side of its edge.
-  Since the level's extent is finite and bounded by solid, this is also effectively the map border;
+  Since the zone's extent is finite and bounded by solid, this is also effectively the map border;
   the two coincide rather than being alternatives.
 - **A minable block is a destructible container entity.** It occupies its cell, blocks while it is
   there, and drops its contents when destroyed. Mining destroys the entity; the layout is not
@@ -398,12 +398,12 @@ where two cases differ in behaviour rather than in data.
 - **`ContinuousLayout`** is movement that integrates, through geometry that is ordinary 3D models.
   Declared and not written: every member is pure, so nothing constructs one.
 
-**Geometry is not a second axis of classes.** A level with no height data has a floor at a constant
+**Geometry is not a second axis of classes.** A zone with no height data has a floor at a constant
 height, which is a `Flat` with fewer of its features used --- the same structure the sampled case
-lives in, as one wall represents both a block's face and one side of an edge. A level with
-height and flat attachments and one with neither load the same class from different data, so a
+lives in, as one wall represents both a block's face and one side of an edge. A zone with
+height and entities on its flat cells and one with neither load the same class from different data, so a
 game style chooses by what it loads rather than by which class is built. That is why neither name
-mentions `Flat`: it is implied for every discrete layout, and for a continuous one the level is ordinary
+mentions `Flat`: it is implied for every discrete layout, and for a continuous one the zone is ordinary
 3D models, where being level is no more a category than any other shape.
 `decision_rationale.md` makes the argument.
 
@@ -513,7 +513,7 @@ anything that changes where you can walk must be findable and removable.
 Nothing is promoted from level data to entity at runtime. Promotion means two representations of the
 same data, a conversion step, and a class of bugs where something was referenced in its old form.
 
-Sparse attachments --- alcoves, basins, plates, statues --- are dozens per level, not thousands, so entity
+Sparse attachments --- alcoves, basins, plates, statues --- are dozens per zone, not thousands, so entity
 representation costs nothing. The scale argument only ever applied to per-sample appearance.
 
 ### Relationships
@@ -580,7 +580,7 @@ touch space and stay shared.
 Block-oriented is a *subset* of wall-oriented, not a sibling of it --- solid cells cannot express a
 wall or a door between two open cells without spending a whole cell on it, and per-edge subsumes
 them while the reverse does not hold. So the first game is not a second `Layout` implementation; it is
-one generator emitting levels whose only walls are solid boundaries.
+one generator emitting zones whose only walls are solid boundaries.
 
 What genuinely differs between the two `Zone` implementations:
 

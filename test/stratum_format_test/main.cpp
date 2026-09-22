@@ -4,6 +4,7 @@
 //------------------------------------------------------------------------------
 
 #include "quetzal/stratum_format/read.hpp"
+#include "quetzal/stratum_format/references.hpp"
 #include "quetzal/stratum_format/write.hpp"
 #include <nlohmann/json.hpp>
 #include <filesystem>
@@ -129,9 +130,15 @@ namespace
     }
 
     //--------------------------------------------------------------------------
+    map_type direction_map(const stratum_format::discrete_vector_type& direction)
+    {
+        return map_type::array({direction.x(), direction.y()});
+    }
+
+    //--------------------------------------------------------------------------
     map_type address_map(const stratum_format::WallAddress& address)
     {
-        return map_type::array({address.cell_position.i(), address.cell_position.j(), address.normal.x(), address.normal.y()});
+        return {{"cell_position", cell_position_map(address.cell_position)}, {"normal", direction_map(address.normal)}};
     }
 
     //--------------------------------------------------------------------------
@@ -141,14 +148,9 @@ namespace
 
         for (const auto& barrier : barriers)
         {
-            if (barrier.normal.has_value())
-            {
-                m.push_back(address_map({barrier.cell_position, *barrier.normal}));
-            }
-            else
-            {
-                m.push_back(cell_position_map(barrier.cell_position));
-            }
+            map_type b {{"cell_position", cell_position_map(barrier.cell_position)}};
+            b["normal"] = barrier.normal.has_value() ? direction_map(*barrier.normal) : map_type();
+            m.push_back(b);
         }
 
         return m;
@@ -178,7 +180,7 @@ namespace
         else
         {
             const auto& locator = get<stratum_format::RoomLocator>(room.identification);
-            m["location"] = cell_position_map(locator.cell_position);
+            m["cell_position"] = cell_position_map(locator.cell_position);
             m["barriers"] = barriers_map(locator.barriers);
         }
 
@@ -214,27 +216,47 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    map_type attachment_map(const stratum_format::Attachment& attachment)
+    // The wall an entity is sited on, and none where it is sited on a flat cell or on its parent
+    const stratum_format::WallAddress* wall_address(const stratum_format::Entity& entity)
+    {
+        if (!entity.site.has_value() || !entity.site->address.has_value())
+        {
+            return nullptr;
+        }
+
+        return get_if<stratum_format::WallAddress>(&*entity.site->address);
+    }
+
+    //--------------------------------------------------------------------------
+    map_type site_map(const stratum_format::Site& site)
     {
         map_type m;
 
-        if (const auto* walls = get_if<vector<stratum_format::WallAddress>>(&attachment.attached_to); walls != nullptr)
+        if (const auto* address = site.address.has_value() ? get_if<stratum_format::WallAddress>(&*site.address) : nullptr; address != nullptr)
         {
-            m["walls"] = map_type::array();
-            for (const auto& address : *walls)
-            {
-                m["walls"].push_back(address_map(address));
-            }
+            m["wall"] = address_map(*address);
         }
-        else
+        else if (site.address.has_value())
         {
-            const auto& flat_cell = get<stratum_format::FlatCell>(attachment.attached_to);
+            const auto& flat_cell = get<stratum_format::FlatCell>(*site.address);
             m["flat"] = string(stratum_format::name(flat_cell.role));
-            m["cell"] = cell_position_map(flat_cell.cell_position);
+            m["cell_position"] = cell_position_map(flat_cell.cell_position);
         }
 
-        m["position"] = attachment.position.has_value() ? map_type::array({attachment.position->x(), attachment.position->y()}) : map_type();
-        m["entities"] = content_map(attachment.entities);
+        m["relation"] = string(stratum_format::name(site.relation));
+        m["position"] = site.position.has_value() ? map_type::array({site.position->x(), site.position->y()}) : map_type();
+        m["orientation"] = site.orientation.has_value() ? direction_map(*site.orientation) : map_type();
+        return m;
+    }
+
+    //--------------------------------------------------------------------------
+    map_type entity_map(const stratum_format::Entity& entity)
+    {
+        map_type m = components_map(entity.components);
+        m["id"] = entity.id;
+        m["type"] = entity.type;
+        m["site"] = entity.site.has_value() ? site_map(*entity.site) : map_type();
+        m["parent"] = entity.parent_id.has_value() ? map_type(*entity.parent_id) : map_type();
         return m;
     }
 
@@ -246,6 +268,7 @@ namespace
 
         map_type m;
         m["version"] = document.version;
+        m["zone"] = document.zone_id.has_value() ? map_type(*document.zone_id) : map_type();
         m["generator"] = content_map(document.generator);
         m["layout"] = components_map(document.components);
 
@@ -279,10 +302,10 @@ namespace
             m["flats"][string(stratum_format::name(flat.role))] = flat_map(flat);
         }
 
-        m["attachments"] = map_type::array();
-        for (const auto& attachment : document.attachments)
+        m["entities"] = map_type::array();
+        for (const auto& entity : document.entities)
         {
-            m["attachments"].push_back(attachment_map(attachment));
+            m["entities"].push_back(entity_map(entity));
         }
 
         return m;
@@ -352,7 +375,7 @@ namespace
         const auto* perimeter = get_if<stratum_format::Perimeter>(&document.rooms[0].identification);
         report_case("the first room is identified by its perimeter", perimeter != nullptr && perimeter->junctions.size() == 4);
         const auto* locator = get_if<stratum_format::RoomLocator>(&document.rooms[1].identification);
-        report_case("the second room is identified by its location",
+        report_case("the second room is identified by a cell in it",
             locator != nullptr && locator->cell_position == stratum_format::discrete_point_type {3, 1});
         report_case("a style is a component kept as written", document.rooms[0].components["style"]["terrain"] == "water");
 
@@ -365,12 +388,40 @@ namespace
             document.flats[0].rooms.contains(0) && document.flats[0].rooms.at(0).height == -0.25f);
         report_case("the ceiling's height", document.flats[1].properties.height == 3.0f);
 
-        const auto* walls = get_if<vector<stratum_format::WallAddress>>(&document.attachments[0].attached_to);
-        report_case("a door is attached to two walls", walls != nullptr && walls->size() == 2);
-        const auto* flat_cell = get_if<stratum_format::FlatCell>(&document.attachments[1].attached_to);
-        report_case("a staircase is attached to a floor cell", flat_cell != nullptr && flat_cell->role == stratum_format::FlatRole::Floor
-            && flat_cell->cell_position == stratum_format::discrete_point_type {3, 2});
-        report_case("entities are kept as written", document.attachments[1].entities[0]["components"]["relocator"]["target"] == "level_down");
+        report_case_equal("seven entities", document.entities.size(), 7);
+        report_case("a door is a parent, sited on nothing of its own",
+            !document.entities[0].site.has_value() && !document.entities[0].parent_id.has_value());
+        report_case("a door facing is a child of its door", document.entities[1].parent_id == 1u);
+
+        const auto* door_wall = wall_address(document.entities[1]);
+        report_case("a door facing is sited on a wall of its doorway",
+            door_wall != nullptr && *door_wall == stratum_format::WallAddress {{1, 1}, {-1, 0}});
+
+        report_case("site and parent are decoded out of components",
+            !document.entities[1].components.contains("site") && !document.entities[1].components.contains("parent"));
+        report_case("a file component the format does not define is kept as written", document.entities[2].components["concealed"] == true);
+
+        const auto* stair_wall = wall_address(document.entities[3]);
+        report_case("a staircase is sited on the wall on its open side",
+            stair_wall != nullptr && *stair_wall == stratum_format::WallAddress {{3, 1}, {0, -1}});
+        report_case("a relocator is kept as written", document.entities[3].components["relocator"]["target"] == "down");
+
+        const auto& chest_site = document.entities[5].site;
+        const auto* flat_cell = chest_site.has_value() && chest_site->address.has_value()
+            ? get_if<stratum_format::FlatCell>(&*chest_site->address) : nullptr;
+        report_case("a chest is sited on a flat cell, with an orientation",
+            flat_cell != nullptr && flat_cell->role == stratum_format::FlatRole::Floor
+            && flat_cell->cell_position == stratum_format::discrete_point_type {0, 2}
+            && document.entities[5].site->orientation == stratum_format::discrete_vector_type {1, 0}
+            && document.entities[5].site->relation == stratum_format::Relation::On);
+
+        report_case("a key is in its parent chest, with no address of its own",
+            document.entities[6].parent_id == 6u && document.entities[6].site.has_value()
+            && !document.entities[6].site->address.has_value() && document.entities[6].site->relation == stratum_format::Relation::In);
+        report_case("a reference in a file component the format does not define is kept as written",
+            stratum_format::reference_id(document.entities[6].components["opens"]) == 1u);
+
+        report_case("the document is a template, with no zone id of its own", !document.zone_id.has_value());
 
         report_case("the generator keeps its parameters in the order written",
             document.generator["parameters"].begin().key() == "extent" && next(document.generator["parameters"].begin()).key() == "scale");
@@ -397,14 +448,16 @@ namespace
         report_case("the scale", document.cells.scale == 2.0f);
 
         const auto* locator = get_if<stratum_format::RoomLocator>(&document.rooms[0].identification);
-        report_case("a location room has its own barrier", locator != nullptr && locator->barriers.size() == 1
+        report_case("a room identified by a cell in it has its own barrier", locator != nullptr && locator->barriers.size() == 1
             && !locator->barriers[0].normal.has_value());
         report_case("a style naming an asset and overriding part of it is kept as written",
             document.rooms[1].components["style"]["name"] == "hall" && document.rooms[1].components["style"]["lit"] == true);
 
-        const auto& attachment = document.attachments[0];
-        report_case("an attachment's position", attachment.position.has_value() && attachment.position->x() == 0.5f && attachment.position->y() == 0.0f);
-        report_case("a key the format does not define inside an entity is kept", document.attachments[1].entities[0]["custom"]["anything"][2] == 3);
+        const auto& site = document.entities[1].site;
+        report_case("a site's position on its wall",
+            site.has_value() && site->position.has_value() && site->position->x() == 0.5f && site->position->y() == 0.0f);
+        report_case("a key the format does not define inside a file component is kept",
+            document.entities[4].components["custom"]["anything"][2] == 3);
 
         report_case("the floor's cell entry has its height",
             document.flats[0].cells.contains({5, 2}) && document.flats[0].cells.at({5, 2}).height == -0.5f);
@@ -493,30 +546,187 @@ namespace
                 "cells.rows[2]: a run count with no glyph after it"},
             {"a run count past the row width", [](auto& v) { v["cells"]["encoding"] = "runs"; v["cells"]["rows"][2] = "99 "; },
                 "cells.rows[2]: a run count past the row width of 9"},
-            {"a room with both perimeter and location", [](auto& v) { v["rooms"][0]["location"] = parse_values("[0, 0]"); },
-                "rooms[0]: one of perimeter and location is given, and never both"},
-            {"a room with neither perimeter nor location", [](auto& v) { v["rooms"][0].erase("perimeter"); },
-                "rooms[0]: one of perimeter and location is given, and never both"},
-            {"a barrier of three numbers", [](auto& v) { v["barriers"] = parse_values("[[3, 1, 1]]"); },
-                "barriers[0]: 2 numbers for a cell or 4 for one of its faces were expected, and there are 3"},
-            {"a normal that is not a cell face's", [](auto& v) { v["barriers"] = parse_values("[[3, 1, 1, 1]]"); }, "barriers[0]: not the normal of a cell face"},
-            {"an attachment on both walls and a flat cell", [](auto& v) { v["attachments"][1]["walls"] = parse_values("[[1, 1, -1, 0]]"); },
-                "attachments[1]: one of walls and flat is given, and never both"},
-            {"an attachment on no wall", [](auto& v) { v["attachments"][0]["walls"] = parse_values("[]"); }, "attachments[0].walls: an attachment on no wall"},
+            {"a room with both perimeter and cell_position", [](auto& v) { v["rooms"][0]["cell_position"] = parse_values("[0, 0]"); },
+                "rooms[0]: one of perimeter and cell_position is given, and never both"},
+            {"a room with neither perimeter nor cell_position", [](auto& v) { v["rooms"][0].erase("perimeter"); },
+                "rooms[0]: one of perimeter and cell_position is given, and never both"},
+            {"a barrier that is not an object", [](auto& v) { v["barriers"] = parse_values("[[3, 1]]"); }, "barriers[0]: an object was expected"},
+            {"a barrier with no cell position", [](auto& v) { v["barriers"][0].erase("cell_position"); },
+                "barriers[0].cell_position: required and absent"},
+            {"a normal that is not a direction a cell's sides define", [](auto& v) { v["barriers"][0]["normal"] = parse_values("[1, 1]"); },
+                "barriers[0].normal: not one of the four directions a cell's sides define"},
             {"a flat role the format does not define", [](auto& v) { v["flats"][1]["role"] = "wall"; }, "flats[1].role: not a role the format defines"},
             {"components that are not an object", [](auto& v) { v["layout"]["components"] = parse_values("[1]"); }, "layout.components: an object was expected"},
-            {"entities that are not an array", [](auto& v) { v["attachments"][0]["entities"] = parse_values("{}"); }, "attachments[0].entities: an array was expected"},
             {"a generator that is not an object", [](auto& v) { v["generator"] = "catagen"; }, "generator: an object was expected"},
-            {"no entry", [](auto& v) { v["layout"]["components"].erase("entry"); }, "layout.components.entry: required and absent"},
-            {"no layout, and so no entry", [](auto& v) { v.erase("layout"); }, "layout.components.entry: required and absent"},
-            {"an entry that is not a list", [](auto& v) { v["layout"]["components"]["entry"] = "stairs"; },
-                "layout.components.entry: an array was expected"},
-            {"an entry of no cells", [](auto& v) { v["layout"]["components"]["entry"] = parse_values("[]"); },
-                "layout.components.entry: no entry cell"},
-            {"an entry cell that is not a cell", [](auto& v) { v["layout"]["components"]["entry"][0] = "stairs"; },
-                "layout.components.entry[0]: an array was expected"},
             {"a key the format does not define is not tracked", [](auto& v) { v["extra"] = 1; v["rooms"][0]["extra"] = 1; }, ""}
         });
+
+        return;
+    }
+
+    //--------------------------------------------------------------------------
+    void test_entities()
+    {
+        report_group("entities");
+
+        report_mutations(data_directory / "cistern.json",
+        {
+            {"entities that are not a list", [](auto& v) { v["entities"] = parse_values("{}"); }, "entities: an array was expected"},
+            {"an entity that is not an object", [](auto& v) { v["entities"][0] = 1; }, "entities[0]: an object was expected"},
+            {"an entity with no id", [](auto& v) { v["entities"][0].erase("id"); }, "entities[0].id: required and absent"},
+            {"an id with a fraction", [](auto& v) { v["entities"][0]["id"] = 1.5; }, "entities[0].id: a whole, non-negative number was expected"},
+            {"a negative id", [](auto& v) { v["entities"][0]["id"] = -1; }, "entities[0].id: a whole, non-negative number was expected"},
+            {"two entities with one id", [](auto& v) { v["entities"][1]["id"] = 1; }, "entities[1].id: a second entity with the id 1"},
+            {"an entity with no type", [](auto& v) { v["entities"][0].erase("type"); }, "entities[0].type: required and absent"},
+            {"a type that is not a string", [](auto& v) { v["entities"][0]["type"] = 1; }, "entities[0].type: a string was expected"},
+            {"a type the format does not restrict", [](auto& v) { v["entities"][0]["type"] = "anything"; }, ""},
+            {"a site that is not an object", [](auto& v) { v["entities"][1]["components"]["site"] = 1; },
+                "entities[1].components.site: an object was expected"},
+            {"a site with no relation", [](auto& v) { v["entities"][1]["components"]["site"].erase("relation"); },
+                "entities[1].components.site.relation: required and absent"},
+            {"a relation that is not a string", [](auto& v) { v["entities"][1]["components"]["site"]["relation"] = 1; },
+                "entities[1].components.site.relation: a string was expected"},
+            {"a relation the format does not define", [](auto& v) { v["entities"][1]["components"]["site"]["relation"] = "beside"; },
+                "entities[1].components.site.relation: not a relation the format defines"},
+            {"a site on both a wall and a flat cell", [](auto& v) { v["entities"][1]["components"]["site"]["flat"] = "floor"; },
+                "entities[1].components.site: wall and flat are never both given"},
+            {"a site on its parent where the entity has none", [](auto& v) { v["entities"][3]["components"]["site"].erase("wall"); },
+                "entities[3]: sited on its parent and has none"},
+            {"a wall address that is not an object", [](auto& v) { v["entities"][1]["components"]["site"]["wall"] = parse_values("[1, 1, -1, 0]"); },
+                "entities[1].components.site.wall: an object was expected"},
+            {"a wall address with no normal", [](auto& v) { v["entities"][1]["components"]["site"]["wall"].erase("normal"); },
+                "entities[1].components.site.wall.normal: required and absent"},
+            {"a flat cell with no cell position", [](auto& v) { v["entities"][5]["components"]["site"].erase("cell_position"); },
+                "entities[5].components.site.cell_position: required and absent"},
+            {"a position that is not two numbers", [](auto& v) { v["entities"][1]["components"]["site"]["position"] = parse_values("[1]"); },
+                "entities[1].components.site.position: 2 numbers were expected, and there are 1"},
+            {"an orientation that is not a direction", [](auto& v) { v["entities"][5]["components"]["site"]["orientation"] = parse_values("[1, 1]"); },
+                "entities[5].components.site.orientation: not one of the four directions a cell's sides define"},
+            {"a parent that is not a reference", [](auto& v) { v["entities"][1]["components"]["parent"] = 1; },
+                "entities[1].components.parent: not a reference to an entity"},
+            {"an entity not sited on the geometry, no entity's child and no entity's parent",
+                [](auto& v) { v["entities"].push_back(parse_values(R"({ "id": 8, "type": "torch" })")); },
+                "entities[7]: not sited on the geometry, no entity's child and no entity's parent"},
+            {"a hierarchy of parents and children sited on the geometry nowhere in it", [](auto& v)
+                {
+                    v["entities"].push_back(parse_values(R"({ "id": 8, "type": "sack" })"));
+                    v["entities"].push_back(parse_values(R"({ "id": 9, "type": "coin", "components": { "parent": { "entity": 8 } } })"));
+                }, "entities[7]: no entity in this hierarchy of parents and children is sited on the geometry"},
+            {"parents leading back to an entity", [](auto& v)
+                { v["entities"][5]["components"]["parent"] = parse_values(R"({ "entity": 7 })"); },
+                "entities[5]: its parents lead back to it"},
+            {"a reference that is no entity's id", [](auto& v) { v["entities"][6]["components"]["opens"] = parse_values(R"({ "entity": 99 })"); },
+                "entities[6].components: refers to 99, which is no entity's id"},
+            {"a parent that is no entity's id", [](auto& v) { v["entities"][1]["components"]["parent"]["entity"] = 99; },
+                "entities[1].components.parent: refers to 99, which is no entity's id"},
+            {"a reference nested in a file component the format does not define", [](auto& v)
+                { v["rooms"][0]["components"]["watched_by"] = parse_values(R"([{ "guard": { "entity": 99 } }])"); },
+                "rooms[0].components: refers to 99, which is no entity's id"},
+            {"a zone id that is not a whole number", [](auto& v) { v["zone"] = parse_values(R"({ "id": -1 })"); },
+                "zone.id: a whole, non-negative number was expected"},
+            {"a zone section with no id", [](auto& v) { v["zone"] = parse_values("{}"); }, "zone.id: required and absent"},
+            {"a saved zone's reference into another zone, which is not checked", [](auto& v)
+                {
+                    v["zone"] = parse_values(R"({ "id": 7713 })");
+                    v["entities"][6]["components"]["opens"] = parse_values(R"({ "entity": 90412 })");
+                }, ""}
+        });
+
+        return;
+    }
+
+    //--------------------------------------------------------------------------
+    void test_glyph_entities()
+    {
+        report_group("entities the glyphs require");
+
+        report_mutations(data_directory / "cistern.json",
+        {
+            {"a doorway whose walls have no one parent between them", [](auto& v) { v["entities"][2]["components"]["parent"]["entity"] = 6; },
+                "entities: the doorway at [1, 1] normal [-1, 0] and [2, 1] normal [1, 0] has no entity with a child sited on each of its walls"},
+            {"a doorway with two doors on it", [](auto& v)
+                {
+                    v["entities"].push_back(parse_values(R"({ "id": 8, "type": "door" })"));
+                    v["entities"].push_back(parse_values(
+                        R"({ "id": 9, "type": "door_facing", "components": { "parent": { "entity": 8 },)"
+                        R"( "site": { "relation": "on", "wall": { "cell_position": [1, 1], "normal": [-1, 0] } } } })"));
+                    v["entities"].push_back(parse_values(
+                        R"({ "id": 10, "type": "door_facing", "components": { "parent": { "entity": 8 },)"
+                        R"( "site": { "relation": "on", "wall": { "cell_position": [2, 1], "normal": [1, 0] } } } })"));
+                }, "has 2 entities with a child sited on each of its walls"},
+            {"a door with a child on a wall outside its doorway", [](auto& v)
+                {
+                    v["entities"].push_back(parse_values(
+                        R"({ "id": 8, "type": "door_facing", "components": { "parent": { "entity": 1 },)"
+                        R"( "site": { "relation": "on", "wall": { "cell_position": [0, 1], "normal": [1, 0] } } } })"));
+                }, "entities[7]: sited on a wall that is not one of the walls of its door's doorway"},
+            {"a stair cell with no relocator on the walls around it", [](auto& v) { v["entities"][3]["components"].erase("relocator"); },
+                "entities: the stair cell at [3, 2] has no entity with a relocator sited on a wall its open neighbors present to it"},
+            {"a stair cell with a second relocator on the walls around it", [](auto& v)
+                {
+                    v["entities"].push_back(parse_values(
+                        R"({ "id": 8, "type": "portal", "components": { "site": { "relation": "on",)"
+                        R"( "wall": { "cell_position": [3, 1], "normal": [0, -1] } }, "relocator": { "target": "elsewhere" } } })"));
+                }, "entities[7]: a second entity with a relocator on the walls around the stair cell at [3, 2]"},
+            {"no access points", [](auto& v) { v["layout"]["components"].erase("access_points"); },
+                "layout.components.access_points: required and absent"},
+            {"no layout, and so no access points", [](auto& v) { v.erase("layout"); }, "layout.components.access_points: required and absent"},
+            {"access points that are not a list", [](auto& v) { v["layout"]["components"]["access_points"] = "stairs"; },
+                "layout.components.access_points: an array was expected"},
+            {"no access point", [](auto& v) { v["layout"]["components"]["access_points"] = parse_values("[]"); },
+                "layout.components.access_points: no access point"},
+            {"an access point that is not a reference", [](auto& v) { v["layout"]["components"]["access_points"][0] = 4; },
+                "layout.components.access_points[0]: not a reference to an entity"},
+            {"an access point that is no entity's id", [](auto& v) { v["layout"]["components"]["access_points"][0] = parse_values(R"({ "entity": 99 })"); },
+                "layout.components: refers to 99, which is no entity's id"},
+            {"an access point of a saved zone that is no entity's id, which the reference check lets by", [](auto& v)
+                {
+                    v["zone"] = parse_values(R"({ "id": 7713 })");
+                    v["layout"]["components"]["access_points"][0] = parse_values(R"({ "entity": 90412 })");
+                }, "layout.components.access_points[0]: refers to 90412, which is no entity's id"},
+            {"an access point on an entity with no relocator", [](auto& v) { v["layout"]["components"]["access_points"][0] = parse_values(R"({ "entity": 1 })"); },
+                "layout.components.access_points[0]: an entity with no relocator"},
+            {"an access point on a relocator that is not on a stair cell's open side", [](auto& v)
+                {
+                    v["entities"].push_back(parse_values(
+                        R"({ "id": 8, "type": "portal", "components": { "site": { "relation": "on",)"
+                        R"( "wall": { "cell_position": [1, 1], "normal": [-1, 0] } }, "relocator": { "target": "elsewhere" } } })"));
+                    v["layout"]["components"]["access_points"][0] = parse_values(R"({ "entity": 8 })");
+                }, "layout.components.access_points[0]: an entity that is not sited on the open side of a cell written '<' or '>'"},
+            {"a staircase leading down alone as the access point, as a tower entered from below has", [](auto& v)
+                { v["layout"]["components"]["access_points"] = parse_values(R"([{ "entity": 4 }])"); }, ""}
+        });
+
+        return;
+    }
+
+    //--------------------------------------------------------------------------
+    void test_references()
+    {
+        report_group("references");
+
+        stratum_format::values_type components = parse_values(
+            R"({ "controls": { "entity": 1 }, "watched_by": [{ "guard": { "entity": 2 } }, { "entity": 3 }],)"
+            R"( "lock": "vault", "near": { "entity": 4, "how": "beside" } })");
+
+        vector<stratum_format::stored_entity_id_type> found = stratum_format::references(components);
+        report_case("every reference is found, in the order they are written",
+            found == vector<stratum_format::stored_entity_id_type> {1, 2, 3}, format("found {} of them", found.size()));
+
+        stratum_format::translate_references(components, [](stratum_format::stored_entity_id_type id) { return id + 100; });
+        vector<stratum_format::stored_entity_id_type> translated = stratum_format::references(components);
+        report_case("each reference is replaced by what translate returns for it",
+            translated == vector<stratum_format::stored_entity_id_type> {101, 102, 103});
+        report_case("a value that is not a reference is left as it is",
+            components["lock"] == "vault" && components["near"]["entity"] == 4);
+
+        report_case("an object whose only key is entity is a reference",
+            stratum_format::reference_id(parse_values(R"({ "entity": 7 })")) == 7u);
+        report_case("an object with a key beside entity is not a reference",
+            !stratum_format::reference_id(parse_values(R"({ "entity": 7, "how": "in" })")).has_value());
+        report_case("an entity that is not a whole, non-negative number is not a reference",
+            !stratum_format::reference_id(parse_values(R"({ "entity": "seven" })")).has_value()
+            && !stratum_format::reference_id(parse_values(R"({ "entity": -7 })")).has_value());
 
         return;
     }
@@ -535,13 +745,16 @@ namespace
             {"floor with no wall toward a stair cell", [](auto& v) { v["cells"]["rows"][2] = "     -   "; },
                 "cells.rows[2]: no wall at 7 between a floor cell and a stair cell"},
             {"a stair cell with no wall toward the edge of the grid, being a block", [](auto& v) { v["cells"]["rows"][1] = "|. .| |> "; }, ""},
-            {"a barrier off the grid", [](auto& v) { v["barriers"] = parse_values("[[9, 9]]"); }, "barriers[0]: off the grid"},
-            {"a barrier written from the other side of its edge", [](auto& v) { v["barriers"] = parse_values("[[2, 1, -1, 0]]"); }, ""},
-            {"a location on a blank cell", [](auto& v) { v["rooms"][1]["location"] = parse_values("[2, 2]"); }, "rooms[1].location: not a floor cell"},
-            {"a location on a stair cell", [](auto& v) { v["rooms"][1]["location"] = parse_values("[3, 2]"); }, "rooms[1].location: not a floor cell"},
-            {"a location off the grid", [](auto& v) { v["rooms"][1]["location"] = parse_values("[9, 9]"); }, "rooms[1].location: off the grid"},
-            {"a location closed off by a barrier", [](auto& v) { v["barriers"] = parse_values("[[3, 1]]"); },
-                "rooms[1].location: a location closed off by a barrier"},
+            {"a barrier off the grid", [](auto& v) { v["barriers"] = parse_values(R"([{ "cell_position": [9, 9] }])"); }, "barriers[0]: off the grid"},
+            {"a barrier written from the other side of its edge",
+                [](auto& v) { v["barriers"] = parse_values(R"([{ "cell_position": [2, 1], "normal": [-1, 0] }])"); }, ""},
+            {"a room cell on a blank cell", [](auto& v) { v["rooms"][1]["cell_position"] = parse_values("[2, 2]"); },
+                "rooms[1].cell_position: not a floor cell"},
+            {"a room cell on a stair cell", [](auto& v) { v["rooms"][1]["cell_position"] = parse_values("[3, 2]"); },
+                "rooms[1].cell_position: not a floor cell"},
+            {"a room cell off the grid", [](auto& v) { v["rooms"][1]["cell_position"] = parse_values("[9, 9]"); }, "rooms[1].cell_position: off the grid"},
+            {"a room cell closed off by a barrier", [](auto& v) { v["barriers"] = parse_values(R"([{ "cell_position": [3, 1] }])"); },
+                "rooms[1].cell_position: a location closed off by a barrier"},
             {"a perimeter of three junctions", [](auto& v) { v["rooms"][0]["perimeter"] = parse_values("[[0, 0], [2, 0], [2, 3]]"); },
                 "rooms[0].perimeter: a perimeter of fewer than four junctions"},
             {"a perimeter junction off the grid", [](auto& v) { v["rooms"][0]["perimeter"] = parse_values("[[0, 0], [5, 0], [5, 3], [0, 3]]"); },
@@ -558,51 +771,37 @@ namespace
             {"a perimeter edge between a blank cell and the edge of the grid",
                 [](auto& v) { v["rooms"][0]["perimeter"] = parse_values("[[2, 0], [3, 0], [3, 1], [2, 1]]"); },
                 "rooms[0].perimeter[0]: the edge from this junction between cell [2, 0] inside and cell [2, -1] outside"},
-            {"two rooms covering one cell", [](auto& v) { v["rooms"].push_back(parse_values(R"({ "location": [0, 0] })")); },
+            {"two rooms covering one cell", [](auto& v) { v["rooms"].push_back(parse_values(R"({ "cell_position": [0, 0] })")); },
                 "rooms[2]: covers the cell [0, 0], which rooms[0] also covers"},
-            {"a wall address with no wall in the grid", [](auto& v) { v["walls"][0]["wall"] = parse_values("[1, 1, 1, 0]"); },
+            {"a wall address with no wall in the grid",
+                [](auto& v) { v["walls"][0]["wall"] = parse_values(R"({ "cell_position": [1, 1], "normal": [1, 0] })"); },
                 "walls[0].wall: no wall in the grid at that address"},
-            {"a wall address from a blank cell", [](auto& v) { v["walls"][0]["wall"] = parse_values("[2, 2, 0, 1]"); },
+            {"a wall address from a blank cell",
+                [](auto& v) { v["walls"][0]["wall"] = parse_values(R"({ "cell_position": [2, 2], "normal": [0, 1] })"); },
                 "walls[0].wall: not a floor/door cell"},
-            {"a wall address from a stair cell", [](auto& v) { v["walls"][0]["wall"] = parse_values("[3, 2, 0, -1]"); },
+            {"a wall address from a stair cell",
+                [](auto& v) { v["walls"][0]["wall"] = parse_values(R"({ "cell_position": [3, 2], "normal": [0, -1] })"); },
                 "walls[0].wall: not a floor/door cell"},
-            {"a wall address on a floor cell's side toward a stair cell", [](auto& v) { v["walls"][0]["wall"] = parse_values("[3, 1, 0, -1]"); }, ""},
-            {"a second entry for one wall", [](auto& v) { v["walls"].push_back(parse_values(R"({ "wall": [1, 1, -1, 0] })")); },
+            {"a wall address on a floor cell's side toward a stair cell",
+                [](auto& v) { v["walls"][0]["wall"] = parse_values(R"({ "cell_position": [3, 1], "normal": [0, -1] })"); }, ""},
+            {"a second entry for one wall",
+                [](auto& v) { v["walls"].push_back(parse_values(R"({ "wall": { "cell_position": [1, 1], "normal": [-1, 0] } })")); },
                 "walls[1].wall: a second entry for one wall"},
-            {"an attachment on a wall the grid does not have", [](auto& v) { v["attachments"][0]["walls"][1] = parse_values("[2, 1, -1, 0]"); },
-                "attachments[0].walls[1]: no wall in the grid at that address"},
+            {"an entity on a wall the grid does not have",
+                [](auto& v) { v["entities"][2]["components"]["site"]["wall"] = parse_values(R"({ "cell_position": [2, 1], "normal": [-1, 0] })"); },
+                "entities[2].components.site.wall: no wall in the grid at that address"},
             {"a flat referring to a room that does not exist", [](auto& v) { v["flats"][0]["rooms"][0]["room"] = 5; },
                 "flats[0].rooms[0].room: no room of that id"},
-            {"a flat cell off the grid", [](auto& v) { v["flats"][1]["cells"] = parse_values(R"([{ "cell": [4, 0] }])"); },
-                "flats[1].cells[0].cell: off the grid"},
+            {"a flat cell off the grid", [](auto& v) { v["flats"][1]["cells"] = parse_values(R"([{ "cell_position": [4, 0] }])"); },
+                "flats[1].cells[0].cell_position: off the grid"},
             {"a second flat entry for one room", [](auto& v) { v["flats"][0]["rooms"].push_back(parse_values(R"({ "room": 0 })")); },
                 "flats[0].rooms[1].room: a second entry for one room"},
-            {"a second flat entry for one cell", [](auto& v) { v["flats"][1]["cells"] = parse_values(R"([{ "cell": [0, 0] }, { "cell": [0, 0] }])"); },
-                "flats[1].cells[1].cell: a second entry for one cell"},
+            {"a second flat entry for one cell",
+                [](auto& v) { v["flats"][1]["cells"] = parse_values(R"([{ "cell_position": [0, 0] }, { "cell_position": [0, 0] }])"); },
+                "flats[1].cells[1].cell_position: a second entry for one cell"},
             {"a second flat in one role", [](auto& v) { v["flats"][1]["role"] = "floor"; }, "flats[1]: a second flat in one role"},
-            {"an attachment on a flat cell off the grid", [](auto& v) { v["attachments"][1]["cell"] = parse_values("[4, 3]"); },
-                "attachments[1].cell: off the grid"},
-            {"an entry cell off the grid", [](auto& v) { v["layout"]["components"]["entry"][1] = parse_values("[9, 9]"); },
-                "layout.components.entry[1]: off the grid"},
-            {"an entry cell on a blank cell", [](auto& v) { v["layout"]["components"]["entry"][1] = parse_values("[2, 2]"); },
-                "layout.components.entry[1]: not a cell written '<' or '>'"},
-            {"an entry cell on floor", [](auto& v) { v["layout"]["components"]["entry"][1] = parse_values("[0, 0]"); },
-                "layout.components.entry[1]: not a cell written '<' or '>'"},
-            {"a staircase leading down alone as the entry, as a tower entered from below has", [](auto& v)
-                { v["layout"]["components"]["entry"] = parse_values("[[3, 2]]"); }, ""},
-            {"an entry cell with nothing attached", [](auto& v) { v["attachments"].erase(2); },
-                "layout.components.entry[1]: no entity with a relocator attached to the floor there"},
-            {"an entry cell whose staircase is on the ceiling", [](auto& v) { v["attachments"][2]["flat"] = "ceiling"; },
-                "layout.components.entry[1]: no entity with a relocator attached to the floor there"},
-            {"an entry cell whose staircase has no relocator", [](auto& v) { v["attachments"][2]["entities"][0]["components"].erase("relocator"); },
-                "layout.components.entry[1]: no entity with a relocator attached to the floor there"},
-            {"an entry cell whose floor cell has the relocator rather than an entity", [](auto& v)
-                {
-                    v["attachments"][2]["entities"][0]["components"].erase("relocator");
-                    v["flats"][0]["cells"] = parse_values(R"([{ "cell": [3, 0], "components": { "relocator": { "target": "level_up" } } }])");
-                }, "layout.components.entry[1]: no entity with a relocator attached to the floor there"},
-            {"an entry cell on a waypoint, a type the format does not restrict", [](auto& v) { v["attachments"][2]["entities"][0]["type"] = "waypoint"; }, ""},
-            {"an entry cell on a type no one has defined", [](auto& v) { v["attachments"][2]["entities"][0]["type"] = "anything"; }, ""}
+            {"an entity on a flat cell off the grid", [](auto& v) { v["entities"][5]["components"]["site"]["cell_position"] = parse_values("[4, 3]"); },
+                "entities[5].components.site.cell_position: off the grid"}
         });
 
         return;
@@ -615,14 +814,19 @@ namespace
 
         report_mutations(data_directory / "block.json",
         {
-            {"a wall on a door cell's side toward floor", [](auto& v) { v["walls"][1]["wall"] = parse_values("[3, 2, 1, 0]"); },
+            {"a wall on a door cell's side toward floor",
+                [](auto& v) { v["walls"][1]["wall"] = parse_values(R"({ "cell_position": [3, 2], "normal": [1, 0] })"); },
                 "walls[1].wall: no wall in the grid at that address"},
-            {"a wall on a floor cell's side toward a stair cell", [](auto& v) { v["walls"][0]["wall"] = parse_values("[4, 2, -1, 0]"); }, ""},
-            {"a location on a door cell", [](auto& v) { v["rooms"][0]["location"] = parse_values("[3, 2]"); }, "rooms[0].location: not a floor cell"},
-            {"a location on a solid cell", [](auto& v) { v["rooms"][0]["location"] = parse_values("[0, 0]"); }, "rooms[0].location: not a floor cell"},
-            {"a location on a stair cell", [](auto& v) { v["rooms"][0]["location"] = parse_values("[5, 2]"); }, "rooms[0].location: not a floor cell"},
-            {"a location closed off by its own barrier", [](auto& v) { v["rooms"][0]["barriers"] = parse_values("[[1, 1]]"); },
-                "rooms[0].location: a location closed off by a barrier"},
+            {"a wall on a floor cell's side toward a stair cell",
+                [](auto& v) { v["walls"][0]["wall"] = parse_values(R"({ "cell_position": [4, 2], "normal": [-1, 0] })"); }, ""},
+            {"a room cell on a door cell", [](auto& v) { v["rooms"][0]["cell_position"] = parse_values("[3, 2]"); },
+                "rooms[0].cell_position: not a floor cell"},
+            {"a room cell on a solid cell", [](auto& v) { v["rooms"][0]["cell_position"] = parse_values("[0, 0]"); },
+                "rooms[0].cell_position: not a floor cell"},
+            {"a room cell on a stair cell", [](auto& v) { v["rooms"][0]["cell_position"] = parse_values("[5, 2]"); },
+                "rooms[0].cell_position: not a floor cell"},
+            {"a room cell closed off by its own barrier", [](auto& v) { v["rooms"][0]["barriers"] = parse_values(R"([{ "cell_position": [1, 1] }])"); },
+                "rooms[0].cell_position: a location closed off by a barrier"},
             {"a perimeter leaving the door cell out", [](auto& v) { v["rooms"][1]["perimeter"] = parse_values("[[4, 1], [5, 1], [5, 3], [6, 3], [6, 4], [4, 4]]"); },
                 ""},
             {"a perimeter edge between a stair cell and a solid cell", [](auto& v) { v["rooms"][1]["perimeter"] = parse_values("[[4, 1], [6, 1], [6, 4], [4, 4]]"); },
@@ -631,7 +835,8 @@ namespace
                 "rooms[1].perimeter[0]: the edge from this junction between cell [3, 1] inside and cell [3, 0] outside"},
             {"a perimeter covering a cell the fill covers", [](auto& v) { v["rooms"][1]["perimeter"] = parse_values("[[2, 2], [3, 2], [3, 3], [2, 3]]"); },
                 "rooms[1]: covers the cell [2, 2], which rooms[0] also covers"},
-            {"a wall address off the grid", [](auto& v) { v["walls"][0]["wall"] = parse_values("[7, 1, 0, 1]"); }, "walls[0].wall: off the grid"}
+            {"a wall address off the grid",
+                [](auto& v) { v["walls"][0]["wall"] = parse_values(R"({ "cell_position": [7, 1], "normal": [0, 1] })"); }, "walls[0].wall: off the grid"}
         });
 
         return;
@@ -695,6 +900,9 @@ int main()
     test_read_pillar();
     test_read_failures();
     test_structure();
+    test_entities();
+    test_glyph_entities();
+    test_references();
     test_geometry_wall_notation();
     test_geometry_block_notation();
     test_round_trip();

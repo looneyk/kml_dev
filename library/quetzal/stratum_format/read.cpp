@@ -1,0 +1,1577 @@
+//------------------------------------------------------------------------------
+// stratum_format
+// read.cpp
+//------------------------------------------------------------------------------
+
+#include "read.hpp"
+#include "grid.hpp"
+#include "references.hpp"
+#include "quetzal/geometry/DiscreteBox.hpp"
+#include <algorithm>
+#include <format>
+#include <fstream>
+#include <limits>
+#include <map>
+#include <set>
+#include <sstream>
+#include <stdexcept>
+#include <string>
+#include <utility>
+#include <variant>
+#include <vector>
+#include <cassert>
+#include <cctype>
+#include <cstdint>
+#include <cstdlib>
+
+namespace
+{
+
+    using namespace quetzal::stratum_format;
+    using quetzal::id_type;
+
+    using discrete_box_type = quetzal::geometry::DiscreteBox<coord_type, 2>;
+
+    //--------------------------------------------------------------------------
+    // Where in the document something is, as a path a reader of the message can follow
+    std::string member_path(const std::string& path, std::string_view key)
+    {
+        return path.empty() ? std::string(key) : std::format("{}.{}", path, key);
+    }
+
+    //--------------------------------------------------------------------------
+    std::string element_path(const std::string& path, size_t i)
+    {
+        return std::format("{}[{}]", path, i);
+    }
+
+    //--------------------------------------------------------------------------
+    [[noreturn]] void fail(const std::string& path, std::string_view what)
+    {
+        throw std::runtime_error(path.empty()
+            ? std::string(what)
+            : std::format("{}: {}", path, what));
+    }
+
+    //--------------------------------------------------------------------------
+    // The value at a key, and nothing where the key is absent. An absent key and a key set to
+    // null are the same: the file did not specify a value
+    const values_type* member(const values_type& v, std::string_view key)
+    {
+        auto i = v.find(key);
+        return i != v.end() && !i->is_null() ? &*i : nullptr;
+    }
+
+    //--------------------------------------------------------------------------
+    const values_type& required_member(const values_type& v, const std::string& path, std::string_view key)
+    {
+        const values_type* p = member(v, key);
+        if (p == nullptr)
+        {
+            fail(member_path(path, key), "required and absent");
+        }
+
+        return *p;
+    }
+
+    //--------------------------------------------------------------------------
+    const values_type& object(const values_type& v, const std::string& path)
+    {
+        if (!v.is_object())
+        {
+            fail(path, "an object was expected");
+        }
+
+        return v;
+    }
+
+    //--------------------------------------------------------------------------
+    const values_type& array(const values_type& v, const std::string& path)
+    {
+        if (!v.is_array())
+        {
+            fail(path, "an array was expected");
+        }
+
+        return v;
+    }
+
+    //--------------------------------------------------------------------------
+    std::string string_value(const values_type& v, const std::string& path)
+    {
+        if (!v.is_string())
+        {
+            fail(path, "a string was expected");
+        }
+
+        return v.get<std::string>();
+    }
+
+    //--------------------------------------------------------------------------
+    value_type number_value(const values_type& v, const std::string& path)
+    {
+        if (!v.is_number())
+        {
+            fail(path, "a number was expected");
+        }
+
+        return static_cast<value_type>(v.get<double>());
+    }
+
+    //--------------------------------------------------------------------------
+    // A whole number within the coordinate range. A number with a fraction is an error rather than
+    // something to round: every coordinate the format states is exact
+    coord_type coord_value(const values_type& v, const std::string& path)
+    {
+        if (!v.is_number())
+        {
+            fail(path, "a number was expected");
+        }
+
+        double d = v.get<double>();
+        if (d < std::numeric_limits<coord_type>::min() || d > std::numeric_limits<coord_type>::max())
+        {
+            fail(path, "outside the coordinate range");
+        }
+
+        if (d != static_cast<double>(static_cast<coord_type>(d)))
+        {
+            fail(path, "a whole number was expected");
+        }
+
+        return static_cast<coord_type>(d);
+    }
+
+    //--------------------------------------------------------------------------
+    size_t count_value(const values_type& v, const std::string& path)
+    {
+        coord_type n = coord_value(v, path);
+        if (n < 0)
+        {
+            fail(path, "a count cannot be negative");
+        }
+
+        return static_cast<size_t>(n);
+    }
+
+    //--------------------------------------------------------------------------
+    // An array of a stated length, which is how every coordinate in the format is written
+    const values_type& fixed_array(const values_type& v, const std::string& path, size_t n)
+    {
+        const values_type& a = array(v, path);
+        if (a.size() != n)
+        {
+            fail(path, std::format("{} numbers were expected, and there are {}", n, a.size()));
+        }
+
+        return a;
+    }
+
+    //--------------------------------------------------------------------------
+    discrete_point_type read_cell_position(const values_type& v, const std::string& path)
+    {
+        const values_type& a = fixed_array(v, path, 2);
+        return {coord_value(a[0], element_path(path, 0)), coord_value(a[1], element_path(path, 1))};
+    }
+
+    //--------------------------------------------------------------------------
+    point_type read_position(const values_type& v, const std::string& path)
+    {
+        const values_type& a = fixed_array(v, path, 3);
+        return {number_value(a[0], element_path(path, 0)),
+            number_value(a[1], element_path(path, 1)),
+            number_value(a[2], element_path(path, 2))};
+    }
+
+    //--------------------------------------------------------------------------
+    surface_point_type read_surface_position(const values_type& v, const std::string& path)
+    {
+        const values_type& a = fixed_array(v, path, 2);
+        return {number_value(a[0], element_path(path, 0)), number_value(a[1], element_path(path, 1))};
+    }
+
+    //--------------------------------------------------------------------------
+    // One of the four directions a cell's sides define, which is what a wall normal and an orientation are
+    discrete_vector_type read_direction(const values_type& v, const std::string& path)
+    {
+        const values_type& a = fixed_array(v, path, 2);
+        discrete_vector_type direction {coord_value(a[0], element_path(path, 0)), coord_value(a[1], element_path(path, 1))};
+
+        if (std::abs(direction.x()) + std::abs(direction.y()) != 1)
+        {
+            fail(path, "not one of the four directions a cell's sides define");
+        }
+
+        return direction;
+    }
+
+    //--------------------------------------------------------------------------
+    // The cell the wall belongs to, and the normal pointing out of the wall's surface into that cell
+    WallAddress read_wall_address(const values_type& v, const std::string& path)
+    {
+        object(v, path);
+        return {read_cell_position(required_member(v, path, "cell_position"), member_path(path, "cell_position")),
+            read_direction(required_member(v, path, "normal"), member_path(path, "normal"))};
+    }
+
+    //--------------------------------------------------------------------------
+    // A normal makes it one face of the cell, and no normal the whole cell
+    Barrier read_barrier(const values_type& v, const std::string& path)
+    {
+        object(v, path);
+
+        Barrier barrier {read_cell_position(required_member(v, path, "cell_position"), member_path(path, "cell_position")), {}};
+
+        if (const values_type* p = member(v, "normal"); p != nullptr)
+        {
+            barrier.normal = read_direction(*p, member_path(path, "normal"));
+        }
+
+        return barrier;
+    }
+
+    //--------------------------------------------------------------------------
+    // Null where the entry has none
+    values_type read_components(const values_type& v, const std::string& path)
+    {
+        const values_type* p = member(v, "components");
+        return p != nullptr ? object(*p, member_path(path, "components")) : values_type();
+    }
+
+} // namespace
+
+namespace
+{
+
+    //--------------------------------------------------------------------------
+    // The glyphs each kind of position in a notation accepts. A corner accepts only a space, the
+    // grid writing nothing where there is nothing
+    std::string_view glyphs(Notation notation, bool cell_x, bool cell_y)
+    {
+        if (notation == Notation::Block)
+        {
+            return ".#+><";
+        }
+
+        if (cell_x && cell_y)
+        {
+            return ".>< ";
+        }
+
+        if (cell_x) // Horizontal, between the cell above and the cell below
+        {
+            return "-+ ";
+        }
+
+        if (cell_y) // Vertical, between the cell left and the cell right
+        {
+            return "|+ ";
+        }
+
+        return " ";
+    }
+
+    //--------------------------------------------------------------------------
+    // A count repeats the glyph that follows it, and a glyph with no count is one of it
+    std::string expand_runs(const std::string& row, size_t width, const std::string& path)
+    {
+        std::string expanded;
+
+        for (size_t i = 0; i < row.size(); )
+        {
+            size_t n = 0;
+            bool counted = false;
+
+            while (i < row.size() && std::isdigit(static_cast<unsigned char>(row[i])) != 0)
+            {
+                n = n * 10 + static_cast<size_t>(row[i] - '0');
+                if (n > width)
+                {
+                    fail(path, std::format("a run count past the row width of {}", width));
+                }
+
+                ++i;
+                counted = true;
+            }
+
+            if (counted && n == 0)
+            {
+                fail(path, "a run count of zero");
+            }
+
+            if (i == row.size())
+            {
+                fail(path, "a run count with no glyph after it");
+            }
+
+            size_t run = counted ? n : 1;
+            if (expanded.size() + run > width)
+            {
+                fail(path, std::format("a row of {} is expected, and this one expands past it", width));
+            }
+
+            expanded.append(run, row[i]);
+            ++i;
+        }
+
+        return expanded;
+    }
+
+    //--------------------------------------------------------------------------
+    void check_on_grid(const Cells& cells, const discrete_point_type& cell_position, const std::string& path)
+    {
+        if (!on_grid(cells, cell_position))
+        {
+            fail(path, "off the grid");
+        }
+
+        return;
+    }
+
+    //--------------------------------------------------------------------------
+    // In the wall notation, a wall separates every floor cell from each blank cell, from each stair cell and from the edge of
+    // the grid
+    void check_floor_enclosed(const Cells& cells, const std::string& path)
+    {
+        if (cells.notation != Notation::Wall)
+        {
+            return;
+        }
+
+        for (coord_type j = 0; j < cells.extent.y(); ++j)
+        {
+            for (coord_type i = 0; i < cells.extent.x(); ++i)
+            {
+                discrete_point_type cell_position {i, j};
+                if (!floor_cell(cells, cell_position))
+                {
+                    continue;
+                }
+
+                for (const auto& direction : quetzal::math::cardinal_directions<coord_type, 2>)
+                {
+                    discrete_point_type neighbor = cell_position + direction;
+                    bool neighbor_on_grid = on_grid(cells, neighbor);
+
+                    if ((neighbor_on_grid && floor_cell(cells, neighbor)) || has_wall(cells, cell_position, direction))
+                    {
+                        continue;
+                    }
+
+                    size_t x = static_cast<size_t>(2 * i + 1 + direction.x());
+                    size_t y = static_cast<size_t>(2 * j + 1 + direction.y());
+                    std::string beyond = !neighbor_on_grid ? "the edge of the grid" : stair_cell(cells, neighbor) ? "a stair cell" : "a blank cell";
+                    fail(element_path(path, cells.rows.size() - 1 - y), std::format("no wall at {} between a floor cell and {}", x, beyond));
+                }
+            }
+        }
+
+        return;
+    }
+
+    //--------------------------------------------------------------------------
+    // The rows as the grid the extent and the notation call for, every glyph one that its
+    // position accepts. The first row written is the highest, so a row's height is counted from the last
+    void read_rows(const values_type& v, const std::string& path, Cells& cells)
+    {
+        const values_type& a = array(v, path);
+
+        bool wall = cells.notation == Notation::Wall;
+        size_t extent_x = static_cast<size_t>(cells.extent.x());
+        size_t extent_y = static_cast<size_t>(cells.extent.y());
+        size_t width = wall ? 2 * extent_x + 1 : extent_x;
+        size_t count = wall ? 2 * extent_y + 1 : extent_y;
+
+        if (a.size() != count)
+        {
+            fail(path, std::format("{} rows were expected, and there are {}", count, a.size()));
+        }
+
+        cells.rows.reserve(count);
+
+        for (size_t i = 0; i < a.size(); ++i)
+        {
+            std::string row_path = element_path(path, i);
+            std::string row = string_value(a[i], row_path);
+
+            if (cells.encoding == Encoding::Runs)
+            {
+                row = expand_runs(row, width, row_path);
+            }
+
+            if (row.size() != width)
+            {
+                fail(row_path, std::format("a row of {} is expected, and this one is {}", width, row.size()));
+            }
+
+            size_t y = count - 1 - i;
+
+            for (size_t x = 0; x < row.size(); ++x)
+            {
+                std::string_view permitted = glyphs(cells.notation, x % 2 == 1, y % 2 == 1);
+                if (permitted.find(row[x]) == std::string_view::npos)
+                {
+                    fail(row_path, std::format("'{}' at {} is not a glyph that position accepts", row[x], x));
+                }
+            }
+
+            cells.rows.push_back(std::move(row));
+        }
+
+        return;
+    }
+
+    //--------------------------------------------------------------------------
+    Cells read_cells(const values_type& v, const std::string& path)
+    {
+        object(v, path);
+
+        Cells cells;
+
+        std::string notation_path = member_path(path, "notation");
+        std::optional<Notation> notation = to_notation(string_value(required_member(v, path, "notation"), notation_path));
+        if (!notation.has_value())
+        {
+            fail(notation_path, "not a notation the format defines");
+        }
+
+        cells.notation = *notation;
+
+        if (const values_type* p = member(v, "encoding"); p != nullptr)
+        {
+            std::string encoding_path = member_path(path, "encoding");
+            std::optional<Encoding> encoding = to_encoding(string_value(*p, encoding_path));
+            if (!encoding.has_value())
+            {
+                fail(encoding_path, "not an encoding the format defines");
+            }
+
+            cells.encoding = *encoding;
+        }
+
+        std::string extent_path = member_path(path, "extent");
+        const values_type& extent = fixed_array(required_member(v, path, "extent"), extent_path, 2);
+        cells.extent = {coord_value(extent[0], element_path(extent_path, 0)),
+            coord_value(extent[1], element_path(extent_path, 1))};
+
+        if (cells.extent.x() <= 0 || cells.extent.y() <= 0)
+        {
+            fail(extent_path, "an extent of no cells");
+        }
+
+        if (const values_type* p = member(v, "origin"); p != nullptr)
+        {
+            cells.origin = read_position(*p, member_path(path, "origin"));
+        }
+
+        if (const values_type* p = member(v, "scale"); p != nullptr)
+        {
+            cells.scale = number_value(*p, member_path(path, "scale"));
+            if (cells.scale <= value_type(0))
+            {
+                fail(member_path(path, "scale"), "a scale must be positive");
+            }
+        }
+
+        std::string rows_path = member_path(path, "rows");
+        read_rows(required_member(v, path, "rows"), rows_path, cells);
+        check_floor_enclosed(cells, rows_path);
+        return cells;
+    }
+
+    //--------------------------------------------------------------------------
+    // A wall is addressed from the cell it faces, which is a floor/door cell
+    void check_wall_address(const Cells& cells, const WallAddress& address, const std::string& path)
+    {
+        check_on_grid(cells, address.cell_position, path);
+
+        if (!floor_door_cell(cells, address.cell_position))
+        {
+            fail(path, "not a floor/door cell");
+        }
+
+        if (!has_wall(cells, address.cell_position, {-address.normal.x(), -address.normal.y()}))
+        {
+            fail(path, "no wall in the grid at that address");
+        }
+
+        return;
+    }
+
+    //--------------------------------------------------------------------------
+    // Along cell edges, within the grid, and never crossing or touching itself. Every cell edge of it is a wall facing a
+    // floor/door cell, or a virtual wall between two floor/door cells
+    void check_perimeter(const Cells& cells, const Perimeter& perimeter, const std::string& path)
+    {
+        const std::vector<discrete_point_type>& junctions = perimeter.junctions;
+        size_t n = junctions.size();
+
+        for (size_t k = 0; k < n; ++k)
+        {
+            const discrete_point_type& a = junctions[k];
+            const discrete_point_type& b = junctions[(k + 1) % n];
+
+            if (a.i() < 0 || a.j() < 0 || a.i() > cells.extent.x() || a.j() > cells.extent.y())
+            {
+                fail(element_path(path, k), "off the grid");
+            }
+
+            if (a == b)
+            {
+                fail(element_path(path, k), "an edge of no length to the next junction");
+            }
+
+            if (a.i() != b.i() && a.j() != b.j())
+            {
+                fail(element_path(path, k), "an edge to the next junction that is neither horizontal nor vertical");
+            }
+        }
+
+        auto sign = [](coord_type value) { return static_cast<coord_type>((value > 0) - (value < 0)); };
+
+        for (size_t k = 0; k < n; ++k)
+        {
+            const discrete_point_type& a = junctions[k];
+            const discrete_point_type& b = junctions[(k + 1) % n];
+
+            for (size_t m = k + 1; m < n; ++m)
+            {
+                const discrete_point_type& c = junctions[m];
+                const discrete_point_type& d = junctions[(m + 1) % n];
+
+                if (m == k + 1 || (k == 0 && m == n - 1))
+                {
+                    bool doubles_back = sign(b.i() - a.i()) == -sign(d.i() - c.i()) && sign(b.j() - a.j()) == -sign(d.j() - c.j());
+                    if (doubles_back)
+                    {
+                        fail(element_path(path, m == k + 1 ? m : 0), "the perimeter doubles back at this junction");
+                    }
+
+                    continue;
+                }
+
+                bool overlap_i = std::min(a.i(), b.i()) <= std::max(c.i(), d.i()) && std::min(c.i(), d.i()) <= std::max(a.i(), b.i());
+                bool overlap_j = std::min(a.j(), b.j()) <= std::max(c.j(), d.j()) && std::min(c.j(), d.j()) <= std::max(a.j(), b.j());
+                if (overlap_i && overlap_j)
+                {
+                    fail(element_path(path, m), std::format("the edge from this junction meets the edge from junction {}", k));
+                }
+            }
+        }
+
+        std::int64_t twice_area = 0;
+        for (size_t k = 0; k < n; ++k)
+        {
+            const discrete_point_type& a = junctions[k];
+            const discrete_point_type& b = junctions[(k + 1) % n];
+            twice_area += static_cast<std::int64_t>(a.i()) * b.j() - static_cast<std::int64_t>(b.i()) * a.j();
+        }
+
+        // The inside is left of each edge on a counterclockwise perimeter and right of it on a clockwise one
+        coord_type turn = twice_area > 0 ? 1 : -1;
+
+        // A wall facing a floor/door cell on either side satisfies an edge, so that a pillar on a room's edge may lie inside the
+        // perimeter. Which side is inside is not used yet, so a perimeter whose walls all face outward, enclosing no floor/door
+        // cell, also passes, and a check of the enclosed region is needed to reject it ...
+        for (size_t k = 0; k < n; ++k)
+        {
+            const discrete_point_type& a = junctions[k];
+            const discrete_point_type& b = junctions[(k + 1) % n];
+
+            discrete_vector_type step {sign(b.i() - a.i()), sign(b.j() - a.j())};
+            discrete_vector_type inward {-turn * step.y(), turn * step.x()};
+            discrete_vector_type outward {-inward.x(), -inward.y()};
+
+            for (discrete_point_type junction = a; junction != b; junction += step)
+            {
+                discrete_point_type lower {std::min(junction.i(), junction.i() + step.x()), std::min(junction.j(), junction.j() + step.y())};
+                discrete_point_type inside {lower.i() - (inward.x() < 0 ? 1 : 0), lower.j() - (inward.y() < 0 ? 1 : 0)};
+                discrete_point_type outside = inside + outward;
+
+                assert(on_grid(cells, inside));
+
+                bool inside_open = floor_door_cell(cells, inside);
+                bool outside_open = on_grid(cells, outside) && floor_door_cell(cells, outside);
+
+                bool inside_wall = inside_open && has_wall(cells, inside, outward);
+                bool outside_wall = outside_open && has_wall(cells, outside, inward);
+
+                if (!(inside_open && outside_open) && !inside_wall && !outside_wall)
+                {
+                    fail(element_path(path, k), std::format("the edge from this junction between cell [{}, {}] inside and cell [{}, {}] outside is neither "
+                        "a wall facing a floor/door cell nor between two of them", inside.i(), inside.j(), outside.i(), outside.j()));
+                }
+            }
+        }
+
+        return;
+    }
+
+    //--------------------------------------------------------------------------
+    std::vector<Barrier> read_barriers(const values_type& v, const std::string& path, const Cells& cells)
+    {
+        const values_type& a = array(v, path);
+
+        std::vector<Barrier> barriers;
+        barriers.reserve(a.size());
+
+        for (size_t i = 0; i < a.size(); ++i)
+        {
+            std::string barrier_path = element_path(path, i);
+            Barrier barrier = read_barrier(a[i], barrier_path);
+            check_on_grid(cells, barrier.cell_position, barrier_path);
+            barriers.push_back(barrier);
+        }
+
+        return barriers;
+    }
+
+    //--------------------------------------------------------------------------
+    Room read_room(const values_type& v, const std::string& path, const Cells& cells)
+    {
+        object(v, path);
+
+        const values_type* perimeter = member(v, "perimeter");
+        const values_type* cell_position = member(v, "cell_position");
+
+        if ((perimeter != nullptr) == (cell_position != nullptr))
+        {
+            fail(path, "one of perimeter and cell_position is given, and never both");
+        }
+
+        Room room {Perimeter {}, {}};
+
+        if (perimeter != nullptr)
+        {
+            std::string perimeter_path = member_path(path, "perimeter");
+            const values_type& a = array(*perimeter, perimeter_path);
+
+            if (a.size() < 4)
+            {
+                fail(perimeter_path, "a perimeter of fewer than four junctions");
+            }
+
+            Perimeter p;
+            p.junctions.reserve(a.size());
+
+            for (size_t i = 0; i < a.size(); ++i)
+            {
+                p.junctions.push_back(read_cell_position(a[i], element_path(perimeter_path, i)));
+            }
+
+            check_perimeter(cells, p, perimeter_path);
+
+            room.identification = std::move(p);
+        }
+        else
+        {
+            std::string location_path = member_path(path, "cell_position");
+
+            RoomLocator l;
+            l.cell_position = read_cell_position(*cell_position, location_path);
+            check_on_grid(cells, l.cell_position, location_path);
+
+            if (!floor_cell(cells, l.cell_position))
+            {
+                fail(location_path, "not a floor cell");
+            }
+
+            if (const values_type* p = member(v, "barriers"); p != nullptr)
+            {
+                l.barriers = read_barriers(*p, member_path(path, "barriers"), cells);
+            }
+
+            room.identification = std::move(l);
+        }
+
+        room.components = read_components(v, path);
+        return room;
+    }
+
+    //--------------------------------------------------------------------------
+    // A barrier closing off the whole of a location's cell leaves its fill nowhere to start
+    bool location_barred(const std::vector<Barrier>& barriers, const discrete_point_type& cell_position)
+    {
+        return std::ranges::any_of(barriers, [&](const Barrier& barrier) { return !barrier.normal.has_value() && barrier.cell_position == cell_position; });
+    }
+
+    //--------------------------------------------------------------------------
+    // Rejects two rooms covering one cell. Cells are compared only for rooms whose boxes intersect
+    void check_rooms(const Document& document)
+    {
+        for (size_t r = 0; r < document.rooms.size(); ++r)
+        {
+            const RoomLocator* locator = std::get_if<RoomLocator>(&document.rooms[r].identification);
+            if (locator != nullptr && (location_barred(document.barriers, locator->cell_position) || location_barred(locator->barriers, locator->cell_position)))
+            {
+                fail(member_path(element_path("rooms", r), "cell_position"), "a location closed off by a barrier");
+            }
+        }
+
+        std::vector<std::set<discrete_point_type>> covers = room_cells(document);
+
+        std::vector<discrete_box_type> bounds;
+        bounds.reserve(covers.size());
+
+        for (const auto& cover : covers)
+        {
+            discrete_box_type box;
+            for (const auto& cell_position : cover)
+            {
+                box = quetzal::geometry::op_union(box, discrete_box_type(cell_position, discrete_vector_type {1, 1}));
+            }
+
+            bounds.push_back(box);
+        }
+
+        for (size_t r = 0; r < covers.size(); ++r)
+        {
+            for (size_t q = 0; q < r; ++q)
+            {
+                if (quetzal::geometry::disjoint(bounds[r], bounds[q]))
+                {
+                    continue;
+                }
+
+                size_t smaller = covers[r].size() < covers[q].size() ? r : q;
+                size_t larger = smaller == r ? q : r;
+
+                for (const auto& cell_position : covers[smaller])
+                {
+                    if (bounds[larger].contains(cell_position) && covers[larger].contains(cell_position))
+                    {
+                        fail(element_path("rooms", r), std::format("covers the cell [{}, {}], which rooms[{}] also covers", cell_position.i(), cell_position.j(), q));
+                    }
+                }
+            }
+        }
+
+        return;
+    }
+
+    //--------------------------------------------------------------------------
+    Wall read_wall(const values_type& v, const std::string& path, const Cells& cells)
+    {
+        object(v, path);
+
+        Wall wall;
+        std::string address_path = member_path(path, "wall");
+        wall.address = read_wall_address(required_member(v, path, "wall"), address_path);
+        check_wall_address(cells, wall.address, address_path);
+
+        wall.components = read_components(v, path);
+        return wall;
+    }
+
+    //--------------------------------------------------------------------------
+    FlatProperties read_flat_properties(const values_type& v, const std::string& path)
+    {
+        object(v, path);
+
+        FlatProperties properties;
+
+        if (const values_type* p = member(v, "height"); p != nullptr)
+        {
+            properties.height = number_value(*p, member_path(path, "height"));
+        }
+
+        properties.components = read_components(v, path);
+        return properties;
+    }
+
+    //--------------------------------------------------------------------------
+    Flat read_flat(const values_type& v, const std::string& path, const Cells& cells, size_t room_count)
+    {
+        object(v, path);
+
+        Flat flat;
+
+        std::string role_path = member_path(path, "role");
+        std::optional<FlatRole> role = to_flat_role(string_value(required_member(v, path, "role"), role_path));
+        if (!role.has_value())
+        {
+            fail(role_path, "not a role the format defines");
+        }
+
+        flat.role = *role;
+        flat.properties = read_flat_properties(v, path);
+
+        if (const values_type* p = member(v, "rooms"); p != nullptr)
+        {
+            std::string rooms_path = member_path(path, "rooms");
+            const values_type& a = array(*p, rooms_path);
+
+            for (size_t i = 0; i < a.size(); ++i)
+            {
+                std::string room_path = element_path(rooms_path, i);
+                object(a[i], room_path);
+
+                std::string id_path = member_path(room_path, "room");
+                size_t room_id = count_value(required_member(a[i], room_path, "room"), id_path);
+                if (room_id >= room_count)
+                {
+                    fail(id_path, "no room of that id");
+                }
+
+                if (!flat.rooms.emplace(room_id, read_flat_properties(a[i], room_path)).second)
+                {
+                    fail(id_path, "a second entry for one room");
+                }
+            }
+        }
+
+        if (const values_type* p = member(v, "cells"); p != nullptr)
+        {
+            std::string cells_path = member_path(path, "cells");
+            const values_type& a = array(*p, cells_path);
+
+            for (size_t i = 0; i < a.size(); ++i)
+            {
+                std::string cell_path = element_path(cells_path, i);
+                object(a[i], cell_path);
+
+                std::string position_path = member_path(cell_path, "cell_position");
+                discrete_point_type cell_position = read_cell_position(required_member(a[i], cell_path, "cell_position"), position_path);
+                check_on_grid(cells, cell_position, position_path);
+
+                if (!flat.cells.emplace(cell_position, read_flat_properties(a[i], cell_path)).second)
+                {
+                    fail(position_path, "a second entry for one cell");
+                }
+            }
+        }
+
+        return flat;
+    }
+
+    //--------------------------------------------------------------------------
+    // Wall and flat are the two addresses, and neither is written where the entity is sited on its parent
+    Site read_site(const values_type& v, const std::string& path, const Cells& cells)
+    {
+        object(v, path);
+
+        const values_type* wall = member(v, "wall");
+        const values_type* flat = member(v, "flat");
+
+        if (wall != nullptr && flat != nullptr)
+        {
+            fail(path, "wall and flat are never both given");
+        }
+
+        Site site;
+
+        if (wall != nullptr)
+        {
+            std::string wall_path = member_path(path, "wall");
+            WallAddress address = read_wall_address(*wall, wall_path);
+            check_wall_address(cells, address, wall_path);
+            site.address = address;
+        }
+        else if (flat != nullptr)
+        {
+            std::string role_path = member_path(path, "flat");
+            std::optional<FlatRole> role = to_flat_role(string_value(*flat, role_path));
+            if (!role.has_value())
+            {
+                fail(role_path, "not a role the format defines");
+            }
+
+            std::string cell_path = member_path(path, "cell_position");
+            FlatCell flat_cell {*role, read_cell_position(required_member(v, path, "cell_position"), cell_path)};
+            check_on_grid(cells, flat_cell.cell_position, cell_path);
+
+            site.address = flat_cell;
+        }
+
+        std::string relation_path = member_path(path, "relation");
+        std::optional<Relation> relation = to_relation(string_value(required_member(v, path, "relation"), relation_path));
+        if (!relation.has_value())
+        {
+            fail(relation_path, "not a relation the format defines");
+        }
+
+        site.relation = *relation;
+
+        if (const values_type* p = member(v, "position"); p != nullptr)
+        {
+            site.position = read_surface_position(*p, member_path(path, "position"));
+        }
+
+        if (const values_type* p = member(v, "orientation"); p != nullptr)
+        {
+            site.orientation = read_direction(*p, member_path(path, "orientation"));
+        }
+
+        return site;
+    }
+
+    //--------------------------------------------------------------------------
+    // site and parent are decoded into fields of their own, and every other file component is kept as written
+    Entity read_entity(const values_type& v, const std::string& path, const Cells& cells)
+    {
+        object(v, path);
+
+        Entity entity;
+
+        std::string id_path = member_path(path, "id");
+        const values_type& id = required_member(v, path, "id");
+        if (!id.is_number_unsigned())
+        {
+            fail(id_path, "a whole, non-negative number was expected");
+        }
+
+        entity.id = id.get<stored_entity_id_type>();
+        entity.type = string_value(required_member(v, path, "type"), member_path(path, "type"));
+        entity.components = read_components(v, path);
+
+        if (entity.components.is_null())
+        {
+            return entity;
+        }
+
+        std::string components_path = member_path(path, "components");
+
+        if (const values_type* p = member(entity.components, "site"); p != nullptr)
+        {
+            entity.site = read_site(*p, member_path(components_path, "site"), cells);
+        }
+
+        if (const values_type* p = member(entity.components, "parent"); p != nullptr)
+        {
+            std::optional<stored_entity_id_type> parent_id = reference_id(*p);
+            if (!parent_id.has_value())
+            {
+                fail(member_path(components_path, "parent"), "not a reference to an entity");
+            }
+
+            entity.parent_id = *parent_id;
+        }
+
+        entity.components.erase("site");
+        entity.components.erase("parent");
+        return entity;
+    }
+
+    using wall_key_type = std::array<coord_type, 4>;
+
+    //--------------------------------------------------------------------------
+    wall_key_type wall_key(const WallAddress& address)
+    {
+        return {address.cell_position.i(), address.cell_position.j(), address.normal.x(), address.normal.y()};
+    }
+
+    //--------------------------------------------------------------------------
+    // Whether the entity is sited on the zone's geometry rather than on its parent
+    bool sited_on_geometry(const Entity& entity)
+    {
+        return entity.site.has_value() && entity.site->address.has_value();
+    }
+
+    //--------------------------------------------------------------------------
+    // The wall an entity is sited on, and none where it is sited on a flat cell or on its parent
+    const WallAddress* wall_address(const Entity& entity)
+    {
+        return sited_on_geometry(entity) ? std::get_if<WallAddress>(&*entity.site->address) : nullptr;
+    }
+
+    //--------------------------------------------------------------------------
+    std::string wall_text(const WallAddress& address)
+    {
+        return std::format("[{}, {}] normal [{}, {}]", address.cell_position.i(), address.cell_position.j(),
+            address.normal.x(), address.normal.y());
+    }
+
+    //--------------------------------------------------------------------------
+    std::string walls_text(const std::vector<WallAddress>& addresses)
+    {
+        std::string text;
+        for (size_t i = 0; i < addresses.size(); ++i)
+        {
+            text += std::format("{}{}", i == 0 ? "" : " and ", wall_text(addresses[i]));
+        }
+
+        return text;
+    }
+
+    //--------------------------------------------------------------------------
+    // The entities by id, by the wall each is sited on, and by the parent each is a child of
+    struct EntityIndex
+    {
+        std::map<stored_entity_id_type, size_t> slots_by_id;
+        std::map<wall_key_type, std::vector<size_t>> slots_by_wall;
+        std::map<stored_entity_id_type, std::vector<size_t>> slots_by_parent;
+    };
+
+    //--------------------------------------------------------------------------
+    EntityIndex entity_index(const std::vector<Entity>& entities)
+    {
+        EntityIndex index;
+
+        for (size_t slot = 0; slot < entities.size(); ++slot)
+        {
+            const Entity& entity = entities[slot];
+            index.slots_by_id.emplace(entity.id, slot);
+
+            if (const WallAddress* address = wall_address(entity); address != nullptr)
+            {
+                index.slots_by_wall[wall_key(*address)].push_back(slot);
+            }
+
+            if (entity.parent_id.has_value())
+            {
+                index.slots_by_parent[*entity.parent_id].push_back(slot);
+            }
+        }
+
+        return index;
+    }
+
+    //--------------------------------------------------------------------------
+    // Every entity is sited on the geometry, has a parent or is a parent, and every hierarchy of parents and
+    // children is sited on the geometry somewhere in it. An entity whose parent is no entity in the file is the
+    // root of its own hierarchy, which is what a saved zone's reference into another zone leaves
+    void check_entities_placed(const std::vector<Entity>& entities, const EntityIndex& index)
+    {
+        for (size_t slot = 0; slot < entities.size(); ++slot)
+        {
+            const Entity& entity = entities[slot];
+
+            if (entity.site.has_value() && !entity.site->address.has_value() && !entity.parent_id.has_value())
+            {
+                fail(element_path("entities", slot), "sited on its parent and has none");
+            }
+
+            if (!sited_on_geometry(entity) && !entity.parent_id.has_value() && !index.slots_by_parent.contains(entity.id))
+            {
+                fail(element_path("entities", slot), "not sited on the geometry, no entity's child and no entity's parent");
+            }
+        }
+
+        for (size_t root = 0; root < entities.size(); ++root)
+        {
+            if (entities[root].parent_id.has_value() && index.slots_by_id.contains(*entities[root].parent_id))
+            {
+                continue;
+            }
+
+            bool sited = false;
+            std::vector<size_t> pending {root};
+
+            while (!pending.empty() && !sited)
+            {
+                size_t slot = pending.back();
+                pending.pop_back();
+                sited = sited_on_geometry(entities[slot]);
+
+                if (auto i = index.slots_by_parent.find(entities[slot].id); i != index.slots_by_parent.end())
+                {
+                    pending.insert(pending.end(), i->second.begin(), i->second.end());
+                }
+            }
+
+            if (!sited)
+            {
+                fail(element_path("entities", root), "no entity in this hierarchy of parents and children is sited on the geometry");
+            }
+        }
+
+        return;
+    }
+
+    //--------------------------------------------------------------------------
+    // Following parent references from an entity never leads back to it
+    void check_entities_acyclic(const std::vector<Entity>& entities, const EntityIndex& index)
+    {
+        enum class Visit { None, Open, Done };
+        std::vector<Visit> visits(entities.size(), Visit::None);
+        std::vector<size_t> chain;
+
+        for (size_t start = 0; start < entities.size(); ++start)
+        {
+            if (visits[start] != Visit::None)
+            {
+                continue;
+            }
+
+            chain.clear();
+
+            for (size_t slot = start; visits[slot] == Visit::None; )
+            {
+                visits[slot] = Visit::Open;
+                chain.push_back(slot);
+
+                const std::optional<stored_entity_id_type>& parent_id = entities[slot].parent_id;
+                auto next = parent_id.has_value() ? index.slots_by_id.find(*parent_id) : index.slots_by_id.end();
+                if (next == index.slots_by_id.end())
+                {
+                    break;
+                }
+
+                if (visits[next->second] == Visit::Open)
+                {
+                    fail(element_path("entities", next->second), "its parents lead back to it");
+                }
+
+                slot = next->second;
+            }
+
+            for (const auto& slot : chain)
+            {
+                visits[slot] = Visit::Done;
+            }
+        }
+
+        return;
+    }
+
+    //--------------------------------------------------------------------------
+    // In a template every reference is an entity's id. A saved zone's may point into another zone, so none is checked
+    void check_references(const Document& document, const EntityIndex& index)
+    {
+        if (document.zone_id.has_value())
+        {
+            return;
+        }
+
+        auto check = [&](stored_entity_id_type id, const std::string& path)
+        {
+            if (!index.slots_by_id.contains(id))
+            {
+                fail(path, std::format("refers to {}, which is no entity's id", id));
+            }
+        };
+
+        auto check_components = [&](const values_type& components, const std::string& path)
+        {
+            for (stored_entity_id_type id : references(components))
+            {
+                check(id, member_path(path, "components"));
+            }
+        };
+
+        check_components(document.components, "layout");
+
+        for (size_t i = 0; i < document.rooms.size(); ++i)
+        {
+            check_components(document.rooms[i].components, element_path("rooms", i));
+        }
+
+        for (size_t i = 0; i < document.walls.size(); ++i)
+        {
+            check_components(document.walls[i].components, element_path("walls", i));
+        }
+
+        for (size_t i = 0; i < document.flats.size(); ++i)
+        {
+            std::string flat_path = element_path("flats", i);
+            check_components(document.flats[i].properties.components, flat_path);
+
+            for (const auto& [room_id, properties] : document.flats[i].rooms)
+            {
+                check_components(properties.components, std::format("{}.rooms[room {}]", flat_path, room_id));
+            }
+
+            for (const auto& [cell_position, properties] : document.flats[i].cells)
+            {
+                check_components(properties.components, std::format("{}.cells[cell [{}, {}]]", flat_path, cell_position.i(), cell_position.j()));
+            }
+        }
+
+        for (size_t i = 0; i < document.entities.size(); ++i)
+        {
+            const Entity& entity = document.entities[i];
+            std::string path = element_path("entities", i);
+
+            check_components(entity.components, path);
+
+            if (entity.parent_id.has_value())
+            {
+                check(*entity.parent_id, member_path(member_path(path, "components"), "parent"));
+            }
+
+        }
+
+        return;
+    }
+
+    //--------------------------------------------------------------------------
+    // Each door glyph is one entity with a child sited on each wall of its doorway and on no other wall
+    void check_door_glyphs(const Document& document, const EntityIndex& index)
+    {
+        auto child_on = [&](stored_entity_id_type parent, const WallAddress& address)
+        {
+            auto i = index.slots_by_wall.find(wall_key(address));
+            return i != index.slots_by_wall.end()
+                && std::ranges::any_of(i->second, [&](size_t slot) { return document.entities[slot].parent_id == parent; });
+        };
+
+        for (const std::vector<WallAddress>& walls : door_walls(document.cells))
+        {
+            std::set<stored_entity_id_type> parents;
+
+            for (const WallAddress& address : walls)
+            {
+                auto i = index.slots_by_wall.find(wall_key(address));
+                if (i == index.slots_by_wall.end())
+                {
+                    continue;
+                }
+
+                for (size_t slot : i->second)
+                {
+                    if (document.entities[slot].parent_id.has_value())
+                    {
+                        parents.insert(*document.entities[slot].parent_id);
+                    }
+                }
+            }
+
+            std::vector<stored_entity_id_type> doors;
+            for (stored_entity_id_type parent : parents)
+            {
+                if (std::ranges::all_of(walls, [&](const WallAddress& address) { return child_on(parent, address); }))
+                {
+                    doors.push_back(parent);
+                }
+            }
+
+            std::string text = walls_text(walls);
+
+            if (doors.empty())
+            {
+                fail("entities", std::format("the doorway at {} has no entity with a child sited on each of its walls", text));
+            }
+
+            if (doors.size() > 1)
+            {
+                fail("entities", std::format("the doorway at {} has {} entities with a child sited on each of its walls", text, doors.size()));
+            }
+
+            for (size_t slot : index.slots_by_parent.find(doors.front())->second)
+            {
+                const WallAddress* address = wall_address(document.entities[slot]);
+
+                if (address != nullptr && std::ranges::find(walls, *address) == walls.end())
+                {
+                    fail(element_path("entities", slot), std::format("sited on a wall that is not one of the walls of its door's doorway at {}", text));
+                }
+            }
+        }
+
+        return;
+    }
+
+    //--------------------------------------------------------------------------
+    // The walls the open neighbors of each stair cell present to it, one of which is the staircase's open side
+    std::map<discrete_point_type, std::vector<WallAddress>> stair_cell_walls(const Cells& cells)
+    {
+        std::map<discrete_point_type, std::vector<WallAddress>> result;
+
+        for (coord_type j = 0; j < cells.extent.y(); ++j)
+        {
+            for (coord_type i = 0; i < cells.extent.x(); ++i)
+            {
+                discrete_point_type cell_position {i, j};
+                if (!stair_cell(cells, cell_position))
+                {
+                    continue;
+                }
+
+                std::vector<WallAddress> walls;
+
+                for (const auto& direction : quetzal::math::cardinal_directions<coord_type, 2>)
+                {
+                    discrete_point_type neighbor = cell_position + direction;
+                    if (on_grid(cells, neighbor) && floor_door_cell(cells, neighbor) && has_wall(cells, neighbor, -direction))
+                    {
+                        walls.push_back({neighbor, direction});
+                    }
+                }
+
+                result.emplace(cell_position, std::move(walls));
+            }
+        }
+
+        return result;
+    }
+
+    //--------------------------------------------------------------------------
+    // Each stair glyph is one entity with a relocator, sited on the wall on its open side
+    void check_stair_glyphs(const Document& document, const EntityIndex& index,
+        const std::map<discrete_point_type, std::vector<WallAddress>>& stair_walls)
+    {
+        for (const auto& [cell_position, walls] : stair_walls)
+        {
+            std::vector<size_t> relocators;
+
+            for (const WallAddress& address : walls)
+            {
+                auto i = index.slots_by_wall.find(wall_key(address));
+                if (i == index.slots_by_wall.end())
+                {
+                    continue;
+                }
+
+                for (size_t slot : i->second)
+                {
+                    if (member(document.entities[slot].components, "relocator") != nullptr)
+                    {
+                        relocators.push_back(slot);
+                    }
+                }
+            }
+
+            if (relocators.empty())
+            {
+                fail("entities", std::format("the stair cell at [{}, {}] has no entity with a relocator sited on a wall its open neighbors present to it",
+                    cell_position.i(), cell_position.j()));
+            }
+
+            if (relocators.size() > 1)
+            {
+                fail(element_path("entities", relocators[1]), std::format("a second entity with a relocator on the walls around the stair cell at [{}, {}]",
+                    cell_position.i(), cell_position.j()));
+            }
+        }
+
+        return;
+    }
+
+    //--------------------------------------------------------------------------
+    // Every zone is built with its access points, at least one: each an entity with a relocator sited on the open
+    // side of a cell written '<' or '>'
+    void check_access_points(const Document& document, const EntityIndex& index,
+        const std::map<discrete_point_type, std::vector<WallAddress>>& stair_walls)
+    {
+        const std::string path = "layout.components.access_points";
+
+        const values_type* access_points = member(document.components, "access_points");
+        if (access_points == nullptr)
+        {
+            fail(path, "required and absent");
+        }
+
+        const values_type& a = array(*access_points, path);
+        if (a.empty())
+        {
+            fail(path, "no access point");
+        }
+
+        std::set<wall_key_type> open_sides;
+        for (const auto& [cell_position, walls] : stair_walls)
+        {
+            for (const WallAddress& address : walls)
+            {
+                open_sides.insert(wall_key(address));
+            }
+        }
+
+        for (size_t i = 0; i < a.size(); ++i)
+        {
+            std::string point_path = element_path(path, i);
+
+            std::optional<stored_entity_id_type> id = reference_id(a[i]);
+            if (!id.has_value())
+            {
+                fail(point_path, "not a reference to an entity");
+            }
+
+            auto slot = index.slots_by_id.find(*id);
+            if (slot == index.slots_by_id.end())
+            {
+                fail(point_path, std::format("refers to {}, which is no entity's id", *id));
+            }
+
+            const Entity& entity = document.entities[slot->second];
+            if (member(entity.components, "relocator") == nullptr)
+            {
+                fail(point_path, "an entity with no relocator");
+            }
+
+            const WallAddress* address = wall_address(entity);
+            if (address == nullptr || !open_sides.contains(wall_key(*address)))
+            {
+                fail(point_path, "an entity that is not sited on the open side of a cell written '<' or '>'");
+            }
+        }
+
+        return;
+    }
+
+    //--------------------------------------------------------------------------
+    // Each section in turn, the grid first because everything addressed is addressed against it
+    Document read_document(const values_type& v)
+    {
+        object(v, "");
+
+        std::string format = string_value(required_member(v, "", "format"), "format");
+        if (format != format_name)
+        {
+            fail("format", std::format("'{}' is not this format", format));
+        }
+
+        Document document;
+        document.version = string_value(required_member(v, "", "version"), "version");
+        if (document.version != format_version)
+        {
+            fail("version", std::format("'{}' is not a version this reads", document.version));
+        }
+
+        if (const values_type* p = member(v, "zone"); p != nullptr)
+        {
+            object(*p, "zone");
+
+            std::string id_path = "zone.id";
+            const values_type& id = required_member(*p, "zone", "id");
+            if (!id.is_number_unsigned())
+            {
+                fail(id_path, "a whole, non-negative number was expected");
+            }
+
+            document.zone_id = id.get<stored_entity_id_type>();
+        }
+
+        if (const values_type* p = member(v, "generator"); p != nullptr)
+        {
+            document.generator = object(*p, "generator");
+        }
+
+        if (const values_type* p = member(v, "layout"); p != nullptr)
+        {
+            object(*p, "layout");
+            document.components = read_components(*p, "layout");
+        }
+
+        document.cells = read_cells(required_member(v, "", "cells"), "cells");
+
+        if (const values_type* p = member(v, "barriers"); p != nullptr)
+        {
+            document.barriers = read_barriers(*p, "barriers", document.cells);
+        }
+
+        if (const values_type* p = member(v, "rooms"); p != nullptr)
+        {
+            const values_type& a = array(*p, "rooms");
+            document.rooms.reserve(a.size());
+
+            for (size_t i = 0; i < a.size(); ++i)
+            {
+                document.rooms.push_back(read_room(a[i], element_path("rooms", i), document.cells));
+            }
+
+            check_rooms(document);
+        }
+
+        if (const values_type* p = member(v, "walls"); p != nullptr)
+        {
+            const values_type& a = array(*p, "walls");
+            document.walls.reserve(a.size());
+
+            std::set<std::array<coord_type, 4>> addresses;
+
+            for (size_t i = 0; i < a.size(); ++i)
+            {
+                Wall wall = read_wall(a[i], element_path("walls", i), document.cells);
+
+                const WallAddress& address = wall.address;
+                if (!addresses.insert({address.cell_position.i(), address.cell_position.j(), address.normal.x(), address.normal.y()}).second)
+                {
+                    fail(member_path(element_path("walls", i), "wall"), "a second entry for one wall");
+                }
+
+                document.walls.push_back(std::move(wall));
+            }
+        }
+
+        if (const values_type* p = member(v, "flats"); p != nullptr)
+        {
+            const values_type& a = array(*p, "flats");
+            document.flats.reserve(a.size());
+
+            for (size_t i = 0; i < a.size(); ++i)
+            {
+                Flat flat = read_flat(a[i], element_path("flats", i), document.cells, document.rooms.size());
+
+                for (const Flat& other : document.flats)
+                {
+                    if (other.role == flat.role)
+                    {
+                        fail(element_path("flats", i), "a second flat in one role");
+                    }
+                }
+
+                document.flats.push_back(std::move(flat));
+            }
+        }
+
+        if (const values_type* p = member(v, "entities"); p != nullptr)
+        {
+            const values_type& a = array(*p, "entities");
+            document.entities.reserve(a.size());
+
+            std::set<stored_entity_id_type> ids;
+
+            for (size_t i = 0; i < a.size(); ++i)
+            {
+                std::string entity_path = element_path("entities", i);
+                Entity entity = read_entity(a[i], entity_path, document.cells);
+
+                if (!ids.insert(entity.id).second)
+                {
+                    fail(member_path(entity_path, "id"), std::format("a second entity with the id {}", entity.id));
+                }
+
+                document.entities.push_back(std::move(entity));
+            }
+        }
+
+        EntityIndex index = entity_index(document.entities);
+        check_entities_placed(document.entities, index);
+        check_entities_acyclic(document.entities, index);
+        check_references(document, index);
+
+        std::map<discrete_point_type, std::vector<WallAddress>> stair_walls = stair_cell_walls(document.cells);
+        check_door_glyphs(document, index);
+        check_stair_glyphs(document, index, stair_walls);
+        check_access_points(document, index, stair_walls);
+
+        return document;
+    }
+
+} // namespace
+
+//------------------------------------------------------------------------------
+quetzal::stratum_format::Document quetzal::stratum_format::read(std::istream& is, const std::string& name)
+{
+    values_type v;
+
+    try
+    {
+        v = values_type::parse(is);
+    }
+    catch (const values_type::parse_error& e)
+    {
+        throw std::runtime_error(std::format("{}: {}", name, e.what()));
+    }
+
+    try
+    {
+        return read_document(v);
+    }
+    catch (const std::runtime_error& e)
+    {
+        throw std::runtime_error(std::format("{}: {}", name, e.what()));
+    }
+}
+
+//------------------------------------------------------------------------------
+quetzal::stratum_format::Document quetzal::stratum_format::read(const std::filesystem::path& filepath)
+{
+    std::ifstream is(filepath, std::ios::binary);
+    if (!is)
+    {
+        throw std::runtime_error(std::format("{}: cannot be opened", filepath.string()));
+    }
+
+    return read(is, filepath.string());
+}

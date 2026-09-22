@@ -315,7 +315,7 @@ namespace
         for (size_t pass = 0; pass < rooms.size(); ++pass)
         {
             Components components(region_count);
-            for (const auto& [key, sites] : door_sites(extent, regions))
+            for (const auto& [key, _] : door_sites(extent, regions))
             {
                 components.merge(key.first, key.second);
             }
@@ -363,7 +363,7 @@ namespace
     // region, and the edge between two cells is open only where both belong to the same one
     // A wall faces open floor on the side it belongs to, so an edge with floor on neither
     // side has none at all -- the outer boundary included, where the cell across is the
-    // rock outside the level
+    // rock outside the zone
     void realize(Level& level, const cell_region_mapping& regions)
     {
         const vector_type& extent = level.extent();
@@ -414,7 +414,7 @@ namespace
         vector<pair_type> keys;
         keys.reserve(sites.size());
 
-        for (const auto& [key, edges] : sites)
+        for (const auto& [key, _] : sites)
         {
             keys.push_back(key);
         }
@@ -555,7 +555,7 @@ namespace
         size_t down_count = draw_count(parameters.staircase_down_count, random);
         size_t up_count = draw_count(parameters.staircase_up_count, random);
 
-        // Every staircase is an entry, and a level needs one
+        // Every staircase is an access point, and a zone needs one
         if (rooms.empty())
         {
             throw runtime_error("the level has no room a staircase can take, and so no entry");

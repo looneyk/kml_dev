@@ -1,8 +1,8 @@
 {
   "format": "quetzal.discrete_layout",
-  "version": "0.3",
+  "version": "0.4",
   "layout": {
-    "components": { "entry": [[1, 5]] }
+    "components": { "access_points": [ { "entity": 1 } ] }
   },
   "cells": {
     "notation": "block",
@@ -18,7 +18,7 @@
       "########"
     ]
   },
-  "attachments": [
-    { "flat": "floor", "cell": [1, 5], "entities": [ { "type": "waypoint", "components": { "relocator": { "target": "level_up" } } } ] }
+  "entities": [
+    { "id": 1, "type": "waypoint", "components": { "site": { "relation": "on", "wall": { "cell_position": [1, 4], "normal": [0, -1] } }, "relocator": { "target": "up" } } }
   ]
 }

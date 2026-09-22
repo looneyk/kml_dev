@@ -6,6 +6,7 @@
 #include "cells.hpp"
 #include "quetzal/stratum_sim/attachments.hpp"
 #include "quetzal/stratum_sim/DiscreteLayout.hpp"
+#include "quetzal/stratum_sim/Site.hpp"
 #include <cassert>
 
 namespace sim = quetzal::stratum_sim;
@@ -115,12 +116,17 @@ namespace
     {
         const sim::GridMapping& grid = layout.grid();
 
-        zone.world().query_builder<const sim::placement_type>()
+        zone.world().query_builder<const sim::Site>()
             .with(flecs::ChildOf, zone)
             .build()
-            .each([&](const sim::placement_type& placement)
+            .each([&](const sim::Site& site)
             {
-                sim::discrete_point_type cell_position = layout.cell_position_at(placement.position());
+                if (site.address.has_value())
+                {
+                    return; // Placed in its address's frame rather than the zone's
+                }
+
+                sim::discrete_point_type cell_position = layout.cell_position_at(site.placement.position());
                 if (grid.contains(cell_position))
                 {
                     f(cell_position);

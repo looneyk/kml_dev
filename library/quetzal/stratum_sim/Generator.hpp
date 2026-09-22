@@ -17,7 +17,7 @@ namespace quetzal::stratum_sim
     // was chosen: this library links neither of them, and which one runs decides which
     // parameters apply, so the concrete generator declares its own
     // A zone is constructed whole when it is encountered, so this is the general way one
-    // arrives; a level file is a snapshot of part of the same construction
+    // arrives; a zone file is a snapshot of part of the same construction
     class Generator
     {
     public:

@@ -15,7 +15,7 @@ namespace quetzal::catagen
 {
 
     //--------------------------------------------------------------------------
-    // The generation parameters of one run, written into the level file so that a level
+    // The generation parameters of one run, written into the zone file so that a zone
     // names what produced it and can be produced again
     struct Parameters
     {
@@ -42,13 +42,13 @@ namespace quetzal::catagen
         math::Interval<size_t> staircase_up_count {1, 1};
 
         // Empty until one is assigned, so that a caller who never did is caught by validate
-        // rather than quietly handed the same level every run
+        // rather than quietly handed the same zone every run
         std::optional<seed_type> seed;
     };
 
     // A seed drawn from the platform's entropy source, for a caller wanting a different
-    // level each run. Generation itself takes the seed it is given, so that a written
-    // seed reproduces a level exactly
+    // zone each run. Generation itself takes the seed it is given, so that a written
+    // seed reproduces a zone exactly
     Parameters::seed_type random_seed();
 
     // Throws std::invalid_argument naming the parameter at fault

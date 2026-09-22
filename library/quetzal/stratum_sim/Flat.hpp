@@ -16,7 +16,7 @@ namespace quetzal::stratum_sim
     //--------------------------------------------------------------------------
     // A horizontal surface bounding the layout, one below and one above. The two differ by
     // role and nothing else, a stalactite and a stalagmite being one shape inverted
-    // A height at the three levels a level file states it: across the whole flat, per room and per cell, each overriding
+    // A height at the three levels a zone file states it: across the whole flat, per room and per cell, each overriding
     // the one above. The ordinary flat is one height and two empty tables. The layout resolves a cell's height, the room
     // covering a cell being the layout's
     class Flat

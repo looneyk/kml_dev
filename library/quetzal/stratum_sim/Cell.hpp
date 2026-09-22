@@ -12,8 +12,7 @@ namespace quetzal::stratum_sim
 {
 
     //--------------------------------------------------------------------------
-    // One square of a Zone's grid and what the layout records about it. What a level file
-    // encodes per cell, read back without consulting anything else
+    // One square of a Zone's grid and what the layout records about it. What a zone file encodes per cell
     struct Cell
     {
         bool open = false; // Whether a mover may stand here

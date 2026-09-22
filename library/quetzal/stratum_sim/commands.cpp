@@ -6,6 +6,7 @@
 #include "commands.hpp"
 #include "attachments.hpp"
 #include "Scheduler.hpp"
+#include "Site.hpp"
 #include <cmath>
 
 //------------------------------------------------------------------------------
@@ -17,16 +18,16 @@ int quetzal::stratum_sim::apply(World& world, const Command& command, EventQueue
         return 0;
     }
 
-    flecs::entity zone = world.zone_of(e);
-    const placement_type* pplacement = e.try_get<placement_type>();
+    flecs::entity zone = zone_of(e);
+    const Site* psite = e.try_get<Site>();
 
-    if (!zone || pplacement == nullptr)
+    if (!zone || psite == nullptr)
     {
         return 0;
     }
 
     const Layout& layout = world.layout(zone);
-    placement_type placement = *pplacement;
+    placement_type placement = psite->placement;
 
     if (const Step* pstep = command.try_get<Step>())
     {
@@ -40,7 +41,7 @@ int quetzal::stratum_sim::apply(World& world, const Command& command, EventQueue
             if (faced.direction() != placement.direction())
             {
                 placement = faced;
-                e.set<placement_type>(placement);
+                set_placement(e, placement);
                 events.push(Turned {command.entity_id(), placement});
             }
         }
@@ -52,7 +53,7 @@ int quetzal::stratum_sim::apply(World& world, const Command& command, EventQueue
 
         if (moved)
         {
-            e.set<placement_type>(result.placement);
+            set_placement(e, result.placement);
             events.push(Moved {command.entity_id(), result.placement});
         }
 
@@ -84,7 +85,7 @@ int quetzal::stratum_sim::apply(World& world, const Command& command, EventQueue
             return 0;
         }
 
-        e.set<placement_type>(turned);
+        set_placement(e, turned);
         events.push(Turned {command.entity_id(), turned});
 
         return Scheduler::action_cost;

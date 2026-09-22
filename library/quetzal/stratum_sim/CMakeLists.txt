@@ -11,6 +11,7 @@ add_library(quetzal_stratum_sim STATIC
     load_layout.cpp
     Scheduler.cpp
     Session.cpp
+    Site.cpp
     World.cpp
     ai.hpp
     attachments.hpp
@@ -32,6 +33,7 @@ add_library(quetzal_stratum_sim STATIC
     load_layout.hpp
     Scheduler.hpp
     Session.hpp
+    Site.hpp
     types.hpp
     World.hpp
 )

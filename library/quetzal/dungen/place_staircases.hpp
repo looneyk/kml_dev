@@ -19,7 +19,7 @@ namespace quetzal::dungen
     // them places fewer than were asked for, those leading down going short before those leading up. A candidate whose
     // block would cut a passage, or leave a staircase nothing to face, is passed over
     // This should alternately place up and down staircases ...
-    // Throws std::runtime_error where none can be placed, every staircase being an entry and a level needing one
+    // Throws std::runtime_error where none can be placed, every staircase being an access point and a zone needing one
     // Each algorithm supplies the cells its own layout allows a staircase to be placed in
     void place_staircases(Level& level, std::vector<point_type> candidates, const math::Interval<size_t>& staircase_down_count,
         const math::Interval<size_t>& staircase_up_count, random_type& random);
