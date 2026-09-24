@@ -238,6 +238,8 @@ void quetzal::dungen::write_level(ostream& os, const Level& level, const Paramet
     }
 
     values_type access_points = values_type::array();
+    size_t down_count = 0;
+    size_t up_count = 0;
 
     for (const auto& staircase : level.staircases())
     {
@@ -246,8 +248,19 @@ void quetzal::dungen::write_level(ostream& os, const Level& level, const Paramet
         const vector_type& open_side = *staircase.facing();
         stratum_format::WallAddress address {staircase.position() + open_side, open_side};
 
+        // Ordered among the staircases leading the same way
+        bool down = staircase.direction() == StaircaseDirection::Down;
+
+        // An arriving actor is placed on the floor it opens onto, facing away from it
+        values_type entry = values_type::object();
+        entry["cell_position"] = values_type::array({address.cell_position.i(), address.cell_position.j()});
+        entry["orientation"] = values_type::array({open_side.x(), open_side.y()});
+
         values_type relocator = values_type::object();
-        relocator["target"] = staircase.direction() == StaircaseDirection::Down ? "down" : "up";
+        relocator["type"] = down ? "down" : "up";
+        relocator["target"] = down ? "down" : "up";
+        relocator["order"] = down ? down_count++ : up_count++;
+        relocator["entry"] = std::move(entry);
 
         values_type components = values_type::object();
         components["relocator"] = std::move(relocator);

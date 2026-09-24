@@ -20,11 +20,11 @@ namespace quetzal::catagen
     {
         using seed_type = std::default_random_engine::result_type;
 
-        vector_type extent {48, 32}; // The area to fill, in cells
+        vector_type extent {48, 32}; // The size of the zone, in cells
 
         // Target room size in cells. The partition splits while a room exceeds the upper bound
         // and never below the lower, so a room falls within the range unless the range is too
-        // narrow to split into -- an upper below twice the lower leaves rooms oversized
+        // narrow to split into -- an upper below twice the lower lets rooms exceed it
         math::Interval<coord_type> scale {4, 8};
 
         // Solid cells between rooms. At zero, adjoining rooms share a wall

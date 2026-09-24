@@ -234,6 +234,24 @@ quetzal::id_type quetzal::stratum_sim::DiscreteLayout::wall_toward(const discret
 }
 
 //------------------------------------------------------------------------------
+quetzal::stratum_sim::discrete_point_type quetzal::stratum_sim::DiscreteLayout::wall_cell_position(id_type wall_id) const
+{
+    assert(wall_id != nullid);
+
+    size_t cell_slot = wall_id / cardinal_directions.size();
+    auto width = static_cast<size_t>(grid().extent.x());
+
+    return discrete_point_type {static_cast<coord_type>(cell_slot % width), static_cast<coord_type>(cell_slot / width)};
+}
+
+//------------------------------------------------------------------------------
+const quetzal::stratum_sim::discrete_vector_type& quetzal::stratum_sim::DiscreteLayout::wall_direction(id_type wall_id) const
+{
+    assert(wall_id != nullid);
+    return cardinal_directions[wall_id % cardinal_directions.size()];
+}
+
+//------------------------------------------------------------------------------
 bool quetzal::stratum_sim::DiscreteLayout::crossable(const discrete_point_type& cell_position, const discrete_vector_type& direction,
     const crossable_function_type& is_wall_crossable) const
 {

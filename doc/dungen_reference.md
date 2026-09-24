@@ -36,7 +36,8 @@ written, and it is part of no room.
 
 Each door is a `door` entity with a `door_facing` child on each wall `stratum_format::door_walls` finds for its glyph.
 Each staircase is a `staircase` entity sited on the wall that the cell it opens onto has toward its block, with a
-`relocator` whose `target` is `down` or `up`. `layout.components.access_points` refers to every staircase. Local ids
+`relocator` whose `type` and `target` are `down` or `up`, whose `order` counts from 0 among the staircases leading the
+same way, in the order they are written, and whose `entry` is the floor its open side faces, facing away from it. `layout.components.access_points` refers to every staircase. Local ids
 are in the order the entities are written --- each door, then its door facings, and the staircases last --- so the
 same parameters give the same ids.
 
@@ -61,8 +62,8 @@ Generation:
 - `Parameters` --- `algorithm`, `size`, `staircase_down_count`, `staircase_up_count` and `seed` in common, then one
   group per algorithm: `Maze1Parameters`, `Grid1Parameters`, `Cave1Parameters`. `validate` checks the shared fields
   and the chosen algorithm's group. `random_seed` draws a seed from the platform. The staircase counts are closed
-  ranges of `size_t`, 1-1 by default, and `validate` rejects one whose maximum is below its minimum, and counts whose
-  minimums are both zero, every staircase being an access point and a zone requiring one.
+  ranges of `size_t`, 1-1 by default, and `validate` rejects one whose maximum is below its minimum, and a staircase up
+  count whose minimum is zero, a dungeon level being entered at and left by a staircase leading up.
 - `generate` --- dispatches on `parameters.algorithm` to `generate_maze1`, `generate_grid1` or `generate_cave1`, one
   file each. Each asserts the algorithm it was given, validates, seeds its own `random_type` from `parameters.seed`,
   and is deterministic in its parameters. It throws `std::runtime_error` where no staircase could be placed to be an

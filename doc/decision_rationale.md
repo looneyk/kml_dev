@@ -279,11 +279,11 @@ release build.
 caller name a cell that need not exist purely to express a direction, and made the adjacency of the two an assertion
 instead of a property of the type.
 
-## Session entries share one populate
+## Zone entries share one construction
 
-A zone is constructed whole when it is encountered, geometry and contents, so `Session::create` from a `Generator` is
-the general entry, and a zone file is a snapshot of part of the same construction, loaded by the narrower `load`. Both
-are written in terms of `populate`, so no route drifts from another.
+A zone is constructed whole when it is encountered, geometry and contents, so `World::create_zone` from a `Generator`
+is the general entry, and a zone file is a snapshot of part of the same construction, loaded by the narrower
+`load_zone`. Both build through `create_zone(layout)`, create the doors and populate, so no route drifts from another.
 
 `Generator` is an interface in `stratum_sim` and an implementation wherever a generator is chosen, so `stratum_sim`
 links no generator, and the concrete generator declares the parameters that apply to it.

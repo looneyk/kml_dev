@@ -3,7 +3,7 @@
 What exists, as built. `catagen_plan.md` is the intent.
 
 `catagen` is a wall based zone generator: a wall is a property of the edge between two cells rather than a cell of its
-own, so rooms share walls and a partition of a rectangle leaves no cell solid. `dungen` is the block oriented generator
+own, so rooms share walls and a partition of the extent has no solid cell. `dungen` is the block oriented generator
 beside it. Neither shares code with the other.
 
 - `library/quetzal/catagen` --- the generator
@@ -34,7 +34,9 @@ and floor, even where the generated wall is open, and none on its other edges. c
 
 Each door is a `door` entity with a `door_facing` child on each wall `stratum_format::door_walls` finds for its glyph,
 the two sides of its edge. Each staircase is a `staircase` entity sited on the wall that the cell it opens onto
---- floor or a door --- has toward its block, with a `relocator` whose `target` is `down` or `up`.
+--- floor or a door --- has toward its block, with a `relocator` whose `type` and `target` are `down` or `up`, whose
+`order` counts from 0 among the staircases leading the same way, in the order they are written, and whose `entry` is
+the floor its open side faces, facing away from it.
 `layout.components.access_points` refers to every staircase. Local ids are in the order the entities are written ---
 each door, then its door facings, and the staircases last --- so the same parameters give the same ids.
 
@@ -54,8 +56,8 @@ wall of `(i + 1, j)` are the same wall. A new `Level` has no cell open and every
 **`Parameters`** --- `extent`; `scale` and `spacing`, closed ranges of cells; `density`; `loop`;
 `staircase_down_count` and `staircase_up_count`, closed ranges of counts defaulting to 1-1; and `seed`, a
 `std::optional` empty until assigned. `validate` throws `std::invalid_argument` identifying the parameter at fault,
-including an unassigned seed, a count range whose maximum is below its minimum, and counts whose minimums are both zero,
-every staircase being an access point and a zone requiring one. `random_seed()` draws a seed from
+including an unassigned seed, a count range whose maximum is below its minimum, and a staircase up count whose minimum
+is zero, a dungeon level being entered at and left by a staircase leading up. `random_seed()` draws a seed from
 `std::random_device`.
 
 **`generate`** --- the algorithm below. **`write_level`** writes the zone file, **`write_grid`** its rows alone.
@@ -69,28 +71,29 @@ determined by its parameters.
 halves would still reach the scale minimum, the cut at a uniformly chosen position within that range.
 
 Each cut also draws a spacing from its range, and that many solid cells are left along the cut, so the gap between two
-rooms is the spacing drawn. Two leaves that touch do so across the cut of their lowest common ancestor alone, so
+rooms is the spacing drawn. Two rectangles that touch do so across the cut of their lowest common ancestor alone, so
 spacing every cut spaces every pair: at any spacing above zero no two rooms share a wall, and corridors join them all.
-A side must reach `2 * scale_min + spacing` to be cut, so a large spacing leaves rooms larger than the scale asked for.
-At spacing zero, the default, the leaves tile the rectangle exactly, and no value is drawn, a range of one offering no
+A side must reach `2 * scale_min + spacing` to be cut, so a large spacing makes rooms larger than the scale asked for.
+At spacing zero, the default, the rectangles tile the extent exactly, and no value is drawn, a range of one offering no
 choice.
 
-**2. Selection.** At `density` 1.0 every leaf becomes a room. Below it, leaves are taken in a random order until their
-area reaches the density, and the rest are left solid. A room's region id is its position in the room list, stored in
-a cell to region map.
+**2. Selection.** The rooms are the rectangles kept. At `density` 1.0 every rectangle is kept. Below it, rectangles are
+taken in a random order until their cells reach the density, and the rest are solid. An area is floor that walls
+separate and doors join: each room is one, its area id its position in the room list, stored in a map from each cell
+to its area.
 
 **3. Corridors.** While two rooms are unconnected, the closest such pair by Manhattan distance between centers is
 joined by an L shaped path, turning once, with the first leg chosen at random. Only solid cells along the path are
-carved, and each unbroken run of carved cells becomes a region of its own, so a path crossing a room does not split one
-region into disconnected pieces. Components are recounted after each corridor, so a corridor joining more than two
-rooms is not followed by a redundant one. A corridor is a room one cell wide.
+carved, and each unbroken run of carved cells becomes an area of its own, so a path crossing a room does not split one
+area into disconnected pieces. Components are recounted after each corridor, so a corridor joining more than two
+rooms is not followed by a redundant one. A corridor is an area one cell wide.
 
-**4. Realization.** A cell is floor where it belongs to a region, and an edge is open only between two cells of the same
-region. Every other edge with floor on a side has a solid wall, the outer boundary included.
+**4. Realization.** A cell is floor where it belongs to an area, and an edge is open only between two cells of the same
+area. Every other edge with floor on a side has a solid wall, the outer boundary included.
 
-**5. Doors.** The cell edges with a different region on each side are grouped by the pair of regions; each is a
-possible door site. The pairs are taken in random order, and a door is placed at a random site of each pair that joins
-two regions not yet joined, a random spanning tree over the adjacency graph, so every region is reachable. Each
+**5. Doors.** The cell edges with a different area on each side are grouped by the pair of areas; each is a possible
+door site. The pairs are taken in random order, and a door is placed at a random site of each pair that joins two
+areas not yet joined, a random spanning tree over the adjacency graph, so every area is reachable. Each
 remaining pair has a door with probability `loop`.
 
 **6. Staircases.** A count leading down is drawn from `staircase_down_count` and a count leading up from
@@ -102,7 +105,7 @@ going short first. A zone with no room for one throws `std::runtime_error`.
 
 **7. Staircases off doorways.** A staircase with a door on a side of its cell moves one cell, in a random direction
 across an open wall, onto floor with no door on any side where step 6 allows a block, and stays where there is no such
-direction. An open wall joins two cells of one region, so the staircase stays in its own space.
+direction. An open wall joins two cells of one area, so the staircase stays in its own area.
 
 **8. Facing direction.** Each staircase's facing direction is drawn from the sides of its cell with an open wall and
 floor beyond, or where there are none, from those with a door. These last three passes draw after every other, so
@@ -136,7 +139,7 @@ to the loader, closed like solid, and a catagen zone loads with no rooms.
 
 - **`>` is down and `<` is up**, as in dungen, so both notations share the cell glyphs.
 - **Loop adds doors, never corridors**: a loop is a second way between two rooms already adjacent.
-- **A scale range narrower than twice its minimum leaves rooms above the maximum**, there being no cut both halves
+- **A scale range narrower than twice its minimum yields rooms above the maximum**, there being no cut both halves
   would survive. A scale maximum at or above `2 * scale_min - 1` avoids it.
 - **One glyph per edge describes both sides alike.** A wall is per side, and the loader builds a wall on each side from
   the one glyph. A door open or secret from one side only is file components on that side's door facing.

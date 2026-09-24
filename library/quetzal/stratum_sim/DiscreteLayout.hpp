@@ -76,6 +76,10 @@ namespace quetzal::stratum_sim
         // The wall on this cell's side in the given direction, if any. Its id encodes the cell and the direction
         id_type wall_toward(const discrete_point_type& cell_position, const discrete_vector_type& direction) const;
 
+        // The cell a wall is on and the direction it faces from that cell, from the id wall_toward returns
+        discrete_point_type wall_cell_position(id_type wall_id) const;
+        const discrete_vector_type& wall_direction(id_type wall_id) const;
+
         // True where there is no wall in that direction, and otherwise what is_wall_crossable returns for the wall
         bool crossable(const discrete_point_type& cell_position, const discrete_vector_type& direction, const crossable_function_type& is_wall_crossable) const;
 

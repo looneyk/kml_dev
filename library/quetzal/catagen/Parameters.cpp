@@ -66,10 +66,10 @@ void quetzal::catagen::validate(const Parameters& parameters)
             parameters.staircase_up_count.upper(), parameters.staircase_up_count.lower()));
     }
 
-    // Every staircase is an access point, and a zone requires one
-    if (parameters.staircase_down_count.lower() + parameters.staircase_up_count.lower() == 0)
+    // A dungeon level is entered at, and left by, a staircase leading up
+    if (parameters.staircase_up_count.lower() == 0)
     {
-        throw invalid_argument("staircase down and up count minimums of zero may leave the level no entry");
+        throw invalid_argument("a staircase up count minimum of zero may leave the level no staircase leading up");
     }
 
     if (!parameters.seed)

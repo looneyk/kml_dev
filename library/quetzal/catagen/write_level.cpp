@@ -186,6 +186,8 @@ void quetzal::catagen::write_level(ostream& os, const Level& level, const Parame
     }
 
     values_type access_points = values_type::array();
+    size_t down_count = 0;
+    size_t up_count = 0;
 
     for (coord_type j = 0; j < level.extent().j(); ++j)
     {
@@ -203,8 +205,19 @@ void quetzal::catagen::write_level(ostream& os, const Level& level, const Parame
             const vector_type& step = cardinal_direction(*open_side);
             stratum_format::WallAddress address {point_type {i, j} + step, step};
 
+            // Ordered among the staircases leading the same way
+            bool down = type == CellType::StairsDown;
+
+            // An arriving actor is placed on the floor it opens onto, facing away from it
+            values_type entry = values_type::object();
+            entry["cell_position"] = values_type::array({address.cell_position.i(), address.cell_position.j()});
+            entry["orientation"] = values_type::array({step.x(), step.y()});
+
             values_type relocator = values_type::object();
-            relocator["target"] = type == CellType::StairsDown ? "down" : "up";
+            relocator["type"] = down ? "down" : "up";
+            relocator["target"] = down ? "down" : "up";
+            relocator["order"] = down ? down_count++ : up_count++;
+            relocator["entry"] = std::move(entry);
 
             values_type components = values_type::object();
             components["relocator"] = std::move(relocator);

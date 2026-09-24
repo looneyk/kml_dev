@@ -10,7 +10,8 @@ A stage large enough to need its own detail has a plan of its own: `intent_plan.
 stage 4, `view_plan.md` for stage 5, and `attachment_plan.md` and `glyph_plan.md` for two items of stage 6.
 `dungen_plan.md` and `catagen_plan.md` cover the two generators. `placement_plan.md` is the form placement takes when
 it is built, and `site_plan.md` is where every entity is and what it belongs to; neither is a stage. `modding_plan.md`
-is the design goal every stage is held to: everything a game adds is data or script.
+is the design goal every stage is held to: everything a game adds is data or script. `session_plan.md` is how the
+parts of `StratumGame` divide stage 7's work.
 `discrete_layout_plan.md` covers stage 8, with `discrete_layout.md` the format it builds to and
 `discrete_layout_rework.md` the design of loading a zone from it. `addressing.md` specifies ids and addressing ---
 geometry, entities, attachments, references --- and `addressing_plan.md` is the design of the rest of stage 8.
@@ -22,12 +23,16 @@ geometry, entities, attachments, references --- and `addressing_plan.md` is the 
 One box per plan with steps of its own, checked when every step is done.
 
 - [ ] [`addressing_plan.md`](addressing_plan.md) --- ids and addressing: format 0.4, persistent ids, links, loading a
-      zone against them, and a zone actor index. 9 steps, steps 1, 2 and 3 done.
+      zone against them, and a zone actor index. 9 steps, steps 1 to 4 done.
 - [x] [`site_plan.md`](site_plan.md) --- where every entity is and what it belongs to: the parent and site links,
       `Relation`, and the file component that replaces `attached`.
 - [ ] [`modding_plan.md`](modding_plan.md) --- mods and data-driven design: place types from data, components decoded
       at load, types as prefabs, component schemas from data, styles, scripting and mods. 7 steps, none started; step 2
       is part of `addressing_plan.md` step 5, and steps 3 to 7 are Phase 4.
+- [ ] [`session_plan.md`](session_plan.md) --- the division of work among `StratumGame`'s parts: `World` creating,
+      loading, populating and unloading zones, `Session` entering them and keeping the state of play, and each zone's
+      entry point, the lowest-ordered staircase leading up, and entering an access point on a wall or the floor. 7 steps,
+      steps 1 to 3 and 5 done.
 - [ ] [`placement_plan.md`](placement_plan.md) --- what fills a zone: sites, selection, distribution, acceptance and
       emission. 4 steps, none started.
 - [x] [`intent_plan.md`](intent_plan.md) --- stage 2, intent and the schedule.
@@ -106,17 +111,19 @@ Detail in `view_plan.md`.
 
 **In progress.** The entries are built; the lifecycle around them is not.
 
-- [x] **Three entries, one of them the general case.** `create` from a `Generator`, `load` from a file, and `populate`,
-      which the other two are written in terms of.
-- [ ] **The player belongs to the session, not to a zone.** A session has a world and a player before it has any zone,
-      so the player can outlive the zone it was made in, as a transition requires.
+- [x] **Two entries, one of them the general case.** `World::create_zone` from a `Generator` and `World::load_zone`
+      from a file, each making the zone whole, and `Session::enter` taking the player into it (`session_plan.md`).
+- [x] **The player belongs to the game, not to a zone.** `StratumGame` owns the id allocator, the world, the player and
+      the session; the player exists before any zone and is moved into each zone loaded.
 - [ ] **A zone is added to the world when it is encountered.** At startup or on a transition, the zone's layout is
       created, detailed and populated, and the zone is added to the world, where it is playable.
+- [x] **Zones unload past a threshold, oldest first.** Leaving a zone leaves it resident; entering one, `World::trim_zones`
+      unloads the zones entered longest ago, as the world's `ZoneEntryIndex` chooses, once the zone count maximum is
+      exceeded (`sim_zone_model.md`, `### Residency, simulation, and persistence`).
 - [ ] **There is never a new session.** One session for the whole game, cleared on a new-game selection or on death
       under a permadeath option.
 
-The three are one change: the player cannot move to the session until a zone can be added to it, and neither matters
-until a session outlives the zone it started with.
+What a session is responsible for is open (`Open`, `### Session`).
 
 ## Stage 8 --- the discrete layout format
 
@@ -146,6 +153,23 @@ until a session outlives the zone it started with.
 
 The rest of stage 8 is [`addressing_plan.md`](addressing_plan.md), boxed under Plans: persistent ids, loading a zone,
 migration, saved zones and the zone actor index.
+
+## Regions
+
+**Future.** A `Region` groups zones: a surface area, or a dungeon whose levels are its zones. It is data, an entity
+that is its zones' parent, and it decides which zones unload first (`sim_zone_model.md`, `## World, Zones, and
+Levels`). Open questions under `Open`, `### Regions`.
+
+- [x] **"Region" out of catagen,** first: its pipeline is rectangles, the rooms kept among them, and areas, a room or a
+      run of corridor, which walls separate and doors join. dungen's cave1 keeps "the largest connected region", which
+      is harmless; `roguelike_survey.md` keeps the word in its general sense, and Godot's `texture_region_size` is
+      Godot's own name.
+- [ ] **`Region`,** an entity with its properties as components --- a name, and for a dungeon the maximum depth the
+      probability of a staircase leading down needs, the overall or starting difficulty, and the other properties a
+      whole dungeon has --- and the parent of its zones in place of the root.
+- [ ] **Unloading by region.** Criteria for `World::trim_zones` that choose the zones of other regions first, left
+      longest ago first, as `ZoneEntryIndex` does, then those of the player's region, farthest first.
+- [ ] **Region files.**
 
 ## Done ahead of the plan
 
@@ -267,10 +291,18 @@ Questions a stage left behind.
 
 ### Discrete layout format
 
+- **`Content`, now that the loader and generators fill an empty zone** (`discrete_layout_rework.md`): whether they
+  build the zone's entities straight from the document or the generation, dropping `Content`, or still go through it.
 - **Perimeter validation passes some invalid perimeters.** Each cell edge is checked on its own, and a wall toward a
   floor/door cell on either side satisfies one. A perimeter whose walls all face outward, around a pillar or solid
   ground, passes while enclosing no floor/door cell. The reader already determines which side of each edge is inside;
-  a check of the enclosed region is needed to reject these.
+  a check of the enclosed area is needed to reject these.
+- **The access point type a new game enters a zone at when it is not a dungeon level,** such as a tower entered from
+  below, `up` being the hosts' temporary `entry_access_type` (`session_plan.md`, `## Entry point`).
+- **Where access point types are registered from data,** a mod's included, rather than in `World`'s constructor
+  (`modding_plan.md`).
+- **The scale of the probability of a staircase leading down,** inversely proportional to `depth` and proportional to
+  `difficulty`, 1 until regions supply the maximum depth, and what it is for a zone with no `depth`.
 - **Whether the layout interface returns a wall id.** An address encodes into one, so it can. Whether a handle to a
   wall belongs on an interface that mentions neither cells nor walls is an older question.
 
@@ -280,6 +312,36 @@ Questions a stage left behind.
   facing direction, which is a design question.
 - **Do actions get durations** --- wind-up, active, recovery? If so, `Intent` is where they go.
 - **Does a partial intent survive save and reload?** Plausible for movement, likely wrong for anything else.
+
+### Regions
+
+- **Which properties each kind of region has,** a surface area's and a dungeon's overlapping but differing, and how
+  difficulty goes from the starting value across a dungeon's zones.
+- **Distance or depth difference** as the measure within the player's region, and whether it differs by kind of
+  region.
+- **What a region file holds:** only the region's metadata and generation settings, or those followed by its zones;
+  and how it relates to the zone file format.
+
+### Session
+
+- **The pre-populated flag's name and place in the format** (`session_plan.md`), and whether it is a format version
+  change.
+- **The population strategy from the zone's source,** the template loaded or the generation guidance, replacing
+  `World::populate`'s placeholder (`session_plan.md`, `## World`).
+- **The time a zone was entered:** simulation time or real time.
+- **The game's config file,** supplying the zone count maximum, now `StratumGame`'s temporary 8, and the game's other
+  settings.
+- **Whether the driver is the game's or a zone's.**
+- **Actors.** The player and the denizens are both actors, differing in what controls them; the actor structure is not
+  designed.
+- **What components a zone has** beyond `ZoneLayout` and `ZoneNotation`, and which operations change from layouts to
+  zones (`discrete_layout_rework.md`, `### Zones`).
+- **Resident zones the player has left.** Whether they are simulated or frozen, and which thresholds apply --- memory
+  usage among them --- and their values.
+- **Zones made and never entered.** They are no candidates for unloading.
+- **Where the unload order's data is kept** --- `ZoneEntryIndex`'s map from entry count to zone id, or a component on
+  each zone with a flecs query ordered by it --- once regions set the criteria: other regions' zones by the time they
+  were entered, the player's region's by distance or depth difference (`## Regions`).
 
 ### View
 

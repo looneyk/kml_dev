@@ -15,8 +15,8 @@ code with the other. What they have in common becomes `quetzal::procgen` later.
 ## What it produces
 
 Every cell may be floor. Two adjacent floor cells are separated by a wall or not, and the separation takes no cell.
-Rooms therefore share walls, so a partition of the rectangle leaves no solid cell --- which the block notation cannot
-express --- while sparse filling leaves solid cells as the block notation would.
+Rooms therefore share walls, so a partition of the extent has no solid cell --- which the block notation cannot
+express --- while sparse filling has solid cells as the block notation would.
 
 The grid alone, with no room, door or staircase records; rectangular rooms and regular spacing only.
 

@@ -24,13 +24,15 @@ namespace
 
     using random_type = math::Random<>;
     using rectangles_type = vector<box_type>;
-    using cell_region_mapping = vector<id_type>; // The region id for each cell in order
-    using pair_type = pair<id_type, id_type>; // Two regions, lower id first
+
+    // An area is floor that walls separate and doors join: a room, or one run of corridor
+    using cell_areas_type = vector<id_type>; // The area id of each cell, in slot order
+    using area_pair_type = pair<id_type, id_type>; // Two areas, lower id first
     using site_type = pair<point_type, CardinalDirection>; // A cell edge, addressed from one of its two sides
-    using sites_type = map<pair_type, vector<site_type>>;
+    using sites_type = map<area_pair_type, vector<site_type>>;
 
     //--------------------------------------------------------------------------
-    coord_type area(const box_type& rectangle)
+    coord_type cell_count(const box_type& rectangle)
     {
         return rectangle.volume();
     }
@@ -54,7 +56,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Disjoint sets over region ids
+    // Disjoint sets over area ids
     class Components
     {
     public:
@@ -97,15 +99,15 @@ namespace
 
     //--------------------------------------------------------------------------
     // Splits along the longer side while a side exceeds the scale maximum and both halves would still reach the minimum. A
-    // range too narrow to split into leaves rooms above the maximum
-    void partition(const box_type& rectangle, const Parameters& parameters, random_type& random, rectangles_type& leaves)
+    // range too narrow to split into yields rectangles above the maximum
+    void partition(const box_type& rectangle, const Parameters& parameters, random_type& random, rectangles_type& rectangles)
     {
         coord_type nx = rectangle.extent().i();
         coord_type ny = rectangle.extent().j();
 
-        // Solid cells along the cut, so the gap between two rooms is the spacing drawn. Two leaves that touch do so across
-        // the cut of their lowest common ancestor alone, so spacing every cut spaces every pair
-        // Drawn only when the range has more than one value, so the default leaves the random sequence unchanged
+        // Solid cells along the cut, so the gap between two rooms is the spacing drawn. Two rectangles that touch do so
+        // across the cut of their lowest common ancestor alone, so spacing every cut spaces every pair
+        // Drawn only when the range has more than one value, so the default keeps the random sequence unchanged
         coord_type spacing = parameters.spacing.lower();
         if (parameters.spacing.proper())
         {
@@ -119,7 +121,7 @@ namespace
 
         if (!split_x && !split_y)
         {
-            leaves.push_back(rectangle);
+            rectangles.push_back(rectangle);
             return;
         }
 
@@ -128,62 +130,62 @@ namespace
         if (vertical)
         {
             coord_type cut = parameters.scale.lower() + random.gen(nx - spacing - 2 * parameters.scale.lower() + 1);
-            partition({rectangle.position(), vector_type {cut, ny}}, parameters, random, leaves);
-            partition({point_type {rectangle.position().i() + cut + spacing, rectangle.position().j()}, vector_type {nx - cut - spacing, ny}}, parameters, random, leaves);
+            partition({rectangle.position(), vector_type {cut, ny}}, parameters, random, rectangles);
+            partition({point_type {rectangle.position().i() + cut + spacing, rectangle.position().j()}, vector_type {nx - cut - spacing, ny}}, parameters, random, rectangles);
         }
         else
         {
             coord_type cut = parameters.scale.lower() + random.gen(ny - spacing - 2 * parameters.scale.lower() + 1);
-            partition({rectangle.position(), vector_type {nx, cut}}, parameters, random, leaves);
-            partition({point_type {rectangle.position().i(), rectangle.position().j() + cut + spacing}, vector_type {nx, ny - cut - spacing}}, parameters, random, leaves);
+            partition({rectangle.position(), vector_type {nx, cut}}, parameters, random, rectangles);
+            partition({point_type {rectangle.position().i(), rectangle.position().j() + cut + spacing}, vector_type {nx, ny - cut - spacing}}, parameters, random, rectangles);
         }
 
         return;
     }
 
     //--------------------------------------------------------------------------
-    // Keeps leaves in a random order until their area reaches the density; the rest become solid
-    rectangles_type select(const rectangles_type& leaves, double density, random_type& random)
+    // The rooms: rectangles kept in a random order until their cells reach the density. The rest become solid
+    rectangles_type select(const rectangles_type& rectangles, double density, random_type& random)
     {
         if (density >= 1.0)
         {
-            return leaves;
+            return rectangles;
         }
 
-        coord_type area_total = 0;
-        for (const box_type& leaf : leaves)
+        coord_type total_cell_count = 0;
+        for (const box_type& rectangle : rectangles)
         {
-            area_total += area(leaf);
+            total_cell_count += cell_count(rectangle);
         }
 
-        coord_type area_target = static_cast<coord_type>(density * area_total);
+        coord_type target_cell_count = static_cast<coord_type>(density * total_cell_count);
 
-        vector<size_t> order(leaves.size());
+        vector<size_t> order(rectangles.size());
         iota(order.begin(), order.end(), size_t(0));
         shuffle(order.begin(), order.end(), random.engine());
 
         rectangles_type rooms;
-        coord_type area_kept = 0;
+        coord_type kept_cell_count = 0;
 
         for (size_t slot : order)
         {
-            if (!rooms.empty() && area_kept >= area_target)
+            if (!rooms.empty() && kept_cell_count >= target_cell_count)
             {
                 break;
             }
 
-            rooms.push_back(leaves[slot]);
-            area_kept += area(leaves[slot]);
+            rooms.push_back(rectangles[slot]);
+            kept_cell_count += cell_count(rectangles[slot]);
         }
 
         return rooms;
     }
 
     //--------------------------------------------------------------------------
-    // A room's region id is its position in the room list
-    cell_region_mapping cell_regions(const vector_type& extent, const rectangles_type& rooms)
+    // Each room an area of its own, its area id its position in the room list
+    cell_areas_type cell_areas(const vector_type& extent, const rectangles_type& rooms)
     {
-        cell_region_mapping regions(static_cast<size_t>(extent.i()) * extent.j(), nullid);
+        cell_areas_type areas(static_cast<size_t>(extent.i()) * extent.j(), nullid);
 
         for (id_type id = 0; id < rooms.size(); ++id)
         {
@@ -193,12 +195,12 @@ namespace
             {
                 for (coord_type i = room.lower(0); i < room.upper(0); ++i)
                 {
-                    regions[cell_slot(extent, {i, j})] = id;
+                    areas[cell_slot(extent, {i, j})] = id;
                 }
             }
         }
 
-        return regions;
+        return areas;
     }
 
     //--------------------------------------------------------------------------
@@ -227,36 +229,36 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Turns the solid cells a path crosses into corridor, each unbroken run a region of its own, so a path crossing a room
-    // does not split one region into disconnected pieces
-    void carve(const vector_type& extent, const vector<point_type>& positions, cell_region_mapping& regions, id_type& region_count)
+    // Turns the solid cells a path crosses into corridor, each unbroken run an area of its own, so a path crossing a room
+    // does not split one area into disconnected pieces
+    void carve(const vector_type& extent, const vector<point_type>& positions, cell_areas_type& areas, id_type& area_count)
     {
-        id_type region = nullid;
+        id_type area = nullid;
 
         for (const point_type& position : positions)
         {
             size_t slot = cell_slot(extent, position);
 
-            if (regions[slot] != nullid)
+            if (areas[slot] != nullid)
             {
-                region = nullid;
+                area = nullid;
                 continue;
             }
 
-            if (region == nullid)
+            if (area == nullid)
             {
-                region = region_count++;
+                area = area_count++;
             }
 
-            regions[slot] = region;
+            areas[slot] = area;
         }
 
         return;
     }
 
     //--------------------------------------------------------------------------
-    // Every cell edge with a different region on each side, grouped by the pair of regions. Each is a possible door site
-    sites_type door_sites(const vector_type& extent, const cell_region_mapping& regions)
+    // Every cell edge with a different area on each side, grouped by the pair of areas. Each is a possible door site
+    sites_type door_sites(const vector_type& extent, const cell_areas_type& areas)
     {
         sites_type sites;
 
@@ -264,8 +266,8 @@ namespace
         {
             for (coord_type i = 0; i < extent.i(); ++i)
             {
-                id_type region = regions[cell_slot(extent, {i, j})];
-                if (region == nullid)
+                id_type area = areas[cell_slot(extent, {i, j})];
+                if (area == nullid)
                 {
                     continue;
                 }
@@ -278,13 +280,13 @@ namespace
                         continue;
                     }
 
-                    id_type region_other = regions[cell_slot(extent, other)];
-                    if (region_other == nullid || region_other == region)
+                    id_type area_other = areas[cell_slot(extent, other)];
+                    if (area_other == nullid || area_other == area)
                     {
                         continue;
                     }
 
-                    pair_type key = region < region_other ? pair_type {region, region_other} : pair_type {region_other, region};
+                    area_pair_type key = area < area_other ? area_pair_type {area, area_other} : area_pair_type {area_other, area};
                     sites[key].push_back({{i, j}, direction});
                 }
             }
@@ -296,13 +298,13 @@ namespace
     //--------------------------------------------------------------------------
     // Joins the rooms selection left separated, one corridor at a time between the closest unconnected pair. Components
     // are recounted after each, so a corridor joining more than two is not followed by a redundant one
-    void connect_components(const vector_type& extent, const rectangles_type& rooms, cell_region_mapping& regions,
-        id_type& region_count, random_type& random)
+    void connect_components(const vector_type& extent, const rectangles_type& rooms, cell_areas_type& areas,
+        id_type& area_count, random_type& random)
     {
         for (size_t pass = 0; pass < rooms.size(); ++pass)
         {
-            Components components(region_count);
-            for (const auto& [key, _] : door_sites(extent, regions))
+            Components components(area_count);
+            for (const auto& [key, _] : door_sites(extent, areas))
             {
                 components.merge(key.first, key.second);
             }
@@ -339,37 +341,37 @@ namespace
             }
 
             carve(extent, path_cells(center(rooms[room_a]), center(rooms[room_b]), random.gen(2) == 0),
-                regions, region_count);
+                areas, area_count);
         }
 
         return;
     }
 
     //--------------------------------------------------------------------------
-    // A cell is floor where it belongs to a region, and an edge is open only between two cells of the same region. An edge
+    // A cell is floor where it belongs to an area, and an edge is open only between two cells of the same area. An edge
     // with floor on neither side has no wall, the edges beyond the zone included
-    void realize(Level& level, const cell_region_mapping& regions)
+    void realize(Level& level, const cell_areas_type& areas)
     {
         const vector_type& extent = level.extent();
 
-        auto region_of = [&](const point_type& position)
+        auto area_of = [&](const point_type& position)
         {
-            return contains(extent, position) ? regions[cell_slot(extent, position)] : nullid;
+            return contains(extent, position) ? areas[cell_slot(extent, position)] : nullid;
         };
 
         for (coord_type j = 0; j < extent.j(); ++j)
         {
             for (coord_type i = 0; i < extent.i(); ++i)
             {
-                id_type region = region_of({i, j});
-                level.set_cell({i, j}, region == nullid ? CellType::Solid : CellType::Open);
+                id_type area = area_of({i, j});
+                level.set_cell({i, j}, area == nullid ? CellType::Solid : CellType::Open);
 
                 for (CardinalDirection direction : {CardinalDirection::East, CardinalDirection::North, CardinalDirection::West, CardinalDirection::South})
                 {
-                    id_type other = region_of(neighbor({i, j}, direction));
+                    id_type other = area_of(neighbor({i, j}, direction));
 
-                    bool joined = region != nullid && region == other;
-                    bool faced = region != nullid || other != nullid;
+                    bool joined = area != nullid && area == other;
+                    bool faced = area != nullid || other != nullid;
 
                     level.set_wall({i, j}, direction, !joined && faced ? WallType::Solid : WallType::Open);
                 }
@@ -388,13 +390,13 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // A door for each adjacency, in random order, that joins two regions not yet joined, then a door for each remaining
-    // one with probability loop
-    void place_doors(Level& level, const cell_region_mapping& regions, id_type region_count, double loop, random_type& random)
+    // A door for each adjacency, in random order, that joins two areas not yet joined, then a door for each remaining one
+    // with probability loop
+    void place_doors(Level& level, const cell_areas_type& areas, id_type area_count, double loop, random_type& random)
     {
-        sites_type sites = door_sites(level.extent(), regions);
+        sites_type sites = door_sites(level.extent(), areas);
 
-        vector<pair_type> keys;
+        vector<area_pair_type> keys;
         keys.reserve(sites.size());
 
         for (const auto& [key, _] : sites)
@@ -404,10 +406,10 @@ namespace
 
         shuffle(keys.begin(), keys.end(), random.engine());
 
-        Components components(region_count);
-        vector<pair_type> spare;
+        Components components(area_count);
+        vector<area_pair_type> spare;
 
-        for (const pair_type& key : keys)
+        for (const area_pair_type& key : keys)
         {
             if (components.merge(key.first, key.second))
             {
@@ -419,7 +421,7 @@ namespace
             }
         }
 
-        for (const pair_type& key : spare)
+        for (const area_pair_type& key : spare)
         {
             if (random.gen() < loop)
             {
@@ -431,7 +433,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // A range of one draws nothing, so a fixed count leaves later draws unchanged
+    // A range of one draws nothing, so a fixed count keeps later draws unchanged
     size_t draw_count(const quetzal::math::Interval<size_t>& count, random_type& random)
     {
         return count.lower() == count.upper() ? count.lower() : random.gen(count.lower(), count.upper());
@@ -452,7 +454,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Whether a staircase's block at an open cell leaves what staircases need: a passable side of its own to face, one
+    // Whether a staircase's block at an open cell keeps what staircases need: a passable side of its own to face, one
     // still beside each staircase next to it, and the cells across its passable sides still reaching one another around it
     bool block_allowed(const Level& level, const point_type& cell)
     {
@@ -531,7 +533,7 @@ namespace
 
     //--------------------------------------------------------------------------
     // Staircases at the centers of rooms, one per room, those leading up first. A room whose center would cut a passage or
-    // leave a staircase nothing to face is passed over, and running out of rooms places fewer, those leading down going
+    // allow a staircase no side to face is passed over, and running out of rooms places fewer, those leading down going
     // short first
     void place_staircases(Level& level, const rectangles_type& rooms, const Parameters& parameters, random_type& random)
     {
@@ -608,7 +610,7 @@ namespace
     //--------------------------------------------------------------------------
     // Each staircase blocking a doorway moves one cell, in a random direction across an open wall onto floor that blocks no
     // doorway and where its block is allowed, and stays where there is no such direction. An open wall joins two cells of
-    // one region, so the staircase stays in its own space
+    // one area, so the staircase stays in its own area
     void move_staircases_off_doorways(Level& level, random_type& random)
     {
         for (const point_type& cell : staircase_cells(level))
@@ -695,18 +697,18 @@ quetzal::catagen::Level quetzal::catagen::generate(const Parameters& parameters)
 
     random_type random(*parameters.seed); // validate checked it is set
 
-    rectangles_type leaves;
-    partition({point_type {0, 0}, parameters.extent}, parameters, random, leaves);
+    rectangles_type rectangles;
+    partition({point_type {0, 0}, parameters.extent}, parameters, random, rectangles);
 
-    rectangles_type rooms = select(leaves, parameters.density, random);
-    cell_region_mapping regions = cell_regions(parameters.extent, rooms);
-    id_type region_count = rooms.size();
+    rectangles_type rooms = select(rectangles, parameters.density, random);
+    cell_areas_type areas = cell_areas(parameters.extent, rooms);
+    id_type area_count = rooms.size();
 
-    connect_components(parameters.extent, rooms, regions, region_count, random);
+    connect_components(parameters.extent, rooms, areas, area_count, random);
 
     Level level(parameters.extent);
-    realize(level, regions);
-    place_doors(level, regions, region_count, parameters.loop, random);
+    realize(level, areas);
+    place_doors(level, areas, area_count, parameters.loop, random);
     place_staircases(level, rooms, parameters, random);
     move_staircases_off_doorways(level, random);
     face_staircases(level, random);

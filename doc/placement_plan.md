@@ -13,15 +13,15 @@ candidate place a run chooses among --- a wall id, a cell, a room. The replaceme
 ## Where a zone comes from
 
 A zone is constructed whole when it is encountered, geometry and contents, from parameters and a seed; a zone file is a
-snapshot of part of that construction. `Session::create`, `load` and `populate` are the entries
-(`game_system_reference.md`, Session).
+snapshot of part of that construction. `World::create_zone` and `load_zone` are the entries,
+and `World::populate` places a zone's denizens (`game_system_reference.md`, World).
 
 **Placement is part of generation, not a step after it.** A generator builds geometry and places contents in it, and a
 file, where one is written, preserves the result. What a file leaves out is filled in as though generated.
 
 ## What placement is
 
-Putting contents in a zone whose geometry is built: doors on the walls a loader reported, items in rooms, monsters on
+Putting contents in a zone whose geometry is built: doors on the walls a loader reported, items in rooms, denizens on
 floor cells, a torch on a wall, a trap on a doorway. One algorithm serves all of them; what varies is the type of the
 site and of what is placed there.
 
@@ -36,20 +36,20 @@ exists, or against something that is not a zone.
 
 Five roles, each independent of the rest:
 
-- **The sites** --- a range of places. Wall ids for an attachment, cells for an item, rooms for a monster group.
+- **The sites** --- a range of places. Wall ids for an attachment, cells for an item, rooms for a group of denizens.
 - **Selection** --- which candidate, drawn from a weighted table, with an item's random properties. The part closest to
   `content`.
 - **Distribution over the sites** --- how many are used and which: every one, a count, one per room, a density per area,
   or clustered about a chosen site.
 - **Acceptance** --- whether an item may go at a site. A torch needs a wall, a chest needs floor with space beside it, a
-  monster needs neither.
+  denizen needs neither.
 - **Emission** --- what is built. The only part that touches a world, and the only part a caller writes.
 
 Selection and distribution are kept apart, so "rare items, one per room" is the two choices it is.
 
 ## The case that already works
 
-`create_doors` is an instance: the sites are the wall sets `load_layout` reports, the distribution is all of them,
+`create_doors` is an instance: the sites are the wall sets `load_layout` finds, the distribution is all of them,
 selection is constant, acceptance is unconditional, and emission builds the door. Reimplementing it through the
 interface proves the interface.
 
@@ -74,11 +74,11 @@ placement.
 - [ ] **2. Weighted selection over a table**: an entry drawn from a weighted list, with its properties. The table
       itself is `content`'s.
 - [ ] **3. The distributions**: a count, one per room, a density per area.
-- [ ] **4. The first use that is not a door**, items or monsters, settling acceptance and emission.
+- [ ] **4. The first use that is not a door**, items or denizens, settling acceptance and emission.
 
 ## Blockers
 
-- **Step 1's subject is being replaced.** `create_doors`, `door_walls_type` and `load_layout`'s door callback go when a
+- **Step 1's subject is being replaced.** `create_doors` and `door_walls_type`, used inside `load_layout`, go when a
   zone is loaded from its entities rather than from its glyphs (`addressing_plan.md`, step 5). Step 1 then reimplements
   how a zone's doors are built from its file, with the reference frames unchanged.
 - **Step 2 needs `content`**, for weighted selection over prototypes.

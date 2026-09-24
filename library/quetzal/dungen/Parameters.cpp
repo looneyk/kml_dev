@@ -167,10 +167,10 @@ void quetzal::dungen::validate(const Parameters& parameters)
     validate_count(parameters.staircase_down_count, "staircase down count");
     validate_count(parameters.staircase_up_count, "staircase up count");
 
-    // Every staircase is an access point, and a zone requires one
-    if (parameters.staircase_down_count.lower() + parameters.staircase_up_count.lower() == 0)
+    // A dungeon level is entered at, and left by, a staircase leading up
+    if (parameters.staircase_up_count.lower() == 0)
     {
-        throw invalid_argument("staircase down and up count minimums of zero may leave the level no entry");
+        throw invalid_argument("a staircase up count minimum of zero may leave the level no staircase leading up");
     }
 
     switch (parameters.algorithm)

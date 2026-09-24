@@ -28,8 +28,8 @@ omitted where a zone has none.
 | `flats` | The floor and the ceiling |
 | `entities` | The zone's entities, and where each is sited |
 
-A file is one zone. A staircase between two is an entity sited on the wall on its open side, and it
-has a relocator whose target is the other. A relocator is the component that moves an actor to its
+A file is one zone. A staircase between two is an entity sited on the wall on its open side or on the
+floor, and it has a relocator whose target is the other. A relocator is the component that moves an actor to its
 target; a staircase, a portal and a waypoint are entities that have one.
 
 A file is either a template a zone is made from or a saved zone. A template does not store the zone's
@@ -88,8 +88,8 @@ blocks, a staircase down above it and the entrance, a staircase up, below it.
     { "id": 1, "type": "door", "components": { "material": "oak", "open": false } },
     { "id": 2, "type": "door_facing", "components": { "parent": { "entity": 1 }, "site": { "relation": "on", "wall": { "cell_position": [1, 1], "normal": [-1, 0] } } } },
     { "id": 3, "type": "door_facing", "components": { "parent": { "entity": 1 }, "site": { "relation": "on", "wall": { "cell_position": [2, 1], "normal": [1, 0] } } } },
-    { "id": 4, "type": "staircase", "components": { "site": { "relation": "on", "wall": { "cell_position": [3, 1], "normal": [0, -1] } }, "relocator": { "target": "down" } } },
-    { "id": 5, "type": "staircase", "components": { "site": { "relation": "on", "wall": { "cell_position": [3, 1], "normal": [0, 1] } }, "relocator": { "target": "up" } } }
+    { "id": 4, "type": "staircase", "components": { "site": { "relation": "on", "wall": { "cell_position": [3, 1], "normal": [0, -1] } }, "relocator": { "type": "down", "target": "down", "order": 0, "entry": { "cell_position": [3, 1], "orientation": [0, -1] } } } },
+    { "id": 5, "type": "staircase", "components": { "site": { "relation": "on", "wall": { "cell_position": [3, 1], "normal": [0, 1] } }, "relocator": { "type": "up", "target": "up", "order": 0, "entry": { "cell_position": [3, 1], "orientation": [0, 1] } } } }
   ]
 }
 ```
@@ -179,7 +179,7 @@ moves. A reader given a version it does not know rejects the file.
 
 ## zone
 
-The zone's own persistent id, written by a save and by nothing else:
+The zone's own persistent id, written by a save
 
 ```json
 "zone": { "id": 7713 }
@@ -222,16 +222,38 @@ one. Every zone is built with them.
 "layout": { "components": { "access_points": [ { "entity": 8 }, { "entity": 9 } ] } }
 ```
 
-Each is a reference to an entity with a `relocator` component, sited on the open side of a cell
-written `<` or `>`, and the reader rejects a file whose `access_points` is absent, lists nothing, or
-lists a value that is not such a reference. `<` is the entrance glyph, and a waypoint or a portal is an
-entrance as much as a staircase leading up is; `>` is a staircase leading down, which is the access
-point of a tower entered from below. The entity's `type` is not what is checked.
+Each is a reference to an entity with a `relocator` component, sited `on` a surface: a wall, the floor
+or the ceiling. The reader rejects a file whose `access_points` is absent, lists nothing, or lists a
+value that is not such a reference. The entity's `type` is not what is checked. An access point on the
+floor or the ceiling requires its site's `orientation`, for drawing; one on a wall takes the wall's
+normal (`### Staircases and access points`).
+
+The JSON is what a zone's access points are; the stair glyphs `<` and `>` are visual aids. The reader
+warns where they disagree --- a stair cell with no relocator on the walls around it, or a second one, or
+an access point on a wall that is not a stair cell's open side --- and reads the file as the JSON has
+it. Warnings go to the reader's warning callback, which by default writes them to `std::clog`.
+
+Each access point's relocator states three things:
+
+- **`type`,** a name the world registers: `up`, `down`, `waypoint`, `portal`, or one a mod adds.
+- **`order`,** a whole, non-negative number given when it is created. The access points of each type
+  are ordered from 0, without a gap.
+- **`entry`,** where an arriving actor is placed: a `cell_position` an actor can stand in, and an
+  `orientation`. A staircase's entry is the floor its open side faces, facing away from it.
+
+```json
+"relocator": { "type": "up", "target": "up", "order": 0, "entry": { "cell_position": [1, 1], "orientation": [0, -1] } }
+```
+
+The reader rejects an access point with no `type`, no `order`, an order repeated or past a gap within
+its type, or no `entry`, or an entry on a cell an actor cannot stand in.
 
 Which access point an arriving actor is placed at depends on where it comes from, so the list does not
 choose: a caller arriving from above looks among the staircases leading up, one arriving by waypoint
-among the waypoints, and so on. A generator lists every staircase it places. Once a layout is read, its
-access points are known, which is what an unbound `down` resolves to (`### A relocator's target`).
+among the waypoints, and so on, each type registered with the type it arrives at. Among those of the
+type wanted, it is the lowest order available, an access point already bound to a relocator elsewhere
+being unavailable. A generator lists every staircase it places. Once a layout is read, its access points are known, which is what an unbound
+`down` resolves to (`### A relocator's target`).
 
 ## cells
 
@@ -331,20 +353,32 @@ open from one side alone, or secret from one side, is components on that side's 
 
 ### Staircases and access points
 
-A stair glyph marks where a staircase is: a block, with a wall toward it on every side where there is
-floor, and an entity with a `relocator` sited on one of those walls, whose target is where it leads.
-The wall it is sited on is the staircase's open side, the side toward the room it opens into, and
-that wall's normal is the direction of travel from the staircase into the room, so a staircase has no
-orientation of its own. The other walls around a stair cell are ordinary walls with components of their
-own, such as a texture.
+A stair glyph marks where a staircase is drawn: a block, with a wall toward it on every side where there
+is floor. The glyphs are visual aids. What a zone's staircases are is its entities, each with a
+`relocator` whose target is where it leads, sited on a surface:
+
+- **On a wall.** The wall is the staircase's open side, the side toward the room it opens into, and the
+  staircase's orientation is the wall's normal, the direction of travel from the staircase into the
+  room. Moving into the wall enters the staircase. The other walls around a stair cell are ordinary
+  walls with components of their own, such as a texture.
+- **On the floor.** Sited on a floor cell, the staircase does not impede movement. Its site's
+  `orientation` is required and serves drawing alone. A keystroke by an actor on its cell enters it.
+
+In the wall notation every staircase is sited on a wall, as a door is, a block staircase in the open
+space of a room included; a staircase on the floor is the block notation's.
+
+A staircase in a flat length of wall in the wall notation is the equivalent of a staircase in a 1x1
+alcove in the block notation, the alcove's cell being the stair block. This is informational, and a guide
+to generating zones in either notation; it does not preclude a block staircase in the open space of a
+room.
 
 `<` marks more than a staircase leading up. It is the entrance glyph, the up exit or entrance point of
 any non-local transporter --- a staircase, a waypoint, a portal --- as `+` is the glyph of any threshold
-that opens and closes. What is there is the entity sited on the open side, whatever its `type`.
+that opens and closes. What is there is the entity sited on it, whatever its `type`.
 
-Every stair glyph requires one such entity and no second one on the walls around it, and every door
-glyph requires one entity with a child sited on each wall of its doorway; a file missing either is
-rejected.
+A stair glyph with no entity with a `relocator` on the walls around it, or a second one, is a warning.
+Every door glyph requires one entity with a child sited on each wall of its doorway, and a file missing
+that is rejected.
 
 ## rooms
 
@@ -568,7 +602,7 @@ is written only in a saved zone, `"target": { "entity": 90412 }`.
 
 **Unbound: a destination.** The next level down, the way back up, the surface town, the nearest
 surface access, a destination a quest specifies. It identifies one destination or asks for the
-nearest of a kind. Which names it may use is the caller's vocabulary, as an entity's `type` is.
+nearest of a type. Which names it may use is the caller's vocabulary, as an entity's `type` is.
 
 Resolving one finds a zone or makes one. Traversal passes the target to whatever owns zones, which
 returns a zone it has or generates one, and chooses the cell an arriving mover is placed in. What it
@@ -582,8 +616,7 @@ binds both ends: the relocator gone through is bound to that access point, and t
 relocator it came from. The layout's `access_points` lists them, and every zone has at least one.
 
 The reader interprets neither shape. A relocator is a file component like any other, and both are passed
-to the caller as they were written; a bound target is a reference, which the reader translates as it
-translates every other.
+to the caller; a bound target is a reference which the reader interprets.
 
 ## What a reader must do with it
 
@@ -606,7 +639,7 @@ A file breaking any of these is rejected, stating what was wrong and where. Noth
 every check has passed, so a rejected file leaves nothing behind.
 
 - The file cannot be opened, or is not valid JSON.
-- A key the format requires is absent, or a value is not the kind the format sets: an object, an
+- A key the format requires is absent, or a value is not the JSON type the format sets: an object, an
   array, a string or a number. Content is checked only for being an object.
 - A coordinate is not a whole number, or is outside the coordinate range.
 - `format` is absent or is not this format; `version` is one the reader does not read.

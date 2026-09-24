@@ -4,6 +4,7 @@
 //------------------------------------------------------------------------------
 
 #include "Application.hpp"
+#include "quetzal/stratum_sim/attachments.hpp"
 #include "quetzal/stratum_sim/DiscreteLayout.hpp"
 #include "quetzal/stratum_sim/commands.hpp"
 #include "quetzal/stratum_sim/Site.hpp"
@@ -18,6 +19,9 @@ namespace
     static constexpr auto help_string = "arrows or hjkl move, space acts, . waits, ^L redraws, q quits";
 
     static constexpr char key_redraw = '\x0c'; // Ctrl-L, as curses and the roguelikes bind it
+
+    // Temporary: the zone loaded is entered at its lowest-ordered staircase leading up
+    static constexpr auto entry_access_type = "up";
 
     //--------------------------------------------------------------------------
     std::string name_of(const stratum_sim::vector_type& direction)
@@ -36,7 +40,8 @@ namespace
 
 //------------------------------------------------------------------------------
 stratum_terminal::Application::Application(const std::string& filepath_zone, View view, const std::string& script, bool incremental) :
-    m_session(),
+    m_stratum_game(),
+    m_session(m_stratum_game.session()),
     m_view(view),
     m_view_glyphs(),
     m_terminal(incremental),
@@ -45,7 +50,7 @@ stratum_terminal::Application::Application(const std::string& filepath_zone, Vie
     m_script_slot(0),
     m_running(true)
 {
-    m_session.load(filepath_zone);
+    m_session.load(filepath_zone, stratum_sim::access_type(m_stratum_game.world().entities(), entry_access_type));
 
     if (m_view == View::Null)
     {

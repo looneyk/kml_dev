@@ -927,17 +927,17 @@ namespace
         down_only.staircase_down_count = {1, 1};
         down_only.staircase_up_count = {0, 0};
 
-        bool accepted = true;
+        rejected = false;
         try
         {
             catagen::validate(down_only);
         }
         catch (const invalid_argument&)
         {
-            accepted = false;
+            rejected = true;
         }
 
-        report_case("a staircase down alone, as a tower entered from below has, is accepted as the entry", accepted);
+        report_case("a staircase down alone is rejected, a dungeon level needing one leading up", rejected);
 
         return;
     }

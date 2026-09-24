@@ -6,182 +6,100 @@
 #include "Session.hpp"
 #include "ai.hpp"
 #include "attachments.hpp"
-#include "load_layout.hpp"
+#include "DiscreteLayout.hpp"
 #include "Site.hpp"
 #include <format>
-#include <optional>
 #include <stdexcept>
 #include <cassert>
 
 namespace
 {
 
-    static constexpr int player_speed = 100;
-
     //--------------------------------------------------------------------------
-    std::optional<quetzal::stratum_sim::discrete_point_type> first_open_cell(const quetzal::stratum_sim::DiscreteLayout& layout)
-    {
-        const quetzal::stratum_sim::GridMapping& grid = layout.grid();
-
-        for (quetzal::stratum_sim::coord_type j = 0; j < grid.extent.y(); ++j)
-        {
-            for (quetzal::stratum_sim::coord_type i = 0; i < grid.extent.x(); ++i)
-            {
-                if (layout.open(quetzal::stratum_sim::discrete_point_type {i, j}))
-                {
-                    return quetzal::stratum_sim::discrete_point_type {i, j};
-                }
-            }
-        }
-
-        return {};
-    }
-
-    //--------------------------------------------------------------------------
-    std::optional<quetzal::stratum_sim::discrete_point_type> last_open_cell(const quetzal::stratum_sim::DiscreteLayout& layout)
-    {
-        const quetzal::stratum_sim::GridMapping& grid = layout.grid();
-
-        for (quetzal::stratum_sim::coord_type j = grid.extent.y(); j-- > 0; )
-        {
-            for (quetzal::stratum_sim::coord_type i = grid.extent.x(); i-- > 0; )
-            {
-                if (layout.open(quetzal::stratum_sim::discrete_point_type {i, j}))
-                {
-                    return quetzal::stratum_sim::discrete_point_type {i, j};
-                }
-            }
-        }
-
-        return {};
-    }
-
-    //--------------------------------------------------------------------------
-    // The player, at the first open cell. An empty entity when the layout has no open cell
-    flecs::entity create_player(quetzal::stratum_sim::World& world, flecs::entity zone,
-        const quetzal::stratum_sim::DiscreteLayout& layout, quetzal::stratum_sim::Scheduler& scheduler)
+    // The player moved to the entry of the zone's entry point of the type. False when the zone has no access point of
+    // the type
+    bool place_player(quetzal::stratum_sim::World& world, flecs::entity zone, flecs::entity access_type, flecs::entity player)
     {
         using namespace quetzal::stratum_sim;
 
-        std::optional<discrete_point_type> start = first_open_cell(layout);
+        flecs::entity entry = entry_point(zone, access_type);
 
-        if (!start)
+        if (!entry)
         {
-            return {};
+            return false;
         }
 
-        flecs::entity player = world.create_entity(zone,
-            placement_type(layout.position(*start), vector_type(value_type(1), value_type(0), value_type(0))));
-
-        player.add<Blocking>();
-        scheduler.add(player.id(), player_speed);
-
-        return player;
-    }
-
-    //--------------------------------------------------------------------------
-    // One pursuer at the last open cell
-    void create_monsters(quetzal::stratum_sim::World& world, flecs::entity zone,
-        const quetzal::stratum_sim::DiscreteLayout& layout, quetzal::stratum_sim::Scheduler& scheduler,
-        flecs::entity player)
-    {
-        using namespace quetzal::stratum_sim;
-
-        std::optional<discrete_point_type> start = last_open_cell(layout);
-
-        if (!start || layout.cell_position_at(placement_of(player).position()) == *start)
-        {
-            return;
-        }
-
-        flecs::entity other = world.create_entity(zone,
-            placement_type(layout.position(*start), vector_type(value_type(-1), value_type(0), value_type(0))));
-
-        other.add<Blocking>();
-        other.set<Pursue>(Pursue {static_cast<quetzal::id_type>(player.id()), point_type(), false});
-        scheduler.add(other.id(), player_speed);
-
-        return;
+        world.relocate(player, zone, entry.get<AccessPoint>().entry);
+        return true;
     }
 
 } // namespace
 
 //------------------------------------------------------------------------------
-quetzal::stratum_sim::Session::Session() :
-    m_world(),
+quetzal::stratum_sim::Session::Session(World& world, Player& player) :
+    m_world(world),
+    m_player(player),
     m_scheduler(),
     m_clock(m_world, m_scheduler),
     m_command_pending(),
-    m_zone(),
-    m_player()
+    m_zone()
 {
 }
 
 //------------------------------------------------------------------------------
-void quetzal::stratum_sim::Session::create(const Generator& generator, Driver driver, double units_per_second)
+void quetzal::stratum_sim::Session::create(const Generator& generator, flecs::entity access_type)
 {
-    // A generator has no world to place a door in, so it reports the walls each door is attached to
-    door_walls_type doors;
-
-    std::unique_ptr<Layout> layout = generator.generate(
-        [&](const std::vector<id_type>& walls) { doors.push_back(walls); });
-
-    populate(std::move(layout), doors, generator.notation(), driver, units_per_second);
+    enter(m_world.create_zone(generator), access_type);
     return;
 }
 
 //------------------------------------------------------------------------------
-void quetzal::stratum_sim::Session::populate(std::unique_ptr<Layout> layout, const door_walls_type& doors,
-    stratum_format::Notation notation, Driver driver, double units_per_second)
+void quetzal::stratum_sim::Session::load(const std::filesystem::path& filepath, flecs::entity access_type)
 {
-    // Built aside and moved in only on success. The clock refers to the members, which stay valid across the move
-    World world;
-
-    flecs::entity zone = world.create_zone("zone", std::move(layout));
-
-    create_doors(world, zone, doors);
-
-    const DiscreteLayout& discrete = layout_as<DiscreteLayout>(world.layout(zone));
-
-    Scheduler scheduler;
-    flecs::entity player = create_player(world, zone, discrete, scheduler);
-
-    if (!player)
-    {
-        throw std::runtime_error("zone has no open cell");
-    }
-
-    create_monsters(world, zone, discrete, scheduler, player);
-
-    m_world = std::move(world);
-    m_scheduler = std::move(scheduler);
-    m_command_pending = Command();
-    m_zone = zone;
-    m_player = player;
-    m_notation = notation;
-    m_clock.set_driver(driver, units_per_second);
-
-    return;
-}
-
-//------------------------------------------------------------------------------
-void quetzal::stratum_sim::Session::load(const std::filesystem::path& filepath, Driver driver, double units_per_second)
-{
-    door_walls_type doors;
-    stratum_format::Notation notation = stratum_format::Notation::Block;
-
-    std::unique_ptr<DiscreteLayout> layout = load_layout(filepath,
-        [&](const std::vector<id_type>& walls) { doors.push_back(walls); }, &notation);
+    flecs::entity zone = m_world.load_zone(filepath);
 
     try
     {
-        populate(std::move(layout), doors, notation, driver, units_per_second);
+        enter(zone, access_type);
     }
-    catch (const std::runtime_error&)
+    catch (const std::runtime_error& e)
     {
-        throw std::runtime_error(std::format("level has no open cell: {}", filepath.string()));
+        throw std::runtime_error(std::format("{}: {}", e.what(), filepath.string()));
     }
 
+    return;
+}
+
+//------------------------------------------------------------------------------
+void quetzal::stratum_sim::Session::enter(flecs::entity zone, flecs::entity access_type)
+{
+    assert(zone && zone.has<Zone>());
+    assert(access_type);
+
+    if (!place_player(m_world, zone, access_type, m_player.entity()))
+    {
+        throw std::runtime_error(std::format("zone has no access point of the type '{}'", access_type.name().c_str()));
+    }
+
+    // After the player has moved, so no zone it is in can unload
+    m_world.trim_zones(zone);
+
+    m_zone = zone;
+    m_scheduler = Scheduler(); // actual session state ...
+    m_command_pending = Command(); // actual session state ...
+
+    m_world.entities().query_builder<const Speed>()
+        .with(flecs::ChildOf, zone)
+        .build()
+        .each([&](flecs::entity e, const Speed& speed) { m_scheduler.add(e.id(), speed.value); });
+
+    return;
+}
+
+//------------------------------------------------------------------------------
+void quetzal::stratum_sim::Session::set_driver(Driver driver, double units_per_second)
+{
+    m_clock.set_driver(driver, units_per_second); // actual session state ...
     return;
 }
 
@@ -194,7 +112,8 @@ bool quetzal::stratum_sim::Session::loaded() const
 //------------------------------------------------------------------------------
 quetzal::stratum_format::Notation quetzal::stratum_sim::Session::notation() const
 {
-    return m_notation;
+    assert(loaded());
+    return m_zone.get<ZoneNotation>().notation;
 }
 
 //------------------------------------------------------------------------------
@@ -244,14 +163,14 @@ flecs::entity quetzal::stratum_sim::Session::zone() const
 //------------------------------------------------------------------------------
 flecs::entity quetzal::stratum_sim::Session::player() const
 {
-    return m_player;
+    return m_player.entity();
 }
 
 //------------------------------------------------------------------------------
 void quetzal::stratum_sim::Session::set_intent(const Intent& intent)
 {
     assert(loaded());
-    m_player.set<Intent>(intent);
+    m_player.entity().set<Intent>(intent);
 
     return;
 }
@@ -266,7 +185,7 @@ void quetzal::stratum_sim::Session::submit(const Command& command)
 //------------------------------------------------------------------------------
 quetzal::id_type quetzal::stratum_sim::Session::advance(EventQueue& events, Clock::duration_type elapsed)
 {
-    id_type actor_controlled = static_cast<id_type>(m_player.id());
+    id_type actor_controlled = static_cast<id_type>(m_player.entity().id());
 
     // Every actor but the player decides once per call; an actor fast enough to act twice repeats its decision
     think(m_world, actor_controlled);

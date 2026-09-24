@@ -8,6 +8,7 @@
 #include "Intent.hpp"
 #include "World.hpp"
 #include "types.hpp"
+#include <optional>
 
 namespace quetzal::stratum_sim
 {
@@ -16,7 +17,7 @@ namespace quetzal::stratum_sim
     // Moves toward a target while it is visible, then toward where it was last seen, stopping there if it finds nothing
     struct Pursue
     {
-        id_type target_id = nullid;
+        std::optional<id_type> target_id; // The controlled actor where absent
         point_type position_last_seen;
         bool seen = false; // Whether position_last_seen is set
     };

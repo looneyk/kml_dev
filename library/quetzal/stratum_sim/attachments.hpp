@@ -6,10 +6,11 @@
 //------------------------------------------------------------------------------
 
 #include "Site.hpp"
-#include "World.hpp"
 #include "types.hpp"
 #include "quetzal/common/id.hpp"
 #include <flecs.h>
+#include <cstdint>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -51,18 +52,55 @@ namespace quetzal::stratum_sim
     };
 
     //--------------------------------------------------------------------------
+    // Relationship from an access point to its type, an entity registered once in the world: up, down, waypoint, portal,
+    // or one a mod adds
+    struct AccessType
+    {
+    };
+
+    //--------------------------------------------------------------------------
+    // On an access point type: the type an actor arrives at through a relocator of this type
+    struct Arrival
+    {
+        flecs::entity access_type;
+    };
+
+    //--------------------------------------------------------------------------
+    // An entity a zone is entered at, sited on a surface: a wall, the floor or the ceiling. Its order counts from 0 among
+    // the zone's access points of its type, and its entry is where an arriving actor is placed
+    struct AccessPoint
+    {
+        std::uint64_t order = 0;
+        placement_type entry;
+    };
+
+    //--------------------------------------------------------------------------
+    // Registers an access point type, whose arrival is set on it once the type it arrives at is registered
+    flecs::entity create_access_type(flecs::world& entities, std::string_view name);
+
+    // The registered access point type, or a null entity where none has that name
+    flecs::entity access_type(const flecs::world& entities, std::string_view name);
+
+    //--------------------------------------------------------------------------
+    flecs::entity create_access_point(flecs::entity zone, flecs::entity access_type, const Site& site, std::uint64_t order,
+        const placement_type& entry);
+
+    // The zone's access point of the type with the lowest order available, or a null entity where it has none
+    flecs::entity entry_point(flecs::entity zone, flecs::entity access_type);
+
+    //--------------------------------------------------------------------------
     // A door with a door facing on each of its walls: usually two, and one where a doorway leads into a dead end
-    flecs::entity create_door(World& world, flecs::entity zone, const std::vector<id_type>& wall_ids);
+    flecs::entity create_door(flecs::entity zone, const std::vector<id_type>& wall_ids);
 
     //--------------------------------------------------------------------------
     // The wall ids of each door in a zone
     using door_walls_type = std::vector<std::vector<id_type>>;
 
     // Each door is created closed. Returns the count
-    size_t create_doors(World& world, flecs::entity zone, const door_walls_type& doors);
+    size_t create_doors(flecs::entity zone, const door_walls_type& doors);
 
     //--------------------------------------------------------------------------
-    // The entity sited on a wall of the zone, or a null entity
+    // The door facing sited on a wall of the zone, or a null entity
     flecs::entity facing_on(flecs::entity zone, id_type wall_id);
 
     flecs::entity door_of(flecs::entity facing);

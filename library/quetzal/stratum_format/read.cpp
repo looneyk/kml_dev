@@ -10,6 +10,9 @@
 #include <algorithm>
 #include <format>
 #include <fstream>
+#include <functional>
+#include <iostream>
+#include <iterator>
 #include <limits>
 #include <map>
 #include <set>
@@ -568,7 +571,7 @@ namespace
 
         // A wall facing a floor/door cell on either side satisfies an edge, so that a pillar on a room's edge may lie inside the
         // perimeter. Which side is inside is not used yet, so a perimeter whose walls all face outward, enclosing no floor/door
-        // cell, also passes, and a check of the enclosed region is needed to reject it ...
+        // cell, also passes, and a check of the enclosed area is needed to reject it ...
         for (size_t k = 0; k < n; ++k)
         {
             const discrete_point_type& a = junctions[k];
@@ -1291,9 +1294,14 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Each stair glyph is one entity with a relocator, sited on the wall on its open side
+    // Called with where a discrepancy that is not an error is and what it is
+    using warn_type = std::function<void(const std::string& path, std::string_view what)>;
+
+    //--------------------------------------------------------------------------
+    // Each stair glyph is one entity with a relocator, sited on the wall on its open side. The glyphs are visual aids, so a
+    // discrepancy is a warning
     void check_stair_glyphs(const Document& document, const EntityIndex& index,
-        const std::map<discrete_point_type, std::vector<WallAddress>>& stair_walls)
+        const std::map<discrete_point_type, std::vector<WallAddress>>& stair_walls, const warn_type& warn)
     {
         for (const auto& [cell_position, walls] : stair_walls)
         {
@@ -1318,13 +1326,13 @@ namespace
 
             if (relocators.empty())
             {
-                fail("entities", std::format("the stair cell at [{}, {}] has no entity with a relocator sited on a wall its open neighbors present to it",
+                warn("entities", std::format("the stair cell at [{}, {}] has no entity with a relocator sited on a wall its open neighbors present to it",
                     cell_position.i(), cell_position.j()));
             }
 
             if (relocators.size() > 1)
             {
-                fail(element_path("entities", relocators[1]), std::format("a second entity with a relocator on the walls around the stair cell at [{}, {}]",
+                warn(element_path("entities", relocators[1]), std::format("a second entity with a relocator on the walls around the stair cell at [{}, {}]",
                     cell_position.i(), cell_position.j()));
             }
         }
@@ -1333,10 +1341,12 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // A zone has at least one access point, each an entity with a relocator sited on the open side of a cell written '<'
-    // or '>'
+    // A zone has at least one access point, each an entity with a relocator sited on a surface, a wall, the floor or the
+    // ceiling. The relocator states its type, its order, counting from 0 among the access points of its type without a
+    // gap, and its entry, the cell and orientation an arriving actor is placed at. An access point on a wall that is not
+    // the open side of a cell written '<' or '>' is a warning, the glyphs being visual aids
     void check_access_points(const Document& document, const EntityIndex& index,
-        const std::map<discrete_point_type, std::vector<WallAddress>>& stair_walls)
+        const std::map<discrete_point_type, std::vector<WallAddress>>& stair_walls, const warn_type& warn)
     {
         const std::string path = "layout.components.access_points";
 
@@ -1361,6 +1371,9 @@ namespace
             }
         }
 
+        // <type, <order, access point index>>
+        std::map<std::string, std::map<std::uint64_t, size_t>> orders;
+
         for (size_t i = 0; i < a.size(); ++i)
         {
             std::string point_path = element_path(path, i);
@@ -1378,15 +1391,62 @@ namespace
             }
 
             const Entity& entity = document.entities[slot->second];
-            if (member(entity.components, "relocator") == nullptr)
+            const values_type* relocator = member(entity.components, "relocator");
+            if (relocator == nullptr)
             {
                 fail(point_path, "an entity with no relocator");
             }
 
-            const WallAddress* address = wall_address(entity);
-            if (address == nullptr || !open_sides.contains(wall_key(*address)))
+            if (!entity.site.has_value() || entity.site->relation != Relation::On || !entity.site->address.has_value())
             {
-                fail(point_path, "an entity that is not sited on the open side of a cell written '<' or '>'");
+                fail(point_path, "an entity that is not sited on a surface: a wall, the floor or the ceiling");
+            }
+
+            const WallAddress* address = wall_address(entity);
+            if (address != nullptr && !open_sides.contains(wall_key(*address)))
+            {
+                warn(point_path, "an entity sited on a wall that is not the open side of a cell written '<' or '>'");
+            }
+
+            std::string relocator_path = member_path(member_path(element_path("entities", slot->second), "components"), "relocator");
+            object(*relocator, relocator_path);
+
+            std::string type = string_value(required_member(*relocator, relocator_path, "type"), member_path(relocator_path, "type"));
+
+            std::string order_path = member_path(relocator_path, "order");
+            const values_type& order = required_member(*relocator, relocator_path, "order");
+            if (!order.is_number_unsigned())
+            {
+                fail(order_path, "a whole, non-negative number was expected");
+            }
+
+            std::string entry_path = member_path(relocator_path, "entry");
+            const values_type& entry = required_member(*relocator, relocator_path, "entry");
+            object(entry, entry_path);
+
+            std::string cell_path = member_path(entry_path, "cell_position");
+            discrete_point_type cell_position = read_cell_position(required_member(entry, entry_path, "cell_position"), cell_path);
+            check_on_grid(document.cells, cell_position, cell_path);
+            if (!floor_door_cell(document.cells, cell_position))
+            {
+                fail(cell_path, "a cell an actor cannot stand in");
+            }
+
+            read_direction(required_member(entry, entry_path, "orientation"), member_path(entry_path, "orientation"));
+
+            if (!orders[type].emplace(order.get<std::uint64_t>(), i).second)
+            {
+                fail(order_path, std::format("order {} is another access point's of the type '{}'", order.get<std::uint64_t>(), type));
+            }
+        }
+
+        for (const auto& [type, access_points_by_order] : orders)
+        {
+            auto last = std::prev(access_points_by_order.end());
+            if (last->first != access_points_by_order.size() - 1)
+            {
+                fail(element_path(path, last->second), std::format("order {} is past a gap among the access points of the type '{}'",
+                    last->first, type));
             }
         }
 
@@ -1395,7 +1455,7 @@ namespace
 
     //--------------------------------------------------------------------------
     // The grid is read first, as every address refers to it
-    Document read_document(const values_type& v)
+    Document read_document(const values_type& v, const warn_type& warn)
     {
         object(v, "");
 
@@ -1527,8 +1587,8 @@ namespace
 
         std::map<discrete_point_type, std::vector<WallAddress>> stair_walls = stair_cell_walls(document.cells);
         check_door_glyphs(document, index);
-        check_stair_glyphs(document, index, stair_walls);
-        check_access_points(document, index, stair_walls);
+        check_stair_glyphs(document, index, stair_walls, warn);
+        check_access_points(document, index, stair_walls, warn);
 
         return document;
     }
@@ -1536,7 +1596,14 @@ namespace
 } // namespace
 
 //------------------------------------------------------------------------------
-quetzal::stratum_format::Document quetzal::stratum_format::read(std::istream& is, const std::string& name)
+void quetzal::stratum_format::log_warning(const std::string& warning)
+{
+    std::clog << "warning: " << warning << std::endl;
+    return;
+}
+
+//------------------------------------------------------------------------------
+quetzal::stratum_format::Document quetzal::stratum_format::read(std::istream& is, const std::string& name, const warning_function_type& warning)
 {
     values_type v;
 
@@ -1551,7 +1618,13 @@ quetzal::stratum_format::Document quetzal::stratum_format::read(std::istream& is
 
     try
     {
-        return read_document(v);
+        return read_document(v, [&](const std::string& path, std::string_view what)
+        {
+            if (warning)
+            {
+                warning(std::format("{}: {}: {}", name, path, what));
+            }
+        });
     }
     catch (const std::runtime_error& e)
     {
@@ -1560,7 +1633,7 @@ quetzal::stratum_format::Document quetzal::stratum_format::read(std::istream& is
 }
 
 //------------------------------------------------------------------------------
-quetzal::stratum_format::Document quetzal::stratum_format::read(const std::filesystem::path& filepath)
+quetzal::stratum_format::Document quetzal::stratum_format::read(const std::filesystem::path& filepath, const warning_function_type& warning)
 {
     std::ifstream is(filepath, std::ios::binary);
     if (!is)
@@ -1568,5 +1641,5 @@ quetzal::stratum_format::Document quetzal::stratum_format::read(const std::files
         throw std::runtime_error(std::format("{}: cannot be opened", filepath.string()));
     }
 
-    return read(is, filepath.string());
+    return read(is, filepath.string(), warning);
 }

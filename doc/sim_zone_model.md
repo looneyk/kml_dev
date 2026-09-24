@@ -35,6 +35,12 @@ entities that block an actor. See The Layout interface.
 `Zone` is loaded on entry, and residency is a bounded working set rather than everything ever visited, so unloading is
 routine.
 
+**One `World` and one `Session` in a game.** `World` manages the zones, with the flecs world containing their
+entities, and cannot be copied or moved. `StratumGame` owns the `World`, the `Session`, the `Player` and the id
+allocator; the `Session` refers to the `World` rather than containing it.
+
+**A zone's population are its denizens,** not all of them monsters.
+
 **A `Zone` is one coordinate space, and it is 3D.** `Zone`s share no coordinate system and have no spatial relationship
 to one another. Surface to dungeon is always a teleport: the scale difference precludes any vertical correspondence
 between them.
@@ -49,6 +55,23 @@ boundary**, so a partner is always resolvable once its own `Zone` is loaded.
 **Future: a `Zone` spanning several levels.** One coordinate space over stacked levels, with a stairway as ordinary
 geometry rather than a relocator. A pair of height fields cannot bound it, so it needs more than a `Flat` above and
 below. Not designed.
+
+**Future: `Region`, a grouping of `Zone`s.** Literal for a surface area, and for a dungeon too, whose levels are its
+zones. Both are regions, with sets of properties that overlap but differ. "Region" is taken out of every other use
+first; the open questions are in `work_plan.md` (`### Regions`).
+
+- **A region is data.** Its properties are components on its entity: a name, and for a dungeon the maximum depth,
+  which the probability of a staircase leading down needs, the overall or starting difficulty, and the other
+  properties a whole dungeon has. It acts on nothing directly, apart from what a generator reads from it.
+- **A region is its zones' parent.** It takes the place in the hierarchy the root has now, so a zone's flecs parent is
+  its region. `zone_of` still stops at the first ancestor that is a zone, and an entity's region is its zone's parent.
+  Unloading a zone leaves its region; deleting a region deletes its zones. A region, having no zone above it, is given
+  its persistent id when it is created, as a zone is.
+- **A region decides which zones unload first.** The zones of other regions than the one the player is in go first,
+  left longest ago first; then the zones of the player's region, farthest first, by distance or by the difference in
+  depth.
+
+**Future: region files.** A region's metadata and generation settings, and possibly then its zones, one after another.
 
 **Relocators are the only cross-`Zone` link, and they are components of entities rather than structure.** A relocator
 is what a staircase, a portal or a waypoint has: it refers to a target, a destination not yet bound or the relocator
@@ -80,15 +103,15 @@ subtree. Deletion reaches all of it (`addressing.md`, `### Children`).
 
 **Ownership follows current location, not origin.** A monster that chases the player through a relocator migrates into
 the destination, so the `Zone` it came from can unload without it. The player is the exception: always in a resident
-`Zone`, but owned by the session rather than by that `Zone`, so unloading or saving the `Zone` leaves it out
+`Zone`, but owned by the game rather than by that `Zone`, so unloading or saving the `Zone` leaves it out
 (`addressing.md`, `### The player`).
 
 **Entity ids are global though entities are partitioned by `Zone`,** so migration does not renumber and references to
-a monster --- a quest, a leash, a summoner --- survive the move. Between loaded zones one flecs world supplies this, and
+a denizen --- a quest, a leash, a summoner --- survive the move. Between loaded zones one flecs world supplies this, and
 reparenting leaves the runtime entity unchanged, which `test/flecs_test` verifies. Across an unload, a save and a
 session it is the entity's persistent id, which includes no zone (`addressing.md`, `### Ids`).
 
-**A monster's home is data, not ownership.** Origin `Zone` and leash point are fields on the entity, so it can belong to
+**A denizen's home is data, not ownership.** Origin `Zone` and leash point are fields on the entity, so it can belong to
 the crypt while standing in the corridor outside.
 
 What is global is therefore world state rather than entities: quest flags, game time, faction standing, RNG streams.
@@ -104,10 +127,15 @@ back, and a save writes every visited `Zone` whatever is resident.
 | Tier | State |
 |---|---|
 | The player's `Zone` | resident, simulated |
+| A `Zone` the player has left, until it is unloaded | resident |
 | Everything else | unloaded, frozen, on disk |
 
-The resident set is a set whose size is policy, currently one, not a structural limit, so growing it is a policy
-change. With more than one, "near the player" can only mean relocator-graph distance, `Zone`s having no spatial
+**Leaving a `Zone` does not unload it.** When the player moves out of a `Zone`, before or after the next one is
+loaded, the resident set is checked against a threshold --- a maximum `Zone` count, memory usage, and the like --- and
+`Zone`s are unloaded only when it is exceeded. The session keeps a map from the timestamp of the last time the player left
+each `Zone` to its id, and the oldest is unloaded first, more than one where a memory threshold requires it.
+
+With more than one `Zone` resident, "near the player" can only mean relocator-graph distance, `Zone`s having no spatial
 relation, and the relocator graph is enumerable because relocators are on entities.
 
 **Elapsed-time advance on re-entry.** Effects expressible as a function of elapsed time are advanced when a frozen

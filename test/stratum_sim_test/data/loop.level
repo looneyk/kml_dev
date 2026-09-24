@@ -18,6 +18,6 @@
     ]
   },
   "entities": [
-    { "id": 1, "type": "waypoint", "components": { "site": { "relation": "on", "wall": { "cell_position": [1, 3], "normal": [0, -1] } }, "relocator": { "target": "up" } } }
+    { "id": 1, "type": "waypoint", "components": { "site": { "relation": "on", "wall": { "cell_position": [1, 3], "normal": [0, -1] } }, "relocator": { "type": "up", "target": "up", "order": 0, "entry": { "cell_position": [1, 3], "orientation": [0, -1] } } } }
   ]
 }

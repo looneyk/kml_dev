@@ -10,52 +10,58 @@
 #include "Generator.hpp"
 #include "EventQueue.hpp"
 #include "Layout.hpp"
+#include "Player.hpp"
 #include "Scheduler.hpp"
 #include "World.hpp"
-#include "attachments.hpp"
-#include "load_layout.hpp"
+#include "quetzal/stratum_format/Notation.hpp"
 #include <filesystem>
 
 namespace quetzal::stratum_sim
 {
 
-    // The creation, loading, and population here are a mess. we need to define better exactly what the responsibilities are and restructure this to follow that ...
+    // The creation, loading, and population here are a mess. we need to define better exactly what the responsibilities are and restructure this to follow that
+    // Here is the way it should work:
+
+    // Create and load do no zone management.
+    // create does the layout, and then populates it.
+    // A loaded zone may already be populated if it was previously saved, or generated (a fixed layout, for example) with pre-placed denizens.
+    // The saved file will have a flag indicating whether it is pre-populated.
+    // The bigger issue here is that the bodies of the creat and load operations should not live in Session, but in World and this would call into that.
+    // See my "// actual session state ..." in the cpp file for what should be session's responsibility.
+    // We need to better define the division of responsibilities and interactions of the StratumGame components.
 
     //--------------------------------------------------------------------------
-    // A loaded world with its zones, their turn order, the clock that advances them, and the entity a host controls
+    // The zone being played in a world, its turn order, the clock that advances it, and the player
     class Session
     {
     public:
 
-        Session();
+        Session(World& world, Player& player);
         Session(const Session&) = delete;
         ~Session() = default;
 
         Session& operator=(const Session&) = delete;
 
-        // Generates a zone and populates it
-        // Throws std::runtime_error when the zone has no open cell, leaving the previous zone intact
-        void create(const Generator& generator, Driver driver = Driver::TurnBased,
-            double units_per_second = Clock::units_per_second_default);
+        // Has the world generate a zone, and enters it at the access point type
+        // Throws std::runtime_error when the zone has no access point of the type, the player staying where it was
+        void create(const Generator& generator, flecs::entity access_type);
 
         // Load a zone file.
         // We need two versions of this, one for pre-generated zones which have geometry and entities, but need to be populated,
         // and another for saved zones which include the last population placement.
         // Split this or otherwise support conditional populating ...
-        void load(const std::filesystem::path& filepath, Driver driver = Driver::TurnBased,
-            double units_per_second = Clock::units_per_second_default);
+        void load(const std::filesystem::path& filepath, flecs::entity access_type);
 
-        // Populates a layout built elsewhere
-        // Why are doors not added in the create step? Zone geometry belongs there ...
-        // create also calls populate, so that contradicts the above ...
-        // populate should not be creating player, that belongs in session itself ...
-        void populate(std::unique_ptr<Layout> layout, const door_walls_type& doors, stratum_format::Notation notation,
-            Driver driver = Driver::TurnBased,
-            double units_per_second = Clock::units_per_second_default);
+        // Moves the player to the entry of the zone's entry point of the access point type, and makes it the zone being
+        // played, its actors the turn order. The world then trims its zones
+        // Throws std::runtime_error when the zone has no access point of the type, the player staying where it was
+        void enter(flecs::entity zone, flecs::entity access_type);
+
+        void set_driver(Driver driver, double units_per_second = Clock::units_per_second_default);
 
         bool loaded() const;
 
-        // Block until a zone exists
+        // Requires a loaded zone
         stratum_format::Notation notation() const;
 
         World& world();
@@ -84,13 +90,12 @@ namespace quetzal::stratum_sim
 
     private:
 
-        World m_world;
+        World& m_world;
+        Player& m_player;
         Scheduler m_scheduler;
         Clock m_clock;
         Command m_command_pending;
         flecs::entity m_zone;
-        flecs::entity m_player;
-        stratum_format::Notation m_notation = stratum_format::Notation::Block;
     };
 
 } // namespace quetzal::stratum_sim

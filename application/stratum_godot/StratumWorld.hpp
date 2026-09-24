@@ -6,6 +6,7 @@
 //------------------------------------------------------------------------------
 
 #include "quetzal/stratum_sim/Session.hpp"
+#include "quetzal/stratum_sim/StratumGame.hpp"
 #include <godot_cpp/classes/ref_counted.hpp>
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/variant/packed_byte_array.hpp>
@@ -63,7 +64,8 @@ public:
 
 private:
 
-    quetzal::stratum_sim::Session m_session;
+    quetzal::stratum_sim::StratumGame m_stratum_game;
+    quetzal::stratum_sim::Session& m_session;
 };
 
 VARIANT_ENUM_CAST(StratumWorld::PlaceType);

@@ -4,6 +4,7 @@
 //------------------------------------------------------------------------------
 
 #include "StratumWorld.hpp"
+#include "quetzal/stratum_sim/attachments.hpp"
 #include "quetzal/stratum_sim/DiscreteLayout.hpp"
 #include "quetzal/stratum_sim/commands.hpp"
 #include "quetzal/stratum_sim/Site.hpp"
@@ -16,9 +17,18 @@
 namespace sim = quetzal::stratum_sim;
 namespace view = quetzal::stratum_view;
 
+namespace
+{
+
+    // Temporary: a zone loaded is entered at its lowest-ordered staircase leading up
+    static constexpr auto entry_access_type = "up";
+
+} // namespace
+
 //------------------------------------------------------------------------------
 StratumWorld::StratumWorld() :
-    m_session()
+    m_stratum_game(),
+    m_session(m_stratum_game.session())
 {
 }
 
@@ -53,10 +63,10 @@ godot::String StratumWorld::default_zone_path() const
 //------------------------------------------------------------------------------
 bool StratumWorld::load_zone(const godot::String& filepath)
 {
-    // Exceptions must not cross into Godot. A failed load leaves the previous zone intact
+    // Exceptions must not cross into Godot. A failed load leaves the player in the zone it was in
     try
     {
-        m_session.load(std::string(filepath.utf8().get_data()));
+        m_session.load(std::string(filepath.utf8().get_data()), sim::access_type(m_stratum_game.world().entities(), entry_access_type));
     }
     catch (const std::exception& e)
     {

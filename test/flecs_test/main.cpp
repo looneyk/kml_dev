@@ -15,6 +15,18 @@
 
 using namespace std;
 
+namespace format_example
+{
+
+    // Shaped as stratum_format::Notation: an enum class in a named namespace
+    enum class Notation
+    {
+        Block,
+        Wall
+    };
+
+} // namespace format_example
+
 namespace
 {
 
@@ -450,6 +462,33 @@ namespace
         return;
     }
 
+    //--------------------------------------------------------------------------
+    // An enum as a component as it is, with no wrapper
+    void test_enum_components()
+    {
+        report_group("enum components");
+
+        using format_example::Notation;
+
+        flecs::world world;
+        flecs::entity zone = world.entity().add(Notation::Wall);
+
+        report_case("an enum constant is added as it is", zone.has<Notation>() && zone.has(Notation::Wall));
+        report_case("and read back as its value", zone.get_constant<Notation>() == Notation::Wall);
+
+        zone.add(Notation::Block);
+        report_case("adding another constant replaces it", zone.get_constant<Notation>() == Notation::Block
+            && !zone.has(Notation::Wall));
+
+        world.entity().add(Notation::Wall);
+
+        size_t wall_count = 0;
+        world.query_builder().with(Notation::Wall).build().each([&](flecs::entity) { ++wall_count; });
+        report_case_equal("entities are queryable by constant", wall_count, 1);
+
+        return;
+    }
+
 } // namespace
 
 //------------------------------------------------------------------------------
@@ -464,6 +503,7 @@ int main()
     test_unload();
     test_serialization();
     test_determinism();
+    test_enum_components();
 
     // Printed so that separate runs can be compared for ordering differences across processes
     cout << "fingerprint " << g_fingerprint << endl;

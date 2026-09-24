@@ -5,9 +5,7 @@
 // Generator.hpp
 //------------------------------------------------------------------------------
 
-#include "Layout.hpp"
-#include "load_layout.hpp"
-#include <memory>
+#include <flecs.h>
 
 namespace quetzal::stratum_sim
 {
@@ -24,10 +22,8 @@ namespace quetzal::stratum_sim
 
         Generator& operator=(const Generator&) = default;
 
-        // Reports the walls of each door to door, having no world to create it in
-        virtual std::unique_ptr<Layout> generate(const door_type& door) const = 0;
-
-        virtual stratum_format::Notation notation() const = 0;
+        // Fills an empty zone: its ZoneLayout, its ZoneNotation and its doors
+        virtual void generate(flecs::entity zone) const = 0;
     };
 
 } // namespace quetzal::stratum_sim

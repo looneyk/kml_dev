@@ -270,10 +270,10 @@ any room.
 
 **Persistent ids.**
 
-- Their type is `persistent_id_type`, used everywhere a persistent id is kept: the component on an
+- Their type is `PersistentId`, used everywhere a persistent id is kept: the component on an
   entity, references, the world index, and saves. It is 64 bits.
-- A world has one allocator, and it is the only thing that creates persistent ids. The allocator's
-  count is saved with the world.
+- A world has one allocator, and it is the only thing that creates persistent ids. An id from the
+  allocator is saved with the world, and the restored allocator continues from it.
 - No code relies on ids being ordered, dense or small, or reads bits out of one, except the allocator
   that created it.
 - A missing id is `std::optional`, not a reserved value.
@@ -333,7 +333,7 @@ zone through the index.
 
 ### Actors
 
-An actor, such as the player or a monster, is `In` its zone, its site having a placement --- a position and a
+An actor, such as the player or a denizen, is `In` its zone, its site having a placement --- a position and a
 direction --- and no address.
 
 **Each zone has an actor index,** which finds the actors at a place with a lookup. The index is derived
@@ -343,10 +343,10 @@ actors by cell. Until the index is built, `World::entities_at` checks every plac
 
 ### The player
 
-The player is in a zone, and owned by the session. It is in its zone's actor index like any actor, and
+The player is in a zone, and owned by the game. It is in its zone's actor index like any actor, and
 moves between zones as any actor does, but it is not in the zone's subtree, so unloading or saving the
 zone leaves it out. What the player carries is a child of it, sited `on` it, and is owned by the
-session too. Both are saved with the session.
+game too. Both are saved with the game.
 
 `addressing_plan.md` has the structures and components for all of this.
 

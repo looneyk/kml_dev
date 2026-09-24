@@ -32,7 +32,7 @@ writes, since a loader builds one particular kind of layout.
 
 ## Ownership
 
-`World` stores each zone's layout as a `std::unique_ptr<Layout>`, and `create_zone(name, layout)` takes it with no
+`World` stores each zone's layout as a `std::unique_ptr<Layout>`, and `create_zone(layout)` takes it with no
 default. `load_layout` returns a `std::unique_ptr<DiscreteLayout>`, both notations being grids of cells.
 
 `World::layout(zone)` returns `Layout&`. A caller that needs cells uses `layout_as<DiscreteLayout>(layout)`, a free

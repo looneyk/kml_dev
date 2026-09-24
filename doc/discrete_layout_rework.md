@@ -29,14 +29,15 @@ namespace quetzal::stratum_sim
 }
 ```
 
-- **`load_layout`** takes a document rather than a file, and has no `door` callback. The caller reads the document.
+- **`load_layout`** takes a document rather than a file. The caller reads the document.
 - **`load_content`**, in `stratum_sim/load_content.cpp`, copies every component object out of the document by id:
   `Document::components`, each room's by room id, each wall's by wall id, and each flat's for the flat, each room and
   each cell, by flat id. Every entity is copied with its site's address encoded as a wall id or a flat id and cell,
   and a flat cell where an entity was authored resolved to a placement.
 - **Nothing records a glyph.** Glyphs and entities are related only while loading and saving. A glyph set, a custom one
   included, is mapped to entities on load, and saving renders the entities as the format's glyphs.
-- **`Generator::generate`** returns the layout and fills a `Content` rather than reporting doors through a callback.
+- **`Generator::generate`** fills the empty zone it is given, as `load_layout` does. Both are built for the layout, the
+  notation and the doors (`game_system_reference.md`); what they build the rest from is open (`work_plan.md`).
 
 ### Types
 
@@ -68,9 +69,14 @@ entity, the chain ends at the layout.
 
 ### Zones
 
-`World` contains zones rather than layouts. `World::m_layouts` goes, and a `Zone` is the zone itself: its layout, its
-entity, whose subtree is everything in it, and its places (`addressing_plan.md`, `### Places`). `World::layout(zone)`
-returns the zone's layout.
+`World` contains zones rather than layouts. **A zone is an entity:** the `Zone` tag, a `ZoneLayout` component owning
+its layout, a `ZoneNotation`, and the file's layout components. Its denizens --- its population, not all of them
+monsters --- and its places are entities in its subtree (`addressing_plan.md`, `### Places`), found by query rather
+than listed. The tag and the two components are built (`game_system_reference.md`, `### World`).
+
+**What is created and loaded is a zone, not a layout.** The operations are named for it: `create_zone` rather than
+`create_layout`, and the others the same way. This is more than terminology: an operation returns or takes a zone,
+with its layout one component of it.
 
 ```cpp
 flecs::entity World::create_zone(std::unique_ptr<Layout> layout, const Content& content);
@@ -95,9 +101,9 @@ flecs::entity World::create_zone(std::unique_ptr<Layout> layout, const Content& 
   (`modding_plan.md`, `## Components`). Relocating through a relocator is `addressing_plan.md` step 8.
 
 `crossable(zone, wall_id)` finds the wall's entity by id and reads the list of what is sited on it, and the door
-functions go as `addressing_plan.md` (`### What the queries become`) lists. `Session::load` reads the document, calls
-`load_layout` and `load_content`, and passes both to `populate`, which passes them to `create_zone`. `Session::create`
-does the same with what `Generator::generate` returns, and the suites load the same way.
+functions go as `addressing_plan.md` (`### What the queries become`) lists. `World::load_zone` reads the document, calls
+`load_layout` and `load_content`, and passes both to `create_zone`. `World::create_zone(generator)` does the same with
+what `Generator::generate` returns, and the suites load the same way.
 
 ### What checks it
 
@@ -116,7 +122,8 @@ does the same with what `Generator::generate` returns, and the suites load the s
 
 1. `Content` and `load_content`, and `load_layout` taking a document.
 2. Types in `World`, and the property query.
-3. `Zone` containing its layout and its places, and `create_zone` building everything in `Content` with its links.
+3. The zone's places as entities in its subtree, the operations named for zones, and `create_zone` building
+   everything in `Content` with its links.
 4. `crossable`, `door_of` and the view on the links, `facing_on` and `other_facing` deleted.
 5. `Session`, `Generator` and the suites on the new path, and `create_doors`, `door_walls_type` and `door_type`
    deleted.

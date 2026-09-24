@@ -8,6 +8,7 @@
 #include "quetzal/stratum_format/read.hpp"
 #include "quetzal/stratum_sim/attachments.hpp"
 #include "quetzal/stratum_sim/commands.hpp"
+#include "quetzal/stratum_sim/DiscreteLayout.hpp"
 #include "quetzal/stratum_sim/load_layout.hpp"
 #include "quetzal/stratum_sim/World.hpp"
 #include "quetzal/stratum_view/ascii.hpp"
@@ -31,6 +32,8 @@ namespace
 
     static constexpr auto escape_reset_string = "\x1b[0m";
     static constexpr auto escape_rendition_pattern = "\x1b[38;5;{}m";
+
+    static constexpr size_t suite_zone_count_max = 8;
 
     size_t g_case_count = 0;
     size_t g_failure_count = 0;
@@ -180,14 +183,11 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    flecs::entity load_zone(stratum_sim::World& world, const string& name, const string& filepath)
+    // A zone read from a file with its doors and no denizens, unlike World::load_zone
+    flecs::entity load_zone_unpopulated(stratum_sim::World& world, const string& filepath)
     {
-        stratum_sim::door_walls_type doors;
-
-        flecs::entity zone = world.create_zone(name, stratum_sim::load_layout(filepath,
-            [&](const std::vector<id_type>& walls) { doors.push_back(walls); }));
-
-        stratum_sim::create_doors(world, zone, doors);
+        flecs::entity zone = world.create_zone();
+        stratum_sim::load_layout(zone, filepath);
 
         return zone;
     }
@@ -198,8 +198,9 @@ namespace
     {
         report_group("cells");
 
-        stratum_sim::World world;
-        flecs::entity zone = load_zone(world, "crypt", "data/corridor.level");
+        stratum_sim::CountingIdAllocator id_allocator(stratum_sim::PersistentId {});
+        stratum_sim::World world(id_allocator, suite_zone_count_max);
+        flecs::entity zone = load_zone_unpopulated(world,"data/corridor.level");
 
         stratum_view::Cells cells = stratum_view::cells(world, zone);
 
@@ -334,8 +335,9 @@ namespace
         report_group("lattice");
 
         // Two rooms of two by three cells sharing one wall, with a door in the middle of it
-        stratum_sim::World world;
-        flecs::entity zone = load_zone(world, "rooms", "data/walls.level");
+        stratum_sim::CountingIdAllocator id_allocator(stratum_sim::PersistentId {});
+        stratum_sim::World world(id_allocator, suite_zone_count_max);
+        flecs::entity zone = load_zone_unpopulated(world,"data/walls.level");
 
         stratum_view::Lattice lattice = stratum_view::lattice(world, zone);
 
@@ -358,13 +360,13 @@ namespace
         report_case("so is one a run passes through", lattice.at({2, 0}).type == stratum_view::PlaceType::Wall);
 
         // Every corner inside these rooms meets a stair's walls, so the corner with nothing at it is one in the vault
-        stratum_sim::World open_world;
-        flecs::entity vault = load_zone(open_world, "vault", "data/vault.level");
+        stratum_sim::World open_world(id_allocator, suite_zone_count_max);
+        flecs::entity vault = load_zone_unpopulated(open_world,"data/vault.level");
         report_case("a corner inside a room is not", stratum_view::lattice(open_world, vault).at({10, 4}).type == stratum_view::PlaceType::None);
 
         // The block notation reduces onto the same lattice, its walls only against solid
-        stratum_sim::World block;
-        flecs::entity corridor = load_zone(block, "corridor", "data/corridor.level");
+        stratum_sim::World block(id_allocator, suite_zone_count_max);
+        flecs::entity corridor = load_zone_unpopulated(block,"data/corridor.level");
 
         stratum_view::Lattice cells = stratum_view::lattice(block, corridor);
 
@@ -397,8 +399,9 @@ namespace
     {
         report_group("ascii render");
 
-        stratum_sim::World world;
-        flecs::entity zone = load_zone(world, "crypt", "data/corridor.level");
+        stratum_sim::CountingIdAllocator id_allocator(stratum_sim::PersistentId {});
+        stratum_sim::World world(id_allocator, suite_zone_count_max);
+        flecs::entity zone = load_zone_unpopulated(world,"data/corridor.level");
 
         stratum_view::Console console = stratum_view::render(world, zone);
 
@@ -427,8 +430,9 @@ namespace
     {
         report_group("wall render");
 
-        stratum_sim::World world;
-        flecs::entity zone = load_zone(world, "corridor", "data/corridor.level");
+        stratum_sim::CountingIdAllocator id_allocator(stratum_sim::PersistentId {});
+        stratum_sim::World world(id_allocator, suite_zone_count_max);
+        flecs::entity zone = load_zone_unpopulated(world,"data/corridor.level");
 
         stratum_view::Console console = stratum_view::render_lattice(world, zone);
 
@@ -466,8 +470,9 @@ namespace
         {
             string filepath = format("data/{}.level", name);
 
-            stratum_sim::World world;
-            flecs::entity zone = load_zone(world, name, filepath);
+            stratum_sim::CountingIdAllocator id_allocator(stratum_sim::PersistentId {});
+            stratum_sim::World world(id_allocator, suite_zone_count_max);
+            flecs::entity zone = load_zone_unpopulated(world, filepath);
 
             string s = stratum_view::render(world, zone).to_string();
             string expected = rows_of(filepath);
@@ -486,8 +491,9 @@ namespace
         {
             string filepath = "data/walls.level";
 
-            stratum_sim::World world;
-            flecs::entity zone = load_zone(world, "walls", filepath);
+            stratum_sim::CountingIdAllocator id_allocator(stratum_sim::PersistentId {});
+            stratum_sim::World world(id_allocator, suite_zone_count_max);
+            flecs::entity zone = load_zone_unpopulated(world, filepath);
 
             string s = stratum_view::render_lattice(world, zone).to_string();
             string expected = rows_of(filepath);
@@ -538,8 +544,9 @@ namespace
 
         string source = rows_of("data/dungeon.level");
 
-        stratum_sim::World world;
-        flecs::entity zone = load_zone(world, "dungeon", "data/dungeon.level");
+        stratum_sim::CountingIdAllocator id_allocator(stratum_sim::PersistentId {});
+        stratum_sim::World world(id_allocator, suite_zone_count_max);
+        flecs::entity zone = load_zone_unpopulated(world,"data/dungeon.level");
 
         stratum_view::Console console = stratum_view::render(world, zone);
 
@@ -689,8 +696,9 @@ namespace
     // Plays a fixed command sequence, rendering after each, and returns every frame
     string play(const string& filepath, const stratum_sim::discrete_point_type& start, const string& script, View view)
     {
-        stratum_sim::World world;
-        flecs::entity zone = load_zone(world, "zone", filepath);
+        stratum_sim::CountingIdAllocator id_allocator(stratum_sim::PersistentId {});
+        stratum_sim::World world(id_allocator, suite_zone_count_max);
+        flecs::entity zone = load_zone_unpopulated(world, filepath);
 
         const stratum_sim::DiscreteLayout& layout = stratum_sim::layout_as<stratum_sim::DiscreteLayout>(world.layout(zone));
         flecs::entity player = world.create_entity(zone, stratum_sim::placement_type(layout.position(start), stratum_sim::vector_type(1.0f, 0.0f, 0.0f)));

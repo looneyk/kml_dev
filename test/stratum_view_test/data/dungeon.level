@@ -144,8 +144,8 @@
     { "id": 88, "type": "door" },
     { "id": 89, "type": "door_facing", "components": { "parent": { "entity": 88 }, "site": { "relation": "on", "wall": { "cell_position": [7, 29], "normal": [0, 1] } } } },
     { "id": 90, "type": "door_facing", "components": { "parent": { "entity": 88 }, "site": { "relation": "on", "wall": { "cell_position": [7, 27], "normal": [0, -1] } } } },
-    { "id": 91, "type": "waypoint", "components": { "site": { "relation": "on", "wall": { "cell_position": [2, 29], "normal": [1, 0] } }, "relocator": { "target": "up" } } },
-    { "id": 92, "type": "staircase", "components": { "site": { "relation": "on", "wall": { "cell_position": [14, 27], "normal": [1, 0] } }, "relocator": { "target": "down" } } },
-    { "id": 93, "type": "staircase", "components": { "site": { "relation": "on", "wall": { "cell_position": [1, 24], "normal": [0, -1] } }, "relocator": { "target": "down" } } }
+    { "id": 91, "type": "waypoint", "components": { "site": { "relation": "on", "wall": { "cell_position": [2, 29], "normal": [1, 0] } }, "relocator": { "type": "up", "target": "up", "order": 0, "entry": { "cell_position": [2, 29], "orientation": [1, 0] } } } },
+    { "id": 92, "type": "staircase", "components": { "site": { "relation": "on", "wall": { "cell_position": [14, 27], "normal": [1, 0] } }, "relocator": { "type": "down", "target": "down", "order": 0, "entry": { "cell_position": [14, 27], "orientation": [1, 0] } } } },
+    { "id": 93, "type": "staircase", "components": { "site": { "relation": "on", "wall": { "cell_position": [1, 24], "normal": [0, -1] } }, "relocator": { "type": "down", "target": "down", "order": 1, "entry": { "cell_position": [1, 24], "orientation": [0, -1] } } } }
   ]
 }

@@ -1,6 +1,6 @@
 # Ids and Addressing --- Plan
 
-Status: steps 1, 2 and 3 built; the rest designed
+Status: steps 1 to 4 built; the rest designed
 Date: 2026-09-14, revised 2026-09-22
 
 The design behind the spec in `addressing.md`: one list of entities in a zone file, with `site` and `parent` as file
@@ -37,7 +37,7 @@ zone. `site_plan.md` is where every entity is and what it belongs to. Open items
   concealment, and nothing on the wall or the cell marks it crossable (`## Crossing a wall`).
 - **Each zone has an actor index,** derived from the actors' placements, which finds the actors at a place without a
   search (`## Actors`).
-- **The player is in a zone, and owned by the session.** It is in its zone's actor index like any actor, but unloading
+- **The player is in a zone, and owned by the game.** It is in its zone's actor index like any actor, but unloading
   or saving the zone leaves it out (`## Migration`).
 - **A dropped object is indexed in its zone,** as everything sited on a place is, and is accessible while the actor is
   in that zone, not from another zone the actor moves to.
@@ -91,79 +91,10 @@ entity.
 
 ## Persistent ids
 
-```cpp
-namespace quetzal::stratum_sim
-{
-    using persistent_id_type = std::uint64_t;
-
-    // An entity's identity in a world, for as long as the entity exists
-    struct PersistentId
-    {
-        persistent_id_type id = 0;
-    };
-
-    class IdAllocator
-    {
-    public:
-        virtual ~IdAllocator() = default;
-        virtual persistent_id_type allocate() = 0;
-    };
-
-    // Ids from a count, which is saved with the world
-    class CountingIdAllocator final : public IdAllocator
-    {
-    public:
-        explicit CountingIdAllocator(persistent_id_type next);
-        persistent_id_type allocate() override;
-        persistent_id_type next() const;
-
-    private:
-        persistent_id_type m_next;
-    };
-
-    // A reference to an entity that may be in another zone, or in none loaded
-    struct EntityReference
-    {
-        persistent_id_type id = 0;
-        flecs::entity entity; // The runtime entity last resolved, not alive once its zone has been unloaded
-    };
-}
-```
-
-`persistent_id_type` has a `std::hash` of its own, which a 128-bit form would replace.
-
-`World` gains:
-
-```cpp
-        persistent_id_type allocate_id();
-
-        // A reference to the entity, which adds it to the index
-        EntityReference make_reference(flecs::entity target);
-
-        // The loaded entity with that id, null where it is not loaded
-        flecs::entity entity(persistent_id_type id) const;
-
-        // The zone an entity in the index is in, loaded or not
-        persistent_id_type zone_of(persistent_id_type id) const;
-
-        // The entity, re-resolved where the one last resolved is no longer alive; null where it is not loaded
-        flecs::entity resolve(EntityReference& reference) const;
-
-    private:
-
-        std::unique_ptr<IdAllocator> m_id_allocator;
-        std::unordered_map<persistent_id_type, flecs::entity> m_loaded_entities;
-
-        // By the id of an entity something refers to: the id of the zone it is in
-        std::unordered_map<persistent_id_type, persistent_id_type> m_entity_zones;
-```
-
-- **`m_loaded_entities`** has an entry for each loaded entity with a `PersistentId`, added by an `OnSet` observer and
-  removed by an `OnRemove` one, so no path that creates or deletes an entity can leave it behind.
-- **`m_entity_zones`** has an entry for each entity something refers to: added when the first reference to it is made,
-  by `make_reference` or by loading a template, changed when it migrates, kept when its zone unloads, and removed when
-  it is destroyed. `zone_of` asserts that the entity has one. Sites and parents are not references in this sense, being
-  links within one zone.
+Built (step 4): `game_system_reference.md` (`### Persistent ids`) describes `PersistentId`, the allocators,
+`EntityReference`, the loaded entities and the world index. `PersistentId` has a `std::hash` of its own, which a
+128-bit form would change. Sites and parents are not references in the world index's
+sense, being links within one zone. Loading a template is the other path that adds entries to the world index.
 
 ### Loading a template
 
@@ -176,7 +107,7 @@ namespace quetzal::stratum_sim
    through the map.
 4. Build the entities, each with its `PersistentId` and its type, then give each child its parent and each entity its
    site.
-5. Add each entity that a reference in a file component points to to `m_entity_zones`.
+5. Add each entity that a reference in a file component points to to the world index.
 
 A template loaded twice gets two sets of ids, and so two instances. The ids depend on the world's count, so tests
 compare what is built and how it links rather than id values.
@@ -184,8 +115,8 @@ compare what is built and how it links rather than id values.
 ### Loading a saved zone
 
 `create_zone` with a `Content` whose `zone_id` is present allocates nothing and translates nothing: every id is already
-persistent, and `m_entity_zones` already has what the zone's references point to. Loading re-registers each entity in
-`m_loaded_entities`, and a reference into the zone resolves again the next time it is resolved.
+persistent, and the world index already has what the zone's references point to. Setting each entity's `PersistentId`
+adds it to the loaded entities again, and a reference into the zone resolves again the next time it is resolved.
 
 ## Links
 
@@ -267,7 +198,7 @@ namespace quetzal::stratum_sim
     struct Detection
     {
         DetectionState state = DetectionState::Visible;
-        std::unordered_map<persistent_id_type, DetectionState> actor_states;
+        std::unordered_map<PersistentId, DetectionState> actor_states;
     };
 
     // A property of an entity, from the entity, then its parent, and so on. None where nothing in that chain has it
@@ -365,12 +296,13 @@ namespace quetzal::stratum_sim
 
 `reparent` moves an entity from one zone to another: it removes the entity from the old zone's place list or actor
 index, sets its parent to the destination zone, or for the player the zone it is in, and its site at the destination,
-and updates its entry in `m_entity_zones` where it has one. Its children move with it.
+and its entry in the world index follows it where it has one. Its children move with it.
 
-**The player is owned by the session.** Its flecs parent is the session's entity rather than a zone, and a component
-on it refers to the zone it is in, which relocating changes and `World::zone_of` reads. It is in that zone's actor
+**The player is owned by the game.** `StratumGame` owns the `Player`, which exists before any zone. While in a zone its
+flecs parent is still that zone; in step 6 it becomes an entity of the game's rather than a zone, and a component on
+the player refers to the zone it is in, which relocating changes and `World::zone_of` reads. It is in that zone's actor
 index like any actor, but not in the zone's subtree, so unloading or saving the zone leaves it out. What the player
-carries is its child, sited `on` it, and is owned by the session too; both are saved with the session.
+carries is its child, sited `on` it, and is owned by the game too; both are saved with the game.
 
 ## Flecs
 
@@ -412,7 +344,7 @@ carries is its child, sited `on` it, and is owned by the session too; both are s
   - migration keeping the persistent id and the runtime entity, and updating the index;
   - the player in its zone's actor index, and left out when that zone is unloaded;
   - a reference re-resolving after its zone is unloaded and loaded again;
-  - `CountingIdAllocator` never repeating across a save of its count.
+  - `CountingIdAllocator` never repeating an id across a save and restore.
 - **`stratum_view_test`:** its frames, which print wall ids, unchanged apart from the wall ids.
 
 ## Steps
@@ -420,8 +352,8 @@ carries is its child, sited `on` it, and is owned by the session too; both are s
 - [x] **1. Format 0.4 in `stratum_format`.**
 - [x] **2. The generators and every zone file in 0.4.**
 - [x] **3. `flecs::Parent` checked in `flecs_test`** (`## Flecs`).
-- [ ] **4. Persistent ids.** `persistent_id_type`, `IdAllocator`, `CountingIdAllocator`, `PersistentId`,
-      `m_loaded_entities` and `m_entity_zones`, `EntityReference`, `make_reference` and `resolve`.
+- [x] **4. Persistent ids.** `PersistentId`, `IdAllocator`, `CountingIdAllocator`, the loaded entities and the world
+      index, `EntityReference`, `make_reference` and `resolve`.
 - [ ] **5. Loading a zone, against 0.4 and with persistent ids.** `discrete_layout_rework.md`'s `## Loading a zone`,
       with `Content` as above. Everything that is not geometry loads into `Content`, and `World` builds a zone from the
       layout and it: an entity for every object of file components, each `IsA` its type, its component objects decoded
@@ -432,14 +364,16 @@ carries is its child, sited `on` it, and is owned by the session too; both are s
       actor crossing. Each staircase gets its relocator with its target. Wall ids are encoded from the normal by
       `encode_wall_id`. `World` contains zones rather than layouts, and the door functions go.
 - [ ] **6. Migration and the player's ownership.** Relocating across zones through the links and the index, and the
-      player and what it carries owned by the session.
+      player and what it carries owned by the game.
 - [ ] **7. Saved zones.** The `zone` section, unload writing a zone and load reading one back, with the session
       lifecycle of stage 7. Writing one walks the zone's subtree rather than querying its children, since anything with
       a parent of its own is below that parent.
 - [ ] **8. Relocating through a relocator,** stage 6's item in `work_plan.md`, binding targets by persistent id.
       Resolving a target, bound or unbound, to a zone the world has or generates, writing the resolution back as a bound
-      target, placing the arriving actor at one of that zone's unbound access points, and binding both ends to each
-      other.
+      target, placing the arriving actor at that zone's unbound access point, of the type the relocator's type arrives
+      at, with the lowest `order`, and binding both ends to each other; `entry_point` then skips a bound access point.
+      Entering an access point, by moving into its wall or by a keystroke on its floor cell, starts it
+      (`session_plan.md` step 6).
 - [ ] **9. The zone actor index.** `ActorIndex`, `DiscreteActorIndex`, `Layout::create_actor_index`, the observers,
       and `entities_at` and `entities_within` querying the index. It builds against the zones as they are now.
 
