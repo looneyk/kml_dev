@@ -1,7 +1,7 @@
 # Modding and Data-Driven Design --- Plan
 
 Status: design goal; nothing built
-Date: 2026-09-22
+Date: 2026-09-22, revised 2026-09-24
 
 Every game built on the system is moddable, and custom content --- objects, geometry, visual effects, behavior --- is
 added as data and script without recompiling. What a mod may add cannot be predicted, so the system is built from
@@ -28,8 +28,8 @@ The game's own content is loaded the same way, as the first mod.
 ## Components
 
 - **A component is typed in the world.** Loading a zone decodes each component object in the file into the component
-  registered under its name, through flecs reflection, and keeps no JSON. `Content`, between reading and building, holds
-  the document's component objects; `create_zone` decodes them (`discrete_layout_rework.md`).
+  registered under its name, through flecs reflection, and keeps no JSON. `load_layout` decodes them from the
+  `Document` as it builds the zone (`discrete_layout_rework.md`).
 - **Schemas come from C++ or from data.** The game registers its components in C++. A mod declares its components and
   their fields in a schema file, which becomes a flecs runtime component with reflection, stored, decoded, saved and
   reached from script like any other.
@@ -94,7 +94,7 @@ file as data structures, and nlohmann does not appear in any `stratum_sim` heade
 
 - [ ] **1. Place types from data.** A reduction maps an entity's type to a place type the presentation table names,
       rather than to an enum value, so a modded type has a glyph of its own.
-- [ ] **2. Components decoded at load.** With `addressing_plan.md` step 5: `create_zone` decodes each component object
+- [ ] **2. Components decoded at load.** With `addressing_plan.md` step 5: `load_layout` decodes each component object
       into its registered component, and no entity keeps JSON.
 - [ ] **3. Types as prefabs from data**, doors among them, with inheritance and patches.
 - [ ] **4. Component schemas from data**, as flecs runtime components.

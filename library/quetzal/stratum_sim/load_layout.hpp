@@ -5,18 +5,21 @@
 // load_layout.hpp
 //------------------------------------------------------------------------------
 
+#include "quetzal/stratum_format/Document.hpp"
 #include <flecs.h>
-#include <filesystem>
+#include <optional>
+#include <string>
 
 namespace quetzal::stratum_sim
 {
 
-    // Reads a discrete layout file into an empty zone: its ZoneLayout, with a cell per grid position, its walls, the room
-    // of each cell and the two flats; its ZoneNotation, the notation the rows are written in; its doors; and its access
-    // points
-    // Throws std::runtime_error when the reader rejects the file or an access point's type is not registered, and fills
-    // nothing until it has accepted it
-    void load_layout(flecs::entity zone, const std::filesystem::path& filepath);
+    // The first access point type the document refers to that the world does not register
+    std::optional<std::string> unregistered_access_type(const flecs::world& world, const stratum_format::Document& document);
+
+    // Fills an empty zone from a document: its ZoneLayout, with a cell per grid position, its walls, the room of each cell
+    // and the two flats; its ZoneNotation, the notation the rows are written in; its doors; and its access points. Every
+    // access point type the document refers to must be registered
+    void load_layout(flecs::entity zone, const stratum_format::Document& document);
 
 } // namespace quetzal::stratum_sim
 

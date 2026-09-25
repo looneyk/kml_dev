@@ -139,8 +139,8 @@ direction, or `nullid`.
 
 ### load_layout
 
-`load_layout(zone, filepath)` reads a discrete layout file with `stratum_format::read` into an empty zone, building the
-layout from the `Document` through the same `stratum_format` functions that validated it. Each floor/door cell is
+`load_layout(zone, document)` fills an empty zone from a `Document` that `stratum_format::read` returned, building the
+layout through the same `stratum_format` functions that validated it. Each floor/door cell is
 open, with a wall on each side `has_wall` reports. Each room's cells, from `room_cells`, take its id, and `room_count`
 is the number of rooms. The flats take the file's heights, the floor defaulting to 0 and the ceiling to 1. A stair cell
 is a block, closed like solid, and the floor beside it is walled toward it.
@@ -157,8 +157,8 @@ creates an access point for each entity `layout.components.access_points` refers
 a wall, or a floor or ceiling cell --- with the registered access point type its relocator names, its `order`, and
 its `entry` as a placement. `World::load_zone` calls it.
 
-Throws `std::runtime_error` when the reader rejects the file or an access point's type is not registered, having
-filled nothing.
+Every access point type the document refers to must be registered. `unregistered_access_type(world, document)` returns
+the first that is not.
 
 ### World
 
@@ -168,16 +168,18 @@ entity with the `Zone` tag, a `ZoneLayout` component owning its layout as a `std
 `ZoneNotation`. Deleting the entity deletes the layout. There is one `World` in a game, owned by `StratumGame`, and it
 cannot be copied or moved.
 
-`create_zone()` makes an empty zone, the `Zone` tag and a `PersistentId`, for a generator or the loader to fill.
-`create_zone(layout)` makes one with that layout and nothing else, asserting it is given one. Zones have no names;
+`create_zone(zone_id)` makes an empty zone, the `Zone` tag and that `PersistentId`, for a generator or the loader to
+fill. `create_zone(layout)` makes one with a new id, that layout and nothing else, asserting it is given one. Zones have no names;
 each is identified by its persistent id. `zone_count` and `layout` reach the zones, `layout` returning the interface;
 `create_entity`, `move` and `relocate` reach their contents; and `unload_zone` discards a zone, its contents and its
 layout.
 
-`create_zone(generator)` and `load_zone(filepath)` make an empty zone, have `Generator::generate` or `load_layout` fill
-it with its layout, notation and doors, and populate it. `World` handles no doors itself. Neither unloads anything. If
-the generator or the loader throws, the zone is unloaded and the exception passes on, so a rejected file leaves
-nothing behind. `populate(zone)` places the zone's denizens: one pursuer at the last open cell in reverse row
+`create_zone(generator)` makes an empty zone with a new id, has `Generator::generate` fill it with its layout, notation
+and doors, and populates it; if the generator throws, the zone is unloaded and the exception passes on.
+`load_zone(filepath)` reads the file and checks its access point types before making the zone, with the file's
+persistent id where it has a `zone` section and a new one otherwise, then has `load_layout` fill it and populates it.
+It throws `std::runtime_error` when the reader rejects the file, an access point type is not registered, or the file's
+zone is already loaded, having made nothing. `World` handles no doors itself. Neither unloads anything. `populate(zone)` places the zone's denizens: one pursuer at the last open cell in reverse row
 order facing west, `Blocking`, with a `Speed` and a `Pursue` that has no target.
 
 `Speed` is the rate an actor gains energy at in the turn order.
@@ -411,7 +413,7 @@ cost one action; a `TurnTo` to the current facing direction and an `Interact` wi
 ## Zone file format
 
 `quetzal::stratum_format` reads and writes the JSON zone file `discrete_layout.md` specifies, version `0.4`. It
-depends on `quetzal_common` and nlohmann/json. `load_layout` fills a zone from what it reads, and both generators
+depends on `quetzal_common` and nlohmann/json. `load_layout` fills a zone from what `read` returns, and both generators
 write through it.
 
 `grid.hpp` has the geometry the rows define --- `on_grid`, `floor_cell`, `floor_door_cell`, `stair_cell`, `has_wall`,

@@ -9,8 +9,12 @@
 #include "DiscreteLayout.hpp"
 #include "load_layout.hpp"
 #include "Site.hpp"
+#include "quetzal/stratum_format/read.hpp"
 #include <algorithm>
+#include <format>
 #include <optional>
+#include <stdexcept>
+#include <string>
 #include <cassert>
 
 namespace
@@ -223,9 +227,9 @@ size_t quetzal::stratum_sim::World::zone_count() const
 }
 
 //------------------------------------------------------------------------------
-flecs::entity quetzal::stratum_sim::World::create_zone()
+flecs::entity quetzal::stratum_sim::World::create_zone(PersistentId zone_id)
 {
-    return m_entities.entity().add<Zone>().set<PersistentId>(next_id());
+    return m_entities.entity().add<Zone>().set<PersistentId>(zone_id);
 }
 
 //------------------------------------------------------------------------------
@@ -233,7 +237,7 @@ flecs::entity quetzal::stratum_sim::World::create_zone(std::unique_ptr<Layout> l
 {
     assert(layout != nullptr);
 
-    flecs::entity zone = create_zone();
+    flecs::entity zone = create_zone(next_id());
     zone.set<ZoneLayout>(ZoneLayout {std::move(layout)});
 
     return zone;
@@ -242,7 +246,7 @@ flecs::entity quetzal::stratum_sim::World::create_zone(std::unique_ptr<Layout> l
 //------------------------------------------------------------------------------
 flecs::entity quetzal::stratum_sim::World::create_zone(const Generator& generator)
 {
-    flecs::entity zone = create_zone();
+    flecs::entity zone = create_zone(next_id());
 
     try
     {
@@ -262,18 +266,20 @@ flecs::entity quetzal::stratum_sim::World::create_zone(const Generator& generato
 //------------------------------------------------------------------------------
 flecs::entity quetzal::stratum_sim::World::load_zone(const std::filesystem::path& filepath)
 {
-    flecs::entity zone = create_zone();
+    stratum_format::Document document = stratum_format::read(filepath);
 
-    try
+    if (std::optional<std::string> type_name = unregistered_access_type(m_entities, document))
     {
-        load_layout(zone, filepath);
-    }
-    catch (...)
-    {
-        unload_zone(zone);
-        throw;
+        throw std::runtime_error(std::format("{}: access point type '{}' is not registered", filepath.string(), *type_name));
     }
 
+    if (document.zone_id.has_value() && entity(PersistentId {*document.zone_id}))
+    {
+        throw std::runtime_error(std::format("{}: zone {} is already loaded", filepath.string(), *document.zone_id));
+    }
+
+    flecs::entity zone = create_zone(document.zone_id.has_value() ? PersistentId {*document.zone_id} : next_id());
+    load_layout(zone, document);
     populate(zone);
 
     return zone;

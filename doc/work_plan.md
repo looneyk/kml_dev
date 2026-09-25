@@ -1,7 +1,7 @@
 # Work Plan
 
 Status: stages 1 to 6 complete; stages 7 and 8 in progress
-Date: 2026-08-28, revised 2026-09-22
+Date: 2026-08-28, revised 2026-09-24
 
 The ordered work queue within Phase 3 and toward real time. `game_system_principles.md` has the phased plan and its
 principles; what is built is described in `game_system_reference.md`.
@@ -17,6 +17,29 @@ parts of `StratumGame` divide stage 7's work.
 geometry, entities, attachments, references --- and `addressing_plan.md` is the design of the rest of stage 8.
 
 **Open items are listed here**, under `Open` below, rather than in the plan that raised them.
+
+## Next
+
+The order the remaining steps are built in, each on the ones before it. A step leaves this list when it is done.
+
+1. **`addressing_plan.md` step 5, loading a zone,** with `modding_plan.md` step 2, in `discrete_layout_rework.md`'s
+   order: types in `World` and the property query; places as entities and `load_layout` building every entity with
+   its links, persistent ids translated and components decoded; `crossable` through `Access` and `Detection`, the door
+   functions deleted; the generators and suites on the new path, `create_doors` deleted.
+2. **`addressing_plan.md` step 6,** migration, and the player an entity of the game's rather than in a zone.
+3. **`addressing_plan.md` step 8,** relocating through a relocator.
+4. **`session_plan.md` step 6,** entering an access point.
+5. **Stage 7, a zone added to the world when it is encountered.**
+6. **`addressing_plan.md` step 7,** saved zones and the reset to a save point, with the rest of stage 7.
+
+Beside that order:
+
+- **After step 1:** `session_plan.md` step 4, pre-populated zones, the loader building a file's denizens.
+- **Blocked:** `placement_plan.md`, its step 1 changing once `create_doors` goes and its step 2 needing `content`; the
+  population strategy comes with it.
+- **At any time:** `addressing_plan.md` step 9, the zone actor index; `session_plan.md` step 7, staircases in every
+  form; `modding_plan.md` step 1, place types from data.
+- **Later:** regions, and `modding_plan.md` steps 3 to 7, which are Phase 4.
 
 ## Plans
 
@@ -291,8 +314,6 @@ Questions a stage left behind.
 
 ### Discrete layout format
 
-- **`Content`, now that the loader and generators fill an empty zone** (`discrete_layout_rework.md`): whether they
-  build the zone's entities straight from the document or the generation, dropping `Content`, or still go through it.
 - **Perimeter validation passes some invalid perimeters.** Each cell edge is checked on its own, and a wall toward a
   floor/door cell on either side satisfies one. A perimeter whose walls all face outward, around a pillar or solid
   ground, passes while enclosing no floor/door cell. The reader already determines which side of each edge is inside;

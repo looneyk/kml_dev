@@ -1,43 +1,36 @@
 # Discrete Layout Rework
 
 Status: the structures and the loader are built; loading a zone is designed
-Date: 2026-09-12, revised 2026-09-22
+Date: 2026-09-12, revised 2026-09-24
 
 Loading a zone from a zone file: what a zone is built from, and how the world builds it. `discrete_layout.md` is the
-format, `discrete_layout_plan.md` the structures it loads into, and `addressing_plan.md` the ids, links and `Content`
-this builds against; it is step 5 there. What is built is in `game_system_reference.md`.
+format, `discrete_layout_plan.md` the structures it loads into, and `addressing_plan.md` the ids and links this builds
+against; it is step 5 there. What is built is in `game_system_reference.md`.
 
 ## Loading a zone
 
-A `Document` stays the file with its geometry validated. Loading turns it into what a zone is built from: the layout,
-and `Content`, everything else placed by the layout's ids, its component objects still the document's JSON. Building
-decodes them into typed components, and nothing in the world is JSON. A generator produces the same two with no file. Building
-makes the zone in the world, its layout and an entity for everything in `Content`. Loading has no world; building has
-no document.
+`World` makes an empty zone, and the loader or a generator fills it. A `Document` is the file with its geometry
+validated, and the only form a zone takes between the file and the world. The loader builds the zone from it directly:
+the layout, then an entity for everything else, each component object decoded into a typed component, so nothing in
+the world is JSON. A generator fills the zone with no file, setting typed components directly.
 
-    file --stratum_format::read--> Document --load_layout, load_content--> DiscreteLayout, Content
-                                  Generator --generate----------------------> DiscreteLayout, Content
-    World, with its types --create_zone(DiscreteLayout, Content)------------> Zone
+    file --stratum_format::read--> Document --check against the world's types--> accepted Document
+    World --create_zone(zone_id)--> empty zone --load_layout(zone, document)----> zone
+                                               --Generator::generate(zone)------> zone
+
+`World::load_zone` reads the file and checks it against the world's registered types before making the zone, so a
+rejected file makes nothing. The zone's persistent id is the file's where it has a `zone` section, and a new one
+otherwise; a generated zone always has a new one.
 
 ### Loading
 
-```cpp
-namespace quetzal::stratum_sim
-{
-    std::unique_ptr<DiscreteLayout> load_layout(const stratum_format::Document& document);
-    Content load_content(const stratum_format::Document& document, const DiscreteLayout& layout);
-}
-```
-
-- **`load_layout`** takes a document rather than a file. The caller reads the document.
-- **`load_content`**, in `stratum_sim/load_content.cpp`, copies every component object out of the document by id:
-  `Document::components`, each room's by room id, each wall's by wall id, and each flat's for the flat, each room and
-  each cell, by flat id. Every entity is copied with its site's address encoded as a wall id or a flat id and cell,
-  and a flat cell where an entity was authored resolved to a placement.
+- **`load_layout(zone, document)`** fills the empty zone: the layout first, then everything the document places by the
+  layout's ids. It resolves each address against the layout as it builds the entity there: a
+  wall address to a wall id, a flat role to a flat id, and a flat cell where an entity was authored to a placement.
 - **Nothing records a glyph.** Glyphs and entities are related only while loading and saving. A glyph set, a custom one
   included, is mapped to entities on load, and saving renders the entities as the format's glyphs.
-- **`Generator::generate`** fills the empty zone it is given, as `load_layout` does. Both are built for the layout, the
-  notation and the doors (`game_system_reference.md`); what they build the rest from is open (`work_plan.md`).
+- **`Generator::generate(zone)`** fills the empty zone it is given, as `load_layout` does, setting typed components
+  rather than writing component objects to be decoded.
 
 ### Types
 
@@ -78,11 +71,7 @@ than listed. The tag and the two components are built (`game_system_reference.md
 `create_layout`, and the others the same way. This is more than terminology: an operation returns or takes a zone,
 with its layout one component of it.
 
-```cpp
-flecs::entity World::create_zone(std::unique_ptr<Layout> layout, const Content& content);
-```
-
-`create_zone` builds everything in `Content` in the zone's subtree:
+`load_layout` builds everything in the document in the zone's subtree:
 
 - **The layout's components** on the zone entity, and its access points.
 - **Room and flat entities.** One per room id and one per flat, which the zone finds by id, with their components. A
@@ -92,7 +81,7 @@ flecs::entity World::create_zone(std::unique_ptr<Layout> layout, const Content& 
   many as there are walls with something written on them, not as many as walls (`decision_rationale.md`, "A wall is a
   record, not an entity").
 - **Flat cell entities, sparse,** the same way, found by flat id and cell.
-- **The entities.** One per entity in `Content`, referring to its type, with its own components, its parent and its
+- **The entities.** One per entity in the document, referring to its type, with its own components, its parent and its
   site, the site linked both ways (`addressing_plan.md`, `## Links`). A door has what its sides share --- `Openable`,
   `Lockable` --- and each door facing what is reached from its side, below it: `Concealed`, a keyhole, a knocker.
 - **Every component decoded.** Each component object is decoded, through flecs reflection, into the component
@@ -101,15 +90,14 @@ flecs::entity World::create_zone(std::unique_ptr<Layout> layout, const Content& 
   (`modding_plan.md`, `## Components`). Relocating through a relocator is `addressing_plan.md` step 8.
 
 `crossable(zone, wall_id)` finds the wall's entity by id and reads the list of what is sited on it, and the door
-functions go as `addressing_plan.md` (`### What the queries become`) lists. `World::load_zone` reads the document, calls
-`load_layout` and `load_content`, and passes both to `create_zone`. `World::create_zone(generator)` does the same with
-what `Generator::generate` returns, and the suites load the same way.
+functions go as `addressing_plan.md` (`### What the queries become`) lists. `World::load_zone` has `load_layout` fill
+an empty zone, `World::create_zone(generator)` has `Generator::generate` fill one, and the suites load the same way.
 
 ### What checks it
 
-- `stratum_sim_test`: `load_content` over data files with component objects for the layout, rooms, walls, flats, flat
-  rooms and flat cells, and entities on walls, on flat cells and on their parents, the ids checked against the layout.
-  `create_zone` builds room, flat, wall and flat cell entities found by their ids, a door with its door facings linked
+- `stratum_sim_test`: `load_layout` over data files with component objects for the layout, rooms, walls, flats, flat
+  rooms and flat cells, and entities on walls, on flat cells and on their parents, each built where the file sites it.
+  Loading builds room, flat, wall and flat cell entities found by their ids, a door with its door facings linked
   to their walls and back, `open` setting `Openable`, and a relocator with its target; a component name nothing
   registers is rejected. `crossable` works through the
   links. A property query resolves from the object, then the room containing it, then the layout, then its type's
@@ -120,10 +108,7 @@ what `Generator::generate` returns, and the suites load the same way.
 
 ### Order
 
-1. `Content` and `load_content`, and `load_layout` taking a document.
-2. Types in `World`, and the property query.
-3. The zone's places as entities in its subtree, the operations named for zones, and `create_zone` building
-   everything in `Content` with its links.
-4. `crossable`, `door_of` and the view on the links, `facing_on` and `other_facing` deleted.
-5. `Session`, `Generator` and the suites on the new path, and `create_doors`, `door_walls_type` and `door_type`
-   deleted.
+1. Types in `World`, and the property query.
+2. The zone's places as entities in its subtree, and `load_layout` building everything in the document with its links.
+3. `crossable`, `door_of` and the view on the links, `facing_on` and `other_facing` deleted.
+4. `Generator` and the suites on the new path, and `create_doors`, `door_walls_type` and `door_type` deleted.

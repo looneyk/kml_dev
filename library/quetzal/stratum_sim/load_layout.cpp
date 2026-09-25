@@ -8,11 +8,8 @@
 #include "DiscreteLayout.hpp"
 #include "Zone.hpp"
 #include "quetzal/stratum_format/grid.hpp"
-#include "quetzal/stratum_format/read.hpp"
 #include "quetzal/stratum_format/references.hpp"
 #include <algorithm>
-#include <format>
-#include <stdexcept>
 #include <string>
 #include <cassert>
 #include <cstdint>
@@ -21,12 +18,41 @@
 #include <utility>
 #include <vector>
 
+namespace
+{
+
+    //--------------------------------------------------------------------------
+    // The access point's entity, which the reader has checked is sited on a surface with a relocator stating its type,
+    // order and entry
+    const quetzal::stratum_format::Entity& access_point_entity(const quetzal::stratum_format::Document& document,
+        const quetzal::stratum_format::values_type& reference)
+    {
+        quetzal::stratum_format::stored_entity_id_type id = *quetzal::stratum_format::reference_id(reference);
+        return *std::find_if(document.entities.begin(), document.entities.end(), [&](const auto& e) { return e.id == id; });
+    }
+
+} // namespace
+
 //------------------------------------------------------------------------------
-void quetzal::stratum_sim::load_layout(flecs::entity zone, const std::filesystem::path& filepath)
+std::optional<std::string> quetzal::stratum_sim::unregistered_access_type(const flecs::world& world, const stratum_format::Document& document)
+{
+    for (const stratum_format::values_type& reference : document.components.at("access_points"))
+    {
+        std::string type_name = access_point_entity(document, reference).components.at("relocator").at("type").get<std::string>();
+        if (!access_type(world, type_name))
+        {
+            return type_name;
+        }
+    }
+
+    return {};
+}
+
+//------------------------------------------------------------------------------
+void quetzal::stratum_sim::load_layout(flecs::entity zone, const stratum_format::Document& document)
 {
     assert(zone && zone.has<Zone>() && !zone.has<ZoneLayout>());
 
-    stratum_format::Document document = stratum_format::read(filepath);
     const stratum_format::Cells& cells = document.cells;
 
     auto layout = std::make_unique<DiscreteLayout>(cells.origin, cells.scale, cells.extent);
@@ -127,28 +153,22 @@ void quetzal::stratum_sim::load_layout(flecs::entity zone, const std::filesystem
 
     std::vector<AccessPointData> access_points;
 
-    // The reader has checked each is an entity sited on a surface, with a relocator stating its type, order and entry
     for (const stratum_format::values_type& reference : document.components.at("access_points"))
     {
-        stratum_format::stored_entity_id_type id = *stratum_format::reference_id(reference);
-        auto entity = std::find_if(document.entities.begin(), document.entities.end(), [&](const auto& e) { return e.id == id; });
-        const stratum_format::values_type& relocator = entity->components.at("relocator");
+        const stratum_format::Entity& entity = access_point_entity(document, reference);
+        const stratum_format::values_type& relocator = entity.components.at("relocator");
 
-        std::string type_name = relocator.at("type").get<std::string>();
-        flecs::entity type = access_type(zone.world(), type_name);
-        if (!type)
-        {
-            throw std::runtime_error(std::format("{}: access point type '{}' is not registered", filepath.string(), type_name));
-        }
+        flecs::entity type = access_type(zone.world(), relocator.at("type").get<std::string>());
+        assert(type);
 
         Site site {Relation::On, {}, {}};
-        if (const auto* wall = std::get_if<stratum_format::WallAddress>(&*entity->site->address))
+        if (const auto* wall = std::get_if<stratum_format::WallAddress>(&*entity.site->address))
         {
             site.address = WallAddress {layout->wall_toward(wall->cell_position, -wall->normal)};
         }
         else
         {
-            const auto& flat = std::get<stratum_format::FlatCell>(*entity->site->address);
+            const auto& flat = std::get<stratum_format::FlatCell>(*entity.site->address);
             site.address = FlatAddress {flat.role == stratum_format::FlatRole::Floor ? layout->floor_id() : layout->ceiling_id(), flat.cell_position};
         }
 

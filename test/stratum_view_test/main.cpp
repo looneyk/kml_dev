@@ -186,8 +186,8 @@ namespace
     // A zone read from a file with its doors and no denizens, unlike World::load_zone
     flecs::entity load_zone_unpopulated(stratum_sim::World& world, const string& filepath)
     {
-        flecs::entity zone = world.create_zone();
-        stratum_sim::load_layout(zone, filepath);
+        flecs::entity zone = world.create_zone(world.next_id());
+        stratum_sim::load_layout(zone, stratum_format::read(filepath));
 
         return zone;
     }

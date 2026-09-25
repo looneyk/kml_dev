@@ -1,7 +1,7 @@
 # Ids and Addressing --- Plan
 
 Status: steps 1 to 4 built; the rest designed
-Date: 2026-09-14, revised 2026-09-22
+Date: 2026-09-14, revised 2026-09-24
 
 The design behind the spec in `addressing.md`: one list of entities in a zone file, with `site` and `parent` as file
 components the format defines and children derived from `parent`; persistent ids; links both ways between an entity
@@ -59,34 +59,9 @@ Built (steps 1 and 2): `discrete_layout.md` specifies format 0.4, `addressing.md
 
 ## Loading a zone against 0.4
 
-`discrete_layout_rework.md` (`## Loading a zone`) outlines loading, with this `Content`:
-
-```cpp
-namespace quetzal::stratum_sim
-{
-    struct Content
-    {
-        struct Entity
-        {
-            stratum_format::stored_entity_id_type id = 0;
-            std::string type;
-            std::optional<Site> site; // The wall address encoded as a wall id, the flat role as a flat id
-            std::optional<stratum_format::stored_entity_id_type> parent_id;
-            values_type components;
-        };
-
-        std::optional<stratum_format::stored_entity_id_type> zone_id;
-        values_type layout;
-        std::vector<values_type> rooms; // By room id
-        std::map<id_type, values_type> walls; // By wall id
-        std::map<id_type, FlatContent> flats; // By flat id
-        std::vector<Entity> entities;
-    };
-}
-```
-
-`load_content` turns wall addresses into wall ids, flat roles into flat ids, and a flat cell where an entity was
-authored into a placement, and copies the rest. Every door and staircase is written in the file, so no glyph becomes an
+`discrete_layout_rework.md` (`## Loading a zone`) outlines loading: `load_layout` fills an empty zone from the
+`Document`, turning wall addresses into wall ids, flat roles into flat ids, and a flat cell where an entity was authored
+into a placement as it builds each entity. Every door and staircase is written in the file, so no glyph becomes an
 entity.
 
 ## Persistent ids
@@ -98,23 +73,24 @@ sense, being links within one zone. Loading a template is the other path that ad
 
 ### Loading a template
 
-`create_zone` with a `Content` whose `zone_id` is absent:
+`load_layout` with a document that has no `zone` section, `World::load_zone` having made the zone with a new persistent
+id:
 
-1. Allocate the zone's persistent id.
-2. Allocate a persistent id for each entity, in `Content` order, into a map from local id to persistent id that lasts
-   as long as the call.
-3. Translate every reference in the layout's, rooms', walls', flats' and entities' file components, and every `parent`,
+1. Allocate a persistent id for each entity, in the document's order, into a map from local id to persistent id that
+   lasts as long as the call.
+2. Translate every reference in the layout's, rooms', walls', flats' and entities' file components, and every `parent`,
    through the map.
-4. Build the entities, each with its `PersistentId` and its type, then give each child its parent and each entity its
+3. Build the entities, each with its `PersistentId` and its type, then give each child its parent and each entity its
    site.
-5. Add each entity that a reference in a file component points to to the world index.
+4. Add each entity that a reference in a file component points to to the world index.
 
 A template loaded twice gets two sets of ids, and so two instances. The ids depend on the world's count, so tests
 compare what is built and how it links rather than id values.
 
 ### Loading a saved zone
 
-`create_zone` with a `Content` whose `zone_id` is present allocates nothing and translates nothing: every id is already
+`load_layout` with a document that has a `zone` section, `World::load_zone` having made the zone with that section's
+id, allocates nothing and translates nothing: every id is already
 persistent, and the world index already has what the zone's references point to. Setting each entity's `PersistentId`
 adds it to the loaded entities again, and a reference into the zone resolves again the next time it is resolved.
 
@@ -173,7 +149,7 @@ A place's entity, its list and a parent's children are derived, and rebuilt when
         id_type encode_wall_id(const discrete_point_type& cell_position, const discrete_vector_type& normal) const;
 ```
 
-- **The id is the slot times four plus the normal's direction index.** `load_content` encodes every address in a file
+- **The id is the slot times four plus the normal's direction index.** `load_layout` encodes every address in a file
   with it.
 - **`wall_toward` stays the movement query.** Moving in a direction meets the wall whose normal is the opposite
   direction, so `wall_toward` negates the direction and encodes with `encode_wall_id`.
@@ -354,9 +330,8 @@ carries is its child, sited `on` it, and is owned by the game too; both are save
 - [x] **3. `flecs::Parent` checked in `flecs_test`** (`## Flecs`).
 - [x] **4. Persistent ids.** `PersistentId`, `IdAllocator`, `CountingIdAllocator`, the loaded entities and the world
       index, `EntityReference`, `make_reference` and `resolve`.
-- [ ] **5. Loading a zone, against 0.4 and with persistent ids.** `discrete_layout_rework.md`'s `## Loading a zone`,
-      with `Content` as above. Everything that is not geometry loads into `Content`, and `World` builds a zone from the
-      layout and it: an entity for every object of file components, each `IsA` its type, its component objects decoded
+- [ ] **5. Loading a zone, against 0.4 and with persistent ids.** `discrete_layout_rework.md`'s `## Loading a zone`.
+      `load_layout` builds the zone from the document: an entity for every object of file components, each `IsA` its type, its component objects decoded
       into typed components (`modding_plan.md`), and a property resolved when queried from the object, its room, the
       layout and its type's default. Making a zone allocates persistent ids and
       translates references, links sites both ways through `AttachedEntities` and the places' entities, and gives each
@@ -367,7 +342,9 @@ carries is its child, sited `on` it, and is owned by the game too; both are save
       player and what it carries owned by the game.
 - [ ] **7. Saved zones.** The `zone` section, unload writing a zone and load reading one back, with the session
       lifecycle of stage 7. Writing one walks the zone's subtree rather than querying its children, since anything with
-      a parent of its own is below that parent.
+      a parent of its own is below that parent. Loading a zone that is already loaded is an error. Resetting to a save
+      point is the game's: `StratumGame` unloads every zone, restores the player and the id allocator's count, and
+      loads the zone the player was in, the others loading as they are entered, so no entity is duplicated or lost.
 - [ ] **8. Relocating through a relocator,** stage 6's item in `work_plan.md`, binding targets by persistent id.
       Resolving a target, bound or unbound, to a zone the world has or generates, writing the resolution back as a bound
       target, placing the arriving actor at that zone's unbound access point, of the type the relocator's type arrives

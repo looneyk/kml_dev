@@ -69,7 +69,7 @@ namespace quetzal::stratum_sim
         size_t zone_count() const;
 
         // A zone with nothing in it, for a generator or a loader to fill
-        flecs::entity create_zone();
+        flecs::entity create_zone(PersistentId zone_id);
 
         // A zone with the layout and nothing else
         flecs::entity create_zone(std::unique_ptr<Layout> layout);
@@ -77,8 +77,9 @@ namespace quetzal::stratum_sim
         // A generated zone, populated.
         flecs::entity create_zone(const Generator& generator);
 
-        // A zone read from a file, populated.
-        // Throws std::runtime_error when the reader rejects the file, nothing is built
+        // A zone read from a file, populated, with the file's persistent id where it has one.
+        // Throws std::runtime_error when the reader rejects the file, an access point's type is not registered, or the file's
+        // zone is already loaded, before anything is built
         flecs::entity load_zone(const std::filesystem::path& filepath);
 
         void unload_zone(flecs::entity zone);

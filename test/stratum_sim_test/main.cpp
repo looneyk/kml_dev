@@ -271,9 +271,9 @@ namespace
         explicit OpenZone(const string& filepath) :
             id_allocator(stratum_sim::PersistentId {}),
             world(id_allocator, suite_zone_count_max),
-            zone(world.create_zone())
+            zone(world.create_zone(world.next_id()))
         {
-            stratum_sim::load_layout(zone, filepath);
+            stratum_sim::load_layout(zone, stratum_format::read(filepath));
             crossable = [open_zone = zone](id_type wall_id) { return static_cast<bool>(stratum_sim::facing_on(open_zone, wall_id)); };
         }
 
@@ -297,8 +297,8 @@ namespace
     // A zone read from a file with its doors and no denizens
     flecs::entity load_zone_unpopulated(stratum_sim::World& world, const string& filepath)
     {
-        flecs::entity zone = world.create_zone();
-        stratum_sim::load_layout(zone, filepath);
+        flecs::entity zone = world.create_zone(world.next_id());
+        stratum_sim::load_layout(zone, stratum_format::read(filepath));
         return zone;
     }
 
