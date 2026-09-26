@@ -905,6 +905,94 @@ namespace
     }
 
     //--------------------------------------------------------------------------
+    // Required, and at least one; what each refers to is checked once the entities are read
+    std::vector<stored_entity_id_type> read_access_points(const values_type& components)
+    {
+        const std::string path = "layout.components.access_points";
+
+        const values_type* p = components.is_object() ? member(components, "access_points") : nullptr;
+        if (p == nullptr)
+        {
+            fail(path, "required and absent");
+        }
+
+        const values_type& a = array(*p, path);
+        if (a.empty())
+        {
+            fail(path, "no access point");
+        }
+
+        std::vector<stored_entity_id_type> access_points;
+
+        for (size_t i = 0; i < a.size(); ++i)
+        {
+            std::optional<stored_entity_id_type> id = reference_id(a[i]);
+            if (!id.has_value())
+            {
+                fail(element_path(path, i), "not a reference to an entity");
+            }
+
+            access_points.push_back(*id);
+        }
+
+        return access_points;
+    }
+
+    //--------------------------------------------------------------------------
+    // Whether an access point requires the type, order and entry is checked with the access points
+    Relocator read_relocator(const values_type& v, const std::string& path, const Cells& cells)
+    {
+        object(v, path);
+
+        Relocator relocator;
+
+        std::string target_path = member_path(path, "target");
+        const values_type& target = required_member(v, path, "target");
+        if (target.is_string())
+        {
+            relocator.target = target.get<std::string>();
+        }
+        else if (std::optional<stored_entity_id_type> id = reference_id(target); id.has_value())
+        {
+            relocator.target = *id;
+        }
+        else
+        {
+            fail(target_path, "neither a destination nor a reference to an entity");
+        }
+
+        if (const values_type* p = member(v, "type"); p != nullptr)
+        {
+            relocator.type = string_value(*p, member_path(path, "type"));
+        }
+
+        if (const values_type* p = member(v, "order"); p != nullptr)
+        {
+            if (!p->is_number_unsigned())
+            {
+                fail(member_path(path, "order"), "a whole, non-negative number was expected");
+            }
+
+            relocator.order = p->get<std::uint64_t>();
+        }
+
+        if (const values_type* p = member(v, "entry"); p != nullptr)
+        {
+            std::string entry_path = member_path(path, "entry");
+            object(*p, entry_path);
+
+            std::string cell_path = member_path(entry_path, "cell_position");
+            discrete_point_type cell_position = read_cell_position(required_member(*p, entry_path, "cell_position"), cell_path);
+            check_on_grid(cells, cell_position, cell_path);
+
+            relocator.entry = discrete_directed_point_type(cell_position,
+                read_direction(required_member(*p, entry_path, "orientation"), member_path(entry_path, "orientation")));
+        }
+
+        return relocator;
+    }
+
+    //--------------------------------------------------------------------------
     Entity read_entity(const values_type& v, const std::string& path, const Cells& cells)
     {
         object(v, path);
@@ -945,8 +1033,14 @@ namespace
             entity.parent_id = *parent_id;
         }
 
+        if (const values_type* p = member(entity.components, "relocator"); p != nullptr)
+        {
+            entity.relocator = read_relocator(*p, member_path(components_path, "relocator"), cells);
+        }
+
         entity.components.erase("site");
         entity.components.erase("parent");
+        entity.components.erase("relocator");
         return entity;
     }
 
@@ -1187,6 +1281,11 @@ namespace
                 check(*entity.parent_id, member_path(member_path(path, "components"), "parent"));
             }
 
+            if (entity.relocator.has_value() && std::holds_alternative<stored_entity_id_type>(entity.relocator->target))
+            {
+                fail(member_path(member_path(member_path(path, "components"), "relocator"), "target"),
+                    "bound, which a relocator is only in a saved zone");
+            }
         }
 
         return;
@@ -1317,7 +1416,7 @@ namespace
 
                 for (size_t slot : i->second)
                 {
-                    if (member(document.entities[slot].components, "relocator") != nullptr)
+                    if (document.entities[slot].relocator.has_value())
                     {
                         relocators.push_back(slot);
                     }
@@ -1350,18 +1449,6 @@ namespace
     {
         const std::string path = "layout.components.access_points";
 
-        const values_type* access_points = member(document.components, "access_points");
-        if (access_points == nullptr)
-        {
-            fail(path, "required and absent");
-        }
-
-        const values_type& a = array(*access_points, path);
-        if (a.empty())
-        {
-            fail(path, "no access point");
-        }
-
         std::set<wall_key_type> open_sides;
         for (const auto& [cell_position, walls] : stair_walls)
         {
@@ -1374,28 +1461,24 @@ namespace
         // <type, <order, access point index>>
         std::map<std::string, std::map<std::uint64_t, size_t>> orders;
 
-        for (size_t i = 0; i < a.size(); ++i)
+        for (size_t i = 0; i < document.access_points.size(); ++i)
         {
             std::string point_path = element_path(path, i);
+            stored_entity_id_type id = document.access_points[i];
 
-            std::optional<stored_entity_id_type> id = reference_id(a[i]);
-            if (!id.has_value())
-            {
-                fail(point_path, "not a reference to an entity");
-            }
-
-            auto slot = index.slots_by_id.find(*id);
+            auto slot = index.slots_by_id.find(id);
             if (slot == index.slots_by_id.end())
             {
-                fail(point_path, std::format("refers to {}, which is no entity's id", *id));
+                fail(point_path, std::format("refers to {}, which is no entity's id", id));
             }
 
             const Entity& entity = document.entities[slot->second];
-            const values_type* relocator = member(entity.components, "relocator");
-            if (relocator == nullptr)
+            if (!entity.relocator.has_value())
             {
                 fail(point_path, "an entity with no relocator");
             }
+
+            const Relocator& relocator = *entity.relocator;
 
             if (!entity.site.has_value() || entity.site->relation != Relation::On || !entity.site->address.has_value())
             {
@@ -1409,34 +1492,32 @@ namespace
             }
 
             std::string relocator_path = member_path(member_path(element_path("entities", slot->second), "components"), "relocator");
-            object(*relocator, relocator_path);
 
-            std::string type = string_value(required_member(*relocator, relocator_path, "type"), member_path(relocator_path, "type"));
+            if (!relocator.type.has_value())
+            {
+                fail(member_path(relocator_path, "type"), "required and absent");
+            }
 
             std::string order_path = member_path(relocator_path, "order");
-            const values_type& order = required_member(*relocator, relocator_path, "order");
-            if (!order.is_number_unsigned())
+            if (!relocator.order.has_value())
             {
-                fail(order_path, "a whole, non-negative number was expected");
+                fail(order_path, "required and absent");
             }
 
             std::string entry_path = member_path(relocator_path, "entry");
-            const values_type& entry = required_member(*relocator, relocator_path, "entry");
-            object(entry, entry_path);
-
-            std::string cell_path = member_path(entry_path, "cell_position");
-            discrete_point_type cell_position = read_cell_position(required_member(entry, entry_path, "cell_position"), cell_path);
-            check_on_grid(document.cells, cell_position, cell_path);
-            if (!floor_door_cell(document.cells, cell_position))
+            if (!relocator.entry.has_value())
             {
-                fail(cell_path, "a cell an actor cannot stand in");
+                fail(entry_path, "required and absent");
             }
 
-            read_direction(required_member(entry, entry_path, "orientation"), member_path(entry_path, "orientation"));
-
-            if (!orders[type].emplace(order.get<std::uint64_t>(), i).second)
+            if (!floor_door_cell(document.cells, relocator.entry->position()))
             {
-                fail(order_path, std::format("order {} is another access point's of the type '{}'", order.get<std::uint64_t>(), type));
+                fail(member_path(entry_path, "cell_position"), "a cell an actor cannot stand in");
+            }
+
+            if (!orders[*relocator.type].emplace(*relocator.order, i).second)
+            {
+                fail(order_path, std::format("order {} is another access point's of the type '{}'", *relocator.order, *relocator.type));
             }
         }
 
@@ -1495,6 +1576,12 @@ namespace
         {
             object(*p, "layout");
             document.components = read_components(*p, "layout");
+        }
+
+        document.access_points = read_access_points(document.components);
+        if (document.components.is_object())
+        {
+            document.components.erase("access_points");
         }
 
         document.cells = read_cells(required_member(v, "", "cells"), "cells");

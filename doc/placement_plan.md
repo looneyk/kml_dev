@@ -47,12 +47,6 @@ Five roles, each independent of the rest:
 
 Selection and distribution are kept apart, so "rare items, one per room" is the two choices it is.
 
-## The case that already works
-
-`create_doors` is an instance: the sites are the wall sets `load_layout` finds, the distribution is all of them,
-selection is constant, acceptance is unconditional, and emission builds the door. Reimplementing it through the
-interface proves the interface.
-
 ## Reproducibility
 
 Placement is seeded, so the sites must arrive in a stable order. flecs iteration is deterministic but not ordered
@@ -69,8 +63,9 @@ placement.
 
 ## Steps
 
-- [ ] **1. The interface, and `create_doors` through it.** The five roles as parameters, exhaustive distribution and
-      constant selection only. Nothing new is placed and no zone changes, so the reference frames check it exactly.
+- [ ] **1. The interface, and a zone's doors built from its file through it.** The five roles as parameters,
+      exhaustive distribution and constant selection only. Nothing new is placed and no zone changes, so the reference
+      frames check it exactly.
 - [ ] **2. Weighted selection over a table**: an entry drawn from a weighted list, with its properties. The table
       itself is `content`'s.
 - [ ] **3. The distributions**: a count, one per room, a density per area.
@@ -78,9 +73,6 @@ placement.
 
 ## Blockers
 
-- **Step 1's subject is being replaced.** `create_doors` and `door_walls_type`, used inside `load_layout`, go when a
-  zone is loaded from its entities rather than from its glyphs (`addressing_plan.md`, step 5). Step 1 then reimplements
-  how a zone's doors are built from its file, with the reference frames unchanged.
 - **Step 2 needs `content`**, for weighted selection over prototypes.
 - **Where it lives is unsettled,** which decides what it may depend on and so what a site can be.
 

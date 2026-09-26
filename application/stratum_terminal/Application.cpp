@@ -125,8 +125,8 @@ stratum_terminal::KeyPress stratum_terminal::Application::next_key()
 void stratum_terminal::Application::draw()
 {
     stratum_view::Console console = m_view == View::Cell
-        ? stratum_view::render(m_session.world(), m_session.zone(), m_view_glyphs)
-        : stratum_view::render_lattice(m_session.world(), m_session.zone(), m_view_glyphs);
+        ? stratum_view::render(m_session.world(), m_session.zone(), m_session.player(), m_view_glyphs)
+        : stratum_view::render_lattice(m_session.world(), m_session.zone(), m_session.player(), m_view_glyphs);
 
     m_terminal.draw(console, status(), help_string);
     return;

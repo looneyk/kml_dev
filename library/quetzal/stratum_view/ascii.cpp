@@ -152,9 +152,9 @@ quetzal::stratum_view::Console quetzal::stratum_view::render(const Cells& cells,
 }
 
 //------------------------------------------------------------------------------
-quetzal::stratum_view::Console quetzal::stratum_view::render(const sim::World& world, flecs::entity zone, const Glyphs& glyphs)
+quetzal::stratum_view::Console quetzal::stratum_view::render(const sim::World& world, flecs::entity zone, flecs::entity viewer, const Glyphs& glyphs)
 {
-    return render(cells(world, zone), glyphs);
+    return render(cells(world, zone, viewer), glyphs);
 }
 
 //------------------------------------------------------------------------------
@@ -175,7 +175,8 @@ quetzal::stratum_view::Console quetzal::stratum_view::render_lattice(const Latti
 }
 
 //------------------------------------------------------------------------------
-quetzal::stratum_view::Console quetzal::stratum_view::render_lattice(const sim::World& world, flecs::entity zone, const Glyphs& glyphs)
+quetzal::stratum_view::Console quetzal::stratum_view::render_lattice(const sim::World& world, flecs::entity zone, flecs::entity viewer,
+    const Glyphs& glyphs)
 {
-    return render_lattice(lattice(world, zone), glyphs);
+    return render_lattice(lattice(world, zone, viewer), glyphs);
 }

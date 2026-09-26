@@ -8,6 +8,7 @@
 #include "Notation.hpp"
 #include "types.hpp"
 #include "quetzal/common/id.hpp"
+#include <cstdint>
 #include <map>
 #include <optional>
 #include <string>
@@ -144,14 +145,26 @@ namespace quetzal::stratum_format
     };
 
     //--------------------------------------------------------------------------
-    // One of the zone's entities. The site and parent file components are decoded into fields, which the reader validates;
-    // components contains the rest as written
+    // The relocator file component. The target is a destination, or in a saved zone the id of the relocator it is bound
+    // to. An access point's has its type, order and entry, the cell position and orientation an arriving actor is given
+    struct Relocator
+    {
+        std::variant<std::string, stored_entity_id_type> target;
+        std::optional<std::string> type;
+        std::optional<std::uint64_t> order;
+        std::optional<discrete_directed_point_type> entry;
+    };
+
+    //--------------------------------------------------------------------------
+    // One of the zone's entities. The site, parent and relocator file components are decoded into fields, which the reader
+    // validates; components contains the rest as written
     struct Entity
     {
         stored_entity_id_type id = 0;
         std::string type;
         std::optional<Site> site;
         std::optional<stored_entity_id_type> parent_id;
+        std::optional<Relocator> relocator;
         values_type components;
     };
 
@@ -161,7 +174,8 @@ namespace quetzal::stratum_format
     {
         std::string version;
         values_type generator;
-        values_type components; // The layout's own
+        std::vector<stored_entity_id_type> access_points; // The layout's access_points file component, decoded
+        values_type components; // The layout's own, access_points aside
         std::optional<stored_entity_id_type> zone_id; // Persistent id, empty in a zone template
         Cells cells;
         std::vector<Barrier> barriers;

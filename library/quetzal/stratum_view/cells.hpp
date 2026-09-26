@@ -32,9 +32,8 @@ namespace quetzal::stratum_view
     enum class State : uint16_t
     {
         None = 0,
-        Open = 1 << 0, // Openable::open
-        Crossable = 1 << 1, // The Crossable tag
-        Concealed = 1 << 2 // The Concealed tag, not revealed
+        Open = 1 << 0, // Access is open
+        Concealed = 1 << 1 // Detection conceals it from actors in general, though not from the viewer
     };
 
     constexpr State operator|(State a, State b);
@@ -67,13 +66,14 @@ namespace quetzal::stratum_view
 
     // The zone reduced to one Place per grid cell: Solid, Floor, or a Door occupying a cell, as a doorway does in the
     // block notation. A wall or door on an edge between two cells has no position here
-    Cells cells(const stratum_sim::World& world, flecs::entity zone);
+    // The zone as the viewer perceives it: a door the viewer finds concealed is drawn as though there were none
+    Cells cells(const stratum_sim::World& world, flecs::entity zone, flecs::entity viewer);
 
     // The zone reduced onto the lattice of the wall notation: (2W+1) by (2H+1) for a W by H grid, with cell (i, j) at
     // (2i+1, 2j+1), the wall west of it at (2i, 2j+1), the wall south of it at (2i+1, 2j), and the corners at the even
     // positions in both
-    // A corner is Wall where any of its four edges has a wall or a door
-    Lattice lattice(const stratum_sim::World& world, flecs::entity zone);
+    // A corner is Wall where any of its four edges has a wall or a door. The viewer as for cells
+    Lattice lattice(const stratum_sim::World& world, flecs::entity zone, flecs::entity viewer);
 
     //--------------------------------------------------------------------------
     namespace detail
@@ -81,8 +81,7 @@ namespace quetzal::stratum_view
 
         constexpr State state_of(PlaceType type)
         {
-            return type == PlaceType::Door ? State::Open | State::Crossable | State::Concealed
-                : State::None;
+            return type == PlaceType::Door ? State::Open | State::Concealed : State::None;
         }
 
     } // namespace detail

@@ -249,6 +249,20 @@ namespace
     }
 
     //--------------------------------------------------------------------------
+    map_type relocator_map(const stratum_format::Relocator& relocator)
+    {
+        map_type m;
+        m["target"] = holds_alternative<string>(relocator.target) ? map_type(get<string>(relocator.target))
+            : map_type {{"entity", get<stratum_format::stored_entity_id_type>(relocator.target)}};
+        m["type"] = relocator.type.has_value() ? map_type(*relocator.type) : map_type();
+        m["order"] = relocator.order.has_value() ? map_type(*relocator.order) : map_type();
+        m["entry"] = relocator.entry.has_value()
+            ? map_type {{"cell_position", cell_position_map(relocator.entry->position())}, {"orientation", direction_map(relocator.entry->direction())}}
+            : map_type();
+        return m;
+    }
+
+    //--------------------------------------------------------------------------
     map_type entity_map(const stratum_format::Entity& entity)
     {
         map_type m = components_map(entity.components);
@@ -256,6 +270,7 @@ namespace
         m["type"] = entity.type;
         m["site"] = entity.site.has_value() ? site_map(*entity.site) : map_type();
         m["parent"] = entity.parent_id.has_value() ? map_type(*entity.parent_id) : map_type();
+        m["relocator"] = entity.relocator.has_value() ? relocator_map(*entity.relocator) : map_type();
         return m;
     }
 
@@ -270,6 +285,7 @@ namespace
         m["zone"] = document.zone_id.has_value() ? map_type(*document.zone_id) : map_type();
         m["generator"] = content_map(document.generator);
         m["layout"] = components_map(document.components);
+        m["access_points"] = document.access_points;
 
         m["cells"] =
         {
@@ -409,7 +425,10 @@ namespace
         const auto* stair_wall = wall_address(document.entities[3]);
         report_case("a staircase is sited on the wall on its open side",
             stair_wall != nullptr && *stair_wall == stratum_format::WallAddress {{3, 1}, {0, -1}});
-        report_case("a relocator is kept as written", document.entities[3].components["relocator"]["target"] == "down");
+        const auto& stair_relocator = document.entities[3].relocator;
+        report_case("a relocator is decoded out of components", stair_relocator.has_value()
+            && holds_alternative<string>(stair_relocator->target) && get<string>(stair_relocator->target) == "down"
+            && !document.entities[3].components.contains("relocator"));
 
         const auto& chest_site = document.entities[5].site;
         const auto* flat_cell = chest_site.has_value() && chest_site->address.has_value()
@@ -431,6 +450,7 @@ namespace
         report_case("the generator keeps its parameters in the order written",
             document.generator["parameters"].begin().key() == "extent" && next(document.generator["parameters"].begin()).key() == "scale");
         report_case("layout components are kept as written", document.components["difficulty"] == 3 && document.components["style"] == "cistern");
+        report_case("the access points are decoded out of them", !document.access_points.empty() && !document.components.contains("access_points"));
 
         return;
     }
@@ -685,7 +705,7 @@ namespace
             {"an access point that is not a reference", [](auto& v) { v["layout"]["components"]["access_points"][0] = 4; },
                 "layout.components.access_points[0]: not a reference to an entity"},
             {"an access point that is no entity's id", [](auto& v) { v["layout"]["components"]["access_points"][0] = parse_values(R"({ "entity": 99 })"); },
-                "layout.components: refers to 99, which is no entity's id"},
+                "layout.components.access_points[0]: refers to 99, which is no entity's id"},
             {"an access point of a saved zone that is no entity's id, which the reference check lets by", [](auto& v)
                 {
                     v["zone"] = parse_values(R"({ "id": 7713 })");
@@ -725,7 +745,20 @@ namespace
                 "entities[3].components.relocator.entry: required and absent"},
             {"an access point whose entry is a cell an actor cannot stand in", [](auto& v)
                 { v["entities"][3]["components"]["relocator"]["entry"]["cell_position"] = parse_values("[3, 2]"); },
-                "entities[3].components.relocator.entry.cell_position: a cell an actor cannot stand in"}
+                "entities[3].components.relocator.entry.cell_position: a cell an actor cannot stand in"},
+            {"a relocator with no target", [](auto& v) { v["entities"][3]["components"]["relocator"].erase("target"); },
+                "entities[3].components.relocator.target: required and absent"},
+            {"a relocator whose target is neither a destination nor a reference", [](auto& v)
+                { v["entities"][3]["components"]["relocator"]["target"] = 4; },
+                "entities[3].components.relocator.target: neither a destination nor a reference to an entity"},
+            {"a template's relocator bound", [](auto& v)
+                { v["entities"][3]["components"]["relocator"]["target"] = parse_values(R"({ "entity": 5 })"); },
+                "entities[3].components.relocator.target: bound, which a relocator is only in a saved zone"},
+            {"a saved zone's relocator bound to a relocator in another zone", [](auto& v)
+                {
+                    v["zone"] = parse_values(R"({ "id": 7713 })");
+                    v["entities"][3]["components"]["relocator"]["target"] = parse_values(R"({ "entity": 90412 })");
+                }, ""}
         });
 
         return;

@@ -5,14 +5,18 @@
 // attachments.hpp
 //------------------------------------------------------------------------------
 
+#include "PersistentId.hpp"
 #include "Site.hpp"
 #include "types.hpp"
 #include "quetzal/common/id.hpp"
 #include <flecs.h>
 #include <cstdint>
+#include <optional>
+#include <string>
 #include <string_view>
+#include <unordered_map>
 #include <utility>
-#include <vector>
+#include <variant>
 
 namespace quetzal::stratum_sim
 {
@@ -20,35 +24,36 @@ namespace quetzal::stratum_sim
     // Entities attached to a wall or a flat: an alcove, a basin, a door, a button, a torch
 
     //--------------------------------------------------------------------------
-    // Its DoorFacing children are sited on its walls
-    struct Door
+    enum class AccessState
     {
+        Open,
+        Closed,
+        Locked
     };
 
     //--------------------------------------------------------------------------
-    // One side of a door, and a child of it
-    struct DoorFacing
+    // On an entity that is a way through, such as a door: whether it lets anything through. A door off its hinges is open,
+    // and one smashed into rubble that blocks it is closed. On the door rather than a door facing, so both sides agree
+    struct Access
     {
+        AccessState state = AccessState::Closed;
     };
 
     //--------------------------------------------------------------------------
-    // On the door, so both of its sides are open or shut together
-    struct Openable
+    enum class DetectionState
     {
-        bool open = false;
+        Visible,
+        Concealed,
+        Revealed
     };
 
     //--------------------------------------------------------------------------
-    // Crossed without being opened, as a smashed door is
-    struct Crossable
+    // On an entity that not every actor sees, such as one side of a secret door: its state, and that of each actor whose own
+    // differs
+    struct Detection
     {
-    };
-
-    //--------------------------------------------------------------------------
-    // Hidden from this side until revealed. On a door facing, so each side of a door is concealed separately
-    struct Concealed
-    {
-        bool revealed = false;
+        DetectionState state = DetectionState::Visible;
+        std::unordered_map<PersistentId, DetectionState> actor_states; // <actor_id, state>
     };
 
     //--------------------------------------------------------------------------
@@ -75,6 +80,13 @@ namespace quetzal::stratum_sim
     };
 
     //--------------------------------------------------------------------------
+    // Where an entity moves an actor that enters it: a destination, or the relocator it is bound to
+    struct Relocator
+    {
+        std::variant<std::string, EntityReference> target;
+    };
+
+    //--------------------------------------------------------------------------
     // Registers an access point type, whose arrival is set on it once the type it arrives at is registered
     flecs::entity create_access_type(flecs::world& entities, std::string_view name);
 
@@ -82,6 +94,10 @@ namespace quetzal::stratum_sim
     flecs::entity access_type(const flecs::world& entities, std::string_view name);
 
     //--------------------------------------------------------------------------
+    // Makes an entity sited on a surface an access point of the type
+    void set_access_point(flecs::entity e, flecs::entity access_type, std::uint64_t order, const placement_type& entry);
+
+    // A new entity in the zone, sited there and made an access point
     flecs::entity create_access_point(flecs::entity zone, flecs::entity access_type, const Site& site, std::uint64_t order,
         const placement_type& entry);
 
@@ -89,28 +105,22 @@ namespace quetzal::stratum_sim
     flecs::entity entry_point(flecs::entity zone, flecs::entity access_type);
 
     //--------------------------------------------------------------------------
-    // A door with a door facing on each of its walls: usually two, and one where a doorway leads into a dead end
-    flecs::entity create_door(flecs::entity zone, const std::vector<id_type>& wall_ids);
+    // The entity whose Access applies to e: e, or the nearest of its parents with one. Null where none has one
+    flecs::entity access_entity(flecs::entity e);
+
+    std::optional<AccessState> access(flecs::entity e);
+
+    // How the actor detects e: from e's Detection or the nearest of its parents', the actor's own state where it has one,
+    // and otherwise the Detection's state. Visible where none has one. A null actor takes the Detection's state
+    DetectionState detection(flecs::entity e, flecs::entity actor);
 
     //--------------------------------------------------------------------------
-    // The wall ids of each door in a zone
-    using door_walls_type = std::vector<std::vector<id_type>>;
+    // An entity sited on the wall that has access, such as a door facing, or a null entity
+    flecs::entity way_through(flecs::entity zone, id_type wall_id);
 
-    // Each door is created closed. Returns the count
-    size_t create_doors(flecs::entity zone, const door_walls_type& doors);
-
-    //--------------------------------------------------------------------------
-    // The door facing sited on a wall of the zone, or a null entity
-    flecs::entity facing_on(flecs::entity zone, id_type wall_id);
-
-    flecs::entity door_of(flecs::entity facing);
-
-    flecs::entity other_facing(flecs::entity facing);
-
-    //--------------------------------------------------------------------------
-    // A wall with nothing sited on it, or with a concealed door facing not yet revealed, is solid. Otherwise an Openable
-    // door is crossable when open, and any other when it has Crossable
-    bool crossable(flecs::entity zone, id_type wall_id);
+    // Whether an entity sited on the wall lets the actor through: its access is open and the actor does not find it
+    // concealed. A wall with nothing on it with access cannot be crossed
+    bool crossable(flecs::entity zone, id_type wall_id, flecs::entity actor);
 
 } // namespace quetzal::stratum_sim
 

@@ -124,9 +124,9 @@ namespace
                     pending.pop_back();
                     region.push_back(position);
 
-                    for (const auto& step : cardinal_directions)
+                    for (const auto& direction : cardinal_directions)
                     {
-                        point_type neighbor = position + step;
+                        point_type neighbor = position + direction;
                         if (solid(grid, size, neighbor.x(), neighbor.y()) || seen[slot(size, neighbor.x(), neighbor.y())])
                         {
                             continue;
@@ -150,7 +150,8 @@ namespace
 } // namespace
 
 //------------------------------------------------------------------------------
-quetzal::dungen::Level quetzal::dungen::generate_cave1(id_type id, const string& name, const Parameters& parameters)
+quetzal::dungen::Level quetzal::dungen::generate_cave1(id_type id, const string& name, const Parameters& parameters,
+    const warning_function_type& warning)
 {
     assert(parameters.algorithm == Algorithm::Cave1);
     validate(parameters);
@@ -174,9 +175,7 @@ quetzal::dungen::Level quetzal::dungen::generate_cave1(id_type id, const string&
         level.cell(position).set_type(CellType::Corridor);
     }
 
-    place_staircases(level, region, parameters.staircase_down_count, parameters.staircase_up_count, random);
-    move_staircases_off_doorways(level, random);
-    face_staircases(level, random);
+    place_staircases(level, region, parameters.staircase_up_count, parameters.staircase_down_count, random, warning);
 
     return level;
 }

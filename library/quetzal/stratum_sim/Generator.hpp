@@ -22,7 +22,7 @@ namespace quetzal::stratum_sim
 
         Generator& operator=(const Generator&) = default;
 
-        // Fills an empty zone: its ZoneLayout, its ZoneNotation and its doors
+        // Fills an empty zone as load_layout does: its ZoneLayout, its ZoneNotation, its layout entities, and its entities
         virtual void generate(flecs::entity zone) const = 0;
     };
 

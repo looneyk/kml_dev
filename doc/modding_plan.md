@@ -86,15 +86,14 @@ file as data structures, and nlohmann does not appear in any `stratum_sim` heade
 
 - **`stratum_view::PlaceType` is a closed enum** --- none, solid, floor, wall, door. A modded type cannot have a place
   type or glyph of its own; the glyph sets load from a file, but the categories they map from are fixed in C++.
-- **Doors are C++ special cases:** `Door`, `DoorFacing`, `create_door` and `create_doors`. Building a zone from the
-  file's entities, with `crossable` reading `Access` and `Detection` (`addressing_plan.md`, step 5), removes them.
+- **The `door` type is registered in C++,** with its `Access`, until types load from data.
 - **Registration is compile-time only** (`game_system_principles.md`, Key abstractions).
 
 ## Steps
 
 - [ ] **1. Place types from data.** A reduction maps an entity's type to a place type the presentation table names,
       rather than to an enum value, so a modded type has a glyph of its own.
-- [ ] **2. Components decoded at load.** With `addressing_plan.md` step 5: `load_layout` decodes each component object
+- [x] **2. Components decoded at load.** With `addressing_plan.md` step 5: `load_layout` decodes each component object
       into its registered component, and no entity keeps JSON.
 - [ ] **3. Types as prefabs from data**, doors among them, with inheritance and patches.
 - [ ] **4. Component schemas from data**, as flecs runtime components.

@@ -20,8 +20,6 @@ namespace quetzal::geometry
     {
     public:
 
-		static_assert(Traits::dimension >= 3);
-
         using value_type = Traits::value_type;
         using point_type = Point<Traits>;
         using direction_type = point_type::vector_type;

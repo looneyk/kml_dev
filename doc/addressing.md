@@ -239,7 +239,7 @@ The file also has the zone's own persistent id, which a template does not have.
 What a zone saves is its geometry, the file components of its places, and its entities with all of
 theirs. Each fact is saved once, in the place it comes from. That a chest lies on a flat cell is saved in
 the chest's `site`, and a wall's style in the zone's `walls` section. Nothing derived is saved: not
-places' entities, not the lists of what is sited on something, not a parent's children, not the
+layout entities, not the lists of what is sited on something, not a parent's children, not the
 actor index. They are all rebuilt when the zone loads. The world separately saves its id allocator's
 count and its index of which zone each entity that something refers to is in.
 
@@ -296,8 +296,8 @@ and slot to flat cell entity.
 
 **Lookups.**
 
-- **What is on this wall or flat cell:** look up the place's entity in the zone's map, then read its
-  list.
+- **What is on this wall or flat cell:** look up the wall's or cell's entity in the zone's index, then
+  read its list.
 - **What is in that chest:** read the chest's children, keeping those sited `in` it.
 - **Where an entity is:** read its `site`, and its parent where the site has no address.
 - **Whether a wall can be crossed:** ask each entity on the wall's list whether its access is open and

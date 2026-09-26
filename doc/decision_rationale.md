@@ -53,8 +53,8 @@ The alternative was a query over the zone's sites filtered by wall id, which `cr
 actor per turn and per cell along every sight line. With the wall's entity found by id, the question is a lookup and a
 link.
 
-The link is a component with the target as data, `Site` on the sited entity and `AttachedEntities` on the place's
-entity, rather than a Flecs pair such as `(LyingOn, cell)`. Flecs stores each distinct pair in an archetype table of
+The link is a component with the target as data, `Site` on the sited entity and `AttachedEntities` on the wall's or
+flat cell's entity, rather than a Flecs pair such as `(LyingOn, cell)`. Flecs stores each distinct pair in an archetype table of
 its own, so objects on thousands of different cells split storage into thousands of small tables, and a world several
 orders of magnitude past the test zones multiplies that. A pair marked `DontFragment` avoids the split at a cost to
 iteration, and a component with the target and no list on the target leaves finding what is on a cell a scan of every
@@ -82,7 +82,7 @@ has no second case.
 
 **Children are derived rather than listed.** A parent listing its children would state each link twice, once on each
 end, and the two could disagree. The child's `parent` states it once, and Flecs builds each parent's children from
-those when the zone loads, as a place's list of what is sited on it is built from `site`.
+those when the zone loads, as a wall's or flat cell's list of what is sited on it is built from `site`.
 
 **The relation is `In` or `On`.** An open vocabulary of relationships --- `contained_in`, `part_of`, `carried_by` ---
 mostly restated the parent link, and pushed toward names such as `fills`, which is wrong for a door that rarely fills

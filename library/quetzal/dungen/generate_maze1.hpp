@@ -16,8 +16,8 @@ namespace quetzal::dungen
     // maze flooded through every cell they left, then dead ends and loops pruned back
     // Both dimensions are rounded down to odd, the maze running along the odd cells
     // Reads parameters.maze1; parameters.algorithm is expected to be Algorithm::Maze1
-    // Throws std::invalid_argument by way of validate
-    Level generate_maze1(id_type id, const std::string& name, const Parameters& parameters);
+    // Throws std::invalid_argument by way of validate, and as place_staircases does
+    Level generate_maze1(id_type id, const std::string& name, const Parameters& parameters, const warning_function_type& warning);
 
 } // namespace quetzal::dungen
 

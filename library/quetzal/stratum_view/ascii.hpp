@@ -56,13 +56,13 @@ namespace quetzal::stratum_view
     // it was loaded from
     const Glyphs& lattice_glyphs();
 
-    // The second overload reduces the zone to cells first
+    // The second overload reduces the zone to cells first, as the viewer perceives it
     Console render(const Cells& cells, const Glyphs& glyphs = cell_glyphs());
-    Console render(const stratum_sim::World& world, flecs::entity zone, const Glyphs& glyphs = cell_glyphs());
+    Console render(const stratum_sim::World& world, flecs::entity zone, flecs::entity viewer, const Glyphs& glyphs = cell_glyphs());
 
     // Named apart from render because Cells and Lattice are the same type
     Console render_lattice(const Lattice& lattice, const Glyphs& glyphs = lattice_glyphs());
-    Console render_lattice(const stratum_sim::World& world, flecs::entity zone, const Glyphs& glyphs = lattice_glyphs());
+    Console render_lattice(const stratum_sim::World& world, flecs::entity zone, flecs::entity viewer, const Glyphs& glyphs = lattice_glyphs());
 
 } // namespace quetzal::stratum_view
 

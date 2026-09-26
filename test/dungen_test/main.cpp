@@ -5,6 +5,7 @@
 
 #include "quetzal/common/file_util.hpp"
 #include "quetzal/dungen/generate.hpp"
+#include "quetzal/dungen/place_staircases.hpp"
 #include "quetzal/dungen/write_level.hpp"
 #include "quetzal/math/Random.hpp"
 #include "quetzal/stratum_format/grid.hpp"
@@ -102,10 +103,14 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // A zone as the tool writes it, header and grid
+    // The error place_staircases throws where a count drawn above zero has none placed, a zone having too few candidates
+    const string unplaced_rise_error = "at least one of each requested staircase rise could not be placed";
+
+    //--------------------------------------------------------------------------
+    // A zone as the tool writes it, header and grid. Warnings are the subject of cases of their own, and are dropped here
     string zone_text(const dungen::Parameters& parameters)
     {
-        dungen::Level level = dungen::generate(0, "zone", parameters);
+        dungen::Level level = dungen::generate(0, "zone", parameters, [](const string&) {});
 
         ostringstream os;
         dungen::write_level(os, level, parameters);
@@ -690,6 +695,7 @@ namespace
         {
             string detail;
             size_t failures = 0;
+            size_t unplaced = 0;
 
             for (dungen::Parameters::seed_type seed = 1; seed <= seed_count; ++seed)
             {
@@ -698,7 +704,11 @@ namespace
 
                 string seed_detail;
                 string zone = zone_text_or_error(parameters, seed_detail);
-                if (zone.empty() || !doorways_in_wall_lines(zone, seed_detail) || !doors_have_entities(zone, seed_detail))
+                if (zone.empty() && seed_detail == unplaced_rise_error)
+                {
+                    ++unplaced;
+                }
+                else if (zone.empty() || !doorways_in_wall_lines(zone, seed_detail) || !doors_have_entities(zone, seed_detail))
                 {
                     if (failures == 0)
                     {
@@ -709,8 +719,8 @@ namespace
                 }
             }
 
-            report_case(format("{} holds over {} seeds", scenario.name, seed_count), failures == 0,
-                format("{} seeds failed, first at {}", failures, detail));
+            report_case(format("{} holds over {} seeds", scenario.name, seed_count), failures == 0 && unplaced < seed_count,
+                format("{} seeds failed, first at {}; {} with too few candidates for a staircase", failures, detail, unplaced));
         }
 
         // A density below one leaves sectors with a single cell instead of a room, and the smallest dimension allows rooms
@@ -729,6 +739,7 @@ namespace
         {
             string detail;
             size_t failures = 0;
+            size_t unplaced = 0;
 
             for (dungen::Parameters::seed_type seed = 1; seed <= seed_count; ++seed)
             {
@@ -741,7 +752,11 @@ namespace
 
                 string seed_detail;
                 string zone = zone_text_or_error(parameters, seed_detail);
-                if (zone.empty() || !doorways_in_wall_lines(zone, seed_detail) || !doors_have_entities(zone, seed_detail))
+                if (zone.empty() && seed_detail == unplaced_rise_error)
+                {
+                    ++unplaced;
+                }
+                else if (zone.empty() || !doorways_in_wall_lines(zone, seed_detail) || !doors_have_entities(zone, seed_detail))
                 {
                     if (failures == 0)
                     {
@@ -752,8 +767,8 @@ namespace
                 }
             }
 
-            report_case(format("grid1 holds with {}", variant.name), failures == 0,
-                format("{} seeds failed, first at {}", failures, detail));
+            report_case(format("grid1 holds with {}", variant.name), failures == 0 && unplaced < seed_count,
+                format("{} seeds failed, first at {}; {} with too few candidates for a staircase", failures, detail, unplaced));
         }
 
         return;
@@ -1054,7 +1069,7 @@ namespace
                 {
                     // Whatever the entity's type, it is the one with a relocator, on a wall a neighbor presents to this cell
                     const auto* address = wall_address(entity);
-                    if (address == nullptr || !entity.components.contains("relocator") || address->cell_position - address->normal != cell_position)
+                    if (address == nullptr || !entity.relocator.has_value() || address->cell_position - address->normal != cell_position)
                     {
                         continue;
                     }
@@ -1062,7 +1077,7 @@ namespace
                     open_sides.push_back(address->normal);
 
                     string target = glyph(cell_position) == '>' ? "down" : "up";
-                    if (entity.components["relocator"].value("target", "") != target)
+                    if (const auto* destination = get_if<string>(&entity.relocator->target); destination == nullptr || *destination != target)
                     {
                         detail = format("staircase at {}, {} does not lead to {}", i, j, target);
                         return false;
@@ -1087,42 +1102,33 @@ namespace
             }
         }
 
-        // Running out of candidates places fewer, and those leading up are placed first, so a count below its minimum is
-        // allowed only where nothing was left for the staircases leading down
+        // Running out of candidates places fewer than were drawn, which is a warning, but a count drawn above zero places at
+        // least one, and a range whose minimum is above zero draws above zero
         const math::Interval<size_t>& down = parameters.staircase_down_count;
         const math::Interval<size_t>& up = parameters.staircase_up_count;
 
-        if (down_count > down.upper() || up_count > up.upper() || (up_count < up.lower() && down_count > 0))
+        if (down_count > down.upper() || up_count > up.upper() || (down.lower() > 0 && down_count == 0) || (up.lower() > 0 && up_count == 0))
         {
             detail = format("{} staircases down for {}-{} and {} up for {}-{}", down_count, down.lower(), down.upper(), up_count, up.lower(), up.upper());
             return false;
         }
 
-        const auto* access_points = document.components.contains("access_points") ? &document.components["access_points"] : nullptr;
         set<discrete_point_type> access_point_cells;
 
-        if (access_points != nullptr && access_points->is_array())
+        for (stratum_format::stored_entity_id_type id : document.access_points)
         {
-            for (const auto& reference : *access_points)
+            auto entity = find_if(document.entities.begin(), document.entities.end(), [id](const stratum_format::Entity& e) { return e.id == id; });
+            const auto* address = entity != document.entities.end() ? wall_address(*entity) : nullptr;
+
+            if (address != nullptr)
             {
-                optional<stratum_format::stored_entity_id_type> id = stratum_format::reference_id(reference);
-                auto entity = find_if(document.entities.begin(), document.entities.end(),
-                    [&id](const stratum_format::Entity& e) { return id.has_value() && e.id == *id; });
-
-                const auto* address = entity != document.entities.end() ? wall_address(*entity) : nullptr;
-
-                if (address != nullptr)
-                {
-                    access_point_cells.insert(address->cell_position - address->normal);
-                }
+                access_point_cells.insert(address->cell_position - address->normal);
             }
         }
 
-        if (access_points == nullptr || !access_points->is_array() || access_points->size() != access_point_cells.size()
-            || access_point_cells != staircase_cells)
+        if (document.access_points.size() != access_point_cells.size() || access_point_cells != staircase_cells)
         {
-            detail = format("the access points {} are not a reference to every staircase",
-                access_points == nullptr ? "are absent and" : access_points->dump());
+            detail = format("the {} access points are not one on every staircase", document.access_points.size());
             return false;
         }
 
@@ -1147,6 +1153,7 @@ namespace
         {
             string detail;
             size_t failures = 0;
+            size_t unplaced = 0;
 
             for (dungen::Parameters::seed_type seed = 1; seed <= seed_count; ++seed)
             {
@@ -1157,7 +1164,11 @@ namespace
 
                 string seed_detail;
                 string zone = zone_text_or_error(parameters, seed_detail);
-                if (zone.empty() || !staircases_placed_and_faced(zone, parameters, seed_detail))
+                if (zone.empty() && seed_detail == unplaced_rise_error)
+                {
+                    ++unplaced;
+                }
+                else if (zone.empty() || !staircases_placed_and_faced(zone, parameters, seed_detail))
                 {
                     if (failures == 0)
                     {
@@ -1168,8 +1179,91 @@ namespace
                 }
             }
 
-            report_case(format("{} places and faces ranges of staircases over {} seeds", scenario.name, seed_count), failures == 0,
-                format("{} seeds failed, first at {}", failures, detail));
+            report_case(format("{} places and faces ranges of staircases over {} seeds", scenario.name, seed_count),
+                failures == 0 && unplaced < seed_count,
+                format("{} seeds failed, first at {}; {} with too few candidates for a staircase", failures, detail, unplaced));
+        }
+
+        // A corridor along row 1 from column 1, in solid
+        auto corridor = [](dungen::coord_type length)
+        {
+            dungen::Level level(0, "corridor", {length + 2, 3}, dungen::CellType::Solid);
+            for (dungen::coord_type x = 1; x <= length; ++x)
+            {
+                level.cell({x, 1}).set_type(dungen::CellType::Corridor);
+            }
+
+            return level;
+        };
+
+        // The error place_staircases throws, or empty where it places what it can
+        auto placing = [](dungen::Level& level, const vector<dungen::point_type>& candidates, math::Interval<size_t> up, math::Interval<size_t> down,
+            vector<string>& warnings)
+        {
+            dungen::random_type random(1u);
+
+            try
+            {
+                dungen::place_staircases(level, candidates, up, down, random, [&](const string& warning) { warnings.push_back(warning); });
+            }
+            catch (const runtime_error& e)
+            {
+                return string(e.what());
+            }
+
+            return string();
+        };
+
+        {
+            dungen::Level level = corridor(2);
+            vector<string> warnings;
+
+            report_case("a staircase is placed on a candidate", placing(level, {{1, 1}}, {1, 1}, {0, 0}, warnings).empty()
+                && level.staircases().size() == 1 && level.cell({1, 1}).type() == dungen::CellType::Stair);
+            report_case("facing the floor beside it", !level.staircases().empty() && level.staircases()[0].direction() == dungen::vector_type {1, 0});
+            report_case("the floor a staircase faces takes no other", placing(level, {{2, 1}}, {1, 1}, {0, 0}, warnings) == unplaced_rise_error);
+        }
+
+        {
+            dungen::Level level = corridor(3);
+            vector<string> warnings;
+
+            report_case("a count drawn above zero with none placed is an error", placing(level, {{1, 1}}, {1, 1}, {1, 1}, warnings) == unplaced_rise_error);
+        }
+
+        {
+            dungen::Level level = corridor(3);
+            vector<string> warnings;
+
+            report_case("a candidate that would cut a passage in two is skipped", placing(level, {{2, 1}}, {1, 1}, {0, 0}, warnings) == unplaced_rise_error);
+        }
+
+        {
+            dungen::Level level = corridor(3);
+            level.cell({3, 1}).set_type(dungen::CellType::Door);
+            vector<string> warnings;
+
+            report_case("a candidate beside a door is skipped", placing(level, {{2, 1}}, {1, 1}, {0, 0}, warnings) == unplaced_rise_error);
+        }
+
+        {
+            dungen::Level level = corridor(5);
+            vector<string> warnings;
+
+            bool placed = placing(level, {{1, 1}, {5, 1}}, {1, 1}, {1, 1}, warnings).empty();
+            size_t up_count = static_cast<size_t>(count_if(level.staircases().begin(), level.staircases().end(),
+                [](const dungen::Staircase& staircase) { return staircase.rise() == dungen::Rise::Up; }));
+
+            report_case("staircases leading up and down alternate", placed && level.staircases().size() == 2 && up_count == 1 && warnings.empty());
+        }
+
+        {
+            dungen::Level level = corridor(5);
+            vector<string> warnings;
+
+            bool placed = placing(level, {{1, 1}, {5, 1}}, {3, 3}, {0, 0}, warnings).empty();
+            report_case("fewer placed than were drawn is a warning", placed && level.staircases().size() == 2
+                && warnings == vector<string> {"2 of 3 staircases leading up and 0 of 0 leading down placed, the candidates running out"});
         }
 
         dungen::Parameters reversed;

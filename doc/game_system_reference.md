@@ -151,14 +151,33 @@ wall are walled from both sides, which the block notation cannot express, so a b
 layout.
 
 It sets the zone's `ZoneLayout` to the `DiscreteLayout`, both notations being grids of cells, and its `ZoneNotation`
-to the notation the rows were written in, and creates a door on the walls of each door `door_walls` finds --- both
-sides of a door edge in the wall notation, the walls floor has toward a doorway block in the block notation. It
-creates an access point for each entity `layout.components.access_points` refers to, sited as the file sites it ---
-a wall, or a floor or ceiling cell --- with the registered access point type its relocator names, its `order`, and
-its `entry` as a placement. `World::load_zone` calls it.
+to the notation the rows were written in. Then it builds every entity in the file, in the file's order: first each in
+the zone, `IsA` its type where one is loaded, so each has its persistent id --- the file's own in a saved zone ---
+before anything refers to it; then each one's parent, its site with the address resolved to the layout's ids and its
+position and orientation to a placement, and its `Relocator`. A door is the file's `door` entity, and its door facings
+the `door_facing` children sited on the walls of its doorway. Each entity `layout.components.access_points` refers to
+is made an access point, with the registered access point type its relocator names, its `order`, and its `entry` as
+a placement.
 
-Every access point type the document refers to must be registered. `unregistered_access_type(world, document)` returns
-the first that is not.
+Last, each component object of the layout, of each room, wall and flat and a flat's overrides, and of each entity is
+decoded into the component registered under its name (`register_file_component`), set on the zone's entity, the
+layout entity, or the entity. The decoder walks the object's parsed values and
+sets each field through flecs' reflection cursor, so no JSON reaches flecs. A component that inherits is decoded into a
+new value, so the entity's own has only the fields its object states and the chain supplies the rest; any other
+starts from the entity's value, its type's copy where it has a type. An `std::optional` field is set through its `OptionalField`. A
+reference in a component object becomes an `EntityReference`: in a template, to the entity of the same file, with its
+persistent id; in a saved zone, to the persistent id written, and the entity where it is in the zone. `load_layout`
+returns the entities a template's references refer to, which `World::load_zone` adds to the world index.
+
+`build_error(world, document)` is the first reason the world cannot build a zone from a document: an access point type
+not registered, or a component object with no component registered under its name, a field the component does not
+have, or a value its field cannot take, with the path to it. It decodes every component object into a value it then
+discards, with flecs' own error logging silenced, so `World::load_zone` checks a file completely before making anything.
+`load_layout` asserts what `build_error` accepts.
+
+`register_file_component(entities, name, component)`, or `register_file_component<T>(entities, name)`, registers a
+component with its reflection as what a component object of that name decodes into, under `components`;
+`file_component(entities, name)` is that component, or 0.
 
 ### World
 
@@ -174,13 +193,14 @@ each is identified by its persistent id. `zone_count` and `layout` reach the zon
 `create_entity`, `move` and `relocate` reach their contents; and `unload_zone` discards a zone, its contents and its
 layout.
 
-`create_zone(generator)` makes an empty zone with a new id, has `Generator::generate` fill it with its layout, notation
-and doors, and populates it; if the generator throws, the zone is unloaded and the exception passes on.
+`create_zone(generator)` makes an empty zone with a new id, has `Generator::generate` fill it as the loader does, and
+populates it; if the generator throws, the zone is unloaded and the exception passes on.
 `load_zone(filepath)` reads the file and checks its access point types before making the zone, with the file's
 persistent id where it has a `zone` section and a new one otherwise, then has `load_layout` fill it and populates it.
 It throws `std::runtime_error` when the reader rejects the file, an access point type is not registered, or the file's
-zone is already loaded, having made nothing. `World` handles no doors itself. Neither unloads anything. `populate(zone)` places the zone's denizens: one pursuer at the last open cell in reverse row
-order facing west, `Blocking`, with a `Speed` and a `Pursue` that has no target.
+zone is already loaded, having made nothing. `World` handles no doors itself. Neither unloads anything.
+`populate(zone)` places the zone's denizens: one pursuer at the last open cell in reverse row order facing west,
+`Blocking`, with a `Speed` and a `Pursue` that has no target.
 
 `Speed` is the rate an actor gains energy at in the turn order.
 
@@ -195,6 +215,55 @@ the zones to unload, then unloads them. `zone_count_max`, a constructor argument
 a zone's subtree before the zone itself, and where it is deferring, runs the whole deletion when the deferred
 operations do. The unload is complete in the `PersistentId` observer on the zone's own removal, which takes the zone
 out of the zones unloading. So an unload is correct whether the deletion runs at once or later.
+
+### Entity types, layout entities and properties
+
+A type is a prefab, under `types`: `create_entity_type(entities, name)` makes it and `entity_type(entities, name)`
+finds it, null where none is loaded. The caller sets its components. An entity `IsA` its type reads a component that
+inherits --- one with optional fields --- from the type, with nothing copied, as `register_file_component` registers
+such a component with flecs' `(OnInstantiate, Inherit)` through `register_inheritance`. Any other component flecs
+copies onto the entity when it becomes one, so each door has its own `Access`.
+`register_game_types(world)`, beside `StratumGame`, which calls it, registers the game's types --- `door`, with a
+closed `Access` --- until the game's types load from data. The suites call it too.
+
+A layout entity is the entity of a room, a wall, a flat, a flat's override for a room, or a flat cell. Its address is
+its component, and how it is found: a `RoomAddress`, `WallAddress`, `FlatAddress`, `FlatRoomAddress` or
+`FlatCellAddress`, the five `layout_addresses_type` lists. It has no persistent id. A flat's override for a room or a
+cell is a child of the flat's entity through `Parent`, and every other layout entity a child of its zone. The loader
+gives every room and each flat an entity; a wall, a flat's override for a room and a flat cell have one while they
+have components of their own or something sited on them. `layout_entities.hpp` has templates over the address type,
+taking the zone: `ensure_layout_entity(zone, address)` makes one once and `layout_entity(zone, address)` finds it,
+null where there is none; `room_entity`, `wall_entity`, `flat_entity`, `flat_room_entity` and `flat_cell_entity`, and
+an `ensure_` form of each, do the same by id; and `is_layout_entity(e)` tells one apart. The zone's
+`ZoneAddressIndex` has a map from address to entity for each address type, and `for_each_layout_address` calls a
+function with each address type, which is how `World` registers what it does for all five.
+
+A wall's or a flat cell's entity lists what is sited on it in `AttachedEntities`, kept by observers on `Site`: setting a
+site with an address makes the entity where there is none and lists the sited entity once, and removing it takes the
+sited entity off the list. The wall's or cell's entity is deleted when its list is empty and it has no components of
+its own. Deleting a layout entity leaves what was on it with no site. `reparent` removes the site before changing the
+parent, so an entity leaves what it was sited on while still in that zone. Deleting a zone or the world unlinks
+nothing.
+
+`property<T>(e)` resolves a component along the chain: the entity's own, its type's and its type's type through `IsA`,
+the room containing it, then the layout's on the zone entity. The first level that has the component supplies it, and
+each later one fills the `std::optional` fields still unset, a struct member field by field; a field that is not
+optional comes from the first level. It is empty where no level has the component. The room is the one containing the
+cell the entity is placed in, the cell of the wall or flat cell it is sited on, or its parent's where it is sited on
+its parent.
+
+A layout entity's chain has no type, and is an overload for each address type. A room's and a flat's are themselves,
+then the layout; a wall's is the wall, its cell's
+room, then the layout; a flat's override for a room is itself, the room, the flat, then the layout; and a flat cell's is
+the cell, the flat's override for its room, its room, the flat, then the layout. So at the room's level and at the
+layout's, what the flat states wins over what the room or the layout does, as `discrete_layout.md` (`### Inheritance`)
+specifies. The loader decodes each room's, wall's, flat's and flat override's component objects onto its entity.
+
+A component that inherits registers each optional field's type with `register_optional<T>` (`properties.hpp`), which
+describes `std::optional<T>` to flecs reflection as a `T` and sets its `OptionalField`: the reflection type of `T`, and
+functions that set a value and return it, and return the value or null where it is unset. `merge_unset` fills the unset
+optional fields of one value from another through that reflection, with no code per component, and the loader decodes
+an optional field through it.
 
 ### ZoneEntryIndex
 
@@ -211,6 +280,9 @@ in a pouch an actor carries do.
 `reparent(e, parent, site)` sets an entity's parent and site together: taking something, putting it down and moving
 it between zones are this one operation. `relocate` is `reparent` with a zone as the parent. The entity's children
 move with it and its id is kept, so references to it stay valid, and the zone it left can unload without it.
+`set_parent(e, parent)` sets the parent alone, for an entity with no site. A zone contains its entities through
+`ChildOf`, and an entity its children through flecs' non-fragmenting `Parent`; `parent()`, `children()` and a
+`ChildOf` query term work with both, and `has(ChildOf, ...)` reports a `Parent` child as well.
 
 Occupancy is `entities_at` and `entities_within`, over the zone's children with no site address, sorted by id,
 flecs iterating by archetype rather than id. `entities_at` takes a placement, compared with the layout's
@@ -226,8 +298,8 @@ occupancy are resolved in one sweep.
 
 `PersistentId` is an entity's identity in a world, a `std::uint64_t` (`PersistentId::type`) it keeps for as long as it
 exists, through unloading and loading again. It compares and hashes as its value, so it is a map key and a reference's
-id as it is. An entity gets one from `World::next_id` when it is placed in a zone: the `ChildOf` observer gives one to any entity
-in a zone that has none, whatever created it. A zone, which has no parent, gets one from `create_zone`, and the player
+id as it is. An entity gets one from `World::next_id` when it is placed in a zone: the observers on `ChildOf` and on
+`Parent` give one to any entity in a zone that has none, whatever created it, a layout entity excepted. A zone, which has no parent, gets one from `create_zone`, and the player
 from its constructor. A `World` is constructed with a reference to an `IdAllocator`, the source of its ids, whose one
 function is `next`; `CountingIdAllocator` counts from the id it is constructed with. A world is saved with an id from
 `next` and restored with an allocator constructed from it.
@@ -251,19 +323,25 @@ Where every entity is, and the entities sited on a wall or a flat cell. Doors ar
 (`attachment_plan.md`, `site_plan.md`).
 
 `Site` is where an entity is: a `Relation`, `In` or `On`; an optional address, a `WallAddress` of one wall id or a
-`FlatAddress` of a flat id and a cell position; and a `placement_type` relative to the address, or to the parent
+`FlatCellAddress` of a flat id and a cell position; and a `placement_type` relative to the address, or to the parent
 where there is none. An actor is `In` its zone with a placement and no address. An entity resting on a floor has a
 placement and no address. `wall_id_of(site)` is the site's wall id, if it has one. `placement_of(e)` and
 `set_placement(e, placement)` read and write the placement, leaving the rest of the site unchanged; `set_placement` on
 an entity with no site gives it one.
 
-A door is an entity with `Door` and `Openable`, so both of its sides are open or shut together, and a `DoorFacing`
-child on each of its walls, sited `On` a `WallAddress`. The walls are the sides a door has: in the wall notation the
-two sides of one cell edge, in the block notation the walls the floor has toward the doorway block. A door with one
-wall is a doorway into a dead end.
+A door is an entity with `Access`, so both of its sides are open or shut together, and a door facing child on each of
+its walls, sited `On` a `WallAddress`, with no component of its own to be one. The walls are the sides a door has: in
+the wall notation the two sides of one cell edge, in the block notation the walls the floor has toward the doorway
+block. A door with one wall is a doorway into a dead end. The loader builds a door from the file's entities, the
+`door` type giving it a closed `Access`, and a generator builds one the same way.
 
-`create_door(zone, wall_ids)` creates one door in the zone, through the zone's flecs world; `create_doors` creates one
-for each set of walls, closed. Generators and the loader call them.
+`Access` is a way through's state, `Open`, `Closed` or `Locked`, and nothing else: a door off its hinges is open, and
+one smashed into rubble that blocks it closed. `access_entity(e)` is the entity whose `Access` applies to `e`, `e` or
+the nearest of its parents with one, and `access(e)` its state, so a door facing has its door's. `Detection` is how
+actors perceive an entity: a `DetectionState`, `Visible`, `Concealed` or `Revealed`, and the states of the actors
+whose own differs, by persistent id. `detection(e, actor)` reads it from `e` or the nearest of its parents with one,
+the actor's own state first; a null actor takes the general state, and an entity with none in its chain is visible.
+One side of a secret door is concealed by a `Detection` on that door facing.
 
 An access point is an entity a zone is entered at, sited `On` a surface --- a wall, or a floor or ceiling cell --- with
 an `AccessPoint`: its `order` among the zone's access points of its type, from 0, and its `entry`, the placement an
@@ -275,18 +353,21 @@ type an actor arrives at through a relocator of this type. `World` registers `up
 other, and `waypoint` and `portal`, each arriving at its own type; a mod registers more with `create_access_type`.
 `access_type(entities, name)` finds one by name, or returns a null entity.
 
-`create_access_point(zone, type, site, order, entry)` creates an access point, and `entry_point(zone, type)` is the
-zone's access point of the type with the lowest order, or a null entity where it has none.
+`set_access_point(e, type, order, entry)` makes an entity sited on a surface an access point, as the loader does with
+the file's; `create_access_point(zone, type, site, order, entry)` creates one. `entry_point(zone, type)` is the zone's
+access point of the type with the lowest order, or a null entity where it has none.
 
-`facing_on(zone, wall_id)` is the door facing sited on a wall of the zone, found by a query over sited door facings,
-wall ids being unique only within a zone. `door_of` is a door facing's parent and `other_facing` its sibling.
+A `Relocator` is where an entity moves an actor that enters it: its target, a destination name, or an
+`EntityReference` to the relocator it is bound to.
 
-`crossable(zone, wall_id)` decides passage. A wall with nothing sited on it is solid, and so is one with a `Concealed`
-door facing not yet revealed, from that side alone. Otherwise an `Openable` door is crossable when open, and any other
-when it has `Crossable`, as a smashed door does.
+`way_through(zone, wall_id)` is an entity sited on the wall that has access, found through the wall's entity and what
+is attached to it, or a null entity. `crossable(zone, wall_id, actor)` is whether the actor gets through the wall: an
+entity sited on it has open access and the actor does not find it concealed. A wall with nothing on it with access is
+solid. `World::move`, `neighbors` and `visible` bind it to the entity moving or looking, so each actor crosses as it
+perceives what is on the wall.
 
-`Interact` toggles the `Openable` of the door whose door facing is on the wall ahead, and reports
-`Interaction::Opened`, `Closed` or `Nothing`.
+`Interact` opens the closed, or closes the open, access of the way through on the wall ahead, and reports
+`Interaction::Opened`, `Closed` or `Nothing`; a locked one stays locked.
 
 A wall is solid unless something sited on it makes it crossable, and a query given no predicate has every wall
 solid. Every boundary between floor and solid, and every cell side on the border of the grid, has a wall, so where
@@ -374,7 +455,8 @@ library has no default type; each host passes `up` from a temporary constant of 
 
 `Generator` is an interface in `stratum_sim`, implemented where a generator is chosen, so `stratum_sim` depends on no
 generator. Each implementation declares its own parameters. `generate(zone)` fills an empty zone,
-as the loader does: its `ZoneLayout`, its `ZoneNotation`, its doors and its access points (`placement_plan.md`).
+as the loader does: its `ZoneLayout` with its floor and ceiling, its `ZoneNotation`, its room and flat entities, and
+its entities, each `IsA` its type, its doors and access points among them (`placement_plan.md`).
 
 `enter(zone, type)` relocates the player to the entry of the zone's `entry_point` of the access point type, then has
 the world `trim_zones` with the zone entered, so no zone the player is in can unload.
@@ -425,7 +507,11 @@ the order written, and `translate_references` replaces each by what a function r
 
 `Document` is the file as data structures. The geometry is decoded into types --- the grid and its rows, expanded from
 runs, the barriers, each room's perimeter or `RoomLocator`, wall addresses, each flat's heights --- and so are each
-entity's `site` and `parent` file components, which the reader validates. The generator and every other file
+entity's `site`, `parent` and `relocator` file components, which the reader validates. A `Relocator` has its target,
+a destination name or the id of the relocator it is bound to, and for an access point its type, order and entry, a
+`discrete_directed_point_type` (`geometry::DiscreteDirectedPoint`): the cell position and orientation an arriving
+actor is given. The layout's `access_points` are `Document::access_points`, a list of entity ids. The generator and
+every other file
 component are `values_type`, nlohmann's `ordered_json`, as the file wrote them. A room is kept as the file identified
 it. `Notation` and its names are in `Notation.hpp` of their own, which is all `stratum_sim`'s headers include from the
 format, so nlohmann reaches only the files that read or write a document. A saved zone's `zone.id` is `Document::zone_id`, which makes every id in the file persistent; it is empty in a zone
@@ -472,16 +558,19 @@ A position reduces to a `Place`: a `PlaceType`, its `State`, its `mask`, and whe
 locked or concealed is one type. `None` is an edge with no wall or a corner no wall line reaches, which only `lattice`
 produces. `actor` is a flag over the structure, so the floor under an actor is still there to draw.
 
-`State` is a set of flags named after the component data they are read from: `Open` from `Openable::open`,
-`Crossable` from the `Crossable` tag, `Concealed` from a `Concealed` door facing not revealed. Only what changes the
-drawing is a state. `applies(type, state)` is whether a place type can be in a state. The reduction is the only code
-that reads a component on behalf of a view.
+`State` is a set of flags named after the component data they are read from: `Open` where the way through's `Access`
+is open, and `Concealed` where its `Detection` conceals it from actors in general though not from the viewer, which a
+glyph set may draw outlined. Only what changes the drawing is a state. `applies(type, state)` is whether a place type
+can be in a state. The reduction is the only code that reads a component on behalf of a view.
 
-`cells(world, zone)` is one `Place` per grid cell: `Solid`, `Floor`, or `Door` for a door occupying a cell, as a
+Both reductions draw the zone as a viewer perceives it, the hosts passing the player: a way through the viewer finds
+concealed is drawn as though there were none, a wall. A null viewer takes the general state.
+
+`cells(world, zone, viewer)` is one `Place` per grid cell: `Solid`, `Floor`, or `Door` for a door occupying a cell, as a
 doorway does in the block notation. A wall or door on an edge between two cells has no position there, so it reduces
 to `Floor` on both sides.
 
-`lattice(world, zone)` reduces onto the wall notation's lattice: `(2W+1)` by `(2H+1)`, cell `(i, j)` at
+`lattice(world, zone, viewer)` reduces onto the wall notation's lattice: `(2W+1)` by `(2H+1)`, cell `(i, j)` at
 `(2i+1, 2j+1)`, the wall west of it at `(2i, 2j+1)`, the wall south of it at `(2i+1, 2j)`, and corners at the even
 positions in both. It emits cells, `Wall` or `Door` on edges, and `Wall` at a corner any of whose four edges has a wall
 or a door.
@@ -508,7 +597,7 @@ position and extent are `stratum_view`'s discrete point and vector types, the sa
 `difference(a, b)` is the runs in which `b` differs from `a`, each a `Span` of a position and a count along its row,
 lowest row first; empty when they are the same, and the whole of `b` when they differ in size.
 
-`render` takes cells to a `Console`, and an overload reduces a world's zone first. `render_lattice` does the same for
+`render` takes cells to a `Console`, and an overload reduces a world's zone first, as a viewer perceives it. `render_lattice` does the same for
 the lattice, named apart because `Cells` and `Lattice` are the same type. A mapping is one lookup per position.
 
 A `Glyph` is one line of a glyph set: a place type, the state flags it requires, optionally a mask, whether it
@@ -521,7 +610,7 @@ its actor lines come first, so an actor in an open doorway is drawn. `lattice_gl
 glyphs, floor a space, with a line for each of the sixteen wall masks.
 
 `read_glyphs` reads a glyph set from a file; `assets/glyphs/` has the two built-in sets. The first line gives the
-format and version. A glyph line is a place type, the states it requires in any order, `actor` if it requires an
+format and version. A glyph line is a place type, the states it requires in any order (`open`, `concealed`), `actor` if it requires an
 actor, `mask=` and the directions it requires, then the character in single quotes, with `\\` and `\'` the escapes.
 Omitting the states, `actor` or `mask=` matches any; `mask=` with no directions requires that no wall line reach the
 position. A line beginning with `#` is a comment. It throws reporting the line, including for a state its type can

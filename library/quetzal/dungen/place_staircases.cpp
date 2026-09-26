@@ -5,7 +5,10 @@
 
 #include "place_staircases.hpp"
 #include <algorithm>
+#include <format>
+#include <map>
 #include <stdexcept>
+#include <tuple>
 #include <cassert>
 
 using namespace std;
@@ -163,123 +166,110 @@ namespace
         return sides_unreached == 0;
     }
 
+    //--------------------------------------------------------------------------
+    // A staircase's block at the cell, facing a random one of its sides with floor beyond. None where the cell is not floor,
+    // is a doorway or is beside one, is the floor another staircase faces, would cut a passage in two, or has no floor
+    // beside it
+    std::optional<directed_point_type> staircase_placement(const Level& level, point_type cell_position, random_type& random)
+    {
+        auto floor = [&](point_type position)
+        {
+            CellType type = level.cell(position).type();
+            return type == CellType::Room || type == CellType::Corridor;
+        };
+
+        auto faced = any_of(level.staircases().begin(), level.staircases().end(), [&](const Staircase& staircase)
+        {
+            return staircase.position() + staircase.direction() == cell_position;
+        });
+
+        if (!floor(cell_position) || faced || doorway(level, cell_position) || blocks_doorway(level, cell_position)
+            || !block_allowed(level, cell_position))
+        {
+            return std::nullopt;
+        }
+
+        vector<vector_type> open_sides;
+
+        for (const auto& direction : cardinal_directions)
+        {
+            point_type neighbor = cell_position + direction;
+            if (level.cells().contains(neighbor) && floor(neighbor))
+            {
+                open_sides.push_back(direction);
+            }
+        }
+
+        if (open_sides.empty())
+        {
+            return std::nullopt;
+        }
+
+        return directed_point_type(cell_position, open_sides[random.gen(open_sides.size())]);
+    }
+
 } // namespace
 
 //------------------------------------------------------------------------------
-void quetzal::dungen::place_staircases(Level& level, vector<point_type> candidates, const math::Interval<size_t>& staircase_down_count,
-    const math::Interval<size_t>& staircase_up_count, random_type& random)
+void quetzal::dungen::place_staircases(Level& level, vector<point_type> candidates, const math::Interval<size_t>& up_interval,
+    const math::Interval<size_t>& down_interval, random_type& random, const warning_function_type& warning)
 {
-    size_t down_count = draw_count(staircase_down_count, random);
-    size_t up_count = draw_count(staircase_up_count, random);
-    size_t count = min(down_count + up_count, candidates.size());
+    size_t down_count = draw_count(down_interval, random);
+    size_t up_count = draw_count(up_interval, random);
+    const size_t down_requested = down_count;
+    const size_t up_requested = up_count;
 
-    if (count == 0)
+    if ((up_count > 0 || down_count > 0) && candidates.size() == 0)
     {
-        throw runtime_error("the level has no cell a staircase can take, and so no entry");
+        throw runtime_error("the level has no place for a staircase");
     }
 
     shuffle(candidates.begin(), candidates.end(), random.engine());
 
-    size_t placed = 0;
+    auto rise = up_count > 0 ? Rise::Up : Rise::Down;
+    // 0 requested means automatic success
+    bool up_placed = up_count == 0;
+    bool down_placed = down_count == 0;
 
-    for (size_t i = 0; i < candidates.size() && placed < count; ++i)
+    using counter_type = std::tuple<bool&, size_t&, size_t&, Rise>;
+    std::map<Rise, counter_type> counters =
     {
-        if (block_allowed(level, candidates[i]))
-        {
-            level.create_staircase(candidates[i], placed < up_count ? StaircaseDirection::Up : StaircaseDirection::Down);
-            ++placed;
-        }
-    }
+        {Rise::Up, {up_placed, up_count, down_count, Rise::Down}},
+        {Rise::Down, {down_placed, down_count, up_count, Rise::Up}},
+    };
 
-    if (placed == 0)
+    for (size_t i = 0; i < candidates.size(); ++i)
     {
-        throw runtime_error("the level has no cell a staircase can take without closing off a passage, and so no entry");
-    }
-
-    return;
-}
-
-//------------------------------------------------------------------------------
-void quetzal::dungen::move_staircases_off_doorways(Level& level, random_type& random)
-{
-    for (auto& staircase : level.staircases())
-    {
-        point_type position = staircase.position();
-
-        if (!blocks_doorway(level, position))
+        auto directed_position = staircase_placement(level, candidates[i], random);
+        if (!directed_position)
         {
             continue;
         }
 
-        id_type room_id = room(level.cell(position));
-        vector<point_type> available;
-
-        // Floor again while its destination is chosen, so the block there is judged without this one
-        level.cell(position).set_type(room_id == nullid ? CellType::Corridor : CellType::Room);
-
-        for (const auto& direction : cardinal_directions)
+        level.create_staircase(to_string(rise), *directed_position, rise);
+        auto [placed, count, count_other, rise_other] = counters.at(rise);
+        assert(count > 0);
+        --count;
+        placed = true;
+        if (count_other > 0)
         {
-            point_type neighbor = position + direction;
-            if (!level.cells().contains(neighbor))
-            {
-                continue;
-            }
-
-            const Cell& cell = level.cell(neighbor);
-            if ((cell.type() == CellType::Room || cell.type() == CellType::Corridor) && room(cell) == room_id
-                && !doorway(level, neighbor) && !blocks_doorway(level, neighbor) && block_allowed(level, neighbor))
-            {
-                available.push_back(neighbor);
-            }
+            rise = rise_other;
         }
 
-        if (available.empty())
+        if (up_count == 0 && down_count == 0)
         {
-            level.cell(position).set_type(CellType::Stair);
-            continue;
+            break;
         }
-
-        point_type destination = available[random.gen(available.size())];
-
-        level.cell(destination).set_type(CellType::Stair);
-        staircase.set_position(destination);
     }
 
-    return;
-}
-
-//------------------------------------------------------------------------------
-void quetzal::dungen::face_staircases(Level& level, random_type& random)
-{
-    for (auto& staircase : level.staircases())
+    if (!up_placed || !down_placed)
     {
-        vector<vector_type> open;
-        vector<vector_type> doors;
-
-        for (const auto& direction : cardinal_directions)
-        {
-            point_type neighbor = staircase.position() + direction;
-            if (!level.cells().contains(neighbor))
-            {
-                continue;
-            }
-
-            CellType type = level.cell(neighbor).type();
-            if (type == CellType::Room || type == CellType::Corridor)
-            {
-                open.push_back(direction);
-            }
-            else if (type == CellType::Door)
-            {
-                doors.push_back(direction);
-            }
-        }
-
-        const vector<vector_type>& sides = open.empty() ? doors : open;
-        if (!sides.empty())
-        {
-            staircase.set_facing(sides[random.gen(sides.size())]);
-        }
+        throw runtime_error("at least one of each requested staircase rise could not be placed");
+    }
+    else if (up_count > 0 || down_count > 0)
+    {
+        warning(format("{} of {} staircases leading up and {} of {} leading down placed, the candidates running out",
+            up_requested - up_count, up_requested, down_requested - down_count, down_requested));
     }
 
     return;

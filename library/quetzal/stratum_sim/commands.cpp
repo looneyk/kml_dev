@@ -95,18 +95,13 @@ int quetzal::stratum_sim::apply(World& world, const Command& command, EventQueue
         }
 
         Interaction interaction = Interaction::Nothing;
-        flecs::entity facing = facing_on(zone, wall_id);
 
-        if (facing)
+        // A locked way through stays as it is
+        if (flecs::entity holder = access_entity(way_through(zone, wall_id)); holder && holder.get<Access>().state != AccessState::Locked)
         {
-            flecs::entity door = door_of(facing);
-
-            if (door.has<Openable>())
-            {
-                bool open = !door.get<Openable>().open;
-                door.set<Openable>(Openable {open});
-                interaction = open ? Interaction::Opened : Interaction::Closed;
-            }
+            bool open = holder.get<Access>().state == AccessState::Closed;
+            holder.set<Access>(Access {open ? AccessState::Open : AccessState::Closed});
+            interaction = open ? Interaction::Opened : Interaction::Closed;
         }
 
         events.push(Interacted {command.entity_id(), wall_id, interaction});

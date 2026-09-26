@@ -34,7 +34,6 @@ namespace quetzal::geometry
         using size_type = size_t;
         static constexpr size_type dimension = N;
         using rep_type = std::array<value_type, dimension>;
-
         using vector_type = math::DiscreteVector<T, N>;
 
         DiscretePoint();

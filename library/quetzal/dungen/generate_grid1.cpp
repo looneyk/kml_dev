@@ -202,6 +202,9 @@ namespace
         coord_type steps = dx != 0 ? (dx > 0 ? dx : -dx) : (dy > 0 ? dy : -dy);
         vector_type step {dx > 0 ? 1 : (dx < 0 ? -1 : 0), dy > 0 ? 1 : (dy < 0 ? -1 : 0)};
 
+        // I don't believe that this will create diagonal corridors correctly, it does not add an additional block when both dimensions increment at the same time ...
+        // And, it looks like this will always create diagonal corridors no matter what the aspect ratio of the from, to difference is ...
+
         point_type position = from;
         for (coord_type i = 0; i <= steps; ++i)
         {
@@ -485,7 +488,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // A staircase goes in a room, or in a corridor where the density left no rooms at all
+    // A staircase can be placed in an open cell, room or corridor
     vector<point_type> staircase_candidates(const Level& level)
     {
         vector<point_type> rooms;
@@ -514,7 +517,8 @@ namespace
 } // namespace
 
 //------------------------------------------------------------------------------
-quetzal::dungen::Level quetzal::dungen::generate_grid1(id_type id, const string& name, const Parameters& parameters)
+quetzal::dungen::Level quetzal::dungen::generate_grid1(id_type id, const string& name, const Parameters& parameters,
+    const warning_function_type& warning)
 {
     assert(parameters.algorithm == Algorithm::Grid1);
     validate(parameters);
@@ -575,10 +579,8 @@ quetzal::dungen::Level quetzal::dungen::generate_grid1(id_type id, const string&
         connect(level, sectors[connection.slot_a], sectors[connection.slot_b], connection.horizontal, random);
     }
 
-    place_staircases(level, staircase_candidates(level), parameters.staircase_down_count, parameters.staircase_up_count, random);
+    place_staircases(level, staircase_candidates(level), parameters.staircase_up_count, parameters.staircase_down_count, random, warning);
     remove_doors(level, grid1.door_probability, random);
-    move_staircases_off_doorways(level, random);
-    face_staircases(level, random);
 
     return level;
 }

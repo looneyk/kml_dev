@@ -9,12 +9,17 @@
 using namespace std;
 
 //------------------------------------------------------------------------------
-quetzal::dungen::Staircase::Staircase(id_type id, const string& name, point_type position, StaircaseDirection direction) :
+std::string quetzal::dungen::to_string(Rise rise)
+{
+    return rise == Rise::Up ? "up" : "down";
+}
+
+//------------------------------------------------------------------------------
+quetzal::dungen::Staircase::Staircase(id_type id, const string& name, directed_point_type directed_position, Rise rise) :
     m_id(id),
     m_name(name),
-    m_position(position),
-    m_direction(direction),
-    m_facing()
+    m_directed_position(directed_position),
+    m_rise(rise)
 {
 }
 
@@ -38,42 +43,41 @@ void quetzal::dungen::Staircase::set_name(const string& name)
 }
 
 //------------------------------------------------------------------------------
+quetzal::dungen::directed_point_type quetzal::dungen::Staircase::directed_position() const
+{
+    return m_directed_position;
+}
+
+//------------------------------------------------------------------------------
+void quetzal::dungen::Staircase::set_directed_position(directed_point_type directed_position)
+{
+    m_directed_position = directed_position;
+    return;
+}
+
+//------------------------------------------------------------------------------
 quetzal::dungen::point_type quetzal::dungen::Staircase::position() const
 {
-    return m_position;
+    return m_directed_position.position();
 }
 
 //------------------------------------------------------------------------------
-void quetzal::dungen::Staircase::set_position(point_type position)
+quetzal::dungen::vector_type quetzal::dungen::Staircase::direction() const
 {
-    m_position = position;
-    return;
+    return m_directed_position.direction();
 }
 
 //------------------------------------------------------------------------------
-quetzal::dungen::StaircaseDirection quetzal::dungen::Staircase::direction() const
+quetzal::dungen::Rise quetzal::dungen::Staircase::rise() const
 {
-    return m_direction;
-}
-
-//------------------------------------------------------------------------------
-const optional<quetzal::dungen::vector_type>& quetzal::dungen::Staircase::facing() const
-{
-    return m_facing;
-}
-
-//------------------------------------------------------------------------------
-void quetzal::dungen::Staircase::set_facing(vector_type facing)
-{
-    m_facing = facing;
-    return;
+    return m_rise;
 }
 
 //------------------------------------------------------------------------------
 void quetzal::dungen::Staircase::print(ostream& os) const
 {
-    os << "Staircase " << m_id << "\t" << m_name << "\t" << (m_direction == StaircaseDirection::Down ? "down" : "up")
-        << "\tposition (" << m_position[0] << ", " << m_position[1] << ")" << endl;
+    os << "Staircase " << m_id << "\t" << m_name << "\t" << to_string(m_rise)
+        << "\tdirected_position (" << m_directed_position << ")" << endl;
     return;
 }
 

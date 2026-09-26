@@ -29,24 +29,28 @@ namespace
     const auto& directions = sim::cardinal_directions;
 
     //--------------------------------------------------------------------------
-    // An attachment's components as the states a view draws apart
-    quetzal::stratum_view::State state_of(flecs::entity attachment)
+    // The way through on the wall as the viewer perceives it, or a null entity where there is none or the viewer finds it
+    // concealed
+    flecs::entity seen_way_through(flecs::entity zone, quetzal::id_type wall_id, flecs::entity viewer)
+    {
+        flecs::entity way = sim::way_through(zone, wall_id);
+        return way && sim::detection(way, viewer) != sim::DetectionState::Concealed ? way : flecs::entity();
+    }
+
+    //--------------------------------------------------------------------------
+    // A way through's components as the states a view draws apart
+    quetzal::stratum_view::State state_of(flecs::entity way)
     {
         using quetzal::stratum_view::State;
 
         State state = State::None;
 
-        if (attachment.has<sim::Openable>() && attachment.get<sim::Openable>().open)
+        if (sim::access(way) == sim::AccessState::Open)
         {
             state |= State::Open;
         }
 
-        if (attachment.has<sim::Crossable>())
-        {
-            state |= State::Crossable;
-        }
-
-        if (attachment.has<sim::Concealed>() && !attachment.get<sim::Concealed>().revealed)
+        if (sim::detection(way, flecs::entity()) == sim::DetectionState::Concealed)
         {
             state |= State::Concealed;
         }
@@ -66,7 +70,7 @@ namespace
     //--------------------------------------------------------------------------
     // Every door occupying a cell, with its state. A door on an edge is not reported
     template<typename F>
-    void each_door_cell(const sim::DiscreteLayout& layout, flecs::entity zone, F f)
+    void each_door_cell(const sim::DiscreteLayout& layout, flecs::entity zone, flecs::entity viewer, F f)
     {
         const sim::GridMapping& grid = layout.grid();
 
@@ -84,14 +88,13 @@ namespace
                 for (const sim::discrete_vector_type& direction : directions)
                 {
                     quetzal::id_type wall_id = layout.wall_toward(cell_position, direction);
-                    flecs::entity facing = wall_id != quetzal::nullid
-                        ? sim::facing_on(zone, wall_id) : flecs::entity();
+                    flecs::entity way = wall_id != quetzal::nullid ? seen_way_through(zone, wall_id, viewer) : flecs::entity();
 
                     sim::discrete_point_type beyond = cell_position + direction;
 
-                    if (facing && door_in_cell(layout, beyond, direction))
+                    if (way && door_in_cell(layout, beyond, direction))
                     {
-                        f(beyond, state_of(sim::door_of(facing)));
+                        f(beyond, state_of(way));
                     }
                 }
             }
@@ -130,7 +133,7 @@ namespace
 } // namespace
 
 //------------------------------------------------------------------------------
-quetzal::stratum_view::Cells quetzal::stratum_view::cells(const sim::World& world, flecs::entity zone)
+quetzal::stratum_view::Cells quetzal::stratum_view::cells(const sim::World& world, flecs::entity zone, flecs::entity viewer)
 {
     const sim::DiscreteLayout& layout = sim::layout_as<sim::DiscreteLayout>(world.layout(zone));
 
@@ -149,7 +152,7 @@ quetzal::stratum_view::Cells quetzal::stratum_view::cells(const sim::World& worl
         }
     }
 
-    each_door_cell(layout, zone, [&](const sim::discrete_point_type& cell_position, State state)
+    each_door_cell(layout, zone, viewer, [&](const sim::discrete_point_type& cell_position, State state)
     {
         cells.set(cell_position, Place {PlaceType::Door, state});
     });
@@ -165,7 +168,7 @@ quetzal::stratum_view::Cells quetzal::stratum_view::cells(const sim::World& worl
 }
 
 //------------------------------------------------------------------------------
-quetzal::stratum_view::Lattice quetzal::stratum_view::lattice(const sim::World& world, flecs::entity zone)
+quetzal::stratum_view::Lattice quetzal::stratum_view::lattice(const sim::World& world, flecs::entity zone, flecs::entity viewer)
 {
     const sim::DiscreteLayout& layout = sim::layout_as<sim::DiscreteLayout>(world.layout(zone));
 
@@ -199,15 +202,15 @@ quetzal::stratum_view::Lattice quetzal::stratum_view::lattice(const sim::World& 
                     continue;
                 }
 
-                flecs::entity facing = sim::facing_on(zone, wall_id);
+                flecs::entity way = seen_way_through(zone, wall_id, viewer);
 
-                if (!facing)
+                if (!way)
                 {
                     lattice.set(lattice_position(cell_position) + direction, Place {PlaceType::Wall});
                     continue;
                 }
 
-                Place place {PlaceType::Door, state_of(sim::door_of(facing))};
+                Place place {PlaceType::Door, state_of(way)};
 
                 // Placed once however many ways into the cell there are
                 sim::discrete_point_type beyond = cell_position + direction;

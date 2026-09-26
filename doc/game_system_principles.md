@@ -164,9 +164,9 @@ The reasoning for each is in `decision_rationale.md`.
   it does not state keeps it. How lists combine, and a deterministic flattening order with multiple parents, are to be
   specified.
 
-  An object in a zone refers to its type rather than copying it, and a property is resolved when queried: the object's
-  own value, then the room containing it, then the layout, then the type's default. The object's type determines
-  whether it looks to the room and the layout at all.
+  An object in a zone refers to its type rather than copying it, and a property is resolved when queried, field by
+  field: the object's own value, then its type's, then the room containing it, then the layout. A field the type sets
+  is the object's, so only what neither states comes from the room or the layout.
 - **Data describes what exists; behavior is script wherever practical,** C++ keeping the inner loops that scripts call.
   The scripting language is chosen before it is needed.
 - **Compiled extensions register at compile time**, through static libraries with registration functions; dynamic C++

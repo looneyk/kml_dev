@@ -9,6 +9,7 @@
 #include "IdAllocator.hpp"
 #include "Layout.hpp"
 #include "PersistentId.hpp"
+#include "properties.hpp"
 #include "Site.hpp"
 #include "Zone.hpp"
 #include "ZoneEntryIndex.hpp"
@@ -17,6 +18,8 @@
 #include <cstdint>
 #include <filesystem>
 #include <memory>
+#include <optional>
+#include <string_view>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -45,6 +48,18 @@ namespace quetzal::stratum_sim
     // Sets an entity's parent and site together. Its children move with it and its id is kept, so references to it stay
     // valid
     void reparent(flecs::entity e, flecs::entity parent, const Site& site);
+
+    // The parent alone, for an entity with no site. A zone contains its entities through ChildOf, and an entity its children
+    // through Parent
+    void set_parent(flecs::entity e, flecs::entity parent);
+
+    //--------------------------------------------------------------------------
+    // A type is a prefab: an entity IsA its type, whose components are the entity's defaults. The caller sets its
+    // components
+    flecs::entity create_entity_type(flecs::world& entities, std::string_view name);
+
+    // Null where none is loaded
+    flecs::entity entity_type(const flecs::world& entities, std::string_view name);
 
     //--------------------------------------------------------------------------
     // The zones and everything in them. Entities are in one flecs world, a zone's contents being its children and its
@@ -78,8 +93,8 @@ namespace quetzal::stratum_sim
         flecs::entity create_zone(const Generator& generator);
 
         // A zone read from a file, populated, with the file's persistent id where it has one.
-        // Throws std::runtime_error when the reader rejects the file, an access point's type is not registered, or the file's
-        // zone is already loaded, before anything is built
+        // Throws std::runtime_error when the reader rejects the file, build_error finds a reason the world cannot build it, or
+        // the file's zone is already loaded, before anything is built
         flecs::entity load_zone(const std::filesystem::path& filepath);
 
         void unload_zone(flecs::entity zone);
@@ -97,7 +112,7 @@ namespace quetzal::stratum_sim
         size_t zone_count_max() const;
         void set_zone_count_max(size_t zone_count_max);
 
-        // The layout's queries from the entity's zone and placement, each wall crossable as its attachments allow. In move,
+        // The layout's queries from the entity's zone and placement, each wall crossable as the entity finds what is on it. In move,
         // every Blocking entity other than e blocks
         MoveResult move(flecs::entity e, const vector_type& direction, value_type distance) const;
         Layout::placements_type neighbors(flecs::entity e) const;
@@ -111,6 +126,13 @@ namespace quetzal::stratum_sim
         entities_type entities_within(flecs::entity zone, const placement_type& placement, value_type range) const;
 
         flecs::entity create_entity(flecs::entity zone, const placement_type& placement);
+
+        // The component along the chain -- the entity's own, its type's, the room containing it and the layout -- each
+        // filling the optional fields those before it left unset. Empty where none of them has it. A layout entity's
+        // chain has no type: a wall's is itself, its room and the layout, and a flat cell's is itself, the flat's override
+        // for its room, the room, the flat and the layout
+        template<typename T>
+        std::optional<T> property(flecs::entity e) const;
 
         // The loaded entity with that id, null where it is not loaded
         flecs::entity entity(PersistentId persistent_id) const;
@@ -129,6 +151,12 @@ namespace quetzal::stratum_sim
 
     private:
 
+        // The entities property reads, nearest first
+        entities_type property_chain(flecs::entity e) const;
+
+        // Whether the zone's own deletion has begun, or the world's, so what is deleted with it needs no unlinking
+        bool deleting_with(flecs::entity zone) const;
+
         IdAllocator& m_id_allocator;
 
         // All entities in the world with a PersistentId
@@ -146,5 +174,31 @@ namespace quetzal::stratum_sim
     };
 
 } // namespace quetzal::stratum_sim
+
+//------------------------------------------------------------------------------
+template<typename T>
+std::optional<T> quetzal::stratum_sim::World::property(flecs::entity e) const
+{
+    std::optional<T> result;
+
+    for (flecs::entity level : property_chain(e))
+    {
+        if (!level.owns<T>())
+        {
+            continue;
+        }
+
+        if (!result.has_value())
+        {
+            result = level.get<T>();
+        }
+        else
+        {
+            merge_unset(level.world(), level.world().id<T>(), &*result, &level.get<T>());
+        }
+    }
+
+    return result;
+}
 
 #endif // QUETZAL_STRATUM_SIM_WORLD_HPP

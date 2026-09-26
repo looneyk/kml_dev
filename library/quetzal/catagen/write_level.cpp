@@ -6,7 +6,6 @@
 #include "write_level.hpp"
 #include "quetzal/common/string_util.hpp"
 #include "quetzal/stratum_format/grid.hpp"
-#include "quetzal/stratum_format/references.hpp"
 #include "quetzal/stratum_format/write.hpp"
 #include <optional>
 #include <ostream>
@@ -164,7 +163,6 @@ void quetzal::catagen::write_level(ostream& os, const Level& level, const Parame
 
     stratum_format::Document document;
     document.generator = {{"name", "catagen"}, {"parameters", values}};
-    document.components = values_type::object();
     document.cells.notation = stratum_format::Notation::Wall;
     document.cells.extent = level.extent();
     document.cells.rows = rows(level);
@@ -185,7 +183,6 @@ void quetzal::catagen::write_level(ostream& os, const Level& level, const Parame
         }
     }
 
-    values_type access_points = values_type::array();
     size_t down_count = 0;
     size_t up_count = 0;
 
@@ -202,33 +199,21 @@ void quetzal::catagen::write_level(ostream& os, const Level& level, const Parame
             // The staircase's cell is a block, and it is sited on the wall its open neighbor presents to that block
             optional<CardinalDirection> open_side = level.staircase_facing({i, j});
             assert(open_side.has_value());
-            const vector_type& step = cardinal_direction(*open_side);
-            stratum_format::WallAddress address {point_type {i, j} + step, step};
+            const vector_type& direction = cardinal_direction(*open_side);
+            stratum_format::WallAddress address {point_type {i, j} + direction, direction};
 
             // Ordered among the staircases leading the same way
             bool down = type == CellType::StairsDown;
 
             // An arriving actor is placed on the floor it opens onto, facing away from it
-            values_type entry = values_type::object();
-            entry["cell_position"] = values_type::array({address.cell_position.i(), address.cell_position.j()});
-            entry["orientation"] = values_type::array({step.x(), step.y()});
+            stratum_format::Relocator relocator {down ? "down" : "up", down ? "down" : "up", down ? down_count++ : up_count++,
+                stratum_format::discrete_directed_point_type(address.cell_position, direction)};
 
-            values_type relocator = values_type::object();
-            relocator["type"] = down ? "down" : "up";
-            relocator["target"] = down ? "down" : "up";
-            relocator["order"] = down ? down_count++ : up_count++;
-            relocator["entry"] = std::move(entry);
-
-            values_type components = values_type::object();
-            components["relocator"] = std::move(relocator);
-
-            access_points.push_back(stratum_format::make_reference(++id));
+            document.access_points.push_back(++id);
             document.entities.push_back({id, "staircase", stratum_format::Site {stratum_format::Relation::On, address, nullopt, nullopt}, nullopt,
-                std::move(components)});
+                std::move(relocator), {}});
         }
     }
-
-    document.components["access_points"] = std::move(access_points);
 
     stratum_format::write(os, document);
     return;

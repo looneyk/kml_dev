@@ -5,7 +5,9 @@
 
 #include "attachments.hpp"
 #include "DiscreteLayout.hpp"
+#include "layout_entities.hpp"
 #include "World.hpp"
+#include <algorithm>
 #include <format>
 #include <string>
 #include <cassert>
@@ -36,18 +38,26 @@ flecs::entity quetzal::stratum_sim::access_type(const flecs::world& entities, st
 }
 
 //------------------------------------------------------------------------------
+void quetzal::stratum_sim::set_access_point(flecs::entity e, flecs::entity access_type, std::uint64_t order, const placement_type& entry)
+{
+    assert(access_type);
+    assert(e.has<Site>() && e.get<Site>().relation == Relation::On && e.get<Site>().address.has_value());
+
+    e.add<AccessType>(access_type).set<AccessPoint>(AccessPoint {order, entry});
+    return;
+}
+
+//------------------------------------------------------------------------------
 flecs::entity quetzal::stratum_sim::create_access_point(flecs::entity zone, flecs::entity access_type, const Site& site,
     std::uint64_t order, const placement_type& entry)
 {
     assert(zone && zone.has<Zone>());
-    assert(access_type);
-    assert(site.relation == Relation::On && site.address.has_value());
 
-    return zone.world().entity()
-        .child_of(zone)
-        .set<Site>(site)
-        .add<AccessType>(access_type)
-        .set<AccessPoint>(AccessPoint {order, entry});
+    flecs::entity e = zone.world().entity();
+    reparent(e, zone, site);
+    set_access_point(e, access_type, order, entry);
+
+    return e;
 }
 
 //------------------------------------------------------------------------------
@@ -76,107 +86,76 @@ flecs::entity quetzal::stratum_sim::entry_point(flecs::entity zone, flecs::entit
 }
 
 //------------------------------------------------------------------------------
-flecs::entity quetzal::stratum_sim::create_door(flecs::entity zone, const std::vector<id_type>& wall_ids)
+flecs::entity quetzal::stratum_sim::access_entity(flecs::entity e)
 {
-    assert(zone && zone.has<Zone>());
-    assert(!wall_ids.empty());
-
-    flecs::entity door = zone.world().entity()
-        .child_of(zone)
-        .add<Door>()
-        .set<Openable>(Openable {false});
-
-    for (id_type wall_id : wall_ids)
+    for (flecs::entity holder = e; holder && !holder.has<Zone>(); holder = holder.parent())
     {
-        assert(wall_id != nullid);
-
-        zone.world().entity()
-            .child_of(door)
-            .add<DoorFacing>()
-            .set<Site>(Site {Relation::On, WallAddress {wall_id}, {}});
-    }
-
-    return door;
-}
-
-//------------------------------------------------------------------------------
-size_t quetzal::stratum_sim::create_doors(flecs::entity zone, const door_walls_type& doors)
-{
-    for (const std::vector<id_type>& wall_ids : doors)
-    {
-        create_door(zone, wall_ids);
-    }
-
-    return doors.size();
-}
-
-//------------------------------------------------------------------------------
-flecs::entity quetzal::stratum_sim::facing_on(flecs::entity zone, id_type wall_id)
-{
-    assert(zone && zone.has<Zone>());
-
-    flecs::entity found;
-
-    // Wall ids are unique only within a zone
-    zone.world().query_builder<const Site>()
-        .with<DoorFacing>()
-        .build()
-        .each([&](flecs::entity e, const Site& site)
+        if (holder.has<Access>())
         {
-            if (wall_id_of(site) == wall_id && zone_of(e) == zone)
-            {
-                found = e;
-            }
-        });
-
-    return found;
-}
-
-//------------------------------------------------------------------------------
-flecs::entity quetzal::stratum_sim::door_of(flecs::entity facing)
-{
-    assert(facing && facing.has<DoorFacing>());
-    return facing.parent();
-}
-
-//------------------------------------------------------------------------------
-flecs::entity quetzal::stratum_sim::other_facing(flecs::entity facing)
-{
-    assert(facing);
-
-    flecs::entity other;
-
-    door_of(facing).children([&](flecs::entity e)
-    {
-        if (e != facing && e.has<DoorFacing>())
-        {
-            other = e;
+            return holder;
         }
-    });
+    }
 
-    return other;
+    return flecs::entity();
 }
 
 //------------------------------------------------------------------------------
-bool quetzal::stratum_sim::crossable(flecs::entity zone, id_type wall_id)
+std::optional<quetzal::stratum_sim::AccessState> quetzal::stratum_sim::access(flecs::entity e)
 {
-    flecs::entity facing = facing_on(zone, wall_id);
+    flecs::entity holder = access_entity(e);
+    return holder ? std::optional<AccessState>(holder.get<Access>().state) : std::nullopt;
+}
 
-    if (!facing)
+//------------------------------------------------------------------------------
+quetzal::stratum_sim::DetectionState quetzal::stratum_sim::detection(flecs::entity e, flecs::entity actor)
+{
+    for (flecs::entity holder = e; holder && !holder.has<Zone>(); holder = holder.parent())
+    {
+        if (const auto* detection = holder.try_get<Detection>())
+        {
+            if (const auto* actor_id = actor ? actor.try_get<PersistentId>() : nullptr)
+            {
+                if (auto i = detection->actor_states.find(*actor_id); i != detection->actor_states.end())
+                {
+                    return i->second;
+                }
+            }
+
+            return detection->state;
+        }
+    }
+
+    return DetectionState::Visible;
+}
+
+//------------------------------------------------------------------------------
+flecs::entity quetzal::stratum_sim::way_through(flecs::entity zone, id_type wall_id)
+{
+    flecs::entity wall = wall_entity(zone, wall_id);
+    const auto* attached = wall ? wall.try_get<AttachedEntities>() : nullptr;
+
+    if (attached == nullptr)
+    {
+        return flecs::entity();
+    }
+
+    auto i = std::find_if(attached->entities.begin(), attached->entities.end(), [](flecs::entity e) { return static_cast<bool>(access_entity(e)); });
+    return i != attached->entities.end() ? *i : flecs::entity();
+}
+
+//------------------------------------------------------------------------------
+bool quetzal::stratum_sim::crossable(flecs::entity zone, id_type wall_id, flecs::entity actor)
+{
+    flecs::entity wall = wall_entity(zone, wall_id);
+    const auto* attached = wall ? wall.try_get<AttachedEntities>() : nullptr;
+
+    if (attached == nullptr)
     {
         return false;
     }
 
-    if (facing.has<Concealed>() && !facing.get<Concealed>().revealed)
+    return std::any_of(attached->entities.begin(), attached->entities.end(), [&](flecs::entity e)
     {
-        return false;
-    }
-
-    flecs::entity door = door_of(facing);
-    if (door.has<Openable>())
-    {
-        return door.get<Openable>().open;
-    }
-
-    return door.has<Crossable>();
+        return access(e) == AccessState::Open && detection(e, actor) != DetectionState::Concealed;
+    });
 }

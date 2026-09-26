@@ -223,7 +223,8 @@ one. Every zone is built with them.
 ```
 
 Each is a reference to an entity with a `relocator` component, sited `on` a surface: a wall, the floor
-or the ceiling. The reader rejects a file whose `access_points` is absent, lists nothing, or lists a
+or the ceiling. The reader decodes the list out of the layout's components, as it does `site`, `parent`
+and `relocator` out of an entity's. The reader rejects a file whose `access_points` is absent, lists nothing, or lists a
 value that is not such a reference. The entity's `type` is not what is checked. An access point on the
 floor or the ceiling requires its site's `orientation`, for drawing; one on a wall takes the wall's
 normal (`### Staircases and access points`).
@@ -517,9 +518,9 @@ basin, a button, a torch, the key inside the basin.
 | `type` | A string the format does not restrict, types being prefabs the world has |
 | `components` | The entity's file components, optional |
 
-Two file components are defined here, which the reader validates and uses to build the zone:
-`site`, where the entity is, and `parent`, whose child it is. Every other file component is content
-the reader passes to its caller as it was written.
+Three file components are defined here, which the reader validates and decodes: `site`, where the
+entity is, `parent`, whose child it is, and `relocator`, where it leads (`### A relocator's target`).
+Every other file component is content the reader passes to its caller as it was written.
 
 ### site
 
@@ -615,8 +616,9 @@ at, such as a staircase leading up, or leading down in a tower --- chosen among 
 binds both ends: the relocator gone through is bound to that access point, and the access point to the
 relocator it came from. The layout's `access_points` lists them, and every zone has at least one.
 
-The reader interprets neither shape. A relocator is a file component like any other, and both are passed
-to the caller; a bound target is a reference which the reader interprets.
+The reader decodes a relocator: its `target`, required, a destination name or a reference, and the
+`type`, `order` and `entry` an access point requires. It interprets no destination name, which is the
+caller's vocabulary. A bound target is a reference, and the reader rejects one in a template.
 
 ## What a reader must do with it
 

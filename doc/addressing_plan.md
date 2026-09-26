@@ -1,6 +1,6 @@
 # Ids and Addressing --- Plan
 
-Status: steps 1 to 4 built; the rest designed
+Status: steps 1 to 5 built; the rest designed
 Date: 2026-09-14, revised 2026-09-24
 
 The design behind the spec in `addressing.md`: one list of entities in a zone file, with `site` and `parent` as file
@@ -96,12 +96,13 @@ adds it to the loaded entities again, and a reference into the zone resolves aga
 
 ## Links
 
-A sited entity's `Site` has its address. The other direction is a list on the place's entity:
+A sited entity's `Site` has its address. The other direction is a list on the entity of the wall or the flat cell it is
+sited on:
 
 ```cpp
 namespace quetzal::stratum_sim
 {
-    // On a place's entity: everything sited on it
+    // On a wall's or a flat cell's entity: everything sited on it
     struct AttachedEntities
     {
         std::vector<flecs::entity> entities;
@@ -109,38 +110,23 @@ namespace quetzal::stratum_sim
 }
 ```
 
-- **`reparent` and setting a site keep both ends in sync.** An `OnRemove` observer on `Site` removes an entity from its
-  place's list when the entity is deleted; one on `AttachedEntities` clears the site of everything on a place being
-  deleted. What happens to what was on it --- the contents of a smashed chest --- is the deleting rule's to decide, not
-  the observer's.
+- **`reparent` and setting a site keep both ends in sync.** An `OnRemove` observer on `Site` removes an entity from the
+  list it is on when the entity is deleted; one on each address type clears the site of everything on a wall or flat
+  cell whose entity is being deleted. What happens to what was on it --- the contents of a smashed chest --- is the
+  deleting rule's to decide, not the observer's. Built (`game_system_reference.md`, `### Entity types, layout entities
+  and properties`).
 - **A child's `flecs::Parent`** is set by `reparent`. Flecs keeps the parent's children and deletes them with it.
-- **An entity has at most one site.** Something on several places is a parent whose children each have their own, so a
-  site never has a second case.
+- **An entity has at most one site.** Something on several walls or cells is a parent whose children each have their
+  own, so a site never has a second case.
 
-### Places
+### Layout entities
 
-A place's entity exists where it has components or something sited on it, and goes when it has neither. `World` keeps,
-per zone:
+A wall's or a flat cell's entity exists where it has components or something sited on it, and goes when it has
+neither; every room and each flat has one. Each has its address as a component and is found by it, through the zone's
+`ZoneAddressIndex`, beside its layout and actor index. Built (`layout_entities.hpp`).
 
-```cpp
-    struct ZonePlaces
-    {
-        std::unordered_map<id_type, flecs::entity> wall_entities; // By wall id
-        std::vector<std::unordered_map<size_t, flecs::entity>> flat_cell_entities; // By flat id, then slot
-    };
-```
-
-beside the zone's layout and actor index, the rework's `Zone` becoming the home of all three.
-
-```cpp
-        flecs::entity wall_entity(flecs::entity zone, id_type wall_id) const; // Null where it has none
-        flecs::entity flat_cell_entity(flecs::entity zone, id_type flat_id, const discrete_point_type& cell_position) const;
-        flecs::entity ensure_wall_entity(flecs::entity zone, id_type wall_id);
-        flecs::entity ensure_flat_cell_entity(flecs::entity zone, id_type flat_id, const discrete_point_type& cell_position);
-```
-
-A place's entity, its list and a parent's children are derived, and rebuilt when the zone loads (`addressing.md`,
-`### A saved zone`). A place has no `PersistentId`; it is referred to by its address.
+A layout entity, its list and a parent's children are derived, and rebuilt when the zone loads (`addressing.md`,
+`### A saved zone`). A layout entity has no `PersistentId`; it is referred to by its address.
 
 ### Wall ids from the normal
 
@@ -196,18 +182,27 @@ namespace quetzal::stratum_sim
 - **One rule, with no type in it.** `crossable` reads `Access` and `Detection` and nothing else, so a new kind of way
   through is a matter of the components it has rather than of code here.
 - **The result depends on the actor.** `move`, `neighbors` and `visible` take a `crossable_function_type`, and
-  `World::move`, `World::neighbors` and `World::visible` bind `crossable(zone, wall_id)`; each binds
-  `crossable(zone, wall_id, actor)` instead, for the actor moving or looking.
+  `World::move`, `World::neighbors` and `World::visible` bind `crossable(zone, wall_id, actor)`, for the actor moving
+  or looking.
+- **A state, not an interpretation of one.** `Access` is what a way through is, open, closed or locked: a door off its
+  hinges is open, and one smashed into rubble that blocks it is closed. How a broken door looks is a visual state a
+  script sets and a view interprets, never a component that says whether it can be crossed.
+- **The view is the player's.** The reductions draw a way through the viewer finds concealed as a wall, and mark one
+  the viewer has found that is concealed from actors in general; each denizen crosses as it perceives it.
+
+Built (`game_system_reference.md`, `### Sites and doors`), with `detection` returning `Visible` where nothing in the
+chain has a `Detection`, `access_entity` the entity whose `Access` applies, and `way_through` the entity on a wall
+that has access. A staircase has no `Access` yet; entering one is `session_plan.md` step 6.
 
 ### What the queries become
 
-- **What is on a wall or flat cell:** the place's entity, then its `AttachedEntities`.
+- **What is on a wall or flat cell:** the wall's or cell's entity, then its `AttachedEntities`.
 - **Where an entity is:** its `Site`, and its parent where the site has no address.
 - **The other side of a door:** the door facing's parent, then that parent's other child.
 - **Who is at a place:** the zone's actor index (`## Actors`).
 
-`DoorFacing`, `facing_on`, `door_of`, `other_facing`, `create_door`, `create_doors`, `door_walls_type` and
-`load_layout`'s `door_type` go.
+`Door`, `DoorFacing`, `Openable`, `Crossable`, `Concealed`, `facing_on`, `door_of`, `other_facing`, `create_door`,
+`create_doors`, `door_walls_type`, and `load_layout`'s `door_type` are gone.
 
 ## Actors
 
@@ -307,10 +302,11 @@ carries is its child, sited `on` it, and is owned by the game too; both are save
   - loading a template twice gives different persistent ids and the same structure;
   - every reference translated, and one to an entity resolving to it;
   - an entity something refers to in the index, and its entry following it across zones;
-  - a place's list kept in sync with the sites on it; deleting an entity or a place leaving no link behind;
+  - a wall's or flat cell's list kept in sync with the sites on it; deleting an entity or a layout entity leaving no link
+    behind;
   - a file's `parent` making a Flecs child, and deleting a parent deleting its children;
   - `encode_wall_id` and `wall_toward` returning the same id for the same wall, for all four normals;
-  - a place's entity made when something is sited on it and gone when nothing is;
+  - a wall's or flat cell's entity made when something is sited on it and gone when nothing is;
   - `crossable` through `Access` and `Detection`: a door open, closed and locked; a door facing taking its door's
     access, and concealed for one actor and not another; an entity with no `Access` in its chain never crossable; a
     staircase crossed from its open side and from no other;
@@ -330,11 +326,11 @@ carries is its child, sited `on` it, and is owned by the game too; both are save
 - [x] **3. `flecs::Parent` checked in `flecs_test`** (`## Flecs`).
 - [x] **4. Persistent ids.** `PersistentId`, `IdAllocator`, `CountingIdAllocator`, the loaded entities and the world
       index, `EntityReference`, `make_reference` and `resolve`.
-- [ ] **5. Loading a zone, against 0.4 and with persistent ids.** `discrete_layout_rework.md`'s `## Loading a zone`.
-      `load_layout` builds the zone from the document: an entity for every object of file components, each `IsA` its type, its component objects decoded
-      into typed components (`modding_plan.md`), and a property resolved when queried from the object, its room, the
-      layout and its type's default. Making a zone allocates persistent ids and
-      translates references, links sites both ways through `AttachedEntities` and the places' entities, and gives each
+- [x] **5. Loading a zone, against 0.4 and with persistent ids.** `discrete_layout_rework.md`'s `## Loading a zone`.
+      `load_layout` builds the zone from the document: an entity for every object of file components, each `IsA` its
+      type, its component objects decoded into typed components (`modding_plan.md`), and a property resolved when
+      queried from the object, its type, its room and the layout, the last built. Making a zone allocates persistent ids
+      and translates references, links sites both ways through `AttachedEntities` and the layout entities, and gives each
       parent its children, so `crossable` searches nothing, asking each sited entity's `Access` and `Detection` for the
       actor crossing. Each staircase gets its relocator with its target. Wall ids are encoded from the normal by
       `encode_wall_id`. `World` contains zones rather than layouts, and the door functions go.
@@ -366,7 +362,7 @@ that nothing a player sees changed apart from the wall ids they print.
 
 ## Open
 
-- **Names.** `PersistentId`, `EntityReference`, `make_reference`, `AttachedEntities`, `ZonePlaces`, `Access`,
+- **Names.** `PersistentId`, `EntityReference`, `make_reference`, `AttachedEntities`, `ZoneAddressIndex`, `Access`,
   `Detection` and `ActorIndex` are working names.
 - **Where a saved zone is written,** and how a world's zones are found by persistent id on disk. The session
   lifecycle's to settle.

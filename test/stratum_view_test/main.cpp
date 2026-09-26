@@ -10,6 +10,7 @@
 #include "quetzal/stratum_sim/commands.hpp"
 #include "quetzal/stratum_sim/DiscreteLayout.hpp"
 #include "quetzal/stratum_sim/load_layout.hpp"
+#include "quetzal/stratum_sim/StratumGame.hpp"
 #include "quetzal/stratum_sim/World.hpp"
 #include "quetzal/stratum_view/ascii.hpp"
 #include "quetzal/stratum_view/cells.hpp"
@@ -34,6 +35,20 @@ namespace
     static constexpr auto escape_rendition_pattern = "\x1b[38;5;{}m";
 
     static constexpr size_t suite_zone_count_max = 8;
+
+    // The view as actors in general detect what is concealed, there being no player
+    const flecs::entity no_viewer;
+
+    //--------------------------------------------------------------------------
+    // A world with the game's entity types, as StratumGame's has
+    struct SuiteWorld : stratum_sim::World
+    {
+        explicit SuiteWorld(stratum_sim::IdAllocator& id_allocator) :
+            World(id_allocator, suite_zone_count_max)
+        {
+            stratum_sim::register_game_types(*this);
+        }
+    };
 
     size_t g_case_count = 0;
     size_t g_failure_count = 0;
@@ -199,10 +214,10 @@ namespace
         report_group("cells");
 
         stratum_sim::CountingIdAllocator id_allocator(stratum_sim::PersistentId {});
-        stratum_sim::World world(id_allocator, suite_zone_count_max);
+        SuiteWorld world(id_allocator);
         flecs::entity zone = load_zone_unpopulated(world,"data/corridor.level");
 
-        stratum_view::Cells cells = stratum_view::cells(world, zone);
+        stratum_view::Cells cells = stratum_view::cells(world, zone, no_viewer);
 
         report_case_equal("it covers the zone's grid", cells.extent().x(), 7);
         report_case_equal("in both directions", cells.extent().y(), 3);
@@ -214,7 +229,7 @@ namespace
         world.create_entity(zone, stratum_sim::placement_type(layout.position(stratum_sim::discrete_point_type {3, 1}),
             stratum_sim::vector_type(1.0f, 0.0f, 0.0f)));
 
-        cells = stratum_view::cells(world, zone);
+        cells = stratum_view::cells(world, zone, no_viewer);
         report_case("an entity stands in its cell", cells.at({3, 1}).actor);
         report_case("and only that one", !cells.at({2, 1}).actor);
 
@@ -242,7 +257,7 @@ namespace
                 (stratum_view::Place {stratum_view::PlaceType::Door, stratum_view::State::Open}) == '+');
 
         report_case("rendering from cells matches rendering from the world",
-            stratum_view::render(cells).to_string() == stratum_view::render(world, zone).to_string());
+            stratum_view::render(cells).to_string() == stratum_view::render(world, zone, no_viewer).to_string());
 
         // difference works over a buffer of any type
         stratum_view::Cells other = cells;
@@ -336,10 +351,10 @@ namespace
 
         // Two rooms of two by three cells sharing one wall, with a door in the middle of it
         stratum_sim::CountingIdAllocator id_allocator(stratum_sim::PersistentId {});
-        stratum_sim::World world(id_allocator, suite_zone_count_max);
+        SuiteWorld world(id_allocator);
         flecs::entity zone = load_zone_unpopulated(world,"data/walls.level");
 
-        stratum_view::Lattice lattice = stratum_view::lattice(world, zone);
+        stratum_view::Lattice lattice = stratum_view::lattice(world, zone, no_viewer);
 
         report_case_equal("it covers twice the grid plus one", lattice.extent().x(), 9);
         report_case_equal("in both directions", lattice.extent().y(), 7);
@@ -359,16 +374,35 @@ namespace
         report_case("a corner walls reach is a joint", lattice.at({0, 0}).type == stratum_view::PlaceType::Wall);
         report_case("so is one a run passes through", lattice.at({2, 0}).type == stratum_view::PlaceType::Wall);
 
+        // The door concealed, and then found by one actor: the view is the viewer's
+        const stratum_sim::DiscreteLayout& walls_layout = stratum_sim::layout_as<stratum_sim::DiscreteLayout>(world.layout(zone));
+        flecs::entity door = stratum_sim::access_entity(stratum_sim::way_through(zone,
+            walls_layout.wall_toward(stratum_sim::discrete_point_type {1, 2}, stratum_sim::cardinal_direction(stratum_sim::CardinalDirection::East))));
+        flecs::entity finder = world.create_entity(zone, stratum_sim::placement_type(walls_layout.position(stratum_sim::discrete_point_type {1, 2}),
+            stratum_sim::vector_type(1.0f, 0.0f, 0.0f)));
+
+        door.set<stratum_sim::Detection>(stratum_sim::Detection {stratum_sim::DetectionState::Concealed,
+            {{finder.get<stratum_sim::PersistentId>(), stratum_sim::DetectionState::Revealed}}});
+
+        report_case("a door the viewer has not found is a wall", stratum_view::lattice(world, zone, no_viewer).at({4, 5}).type == stratum_view::PlaceType::Wall);
+
+        stratum_view::Place found = stratum_view::lattice(world, zone, finder).at({4, 5});
+        report_case("one the viewer has found is a door", found.type == stratum_view::PlaceType::Door);
+        report_case("marked as concealed from others", stratum_view::any(found.state & stratum_view::State::Concealed));
+
+        door.remove<stratum_sim::Detection>();
+        finder.destruct();
+
         // Every corner inside these rooms meets a stair's walls, so the corner with nothing at it is one in the vault
-        stratum_sim::World open_world(id_allocator, suite_zone_count_max);
+        SuiteWorld open_world(id_allocator);
         flecs::entity vault = load_zone_unpopulated(open_world,"data/vault.level");
-        report_case("a corner inside a room is not", stratum_view::lattice(open_world, vault).at({10, 4}).type == stratum_view::PlaceType::None);
+        report_case("a corner inside a room is not", stratum_view::lattice(open_world, vault, no_viewer).at({10, 4}).type == stratum_view::PlaceType::None);
 
         // The block notation reduces onto the same lattice, its walls only against solid
-        stratum_sim::World block(id_allocator, suite_zone_count_max);
+        SuiteWorld block(id_allocator);
         flecs::entity corridor = load_zone_unpopulated(block,"data/corridor.level");
 
-        stratum_view::Lattice cells = stratum_view::lattice(block, corridor);
+        stratum_view::Lattice cells = stratum_view::lattice(block, corridor, no_viewer);
 
         report_case_equal("a block zone covers the same shape", cells.extent().x(), 15);
         report_case("a closed cell reads as solid", cells.at({1, 1}).type == stratum_view::PlaceType::Solid);
@@ -386,7 +420,7 @@ namespace
         block.create_entity(corridor, stratum_sim::placement_type(layout.position(stratum_sim::discrete_point_type {1, 1}),
             stratum_sim::vector_type(1.0f, 0.0f, 0.0f)));
 
-        cells = stratum_view::lattice(block, corridor);
+        cells = stratum_view::lattice(block, corridor, no_viewer);
         report_case("an entity stands in its cell", cells.at({3, 3}).actor);
         report_case("with the floor under it kept", cells.at({3, 3}).type == stratum_view::PlaceType::Floor);
 
@@ -400,10 +434,10 @@ namespace
         report_group("ascii render");
 
         stratum_sim::CountingIdAllocator id_allocator(stratum_sim::PersistentId {});
-        stratum_sim::World world(id_allocator, suite_zone_count_max);
+        SuiteWorld world(id_allocator);
         flecs::entity zone = load_zone_unpopulated(world,"data/corridor.level");
 
-        stratum_view::Console console = stratum_view::render(world, zone);
+        stratum_view::Console console = stratum_view::render(world, zone, no_viewer);
 
         report_case_equal("the console covers the zone's grid", console.extent().x(), 7);
         report_case_equal("in both directions", console.extent().y(), 3);
@@ -417,7 +451,7 @@ namespace
         const stratum_sim::DiscreteLayout& layout = stratum_sim::layout_as<stratum_sim::DiscreteLayout>(world.layout(zone));
         world.create_entity(zone, stratum_sim::placement_type(layout.position(stratum_sim::discrete_point_type {3, 1}), stratum_sim::vector_type(1.0f, 0.0f, 0.0f)));
 
-        console = stratum_view::render(world, zone);
+        console = stratum_view::render(world, zone, no_viewer);
         report_case("an actor draws over its floor", console.at({3, 1}) == '@');
         report_case("and only its own cell", console.at({2, 1}) == '.');
 
@@ -431,10 +465,10 @@ namespace
         report_group("wall render");
 
         stratum_sim::CountingIdAllocator id_allocator(stratum_sim::PersistentId {});
-        stratum_sim::World world(id_allocator, suite_zone_count_max);
+        SuiteWorld world(id_allocator);
         flecs::entity zone = load_zone_unpopulated(world,"data/corridor.level");
 
-        stratum_view::Console console = stratum_view::render_lattice(world, zone);
+        stratum_view::Console console = stratum_view::render_lattice(world, zone, no_viewer);
 
         report_case_equal("the console covers the lattice", console.extent().x(), 15);
         report_case_equal("in both directions", console.extent().y(), 7);
@@ -453,7 +487,7 @@ namespace
         world.create_entity(zone, stratum_sim::placement_type(layout.position(stratum_sim::discrete_point_type {1, 1}),
             stratum_sim::vector_type(1.0f, 0.0f, 0.0f)));
 
-        console = stratum_view::render_lattice(world, zone);
+        console = stratum_view::render_lattice(world, zone, no_viewer);
         report_case("an actor draws over the cell it stands in", console.at({3, 3}) == '@');
 
         return;
@@ -471,10 +505,10 @@ namespace
             string filepath = format("data/{}.level", name);
 
             stratum_sim::CountingIdAllocator id_allocator(stratum_sim::PersistentId {});
-            stratum_sim::World world(id_allocator, suite_zone_count_max);
+            SuiteWorld world(id_allocator);
             flecs::entity zone = load_zone_unpopulated(world, filepath);
 
-            string s = stratum_view::render(world, zone).to_string();
+            string s = stratum_view::render(world, zone, no_viewer).to_string();
             string expected = rows_of(filepath);
 
             // The entrance is a block, so the view has only solid to draw there
@@ -492,10 +526,10 @@ namespace
             string filepath = "data/walls.level";
 
             stratum_sim::CountingIdAllocator id_allocator(stratum_sim::PersistentId {});
-            stratum_sim::World world(id_allocator, suite_zone_count_max);
+            SuiteWorld world(id_allocator);
             flecs::entity zone = load_zone_unpopulated(world, filepath);
 
-            string s = stratum_view::render_lattice(world, zone).to_string();
+            string s = stratum_view::render_lattice(world, zone, no_viewer).to_string();
             string expected = rows_of(filepath);
 
             // A staircase is a block, which the view draws as solid and the notation leaves blank
@@ -545,10 +579,10 @@ namespace
         string source = rows_of("data/dungeon.level");
 
         stratum_sim::CountingIdAllocator id_allocator(stratum_sim::PersistentId {});
-        stratum_sim::World world(id_allocator, suite_zone_count_max);
+        SuiteWorld world(id_allocator);
         flecs::entity zone = load_zone_unpopulated(world,"data/dungeon.level");
 
-        stratum_view::Console console = stratum_view::render(world, zone);
+        stratum_view::Console console = stratum_view::render(world, zone, no_viewer);
 
         const stratum_view::vector_type& extent = console.extent();
 
@@ -678,8 +712,8 @@ namespace
         stratum_sim::discrete_point_type cell_position = layout.cell_position_at(placement.position());
 
         string s = format("-- {}\n", label);
-        s += view == View::Walls ? stratum_view::render_lattice(world, zone).to_string()
-            : stratum_view::render(world, zone).to_string();
+        s += view == View::Walls ? stratum_view::render_lattice(world, zone, no_viewer).to_string()
+            : stratum_view::render(world, zone, no_viewer).to_string();
         s += format("   cell ({}, {})  facing {}\n", cell_position.i(), cell_position.j(), name_of(placement.direction()));
 
         for (const stratum_sim::Event& event : events.events())
@@ -697,7 +731,7 @@ namespace
     string play(const string& filepath, const stratum_sim::discrete_point_type& start, const string& script, View view)
     {
         stratum_sim::CountingIdAllocator id_allocator(stratum_sim::PersistentId {});
-        stratum_sim::World world(id_allocator, suite_zone_count_max);
+        SuiteWorld world(id_allocator);
         flecs::entity zone = load_zone_unpopulated(world, filepath);
 
         const stratum_sim::DiscreteLayout& layout = stratum_sim::layout_as<stratum_sim::DiscreteLayout>(world.layout(zone));

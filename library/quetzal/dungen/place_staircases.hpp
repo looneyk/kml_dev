@@ -14,23 +14,13 @@
 namespace quetzal::dungen
 {
 
-    // Turns candidates into staircases: a count leading up drawn from staircase_up_count, then a count leading down drawn
-    // from staircase_down_count. The candidates are shuffled first, so they may be supplied in any order, and running out of
-    // them places fewer than were asked for, those leading down going short before those leading up. A candidate whose
-    // block would cut a passage, or leave a staircase nothing to face, is passed over
-    // This should alternately place up and down staircases ...
-    // Throws std::runtime_error where none can be placed, every staircase being an access point and a zone needing one
-    void place_staircases(Level& level, std::vector<point_type> candidates, const math::Interval<size_t>& staircase_down_count,
-        const math::Interval<size_t>& staircase_up_count, random_type& random);
-
-    // Moves each staircase blocking a doorway one cell, in a random direction onto floor of its own space that is not a
-    // doorway and blocks none, and leaves it where there is no such direction. A doorway is a door, or the corridor cell
-    // beside room floor that a removed door leaves
-    // Run after every pass that places or removes a door
-    void move_staircases_off_doorways(Level& level, random_type& random);
-
-    // A random facing direction for each staircase among the sides of its cell with floor beyond, or where there are none, with a door
-    void face_staircases(Level& level, random_type& random);
+    // Turns candidates into staircases, alternately leading up and leading down while both have some left of a count drawn
+    // from up_count and down_count. The candidates are shuffled first, so they may be supplied in any order; one that
+    // cannot take a staircase facing floor without blocking a doorway or cutting a passage in two is skipped, and running
+    // out of them places fewer than were asked for, which is a warning.
+    // Throws std::runtime_error where a rise with a count above zero has none placed, every staircase being an access point
+    void place_staircases(Level& level, std::vector<point_type> candidates, const math::Interval<size_t>& up_count,
+        const math::Interval<size_t>& down_count, random_type& random, const warning_function_type& warning);
 
 } // namespace quetzal::dungen
 

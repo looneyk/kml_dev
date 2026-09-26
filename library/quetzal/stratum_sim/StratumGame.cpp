@@ -4,6 +4,7 @@
 //------------------------------------------------------------------------------
 
 #include "StratumGame.hpp"
+#include "attachments.hpp"
 
 namespace
 {
@@ -14,12 +15,23 @@ namespace
 } // namespace
 
 //------------------------------------------------------------------------------
+void quetzal::stratum_sim::register_game_types(World& world)
+{
+    flecs::world& entities = world.entities();
+
+    create_entity_type(entities, "door").set<Access>(Access {AccessState::Closed});
+
+    return;
+}
+
+//------------------------------------------------------------------------------
 quetzal::stratum_sim::StratumGame::StratumGame() :
     m_counting_id_allocator(PersistentId {}),
     m_world(m_counting_id_allocator, zone_count_max),
     m_player(m_world),
     m_session(m_world, m_player)
 {
+    register_game_types(m_world);
 }
 
 //------------------------------------------------------------------------------

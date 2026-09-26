@@ -96,13 +96,13 @@ struct WallAddress
 };
 
 //--------------------------------------------------------------------------
-struct FlatAddress
+struct FlatCellAddress
 {
     id_type flat_id = nullid;
     discrete_point_type cell_position;
 };
 
-using address_type = std::variant<WallAddress, FlatAddress>;
+using address_type = std::variant<WallAddress, FlatCellAddress>;
 
 //--------------------------------------------------------------------------
 // Where an entity is. The placement is relative to the address, or to the parent where there is none

@@ -22,23 +22,23 @@ geometry, entities, attachments, references --- and `addressing_plan.md` is the 
 
 The order the remaining steps are built in, each on the ones before it. A step leaves this list when it is done.
 
-1. **`addressing_plan.md` step 5, loading a zone,** with `modding_plan.md` step 2, in `discrete_layout_rework.md`'s
-   order: types in `World` and the property query; places as entities and `load_layout` building every entity with
-   its links, persistent ids translated and components decoded; `crossable` through `Access` and `Detection`, the door
-   functions deleted; the generators and suites on the new path, `create_doors` deleted.
-2. **`addressing_plan.md` step 6,** migration, and the player an entity of the game's rather than in a zone.
-3. **`addressing_plan.md` step 8,** relocating through a relocator.
-4. **`session_plan.md` step 6,** entering an access point.
-5. **Stage 7, a zone added to the world when it is encountered.**
-6. **`addressing_plan.md` step 7,** saved zones and the reset to a save point, with the rest of stage 7.
+1. **`addressing_plan.md` step 6,** migration, and the player an entity of the game's rather than in a zone.
+2. **`addressing_plan.md` step 8,** relocating through a relocator.
+3. **`session_plan.md` step 6,** entering an access point.
+4. **Stage 7, a zone added to the world when it is encountered.**
+5. **`addressing_plan.md` step 7,** saved zones and the reset to a save point, with the rest of stage 7.
 
 Beside that order:
 
 - **After step 1:** `session_plan.md` step 4, pre-populated zones, the loader building a file's denizens.
-- **Blocked:** `placement_plan.md`, its step 1 changing once `create_doors` goes and its step 2 needing `content`; the
-  population strategy comes with it.
+- **Blocked:** `placement_plan.md`, where it lives being unsettled and its step 2 needing `content`; the population
+  strategy comes with it.
 - **At any time:** `addressing_plan.md` step 9, the zone actor index; `session_plan.md` step 7, staircases in every
   form; `modding_plan.md` step 1, place types from data.
+- **At any time:** the generators on `geometry::DiscreteDirectedPoint`. dungen's `Staircase` keeps a
+  `directed_point_type` and still has the separate `position` and `direction` accessors and setters, marked for
+  removal; catagen keeps a staircase as a cell type and a map from cell position to facing direction, which a list of
+  directed points would replace.
 - **Later:** regions, and `modding_plan.md` steps 3 to 7, which are Phase 4.
 
 ## Plans
@@ -46,12 +46,12 @@ Beside that order:
 One box per plan with steps of its own, checked when every step is done.
 
 - [ ] [`addressing_plan.md`](addressing_plan.md) --- ids and addressing: format 0.4, persistent ids, links, loading a
-      zone against them, and a zone actor index. 9 steps, steps 1 to 4 done.
+      zone against them, and a zone actor index. 9 steps, steps 1 to 5 done.
 - [x] [`site_plan.md`](site_plan.md) --- where every entity is and what it belongs to: the parent and site links,
       `Relation`, and the file component that replaces `attached`.
 - [ ] [`modding_plan.md`](modding_plan.md) --- mods and data-driven design: place types from data, components decoded
-      at load, types as prefabs, component schemas from data, styles, scripting and mods. 7 steps, none started; step 2
-      is part of `addressing_plan.md` step 5, and steps 3 to 7 are Phase 4.
+      at load, types as prefabs, component schemas from data, styles, scripting and mods. 7 steps, step 2 done, with
+      `addressing_plan.md` step 5; steps 3 to 7 are Phase 4.
 - [ ] [`session_plan.md`](session_plan.md) --- the division of work among `StratumGame`'s parts: `World` creating,
       loading, populating and unloading zones, `Session` entering them and keeping the state of play, and each zone's
       entry point, the lowest-ordered staircase leading up, and entering an access point on a wall or the floor. 7 steps,
@@ -174,8 +174,8 @@ What a session is responsible for is open (`Open`, `### Session`).
 - [x] **Format 0.4 in `stratum_format`** ([`addressing_plan.md`](addressing_plan.md) step 1).
 - [x] **The generators and every zone file in 0.4** ([`addressing_plan.md`](addressing_plan.md) step 2).
 
-The rest of stage 8 is [`addressing_plan.md`](addressing_plan.md), boxed under Plans: persistent ids, loading a zone,
-migration, saved zones and the zone actor index.
+The rest of stage 8 is [`addressing_plan.md`](addressing_plan.md), boxed under Plans: migration, relocating through a
+relocator, saved zones, and the zone actor index.
 
 ## Regions
 
@@ -244,15 +244,16 @@ Questions a stage left behind.
 - **Where damage accrues.** An axe is applied to a door facing and a blast is centered in space, reaching many walls and
   everything on them. That argues damage accrues per door facing --- the side chopped is the side that shows it --- with
   the shared state changing only when the door as a whole gives way.
-- **A breach is the form of a smashed door.** A wall blown through has an attachment with `Crossable`, so no wall is
-  removed, ids stay stable and `crossable` needs no new case.
 - **Whether a wall side without a door is worth an entity.** A wall's surface treatment is per side. If every wall side
   becomes an entity, the count argument that kept walls out of the entity store applies again, so surface probably
   stays in layout data and only sides with something on them become entities.
 - **Where a trap belongs.** On the door, or per door facing, since the side it is triggered from and the side it fires
   into need not be the same.
-- **Whether `Concealed` blocks sight as well as movement.** A secret door reads as wall, and a wall stops a sight line,
-  so `visible` needs the same query, which argues for the predicate being about the wall rather than about crossing it.
+- **Whether concealment blocks sight as well as movement.** A secret door reads as wall, and `visible` binds the same
+  `crossable` as `move`, so a closed or concealed way through stops a sight line; whether a sight line should follow a
+  predicate of its own, a window being open to sight and closed to movement, is open.
+- **A way through's visual state,** off its hinges or a pile of rubble, is set by script and interpreted by the view;
+  which component carries it is not designed.
 - **What a swinging door needs, if anything.** A door facing has no direction of its own, the wall determining its
   orientation, so which space a door opens into is either not modeled or one more field on the door.
 - **Whether a door can shut behind an actor.** One door on a doorway block means being inside it is never being between
@@ -306,8 +307,6 @@ Questions a stage left behind.
 - **Whether rooms rise to `Layout`.** A room is `room_id` on a `DiscreteLayout`'s cells and an entity with its
   components. The entity is neutral and the cells are not, so it stays on `DiscreteLayout` until something continuous
   needs one.
-- **Entities sited on flat cells.** A site is one mechanism over walls and flat cells alike; loading a zone
-  (`discrete_layout_rework.md`) builds both.
 - **`DiscreteLayout::field_of_view` is declared and not defined.** A shadowcasting sweep computes every cell around one
   origin at once, where `visible` walks the ray between one pair, and `sim_zone_model.md` notes the two give different
   results.
@@ -355,8 +354,6 @@ Questions a stage left behind.
 - **Whether the driver is the game's or a zone's.**
 - **Actors.** The player and the denizens are both actors, differing in what controls them; the actor structure is not
   designed.
-- **What components a zone has** beyond `ZoneLayout` and `ZoneNotation`, and which operations change from layouts to
-  zones (`discrete_layout_rework.md`, `### Zones`).
 - **Resident zones the player has left.** Whether they are simulated or frozen, and which thresholds apply --- memory
   usage among them --- and their values.
 - **Zones made and never entered.** They are no candidates for unloading.
@@ -366,6 +363,8 @@ Questions a stage left behind.
 
 ### View
 
+- **How a glyph set or tile set marks `concealed`,** a way through the viewer has found and actors in general have
+  not, outlined or otherwise; the built-in sets draw it as any door.
 - **Whether the Godot tile view draws the lattice.** A wall between two open cells is as invisible in the tile view,
   which draws `cells`, as in the terminal's cell view.
 - **What a staircase renders as.** A stair cell is a block the views draw as solid, and the wall notation round trip

@@ -762,7 +762,7 @@ namespace
                 {
                     // Whatever the entity's type, it is the one with a relocator, on a wall a neighbor presents to this cell
                     const auto* address = wall_address(entity);
-                    if (address == nullptr || !entity.components.contains("relocator") || address->cell_position - address->normal != cell_position)
+                    if (address == nullptr || !entity.relocator.has_value() || address->cell_position - address->normal != cell_position)
                     {
                         continue;
                     }
@@ -770,7 +770,7 @@ namespace
                     open_sides.push_back(address->normal);
 
                     string target = cell_glyph(cell_position) == '>' ? "down" : "up";
-                    if (entity.components["relocator"].value("target", "") != target)
+                    if (const auto* destination = get_if<string>(&entity.relocator->target); destination == nullptr || *destination != target)
                     {
                         detail = format("staircase at {}, {} does not lead to {}", i, j, target);
                         return false;
@@ -805,31 +805,22 @@ namespace
             return false;
         }
 
-        const auto* access_points = document.components.contains("access_points") ? &document.components["access_points"] : nullptr;
         set<discrete_point_type> access_point_cells;
 
-        if (access_points != nullptr && access_points->is_array())
+        for (stratum_format::stored_entity_id_type id : document.access_points)
         {
-            for (const auto& reference : *access_points)
+            auto entity = find_if(document.entities.begin(), document.entities.end(), [id](const stratum_format::Entity& e) { return e.id == id; });
+            const auto* address = entity != document.entities.end() ? wall_address(*entity) : nullptr;
+
+            if (address != nullptr)
             {
-                optional<stratum_format::stored_entity_id_type> id = stratum_format::reference_id(reference);
-                auto entity = find_if(document.entities.begin(), document.entities.end(),
-                    [&id](const stratum_format::Entity& e) { return id.has_value() && e.id == *id; });
-
-                const auto* address = entity != document.entities.end() ? wall_address(*entity) : nullptr;
-
-                if (address != nullptr)
-                {
-                    access_point_cells.insert(address->cell_position - address->normal);
-                }
+                access_point_cells.insert(address->cell_position - address->normal);
             }
         }
 
-        if (access_points == nullptr || !access_points->is_array() || access_points->size() != access_point_cells.size()
-            || access_point_cells != staircase_cells)
+        if (document.access_points.size() != access_point_cells.size() || access_point_cells != staircase_cells)
         {
-            detail = format("the access points {} are not a reference to every staircase",
-                access_points == nullptr ? "are absent and" : access_points->dump());
+            detail = format("the {} access points are not one on every staircase", document.access_points.size());
             return false;
         }
 

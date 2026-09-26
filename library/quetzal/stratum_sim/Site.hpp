@@ -8,8 +8,10 @@
 #include "types.hpp"
 #include "quetzal/common/id.hpp"
 #include <flecs.h>
+#include <compare>
 #include <optional>
 #include <variant>
+#include <vector>
 
 namespace quetzal::stratum_sim
 {
@@ -27,18 +29,22 @@ namespace quetzal::stratum_sim
     struct WallAddress
     {
         id_type wall_id = nullid;
+
+        auto operator<=>(const WallAddress&) const = default;
     };
 
     //--------------------------------------------------------------------------
     // One cell of a flat, the whole floor or ceiling of the zone, for an entity fixed to that surface. An entity resting on
     // a floor has a placement and no address
-    struct FlatAddress
+    struct FlatCellAddress
     {
         id_type flat_id = nullid;
         discrete_point_type cell_position;
+
+        auto operator<=>(const FlatCellAddress&) const = default;
     };
 
-    using address_type = std::variant<WallAddress, FlatAddress>;
+    using address_type = std::variant<WallAddress, FlatCellAddress>;
 
     //--------------------------------------------------------------------------
     // Where an entity is. The placement is relative to the address, or to the parent where there is none
@@ -47,6 +53,13 @@ namespace quetzal::stratum_sim
         Relation relation = Relation::In;
         std::optional<address_type> address;
         placement_type placement;
+    };
+
+    //--------------------------------------------------------------------------
+    // On a wall's or a flat cell's entity: everything sited on it
+    struct AttachedEntities
+    {
+        std::vector<flecs::entity> entities;
     };
 
     //--------------------------------------------------------------------------

@@ -7,6 +7,7 @@
 #include "ai.hpp"
 #include "attachments.hpp"
 #include "DiscreteLayout.hpp"
+#include "layout_entities.hpp"
 #include "load_layout.hpp"
 #include "Site.hpp"
 #include "quetzal/stratum_format/read.hpp"
@@ -15,6 +16,7 @@
 #include <optional>
 #include <stdexcept>
 #include <string>
+#include <variant>
 #include <cassert>
 
 namespace
@@ -67,9 +69,10 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    auto is_crossable(flecs::entity zone)
+    // Crossable as the actor finds each wall
+    auto is_crossable(flecs::entity zone, flecs::entity actor)
     {
-        return [zone](quetzal::id_type wall_id) { return quetzal::stratum_sim::crossable(zone, wall_id); };
+        return [zone, actor](quetzal::id_type wall_id) { return quetzal::stratum_sim::crossable(zone, wall_id, actor); };
     }
 
     //--------------------------------------------------------------------------
@@ -87,6 +90,132 @@ namespace
 
         e.children([&](flecs::entity child) { set_entity_zones(entity_zones, child, zone_id); });
         return;
+    }
+
+    //--------------------------------------------------------------------------
+    void append_if(quetzal::stratum_sim::World::entities_type& chain, flecs::entity level)
+    {
+        if (level)
+        {
+            chain.push_back(level);
+        }
+
+        return;
+    }
+
+    //--------------------------------------------------------------------------
+    // The levels of a layout entity's property chain between it and its zone. At the room's level and at the layout's, what
+    // a flat states comes before what the room or the layout does
+    void append_layout_levels(quetzal::stratum_sim::World::entities_type&, flecs::entity, const quetzal::stratum_sim::DiscreteLayout*,
+        const quetzal::stratum_sim::RoomAddress&)
+    {
+        return;
+    }
+
+    void append_layout_levels(quetzal::stratum_sim::World::entities_type& chain, flecs::entity zone,
+        const quetzal::stratum_sim::DiscreteLayout* zone_layout, const quetzal::stratum_sim::WallAddress& address)
+    {
+        assert(zone_layout != nullptr);
+
+        if (quetzal::id_type room_id = zone_layout->room_at(zone_layout->wall_cell_position(address.wall_id)); room_id != quetzal::nullid)
+        {
+            append_if(chain, quetzal::stratum_sim::room_entity(zone, room_id));
+        }
+
+        return;
+    }
+
+    void append_layout_levels(quetzal::stratum_sim::World::entities_type&, flecs::entity, const quetzal::stratum_sim::DiscreteLayout*,
+        const quetzal::stratum_sim::FlatAddress&)
+    {
+        return;
+    }
+
+    void append_layout_levels(quetzal::stratum_sim::World::entities_type& chain, flecs::entity zone, const quetzal::stratum_sim::DiscreteLayout*,
+        const quetzal::stratum_sim::FlatRoomAddress& address)
+    {
+        append_if(chain, quetzal::stratum_sim::room_entity(zone, address.room_id));
+        append_if(chain, quetzal::stratum_sim::flat_entity(zone, address.flat_id));
+        return;
+    }
+
+    void append_layout_levels(quetzal::stratum_sim::World::entities_type& chain, flecs::entity zone,
+        const quetzal::stratum_sim::DiscreteLayout* zone_layout, const quetzal::stratum_sim::FlatCellAddress& address)
+    {
+        assert(zone_layout != nullptr);
+
+        if (quetzal::id_type room_id = zone_layout->room_at(address.cell_position); room_id != quetzal::nullid)
+        {
+            append_if(chain, quetzal::stratum_sim::flat_room_entity(zone, address.flat_id, room_id));
+            append_if(chain, quetzal::stratum_sim::room_entity(zone, room_id));
+        }
+
+        append_if(chain, quetzal::stratum_sim::flat_entity(zone, address.flat_id));
+        return;
+    }
+
+    //--------------------------------------------------------------------------
+    // Whether a layout entity has any component beyond its address, its parent and the list of what is sited on it
+    bool has_own_components(flecs::entity layout_entity)
+    {
+        flecs::world world = layout_entity.world();
+        bool found = false;
+
+        layout_entity.each([&](flecs::id id)
+        {
+            bool parent = id == world.id<flecs::Parent>() || (id.is_pair() && (id.first() == flecs::ChildOf || id.first() == flecs::ParentDepth));
+
+            bool address = false;
+            quetzal::stratum_sim::for_each_layout_address([&]<typename Address>(std::type_identity<Address>)
+            {
+                address = address || id == world.id<Address>();
+            });
+
+            if (!parent && !address && id != world.id<quetzal::stratum_sim::AttachedEntities>())
+            {
+                found = true;
+            }
+        });
+
+        return found;
+    }
+
+    //--------------------------------------------------------------------------
+    // The types are named entities in one scope, apart from everything else in the world
+    std::string type_path(std::string_view name)
+    {
+        return std::format("types::{}", name);
+    }
+
+    //--------------------------------------------------------------------------
+    // The room containing the entity, from its site or, where it is sited on its parent, from its parent's
+    quetzal::id_type room_id_of(flecs::entity e, const quetzal::stratum_sim::DiscreteLayout& layout)
+    {
+        for (flecs::entity sited = e; sited && !sited.has<quetzal::stratum_sim::Zone>(); sited = sited.parent())
+        {
+            const auto* site = sited.try_get<quetzal::stratum_sim::Site>();
+            if (site == nullptr)
+            {
+                return quetzal::nullid;
+            }
+
+            if (site->address.has_value())
+            {
+                if (const auto* wall = std::get_if<quetzal::stratum_sim::WallAddress>(&*site->address))
+                {
+                    return layout.room_at(layout.wall_cell_position(wall->wall_id));
+                }
+
+                return layout.room_at(std::get<quetzal::stratum_sim::FlatCellAddress>(*site->address).cell_position);
+            }
+
+            if (sited.parent().has<quetzal::stratum_sim::Zone>())
+            {
+                return layout.room_at(layout.cell_position_at(site->placement.position()));
+            }
+        }
+
+        return quetzal::nullid;
     }
 
 } // namespace
@@ -110,10 +239,42 @@ void quetzal::stratum_sim::reparent(flecs::entity e, flecs::entity parent, const
 {
     assert(e && parent && e != parent);
 
-    e.child_of(parent); // ChildOf is exclusive, so this removes the old parent
+    e.remove<Site>(); // First, so it leaves what it was sited on while still in that zone
+    set_parent(e, parent);
     e.set<Site>(site);
 
     return;
+}
+
+//------------------------------------------------------------------------------
+void quetzal::stratum_sim::set_parent(flecs::entity e, flecs::entity parent)
+{
+    assert(e && parent && e != parent);
+
+    if (parent.has<Zone>())
+    {
+        e.child_of(parent); // Removes a Parent
+    }
+    else
+    {
+        e.remove(flecs::ChildOf, flecs::Wildcard);
+        e.set<flecs::Parent>(flecs::Parent {parent});
+    }
+
+    return;
+}
+
+//------------------------------------------------------------------------------
+flecs::entity quetzal::stratum_sim::create_entity_type(flecs::world& entities, std::string_view name)
+{
+    assert(!entity_type(entities, name));
+    return entities.prefab(type_path(name).c_str());
+}
+
+//------------------------------------------------------------------------------
+flecs::entity quetzal::stratum_sim::entity_type(const flecs::world& entities, std::string_view name)
+{
+    return entities.lookup(type_path(name).c_str());
 }
 
 //------------------------------------------------------------------------------
@@ -127,7 +288,14 @@ quetzal::stratum_sim::World::World(IdAllocator& id_allocator, size_t zone_count_
 {
     // Registered before the observers, whose callbacks must not register a component mid-operation
     m_entities.component<Zone>();
-    m_entities.component<PersistentId>();
+    m_entities.component<PersistentId>().member(&PersistentId::id, "id");
+    m_entities.component<EntityReference>()
+        .member(&EntityReference::persistent_id, "persistent_id")
+        .member(&EntityReference::entity, "entity");
+    m_entities.component<AttachedEntities>();
+    m_entities.component<ZoneAddressIndex>();
+    m_entities.component<Site>();
+    for_each_layout_address([&]<typename Address>(std::type_identity<Address>) { m_entities.component<Address>(); });
 
     m_entities.observer<const PersistentId>()
         .event(flecs::OnSet)
@@ -159,21 +327,112 @@ quetzal::stratum_sim::World::World(IdAllocator& id_allocator, size_t zone_count_
         });
 
     // An entity placed in a zone gets its persistent id here, whatever placed it, and a new parent may be in another zone
+    auto parented = [this](flecs::entity e)
+    {
+        if (is_layout_entity(e))
+        {
+            return;
+        }
+
+        if (flecs::entity zone = stratum_sim::zone_of(e))
+        {
+            if (!e.has<PersistentId>())
+            {
+                e.set<PersistentId>(next_id());
+            }
+
+            set_entity_zones(m_entity_zones, e, zone.get<PersistentId>());
+        }
+    };
+
     m_entities.observer()
         .with(flecs::ChildOf, flecs::Wildcard)
         .event(flecs::OnAdd)
-        .each([this](flecs::entity e)
-        {
-            if (flecs::entity zone = stratum_sim::zone_of(e))
-            {
-                if (!e.has<PersistentId>())
-                {
-                    e.set<PersistentId>(next_id());
-                }
+        .each(parented);
 
-                set_entity_zones(m_entity_zones, e, zone.get<PersistentId>());
+    m_entities.observer<const flecs::Parent>()
+        .event(flecs::OnSet)
+        .each([parented](flecs::entity e, const flecs::Parent&) { parented(e); });
+
+    // An entity sited on a wall or a flat cell is listed on the wall's or the cell's entity, made when the first is sited there
+    m_entities.observer<const Site>()
+        .event(flecs::OnSet)
+        .each([this](flecs::entity e, const Site& site)
+        {
+            if (!site.address.has_value())
+            {
+                return;
+            }
+
+            flecs::entity zone = stratum_sim::zone_of(e);
+            assert(zone);
+
+            std::visit([&](const auto& address)
+            {
+                std::vector<flecs::entity>& attached = ensure_layout_entity(zone, address).template ensure<AttachedEntities>().entities;
+                if (std::find(attached.begin(), attached.end(), e) == attached.end())
+                {
+                    attached.push_back(e);
+                }
+            }, *site.address);
+        });
+
+    // A wall's or a flat cell's entity goes when nothing is sited on it and it has no components of its own
+    m_entities.observer<const Site>()
+        .event(flecs::OnRemove)
+        .each([this](flecs::entity e, const Site& site)
+        {
+            if (!site.address.has_value())
+            {
+                return;
+            }
+
+            flecs::entity zone = stratum_sim::zone_of(e);
+            if (!zone || deleting_with(zone))
+            {
+                return;
+            }
+
+            // None where the entity it was sited on is being deleted, having left the zone's index first
+            flecs::entity sited_on = std::visit([&](const auto& address) { return layout_entity(zone, address); }, *site.address);
+            if (!sited_on)
+            {
+                return;
+            }
+
+            std::vector<flecs::entity>& attached = sited_on.ensure<AttachedEntities>().entities;
+            std::erase(attached, e);
+
+            if (attached.empty() && !has_own_components(sited_on))
+            {
+                sited_on.destruct();
             }
         });
+
+    // A layout entity being deleted leaves its zone's index, and what was sited on it is no longer sited anywhere
+    for_each_layout_address([&]<typename Address>(std::type_identity<Address>)
+    {
+        m_entities.observer<const Address>()
+            .event(flecs::OnRemove)
+            .each([this](flecs::entity layout_entity, const Address& address)
+            {
+                flecs::entity zone = stratum_sim::zone_of(layout_entity);
+                if (!zone || deleting_with(zone))
+                {
+                    return;
+                }
+
+                erase_layout_entity(zone, address);
+
+                if (const auto* attached = layout_entity.try_get<AttachedEntities>())
+                {
+                    for (flecs::entity e : attached->entities)
+                    {
+                        e.remove<Site>();
+                    }
+                }
+            });
+    });
 
     // The access point types registered by default, a mod registering more
     flecs::entity up = create_access_type(m_entities, "up");
@@ -268,9 +527,9 @@ flecs::entity quetzal::stratum_sim::World::load_zone(const std::filesystem::path
 {
     stratum_format::Document document = stratum_format::read(filepath);
 
-    if (std::optional<std::string> type_name = unregistered_access_type(m_entities, document))
+    if (std::optional<std::string> error = build_error(m_entities, document))
     {
-        throw std::runtime_error(std::format("{}: access point type '{}' is not registered", filepath.string(), *type_name));
+        throw std::runtime_error(std::format("{}: {}", filepath.string(), *error));
     }
 
     if (document.zone_id.has_value() && entity(PersistentId {*document.zone_id}))
@@ -279,7 +538,12 @@ flecs::entity quetzal::stratum_sim::World::load_zone(const std::filesystem::path
     }
 
     flecs::entity zone = create_zone(document.zone_id.has_value() ? PersistentId {*document.zone_id} : next_id());
-    load_layout(zone, document);
+
+    for (flecs::entity target : load_layout(zone, document))
+    {
+        make_reference(target);
+    }
+
     populate(zone);
 
     return zone;
@@ -301,16 +565,16 @@ void quetzal::stratum_sim::World::unload_zone(flecs::entity zone)
 // One pursuer at the last open cell (temporary ...)
 void quetzal::stratum_sim::World::populate(flecs::entity zone)
 {
-    const DiscreteLayout& discrete = layout_as<DiscreteLayout>(layout(zone));
+    const DiscreteLayout& zone_layout = layout_as<DiscreteLayout>(layout(zone));
 
-    std::optional<discrete_point_type> start = last_open_cell(discrete);
+    std::optional<discrete_point_type> start = last_open_cell(zone_layout);
 
     if (!start)
     {
         return;
     }
 
-    create_entity(zone, placement_type(discrete.position(*start), vector_type(value_type(-1), value_type(0), value_type(0))))
+    create_entity(zone, placement_type(zone_layout.position(*start), vector_type(value_type(-1), value_type(0), value_type(0))))
         .add<Blocking>()
         .set<Speed>(Speed {denizen_speed})
         .set<Pursue>(Pursue {});
@@ -375,7 +639,7 @@ quetzal::stratum_sim::MoveResult quetzal::stratum_sim::World::move(flecs::entity
         return nullid;
     };
 
-    return zone_layout.move(placement_of(e), direction, distance, is_crossable(zone), blocker_at);
+    return zone_layout.move(placement_of(e), direction, distance, is_crossable(zone, e), blocker_at);
 }
 
 //------------------------------------------------------------------------------
@@ -384,7 +648,7 @@ quetzal::stratum_sim::Layout::placements_type quetzal::stratum_sim::World::neigh
     flecs::entity zone = stratum_sim::zone_of(e);
     assert(zone);
 
-    return layout(zone).neighbors(placement_of(e), is_crossable(zone));
+    return layout(zone).neighbors(placement_of(e), is_crossable(zone, e));
 }
 
 //------------------------------------------------------------------------------
@@ -393,7 +657,7 @@ bool quetzal::stratum_sim::World::visible(flecs::entity e, const placement_type&
     flecs::entity zone = stratum_sim::zone_of(e);
     assert(zone);
 
-    return layout(zone).visible(placement_of(e), to, is_crossable(zone));
+    return layout(zone).visible(placement_of(e), to, is_crossable(zone, e));
 }
 
 //------------------------------------------------------------------------------
@@ -456,6 +720,59 @@ flecs::entity quetzal::stratum_sim::World::create_entity(flecs::entity zone, con
     return m_entities.entity()
         .child_of(zone)
         .set<Site>(Site {Relation::In, {}, placement});
+}
+
+//------------------------------------------------------------------------------
+bool quetzal::stratum_sim::World::deleting_with(flecs::entity zone) const
+{
+    // Fini deletes the zones before setting its own flag, and after setting this one
+    return m_entities.should_quit() || m_zones_unloading.contains(zone.get<PersistentId>());
+}
+
+//------------------------------------------------------------------------------
+quetzal::stratum_sim::World::entities_type quetzal::stratum_sim::World::property_chain(flecs::entity e) const
+{
+    entities_type chain {e};
+
+    if (e.has<Zone>())
+    {
+        return chain;
+    }
+
+    flecs::entity zone = stratum_sim::zone_of(e);
+    assert(zone);
+
+    const auto* zone_layout = dynamic_cast<const DiscreteLayout*>(&layout(zone));
+
+    bool is_layout = false;
+    for_each_layout_address([&]<typename Address>(std::type_identity<Address>)
+    {
+        if (const auto* address = e.try_get<Address>())
+        {
+            append_layout_levels(chain, zone, zone_layout, *address);
+            is_layout = true;
+        }
+    });
+
+    if (!is_layout)
+    {
+        for (flecs::entity type = e.target(flecs::IsA); type; type = type.target(flecs::IsA))
+        {
+            chain.push_back(type);
+        }
+
+        if (zone_layout != nullptr)
+        {
+            if (id_type room_id = room_id_of(e, *zone_layout); room_id != nullid)
+            {
+                append_if(chain, room_entity(zone, room_id));
+            }
+        }
+    }
+
+    chain.push_back(zone);
+
+    return chain;
 }
 
 //------------------------------------------------------------------------------

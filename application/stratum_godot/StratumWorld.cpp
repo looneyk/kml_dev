@@ -112,7 +112,7 @@ godot::String StratumWorld::render() const
         return {};
     }
 
-    return godot::String::utf8(view::render(m_session.world(), m_session.zone()).to_string().c_str());
+    return godot::String::utf8(view::render(m_session.world(), m_session.zone(), m_session.player()).to_string().c_str());
 }
 
 //------------------------------------------------------------------------------
@@ -125,7 +125,7 @@ godot::PackedByteArray StratumWorld::cells() const
         return codes;
     }
 
-    view::Cells cells = view::cells(m_session.world(), m_session.zone());
+    view::Cells cells = view::cells(m_session.world(), m_session.zone(), m_session.player());
 
     const view::vector_type& extent = cells.extent();
     codes.resize(static_cast<int64_t>(extent.x()) * extent.y());
@@ -151,7 +151,7 @@ godot::PackedByteArray StratumWorld::actors() const
         return flags;
     }
 
-    view::Cells cells = view::cells(m_session.world(), m_session.zone());
+    view::Cells cells = view::cells(m_session.world(), m_session.zone(), m_session.player());
 
     const view::vector_type& extent = cells.extent();
     flags.resize(static_cast<int64_t>(extent.x()) * extent.y());

@@ -6,7 +6,6 @@
 #include "write_level.hpp"
 #include "quetzal/common/string_util.hpp"
 #include "quetzal/stratum_format/grid.hpp"
-#include "quetzal/stratum_format/references.hpp"
 #include "quetzal/stratum_format/write.hpp"
 #include <optional>
 #include <ostream>
@@ -157,7 +156,6 @@ void quetzal::dungen::write_level(ostream& os, const Level& level, const Paramet
 
     stratum_format::Document document;
     document.generator = generator(level, parameters);
-    document.components = values_type::object();
     document.cells.notation = stratum_format::Notation::Block;
     document.cells.extent = level.size();
 
@@ -175,7 +173,7 @@ void quetzal::dungen::write_level(ostream& os, const Level& level, const Paramet
     // A staircase cell's type does not encode which way it leads; the Staircase does
     for (const auto& staircase : level.staircases())
     {
-        if (staircase.direction() == StaircaseDirection::Up)
+        if (staircase.rise() == Rise::Up)
         {
             point_type position = staircase.position();
             document.cells.rows[static_cast<size_t>(ny - 1 - position.y())][static_cast<size_t>(position.x())] = '<';
@@ -237,40 +235,26 @@ void quetzal::dungen::write_level(ostream& os, const Level& level, const Paramet
         }
     }
 
-    values_type access_points = values_type::array();
     size_t down_count = 0;
     size_t up_count = 0;
 
     for (const auto& staircase : level.staircases())
     {
         // The staircase's cell is a block, and it is sited on the wall its open neighbor presents to that block
-        assert(staircase.facing().has_value());
-        const vector_type& open_side = *staircase.facing();
+        const vector_type& open_side = staircase.direction();
         stratum_format::WallAddress address {staircase.position() + open_side, open_side};
 
         // Ordered among the staircases leading the same way
-        bool down = staircase.direction() == StaircaseDirection::Down;
+        bool down = staircase.rise() == Rise::Down;
 
         // An arriving actor is placed on the floor it opens onto, facing away from it
-        values_type entry = values_type::object();
-        entry["cell_position"] = values_type::array({address.cell_position.i(), address.cell_position.j()});
-        entry["orientation"] = values_type::array({open_side.x(), open_side.y()});
+        stratum_format::Relocator relocator {down ? "down" : "up", down ? "down" : "up", down ? down_count++ : up_count++,
+            stratum_format::discrete_directed_point_type(address.cell_position, open_side)};
 
-        values_type relocator = values_type::object();
-        relocator["type"] = down ? "down" : "up";
-        relocator["target"] = down ? "down" : "up";
-        relocator["order"] = down ? down_count++ : up_count++;
-        relocator["entry"] = std::move(entry);
-
-        values_type components = values_type::object();
-        components["relocator"] = std::move(relocator);
-
-        access_points.push_back(stratum_format::make_reference(++id));
+        document.access_points.push_back(++id);
         document.entities.push_back({id, "staircase", stratum_format::Site {stratum_format::Relation::On, address, nullopt, nullopt}, nullopt,
-            std::move(components)});
+            std::move(relocator), {}});
     }
-
-    document.components["access_points"] = std::move(access_points);
 
     stratum_format::write(os, document);
     return;

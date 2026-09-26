@@ -14,18 +14,20 @@ namespace quetzal::dungen
 {
 
     //--------------------------------------------------------------------------
-    enum class StaircaseDirection
+    enum class Rise
     {
         Down,
         Up
     };
+
+    std::string to_string(Rise rise);
 
     //--------------------------------------------------------------------------
     class Staircase
     {
     public:
 
-        Staircase(id_type id, const std::string& name, point_type position, StaircaseDirection direction);
+        Staircase(id_type id, const std::string& name, directed_point_type directed_position, Rise rise);
         Staircase(const Staircase&) = default;
         ~Staircase() = default;
 
@@ -36,14 +38,13 @@ namespace quetzal::dungen
         std::string name() const;
         void set_name(const std::string& name);
 
+        directed_point_type directed_position() const;
+        void set_directed_position(directed_point_type directed_position);
+
         point_type position() const;
-        void set_position(point_type position);
+        vector_type direction() const;
 
-        StaircaseDirection direction() const;
-
-        // The direction from its cell into the space it opens onto
-        const std::optional<vector_type>& facing() const;
-        void set_facing(vector_type facing);
+        Rise rise() const;
 
         void print(std::ostream& os) const;
 
@@ -51,9 +52,8 @@ namespace quetzal::dungen
 
         id_type m_id;
         std::string m_name;
-        point_type m_position;
-        StaircaseDirection m_direction;
-        std::optional<vector_type> m_facing;
+        directed_point_type m_directed_position;
+        Rise m_rise;
     };
 
     std::ostream& operator<<(std::ostream& os, const Staircase& staircase);

@@ -4,6 +4,7 @@
 //------------------------------------------------------------------------------
 
 #include "Level.hpp"
+#include "quetzal/common/string_util.hpp"
 #include <iostream>
 #include <cassert>
 
@@ -99,7 +100,7 @@ quetzal::dungen::Room& quetzal::dungen::Level::room(id_type id)
 void quetzal::dungen::Level::create_room(const box_type& rectangle)
 {
     id_type room_id = m_rooms.size();
-    m_rooms.emplace_back(room_id, to_string(room_id), rectangle);
+    m_rooms.emplace_back(room_id, std::to_string(room_id), rectangle);
     expand_room(room_id, rectangle);
     return;
 }
@@ -156,7 +157,7 @@ void quetzal::dungen::Level::create_door(point_type position)
     c.set_type(CellType::Door);
 
     id_type door_id = m_doors.size();
-    m_doors.emplace_back(door_id, to_string(door_id), position);
+    m_doors.emplace_back(door_id, std::to_string(door_id), position);
 
     // Add door to room(s)
     // Add room(s) to door
@@ -191,16 +192,17 @@ quetzal::dungen::Staircase& quetzal::dungen::Level::staircase(id_type id)
 }
 
 //------------------------------------------------------------------------------
-void quetzal::dungen::Level::create_staircase(point_type position, StaircaseDirection direction)
+void quetzal::dungen::Level::create_staircase(const std::string& name, const directed_point_type& directed_position, Rise rise)
 {
-    Cell& c = cell(position);
+    Cell& c = cell(directed_position.position());
     c.set_type(CellType::Stair);
 
     id_type staircase_id = m_staircases.size();
-    m_staircases.emplace_back(staircase_id, to_string(staircase_id), position, direction);
+    m_staircases.emplace_back(staircase_id, name, directed_position, rise);
 
     return;
 }
+
 //------------------------------------------------------------------------------
 void quetzal::dungen::Level::render(ostream& os) const
 {

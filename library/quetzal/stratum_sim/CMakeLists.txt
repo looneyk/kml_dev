@@ -6,11 +6,14 @@ add_library(quetzal_stratum_sim STATIC
     commands.cpp
     DiscreteLayout.cpp
     EventQueue.cpp
+    file_components.cpp
+    layout_entities.cpp
     Flat.cpp
     GridMapping.cpp
     IdAllocator.cpp
     load_layout.cpp
     Player.cpp
+    properties.cpp
     Scheduler.cpp
     Session.cpp
     Site.cpp
@@ -29,6 +32,8 @@ add_library(quetzal_stratum_sim STATIC
     DiscreteLayout.hpp
     Event.hpp
     EventQueue.hpp
+    file_components.hpp
+    layout_entities.hpp
     Flat.hpp
     Generator.hpp
     GridMapping.hpp
@@ -38,6 +43,7 @@ add_library(quetzal_stratum_sim STATIC
     load_layout.hpp
     PersistentId.hpp
     Player.hpp
+    properties.hpp
     Scheduler.hpp
     Session.hpp
     Site.hpp

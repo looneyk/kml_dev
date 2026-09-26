@@ -489,7 +489,40 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // site and parent are written into components, ahead of the rest
+    std::string relocator_text(const Relocator& relocator)
+    {
+        std::vector<std::string> members;
+
+        if (relocator.type.has_value())
+        {
+            members.push_back(std::format("\"type\": {}", string_text(*relocator.type)));
+        }
+
+        if (const auto* destination = std::get_if<std::string>(&relocator.target))
+        {
+            members.push_back(std::format("\"target\": {}", string_text(*destination)));
+        }
+        else
+        {
+            members.push_back(std::format("\"target\": {}", reference_text(std::get<stored_entity_id_type>(relocator.target))));
+        }
+
+        if (relocator.order.has_value())
+        {
+            members.push_back(std::format("\"order\": {}", *relocator.order));
+        }
+
+        if (relocator.entry.has_value())
+        {
+            members.push_back(std::format("\"entry\": {}", object_text({std::format("\"cell_position\": {}", cell_position_text(relocator.entry->position())),
+                std::format("\"orientation\": {}", direction_text(relocator.entry->direction()))})));
+        }
+
+        return object_text(members);
+    }
+
+    //--------------------------------------------------------------------------
+    // site, parent and relocator are written into components, ahead of the rest
     entry_type entity_entry(const Entity& entity)
     {
         entry_type entry {{"id", std::format("{}", entity.id)}, {"type", string_text(entity.type)}};
@@ -504,6 +537,11 @@ namespace
         if (entity.site.has_value())
         {
             components.push_back(std::format("\"site\": {}", site_text(*entity.site)));
+        }
+
+        if (entity.relocator.has_value())
+        {
+            components.push_back(std::format("\"relocator\": {}", relocator_text(*entity.relocator)));
         }
 
         if (entity.components.is_object())
@@ -543,10 +581,23 @@ namespace
             sections.push_back(content_section("generator", document.generator));
         }
 
-        if (!document.components.is_null())
+        // access_points is required, so the layout always has components
+        std::vector<std::string> access_points;
+        for (stored_entity_id_type id : document.access_points)
         {
-            sections.push_back(object_section("layout", {std::format("\"components\": {}", inline_text(document.components))}));
+            access_points.push_back(reference_text(id));
         }
+
+        std::vector<std::string> components {std::format("\"access_points\": [ {} ]", joined(access_points))};
+        if (document.components.is_object())
+        {
+            for (const auto& [key, value] : document.components.items())
+            {
+                components.push_back(std::format("{}: {}", string_text(key), inline_text(value)));
+            }
+        }
+
+        sections.push_back(object_section("layout", {std::format("\"components\": {}", object_text(components))}));
 
         sections.push_back(cells_section(document.cells));
 

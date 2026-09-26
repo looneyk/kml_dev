@@ -49,7 +49,6 @@ namespace
     constexpr NamedState states[]
     {
         {"open", State::Open},
-        {"crossable", State::Crossable},
         {"concealed", State::Concealed}
     };
 
