@@ -13,8 +13,7 @@
 namespace quetzal::stratum_view
 {
 
-    // A glyph set as a file, one line per Glyph, in the order they are matched where two are
-    // equally specific
+    // Reads a glyph set from a file with one line per Glyph. Of two equally specific lines, the earlier one matches
     //
     //     glyphs 0.1
     //     floor actor '@'

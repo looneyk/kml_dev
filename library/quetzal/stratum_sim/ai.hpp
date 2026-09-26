@@ -17,9 +17,9 @@ namespace quetzal::stratum_sim
     // Moves toward a target while it is visible, then toward where it was last seen, stopping there if it finds nothing
     struct Pursue
     {
-        std::optional<id_type> target_id; // The controlled actor where absent
+        std::optional<id_type> target_id; // The controlled actor if absent
         point_type position_last_seen;
-        bool seen = false; // Whether position_last_seen is set
+        bool seen = false; // True if position_last_seen is set
     };
 
     // Sets an Intent for every actor with a behavior except the controlled one

@@ -14,7 +14,8 @@ namespace quetzal::stratum_sim
 {
 
     //--------------------------------------------------------------------------
-    // The game's entity types, a door closed until opened. Temporary: until the game's types load from data
+    // Registers the game's entity types, such as a door that is closed until opened. Temporary, until the game's types
+    // load from data
     void register_game_types(World& world);
 
     //--------------------------------------------------------------------------

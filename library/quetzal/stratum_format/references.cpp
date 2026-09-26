@@ -13,7 +13,7 @@ namespace
     constexpr const char* entity_key = "entity";
 
     //--------------------------------------------------------------------------
-    void add_references(const values_type& v, std::vector<stored_entity_id_type>& ids)
+    void add_references(const raw_values_type& v, std::vector<stored_entity_id_type>& ids)
     {
         if (std::optional<stored_entity_id_type> id = reference_id(v); id.has_value())
         {
@@ -23,7 +23,7 @@ namespace
 
         if (v.is_object() || v.is_array())
         {
-            for (const values_type& value : v)
+            for (const raw_values_type& value : v)
             {
                 add_references(value, ids);
             }
@@ -33,7 +33,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    void translate_value(values_type& v, const std::function<stored_entity_id_type(stored_entity_id_type)>& translate)
+    void translate_value(raw_values_type& v, const std::function<stored_entity_id_type(stored_entity_id_type)>& translate)
     {
         if (std::optional<stored_entity_id_type> id = reference_id(v); id.has_value())
         {
@@ -43,7 +43,7 @@ namespace
 
         if (v.is_object() || v.is_array())
         {
-            for (values_type& value : v)
+            for (raw_values_type& value : v)
             {
                 translate_value(value, translate);
             }
@@ -55,15 +55,15 @@ namespace
 } // namespace
 
 //------------------------------------------------------------------------------
-quetzal::stratum_format::values_type quetzal::stratum_format::make_reference(stored_entity_id_type id)
+quetzal::stratum_format::raw_values_type quetzal::stratum_format::make_reference(stored_entity_id_type id)
 {
-    values_type reference = values_type::object();
+    raw_values_type reference = raw_values_type::object();
     reference[entity_key] = id;
     return reference;
 }
 
 //------------------------------------------------------------------------------
-std::optional<quetzal::stratum_format::stored_entity_id_type> quetzal::stratum_format::reference_id(const values_type& v)
+std::optional<quetzal::stratum_format::stored_entity_id_type> quetzal::stratum_format::reference_id(const raw_values_type& v)
 {
     if (!v.is_object() || v.size() != 1)
     {
@@ -80,7 +80,7 @@ std::optional<quetzal::stratum_format::stored_entity_id_type> quetzal::stratum_f
 }
 
 //------------------------------------------------------------------------------
-std::vector<quetzal::stratum_format::stored_entity_id_type> quetzal::stratum_format::references(const values_type& components)
+std::vector<quetzal::stratum_format::stored_entity_id_type> quetzal::stratum_format::references(const raw_values_type& components)
 {
     std::vector<stored_entity_id_type> ids;
     add_references(components, ids);
@@ -88,7 +88,7 @@ std::vector<quetzal::stratum_format::stored_entity_id_type> quetzal::stratum_for
 }
 
 //------------------------------------------------------------------------------
-void quetzal::stratum_format::translate_references(values_type& components, const std::function<stored_entity_id_type(stored_entity_id_type)>& translate)
+void quetzal::stratum_format::translate_references(raw_values_type& components, const std::function<stored_entity_id_type(stored_entity_id_type)>& translate)
 {
     translate_value(components, translate);
     return;

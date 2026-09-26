@@ -30,8 +30,8 @@ namespace quetzal::stratum_format
     // An entity id in a zone file: a local id in a zone template, a persistent id in a saved zone
     using stored_entity_id_type = std::uint64_t;
 
-    // Values passed back to the caller unprocessed, in their original order
-    using values_type = nlohmann::ordered_json;
+    // Values the format does not interpret, passed back to the caller as written and in their original order
+    using raw_values_type = nlohmann::ordered_json;
 
     // A position on the surface of a wall or a flat cell
     using surface_point_type = geometry::Point<math::CartesianTraits<value_type, 2>>;

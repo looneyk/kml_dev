@@ -14,11 +14,11 @@
 namespace quetzal::dungen
 {
 
-    // Turns candidates into staircases, alternately leading up and leading down while both have some left of a count drawn
-    // from up_count and down_count. The candidates are shuffled first, so they may be supplied in any order; one that
-    // cannot take a staircase facing floor without blocking a doorway or cutting a passage in two is skipped, and running
-    // out of them places fewer than were asked for, which is a warning.
-    // Throws std::runtime_error where a rise with a count above zero has none placed, every staircase being an access point
+    // Turns candidates into staircases, alternating between leading up and leading down while both have some left of the
+    // counts drawn from up_count and down_count. The candidates are shuffled first, so they may be supplied in any order. A
+    // candidate that cannot take a staircase facing floor without blocking a doorway or cutting a passage in two is
+    // skipped. Running out of candidates places fewer staircases than were asked for, which is a warning.
+    // Throws std::runtime_error if a rise with a count above zero has none placed, since every staircase is an access point
     void place_staircases(Level& level, std::vector<point_type> candidates, const math::Interval<size_t>& up_count,
         const math::Interval<size_t>& down_count, random_type& random, const warning_function_type& warning);
 

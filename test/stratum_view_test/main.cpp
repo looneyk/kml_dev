@@ -36,7 +36,7 @@ namespace
 
     static constexpr size_t suite_zone_count_max = 8;
 
-    // The view as actors in general detect what is concealed, there being no player
+    // Draws concealed entities as actors in general perceive them, since there is no player
     const flecs::entity no_viewer;
 
     //--------------------------------------------------------------------------
@@ -54,7 +54,7 @@ namespace
     size_t g_failure_count = 0;
 
     //--------------------------------------------------------------------------
-    // The wall an entity is sited on, and none where it is sited on a flat cell or on its parent
+    // Returns the wall an entity is sited on, or null if it is sited on a flat cell or on its parent
     const stratum_format::WallAddress* wall_address(const stratum_format::Entity& entity)
     {
         if (!entity.site.has_value() || !entity.site->address.has_value())
@@ -198,7 +198,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // A zone read from a file with its doors and no denizens, unlike World::load_zone
+    // Loads a zone from a file with its doors and without denizens, unlike World::load_zone
     flecs::entity load_zone_unpopulated(stratum_sim::World& world, const string& filepath)
     {
         flecs::entity zone = world.create_zone(world.next_id());
@@ -344,7 +344,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // The lattice reduction: the cells and what lies between them
+    // The lattice reduction: the cells, and the edges and corners between them
     void test_lattice()
     {
         report_group("lattice");
@@ -374,7 +374,7 @@ namespace
         report_case("a corner walls reach is a joint", lattice.at({0, 0}).type == stratum_view::PlaceType::Wall);
         report_case("so is one a run passes through", lattice.at({2, 0}).type == stratum_view::PlaceType::Wall);
 
-        // The door concealed, and then found by one actor: the view is the viewer's
+        // The door is concealed, then found by one actor. The view shows what the viewer perceives
         const stratum_sim::DiscreteLayout& walls_layout = stratum_sim::layout_as<stratum_sim::DiscreteLayout>(world.layout(zone));
         flecs::entity door = stratum_sim::access_entity(stratum_sim::way_through(zone,
             walls_layout.wall_toward(stratum_sim::discrete_point_type {1, 2}, stratum_sim::cardinal_direction(stratum_sim::CardinalDirection::East))));

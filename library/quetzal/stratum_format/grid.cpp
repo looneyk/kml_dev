@@ -38,7 +38,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Where a fill stops besides the grid's own walls: edges by their edge_position, and whole cells
+    // The places where a fill stops, besides the grid's own walls: edges, by their edge_position, and whole cells
     struct FillBarriers
     {
         std::set<discrete_point_type> edge_positions;
@@ -66,7 +66,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // From the location across every edge with no wall, no door and no barrier, the layout's own or the room's
+    // Fills from the location across every edge that has no wall, no door, and no barrier of the layout or the room
     std::set<discrete_point_type> fill(const Cells& cells, const RoomLocator& locator, const FillBarriers& layout_barriers)
     {
         FillBarriers room_barriers = fill_barriers(locator.barriers);
@@ -113,7 +113,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Row by row between the vertical edges crossing each row
+    // Fills row by row between the vertical edges that cross each row
     std::set<discrete_point_type> enclosed(const Cells& cells, const Perimeter& perimeter)
     {
         const std::vector<discrete_point_type>& junctions = perimeter.junctions;

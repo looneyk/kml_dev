@@ -15,9 +15,9 @@ namespace quetzal::stratum_view
     using Console = Buffer<char>;
 
     //--------------------------------------------------------------------------
-    // One line of a glyph set: what it matches and the character it draws
-    // type must match. The place must have every flag in state. mask must match where given. actor requires an actor on
-    // the place; without it the line matches either way
+    // One line of a glyph set: the places it matches and the character it draws
+    // type must match, and the place must have every flag in state. mask must match if it is given. actor requires an actor
+    // on the place; if actor is false, the line matches either way
     struct Glyph
     {
         PlaceType type = PlaceType::None;
@@ -36,8 +36,8 @@ namespace quetzal::stratum_view
         Glyphs() = default;
         explicit Glyphs(std::vector<Glyph> glyphs);
 
-        // The character of the most specific matching line, where each state flag, a mask and an actor count one; the
-        // first among equals, and a space where none matches
+        // Returns the character of the most specific matching line, where each state flag, a mask, and an actor add one to
+        // the specificity. Ties go to the earlier line, and a space is returned if no line matches
         char operator()(const Place& place) const;
 
         // In the order given

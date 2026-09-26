@@ -16,7 +16,7 @@ namespace
 {
 
     //--------------------------------------------------------------------------
-    // The types are named entities in one scope, apart from everything else in the world
+    // Access point types are named entities in their own scope, separate from everything else in the world
     std::string access_type_path(std::string_view name)
     {
         return std::format("access_types::{}", name);

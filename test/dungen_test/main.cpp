@@ -43,7 +43,7 @@ namespace
     size_t g_failure_count = 0;
 
     //--------------------------------------------------------------------------
-    // The wall an entity is sited on, and none where it is sited on a flat cell or on its parent
+    // Returns the wall an entity is sited on, or null if it is sited on a flat cell or on its parent
     const stratum_format::WallAddress* wall_address(const stratum_format::Entity& entity)
     {
         if (!entity.site.has_value() || !entity.site->address.has_value())
@@ -103,7 +103,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // The error place_staircases throws where a count drawn above zero has none placed, a zone having too few candidates
+    // The error place_staircases throws if a count drawn above zero has none placed because the zone has too few candidates
     const string unplaced_rise_error = "at least one of each requested staircase rise could not be placed";
 
     //--------------------------------------------------------------------------
@@ -119,7 +119,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // A zone as zone_text writes it, or empty with the generator's error where it could not be generated
+    // Returns a zone as zone_text writes it, or an empty string with the generator's error if it could not be generated
     string zone_text_or_error(const dungen::Parameters& parameters, string& error)
     {
         try
@@ -215,7 +215,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // The zone as the reader decodes it. Throws std::runtime_error where the reader rejects it
+    // Returns the zone as the reader decodes it. Throws std::runtime_error if the reader rejects it
     stratum_format::Document document_of(const string& zone)
     {
         istringstream is(zone);
@@ -225,7 +225,7 @@ namespace
     //--------------------------------------------------------------------------
     // The parameters in a zone file's generator section, where only the chosen algorithm's group is written
     // Throws std::invalid_argument for a value this does not read, so a parameter added to the writer alone fails
-    dungen::Parameters parameters_of(const stratum_format::values_type& generator)
+    dungen::Parameters parameters_of(const stratum_format::raw_values_type& generator)
     {
         if (!generator.is_object() || generator.value("name", "") != "dungen")
         {
@@ -239,7 +239,7 @@ namespace
             values[key] = value.get<string>();
         }
 
-        // Each value read is removed, so what remains at the end is what this does not read
+        // Each value read is removed, so the values left at the end are the ones this does not read
         auto take = [&values](const string& key)
         {
             auto i = values.find(key);
@@ -427,7 +427,7 @@ namespace
             }
         }
 
-        stratum_format::values_type generator = document_of(zone_text(scenarios().front().parameters)).generator;
+        stratum_format::raw_values_type generator = document_of(zone_text(scenarios().front().parameters)).generator;
         generator["parameters"]["unread"] = "1";
 
         bool rejected = false;
@@ -775,7 +775,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Whether the rooms the reader finds cover exactly the cells generation laid out as each room, which fails wherever a
+    // Returns true if the rooms the reader finds cover exactly the cells generation laid out as each room. It fails if a
     // barrier is missing and a room's fill leaks out through an open doorway
     bool rooms_read_back(const dungen::Parameters& parameters, string& detail)
     {
@@ -908,10 +908,11 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Read from the written zone, and each stair cell's space, which the file does not record, from the zone generated
-    // again: as many staircases each way as the counts allow, no floor cut off by a stair block, no staircase
-    // blocking a doorway while a cell beside it would not, every staircase attached to the wall on an open side with floor
-    // beyond, or with a door where no side has floor beyond, and the access points referring to every staircase
+    // Checks the written zone, and checks each stair cell's surroundings, which the file does not record, in the zone
+    // generated again. There must be as many staircases each way as the counts allow, and no floor cut off by a stair
+    // block. No staircase may block a doorway if a cell beside it would not. Every staircase must be attached to the wall
+    // on an open side with floor beyond, or with a door if no side has floor beyond, and the access points must refer to
+    // every staircase
     bool staircases_placed_and_faced(const string& zone, const dungen::Parameters& parameters, string& detail)
     {
         using stratum_format::coord_type;
@@ -1067,7 +1068,8 @@ namespace
 
                 for (const stratum_format::Entity& entity : document.entities)
                 {
-                    // Whatever the entity's type, it is the one with a relocator, on a wall a neighbor presents to this cell
+                    // Whatever its type, the staircase's entity is the one with a relocator on a wall that a neighbor presents to
+                    // this cell
                     const auto* address = wall_address(entity);
                     if (address == nullptr || !entity.relocator.has_value() || address->cell_position - address->normal != cell_position)
                     {
@@ -1196,7 +1198,7 @@ namespace
             return level;
         };
 
-        // The error place_staircases throws, or empty where it places what it can
+        // Returns the error place_staircases throws, or an empty string if it places what it can
         auto placing = [](dungen::Level& level, const vector<dungen::point_type>& candidates, math::Interval<size_t> up, math::Interval<size_t> down,
             vector<string>& warnings)
         {

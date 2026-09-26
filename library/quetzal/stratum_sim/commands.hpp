@@ -48,7 +48,7 @@ namespace quetzal::stratum_sim
     };
 
     //--------------------------------------------------------------------------
-    // What stopped the actor, one or the other and never both
+    // The wall or the entity that stopped the actor, never both
     struct Blocked
     {
         id_type entity_id = nullid;

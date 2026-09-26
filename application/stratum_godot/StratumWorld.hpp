@@ -53,7 +53,7 @@ public:
 
     godot::PackedByteArray cells() const;
 
-    // Whether an actor is on each cell, one byte per cell in the order of cells()
+    // One byte per cell in the order of cells(), nonzero if an actor is on the cell
     godot::PackedByteArray actors() const;
 
     // The cell arrived at, unchanged when the move was blocked or it was not the player's turn

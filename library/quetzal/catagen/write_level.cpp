@@ -21,10 +21,10 @@ namespace
 
     using namespace quetzal::catagen;
     using stored_entity_id_type = quetzal::stratum_format::stored_entity_id_type;
-    using values_type = quetzal::stratum_format::values_type;
+    using raw_values_type = quetzal::stratum_format::raw_values_type;
 
     //--------------------------------------------------------------------------
-    // A parameter as the token its option takes
+    // Formats a parameter as the token its command line option takes
     template<typename T>
     string token(const T& value)
     {
@@ -151,7 +151,7 @@ namespace
 //------------------------------------------------------------------------------
 void quetzal::catagen::write_level(ostream& os, const Level& level, const Parameters& parameters)
 {
-    values_type values = values_type::object();
+    raw_values_type values = raw_values_type::object();
     values["extent"] = token(parameters.extent);
     values["scale"] = interval_token(parameters.scale);
     values["spacing"] = interval_token(parameters.spacing);
@@ -167,8 +167,8 @@ void quetzal::catagen::write_level(ostream& os, const Level& level, const Parame
     document.cells.extent = level.extent();
     document.cells.rows = rows(level);
 
-    // Local ids in the order written, so the same parameters give the same ids: each door, then its door facings in
-    // the order of the walls the reader finds for its glyph, and the staircases last
+    // Local ids are assigned in the order written, so the same parameters give the same ids: each door, then its door
+    // facings in the order the reader finds the walls for its glyph, and the staircases last
     stored_entity_id_type id = 0;
 
     for (const auto& walls : stratum_format::door_walls(document.cells))

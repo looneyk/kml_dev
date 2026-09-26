@@ -22,7 +22,8 @@ namespace quetzal::stratum_sim
     };
 
     //--------------------------------------------------------------------------
-    // Ids from a count. A world is saved with an id from next, and restored with an allocator constructed from it
+    // Allocates ids by counting up from the first. A world is saved with an id from next, and restored with an allocator
+    // constructed from that id
     class CountingIdAllocator final : public IdAllocator
     {
     public:

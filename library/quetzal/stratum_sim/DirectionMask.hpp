@@ -13,7 +13,7 @@ namespace quetzal::stratum_sim
 {
 
     //--------------------------------------------------------------------------
-    // Any of the four directions of a flat grid, a bit each in CardinalDirection's order
+    // A set of the four directions of a flat grid, with one bit for each in CardinalDirection's order
     enum class DirectionMask : uint8_t
     {
         None = 0,

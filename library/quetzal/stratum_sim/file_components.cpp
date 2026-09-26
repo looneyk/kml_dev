@@ -13,7 +13,7 @@ namespace
 {
 
     //--------------------------------------------------------------------------
-    // The names are entities in one scope, apart from everything else in the world
+    // File component names are entities in their own scope, separate from everything else in the world
     std::string file_component_path(std::string_view name)
     {
         return std::format("components::{}", name);

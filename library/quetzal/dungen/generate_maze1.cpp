@@ -400,7 +400,7 @@ namespace
     }
 
     //------------------------------------------------------------------------------
-    // The dead ends before pruning, or the center cell of each room where rooms and loops have left none
+    // Returns the dead ends before pruning, or the center cell of each room if rooms and loops have left no dead ends
     vector<point_type> staircase_candidates(const Level& level)
     {
         vector<point_type> candidates;

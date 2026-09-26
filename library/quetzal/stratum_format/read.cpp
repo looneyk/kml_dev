@@ -57,17 +57,17 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // The value at a key, or null where the key is absent or set to null
-    const values_type* member(const values_type& v, std::string_view key)
+    // Returns the value at a key, or null if the key is absent or set to null
+    const raw_values_type* member(const raw_values_type& v, std::string_view key)
     {
         auto i = v.find(key);
         return i != v.end() && !i->is_null() ? &*i : nullptr;
     }
 
     //--------------------------------------------------------------------------
-    const values_type& required_member(const values_type& v, const std::string& path, std::string_view key)
+    const raw_values_type& required_member(const raw_values_type& v, const std::string& path, std::string_view key)
     {
-        const values_type* p = member(v, key);
+        const raw_values_type* p = member(v, key);
         if (p == nullptr)
         {
             fail(member_path(path, key), "required and absent");
@@ -77,7 +77,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    const values_type& object(const values_type& v, const std::string& path)
+    const raw_values_type& object(const raw_values_type& v, const std::string& path)
     {
         if (!v.is_object())
         {
@@ -88,7 +88,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    const values_type& array(const values_type& v, const std::string& path)
+    const raw_values_type& array(const raw_values_type& v, const std::string& path)
     {
         if (!v.is_array())
         {
@@ -99,7 +99,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    std::string string_value(const values_type& v, const std::string& path)
+    std::string string_value(const raw_values_type& v, const std::string& path)
     {
         if (!v.is_string())
         {
@@ -110,7 +110,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    value_type number_value(const values_type& v, const std::string& path)
+    value_type number_value(const raw_values_type& v, const std::string& path)
     {
         if (!v.is_number())
         {
@@ -122,7 +122,7 @@ namespace
 
     //--------------------------------------------------------------------------
     // A whole number within the coordinate range; a fraction is an error
-    coord_type coord_value(const values_type& v, const std::string& path)
+    coord_type coord_value(const raw_values_type& v, const std::string& path)
     {
         if (!v.is_number())
         {
@@ -144,7 +144,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    size_t count_value(const values_type& v, const std::string& path)
+    size_t count_value(const raw_values_type& v, const std::string& path)
     {
         coord_type n = coord_value(v, path);
         if (n < 0)
@@ -156,9 +156,9 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    const values_type& fixed_array(const values_type& v, const std::string& path, size_t n)
+    const raw_values_type& fixed_array(const raw_values_type& v, const std::string& path, size_t n)
     {
-        const values_type& a = array(v, path);
+        const raw_values_type& a = array(v, path);
         if (a.size() != n)
         {
             fail(path, std::format("{} numbers were expected, and there are {}", n, a.size()));
@@ -168,33 +168,33 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    discrete_point_type read_cell_position(const values_type& v, const std::string& path)
+    discrete_point_type read_cell_position(const raw_values_type& v, const std::string& path)
     {
-        const values_type& a = fixed_array(v, path, 2);
+        const raw_values_type& a = fixed_array(v, path, 2);
         return {coord_value(a[0], element_path(path, 0)), coord_value(a[1], element_path(path, 1))};
     }
 
     //--------------------------------------------------------------------------
-    point_type read_position(const values_type& v, const std::string& path)
+    point_type read_position(const raw_values_type& v, const std::string& path)
     {
-        const values_type& a = fixed_array(v, path, 3);
+        const raw_values_type& a = fixed_array(v, path, 3);
         return {number_value(a[0], element_path(path, 0)),
             number_value(a[1], element_path(path, 1)),
             number_value(a[2], element_path(path, 2))};
     }
 
     //--------------------------------------------------------------------------
-    surface_point_type read_surface_position(const values_type& v, const std::string& path)
+    surface_point_type read_surface_position(const raw_values_type& v, const std::string& path)
     {
-        const values_type& a = fixed_array(v, path, 2);
+        const raw_values_type& a = fixed_array(v, path, 2);
         return {number_value(a[0], element_path(path, 0)), number_value(a[1], element_path(path, 1))};
     }
 
     //--------------------------------------------------------------------------
     // A cardinal direction
-    discrete_vector_type read_direction(const values_type& v, const std::string& path)
+    discrete_vector_type read_direction(const raw_values_type& v, const std::string& path)
     {
-        const values_type& a = fixed_array(v, path, 2);
+        const raw_values_type& a = fixed_array(v, path, 2);
         discrete_vector_type direction {coord_value(a[0], element_path(path, 0)), coord_value(a[1], element_path(path, 1))};
 
         if (std::abs(direction.x()) + std::abs(direction.y()) != 1)
@@ -207,7 +207,7 @@ namespace
 
     //--------------------------------------------------------------------------
     // The cell the wall belongs to, and the normal pointing out of the wall's surface into that cell
-    WallAddress read_wall_address(const values_type& v, const std::string& path)
+    WallAddress read_wall_address(const raw_values_type& v, const std::string& path)
     {
         object(v, path);
         return {read_cell_position(required_member(v, path, "cell_position"), member_path(path, "cell_position")),
@@ -215,14 +215,14 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // A normal makes it one face of the cell, and no normal the whole cell
-    Barrier read_barrier(const values_type& v, const std::string& path)
+    // A barrier with a normal is one face of the cell; without one it is the whole cell
+    Barrier read_barrier(const raw_values_type& v, const std::string& path)
     {
         object(v, path);
 
         Barrier barrier {read_cell_position(required_member(v, path, "cell_position"), member_path(path, "cell_position")), {}};
 
-        if (const values_type* p = member(v, "normal"); p != nullptr)
+        if (const raw_values_type* p = member(v, "normal"); p != nullptr)
         {
             barrier.normal = read_direction(*p, member_path(path, "normal"));
         }
@@ -231,11 +231,11 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Null where the entry has none
-    values_type read_components(const values_type& v, const std::string& path)
+    // Returns null if the entry has no components
+    raw_values_type read_components(const raw_values_type& v, const std::string& path)
     {
-        const values_type* p = member(v, "components");
-        return p != nullptr ? object(*p, member_path(path, "components")) : values_type();
+        const raw_values_type* p = member(v, "components");
+        return p != nullptr ? object(*p, member_path(path, "components")) : raw_values_type();
     }
 
 } // namespace
@@ -371,9 +371,9 @@ namespace
     //--------------------------------------------------------------------------
     // Checks the row count and width against the extent and notation, and each glyph against its position. The first row
     // is the highest
-    void read_rows(const values_type& v, const std::string& path, Cells& cells)
+    void read_rows(const raw_values_type& v, const std::string& path, Cells& cells)
     {
-        const values_type& a = array(v, path);
+        const raw_values_type& a = array(v, path);
 
         bool wall = cells.notation == Notation::Wall;
         size_t extent_x = static_cast<size_t>(cells.extent.x());
@@ -421,7 +421,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    Cells read_cells(const values_type& v, const std::string& path)
+    Cells read_cells(const raw_values_type& v, const std::string& path)
     {
         object(v, path);
 
@@ -436,7 +436,7 @@ namespace
 
         cells.notation = *notation;
 
-        if (const values_type* p = member(v, "encoding"); p != nullptr)
+        if (const raw_values_type* p = member(v, "encoding"); p != nullptr)
         {
             std::string encoding_path = member_path(path, "encoding");
             std::optional<Encoding> encoding = to_encoding(string_value(*p, encoding_path));
@@ -449,7 +449,7 @@ namespace
         }
 
         std::string extent_path = member_path(path, "extent");
-        const values_type& extent = fixed_array(required_member(v, path, "extent"), extent_path, 2);
+        const raw_values_type& extent = fixed_array(required_member(v, path, "extent"), extent_path, 2);
         cells.extent = {coord_value(extent[0], element_path(extent_path, 0)),
             coord_value(extent[1], element_path(extent_path, 1))};
 
@@ -458,12 +458,12 @@ namespace
             fail(extent_path, "an extent of no cells");
         }
 
-        if (const values_type* p = member(v, "origin"); p != nullptr)
+        if (const raw_values_type* p = member(v, "origin"); p != nullptr)
         {
             cells.origin = read_position(*p, member_path(path, "origin"));
         }
 
-        if (const values_type* p = member(v, "scale"); p != nullptr)
+        if (const raw_values_type* p = member(v, "scale"); p != nullptr)
         {
             cells.scale = number_value(*p, member_path(path, "scale"));
             if (cells.scale <= value_type(0))
@@ -607,9 +607,9 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    std::vector<Barrier> read_barriers(const values_type& v, const std::string& path, const Cells& cells)
+    std::vector<Barrier> read_barriers(const raw_values_type& v, const std::string& path, const Cells& cells)
     {
-        const values_type& a = array(v, path);
+        const raw_values_type& a = array(v, path);
 
         std::vector<Barrier> barriers;
         barriers.reserve(a.size());
@@ -626,12 +626,12 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    Room read_room(const values_type& v, const std::string& path, const Cells& cells)
+    Room read_room(const raw_values_type& v, const std::string& path, const Cells& cells)
     {
         object(v, path);
 
-        const values_type* perimeter = member(v, "perimeter");
-        const values_type* cell_position = member(v, "cell_position");
+        const raw_values_type* perimeter = member(v, "perimeter");
+        const raw_values_type* cell_position = member(v, "cell_position");
 
         if ((perimeter != nullptr) == (cell_position != nullptr))
         {
@@ -643,7 +643,7 @@ namespace
         if (perimeter != nullptr)
         {
             std::string perimeter_path = member_path(path, "perimeter");
-            const values_type& a = array(*perimeter, perimeter_path);
+            const raw_values_type& a = array(*perimeter, perimeter_path);
 
             if (a.size() < 4)
             {
@@ -675,7 +675,7 @@ namespace
                 fail(location_path, "not a floor cell");
             }
 
-            if (const values_type* p = member(v, "barriers"); p != nullptr)
+            if (const raw_values_type* p = member(v, "barriers"); p != nullptr)
             {
                 l.barriers = read_barriers(*p, member_path(path, "barriers"), cells);
             }
@@ -688,7 +688,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Whether a barrier closes off the whole cell, leaving a fill nowhere to start
+    // Returns true if a barrier closes off the whole cell, leaving a fill nowhere to start
     bool location_barred(const std::vector<Barrier>& barriers, const discrete_point_type& cell_position)
     {
         return std::ranges::any_of(barriers, [&](const Barrier& barrier) { return !barrier.normal.has_value() && barrier.cell_position == cell_position; });
@@ -749,7 +749,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    Wall read_wall(const values_type& v, const std::string& path, const Cells& cells)
+    Wall read_wall(const raw_values_type& v, const std::string& path, const Cells& cells)
     {
         object(v, path);
 
@@ -763,13 +763,13 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    FlatProperties read_flat_properties(const values_type& v, const std::string& path)
+    FlatProperties read_flat_properties(const raw_values_type& v, const std::string& path)
     {
         object(v, path);
 
         FlatProperties properties;
 
-        if (const values_type* p = member(v, "height"); p != nullptr)
+        if (const raw_values_type* p = member(v, "height"); p != nullptr)
         {
             properties.height = number_value(*p, member_path(path, "height"));
         }
@@ -779,7 +779,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    Flat read_flat(const values_type& v, const std::string& path, const Cells& cells, size_t room_count)
+    Flat read_flat(const raw_values_type& v, const std::string& path, const Cells& cells, size_t room_count)
     {
         object(v, path);
 
@@ -795,10 +795,10 @@ namespace
         flat.role = *role;
         flat.properties = read_flat_properties(v, path);
 
-        if (const values_type* p = member(v, "rooms"); p != nullptr)
+        if (const raw_values_type* p = member(v, "rooms"); p != nullptr)
         {
             std::string rooms_path = member_path(path, "rooms");
-            const values_type& a = array(*p, rooms_path);
+            const raw_values_type& a = array(*p, rooms_path);
 
             for (size_t i = 0; i < a.size(); ++i)
             {
@@ -819,10 +819,10 @@ namespace
             }
         }
 
-        if (const values_type* p = member(v, "cells"); p != nullptr)
+        if (const raw_values_type* p = member(v, "cells"); p != nullptr)
         {
             std::string cells_path = member_path(path, "cells");
-            const values_type& a = array(*p, cells_path);
+            const raw_values_type& a = array(*p, cells_path);
 
             for (size_t i = 0; i < a.size(); ++i)
             {
@@ -845,12 +845,12 @@ namespace
 
     //--------------------------------------------------------------------------
     // The address is a wall or a flat cell, and absent for an entity sited on its parent
-    Site read_site(const values_type& v, const std::string& path, const Cells& cells)
+    Site read_site(const raw_values_type& v, const std::string& path, const Cells& cells)
     {
         object(v, path);
 
-        const values_type* wall = member(v, "wall");
-        const values_type* flat = member(v, "flat");
+        const raw_values_type* wall = member(v, "wall");
+        const raw_values_type* flat = member(v, "flat");
 
         if (wall != nullptr && flat != nullptr)
         {
@@ -891,12 +891,12 @@ namespace
 
         site.relation = *relation;
 
-        if (const values_type* p = member(v, "position"); p != nullptr)
+        if (const raw_values_type* p = member(v, "position"); p != nullptr)
         {
             site.position = read_surface_position(*p, member_path(path, "position"));
         }
 
-        if (const values_type* p = member(v, "orientation"); p != nullptr)
+        if (const raw_values_type* p = member(v, "orientation"); p != nullptr)
         {
             site.orientation = read_direction(*p, member_path(path, "orientation"));
         }
@@ -905,18 +905,18 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Required, and at least one; what each refers to is checked once the entities are read
-    std::vector<stored_entity_id_type> read_access_points(const values_type& components)
+    // Required, with at least one entry. The entity each entry refers to is checked once the entities are read
+    std::vector<stored_entity_id_type> read_access_points(const raw_values_type& components)
     {
         const std::string path = "layout.components.access_points";
 
-        const values_type* p = components.is_object() ? member(components, "access_points") : nullptr;
+        const raw_values_type* p = components.is_object() ? member(components, "access_points") : nullptr;
         if (p == nullptr)
         {
             fail(path, "required and absent");
         }
 
-        const values_type& a = array(*p, path);
+        const raw_values_type& a = array(*p, path);
         if (a.empty())
         {
             fail(path, "no access point");
@@ -939,15 +939,15 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Whether an access point requires the type, order and entry is checked with the access points
-    Relocator read_relocator(const values_type& v, const std::string& path, const Cells& cells)
+    // The type, order, and entry that an access point's relocator requires are checked with the access points
+    Relocator read_relocator(const raw_values_type& v, const std::string& path, const Cells& cells)
     {
         object(v, path);
 
         Relocator relocator;
 
         std::string target_path = member_path(path, "target");
-        const values_type& target = required_member(v, path, "target");
+        const raw_values_type& target = required_member(v, path, "target");
         if (target.is_string())
         {
             relocator.target = target.get<std::string>();
@@ -961,12 +961,12 @@ namespace
             fail(target_path, "neither a destination nor a reference to an entity");
         }
 
-        if (const values_type* p = member(v, "type"); p != nullptr)
+        if (const raw_values_type* p = member(v, "type"); p != nullptr)
         {
             relocator.type = string_value(*p, member_path(path, "type"));
         }
 
-        if (const values_type* p = member(v, "order"); p != nullptr)
+        if (const raw_values_type* p = member(v, "order"); p != nullptr)
         {
             if (!p->is_number_unsigned())
             {
@@ -976,7 +976,7 @@ namespace
             relocator.order = p->get<std::uint64_t>();
         }
 
-        if (const values_type* p = member(v, "entry"); p != nullptr)
+        if (const raw_values_type* p = member(v, "entry"); p != nullptr)
         {
             std::string entry_path = member_path(path, "entry");
             object(*p, entry_path);
@@ -993,14 +993,14 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    Entity read_entity(const values_type& v, const std::string& path, const Cells& cells)
+    Entity read_entity(const raw_values_type& v, const std::string& path, const Cells& cells)
     {
         object(v, path);
 
         Entity entity;
 
         std::string id_path = member_path(path, "id");
-        const values_type& id = required_member(v, path, "id");
+        const raw_values_type& id = required_member(v, path, "id");
         if (!id.is_number_unsigned())
         {
             fail(id_path, "a whole, non-negative number was expected");
@@ -1017,12 +1017,12 @@ namespace
 
         std::string components_path = member_path(path, "components");
 
-        if (const values_type* p = member(entity.components, "site"); p != nullptr)
+        if (const raw_values_type* p = member(entity.components, "site"); p != nullptr)
         {
             entity.site = read_site(*p, member_path(components_path, "site"), cells);
         }
 
-        if (const values_type* p = member(entity.components, "parent"); p != nullptr)
+        if (const raw_values_type* p = member(entity.components, "parent"); p != nullptr)
         {
             std::optional<stored_entity_id_type> parent_id = reference_id(*p);
             if (!parent_id.has_value())
@@ -1033,7 +1033,7 @@ namespace
             entity.parent_id = *parent_id;
         }
 
-        if (const values_type* p = member(entity.components, "relocator"); p != nullptr)
+        if (const raw_values_type* p = member(entity.components, "relocator"); p != nullptr)
         {
             entity.relocator = read_relocator(*p, member_path(components_path, "relocator"), cells);
         }
@@ -1053,14 +1053,14 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Whether the entity is sited on the zone's geometry rather than on its parent
+    // Returns true if the entity is sited on the zone's geometry rather than on its parent
     bool sited_on_geometry(const Entity& entity)
     {
         return entity.site.has_value() && entity.site->address.has_value();
     }
 
     //--------------------------------------------------------------------------
-    // The wall an entity is sited on, and none where it is sited on a flat cell or on its parent
+    // Returns the wall an entity is sited on, or null if it is sited on a flat cell or on its parent
     const WallAddress* wall_address(const Entity& entity)
     {
         return sited_on_geometry(entity) ? std::get_if<WallAddress>(&*entity.site->address) : nullptr;
@@ -1217,7 +1217,8 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // In a template every reference is an entity's id. A saved zone's may point into another zone, so none is checked
+    // In a template every reference is an entity's id. A saved zone's references may point into another zone, so they are
+    // not checked
     void check_references(const Document& document, const EntityIndex& index)
     {
         if (document.zone_id.has_value())
@@ -1233,7 +1234,7 @@ namespace
             }
         };
 
-        auto check_components = [&](const values_type& components, const std::string& path)
+        auto check_components = [&](const raw_values_type& components, const std::string& path)
         {
             for (stored_entity_id_type id : references(components))
             {
@@ -1393,7 +1394,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Called with where a discrepancy that is not an error is and what it is
+    // Called with the location and description of a discrepancy that is not an error
     using warn_type = std::function<void(const std::string& path, std::string_view what)>;
 
     //--------------------------------------------------------------------------
@@ -1440,10 +1441,10 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // A zone has at least one access point, each an entity with a relocator sited on a surface, a wall, the floor or the
-    // ceiling. The relocator states its type, its order, counting from 0 among the access points of its type without a
-    // gap, and its entry, the cell and orientation an arriving actor is placed at. An access point on a wall that is not
-    // the open side of a cell written '<' or '>' is a warning, the glyphs being visual aids
+    // A zone has at least one access point. Each is an entity with a relocator, sited on a wall, the floor, or the ceiling.
+    // The relocator has a type; an order, counting from 0 without gaps among the access points of that type; and an entry,
+    // the cell and orientation at which an arriving actor is placed. An access point on a wall that is not the open side of
+    // a cell written '<' or '>' is a warning, since the glyphs are visual aids
     void check_access_points(const Document& document, const EntityIndex& index,
         const std::map<discrete_point_type, std::vector<WallAddress>>& stair_walls, const warn_type& warn)
     {
@@ -1536,7 +1537,7 @@ namespace
 
     //--------------------------------------------------------------------------
     // The grid is read first, as every address refers to it
-    Document read_document(const values_type& v, const warn_type& warn)
+    Document read_document(const raw_values_type& v, const warn_type& warn)
     {
         object(v, "");
 
@@ -1553,12 +1554,12 @@ namespace
             fail("version", std::format("'{}' is not a version this reads", document.version));
         }
 
-        if (const values_type* p = member(v, "zone"); p != nullptr)
+        if (const raw_values_type* p = member(v, "zone"); p != nullptr)
         {
             object(*p, "zone");
 
             std::string id_path = "zone.id";
-            const values_type& id = required_member(*p, "zone", "id");
+            const raw_values_type& id = required_member(*p, "zone", "id");
             if (!id.is_number_unsigned())
             {
                 fail(id_path, "a whole, non-negative number was expected");
@@ -1567,12 +1568,12 @@ namespace
             document.zone_id = id.get<stored_entity_id_type>();
         }
 
-        if (const values_type* p = member(v, "generator"); p != nullptr)
+        if (const raw_values_type* p = member(v, "generator"); p != nullptr)
         {
             document.generator = object(*p, "generator");
         }
 
-        if (const values_type* p = member(v, "layout"); p != nullptr)
+        if (const raw_values_type* p = member(v, "layout"); p != nullptr)
         {
             object(*p, "layout");
             document.components = read_components(*p, "layout");
@@ -1586,14 +1587,14 @@ namespace
 
         document.cells = read_cells(required_member(v, "", "cells"), "cells");
 
-        if (const values_type* p = member(v, "barriers"); p != nullptr)
+        if (const raw_values_type* p = member(v, "barriers"); p != nullptr)
         {
             document.barriers = read_barriers(*p, "barriers", document.cells);
         }
 
-        if (const values_type* p = member(v, "rooms"); p != nullptr)
+        if (const raw_values_type* p = member(v, "rooms"); p != nullptr)
         {
-            const values_type& a = array(*p, "rooms");
+            const raw_values_type& a = array(*p, "rooms");
             document.rooms.reserve(a.size());
 
             for (size_t i = 0; i < a.size(); ++i)
@@ -1604,9 +1605,9 @@ namespace
             check_rooms(document);
         }
 
-        if (const values_type* p = member(v, "walls"); p != nullptr)
+        if (const raw_values_type* p = member(v, "walls"); p != nullptr)
         {
-            const values_type& a = array(*p, "walls");
+            const raw_values_type& a = array(*p, "walls");
             document.walls.reserve(a.size());
 
             std::set<std::array<coord_type, 4>> addresses;
@@ -1625,9 +1626,9 @@ namespace
             }
         }
 
-        if (const values_type* p = member(v, "flats"); p != nullptr)
+        if (const raw_values_type* p = member(v, "flats"); p != nullptr)
         {
-            const values_type& a = array(*p, "flats");
+            const raw_values_type& a = array(*p, "flats");
             document.flats.reserve(a.size());
 
             for (size_t i = 0; i < a.size(); ++i)
@@ -1646,9 +1647,9 @@ namespace
             }
         }
 
-        if (const values_type* p = member(v, "entities"); p != nullptr)
+        if (const raw_values_type* p = member(v, "entities"); p != nullptr)
         {
-            const values_type& a = array(*p, "entities");
+            const raw_values_type& a = array(*p, "entities");
             document.entities.reserve(a.size());
 
             std::set<stored_entity_id_type> ids;
@@ -1692,13 +1693,13 @@ void quetzal::stratum_format::log_warning(const std::string& warning)
 //------------------------------------------------------------------------------
 quetzal::stratum_format::Document quetzal::stratum_format::read(std::istream& is, const std::string& name, const warning_function_type& warning)
 {
-    values_type v;
+    raw_values_type v;
 
     try
     {
-        v = values_type::parse(is);
+        v = raw_values_type::parse(is);
     }
-    catch (const values_type::parse_error& e)
+    catch (const raw_values_type::parse_error& e)
     {
         throw std::runtime_error(std::format("{}: {}", name, e.what()));
     }

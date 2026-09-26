@@ -48,7 +48,7 @@ namespace
 
         size_t root(size_t slot);
 
-        // Whether the two were separate, joining them where they were
+        // Joins the two sets and returns whether they were separate
         bool join(size_t slot_a, size_t slot_b);
 
     private:
@@ -220,7 +220,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // A door where a corridor enters a room; corridor where it enters a sector without one
+    // Makes a door where a corridor enters a room, and leaves corridor where it enters a sector without one
     void place_door(Level& level, point_type position, bool room)
     {
         if (room && level.cell(position).type() != CellType::Door)
@@ -232,8 +232,8 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // The wall of from that faces to, and the rows of to a corridor leaving by that wall may
-    // run along. The range is empty where to is one cell tall and lies too near that wall for
+    // Returns the wall of from that faces to, and the rows of to along which a corridor leaving by
+    // that wall may run. The range is empty if to is one cell tall and lies too near that wall for
     // its one row to be clear of the doorway
     void around_rows(const Sector& from, const Sector& to, coord_type& wall_y, coord_type& y0, coord_type& y1)
     {
@@ -255,8 +255,8 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Out through the wall of from that faces to, turning alongside from and coming in across
-    // to's near wall. Fails where to leaves no row for it
+    // Digs a corridor that leaves through the wall of from that faces to, turns alongside from, and
+    // enters across to's near wall. Fails if to leaves no row for it
     bool connect_around_rows(Level& level, const Sector& from, const Sector& to, coord_type to_wall_x,
         random_type& random)
     {
@@ -307,8 +307,9 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Whether a corridor can join the two with no doorway at a corner. Only two rooms both one cell across, too near each
-    // other for either to be left by a side wall, cannot be; a sector without a room has no doorway
+    // Returns true if a corridor can join the two with no doorway at a corner. The only pair that cannot be joined is two
+    // rooms that are both one cell across and too near each other for a corridor to leave either by a side wall. A sector
+    // without a room has no doorway
     bool joinable(const Sector& a, const Sector& b, bool horizontal)
     {
         if (!a.room || !b.room)
@@ -365,8 +366,8 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // A corridor from one sector to the other, its turn kept off both wall lines, as a doorway needs solid cells to either
-    // side
+    // Digs a corridor from one sector to the other, keeping its turn off both wall lines, since a doorway needs solid cells
+    // on either side
     void connect(Level& level, const Sector& a, const Sector& b, bool horizontal, random_type& random)
     {
         if (horizontal)

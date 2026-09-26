@@ -19,19 +19,7 @@
 namespace quetzal::stratum_sim
 {
 
-    // The creation, loading, and population here are a mess. we need to define better exactly what the responsibilities are and restructure this to follow that
-    // Here is the way it should work:
-
-    // Create and load do no zone management.
-    // create does the layout, and then populates it.
-    // A loaded zone may already be populated if it was previously saved, or generated (a fixed layout, for example) with pre-placed denizens.
-    // The saved file will have a flag indicating whether it is pre-populated.
-    // The bigger issue here is that the bodies of the creat and load operations should not live in Session, but in World and this would call into that.
-    // See my "// actual session state ..." in the cpp file for what should be session's responsibility.
-    // We need to better define the division of responsibilities and interactions of the StratumGame components.
-
     //--------------------------------------------------------------------------
-    // The zone being played in a world, its turn order, the clock that advances it, and the player
     class Session
     {
     public:
@@ -53,7 +41,7 @@ namespace quetzal::stratum_sim
         void load(const std::filesystem::path& filepath, flecs::entity access_type);
 
         // Moves the player to the entry of the zone's entry point of the access point type, and makes it the zone being
-        // played, its actors the turn order. The world then trims its zones
+        // played, with its actors as the turn order. The world then trims its zones
         // Throws std::runtime_error when the zone has no access point of the type, the player staying where it was
         void enter(flecs::entity zone, flecs::entity access_type);
 
@@ -75,16 +63,11 @@ namespace quetzal::stratum_sim
         const Scheduler& scheduler() const;
 
         flecs::entity zone() const;
-        flecs::entity player() const; // The entity the host controls
 
-        // The player's movement and facing direction, which persist until changed
-        void set_intent(const Intent& intent);
+        Player& player();
+        const Player& player() const;
 
-        // A one-shot action for the player, taken by the next advance
-        void submit(const Command& command);
-
-        // Advances the clock and runs every ready actor, returning the player when it needs a command, or nullid when no
-        // actor will ever be ready
+        // Advances the clock and runs every ready actor, returning the player when it needs a command
         // elapsed is the real time since the last call; a turn-based host omits it
         id_type advance(EventQueue& events, Clock::duration_type elapsed = Clock::duration_type::zero());
 
@@ -94,7 +77,6 @@ namespace quetzal::stratum_sim
         Player& m_player;
         Scheduler m_scheduler;
         Clock m_clock;
-        Command m_command_pending;
         flecs::entity m_zone;
     };
 

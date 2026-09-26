@@ -21,7 +21,7 @@ namespace
     using quetzal::nullid;
 
     //--------------------------------------------------------------------------
-    // A range of one draws nothing, so a fixed count leaves every draw after it where it was
+    // A range of one value draws nothing, so a fixed count leaves every later draw unchanged
     size_t draw_count(const quetzal::math::Interval<size_t>& count, random_type& random)
     {
         return count.lower() == count.upper() ? count.lower() : random.gen(count.lower(), count.upper());
@@ -83,7 +83,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // A door counts, being passable once opened
+    // A door counts, since it is passable once opened
     bool passable_at(const Level& level, point_type position)
     {
         if (!level.cells().contains(position))
@@ -96,8 +96,8 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Whether a staircase's block at a passable position leaves what staircases need: a passable side of its own to face,
-    // one still beside each staircase next to it, and its passable neighbors still reaching one another around it
+    // Returns true if a staircase's block can go at a passable position. The block needs a passable side to face, each
+    // staircase next to it must keep a passable side, and the block's passable neighbors must still reach one another around it
     bool block_allowed(const Level& level, point_type position)
     {
         assert(passable_at(level, position));
@@ -167,9 +167,9 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // A staircase's block at the cell, facing a random one of its sides with floor beyond. None where the cell is not floor,
-    // is a doorway or is beside one, is the floor another staircase faces, would cut a passage in two, or has no floor
-    // beside it
+    // Returns a staircase at the cell, facing a random side that has floor beyond it. Returns none if the cell is not floor,
+    // is a doorway or beside one, is the floor another staircase faces, would cut a passage in two, or has no floor beside
+    // it
     std::optional<directed_point_type> staircase_placement(const Level& level, point_type cell_position, random_type& random)
     {
         auto floor = [&](point_type position)

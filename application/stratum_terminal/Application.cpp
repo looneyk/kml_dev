@@ -99,7 +99,7 @@ int stratum_terminal::Application::run()
             continue;
         }
 
-        submit_key(key_press, actor_id);
+        submit_key(key_press);
     }
 
     return 0;
@@ -125,15 +125,15 @@ stratum_terminal::KeyPress stratum_terminal::Application::next_key()
 void stratum_terminal::Application::draw()
 {
     stratum_view::Console console = m_view == View::Cell
-        ? stratum_view::render(m_session.world(), m_session.zone(), m_session.player(), m_view_glyphs)
-        : stratum_view::render_lattice(m_session.world(), m_session.zone(), m_session.player(), m_view_glyphs);
+        ? stratum_view::render(m_session.world(), m_session.zone(), m_session.player().entity(), m_view_glyphs)
+        : stratum_view::render_lattice(m_session.world(), m_session.zone(), m_session.player().entity(), m_view_glyphs);
 
     m_terminal.draw(console, status(), help_string);
     return;
 }
 
 //------------------------------------------------------------------------------
-void stratum_terminal::Application::submit_key(const KeyPress& key_press, id_type id)
+void stratum_terminal::Application::submit_key(const KeyPress& key_press)
 {
     using value_type = stratum_sim::value_type;
 
@@ -141,7 +141,7 @@ void stratum_terminal::Application::submit_key(const KeyPress& key_press, id_typ
     auto step = [this](value_type dx, value_type dy)
     {
         stratum_sim::vector_type direction(dx, dy, value_type(0));
-        m_session.set_intent(stratum_sim::Intent {direction, value_type(1), direction});
+        m_session.player().set_intent(stratum_sim::Intent {direction, value_type(1), direction});
     };
 
     switch (key_press.key)
@@ -160,7 +160,7 @@ void stratum_terminal::Application::submit_key(const KeyPress& key_press, id_typ
         case 'h': step(value_type(-1), value_type(0)); return;
         case 'l': step(value_type(1), value_type(0)); return;
 
-        case ' ': m_session.submit(stratum_sim::Command(id, stratum_sim::Interact {})); return;
+        case ' ': m_session.player().submit(stratum_sim::Interact {}); return;
     }
 
     return;
@@ -201,7 +201,7 @@ void stratum_terminal::Application::report(const quetzal::stratum_sim::EventQueu
 //------------------------------------------------------------------------------
 std::string stratum_terminal::Application::status() const
 {
-    const stratum_sim::placement_type& placement = stratum_sim::placement_of(m_session.player());
+    const stratum_sim::placement_type& placement = stratum_sim::placement_of(m_session.player().entity());
     stratum_sim::discrete_point_type cell_position = stratum_sim::layout_as<stratum_sim::DiscreteLayout>(m_session.layout()).cell_position_at(placement.position());
 
     // The message shares this line so that the frame keeps its height as it comes and goes

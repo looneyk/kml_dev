@@ -3,15 +3,15 @@
 Status: reference, from general knowledge of these games rather than from their source
 Date: 2026-09-08, revised 2026-09-22
 
-How other roguelikes notate rooms and corridors, how they decide which a cell is, and what identity a room has once
-built.
+This survey covers how other roguelikes notate rooms and corridors, how they decide whether a cell belongs to a room or
+a corridor, and what identity a room has once it is built.
 
 Confidence varies by row. The Rogue and NetHack entries and the Angband room flag are solid; the ADOM, ToME and Qud
 entries are the weakest and are marked where they are inferred.
 
 ## Terms
 
-Words the genre uses for these, several of which collide with each other or with stratum's own vocabulary.
+These are the words the genre uses, several of which collide with each other or with stratum's own vocabulary.
 
 **Room-and-corridor** --- generation that places discrete rooms and then digs passages between them, as against
 **cave** or **cellular** generation, which carves open space out of solid ground and has no room concept to begin

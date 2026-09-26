@@ -23,3 +23,10 @@ flecs::entity quetzal::stratum_sim::Player::entity() const
 {
     return m_entity;
 }
+
+//------------------------------------------------------------------------------
+void quetzal::stratum_sim::Player::set_intent(const Intent& intent)
+{
+    m_entity.set<Intent>(intent);
+    return;
+}

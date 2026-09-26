@@ -50,8 +50,8 @@ namespace quetzal::stratum_sim
         // Grants units to each actor at its speed; no actor need be ready afterwards
         void grant(long long units);
 
-        // Runs each ready actor on its Intent, charging the action's cost, until the controlled actor is ready with no
-        // Intent. Returns that actor, or nullid when no actor is ready
+        // Runs each ready actor on its PendingCommand, or failing that its Intent, charging the action's cost, until the
+        // controlled actor is ready with neither. Returns that actor, or nullid when no actor is ready
         // A turn requested with a move in another direction is a separate action, taken first
         // Turn-based clears the Intent after one action; real time keeps it, so a held direction keeps the actor moving.
         // Both clear an Intent whose action achieved nothing, which ends the loop
@@ -61,7 +61,7 @@ namespace quetzal::stratum_sim
         // Grants time as the driver does and runs the actors that became ready, returning the controlled actor when it
         // needs a command
         // Turn-based skips ahead to the next ready actor and repeats, returning only when the controlled actor needs a
-        // command or no actor will ever act. Real time grants what elapsed earns and returns whether or not an actor
+        // command or no actor will ever act. Real time grants the units elapsed has earned and returns whether or not an actor
         // became ready. Turn-based ignores elapsed
         id_type advance(EventQueue& events, id_type actor_controlled, duration_type elapsed = duration_type::zero());
 

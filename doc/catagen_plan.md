@@ -3,11 +3,11 @@
 Status: complete
 Date: 2026-08-29
 
-A second zone generator beside `dungen`. `dungen` fills a rectangle with block oriented zones, where a wall takes a
+`catagen` is a second zone generator beside `dungen`. `dungen` fills a rectangle with block oriented zones, where a wall takes a
 whole cell. `catagen` generates the wall based form, a wall being a property of the edge between two cells, so the
 stratum applications have wall notation input.
 
-`library/quetzal/catagen`, with `tool/catagen` driving it, both in the root `CMakeLists.txt`. Neither generator shares
+It is `library/quetzal/catagen`, driven by `tool/catagen`, both in the root `CMakeLists.txt`. Neither generator shares
 code with the other. What they have in common becomes `quetzal::procgen` later.
 
 `catagen_reference.md` describes what exists.
@@ -18,7 +18,7 @@ Every cell may be floor. Two adjacent floor cells are separated by a wall or not
 Rooms therefore share walls, so a partition of the extent has no solid cell --- which the block notation cannot
 express --- while sparse filling has solid cells as the block notation would.
 
-The grid alone, with no room, door or staircase records; rectangular rooms and regular spacing only.
+It produces the grid alone, with no room, door or staircase records, and only rectangular rooms and regular spacing.
 
 Parameters: the **extent** to fill, the **scale** a room aims for as a range, the **spacing** between rooms as a range,
 the **density** of the filling, a **loop** probability for doors beyond the ones connectivity needs, and a **seed**.
@@ -46,7 +46,7 @@ The first two are the algorithm. A second algorithm replaces them and keeps the 
 
 ## Next
 
-Not part of this, and listed where they belong:
+These are not part of this plan, and are listed where they belong:
 
 - **Somewhere for the staircases to lead.**
 - **A second algorithm**, and with it what the two generators have in common becoming `quetzal::procgen`.

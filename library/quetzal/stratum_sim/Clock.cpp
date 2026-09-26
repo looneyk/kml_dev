@@ -12,7 +12,7 @@ namespace
 {
 
     //--------------------------------------------------------------------------
-    // Whether a direction is nonzero in the horizontal plane
+    // Returns true if the direction is nonzero in the horizontal plane
     bool asked(const quetzal::stratum_sim::vector_type& direction)
     {
         auto [dx, dy, dz] = direction.rep();
@@ -78,6 +78,20 @@ quetzal::id_type quetzal::stratum_sim::Clock::run(EventQueue& events, id_type ac
         }
 
         flecs::entity e = m_world.entities().entity(actor_id);
+
+        if (const auto* pending = e.try_get<PendingCommand>())
+        {
+            Command command = pending->command;
+            e.remove<PendingCommand>();
+
+            if (int cost = apply(m_world, command, events); cost > 0)
+            {
+                m_scheduler.spend(actor_id, cost);
+            }
+
+            continue;
+        }
+
         const Intent* pintent = e.try_get<Intent>();
 
         Command command;
@@ -122,7 +136,7 @@ quetzal::id_type quetzal::stratum_sim::Clock::run(EventQueue& events, id_type ac
             }
             else
             {
-                // A faced step also used the facing direction; a different one remains
+                // A step that turned toward its direction used up the facing direction too; a different facing direction remains
                 remaining.direction = vector_type();
 
                 if (asked(remaining.facing) && grid_step(remaining.facing) == grid_step(pintent->direction))

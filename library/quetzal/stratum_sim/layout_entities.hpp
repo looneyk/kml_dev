@@ -18,19 +18,19 @@ namespace quetzal::stratum_sim
 {
 
     //--------------------------------------------------------------------------
-    // The entity of what in the zone's layout the address refers to, null where it has none. It is a child of its zone, and
-    // a flat's override for a room or a cell is a child of the flat's entity
+    // Returns the entity of the layout part that the address refers to, or a null entity if the part has none. The entity is
+    // a child of its zone, except that a flat's override for a room or a cell is a child of the flat's entity
     template<typename Address>
     flecs::entity layout_entity(flecs::entity zone, const Address& address);
 
     template<typename Address>
     flecs::entity ensure_layout_entity(flecs::entity zone, const Address& address);
 
-    // Takes an entity being deleted out of its zone's ZoneAddressIndex
+    // Removes an entity that is being deleted from its zone's ZoneAddressIndex
     template<typename Address>
     void erase_layout_entity(flecs::entity zone, const Address& address);
 
-    // Whether it has an address of layout_addresses_type
+    // Returns true if the entity has an address of one of the types in layout_addresses_type
     bool is_layout_entity(flecs::entity e);
 
     //--------------------------------------------------------------------------
@@ -48,7 +48,7 @@ namespace quetzal::stratum_sim
 
     namespace detail
     {
-        // The parent ensure_layout_entity gives an entity
+        // The parent that ensure_layout_entity gives a new entity
         template<typename Address>
         flecs::entity layout_parent(flecs::entity zone, const Address& address);
 

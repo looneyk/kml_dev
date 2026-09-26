@@ -41,7 +41,6 @@ quetzal::stratum_sim::Session::Session(World& world, Player& player) :
     m_player(player),
     m_scheduler(),
     m_clock(m_world, m_scheduler),
-    m_command_pending(),
     m_zone()
 {
 }
@@ -85,11 +84,10 @@ void quetzal::stratum_sim::Session::enter(flecs::entity zone, flecs::entity acce
     m_world.trim_zones(zone);
 
     m_zone = zone;
-    m_scheduler = Scheduler(); // actual session state ...
-    m_command_pending = Command(); // actual session state ...
+    m_scheduler = Scheduler();
+    m_player.entity().remove<PendingCommand>();
 
-    m_world.entities().query_builder<const Speed>()
-        .with(flecs::ChildOf, zone)
+    with_in_zone(m_world.entities().query_builder<const Speed>(), zone)
         .build()
         .each([&](flecs::entity e, const Speed& speed) { m_scheduler.add(e.id(), speed.value); });
 
@@ -99,7 +97,7 @@ void quetzal::stratum_sim::Session::enter(flecs::entity zone, flecs::entity acce
 //------------------------------------------------------------------------------
 void quetzal::stratum_sim::Session::set_driver(Driver driver, double units_per_second)
 {
-    m_clock.set_driver(driver, units_per_second); // actual session state ...
+    m_clock.set_driver(driver, units_per_second);
     return;
 }
 
@@ -161,25 +159,15 @@ flecs::entity quetzal::stratum_sim::Session::zone() const
 }
 
 //------------------------------------------------------------------------------
-flecs::entity quetzal::stratum_sim::Session::player() const
+quetzal::stratum_sim::Player& quetzal::stratum_sim::Session::player()
 {
-    return m_player.entity();
+    return m_player;
 }
 
 //------------------------------------------------------------------------------
-void quetzal::stratum_sim::Session::set_intent(const Intent& intent)
+const quetzal::stratum_sim::Player& quetzal::stratum_sim::Session::player() const
 {
-    assert(loaded());
-    m_player.entity().set<Intent>(intent);
-
-    return;
-}
-
-//------------------------------------------------------------------------------
-void quetzal::stratum_sim::Session::submit(const Command& command)
-{
-    m_command_pending = command;
-    return;
+    return m_player;
 }
 
 //------------------------------------------------------------------------------
@@ -190,29 +178,5 @@ quetzal::id_type quetzal::stratum_sim::Session::advance(EventQueue& events, Cloc
     // Every actor but the player decides once per call; an actor fast enough to act twice repeats its decision
     think(m_world, actor_controlled);
 
-    id_type actor_id = m_clock.advance(events, actor_controlled, elapsed);
-
-    for (;;)
-    {
-        if (actor_id == nullid)
-        {
-            return nullid;
-        }
-
-        if (m_command_pending.empty())
-        {
-            return actor_id;
-        }
-
-        int cost = apply(m_world, m_command_pending, events);
-        m_command_pending = Command();
-
-        if (cost > 0)
-        {
-            m_scheduler.spend(actor_id, cost);
-        }
-
-        // Zero elapsed time, as this frame's time has already been granted
-        actor_id = m_clock.advance(events, actor_controlled, Clock::duration_type::zero());
-    }
+    return m_clock.advance(events, actor_controlled, elapsed);
 }

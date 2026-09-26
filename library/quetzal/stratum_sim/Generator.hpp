@@ -11,7 +11,7 @@ namespace quetzal::stratum_sim
 {
 
     //--------------------------------------------------------------------------
-    // Constructs a zone's geometry. Each implementation declares its own parameters
+    // Builds a zone's contents in C++. Each implementation declares its own parameters
     class Generator
     {
     public:

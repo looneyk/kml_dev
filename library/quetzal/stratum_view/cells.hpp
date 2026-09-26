@@ -28,7 +28,7 @@ namespace quetzal::stratum_view
     };
 
     //--------------------------------------------------------------------------
-    // The states a view draws apart, one flag each, named after the component data they are read from
+    // The states that a view draws differently, one flag each, named after the component data they are read from
     enum class State : uint16_t
     {
         None = 0,
@@ -41,7 +41,7 @@ namespace quetzal::stratum_view
     constexpr State& operator|=(State& a, State b);
     constexpr bool any(State state);
 
-    // Whether a place type can be in the state
+    // Returns true if a place type can be in the state
     bool applies(PlaceType type, State state);
 
     //--------------------------------------------------------------------------
@@ -49,8 +49,8 @@ namespace quetzal::stratum_view
     using stratum_sim::DirectionMask;
 
     //--------------------------------------------------------------------------
-    // What is at one position: the fixed structure, its state, where the wall line continues from it, and whether an actor
-    // is on it
+    // The contents of one position: the fixed structure, its state, the directions in which the wall line continues, and
+    // whether an actor is on it
     struct Place
     {
         PlaceType type = PlaceType::None;
@@ -64,15 +64,15 @@ namespace quetzal::stratum_view
     using Cells = Buffer<Place>;
     using Lattice = Buffer<Place>;
 
-    // The zone reduced to one Place per grid cell: Solid, Floor, or a Door occupying a cell, as a doorway does in the
-    // block notation. A wall or door on an edge between two cells has no position here
-    // The zone as the viewer perceives it: a door the viewer finds concealed is drawn as though there were none
+    // The zone reduced to one Place per grid cell: Solid, Floor, or a Door that occupies a cell, as a doorway does in the
+    // block notation. A wall or door on the edge between two cells has no position here
+    // The zone is as the viewer perceives it: a door the viewer finds concealed is drawn as though there were none
     Cells cells(const stratum_sim::World& world, flecs::entity zone, flecs::entity viewer);
 
     // The zone reduced onto the lattice of the wall notation: (2W+1) by (2H+1) for a W by H grid, with cell (i, j) at
     // (2i+1, 2j+1), the wall west of it at (2i, 2j+1), the wall south of it at (2i+1, 2j), and the corners at the even
     // positions in both
-    // A corner is Wall where any of its four edges has a wall or a door. The viewer as for cells
+    // A corner is Wall if any of its four edges has a wall or a door. The viewer is used as in cells
     Lattice lattice(const stratum_sim::World& world, flecs::entity zone, flecs::entity viewer);
 
     //--------------------------------------------------------------------------

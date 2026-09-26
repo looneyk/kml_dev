@@ -23,7 +23,7 @@ namespace quetzal::stratum_sim
     };
 
     //--------------------------------------------------------------------------
-    // Where a move ended, possibly short of the distance requested, and what blocked it
+    // The placement where a move ended, possibly short of the distance requested, and the wall or entity that blocked it
     struct MoveResult
     {
         placement_type placement;
@@ -32,7 +32,8 @@ namespace quetzal::stratum_sim
     };
 
     //--------------------------------------------------------------------------
-    // A zone's geometry and topology: where a move ends, what is ahead, what is adjacent, and what is visible
+    // A zone's geometry and topology. It determines where a move ends, which wall is ahead, which placements are adjacent,
+    // and which are visible
     class Layout
     {
     public:
@@ -42,7 +43,7 @@ namespace quetzal::stratum_sim
         // Returns the entity blocking a placement, or nullid
         using blocker_function_type = std::function<id_type(const placement_type&)>;
 
-        // Whether the wall with the given id may be crossed
+        // Returns true if the wall with the given id may be crossed
         using crossable_function_type = std::function<bool(id_type)>;
 
         virtual ~Layout() = default;

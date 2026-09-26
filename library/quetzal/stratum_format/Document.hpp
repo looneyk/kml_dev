@@ -101,21 +101,21 @@ namespace quetzal::stratum_format
     struct Room
     {
         std::variant<Perimeter, RoomLocator> identification;
-        values_type components;
+        raw_values_type components;
     };
 
     //--------------------------------------------------------------------------
     struct Wall
     {
         WallAddress address;
-        values_type components;
+        raw_values_type components;
     };
 
     //--------------------------------------------------------------------------
     struct FlatProperties
     {
         std::optional<value_type> height;
-        values_type components;
+        raw_values_type components;
     };
 
     //--------------------------------------------------------------------------
@@ -135,7 +135,8 @@ namespace quetzal::stratum_format
     };
 
     //--------------------------------------------------------------------------
-    // The site file component: what the entity is in or on, and where on it. No address is its parent
+    // The site file component: the object the entity is in or on, and where on it. With no address, the entity is sited on
+    // its parent
     struct Site
     {
         Relation relation = Relation::In;
@@ -146,7 +147,8 @@ namespace quetzal::stratum_format
 
     //--------------------------------------------------------------------------
     // The relocator file component. The target is a destination, or in a saved zone the id of the relocator it is bound
-    // to. An access point's has its type, order and entry, the cell position and orientation an arriving actor is given
+    // to. An access point's relocator also has its type, order, and entry, which is the cell position and orientation given
+    // to an arriving actor
     struct Relocator
     {
         std::variant<std::string, stored_entity_id_type> target;
@@ -165,7 +167,7 @@ namespace quetzal::stratum_format
         std::optional<Site> site;
         std::optional<stored_entity_id_type> parent_id;
         std::optional<Relocator> relocator;
-        values_type components;
+        raw_values_type components;
     };
 
     //--------------------------------------------------------------------------
@@ -173,9 +175,9 @@ namespace quetzal::stratum_format
     struct Document
     {
         std::string version;
-        values_type generator;
+        raw_values_type generator;
         std::vector<stored_entity_id_type> access_points; // The layout's access_points file component, decoded
-        values_type components; // The layout's own, access_points aside
+        raw_values_type components; // The layout's other components, excluding access_points
         std::optional<stored_entity_id_type> zone_id; // Persistent id, empty in a zone template
         Cells cells;
         std::vector<Barrier> barriers;

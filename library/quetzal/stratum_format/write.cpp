@@ -36,7 +36,7 @@ namespace
     //--------------------------------------------------------------------------
     std::string string_text(std::string_view s)
     {
-        return values_type(std::string(s)).dump();
+        return raw_values_type(std::string(s)).dump();
     }
 
     //--------------------------------------------------------------------------
@@ -61,7 +61,7 @@ namespace
 
     //--------------------------------------------------------------------------
     // Arrays of objects are spaced inside their brackets, as objects are inside their braces; arrays of anything else are not
-    std::string inline_text(const values_type& v)
+    std::string inline_text(const raw_values_type& v)
     {
         if (v.is_object())
         {
@@ -240,7 +240,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    void add_components(entry_type& entry, const values_type& components)
+    void add_components(entry_type& entry, const raw_values_type& components)
     {
         if (!components.is_null())
         {
@@ -251,7 +251,8 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // On one line, unless it has members with entries: each of those begins a line of its own, aligned inside the brace
+    // Writes the entry on one line, unless it has members with entries. Each of those begins its own line, aligned inside
+    // the brace
     void write_entry(std::string& text, const entry_type& entry, size_t indent, std::string_view suffix)
     {
         if (std::ranges::none_of(entry, [](const EntryMember& member) { return !member.entries.empty(); }))
@@ -331,7 +332,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    std::string content_section(std::string_view key, const values_type& values)
+    std::string content_section(std::string_view key, const raw_values_type& values)
     {
         if (!values.is_object())
         {

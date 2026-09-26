@@ -25,7 +25,7 @@ namespace quetzal::stratum_sim
     };
 
     //--------------------------------------------------------------------------
-    // A reference to an entity that may be in another zone, or in none loaded
+    // A reference to an entity that may be in another zone, or in a zone that is not loaded
     struct EntityReference
     {
         PersistentId persistent_id;

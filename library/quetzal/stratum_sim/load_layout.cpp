@@ -32,8 +32,8 @@ namespace
 {
 
     //--------------------------------------------------------------------------
-    // The access point's entity, which the reader has checked is sited on a surface with a relocator stating its type,
-    // order and entry
+    // Returns the access point's entity. The reader has checked that it is sited on a surface and has a relocator with a
+    // type, order, and entry
     const quetzal::stratum_format::Entity& access_point_entity(const quetzal::stratum_format::Document& document,
         quetzal::stratum_format::stored_entity_id_type id)
     {
@@ -41,7 +41,8 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // The file's address resolved to the layout's ids, and its position and orientation to a placement relative to it
+    // Converts the file's site to the layout's: the address to layout ids, and the position and orientation to a placement
+    // relative to the address
     quetzal::stratum_sim::Site site_of(const quetzal::stratum_format::Site& site, const quetzal::stratum_sim::DiscreteLayout& layout)
     {
         using namespace quetzal;
@@ -78,7 +79,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // A bound target, which only a saved zone has, is a persistent id, of a relocator in this zone or another
+    // A bound target, which only a saved zone has, is the persistent id of a relocator in this zone or another
     std::variant<std::string, quetzal::stratum_sim::EntityReference> relocator_target(
         const std::variant<std::string, quetzal::stratum_format::stored_entity_id_type>& target,
         const std::unordered_map<quetzal::stratum_format::stored_entity_id_type, flecs::entity>& entities)
@@ -99,11 +100,11 @@ namespace
     using resolve_function_type = std::function<quetzal::stratum_sim::EntityReference(quetzal::stratum_format::stored_entity_id_type)>;
 
     //--------------------------------------------------------------------------
-    // The name and value of each component object, none where there are no components
-    std::vector<std::pair<std::string, const quetzal::stratum_format::values_type*>> component_objects(
-        const quetzal::stratum_format::values_type& components)
+    // Returns the name and value of each component object, or nothing if there are no components
+    std::vector<std::pair<std::string, const quetzal::stratum_format::raw_values_type*>> component_objects(
+        const quetzal::stratum_format::raw_values_type& components)
     {
-        std::vector<std::pair<std::string, const quetzal::stratum_format::values_type*>> objects;
+        std::vector<std::pair<std::string, const quetzal::stratum_format::raw_values_type*>> objects;
 
         if (components.is_object())
         {
@@ -123,7 +124,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // As the reader writes them
+    // The same paths the reader writes in its errors
     std::string flat_room_path(const std::string& flat_path, quetzal::id_type room_id)
     {
         return std::format("{}.rooms[room {}]", flat_path, room_id);
@@ -135,11 +136,12 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // The components of the layout and of each room, wall, flat, and flat's room and cell, with the path to each
-    std::vector<std::pair<const quetzal::stratum_format::values_type*, std::string>> layout_component_objects(
+    // Returns the components of the layout and of each room, wall, flat, and flat override for a room or a cell, with the
+    // path to each
+    std::vector<std::pair<const quetzal::stratum_format::raw_values_type*, std::string>> layout_component_objects(
         const quetzal::stratum_format::Document& document)
     {
-        std::vector<std::pair<const quetzal::stratum_format::values_type*, std::string>> objects {{&document.components, "layout"}};
+        std::vector<std::pair<const quetzal::stratum_format::raw_values_type*, std::string>> objects {{&document.components, "layout"}};
 
         for (size_t i = 0; i < document.rooms.size(); ++i)
         {
@@ -171,9 +173,9 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Sets the field at the cursor from a value in the file, resolving each reference. Returns where the value does not fit
-    // and why, or none
-    std::optional<std::string> decode_value(const flecs::world& world, ecs_meta_cursor_t& cursor, const quetzal::stratum_format::values_type& value,
+    // Sets the field at the cursor from a value in the file, resolving each reference. If the value does not fit the field,
+    // returns its path and the reason
+    std::optional<std::string> decode_value(const flecs::world& world, ecs_meta_cursor_t& cursor, const quetzal::stratum_format::raw_values_type& value,
         const std::string& path, const resolve_function_type& resolve)
     {
         using namespace quetzal::stratum_sim;
@@ -263,9 +265,9 @@ namespace
 
     //--------------------------------------------------------------------------
     // Sets each component object on the entity as the component registered under its name, which build_error has checked.
-    // One that inherits is what the object states alone, the rest left to the chain; one that does not starts from the
-    // entity's value, which is its type's copy where it has a type
-    void decode_components(flecs::entity e, const quetzal::stratum_format::values_type& components, const std::string& path,
+    // A component that inherits gets only the fields the object sets, leaving the rest to the property chain. Any other
+    // component is decoded over the entity's current value, which is a copy of its type's value if it has a type
+    void decode_components(flecs::entity e, const quetzal::stratum_format::raw_values_type& components, const std::string& path,
         const resolve_function_type& resolve)
     {
         flecs::world world = e.world();
@@ -317,9 +319,10 @@ std::optional<std::string> quetzal::stratum_sim::build_error(const flecs::world&
         }
     }
 
-    // Decoded into values that are then discarded, flecs' reports of what does not fit silenced, as the error returned is the report
+    // Each object is decoded into a value that is then discarded. Flecs' error logging is silenced, since the returned error
+    // is the report
     auto unbound = [](stratum_format::stored_entity_id_type id) { return EntityReference {PersistentId {id}, flecs::entity()}; };
-    auto check = [&](const stratum_format::values_type& components, const std::string& path) -> std::optional<std::string>
+    auto check = [&](const stratum_format::raw_values_type& components, const std::string& path) -> std::optional<std::string>
     {
         for (const auto& [name, value] : component_objects(components))
         {
@@ -451,7 +454,8 @@ std::vector<flecs::entity> quetzal::stratum_sim::load_layout(flecs::entity zone,
     flecs::world world = zone.world();
     std::unordered_map<stratum_format::stored_entity_id_type, flecs::entity> entities; // <file_id, entity>
 
-    // All in the zone first, in the file's order, so each has its persistent id before a parent or a site refers to it
+    // Every entity is created in the zone first, in the file's order, so each has its persistent id before a parent or a
+    // site refers to it
     for (const stratum_format::Entity& entity : document.entities)
     {
         flecs::entity e = world.entity();
@@ -500,7 +504,7 @@ std::vector<flecs::entity> quetzal::stratum_sim::load_layout(flecs::entity zone,
             placement_type(zone_layout.position(entry.position()), orientation));
     }
 
-    // A template's references are to its own entities, and a saved zone's are persistent ids already
+    // A template's references are to its own entities, and a saved zone's references are already persistent ids
     std::vector<flecs::entity> referred_to;
     auto resolve = [&](stratum_format::stored_entity_id_type id)
     {
@@ -517,8 +521,8 @@ std::vector<flecs::entity> quetzal::stratum_sim::load_layout(flecs::entity zone,
 
     decode_components(zone, document.components, "layout", resolve);
 
-    // Every room and each flat has an entity; a wall, and a flat's override for a room or a cell, has one where the file
-    // gives it components
+    // Every room and both flats have an entity. A wall, or a flat's override for a room or a cell, has one only if the
+    // file gives it components
     for (id_type room_id = 0; room_id < zone_layout.room_count(); ++room_id)
     {
         ensure_room_entity(zone, room_id);
@@ -527,7 +531,7 @@ std::vector<flecs::entity> quetzal::stratum_sim::load_layout(flecs::entity zone,
     ensure_flat_entity(zone, zone_layout.floor_id());
     ensure_flat_entity(zone, zone_layout.ceiling_id());
 
-    auto decode_layout_components = [&](const auto& address, const stratum_format::values_type& components, const std::string& path)
+    auto decode_layout_components = [&](const auto& address, const stratum_format::raw_values_type& components, const std::string& path)
     {
         if (!component_objects(components).empty())
         {

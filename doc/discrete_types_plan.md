@@ -4,7 +4,7 @@ Status: complete
 Date: 2026-09-10, revised 2026-09-22
 
 Complete the conversion to `geometry::DiscretePoint` and `math::DiscreteVector`: settle the shared coordinate type, then
-convert the view, which addressed a grid with `size_t`. What is built is in `game_system_reference.md`.
+convert the view, which addressed a grid with `size_t`. `game_system_reference.md` describes what is built.
 
 The view and the simulation share one coordinate type, so a grid extent goes into a buffer whole, with no conversion.
 Behavior does not change: every case in the stratum suites passes, and every checked-in zone and frame file stays byte

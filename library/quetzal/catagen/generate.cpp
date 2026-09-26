@@ -182,7 +182,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Each room an area of its own, its area id its position in the room list
+    // Makes each room an area of its own, whose area id is its position in the room list
     cell_areas_type cell_areas(const vector_type& extent, const rectangles_type& rooms)
     {
         cell_areas_type areas(static_cast<size_t>(extent.i()) * extent.j(), nullid);
@@ -390,8 +390,8 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // A door for each adjacency, in random order, that joins two areas not yet joined, then a door for each remaining one
-    // with probability loop
+    // Adds a door, in random order, for each adjacency that joins two areas not yet joined, then a door for each remaining
+    // adjacency with probability loop
     void place_doors(Level& level, const cell_areas_type& areas, id_type area_count, double loop, random_type& random)
     {
         sites_type sites = door_sites(level.extent(), areas);
@@ -433,7 +433,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // A range of one draws nothing, so a fixed count keeps later draws unchanged
+    // A range of one value draws nothing, so a fixed count leaves every later draw unchanged
     size_t draw_count(const quetzal::math::Interval<size_t>& count, random_type& random)
     {
         return count.lower() == count.upper() ? count.lower() : random.gen(count.lower(), count.upper());
@@ -446,7 +446,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Across an open wall or a door, a door being passable once opened, onto an open cell
+    // Returns true if the side leads onto an open cell across an open wall or a door, since a door is passable once opened
     bool passable_side(const Level& level, const point_type& cell, CardinalDirection direction)
     {
         point_type next = neighbor(cell, direction);
@@ -454,8 +454,8 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Whether a staircase's block at an open cell keeps what staircases need: a passable side of its own to face, one
-    // still beside each staircase next to it, and the cells across its passable sides still reaching one another around it
+    // Returns true if a staircase's block can go at an open cell. The block needs a passable side to face, each staircase
+    // next to it must keep a passable side, and the cells across the block's passable sides must still reach one another around it
     bool block_allowed(const Level& level, const point_type& cell)
     {
         assert(level.cell(cell) == CellType::Open);
@@ -532,9 +532,9 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Staircases at the centers of rooms, one per room, those leading up first. A room whose center would cut a passage or
-    // allow a staircase no side to face is passed over, and running out of rooms places fewer, those leading down going
-    // short first
+    // Places staircases at the centers of rooms, one per room, those leading up first. A room is passed over if a staircase
+    // at its center would cut a passage or have no side to face. Running out of rooms places fewer staircases, with those
+    // leading down falling short first
     void place_staircases(Level& level, const rectangles_type& rooms, const Parameters& parameters, random_type& random)
     {
         size_t down_count = draw_count(parameters.staircase_down_count, random);
@@ -593,7 +593,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Whether a door on any side of the cell opens onto it
+    // Returns true if a door on any side of the cell opens onto it
     bool blocks_doorway(const Level& level, const point_type& cell)
     {
         for (size_t index = 0; index < cardinal_directions.size(); ++index)
@@ -608,9 +608,9 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Each staircase blocking a doorway moves one cell, in a random direction across an open wall onto floor that blocks no
-    // doorway and where its block is allowed, and stays where there is no such direction. An open wall joins two cells of
-    // one area, so the staircase stays in its own area
+    // Moves each staircase that blocks a doorway one cell in a random direction, across an open wall onto floor where it
+    // blocks no doorway and its block is allowed. A staircase with no such direction stays where it is. An open wall joins
+    // two cells of one area, so the staircase stays in its own area
     void move_staircases_off_doorways(Level& level, random_type& random)
     {
         for (const point_type& cell : staircase_cells(level))
@@ -655,8 +655,8 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // A random facing direction for each staircase among the sides of its cell with no wall and floor beyond, or where there are none,
-    // with a door
+    // Gives each staircase a random facing direction among the sides of its cell that have no wall and floor beyond, or, if
+    // there are none, among the sides with a door
     void face_staircases(Level& level, random_type& random)
     {
         for (const point_type& cell : staircase_cells(level))

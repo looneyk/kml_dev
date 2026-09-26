@@ -98,7 +98,7 @@ godot::Vector2i StratumWorld::cell() const
         return {};
     }
 
-    const sim::placement_type& placement = sim::placement_of(m_session.player());
+    const sim::placement_type& placement = sim::placement_of(m_session.player().entity());
     sim::discrete_point_type cell_position = sim::layout_as<sim::DiscreteLayout>(m_session.layout()).cell_position_at(placement.position());
 
     return godot::Vector2i(cell_position.i(), cell_position.j());
@@ -112,7 +112,7 @@ godot::String StratumWorld::render() const
         return {};
     }
 
-    return godot::String::utf8(view::render(m_session.world(), m_session.zone(), m_session.player()).to_string().c_str());
+    return godot::String::utf8(view::render(m_session.world(), m_session.zone(), m_session.player().entity()).to_string().c_str());
 }
 
 //------------------------------------------------------------------------------
@@ -125,7 +125,7 @@ godot::PackedByteArray StratumWorld::cells() const
         return codes;
     }
 
-    view::Cells cells = view::cells(m_session.world(), m_session.zone(), m_session.player());
+    view::Cells cells = view::cells(m_session.world(), m_session.zone(), m_session.player().entity());
 
     const view::vector_type& extent = cells.extent();
     codes.resize(static_cast<int64_t>(extent.x()) * extent.y());
@@ -151,7 +151,7 @@ godot::PackedByteArray StratumWorld::actors() const
         return flags;
     }
 
-    view::Cells cells = view::cells(m_session.world(), m_session.zone(), m_session.player());
+    view::Cells cells = view::cells(m_session.world(), m_session.zone(), m_session.player().entity());
 
     const view::vector_type& extent = cells.extent();
     flags.resize(static_cast<int64_t>(extent.x()) * extent.y());
@@ -175,7 +175,7 @@ godot::Vector2i StratumWorld::step(int32_t di, int32_t dj)
         return {};
     }
 
-    m_session.set_intent(sim::Intent {
+    m_session.player().set_intent(sim::Intent {
         sim::vector_type(static_cast<sim::value_type>(di), static_cast<sim::value_type>(dj), sim::value_type(0)),
         sim::value_type(1), sim::vector_type()});
 

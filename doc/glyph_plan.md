@@ -3,10 +3,10 @@
 Status: complete
 Date: 2026-09-03, revised 2026-09-22
 
-The glyph mapping item of stage 6 in `work_plan.md`: state beside the place type, and a glyph set as a table a file can
-supply. What is built is in `game_system_reference.md`.
+This is the glyph mapping item of stage 6 in `work_plan.md`: state beside the place type, and a glyph set as a table
+that a file can supply. `game_system_reference.md` describes what is built.
 
-A shut door drawn apart from an open one should not need a `PlaceType` per state: a locked, concealed or broken door, and
+Drawing a shut door differently from an open one should not need a `PlaceType` per state: a locked, concealed or broken door, and
 every other attachment, would multiply the enum. And the mapping to characters, a struct of named glyphs and a chain of
 conditions in `render_lattice`, leaves nowhere to express a glyph set with more than ASCII, or one producing tile indices.
 
@@ -49,8 +49,8 @@ mask determines whether it is vertical or horizontal, so walls and corners resol
 ## The lookup
 
 A glyph set is a table from `(type, state, mask)` to what the device draws --- a character for ASCII, an index for tiles.
-The most specific entry wins: a set with `door open` draws an open door apart, and a set with only `door` draws both
-alike.
+The most specific entry wins: a set with `door open` draws an open door differently, and a set with only `door` draws
+both the same.
 
 ## Loading
 
@@ -69,4 +69,4 @@ Every reference frame is byte for byte what it was before.
 
 ## Open
 
-Tracked in `work_plan.md`.
+The open items are tracked in `work_plan.md`.

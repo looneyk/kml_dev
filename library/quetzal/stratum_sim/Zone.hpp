@@ -25,18 +25,29 @@ namespace quetzal::stratum_sim
     };
 
     //--------------------------------------------------------------------------
-    // On a zone: its geometry and topology
+    // The zone's geometry and topology
     struct ZoneLayout
     {
         std::unique_ptr<Layout> layout;
     };
 
     //--------------------------------------------------------------------------
-    // On a zone: the notation its layout is written in, from which a host chooses a view
+    // The notation the zone's layout is written in, which a host uses to choose a view
     struct ZoneNotation
     {
         stratum_format::Notation notation = stratum_format::Notation::Block;
     };
+
+    //--------------------------------------------------------------------------
+    // Exclusive relationship from an entity owned by the game, which has no parent, to the zone it is in. Flecs removes it
+    // when the zone is deleted
+    struct InZone
+    {
+    };
+
+    // Adds terms to the builder that match the zone's children and the game's entities that are in the zone
+    template<typename Builder>
+    decltype(auto) with_in_zone(Builder&& builder, flecs::entity zone);
 
     //--------------------------------------------------------------------------
     // A room of the zone's layout
@@ -48,7 +59,7 @@ namespace quetzal::stratum_sim
     };
 
     //--------------------------------------------------------------------------
-    // A flat, where what applies across it is
+    // The address of a flat, whose entity has the components that apply across the whole flat
     struct FlatAddress
     {
         id_type flat_id = nullid;
@@ -57,7 +68,7 @@ namespace quetzal::stratum_sim
     };
 
     //--------------------------------------------------------------------------
-    // What a flat states for one room, as a flat cell address is what it states for one cell
+    // The address of a flat's override for one room, as a flat cell address is the flat's override for one cell
     struct FlatRoomAddress
     {
         id_type flat_id = nullid;
@@ -67,8 +78,8 @@ namespace quetzal::stratum_sim
     };
 
     //--------------------------------------------------------------------------
-    // What in a zone's layout can have an entity of its own. The entity has its address as a component, which is how it is
-    // found, and no persistent id
+    // The address types of the parts of a layout that can have an entity of their own. The entity has its address as a
+    // component, by which it is found, and has no persistent id
     using layout_addresses_type = std::tuple<RoomAddress, WallAddress, FlatAddress, FlatRoomAddress, FlatCellAddress>;
 
     // Calls f with std::type_identity<Address> for each Address of layout_addresses_type
@@ -88,13 +99,20 @@ namespace quetzal::stratum_sim
     }
 
     //--------------------------------------------------------------------------
-    // On a zone: the entities of what in its layout has one
+    // The zone's layout entities, by address
     struct ZoneAddressIndex
     {
         detail::address_entities<layout_addresses_type>::type entities; // <address, entity>, one map for each address type
     };
 
 } // namespace quetzal::stratum_sim
+
+//------------------------------------------------------------------------------
+template<typename Builder>
+decltype(auto) quetzal::stratum_sim::with_in_zone(Builder&& builder, flecs::entity zone)
+{
+    return builder.with(flecs::ChildOf, zone).or_().template with<InZone>(zone);
+}
 
 //------------------------------------------------------------------------------
 template<typename F>

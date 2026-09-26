@@ -12,8 +12,8 @@
 namespace quetzal::catagen
 {
 
-    // A discrete layout file in the wall notation, the generator's parameters written as the tokens its options take so
-    // that the file reproduces its own zone
+    // Writes a discrete layout file in the wall notation, with the generator's parameters written as the tokens their
+    // options take, so that the file reproduces its own zone
     // Throws std::bad_optional_access when no seed was assigned
     void write_level(std::ostream& os, const Level& level, const Parameters& parameters);
 

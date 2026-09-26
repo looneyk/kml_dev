@@ -4,7 +4,7 @@ Status: complete, as stages 2 and 3 of `work_plan.md`
 Date: 2026-08-28, revised 2026-09-22
 
 Replace the `Clock`'s callback, which pulled a one-shot decision when an actor became ready, with durable intent on the
-actor. What exists is in `game_system_reference.md`, under Intent, ai and Clock; the reasoning is in
+actor. `game_system_reference.md` describes what exists, under Intent, ai and Clock; the reasoning is in
 `decision_rationale.md`, "An intent persists on the actor; a command is one-shot".
 
 ## Shape
@@ -41,4 +41,4 @@ Steps 1 to 3 were stage 2 of `work_plan.md`, and steps 4 to 6 stage 3.
 
 ## Open
 
-Tracked in `work_plan.md`.
+The open items are tracked in `work_plan.md`.

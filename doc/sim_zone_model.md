@@ -2,11 +2,11 @@
 
 Status: the discrete half is built and `game_system_reference.md` describes it; the continuous half is declared and not
 written
-Date: 2026-08-25, revised 2026-09-22
+Date: 2026-08-25, revised 2026-09-26
 
-Companion to `game_system_principles.md`, which has the architecture and the phased plan. This covers what that document
-defers: what a `Zone` is made of, and what the `Layout` interface over it is across the discrete and the continuous
-case. `decision_rationale.md` has the argument for the larger decisions.
+This is the companion to `game_system_principles.md`, which has the architecture and the phased plan. It covers what
+that document defers: what a `Zone` is made of, and what the `Layout` interface over it is in the discrete and the
+continuous case. `decision_rationale.md` has the argument for the larger decisions.
 
 Every section is marked **Settled**, **Leaning**, or **Open**, and what is deferred rather than undecided is marked
 **Future**. Names are working names throughout.
@@ -132,8 +132,8 @@ back, and a save writes every visited `Zone` whatever is resident.
 
 **Leaving a `Zone` does not unload it.** When the player moves out of a `Zone`, before or after the next one is
 loaded, the resident set is checked against a threshold --- a maximum `Zone` count, memory usage, and the like --- and
-`Zone`s are unloaded only when it is exceeded. The session keeps a map from the timestamp of the last time the player left
-each `Zone` to its id, and the oldest is unloaded first, more than one where a memory threshold requires it.
+`Zone`s are unloaded only when it is exceeded. The world's `ZoneEntryIndex` keeps the order in which the zones were
+entered, and the zone entered longest ago is unloaded first, more than one if a memory threshold requires it.
 
 With more than one `Zone` resident, "near the player" can only mean relocator-graph distance, `Zone`s having no spatial
 relation, and the relocator graph is enumerable because relocators are on entities.
@@ -178,8 +178,8 @@ interior of an open area costs nothing and only its boundary is stored. In the b
 open space meets a solid cell; in the wall notation, wherever the file writes one, between two open cells as often as
 against a solid one.
 
-**A door is an attachment with a door facing on each wall it is on.** The door has whether it is open, closed, locked
-or trapped, and decides whether an actor may cross. Each door facing is on the wall of one side and has what is reached
+**A door is an attachment with a door facing on each wall it is on.** The door has the state its sides share, such as
+whether it is open, closed, locked or trapped, and that state determines whether an actor may cross. Each door facing is on the wall of one side and has what is reached
 from that side, so one door is one entity however many sides see it.
 
 In the block notation a doorway is a cell rather than an edge, so a door there is on the walls the floor either side has
@@ -248,7 +248,7 @@ either: it is sited on that side's wall and refers to the door it operates, so i
 **Settled: a wall is not an entity.** A wall with components or with something sited on it is an entity its zone finds by
 wall id, sparse because what is on walls numbers hundreds rather than thousands.
 
-What targets a wall links both ways: a door facing, or anything else attached to the wall, links to the wall's entity,
+An entity that targets a wall links in both directions: a door facing, or any other entity attached to the wall, links to the wall's entity,
 which the zone finds by wall id, and the wall's entity links back to it. Nothing is found by searching.
 
 Everything on a wall or a flat is an attachment --- an alcove, a basin, a door, a button, a torch --- one mechanism for
@@ -257,8 +257,8 @@ all of them, and a wall stays a bit on the cell it bounds.
 This depends on wall ids being stable. A wall id encodes its cell and side, and a minable cell is a phantom cell carved
 at generation, so mining reveals geometry rather than creating or destroying walls, and nothing renumbers.
 
-Containment is the same mechanism: an item in an alcove is attached to the alcove, `contained_in`, the target being an
-entity rather than a wall or a flat cell (`addressing.md`, `### Entities`).
+Containment uses the parent link: an item in an alcove is the alcove's child, sited `In` it, and the site refers to no
+wall or flat cell (`addressing.md`, `### Entities`).
 
 ### Flats
 
@@ -416,7 +416,7 @@ A `Parent` hierarchy, which a door's door facings use, is the exception: flecs w
 states its own parent, rather than through flecs JSON (`addressing_plan.md`, `## Flecs`).
 
 Attachment and containment are not relationship pairs: an attachment is a component with its target, and the target has
-a component listing what is attached to it (`decision_rationale.md`, "Attachments and walls link both ways"). flecs
+a component listing the entities attached to it (`decision_rationale.md`, "Sites and places link both ways"). flecs
 supplies the zones as subtrees, the hierarchy, prefabs, queries and reflection.
 
 Component reflection is registered member by member, or `to_json` emits names without values. Iteration is
@@ -462,7 +462,5 @@ states it that way now that `ContinuousLayout` is declared.
 
 ## Open questions
 
-- **What builds a zone's entities.** `load_layout` returns a layout; it reports each door's walls, and the caller
-  creates the door. Loading a zone builds the file's entities (`addressing_plan.md`).
 - **How a height field is stored and sampled,** a constant one being the ordinary case, which must cost nothing.
 - The scripting language, above, and earlier than the phased plan assumes.

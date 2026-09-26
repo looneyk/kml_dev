@@ -12,8 +12,8 @@
 namespace quetzal::dungen
 {
 
-    // A discrete layout file in the block notation, the generator's parameters written as the tokens its options take so
-    // that the file reproduces its own zone. Only the chosen algorithm's group is written
+    // Writes a discrete layout file in the block notation, with the generator's parameters written as the tokens their
+    // options take, so that the file reproduces its own zone. Only the chosen algorithm's group is written
     // Throws std::bad_optional_access when no seed was assigned
     void write_level(std::ostream& os, const Level& level, const Parameters& parameters);
 

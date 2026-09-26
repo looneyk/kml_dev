@@ -17,7 +17,7 @@ namespace quetzal::stratum_sim
 {
 
     //--------------------------------------------------------------------------
-    // Whether an entity is inside what it is sited on or on its surface
+    // The relation of an entity to the object it is sited on: inside it, or on its surface
     enum class Relation
     {
         In,
@@ -34,8 +34,8 @@ namespace quetzal::stratum_sim
     };
 
     //--------------------------------------------------------------------------
-    // One cell of a flat, the whole floor or ceiling of the zone, for an entity fixed to that surface. An entity resting on
-    // a floor has a placement and no address
+    // The address of one cell of a flat, which is the zone's whole floor or ceiling. It is for an entity fixed to that
+    // surface; an entity resting on a floor has a placement and no address
     struct FlatCellAddress
     {
         id_type flat_id = nullid;
@@ -47,7 +47,7 @@ namespace quetzal::stratum_sim
     using address_type = std::variant<WallAddress, FlatCellAddress>;
 
     //--------------------------------------------------------------------------
-    // Where an entity is. The placement is relative to the address, or to the parent where there is none
+    // Where an entity is. The placement is relative to the address, or to the parent if there is no address
     struct Site
     {
         Relation relation = Relation::In;
@@ -56,7 +56,7 @@ namespace quetzal::stratum_sim
     };
 
     //--------------------------------------------------------------------------
-    // On a wall's or a flat cell's entity: everything sited on it
+    // The entities sited on a wall or a flat cell, kept on the wall's or cell's entity
     struct AttachedEntities
     {
         std::vector<flecs::entity> entities;

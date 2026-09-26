@@ -29,7 +29,7 @@ namespace
     const auto& directions = sim::cardinal_directions;
 
     //--------------------------------------------------------------------------
-    // The way through on the wall as the viewer perceives it, or a null entity where there is none or the viewer finds it
+    // Returns the way through on the wall as the viewer perceives it: a null entity if there is none or the viewer finds it
     // concealed
     flecs::entity seen_way_through(flecs::entity zone, quetzal::id_type wall_id, flecs::entity viewer)
     {
@@ -38,7 +38,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // A way through's components as the states a view draws apart
+    // Converts a way through's components to the states that a view draws differently
     quetzal::stratum_view::State state_of(flecs::entity way)
     {
         using quetzal::stratum_view::State;
@@ -59,7 +59,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Whether a door occupies the cell beyond, as a doorway block does, rather than lying on the edge between the two. A
+    // Returns true if a door occupies the cell beyond, as a doorway block does, rather than lying on the edge between the two. A
     // door in a cell has a wall on one side only
     bool door_in_cell(const sim::DiscreteLayout& layout, const sim::discrete_point_type& beyond,
         const sim::discrete_vector_type& direction)
@@ -68,7 +68,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Every door occupying a cell, with its state. A door on an edge is not reported
+    // Calls f for every door that occupies a cell, with its state. A door on an edge is skipped
     template<typename F>
     void each_door_cell(const sim::DiscreteLayout& layout, flecs::entity zone, flecs::entity viewer, F f)
     {
@@ -110,8 +110,7 @@ namespace
     {
         const sim::GridMapping& grid = layout.grid();
 
-        zone.world().query_builder<const sim::Site>()
-            .with(flecs::ChildOf, zone)
+        sim::with_in_zone(zone.world().query_builder<const sim::Site>(), zone)
             .build()
             .each([&](const sim::Site& site)
             {
@@ -243,7 +242,7 @@ quetzal::stratum_view::Lattice quetzal::stratum_view::lattice(const sim::World& 
         }
     }
 
-    // Whether a position is part of a wall line. A cell never is, so a door occupying one is a gap in the line
+    // Returns true if a position is part of a wall line. A cell never is, so a door occupying one is a gap in the line
     auto line = [&](const point_type& position)
     {
         if (!lattice.contains(position) || (position.i() % 2 == 1 && position.j() % 2 == 1))
@@ -255,7 +254,7 @@ quetzal::stratum_view::Lattice quetzal::stratum_view::lattice(const sim::World& 
         return type == PlaceType::Wall || type == PlaceType::Door;
     };
 
-    // Whether every cell a position touches is closed: a cell touches itself, an edge the two it lies between and a corner
+    // Returns true if every cell a position touches is closed: a cell touches itself, an edge the two it lies between and a corner
     // the four meeting at it. Positions beyond the grid count as closed
     auto solid = [&](const point_type& position)
     {
@@ -294,7 +293,7 @@ quetzal::stratum_view::Lattice quetzal::stratum_view::lattice(const sim::World& 
 
             if (solid(position))
             {
-                assert(place.type == PlaceType::None); // A wall faces open floor, so none is here
+                assert(place.type == PlaceType::None); // A wall faces open floor, so no wall is at a solid position
                 place.type = PlaceType::Solid;
             }
 

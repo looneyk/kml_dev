@@ -1,94 +1,91 @@
 # dungen --- Reference
 
-What exists, as built. `dungen_plan.md` is the intent.
+This document describes what exists, as built. `dungen_plan.md` is the intent.
 
-`dungen` is a block oriented zone generator: a wall takes a whole cell, so solid cells lie between rooms, and a door is
-one of those cells an actor may pass through. `catagen` is the wall based generator beside it, where a wall is a
-property of the edge between two cells. Neither shares code with the other.
+`dungen` is a block-oriented zone generator: a wall takes a whole cell, so solid cells lie between rooms, and a door is
+one of those cells that an actor may pass through. `catagen` is the wall-based generator beside it, where a wall is a
+property of the edge between two cells. The two share no code.
 
 - `library/quetzal/dungen` --- the structures and the generators
 - `tool/dungen` --- the driver
-- `library/quetzal/stratum_sim/load_layout.cpp` --- reads a zone file into a `Layout`
+- `library/quetzal/stratum_sim/load_layout.cpp` --- reads a zone file into a zone
 
 ## The zone file
 
-A discrete layout file in the block notation, written through `stratum_format`; `discrete_layout.md` is the format.
-`generator.parameters` has the parameters of the run as the tokens its options take: the ones every algorithm shares,
-then the chosen algorithm's group, then the seed, so the file reproduces the zone exactly.
+The generator writes a discrete layout file in the block notation, through `stratum_format`; `discrete_layout.md` is
+the format. `generator.parameters` has the parameters of the run as the tokens their options take: the ones every
+algorithm shares, then the chosen algorithm's group, then the seed, so the file reproduces the zone exactly.
 
-One glyph per cell:
+There is one glyph per cell:
 
 | Glyph | Cell type | |
 | --- | --- | --- |
-| `#` | `Solid`, `Null` | solid; `Null` is a cell no generator assigned, and none of the three leave any |
+| `#` | `Solid`, `Null` | solid; `Null` is a cell that no generator assigned, and none of the three leaves any |
 | `.` | `Room`, `Corridor` | floor |
 | `+` | `Door` | a solid cell an actor may pass through |
 | `>` | `Stair` | a staircase leading down |
-| `<` | `Stair` | a staircase leading up; the cell type is the same, and the `Staircase` record has the direction |
+| `<` | `Stair` | a staircase leading up; the cell type is the same, and the `Staircase` record has the rise |
 
 The origin is the lower left cell, and the highest row is written first, so the file reads as a map oriented as the
 display is.
 
 Each dungen room is a room of the file, identified by the first of its room cells. Room floor lies against corridor
-floor with nothing between, so every edge between two floor cells in different rooms, or in a room and none, is a
-barrier. A stair cell is a block, which the floor beside it is walled against in the block notation without anything
-written, and it is part of no room.
+floor with nothing between, so every edge between two floor cells in different rooms, or between a room cell and a
+cell in no room, is a barrier. A stair cell is a block, which the floor beside it is walled against in the block
+notation without anything written, and it is part of no room.
 
-Each door is a `door` entity with a `door_facing` child on each wall `stratum_format::door_walls` finds for its glyph.
-Each staircase is a `staircase` entity sited on the wall that the cell it opens onto has toward its block, with a
-`relocator` whose `type` and `target` are `down` or `up`, whose `order` counts from 0 among the staircases leading the
-same way, in the order they are written, and whose `entry` is the floor its open side faces, facing away from it. `layout.components.access_points` refers to every staircase. Local ids
-are in the order the entities are written --- each door, then its door facings, and the staircases last --- so the
-same parameters give the same ids.
+Each door is a `door` entity with a `door_facing` child on each wall that `stratum_format::door_walls` finds for its
+glyph. Each staircase is a `staircase` entity sited on the wall that the cell it opens onto has toward its block. Its
+`relocator` has a `type` and `target` of `down` or `up`; an `order` that counts from 0 among the staircases leading the
+same way, in the order they are written; and an `entry`, which is the floor its open side faces, facing away from it.
+`layout.components.access_points` refers to every staircase. Local ids are assigned in the order the entities are
+written --- each door, then its door facings, and the staircases last --- so the same parameters give the same ids.
 
 ## The library
 
-Structures, the same whichever algorithm fills them:
+These structures are the same whichever algorithm fills them:
 
 - `Cell` --- a type, the id of the room it belongs to, and four `Wall`s.
-- `Cells` --- a rectangle of them, addressed by `position_type`.
+- `Cells` --- a rectangle of cells, addressed by `point_type`.
 - `Level` --- the cells and the `Room`, `Door` and `Staircase` records over them, and a renderer for printing.
   `create_room`, `create_door` and `create_staircase` each set the cell type and add the record. A `Staircase` has its
-  position, its `StaircaseDirection`, down or up, and its facing direction.
+  `directed_point_type`, the cell position and the direction it opens onto, and its `Rise`, down or up.
 - `Pattern` --- a `Cells` with an origin and a shift, matched and replaced over a `Level` by `match` and
   `match_replace`. `maze1` prunes with these.
-- `types.hpp` --- `coord_type`, `vector_type` in its `position_type` and `dimensions_type` roles, and `random_type`,
-  the random number source of a run.
+- `types.hpp` --- `coord_type`, `point_type`, `vector_type`, `directed_point_type`, `random_type` (the random number
+  source of a run), and `warning_function_type`.
 
 Generation:
 
-- `Algorithm` --- `Maze1`, `Grid1`, `Cave1`, with `to_string` and `to_algorithm` for the command line and the zone
+- `Algorithm` --- `Maze1`, `Grid1` and `Cave1`, with `to_string` and `to_algorithm` for the command line and the zone
   file's parameters.
 - `Parameters` --- `algorithm`, `size`, `staircase_down_count`, `staircase_up_count` and `seed` in common, then one
-  group per algorithm: `Maze1Parameters`, `Grid1Parameters`, `Cave1Parameters`. `validate` checks the shared fields
-  and the chosen algorithm's group. `random_seed` draws a seed from the platform. The staircase counts are closed
-  ranges of `size_t`, 1-1 by default, and `validate` rejects one whose maximum is below its minimum, and a staircase up
-  count whose minimum is zero, a dungeon level being entered at and left by a staircase leading up.
+  group per algorithm: `Maze1Parameters`, `Grid1Parameters` and `Cave1Parameters`. `validate` checks the shared fields
+  and the chosen algorithm's group, and `random_seed` draws a seed from the platform. The staircase counts are closed
+  ranges of `size_t`, 1-1 by default. `validate` rejects one whose maximum is below its minimum, and a staircase up
+  count whose minimum is zero, since a dungeon level is entered and left by a staircase leading up.
 - `generate` --- dispatches on `parameters.algorithm` to `generate_maze1`, `generate_grid1` or `generate_cave1`, one
-  file each. Each asserts the algorithm it was given, validates, seeds its own `random_type` from `parameters.seed`,
-  and is deterministic in its parameters. It throws `std::runtime_error` where no staircase could be placed to be an
-  access point, which takes a zone with no candidate cell at all.
-- `place_staircases` --- shared, given the candidate cells by each algorithm. It draws a count leading down from
-  `staircase_down_count` and a count leading up from `staircase_up_count`, a range of one drawing nothing, shuffles
-  the candidates, and places the staircases leading up first. A candidate is passed over where its block would cut a
-  passage, its passable neighbors no longer reaching one another around it, or leave it or a staircase beside it no
-  passable side to face, a door counting as passable. Running out of candidates places fewer, those leading down going
-  short first, and placing none throws.
-- `remove_doors` --- shared, and run by `maze1` and `grid1` after every pass but the staircases'. Each algorithm places
-  every doorway as a door and reads it as one; this keeps each door with probability `door_probability`, in the
-  algorithm's group, and leaves the rest of the doorways open as corridor.
-- `move_staircases_off_doorways` and `face_staircases` --- shared, and the last two passes of every algorithm. A
-  doorway is a `Door` cell, or a corridor cell beside room floor, as a removed door leaves. A staircase beside one
-  moves a cell, in a random direction onto `Room` or `Corridor` floor of its own space that is not a doorway, is beside
-  none, and allows a block as `place_staircases` does, and stays where there is no such direction. Its facing direction
-  is then drawn from the sides of its cell onto `Room` or `Corridor` floor, or where there are none, from the sides
-  onto a door, and stored in `Staircase::facing`. Both draw last, so nothing before them changes.
-- `write_level` --- the zone file.
+  file each. Each asserts the algorithm it was given, validates, seeds its own `random_type` from `parameters.seed`, and
+  is deterministic in its parameters. `generate` takes a warning function, `log_warning` by default, which writes to
+  `std::clog`.
+- `place_staircases` --- shared, and given the candidate cells by each algorithm. It draws a count leading down from
+  `staircase_down_count` and a count leading up from `staircase_up_count`, with a range of one value drawing nothing,
+  and shuffles the candidates. It then places staircases alternately leading up and leading down, while both counts
+  have some left. A candidate is passed over if it is not floor, is a doorway or beside one, is the floor another
+  staircase faces, or would leave its block cutting a passage or leave it or a staircase beside it no passable side to
+  face; a door counts as passable. A doorway is a `Door` cell, or a corridor cell beside room floor, as a removed door
+  leaves. A placed staircase faces a random side with floor beyond. If a count above zero has none placed,
+  `place_staircases` throws `std::runtime_error`; if the candidates run out with fewer placed than drawn, it reports a
+  warning.
+- `remove_doors` --- shared, and run by `maze1` and `grid1` after every other pass. Each algorithm places every doorway
+  as a door, and this keeps each door with probability `door_probability`, in the algorithm's group, and leaves the rest
+  of the doorways open as corridor.
+- `write_level` --- writes the zone file.
 
 ## maze1
 
-Rooms dropped at random, a maze flooded through every cell they left, then pruned back. Both dimensions are rounded down
-to odd, the rooms and the maze running along the odd cells.
+Rooms are dropped at random, a maze is flooded through every cell they left, and it is then pruned back. Both
+dimensions are rounded down to odd, and the rooms and the maze run along the odd cells.
 
 1. **Rooms.** A count drawn from the grid area and `room_density` sets how many placements are attempted. Each draws a
    size from `room_dimension_base` plus a value below `room_dimension_variation`, forced odd, and a position on the odd
@@ -96,18 +93,17 @@ to odd, the rooms and the maze running along the odd cells.
    unless `room_merge` grows that room to include it.
 2. **Doors.** Every other cell along a room's walls is a candidate. The count comes from the room's size, and a door
    between two rooms is placed only once.
-3. **Corridors.** A recursive backtracker floods every solid odd cell. `corridor_straightness` is the chance it keeps
-   its heading where it can.
-4. **Staircases,** at the corridor dead ends, before they are pruned, or at the center of each room where rooms and
-   loops have left no dead end.
+3. **Corridors.** A recursive backtracker floods every solid odd cell. `corridor_straightness` is the chance that it
+   keeps its heading where it can.
+4. **Staircases,** at the corridor dead ends, before they are pruned, or at the center of each room if rooms and loops
+   have left no dead end.
 5. **Pruning.** `probability_dead_end_removal` walks each dead end back a cell at a time; `probability_loop_removal`
-   closes the loops the flood left.
+   closes the loops that the flood left.
 6. **Open doorways.** `remove_doors` at `door_probability`.
-7. **Staircases off doorways, and their facing directions.** `move_staircases_off_doorways`, then `face_staircases`.
 
 ## grid1
 
-The zone divided into `divisions` sectors, a room inside most of them, adjacent sectors joined.
+The zone is divided into `divisions` sectors, with a room inside most of them, and adjacent sectors are joined.
 
 1. **Sectors.** Sector bounds divide the zone, spreading the remainder of an uneven division across the sectors.
 2. **Rooms.** `room_density` is the fraction of sectors with a room, not a per-sector probability, so a zone is never
@@ -118,36 +114,34 @@ The zone divided into `divisions` sectors, a room inside most of them, adjacent 
    components is always kept, and one closing a loop is kept with probability `loop`. The result spans every sector, so
    every room is reachable.
 4. **Corridors.** Each connection leaves one room through the wall toward the other, turns once, and enters the other,
-   with a `Door` at each end on a room. The turn is on a line through the solid cells strictly between the two rooms'
-   facing edges, and both legs stay within the two sectors' shared band, so a corridor never crosses a room. A
+   with a `Door` at each end that is on a room. The turn is on a line through the solid cells strictly between the two
+   rooms' facing edges, and both legs stay within the two sectors' shared band, so a corridor never crosses a room. A
    `room_margin` of at least one cell leaves those cells, and `validate` requires it.
-5. **Staircases,** in the rooms, or in the corridors where the density left no rooms.
+5. **Staircases,** in the rooms, or in the corridors if the density left no rooms.
 6. **Open doorways.** `remove_doors` at `door_probability`.
-7. **Staircases off doorways, and their facing directions.** `move_staircases_off_doorways`, then `face_staircases`.
 
 An adjacency stores its orientation, which the difference between the two sector slots leaves ambiguous for a single
 column of sectors.
 
 ## cave1
 
-Noise smoothed into caverns. No rooms and no doors: open floor is corridor, and the border is left solid.
+Noise is smoothed into caverns. There are no rooms and no doors: open floor is corridor, and the border is left solid.
 
-1. **Noise.** Every cell off the border drawn solid with probability `fill`.
+1. **Noise.** Every cell off the border is drawn solid with probability `fill`.
 2. **Smoothing.** `smoothing_passes` passes of a cellular automaton over the eight neighbors of a cell: a solid cell
    stays solid with at least `survival_threshold` solid neighbors, and an open cell turns solid with at least
    `birth_threshold`. Every cell of a pass is computed from the same input grid.
-3. **One region.** The largest connected region of open cells is kept and the rest left solid, so every open cell is
+3. **One region.** The largest connected region of open cells is kept and the rest is left solid, so every open cell is
    reachable from every other.
 4. **Staircases,** anywhere on that region.
-5. **Staircases off doorways, and their facing directions.** `move_staircases_off_doorways`, which finds no doorway
-   here, then `face_staircases`.
 
 Parameters at their extremes --- `fill` at 1.0, `birth_threshold` at 0, or a zone small enough that every interior cell
-has eight solid neighbors --- generate a zone solid throughout.
+has eight solid neighbors --- generate a zone that is solid throughout.
 
 ## The tool
 
-`dungen` parses the command line, generates, and writes the zone to a file and to standard output.
+`dungen` parses the command line, generates, and writes the zone to a file and to standard output. It writes warnings
+to `std::clog`.
 
 ```
 dungen [zone] [--algorithm maze1|grid1|cave1] [--size nx,ny]
@@ -160,13 +154,13 @@ dungen [zone] [--algorithm maze1|grid1|cave1] [--size nx,ny]
 ```
 
 The zone path defaults to `Level_0.level`. A run given no `--seed` draws one, so the file has a seed either way and any
-zone can be reproduced. `--seed` is read by `math::to_seed`, as the seed's own unsigned type, wider than a `long` on
-Windows; `catagen` shares the helper.
+zone can be reproduced. `--seed` is read by `math::to_seed`, as the seed's own unsigned type, which is wider than a
+`long` on Windows; `catagen` shares the helper.
 
 Each option sets the group it belongs to, whichever algorithm was chosen, so an option may be given before the
 `--algorithm` it applies to. `--room-density` and `--door-probability` are shared by two groups and set both.
 `--stairs-down` and `--stairs-up` take a closed range of counts, written in the zone file's parameters as
-`stairs_down` and `stairs_up`; an option keeps the shorter "stairs" to type, where names in code and prose say
+`stairs_down` and `stairs_up`; the options keep the shorter "stairs" for typing, where names in code and prose say
 "staircase".
 
 ## Reading it back
@@ -180,7 +174,7 @@ it.
 
 ## Known limits
 
-- `pack_rooms`, which `maze1` calls where `room_density` reaches 1.0, is empty, so that density leaves a zone with no
+- `pack_rooms`, which `maze1` calls if `room_density` reaches 1.0, is empty, so that density leaves a zone with no
   rooms, only the maze.
 - `Level::expand_room` repaints cells into a room but leaves the `Room`'s position and size as created, so the record
   understates a merged room, and `maze1`'s `door_candidates`, walking the record's four sides, offers a merged room

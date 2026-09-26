@@ -19,7 +19,7 @@ namespace
     using quetzal::stratum_view::any;
 
     //--------------------------------------------------------------------------
-    // Each state flag, a mask and an actor count one
+    // Each state flag, a mask, and an actor add one
     int specificity(const Glyph& glyph)
     {
         int n = (glyph.mask.has_value() ? 1 : 0) + (glyph.actor ? 1 : 0);
@@ -42,8 +42,8 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // A line for each of the sixteen masks: horizontal, vertical, a corner where both axes reach the position, and an
-    // opening where neither does
+    // Adds a line for each of the sixteen masks: horizontal, vertical, a corner if wall lines reach the position along both
+    // axes, and an opening if none reach it
     void add_walls(std::vector<Glyph>& glyphs, char horizontal, char vertical, char corner, char opening)
     {
         for (uint8_t bits = 0; bits < 16; ++bits)
@@ -97,7 +97,7 @@ const std::vector<quetzal::stratum_view::Glyph>& quetzal::stratum_view::Glyphs::
 //------------------------------------------------------------------------------
 const quetzal::stratum_view::Glyphs& quetzal::stratum_view::cell_glyphs()
 {
-    // The actor line comes first to win the tie with a line of one state flag, so an actor in an open doorway is drawn
+    // The actor lines come first so they win ties with lines of one state flag, and an actor in an open doorway is drawn
     static const Glyphs glyphs(std::vector<Glyph>
     {
         {PlaceType::Floor, State::None, {}, true, '@'},

@@ -76,11 +76,11 @@ namespace quetzal::stratum_sim
         // The wall on this cell's side in the given direction, if any. Its id encodes the cell and the direction
         id_type wall_toward(const discrete_point_type& cell_position, const discrete_vector_type& direction) const;
 
-        // The cell a wall is on and the direction it faces from that cell, from the id wall_toward returns
+        // The cell a wall is on and the direction it faces from that cell, decoded from the id that wall_toward returns
         discrete_point_type wall_cell_position(id_type wall_id) const;
         const discrete_vector_type& wall_direction(id_type wall_id) const;
 
-        // True where there is no wall in that direction, and otherwise what is_wall_crossable returns for the wall
+        // True if there is no wall in that direction; otherwise the result of is_wall_crossable for the wall
         bool crossable(const discrete_point_type& cell_position, const discrete_vector_type& direction, const crossable_function_type& is_wall_crossable) const;
 
         // Stops at the first blocking wall or occupied cell. The direction snaps to the grid and the distance rounds to
@@ -93,7 +93,7 @@ namespace quetzal::stratum_sim
         // Snaps to a cardinal direction
         placement_type face(const placement_type& placement, const vector_type& direction) const override;
 
-        // Whether the two occupy the same cell
+        // Returns true if the two occupy the same cell
         bool same_location(const placement_type& a, const placement_type& b) const override;
 
         placements_type neighbors(const placement_type& placement, const crossable_function_type& is_wall_crossable) const override;

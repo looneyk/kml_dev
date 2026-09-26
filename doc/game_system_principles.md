@@ -22,7 +22,7 @@ Subsystem names and the project name itself are placeholders throughout this doc
 
 ## Core principles
 
-The decisions that are expensive to reverse.
+These are the decisions that are expensive to reverse.
 
 1. **The core never links an engine.** It builds, runs, and is tested standalone and headless.
 2. **Layout is abstracted from the start.** Discrete cells never appear in core interfaces.
@@ -42,7 +42,7 @@ The decisions that are expensive to reverse.
 
 ## Architecture
 
-Three layers with a hard rule at each boundary.
+The system has three layers, with a hard rule at each boundary.
 
 **Simulation core** --- the world, entities, scheduler, and rules. It has no notion of pixels, cameras, frames, or
 real time. Its outputs are a queryable world state and an event stream (`entity_moved`, `door_opened`,
@@ -124,12 +124,12 @@ assets/
 ## Key abstractions
 
 **Zone and Layout.** A `Zone` is an independently loadable area --- a dungeon, a town, a moor. Its `Layout` is how that
-area is arranged and the query interface over it: where an actor ends up, what is ahead, what is adjacent, what is
-visible. `DiscreteLayout` is the implementation and `ContinuousLayout` is declared and not written. Occupancy is on
+area is arranged and the interface for querying it: where an actor ends up, which wall is ahead, which placements are
+adjacent, and which are visible. `DiscreteLayout` is the implementation and `ContinuousLayout` is declared and not written. Occupancy is on
 neither: it composes with topology on `World`, which contains both. `sim_zone_model.md` works out both, and how the
 discrete and continuous cases share them.
 
-**Scheduler.** Ordering over abstract units with a pluggable driver. Turn-based and real time are drivers, not separate
+**Scheduler.** The scheduler orders actors' turns over abstract units, with a pluggable driver. Turn-based and real time are drivers, not separate
 schedulers. The core does not know what a unit is worth in seconds.
 
 **Entity and component.** Entities are ids; behavior comes from composed components. There is no class hierarchy of
@@ -165,7 +165,7 @@ The reasoning for each is in `decision_rationale.md`.
   specified.
 
   An object in a zone refers to its type rather than copying it, and a property is resolved when queried, field by
-  field: the object's own value, then its type's, then the room containing it, then the layout. A field the type sets
+  field: the object's own value, then its type's, then that of the room that contains it, then the layout's. A field the type sets
   is the object's, so only what neither states comes from the room or the layout.
 - **Data describes what exists; behavior is script wherever practical,** C++ keeping the inner loops that scripts call.
   The scripting language is chosen before it is needed.
@@ -207,15 +207,15 @@ that changed. Fixed command sequences are rendered to text and compared byte for
 
 **Phase 3 --- Godot**
 
-Godot enters the build, committing to configuration A. The GDExtension adapter and a 2D tile view. Per-view
-presentation tables.
+Godot enters the build, committing to configuration A. This phase adds the GDExtension adapter, a 2D tile view, and
+per-view presentation tables.
 
 *Proves:* renderer-agnosticism against two real backends, and the Godot path end to end.
 
 **Phase 3b --- A minimal first-person 3D view**
 
-Ahead of content and procgen: the second genuinely different view, validating the wall model before procgen generates
-against it. The wall-aware ASCII view, stage 5 of `work_plan.md`, prepares it. The rest of the Godot 3D view --- the
+This view comes ahead of content and procgen. It is the second genuinely different view, and it validates the wall
+model before procgen generates against it. The wall-aware ASCII view, stage 5 of `work_plan.md`, prepares it. The rest of the Godot 3D view --- the
 `SubViewport` Dungeon Master layout, camera interpolation, orthographic --- stays in Phase 6.
 
 *Proves:* the per-edge wall model against a view that has to draw it.
@@ -258,7 +258,7 @@ the neutral format. Brep-driven 3D zone geometry.
 
 ## Follow-on work
 
-Not part of the phased plan, and not blocked by it.
+This work is not part of the phased plan, and is not blocked by it.
 
 **scene_graph renderer independence**, for the existing applications and as the prerequisite for configuration B:
 

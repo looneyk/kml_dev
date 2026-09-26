@@ -23,10 +23,10 @@ namespace
     using quetzal::id_type;
     using quetzal::nullid;
     using stored_entity_id_type = quetzal::stratum_format::stored_entity_id_type;
-    using values_type = quetzal::stratum_format::values_type;
+    using raw_values_type = quetzal::stratum_format::raw_values_type;
 
     //--------------------------------------------------------------------------
-    // A parameter as the token its option takes
+    // Formats a parameter as the token its command line option takes
     template<typename T>
     string token(const T& value)
     {
@@ -42,7 +42,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    void add_maze1(values_type& values, const Parameters& parameters)
+    void add_maze1(raw_values_type& values, const Parameters& parameters)
     {
         const auto& maze1 = parameters.maze1;
 
@@ -58,7 +58,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    void add_grid1(values_type& values, const Parameters& parameters)
+    void add_grid1(raw_values_type& values, const Parameters& parameters)
     {
         const auto& grid1 = parameters.grid1;
 
@@ -72,7 +72,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    void add_cave1(values_type& values, const Parameters& parameters)
+    void add_cave1(raw_values_type& values, const Parameters& parameters)
     {
         const auto& cave1 = parameters.cave1;
 
@@ -84,11 +84,11 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // The Level's own size rather than the requested one, an algorithm being free to round what it was given to something
-    // its layout can use
-    values_type generator(const Level& level, const Parameters& parameters)
+    // Writes the Level's own size rather than the requested one, since an algorithm may round the requested size to one its
+    // layout can use
+    raw_values_type generator(const Level& level, const Parameters& parameters)
     {
-        values_type values = values_type::object();
+        raw_values_type values = raw_values_type::object();
         values["algorithm"] = token(parameters.algorithm);
         values["size"] = token(level.size());
         values["stairs_down"] = interval_token(parameters.staircase_down_count);
@@ -219,8 +219,8 @@ void quetzal::dungen::write_level(ostream& os, const Level& level, const Paramet
         document.rooms.push_back({stratum_format::RoomLocator {*location, {}}, {}});
     }
 
-    // Local ids in the order written, so the same parameters give the same ids: each door, then its door facings in
-    // the order of the walls the reader finds for its glyph, and the staircases last
+    // Local ids are assigned in the order written, so the same parameters give the same ids: each door, then its door
+    // facings in the order the reader finds the walls for its glyph, and the staircases last
     stored_entity_id_type id = 0;
 
     for (const auto& walls : stratum_format::door_walls(document.cells))

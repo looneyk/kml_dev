@@ -25,7 +25,7 @@ namespace quetzal::dungen
     using directed_point_type = geometry::DiscreteDirectedPoint<coord_type, 2>;
     using random_type = math::Random<>;
 
-    // Called with what the generator did short of what was asked, where that is not an error
+    // Called when the generator does less than was asked, if that is not an error
     using warning_function_type = std::function<void(const std::string& warning)>;
 
     using math::CardinalDirection;

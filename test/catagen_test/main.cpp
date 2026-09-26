@@ -44,7 +44,7 @@ namespace
     size_t g_failure_count = 0;
 
     //--------------------------------------------------------------------------
-    // The wall an entity is sited on, and none where it is sited on a flat cell or on its parent
+    // Returns the wall an entity is sited on, or null if it is sited on a flat cell or on its parent
     const stratum_format::WallAddress* wall_address(const stratum_format::Entity& entity)
     {
         if (!entity.site.has_value() || !entity.site->address.has_value())
@@ -169,7 +169,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // The zone as the reader decodes it. Throws std::runtime_error where the reader rejects it
+    // Returns the zone as the reader decodes it. Throws std::runtime_error if the reader rejects it
     stratum_format::Document document_of(const string& zone)
     {
         istringstream is(zone);
@@ -179,7 +179,7 @@ namespace
     //--------------------------------------------------------------------------
     // The parameters in a zone file's generator section
     // Throws std::invalid_argument for a value this does not read, so a parameter added to the writer alone fails
-    catagen::Parameters parameters_of(const stratum_format::values_type& generator)
+    catagen::Parameters parameters_of(const stratum_format::raw_values_type& generator)
     {
         if (!generator.is_object() || generator.value("name", "") != "catagen")
         {
@@ -200,7 +200,7 @@ namespace
                 to_integer(s.substr(0, n)), to_integer(s.substr(n + 1))};
         };
 
-        // Each value read is removed, so what remains at the end is what this does not read
+        // Each value read is removed, so the values left at the end are the ones this does not read
         auto take = [&values](const string& key)
         {
             auto i = values.find(key);
@@ -360,7 +360,7 @@ namespace
             }
         }
 
-        stratum_format::values_type generator = document_of(zone_text(scenarios().front().parameters)).generator;
+        stratum_format::raw_values_type generator = document_of(zone_text(scenarios().front().parameters)).generator;
         generator["parameters"]["unread"] = "1";
 
         bool rejected = false;
@@ -618,11 +618,11 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Read from the written zone, and which sides of a stair cell were open, which its written walls hide, from the zone
-    // generated again: as many staircases each way as the counts allow, no floor cut off by a stair block, every stair cell
-    // walled toward floor, no staircase blocking a doorway while a cell beside it would not, every staircase attached to the
-    // wall on an open side with floor beyond, or with a door where there is no such side, and the access points referring to
-    // every staircase
+    // Checks the written zone, and checks which sides of each stair cell were open, which its written walls hide, in the
+    // zone generated again. There must be as many staircases each way as the counts allow, no floor cut off by a stair
+    // block, and every stair cell walled toward floor. No staircase may block a doorway if a cell beside it would not. Every
+    // staircase must be attached to the wall on an open side with floor beyond, or with a door if there is no such side,
+    // and the access points must refer to every staircase
     bool staircases_placed_and_faced(const string& zone, const catagen::Parameters& parameters, string& detail)
     {
         using stratum_format::coord_type;
@@ -760,7 +760,8 @@ namespace
 
                 for (const stratum_format::Entity& entity : document.entities)
                 {
-                    // Whatever the entity's type, it is the one with a relocator, on a wall a neighbor presents to this cell
+                    // Whatever its type, the staircase's entity is the one with a relocator on a wall that a neighbor presents to
+                    // this cell
                     const auto* address = wall_address(entity);
                     if (address == nullptr || !entity.relocator.has_value() || address->cell_position - address->normal != cell_position)
                     {
@@ -794,8 +795,8 @@ namespace
             }
         }
 
-        // Running out of rooms places fewer, and those leading up are placed first, so a count below its minimum is
-        // allowed only where nothing was left for the staircases leading down
+        // Running out of rooms places fewer staircases, and those leading up are placed first, so a count below its minimum
+        // is allowed only if no room was left for the staircases leading down
         const math::Interval<size_t>& down = parameters.staircase_down_count;
         const math::Interval<size_t>& up = parameters.staircase_up_count;
 

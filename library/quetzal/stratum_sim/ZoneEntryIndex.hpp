@@ -22,8 +22,8 @@ namespace quetzal::stratum_sim
 
         explicit ZoneEntryIndex(size_t zone_count_max);
 
-        // Makes zone_entered the zone entered most recently, then chooses among zones, the world's, those to unload. A
-        // zone never entered is never chosen, nor is zone_entered
+        // Marks zone_entered as the most recently entered zone, then chooses which of the world's zones to unload. Never
+        // chooses zone_entered or a zone that was never entered
         std::vector<flecs::entity> select_unloads(const std::vector<flecs::entity>& zones, flecs::entity zone_entered);
 
         size_t zone_count_max() const;

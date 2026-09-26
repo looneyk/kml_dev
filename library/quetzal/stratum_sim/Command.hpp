@@ -54,6 +54,13 @@ namespace quetzal::stratum_sim
         std::any m_command;
     };
 
+    //--------------------------------------------------------------------------
+    // A one-shot command an actor has submitted, which it takes the next time it is ready, before its Intent
+    struct PendingCommand
+    {
+        Command command;
+    };
+
 } // namespace quetzal::stratum_sim
 
 //------------------------------------------------------------------------------

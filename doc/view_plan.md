@@ -3,10 +3,10 @@
 Status: complete, as stage 5 of `work_plan.md`
 Date: 2026-09-02, revised 2026-09-22
 
-A wall-aware view. `cells(world, zone)` reduces a zone to one `Place` per grid cell, so a wall or a door between two
+This plan adds a wall-aware view. `cells(world, zone)` reduces a zone to one `Place` per grid cell, so a wall or a door between two
 open cells reduces to `Floor` on both sides. That loses nothing for a block notation zone, where a wall exists only
-against a solid cell, and makes a wall notation zone render as open ground an actor cannot cross. What is built is in
-`game_system_reference.md`.
+against a solid cell, and makes a wall notation zone render as open ground an actor cannot cross. `game_system_reference.md`
+describes what is built.
 
 ## The shape
 
@@ -73,4 +73,4 @@ The terminal host moves to the wall view, which shows everything the cell view d
 
 ## Open
 
-Tracked in `work_plan.md`.
+The open items are tracked in `work_plan.md`.

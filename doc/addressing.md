@@ -1,6 +1,6 @@
 # Ids and Addressing
 
-How stratum identifies places and entities, and how one refers to another. `discrete_layout.md` specifies the rest of
+This document specifies how stratum identifies places and entities, and how one refers to another. `discrete_layout.md` specifies the rest of
 the zone file format, `addressing_plan.md` is the detailed design of what is not built yet, and `decision_rationale.md`
 explains the decisions.
 
@@ -14,7 +14,7 @@ The document has four parts:
 3. **In a layout:** the ids a layout encodes places as.
 4. **In the world:** the data structures a loaded zone has, and how lookups work.
 
-Date: 2026-09-14, revised 2026-09-16
+Date: 2026-09-14, revised 2026-09-26
 
 ## What is built
 
@@ -22,12 +22,14 @@ Date: 2026-09-14, revised 2026-09-16
 | --- | --- |
 | Cell positions, junctions, positions, wall addresses, flat cells, rooms and flats in a file | Built, in the 0.4 form |
 | Wall ids, cell slots, room ids and flat ids in a layout | Built: `DiscreteLayout` |
-| One list of entities in a file, with `site` and `parent` file components | Built in `stratum_format` and both generators; nothing in `stratum_sim` reads them yet |
+| One list of entities in a file, with `site` and `parent` file components | Built in `stratum_format`, both generators, and the loader |
 | Runtime entities, and migration between zones keeping them | Built |
-| Stair cells as blocks, and staircases placed where their blocks cut no passage | Built, the staircase sited on the wall on its open side |
-| Persistent ids, the id allocator and the world index | Designed |
-| Links in both directions between an entity and the place it is sited on; location maps | Designed |
-| References between entities, and relocator targets that are entities | Designed |
+| Stair cells as blocks, and staircases placed where their blocks cut no passage | Built, with the staircase sited on the wall on its open side |
+| Persistent ids, the id allocator and the world index | Built |
+| Links in both directions between an entity and the place it is sited on; location maps | Built |
+| References between entities | Built |
+| Relocator targets bound to relocators | Designed |
+| Saved zones | Designed |
 | An actor index for each zone | Designed |
 
 ## Every identifier at a glance
@@ -189,9 +191,9 @@ place or another entity is written as a file component. Two file components are 
 which validates them and uses them to build the zone: `site` and `parent`. The reader does not
 interpret any other file component.
 
-**`site`** is where the entity is: a relation, `in` or `on`; an address, a wall or a flat cell, where it
-is sited on the zone's geometry and absent where it is sited on its parent; and a position and
-orientation on that where it needs them.
+**`site`** is where the entity is: a relation, `in` or `on`; an address, which is a wall or a flat cell if
+the entity is sited on the zone's geometry, and is absent if it is sited on its parent; and a position
+and orientation on that, if it needs them.
 
 **`parent`** is a reference to the entity this one is a child of. A parent does not list its children in
 the file; they are found on reading, from each child's `parent`.
@@ -299,10 +301,10 @@ and slot to flat cell entity.
 - **What is on this wall or flat cell:** look up the wall's or cell's entity in the zone's index, then
   read its list.
 - **What is in that chest:** read the chest's children, keeping those sited `in` it.
-- **Where an entity is:** read its `site`, and its parent where the site has no address.
+- **Where an entity is:** read its `site`, and its parent if the site has no address.
 - **Whether a wall can be crossed:** ask each entity on the wall's list whether its access is open and
-  it is not concealed from the actor, each property read from the entity or, where it has none, from its
-  direct ancestor. An entity with no access at all, a torch or a lever, is no way through. `crossable` has
+  it is not concealed from the actor, reading each property from the entity or, if it has none, from its
+  nearest ancestor that has one. An entity with no access at all, a torch or a lever, is no way through. `crossable` has
   no case for a door, a staircase or concealment.
 
 ### Children
@@ -343,7 +345,7 @@ actors by cell. Until the index is built, `World::entities_at` checks every plac
 
 ### The player
 
-The player is in a zone, and owned by the game. It is in its zone's actor index like any actor, and
+The player is in a zone, and is owned by the game. It is in its zone's actor index like any actor, and
 moves between zones as any actor does, but it is not in the zone's subtree, so unloading or saving the
 zone leaves it out. What the player carries is a child of it, sited `on` it, and is owned by the
 game too. Both are saved with the game.

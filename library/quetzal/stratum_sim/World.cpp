@@ -45,15 +45,14 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // The zone's children with no site address whose placement satisfies accept, in id order. A placement with an
-    // address is relative to that address
+    // Returns the entities in the zone that have no site address and whose placement satisfies accept, in id order. A
+    // placement with an address is relative to that address
     template<typename F>
     quetzal::stratum_sim::World::entities_type placed_in(flecs::entity zone, F accept)
     {
         quetzal::stratum_sim::World::entities_type entities;
 
-        zone.world().query_builder<const quetzal::stratum_sim::Site>()
-            .with(flecs::ChildOf, zone)
+        quetzal::stratum_sim::with_in_zone(zone.world().query_builder<const quetzal::stratum_sim::Site>(), zone)
             .build()
             .each([&](flecs::entity e, const quetzal::stratum_sim::Site& site)
             {
@@ -69,14 +68,14 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Crossable as the actor finds each wall
+    // Returns a function that tests whether the actor can cross a wall, as the actor perceives it
     auto is_crossable(flecs::entity zone, flecs::entity actor)
     {
         return [zone, actor](quetzal::id_type wall_id) { return quetzal::stratum_sim::crossable(zone, wall_id, actor); };
     }
 
     //--------------------------------------------------------------------------
-    // Moves the entries of e and everything below it to the zone
+    // Sets the zone of e and of everything below it in the world index
     void set_entity_zones(std::unordered_map<quetzal::stratum_sim::PersistentId, quetzal::stratum_sim::PersistentId>& entity_zones,
         flecs::entity e, quetzal::stratum_sim::PersistentId zone_id)
     {
@@ -104,8 +103,8 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // The levels of a layout entity's property chain between it and its zone. At the room's level and at the layout's, what
-    // a flat states comes before what the room or the layout does
+    // Appends the levels of a layout entity's property chain that lie between the entity and its zone. At the room level and
+    // at the layout level, a flat's components come before the room's or the layout's
     void append_layout_levels(quetzal::stratum_sim::World::entities_type&, flecs::entity, const quetzal::stratum_sim::DiscreteLayout*,
         const quetzal::stratum_sim::RoomAddress&)
     {
@@ -155,7 +154,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Whether a layout entity has any component beyond its address, its parent and the list of what is sited on it
+    // Returns true if a layout entity has any component other than its address, its parent, and the list of entities sited on it
     bool has_own_components(flecs::entity layout_entity)
     {
         flecs::world world = layout_entity.world();
@@ -181,14 +180,14 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // The types are named entities in one scope, apart from everything else in the world
+    // Types are named entities in their own scope, separate from everything else in the world
     std::string type_path(std::string_view name)
     {
         return std::format("types::{}", name);
     }
 
     //--------------------------------------------------------------------------
-    // The room containing the entity, from its site or, where it is sited on its parent, from its parent's
+    // Returns the room that contains the entity, found from its site, or from its parent's site if it is sited on its parent
     quetzal::id_type room_id_of(flecs::entity e, const quetzal::stratum_sim::DiscreteLayout& layout)
     {
         for (flecs::entity sited = e; sited && !sited.has<quetzal::stratum_sim::Zone>(); sited = sited.parent())
@@ -223,9 +222,14 @@ namespace
 //------------------------------------------------------------------------------
 flecs::entity quetzal::stratum_sim::zone_of(flecs::entity e)
 {
-    for (flecs::entity parent = e.parent(); parent; parent = parent.parent())
+    for (flecs::entity holder = e; holder; holder = holder.parent())
     {
-        if (parent.has<Zone>())
+        if (flecs::entity zone = holder.target<InZone>())
+        {
+            return zone;
+        }
+
+        if (flecs::entity parent = holder.parent(); parent && parent.has<Zone>())
         {
             return parent;
         }
@@ -288,6 +292,7 @@ quetzal::stratum_sim::World::World(IdAllocator& id_allocator, size_t zone_count_
 {
     // Registered before the observers, whose callbacks must not register a component mid-operation
     m_entities.component<Zone>();
+    m_entities.component<InZone>().add(flecs::Exclusive);
     m_entities.component<PersistentId>().member(&PersistentId::id, "id");
     m_entities.component<EntityReference>()
         .member(&EntityReference::persistent_id, "persistent_id")
@@ -314,19 +319,20 @@ quetzal::stratum_sim::World::World(IdAllocator& id_allocator, size_t zone_count_
             bool is_zone = e.has<Zone>();
             flecs::entity zone = is_zone ? e : stratum_sim::zone_of(e);
 
-            if (!zone || !m_zones_unloading.contains(zone.get<PersistentId>()))
+            if (!zone || !deleting_with(zone))
             {
                 m_entity_zones.erase(persistent_id);
             }
 
-            // Its contents were deleted before it, so a zone's unload is complete here
+            // A zone's contents are deleted before the zone, so its unload is complete here
             if (is_zone)
             {
                 m_zones_unloading.erase(persistent_id);
             }
         });
 
-    // An entity placed in a zone gets its persistent id here, whatever placed it, and a new parent may be in another zone
+    // An entity placed in a zone gets its persistent id here, whatever placed it. A new parent or InZone may put it in another
+    // zone
     auto parented = [this](flecs::entity e)
     {
         if (is_layout_entity(e))
@@ -354,7 +360,13 @@ quetzal::stratum_sim::World::World(IdAllocator& id_allocator, size_t zone_count_
         .event(flecs::OnSet)
         .each([parented](flecs::entity e, const flecs::Parent&) { parented(e); });
 
-    // An entity sited on a wall or a flat cell is listed on the wall's or the cell's entity, made when the first is sited there
+    m_entities.observer()
+        .with<InZone>(flecs::Wildcard)
+        .event(flecs::OnAdd)
+        .each(parented);
+
+    // An entity sited on a wall or a flat cell is listed on the wall's or cell's entity, which is created when the first entity
+    // is sited there
     m_entities.observer<const Site>()
         .event(flecs::OnSet)
         .each([this](flecs::entity e, const Site& site)
@@ -377,7 +389,7 @@ quetzal::stratum_sim::World::World(IdAllocator& id_allocator, size_t zone_count_
             }, *site.address);
         });
 
-    // A wall's or a flat cell's entity goes when nothing is sited on it and it has no components of its own
+    // A wall's or flat cell's entity is deleted when nothing is sited on it and it has no components of its own
     m_entities.observer<const Site>()
         .event(flecs::OnRemove)
         .each([this](flecs::entity e, const Site& site)
@@ -393,7 +405,7 @@ quetzal::stratum_sim::World::World(IdAllocator& id_allocator, size_t zone_count_
                 return;
             }
 
-            // None where the entity it was sited on is being deleted, having left the zone's index first
+            // There is none if the entity it was sited on is being deleted, as that entity leaves the zone's index first
             flecs::entity sited_on = std::visit([&](const auto& address) { return layout_entity(zone, address); }, *site.address);
             if (!sited_on)
             {
@@ -409,7 +421,7 @@ quetzal::stratum_sim::World::World(IdAllocator& id_allocator, size_t zone_count_
             }
         });
 
-    // A layout entity being deleted leaves its zone's index, and what was sited on it is no longer sited anywhere
+    // A layout entity that is being deleted is removed from its zone's index, and the entities sited on it lose their sites
     for_each_layout_address([&]<typename Address>(std::type_identity<Address>)
     {
         m_entities.observer<const Address>()
@@ -434,7 +446,7 @@ quetzal::stratum_sim::World::World(IdAllocator& id_allocator, size_t zone_count_
             });
     });
 
-    // The access point types registered by default, a mod registering more
+    // The default access point types; a mod may register more
     flecs::entity up = create_access_type(m_entities, "up");
     flecs::entity down = create_access_type(m_entities, "down");
     flecs::entity waypoint = create_access_type(m_entities, "waypoint");
@@ -554,9 +566,9 @@ void quetzal::stratum_sim::World::unload_zone(flecs::entity zone)
 {
     assert(zone && zone.has<Zone>());
 
-    // The unload finishes in the PersistentId observer, when the deletion runs, which is later where flecs is deferring
+    // The unload finishes in the PersistentId observer when the deletion runs, which is later if flecs is deferring
     m_zones_unloading.insert(zone.get<PersistentId>());
-    zone.destruct(); // Takes its children with it, deleting them before the zone
+    zone.destruct(); // Deletes the zone's children before the zone
 
     return;
 }
@@ -587,7 +599,18 @@ void quetzal::stratum_sim::World::relocate(flecs::entity e, flecs::entity zone, 
 {
     assert(zone && zone.has<Zone>());
 
-    reparent(e, zone, Site {Relation::In, {}, placement});
+    Site site {Relation::In, {}, placement};
+
+    if (e.parent())
+    {
+        reparent(e, zone, site);
+        return;
+    }
+
+    e.remove<Site>(); // First, so it leaves what it was sited on while still in that zone
+    e.add<InZone>(zone);
+    e.set<Site>(site);
+
     return;
 }
 
@@ -725,7 +748,7 @@ flecs::entity quetzal::stratum_sim::World::create_entity(flecs::entity zone, con
 //------------------------------------------------------------------------------
 bool quetzal::stratum_sim::World::deleting_with(flecs::entity zone) const
 {
-    // Fini deletes the zones before setting its own flag, and after setting this one
+    // World fini deletes the zones after setting should_quit and before setting its own fini flag
     return m_entities.should_quit() || m_zones_unloading.contains(zone.get<PersistentId>());
 }
 

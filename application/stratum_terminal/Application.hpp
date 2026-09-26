@@ -47,9 +47,8 @@ namespace stratum_terminal
 
         void draw();
 
-        // Submits a key for the actor the session is waiting on: movement and facing direction as intent, one-shot actions
-        // as commands
-        void submit_key(const KeyPress& key_press, quetzal::id_type actor_id);
+        // Submits a key for the player: movement and facing direction as its intent, and a one-shot action as a command
+        void submit_key(const KeyPress& key_press);
 
         void report(const quetzal::stratum_sim::EventQueue& events);
         std::string status() const;

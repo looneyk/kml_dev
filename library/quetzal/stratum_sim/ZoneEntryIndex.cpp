@@ -27,7 +27,8 @@ std::vector<flecs::entity> quetzal::stratum_sim::ZoneEntryIndex::select_unloads(
 
     PersistentId zone_entered_id = zone_entered.get<PersistentId>();
 
-    // Drops the zone entered's earlier entry, and the zones no longer in the world, however they were unloaded
+    // Drops the earlier entry of the zone being entered, and the entries of zones no longer in the world, however they were
+    // unloaded
     std::erase_if(m_zone_entry_index, [&](const auto& entry)
     {
         return entry.second == zone_entered_id || !zones_by_id.contains(entry.second);

@@ -1,26 +1,27 @@
 # Discrete Layout File Format Specification
 
 Status: specification --- the reader and writer are built in `stratum_format`, both generators write it, and `stratum_sim` builds layouts from it
-Date: 2026-09-11, revised 2026-09-22
+Date: 2026-09-11, revised 2026-09-26
 
-What a discrete layout file contains. One file is one `Zone`: the cell grid that quantizes
-movement, the walls between the cells, the flats bounding it above and below, the rooms defined over
-it, and the entities sited on any of those: rooms and their names, surfaces with height, styles and entities.
-`sim_zone_model.md` owns the model this serializes.
-`discrete_layout_plan.md` has what a file loads into and the reader and writer either side of it.
+This document specifies what a discrete layout file contains. One file is one `Zone`: the cell grid
+that quantizes movement, the walls between the cells, the flats bounding it above and below, the rooms
+defined over it, and the entities sited on any of those, with their names, heights, styles and other
+components. `sim_zone_model.md` describes the model that this format serializes, and
+`discrete_layout_plan.md` describes the structures a file loads into and the reader and writer on either
+side of it.
 
 ## What a file is
 
-One JSON object. `format`, `version` and `cells` are required; the rest are
-omitted where a zone has none.
+A file is one JSON object. `format`, `version` and `cells` are required; the other keys are omitted if a
+zone has none.
 
 | Key | |
 | --- | --- |
 | `format` | `"quetzal.discrete_layout"`. Identifies the file to a reader as this format |
 | `version` | The version of this format the file was written to |
-| `zone` | The zone's own persistent id, in a saved zone alone |
-| `generator` | Which generator produced it and the parameters of the run |
-| `layout` | What the layout as a whole is called and is like |
+| `zone` | The zone's own persistent id, only in a saved zone |
+| `generator` | The generator that produced it and the parameters of the run |
+| `layout` | The name and properties of the layout as a whole |
 | `cells` | The grid: its notation, its extent, its origin and scale, and its rows |
 | `barriers` | Where a room's fill is closed off, for every room |
 | `rooms` | The areas defined over the grid |
@@ -173,13 +174,13 @@ A reader accepts any valid JSON. A writer emits this form, so a zone file diffs 
 
 ## version
 
-A label a reader matches rather than a number it compares. `0.4`, the leading zero marking it
-pre-release: no older file is kept readable, and every checked-in zone file regenerates when the format
+The version is a label that a reader matches, not a number it compares. It is `0.4`, and the leading
+zero marks it as pre-release: no older file is kept readable, and every checked-in zone file regenerates when the format
 moves. A reader given a version it does not know rejects the file.
 
 ## zone
 
-The zone's own persistent id, written by a save
+The zone's own persistent id, written by a save:
 
 ```json
 "zone": { "id": 7713 }
@@ -191,7 +192,7 @@ entity in another zone, so the reader does not check that it resolves.
 
 ## generator
 
-Which generator produced the file and the parameters of the run, so that the file reproduces its own
+The generator that produced the file and the parameters of the run, so that the file reproduces its own
 zone:
 
 ```json
@@ -206,7 +207,7 @@ A file that was authored rather than generated omits `generator`.
 
 ## layout
 
-What the layout as a whole is called and is like. A component object; nothing else.
+The name and properties of the layout as a whole. It is a component object and nothing else.
 
 ```json
 "layout": { "components": { "name": "The Flooded Cistern", "type": "dungeon", "difficulty": 3, "style": "cistern" } }
@@ -215,8 +216,8 @@ What the layout as a whole is called and is like. A component object; nothing el
 `name`, `type`, `difficulty` and `style` are components like any other. They are the zone metadata
 `sim_zone_model.md` describes, so depth, recipe, encounter and loot tables belong here too.
 
-`access_points` is required: references to the relocators an arriving actor can be placed at, at least
-one. Every zone is built with them.
+`access_points` is required: a list of at least one reference to the relocators at which an arriving
+actor can be placed. Every zone is built with them.
 
 ```json
 "layout": { "components": { "access_points": [ { "entity": 8 }, { "entity": 9 } ] } }
@@ -226,11 +227,11 @@ Each is a reference to an entity with a `relocator` component, sited `on` a surf
 or the ceiling. The reader decodes the list out of the layout's components, as it does `site`, `parent`
 and `relocator` out of an entity's. The reader rejects a file whose `access_points` is absent, lists nothing, or lists a
 value that is not such a reference. The entity's `type` is not what is checked. An access point on the
-floor or the ceiling requires its site's `orientation`, for drawing; one on a wall takes the wall's
-normal (`### Staircases and access points`).
+floor or the ceiling requires its site's `orientation`, for drawing; an access point on a wall uses the
+wall's normal (`### Staircases and access points`).
 
-The JSON is what a zone's access points are; the stair glyphs `<` and `>` are visual aids. The reader
-warns where they disagree --- a stair cell with no relocator on the walls around it, or a second one, or
+The JSON defines a zone's access points; the stair glyphs `<` and `>` are visual aids. The reader warns
+if they disagree --- a stair cell with no relocator on the walls around it, or a second one, or
 an access point on a wall that is not a stair cell's open side --- and reads the file as the JSON has
 it. Warnings go to the reader's warning callback, which by default writes them to `std::clog`.
 
@@ -251,10 +252,11 @@ its type, or no `entry`, or an entry on a cell an actor cannot stand in.
 
 Which access point an arriving actor is placed at depends on where it comes from, so the list does not
 choose: a caller arriving from above looks among the staircases leading up, one arriving by waypoint
-among the waypoints, and so on, each type registered with the type it arrives at. Among those of the
-type wanted, it is the lowest order available, an access point already bound to a relocator elsewhere
-being unavailable. A generator lists every staircase it places. Once a layout is read, its access points are known, which is what an unbound
-`down` resolves to (`### A relocator's target`).
+among the waypoints, and so on, each type being registered with the type it arrives at. Among those of
+the type wanted, it is the available one with the lowest order; an access point already bound to a
+relocator elsewhere is unavailable. A generator lists every staircase it places. Once a layout is read,
+its access points are known, and they are what an unbound `down` resolves to (`### A relocator's
+target`).
 
 ## cells
 
@@ -269,9 +271,9 @@ zone, and the rows.
 | --- | --- |
 | `notation` | `"block"` or `"wall"` |
 | `extent` | Cells across and up. Required, and what every row is read against |
-| `origin` | The corner of cell `[0, 0]` in the zone. `[0, 0, 0]` where absent |
-| `scale` | The width of one cell. `1.0` where absent |
-| `encoding` | `"characters"` or `"runs"`. `"characters"` where absent |
+| `origin` | The corner of cell `[0, 0]` in the zone. `[0, 0, 0]` if absent |
+| `scale` | The width of one cell. `1.0` if absent |
+| `encoding` | `"characters"` or `"runs"`. `"characters"` if absent |
 | `rows` | The grid, the first row written being the highest |
 
 The first row written is the highest and the grid origin is the lower left, in both notations. The
@@ -281,8 +283,8 @@ A space is a glyph. It means no floor at a cell position, no wall at a wall posi
 a corner, and a reader reads one as it reads any other character. Every row is written to the full
 width, trailing spaces included, and a row of any other width is an error.
 
-The rows are what encode openness. A room does not decide whether a mover may stand somewhere, and
-neither does terrain on a flat.
+The rows encode openness. A room does not determine whether an actor may stand somewhere, and neither
+does terrain on a flat.
 
 ### Runs
 
@@ -310,14 +312,14 @@ One character per cell: `extent.x` characters on each of `extent.y` rows.
 | `#` | wall |
 | `+` | door |
 | `>` | staircase down |
-| `<` | entrance: a staircase up, or any other non-local transporter arrived by |
+| `<` | entrance: a staircase up, or any other non-local transporter that an actor arrives by |
 
-A wall is a cell here, so a door is a cell too: a block of wall a mover may stand in. Two areas
-never share an edge in this notation, a block always lying between them.
+A wall is a cell here, so a door is a cell too: a block of wall that an actor may stand in. Two areas
+never share an edge in this notation, since a block always lies between them.
 
 A wall is a face of a block, on the side of the cell it faces. A floor cell has a wall toward a `#`, a
-`+`, a stair cell or the border of the grid; a door cell has one toward a `#`, a stair cell or the border of
-the grid, and none toward floor, so a mover inside a doorway meets no wall on the way out. A stair cell is
+`+`, a stair cell or the border of the grid; a door cell has one toward a `#`, a stair cell or the border
+of the grid, and none toward floor, so an actor inside a doorway meets no wall on the way out. A stair cell is
 a block and has none.
 
 ### The wall notation
@@ -331,7 +333,7 @@ and the corners at the even positions in both.
 | --- | --- | --- |
 | cell | `.` | floor |
 | | `>` | staircase down |
-| | `<` | entrance: a staircase up, or any other non-local transporter arrived by |
+| | `<` | entrance: a staircase up, or any other non-local transporter that an actor arrives by |
 | | ` ` | no floor |
 | edge | `-` | wall, horizontal |
 | | `\|` | wall, vertical |
@@ -355,7 +357,7 @@ open from one side alone, or secret from one side, is components on that side's 
 ### Staircases and access points
 
 A stair glyph marks where a staircase is drawn: a block, with a wall toward it on every side where there
-is floor. The glyphs are visual aids. What a zone's staircases are is its entities, each with a
+is floor. The glyphs are visual aids. A zone's staircases are its entities, each with a
 `relocator` whose target is where it leads, sited on a surface:
 
 - **On a wall.** The wall is the staircase's open side, the side toward the room it opens into, and the
@@ -363,10 +365,10 @@ is floor. The glyphs are visual aids. What a zone's staircases are is its entiti
   room. Moving into the wall enters the staircase. The other walls around a stair cell are ordinary
   walls with components of their own, such as a texture.
 - **On the floor.** Sited on a floor cell, the staircase does not impede movement. Its site's
-  `orientation` is required and serves drawing alone. A keystroke by an actor on its cell enters it.
+  `orientation` is required and is used only for drawing. A keystroke by an actor on its cell enters it.
 
-In the wall notation every staircase is sited on a wall, as a door is, a block staircase in the open
-space of a room included; a staircase on the floor is the block notation's.
+In the wall notation every staircase is sited on a wall, as a door is, including a block staircase in the
+open space of a room; a staircase on the floor belongs to the block notation.
 
 A staircase in a flat length of wall in the wall notation is the equivalent of a staircase in a 1x1
 alcove in the block notation, the alcove's cell being the stair block. This is informational, and a guide
@@ -375,7 +377,7 @@ room.
 
 `<` marks more than a staircase leading up. It is the entrance glyph, the up exit or entrance point of
 any non-local transporter --- a staircase, a waypoint, a portal --- as `+` is the glyph of any threshold
-that opens and closes. What is there is the entity sited on it, whatever its `type`.
+that opens and closes. The object there is the entity sited on it, whatever its `type`.
 
 A stair glyph with no entity with a `relocator` on the walls around it, or a second one, is a warning.
 Every door glyph requires one entity with a child sited on each wall of its doorway, and a file missing
@@ -383,8 +385,8 @@ that is rejected.
 
 ## rooms
 
-A room is an area over the grid, and a room's id is its position in the array. Nothing decides
-passage by a room; its cells are stored and read back.
+A room is an area over the grid, and a room's id is its position in the array. A room has no effect on
+passage; its cells are stored and read back.
 
 A room is identified one of two ways, and specifies exactly one of them:
 
@@ -419,7 +421,8 @@ A cell belongs to at most one room. Two rooms sharing a cell is an error in the 
 
 ## barriers
 
-Where a room's fill is closed off: an array of positions beside the grid rather than a glyph in it.
+Barriers are where a room's fill is closed off: an array of positions beside the grid, rather than glyphs
+in it.
 
 ```json
 "barriers": [ { "cell_position": [3, 1], "normal": [1, 0] }, { "cell_position": [7, 4] } ]
@@ -440,7 +443,7 @@ alone, where one room needs an edge another must not have.
 
 ## walls
 
-Per-wall data, for the walls that have any, one entry per wall. The grid creates the walls, so an
+Per-wall data for the walls that have any, with one entry per wall. The grid creates the walls, so an
 address of a wall the grid does not have is an error.
 
 ```json
@@ -452,8 +455,8 @@ it means.
 
 ## flats
 
-The floor and the ceiling bounding the zone, one entry each, the floor alone for a zone with no
-ceiling. Where `flats` is absent the floor is at height 0 and the ceiling at 1.
+The floor and the ceiling that bound the zone, with one entry each, or only the floor for a zone with
+no ceiling. If `flats` is absent, the floor is at height 0 and the ceiling at 1.
 
 ```json
 { "role": "floor", "height": 0.0, "components": { "terrain": "flagstone", "style": "cistern" },
@@ -482,8 +485,8 @@ what it specifies:
       room
         cell
 
-A cell takes its height from the properties specified for it, failing that from those specified for
-the room containing it, failing that from the flat's own. Inherited components resolve the same way,
+A cell takes its height from the properties specified for it, otherwise from those specified for the
+room that contains it, and otherwise from the flat's own. Inherited components resolve the same way,
 these being three levels of the hierarchy Inheritance sets out. A sunken room costs one entry.
 
 A flat is sampled at cell scale and has no grid of its own: a height belongs to a cell of the grid
@@ -492,17 +495,17 @@ to authored detail.
 
 A hole in the floor is a component. The cell is floor in the grid and the flat has a height there;
 what makes it a hole is a component on that cell, or an entity sited there, and the entity a caller
-builds from either. A shaft passes a mover the way a door does, downward rather than across, and a
-pit lets one in and need not let it out. What happens at the hole belongs to that entity.
+builds from either. A shaft lets an actor through the way a door does, downward rather than across, and
+a pit lets one in and need not let it out. What happens at the hole belongs to that entity.
 
 A flat component that affects movement does so as an entity. Openness comes from the rows, so
-terrain, rocks and a trap door affect a mover through the entity built from them and that entity's
+terrain, rocks and a trap door affect an actor through the entity built from them and that entity's
 `Blocking` tag; items and decoration are entities without it. The format does not distinguish
 them.
 
 ## entities
 
-The zone's entities, one list, one object per entity, in id order: a door, a staircase, an alcove, a
+The zone's entities, in one list with one object per entity, in id order: a door, a staircase, an alcove, a
 basin, a button, a torch, the key inside the basin.
 
 ```json
@@ -524,18 +527,18 @@ Every other file component is content the reader passes to its caller as it was 
 
 ### site
 
-What the entity is in or on, and where on it.
+The object the entity is in or on, and where on it.
 
 | Key | |
 | --- | --- |
 | `relation` | `in` or `on`. Required |
-| `wall` | A wall address, where the entity is sited on the zone's geometry |
-| `flat`, `cell_position` | A flat cell: the flat by role, and a cell position of the cell grid, where the entity is sited on a floor or ceiling |
-| `position` | Where on it: along and up on a wall, xy within the cell on a flat, in the parent's frame where there is no address. Centered where absent |
+| `wall` | A wall address, if the entity is sited on a wall |
+| `flat`, `cell_position` | A flat cell: the flat by role, and a cell position of the cell grid, if the entity is sited on a floor or ceiling |
+| `position` | Where on it: along and up on a wall, xy within the cell on a flat, or in the parent's frame if there is no address. Centered if absent |
 | `orientation` | A direction, one of the four a cell's sides define |
 
-`wall` and `flat` are the two addresses, and never both. **Neither is written where the entity is sited
-on its parent**, which is what an entity in or on another entity is: a key in a chest, coins in a pouch,
+`wall` and `flat` are the two addresses, and never both. **Neither is written if the entity is sited on
+its parent**, which is what an entity in or on another entity is: a key in a chest, coins in a pouch,
 a mug on a table. An entity sited on its parent must have one.
 
 An entity is sited on a flat cell and never on a flat as a whole. A flat is the entire floor or
@@ -588,7 +591,7 @@ prefabs the world has, and the format restricts no value of it.
 
 ### A relocator's target
 
-A relocator is a component of the entity that moves a mover --- a staircase, a portal, a waypoint --- and
+A relocator is a component of an entity that moves an actor --- a staircase, a portal, a waypoint --- and
 where it leads is its `target`, bound or unbound.
 
 ```json
@@ -606,14 +609,14 @@ surface access, a destination a quest specifies. It identifies one destination o
 nearest of a type. Which names it may use is the caller's vocabulary, as an entity's `type` is.
 
 Resolving one finds a zone or makes one. Traversal passes the target to whatever owns zones, which
-returns a zone it has or generates one, and chooses the cell an arriving mover is placed in. What it
+returns a zone it has or generates one, and chooses the cell an arriving actor is placed in. What it
 resolves to is written back as a bound target, so leaving and returning arrive at the same place.
 
 `down` resolves to the zone below, and `up` into a tower to the zone above, so either is a
-real target as soon as that zone is generated or loaded. Arriving through a relocator not yet bound,
-the actor is placed at one of that zone's access points not yet bound --- a relocator it can be arrived
-at, such as a staircase leading up, or leading down in a tower --- chosen among them, and going through
-binds both ends: the relocator gone through is bound to that access point, and the access point to the
+real target as soon as that zone is generated or loaded. An actor arriving through a relocator that is
+not yet bound is placed at one of that zone's unbound access points --- a relocator at which it can
+arrive, such as a staircase leading up, or leading down in a tower --- and going through binds both
+ends: the relocator gone through is bound to that access point, and the access point to the
 relocator it came from. The layout's `access_points` lists them, and every zone has at least one.
 
 The reader decodes a relocator: its `target`, required, a destination name or a reference, and the
@@ -680,7 +683,10 @@ every check has passed, so a rejected file leaves nothing behind.
 - In a template, a reference is not an entity's id.
 - A door glyph whose doorway has no one entity with a child sited on each of its walls, or has more
   than one; or a door with a child sited on a wall outside its doorway.
-- A stair glyph with no entity with a relocator sited on a wall its open neighbors present to it, or
-  with a second one.
 - `layout.components.access_points` is absent, is not a list, or lists nothing; or a value it lists is
-  not a reference to an entity with a relocator sited on the open side of a cell written `<` or `>`.
+  not a reference to an entity with a relocator sited on a surface.
+- An access point's relocator has no `type`, no `order`, an order repeated or past a gap within its type,
+  or no `entry`, or an entry on a cell an actor cannot stand in.
+
+A stair glyph with no entity with a relocator on the walls its open neighbors present to it, or with a
+second one, and an access point on a wall that is not a stair cell's open side, are warnings, not errors.

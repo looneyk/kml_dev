@@ -38,7 +38,7 @@ namespace quetzal::catagen
         math::Interval<size_t> staircase_down_count {1, 1};
         math::Interval<size_t> staircase_up_count {1, 1};
 
-        // Empty until assigned; validate rejects it empty
+        // Empty until assigned; validate rejects an empty seed
         std::optional<seed_type> seed;
     };
 

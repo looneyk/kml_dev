@@ -13,10 +13,10 @@ byte for byte the same.
 
 ## The classes
 
-Three, splitting on how movement is resolved and on nothing else:
+There are three, split on how movement is resolved and on nothing else:
 
-- **`Layout`** is the interface every layout satisfies: where an actor ends up, what is ahead, what is adjacent, what is
-  visible, and how far one action of movement travels. No cells and no walls.
+- **`Layout`** is the interface every layout satisfies: where an actor ends up, which wall is ahead, which placements
+  are adjacent, which are visible, and how far one action of movement travels. It declares no cells and no walls.
 - **`DiscreteLayout`** is walls on cell edges, a floor and a ceiling, and the rooms over them, and the whole of the
   discrete side, directly under `Layout`.
 - **`ContinuousLayout`** is movement that integrates, through geometry that is ordinary 3D models.
@@ -60,4 +60,4 @@ function and a checked cast that asserts, as `Object::cast_to` in Godot and `cas
 
 ## Open
 
-Tracked in `work_plan.md`.
+The open items are tracked in `work_plan.md`.

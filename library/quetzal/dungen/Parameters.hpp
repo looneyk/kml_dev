@@ -26,7 +26,7 @@ namespace quetzal::dungen
         coord_type room_dimension_variation = 8;
 
         double room_density = 0.25;
-        bool room_merge = false; // Whether a room overlapping one other room grows it rather than being dropped
+        bool room_merge = false; // True if a room overlapping one other room grows it rather than being dropped
 
         double corridor_straightness = 0.5; // Probability the maze keeps its heading where it can
 
@@ -83,7 +83,7 @@ namespace quetzal::dungen
         Grid1Parameters grid1;
         Cave1Parameters cave1;
 
-        // Empty until assigned; validate rejects it empty
+        // Empty until assigned; validate rejects an empty seed
         std::optional<seed_type> seed;
     };
 

@@ -12,12 +12,13 @@ namespace quetzal::stratum_sim
 {
 
     //--------------------------------------------------------------------------
-    // On the reflection type of a std::optional member: the reflection type of its value, and access to that value
+    // Set on the reflection type of a std::optional member. It has the reflection type of the optional's value and functions
+    // that access the value
     struct OptionalField
     {
         flecs::entity_t type = 0;
         void* (*emplace)(void* optional) = nullptr; // Sets a default constructed value and returns it
-        const void* (*value)(const void* optional) = nullptr; // Null where it is unset
+        const void* (*value)(const void* optional) = nullptr; // Returns null if the optional is unset
     };
 
     //--------------------------------------------------------------------------
@@ -26,16 +27,16 @@ namespace quetzal::stratum_sim
     void register_optional(flecs::world& world);
 
     //--------------------------------------------------------------------------
-    // Fills each optional member of into that is unset from the same member of from, and does the same within each struct
-    // member. type is the reflection type of both
+    // Sets each unset optional member of into from the same member of from, recursing into struct members. type is the
+    // reflection type of both
     void merge_unset(const flecs::world& world, flecs::entity_t type, void* into, const void* from);
 
     //--------------------------------------------------------------------------
-    // Whether the struct has an optional member, or a struct member that has one, which makes a component one that inherits
+    // Returns true if the struct has an optional member, directly or in a struct member. A component that has one inherits
     bool has_optional_fields(const flecs::world& world, flecs::entity_t type);
 
-    // Makes a component with optional fields inherit: an entity IsA a type reads the type's value rather than a copy of it,
-    // which is what flecs otherwise gives an entity when it becomes one. A component without them is left as it is
+    // Makes a component that has optional fields inherit, so an entity that IsA a type reads the type's value instead of the
+    // copy flecs otherwise makes. A component without optional fields is left unchanged
     void register_inheritance(flecs::world& world, flecs::entity_t component);
 
 } // namespace quetzal::stratum_sim

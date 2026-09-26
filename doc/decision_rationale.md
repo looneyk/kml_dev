@@ -1,9 +1,9 @@
 # Decision Rationale
 
-Date: 2026-08-29, revised 2026-09-22
+Date: 2026-08-29, revised 2026-09-26
 
-Why the significant decisions went the way they did, and what was rejected, together with the background a pending
-change rests on. The working documents state the model; this one gives the argument behind it, and only where the
+This document explains why the significant decisions went the way they did and what was rejected, with the background
+that a pending change depends on. The working documents state the model; this one gives the argument behind it, and only where the
 decision or design element is big enough to be worth revisiting. `sim_zone_model.md` and `game_system_reference.md`
 state what is true without repeating any of this.
 
@@ -96,7 +96,8 @@ written by generators and tools, so grouping them by place for a reader would ga
 
 ## An entity has three ids
 
-A local id in a template, a persistent id in a world, and a runtime entity while loaded (`addressing.md`, `### Ids`).
+An entity has a local id in a template, a persistent id in a world, and a runtime entity while loaded (`addressing.md`,
+`### Ids`).
 
 **The persistent id cannot include the zone.** A key taken from one zone to another, or an item dropped in a zone that
 persists, would change id on the way or keep referring to the zone it left.
@@ -233,7 +234,7 @@ from them.
 
 ## A cell position is a position and a discrete vector is a displacement
 
-Background for splitting the two types, and for `math::DiscreteVector`.
+This is the background for splitting the two types, and for `math::DiscreteVector`.
 
 **One type was serving three roles.** `Cell` was a coordinate, a move (`Cell {-1, 0}` in `move` and `neighbors`), and
 a count (the grid extent). Only the first is a position, and the confusion showed: a cell was moved by writing out
@@ -283,7 +284,8 @@ instead of a property of the type.
 
 A zone is constructed whole when it is encountered, geometry and contents, so `World::create_zone` from a `Generator`
 is the general entry, and a zone file is a snapshot of part of the same construction, loaded by the narrower
-`load_zone`. Both build through `create_zone(layout)`, create the doors and populate, so no route drifts from another.
+`load_zone`. Both make an empty zone with `create_zone(zone_id)`, have the generator or the loader fill it, and populate
+it, so neither route drifts from the other.
 
 `Generator` is an interface in `stratum_sim` and an implementation wherever a generator is chosen, so `stratum_sim`
 links no generator, and the concrete generator declares the parameters that apply to it.
@@ -446,7 +448,7 @@ packed.
 
 ## Everything a game adds is data or script
 
-Principle 8, detailed in `modding_plan.md`. What a mod adds cannot be predicted --- a room of fun-house mirrors is as
+This is principle 8, detailed in `modding_plan.md`. What a mod adds cannot be predicted --- a room of fun-house mirrors is as
 likely as a new monster --- so nothing is designed on the assumption that the vocabulary is known in advance.
 
 **Typed components with runtime schemas.** Decoding into typed components is what Bevy scenes, Godot scene files and

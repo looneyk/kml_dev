@@ -87,16 +87,16 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    stratum_format::values_type parse_values(const string& text)
+    stratum_format::raw_values_type parse_values(const string& text)
     {
-        return stratum_format::values_type::parse(text);
+        return stratum_format::raw_values_type::parse(text);
     }
 
     //--------------------------------------------------------------------------
-    stratum_format::values_type load_values(const filesystem::path& filepath)
+    stratum_format::raw_values_type load_values(const filesystem::path& filepath)
     {
         ifstream is(filepath, ios::binary);
-        return stratum_format::values_type::parse(is);
+        return stratum_format::raw_values_type::parse(is);
     }
 
     //--------------------------------------------------------------------------
@@ -117,7 +117,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    map_type content_map(const stratum_format::values_type& values)
+    map_type content_map(const stratum_format::raw_values_type& values)
     {
         return map_type::parse(values.dump());
     }
@@ -156,7 +156,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    map_type components_map(const stratum_format::values_type& components)
+    map_type components_map(const stratum_format::raw_values_type& components)
     {
         return {{"components", content_map(components)}};
     }
@@ -215,7 +215,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // The wall an entity is sited on, and none where it is sited on a flat cell or on its parent
+    // Returns the wall an entity is sited on, or null if it is sited on a flat cell or on its parent
     const stratum_format::WallAddress* wall_address(const stratum_format::Entity& entity)
     {
         if (!entity.site.has_value() || !entity.site->address.has_value())
@@ -327,23 +327,23 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // A file's text with one change made to it, and what reading it reports
+    // A file's text with one change made to it, and the error or warning that reading it reports
     struct MutationCase
     {
         string name;
-        function<void(stratum_format::values_type&)> mutate;
-        string message; // A fragment of the error, or empty where the changed file is valid
-        string warning = {}; // A fragment of a warning the changed file must raise, or empty where none is expected
+        function<void(stratum_format::raw_values_type&)> mutate;
+        string message; // A fragment of the error, or empty if the changed file is valid
+        string warning = {}; // A fragment of a warning the changed file must raise, or empty if none is expected
     };
 
     //--------------------------------------------------------------------------
     void report_mutations(const filesystem::path& filepath, const vector<MutationCase>& mutation_cases)
     {
-        stratum_format::values_type base = load_values(filepath);
+        stratum_format::raw_values_type base = load_values(filepath);
 
         for (const auto& mutation_case : mutation_cases)
         {
-            stratum_format::values_type values = base;
+            stratum_format::raw_values_type values = base;
             mutation_case.mutate(values);
 
             istringstream is(values.dump());
@@ -769,7 +769,7 @@ namespace
     {
         report_group("references");
 
-        stratum_format::values_type components = parse_values(
+        stratum_format::raw_values_type components = parse_values(
             R"({ "controls": { "entity": 1 }, "watched_by": [{ "guard": { "entity": 2 } }, { "entity": 3 }],)"
             R"( "lock": "vault", "near": { "entity": 4, "how": "beside" } })");
 
@@ -907,7 +907,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Written and read again, by each of the writer's two overloads, the document is equivalent to the one first read
+    // A document written by each of the writer's two overloads and read again is equivalent to the one first read
     void test_round_trip()
     {
         report_group("round trip");
