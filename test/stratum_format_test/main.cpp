@@ -5,6 +5,7 @@
 
 #include "quetzal/stratum_format/read.hpp"
 #include "quetzal/stratum_format/references.hpp"
+#include "quetzal/stratum_format/RelocatorTarget.hpp"
 #include "quetzal/stratum_format/write.hpp"
 #include <nlohmann/json.hpp>
 #include <filesystem>
@@ -252,13 +253,13 @@ namespace
     map_type relocator_map(const stratum_format::Relocator& relocator)
     {
         map_type m;
-        m["target"] = holds_alternative<string>(relocator.target) ? map_type(get<string>(relocator.target))
+        const auto* target = get_if<stratum_format::RelocatorTarget>(&relocator.target);
+        m["target"] = target != nullptr ? map_type(stratum_format::format_relocator_target(*target))
             : map_type {{"entity", get<stratum_format::stored_entity_id_type>(relocator.target)}};
         m["type"] = relocator.type.has_value() ? map_type(*relocator.type) : map_type();
         m["order"] = relocator.order.has_value() ? map_type(*relocator.order) : map_type();
-        m["entry"] = relocator.entry.has_value()
-            ? map_type {{"cell_position", cell_position_map(relocator.entry->position())}, {"orientation", direction_map(relocator.entry->direction())}}
-            : map_type();
+        m["placement"] = relocator.placement.has_value() ? map_type {{"cell_position", cell_position_map(relocator.placement->position())},
+            {"orientation", direction_map(relocator.placement->direction())}} : map_type();
         return m;
     }
 
@@ -286,6 +287,7 @@ namespace
         m["generator"] = content_map(document.generator);
         m["layout"] = components_map(document.components);
         m["access_points"] = document.access_points;
+        m["level"] = document.level.has_value() ? map_type(*document.level) : map_type();
 
         m["cells"] =
         {
@@ -427,7 +429,8 @@ namespace
             stair_wall != nullptr && *stair_wall == stratum_format::WallAddress {{3, 1}, {0, -1}});
         const auto& stair_relocator = document.entities[3].relocator;
         report_case("a relocator is decoded out of components", stair_relocator.has_value()
-            && holds_alternative<string>(stair_relocator->target) && get<string>(stair_relocator->target) == "down"
+            && holds_alternative<stratum_format::RelocatorTarget>(stair_relocator->target)
+            && get<stratum_format::RelocatorTarget>(stair_relocator->target) == stratum_format::RelocatorTarget {nullopt, stratum_format::RelativeZone {-1}, nullopt}
             && !document.entities[3].components.contains("relocator"));
 
         const auto& chest_site = document.entities[5].site;
@@ -451,6 +454,7 @@ namespace
             document.generator["parameters"].begin().key() == "extent" && next(document.generator["parameters"].begin()).key() == "scale");
         report_case("layout components are kept as written", document.components["difficulty"] == 3 && document.components["style"] == "cistern");
         report_case("the access points are decoded out of them", !document.access_points.empty() && !document.components.contains("access_points"));
+        report_case("and so is the level", document.level == -2 && !document.components.contains("level"));
 
         return;
     }
@@ -697,6 +701,8 @@ namespace
                 }, "", "entities[7]: a second entity with a relocator on the walls around the stair cell at [3, 2]"},
             {"no access points", [](auto& v) { v["layout"]["components"].erase("access_points"); },
                 "layout.components.access_points: required and absent"},
+            {"a level that is not a whole number", [](auto& v) { v["layout"]["components"]["level"] = -1.5; },
+                "layout.components.level: a whole number was expected"},
             {"no layout, and so no access points", [](auto& v) { v.erase("layout"); }, "layout.components.access_points: required and absent"},
             {"access points that are not a list", [](auto& v) { v["layout"]["components"]["access_points"] = "stairs"; },
                 "layout.components.access_points: an array was expected"},
@@ -713,44 +719,54 @@ namespace
                 }, "layout.components.access_points[0]: refers to 90412, which is no entity's id"},
             {"an access point on an entity with no relocator", [](auto& v) { v["layout"]["components"]["access_points"][0] = parse_values(R"({ "entity": 1 })"); },
                 "layout.components.access_points[0]: an entity with no relocator"},
-            {"a portal as an access point on a wall that is not a stair cell's open side", [](auto& v)
+            {"a portal as an access point on a wall that is neither a stair cell's open side nor a door's", [](auto& v)
                 {
                     v["entities"].push_back(parse_values(
                         R"({ "id": 8, "type": "portal", "components": { "site": { "relation": "on",)"
-                        R"( "wall": { "cell_position": [1, 1], "normal": [-1, 0] } }, "relocator": { "type": "portal", "target": "elsewhere",)"
-                        R"( "order": 0, "entry": { "cell_position": [1, 1], "orientation": [1, 0] } } } })"));
+                        R"( "wall": { "cell_position": [0, 0], "normal": [1, 0] } }, "relocator": { "type": "portal", "target": "elsewhere",)"
+                        R"( "order": 0, "placement": { "cell_position": [0, 0], "orientation": [1, 0] } } } })"));
                     v["layout"]["components"]["access_points"].push_back(parse_values(R"({ "entity": 8 })"));
-                }, "", "layout.components.access_points[2]: an entity sited on a wall that is not the open side of a cell written '<' or '>'"},
+                }, "", "layout.components.access_points[2]: an entity sited on a wall that is neither the open side of a cell written '<' or '>' nor a door's wall"},
             {"an access point that is not sited on a surface", [](auto& v)
                 {
                     v["entities"].push_back(parse_values(
                         R"({ "id": 9, "type": "portal", "components": { "parent": { "entity": 6 }, "relocator": { "type": "portal",)"
-                        R"( "target": "elsewhere", "order": 0, "entry": { "cell_position": [1, 1], "orientation": [1, 0] } } } })"));
+                        R"( "target": "elsewhere", "order": 0, "placement": { "cell_position": [1, 1], "orientation": [1, 0] } } } })"));
                     v["layout"]["components"]["access_points"][0] = parse_values(R"({ "entity": 9 })");
                 }, "layout.components.access_points[0]: an entity that is not sited on a surface: a wall, the floor or the ceiling"},
             {"a staircase leading down alone as the access point, as a tower entered from below has", [](auto& v)
                 { v["layout"]["components"]["access_points"] = parse_values(R"([{ "entity": 4 }])"); }, ""},
             {"an access point whose relocator has no type", [](auto& v) { v["entities"][3]["components"]["relocator"].erase("type"); },
                 "entities[3].components.relocator.type: required and absent"},
+            {"an access point whose relocator type is neither its entity's type nor its parent's", [](auto& v)
+                { v["entities"][3]["type"] = "hatch"; },
+                "", "entities[3].components.relocator.type: the type 'staircase' is neither its entity's type 'hatch' nor its parent's"},
             {"an access point whose relocator has no order", [](auto& v) { v["entities"][3]["components"]["relocator"].erase("order"); },
                 "entities[3].components.relocator.order: required and absent"},
             {"an access point whose order is negative", [](auto& v) { v["entities"][3]["components"]["relocator"]["order"] = -1; },
                 "entities[3].components.relocator.order: a whole, non-negative number was expected"},
-            {"an access point whose order is past a gap", [](auto& v) { v["entities"][4]["components"]["relocator"]["order"] = 1; },
-                "layout.components.access_points[1]: order 1 is past a gap among the access points of the type 'up'"},
+            {"an access point whose order is past a gap", [](auto& v) { v["entities"][4]["components"]["relocator"]["order"] = 2; },
+                "layout.components.access_points[1]: order 2 is past a gap among the access points of the type 'staircase'"},
             {"an access point whose order repeats another's of its type", [](auto& v)
-                { v["entities"][4]["components"]["relocator"]["type"] = "down"; },
-                "entities[4].components.relocator.order: order 0 is another access point's of the type 'down'"},
-            {"an access point whose relocator has no entry", [](auto& v) { v["entities"][3]["components"]["relocator"].erase("entry"); },
-                "entities[3].components.relocator.entry: required and absent"},
-            {"an access point whose entry is a cell an actor cannot stand in", [](auto& v)
-                { v["entities"][3]["components"]["relocator"]["entry"]["cell_position"] = parse_values("[3, 2]"); },
-                "entities[3].components.relocator.entry.cell_position: a cell an actor cannot stand in"},
+                { v["entities"][4]["components"]["relocator"]["order"] = 0; },
+                "entities[4].components.relocator.order: order 0 is another access point's of the type 'staircase'"},
+            {"an access point whose relocator has no placement", [](auto& v) { v["entities"][3]["components"]["relocator"].erase("placement"); },
+                "entities[3].components.relocator.placement: required and absent"},
+            {"an access point whose placement is a cell an actor cannot stand in", [](auto& v)
+                { v["entities"][3]["components"]["relocator"]["placement"]["cell_position"] = parse_values("[3, 2]"); },
+                "entities[3].components.relocator.placement.cell_position: a cell an actor cannot stand in"},
             {"a relocator with no target", [](auto& v) { v["entities"][3]["components"]["relocator"].erase("target"); },
                 "entities[3].components.relocator.target: required and absent"},
-            {"a relocator whose target is neither a destination nor a reference", [](auto& v)
-                { v["entities"][3]["components"]["relocator"]["target"] = 4; },
-                "entities[3].components.relocator.target: neither a destination nor a reference to an entity"},
+            {"a relocator whose target is neither a string nor a reference", [](auto& v)
+                { v["entities"][3]["components"]["relocator"]["target"] = -1; },
+                "entities[3].components.relocator.target: neither a target nor a reference to an entity"},
+            {"a relocator whose target is a level offset of more than one level", [](auto& v)
+                { v["entities"][3]["components"]["relocator"]["target"] = "-2"; }, ""},
+            {"a relocator whose target is an absolute level in a named region, at a position", [](auto& v)
+                { v["entities"][3]["components"]["relocator"]["target"] = "sewers/=-3@grate"; }, ""},
+            {"a relocator whose target does not match the grammar", [](auto& v)
+                { v["entities"][3]["components"]["relocator"]["target"] = "1"; },
+                "entities[3].components.relocator.target: not a target written [region/]zone[@position]"},
             {"a template's relocator bound", [](auto& v)
                 { v["entities"][3]["components"]["relocator"]["target"] = parse_values(R"({ "entity": 5 })"); },
                 "entities[3].components.relocator.target: bound, which a relocator is only in a saved zone"},
@@ -760,6 +776,24 @@ namespace
                     v["entities"][3]["components"]["relocator"]["target"] = parse_values(R"({ "entity": 90412 })");
                 }, ""}
         });
+
+        // A door facing with a relocator as an access point, as a door into another region has, raises no warning
+        stratum_format::raw_values_type door_access = load_values(data_directory / "cistern.json");
+        door_access["entities"][1]["components"]["relocator"] = parse_values(
+            R"({ "type": "door", "target": "+0", "order": 0, "placement": { "cell_position": [1, 1], "orientation": [1, 0] } })");
+        door_access["layout"]["components"]["access_points"].push_back(parse_values(R"({ "entity": 2 })"));
+
+        vector<string> warnings;
+        try
+        {
+            istringstream is(door_access.dump());
+            stratum_format::read(is, "door access point", [&](const string& warning) { warnings.push_back(warning); });
+            report_case("an access point on a door's wall raises no warning", warnings.empty(), warnings.empty() ? "" : warnings.front());
+        }
+        catch (const runtime_error& e)
+        {
+            report_case("an access point on a door's wall raises no warning", false, e.what());
+        }
 
         return;
     }
@@ -907,6 +941,44 @@ namespace
     }
 
     //--------------------------------------------------------------------------
+    void test_relocator_targets()
+    {
+        report_group("relocator targets");
+
+        using stratum_format::AbsoluteZone;
+        using stratum_format::RelativeZone;
+        using stratum_format::RelocatorTarget;
+
+        const vector<pair<string, RelocatorTarget>> targets {
+            {"-1", {nullopt, RelativeZone {-1}, nullopt}},
+            {"+2", {nullopt, RelativeZone {2}, nullopt}},
+            {"+0", {nullopt, RelativeZone {0}, nullopt}},
+            {"=0", {nullopt, AbsoluteZone {0}, nullopt}},
+            {"=-3", {nullopt, AbsoluteZone {-3}, nullopt}},
+            {"sewers/=-1", {"sewers", AbsoluteZone {-1}, nullopt}},
+            {"../=0", {"..", AbsoluteZone {0}, nullopt}},
+            {"./-1", {".", RelativeZone {-1}, nullopt}},
+            {"town/market@fountain", {"town", string("market"), "fountain"}},
+            {"-1@3,5", {nullopt, RelativeZone {-1}, "3,5"}}
+        };
+
+        for (const auto& [text, expected] : targets)
+        {
+            optional<RelocatorTarget> parsed = stratum_format::parse_relocator_target(text);
+            report_case(format("{} is read and written back the same", text), parsed == expected
+                && stratum_format::format_relocator_target(*parsed) == text);
+        }
+
+        for (const string& text : {"", "1", "-", "+-1", "=", "=+2", "+1.5", "sewers/", "a/b/c", "1a/-1", "-1@", "-1@a@b", "@x", "market-1",
+            "-99999999999"})
+        {
+            report_case(format("\"{}\" is not a target", text), !stratum_format::parse_relocator_target(text).has_value());
+        }
+
+        return;
+    }
+
+    //--------------------------------------------------------------------------
     // A document written by each of the writer's two overloads and read again is equivalent to the one first read
     void test_round_trip()
     {
@@ -969,6 +1041,7 @@ int main()
     test_references();
     test_geometry_wall_notation();
     test_geometry_block_notation();
+    test_relocator_targets();
     test_round_trip();
 
     return report_results();

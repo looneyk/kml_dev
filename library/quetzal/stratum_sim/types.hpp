@@ -12,6 +12,7 @@
 #include "quetzal/geometry/Polygon.hpp"
 #include "quetzal/math/CartesianTraits.hpp"
 #include "quetzal/math/DiscreteVector.hpp"
+#include "quetzal/math/Random.hpp"
 #include <vector>
 #include <cstdint>
 
@@ -35,6 +36,11 @@ namespace quetzal::stratum_sim
     using coord_type = std::int32_t;
     using discrete_vector_type = math::DiscreteVector<coord_type, 2>;
     using discrete_point_type = geometry::DiscretePoint<coord_type, 2>;
+
+    // A zone's position relative to the surface: 0 at the surface, negative going down and positive going up
+    using level_type = std::int32_t;
+
+    using random_type = math::Random<>;
 
     using math::CardinalDirection;
 

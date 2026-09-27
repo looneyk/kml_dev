@@ -33,7 +33,7 @@ namespace
 
     //--------------------------------------------------------------------------
     // Returns the access point's entity. The reader has checked that it is sited on a surface and has a relocator with a
-    // type, order, and entry
+    // type, order, and placement
     const quetzal::stratum_format::Entity& access_point_entity(const quetzal::stratum_format::Document& document,
         quetzal::stratum_format::stored_entity_id_type id)
     {
@@ -80,15 +80,15 @@ namespace
 
     //--------------------------------------------------------------------------
     // A bound target, which only a saved zone has, is the persistent id of a relocator in this zone or another
-    std::variant<std::string, quetzal::stratum_sim::EntityReference> relocator_target(
-        const std::variant<std::string, quetzal::stratum_format::stored_entity_id_type>& target,
+    std::variant<quetzal::stratum_format::RelocatorTarget, quetzal::stratum_sim::EntityReference> relocator_target(
+        const std::variant<quetzal::stratum_format::RelocatorTarget, quetzal::stratum_format::stored_entity_id_type>& target,
         const std::unordered_map<quetzal::stratum_format::stored_entity_id_type, flecs::entity>& entities)
     {
         using namespace quetzal::stratum_sim;
 
-        if (const auto* destination = std::get_if<std::string>(&target))
+        if (const auto* unbound = std::get_if<quetzal::stratum_format::RelocatorTarget>(&target))
         {
-            return *destination;
+            return *unbound;
         }
 
         quetzal::stratum_format::stored_entity_id_type id = std::get<quetzal::stratum_format::stored_entity_id_type>(target);
@@ -451,6 +451,11 @@ std::vector<flecs::entity> quetzal::stratum_sim::load_layout(flecs::entity zone,
     zone.set<ZoneLayout>(ZoneLayout {std::move(layout)});
     zone.set<ZoneNotation>(ZoneNotation {cells.notation});
 
+    if (document.level.has_value())
+    {
+        zone.set<ZoneLevel>(ZoneLevel {*document.level});
+    }
+
     flecs::world world = zone.world();
     std::unordered_map<stratum_format::stored_entity_id_type, flecs::entity> entities; // <file_id, entity>
 
@@ -497,11 +502,11 @@ std::vector<flecs::entity> quetzal::stratum_sim::load_layout(flecs::entity zone,
     {
         const stratum_format::Entity& entity = access_point_entity(document, id);
         const stratum_format::Relocator& relocator = *entity.relocator;
-        const stratum_format::discrete_directed_point_type& entry = *relocator.entry;
+        const stratum_format::discrete_directed_point_type& placement = *relocator.placement;
 
-        vector_type orientation(static_cast<value_type>(entry.direction().x()), static_cast<value_type>(entry.direction().y()), value_type(0));
+        vector_type orientation(static_cast<value_type>(placement.direction().x()), static_cast<value_type>(placement.direction().y()), value_type(0));
         set_access_point(entities.at(entity.id), access_type(world, *relocator.type), *relocator.order,
-            placement_type(zone_layout.position(entry.position()), orientation));
+            placement_type(zone_layout.position(placement.position()), orientation));
     }
 
     // A template's references are to its own entities, and a saved zone's references are already persistent ids

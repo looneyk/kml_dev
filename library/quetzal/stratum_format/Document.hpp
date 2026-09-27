@@ -6,6 +6,7 @@
 //------------------------------------------------------------------------------
 
 #include "Notation.hpp"
+#include "RelocatorTarget.hpp"
 #include "types.hpp"
 #include "quetzal/common/id.hpp"
 #include <cstdint>
@@ -146,15 +147,15 @@ namespace quetzal::stratum_format
     };
 
     //--------------------------------------------------------------------------
-    // The relocator file component. The target is a destination, or in a saved zone the id of the relocator it is bound
-    // to. An access point's relocator also has its type, order, and entry, which is the cell position and orientation given
+    // The relocator file component. The target is unbound, or in a saved zone the id of the relocator it is bound to. An
+    // access point's relocator also has its type, order, and placement, which is the cell position and orientation given
     // to an arriving actor
     struct Relocator
     {
-        std::variant<std::string, stored_entity_id_type> target;
+        std::variant<RelocatorTarget, stored_entity_id_type> target;
         std::optional<std::string> type;
         std::optional<std::uint64_t> order;
-        std::optional<discrete_directed_point_type> entry;
+        std::optional<discrete_directed_point_type> placement;
     };
 
     //--------------------------------------------------------------------------
@@ -177,7 +178,8 @@ namespace quetzal::stratum_format
         std::string version;
         raw_values_type generator;
         std::vector<stored_entity_id_type> access_points; // The layout's access_points file component, decoded
-        raw_values_type components; // The layout's other components, excluding access_points
+        std::optional<level_type> level; // The layout's level file component, decoded
+        raw_values_type components; // The layout's other components, excluding access_points and level
         std::optional<stored_entity_id_type> zone_id; // Persistent id, empty in a zone template
         Cells cells;
         std::vector<Barrier> barriers;

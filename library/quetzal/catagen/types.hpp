@@ -19,6 +19,9 @@ namespace quetzal::catagen
     using point_type = geometry::DiscretePoint<coord_type, 2>;
     using box_type = geometry::DiscreteBox<coord_type, 2>;
 
+    // A zone's position relative to the surface: 0 at the surface, negative going down and positive going up
+    using level_type = std::int32_t;
+
     using math::CardinalDirection;
 
     inline const auto& cardinal_directions = math::cardinal_directions<coord_type, 2>;

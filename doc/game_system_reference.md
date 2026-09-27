@@ -161,7 +161,7 @@ its persistent id --- the file's own in a saved zone --- before anything refers 
 parent; its site, with the address resolved to layout ids and the position and orientation to a placement; and its
 `Relocator`. A door is the file's `door` entity, and its door facings are the `door_facing` children sited on the
 walls of its doorway. Each entity that `layout.components.access_points` refers to is made an access point, with the
-registered access point type that its relocator names, its `order`, and its `entry` as a placement.
+registered access point type that its relocator names, its `order`, and its `placement`.
 
 Last, it decodes each component object --- of the layout, of each room, wall, flat and flat override, and of each
 entity --- into the component registered under its name (`register_file_component`), and sets it on the zone's
@@ -193,15 +193,51 @@ id. A zone is an entity with the `Zone` tag, a `ZoneLayout` component that owns 
 `std::unique_ptr<Layout>`, and a `ZoneNotation`. Deleting the entity deletes the layout. There is one `World` in a
 game, owned by `StratumGame`, and it cannot be copied or moved.
 
-`create_zone(zone_id)` makes an empty zone, with the `Zone` tag and that `PersistentId`, for a generator or the loader
-to fill. `create_zone(layout)` makes one with a new id, that layout and nothing else, and asserts that it is given a
-layout. Zones have no names; each is identified by its persistent id. `zone_count` and `layout` access the zones, with
+A region groups contiguous zones: a surface area, a dungeon, a crypt, a tower or a house (`region_plan.md`). It is an
+entity with the `Region` tag and a `PersistentId`, and it is the parent of its zones and of its child regions.
+`create_region(parent)` makes a child of `parent`, and a region with no parent region if `parent` is null, its
+default.
+`region_of(zone)` returns a zone's region, its parent. `zone_of` is unchanged by the regions above a zone: it returns a
+null entity for a zone itself. `unload_region(region)` adds every zone of the region and of its child regions to the
+zones unloading, then deletes the region, which deletes its child regions and all their zones; each zone's unload
+completes as `unload_zone`'s does.
+
+Every zone is made in a region. `create_zone(region, zone_id)` makes an empty zone in the region, with the `Zone` tag
+and that `PersistentId`, for a generator or the loader to fill. `create_zone(region, layout)` makes one with a new id,
+that layout and nothing else, and asserts that it is given a layout. Zones have no names; each is identified by its persistent id. `zone_count` and `layout` access the zones, with
 `layout` returning the interface; `create_entity`, `move` and `relocate` operate on their contents; and `unload_zone`
 discards a zone, its contents and its layout.
 
-`create_zone(generator)` makes an empty zone with a new id, has `Generator::generate` fill it as the loader does, and
-populates it. If the generator throws, the zone is unloaded and the exception passes on. `load_zone(filepath)` reads
-the file and checks it with `build_error` before making the zone. The zone has the file's persistent id if the file has
+`create_zone(region, generator)` makes an empty zone in the region with a new id, has `Generator::generate` fill it as
+the loader does, and populates it. If the generator throws, the zone is unloaded and the exception passes on.
+`create_zone(region, level)` does the same with the region's generator for the zones it makes, which the region has as a
+`std::shared_ptr<const Generator>` component. It sets the zone's `ZoneLevel` first, so the generator is given the level
+of the zone it fills.
+
+A zone's level is its `ZoneLevel`, a `level_type` (`std::int32_t`): 0 at the surface, negative going down and positive
+going up. It is a label, used when making connections between zones, and nothing is looked up by it. The loader sets it
+from the file's `level`, and a zone whose file has none has no `ZoneLevel`.
+
+`resolve_relocator_target(relocator, random)` returns the access point at which an actor arrives through a relocator whose
+unbound target is a level with no position: relative, `+`*k* or `-`*k*, or absolute, `=`*n*. The relocator's zone must
+have a level, *L*, and the target's region must be omitted, `.`, or `..`; a named zone, a named region, and a position
+are not resolved. The target level is *L* + *k*, or *n*, which is *k* levels from *L*.
+
+It looks in the loaded zones at the target level, other than the relocator's own, for an unbound access point of the
+type at which the relocator's type arrives that leads back: one whose relocator targets level *L*, -*k* levels from its
+own zone (`targets_relocator_level`). With the region omitted, moving down (*k* < 0) looks in the relocator's region, and
+moving up or across (*k* >= 0) in that region and its parent region; `.` is the relocator's region alone, and `..` its
+parent region alone. Of several, it returns the one in the zone with the lowest persistent id, and then with the lowest
+order.
+
+If none is found, it makes a zone at the target level with `create_zone(region, level)`, in a region chosen by the same
+rules. With the region omitted, moving up or across to level 0 chooses between the two regions with `random`, and only
+a region with a generator is chosen. It returns the new zone's `entry_point` for the arrival type and the offset -*k*,
+the access point that leads back, or a null entity if no region can make the zone or the new zone has no such access
+point. It binds nothing.
+`random_type` is `math::Random<>`, which the caller owns.
+
+`load_zone(region, filepath)` reads the file and checks it with `build_error` before making the zone. The zone has the file's persistent id if the file has
 a `zone` section, and a new one otherwise. `load_zone` then has `load_layout` fill the zone and populates it. It throws
 `std::runtime_error`, having made nothing, if the reader rejects the file, `build_error` finds a reason, or the file is
 a saved zone that is already loaded; a template makes a new zone each time it is loaded. `World` handles no doors itself, and neither function unloads anything.
@@ -265,7 +301,7 @@ types until they load from data: `door`, with a closed `Access`. The suites call
 
 A layout entity is the entity of a room, a wall, a flat, a flat's override for a room, or a flat cell. Its address is
 its component, and it is found by that address: a `RoomAddress`, `WallAddress`, `FlatAddress`, `FlatRoomAddress` or
-`FlatCellAddress`, the five types that `layout_addresses_type` lists. It has no persistent id. A flat's override for a
+`FlatCellAddress`, the five types that `for_each_layout_address` visits. It has no persistent id. A flat's override for a
 room or a cell is a child of the flat's entity through `Parent`, and every other layout entity is a child of its zone.
 The loader gives every room and each flat an entity. A wall, a flat's override for a room, and a flat cell have one
 only while they have components of their own or something sited on them.
@@ -273,9 +309,11 @@ only while they have components of their own or something sited on them.
 `layout_entities.hpp` has templates over the address type that take the zone. `ensure_layout_entity(zone, address)`
 makes a layout entity once, and `layout_entity(zone, address)` finds it, returning a null entity if there is none.
 `room_entity`, `wall_entity`, `flat_entity`, `flat_room_entity` and `flat_cell_entity`, and an `ensure_` form of each,
-do the same by id, and `is_layout_entity(e)` returns true if an entity is one. The zone's `ZoneAddressIndex` has a map
-from address to entity for each address type. `for_each_layout_address` calls a function with each address type, and
-`World` uses it to register its observers for all five.
+do the same by id. A layout entity has the `LayoutEntity` tag, which `ensure_layout_entity` adds; the observer that gives
+entities in a zone their persistent id skips an entity with it. For each address type the zone has
+an `AddressIndex<Address>` component, a map from address to entity. `for_each_layout_address` calls a function with
+each address type, through a fold over the five types, and `World` uses it to register the address and index components
+and its observers for all five.
 
 A wall's or flat cell's entity lists the entities sited on it in `AttachedEntities`, kept current by observers on
 `Site`. Setting a site with an address creates the layout entity if there is none and lists the sited entity once;
@@ -366,21 +404,27 @@ chain is visible. One side of a secret door is concealed by a `Detection` on tha
 
 An access point is an entity at which a zone is entered, sited `On` a surface --- a wall, or a floor or ceiling cell ---
 with an `AccessPoint`. The `AccessPoint` has its `order` among the zone's access points of its type, counting from 0,
-and its `entry`, the placement given to an arriving actor. Its type is a relationship, `(AccessType, <type>)`, so the
-access points of one type are found by a query.
+and its `placement`, the placement given to an arriving actor. Its type is a relationship, `(AccessType, <type>)`, so
+the access points of one type are found by a query.
 
 An access point type is an entity registered once in the world, under `access_types`, with an `Arrival` that refers
-to the type at which an actor arrives through a relocator of this type. `World` registers `up` and `down`, each
-arriving at the other, and `waypoint` and `portal`, each arriving at its own type; a mod registers more with
-`create_access_type`. `access_type(entities, name)` finds one by name, returning a null entity if there is none.
+to the type at which an actor arrives through a relocator of this type. `World` registers `staircase`, `door`,
+`portal`, and `waypoint`, each arriving at its own type. The type is what the access point is; whether it goes up,
+down, or across is in its relocator's target. A mod registers more types with `create_access_type`. `access_type(entities, name)` finds one by name, returning a null
+entity if there is none.
 
-`set_access_point(e, type, order, entry)` makes an entity sited on a surface an access point, as the loader does with
-the file's access points, and `create_access_point(zone, type, site, order, entry)` creates one.
-`entry_point(zone, type)` returns the zone's access point of the type that has the lowest order, or a null entity if
-the zone has none.
+`set_access_point(e, type, order, placement)` makes an entity sited on a surface an access point, as the loader does
+with the file's access points, and `create_access_point(zone, type, site, order, placement)` creates one.
+`targets_relocator_level(e, offset)` returns true if the entity's relocator is unbound and its target is the level
+`offset` levels from the entity's zone: a relative target with that offset, or an absolute target at the zone's level
+plus the offset, which only a zone with a level matches. `entry_point(zone, type, offset)` returns the zone's
+lowest-ordered access point of the type whose relocator targets the level `offset` levels away, or a null entity if the
+zone has none. A staircase leading up is `entry_point(zone, staircase, 1)`, and an actor arriving from another level
+passes the offset that leads back.
 
-A `Relocator` has the target to which an entity moves an actor that enters it: a destination name, or an
-`EntityReference` to the relocator it is bound to.
+A `Relocator` has the target to which an entity moves an actor that enters it: a `stratum_format::RelocatorTarget`,
+unbound, or an `EntityReference` to the relocator it is bound to. A door facing may have a relocator and be an access
+point.
 
 `way_through(zone, wall_id)` returns an entity sited on the wall that has access, found through the wall's entity and
 its attached entities, or a null entity if there is none. `crossable(zone, wall_id, actor)` returns true if the actor
@@ -464,7 +508,8 @@ stopped by an occupied cell in `World::move`.
 
 `StratumGame` is the one owner of a game's objects: a `CountingIdAllocator` counting from zero, the `World`, the
 `Player` and the `Session`, constructed in that order, each referring to those before it. None of the four can be
-copied or moved. Each host owns one `StratumGame`.
+copied or moved. Each host owns one `StratumGame`. `starting_region()` returns the region that a new game's zones are
+made in, which the constructor creates; it is temporary, until a new game chooses its region.
 
 `Player` is the entity a host controls, created with `Blocking`, a `Speed` and a `PersistentId`, and it is in no zone
 until one is entered. It is owned by the game and has no parent, so it outlives every zone it moves through. A host
@@ -477,19 +522,21 @@ entity, for queries and drawing.
 `Session` has the zone being played: references to the game's `World` and `Player`, a `Scheduler`, a `Clock`, and the
 zone. A host supplies input mapping and drawing.
 
-`create(generator, type)` and `load(filepath, type)` have the world make the zone, with `World::create_zone` and
-`World::load_zone`, and enter it at the access point type. `load` rethrows a failure to enter with the file path. The
-library has no default type; each host passes `up` from a temporary constant of its own, `entry_access_type`.
+`create(region, generator, type, offset)` and `load(region, filepath, type, offset)` have the world make the zone in the
+region, with `World::create_zone` and `World::load_zone`, and `enter` it. `load` rethrows a failure to enter with the
+file path. The library has no default type, offset, or region; each host passes `staircase` and 1, a staircase leading
+up, from temporary constants of its own, `entry_access_type` and `entry_level_offset`, and the game's
+`starting_region()`.
 
 `Generator` is an interface in `stratum_sim`, implemented where a generator is chosen, so `stratum_sim` depends on no
 generator. Each implementation declares its own parameters. `generate(zone)` fills an empty zone as the loader does:
 its `ZoneLayout` with its floor and ceiling, its `ZoneNotation`, its room and flat entities, and its entities, each
 `IsA` its type, with its doors and access points among them (`placement_plan.md`).
 
-`enter(zone, type)` relocates the player to the entry of the zone's `entry_point` of the access point type, then has
-the world `trim_zones` with the zone entered, so no zone the player is in can unload. It makes the zone the one being
+`enter(zone, type, offset)` relocates the player to the placement of the zone's `entry_point(zone, type, offset)`, then
+has the world `trim_zones` with the zone entered, so no zone the player is in can unload. It makes the zone the one being
 played, removes the player's pending command, and rebuilds the turn order from each entity in the zone that has a `Speed`, the
-player included. If the zone has no access point of the type, it throws `std::runtime_error`, and the player stays
+player included. If the zone has no such entry point, it throws `std::runtime_error`, and the player stays
 where it was. `notation()` returns the entered zone's `ZoneNotation`.
 
 `set_driver(driver, units_per_second)` sets the clock's driver, which lasts until it is set again; it is turn-based by
@@ -536,13 +583,18 @@ components in the order written, and `translate_references` replaces each with t
 `Document` is the file as data structures. The geometry is decoded into types: the grid and its rows, expanded from
 runs; the barriers; each room's perimeter or `RoomLocator`; wall addresses; and each flat's heights. So are each
 entity's `site`, `parent` and `relocator` file components, which the reader validates. A `Relocator` has its target,
-which is a destination name or the id of the relocator it is bound to, and, for an access point, its type, order and
-entry. The entry is a `discrete_directed_point_type` (`geometry::DiscreteDirectedPoint`): the cell position and
+which is a `RelocatorTarget` or the id of the relocator it is bound to, and, for an access point, its type, order and
+placement. The placement is a `discrete_directed_point_type` (`geometry::DiscreteDirectedPoint`): the cell position and
 orientation given to an arriving actor. The layout's `access_points` are `Document::access_points`, a list of entity
-ids. The generator and every other file component are `raw_values_type`, nlohmann's `ordered_json`, as the file wrote
-them. A room is kept as the file identified it. `Notation` and its names are in a header of their own, `Notation.hpp`,
-which is the only format header that `stratum_sim`'s headers include, so nlohmann reaches only the files that read or
-write a document. A saved zone's `zone.id` is `Document::zone_id`, which makes every id in the file persistent; it is
+ids, and its optional `level` is `Document::level`. The generator and every other file component are `raw_values_type`, nlohmann's `ordered_json`, as the file wrote
+them. A room is kept as the file identified it.
+
+A `RelocatorTarget` is an unbound target, `[region/]zone[@position]`: an optional region, a zone that is a
+`RelativeZone` (an offset), an `AbsoluteZone` (a level), or a name, and an optional position. The region, a zone name,
+and the position are kept as written. `parse_relocator_target(text)` returns the target, or nothing if the text does
+not match the grammar, and `format_relocator_target(target)` writes it back as the same text. They and `level_type` are
+in `RelocatorTarget.hpp`. That header and `Notation.hpp`, which has `Notation` and its names, are the only format
+headers that `stratum_sim`'s headers include, so nlohmann reaches only the files that read or write a document. A saved zone's `zone.id` is `Document::zone_id`, which makes every id in the file persistent; it is
 empty in a zone template.
 
 `read` validates the file, throwing `std::runtime_error` with the path within the document and what was wrong there.
@@ -558,9 +610,11 @@ one, and no `parent` may lead back to its own entity. In a template, every refer
 zone's references may refer to another zone and are not checked. Each door glyph requires one entity with a child
 sited on each wall of its doorway and on no other wall. `layout.components.access_points` must refer to at least one
 entity with a `relocator` sited on a surface, and each relocator must have a `type`, an `order` counting from 0 among
-the access points of its type, and an `entry` on a cell an actor can stand in. The stair glyphs are visual aids, so a
-stair glyph with no `relocator` on the walls around it, or with a second one, and an access point on a wall that is not
-a stair cell's open side, are warnings. They are passed to `read`'s warning callback, `log_warning` by default, which
+the access points of its type, and a `placement` on a cell an actor can stand in. Each relocator's target must be a
+reference or a string that matches `[region/]zone[@position]`. The stair glyphs are visual aids, so a stair glyph with
+no `relocator` on the walls around it, or with a second one, and an access point on a wall that is neither a stair
+cell's open side nor a door's wall, are warnings. So is an access point whose relocator type is neither its entity's
+type nor its parent's, the parent being a door facing's door. They are passed to `read`'s warning callback, `log_warning` by default, which
 writes them to `std::clog`. Keys the format does not define are not tracked.
 
 `write` emits the written form: two-space indentation, a grid row per line, an entry per line with each of a flat's
@@ -745,7 +799,7 @@ Over another sweep with ranges of staircases each way, both check the written zo
 maximum, and a count leading up may fall short of its minimum only if no staircase leads down. Every floor cell must be
 reachable from every other with the stair blocks in place, except in maze1, which can leave corridor that no door
 reaches. No staircase may block a doorway if a cell beside it would not. Every staircase must be sited on exactly one
-of the walls around its block, leading `down` or `up` as its glyph indicates, and must open onto a side with floor
+of the walls around its block, with the target `-1` or `+1` as its glyph indicates, and must open onto a side with floor
 beyond, or a door if there is none. `access_points` must refer to every staircase. The suites take what the written
 zone does not record about a stair cell --- its surroundings in dungen, and which of its sides were open in catagen ---
 from the zone generated again. `catagen_test` also checks that every edge between a stair cell and floor is written as

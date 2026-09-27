@@ -47,15 +47,14 @@ void World::trim_zones(flecs::entity zone_entered);
 ## Session
 
 ```cpp
-void Session::create(const Generator& generator, flecs::entity access_type);
-void Session::load(const std::filesystem::path& filepath, flecs::entity access_type);
-void Session::enter(flecs::entity zone, flecs::entity access_type);
+void Session::create(flecs::entity region, const Generator& generator, flecs::entity access_type, level_type offset);
+void Session::load(flecs::entity region, const std::filesystem::path& filepath, flecs::entity access_type, level_type offset);
+void Session::enter(flecs::entity zone, flecs::entity access_type, level_type offset);
 void Session::set_driver(Driver driver, double units_per_second = Clock::units_per_second_default);
 ```
 
-- **`create` and `load`** call `World::create_zone` and `World::load_zone`, then `enter` the zone at the access point
-  type.
-- **`enter(zone, access_type)`** moves the player into the zone, then has the world `trim_zones`, so no unload can take
+- **`create` and `load`** call `World::create_zone` and `World::load_zone`, then `enter` the zone.
+- **`enter(zone, access_type, offset)`** moves the player into the zone, at its entry point, then has the world `trim_zones`, so no unload can take
   the player with it. It clears the pending command and rebuilds the turn order from the zone's actors, the player
   included.
 - **The driver is set separately,** not passed to every load.
@@ -66,22 +65,24 @@ void Session::set_driver(Driver driver, double units_per_second = Clock::units_p
 
 - **No zone file names an entry point.** It is chosen from among the access points.
 - **An access point is an entity with a relocator, sited on a surface:** a wall, the floor or the ceiling. Its type is
-  a registered entity --- up, down, waypoint, portal, or a type that a mod adds --- and its entry, the cell and
-  orientation at which an arriving actor is placed, is explicit in the file. The JSON is the source of truth; the stair
-  glyphs are visual aids, and a discrepancy between them is a warning.
+  a registered entity --- staircase, door, portal, waypoint, or a type that a mod adds --- and its placement, the cell
+  and orientation at which an arriving actor is placed, is explicit in the file. Whether it goes up, down, or across
+  is in its relocator's target. The JSON is the source of truth; the stair glyphs are visual aids, and a discrepancy between them is a warning.
 - **Each access point has an `order`,** given when it is created, counting from 0 within its type, so each type has its
   own 0.
-- **The entry point is the available access point of the desired type with the lowest `order`,** and any type is
-  allowed. Available means not already bound to a relocator elsewhere. With two staircases leading up, where up
-  staircase 0 was bound to the level above by an earlier arrival, an actor arriving from a different staircase leading
-  down above enters at up staircase 1.
-- **The library has no default type.** The caller passes one; for now each host passes `up` from a temporary constant
-  of its own, so the player enters at up staircase 0. A zone with no access point of the type is an error.
+- **The entry point is the available access point with the lowest `order` among those of the desired type whose
+  relocators target the desired level offset,** and any type is allowed. An actor arriving from another level wants the
+  offset that leads back. Available means not already bound to a relocator elsewhere. With
+  two staircases leading up, where the lower-ordered one was bound to the level above by an earlier arrival, an actor
+  arriving from a different staircase leading down above enters at the other.
+- **The library has no default type or offset.** The caller passes them; for now each host passes `staircase` and 1
+  from temporary constants of its own, so the player enters at the lowest-ordered staircase leading up. A zone with no
+  such access point is an error.
 - **A dungeon level has at least one staircase leading up,** its way out, so a generator's minimum count of staircases
   leading up is 1. A staircase leading down is optional: its probability is inversely proportional to how far below
   the surface the zone's level is and proportional to its `difficulty`, and is 1 for now (`region_plan.md`,
   `## Level`).
-- **`type`, `order` and `entry` are in the zone file format** within the current version (`discrete_layout.md`,
+- **`type`, `order` and `placement` are in the zone file format** within the current version (`discrete_layout.md`,
   `## layout`).
 
 ## Entering an access point
@@ -90,7 +91,8 @@ void Session::set_driver(Driver driver, double units_per_second = Clock::units_p
 - **An access point on the floor does not impede movement.** Its orientation, which is its site's, is used only for
   drawing, and a keystroke by an actor on its cell enters it.
 - **Entering an access point relocates the actor through its relocator,** to the zone that its target resolves to, at
-  that zone's entry point of the type at which the relocator's type arrives (`addressing_plan.md` step 8).
+  that zone's entry point of the type at which the relocator's type arrives that leads back (`addressing_plan.md`
+  step 8).
 - **In the wall notation every staircase is sited on a wall,** as a door is; a staircase on the floor belongs to the
   block notation.
 - **A staircase in a flat length of wall in the wall notation is the equivalent of one in a 1x1 alcove in the block
@@ -116,7 +118,7 @@ void Session::set_driver(Driver driver, double units_per_second = Clock::units_p
 - [ ] **4. Pre-populated zones.** The file's flag, and `load_zone` skipping `populate` if it is set, with the loader
       building every entity in the file (`discrete_layout_rework.md`), since the denizens a file places are entities in
       it.
-- [x] **5. The entry point.** A `type`, an `order` counted within each type, and an explicit `entry` on each access
+- [x] **5. The entry point.** A `type`, an `order` counted within each type, and an explicit `placement` on each access
       point, in the format, read by `stratum_format`, written by both generators, and in every zone file. Access points
       may be on any surface, and glyph discrepancies are warnings. Access point types are registered as entities with
       their arrivals. The generators' minimum count of staircases leading up is raised to 1, and a staircase leading

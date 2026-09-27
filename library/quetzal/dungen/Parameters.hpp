@@ -83,6 +83,9 @@ namespace quetzal::dungen
         Grid1Parameters grid1;
         Cave1Parameters cave1;
 
+        // The zone's level, written into the zone file if assigned
+        std::optional<level_type> level;
+
         // Empty until assigned; validate rejects an empty seed
         std::optional<seed_type> seed;
     };

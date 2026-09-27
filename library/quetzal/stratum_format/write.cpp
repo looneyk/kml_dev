@@ -499,9 +499,9 @@ namespace
             members.push_back(std::format("\"type\": {}", string_text(*relocator.type)));
         }
 
-        if (const auto* destination = std::get_if<std::string>(&relocator.target))
+        if (const auto* target = std::get_if<RelocatorTarget>(&relocator.target))
         {
-            members.push_back(std::format("\"target\": {}", string_text(*destination)));
+            members.push_back(std::format("\"target\": {}", string_text(format_relocator_target(*target))));
         }
         else
         {
@@ -513,10 +513,10 @@ namespace
             members.push_back(std::format("\"order\": {}", *relocator.order));
         }
 
-        if (relocator.entry.has_value())
+        if (relocator.placement.has_value())
         {
-            members.push_back(std::format("\"entry\": {}", object_text({std::format("\"cell_position\": {}", cell_position_text(relocator.entry->position())),
-                std::format("\"orientation\": {}", direction_text(relocator.entry->direction()))})));
+            members.push_back(std::format("\"placement\": {}", object_text({std::format("\"cell_position\": {}",
+                cell_position_text(relocator.placement->position())), std::format("\"orientation\": {}", direction_text(relocator.placement->direction()))})));
         }
 
         return object_text(members);
@@ -590,6 +590,11 @@ namespace
         }
 
         std::vector<std::string> components {std::format("\"access_points\": [ {} ]", joined(access_points))};
+        if (document.level.has_value())
+        {
+            components.push_back(std::format("\"level\": {}", *document.level));
+        }
+
         if (document.components.is_object())
         {
             for (const auto& [key, value] : document.components.items())

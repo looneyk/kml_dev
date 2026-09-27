@@ -22,6 +22,6 @@
     { "perimeter": [[2, 0], [4, 0], [4, 3], [2, 3]] }
   ],
   "entities": [
-    { "id": 1, "type": "waypoint", "components": { "site": { "relation": "on", "wall": { "cell_position": [1, 0], "normal": [1, 0] } }, "relocator": { "type": "up", "target": "up", "order": 0, "entry": { "cell_position": [1, 0], "orientation": [1, 0] } } } }
+    { "id": 1, "type": "staircase", "components": { "site": { "relation": "on", "wall": { "cell_position": [1, 0], "normal": [1, 0] } }, "relocator": { "type": "staircase", "target": "+1", "order": 0, "placement": { "cell_position": [1, 0], "orientation": [1, 0] } } } }
   ]
 }

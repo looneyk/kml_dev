@@ -15,6 +15,7 @@
 #include <iterator>
 #include <limits>
 #include <map>
+#include <optional>
 #include <set>
 #include <sstream>
 #include <stdexcept>
@@ -939,7 +940,15 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // The type, order, and entry that an access point's relocator requires are checked with the access points
+    // Returns the level if the layout's components have one
+    std::optional<level_type> read_level(const raw_values_type& components)
+    {
+        const raw_values_type* p = components.is_object() ? member(components, "level") : nullptr;
+        return p != nullptr ? std::optional<level_type>(coord_value(*p, "layout.components.level")) : std::nullopt;
+    }
+
+    //--------------------------------------------------------------------------
+    // The type, order, and placement that an access point's relocator requires are checked with the access points
     Relocator read_relocator(const raw_values_type& v, const std::string& path, const Cells& cells)
     {
         object(v, path);
@@ -950,7 +959,13 @@ namespace
         const raw_values_type& target = required_member(v, path, "target");
         if (target.is_string())
         {
-            relocator.target = target.get<std::string>();
+            std::optional<RelocatorTarget> parsed = parse_relocator_target(target.get<std::string>());
+            if (!parsed.has_value())
+            {
+                fail(target_path, "not a target written [region/]zone[@position]");
+            }
+
+            relocator.target = *parsed;
         }
         else if (std::optional<stored_entity_id_type> id = reference_id(target); id.has_value())
         {
@@ -958,7 +973,7 @@ namespace
         }
         else
         {
-            fail(target_path, "neither a destination nor a reference to an entity");
+            fail(target_path, "neither a target nor a reference to an entity");
         }
 
         if (const raw_values_type* p = member(v, "type"); p != nullptr)
@@ -976,17 +991,17 @@ namespace
             relocator.order = p->get<std::uint64_t>();
         }
 
-        if (const raw_values_type* p = member(v, "entry"); p != nullptr)
+        if (const raw_values_type* p = member(v, "placement"); p != nullptr)
         {
-            std::string entry_path = member_path(path, "entry");
-            object(*p, entry_path);
+            std::string placement_path = member_path(path, "placement");
+            object(*p, placement_path);
 
-            std::string cell_path = member_path(entry_path, "cell_position");
-            discrete_point_type cell_position = read_cell_position(required_member(*p, entry_path, "cell_position"), cell_path);
+            std::string cell_path = member_path(placement_path, "cell_position");
+            discrete_point_type cell_position = read_cell_position(required_member(*p, placement_path, "cell_position"), cell_path);
             check_on_grid(cells, cell_position, cell_path);
 
-            relocator.entry = discrete_directed_point_type(cell_position,
-                read_direction(required_member(*p, entry_path, "orientation"), member_path(entry_path, "orientation")));
+            relocator.placement = discrete_directed_point_type(cell_position,
+                read_direction(required_member(*p, placement_path, "orientation"), member_path(placement_path, "orientation")));
         }
 
         return relocator;
@@ -1442,9 +1457,10 @@ namespace
 
     //--------------------------------------------------------------------------
     // A zone has at least one access point. Each is an entity with a relocator, sited on a wall, the floor, or the ceiling.
-    // The relocator has a type; an order, counting from 0 without gaps among the access points of that type; and an entry,
-    // the cell and orientation at which an arriving actor is placed. An access point on a wall that is not the open side of
-    // a cell written '<' or '>' is a warning, since the glyphs are visual aids
+    // The relocator has a type; an order, counting from 0 without gaps among the access points of that type; and a
+    // placement, the cell and orientation at which an arriving actor is placed. An access point on a wall that is not the open side of
+    // a cell written '<' or '>' is a warning, since the glyphs are visual aids, and so is a relocator type that is neither the
+    // entity's type nor its parent's
     void check_access_points(const Document& document, const EntityIndex& index,
         const std::map<discrete_point_type, std::vector<WallAddress>>& stair_walls, const warn_type& warn)
     {
@@ -1456,6 +1472,15 @@ namespace
             for (const WallAddress& address : walls)
             {
                 open_sides.insert(wall_key(address));
+            }
+        }
+
+        std::set<wall_key_type> door_sides;
+        for (const auto& walls : door_walls(document.cells))
+        {
+            for (const WallAddress& address : walls)
+            {
+                door_sides.insert(wall_key(address));
             }
         }
 
@@ -1487,9 +1512,9 @@ namespace
             }
 
             const WallAddress* address = wall_address(entity);
-            if (address != nullptr && !open_sides.contains(wall_key(*address)))
+            if (address != nullptr && !open_sides.contains(wall_key(*address)) && !door_sides.contains(wall_key(*address)))
             {
-                warn(point_path, "an entity sited on a wall that is not the open side of a cell written '<' or '>'");
+                warn(point_path, "an entity sited on a wall that is neither the open side of a cell written '<' or '>' nor a door's wall");
             }
 
             std::string relocator_path = member_path(member_path(element_path("entities", slot->second), "components"), "relocator");
@@ -1499,21 +1524,30 @@ namespace
                 fail(member_path(relocator_path, "type"), "required and absent");
             }
 
+            // A door's access point is one of its door facings, so the relocator's type may be the parent's
+            auto parent_slot = entity.parent_id.has_value() ? index.slots_by_id.find(*entity.parent_id) : index.slots_by_id.end();
+            bool parent_type_matches = parent_slot != index.slots_by_id.end() && document.entities[parent_slot->second].type == *relocator.type;
+            if (*relocator.type != entity.type && !parent_type_matches)
+            {
+                warn(member_path(relocator_path, "type"), std::format("the type '{}' is neither its entity's type '{}' nor its parent's",
+                    *relocator.type, entity.type));
+            }
+
             std::string order_path = member_path(relocator_path, "order");
             if (!relocator.order.has_value())
             {
                 fail(order_path, "required and absent");
             }
 
-            std::string entry_path = member_path(relocator_path, "entry");
-            if (!relocator.entry.has_value())
+            std::string placement_path = member_path(relocator_path, "placement");
+            if (!relocator.placement.has_value())
             {
-                fail(entry_path, "required and absent");
+                fail(placement_path, "required and absent");
             }
 
-            if (!floor_door_cell(document.cells, relocator.entry->position()))
+            if (!floor_door_cell(document.cells, relocator.placement->position()))
             {
-                fail(member_path(entry_path, "cell_position"), "a cell an actor cannot stand in");
+                fail(member_path(placement_path, "cell_position"), "a cell an actor cannot stand in");
             }
 
             if (!orders[*relocator.type].emplace(*relocator.order, i).second)
@@ -1580,9 +1614,11 @@ namespace
         }
 
         document.access_points = read_access_points(document.components);
+        document.level = read_level(document.components);
         if (document.components.is_object())
         {
             document.components.erase("access_points");
+            document.components.erase("level");
         }
 
         document.cells = read_cells(required_member(v, "", "cells"), "cells");

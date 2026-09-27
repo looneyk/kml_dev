@@ -15,8 +15,9 @@ beside it. The two share no code.
 
 The generator writes a discrete layout file in the wall notation, through `stratum_format`; `discrete_layout.md` is
 the format. `generator.parameters` has the parameters of the run as the tokens their options take --- `extent`,
-`scale`, `spacing`, `density`, `loop`, `stairs_down`, `stairs_up` and `seed` --- so a file reproduces its own zone and
-its parameters read as a command line.
+`scale`, `spacing`, `density`, `loop`, `stairs_down`, `stairs_up`, `level` if one was given, and `seed` --- so a file
+reproduces its own zone and its parameters read as a command line. A level given is also written as the layout's
+`level`.
 
 The rows are `(2W+1)` by `(2H+1)` characters. Cell `(i, j)` is at `(2i+1, 2j+1)`, the edge west of it at `(2i, 2j+1)`,
 the edge south of it at `(2i+1, 2j)`, and corners at the positions that are even in both. The first row written is the
@@ -34,9 +35,9 @@ and floor, even where the generated wall is open, and none on its other edges. c
 
 Each door is a `door` entity with a `door_facing` child on each wall that `stratum_format::door_walls` finds for its
 glyph: the two sides of its edge. Each staircase is a `staircase` entity sited on the wall that the cell it opens onto
---- floor or a door --- has toward its block. Its `relocator` has a `type` and `target` of `down` or `up`; an `order`
-that counts from 0 among the staircases leading the same way, in the order they are written; and an `entry`, which is
-the floor its open side faces, facing away from it. `layout.components.access_points` refers to every staircase. Local
+--- floor or a door --- has toward its block. Its `relocator` has the `type` `staircase`; a `target` of `-1` or
+`+1`; an `order` that counts from 0 among all the staircases, in the order they are written; and a `placement`, which
+is the floor its open side faces, facing away from it. `layout.components.access_points` refers to every staircase. Local
 ids are assigned in the order the entities are written --- each door, then its door facings, and the staircases last
 --- so the same parameters give the same ids.
 
@@ -54,7 +55,8 @@ stored by the line they lie on, which includes the outermost lines: `wall_vertic
 wall of `(i + 1, j)` are the same wall. A new `Level` has no cell open and every wall solid.
 
 **`Parameters`** --- `extent`; `scale` and `spacing`, closed ranges of cells; `density`; `loop`;
-`staircase_down_count` and `staircase_up_count`, closed ranges of counts defaulting to 1-1; and `seed`, a
+`staircase_down_count` and `staircase_up_count`, closed ranges of counts defaulting to 1-1; an optional `level`; and
+`seed`, a
 `std::optional` that is empty until assigned. `validate` throws `std::invalid_argument` identifying the parameter at
 fault, including an unassigned seed, a count range whose maximum is below its minimum, and a staircase up count whose
 minimum is zero, since a dungeon level is entered and left by a staircase leading up. `random_seed()` draws a seed from
@@ -117,7 +119,7 @@ nothing before them changes.
 
 ```
 catagen [zone] [--extent nx,ny] [--scale min-max] [--spacing min-max] [--density d]
-             [--loop l] [--stairs-down min-max] [--stairs-up min-max] [--seed n] [--quiet]
+             [--loop l] [--stairs-down min-max] [--stairs-up min-max] [--level n] [--seed n] [--quiet]
 ```
 
 The tool writes the zone to the named file, `catagen.level` by default, and to standard output unless `--quiet` is

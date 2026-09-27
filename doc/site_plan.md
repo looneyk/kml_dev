@@ -127,7 +127,7 @@ void set_placement(flecs::entity e, const placement_type& placement);
   { "id": 1, "type": "door", "components": { "material": "oak", "open": false } },
   { "id": 2, "type": "door_facing", "components": { "parent": { "entity": 1 }, "site": { "relation": "on", "wall": { "cell_position": [1, 1], "normal": [-1, 0] } } } },
   { "id": 3, "type": "door_facing", "components": { "parent": { "entity": 1 }, "site": { "relation": "on", "wall": { "cell_position": [2, 1], "normal": [1, 0] } }, "concealed": true } },
-  { "id": 4, "type": "staircase", "components": { "site": { "relation": "on", "wall": { "cell_position": [3, 1], "normal": [0, -1] } }, "relocator": { "target": "down" } } },
+  { "id": 4, "type": "staircase", "components": { "site": { "relation": "on", "wall": { "cell_position": [3, 1], "normal": [0, -1] } }, "relocator": { "target": "-1" } } },
   { "id": 5, "type": "chest", "components": { "site": { "relation": "on", "flat": "floor", "cell_position": [0, 2], "orientation": [1, 0] } } },
   { "id": 6, "type": "key", "components": { "parent": { "entity": 5 }, "site": { "relation": "in" }, "opens": { "entity": 1 } } },
   { "id": 7, "type": "table", "components": { "site": { "relation": "on", "flat": "floor", "cell_position": [4, 2], "orientation": [0, 1] } } },

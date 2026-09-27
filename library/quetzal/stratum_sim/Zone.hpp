@@ -7,20 +7,28 @@
 
 #include "Layout.hpp"
 #include "Site.hpp"
+#include "types.hpp"
 #include "quetzal/common/id.hpp"
 #include "quetzal/stratum_format/Notation.hpp"
 #include <flecs.h>
 #include <compare>
 #include <map>
 #include <memory>
-#include <tuple>
 #include <type_traits>
+#include <utility>
 
 namespace quetzal::stratum_sim
 {
 
     //--------------------------------------------------------------------------
-    struct Zone // Tag, an independently loadable area
+    // Tag for an independently loadable area
+    struct Zone
+    {
+    };
+
+    //--------------------------------------------------------------------------
+    // Tag for a group of contiguous and/or interconnected zones
+    struct Region
     {
     };
 
@@ -39,8 +47,14 @@ namespace quetzal::stratum_sim
     };
 
     //--------------------------------------------------------------------------
-    // Exclusive relationship from an entity owned by the game, which has no parent, to the zone it is in. Flecs removes it
-    // when the zone is deleted
+    // The zone's level, a label used when making connections between zones; nothing is looked up by it
+    struct ZoneLevel
+    {
+        level_type level = 0;
+    };
+
+    //--------------------------------------------------------------------------
+    // Exclusive relationship for a top level entity that is not otherwise part of a zone
     struct InZone
     {
     };
@@ -78,32 +92,30 @@ namespace quetzal::stratum_sim
     };
 
     //--------------------------------------------------------------------------
-    // The address types of the parts of a layout that can have an entity of their own. The entity has its address as a
-    // component, by which it is found, and has no persistent id
-    using layout_addresses_type = std::tuple<RoomAddress, WallAddress, FlatAddress, FlatRoomAddress, FlatCellAddress>;
+    // Tag for the entity of a part of a layout: a room, a wall, a flat, a flat's override for a room, or a flat cell. The
+    // entity has its address as a component, by which it is found, and has no persistent id
+    struct LayoutEntity
+    {
+    };
 
-    // Calls f with std::type_identity<Address> for each Address of layout_addresses_type
+    //--------------------------------------------------------------------------
+    // The zone's layout entities of one address type
+    template<typename Address>
+    struct AddressIndex
+    {
+        std::map<Address, flecs::entity> entities; // <address, entity>
+    };
+
+    //--------------------------------------------------------------------------
+    // Calls f with std::type_identity<Address> for each address type of the parts of a layout that can have an entity of their own
     template<typename F>
     void for_each_layout_address(F&& f);
 
     namespace detail
     {
-        template<typename Addresses>
-        struct address_entities;
-
-        template<typename... Addresses>
-        struct address_entities<std::tuple<Addresses...>>
-        {
-            using type = std::tuple<std::map<Addresses, flecs::entity>...>;
-        };
+        template<typename... Types, typename F>
+        void for_each_type(F&& f);
     }
-
-    //--------------------------------------------------------------------------
-    // The zone's layout entities, by address
-    struct ZoneAddressIndex
-    {
-        detail::address_entities<layout_addresses_type>::type entities; // <address, entity>, one map for each address type
-    };
 
 } // namespace quetzal::stratum_sim
 
@@ -118,11 +130,15 @@ decltype(auto) quetzal::stratum_sim::with_in_zone(Builder&& builder, flecs::enti
 template<typename F>
 void quetzal::stratum_sim::for_each_layout_address(F&& f)
 {
-    [&]<typename... Addresses>(std::type_identity<std::tuple<Addresses...>>)
-    {
-        (f(std::type_identity<Addresses>()), ...);
-    }(std::type_identity<layout_addresses_type>());
+    detail::for_each_type<RoomAddress, WallAddress, FlatAddress, FlatRoomAddress, FlatCellAddress>(std::forward<F>(f));
+    return;
+}
 
+//------------------------------------------------------------------------------
+template<typename... Types, typename F>
+void quetzal::stratum_sim::detail::for_each_type(F&& f)
+{
+    (f(std::type_identity<Types>()), ...);
     return;
 }
 

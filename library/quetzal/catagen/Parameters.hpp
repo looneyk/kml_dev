@@ -38,6 +38,9 @@ namespace quetzal::catagen
         math::Interval<size_t> staircase_down_count {1, 1};
         math::Interval<size_t> staircase_up_count {1, 1};
 
+        // The zone's level, written into the zone file if assigned
+        std::optional<level_type> level;
+
         // Empty until assigned; validate rejects an empty seed
         std::optional<seed_type> seed;
     };

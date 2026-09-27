@@ -11,6 +11,7 @@
 #include "quetzal/stratum_format/grid.hpp"
 #include "quetzal/stratum_format/read.hpp"
 #include "quetzal/stratum_format/references.hpp"
+#include "quetzal/stratum_format/RelocatorTarget.hpp"
 #include <nlohmann/json.hpp>
 #include <algorithm>
 #include <charconv>
@@ -260,6 +261,11 @@ namespace
         parameters.staircase_up_count = to_count_interval(take("stairs_up"));
         parameters.seed = math::to_seed(take("seed"));
 
+        if (values.contains("level"))
+        {
+            parameters.level = to_integer(take("level"));
+        }
+
         string size = take("size");
         size_t n = size.find(',');
         parameters.size = {to_integer(size.substr(0, n)), to_integer(size.substr(n + 1))};
@@ -441,6 +447,15 @@ namespace
         }
 
         report_case("a parameter this does not read is rejected", rejected);
+
+        // A level, when given, is written into the layout and the parameters both
+        dungen::Parameters leveled = scenarios().front().parameters;
+        leveled.level = -2;
+        stratum_format::Document leveled_document = document_of(zone_text(leveled));
+
+        report_case("a zone given a level has it in its layout", leveled_document.level == -2);
+        report_case("and in its parameters, from which it regenerates",
+            parameters_of(leveled_document.generator).level == -2 && document_of(zone_text(scenarios().front().parameters)).level == nullopt);
 
         return;
     }
@@ -1078,10 +1093,10 @@ namespace
 
                     open_sides.push_back(address->normal);
 
-                    string target = glyph(cell_position) == '>' ? "down" : "up";
-                    if (const auto* destination = get_if<string>(&entity.relocator->target); destination == nullptr || *destination != target)
+                    stratum_format::RelocatorTarget target {nullopt, stratum_format::RelativeZone {glyph(cell_position) == '>' ? -1 : 1}, nullopt};
+                    if (const auto* unbound = get_if<stratum_format::RelocatorTarget>(&entity.relocator->target); unbound == nullptr || *unbound != target)
                     {
-                        detail = format("staircase at {}, {} does not lead to {}", i, j, target);
+                        detail = format("staircase at {}, {} does not have the target {}", i, j, stratum_format::format_relocator_target(target));
                         return false;
                     }
                 }

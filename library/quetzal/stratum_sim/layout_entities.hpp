@@ -10,8 +10,6 @@
 #include "types.hpp"
 #include "quetzal/common/id.hpp"
 #include <flecs.h>
-#include <map>
-#include <tuple>
 #include <cassert>
 
 namespace quetzal::stratum_sim
@@ -26,12 +24,9 @@ namespace quetzal::stratum_sim
     template<typename Address>
     flecs::entity ensure_layout_entity(flecs::entity zone, const Address& address);
 
-    // Removes an entity that is being deleted from its zone's ZoneAddressIndex
+    // Removes an entity that is being deleted from its zone's AddressIndex
     template<typename Address>
     void erase_layout_entity(flecs::entity zone, const Address& address);
-
-    // Returns true if the entity has an address of one of the types in layout_addresses_type
-    bool is_layout_entity(flecs::entity e);
 
     //--------------------------------------------------------------------------
     flecs::entity room_entity(flecs::entity zone, id_type room_id);
@@ -64,15 +59,14 @@ flecs::entity quetzal::stratum_sim::layout_entity(flecs::entity zone, const Addr
 {
     assert(zone && zone.has<Zone>());
 
-    const auto* index = zone.try_get<ZoneAddressIndex>();
+    const auto* index = zone.try_get<AddressIndex<Address>>();
     if (index == nullptr)
     {
         return flecs::entity();
     }
 
-    const auto& entities = std::get<std::map<Address, flecs::entity>>(index->entities);
-    auto i = entities.find(address);
-    return i != entities.end() ? i->second : flecs::entity();
+    auto i = index->entities.find(address);
+    return i != index->entities.end() ? i->second : flecs::entity();
 }
 
 //------------------------------------------------------------------------------
@@ -84,9 +78,9 @@ flecs::entity quetzal::stratum_sim::ensure_layout_entity(flecs::entity zone, con
         return e;
     }
 
-    flecs::entity e = zone.world().entity().set<Address>(address);
+    flecs::entity e = zone.world().entity().add<LayoutEntity>().set<Address>(address);
     set_parent(e, detail::layout_parent(zone, address));
-    std::get<std::map<Address, flecs::entity>>(zone.ensure<ZoneAddressIndex>().entities).emplace(address, e);
+    zone.ensure<AddressIndex<Address>>().entities.emplace(address, e);
 
     return e;
 }
@@ -97,7 +91,7 @@ void quetzal::stratum_sim::erase_layout_entity(flecs::entity zone, const Address
 {
     assert(zone && zone.has<Zone>());
 
-    std::get<std::map<Address, flecs::entity>>(zone.ensure<ZoneAddressIndex>().entities).erase(address);
+    zone.ensure<AddressIndex<Address>>().entities.erase(address);
     return;
 }
 

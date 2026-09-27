@@ -12,6 +12,7 @@
 #include "quetzal/stratum_format/grid.hpp"
 #include "quetzal/stratum_format/read.hpp"
 #include "quetzal/stratum_format/references.hpp"
+#include "quetzal/stratum_format/RelocatorTarget.hpp"
 #include <nlohmann/json.hpp>
 #include <algorithm>
 #include <charconv>
@@ -238,6 +239,11 @@ namespace
 
         parameters.seed = math::to_seed(take("seed"));
 
+        if (values.contains("level"))
+        {
+            parameters.level = to_integer(take("level"));
+        }
+
         if (!values.empty())
         {
             throw invalid_argument(format("the zone file specifies {}, which this does not read", values.begin()->first));
@@ -374,6 +380,15 @@ namespace
         }
 
         report_case("a parameter this does not read is rejected", rejected);
+
+        // A level, when given, is written into the layout and the parameters both
+        catagen::Parameters leveled = scenarios().front().parameters;
+        leveled.level = 1;
+        stratum_format::Document leveled_document = document_of(zone_text(leveled));
+
+        report_case("a zone given a level has it in its layout", leveled_document.level == 1);
+        report_case("and in its parameters, from which it regenerates",
+            parameters_of(leveled_document.generator).level == 1 && document_of(zone_text(scenarios().front().parameters)).level == nullopt);
 
         return;
     }
@@ -770,10 +785,10 @@ namespace
 
                     open_sides.push_back(address->normal);
 
-                    string target = cell_glyph(cell_position) == '>' ? "down" : "up";
-                    if (const auto* destination = get_if<string>(&entity.relocator->target); destination == nullptr || *destination != target)
+                    stratum_format::RelocatorTarget target {nullopt, stratum_format::RelativeZone {cell_glyph(cell_position) == '>' ? -1 : 1}, nullopt};
+                    if (const auto* unbound = get_if<stratum_format::RelocatorTarget>(&entity.relocator->target); unbound == nullptr || *unbound != target)
                     {
-                        detail = format("staircase at {}, {} does not lead to {}", i, j, target);
+                        detail = format("staircase at {}, {} does not have the target {}", i, j, stratum_format::format_relocator_target(target));
                         return false;
                     }
                 }

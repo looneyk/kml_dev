@@ -30,20 +30,14 @@ namespace quetzal::stratum_sim
 
         Session& operator=(const Session&) = delete;
 
-        // Has the world generate a zone, and enters it at the access point type
-        // Throws std::runtime_error when the zone has no access point of the type, the player staying where it was
-        void create(const Generator& generator, flecs::entity access_type);
+        // Generate a zone in the region
+        void create(flecs::entity region, const Generator& generator, flecs::entity access_type, level_type offset);
 
-        // Load a zone file.
-        // We need two versions of this, one for pre-generated zones which have geometry and entities, but need to be populated,
-        // and another for saved zones which include the last population placement.
-        // Split this or otherwise support conditional populating ...
-        void load(const std::filesystem::path& filepath, flecs::entity access_type);
+        void load(flecs::entity region, const std::filesystem::path& filepath, flecs::entity access_type, level_type offset);
 
-        // Moves the player to the entry of the zone's entry point of the access point type, and makes it the zone being
-        // played, with its actors as the turn order. The world then trims its zones
-        // Throws std::runtime_error when the zone has no access point of the type, the player staying where it was
-        void enter(flecs::entity zone, flecs::entity access_type);
+        // Moves the player to the placement of the zone's entry_point for the access point type and level offset, and makes
+        // it the zone being played. Throws std::runtime_error when the zone has no such entry point
+        void enter(flecs::entity zone, flecs::entity access_type, level_type offset);
 
         void set_driver(Driver driver, double units_per_second = Clock::units_per_second_default);
 

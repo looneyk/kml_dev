@@ -24,11 +24,10 @@ between zones needs.
 These are the remaining steps in the order they are built, each building on the ones before it. A step leaves this
 list when it is done.
 
-1. **`region_plan.md` steps 1 to 4,** regions and levels, which an unbound relocator's level offset is resolved against.
-2. **`addressing_plan.md` step 8,** relocating through a relocator.
-3. **`session_plan.md` step 6,** entering an access point.
-4. **Stage 7, a zone added to the world when it is encountered.**
-5. **`addressing_plan.md` step 7,** saved zones and the reset to a save point, with the rest of stage 7.
+1. **`addressing_plan.md` step 8,** relocating through a relocator.
+2. **`session_plan.md` step 6,** entering an access point.
+3. **Stage 7, a zone added to the world when it is encountered.**
+4. **`addressing_plan.md` step 7,** saved zones and the reset to a save point, with the rest of stage 7.
 
 Outside that order:
 
@@ -40,6 +39,8 @@ Outside that order:
 - **At any time:** the generators on `geometry::DiscreteDirectedPoint`. dungen's `Staircase` has a
   `directed_point_type` and still has the separate `position` and `direction` accessors. catagen stores a staircase as a cell type and a map from cell position to facing direction, which a list of
   directed points would replace.
+- **At any time, best before `addressing_plan.md` step 8:** `random_engine.md` step 1, the gameplay engine.
+  Steps 2 and 3 come with integrating the generators, and step 4 with `addressing_plan.md` step 7.
 - **Later:** unloading by region and region files (`## Regions`), and `modding_plan.md` steps 3 to 7, which are
   Phase 4.
 
@@ -58,8 +59,10 @@ There is one box per plan that has steps of its own, checked when every step is 
       loading, populating and unloading zones; `Session` entering them and keeping the state of play; each zone's
       entry point, the lowest-ordered staircase leading up; and entering an access point on a wall or the floor. 7
       steps, steps 1 to 3 and 5 done.
-- [ ] [`region_plan.md`](region_plan.md) --- regions: the region entity with its parent region, a zone's level, an
-      unbound relocator's level offset, and finding or making the zone at an offset. 4 steps, none started.
+- [x] [`region_plan.md`](region_plan.md) --- regions: the region entity with its parent region, a zone's level, an
+      unbound relocator's level offset, finding or making the zone at an offset, and relocator targets as strings.
+- [ ] [`random_engine.md`](random_engine.md) --- random numbers: `StratumGame`'s gameplay and generation engines, zone
+      seeds, generation runs that own their engines, and saving the engines' state. 4 steps, none started.
 - [ ] [`placement_plan.md`](placement_plan.md) --- what fills a zone: sites, selection, distribution, acceptance and
       emission. 4 steps, none started.
 - [x] [`intent_plan.md`](intent_plan.md) --- stage 2, intent and the schedule.
@@ -186,18 +189,17 @@ saved zones, and the zone actor index.
 
 ## Regions
 
-**Next.** A `Region` groups contiguous zones: a surface area, a dungeon, a crypt, a tower or a house. It is data, an
-entity with a parent region that is its zones' parent, and it determines which zones unload first (`sim_zone_model.md`,
-`## World, Zones, and Levels`). `region_plan.md` has the design of the region entity, a zone's level, and resolving
-an unbound relocator's level offset, and the open questions are under `Open`, `### Regions`.
+A `Region` groups contiguous zones: a surface area, a dungeon, a crypt, a tower or a house. It is data, an entity with a
+parent region that is its zones' parent, and it determines which zones unload first (`sim_zone_model.md`,
+`## World, Zones, and Levels`). The region entity, a zone's level, and resolving an unbound relocator's level offset are
+built, and so are relocator targets as strings (`region_plan.md`). The open questions are under `Open`, `### Regions`.
 
 - [x] **"Region" out of catagen,** first. Its pipeline is rectangles, the rooms kept among them, and areas, each a room
       or a run of corridor, which walls separate and doors join. dungen's cave1 keeps "the largest connected region",
       which is harmless; `roguelike_survey.md` uses the word in its general sense, and `texture_region_size` is Godot's
       own name.
-- [ ] **`Region`,** an entity with its properties as components and a parent region, and the parent of its zones in
-      place of the root. The properties are a name and, for a dungeon, the overall or starting difficulty and the other
-      properties a whole dungeon has. Boxed under Plans as [`region_plan.md`](region_plan.md).
+- [ ] **A region's properties** as components: a name and, for a dungeon, the overall or starting difficulty and the
+      other properties a whole dungeon has.
 - [ ] **Transparent zone and region boundaries.** Contiguous zones joined edge to edge, so an actor walks from one zone
       into the next, across region boundaries too. Until then, zones connect only through relocators: waypoints, and
       dungeons with more than one entrance.
@@ -206,6 +208,10 @@ an unbound relocator's level offset, and the open questions are under `Open`, `#
 - [ ] **Unloading by region.** Criteria for `World::trim_zones` that choose the zones of other regions first, those
       left longest ago first, as `ZoneEntryIndex` does, and then those of the player's region, farthest first.
 - [ ] **Region files.**
+- [ ] **The pregenerated content index** (`region_plan.md`, `## Pregenerated content`): built at game start by
+      scanning `assets/zones`, or read from an index file built in the background, listing each zone or region tag with
+      its zone data file and the names of its relocators; `layout.components.name` as a zone's tag; a `name` in the
+      `relocator` component; and relocator targets with a named zone, a named region, or a position resolved through it.
 
 ## Done ahead of the plan
 
@@ -363,6 +369,20 @@ These are the questions that stages left behind.
 - **Where moving down looks, and where it makes a zone.** `region_plan.md` has moving down look for an unbound
   relocator and make a zone only in its own region; whether a hole from a surface zone at level 0 finds or makes its
   zone in a child region, and which one, is not settled.
+- **How a relocator between surface zones states where it leads.** It leads neither up nor down, so a level offset of 0
+  may be enough, or it may need a horizontal distance or direction instead.
+- **What the pregenerated content index file contains** (`region_plan.md`, `## Pregenerated content`).
+
+### Random engine
+
+- **Which engine** (`random_engine.md`, `## The engine type`): `std::mt19937_64`, xoshiro256**, PCG, or jsf64.
+  xoshiro256** is recommended.
+- **Whether reloading a save repeats the same outcomes** (`random_engine.md`, `## Saving`). Restoring the engines'
+  state repeats them; reseeding on load lets a player reload until a roll succeeds.
+- **Whether players get reproducible games from a shared seed.** It needs each zone's seed derived from the world seed
+  and the zone's place instead of drawn, so that a world seed builds the same world however it is explored.
+- **Whether checked-in reference files must match across standard libraries.** The standard distributions are
+  implementation-defined, so matching needs integer and real distributions of the project's own.
 
 ### Session
 

@@ -21,7 +21,8 @@ namespace
     static constexpr char key_redraw = '\x0c'; // Ctrl-L, as curses and the roguelikes bind it
 
     // Temporary: the zone loaded is entered at its lowest-ordered staircase leading up
-    static constexpr auto entry_access_type = "up";
+    static constexpr auto entry_access_type = "staircase";
+    static constexpr stratum_sim::level_type entry_level_offset = 1;
 
     //--------------------------------------------------------------------------
     std::string name_of(const stratum_sim::vector_type& direction)
@@ -50,7 +51,8 @@ stratum_terminal::Application::Application(const std::string& filepath_zone, Vie
     m_script_slot(0),
     m_running(true)
 {
-    m_session.load(filepath_zone, stratum_sim::access_type(m_stratum_game.world().entities(), entry_access_type));
+    m_session.load(m_stratum_game.starting_region(), filepath_zone, stratum_sim::access_type(m_stratum_game.world().entities(), entry_access_type),
+        entry_level_offset);
 
     if (m_view == View::Null)
     {

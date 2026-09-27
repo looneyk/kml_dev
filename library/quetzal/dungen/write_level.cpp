@@ -112,6 +112,11 @@ namespace
                 assert(false);
         }
 
+        if (parameters.level.has_value())
+        {
+            values["level"] = token(*parameters.level);
+        }
+
         values["seed"] = token(parameters.seed.value());
         return {{"name", "dungen"}, {"parameters", values}};
     }
@@ -156,6 +161,7 @@ void quetzal::dungen::write_level(ostream& os, const Level& level, const Paramet
 
     stratum_format::Document document;
     document.generator = generator(level, parameters);
+    document.level = parameters.level;
     document.cells.notation = stratum_format::Notation::Block;
     document.cells.extent = level.size();
 
@@ -235,8 +241,7 @@ void quetzal::dungen::write_level(ostream& os, const Level& level, const Paramet
         }
     }
 
-    size_t down_count = 0;
-    size_t up_count = 0;
+    size_t staircase_count = 0;
 
     for (const auto& staircase : level.staircases())
     {
@@ -244,11 +249,9 @@ void quetzal::dungen::write_level(ostream& os, const Level& level, const Paramet
         const vector_type& open_side = staircase.direction();
         stratum_format::WallAddress address {staircase.position() + open_side, open_side};
 
-        // Ordered among the staircases leading the same way
-        bool down = staircase.rise() == Rise::Down;
-
         // An arriving actor is placed on the floor it opens onto, facing away from it
-        stratum_format::Relocator relocator {down ? "down" : "up", down ? "down" : "up", down ? down_count++ : up_count++,
+        stratum_format::RelocatorTarget target {std::nullopt, stratum_format::RelativeZone {staircase.rise() == Rise::Down ? -1 : 1}, std::nullopt};
+        stratum_format::Relocator relocator {target, "staircase", staircase_count++,
             stratum_format::discrete_directed_point_type(address.cell_position, open_side)};
 
         document.access_points.push_back(++id);

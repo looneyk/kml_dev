@@ -159,10 +159,17 @@ void quetzal::catagen::write_level(ostream& os, const Level& level, const Parame
     values["loop"] = token(parameters.loop);
     values["stairs_down"] = interval_token(parameters.staircase_down_count);
     values["stairs_up"] = interval_token(parameters.staircase_up_count);
+
+    if (parameters.level.has_value())
+    {
+        values["level"] = token(*parameters.level);
+    }
+
     values["seed"] = token(parameters.seed.value());
 
     stratum_format::Document document;
     document.generator = {{"name", "catagen"}, {"parameters", values}};
+    document.level = parameters.level;
     document.cells.notation = stratum_format::Notation::Wall;
     document.cells.extent = level.extent();
     document.cells.rows = rows(level);
@@ -183,8 +190,7 @@ void quetzal::catagen::write_level(ostream& os, const Level& level, const Parame
         }
     }
 
-    size_t down_count = 0;
-    size_t up_count = 0;
+    size_t staircase_count = 0;
 
     for (coord_type j = 0; j < level.extent().j(); ++j)
     {
@@ -202,11 +208,9 @@ void quetzal::catagen::write_level(ostream& os, const Level& level, const Parame
             const vector_type& direction = cardinal_direction(*open_side);
             stratum_format::WallAddress address {point_type {i, j} + direction, direction};
 
-            // Ordered among the staircases leading the same way
-            bool down = type == CellType::StairsDown;
-
             // An arriving actor is placed on the floor it opens onto, facing away from it
-            stratum_format::Relocator relocator {down ? "down" : "up", down ? "down" : "up", down ? down_count++ : up_count++,
+            stratum_format::RelocatorTarget target {std::nullopt, stratum_format::RelativeZone {type == CellType::StairsDown ? -1 : 1}, std::nullopt};
+            stratum_format::Relocator relocator {target, "staircase", staircase_count++,
                 stratum_format::discrete_directed_point_type(address.cell_position, direction)};
 
             document.access_points.push_back(++id);

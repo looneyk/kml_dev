@@ -3,12 +3,14 @@ add_library(quetzal_stratum_format STATIC
     grid.cpp
     read.cpp
     references.cpp
+    RelocatorTarget.cpp
     write.cpp
     Document.hpp
     Notation.hpp
     grid.hpp
     read.hpp
     references.hpp
+    RelocatorTarget.hpp
     types.hpp
     write.hpp
 )

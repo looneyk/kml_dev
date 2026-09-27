@@ -211,7 +211,7 @@ what the file component means.
   { "id": 5, "type": "lever", "components": { "site": { "relation": "on", "wall": { "cell_position": [1, 2], "normal": [0, -1] }, "position": [0.5, 1.2] }, "controls": { "entity": 1 } } },
   { "id": 6, "type": "chest", "components": { "site": { "relation": "on", "flat": "floor", "cell_position": [0, 2] } } },
   { "id": 7, "type": "key", "components": { "parent": { "entity": 6 }, "site": { "relation": "in" }, "lock": "vault" } },
-  { "id": 8, "type": "staircase", "components": { "site": { "relation": "on", "wall": { "cell_position": [3, 1], "normal": [0, -1] } }, "relocator": { "target": "down" } } }
+  { "id": 8, "type": "staircase", "components": { "site": { "relation": "on", "wall": { "cell_position": [3, 1], "normal": [0, -1] } }, "relocator": { "target": "-1" } } }
 ]
 ```
 
@@ -223,8 +223,8 @@ glyphs require.
 A relocator is the component of an entity, such as a staircase, a portal or a waypoint, that moves an
 actor (`discrete_layout.md`, `### A relocator's target`). Its target is one of two kinds:
 
-- **Unbound:** a destination, such as `down`, the surface town, or a place a quest specifies.
-  Every relocator in a template is unbound.
+- **Unbound:** a string, `[region/]zone[@position]`, such as `-1` for the next level down, `=0` for level 0, or
+  `town/market@fountain` for a place in pregenerated content. Every relocator in a template is unbound.
 - **Bound:** a reference to the relocator it arrives at. A relocator becomes bound when it is first gone
   through, and both relocators are then bound to each other. Bound targets appear only in saved zones.
 

@@ -62,7 +62,7 @@
     { "id": 22, "type": "door" },
     { "id": 23, "type": "door_facing", "components": { "parent": { "entity": 22 }, "site": { "relation": "on", "wall": { "cell_position": [17, 8], "normal": [-1, 0] } } } },
     { "id": 24, "type": "door_facing", "components": { "parent": { "entity": 22 }, "site": { "relation": "on", "wall": { "cell_position": [18, 8], "normal": [1, 0] } } } },
-    { "id": 25, "type": "staircase", "components": { "site": { "relation": "on", "wall": { "cell_position": [2, 2], "normal": [0, 1] } }, "relocator": { "type": "up", "target": "up", "order": 0, "entry": { "cell_position": [2, 2], "orientation": [0, 1] } } } },
-    { "id": 26, "type": "staircase", "components": { "site": { "relation": "on", "wall": { "cell_position": [19, 9], "normal": [0, 1] } }, "relocator": { "type": "down", "target": "down", "order": 0, "entry": { "cell_position": [19, 9], "orientation": [0, 1] } } } }
+    { "id": 25, "type": "staircase", "components": { "site": { "relation": "on", "wall": { "cell_position": [2, 2], "normal": [0, 1] } }, "relocator": { "type": "staircase", "target": "+1", "order": 0, "placement": { "cell_position": [2, 2], "orientation": [0, 1] } } } },
+    { "id": 26, "type": "staircase", "components": { "site": { "relation": "on", "wall": { "cell_position": [19, 9], "normal": [0, 1] } }, "relocator": { "type": "staircase", "target": "-1", "order": 1, "placement": { "cell_position": [19, 9], "orientation": [0, 1] } } } }
   ]
 }

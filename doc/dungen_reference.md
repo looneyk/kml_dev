@@ -14,7 +14,8 @@ property of the edge between two cells. The two share no code.
 
 The generator writes a discrete layout file in the block notation, through `stratum_format`; `discrete_layout.md` is
 the format. `generator.parameters` has the parameters of the run as the tokens their options take: the ones every
-algorithm shares, then the chosen algorithm's group, then the seed, so the file reproduces the zone exactly.
+algorithm shares, then the chosen algorithm's group, then the level if one was given, then the seed, so the file
+reproduces the zone exactly. A level given is also written as the layout's `level`.
 
 There is one glyph per cell:
 
@@ -36,8 +37,9 @@ notation without anything written, and it is part of no room.
 
 Each door is a `door` entity with a `door_facing` child on each wall that `stratum_format::door_walls` finds for its
 glyph. Each staircase is a `staircase` entity sited on the wall that the cell it opens onto has toward its block. Its
-`relocator` has a `type` and `target` of `down` or `up`; an `order` that counts from 0 among the staircases leading the
-same way, in the order they are written; and an `entry`, which is the floor its open side faces, facing away from it.
+`relocator` has the `type` `staircase`; a `target` of `-1` or `+1`; an `order` that counts from 0 among all the
+staircases, in the order they are written; and a `placement`, which is the floor its open side faces, facing away from
+it.
 `layout.components.access_points` refers to every staircase. Local ids are assigned in the order the entities are
 written --- each door, then its door facings, and the staircases last --- so the same parameters give the same ids.
 
@@ -59,7 +61,8 @@ Generation:
 
 - `Algorithm` --- `Maze1`, `Grid1` and `Cave1`, with `to_string` and `to_algorithm` for the command line and the zone
   file's parameters.
-- `Parameters` --- `algorithm`, `size`, `staircase_down_count`, `staircase_up_count` and `seed` in common, then one
+- `Parameters` --- `algorithm`, `size`, `staircase_down_count`, `staircase_up_count`, an optional `level`, and `seed`
+  in common, then one
   group per algorithm: `Maze1Parameters`, `Grid1Parameters` and `Cave1Parameters`. `validate` checks the shared fields
   and the chosen algorithm's group, and `random_seed` draws a seed from the platform. The staircase counts are closed
   ranges of `size_t`, 1-1 by default. `validate` rejects one whose maximum is below its minimum, and a staircase up
@@ -145,7 +148,7 @@ to `std::clog`.
 
 ```
 dungen [zone] [--algorithm maze1|grid1|cave1] [--size nx,ny]
-            [--stairs-down min-max] [--stairs-up min-max] [--room-density d] [--door-probability p] [--seed n]
+            [--stairs-down min-max] [--stairs-up min-max] [--room-density d] [--door-probability p] [--level n] [--seed n]
   maze1: [--room-dimension-base n] [--room-dimension-variation n] [--room-merge]
          [--corridor-straightness s] [--probability-dead-end-removal p]
          [--probability-loop-removal p]

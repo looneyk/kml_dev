@@ -97,7 +97,7 @@ namespace
     void usage(ostream& os)
     {
         os << "Usage: dungen [zone] [--algorithm maze1|grid1|cave1] [--size nx,ny]"
-            << " [--stairs-down min-max] [--stairs-up min-max] [--room-density d] [--door-probability p] [--seed n]" << endl;
+            << " [--stairs-down min-max] [--stairs-up min-max] [--room-density d] [--door-probability p] [--level n] [--seed n]" << endl;
         os << "  maze1: [--room-dimension-base n] [--room-dimension-variation n] [--room-merge]"
             << " [--corridor-straightness s] [--probability-dead-end-removal p]"
             << " [--probability-loop-removal p]" << endl;
@@ -204,6 +204,10 @@ int main(int argc, char* argv[])
             else if (arg == "--survival-threshold" && i + 1 < argc)
             {
                 parameters.cave1.survival_threshold = to_count(argv[++i]);
+            }
+            else if (arg == "--level" && i + 1 < argc)
+            {
+                parameters.level = to_integer(argv[++i]);
             }
             else if (arg == "--seed" && i + 1 < argc)
             {

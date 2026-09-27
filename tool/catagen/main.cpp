@@ -99,7 +99,7 @@ namespace
     void usage(ostream& os)
     {
         os << "Usage: catagen [zone] [--extent nx,ny] [--scale min-max] [--spacing min-max]"
-            << " [--density d] [--loop l] [--stairs-down min-max] [--stairs-up min-max] [--seed n] [--quiet]" << endl;
+            << " [--density d] [--loop l] [--stairs-down min-max] [--stairs-up min-max] [--level n] [--seed n] [--quiet]" << endl;
         return;
     }
 
@@ -145,6 +145,10 @@ int main(int argc, char* argv[])
             else if (arg == "--stairs-up" && i + 1 < argc)
             {
                 parameters.staircase_up_count = to_count_interval(argv[++i]);
+            }
+            else if (arg == "--level" && i + 1 < argc)
+            {
+                parameters.level = to_integer(argv[++i]);
             }
             else if (arg == "--seed" && i + 1 < argc)
             {

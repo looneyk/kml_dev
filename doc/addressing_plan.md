@@ -125,7 +125,7 @@ namespace quetzal::stratum_sim
 
 A wall's or flat cell's entity exists while it has components or something sited on it, and is deleted when it has
 neither; every room and each flat has one. Each has its address as a component and is found by it, through the zone's
-`ZoneAddressIndex`, beside its layout and actor index. Built (`layout_entities.hpp`).
+`AddressIndex` for its address type, beside its layout and actor index. Built (`layout_entities.hpp`).
 
 A layout entity, its list and a parent's children are derived, and are rebuilt when the zone loads (`addressing.md`,
 `### A saved zone`). A layout entity has no `PersistentId`; it is referred to by its address.
@@ -359,11 +359,13 @@ a wall or a flat cell, since those addresses belong to the old zone.
       id allocator's count, and loads the zone the player was in, with the others loading as they are entered, so no
       entity is duplicated or lost.
 - [ ] **8. Relocating through a relocator,** stage 6's item in `work_plan.md`, binding targets by persistent id. It
-      resolves a target, bound or unbound, to a zone the world has or makes; an unbound level offset finds an unbound
-      relocator with the opposite offset at the target level, or makes a zone there (`region_plan.md`,
-      `## Relocators with a level offset`). It places the arriving actor at the found relocator's access point, or at
+      resolves a target, bound or unbound, to a zone the world has or makes; an unbound level finds an unbound access
+      point that leads back, at the target level, or makes a zone there, with `World::resolve_relocator_target`
+      (`region_plan.md`, `## Relocators with a level offset`). The zone relocated from must have a level, so the hosts'
+      starting zones are given one, and it draws from the gameplay engine that `World` takes from `StratumGame` (`random_engine.md`).
+	  It places the arriving actor at the found relocator's access point, or at
       the new zone's unbound access point with the lowest `order`, of the type at which the relocator's type arrives,
-      and binds both ends to each other, writing each as the other's bound target; `entry_point` then skips a bound
+      that leads back, and binds both ends to each other, writing each as the other's bound target; `entry_point` then skips a bound
       access point. Entering an access point, by moving into its wall or by a keystroke on its floor cell, starts it
       (`session_plan.md` step 6).
 - [ ] **9. The zone actor index.** `ActorIndex`, `DiscreteActorIndex`, `Layout::create_actor_index`, the observers,
@@ -382,7 +384,7 @@ that nothing a player sees changed apart from the wall ids they print.
 
 ## Open
 
-- **Names.** `PersistentId`, `EntityReference`, `make_reference`, `AttachedEntities`, `ZoneAddressIndex`, `Access`,
+- **Names.** `PersistentId`, `EntityReference`, `make_reference`, `AttachedEntities`, `AddressIndex`, `Access`,
   `Detection` and `ActorIndex` are working names.
 - **Where a saved zone is written,** and how a world's zones are found by persistent id on disk. The session lifecycle
   settles this.

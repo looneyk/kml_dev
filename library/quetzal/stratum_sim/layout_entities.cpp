@@ -5,16 +5,6 @@
 
 #include "layout_entities.hpp"
 #include "DiscreteLayout.hpp"
-#include <type_traits>
-
-//------------------------------------------------------------------------------
-bool quetzal::stratum_sim::is_layout_entity(flecs::entity e)
-{
-    bool found = false;
-    for_each_layout_address([&]<typename Address>(std::type_identity<Address>) { found = found || e.has<Address>(); });
-
-    return found;
-}
 
 //------------------------------------------------------------------------------
 flecs::entity quetzal::stratum_sim::room_entity(flecs::entity zone, id_type room_id)

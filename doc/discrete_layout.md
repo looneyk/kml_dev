@@ -89,8 +89,8 @@ blocks, a staircase down above it and the entrance, a staircase up, below it.
     { "id": 1, "type": "door", "components": { "material": "oak", "open": false } },
     { "id": 2, "type": "door_facing", "components": { "parent": { "entity": 1 }, "site": { "relation": "on", "wall": { "cell_position": [1, 1], "normal": [-1, 0] } } } },
     { "id": 3, "type": "door_facing", "components": { "parent": { "entity": 1 }, "site": { "relation": "on", "wall": { "cell_position": [2, 1], "normal": [1, 0] } } } },
-    { "id": 4, "type": "staircase", "components": { "site": { "relation": "on", "wall": { "cell_position": [3, 1], "normal": [0, -1] } }, "relocator": { "type": "down", "target": "down", "order": 0, "entry": { "cell_position": [3, 1], "orientation": [0, -1] } } } },
-    { "id": 5, "type": "staircase", "components": { "site": { "relation": "on", "wall": { "cell_position": [3, 1], "normal": [0, 1] } }, "relocator": { "type": "up", "target": "up", "order": 0, "entry": { "cell_position": [3, 1], "orientation": [0, 1] } } } }
+    { "id": 4, "type": "staircase", "components": { "site": { "relation": "on", "wall": { "cell_position": [3, 1], "normal": [0, -1] } }, "relocator": { "type": "staircase", "target": "-1", "order": 0, "placement": { "cell_position": [3, 1], "orientation": [0, -1] } } } },
+    { "id": 5, "type": "staircase", "components": { "site": { "relation": "on", "wall": { "cell_position": [3, 1], "normal": [0, 1] } }, "relocator": { "type": "staircase", "target": "+1", "order": 1, "placement": { "cell_position": [3, 1], "orientation": [0, 1] } } } }
   ]
 }
 ```
@@ -216,6 +216,15 @@ The name and properties of the layout as a whole. It is a component object and n
 `name`, `type`, `difficulty` and `style` are components like any other. They are the zone metadata
 `sim_zone_model.md` describes, so depth, recipe, encounter and loot tables belong here too.
 
+`level` is optional: a whole number, the zone's position relative to the surface --- 0 at the surface,
+-1, -2, ... going down, and 1, 2, ... going up (`region_plan.md`, `## Level`). It is a label, used when
+making connections between zones. The reader decodes it out of the layout's components, as it does
+`access_points`.
+
+```json
+"layout": { "components": { "access_points": [ { "entity": 4 } ], "level": -2 } }
+```
+
 `access_points` is required: a list of at least one reference to the relocators at which an arriving
 actor can be placed. Every zone is built with them.
 
@@ -226,37 +235,41 @@ actor can be placed. Every zone is built with them.
 Each is a reference to an entity with a `relocator` component, sited `on` a surface: a wall, the floor
 or the ceiling. The reader decodes the list out of the layout's components, as it does `site`, `parent`
 and `relocator` out of an entity's. The reader rejects a file whose `access_points` is absent, lists nothing, or lists a
-value that is not such a reference. The entity's `type` is not what is checked. An access point on the
+value that is not such a reference. The entity's `type` does not make it an access point. An access point on the
 floor or the ceiling requires its site's `orientation`, for drawing; an access point on a wall uses the
 wall's normal (`### Staircases and access points`).
 
 The JSON defines a zone's access points; the stair glyphs `<` and `>` are visual aids. The reader warns
 if they disagree --- a stair cell with no relocator on the walls around it, or a second one, or
-an access point on a wall that is not a stair cell's open side --- and reads the file as the JSON has
+an access point on a wall that is neither a stair cell's open side nor a door's wall --- and reads the file as the JSON has
 it. Warnings go to the reader's warning callback, which by default writes them to `std::clog`.
+
+A door facing may be an access point, with a relocator of its own, and then leads to another zone. A door between
+two zones is two doors, one in each, their relocators bound to each other.
 
 Each access point's relocator states three things:
 
-- **`type`,** a name the world registers: `up`, `down`, `waypoint`, `portal`, or one a mod adds.
+- **`type`,** what the access point is, a name the world registers: `staircase`, `door`, `portal`, `waypoint`, or one
+  a mod adds; whether it goes up, down, or across is the relocator's `target`. The type is normally the entity's own
+  `type`, or for a door facing its door's, and the reader warns if it is neither.
 - **`order`,** a whole, non-negative number given when it is created. The access points of each type
-  are ordered from 0, without a gap.
-- **`entry`,** where an arriving actor is placed: a `cell_position` an actor can stand in, and an
-  `orientation`. A staircase's entry is the floor its open side faces, facing away from it.
+  are ordered from 0, without a gap, so a zone's staircases share one sequence, up and down alike.
+- **`placement`,** where an arriving actor is placed: a `cell_position` in the access point's own zone that an actor
+  can stand in, and an `orientation`. A staircase's placement is the floor its open side faces, facing away from it.
 
 ```json
-"relocator": { "type": "up", "target": "up", "order": 0, "entry": { "cell_position": [1, 1], "orientation": [0, -1] } }
+"relocator": { "type": "staircase", "target": "+1", "order": 0, "placement": { "cell_position": [1, 1], "orientation": [0, -1] } }
 ```
 
 The reader rejects an access point with no `type`, no `order`, an order repeated or past a gap within
-its type, or no `entry`, or an entry on a cell an actor cannot stand in.
+its type, or no `placement`, or a placement on a cell an actor cannot stand in.
 
 Which access point an arriving actor is placed at depends on where it comes from, so the list does not
-choose: a caller arriving from above looks among the staircases leading up, one arriving by waypoint
-among the waypoints, and so on, each type being registered with the type it arrives at. Among those of
-the type wanted, it is the available one with the lowest order; an access point already bound to a
-relocator elsewhere is unavailable. A generator lists every staircase it places. Once a layout is read,
-its access points are known, and they are what an unbound `down` resolves to (`### A relocator's
-target`).
+choose. Each type is registered with the type it arrives at, its own, and of the access points of that type, the actor
+arrives at one that leads back to the level it left: through a `-1`, at a staircase whose relocator's target is `+1`.
+Of those, it is the available one with the lowest order; an access point already bound to a relocator elsewhere is
+unavailable. A generator lists every staircase it places. Once a layout is read,
+its access points are known, and they are what an unbound level resolves to (`### A relocator's target`).
 
 ## cells
 
@@ -595,7 +608,7 @@ A relocator is a component of an entity that moves an actor --- a staircase, a p
 where it leads is its `target`, bound or unbound.
 
 ```json
-"relocator": { "target": "down" }
+"relocator": { "target": "-1" }
 ```
 
 **Bound: the relocator arrived at,** as a reference (`addressing.md`, `### Relocators and access
@@ -604,24 +617,49 @@ fixed where it arrives. A zone long since generated still has access points nobo
 every one of them is unbound. A zone template's relocators are all unbound; a bound target
 is written only in a saved zone, `"target": { "entity": 90412 }`.
 
-**Unbound: a destination.** The next level down, the way back up, the surface town, the nearest
-surface access, a destination a quest specifies. It identifies one destination or asks for the
-nearest of a type. Which names it may use is the caller's vocabulary, as an entity's `type` is.
+**Unbound: a string, `[region/]zone[@position]`.** The region and the position are optional.
+
+```
+target   = [region "/"] zone ["@" position]
+region   = ".." | "." | name
+zone     = relative | absolute | name
+relative = ("+" | "-") digits
+absolute = "=" ["-"] digits
+name     = letter {letter | digit | "_"}
+position = one or more characters other than "/" and "@"
+```
+
+| Target | Destination |
+| --- | --- |
+| `-1` | One level down, from the relocator's region |
+| `+2` | Two levels up |
+| `+0` | Another zone at the same level |
+| `=0` | Level 0 |
+| `=-3` | Level -3 |
+| `sewers/=-1` | Level -1 of the region `sewers` |
+| `../=0` | Level 0 of the parent region |
+| `town/market@fountain` | The zone `market` in the region `town`, at the position `fountain` |
+
+A relative zone is a number of levels from the relocator's zone (`## layout`), and always has its sign. An absolute
+zone is a level, marked with `=`. A named zone is a zone of pregenerated content, and the position a place in it. `..`
+is the parent region and `.` the relocator's own; an omitted region is the relocator's own region, from which the
+caller's rules for moving down, up, and across start, and a written region is the only one searched. Region names,
+zone names, and positions are the caller's vocabulary, as an entity's `type` is.
 
 Resolving one finds a zone or makes one. Traversal passes the target to whatever owns zones, which
 returns a zone it has or generates one, and chooses the cell an arriving actor is placed in. What it
 resolves to is written back as a bound target, so leaving and returning arrive at the same place.
 
-`down` resolves to the zone below, and `up` into a tower to the zone above, so either is a
-real target as soon as that zone is generated or loaded. An actor arriving through a relocator that is
-not yet bound is placed at one of that zone's unbound access points --- a relocator at which it can
-arrive, such as a staircase leading up, or leading down in a tower --- and going through binds both
-ends: the relocator gone through is bound to that access point, and the access point to the
-relocator it came from. The layout's `access_points` lists them, and every zone has at least one.
+A level resolves to a zone at that level (`region_plan.md`), so it is a real target as soon as that zone is generated
+or loaded. An actor arriving through a relocator that is not yet bound is placed at one of that zone's unbound access
+points that leads back --- through a `-1`, at one whose relocator's target is `+1`, or `=`*L* for the level *L* left
+--- and going through binds both ends: the relocator gone through is bound to that access point, and the access
+point to the relocator it came from. The layout's `access_points` lists them, and every zone has at least one.
 
-The reader decodes a relocator: its `target`, required, a destination name or a reference, and the
-`type`, `order` and `entry` an access point requires. It interprets no destination name, which is the
-caller's vocabulary. A bound target is a reference, and the reader rejects one in a template.
+The reader decodes a relocator: its `target`, required, a string that matches the grammar or a reference, and the
+`type`, `order` and `placement` an access point requires. It keeps a region, a zone name, and a position as written,
+and the writer writes a target back as the same string. A bound target is a reference, and the reader rejects one in
+a template.
 
 ## What a reader must do with it
 
@@ -649,6 +687,7 @@ every check has passed, so a rejected file leaves nothing behind.
 - A coordinate is not a whole number, or is outside the coordinate range.
 - `format` is absent or is not this format; `version` is one the reader does not read.
 - `zone.id` is not a whole, non-negative number.
+- `layout.components.level` is not a whole number.
 - `cells` is absent, its notation or its encoding is not one of the two it offers, its extent has no
   cells, its scale is not positive, it has the wrong number of rows, or a row is not the width its
   extent sets.
@@ -686,7 +725,11 @@ every check has passed, so a rejected file leaves nothing behind.
 - `layout.components.access_points` is absent, is not a list, or lists nothing; or a value it lists is
   not a reference to an entity with a relocator sited on a surface.
 - An access point's relocator has no `type`, no `order`, an order repeated or past a gap within its type,
-  or no `entry`, or an entry on a cell an actor cannot stand in.
+  or no `placement`, or a placement on a cell an actor cannot stand in.
+- A relocator has no `target`, or one that is neither a string nor a reference; a string that does not match
+  `[region/]zone[@position]`; or a template has a bound target.
+- `layout.components.level` is not a whole number.
 
 A stair glyph with no entity with a relocator on the walls its open neighbors present to it, or with a
-second one, and an access point on a wall that is not a stair cell's open side, are warnings, not errors.
+second one, an access point on a wall that is neither a stair cell's open side nor a door's wall, and an access
+point's relocator type that is neither its entity's type nor its parent's, are warnings, not errors.

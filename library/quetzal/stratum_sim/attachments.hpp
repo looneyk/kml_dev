@@ -9,6 +9,7 @@
 #include "Site.hpp"
 #include "types.hpp"
 #include "quetzal/common/id.hpp"
+#include "quetzal/stratum_format/RelocatorTarget.hpp"
 #include <flecs.h>
 #include <cstdint>
 #include <optional>
@@ -58,8 +59,8 @@ namespace quetzal::stratum_sim
     };
 
     //--------------------------------------------------------------------------
-    // Relationship from an access point to its type, which is an entity registered once in the world: up, down, waypoint,
-    // portal, or a type that a mod adds
+    // Relationship from an access point to its type, which is an entity registered once in the world: staircase, door,
+    // portal, waypoint, or a type that a mod adds
     struct AccessType
     {
     };
@@ -73,18 +74,18 @@ namespace quetzal::stratum_sim
 
     //--------------------------------------------------------------------------
     // An entity at which a zone is entered, sited on a wall, the floor, or the ceiling. The order counts from 0 among the
-    // zone's access points of the same type, and the entry is where an arriving actor is placed
+    // zone's access points of the same type, and the placement is where an arriving actor is placed
     struct AccessPoint
     {
         std::uint64_t order = 0;
-        placement_type entry;
+        placement_type placement;
     };
 
     //--------------------------------------------------------------------------
-    // Where the entity moves an actor that enters it: a destination, or the relocator that it is bound to
+    // Where the entity moves an actor that enters it: an unbound target, or the relocator that it is bound to
     struct Relocator
     {
-        std::variant<std::string, EntityReference> target;
+        std::variant<stratum_format::RelocatorTarget, EntityReference> target;
     };
 
     //--------------------------------------------------------------------------
@@ -95,15 +96,21 @@ namespace quetzal::stratum_sim
     flecs::entity access_type(const flecs::world& entities, std::string_view name);
 
     //--------------------------------------------------------------------------
+    // Returns true if the entity's relocator is unbound and its target is the level offset levels from the entity's zone,
+    // whether the target is written relative or absolute. An absolute target matches only in a zone that has a level
+    bool targets_relocator_level(flecs::entity e, level_type offset);
+
+    //--------------------------------------------------------------------------
     // Makes an entity sited on a surface an access point of the type
-    void set_access_point(flecs::entity e, flecs::entity access_type, std::uint64_t order, const placement_type& entry);
+    void set_access_point(flecs::entity e, flecs::entity access_type, std::uint64_t order, const placement_type& placement);
 
     // Creates an entity in the zone at the site and makes it an access point
     flecs::entity create_access_point(flecs::entity zone, flecs::entity access_type, const Site& site, std::uint64_t order,
-        const placement_type& entry);
+        const placement_type& placement);
 
-    // Returns the zone's access point of the type that has the lowest order, or a null entity if the zone has none
-    flecs::entity entry_point(flecs::entity zone, flecs::entity access_type);
+    // Returns the zone's lowest-ordered access point of the type whose relocator targets the level offset levels from the
+    // zone, or a null entity if the zone has none. An actor arriving from another level passes the offset that leads back
+    flecs::entity entry_point(flecs::entity zone, flecs::entity access_type, level_type offset);
 
     //--------------------------------------------------------------------------
     // Returns the entity whose Access applies to e: e itself, or its nearest ancestor that has an Access. Returns a null

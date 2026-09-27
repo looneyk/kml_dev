@@ -41,17 +41,17 @@ namespace quetzal::stratum_sim
     };
 
     //--------------------------------------------------------------------------
-    // Returns the zone that e is in, directly or through its ancestors, or a null entity if it is in none. Entities nest,
-    // like coins in a pouch that an actor carries
+    // Returns the zone that the entity is in, directly or through its ancestors, or null
     flecs::entity zone_of(flecs::entity e);
 
+    // Returns the region that the zone is in
+    flecs::entity region_of(flecs::entity zone);
+
     //--------------------------------------------------------------------------
-    // Sets an entity's parent and site together. Its children move with it and its id is kept, so references to it stay
-    // valid
+    // Sets an entity's parent and site together
     void reparent(flecs::entity e, flecs::entity parent, const Site& site);
 
-    // Sets only the parent, for an entity that has no site. A zone contains its entities through ChildOf, and an entity
-    // contains its children through Parent
+    // Sets only the parent for an entity that has no site
     void set_parent(flecs::entity e, flecs::entity parent);
 
     //--------------------------------------------------------------------------
@@ -84,19 +84,30 @@ namespace quetzal::stratum_sim
         entities_type zones() const;
         size_t zone_count() const;
 
-        // Creates an empty zone for a generator or the loader to fill
-        flecs::entity create_zone(PersistentId zone_id);
+        // Creates a region, a child of the parent region if given
+        flecs::entity create_region(flecs::entity parent = flecs::entity());
 
-        // Creates a zone that has the layout and nothing else
-        flecs::entity create_zone(std::unique_ptr<Layout> layout);
+        // Unloads the zones of the region and of its child regions, and deletes the regions
+        void unload_region(flecs::entity region);
 
-        // Creates a zone, has the generator fill it, and populates it
-        flecs::entity create_zone(const Generator& generator);
+        // Creates an empty zone in the region for a generator or the loader to fill
+        flecs::entity create_zone(flecs::entity region, PersistentId zone_id);
 
-        // Reads a zone from a file and populates it. The zone has the file's persistent id if the file has one.
-        // Throws std::runtime_error, before anything is built, if the reader rejects the file, build_error finds a reason the
-        // world cannot build it, or the file's zone is already loaded
-        flecs::entity load_zone(const std::filesystem::path& filepath);
+        // Creates a zone in the region that has the layout
+        flecs::entity create_zone(flecs::entity region, std::unique_ptr<Layout> layout);
+
+        // Creates a zone in the region, has the generator fill it, and populates it
+        flecs::entity create_zone(flecs::entity region, const Generator& generator);
+
+        // Creates a zone at the level in the region, has the region's generator fill it, and populates it. The region has its
+        // generator as a std::shared_ptr<const Generator> component, and the generator reads the level from the zone's
+        // ZoneLevel
+        flecs::entity create_zone(flecs::entity region, level_type level);
+
+        // Reads a zone into the region from a file and populates it. The zone is given the persistent id of the file if it has
+        // one. Throws std::runtime_error, before anything is built, if the reader rejects the file, build_error finds a
+        // reason the world cannot build it, or the file is a saved zone that is already loaded
+        flecs::entity load_zone(flecs::entity region, const std::filesystem::path& filepath);
 
         void unload_zone(flecs::entity zone);
 
@@ -106,6 +117,15 @@ namespace quetzal::stratum_sim
         // Relocation keeps the entity's id, so references to it remain valid. An entity with no parent is owned by the game
         // and stays that way, located in the zone through InZone. Any other entity becomes a child of the zone
         void relocate(flecs::entity e, flecs::entity zone, const placement_type& placement);
+
+        // Returns the access point at which an actor arrives through the relocator, whose unbound target is a relative or
+        // absolute level with no position. It is an unbound access point of the arrival type that leads back, in another
+        // loaded zone at the target level, or else the entry point of a zone made there. With the region omitted, moving
+        // down looks and makes in the relocator's region; moving up or across also looks in the parent region, and a zone
+        // it makes at level 0 is in either region, chosen at random. The region "." or ".." is the only one searched and
+        // made in. Only a region with a generator makes a zone. Returns a null entity if none can, or if the zone made has
+        // no access point of the arrival type that leads back
+        flecs::entity resolve_relocator_target(flecs::entity relocator, random_type& random);
 
         // Marks zone_entered as the most recently entered zone, then unloads the zones entered longest ago until the world
         // has no more than zone_count_max. Never unloads zone_entered
@@ -152,6 +172,9 @@ namespace quetzal::stratum_sim
         PersistentId next_id();
 
     private:
+
+        // Has the generator fill the zone, then populates it. If the generator throws, unloads the zone and rethrows
+        void fill_zone(flecs::entity zone, const Generator& generator);
 
         // The entities that property reads, nearest first
         entities_type property_chain(flecs::entity e) const;

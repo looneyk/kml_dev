@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <format>
 #include <string>
+#include <variant>
 #include <cassert>
 
 namespace
@@ -38,30 +39,52 @@ flecs::entity quetzal::stratum_sim::access_type(const flecs::world& entities, st
 }
 
 //------------------------------------------------------------------------------
-void quetzal::stratum_sim::set_access_point(flecs::entity e, flecs::entity access_type, std::uint64_t order, const placement_type& entry)
+bool quetzal::stratum_sim::targets_relocator_level(flecs::entity e, level_type offset)
+{
+    const auto* relocator = e.try_get<Relocator>();
+    const auto* target = relocator != nullptr ? std::get_if<stratum_format::RelocatorTarget>(&relocator->target) : nullptr;
+
+    if (target == nullptr)
+    {
+        return false;
+    }
+
+    if (const auto* relative = std::get_if<stratum_format::RelativeZone>(&target->zone))
+    {
+        return relative->offset == offset;
+    }
+
+    const auto* absolute = std::get_if<stratum_format::AbsoluteZone>(&target->zone);
+    const auto* zone_level = absolute != nullptr ? zone_of(e).try_get<ZoneLevel>() : nullptr;
+
+    return zone_level != nullptr && absolute->level == zone_level->level + offset;
+}
+
+//------------------------------------------------------------------------------
+void quetzal::stratum_sim::set_access_point(flecs::entity e, flecs::entity access_type, std::uint64_t order, const placement_type& placement)
 {
     assert(access_type);
     assert(e.has<Site>() && e.get<Site>().relation == Relation::On && e.get<Site>().address.has_value());
 
-    e.add<AccessType>(access_type).set<AccessPoint>(AccessPoint {order, entry});
+    e.add<AccessType>(access_type).set<AccessPoint>(AccessPoint {order, placement});
     return;
 }
 
 //------------------------------------------------------------------------------
 flecs::entity quetzal::stratum_sim::create_access_point(flecs::entity zone, flecs::entity access_type, const Site& site,
-    std::uint64_t order, const placement_type& entry)
+    std::uint64_t order, const placement_type& placement)
 {
     assert(zone && zone.has<Zone>());
 
     flecs::entity e = zone.world().entity();
     reparent(e, zone, site);
-    set_access_point(e, access_type, order, entry);
+    set_access_point(e, access_type, order, placement);
 
     return e;
 }
 
 //------------------------------------------------------------------------------
-flecs::entity quetzal::stratum_sim::entry_point(flecs::entity zone, flecs::entity access_type)
+flecs::entity quetzal::stratum_sim::entry_point(flecs::entity zone, flecs::entity access_type, level_type offset)
 {
     assert(zone && zone.has<Zone>());
     assert(access_type);
@@ -75,7 +98,7 @@ flecs::entity quetzal::stratum_sim::entry_point(flecs::entity zone, flecs::entit
         .build()
         .each([&](flecs::entity e, const AccessPoint& access_point)
         {
-            if (!found || access_point.order < order_found)
+            if (targets_relocator_level(e, offset) && (!found || access_point.order < order_found))
             {
                 found = e;
                 order_found = access_point.order;

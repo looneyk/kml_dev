@@ -40,14 +40,17 @@ namespace
     const flecs::entity no_viewer;
 
     //--------------------------------------------------------------------------
-    // A world with the game's entity types, as StratumGame's has
+    // A world with the game's entity types, as StratumGame's has, and a region for the suite's zones
     struct SuiteWorld : stratum_sim::World
     {
         explicit SuiteWorld(stratum_sim::IdAllocator& id_allocator) :
-            World(id_allocator, suite_zone_count_max)
+            World(id_allocator, suite_zone_count_max),
+            region(create_region())
         {
             stratum_sim::register_game_types(*this);
         }
+
+        flecs::entity region;
     };
 
     size_t g_case_count = 0;
@@ -199,9 +202,9 @@ namespace
 
     //--------------------------------------------------------------------------
     // Loads a zone from a file with its doors and without denizens, unlike World::load_zone
-    flecs::entity load_zone_unpopulated(stratum_sim::World& world, const string& filepath)
+    flecs::entity load_zone_unpopulated(SuiteWorld& world, const string& filepath)
     {
-        flecs::entity zone = world.create_zone(world.next_id());
+        flecs::entity zone = world.create_zone(world.region, world.next_id());
         stratum_sim::load_layout(zone, stratum_format::read(filepath));
 
         return zone;

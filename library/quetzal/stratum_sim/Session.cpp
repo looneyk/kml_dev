@@ -16,20 +16,20 @@ namespace
 {
 
     //--------------------------------------------------------------------------
-    // The player moved to the entry of the zone's entry point of the type. False when the zone has no access point of
-    // the type
-    bool place_player(quetzal::stratum_sim::World& world, flecs::entity zone, flecs::entity access_type, flecs::entity player)
+    // Moves the player to the placement of the zone's entry point. Returns false if the zone has none
+    bool place_player(quetzal::stratum_sim::World& world, flecs::entity zone, flecs::entity access_type, quetzal::stratum_sim::level_type offset,
+        flecs::entity player)
     {
         using namespace quetzal::stratum_sim;
 
-        flecs::entity entry = entry_point(zone, access_type);
+        flecs::entity entry = entry_point(zone, access_type, offset);
 
         if (!entry)
         {
             return false;
         }
 
-        world.relocate(player, zone, entry.get<AccessPoint>().entry);
+        world.relocate(player, zone, entry.get<AccessPoint>().placement);
         return true;
     }
 
@@ -46,20 +46,20 @@ quetzal::stratum_sim::Session::Session(World& world, Player& player) :
 }
 
 //------------------------------------------------------------------------------
-void quetzal::stratum_sim::Session::create(const Generator& generator, flecs::entity access_type)
+void quetzal::stratum_sim::Session::create(flecs::entity region, const Generator& generator, flecs::entity access_type, level_type offset)
 {
-    enter(m_world.create_zone(generator), access_type);
+    enter(m_world.create_zone(region, generator), access_type, offset);
     return;
 }
 
 //------------------------------------------------------------------------------
-void quetzal::stratum_sim::Session::load(const std::filesystem::path& filepath, flecs::entity access_type)
+void quetzal::stratum_sim::Session::load(flecs::entity region, const std::filesystem::path& filepath, flecs::entity access_type, level_type offset)
 {
-    flecs::entity zone = m_world.load_zone(filepath);
+    flecs::entity zone = m_world.load_zone(region, filepath);
 
     try
     {
-        enter(zone, access_type);
+        enter(zone, access_type, offset);
     }
     catch (const std::runtime_error& e)
     {
@@ -70,14 +70,14 @@ void quetzal::stratum_sim::Session::load(const std::filesystem::path& filepath, 
 }
 
 //------------------------------------------------------------------------------
-void quetzal::stratum_sim::Session::enter(flecs::entity zone, flecs::entity access_type)
+void quetzal::stratum_sim::Session::enter(flecs::entity zone, flecs::entity access_type, level_type offset)
 {
     assert(zone && zone.has<Zone>());
     assert(access_type);
 
-    if (!place_player(m_world, zone, access_type, m_player.entity()))
+    if (!place_player(m_world, zone, access_type, offset, m_player.entity()))
     {
-        throw std::runtime_error(std::format("zone has no access point of the type '{}'", access_type.name().c_str()));
+        throw std::runtime_error(std::format("zone has no access point of the type '{}' whose target is {:+}", access_type.name().c_str(), offset));
     }
 
     // After the player has moved, so no zone it is in can unload

@@ -39,6 +39,9 @@ namespace quetzal::stratum_sim
         Player& player();
         const Player& player() const;
 
+        // The region a new game's zones are made in. Temporary, until a new game chooses its region
+        flecs::entity starting_region() const;
+
     private:
 
         // In construction order, each referring to those above it
@@ -46,6 +49,7 @@ namespace quetzal::stratum_sim
         World m_world;
         Player m_player;
         Session m_session;
+        flecs::entity m_starting_region;
     };
 
 } // namespace quetzal::stratum_sim

@@ -25,6 +25,9 @@ namespace quetzal::dungen
     using directed_point_type = geometry::DiscreteDirectedPoint<coord_type, 2>;
     using random_type = math::Random<>;
 
+    // A zone's position relative to the surface: 0 at the surface, negative going down and positive going up
+    using level_type = std::int32_t;
+
     // Called when the generator does less than was asked, if that is not an error
     using warning_function_type = std::function<void(const std::string& warning)>;
 
