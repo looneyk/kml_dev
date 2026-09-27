@@ -1855,11 +1855,22 @@ namespace
         report_case("relocating it again moves it to the other zone, still the game's", !wanderer.parent()
             && stratum_sim::zone_of(wanderer) == crypt && world.entities_at(moor, where).empty());
 
+        flecs::entity pouch = world.entities().entity();
+        stratum_sim::reparent(pouch, wanderer, stratum_sim::Site {stratum_sim::Relation::On, {}, {}});
+        stratum_sim::EntityReference pouch_reference = world.make_reference(pouch);
+
+        world.relocate(wanderer, moor, where);
+        report_case("what the game's entity carries moves with it, and its entry in the world index follows",
+            stratum_sim::zone_of(pouch) == moor && world.zone_of(pouch_reference.persistent_id) == moor.get<stratum_sim::PersistentId>());
+
+        world.relocate(wanderer, crypt, where);
         world.unload_zone(crypt);
 
         report_case("unloading a zone destroys its contents", !monster.is_alive());
         report_case_equal("and drops its layout", world.zone_count(), 1);
         report_case("the other zone survives", moor.is_alive());
+        report_case("the game's entity in it, and what it carries, are left out of it and in no zone", wanderer.is_alive()
+            && pouch.is_alive() && !stratum_sim::zone_of(wanderer) && !stratum_sim::zone_of(pouch));
 
         // Zones the world makes whole, with their doors and their denizens
         auto pursuers_in = [&](flecs::entity zone)

@@ -56,20 +56,22 @@ boundary**, so a partner is always resolvable once its own `Zone` is loaded.
 geometry rather than a relocator. A pair of height fields cannot bound it, so it needs more than a `Flat` above and
 below. Not designed.
 
-**Future: `Region`, a grouping of `Zone`s.** Literal for a surface area, and for a dungeon too, whose levels are its
-zones. Both are regions, with sets of properties that overlap but differ. "Region" is taken out of every other use
-first; the open questions are in `work_plan.md` (`### Regions`).
+**Next: `Region`, a grouping of contiguous `Zone`s.** A surface area, a dungeon, a crypt, a tower and a house are all
+regions, with sets of properties that overlap but differ. `region_plan.md` has the design, and the open questions are
+in `work_plan.md` (`### Regions`).
 
-- **A region is data.** Its properties are components on its entity: a name, and for a dungeon the maximum depth,
-  which the probability of a staircase leading down needs, the overall or starting difficulty, and the other
-  properties a whole dungeon has. It acts on nothing directly, apart from what a generator reads from it.
+- **A region is data.** Its properties are components on its entity: a name, and for a dungeon the overall or starting
+  difficulty and the other properties a whole dungeon has. It acts on nothing directly, apart from what a generator
+  reads from it.
+- **A region has a parent region,** except a region at the top: a crypt, a dungeon, a tower or a house is the child of
+  the surface area it is in.
 - **A region is its zones' parent.** It takes the place in the hierarchy the root has now, so a zone's flecs parent is
   its region. `zone_of` still stops at the first ancestor that is a zone, and an entity's region is its zone's parent.
   Unloading a zone leaves its region; deleting a region deletes its zones. A region, having no zone above it, is given
   its persistent id when it is created, as a zone is.
 - **A region decides which zones unload first.** The zones of other regions than the one the player is in go first,
   left longest ago first; then the zones of the player's region, farthest first, by distance or by the difference in
-  depth.
+  level.
 
 **Future: region files.** A region's metadata and generation settings, and possibly then its zones, one after another.
 
@@ -81,14 +83,16 @@ enumerable, which is how `World` determines which `Zone`s are reachable from whe
 
 ### Level
 
-**Settled.** A level is a name for a `Zone` rather than a structure of its own: numeric depth, difficulty, name,
-generation recipe, encounter and loot tables, palette. The zone is the concrete structure it refers to, as a `Room`
-refers to an area within one.
+**Settled.** A zone's level is its position relative to the surface, the same scale in every region: 0 at the
+surface, -1, -2, ... going down, and 1, 2, ... going up. Players are shown its absolute value, since whether they are
+descending or ascending is obvious from context. It is a label, a component on the zone, and never an object or entity;
+nothing is keyed or looked up by it, and a region may have many zones at one level. It is used when making connections
+between zones (`region_plan.md`).
 
 It is a property rather than derived from a height band, so a spiral ramp, a mezzanine, or a shortcut vault can be
-assigned deliberately. Numeric depth and the other properties are stored on the `Level`, not derived from z.
+assigned deliberately. Depth is separate metadata, which may or may not be a count, and is not used.
 
-Nothing structural consults a `Level`. Movement never does. Generation, the automap, and the UI do.
+Nothing structural consults a level. Movement never does. Making connections, generation, the automap, and the UI do.
 
 ### Entity ownership and migration
 

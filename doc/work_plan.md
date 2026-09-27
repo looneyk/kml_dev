@@ -14,7 +14,8 @@ it is built, and `site_plan.md` describes where every entity is and what it belo
 `session_plan.md` describes how the parts of `StratumGame` divide stage 7's work. `discrete_layout_plan.md` covers
 stage 8, `discrete_layout.md` is the format it builds to, and `discrete_layout_rework.md` is the design of loading a
 zone from it. `addressing.md` specifies ids and addressing --- geometry, entities, attachments and references --- and
-`addressing_plan.md` is the design of the rest of stage 8.
+`addressing_plan.md` is the design of the rest of stage 8. `region_plan.md` is the design of regions, which relocating
+between zones needs.
 
 **Open items are listed here**, under `Open` below, rather than in the plan that raised them.
 
@@ -23,7 +24,7 @@ zone from it. `addressing.md` specifies ids and addressing --- geometry, entitie
 These are the remaining steps in the order they are built, each building on the ones before it. A step leaves this
 list when it is done.
 
-1. **`addressing_plan.md` step 6,** migration, with the player owned by the game rather than a zone. Built: a. Left: b.
+1. **`region_plan.md` steps 1 to 4,** regions and levels, which an unbound relocator's level offset is resolved against.
 2. **`addressing_plan.md` step 8,** relocating through a relocator.
 3. **`session_plan.md` step 6,** entering an access point.
 4. **Stage 7, a zone added to the world when it is encountered.**
@@ -31,7 +32,7 @@ list when it is done.
 
 Outside that order:
 
-- **After step 1:** `session_plan.md` step 4, pre-populated zones, where the loader builds a file's denizens.
+- **At any time:** `session_plan.md` step 4, pre-populated zones, where the loader builds a file's denizens.
 - **Blocked:** `placement_plan.md`, since where it lives is unsettled and its step 2 needs `content`; the population
   strategy comes with it.
 - **At any time:** `addressing_plan.md` step 9, the zone actor index; `session_plan.md` step 7, staircases in every
@@ -39,14 +40,15 @@ Outside that order:
 - **At any time:** the generators on `geometry::DiscreteDirectedPoint`. dungen's `Staircase` has a
   `directed_point_type` and still has the separate `position` and `direction` accessors. catagen stores a staircase as a cell type and a map from cell position to facing direction, which a list of
   directed points would replace.
-- **Later:** regions, and `modding_plan.md` steps 3 to 7, which are Phase 4.
+- **Later:** unloading by region and region files (`## Regions`), and `modding_plan.md` steps 3 to 7, which are
+  Phase 4.
 
 ## Plans
 
 There is one box per plan that has steps of its own, checked when every step is done.
 
 - [ ] [`addressing_plan.md`](addressing_plan.md) --- ids and addressing: format 0.4, persistent ids, links, loading a
-      zone against them, and a zone actor index. 9 steps, steps 1 to 5 done.
+      zone against them, and a zone actor index. 9 steps, steps 1 to 6 done.
 - [x] [`site_plan.md`](site_plan.md) --- where every entity is and what it belongs to: the parent and site links,
       `Relation`, and the file component that replaces `attached`.
 - [ ] [`modding_plan.md`](modding_plan.md) --- mods and data-driven design: place types from data, components decoded
@@ -56,6 +58,8 @@ There is one box per plan that has steps of its own, checked when every step is 
       loading, populating and unloading zones; `Session` entering them and keeping the state of play; each zone's
       entry point, the lowest-ordered staircase leading up; and entering an access point on a wall or the floor. 7
       steps, steps 1 to 3 and 5 done.
+- [ ] [`region_plan.md`](region_plan.md) --- regions: the region entity with its parent region, a zone's level, an
+      unbound relocator's level offset, and finding or making the zone at an offset. 4 steps, none started.
 - [ ] [`placement_plan.md`](placement_plan.md) --- what fills a zone: sites, selection, distribution, acceptance and
       emission. 4 steps, none started.
 - [x] [`intent_plan.md`](intent_plan.md) --- stage 2, intent and the schedule.
@@ -177,22 +181,28 @@ A session's responsibilities are open (`Open`, `### Session`).
 - [x] **Format 0.4 in `stratum_format`** ([`addressing_plan.md`](addressing_plan.md) step 1).
 - [x] **The generators and every zone file in 0.4** ([`addressing_plan.md`](addressing_plan.md) step 2).
 
-The rest of stage 8 is [`addressing_plan.md`](addressing_plan.md), boxed under Plans: migration, relocating through a
-relocator, saved zones, and the zone actor index.
+The rest of stage 8 is [`addressing_plan.md`](addressing_plan.md), boxed under Plans: relocating through a relocator,
+saved zones, and the zone actor index.
 
 ## Regions
 
-**Future.** A `Region` groups zones: a surface area, or a dungeon whose levels are its zones. It is data, an entity
-that is its zones' parent, and it determines which zones unload first (`sim_zone_model.md`, `## World, Zones, and
-Levels`). The open questions are under `Open`, `### Regions`.
+**Next.** A `Region` groups contiguous zones: a surface area, a dungeon, a crypt, a tower or a house. It is data, an
+entity with a parent region that is its zones' parent, and it determines which zones unload first (`sim_zone_model.md`,
+`## World, Zones, and Levels`). `region_plan.md` has the design of the region entity, a zone's level, and resolving
+an unbound relocator's level offset, and the open questions are under `Open`, `### Regions`.
 
 - [x] **"Region" out of catagen,** first. Its pipeline is rectangles, the rooms kept among them, and areas, each a room
       or a run of corridor, which walls separate and doors join. dungen's cave1 keeps "the largest connected region",
       which is harmless; `roguelike_survey.md` uses the word in its general sense, and `texture_region_size` is Godot's
       own name.
-- [ ] **`Region`,** an entity with its properties as components, and the parent of its zones in place of the root. The
-      properties are a name and, for a dungeon, the maximum depth that the probability of a staircase leading down
-      needs, the overall or starting difficulty, and the other properties a whole dungeon has.
+- [ ] **`Region`,** an entity with its properties as components and a parent region, and the parent of its zones in
+      place of the root. The properties are a name and, for a dungeon, the overall or starting difficulty and the other
+      properties a whole dungeon has. Boxed under Plans as [`region_plan.md`](region_plan.md).
+- [ ] **Transparent zone and region boundaries.** Contiguous zones joined edge to edge, so an actor walks from one zone
+      into the next, across region boundaries too. Until then, zones connect only through relocators: waypoints, and
+      dungeons with more than one entrance.
+- [ ] **A new region made on resolving,** when an unbound relocator finds nothing, instead of a zone in its own or its
+      parent region (`region_plan.md`).
 - [ ] **Unloading by region.** Criteria for `World::trim_zones` that choose the zones of other regions first, those
       left longest ago first, as `ZoneEntryIndex` does, and then those of the player's region, farthest first.
 - [ ] **Region files.**
@@ -324,8 +334,9 @@ These are the questions that stages left behind.
   below; `up` is the hosts' temporary `entry_access_type` (`session_plan.md`, `## Entry point`).
 - **Where access point types are registered from data,** including a mod's, instead of in `World`'s constructor
   (`modding_plan.md`).
-- **The scale of the probability of a staircase leading down,** which is inversely proportional to `depth` and
-  proportional to `difficulty`, and 1 until regions supply the maximum depth; and its value for a zone with no `depth`.
+- **The scale of the probability of a staircase leading down,** which is inversely proportional to how far below the
+  surface the zone's level is and proportional to `difficulty`, and is 1 for now; and what bounds it, since a region
+  has no lowest level.
 - **Whether the layout interface returns a wall id.** An address encodes into one, so it can. Whether a handle to a
   wall belongs on an interface that mentions neither cells nor walls is an older question.
 
@@ -340,10 +351,18 @@ These are the questions that stages left behind.
 
 - **The properties each type of region has.** A surface area's and a dungeon's overlap but differ, and difficulty goes
   from the starting value across a dungeon's zones in a way not yet decided.
-- **Distance or depth difference** as the measure within the player's region, and whether it differs by type of
+- **Distance or level difference** as the measure within the player's region, and whether it differs by type of
   region.
 - **The contents of a region file:** only the region's metadata and generation settings, or those followed by its
   zones; and how it relates to the zone file format.
+- **Which region the first zone of a new game is made in,** and whether the session asks the region to make it.
+- **How two bound doors keep their `Access` equal** (`region_plan.md`, `## Doors between zones`). With both zones
+  loaded, changing one door sets its partner too. With the partner's zone unloaded, only this side changes, and the
+  two are reconciled when an actor crosses or when the partner's zone loads; which change is newer needs deciding,
+  such as by the simulation time of the last change stored with `Access`.
+- **Where moving down looks, and where it makes a zone.** `region_plan.md` has moving down look for an unbound
+  relocator and make a zone only in its own region; whether a hole from a surface zone at level 0 finds or makes its
+  zone in a child region, and which one, is not settled.
 
 ### Session
 
@@ -362,7 +381,7 @@ These are the questions that stages left behind.
 - **Zones made and never entered.** They are not candidates for unloading.
 - **Where the unload order's data is kept** --- `ZoneEntryIndex`'s map from entry count to zone id, or a component on
   each zone with a flecs query ordered by it --- once regions set the criteria: other regions' zones by the time they
-  were entered, and the player's region's zones by distance or depth difference (`## Regions`).
+  were entered, and the player's region's zones by distance or level difference (`## Regions`).
 
 ### View
 

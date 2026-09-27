@@ -34,10 +34,10 @@ void quetzal::set_output_file_lf_endings()
     cerr.flush();
 
     // The calls have to be made outside the assert so that they still happen when NDEBUG is defined
-    int mode_stdout = _setmode(_fileno(stdout), _O_BINARY);
+    [[maybe_unused]] int mode_stdout = _setmode(_fileno(stdout), _O_BINARY);
     assert(mode_stdout != -1);
 
-    int mode_stderr = _setmode(_fileno(stderr), _O_BINARY);
+    [[maybe_unused]] int mode_stderr = _setmode(_fileno(stderr), _O_BINARY);
     assert(mode_stderr != -1);
 #endif
 

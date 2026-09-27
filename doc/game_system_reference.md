@@ -203,8 +203,8 @@ discards a zone, its contents and its layout.
 populates it. If the generator throws, the zone is unloaded and the exception passes on. `load_zone(filepath)` reads
 the file and checks it with `build_error` before making the zone. The zone has the file's persistent id if the file has
 a `zone` section, and a new one otherwise. `load_zone` then has `load_layout` fill the zone and populates it. It throws
-`std::runtime_error`, having made nothing, if the reader rejects the file, `build_error` finds a reason, or the file's
-zone is already loaded. `World` handles no doors itself, and neither function unloads anything.
+`std::runtime_error`, having made nothing, if the reader rejects the file, `build_error` finds a reason, or the file is
+a saved zone that is already loaded; a template makes a new zone each time it is loaded. `World` handles no doors itself, and neither function unloads anything.
 
 `populate(zone)` places the zone's denizens: one pursuer at the last open cell in reverse row order, facing west,
 `Blocking`, with a `Speed` and a `Pursue` that has no target.
@@ -237,7 +237,8 @@ returns a null entity if there is neither. Entities nest, like coins in a pouch 
 it between zones are all this one operation. `relocate(e, zone, placement)` is `reparent` with the zone as the parent
 for an entity that has a parent; for an entity owned by the game, it sets its `InZone` and site, so it stays the
 game's. The entity's children move with it and its id is kept, so references to it stay valid, and the zone it left
-can unload without it. `set_parent(e, parent)` sets only the parent, for an entity that has no site. A zone contains
+can unload without it. Both assert that nothing below an entity moving to another zone is sited on a wall or a flat
+cell, since those addresses belong to the zone it left. `set_parent(e, parent)` sets only the parent, for an entity that has no site. A zone contains
 its entities through `ChildOf`, and an entity contains its children through flecs' non-fragmenting `Parent`.
 `parent()`, `children()` and a `ChildOf` query term work with both, and `has(ChildOf, ...)` is true for a `Parent`
 child as well.

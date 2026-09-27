@@ -1,6 +1,6 @@
 # Ids and Addressing --- Plan
 
-Status: steps 1 to 5 built; the rest designed
+Status: steps 1 to 6 built; the rest designed
 Date: 2026-09-14, revised 2026-09-26
 
 This is the design behind the spec in `addressing.md`. It covers one list of entities in a zone file, with `site` and
@@ -343,24 +343,27 @@ a wall or a flat cell, since those addresses belong to the old zone.
       gives each parent its children, so `crossable` searches nothing and asks each sited entity's `Access` and
       `Detection` for the actor crossing. Each staircase gets its relocator with its target. Wall ids are encoded from
       the normal by `encode_wall_id`. `World` contains zones rather than layouts, and the door functions are gone.
-- [ ] **6. Migration and the player's ownership.** Relocating across zones through the links and the index, with the
+- [x] **6. Migration and the player's ownership.** Relocating across zones through the links and the index, with the
       player and the objects it carries owned by the game.
   - [x] **a. The game's entities in a zone.** `InZone`; `zone_of` reading it; `relocate` keeping an entity with no
         parent owned by the game; every query for a zone's entities matching it; and the player owned by the game, and
         scheduled, pursued and drawn as before.
-  - [ ] **b. Migration keeping the links.** Nothing below a migrating entity is sited on the layout; the world index
+  - [x] **b. Migration keeping the links.** Nothing below a migrating entity is sited on the layout; the world index
         follows the entity and everything below it; and the player and the objects it carries are left out of an
         unloaded zone.
 - [ ] **7. Saved zones.** The `zone` section, unloading a zone by writing it and loading one back by reading it, with
       the session lifecycle of stage 7. Writing a zone walks its subtree instead of querying its children, since
-      anything with a parent of its own is below that parent. Loading a zone that is already loaded is an error.
+      anything with a parent of its own is below that parent. Loading a saved zone that is already loaded is an error; a
+      template makes a new zone each time it is loaded.
       Resetting to a save point is the game's operation: `StratumGame` unloads every zone, restores the player and the
       id allocator's count, and loads the zone the player was in, with the others loading as they are entered, so no
       entity is duplicated or lost.
 - [ ] **8. Relocating through a relocator,** stage 6's item in `work_plan.md`, binding targets by persistent id. It
-      resolves a target, bound or unbound, to a zone the world has or generates, and writes the resolution back as a
-      bound target. It places the arriving actor at that zone's unbound access point with the lowest `order`, of the
-      type at which the relocator's type arrives, and binds both ends to each other; `entry_point` then skips a bound
+      resolves a target, bound or unbound, to a zone the world has or makes; an unbound level offset finds an unbound
+      relocator with the opposite offset at the target level, or makes a zone there (`region_plan.md`,
+      `## Relocators with a level offset`). It places the arriving actor at the found relocator's access point, or at
+      the new zone's unbound access point with the lowest `order`, of the type at which the relocator's type arrives,
+      and binds both ends to each other, writing each as the other's bound target; `entry_point` then skips a bound
       access point. Entering an access point, by moving into its wall or by a keystroke on its floor cell, starts it
       (`session_plan.md` step 6).
 - [ ] **9. The zone actor index.** `ActorIndex`, `DiscreteActorIndex`, `Layout::create_actor_index`, the observers,
@@ -374,7 +377,8 @@ that nothing a player sees changed apart from the wall ids they print.
 - **Step 7 waits on stage 7 of `work_plan.md`,** the session lifecycle: a session that outlives one zone, and a zone
   added to the world when it is encountered. A zone cannot be written out and read back until there is a reason to
   unload it.
-- **Step 8 waits on steps 4 and 6,** since a bound target is a persistent id that resolves through the world index.
+- **Step 8 waits on `region_plan.md`,** since a level offset is resolved against zones' levels and regions, and
+  nothing associates zones yet.
 
 ## Open
 

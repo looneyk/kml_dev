@@ -92,6 +92,21 @@ namespace
     }
 
     //--------------------------------------------------------------------------
+    // Returns true if any descendant of e is sited on a wall or a flat cell, which are only addresses in e's zone
+    bool has_descendant_sited_on_layout(flecs::entity e)
+    {
+        bool found = false;
+
+        e.children([&](flecs::entity child)
+        {
+            const auto* site = child.try_get<quetzal::stratum_sim::Site>();
+            found = found || (site != nullptr && site->address.has_value()) || has_descendant_sited_on_layout(child);
+        });
+
+        return found;
+    }
+
+    //--------------------------------------------------------------------------
     void append_if(quetzal::stratum_sim::World::entities_type& chain, flecs::entity level)
     {
         if (level)
@@ -242,6 +257,10 @@ flecs::entity quetzal::stratum_sim::zone_of(flecs::entity e)
 void quetzal::stratum_sim::reparent(flecs::entity e, flecs::entity parent, const Site& site)
 {
     assert(e && parent && e != parent);
+
+    [[maybe_unused]] flecs::entity zone_from = zone_of(e);
+    [[maybe_unused]] flecs::entity zone_to = parent.has<Zone>() ? parent : zone_of(parent);
+    assert(!zone_from || zone_from == zone_to || !has_descendant_sited_on_layout(e));
 
     e.remove<Site>(); // First, so it leaves what it was sited on while still in that zone
     set_parent(e, parent);
@@ -606,6 +625,9 @@ void quetzal::stratum_sim::World::relocate(flecs::entity e, flecs::entity zone, 
         reparent(e, zone, site);
         return;
     }
+
+    [[maybe_unused]] flecs::entity zone_from = stratum_sim::zone_of(e);
+    assert(!zone_from || zone_from == zone || !has_descendant_sited_on_layout(e));
 
     e.remove<Site>(); // First, so it leaves what it was sited on while still in that zone
     e.add<InZone>(zone);

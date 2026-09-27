@@ -78,9 +78,9 @@ void Session::set_driver(Driver driver, double units_per_second = Clock::units_p
 - **The library has no default type.** The caller passes one; for now each host passes `up` from a temporary constant
   of its own, so the player enters at up staircase 0. A zone with no access point of the type is an error.
 - **A dungeon level has at least one staircase leading up,** its way out, so a generator's minimum count of staircases
-  leading up is 1. A staircase leading down is optional: its probability is inversely proportional to the zone's
-  `depth` and proportional to its `difficulty`, and is 1 for now. `depth` is set only on a zone of the dungeon level
-  type.
+  leading up is 1. A staircase leading down is optional: its probability is inversely proportional to how far below
+  the surface the zone's level is and proportional to its `difficulty`, and is 1 for now (`region_plan.md`,
+  `## Level`).
 - **`type`, `order` and `entry` are in the zone file format** within the current version (`discrete_layout.md`,
   `## layout`).
 
@@ -122,8 +122,8 @@ void Session::set_driver(Driver driver, double units_per_second = Clock::units_p
       their arrivals. The generators' minimum count of staircases leading up is raised to 1, and a staircase leading
       down is placed with probability 1. The loader builds access points into the zone, and `Session::enter` places the
       player at the entry point of the type passed; a zone with no access point of the type is an error. Availability
-      is `addressing_plan.md` step 8, where relocators bind, and the probability inversely proportional to `depth`
-      waits on `## Regions` in `work_plan.md` for its maximum depth.
+      is `addressing_plan.md` step 8, where relocators bind, and the probability that varies with level waits on
+      `region_plan.md` step 2.
 - [ ] **6. Entering an access point.** The reader requires the site's `orientation` on an access point on the floor or
       the ceiling. Moving into a wall with an access point on it enters the access point. An access point on the floor
       does not impede movement, and a keystroke on its cell, which is a command the hosts map, enters it. Entering
