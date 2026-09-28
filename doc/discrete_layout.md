@@ -724,6 +724,7 @@ every check has passed, so a rejected file leaves nothing behind.
   than one; or a door with a child sited on a wall outside its doorway.
 - `layout.components.access_points` is absent, is not a list, or lists nothing; or a value it lists is
   not a reference to an entity with a relocator sited on a surface.
+- An access point on the floor or the ceiling has no site `orientation`.
 - An access point's relocator has no `type`, no `order`, an order repeated or past a gap within its type,
   or no `placement`, or a placement on a cell an actor cannot stand in.
 - A relocator has no `target`, or one that is neither a string nor a reference; a string that does not match

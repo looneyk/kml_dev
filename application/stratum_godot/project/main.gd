@@ -27,7 +27,8 @@ func _initialize() -> void:
 	print("render -> ", lines.size(), " rows, ", lines[0].length(), " columns")
 
 	var codes := world.cells()
+	var actors := world.actors()
 	print("cells  -> ", codes.size(), " codes, ", codes.count(StratumWorld.PlaceTypeFloor), " floor, ",
-		world.actors().count(1), " actor")
+		actors.count(StratumWorld.OccupantPlayer), " player, ", actors.count(StratumWorld.OccupantOther), " other")
 
 	quit()

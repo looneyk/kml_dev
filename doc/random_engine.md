@@ -1,6 +1,6 @@
 # Random Engine --- Plan
 
-Status: designed
+Status: step 1 built in part; the rest designed
 Date: 2026-09-27
 
 Where random numbers come from in the game and in the generators: who owns each engine, how it is seeded, and what is
@@ -10,7 +10,9 @@ development tool for the suites, bug reports, and reference files, not a promise
 
 ## Where it is now
 
-- **The simulation has no engine of its own.** `World::resolve_relocator_target` takes a `random_type&` from its caller.
+- **`StratumGame` owns the gameplay engine,** a `math::Random<>` seeded from `std::random_device`, and `World` takes it
+  by reference in its constructor; `World::resolve_relocator_target` draws from it. The seed is neither passed in nor
+  logged.
 - **dungen and catagen each seed one `math::Random<>` per run** from `Parameters::seed`, and pass it by reference from
   one function to the next.
 - **A region's generator is given the level of the zone it makes,** as `ZoneLevel`, and no seed.
@@ -140,7 +142,9 @@ and a seed stored with the version of the generators that made it.
 
 - [ ] **1. The gameplay engine.** `StratumGame` owns a `random_type`, now `math::Random` with the chosen engine, seeded
       from a seed that a host or a suite passes, or from `std::random_device`, and `World` takes it by reference in its
-      constructor. `resolve_relocator_target` draws from it, and the hosts log the seed and accept one.
+      constructor. `resolve_relocator_target` draws from it, and the hosts log the seed and accept one. Built: the
+      ownership, the reference, and the draw, with `math::Random<>` seeded from `std::random_device`. Left: the seed
+      passed in and logged, and the chosen engine.
 - [ ] **2. The generation engine and zone seeds.** `StratumGame`'s second engine, which `World` also takes by reference,
       `ZoneSeed` set by `create_zone(region, level)`, and a region's generator reading it.
 - [ ] **3. Generation runs as objects.** dungen's and catagen's runs, each owning its engine, the chosen one,

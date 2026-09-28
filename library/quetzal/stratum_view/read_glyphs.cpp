@@ -37,7 +37,9 @@ namespace
         {"solid", PlaceType::Solid},
         {"floor", PlaceType::Floor},
         {"wall", PlaceType::Wall},
-        {"door", PlaceType::Door}
+        {"door", PlaceType::Door},
+        {"stairs_up", PlaceType::StairsUp},
+        {"stairs_down", PlaceType::StairsDown}
     };
 
     struct NamedState

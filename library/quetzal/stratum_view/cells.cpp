@@ -7,6 +7,7 @@
 #include "quetzal/stratum_sim/attachments.hpp"
 #include "quetzal/stratum_sim/DiscreteLayout.hpp"
 #include "quetzal/stratum_sim/Site.hpp"
+#include <variant>
 #include <cassert>
 
 namespace sim = quetzal::stratum_sim;
@@ -104,6 +105,72 @@ namespace
     }
 
     //--------------------------------------------------------------------------
+    // Returns true if the entity's relocator is known to lead below its zone. Stairs whose direction is not known are drawn
+    // leading up, the entrance glyph
+    bool leads_down(flecs::entity e)
+    {
+        const sim::Relocator& relocator = e.get<sim::Relocator>();
+        const auto* zone_level = sim::zone_of(e).try_get<sim::ZoneLevel>();
+
+        if (const auto* target = std::get_if<quetzal::stratum_format::RelocatorTarget>(&relocator.target))
+        {
+            if (const auto* relative = std::get_if<quetzal::stratum_format::RelativeZone>(&target->zone))
+            {
+                return relative->offset < 0;
+            }
+
+            const auto* absolute = std::get_if<quetzal::stratum_format::AbsoluteZone>(&target->zone);
+            return absolute != nullptr && zone_level != nullptr && absolute->level < zone_level->level;
+        }
+
+        flecs::entity bound = std::get<sim::EntityReference>(relocator.target).entity;
+        const auto* bound_level = bound && bound.is_alive() ? sim::zone_of(bound).try_get<sim::ZoneLevel>() : nullptr;
+
+        return bound_level != nullptr && zone_level != nullptr && bound_level->level < zone_level->level;
+    }
+
+    //--------------------------------------------------------------------------
+    // Calls f for every cell drawn as stairs, with the place type that draws it: the cell of a relocator on the floor, and
+    // the closed cell beyond a relocator on a wall, which is a stair block
+    template<typename F>
+    void each_stairs_cell(const sim::DiscreteLayout& layout, flecs::entity zone, F f)
+    {
+        sim::with_in_zone(zone.world().query_builder<const sim::Site>(), zone)
+            .with<sim::Relocator>()
+            .build()
+            .each([&](flecs::entity e, const sim::Site& site)
+            {
+                if (!site.address.has_value())
+                {
+                    return;
+                }
+
+                quetzal::stratum_view::PlaceType type = leads_down(e) ? quetzal::stratum_view::PlaceType::StairsDown
+                    : quetzal::stratum_view::PlaceType::StairsUp;
+
+                if (const auto* flat_cell = std::get_if<sim::FlatCellAddress>(&*site.address))
+                {
+                    if (flat_cell->flat_id == layout.floor_id())
+                    {
+                        f(flat_cell->cell_position, type);
+                    }
+
+                    return;
+                }
+
+                quetzal::id_type wall_id = std::get<sim::WallAddress>(*site.address).wall_id;
+                sim::discrete_point_type beyond = layout.wall_cell_position(wall_id) + layout.wall_direction(wall_id);
+
+                if (layout.grid().contains(beyond) && !layout.open(beyond))
+                {
+                    f(beyond, type);
+                }
+            });
+
+        return;
+    }
+
+    //--------------------------------------------------------------------------
     // The cell each entity in the zone occupies, skipping those off the grid
     template<typename F>
     void each_actor_cell(const sim::DiscreteLayout& layout, flecs::entity zone, F f)
@@ -154,6 +221,11 @@ quetzal::stratum_view::Cells quetzal::stratum_view::cells(const sim::World& worl
     each_door_cell(layout, zone, viewer, [&](const sim::discrete_point_type& cell_position, State state)
     {
         cells.set(cell_position, Place {PlaceType::Door, state});
+    });
+
+    each_stairs_cell(layout, zone, [&](const sim::discrete_point_type& cell_position, PlaceType type)
+    {
+        cells.set(cell_position, Place {type});
     });
 
     each_actor_cell(layout, zone, [&](const sim::discrete_point_type& cell_position)
@@ -300,6 +372,13 @@ quetzal::stratum_view::Lattice quetzal::stratum_view::lattice(const sim::World& 
             lattice.set(position, place);
         }
     }
+
+    each_stairs_cell(layout, zone, [&](const sim::discrete_point_type& cell_position, PlaceType type)
+    {
+        Place place = lattice.at(lattice_position(cell_position));
+        place.type = type;
+        lattice.set(lattice_position(cell_position), place);
+    });
 
     each_actor_cell(layout, zone, [&](const sim::discrete_point_type& cell_position)
     {

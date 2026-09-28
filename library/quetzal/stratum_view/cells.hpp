@@ -17,14 +17,17 @@ namespace quetzal::stratum_view
     //--------------------------------------------------------------------------
     // The fixed structure at a place, whatever its state
     // None is an edge with no wall or a corner no wall line reaches. Solid is a closed cell, or a lattice position whose
-    // cells are all closed
+    // cells are all closed. StairsUp and StairsDown are a floor cell with a relocator on it, or a stair block: the closed cell
+    // beyond a wall with a relocator on it
     enum class PlaceType : uint8_t
     {
         None,
         Solid,
         Floor,
         Wall,
-        Door
+        Door,
+        StairsUp,
+        StairsDown
     };
 
     //--------------------------------------------------------------------------
@@ -64,8 +67,8 @@ namespace quetzal::stratum_view
     using Cells = Buffer<Place>;
     using Lattice = Buffer<Place>;
 
-    // The zone reduced to one Place per grid cell: Solid, Floor, or a Door that occupies a cell, as a doorway does in the
-    // block notation. A wall or door on the edge between two cells has no position here
+    // The zone reduced to one Place per grid cell: Solid, Floor, a Door that occupies a cell, as a doorway does in the
+    // block notation, or stairs. A wall or door on the edge between two cells has no position here
     // The zone is as the viewer perceives it: a door the viewer finds concealed is drawn as though there were none
     Cells cells(const stratum_sim::World& world, flecs::entity zone, flecs::entity viewer);
 

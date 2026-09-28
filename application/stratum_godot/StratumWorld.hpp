@@ -12,6 +12,7 @@
 #include <godot_cpp/variant/packed_byte_array.hpp>
 #include <godot_cpp/variant/string.hpp>
 #include <godot_cpp/variant/vector2i.hpp>
+#include <string>
 
 //------------------------------------------------------------------------------
 // One simulation zone and the player, exposed to Godot through Godot types only
@@ -41,33 +42,60 @@ public:
     godot::String render() const;
 
     // The fixed structure at each cell, one code per cell, row major from row zero. The codes repeat
-    // stratum_view::PlaceType for Godot; None and Wall are never emitted, but keep the values aligned
+    // stratum_view::PlaceType for Godot, followed by PlaceTypeDoorOpen for a door whose access is open; None and Wall are
+    // never emitted, but keep the values aligned
     enum PlaceType
     {
         PlaceTypeNone,
         PlaceTypeSolid,
         PlaceTypeFloor,
         PlaceTypeWall,
-        PlaceTypeDoor
+        PlaceTypeDoor,
+        PlaceTypeStairsUp,
+        PlaceTypeStairsDown,
+        PlaceTypeDoorOpen
+    };
+
+    // Who is on each cell
+    enum Occupant
+    {
+        OccupantNone,
+        OccupantPlayer,
+        OccupantOther
     };
 
     godot::PackedByteArray cells() const;
 
-    // One byte per cell in the order of cells(), nonzero if an actor is on the cell
+    // One Occupant per cell in the order of cells()
     godot::PackedByteArray actors() const;
 
     // The cell arrived at, unchanged when the move was blocked or it was not the player's turn
     godot::Vector2i step(int32_t di, int32_t dj);
 
+    // Acts on what the player faces, such as opening or closing a door
+    void interact();
+
+    // Enters the relocator on the floor of the player's cell. The cell arrived at, unchanged when there is none or it was
+    // not the player's turn
+    godot::Vector2i enter();
+
     // Scheduler units elapsed. Advances only when something actually costs a turn
     int64_t turn() const;
 
+    // What the last step, interact, or enter did that the map does not show, or an empty string
+    godot::String message() const;
+
 private:
+
+    // Advances the session and sets the message from its events
+    void advance();
 
     quetzal::stratum_sim::StratumGame m_stratum_game;
     quetzal::stratum_sim::Session& m_session;
+    std::string m_message;
 };
 
 VARIANT_ENUM_CAST(StratumWorld::PlaceType);
+VARIANT_ENUM_CAST(StratumWorld::Occupant);
 
 #endif // STRATUM_GODOT_STRATUMWORLD_HPP

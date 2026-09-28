@@ -27,7 +27,8 @@ void quetzal::stratum_sim::register_game_types(World& world)
 //------------------------------------------------------------------------------
 quetzal::stratum_sim::StratumGame::StratumGame() :
     m_counting_id_allocator(PersistentId {}),
-    m_world(m_counting_id_allocator, zone_count_max),
+    m_random(),
+    m_world(m_counting_id_allocator, m_random, zone_count_max),
     m_player(m_world),
     m_session(m_world, m_player),
     m_starting_region(m_world.create_region())

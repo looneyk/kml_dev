@@ -1,6 +1,6 @@
 # Session --- Plan
 
-Status: steps 1 to 3 and 5 built; steps 4, 6 and 7 designed
+Status: steps 1 to 3, 5, and 6 built; steps 4 and 7 designed
 Date: 2026-09-22, revised 2026-09-26
 
 This plan describes how the parts of `StratumGame` divide the work of creating, loading, populating and playing zones.
@@ -126,11 +126,12 @@ void Session::set_driver(Driver driver, double units_per_second = Clock::units_p
       player at the entry point of the type passed; a zone with no access point of the type is an error. Availability
       is `addressing_plan.md` step 8, where relocators bind, and the probability that varies with level waits on
       `region_plan.md` step 2.
-- [ ] **6. Entering an access point.** The reader requires the site's `orientation` on an access point on the floor or
+- [x] **6. Entering an access point.** The reader requires the site's `orientation` on an access point on the floor or
       the ceiling. Moving into a wall with an access point on it enters the access point. An access point on the floor
       does not impede movement, and a keystroke on its cell, which is a command the hosts map, enters it. Entering
       relocates the actor through the relocator, so this step waits on `addressing_plan.md` step 8 for where the
-      relocator leads. The views draw an access point on the floor by its orientation.
+      relocator leads. The views draw an access point on the floor with the stair glyph, its orientation not yet drawn.
+      Only the player enters a relocator.
 - [ ] **7. Staircases placed in every form.** The generators can place a staircase in a flat length of wall or in a
       1x1 alcove, the two being equivalent across the notations, as well as a block staircase on floor cells in the
       open space of a room. In the wall notation every staircase is sited on a wall.

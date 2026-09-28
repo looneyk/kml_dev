@@ -1456,8 +1456,8 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // A zone has at least one access point. Each is an entity with a relocator, sited on a wall, the floor, or the ceiling.
-    // The relocator has a type; an order, counting from 0 without gaps among the access points of that type; and a
+    // A zone has at least one access point. Each is an entity with a relocator, sited on a wall, or on the floor or the
+    // ceiling with an orientation. The relocator has a type; an order, counting from 0 without gaps among the access points of that type; and a
     // placement, the cell and orientation at which an arriving actor is placed. An access point on a wall that is not the open side of
     // a cell written '<' or '>' is a warning, since the glyphs are visual aids, and so is a relocator type that is neither the
     // entity's type nor its parent's
@@ -1512,6 +1512,12 @@ namespace
             }
 
             const WallAddress* address = wall_address(entity);
+            if (address == nullptr && !entity.site->orientation.has_value())
+            {
+                fail(member_path(member_path(element_path("entities", slot->second), "components"), "site"),
+                    "an access point on the floor or the ceiling with no orientation");
+            }
+
             if (address != nullptr && !open_sides.contains(wall_key(*address)) && !door_sides.contains(wall_key(*address)))
             {
                 warn(point_path, "an entity sited on a wall that is neither the open side of a cell written '<' or '>' nor a door's wall");

@@ -23,6 +23,23 @@ namespace
         return std::format("access_types::{}", name);
     }
 
+    //--------------------------------------------------------------------------
+    template<typename Address>
+    flecs::entity find_attached_relocator(flecs::entity zone, const Address& address)
+    {
+        flecs::entity sited_on = quetzal::stratum_sim::layout_entity(zone, address);
+        const auto* attached = sited_on ? sited_on.try_get<quetzal::stratum_sim::AttachedEntities>() : nullptr;
+
+        if (attached == nullptr)
+        {
+            return flecs::entity();
+        }
+
+        auto i = std::find_if(attached->entities.begin(), attached->entities.end(),
+            [](flecs::entity e) { return e.has<quetzal::stratum_sim::Relocator>(); });
+        return i != attached->entities.end() ? *i : flecs::entity();
+    }
+
 } // namespace
 
 //------------------------------------------------------------------------------
@@ -58,6 +75,13 @@ bool quetzal::stratum_sim::targets_relocator_level(flecs::entity e, level_type o
     const auto* zone_level = absolute != nullptr ? zone_of(e).try_get<ZoneLevel>() : nullptr;
 
     return zone_level != nullptr && absolute->level == zone_level->level + offset;
+}
+
+//------------------------------------------------------------------------------
+std::string quetzal::stratum_sim::access_type_name(flecs::entity e)
+{
+    flecs::entity type = e.target<AccessType>();
+    return type ? std::string(type.name().c_str()) : std::string();
 }
 
 //------------------------------------------------------------------------------
@@ -149,6 +173,25 @@ quetzal::stratum_sim::DetectionState quetzal::stratum_sim::detection(flecs::enti
     }
 
     return DetectionState::Visible;
+}
+
+//------------------------------------------------------------------------------
+flecs::entity quetzal::stratum_sim::find_relocator(flecs::entity zone, const WallAddress& address)
+{
+    return find_attached_relocator(zone, address);
+}
+
+//------------------------------------------------------------------------------
+flecs::entity quetzal::stratum_sim::find_relocator(flecs::entity zone, const FlatCellAddress& address)
+{
+    return find_attached_relocator(zone, address);
+}
+
+//------------------------------------------------------------------------------
+bool quetzal::stratum_sim::can_enter(flecs::entity e, flecs::entity actor)
+{
+    std::optional<AccessState> state = access(e);
+    return (!state.has_value() || *state == AccessState::Open) && detection(e, actor) != DetectionState::Concealed;
 }
 
 //------------------------------------------------------------------------------

@@ -102,10 +102,14 @@ const quetzal::stratum_view::Glyphs& quetzal::stratum_view::cell_glyphs()
     {
         {PlaceType::Floor, State::None, {}, true, '@'},
         {PlaceType::Door, State::None, {}, true, '@'},
+        {PlaceType::StairsUp, State::None, {}, true, '@'},
+        {PlaceType::StairsDown, State::None, {}, true, '@'},
         {PlaceType::Solid, State::None, {}, false, '#'},
         {PlaceType::Floor, State::None, {}, false, '.'},
         {PlaceType::Door, State::None, {}, false, '/'},
-        {PlaceType::Door, State::Open, {}, false, '\\'}
+        {PlaceType::Door, State::Open, {}, false, '\\'},
+        {PlaceType::StairsUp, State::None, {}, false, '<'},
+        {PlaceType::StairsDown, State::None, {}, false, '>'}
     });
 
     return glyphs;
@@ -120,11 +124,15 @@ const quetzal::stratum_view::Glyphs& quetzal::stratum_view::lattice_glyphs()
         {
             {PlaceType::Floor, State::None, {}, true, '@'},
             {PlaceType::Door, State::None, {}, true, '@'},
+            {PlaceType::StairsUp, State::None, {}, true, '@'},
+            {PlaceType::StairsDown, State::None, {}, true, '@'},
             {PlaceType::Solid, State::None, {}, false, '#'},
             {PlaceType::None, State::None, {}, false, ' '},
             {PlaceType::Floor, State::None, {}, false, ' '},
             {PlaceType::Door, State::None, {}, false, '/'},
-            {PlaceType::Door, State::Open, {}, false, '\\'}
+            {PlaceType::Door, State::Open, {}, false, '\\'},
+            {PlaceType::StairsUp, State::None, {}, false, '<'},
+            {PlaceType::StairsDown, State::None, {}, false, '>'}
         };
 
         add_walls(v, '-', '|', '+', ' ');

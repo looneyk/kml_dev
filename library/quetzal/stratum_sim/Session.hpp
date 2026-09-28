@@ -67,6 +67,10 @@ namespace quetzal::stratum_sim
 
     private:
 
+        // Makes the zone the player is in the one being played: the world trims its zones, the player's pending command is
+        // dropped, and the turn order is rebuilt from the zone's actors
+        void play(flecs::entity zone);
+
         World& m_world;
         Player& m_player;
         Scheduler m_scheduler;

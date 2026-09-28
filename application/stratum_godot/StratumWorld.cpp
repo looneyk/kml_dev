@@ -11,7 +11,9 @@
 #include "quetzal/stratum_view/ascii.hpp"
 #include "quetzal/stratum_view/cells.hpp"
 #include <godot_cpp/variant/utility_functions.hpp>
+#include <cstdlib>
 #include <exception>
+#include <format>
 #include <string>
 
 namespace sim = quetzal::stratum_sim;
@@ -24,12 +26,16 @@ namespace
     static constexpr auto entry_access_type = "staircase";
     static constexpr sim::level_type entry_level_offset = 1;
 
+    // Temporary: a zone loaded is the first level down if its file states no level
+    static constexpr sim::level_type starting_level = -1;
+
 } // namespace
 
 //------------------------------------------------------------------------------
 StratumWorld::StratumWorld() :
     m_stratum_game(),
-    m_session(m_stratum_game.session())
+    m_session(m_stratum_game.session()),
+    m_message()
 {
 }
 
@@ -49,8 +55,17 @@ void StratumWorld::_bind_methods()
     BIND_ENUM_CONSTANT(PlaceTypeFloor);
     BIND_ENUM_CONSTANT(PlaceTypeWall);
     BIND_ENUM_CONSTANT(PlaceTypeDoor);
+    BIND_ENUM_CONSTANT(PlaceTypeStairsUp);
+    BIND_ENUM_CONSTANT(PlaceTypeStairsDown);
+    BIND_ENUM_CONSTANT(PlaceTypeDoorOpen);
+    BIND_ENUM_CONSTANT(OccupantNone);
+    BIND_ENUM_CONSTANT(OccupantPlayer);
+    BIND_ENUM_CONSTANT(OccupantOther);
     godot::ClassDB::bind_method(godot::D_METHOD("step", "di", "dj"), &StratumWorld::step);
+    godot::ClassDB::bind_method(godot::D_METHOD("interact"), &StratumWorld::interact);
+    godot::ClassDB::bind_method(godot::D_METHOD("enter"), &StratumWorld::enter);
     godot::ClassDB::bind_method(godot::D_METHOD("turn"), &StratumWorld::turn);
+    godot::ClassDB::bind_method(godot::D_METHOD("message"), &StratumWorld::message);
 
     return;
 }
@@ -74,6 +89,11 @@ bool StratumWorld::load_zone(const godot::String& filepath)
     {
         godot::UtilityFunctions::push_error("unable to load zone: ", godot::String::utf8(e.what()));
         return false;
+    }
+
+    if (!m_session.zone().has<sim::ZoneLevel>())
+    {
+        m_session.zone().set<sim::ZoneLevel>(sim::ZoneLevel {starting_level});
     }
 
     return true;
@@ -136,7 +156,9 @@ godot::PackedByteArray StratumWorld::cells() const
     {
         for (view::coord_type i = 0; i < extent.x(); ++i)
         {
-            codes[static_cast<int64_t>(j) * extent.x() + i] = static_cast<uint8_t>(cells.at({i, j}).type);
+            const view::Place& place = cells.at({i, j});
+            bool open_door = place.type == view::PlaceType::Door && view::any(place.state & view::State::Open);
+            codes[static_cast<int64_t>(j) * extent.x() + i] = open_door ? static_cast<uint8_t>(PlaceTypeDoorOpen) : static_cast<uint8_t>(place.type);
         }
     }
 
@@ -158,11 +180,14 @@ godot::PackedByteArray StratumWorld::actors() const
     const view::vector_type& extent = cells.extent();
     flags.resize(static_cast<int64_t>(extent.x()) * extent.y());
 
+    godot::Vector2i player_cell = cell();
+
     for (view::coord_type j = 0; j < extent.y(); ++j)
     {
         for (view::coord_type i = 0; i < extent.x(); ++i)
         {
-            flags[static_cast<int64_t>(j) * extent.x() + i] = cells.at({i, j}).actor ? 1 : 0;
+            Occupant occupant = !cells.at({i, j}).actor ? OccupantNone : godot::Vector2i(i, j) == player_cell ? OccupantPlayer : OccupantOther;
+            flags[static_cast<int64_t>(j) * extent.x() + i] = static_cast<uint8_t>(occupant);
         }
     }
 
@@ -177,12 +202,38 @@ godot::Vector2i StratumWorld::step(int32_t di, int32_t dj)
         return {};
     }
 
-    m_session.player().set_intent(sim::Intent {
-        sim::vector_type(static_cast<sim::value_type>(di), static_cast<sim::value_type>(dj), sim::value_type(0)),
-        sim::value_type(1), sim::vector_type()});
+    // This view does not show the facing direction, so a move also turns toward the way it goes, and interact acts ahead
+    sim::vector_type direction(static_cast<sim::value_type>(di), static_cast<sim::value_type>(dj), sim::value_type(0));
+    m_session.player().set_intent(sim::Intent {direction, sim::value_type(1), direction});
+    advance();
 
-    sim::EventQueue events;
-    m_session.advance(events);
+    return cell();
+}
+
+//------------------------------------------------------------------------------
+void StratumWorld::interact()
+{
+    if (!m_session.loaded())
+    {
+        return;
+    }
+
+    m_session.player().submit(sim::Interact {});
+    advance();
+
+    return;
+}
+
+//------------------------------------------------------------------------------
+godot::Vector2i StratumWorld::enter()
+{
+    if (!m_session.loaded())
+    {
+        return {};
+    }
+
+    m_session.player().submit(sim::Enter {});
+    advance();
 
     return cell();
 }
@@ -191,4 +242,51 @@ godot::Vector2i StratumWorld::step(int32_t di, int32_t dj)
 int64_t StratumWorld::turn() const
 {
     return static_cast<int64_t>(m_session.scheduler().elapsed());
+}
+
+//------------------------------------------------------------------------------
+godot::String StratumWorld::message() const
+{
+    return godot::String::utf8(m_message.c_str());
+}
+
+//------------------------------------------------------------------------------
+void StratumWorld::advance()
+{
+    sim::EventQueue events;
+    m_session.advance(events);
+
+    m_message.clear();
+
+    for (const sim::Event& event : events.events())
+    {
+        if (const sim::Blocked* pblocked = event.try_get<sim::Blocked>())
+        {
+            flecs::entity relocator = pblocked->blocking_wall_id != quetzal::nullid
+                ? sim::find_relocator(m_session.zone(), sim::WallAddress {pblocked->blocking_wall_id}) : flecs::entity();
+            std::string name = relocator ? sim::access_type_name(relocator) : std::string();
+
+            m_message = relocator ? std::format("There is a {} before you.", name.empty() ? "way" : name) : std::string();
+        }
+        else if (const sim::Interacted* pinteracted = event.try_get<sim::Interacted>())
+        {
+            if (pinteracted->interaction == sim::Interaction::NoDestination)
+            {
+                std::string name = sim::access_type_name(m_session.world().entities().entity(pinteracted->acted_on_id));
+                m_message = std::format("You try the {}, but it leads nowhere.", name.empty() ? "way" : name);
+                continue;
+            }
+
+            m_message = pinteracted->interaction == sim::Interaction::Opened ? "The door opens."
+                : pinteracted->interaction == sim::Interaction::Closed ? "The door shuts."
+                : "Nothing happens.";
+        }
+        else if (event.is<sim::Relocated>())
+        {
+            // A level is shown as its distance from the surface
+            m_message = std::format("You arrive on level {}.", std::abs(m_session.zone().get<sim::ZoneLevel>().level));
+        }
+    }
+
+    return;
 }

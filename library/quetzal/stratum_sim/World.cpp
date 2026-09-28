@@ -312,8 +312,9 @@ flecs::entity quetzal::stratum_sim::entity_type(const flecs::world& entities, st
 }
 
 //------------------------------------------------------------------------------
-quetzal::stratum_sim::World::World(IdAllocator& id_allocator, size_t zone_count_max) :
+quetzal::stratum_sim::World::World(IdAllocator& id_allocator, random_type& random, size_t zone_count_max) :
     m_id_allocator(id_allocator),
+    m_random(random),
     m_loaded_entities(),
     m_entity_zones(),
     m_zones_unloading(),
@@ -695,7 +696,7 @@ void quetzal::stratum_sim::World::relocate(flecs::entity e, flecs::entity zone, 
 }
 
 //------------------------------------------------------------------------------
-flecs::entity quetzal::stratum_sim::World::resolve_relocator_target(flecs::entity relocator, random_type& random)
+flecs::entity quetzal::stratum_sim::World::resolve_relocator_target(flecs::entity relocator)
 {
     assert(relocator.has<Relocator>() && std::holds_alternative<stratum_format::RelocatorTarget>(relocator.get<Relocator>().target));
     assert(relocator.has<AccessType>(flecs::Wildcard));
@@ -773,8 +774,45 @@ flecs::entity quetzal::stratum_sim::World::resolve_relocator_target(flecs::entit
         return flecs::entity();
     }
 
-    flecs::entity zone = create_zone(generating_regions[random.gen(generating_regions.size())], level);
+    flecs::entity zone = create_zone(generating_regions[m_random.gen(generating_regions.size())], level);
     return entry_point(zone, arrival_type, -offset);
+}
+
+//------------------------------------------------------------------------------
+flecs::entity quetzal::stratum_sim::World::relocate_through(flecs::entity actor, flecs::entity relocator)
+{
+    assert(relocator.has<Relocator>());
+
+    flecs::entity arrival;
+
+    if (auto* reference = std::get_if<EntityReference>(&relocator.get_mut<Relocator>().target))
+    {
+        arrival = resolve(*reference);
+    }
+    else
+    {
+        const auto& target = std::get<stratum_format::RelocatorTarget>(relocator.get<Relocator>().target);
+        bool level_target = !std::holds_alternative<std::string>(target.zone) && !target.position.has_value()
+            && (!target.region.has_value() || *target.region == "." || *target.region == "..");
+
+        arrival = level_target ? resolve_relocator_target(relocator) : flecs::entity();
+
+        if (arrival)
+        {
+            relocator.set<Relocator>(Relocator {make_reference(arrival)});
+            arrival.set<Relocator>(Relocator {make_reference(relocator)});
+        }
+    }
+
+    if (!arrival)
+    {
+        return flecs::entity();
+    }
+
+    assert(arrival.has<AccessPoint>());
+    relocate(actor, stratum_sim::zone_of(arrival), arrival.get<AccessPoint>().placement);
+
+    return arrival;
 }
 
 //------------------------------------------------------------------------------

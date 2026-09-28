@@ -8,9 +8,14 @@ glyphs 0.1
 # draws as the mover
 floor actor '@'
 door actor '@'
+stairs_up actor '@'
+stairs_down actor '@'
 
 solid '#'
 floor '.'
 
 door '/'
 door open '\'
+
+stairs_up '<'
+stairs_down '>'

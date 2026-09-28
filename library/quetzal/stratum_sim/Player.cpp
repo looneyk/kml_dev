@@ -14,7 +14,7 @@ namespace
 
 //------------------------------------------------------------------------------
 quetzal::stratum_sim::Player::Player(World& world) :
-    m_entity(world.entities().entity().add<Blocking>().set<Speed>(Speed {player_speed}).set<PersistentId>(world.next_id()))
+    m_entity(world.entities().entity().add<Blocking>().add<ControlledActor>().set<Speed>(Speed {player_speed}).set<PersistentId>(world.next_id()))
 {
 }
 

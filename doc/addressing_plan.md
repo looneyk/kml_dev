@@ -1,6 +1,6 @@
 # Ids and Addressing --- Plan
 
-Status: steps 1 to 6 built; the rest designed
+Status: steps 1 to 6 and 8 built; the rest designed
 Date: 2026-09-14, revised 2026-09-26
 
 This is the design behind the spec in `addressing.md`. It covers one list of entities in a zone file, with `site` and
@@ -358,7 +358,7 @@ a wall or a flat cell, since those addresses belong to the old zone.
       Resetting to a save point is the game's operation: `StratumGame` unloads every zone, restores the player and the
       id allocator's count, and loads the zone the player was in, with the others loading as they are entered, so no
       entity is duplicated or lost.
-- [ ] **8. Relocating through a relocator,** stage 6's item in `work_plan.md`, binding targets by persistent id. It
+- [x] **8. Relocating through a relocator,** `World::relocate_through`, stage 6's item in `work_plan.md`, binding targets by persistent id. It
       resolves a target, bound or unbound, to a zone the world has or makes; an unbound level finds an unbound access
       point that leads back, at the target level, or makes a zone there, with `World::resolve_relocator_target`
       (`region_plan.md`, `## Relocators with a level offset`). The zone relocated from must have a level, so the hosts'
@@ -379,8 +379,6 @@ that nothing a player sees changed apart from the wall ids they print.
 - **Step 7 waits on stage 7 of `work_plan.md`,** the session lifecycle: a session that outlives one zone, and a zone
   added to the world when it is encountered. A zone cannot be written out and read back until there is a reason to
   unload it.
-- **Step 8 waits on `region_plan.md`,** since a level offset is resolved against zones' levels and regions, and
-  nothing associates zones yet.
 
 ## Open
 

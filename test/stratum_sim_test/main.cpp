@@ -52,12 +52,15 @@ namespace
 
     static constexpr size_t suite_zone_count_max = 8;
 
+    // Seeded, so a random choice is the same on every run
+    stratum_sim::random_type g_suite_random(1);
+
     //--------------------------------------------------------------------------
     // A world with the game's entity types, as StratumGame's has, and a region for the suite's zones
     struct SuiteWorld : stratum_sim::World
     {
         explicit SuiteWorld(stratum_sim::IdAllocator& id_allocator, size_t zone_count_max = suite_zone_count_max) :
-            World(id_allocator, zone_count_max),
+            World(id_allocator, g_suite_random, zone_count_max),
             region(create_region())
         {
             stratum_sim::register_game_types(*this);
@@ -1883,7 +1886,6 @@ namespace
 
         stratum_sim::CountingIdAllocator id_allocator(stratum_sim::PersistentId {});
         SuiteWorld world(id_allocator);
-        stratum_sim::random_type random(1);
 
         flecs::entity staircase_type = stratum_sim::access_type(world.entities(), "staircase");
         auto up_of = [&](flecs::entity zone) { return stratum_sim::entry_point(zone, staircase_type, 1); };
@@ -1926,38 +1928,38 @@ namespace
         };
 
         report_case("moving down looks only in its own region, which makes no zone without a generator",
-            !world.resolve_relocator_target(field_down, random) && world.zone_count() == 3);
+            !world.resolve_relocator_target(field_down) && world.zone_count() == 3);
         report_case("moving down finds the unbound staircase that leads back, in its region's zone at the level below",
-            world.resolve_relocator_target(first_down, random) == second_up);
-        report_case("moving up finds one in its parent region's zone at the level above", world.resolve_relocator_target(first_up, random) == field_down);
+            world.resolve_relocator_target(first_down) == second_up);
+        report_case("moving up finds one in its parent region's zone at the level above", world.resolve_relocator_target(first_up) == field_down);
 
         retarget(first_down, "=-2");
-        report_case("an absolute target finds a zone at its level", world.resolve_relocator_target(first_down, random) == second_up);
+        report_case("an absolute target finds a zone at its level", world.resolve_relocator_target(first_down) == second_up);
         retarget(first_down, "-1");
         retarget(second_up, "=-1");
-        report_case("a staircase that leads back with an absolute target is found", world.resolve_relocator_target(first_down, random) == second_up);
+        report_case("a staircase that leads back with an absolute target is found", world.resolve_relocator_target(first_down) == second_up);
         retarget(second_up, "+1");
 
         retarget(first_up, "../+1");
-        report_case("the region \"..\" is the parent region", world.resolve_relocator_target(first_up, random) == field_down);
+        report_case("the region \"..\" is the parent region", world.resolve_relocator_target(first_up) == field_down);
         retarget(field_down, "../-1");
-        report_case("and a region with no parent region has none to search or make in", !world.resolve_relocator_target(field_down, random));
+        report_case("and a region with no parent region has none to search or make in", !world.resolve_relocator_target(field_down));
         retarget(field_down, "-1");
         retarget(first_up, "./+1");
-        flecs::entity arrival = world.resolve_relocator_target(first_up, random);
+        flecs::entity arrival = world.resolve_relocator_target(first_up);
         flecs::entity made = zone_arrived_in(arrival);
         report_case("the region \".\" is the only one searched and made in", made && stratum_sim::region_of(made) == dungeon
             && made.get<stratum_sim::ZoneLevel>().level == 0);
         bind(arrival);
         retarget(first_up, "+1");
 
-        arrival = world.resolve_relocator_target(down_of(second), random);
+        arrival = world.resolve_relocator_target(down_of(second));
         made = zone_arrived_in(arrival);
         report_case("finding none, it makes a zone at the level in its own region and arrives at its entry point", made
             && stratum_sim::region_of(made) == dungeon && made.get<stratum_sim::ZoneLevel>().level == -3 && arrival == up_of(made));
 
         bind(field_down);
-        arrival = world.resolve_relocator_target(first_up, random);
+        arrival = world.resolve_relocator_target(first_up);
         made = zone_arrived_in(arrival);
         report_case("a bound relocator is not found, and a zone at level 0 is made only in a region with a generator", made
             && stratum_sim::region_of(made) == dungeon && made.get<stratum_sim::ZoneLevel>().level == 0 && arrival == down_of(made));
@@ -1966,7 +1968,7 @@ namespace
         flecs::entity elsewhere = world.create_region();
         load_at_level(elsewhere, -2);
         world.unload_zone(second);
-        made = zone_arrived_in(world.resolve_relocator_target(first_down, random));
+        made = zone_arrived_in(world.resolve_relocator_target(first_down));
         report_case("an unloaded zone and a zone in an unrelated region are not searched", made
             && stratum_sim::region_of(made) == dungeon && made.get<stratum_sim::ZoneLevel>().level == -2);
 
@@ -1975,7 +1977,7 @@ namespace
 
         for (int attempt = 0; attempt < 16; ++attempt)
         {
-            arrival = world.resolve_relocator_target(first_up, random);
+            arrival = world.resolve_relocator_target(first_up);
             made = zone_arrived_in(arrival);
             regions_made_in.insert(made ? stratum_sim::region_of(made).id() : 0);
             bind(arrival);
@@ -1983,6 +1985,200 @@ namespace
 
         report_case("moving up makes a zone at level 0 in its own region or its parent region, at random",
             regions_made_in == set<flecs::entity_t> {world.region.id(), dungeon.id()});
+
+        return;
+    }
+
+    //--------------------------------------------------------------------------
+    // Reads from data/, so stratum_sim_test runs from its own directory
+    void test_relocating_through()
+    {
+        report_group("relocating through a relocator");
+
+        stratum_sim::CountingIdAllocator id_allocator(stratum_sim::PersistentId {});
+        SuiteWorld world(id_allocator);
+
+        flecs::entity staircase_type = stratum_sim::access_type(world.entities(), "staircase");
+        auto up_of = [&](flecs::entity zone) { return stratum_sim::entry_point(zone, staircase_type, 1); };
+        auto down_of = [&](flecs::entity zone) { return stratum_sim::entry_point(zone, staircase_type, -1); };
+        auto target_of = [](flecs::entity e) { return e.get<stratum_sim::Relocator>().target; };
+        auto refers_to = [&](flecs::entity e, flecs::entity to)
+        {
+            const auto* reference = get_if<stratum_sim::EntityReference>(&e.get<stratum_sim::Relocator>().target);
+            return reference != nullptr && reference->persistent_id == to.get<stratum_sim::PersistentId>();
+        };
+
+        // data/walls.level has one staircase leading up and one leading down
+        auto load_at_level = [&](flecs::entity region, stratum_sim::level_type level)
+        {
+            stratum_format::Document document = stratum_format::read("data/walls.level");
+            document.level = level;
+            flecs::entity zone = world.create_zone(region, world.next_id());
+            stratum_sim::load_layout(zone, document);
+            return zone;
+        };
+
+        flecs::entity dungeon = world.create_region();
+        dungeon.set<shared_ptr<const stratum_sim::Generator>>(make_shared<StaircaseGenerator>());
+
+        flecs::entity first = load_at_level(dungeon, -1);
+        flecs::entity second = load_at_level(dungeon, -2);
+        flecs::entity first_down = down_of(first);
+        flecs::entity second_up = up_of(second);
+        stratum_sim::placement_type second_up_placement = second_up.get<stratum_sim::AccessPoint>().placement;
+
+        flecs::entity actor = world.create_entity(first, first_down.get<stratum_sim::AccessPoint>().placement);
+
+        flecs::entity arrival = world.relocate_through(actor, first_down);
+        report_case("an actor goes through an unbound relocator to the access point that leads back", arrival == second_up
+            && stratum_sim::zone_of(actor) == second);
+        report_case("and is placed at its placement", stratum_sim::placement_of(actor).position() == second_up_placement.position()
+            && stratum_sim::placement_of(actor).direction() == second_up_placement.direction());
+        report_case("both ends are bound to each other", refers_to(first_down, second_up) && refers_to(second_up, first_down));
+        report_case("and a bound access point is no longer an entry point", !up_of(second));
+
+        size_t zone_count = world.zone_count();
+        arrival = world.relocate_through(actor, second_up);
+        report_case("going back through the bound access point arrives at the relocator", arrival == first_down
+            && stratum_sim::zone_of(actor) == first && world.zone_count() == zone_count);
+
+        arrival = world.relocate_through(actor, first_down);
+        flecs::entity second_down = down_of(second);
+        arrival = world.relocate_through(actor, second_down);
+        flecs::entity made = arrival ? stratum_sim::zone_of(arrival) : flecs::entity();
+        report_case("finding none, it goes to a zone made at the target level and binds its entry point", made
+            && made.get<stratum_sim::ZoneLevel>().level == -3 && stratum_sim::zone_of(actor) == made && refers_to(second_down, arrival)
+            && refers_to(arrival, second_down));
+
+        flecs::entity named = up_of(first);
+        named.set<stratum_sim::Relocator>(stratum_sim::Relocator {*stratum_format::parse_relocator_target("town/market@fountain")});
+        stratum_format::RelocatorTarget named_target = get<stratum_format::RelocatorTarget>(target_of(named));
+        report_case("a named zone is not resolved, and nothing moves or binds", !world.relocate_through(actor, named)
+            && stratum_sim::zone_of(actor) == made && get<stratum_format::RelocatorTarget>(target_of(named)) == named_target);
+
+        named.set<stratum_sim::Relocator>(stratum_sim::Relocator {stratum_sim::EntityReference {stratum_sim::PersistentId {99999}, flecs::entity()}});
+        report_case("a bound target whose relocator is not loaded moves nothing", !world.relocate_through(actor, named)
+            && stratum_sim::zone_of(actor) == made);
+
+        return;
+    }
+
+    //--------------------------------------------------------------------------
+    // Reads from data/, so stratum_sim_test runs from its own directory
+    void test_entering_access_points()
+    {
+        report_group("entering an access point");
+
+        stratum_sim::StratumGame game;
+        stratum_sim::Session& session = game.session();
+        stratum_sim::World& world = game.world();
+        flecs::entity player = session.player().entity();
+
+        game.starting_region().set<shared_ptr<const stratum_sim::Generator>>(make_shared<StaircaseGenerator>());
+
+        // data/walls.level: the player enters on cell (2, 1), facing the staircase leading down to the east
+        session.load(game.starting_region(), "data/walls.level", suite_entry_type(session), suite_entry_offset);
+        flecs::entity first = session.zone();
+        first.set<stratum_sim::ZoneLevel>(stratum_sim::ZoneLevel {-1});
+
+        flecs::entity staircase_type = stratum_sim::access_type(world.entities(), "staircase");
+        flecs::entity first_down = stratum_sim::entry_point(first, staircase_type, -1);
+
+        const stratum_sim::vector_type east(1.0f, 0.0f, 0.0f);
+        const stratum_sim::vector_type west(-1.0f, 0.0f, 0.0f);
+
+        auto step = [&](const stratum_sim::vector_type& direction, stratum_sim::EventQueue& events)
+        {
+            session.player().set_intent(stratum_sim::Intent {direction, 1.0f, direction});
+            session.advance(events);
+        };
+
+        auto relocated = [](const stratum_sim::EventQueue& events)
+        {
+            return ranges::any_of(events.events(), [](const stratum_sim::Event& event) { return event.is<stratum_sim::Relocated>(); });
+        };
+
+        // A closed relocator is not entered
+        first_down.set<stratum_sim::Access>(stratum_sim::Access {stratum_sim::AccessState::Closed});
+        stratum_sim::EventQueue closed_events;
+        step(east, closed_events);
+        report_case("moving into a wall whose relocator is closed is blocked", !relocated(closed_events) && session.zone() == first);
+        first_down.remove<stratum_sim::Access>();
+
+        stratum_sim::EventQueue down_events;
+        step(east, down_events);
+        flecs::entity second = session.zone();
+        report_case("moving into a wall with a relocator on it enters the relocator", relocated(down_events) && second != first
+            && stratum_sim::zone_of(player) == second && second.get<stratum_sim::ZoneLevel>().level == -2);
+        report_case("and the session plays the zone arrived in, with the player in its turn order", session.scheduler().contains(player.id()));
+
+        stratum_sim::EventQueue up_events;
+        step(west, up_events);
+        report_case("going back up arrives at the staircase gone down", relocated(up_events) && session.zone() == first
+            && zone_layout(world, first).cell_position_at(stratum_sim::placement_of(player).position()) == stratum_sim::discrete_point_type {2, 1}
+            && stratum_sim::placement_of(player).direction().x() < 0.0f);
+
+        // A relocator on the floor of the player's cell, bound to the staircase leading down in the second zone
+        stratum_sim::DiscreteLayout& layout = zone_layout(world, first);
+        flecs::entity hatch = world.entities().entity();
+        stratum_sim::reparent(hatch, first, stratum_sim::Site {stratum_sim::Relation::On,
+            stratum_sim::FlatCellAddress {layout.floor_id(), stratum_sim::discrete_point_type {2, 1}}, {}});
+        flecs::entity second_down = stratum_sim::entry_point(second, staircase_type, -1);
+        hatch.set<stratum_sim::Relocator>(stratum_sim::Relocator {world.make_reference(second_down)});
+
+        session.player().submit(stratum_sim::Enter {});
+        stratum_sim::EventQueue enter_events;
+        session.advance(enter_events);
+        report_case("entering the relocator on the floor of the player's cell relocates the player", relocated(enter_events)
+            && session.zone() == second && zone_layout(world, second).cell_position_at(stratum_sim::placement_of(player).position())
+                == zone_layout(world, second).cell_position_at(second_down.get<stratum_sim::AccessPoint>().placement.position()));
+
+        // A denizen facing the staircase leading down, in the zone the player left
+        flecs::entity denizen = world.create_entity(first, first_down.get<stratum_sim::AccessPoint>().placement);
+        stratum_sim::EventQueue denizen_events;
+        stratum_sim::apply(world, stratum_sim::Command(static_cast<id_type>(denizen.id()), stratum_sim::Step {east}), denizen_events);
+        report_case("an actor other than the controlled actor does not enter a relocator", !relocated(denizen_events)
+            && stratum_sim::zone_of(denizen) == first);
+
+        return;
+    }
+
+    //--------------------------------------------------------------------------
+    // Reads from data/, so stratum_sim_test runs from its own directory
+    void test_interacting_with_relocators()
+    {
+        report_group("interacting with a relocator");
+
+        // A new game's starting region has no generator, so the staircase leading down leads nowhere
+        stratum_sim::StratumGame game;
+        stratum_sim::Session& session = game.session();
+
+        // data/walls.level: the player enters on cell (2, 1), facing the staircase leading down to the east
+        session.load(game.starting_region(), "data/walls.level", suite_entry_type(session), suite_entry_offset);
+        session.zone().set<stratum_sim::ZoneLevel>(stratum_sim::ZoneLevel {-1});
+        flecs::entity staircase = stratum_sim::entry_point(session.zone(), stratum_sim::access_type(game.world().entities(), "staircase"), -1);
+
+        session.player().submit(stratum_sim::Interact {});
+        stratum_sim::EventQueue events;
+        session.advance(events);
+
+        const stratum_sim::Interacted* interacted = nullptr;
+        for (const stratum_sim::Event& event : events.events())
+        {
+            interacted = interacted != nullptr ? interacted : event.try_get<stratum_sim::Interacted>();
+        }
+
+        report_case("interacting with a relocator that leads nowhere reports it, with the relocator", interacted != nullptr
+            && interacted->interaction == stratum_sim::Interaction::NoDestination && interacted->acted_on_id == staircase.id());
+        report_case("which is a staircase", stratum_sim::access_type_name(staircase) == "staircase");
+
+        game.starting_region().set<shared_ptr<const stratum_sim::Generator>>(make_shared<StaircaseGenerator>());
+        flecs::entity first = session.zone();
+        session.player().submit(stratum_sim::Interact {});
+        stratum_sim::EventQueue enter_events;
+        session.advance(enter_events);
+        report_case("and interacting with one that leads somewhere goes through it", session.zone() != first
+            && ranges::any_of(enter_events.events(), [](const stratum_sim::Event& event) { return event.is<stratum_sim::Relocated>(); }));
 
         return;
     }
@@ -3096,6 +3292,9 @@ int main()
     test_world();
     test_regions();
     test_level_targets();
+    test_relocating_through();
+    test_entering_access_points();
+    test_interacting_with_relocators();
     test_properties();
     test_layout_entities();
     test_persistent_ids();

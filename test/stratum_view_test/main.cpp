@@ -6,6 +6,7 @@
 #include "quetzal/common/FileValidator.hpp"
 #include "quetzal/stratum_format/grid.hpp"
 #include "quetzal/stratum_format/read.hpp"
+#include "quetzal/stratum_format/RelocatorTarget.hpp"
 #include "quetzal/stratum_sim/attachments.hpp"
 #include "quetzal/stratum_sim/commands.hpp"
 #include "quetzal/stratum_sim/DiscreteLayout.hpp"
@@ -39,12 +40,15 @@ namespace
     // Draws concealed entities as actors in general perceive them, since there is no player
     const flecs::entity no_viewer;
 
+    // Seeded, so a random choice is the same on every run
+    stratum_sim::random_type g_suite_random(1);
+
     //--------------------------------------------------------------------------
     // A world with the game's entity types, as StratumGame's has, and a region for the suite's zones
     struct SuiteWorld : stratum_sim::World
     {
         explicit SuiteWorld(stratum_sim::IdAllocator& id_allocator) :
-            World(id_allocator, suite_zone_count_max),
+            World(id_allocator, g_suite_random, suite_zone_count_max),
             region(create_region())
         {
             stratum_sim::register_game_types(*this);
@@ -458,6 +462,17 @@ namespace
         report_case("an actor draws over its floor", console.at({3, 1}) == '@');
         report_case("and only its own cell", console.at({2, 1}) == '.');
 
+        // A relocator on the floor is drawn as stairs, down if its target is below the zone and up otherwise
+        flecs::entity hatch = world.entities().entity();
+        stratum_sim::reparent(hatch, zone, stratum_sim::Site {stratum_sim::Relation::On,
+            stratum_sim::FlatCellAddress {layout.floor_id(), stratum_sim::discrete_point_type {2, 1}}, {}});
+        hatch.set<stratum_sim::Relocator>(stratum_sim::Relocator {*stratum_format::parse_relocator_target("-1")});
+        report_case("a relocator on the floor leading down draws as stairs down", stratum_view::render(world, zone, no_viewer).at({2, 1}) == '>'
+            && stratum_view::render_lattice(world, zone, no_viewer).at({5, 3}) == '>');
+
+        hatch.set<stratum_sim::Relocator>(stratum_sim::Relocator {*stratum_format::parse_relocator_target("+1")});
+        report_case("and one leading up as stairs up", stratum_view::render(world, zone, no_viewer).at({2, 1}) == '<');
+
         return;
     }
 
@@ -514,12 +529,6 @@ namespace
             string s = stratum_view::render(world, zone, no_viewer).to_string();
             string expected = rows_of(filepath);
 
-            // The entrance is a block, so the view has only solid to draw there
-            for (char& c : expected)
-            {
-                c = c == '<' || c == '>' ? '#' : c;
-            }
-
             report_case(format("{} renders back to its own rows", name), s == expected, "\n" + s);
         }
 
@@ -534,12 +543,6 @@ namespace
 
             string s = stratum_view::render_lattice(world, zone, no_viewer).to_string();
             string expected = rows_of(filepath);
-
-            // A staircase is a block, which the view draws as solid and the notation leaves blank
-            for (char& c : expected)
-            {
-                c = c == '<' || c == '>' ? ' ' : c;
-            }
 
             size_t width = expected.find('\n');
             for (size_t n = 0; n < s.size(); ++n)
@@ -558,7 +561,7 @@ namespace
                 }
                 else if (x % 2 == 1 && y % 2 == 1)
                 {
-                    s[n] = s[n] == '#' ? ' ' : '.';
+                    s[n] = s[n] == '#' ? ' ' : s[n] == '<' || s[n] == '>' ? s[n] : '.';
                 }
                 else
                 {
@@ -574,7 +577,7 @@ namespace
 
     //--------------------------------------------------------------------------
     // A generated zone with doorways and staircases as well as rooms and corridors. A staircase is a block, rendered as
-    // solid, and a doorway is a block with a door on it, rendered as the door
+    // its stair glyph, and a doorway is a block with a door on it, rendered as the door
     void test_dungeon()
     {
         report_group("generated dungeon");
@@ -602,11 +605,12 @@ namespace
             {
                 // File line 0 is the highest row
                 char source_character = source[static_cast<size_t>((extent.y() - 1 - j) * (extent.x() + 1) + i)];
-                bool solid = source_character == '#' || source_character == '<' || source_character == '>';
+                bool stairs = source_character == '<' || source_character == '>';
+                bool solid = source_character == '#';
 
-                solid ? ++solid_count : ++floor_count;
+                solid || stairs ? ++solid_count : ++floor_count;
 
-                char expected = solid ? '#' : source_character == '+' ? '/' : '.';
+                char expected = solid ? '#' : stairs ? source_character : source_character == '+' ? '/' : '.';
 
                 if (console.at({i, j}) != expected)
                 {

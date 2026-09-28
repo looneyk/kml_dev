@@ -34,6 +34,12 @@ namespace quetzal::stratum_sim
     };
 
     //--------------------------------------------------------------------------
+    // Tag for the actor that a host controls
+    struct ControlledActor
+    {
+    };
+
+    //--------------------------------------------------------------------------
     // The rate at which an actor gains energy in the turn order
     struct Speed
     {
@@ -71,7 +77,7 @@ namespace quetzal::stratum_sim
 
         using entities_type = std::vector<flecs::entity>;
 
-        World(IdAllocator& id_allocator, size_t zone_count_max);
+        World(IdAllocator& id_allocator, random_type& random, size_t zone_count_max);
         World(const World&) = delete;
         ~World() = default;
 
@@ -125,7 +131,14 @@ namespace quetzal::stratum_sim
         // it makes at level 0 is in either region, chosen at random. The region "." or ".." is the only one searched and
         // made in. Only a region with a generator makes a zone. Returns a null entity if none can, or if the zone made has
         // no access point of the arrival type that leads back
-        flecs::entity resolve_relocator_target(flecs::entity relocator, random_type& random);
+        flecs::entity resolve_relocator_target(flecs::entity relocator);
+
+        // Moves the actor through the relocator to the placement of the access point its target refers to, and returns that
+        // access point. An unbound target is resolved by resolve_relocator_target, and the relocator and the access point
+        // are then bound to each other, so going back through the access point arrives at the relocator. Returns a null
+        // entity, and moves nothing, if a bound target's relocator is not loaded, or an unbound target has a named zone, a
+        // named region, or a position, or resolves to nothing
+        flecs::entity relocate_through(flecs::entity actor, flecs::entity relocator);
 
         // Marks zone_entered as the most recently entered zone, then unloads the zones entered longest ago until the world
         // has no more than zone_count_max. Never unloads zone_entered
@@ -184,6 +197,7 @@ namespace quetzal::stratum_sim
         bool deleting_with(flecs::entity zone) const;
 
         IdAllocator& m_id_allocator;
+        random_type& m_random;
 
         // All entities in the world with a PersistentId
         std::unordered_map<PersistentId, flecs::entity> m_loaded_entities;

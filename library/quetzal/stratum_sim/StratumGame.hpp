@@ -46,6 +46,7 @@ namespace quetzal::stratum_sim
 
         // In construction order, each referring to those above it
         CountingIdAllocator m_counting_id_allocator;
+        random_type m_random; // Seeded from std::random_device
         World m_world;
         Player m_player;
         Session m_session;

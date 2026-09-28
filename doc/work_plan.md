@@ -24,10 +24,8 @@ between zones needs.
 These are the remaining steps in the order they are built, each building on the ones before it. A step leaves this
 list when it is done.
 
-1. **`addressing_plan.md` step 8,** relocating through a relocator.
-2. **`session_plan.md` step 6,** entering an access point.
-3. **Stage 7, a zone added to the world when it is encountered.**
-4. **`addressing_plan.md` step 7,** saved zones and the reset to a save point, with the rest of stage 7.
+1. **Stage 7, a zone added to the world when it is encountered.**
+2. **`addressing_plan.md` step 7,** saved zones and the reset to a save point, with the rest of stage 7.
 
 Outside that order:
 
@@ -39,17 +37,19 @@ Outside that order:
 - **At any time:** the generators on `geometry::DiscreteDirectedPoint`. dungen's `Staircase` has a
   `directed_point_type` and still has the separate `position` and `direction` accessors. catagen stores a staircase as a cell type and a map from cell position to facing direction, which a list of
   directed points would replace.
-- **At any time, best before `addressing_plan.md` step 8:** `random_engine.md` step 1, the gameplay engine.
-  Steps 2 and 3 come with integrating the generators, and step 4 with `addressing_plan.md` step 7.
+- **At any time:** the rest of `random_engine.md` step 1, the gameplay engine's seed passed in and logged, and its
+  engine chosen. Steps 2 and 3 come with integrating the generators, and step 4 with `addressing_plan.md` step 7.
 - **Later:** unloading by region and region files (`## Regions`), and `modding_plan.md` steps 3 to 7, which are
   Phase 4.
+- **Later:** denizens entering relocators, in limited circumstances, and the views drawing a floor access point by its
+  orientation.
 
 ## Plans
 
 There is one box per plan that has steps of its own, checked when every step is done.
 
 - [ ] [`addressing_plan.md`](addressing_plan.md) --- ids and addressing: format 0.4, persistent ids, links, loading a
-      zone against them, and a zone actor index. 9 steps, steps 1 to 6 done.
+      zone against them, and a zone actor index. 9 steps, steps 1 to 6 and 8 done.
 - [x] [`site_plan.md`](site_plan.md) --- where every entity is and what it belongs to: the parent and site links,
       `Relation`, and the file component that replaces `attached`.
 - [ ] [`modding_plan.md`](modding_plan.md) --- mods and data-driven design: place types from data, components decoded
@@ -58,11 +58,12 @@ There is one box per plan that has steps of its own, checked when every step is 
 - [ ] [`session_plan.md`](session_plan.md) --- the division of work among `StratumGame`'s parts: `World` creating,
       loading, populating and unloading zones; `Session` entering them and keeping the state of play; each zone's
       entry point, the lowest-ordered staircase leading up; and entering an access point on a wall or the floor. 7
-      steps, steps 1 to 3 and 5 done.
+      steps, steps 1 to 3, 5, and 6 done.
 - [x] [`region_plan.md`](region_plan.md) --- regions: the region entity with its parent region, a zone's level, an
       unbound relocator's level offset, finding or making the zone at an offset, and relocator targets as strings.
 - [ ] [`random_engine.md`](random_engine.md) --- random numbers: `StratumGame`'s gameplay and generation engines, zone
-      seeds, generation runs that own their engines, and saving the engines' state. 4 steps, none started.
+      seeds, generation runs that own their engines, and saving the engines' state. 4 steps, step 1 in part: `StratumGame`
+      owns the gameplay engine and `World` takes it.
 - [ ] [`placement_plan.md`](placement_plan.md) --- what fills a zone: sites, selection, distribution, acceptance and
       emission. 4 steps, none started.
 - [x] [`intent_plan.md`](intent_plan.md) --- stage 2, intent and the schedule.
@@ -126,9 +127,9 @@ Detail is in `view_plan.md`.
       determine whether it may be crossed (`attachment_plan.md`).
 - [x] **State beside the type, and a glyph set that loads** (`glyph_plan.md`).
 - [x] **Staircases state where they lead.** Both generators write each staircase as a `staircase` entity attached to
-      the wall on its open side, with a `relocator` whose `target` is `down` or `up`.
-- **Relocating through a relocator** --- an entity with a relocator moving an actor to its target, and both ends
-      binding to each other --- is [`addressing_plan.md`](addressing_plan.md) step 8, boxed under Plans.
+      the wall on its open side, with a `relocator` whose `target` is `-1` or `+1`.
+- [x] **Relocating through a relocator** --- an entity with a relocator moving an actor to its target, and both ends
+      binding to each other --- is [`addressing_plan.md`](addressing_plan.md) step 8, `World::relocate_through`.
       `addressing.md` (`### Relocators and access points`) specifies the two kinds of target.
 - [x] **Suites for both generators, and the drivers moved out of `application/`** to `tool/dungen` and `tool/catagen`,
       with `test/dungen_test` and `test/catagen_test` comparing reference zone files and regenerating each from its own

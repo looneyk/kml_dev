@@ -33,8 +33,14 @@ namespace quetzal::stratum_sim
     };
 
     //--------------------------------------------------------------------------
-    // Acts on whatever the actor faces: a door, a lever, a basin
+    // Acts on whatever the actor faces: a door, a lever, a basin. The controlled actor goes through a relocator it faces
     struct Interact
+    {
+    };
+
+    //--------------------------------------------------------------------------
+    // Enters the relocator on the floor of the actor's cell. A relocator on a wall is entered by moving into the wall
+    struct Enter
     {
     };
 
@@ -64,20 +70,33 @@ namespace quetzal::stratum_sim
     };
 
     //--------------------------------------------------------------------------
-    // The effect of an Interact: Nothing for a bare wall or for anything it has no effect on
+    // The effect of an Interact: Nothing for a bare wall or for anything it has no effect on, and NoDestination for a
+    // relocator that leads nowhere the world can resolve
     enum class Interaction
     {
         Nothing,
         Opened,
-        Closed
+        Closed,
+        NoDestination
     };
 
     //--------------------------------------------------------------------------
+    // The entity acted on is the way through or the relocator on the wall, or nullid if there is neither
     struct Interacted
     {
         id_type entity_id = nullid;
         id_type wall_id = nullid;
         Interaction interaction = Interaction::Nothing;
+        id_type acted_on_id = nullid;
+    };
+
+    //--------------------------------------------------------------------------
+    // The actor went through the relocator and arrived at the access point, which may be in another zone
+    struct Relocated
+    {
+        id_type entity_id = nullid;
+        id_type relocator_id = nullid;
+        id_type arrival_id = nullid;
     };
 
     // Applies one command, appending its events. Returns its cost, zero when it did nothing

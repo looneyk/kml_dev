@@ -218,7 +218,7 @@ A zone's level is its `ZoneLevel`, a `level_type` (`std::int32_t`): 0 at the sur
 going up. It is a label, used when making connections between zones, and nothing is looked up by it. The loader sets it
 from the file's `level`, and a zone whose file has none has no `ZoneLevel`.
 
-`resolve_relocator_target(relocator, random)` returns the access point at which an actor arrives through a relocator whose
+`resolve_relocator_target(relocator)` returns the access point at which an actor arrives through a relocator whose
 unbound target is a level with no position: relative, `+`*k* or `-`*k*, or absolute, `=`*n*. The relocator's zone must
 have a level, *L*, and the target's region must be omitted, `.`, or `..`; a named zone, a named region, and a position
 are not resolved. The target level is *L* + *k*, or *n*, which is *k* levels from *L*.
@@ -231,11 +231,21 @@ parent region alone. Of several, it returns the one in the zone with the lowest 
 order.
 
 If none is found, it makes a zone at the target level with `create_zone(region, level)`, in a region chosen by the same
-rules. With the region omitted, moving up or across to level 0 chooses between the two regions with `random`, and only
-a region with a generator is chosen. It returns the new zone's `entry_point` for the arrival type and the offset -*k*,
-the access point that leads back, or a null entity if no region can make the zone or the new zone has no such access
-point. It binds nothing.
-`random_type` is `math::Random<>`, which the caller owns.
+rules. With the region omitted, moving up or across to level 0 chooses between the two regions with the world's random
+engine, and only a region with a generator is chosen. It returns the new zone's `entry_point` for the arrival type and
+the offset -*k*, the access point that leads back, or a null entity if no region can make the zone or the new zone has
+no such access point. It binds nothing.
+
+`relocate_through(actor, relocator)` moves the actor through the relocator and returns the access point it arrives at.
+A bound target is resolved to the relocator it refers to. An unbound target is resolved by `resolve_relocator_target`,
+and the relocator and the access point arrived at are then bound to each other, each target becoming an
+`EntityReference` to the other, so going back arrives at the relocator gone through, and `entry_point` no longer
+chooses either. The actor is relocated to the access point's zone, at its `placement`. It returns a null entity and
+moves nothing if a bound target's relocator is not loaded, or an unbound target has a named zone, a named region, or a
+position, or resolves to nothing.
+
+`World` takes the game's random engine by reference in its constructor, as it takes the id allocator: a `random_type`,
+`math::Random<>`, which `StratumGame` owns.
 
 `load_zone(region, filepath)` reads the file and checks it with `build_error` before making the zone. The zone has the file's persistent id if the file has
 a `zone` section, and a new one otherwise. `load_zone` then has `load_layout` fill the zone and populates it. It throws
@@ -433,7 +443,17 @@ no such entity is solid. `World::move`, `neighbors` and `visible` bind it to the
 actor crosses a wall as it perceives the entities on it.
 
 `Interact` opens the access of the way through on the wall ahead if it is closed, or closes it if it is open, and
-reports `Interaction::Opened`, `Closed` or `Nothing`. A locked way through stays locked.
+reports `Interaction::Opened`, `Closed` or `Nothing`. A locked way through stays locked. If the wall ahead has a
+relocator on it that the controlled actor `can_enter`, `Interact` goes through it instead, as moving into the wall does,
+and reports `Interaction::NoDestination` if it leads nowhere the world can resolve. `Interacted` has the entity acted
+on, the way through or the relocator, and `access_type_name(e)` returns the name of an access point's type, such as
+`staircase`, for the hosts' messages.
+
+`find_relocator(zone, address)` returns an entity with a `Relocator` sited on a wall or a flat cell, found through
+the layout entity's attached entities, or a null entity if there is none. `can_enter(e, actor)` returns true if the
+actor can go through the entity's relocator: the entity's access, if it has any, is open, and the actor does not find
+it concealed. A staircase has no `Access`, so it can always be entered, and a door with a relocator only while it is
+open.
 
 A wall is solid unless something sited on it makes it crossable, and a query given no predicate treats every wall as
 solid. Every boundary between floor and solid, and every cell side on the border of the grid, has a wall, so where
@@ -506,12 +526,13 @@ stopped by an occupied cell in `World::move`.
 
 ### StratumGame and Player
 
-`StratumGame` is the one owner of a game's objects: a `CountingIdAllocator` counting from zero, the `World`, the
-`Player` and the `Session`, constructed in that order, each referring to those before it. None of the four can be
-copied or moved. Each host owns one `StratumGame`. `starting_region()` returns the region that a new game's zones are
+`StratumGame` is the one owner of a game's objects: a `CountingIdAllocator` counting from zero, a `random_type` seeded
+from `std::random_device`, the `World`, the `Player` and the `Session`, constructed in that order, each referring to
+those before it. None of them can be copied or moved. Each host owns one `StratumGame`. `starting_region()` returns the region that a new game's zones are
 made in, which the constructor creates; it is temporary, until a new game chooses its region.
 
-`Player` is the entity a host controls, created with `Blocking`, a `Speed` and a `PersistentId`, and it is in no zone
+`Player` is the entity a host controls, created with `Blocking`, the `ControlledActor` tag, a `Speed` and a
+`PersistentId`, and it is in no zone
 until one is entered. It is owned by the game and has no parent, so it outlives every zone it moves through. A host
 acts through it: `set_intent(intent)` sets the player's `Intent`, and `submit(action)` sets a `PendingCommand` of the
 action for the player's entity, which the clock applies the next time the player is ready. `entity()` returns the
@@ -526,7 +547,8 @@ zone. A host supplies input mapping and drawing.
 region, with `World::create_zone` and `World::load_zone`, and `enter` it. `load` rethrows a failure to enter with the
 file path. The library has no default type, offset, or region; each host passes `staircase` and 1, a staircase leading
 up, from temporary constants of its own, `entry_access_type` and `entry_level_offset`, and the game's
-`starting_region()`.
+`starting_region()`. A zone a host loads is at level -1, the host's temporary `starting_level`, if its file states no
+level, so the relocators in it can be resolved.
 
 `Generator` is an interface in `stratum_sim`, implemented where a generator is chosen, so `stratum_sim` depends on no
 generator. Each implementation declares its own parameters. `generate(zone)` fills an empty zone as the loader does:
@@ -547,16 +569,29 @@ default. Stage 7 of `work_plan.md` covers the lifecycle.
 
 `advance(events, elapsed)` calls `think`, then advances the clock, returning the controlled entity when it needs a
 command, or `nullid` if no actor will ever be ready. `elapsed` is the real time since the last call; a turn-based host
-omits it.
+omits it. If the player went through a relocator into another zone, it then makes that zone the one being played, as
+`enter` does once it has placed the player: the world trims its zones, the player's pending command is dropped, and
+the turn order is rebuilt from the new zone. The actors of the zone left finish the advance in which the player left.
+
+Each host maps `<` and `>` to `Enter`. The hosts report a `Relocated` event with the level arrived on, shown as its
+distance from the surface, and a step `Blocked` by a wall with a relocator on it as "There is a staircase before you",
+naming the relocator's access point type.
 
 ### Commands and events
 
 `Command` and `Event` are type erased over `std::any`, so a module can add either. A command has the id of the entity
 it acts for. `CommandQueue` and `EventQueue` are deques in submission and occurrence order.
 
-The commands are `Step`, `TurnTo` and `Interact`. `Step` has a direction, zero for the actor's facing direction; a
-distance; and `face`, which turns toward the direction within the same action. `TurnTo` has an absolute facing
-direction, and `Interact` acts on the wall `ahead`. They produce `Moved`, `Blocked`, `Turned` and `Interacted` events.
+The commands are `Step`, `TurnTo`, `Interact`, and `Enter`. `Step` has a direction, zero for the actor's facing
+direction; a distance; and `face`, which turns toward the direction within the same action. `TurnTo` has an absolute
+facing direction, and `Interact` acts on the wall `ahead`. `Enter` enters the relocator on the floor of the actor's
+cell, in a discrete layout. They produce `Moved`, `Blocked`, `Turned`, `Interacted`, and `Relocated` events.
+
+A `Step` by the `ControlledActor` stopped by a wall with a relocator on it that the actor `can_enter` enters the
+relocator, through `World::relocate_through`, instead of reporting `Blocked`; if the relocator leads nowhere the world
+can resolve, the step is blocked as usual. Only the controlled actor enters a relocator, by a step or by `Enter`;
+another actor is blocked by a relocator's wall and has no effect with `Enter`. A relocator on the floor does not impede
+movement. `Relocated` has the actor, the relocator, and the access point arrived at.
 
 The clock builds `Step` and `TurnTo` from an actor's `Intent`. A one-shot command, such as `Interact`, waits on the
 actor as a `PendingCommand` component, which the clock applies before the actor's `Intent` the next time the actor is
@@ -565,7 +600,8 @@ ready; a host submits one through `Player::submit`.
 `apply(world, command, events)` returns the command's cost, or zero if it did nothing; the `CommandQueue` overload
 drains the queue. A move costs in proportion to the distance traveled against `step_distance`, so a move stopped short
 is charged for the distance reached and a fraction of a cell costs a fraction of an action. A turn and an interaction
-cost one action; a `TurnTo` to the current facing direction and an `Interact` with no wall ahead cost nothing.
+cost one action; a `TurnTo` to the current facing direction and an `Interact` with no wall ahead cost nothing. Going
+through a relocator costs one action, and an `Enter` with nothing to enter costs nothing.
 
 ## Zone file format
 
@@ -609,8 +645,9 @@ a child, or be a parent, with an entity sited on the geometry in every hierarchy
 one, and no `parent` may lead back to its own entity. In a template, every reference must be an entity's id; a saved
 zone's references may refer to another zone and are not checked. Each door glyph requires one entity with a child
 sited on each wall of its doorway and on no other wall. `layout.components.access_points` must refer to at least one
-entity with a `relocator` sited on a surface, and each relocator must have a `type`, an `order` counting from 0 among
-the access points of its type, and a `placement` on a cell an actor can stand in. Each relocator's target must be a
+entity with a `relocator` sited on a surface, one on the floor or the ceiling with its site's `orientation`, and each
+relocator must have a `type`, an `order` counting from 0 among the access points of its type, and a `placement` on a
+cell an actor can stand in. Each relocator's target must be a
 reference or a string that matches `[region/]zone[@position]`. The stair glyphs are visual aids, so a stair glyph with
 no `relocator` on the walls around it, or with a second one, and an access point on a wall that is neither a stair
 cell's open side nor a door's wall, are warnings. So is an access point whose relocator type is neither its entity's
@@ -636,8 +673,8 @@ and the terminal uses a mapping. There is no view interface over them.
 mapping from a file. `Buffer.hpp` defines the grid both produce.
 
 A position reduces to a `Place`: a `PlaceType`, its `State`, its `mask`, and whether an actor is on it. `PlaceType`
-(`None`, `Solid`, `Floor`, `Wall`, `Door`) is the fixed structure, whatever its state, so a door that can be shut,
-locked or concealed is one type. `None` is an edge with no wall or a corner that no wall line reaches, which only
+(`None`, `Solid`, `Floor`, `Wall`, `Door`, `StairsUp`, `StairsDown`) is the fixed structure, whatever its state, so a
+door that can be shut, locked or concealed is one type. `None` is an edge with no wall or a corner that no wall line reaches, which only
 `lattice` produces. `actor` is a flag over the structure, so the floor under an actor is still there to draw.
 
 `State` is a set of flags named after the component data they are read from. `Open` is set if the way through's
@@ -651,6 +688,13 @@ finds concealed is drawn as though there were none, as a wall. A null viewer get
 `cells(world, zone, viewer)` returns one `Place` per grid cell: `Solid`, `Floor`, or `Door` for a door that occupies a
 cell, as a doorway does in the block notation. A wall or door on the edge between two cells has no position there, so
 it reduces to `Floor` on both sides.
+
+In both reductions, stairs are drawn on a floor cell with a relocator on it, and on the closed cell beyond a wall with a
+relocator on it, which is a stair block. They are `StairsDown` if the relocator's target is known to be below the zone,
+and `StairsUp` otherwise: an unbound relative target below zero or absolute target below the zone's level, or
+a bound target whose relocator is loaded in a zone at a lower level. The site's orientation is not drawn. The glyph
+sets draw `StairsUp` as `<`, the entrance glyph, and `StairsDown` as `>`, and `read_glyphs` names them `stairs_up`
+and `stairs_down`.
 
 `lattice(world, zone, viewer)` reduces the zone onto the wall notation's lattice: `(2W+1)` by `(2H+1)`, with cell
 `(i, j)` at `(2i+1, 2j+1)`, the wall west of it at `(2i, 2j+1)`, the wall south of it at `(2i+1, 2j)`, and corners at
@@ -742,17 +786,23 @@ library, a GDExtension, and `application/stratum_godot/project/` is the Godot pr
 `stratum.gdextension`, which refers to `res://bin/`, where the build writes it.
 
 `StratumWorld` is the one registered class, a `RefCounted` that owns a `StratumGame`, with only Godot types in its
-interface: `default_zone_path`, `load_zone`, `extent`, `cell`, `render`, `cells`, `actors`, `step` and `turn`. `step`
-sets the player's intent and advances, through the turn-based driver. A step ends with the next turn already granted,
+interface: `default_zone_path`, `load_zone`, `extent`, `cell`, `render`, `cells`, `actors`, `step`, `interact`,
+`enter`, `turn`, and `message`. `step` sets the player's intent, turning toward the direction moved as the view does not show the
+facing direction, and advances through the turn-based driver; `interact` submits `Interact` and `enter` submits
+`Enter`, and each advances. `message` returns what the last of them did that the map does not show, such as a door
+opening, a staircase before the player or leading nowhere, or the level arrived on, and the tile view shows it in its status line. A step ends with the next turn already granted,
 so `turn` is the turn awaiting input. Exceptions do not cross into Godot: a failed load pushes the reason to Godot's
 error list and returns false, and the previous zone stays intact.
 
 `cells` is one code per cell from `stratum_view::cells`, row major from row zero; its `PlaceType` constants repeat
-`stratum_view::PlaceType` for Godot. `actors` is one byte per cell in the same order, nonzero if an actor is on the
-cell.
+`stratum_view::PlaceType` for Godot, followed by `PlaceTypeDoorOpen` for a door whose access is open. `actors` is one
+`Occupant` per cell in the same order: `OccupantNone`, `OccupantPlayer`, or `OccupantOther` for any other actor.
 
 `game.tscn` is the tile view: a `TileMapLayer` fed from `cells`, a second layer for actors, a camera, and arrow or
-`hjkl` keys. Its tileset is built at run time from flat colors. Row zero is the lowest in the simulation and y grows
+`hjkl` keys, with space calling `interact` and `<` or `>` calling `enter`. A held movement key repeats, and any other
+key acts once per press. Its tileset is built at run time from flat colors: stairs in two blues, an open door lighter than a closed one, the
+player in yellow, and any other actor in red. It repaints from the new extent when the player enters a zone of another
+size. Row zero is the lowest in the simulation and y grows
 downward in Godot, so the view inverts j when it paints.
 
 `quetzal_godot` provides what any Godot host needs: `gdextension.cmake` and its `quetzal_configure_gdextension`, which

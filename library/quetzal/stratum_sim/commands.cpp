@@ -5,9 +5,34 @@
 
 #include "commands.hpp"
 #include "attachments.hpp"
+#include "DiscreteLayout.hpp"
 #include "Scheduler.hpp"
 #include "Site.hpp"
 #include <cmath>
+
+namespace
+{
+
+    //--------------------------------------------------------------------------
+    // Returns the cost, zero if the relocator leads nowhere the world can resolve
+    int relocate_through(quetzal::stratum_sim::World& world, flecs::entity actor, flecs::entity relocator,
+        quetzal::stratum_sim::EventQueue& events)
+    {
+        using namespace quetzal::stratum_sim;
+
+        flecs::entity arrival = world.relocate_through(actor, relocator);
+        if (!arrival)
+        {
+            return 0;
+        }
+
+        events.push(Relocated {static_cast<quetzal::id_type>(actor.id()), static_cast<quetzal::id_type>(relocator.id()),
+            static_cast<quetzal::id_type>(arrival.id())});
+
+        return Scheduler::action_cost;
+    }
+
+} // namespace
 
 //------------------------------------------------------------------------------
 int quetzal::stratum_sim::apply(World& world, const Command& command, EventQueue& events)
@@ -54,6 +79,17 @@ int quetzal::stratum_sim::apply(World& world, const Command& command, EventQueue
             events.push(Moved {command.entity_id(), result.placement});
         }
 
+        // Moving into a wall with a relocator on it enters the relocator, for the controlled actor
+        flecs::entity relocator = result.blocking_wall_id != nullid && e.has<ControlledActor>()
+            ? find_relocator(zone, WallAddress {result.blocking_wall_id}) : flecs::entity();
+        if (relocator && can_enter(relocator, e))
+        {
+            if (int cost = relocate_through(world, e, relocator, events); cost > 0)
+            {
+                return cost;
+            }
+        }
+
         if (result.blocking_wall_id != nullid || result.blocking_entity_id != nullid)
         {
             events.push(Blocked{command.entity_id(), result.blocking_wall_id, result.blocking_entity_id});
@@ -94,18 +130,41 @@ int quetzal::stratum_sim::apply(World& world, const Command& command, EventQueue
             return 0;
         }
 
+        flecs::entity relocator = e.has<ControlledActor>() ? find_relocator(zone, WallAddress {wall_id}) : flecs::entity();
+        if (relocator && can_enter(relocator, e))
+        {
+            if (int cost = relocate_through(world, e, relocator, events); cost > 0)
+            {
+                return cost;
+            }
+
+            events.push(Interacted {command.entity_id(), wall_id, Interaction::NoDestination, static_cast<id_type>(relocator.id())});
+            return Scheduler::action_cost;
+        }
+
         Interaction interaction = Interaction::Nothing;
+        flecs::entity way = way_through(zone, wall_id);
 
         // A locked way through stays as it is
-        if (flecs::entity holder = access_entity(way_through(zone, wall_id)); holder && holder.get<Access>().state != AccessState::Locked)
+        if (flecs::entity holder = access_entity(way); holder && holder.get<Access>().state != AccessState::Locked)
         {
             bool open = holder.get<Access>().state == AccessState::Closed;
             holder.set<Access>(Access {open ? AccessState::Open : AccessState::Closed});
             interaction = open ? Interaction::Opened : Interaction::Closed;
         }
 
-        events.push(Interacted {command.entity_id(), wall_id, interaction});
+        events.push(Interacted {command.entity_id(), wall_id, interaction, way ? static_cast<id_type>(way.id()) : nullid});
         return Scheduler::action_cost;
+    }
+
+    if (command.is<Enter>())
+    {
+        // Only a discrete layout has flat cells
+        const auto* discrete_layout = dynamic_cast<const DiscreteLayout*>(&layout);
+        flecs::entity relocator = discrete_layout != nullptr && e.has<ControlledActor>() ? find_relocator(zone, FlatCellAddress {discrete_layout->floor_id(),
+            discrete_layout->cell_position_at(placement.position())}) : flecs::entity();
+
+        return relocator && can_enter(relocator, e) ? relocate_through(world, e, relocator, events) : 0;
     }
 
     return 0;

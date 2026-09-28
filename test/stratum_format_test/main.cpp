@@ -691,8 +691,13 @@ namespace
                 }, "entities[7]: sited on a wall that is not one of the walls of its door's doorway"},
             {"a stair cell with no relocator on the walls around it, the access point on it sited on the floor instead", [](auto& v)
                 {
-                    v["entities"][3]["components"]["site"] = parse_values(R"({ "relation": "on", "flat": "floor", "cell_position": [2, 1] })");
+                    v["entities"][3]["components"]["site"] = parse_values(
+                        R"({ "relation": "on", "flat": "floor", "cell_position": [2, 1], "orientation": [0, -1] })");
                 }, "", "entities: the stair cell at [3, 2] has no entity with a relocator sited on a wall its open neighbors present to it"},
+            {"an access point on the floor with no orientation", [](auto& v)
+                {
+                    v["entities"][3]["components"]["site"] = parse_values(R"({ "relation": "on", "flat": "floor", "cell_position": [2, 1] })");
+                }, "entities[3].components.site: an access point on the floor or the ceiling with no orientation"},
             {"a stair cell with a second relocator on the walls around it", [](auto& v)
                 {
                     v["entities"].push_back(parse_values(

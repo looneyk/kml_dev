@@ -95,6 +95,9 @@ namespace quetzal::stratum_sim
     // Returns the registered access point type, or a null entity if no type has that name
     flecs::entity access_type(const flecs::world& entities, std::string_view name);
 
+    // Returns the name of the entity's access point type, or an empty string if the entity is not an access point
+    std::string access_type_name(flecs::entity e);
+
     //--------------------------------------------------------------------------
     // Returns true if the entity's relocator is unbound and its target is the level offset levels from the entity's zone,
     // whether the target is written relative or absolute. An absolute target matches only in a zone that has a level
@@ -123,6 +126,15 @@ namespace quetzal::stratum_sim
     // if it has one, and otherwise the general state. Returns Visible if none has a Detection. A null actor gets the general
     // state
     DetectionState detection(flecs::entity e, flecs::entity actor);
+
+    //--------------------------------------------------------------------------
+    // Returns an entity sited on the wall or the flat cell that has a relocator, or a null entity if there is none
+    flecs::entity find_relocator(flecs::entity zone, const WallAddress& address);
+    flecs::entity find_relocator(flecs::entity zone, const FlatCellAddress& address);
+
+    // Returns true if the actor can go through the entity's relocator: the entity's access, if it has any, is open, and the
+    // actor does not find it concealed
+    bool can_enter(flecs::entity e, flecs::entity actor);
 
     //--------------------------------------------------------------------------
     // Returns an entity sited on the wall that has access, such as a door facing, or a null entity if there is none

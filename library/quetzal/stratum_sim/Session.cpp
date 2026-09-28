@@ -80,17 +80,7 @@ void quetzal::stratum_sim::Session::enter(flecs::entity zone, flecs::entity acce
         throw std::runtime_error(std::format("zone has no access point of the type '{}' whose target is {:+}", access_type.name().c_str(), offset));
     }
 
-    // After the player has moved, so no zone it is in can unload
-    m_world.trim_zones(zone);
-
-    m_zone = zone;
-    m_scheduler = Scheduler();
-    m_player.entity().remove<PendingCommand>();
-
-    with_in_zone(m_world.entities().query_builder<const Speed>(), zone)
-        .build()
-        .each([&](flecs::entity e, const Speed& speed) { m_scheduler.add(e.id(), speed.value); });
-
+    play(zone);
     return;
 }
 
@@ -178,5 +168,32 @@ quetzal::id_type quetzal::stratum_sim::Session::advance(EventQueue& events, Cloc
     // Every actor but the player decides once per call; an actor fast enough to act twice repeats its decision
     think(m_world, actor_controlled);
 
-    return m_clock.advance(events, actor_controlled, elapsed);
+    id_type actor_id = m_clock.advance(events, actor_controlled, elapsed);
+
+    // The player went through a relocator into another zone
+    if (flecs::entity zone = zone_of(m_player.entity()); zone != m_zone)
+    {
+        play(zone);
+    }
+
+    return actor_id;
+}
+
+//------------------------------------------------------------------------------
+void quetzal::stratum_sim::Session::play(flecs::entity zone)
+{
+    assert(zone_of(m_player.entity()) == zone);
+
+    // After the player has moved, so no zone it is in can unload
+    m_world.trim_zones(zone);
+
+    m_zone = zone;
+    m_scheduler = Scheduler();
+    m_player.entity().remove<PendingCommand>();
+
+    with_in_zone(m_world.entities().query_builder<const Speed>(), zone)
+        .build()
+        .each([&](flecs::entity e, const Speed& speed) { m_scheduler.add(e.id(), speed.value); });
+
+    return;
 }
