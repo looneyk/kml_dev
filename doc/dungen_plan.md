@@ -5,7 +5,7 @@ Date: 2026-09-04
 
 Move `dungen`'s generation out of `tool/dungen/main.cpp` into the library, one file per layout, behind a shared
 `Parameters` and a `generate` that dispatches on the layout asked for, and add two more layouts. The form follows
-`catagen`: `types` / `Parameters` / `Level` / `generate` / `write_level`.
+`catagen`'s: `types` / `Parameters` / `Zone` / `generate` / `write_zone`.
 
 `dungen_reference.md` describes what exists.
 
@@ -15,7 +15,7 @@ Move `dungen`'s generation out of `tool/dungen/main.cpp` into the library, one f
 | --- | --- |
 | `maze1` | Rooms dropped at random until the density is met, a maze flooded through every cell they left, doors placed in the rooms' walls, then dead ends and loops pruned back. |
 | `grid1` | Rogue's. A coarse grid of sectors, a room inside most of them, orthogonally adjacent sectors joined by corridors that bend once in the solid cells between. Sparse rooms, solid surroundings, short direct corridors. |
-| `cave1` | Noise smoothed into caverns by a cellular automaton, the largest connected region kept and the rest filled back in. No rooms and no doors --- open floor and solid cells. |
+| `cave1` | Noise smoothed into caverns by a cellular automaton, the largest connected area kept and the rest filled back in. No rooms and no doors --- open floor and solid cells. |
 
 The names are the `--algorithm` values, the `Algorithm` enumerators (`Maze1`, `Grid1`, `Cave1`), and the suffix of the
 file each is in.
@@ -30,9 +30,9 @@ In `library/quetzal/dungen`:
 - `generate_maze1`, `generate_grid1`, `generate_cave1` --- one layout each, sharing nothing beyond what is listed here.
 - `place_staircases` --- turning candidate cells into staircases, each algorithm supplying the candidates its layout
   allows.
-- `write_level` --- the zone file.
+- `write_zone` --- the zone file.
 
-`Cell`, `Cells`, `CellType`, `CellTypeProperties`, `Door`, `Level`, `Pattern`, `Room`, `Staircase`, `Wall` and `types`
+`Cell`, `Cells`, `CellType`, `CellTypeProperties`, `Door`, `Zone`, `Pattern`, `Room`, `Staircase`, `Wall` and `types`
 are unchanged.
 
 Each algorithm reads the shared parameters and its own group, seeds its own `math::Random` from `parameters.seed`, and
@@ -50,7 +50,7 @@ an algorithm not chosen are read and ignored, so an option may be given before t
 
 ## Stages
 
-- [x] **1. Enumerations and parameters.** `Algorithm`, `Parameters`, `write_level`, and `generate` dispatching to three
+- [x] **1. Enumerations and parameters.** `Algorithm`, `Parameters`, `write_zone`, and `generate` dispatching to three
       skeletons.
 - [x] **2. `maze1` moved** out of `main.cpp` into `generate_maze1.cpp`, producing the same output, with staircase
       placement split out. `main.cpp` has the command line and file I/O only.

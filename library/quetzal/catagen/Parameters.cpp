@@ -66,10 +66,10 @@ void quetzal::catagen::validate(const Parameters& parameters)
             parameters.staircase_up_count.upper(), parameters.staircase_up_count.lower()));
     }
 
-    // A dungeon level is entered at, and left by, a staircase leading up
+    // A dungeon zone is entered at, and left by, a staircase leading up
     if (parameters.staircase_up_count.lower() == 0)
     {
-        throw invalid_argument("a staircase up count minimum of zero may leave the level no staircase leading up");
+        throw invalid_argument("a staircase up count minimum of zero may leave the zone no staircase leading up");
     }
 
     if (!parameters.seed)

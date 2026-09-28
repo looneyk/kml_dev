@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 // dungen
-// write_level.cpp
+// write_zone.cpp
 //------------------------------------------------------------------------------
 
-#include "write_level.hpp"
+#include "write_zone.hpp"
 #include "quetzal/common/string_util.hpp"
 #include "quetzal/stratum_format/grid.hpp"
 #include "quetzal/stratum_format/write.hpp"
@@ -84,13 +84,13 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Writes the Level's own size rather than the requested one, since an algorithm may round the requested size to one its
+    // Writes the Zone's own extent rather than the requested one, since an algorithm may round the requested extent to one its
     // layout can use
-    raw_values_type generator(const Level& level, const Parameters& parameters)
+    raw_values_type generator(const Zone& zone, const Parameters& parameters)
     {
         raw_values_type values = raw_values_type::object();
         values["algorithm"] = token(parameters.algorithm);
-        values["size"] = token(level.size());
+        values["extent"] = token(zone.extent());
         values["stairs_down"] = interval_token(parameters.staircase_down_count);
         values["stairs_up"] = interval_token(parameters.staircase_up_count);
 
@@ -131,7 +131,7 @@ namespace
             case CellType::Room:
             case CellType::Corridor: return '.';
             case CellType::Door: return '+';
-            case CellType::Stair: return '>';
+            case CellType::Staircase: return '>';
         }
 
         assert(false);
@@ -153,31 +153,37 @@ namespace
 } // namespace
 
 //------------------------------------------------------------------------------
-void quetzal::dungen::write_level(ostream& os, const Level& level, const Parameters& parameters)
+void quetzal::dungen::write_zone(ostream& os, const Zone& zone, const Parameters& parameters)
 {
-    auto [nx, ny] = level.size().rep();
+    auto [nx, ny] = zone.extent().rep();
 
-    assert(!level.staircases().empty());
+    assert(!zone.staircases().empty());
 
     stratum_format::Document document;
-    document.generator = generator(level, parameters);
+    document.generator = generator(zone, parameters);
+
+    if (!zone.name().empty())
+    {
+        document.components["name"] = zone.name();
+    }
+
     document.level = parameters.level;
     document.cells.notation = stratum_format::Notation::Block;
-    document.cells.extent = level.size();
+    document.cells.extent = zone.extent();
 
     for (coord_type y = ny - 1; y >= 0; --y)
     {
         string row;
         for (coord_type x = 0; x < nx; ++x)
         {
-            row += glyph(level.cell({x, y}).type());
+            row += glyph(zone.cell({x, y}).type());
         }
 
         document.cells.rows.push_back(std::move(row));
     }
 
     // A staircase cell's type does not encode which way it leads; the Staircase does
-    for (const auto& staircase : level.staircases())
+    for (const auto& staircase : zone.staircases())
     {
         if (staircase.rise() == Rise::Up)
         {
@@ -188,7 +194,7 @@ void quetzal::dungen::write_level(ostream& os, const Level& level, const Paramet
 
     // Room floor lies against corridor floor with nothing between, so an edge between two floor cells of different rooms,
     // or of a room and none, is a barrier
-    vector<optional<point_type>> locations(level.rooms().size());
+    vector<optional<point_type>> locations(zone.rooms().size());
     const vector_type east {1, 0};
     const vector_type north {0, 1};
 
@@ -196,7 +202,7 @@ void quetzal::dungen::write_level(ostream& os, const Level& level, const Paramet
     {
         for (coord_type x = 0; x < nx; ++x)
         {
-            const Cell& cell = level.cell({x, y});
+            const Cell& cell = zone.cell({x, y});
             if (!floor(cell.type()))
             {
                 continue;
@@ -211,7 +217,7 @@ void quetzal::dungen::write_level(ostream& os, const Level& level, const Paramet
             for (const vector_type& direction : {east, north})
             {
                 point_type neighbor = point_type {x, y} + direction;
-                if (level.cells().contains(neighbor) && floor(level.cell(neighbor).type()) && room_of(level.cell(neighbor)) != room_id)
+                if (zone.cells().contains(neighbor) && floor(zone.cell(neighbor).type()) && room_of(zone.cell(neighbor)) != room_id)
                 {
                     document.barriers.push_back({{x, y}, -direction});
                 }
@@ -243,7 +249,7 @@ void quetzal::dungen::write_level(ostream& os, const Level& level, const Paramet
 
     size_t staircase_count = 0;
 
-    for (const auto& staircase : level.staircases())
+    for (const auto& staircase : zone.staircases())
     {
         // The staircase's cell is a block, and it is sited on the wall its open neighbor presents to that block
         const vector_type& open_side = staircase.direction();

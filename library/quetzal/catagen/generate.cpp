@@ -350,9 +350,9 @@ namespace
     //--------------------------------------------------------------------------
     // A cell is floor where it belongs to an area, and an edge is open only between two cells of the same area. An edge
     // with floor on neither side has no wall, the edges beyond the zone included
-    void realize(Level& level, const cell_areas_type& areas)
+    void realize(Zone& zone, const cell_areas_type& areas)
     {
-        const vector_type& extent = level.extent();
+        const vector_type& extent = zone.extent();
 
         auto area_of = [&](const point_type& position)
         {
@@ -364,7 +364,7 @@ namespace
             for (coord_type i = 0; i < extent.i(); ++i)
             {
                 id_type area = area_of({i, j});
-                level.set_cell({i, j}, area == nullid ? CellType::Solid : CellType::Open);
+                zone.set_cell({i, j}, area == nullid ? CellType::Solid : CellType::Open);
 
                 for (CardinalDirection direction : {CardinalDirection::East, CardinalDirection::North, CardinalDirection::West, CardinalDirection::South})
                 {
@@ -373,7 +373,7 @@ namespace
                     bool joined = area != nullid && area == other;
                     bool faced = area != nullid || other != nullid;
 
-                    level.set_wall({i, j}, direction, !joined && faced ? WallType::Solid : WallType::Open);
+                    zone.set_wall({i, j}, direction, !joined && faced ? WallType::Solid : WallType::Open);
                 }
             }
         }
@@ -382,19 +382,19 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    void punch(Level& level, const vector<site_type>& sites, random_type& random)
+    void punch(Zone& zone, const vector<site_type>& sites, random_type& random)
     {
         const site_type& site = sites[random.gen(sites.size())];
-        level.set_wall(site.first, site.second, WallType::Door);
+        zone.set_wall(site.first, site.second, WallType::Door);
         return;
     }
 
     //--------------------------------------------------------------------------
     // Adds a door, in random order, for each adjacency that joins two areas not yet joined, then a door for each remaining
     // adjacency with probability loop
-    void place_doors(Level& level, const cell_areas_type& areas, id_type area_count, double loop, random_type& random)
+    void place_doors(Zone& zone, const cell_areas_type& areas, id_type area_count, double loop, random_type& random)
     {
-        sites_type sites = door_sites(level.extent(), areas);
+        sites_type sites = door_sites(zone.extent(), areas);
 
         vector<area_pair_type> keys;
         keys.reserve(sites.size());
@@ -413,7 +413,7 @@ namespace
         {
             if (components.merge(key.first, key.second))
             {
-                punch(level, sites[key], random);
+                punch(zone, sites[key], random);
             }
             else
             {
@@ -425,7 +425,7 @@ namespace
         {
             if (random.gen() < loop)
             {
-                punch(level, sites[key], random);
+                punch(zone, sites[key], random);
             }
         }
 
@@ -447,25 +447,25 @@ namespace
 
     //--------------------------------------------------------------------------
     // Returns true if the side leads onto an open cell across an open wall or a door, since a door is passable once opened
-    bool passable_side(const Level& level, const point_type& cell, CardinalDirection direction)
+    bool passable_side(const Zone& zone, const point_type& cell, CardinalDirection direction)
     {
         point_type next = neighbor(cell, direction);
-        return level.wall(cell, direction) != WallType::Solid && level.contains(next) && level.cell(next) == CellType::Open;
+        return zone.wall(cell, direction) != WallType::Solid && zone.contains(next) && zone.cell(next) == CellType::Open;
     }
 
     //--------------------------------------------------------------------------
     // Returns true if a staircase's block can go at an open cell. The block needs a passable side to face, each staircase
     // next to it must keep a passable side, and the cells across the block's passable sides must still reach one another around it
-    bool block_allowed(const Level& level, const point_type& cell)
+    bool block_allowed(const Zone& zone, const point_type& cell)
     {
-        assert(level.cell(cell) == CellType::Open);
+        assert(zone.cell(cell) == CellType::Open);
 
         auto has_open_side = [&](const point_type& from)
         {
             for (size_t index = 0; index < cardinal_directions.size(); ++index)
             {
                 CardinalDirection direction = static_cast<CardinalDirection>(index);
-                if (neighbor(from, direction) != cell && passable_side(level, from, direction))
+                if (neighbor(from, direction) != cell && passable_side(zone, from, direction))
                 {
                     return true;
                 }
@@ -481,11 +481,11 @@ namespace
             CardinalDirection direction = static_cast<CardinalDirection>(index);
             point_type next = neighbor(cell, direction);
 
-            if (passable_side(level, cell, direction))
+            if (passable_side(zone, cell, direction))
             {
                 sides.push_back(next);
             }
-            else if (level.contains(next) && staircase(level.cell(next)) && !has_open_side(next))
+            else if (zone.contains(next) && staircase(zone.cell(next)) && !has_open_side(next))
             {
                 return false;
             }
@@ -496,7 +496,7 @@ namespace
             return false;
         }
 
-        const vector_type& extent = level.extent();
+        const vector_type& extent = zone.extent();
         vector<bool> reached(static_cast<size_t>(extent.i()) * extent.j(), false);
         reached[cell_slot(extent, sides.front())] = true;
 
@@ -513,7 +513,7 @@ namespace
                 CardinalDirection direction = static_cast<CardinalDirection>(index);
                 point_type next = neighbor(position, direction);
 
-                if (next == cell || !passable_side(level, position, direction) || reached[cell_slot(extent, next)])
+                if (next == cell || !passable_side(zone, position, direction) || reached[cell_slot(extent, next)])
                 {
                     continue;
                 }
@@ -535,7 +535,7 @@ namespace
     // Places staircases at the centers of rooms, one per room, those leading up first. A room is passed over if a staircase
     // at its center would cut a passage or have no side to face. Running out of rooms places fewer staircases, with those
     // leading down falling short first
-    void place_staircases(Level& level, const rectangles_type& rooms, const Parameters& parameters, random_type& random)
+    void place_staircases(Zone& zone, const rectangles_type& rooms, const Parameters& parameters, random_type& random)
     {
         size_t down_count = draw_count(parameters.staircase_down_count, random);
         size_t up_count = draw_count(parameters.staircase_up_count, random);
@@ -543,7 +543,7 @@ namespace
         // Every staircase is an access point, and a zone requires one
         if (rooms.empty())
         {
-            throw runtime_error("the level has no room a staircase can take, and so no entry");
+            throw runtime_error("the zone has no room a staircase can take, and so no entry");
         }
 
         vector<size_t> available(rooms.size());
@@ -557,31 +557,31 @@ namespace
             point_type cell = center(rooms[available[slot]]);
             available.erase(available.begin() + static_cast<ptrdiff_t>(slot));
 
-            if (block_allowed(level, cell))
+            if (block_allowed(zone, cell))
             {
-                level.set_cell(cell, placed < up_count ? CellType::StairsUp : CellType::StairsDown);
+                zone.set_cell(cell, placed < up_count ? CellType::StairsUp : CellType::StairsDown);
                 ++placed;
             }
         }
 
         if (placed == 0)
         {
-            throw runtime_error("the level has no room a staircase can take without closing off a passage, and so no entry");
+            throw runtime_error("the zone has no room a staircase can take without closing off a passage, and so no entry");
         }
 
         return;
     }
 
     //--------------------------------------------------------------------------
-    vector<point_type> staircase_cells(const Level& level)
+    vector<point_type> staircase_cells(const Zone& zone)
     {
         vector<point_type> cells;
 
-        for (coord_type j = 0; j < level.extent().j(); ++j)
+        for (coord_type j = 0; j < zone.extent().j(); ++j)
         {
-            for (coord_type i = 0; i < level.extent().i(); ++i)
+            for (coord_type i = 0; i < zone.extent().i(); ++i)
             {
-                CellType type = level.cell({i, j});
+                CellType type = zone.cell({i, j});
                 if (type == CellType::StairsDown || type == CellType::StairsUp)
                 {
                     cells.push_back({i, j});
@@ -594,11 +594,11 @@ namespace
 
     //--------------------------------------------------------------------------
     // Returns true if a door on any side of the cell opens onto it
-    bool blocks_doorway(const Level& level, const point_type& cell)
+    bool blocks_doorway(const Zone& zone, const point_type& cell)
     {
         for (size_t index = 0; index < cardinal_directions.size(); ++index)
         {
-            if (level.wall(cell, static_cast<CardinalDirection>(index)) == WallType::Door)
+            if (zone.wall(cell, static_cast<CardinalDirection>(index)) == WallType::Door)
             {
                 return true;
             }
@@ -611,31 +611,31 @@ namespace
     // Moves each staircase that blocks a doorway one cell in a random direction, across an open wall onto floor where it
     // blocks no doorway and its block is allowed. A staircase with no such direction stays where it is. An open wall joins
     // two cells of one area, so the staircase stays in its own area
-    void move_staircases_off_doorways(Level& level, random_type& random)
+    void move_staircases_off_doorways(Zone& zone, random_type& random)
     {
-        for (const point_type& cell : staircase_cells(level))
+        for (const point_type& cell : staircase_cells(zone))
         {
-            if (!blocks_doorway(level, cell))
+            if (!blocks_doorway(zone, cell))
             {
                 continue;
             }
 
             vector<point_type> available;
-            CellType type = level.cell(cell);
+            CellType type = zone.cell(cell);
 
             // Floor again while its destination is chosen, so the block there is judged without this one
-            level.set_cell(cell, CellType::Open);
+            zone.set_cell(cell, CellType::Open);
 
             for (size_t index = 0; index < cardinal_directions.size(); ++index)
             {
                 CardinalDirection direction = static_cast<CardinalDirection>(index);
-                if (level.wall(cell, direction) != WallType::Open)
+                if (zone.wall(cell, direction) != WallType::Open)
                 {
                     continue;
                 }
 
                 point_type next = neighbor(cell, direction);
-                if (level.cell(next) == CellType::Open && !blocks_doorway(level, next) && block_allowed(level, next))
+                if (zone.cell(next) == CellType::Open && !blocks_doorway(zone, next) && block_allowed(zone, next))
                 {
                     available.push_back(next);
                 }
@@ -643,12 +643,12 @@ namespace
 
             if (available.empty())
             {
-                level.set_cell(cell, type);
+                zone.set_cell(cell, type);
                 continue;
             }
 
             point_type destination = available[random.gen(available.size())];
-            level.set_cell(destination, type);
+            zone.set_cell(destination, type);
         }
 
         return;
@@ -657,9 +657,9 @@ namespace
     //--------------------------------------------------------------------------
     // Gives each staircase a random facing direction among the sides of its cell that have no wall and floor beyond, or, if
     // there are none, among the sides with a door
-    void face_staircases(Level& level, random_type& random)
+    void face_staircases(Zone& zone, random_type& random)
     {
-        for (const point_type& cell : staircase_cells(level))
+        for (const point_type& cell : staircase_cells(zone))
         {
             vector<CardinalDirection> open;
             vector<CardinalDirection> doors;
@@ -667,9 +667,9 @@ namespace
             for (size_t index = 0; index < cardinal_directions.size(); ++index)
             {
                 CardinalDirection direction = static_cast<CardinalDirection>(index);
-                WallType wall = level.wall(cell, direction);
+                WallType wall = zone.wall(cell, direction);
 
-                if (wall == WallType::Open && level.cell(neighbor(cell, direction)) == CellType::Open)
+                if (wall == WallType::Open && zone.cell(neighbor(cell, direction)) == CellType::Open)
                 {
                     open.push_back(direction);
                 }
@@ -682,7 +682,7 @@ namespace
             const vector<CardinalDirection>& sides = open.empty() ? doors : open;
             if (!sides.empty())
             {
-                level.set_staircase_facing(cell, sides[random.gen(sides.size())]);
+                zone.set_staircase_facing(cell, sides[random.gen(sides.size())]);
             }
         }
 
@@ -691,7 +691,7 @@ namespace
 } // namespace
 
 //------------------------------------------------------------------------------
-quetzal::catagen::Level quetzal::catagen::generate(const Parameters& parameters)
+quetzal::catagen::Zone quetzal::catagen::generate(const string& name, const Parameters& parameters)
 {
     validate(parameters);
 
@@ -706,12 +706,12 @@ quetzal::catagen::Level quetzal::catagen::generate(const Parameters& parameters)
 
     connect_components(parameters.extent, rooms, areas, area_count, random);
 
-    Level level(parameters.extent);
-    realize(level, areas);
-    place_doors(level, areas, area_count, parameters.loop, random);
-    place_staircases(level, rooms, parameters, random);
-    move_staircases_off_doorways(level, random);
-    face_staircases(level, random);
+    Zone zone(name, parameters.extent);
+    realize(zone, areas);
+    place_doors(zone, areas, area_count, parameters.loop, random);
+    place_staircases(zone, rooms, parameters, random);
+    move_staircases_off_doorways(zone, random);
+    face_staircases(zone, random);
 
-    return level;
+    return zone;
 }

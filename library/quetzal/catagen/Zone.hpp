@@ -1,13 +1,14 @@
-#if !defined(QUETZAL_CATAGEN_LEVEL_HPP)
-#define QUETZAL_CATAGEN_LEVEL_HPP
+#if !defined(QUETZAL_CATAGEN_ZONE_HPP)
+#define QUETZAL_CATAGEN_ZONE_HPP
 //------------------------------------------------------------------------------
 // catagen
-// Level.hpp
+// Zone.hpp
 //------------------------------------------------------------------------------
 
 #include "types.hpp"
 #include <map>
 #include <optional>
+#include <string>
 #include <vector>
 
 namespace quetzal::catagen
@@ -17,18 +18,20 @@ namespace quetzal::catagen
     // A rectangle of cells and the walls between them. A wall belongs to the edge two cells share, so the grid has one more
     // line of walls than cells in each direction
     // Rooms, doors and staircases are stored as cell and wall state, with each staircase's facing direction
-    class Level
+    class Zone
     {
     public:
 
-        Level() = default;
-        explicit Level(const vector_type& extent); // Solid layout, no open areas
-        Level(const Level&) = default;
-        Level(Level&&) noexcept = default;
-        ~Level() = default;
+        Zone() = default;
+        Zone(const std::string& name, const vector_type& extent); // Solid layout, no open areas
+        Zone(const Zone&) = default;
+        Zone(Zone&&) noexcept = default;
+        ~Zone() = default;
 
-        Level& operator=(const Level&) = default;
-        Level& operator=(Level&&) noexcept = default;
+        Zone& operator=(const Zone&) = default;
+        Zone& operator=(Zone&&) noexcept = default;
+
+        const std::string& name() const;
 
         const vector_type& extent() const;
         bool contains(const point_type& cell) const;
@@ -63,6 +66,7 @@ namespace quetzal::catagen
         size_t wall_vertical_slot(coord_type i, coord_type j) const;
         size_t wall_horizontal_slot(coord_type i, coord_type j) const;
 
+        std::string m_name;
         box_type m_bounds;
         std::vector<CellType> m_cells;
         std::vector<WallType> m_walls_vertical; // (nx + 1) by ny
@@ -74,4 +78,4 @@ namespace quetzal::catagen
 
 } // namespace quetzal::catagen
 
-#endif // QUETZAL_CATAGEN_LEVEL_HPP
+#endif // QUETZAL_CATAGEN_ZONE_HPP

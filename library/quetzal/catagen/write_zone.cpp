@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 // catagen
-// write_level.cpp
+// write_zone.cpp
 //------------------------------------------------------------------------------
 
-#include "write_level.hpp"
+#include "write_zone.hpp"
 #include "quetzal/common/string_util.hpp"
 #include "quetzal/stratum_format/grid.hpp"
 #include "quetzal/stratum_format/write.hpp"
@@ -71,33 +71,33 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    bool stair_cell(const Level& level, const point_type& cell)
+    bool stair_cell(const Zone& zone, const point_type& cell)
     {
-        if (!level.contains(cell))
+        if (!zone.contains(cell))
         {
             return false;
         }
 
-        CellType type = level.cell(cell);
+        CellType type = zone.cell(cell);
         return type == CellType::StairsDown || type == CellType::StairsUp;
     }
 
     //--------------------------------------------------------------------------
-    bool floor_cell(const Level& level, const point_type& cell)
+    bool floor_cell(const Zone& zone, const point_type& cell)
     {
-        return level.contains(cell) && level.cell(cell) == CellType::Open;
+        return zone.contains(cell) && zone.cell(cell) == CellType::Open;
     }
 
     //--------------------------------------------------------------------------
     // A stair cell is a block, so beside one there is a wall where floor is, even across an open wall, and none elsewhere
-    WallType written_wall(const Level& level, WallType type, const point_type& a, const point_type& b)
+    WallType written_wall(const Zone& zone, WallType type, const point_type& a, const point_type& b)
     {
-        if (!stair_cell(level, a) && !stair_cell(level, b))
+        if (!stair_cell(zone, a) && !stair_cell(zone, b))
         {
             return type;
         }
 
-        if (!floor_cell(level, a) && !floor_cell(level, b))
+        if (!floor_cell(zone, a) && !floor_cell(zone, b))
         {
             return WallType::Open;
         }
@@ -107,9 +107,9 @@ namespace
 
     //--------------------------------------------------------------------------
     // The first row is the highest, the origin being the lower left cell
-    vector<string> rows(const Level& level)
+    vector<string> rows(const Zone& zone)
     {
-        const vector_type& extent = level.extent();
+        const vector_type& extent = zone.extent();
         coord_type width = 2 * extent.i() + 1;
         coord_type height = 2 * extent.j() + 1;
 
@@ -128,15 +128,15 @@ namespace
 
                 if (cell_x && cell_y)
                 {
-                    row[x] = cell_glyph(level.cell({i, j}));
+                    row[x] = cell_glyph(zone.cell({i, j}));
                 }
                 else if (cell_x)
                 {
-                    row[x] = wall_glyph(written_wall(level, level.wall_horizontal(i, j), {i, j - 1}, {i, j}), '-');
+                    row[x] = wall_glyph(written_wall(zone, zone.wall_horizontal(i, j), {i, j - 1}, {i, j}), '-');
                 }
                 else if (cell_y)
                 {
-                    row[x] = wall_glyph(written_wall(level, level.wall_vertical(i, j), {i - 1, j}, {i, j}), '|');
+                    row[x] = wall_glyph(written_wall(zone, zone.wall_vertical(i, j), {i - 1, j}, {i, j}), '|');
                 }
             }
 
@@ -149,7 +149,7 @@ namespace
 } // namespace
 
 //------------------------------------------------------------------------------
-void quetzal::catagen::write_level(ostream& os, const Level& level, const Parameters& parameters)
+void quetzal::catagen::write_zone(ostream& os, const Zone& zone, const Parameters& parameters)
 {
     raw_values_type values = raw_values_type::object();
     values["extent"] = token(parameters.extent);
@@ -169,10 +169,16 @@ void quetzal::catagen::write_level(ostream& os, const Level& level, const Parame
 
     stratum_format::Document document;
     document.generator = {{"name", "catagen"}, {"parameters", values}};
+
+    if (!zone.name().empty())
+    {
+        document.components["name"] = zone.name();
+    }
+
     document.level = parameters.level;
     document.cells.notation = stratum_format::Notation::Wall;
-    document.cells.extent = level.extent();
-    document.cells.rows = rows(level);
+    document.cells.extent = zone.extent();
+    document.cells.rows = rows(zone);
 
     // Local ids are assigned in the order written, so the same parameters give the same ids: each door, then its door
     // facings in the order the reader finds the walls for its glyph, and the staircases last
@@ -192,18 +198,18 @@ void quetzal::catagen::write_level(ostream& os, const Level& level, const Parame
 
     size_t staircase_count = 0;
 
-    for (coord_type j = 0; j < level.extent().j(); ++j)
+    for (coord_type j = 0; j < zone.extent().j(); ++j)
     {
-        for (coord_type i = 0; i < level.extent().i(); ++i)
+        for (coord_type i = 0; i < zone.extent().i(); ++i)
         {
-            CellType type = level.cell({i, j});
+            CellType type = zone.cell({i, j});
             if (type != CellType::StairsDown && type != CellType::StairsUp)
             {
                 continue;
             }
 
             // The staircase's cell is a block, and it is sited on the wall its open neighbor presents to that block
-            optional<CardinalDirection> open_side = level.staircase_facing({i, j});
+            optional<CardinalDirection> open_side = zone.staircase_facing({i, j});
             assert(open_side.has_value());
             const vector_type& direction = cardinal_direction(*open_side);
             stratum_format::WallAddress address {point_type {i, j} + direction, direction};
@@ -224,9 +230,9 @@ void quetzal::catagen::write_level(ostream& os, const Level& level, const Parame
 }
 
 //------------------------------------------------------------------------------
-void quetzal::catagen::write_grid(ostream& os, const Level& level)
+void quetzal::catagen::write_grid(ostream& os, const Zone& zone)
 {
-    for (const auto& row : rows(level))
+    for (const auto& row : rows(zone))
     {
         os << row << '\n';
     }

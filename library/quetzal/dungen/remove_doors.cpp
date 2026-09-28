@@ -10,22 +10,22 @@
 using namespace std;
 
 //------------------------------------------------------------------------------
-void quetzal::dungen::remove_doors(Level& level, double door_probability, random_type& random)
+void quetzal::dungen::remove_doors(Zone& zone, double door_probability, random_type& random)
 {
-    Level::doors_type doors;
-    swap(doors, level.doors());
+    Zone::doors_type doors;
+    swap(doors, zone.doors());
 
     for (const auto& door : doors)
     {
-        assert(level.cell(door.position()).type() == CellType::Door);
+        assert(zone.cell(door.position()).type() == CellType::Door);
 
         if (random.gen() < door_probability)
         {
-            level.create_door(door.position());
+            zone.create_door(door.position());
         }
         else
         {
-            level.cell(door.position()).set_type(CellType::Corridor);
+            zone.cell(door.position()).set_type(CellType::Corridor);
         }
     }
 

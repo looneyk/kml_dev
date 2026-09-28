@@ -1,13 +1,13 @@
 add_library(quetzal_catagen STATIC
     generate.cpp
-    Level.cpp
     Parameters.cpp
-    write_level.cpp
+    write_zone.cpp
+    Zone.cpp
     generate.hpp
-    Level.hpp
     Parameters.hpp
     types.hpp
-    write_level.hpp
+    write_zone.hpp
+    Zone.hpp
 )
 
 set_property(TARGET quetzal_catagen PROPERTY FOLDER "library")

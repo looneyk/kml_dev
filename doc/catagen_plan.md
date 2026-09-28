@@ -42,7 +42,7 @@ The first two are the algorithm. A second algorithm replaces them and keeps the 
 - [x] **4. Connection.** Spanning tree, doors, and the loop parameter.
 - [x] **5. Sparse filling.** The selection pass and corridor carving.
 - [x] **6. A reader in `stratum_sim`,** for the header and the wall notation grid, and a generated zone under
-      `assets/level` that `stratum_terminal` loads.
+      `assets/zones` that `stratum_terminal` loads.
 
 ## Next
 

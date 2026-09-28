@@ -9,7 +9,6 @@ add_library(quetzal_dungen STATIC
     generate_cave1.cpp
     generate_grid1.cpp
     generate_maze1.cpp
-    Level.cpp
     Parameters.cpp
     Pattern.cpp
     place_staircases.cpp
@@ -17,7 +16,8 @@ add_library(quetzal_dungen STATIC
     Room.cpp
     Staircase.cpp
     Wall.cpp
-    write_level.cpp
+    write_zone.cpp
+    Zone.cpp
     Algorithm.hpp
     Cell.hpp
     Cells.hpp
@@ -28,7 +28,6 @@ add_library(quetzal_dungen STATIC
     generate_cave1.hpp
     generate_grid1.hpp
     generate_maze1.hpp
-    Level.hpp
     Parameters.hpp
     Pattern.hpp
     place_staircases.hpp
@@ -37,7 +36,8 @@ add_library(quetzal_dungen STATIC
     Staircase.hpp
     types.hpp
     Wall.hpp
-    write_level.hpp
+    write_zone.hpp
+    Zone.hpp
 )
 
 set_property(TARGET quetzal_dungen PROPERTY FOLDER "library")

@@ -222,7 +222,7 @@ namespace
 
         stratum_sim::CountingIdAllocator id_allocator(stratum_sim::PersistentId {});
         SuiteWorld world(id_allocator);
-        flecs::entity zone = load_zone_unpopulated(world,"data/corridor.level");
+        flecs::entity zone = load_zone_unpopulated(world,"data/corridor.zone");
 
         stratum_view::Cells cells = stratum_view::cells(world, zone, no_viewer);
 
@@ -359,7 +359,7 @@ namespace
         // Two rooms of two by three cells sharing one wall, with a door in the middle of it
         stratum_sim::CountingIdAllocator id_allocator(stratum_sim::PersistentId {});
         SuiteWorld world(id_allocator);
-        flecs::entity zone = load_zone_unpopulated(world,"data/walls.level");
+        flecs::entity zone = load_zone_unpopulated(world,"data/walls.zone");
 
         stratum_view::Lattice lattice = stratum_view::lattice(world, zone, no_viewer);
 
@@ -402,12 +402,12 @@ namespace
 
         // Every corner inside these rooms meets a stair's walls, so the corner with nothing at it is one in the vault
         SuiteWorld open_world(id_allocator);
-        flecs::entity vault = load_zone_unpopulated(open_world,"data/vault.level");
+        flecs::entity vault = load_zone_unpopulated(open_world,"data/vault.zone");
         report_case("a corner inside a room is not", stratum_view::lattice(open_world, vault, no_viewer).at({10, 4}).type == stratum_view::PlaceType::None);
 
         // The block notation reduces onto the same lattice, its walls only against solid
         SuiteWorld block(id_allocator);
-        flecs::entity corridor = load_zone_unpopulated(block,"data/corridor.level");
+        flecs::entity corridor = load_zone_unpopulated(block,"data/corridor.zone");
 
         stratum_view::Lattice cells = stratum_view::lattice(block, corridor, no_viewer);
 
@@ -442,7 +442,7 @@ namespace
 
         stratum_sim::CountingIdAllocator id_allocator(stratum_sim::PersistentId {});
         SuiteWorld world(id_allocator);
-        flecs::entity zone = load_zone_unpopulated(world,"data/corridor.level");
+        flecs::entity zone = load_zone_unpopulated(world,"data/corridor.zone");
 
         stratum_view::Console console = stratum_view::render(world, zone, no_viewer);
 
@@ -484,7 +484,7 @@ namespace
 
         stratum_sim::CountingIdAllocator id_allocator(stratum_sim::PersistentId {});
         SuiteWorld world(id_allocator);
-        flecs::entity zone = load_zone_unpopulated(world,"data/corridor.level");
+        flecs::entity zone = load_zone_unpopulated(world,"data/corridor.zone");
 
         stratum_view::Console console = stratum_view::render_lattice(world, zone, no_viewer);
 
@@ -513,14 +513,14 @@ namespace
 
     //--------------------------------------------------------------------------
     // An unoccupied zone of nothing but solid, floor and its entrance renders back to the file it
-    // was loaded from. vault.level is asymmetric top to bottom, so this pins row order too
+    // was loaded from. vault.zone is asymmetric top to bottom, so this pins row order too
     void test_round_trip()
     {
         report_group("round trip");
 
         for (const string& name : {"corridor"s, "vault"s})
         {
-            string filepath = format("data/{}.level", name);
+            string filepath = format("data/{}.zone", name);
 
             stratum_sim::CountingIdAllocator id_allocator(stratum_sim::PersistentId {});
             SuiteWorld world(id_allocator);
@@ -535,7 +535,7 @@ namespace
         // The wall notation is the lattice written out, so the same check applies once the view's glyphs are mapped back
         // to the notation's. The notation leaves corners blank, so they are not compared
         {
-            string filepath = "data/walls.level";
+            string filepath = "data/walls.zone";
 
             stratum_sim::CountingIdAllocator id_allocator(stratum_sim::PersistentId {});
             SuiteWorld world(id_allocator);
@@ -582,11 +582,11 @@ namespace
     {
         report_group("generated dungeon");
 
-        string source = rows_of("data/dungeon.level");
+        string source = rows_of("data/dungeon.zone");
 
         stratum_sim::CountingIdAllocator id_allocator(stratum_sim::PersistentId {});
         SuiteWorld world(id_allocator);
-        flecs::entity zone = load_zone_unpopulated(world,"data/dungeon.level");
+        flecs::entity zone = load_zone_unpopulated(world,"data/dungeon.zone");
 
         stratum_view::Console console = stratum_view::render(world, zone, no_viewer);
 
@@ -797,7 +797,7 @@ namespace
         for (const Scenario& scenario : scenarios)
         {
             write_file(format("out/{}.txt", scenario.name),
-                play(format("data/{}.level", scenario.zone), scenario.start, scenario.script, scenario.view));
+                play(format("data/{}.zone", scenario.zone), scenario.start, scenario.script, scenario.view));
         }
 
         validator.report_results();
@@ -867,7 +867,7 @@ namespace
         for (const string name : {"corridor", "door", "dungeon", "vault", "walls"})
         {
             string detail;
-            report_case(format("{} has a door entity at each door", name), doors_have_entities(stratum_format::read(format("data/{}.level", name)), detail),
+            report_case(format("{} has a door entity at each door", name), doors_have_entities(stratum_format::read(format("data/{}.zone", name)), detail),
                 detail);
         }
 

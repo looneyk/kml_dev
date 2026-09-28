@@ -18,7 +18,7 @@ namespace quetzal::dungen
     {
         Maze1, // Rooms dropped at random, a maze flooded through every cell they left, pruned back
         Grid1, // A room inside most sectors of a coarse grid, adjacent sectors joined
-        Cave1  // Noise smoothed into caverns, the largest connected region kept
+        Cave1  // Noise smoothed into caverns, the largest connected area kept
     };
 
     // The command line and file header spelling, lower case

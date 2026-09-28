@@ -30,7 +30,7 @@ the site and of the object placed there varies.
 
 `procgen` is not designed against `stratum_sim` types. A caller with a zone extracts the sites from it and supplies a
 callback that builds into it; placement sees a range of sites, a table of candidates, a random engine and counts. The
-site range is the interface between them, so the same placement can run against a `catagen::Level` before a layout
+site range is the interface between them, so the same placement can run against a `catagen::Zone` before a layout
 exists, or against something that is not a zone.
 
 ## What one run takes

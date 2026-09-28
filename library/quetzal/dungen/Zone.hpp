@@ -1,8 +1,8 @@
-#if !defined(QUETZAL_DUNGEN_LEVEL_HPP)
-#define QUETZAL_DUNGEN_LEVEL_HPP
+#if !defined(QUETZAL_DUNGEN_ZONE_HPP)
+#define QUETZAL_DUNGEN_ZONE_HPP
 //------------------------------------------------------------------------------
 // dungen
-// Level.hpp
+// Zone.hpp
 //------------------------------------------------------------------------------
 
 #include "Cell.hpp"
@@ -21,7 +21,7 @@ namespace quetzal::dungen
 {
 
     //--------------------------------------------------------------------------
-    class Level
+    class Zone
     {
     public:
 
@@ -29,18 +29,18 @@ namespace quetzal::dungen
         using doors_type = std::vector<Door>;
         using staircases_type = std::vector<Staircase>;
 
-        Level(id_type id, const std::string& name, vector_type size, CellType cell_type = CellType::Null);
-        Level(const Level&) = default;
-        ~Level() = default;
+        Zone(id_type id, const std::string& name, vector_type extent, CellType cell_type = CellType::Null);
+        Zone(const Zone&) = default;
+        ~Zone() = default;
 
-        Level& operator=(const Level&) = default;
+        Zone& operator=(const Zone&) = default;
 
         id_type id() const;
 
         std::string name() const;
         void set_name(const std::string& name);
 
-        vector_type size() const;
+        vector_type extent() const;
 
         const Cells& cells() const;
         Cells& cells();
@@ -86,8 +86,8 @@ namespace quetzal::dungen
         staircases_type m_staircases;
     };
 
-    std::ostream& operator<<(std::ostream& os, const Level& level);
+    std::ostream& operator<<(std::ostream& os, const Zone& zone);
 
 } // namespace quetzal::dungen
 
-#endif // QUETZAL_DUNGEN_LEVEL_HPP
+#endif // QUETZAL_DUNGEN_ZONE_HPP

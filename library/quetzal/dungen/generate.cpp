@@ -20,7 +20,7 @@ void quetzal::dungen::log_warning(const string& warning)
 }
 
 //------------------------------------------------------------------------------
-quetzal::dungen::Level quetzal::dungen::generate(id_type id, const string& name, const Parameters& parameters, const warning_function_type& warning)
+quetzal::dungen::Zone quetzal::dungen::generate(id_type id, const string& name, const Parameters& parameters, const warning_function_type& warning)
 {
     switch (parameters.algorithm)
     {
@@ -37,5 +37,5 @@ quetzal::dungen::Level quetzal::dungen::generate(id_type id, const string& name,
             assert(false);
     }
 
-    return Level(id, name, parameters.size, CellType::Solid);
+    return Zone(id, name, parameters.extent, CellType::Solid);
 }

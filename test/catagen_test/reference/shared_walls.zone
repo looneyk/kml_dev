@@ -6,7 +6,7 @@
     "parameters": { "extent": "16,12", "scale": "3-7", "spacing": "0-0", "density": "1", "loop": "0", "stairs_down": "1-1", "stairs_up": "1-1", "seed": "1" }
   },
   "layout": {
-    "components": { "access_points": [ { "entity": 25 }, { "entity": 26 } ] }
+    "components": { "access_points": [ { "entity": 25 }, { "entity": 26 } ], "name": "Catacombs Level 1" }
   },
   "cells": {
     "notation": "wall",

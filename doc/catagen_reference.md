@@ -9,7 +9,7 @@ beside it. The two share no code.
 - `library/quetzal/catagen` --- the generator
 - `tool/catagen` --- the driver
 - `library/quetzal/stratum_sim/load_layout.cpp` --- reads a zone file into a zone
-- `assets/level/catagen.level` --- a generated zone that `stratum_terminal` loads
+- `assets/zones/catagen.zone` --- a generated zone that `stratum_terminal` loads
 
 ## The zone file
 
@@ -17,7 +17,8 @@ The generator writes a discrete layout file in the wall notation, through `strat
 the format. `generator.parameters` has the parameters of the run as the tokens their options take --- `extent`,
 `scale`, `spacing`, `density`, `loop`, `stairs_down`, `stairs_up`, `level` if one was given, and `seed` --- so a file
 reproduces its own zone and its parameters read as a command line. A level given is also written as the layout's
-`level`.
+`level`, and the zone's name, if it has one, as the layout's `name` component. The name is not a parameter: it does not
+affect the grid.
 
 The rows are `(2W+1)` by `(2H+1)` characters. Cell `(i, j)` is at `(2i+1, 2j+1)`, the edge west of it at `(2i, 2j+1)`,
 the edge south of it at `(2i+1, 2j)`, and corners at the positions that are even in both. The first row written is the
@@ -47,22 +48,22 @@ ids are assigned in the order the entities are written --- each door, then its d
 vector and half-open box over it. `CellType` is `Solid`, `Open`, `StairsDown` or `StairsUp`; `WallType` is `Open`,
 `Solid` or `Door`, where `Open` is the absence of a wall. Directions are `CardinalDirection`.
 
-**`Level`** --- a rectangle of cells and the walls between them. Rooms, doors and staircases are cell and wall state,
+**`Zone`** --- a name, and a rectangle of cells and the walls between them. Rooms, doors and staircases are cell and wall state,
 and each staircase's facing direction is stored by `set_staircase_facing` and read by `staircase_facing`. Walls are
 stored by the line they lie on, which includes the outermost lines: `wall_vertical(i, j)` lies between cells
 `(i - 1, j)` and `(i, j)`, so `i` runs to `nx` inclusive, and `wall_horizontal(i, j)` lies between `(i, j - 1)` and
 `(i, j)`, so `j` runs to `ny` inclusive. `wall(cell, direction)` reads either; the east wall of `(i, j)` and the west
-wall of `(i + 1, j)` are the same wall. A new `Level` has no cell open and every wall solid.
+wall of `(i + 1, j)` are the same wall. A new `Zone` has no cell open and every wall solid.
 
 **`Parameters`** --- `extent`; `scale` and `spacing`, closed ranges of cells; `density`; `loop`;
 `staircase_down_count` and `staircase_up_count`, closed ranges of counts defaulting to 1-1; an optional `level`; and
 `seed`, a
 `std::optional` that is empty until assigned. `validate` throws `std::invalid_argument` identifying the parameter at
 fault, including an unassigned seed, a count range whose maximum is below its minimum, and a staircase up count whose
-minimum is zero, since a dungeon level is entered and left by a staircase leading up. `random_seed()` draws a seed from
+minimum is zero, since a dungeon zone is entered and left by a staircase leading up. `random_seed()` draws a seed from
 `std::random_device`.
 
-**`generate`** runs the algorithm below. **`write_level`** writes the zone file, and **`write_grid`** writes only its
+**`generate`** runs the algorithm below over a `Zone` with the name it is given. **`write_zone`** writes the zone file, and **`write_grid`** writes only its
 rows.
 
 ## The algorithm
@@ -118,11 +119,11 @@ nothing before them changes.
 ## The tool
 
 ```
-catagen [zone] [--extent nx,ny] [--scale min-max] [--spacing min-max] [--density d]
+catagen [zone] [--extent nx,ny] [--name text] [--scale min-max] [--spacing min-max] [--density d]
              [--loop l] [--stairs-down min-max] [--stairs-up min-max] [--level n] [--seed n] [--quiet]
 ```
 
-The tool writes the zone to the named file, `catagen.level` by default, and to standard output unless `--quiet` is
+The tool writes the zone to the named file, `catagen.zone` by default, and to standard output unless `--quiet` is
 given. A run given no `--seed` takes `random_seed()` before generating, so the file has a seed either way and any run
 can be reproduced from what it printed. The option names are the parameter names, so a file's parameters read back as a
 command line. `--stairs-down` and `--stairs-up` take a closed range of counts; the options keep the shorter "stairs" for
@@ -156,9 +157,9 @@ ranges of staircases each way, it checks the written zone: the counts keep to th
 reachable from every other, every edge between a stair cell and floor is a wall, no staircase has a door beside it if a
 free cell does not, and every staircase is sited on one of the walls around its block and opens onto a side that
 follows the rule. It takes which sides of a stair cell were open from the zone generated again.
-`assets/level/catagen.level` is the `shipped` reference zone.
+`assets/zones/catagen.zone` is the `shipped` reference zone.
 
-`test/stratum_sim_test` has a `load wall layout` group over two files in its `data`: `walls.level`, two rooms of two by
-three cells sharing one wall with a door in the middle of it; and `catagen.level`, a generated zone checked for solid
+`test/stratum_sim_test` has a `load wall layout` group over two files in its `data`: `walls.zone`, two rooms of two by
+three cells sharing one wall with a door in the middle of it; and `catagen.zone`, a generated zone checked for solid
 cells, for edges walled from both sides counting in pairs, and for every open cell being reachable from the first
 across crossable walls alone.

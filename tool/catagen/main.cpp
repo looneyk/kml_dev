@@ -4,7 +4,7 @@
 //------------------------------------------------------------------------------
 
 #include "quetzal/catagen/generate.hpp"
-#include "quetzal/catagen/write_level.hpp"
+#include "quetzal/catagen/write_zone.hpp"
 #include "quetzal/common/string_util.hpp"
 #include "quetzal/math/Interval.hpp"
 #include "quetzal/math/Random.hpp"
@@ -98,7 +98,7 @@ namespace
     //--------------------------------------------------------------------------
     void usage(ostream& os)
     {
-        os << "Usage: catagen [zone] [--extent nx,ny] [--scale min-max] [--spacing min-max]"
+        os << "Usage: catagen [zone] [--extent nx,ny] [--name text] [--scale min-max] [--spacing min-max]"
             << " [--density d] [--loop l] [--stairs-down min-max] [--stairs-up min-max] [--level n] [--seed n] [--quiet]" << endl;
         return;
     }
@@ -108,7 +108,8 @@ namespace
 //------------------------------------------------------------------------------
 int main(int argc, char* argv[])
 {
-    string filepath = "catagen.level";
+    string filepath = "catagen.zone";
+    string name;
     catagen::Parameters parameters;
     bool quiet = false;
 
@@ -121,6 +122,10 @@ int main(int argc, char* argv[])
             if (arg == "--extent" && i + 1 < argc)
             {
                 parameters.extent = to_vector(argv[++i], ",");
+            }
+            else if (arg == "--name" && i + 1 < argc)
+            {
+                name = argv[++i];
             }
             else if (arg == "--scale" && i + 1 < argc)
             {
@@ -175,19 +180,19 @@ int main(int argc, char* argv[])
             parameters.seed = catagen::random_seed();
         }
 
-        catagen::Level level = catagen::generate(parameters);
+        catagen::Zone zone = catagen::generate(name, parameters);
 
         ofstream os(filepath, ios_base::binary);
         if (!os)
         {
-            throw runtime_error(format("unable to open level file {}", filepath));
+            throw runtime_error(format("unable to open zone file {}", filepath));
         }
 
-        catagen::write_level(os, level, parameters);
+        catagen::write_zone(os, zone, parameters);
 
         if (!quiet)
         {
-            catagen::write_level(cout, level, parameters);
+            catagen::write_zone(cout, zone, parameters);
         }
     }
     catch (const exception& e)

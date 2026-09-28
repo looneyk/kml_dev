@@ -15,7 +15,7 @@ namespace
 
     using namespace quetzal::dungen;
 
-    // The cells during smoothing, true where solid. Each pass reads the whole of the one before, so the Level is written
+    // The cells during smoothing, true where solid. Each pass reads the whole of the one before, so the Zone is written
     // only once smoothing is done
     using grid_type = vector<bool>;
 
@@ -95,14 +95,14 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // The cells of the largest connected region of open cells
-    vector<point_type> largest_region(const grid_type& grid, vector_type size)
+    // The cells of the largest connected area of open cells
+    vector<point_type> largest_area(const grid_type& grid, vector_type size)
     {
         auto [nx, ny] = size;
 
         vector<bool> seen(static_cast<size_t>(nx * ny), false);
         vector<point_type> largest;
-        vector<point_type> region;
+        vector<point_type> area;
         vector<point_type> pending;
 
         for (coord_type y = 0; y < ny; ++y)
@@ -114,7 +114,7 @@ namespace
                     continue;
                 }
 
-                region.clear();
+                area.clear();
                 pending.assign(1, point_type {x, y});
                 seen[slot(size, x, y)] = true;
 
@@ -122,7 +122,7 @@ namespace
                 {
                     point_type position = pending.back();
                     pending.pop_back();
-                    region.push_back(position);
+                    area.push_back(position);
 
                     for (const auto& direction : cardinal_directions)
                     {
@@ -137,9 +137,9 @@ namespace
                     }
                 }
 
-                if (region.size() > largest.size())
+                if (area.size() > largest.size())
                 {
-                    largest = region;
+                    largest = area;
                 }
             }
         }
@@ -150,7 +150,7 @@ namespace
 } // namespace
 
 //------------------------------------------------------------------------------
-quetzal::dungen::Level quetzal::dungen::generate_cave1(id_type id, const string& name, const Parameters& parameters,
+quetzal::dungen::Zone quetzal::dungen::generate_cave1(id_type id, const string& name, const Parameters& parameters,
     const warning_function_type& warning)
 {
     assert(parameters.algorithm == Algorithm::Cave1);
@@ -159,23 +159,23 @@ quetzal::dungen::Level quetzal::dungen::generate_cave1(id_type id, const string&
     const Cave1Parameters& cave1 = parameters.cave1;
     random_type random(parameters.seed.value());
 
-    grid_type grid = noise(parameters.size, cave1.fill, random);
+    grid_type grid = noise(parameters.extent, cave1.fill, random);
 
     for (size_t i = 0; i < cave1.smoothing_passes; ++i)
     {
-        grid = smooth(grid, parameters.size, cave1);
+        grid = smooth(grid, parameters.extent, cave1);
     }
 
-    Level level(id, name, parameters.size, CellType::Solid);
+    Zone zone(id, name, parameters.extent, CellType::Solid);
 
-    // Only the largest region is kept, so every open cell is reachable from every other
-    vector<point_type> region = largest_region(grid, parameters.size);
-    for (point_type position : region)
+    // Only the largest area is kept, so every open cell is reachable from every other
+    vector<point_type> area = largest_area(grid, parameters.extent);
+    for (point_type position : area)
     {
-        level.cell(position).set_type(CellType::Corridor);
+        zone.cell(position).set_type(CellType::Corridor);
     }
 
-    place_staircases(level, region, parameters.staircase_up_count, parameters.staircase_down_count, random, warning);
+    place_staircases(zone, area, parameters.staircase_up_count, parameters.staircase_down_count, random, warning);
 
-    return level;
+    return zone;
 }

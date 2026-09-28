@@ -5,7 +5,7 @@
 // place_staircases.hpp
 //------------------------------------------------------------------------------
 
-#include "Level.hpp"
+#include "Zone.hpp"
 #include "types.hpp"
 #include "quetzal/math/Interval.hpp"
 #include <vector>
@@ -19,7 +19,7 @@ namespace quetzal::dungen
     // candidate that cannot take a staircase facing floor without blocking a doorway or cutting a passage in two is
     // skipped. Running out of candidates places fewer staircases than were asked for, which is a warning.
     // Throws std::runtime_error if a rise with a count above zero has none placed, since every staircase is an access point
-    void place_staircases(Level& level, std::vector<point_type> candidates, const math::Interval<size_t>& up_count,
+    void place_staircases(Zone& zone, std::vector<point_type> candidates, const math::Interval<size_t>& up_count,
         const math::Interval<size_t>& down_count, random_type& random, const warning_function_type& warning);
 
 } // namespace quetzal::dungen

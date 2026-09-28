@@ -4,7 +4,7 @@
 //------------------------------------------------------------------------------
 
 #include "quetzal/dungen/generate.hpp"
-#include "quetzal/dungen/write_level.hpp"
+#include "quetzal/dungen/write_zone.hpp"
 #include "quetzal/common/string_util.hpp"
 #include "quetzal/math/Random.hpp"
 #include <algorithm>
@@ -96,7 +96,7 @@ namespace
     //--------------------------------------------------------------------------
     void usage(ostream& os)
     {
-        os << "Usage: dungen [zone] [--algorithm maze1|grid1|cave1] [--size nx,ny]"
+        os << "Usage: dungen [zone] [--algorithm maze1|grid1|cave1] [--extent nx,ny] [--name text]"
             << " [--stairs-down min-max] [--stairs-up min-max] [--room-density d] [--door-probability p] [--level n] [--seed n]" << endl;
         os << "  maze1: [--room-dimension-base n] [--room-dimension-variation n] [--room-merge]"
             << " [--corridor-straightness s] [--probability-dead-end-removal p]"
@@ -112,7 +112,8 @@ namespace
 //------------------------------------------------------------------------------
 int main(int argc, char* argv[])
 {
-    string filepath = "Level_0.level";
+    string filepath = "dungen.zone";
+    string name;
     dungen::Parameters parameters;
 
     try
@@ -125,9 +126,13 @@ int main(int argc, char* argv[])
             {
                 parameters.algorithm = dungen::to_algorithm(argv[++i]);
             }
-            else if (arg == "--size" && i + 1 < argc)
+            else if (arg == "--extent" && i + 1 < argc)
             {
-                parameters.size = to_vector(argv[++i], ",");
+                parameters.extent = to_vector(argv[++i], ",");
+            }
+            else if (arg == "--name" && i + 1 < argc)
+            {
+                name = argv[++i];
             }
             else if (arg == "--stairs-down" && i + 1 < argc)
             {
@@ -230,16 +235,16 @@ int main(int argc, char* argv[])
             parameters.seed = dungen::random_seed();
         }
 
-        dungen::Level level = dungen::generate(0, "Level 0", parameters);
+        dungen::Zone zone = dungen::generate(0, name, parameters);
 
         ofstream os(filepath, ios_base::binary);
         if (!os)
         {
-            throw runtime_error(format("unable to open level file {}", filepath));
+            throw runtime_error(format("unable to open zone file {}", filepath));
         }
 
-        dungen::write_level(os, level, parameters);
-        dungen::write_level(cout, level, parameters);
+        dungen::write_zone(os, zone, parameters);
+        dungen::write_zone(cout, zone, parameters);
     }
     catch (const exception& e)
     {

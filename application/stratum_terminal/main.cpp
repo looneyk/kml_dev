@@ -11,7 +11,7 @@
 //------------------------------------------------------------------------------
 int main(int argc, char* argv[])
 {
-    std::string filepath_zone = std::string(KML_DEV_ASSETS_ROOT) + "/level/dungeon.level";
+    std::string filepath_zone = std::string(KML_DEV_ASSETS_ROOT) + "/zones/dungeon.zone";
     std::string script;
     bool incremental = false;
     stratum_terminal::View view = stratum_terminal::View::Null;

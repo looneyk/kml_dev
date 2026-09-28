@@ -4,7 +4,7 @@
 //------------------------------------------------------------------------------
 
 #include "quetzal/catagen/generate.hpp"
-#include "quetzal/catagen/write_level.hpp"
+#include "quetzal/catagen/write_zone.hpp"
 #include "quetzal/common/file_util.hpp"
 #include "quetzal/common/string_util.hpp"
 #include "quetzal/math/Interval.hpp"
@@ -106,12 +106,12 @@ namespace
 
     //--------------------------------------------------------------------------
     // A zone as the tool writes it, header and grid
-    string zone_text(const catagen::Parameters& parameters)
+    string zone_text(const catagen::Parameters& parameters, const string& name = {})
     {
-        catagen::Level level = catagen::generate(parameters);
+        catagen::Zone zone = catagen::generate(name, parameters);
 
         ostringstream os;
-        catagen::write_level(os, level, parameters);
+        catagen::write_zone(os, zone, parameters);
 
         return os.str();
     }
@@ -253,10 +253,12 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // The runs the reference zone files are written from, with fixed parameters and seeds
+    // The runs the reference zone files are written from, with fixed parameters and seeds. Some zones are named and some are
+    // left without a name
     struct Scenario
     {
         string name;
+        string zone_name;
         catagen::Parameters parameters;
     };
 
@@ -272,7 +274,7 @@ namespace
         shipped.density = 0.5;
         shipped.loop = 0.1;
         shipped.seed = 2614047767u;
-        v.push_back({"shipped", shipped});
+        v.push_back({"shipped", "", shipped});
 
         // Rooms sharing walls, which the block notation cannot express
         catagen::Parameters shared;
@@ -281,7 +283,7 @@ namespace
         shared.density = 1.0;
         shared.loop = 0.0;
         shared.seed = 1u;
-        v.push_back({"shared_walls", shared});
+        v.push_back({"shared_walls", "Catacombs Level 1", shared});
 
         // Rooms spaced apart, so corridors cross the solid cells between them
         catagen::Parameters spaced;
@@ -291,14 +293,14 @@ namespace
         spaced.density = 0.7;
         spaced.loop = 0.3;
         spaced.seed = 42u;
-        v.push_back({"spaced", spaced});
+        v.push_back({"spaced", "Ossuary Level 2", spaced});
 
         // A seed past the halfway mark of its range, which a signed read would lose
         catagen::Parameters wide;
         wide.extent = {12, 12};
         wide.scale = {2, 5};
         wide.seed = 4294967295u;
-        v.push_back({"wide_seed", wide});
+        v.push_back({"wide_seed", "", wide});
 
         return v;
     }
@@ -313,10 +315,10 @@ namespace
 
         for (const Scenario& scenario : scenarios())
         {
-            string zone = zone_text(scenario.parameters);
-            write_file(format("out/{}.level", scenario.name), zone);
+            string zone = zone_text(scenario.parameters, scenario.zone_name);
+            write_file(format("out/{}.zone", scenario.name), zone);
 
-            string reference = read_file(format("reference/{}.level", scenario.name));
+            string reference = read_file(format("reference/{}.zone", scenario.name));
             if (reference.empty())
             {
                 report_case(format("{} is equivalent to its reference", scenario.name), false, "no reference is checked in");
@@ -346,7 +348,7 @@ namespace
 
         for (const Scenario& scenario : scenarios())
         {
-            string reference = read_file(format("reference/{}.level", scenario.name));
+            string reference = read_file(format("reference/{}.zone", scenario.name));
             report_case(format("{} is checked in", scenario.name), !reference.empty());
 
             if (reference.empty())
@@ -356,9 +358,13 @@ namespace
 
             try
             {
-                catagen::Parameters parameters = parameters_of(document_of(reference).generator);
+                // The name is the zone's, not a parameter of its run, so it is carried over as the file wrote it
+                stratum_format::Document document = document_of(reference);
+                string name = document.components.is_object() ? document.components.value("name", string()) : string();
+
+                catagen::Parameters parameters = parameters_of(document.generator);
                 report_case(format("{} regenerates from its own parameters", scenario.name),
-                    map_type::parse(zone_text(parameters)) == map_type::parse(reference));
+                    map_type::parse(zone_text(parameters, name)) == map_type::parse(reference));
             }
             catch (const exception& e)
             {
@@ -547,6 +553,13 @@ namespace
         other.seed = 8u;
         report_case("and another seed gives another", zone_text(other) != zone_text(parameters));
 
+        stratum_format::Document named = document_of(zone_text(parameters, "Catacombs Level 1"));
+        stratum_format::Document unnamed = document_of(zone_text(parameters));
+        report_case("the name a Zone holds is written as the layout's name",
+            named.components.is_object() && named.components.value("name", string()) == "Catacombs Level 1");
+        report_case("an empty name is not written", !unnamed.components.is_object() || !unnamed.components.contains("name"));
+        report_case("and the name does not affect the grid", named.cells.rows == unnamed.cells.rows);
+
         // Drawn from entropy
         report_case("a random seed is not the same one every time",
             catagen::random_seed() != catagen::random_seed());
@@ -603,10 +616,10 @@ namespace
         parameters.extent = {8, 6};
         parameters.seed = 3u;
 
-        catagen::Level level = catagen::generate(parameters);
+        catagen::Zone zone = catagen::generate({}, parameters);
 
         ostringstream os;
-        catagen::write_grid(os, level);
+        catagen::write_grid(os, zone);
 
         vector<string> rows;
         string row;
@@ -726,7 +739,7 @@ namespace
             }
         }
 
-        catagen::Level generated = catagen::generate(parameters);
+        catagen::Zone generated = catagen::generate({}, parameters);
 
         // Open in the zone generated, before the stair cell's walls were written, and with floor beyond
         auto open_to_floor = [&](const discrete_point_type& cell_position, const discrete_vector_type& direction)
@@ -944,7 +957,7 @@ namespace
             rejected = true;
         }
 
-        report_case("a staircase down alone is rejected, a dungeon level needing one leading up", rejected);
+        report_case("a staircase down alone is rejected, a dungeon zone needing one leading up", rejected);
 
         return;
     }

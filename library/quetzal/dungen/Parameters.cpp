@@ -44,10 +44,10 @@ namespace
         const auto& maze1 = parameters.maze1;
 
         // The maze runs along the odd cells, so a zone under three cells across has none once rounded down to odd
-        auto [nx, ny] = parameters.size;
+        auto [nx, ny] = parameters.extent;
         if (nx < 3 || ny < 3)
         {
-            throw invalid_argument(format("size {},{} is below the three cells maze1 needs in each direction", nx, ny));
+            throw invalid_argument(format("extent {},{} is below the three cells maze1 needs in each direction", nx, ny));
         }
 
         if (maze1.room_dimension_base < 1)
@@ -64,7 +64,7 @@ namespace
         coord_type room_dimension_max = maze1.room_dimension_base + maze1.room_dimension_variation;
         if (room_dimension_max >= nx || room_dimension_max >= ny)
         {
-            throw invalid_argument(format("room dimension base {} plus variation {} does not fit within size {},{}",
+            throw invalid_argument(format("room dimension base {} plus variation {} does not fit within extent {},{}",
                 maze1.room_dimension_base, maze1.room_dimension_variation, nx, ny));
         }
 
@@ -98,14 +98,14 @@ namespace
         }
 
         // A sector must fit its room plus the margin on both sides
-        auto [nx, ny] = parameters.size;
+        auto [nx, ny] = parameters.extent;
         coord_type sector_x = nx / divisions_x;
         coord_type sector_y = ny / divisions_y;
         coord_type sector_min = grid1.room_dimension_min + 2 * grid1.room_margin;
 
         if (sector_x < sector_min || sector_y < sector_min)
         {
-            throw invalid_argument(format("size {},{} over divisions {},{} leaves sectors of {},{}, below the {} a room and its margins need",
+            throw invalid_argument(format("extent {},{} over divisions {},{} leaves sectors of {},{}, below the {} a room and its margins need",
                 nx, ny, divisions_x, divisions_y, sector_x, sector_y, sector_min));
         }
 
@@ -120,10 +120,10 @@ namespace
     {
         const auto& cave1 = parameters.cave1;
 
-        auto [nx, ny] = parameters.size;
+        auto [nx, ny] = parameters.extent;
         if (nx < 3 || ny < 3)
         {
-            throw invalid_argument(format("size {},{} leaves no cell off the solid border", nx, ny));
+            throw invalid_argument(format("extent {},{} leaves no cell off the solid border", nx, ny));
         }
 
         validate_probability(cave1.fill, "fill");
@@ -153,10 +153,10 @@ quetzal::dungen::Parameters::seed_type quetzal::dungen::random_seed()
 //------------------------------------------------------------------------------
 void quetzal::dungen::validate(const Parameters& parameters)
 {
-    auto [nx, ny] = parameters.size;
+    auto [nx, ny] = parameters.extent;
     if (nx <= 0 || ny <= 0)
     {
-        throw invalid_argument(format("size {},{} is empty", nx, ny));
+        throw invalid_argument(format("extent {},{} is empty", nx, ny));
     }
 
     if (!parameters.seed)
@@ -167,10 +167,10 @@ void quetzal::dungen::validate(const Parameters& parameters)
     validate_count(parameters.staircase_down_count, "staircase down count");
     validate_count(parameters.staircase_up_count, "staircase up count");
 
-    // A dungeon level is entered at, and left by, a staircase leading up
+    // A dungeon zone is entered at, and left by, a staircase leading up
     if (parameters.staircase_up_count.lower() == 0)
     {
-        throw invalid_argument("a staircase up count minimum of zero may leave the level no staircase leading up");
+        throw invalid_argument("a staircase up count minimum of zero may leave the zone no staircase leading up");
     }
 
     switch (parameters.algorithm)

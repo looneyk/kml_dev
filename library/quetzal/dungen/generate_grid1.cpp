@@ -128,15 +128,15 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    void write_sector(Level& level, const Sector& sector)
+    void write_sector(Zone& zone, const Sector& sector)
     {
         if (sector.room)
         {
-            level.create_room(sector.rectangle);
+            zone.create_room(sector.rectangle);
         }
         else
         {
-            level.cell(sector.rectangle.position()).set_type(CellType::Corridor);
+            zone.cell(sector.rectangle.position()).set_type(CellType::Corridor);
         }
 
         return;
@@ -193,7 +193,7 @@ namespace
 
     //--------------------------------------------------------------------------
     // Turns the solid cells along a horizontal or vertical line, ends included, into corridor
-    void carve(Level& level, point_type from, point_type to)
+    void carve(Zone& zone, point_type from, point_type to)
     {
         coord_type dx = to.x() - from.x();
         coord_type dy = to.y() - from.y();
@@ -208,9 +208,9 @@ namespace
         point_type position = from;
         for (coord_type i = 0; i <= steps; ++i)
         {
-            if (level.cell(position).type() == CellType::Solid)
+            if (zone.cell(position).type() == CellType::Solid)
             {
-                level.cell(position).set_type(CellType::Corridor);
+                zone.cell(position).set_type(CellType::Corridor);
             }
 
             position += step;
@@ -221,11 +221,11 @@ namespace
 
     //--------------------------------------------------------------------------
     // Makes a door where a corridor enters a room, and leaves corridor where it enters a sector without one
-    void place_door(Level& level, point_type position, bool room)
+    void place_door(Zone& zone, point_type position, bool room)
     {
-        if (room && level.cell(position).type() != CellType::Door)
+        if (room && zone.cell(position).type() != CellType::Door)
         {
-            level.create_door(position);
+            zone.create_door(position);
         }
 
         return;
@@ -257,7 +257,7 @@ namespace
     //--------------------------------------------------------------------------
     // Digs a corridor that leaves through the wall of from that faces to, turns alongside from, and
     // enters across to's near wall. Fails if to leaves no row for it
-    bool connect_around_rows(Level& level, const Sector& from, const Sector& to, coord_type to_wall_x,
+    bool connect_around_rows(Zone& zone, const Sector& from, const Sector& to, coord_type to_wall_x,
         random_type& random)
     {
         coord_type y = 0;
@@ -273,16 +273,16 @@ namespace
         coord_type x = from.rectangle.position().x() + random.gen(from.rectangle.extent().x());
         coord_type ym = random.gen(y0, y1);
 
-        carve(level, {x, y}, {x, ym});
-        carve(level, {x, ym}, {to_wall_x, ym});
+        carve(zone, {x, y}, {x, ym});
+        carve(zone, {x, ym}, {to_wall_x, ym});
 
-        place_door(level, {x, y}, from.room);
-        place_door(level, {to_wall_x, ym}, to.room);
+        place_door(zone, {x, y}, from.room);
+        place_door(zone, {to_wall_x, ym}, to.room);
         return true;
     }
 
     //--------------------------------------------------------------------------
-    bool connect_around_columns(Level& level, const Sector& from, const Sector& to, coord_type to_wall_y,
+    bool connect_around_columns(Zone& zone, const Sector& from, const Sector& to, coord_type to_wall_y,
         random_type& random)
     {
         coord_type x = 0;
@@ -298,11 +298,11 @@ namespace
         coord_type y = from.rectangle.position().y() + random.gen(from.rectangle.extent().y());
         coord_type xm = random.gen(x0, x1);
 
-        carve(level, {x, y}, {xm, y});
-        carve(level, {xm, y}, {xm, to_wall_y});
+        carve(zone, {x, y}, {xm, y});
+        carve(zone, {xm, y}, {xm, to_wall_y});
 
-        place_door(level, {x, y}, from.room);
-        place_door(level, {xm, to_wall_y}, to.room);
+        place_door(zone, {x, y}, from.room);
+        place_door(zone, {xm, to_wall_y}, to.room);
         return true;
     }
 
@@ -368,7 +368,7 @@ namespace
     //--------------------------------------------------------------------------
     // Digs a corridor from one sector to the other, keeping its turn off both wall lines, since a doorway needs solid cells
     // on either side
-    void connect(Level& level, const Sector& a, const Sector& b, bool horizontal, random_type& random)
+    void connect(Zone& zone, const Sector& a, const Sector& b, bool horizontal, random_type& random)
     {
         if (horizontal)
         {
@@ -381,12 +381,12 @@ namespace
                 coord_type yb = b.rectangle.position().y() + random.gen(b.rectangle.extent().y());
                 coord_type xm = random.gen(xa + 1, xb - 1); // Where it turns
 
-                carve(level, {xa, ya}, {xm, ya});
-                carve(level, {xm, ya}, {xm, yb});
-                carve(level, {xm, yb}, {xb, yb});
+                carve(zone, {xa, ya}, {xm, ya});
+                carve(zone, {xm, ya}, {xm, yb});
+                carve(zone, {xm, yb}, {xb, yb});
 
-                place_door(level, {xa, ya}, a.room);
-                place_door(level, {xb, yb}, b.room);
+                place_door(zone, {xa, ya}, a.room);
+                place_door(zone, {xb, yb}, b.room);
                 return;
             }
 
@@ -397,14 +397,14 @@ namespace
             {
                 coord_type y = random.gen(y0, y1);
 
-                carve(level, {xa, y}, {xb, y});
+                carve(zone, {xa, y}, {xb, y});
 
-                place_door(level, {xa, y}, a.room);
-                place_door(level, {xb, y}, b.room);
+                place_door(zone, {xa, y}, a.room);
+                place_door(zone, {xb, y}, b.room);
                 return;
             }
 
-            if (connect_around_rows(level, a, b, xb, random) || connect_around_rows(level, b, a, xa, random))
+            if (connect_around_rows(zone, a, b, xb, random) || connect_around_rows(zone, b, a, xa, random))
             {
                 return;
             }
@@ -415,17 +415,17 @@ namespace
 
             if (a.room)
             {
-                carve(level, {xa, ya}, {xb, ya});
-                carve(level, {xb, ya}, {xb, yb});
+                carve(zone, {xa, ya}, {xb, ya});
+                carve(zone, {xb, ya}, {xb, yb});
             }
             else
             {
-                carve(level, {xa, ya}, {xa, yb});
-                carve(level, {xa, yb}, {xb, yb});
+                carve(zone, {xa, ya}, {xa, yb});
+                carve(zone, {xa, yb}, {xb, yb});
             }
 
-            place_door(level, {xa, ya}, a.room);
-            place_door(level, {xb, yb}, b.room);
+            place_door(zone, {xa, ya}, a.room);
+            place_door(zone, {xb, yb}, b.room);
         }
         else
         {
@@ -438,12 +438,12 @@ namespace
                 coord_type xb = b.rectangle.position().x() + random.gen(b.rectangle.extent().x());
                 coord_type ym = random.gen(ya + 1, yb - 1); // Where it turns
 
-                carve(level, {xa, ya}, {xa, ym});
-                carve(level, {xa, ym}, {xb, ym});
-                carve(level, {xb, ym}, {xb, yb});
+                carve(zone, {xa, ya}, {xa, ym});
+                carve(zone, {xa, ym}, {xb, ym});
+                carve(zone, {xb, ym}, {xb, yb});
 
-                place_door(level, {xa, ya}, a.room);
-                place_door(level, {xb, yb}, b.room);
+                place_door(zone, {xa, ya}, a.room);
+                place_door(zone, {xb, yb}, b.room);
                 return;
             }
 
@@ -454,14 +454,14 @@ namespace
             {
                 coord_type x = random.gen(x0, x1);
 
-                carve(level, {x, ya}, {x, yb});
+                carve(zone, {x, ya}, {x, yb});
 
-                place_door(level, {x, ya}, a.room);
-                place_door(level, {x, yb}, b.room);
+                place_door(zone, {x, ya}, a.room);
+                place_door(zone, {x, yb}, b.room);
                 return;
             }
 
-            if (connect_around_columns(level, a, b, yb, random) || connect_around_columns(level, b, a, ya, random))
+            if (connect_around_columns(zone, a, b, yb, random) || connect_around_columns(zone, b, a, ya, random))
             {
                 return;
             }
@@ -472,17 +472,17 @@ namespace
 
             if (a.room)
             {
-                carve(level, {xa, ya}, {xa, yb});
-                carve(level, {xa, yb}, {xb, yb});
+                carve(zone, {xa, ya}, {xa, yb});
+                carve(zone, {xa, yb}, {xb, yb});
             }
             else
             {
-                carve(level, {xa, ya}, {xb, ya});
-                carve(level, {xb, ya}, {xb, yb});
+                carve(zone, {xa, ya}, {xb, ya});
+                carve(zone, {xb, ya}, {xb, yb});
             }
 
-            place_door(level, {xa, ya}, a.room);
-            place_door(level, {xb, yb}, b.room);
+            place_door(zone, {xa, ya}, a.room);
+            place_door(zone, {xb, yb}, b.room);
         }
 
         return;
@@ -490,17 +490,17 @@ namespace
 
     //--------------------------------------------------------------------------
     // A staircase can be placed in an open cell, room or corridor
-    vector<point_type> staircase_candidates(const Level& level)
+    vector<point_type> staircase_candidates(const Zone& zone)
     {
         vector<point_type> rooms;
         vector<point_type> corridors;
 
-        auto [nx, ny] = level.size();
+        auto [nx, ny] = zone.extent();
         for (coord_type y = 0; y < ny; ++y)
         {
             for (coord_type x = 0; x < nx; ++x)
             {
-                CellType type = level.cell({x, y}).type();
+                CellType type = zone.cell({x, y}).type();
                 if (type == CellType::Room)
                 {
                     rooms.push_back({x, y});
@@ -518,7 +518,7 @@ namespace
 } // namespace
 
 //------------------------------------------------------------------------------
-quetzal::dungen::Level quetzal::dungen::generate_grid1(id_type id, const string& name, const Parameters& parameters,
+quetzal::dungen::Zone quetzal::dungen::generate_grid1(id_type id, const string& name, const Parameters& parameters,
     const warning_function_type& warning)
 {
     assert(parameters.algorithm == Algorithm::Grid1);
@@ -527,7 +527,7 @@ quetzal::dungen::Level quetzal::dungen::generate_grid1(id_type id, const string&
     const Grid1Parameters& grid1 = parameters.grid1;
     random_type random(parameters.seed.value());
 
-    Level level(id, name, parameters.size, CellType::Solid);
+    Zone zone(id, name, parameters.extent, CellType::Solid);
 
     auto [divisions_x, divisions_y] = grid1.divisions;
     size_t n_sectors = static_cast<size_t>(divisions_x * divisions_y);
@@ -556,7 +556,7 @@ quetzal::dungen::Level quetzal::dungen::generate_grid1(id_type id, const string&
         for (coord_type i = 0; i < divisions_x; ++i)
         {
             size_t slot = static_cast<size_t>(j * divisions_x + i);
-            box_type bounds = sector_bounds(parameters.size, grid1.divisions, i, j);
+            box_type bounds = sector_bounds(parameters.extent, grid1.divisions, i, j);
             Sector sector;
 
             for (size_t attempt = 0; attempt < placement_attempts; ++attempt)
@@ -571,17 +571,17 @@ quetzal::dungen::Level quetzal::dungen::generate_grid1(id_type id, const string&
             }
 
             sectors[slot] = sector;
-            write_sector(level, sector);
+            write_sector(zone, sector);
         }
     }
 
     for (const Adjacency& connection : sector_connections(sector_adjacencies(grid1.divisions), n_sectors, grid1.loop, random))
     {
-        connect(level, sectors[connection.slot_a], sectors[connection.slot_b], connection.horizontal, random);
+        connect(zone, sectors[connection.slot_a], sectors[connection.slot_b], connection.horizontal, random);
     }
 
-    place_staircases(level, staircase_candidates(level), parameters.staircase_up_count, parameters.staircase_down_count, random, warning);
-    remove_doors(level, grid1.door_probability, random);
+    place_staircases(zone, staircase_candidates(zone), parameters.staircase_up_count, parameters.staircase_down_count, random, warning);
+    remove_doors(zone, grid1.door_probability, random);
 
-    return level;
+    return zone;
 }

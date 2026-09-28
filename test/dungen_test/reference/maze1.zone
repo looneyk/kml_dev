@@ -3,10 +3,10 @@
   "version": "0.4",
   "generator": {
     "name": "dungen",
-    "parameters": { "algorithm": "maze1", "size": "31,21", "stairs_down": "1-1", "stairs_up": "1-1", "room_dimension_base": "3", "room_dimension_variation": "8", "room_density": "0.25", "room_merge": "false", "corridor_straightness": "0.5", "probability_dead_end_removal": "0.5", "probability_loop_removal": "1", "door_probability": "1", "seed": "1" }
+    "parameters": { "algorithm": "maze1", "extent": "31,21", "stairs_down": "1-1", "stairs_up": "1-1", "room_dimension_base": "3", "room_dimension_variation": "8", "room_density": "0.25", "room_merge": "false", "corridor_straightness": "0.5", "probability_dead_end_removal": "0.5", "probability_loop_removal": "1", "door_probability": "1", "seed": "1" }
   },
   "layout": {
-    "components": { "access_points": [ { "entity": 34 }, { "entity": 35 } ] }
+    "components": { "access_points": [ { "entity": 34 }, { "entity": 35 } ], "name": "Cistern Level 1" }
   },
   "cells": {
     "notation": "block",

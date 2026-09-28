@@ -55,7 +55,7 @@ namespace quetzal::dungen
 
     //--------------------------------------------------------------------------
     // Noise smoothed into caverns by a cellular automaton over the eight neighbors of a cell,
-    // the largest connected region kept and the rest filled back in
+    // the largest connected area kept and the rest filled back in
     struct Cave1Parameters
     {
         double fill = 0.45; // Fraction of cells solid before any smoothing
@@ -73,7 +73,7 @@ namespace quetzal::dungen
         using seed_type = std::default_random_engine::result_type;
 
         Algorithm algorithm = Algorithm::Maze1;
-        vector_type size {32, 32};
+        vector_type extent {32, 32};
 
         // How many staircases lead down and how many up, each a count drawn from its closed range
         math::Interval<size_t> staircase_down_count {1, 1};

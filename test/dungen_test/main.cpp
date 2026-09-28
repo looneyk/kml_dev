@@ -6,7 +6,7 @@
 #include "quetzal/common/file_util.hpp"
 #include "quetzal/dungen/generate.hpp"
 #include "quetzal/dungen/place_staircases.hpp"
-#include "quetzal/dungen/write_level.hpp"
+#include "quetzal/dungen/write_zone.hpp"
 #include "quetzal/math/Random.hpp"
 #include "quetzal/stratum_format/grid.hpp"
 #include "quetzal/stratum_format/read.hpp"
@@ -109,12 +109,12 @@ namespace
 
     //--------------------------------------------------------------------------
     // A zone as the tool writes it, header and grid. Warnings are the subject of cases of their own, and are dropped here
-    string zone_text(const dungen::Parameters& parameters)
+    string zone_text(const dungen::Parameters& parameters, const string& name = {})
     {
-        dungen::Level level = dungen::generate(0, "zone", parameters, [](const string&) {});
+        dungen::Zone zone = dungen::generate(0, name, parameters, [](const string&) {});
 
         ostringstream os;
-        dungen::write_level(os, level, parameters);
+        dungen::write_zone(os, zone, parameters);
 
         return os.str();
     }
@@ -266,9 +266,9 @@ namespace
             parameters.level = to_integer(take("level"));
         }
 
-        string size = take("size");
-        size_t n = size.find(',');
-        parameters.size = {to_integer(size.substr(0, n)), to_integer(size.substr(n + 1))};
+        string extent = take("extent");
+        size_t n = extent.find(',');
+        parameters.extent = {to_integer(extent.substr(0, n)), to_integer(extent.substr(n + 1))};
 
         if (parameters.algorithm == dungen::Algorithm::Maze1)
         {
@@ -314,10 +314,12 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // The runs the reference zone files are written from, each algorithm at a fixed seed
+    // The runs the reference zone files are written from, each algorithm at a fixed seed. Some zones are named and some are
+    // left without a name
     struct Scenario
     {
         string name;
+        string zone_name;
         dungen::Parameters parameters;
     };
 
@@ -327,45 +329,45 @@ namespace
 
         dungen::Parameters maze1;
         maze1.algorithm = dungen::Algorithm::Maze1;
-        maze1.size = {31, 21};
+        maze1.extent = {31, 21};
         maze1.seed = 1u;
-        v.push_back({"maze1", maze1});
+        v.push_back({"maze1", "Cistern Level 1", maze1});
 
         dungen::Parameters grid1;
         grid1.algorithm = dungen::Algorithm::Grid1;
-        grid1.size = {33, 25};
+        grid1.extent = {33, 25};
         grid1.seed = 42u;
-        v.push_back({"grid1", grid1});
+        v.push_back({"grid1", "Barracks Level 2", grid1});
 
         dungen::Parameters cave1;
         cave1.algorithm = dungen::Algorithm::Cave1;
-        cave1.size = {40, 30};
+        cave1.extent = {40, 30};
         cave1.seed = 12345u;
-        v.push_back({"cave1", cave1});
+        v.push_back({"cave1", "Caverns Level 3", cave1});
 
         // No staircase leading down, which the default counts do not cover
         dungen::Parameters up_only;
         up_only.algorithm = dungen::Algorithm::Maze1;
-        up_only.size = {21, 15};
+        up_only.extent = {21, 15};
         up_only.staircase_down_count = {0, 0};
         up_only.seed = 7u;
-        v.push_back({"up_only", up_only});
+        v.push_back({"up_only", "", up_only});
 
         // A seed past the halfway mark of its range, which a signed read would lose
         dungen::Parameters wide;
         wide.algorithm = dungen::Algorithm::Grid1;
-        wide.size = {25, 19};
+        wide.extent = {25, 19};
         wide.seed = 4294967295u;
-        v.push_back({"wide_seed", wide});
+        v.push_back({"wide_seed", "", wide});
 
         // Doorways left open, which barriers close off from the rooms they lead into
         dungen::Parameters grid1_open = grid1;
         grid1_open.grid1.door_probability = 0.5;
-        v.push_back({"grid1_open_doorways", grid1_open});
+        v.push_back({"grid1_open_doorways", "Open Barracks", grid1_open});
 
         dungen::Parameters maze1_open = maze1;
         maze1_open.maze1.door_probability = 0.5;
-        v.push_back({"maze1_open_doorways", maze1_open});
+        v.push_back({"maze1_open_doorways", "", maze1_open});
 
         return v;
     }
@@ -380,10 +382,10 @@ namespace
 
         for (const Scenario& scenario : scenarios())
         {
-            string zone = zone_text(scenario.parameters);
-            write_file(format("out/{}.level", scenario.name), zone);
+            string zone = zone_text(scenario.parameters, scenario.zone_name);
+            write_file(format("out/{}.zone", scenario.name), zone);
 
-            string reference = read_file(format("reference/{}.level", scenario.name));
+            string reference = read_file(format("reference/{}.zone", scenario.name));
             if (reference.empty())
             {
                 report_case(format("{} is equivalent to its reference", scenario.name), false, "no reference is checked in");
@@ -413,7 +415,7 @@ namespace
 
         for (const Scenario& scenario : scenarios())
         {
-            string reference = read_file(format("reference/{}.level", scenario.name));
+            string reference = read_file(format("reference/{}.zone", scenario.name));
             report_case(format("{} is checked in", scenario.name), !reference.empty());
 
             if (reference.empty())
@@ -423,9 +425,13 @@ namespace
 
             try
             {
-                dungen::Parameters parameters = parameters_of(document_of(reference).generator);
+                // The name is the zone's, not a parameter of its run, so it is carried over as the file wrote it
+                stratum_format::Document document = document_of(reference);
+                string name = document.components.is_object() ? document.components.value("name", string()) : string();
+
+                dungen::Parameters parameters = parameters_of(document.generator);
                 report_case(format("{} regenerates from its own parameters", scenario.name),
-                    map_type::parse(zone_text(parameters)) == map_type::parse(reference));
+                    map_type::parse(zone_text(parameters, name)) == map_type::parse(reference));
             }
             catch (const exception& e)
             {
@@ -466,7 +472,7 @@ namespace
         report_group("determinism");
 
         dungen::Parameters parameters;
-        parameters.size = {21, 15};
+        parameters.extent = {21, 15};
         parameters.seed = 7u;
 
         report_case("one seed gives one zone", zone_text(parameters) == zone_text(parameters));
@@ -475,15 +481,21 @@ namespace
         other.seed = 8u;
         report_case("and another seed gives another", zone_text(other) != zone_text(parameters));
 
-        // The id and name do not affect the grid
-        dungen::Level a = dungen::generate(0, "one", parameters);
-        dungen::Level b = dungen::generate(7, "another", parameters);
+        auto write = [&](id_type id, const string& name)
+        {
+            ostringstream os;
+            dungen::write_zone(os, dungen::generate(id, name, parameters), parameters);
+            return os.str();
+        };
 
-        ostringstream os_a;
-        ostringstream os_b;
-        dungen::write_level(os_a, a, parameters);
-        dungen::write_level(os_b, b, parameters);
-        report_case("the id and name a Level holds do not reach it", os_a.str() == os_b.str());
+        report_case("the id a Zone holds does not reach its file", write(0, "one") == write(7, "one"));
+
+        stratum_format::Document named = document_of(write(0, "Cistern Level 1"));
+        stratum_format::Document unnamed = document_of(write(0, ""));
+        report_case("the name a Zone holds is written as the layout's name",
+            named.components.is_object() && named.components.value("name", string()) == "Cistern Level 1");
+        report_case("an empty name is not written", !unnamed.components.is_object() || !unnamed.components.contains("name"));
+        report_case("and the name does not affect the grid", named.cells.rows == unnamed.cells.rows);
 
         report_case("a random seed is not the same one every time",
             dungen::random_seed() != dungen::random_seed());
@@ -511,7 +523,7 @@ namespace
         };
 
         dungen::Parameters parameters;
-        parameters.size = {21, 15};
+        parameters.extent = {21, 15};
         parameters.seed = 1u;
         report_case("a sound set of parameters passes", !rejected(parameters));
 
@@ -520,7 +532,7 @@ namespace
         report_case("no seed is rejected rather than quietly fixed", rejected(seedless));
 
         dungen::Parameters empty = parameters;
-        empty.size = {0, 0};
+        empty.extent = {0, 0};
         report_case("an empty size is rejected", rejected(empty));
 
         // Only the chosen algorithm's group is read, so another group's invalid values are not rejected
@@ -558,7 +570,7 @@ namespace
                 continue;
             }
 
-            auto [nx, ny] = scenario.parameters.size.rep();
+            auto [nx, ny] = scenario.parameters.extent.rep();
 
             report_case_equal(format("{} has a row per cell", scenario.name), rows.size(), static_cast<size_t>(ny));
             report_case(format("{} has a column per cell", scenario.name),
@@ -760,7 +772,7 @@ namespace
             {
                 dungen::Parameters parameters;
                 parameters.algorithm = dungen::Algorithm::Grid1;
-                parameters.size = {33, 25};
+                parameters.extent = {33, 25};
                 parameters.seed = seed;
                 parameters.grid1.room_density = variant.room_density;
                 parameters.grid1.room_dimension_min = variant.room_dimension_min;
@@ -794,7 +806,7 @@ namespace
     // barrier is missing and a room's fill leaks out through an open doorway
     bool rooms_read_back(const dungen::Parameters& parameters, string& detail)
     {
-        optional<dungen::Level> generated;
+        optional<dungen::Zone> generated;
 
         try
         {
@@ -806,17 +818,17 @@ namespace
             return false;
         }
 
-        const dungen::Level& level = *generated;
+        const dungen::Zone& zone = *generated;
 
-        vector<set<stratum_format::discrete_point_type>> cells_expected(level.rooms().size());
-        auto [nx, ny] = level.size().rep();
+        vector<set<stratum_format::discrete_point_type>> cells_expected(zone.rooms().size());
+        auto [nx, ny] = zone.extent().rep();
 
         for (dungen::coord_type y = 0; y < ny; ++y)
         {
             for (dungen::coord_type x = 0; x < nx; ++x)
             {
                 // A stair cell is a block, and in no room
-                const dungen::Cell& cell = level.cell({x, y});
+                const dungen::Cell& cell = zone.cell({x, y});
                 if (cell.type() == dungen::CellType::Room)
                 {
                     if (cell.room_id() != nullid)
@@ -828,7 +840,7 @@ namespace
         }
 
         ostringstream os;
-        dungen::write_level(os, level, parameters);
+        dungen::write_zone(os, zone, parameters);
 
         vector<set<stratum_format::discrete_point_type>> cells;
 
@@ -888,7 +900,7 @@ namespace
             {
                 dungen::Parameters parameters;
                 parameters.algorithm = variant.algorithm;
-                parameters.size = {33, 25};
+                parameters.extent = {33, 25};
                 parameters.seed = seed;
                 parameters.grid1.door_probability = variant.door_probability;
                 parameters.maze1.door_probability = variant.door_probability;
@@ -911,7 +923,7 @@ namespace
 
         dungen::Parameters doorless;
         doorless.algorithm = dungen::Algorithm::Grid1;
-        doorless.size = {33, 25};
+        doorless.extent = {33, 25};
         doorless.seed = 42u;
         doorless.grid1.door_probability = 0.0;
 
@@ -968,7 +980,7 @@ namespace
 
         auto floor_stair = [](char c) { return c == '.' || c == '>' || c == '<'; };
 
-        dungen::Level generated = dungen::generate(0, "zone", parameters);
+        dungen::Zone generated = dungen::generate(0, "zone", parameters);
 
         auto space = [&](const discrete_point_type& cell_position)
         {
@@ -1204,24 +1216,24 @@ namespace
         // A corridor along row 1 from column 1, in solid
         auto corridor = [](dungen::coord_type length)
         {
-            dungen::Level level(0, "corridor", {length + 2, 3}, dungen::CellType::Solid);
+            dungen::Zone zone(0, "corridor", {length + 2, 3}, dungen::CellType::Solid);
             for (dungen::coord_type x = 1; x <= length; ++x)
             {
-                level.cell({x, 1}).set_type(dungen::CellType::Corridor);
+                zone.cell({x, 1}).set_type(dungen::CellType::Corridor);
             }
 
-            return level;
+            return zone;
         };
 
         // Returns the error place_staircases throws, or an empty string if it places what it can
-        auto placing = [](dungen::Level& level, const vector<dungen::point_type>& candidates, math::Interval<size_t> up, math::Interval<size_t> down,
+        auto placing = [](dungen::Zone& zone, const vector<dungen::point_type>& candidates, math::Interval<size_t> up, math::Interval<size_t> down,
             vector<string>& warnings)
         {
             dungen::random_type random(1u);
 
             try
             {
-                dungen::place_staircases(level, candidates, up, down, random, [&](const string& warning) { warnings.push_back(warning); });
+                dungen::place_staircases(zone, candidates, up, down, random, [&](const string& warning) { warnings.push_back(warning); });
             }
             catch (const runtime_error& e)
             {
@@ -1232,59 +1244,59 @@ namespace
         };
 
         {
-            dungen::Level level = corridor(2);
+            dungen::Zone zone = corridor(2);
             vector<string> warnings;
 
-            report_case("a staircase is placed on a candidate", placing(level, {{1, 1}}, {1, 1}, {0, 0}, warnings).empty()
-                && level.staircases().size() == 1 && level.cell({1, 1}).type() == dungen::CellType::Stair);
-            report_case("facing the floor beside it", !level.staircases().empty() && level.staircases()[0].direction() == dungen::vector_type {1, 0});
-            report_case("the floor a staircase faces takes no other", placing(level, {{2, 1}}, {1, 1}, {0, 0}, warnings) == unplaced_rise_error);
+            report_case("a staircase is placed on a candidate", placing(zone, {{1, 1}}, {1, 1}, {0, 0}, warnings).empty()
+                && zone.staircases().size() == 1 && zone.cell({1, 1}).type() == dungen::CellType::Staircase);
+            report_case("facing the floor beside it", !zone.staircases().empty() && zone.staircases()[0].direction() == dungen::vector_type {1, 0});
+            report_case("the floor a staircase faces takes no other", placing(zone, {{2, 1}}, {1, 1}, {0, 0}, warnings) == unplaced_rise_error);
         }
 
         {
-            dungen::Level level = corridor(3);
+            dungen::Zone zone = corridor(3);
             vector<string> warnings;
 
-            report_case("a count drawn above zero with none placed is an error", placing(level, {{1, 1}}, {1, 1}, {1, 1}, warnings) == unplaced_rise_error);
+            report_case("a count drawn above zero with none placed is an error", placing(zone, {{1, 1}}, {1, 1}, {1, 1}, warnings) == unplaced_rise_error);
         }
 
         {
-            dungen::Level level = corridor(3);
+            dungen::Zone zone = corridor(3);
             vector<string> warnings;
 
-            report_case("a candidate that would cut a passage in two is skipped", placing(level, {{2, 1}}, {1, 1}, {0, 0}, warnings) == unplaced_rise_error);
+            report_case("a candidate that would cut a passage in two is skipped", placing(zone, {{2, 1}}, {1, 1}, {0, 0}, warnings) == unplaced_rise_error);
         }
 
         {
-            dungen::Level level = corridor(3);
-            level.cell({3, 1}).set_type(dungen::CellType::Door);
+            dungen::Zone zone = corridor(3);
+            zone.cell({3, 1}).set_type(dungen::CellType::Door);
             vector<string> warnings;
 
-            report_case("a candidate beside a door is skipped", placing(level, {{2, 1}}, {1, 1}, {0, 0}, warnings) == unplaced_rise_error);
+            report_case("a candidate beside a door is skipped", placing(zone, {{2, 1}}, {1, 1}, {0, 0}, warnings) == unplaced_rise_error);
         }
 
         {
-            dungen::Level level = corridor(5);
+            dungen::Zone zone = corridor(5);
             vector<string> warnings;
 
-            bool placed = placing(level, {{1, 1}, {5, 1}}, {1, 1}, {1, 1}, warnings).empty();
-            size_t up_count = static_cast<size_t>(count_if(level.staircases().begin(), level.staircases().end(),
+            bool placed = placing(zone, {{1, 1}, {5, 1}}, {1, 1}, {1, 1}, warnings).empty();
+            size_t up_count = static_cast<size_t>(count_if(zone.staircases().begin(), zone.staircases().end(),
                 [](const dungen::Staircase& staircase) { return staircase.rise() == dungen::Rise::Up; }));
 
-            report_case("staircases leading up and down alternate", placed && level.staircases().size() == 2 && up_count == 1 && warnings.empty());
+            report_case("staircases leading up and down alternate", placed && zone.staircases().size() == 2 && up_count == 1 && warnings.empty());
         }
 
         {
-            dungen::Level level = corridor(5);
+            dungen::Zone zone = corridor(5);
             vector<string> warnings;
 
-            bool placed = placing(level, {{1, 1}, {5, 1}}, {3, 3}, {0, 0}, warnings).empty();
-            report_case("fewer placed than were drawn is a warning", placed && level.staircases().size() == 2
+            bool placed = placing(zone, {{1, 1}, {5, 1}}, {3, 3}, {0, 0}, warnings).empty();
+            report_case("fewer placed than were drawn is a warning", placed && zone.staircases().size() == 2
                 && warnings == vector<string> {"2 of 3 staircases leading up and 0 of 0 leading down placed, the candidates running out"});
         }
 
         dungen::Parameters reversed;
-        reversed.size = {21, 15};
+        reversed.extent = {21, 15};
         reversed.seed = 1u;
         reversed.staircase_down_count = {3, 2};
 
@@ -1301,7 +1313,7 @@ namespace
         report_case("a staircase count whose maximum is below its minimum is rejected", rejected);
 
         dungen::Parameters entryless;
-        entryless.size = {21, 15};
+        entryless.extent = {21, 15};
         entryless.seed = 1u;
         entryless.staircase_down_count = {0, 1};
         entryless.staircase_up_count = {0, 1};
@@ -1319,7 +1331,7 @@ namespace
         report_case("staircase counts that may both be zero, leaving no entry, are rejected", rejected);
 
         dungen::Parameters down_only;
-        down_only.size = {21, 15};
+        down_only.extent = {21, 15};
         down_only.seed = 1u;
         down_only.staircase_down_count = {1, 1};
         down_only.staircase_up_count = {0, 0};
@@ -1334,7 +1346,7 @@ namespace
             rejected = true;
         }
 
-        report_case("a staircase down alone is rejected, a dungeon level needing one leading up", rejected);
+        report_case("a staircase down alone is rejected, a dungeon zone needing one leading up", rejected);
 
         return;
     }

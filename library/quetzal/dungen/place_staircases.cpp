@@ -30,20 +30,20 @@ namespace
     //--------------------------------------------------------------------------
     bool floor_staircase(CellType type)
     {
-        return type == CellType::Room || type == CellType::Corridor || type == CellType::Stair;
+        return type == CellType::Room || type == CellType::Corridor || type == CellType::Staircase;
     }
 
     //--------------------------------------------------------------------------
     // The room a floor/staircase cell is in, nullid for corridor
     id_type room(const Cell& cell)
     {
-        return cell.type() == CellType::Room || cell.type() == CellType::Stair ? cell.room_id() : nullid;
+        return cell.type() == CellType::Room || cell.type() == CellType::Staircase ? cell.room_id() : nullid;
     }
 
     //--------------------------------------------------------------------------
-    bool doorway(const Level& level, point_type position)
+    bool doorway(const Zone& zone, point_type position)
     {
-        const Cell& cell = level.cell(position);
+        const Cell& cell = zone.cell(position);
 
         if (cell.type() == CellType::Door)
         {
@@ -58,7 +58,7 @@ namespace
         for (const auto& direction : cardinal_directions)
         {
             point_type neighbor = position + direction;
-            if (level.cells().contains(neighbor) && floor_staircase(level.cell(neighbor).type()) && room(level.cell(neighbor)) != nullid)
+            if (zone.cells().contains(neighbor) && floor_staircase(zone.cell(neighbor).type()) && room(zone.cell(neighbor)) != nullid)
             {
                 return true;
             }
@@ -68,12 +68,12 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    bool blocks_doorway(const Level& level, point_type position)
+    bool blocks_doorway(const Zone& zone, point_type position)
     {
         for (const auto& direction : cardinal_directions)
         {
             point_type neighbor = position + direction;
-            if (level.cells().contains(neighbor) && doorway(level, neighbor))
+            if (zone.cells().contains(neighbor) && doorway(zone, neighbor))
             {
                 return true;
             }
@@ -84,30 +84,30 @@ namespace
 
     //--------------------------------------------------------------------------
     // A door counts, since it is passable once opened
-    bool passable_at(const Level& level, point_type position)
+    bool passable_at(const Zone& zone, point_type position)
     {
-        if (!level.cells().contains(position))
+        if (!zone.cells().contains(position))
         {
             return false;
         }
 
-        CellType type = level.cell(position).type();
+        CellType type = zone.cell(position).type();
         return type == CellType::Room || type == CellType::Corridor || type == CellType::Door;
     }
 
     //--------------------------------------------------------------------------
     // Returns true if a staircase's block can go at a passable position. The block needs a passable side to face, each
     // staircase next to it must keep a passable side, and the block's passable neighbors must still reach one another around it
-    bool block_allowed(const Level& level, point_type position)
+    bool block_allowed(const Zone& zone, point_type position)
     {
-        assert(passable_at(level, position));
+        assert(passable_at(zone, position));
 
         auto has_open_side = [&](point_type cell)
         {
             return any_of(cardinal_directions.begin(), cardinal_directions.end(), [&](const vector_type& direction)
             {
                 point_type neighbor = cell + direction;
-                return neighbor != position && passable_at(level, neighbor);
+                return neighbor != position && passable_at(zone, neighbor);
             });
         };
 
@@ -116,11 +116,11 @@ namespace
         for (const auto& direction : cardinal_directions)
         {
             point_type neighbor = position + direction;
-            if (passable_at(level, neighbor))
+            if (passable_at(zone, neighbor))
             {
                 sides.push_back(neighbor);
             }
-            else if (level.cells().contains(neighbor) && level.cell(neighbor).type() == CellType::Stair && !has_open_side(neighbor))
+            else if (zone.cells().contains(neighbor) && zone.cell(neighbor).type() == CellType::Staircase && !has_open_side(neighbor))
             {
                 return false;
             }
@@ -131,7 +131,7 @@ namespace
             return false;
         }
 
-        auto [nx, ny] = level.size().rep();
+        auto [nx, ny] = zone.extent().rep();
         auto slot = [nx](point_type cell) { return static_cast<size_t>(cell.y()) * static_cast<size_t>(nx) + static_cast<size_t>(cell.x()); };
 
         vector<bool> reached(static_cast<size_t>(nx) * static_cast<size_t>(ny), false);
@@ -148,7 +148,7 @@ namespace
             for (const auto& direction : cardinal_directions)
             {
                 point_type neighbor = cell + direction;
-                if (neighbor == position || !passable_at(level, neighbor) || reached[slot(neighbor)])
+                if (neighbor == position || !passable_at(zone, neighbor) || reached[slot(neighbor)])
                 {
                     continue;
                 }
@@ -170,21 +170,21 @@ namespace
     // Returns a staircase at the cell, facing a random side that has floor beyond it. Returns none if the cell is not floor,
     // is a doorway or beside one, is the floor another staircase faces, would cut a passage in two, or has no floor beside
     // it
-    std::optional<directed_point_type> staircase_placement(const Level& level, point_type cell_position, random_type& random)
+    std::optional<directed_point_type> staircase_placement(const Zone& zone, point_type cell_position, random_type& random)
     {
         auto floor = [&](point_type position)
         {
-            CellType type = level.cell(position).type();
+            CellType type = zone.cell(position).type();
             return type == CellType::Room || type == CellType::Corridor;
         };
 
-        auto faced = any_of(level.staircases().begin(), level.staircases().end(), [&](const Staircase& staircase)
+        auto faced = any_of(zone.staircases().begin(), zone.staircases().end(), [&](const Staircase& staircase)
         {
             return staircase.position() + staircase.direction() == cell_position;
         });
 
-        if (!floor(cell_position) || faced || doorway(level, cell_position) || blocks_doorway(level, cell_position)
-            || !block_allowed(level, cell_position))
+        if (!floor(cell_position) || faced || doorway(zone, cell_position) || blocks_doorway(zone, cell_position)
+            || !block_allowed(zone, cell_position))
         {
             return std::nullopt;
         }
@@ -194,7 +194,7 @@ namespace
         for (const auto& direction : cardinal_directions)
         {
             point_type neighbor = cell_position + direction;
-            if (level.cells().contains(neighbor) && floor(neighbor))
+            if (zone.cells().contains(neighbor) && floor(neighbor))
             {
                 open_sides.push_back(direction);
             }
@@ -211,7 +211,7 @@ namespace
 } // namespace
 
 //------------------------------------------------------------------------------
-void quetzal::dungen::place_staircases(Level& level, vector<point_type> candidates, const math::Interval<size_t>& up_interval,
+void quetzal::dungen::place_staircases(Zone& zone, vector<point_type> candidates, const math::Interval<size_t>& up_interval,
     const math::Interval<size_t>& down_interval, random_type& random, const warning_function_type& warning)
 {
     size_t down_count = draw_count(down_interval, random);
@@ -221,7 +221,7 @@ void quetzal::dungen::place_staircases(Level& level, vector<point_type> candidat
 
     if ((up_count > 0 || down_count > 0) && candidates.size() == 0)
     {
-        throw runtime_error("the level has no place for a staircase");
+        throw runtime_error("the zone has no place for a staircase");
     }
 
     shuffle(candidates.begin(), candidates.end(), random.engine());
@@ -240,13 +240,13 @@ void quetzal::dungen::place_staircases(Level& level, vector<point_type> candidat
 
     for (size_t i = 0; i < candidates.size(); ++i)
     {
-        auto directed_position = staircase_placement(level, candidates[i], random);
+        auto directed_position = staircase_placement(zone, candidates[i], random);
         if (!directed_position)
         {
             continue;
         }
 
-        level.create_staircase(to_string(rise), *directed_position, rise);
+        zone.create_staircase(to_string(rise), *directed_position, rise);
         auto [placed, count, count_other, rise_other] = counters.at(rise);
         assert(count > 0);
         --count;
