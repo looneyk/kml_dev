@@ -276,7 +276,7 @@ The actor index builds against the zones as they are now, and changes no behavio
 sets its parent to the destination zone (or, for the player, the zone it is in) and its site at the destination, and
 moves its entry in the world index with it if it has one. Its children move with it.
 
-**The player is owned by the game.** `StratumGame` owns the `Player`, which exists before any zone. The player has no
+**The player is owned by the game.** `Game` owns the `Player`, which exists before any zone. The player has no
 parent: an exclusive `(InZone, zone)` relationship refers to the zone it is in, which relocating changes, `zone_of`
 reads, and flecs removes when that zone is deleted. An entity with no parent is owned by the game, and relocating it
 keeps it that way. The player is in its zone's actor index like any actor, and every query for the entities in a zone
@@ -337,9 +337,9 @@ again reads it back. Writing a zone walks its subtree instead of querying its ch
 of its own is below that parent. Loading a saved zone that is already loaded is an error; a template makes a new zone
 each time it is loaded.
 
-Resetting to a save point is the game's operation: `StratumGame` unloads every zone, restores the player and the id
-allocator's count, and loads the zone the player was in, with the others loading as they are entered, so no entity is
-duplicated or lost.
+Resetting to a save point is loading the game: `Game` constructs a new world from the game's files, restores the player
+and the id allocator's count, and loads the zone the player was in, with the others loading as they are entered, so no
+entity is duplicated or lost (`session_plan.md`, `## Games`).
 
 ## Open
 

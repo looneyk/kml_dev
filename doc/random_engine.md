@@ -9,7 +9,7 @@ development tool for the suites, bug reports, and reference files, not a promise
 
 ## Where it is now
 
-- **`StratumGame` owns the gameplay engine,** a `math::Random<>` seeded from `std::random_device`, and `World` takes it
+- **`Game` owns the gameplay engine,** a `math::Random<>` seeded from `std::random_device`, and `World` takes it
   by reference in its constructor; `World::resolve_relocator_target` draws from it. The seed is neither passed in nor
   logged.
 - **dungen and catagen each seed one `math::Random<>` per run** from `Parameters::seed`, and pass it by reference from
@@ -70,8 +70,8 @@ and a seed stored with the version of the generators that made it.
 
 ## Ownership
 
-- **`StratumGame` owns the engines, as it owns the id allocator.** It seeds them from a seed that a host or a suite
-  passes, or from `std::random_device` if none is passed, and the host logs the seed.
+- **`Game` owns the engines, as it owns the id allocator.** It seeds them from a seed that a host or a suite passes, or from `std::random_device` if none is passed,
+  and the host logs the seed.
 - **`World` takes the engines by reference in its constructor,** as it takes `IdAllocator&`, so every sim function that
   draws uses them through the world it already has, and no sim function takes an engine. `resolve_relocator_target` loses its
   parameter. A suite passes engines of its own, seeded explicitly, as it passes its own `CountingIdAllocator`.
@@ -86,7 +86,7 @@ and a seed stored with the version of the generators that made it.
 
 ## Streams
 
-- **Gameplay and generation are separate engines,** both owned by `StratumGame`, both seeded from the one world seed through
+- **Gameplay and generation are separate engines,** both owned by `Game`, both seeded from the one world seed through
   `std::seed_seq`. Combat, AI, and every other draw during play use the gameplay engine. Each zone's seed is drawn from
   the generation engine. It costs one engine, and a bug in generation is then reproduced from the zone's seed without
   replaying the play that led to it.
@@ -131,8 +131,8 @@ and a seed stored with the version of the generators that made it.
 
 ## Saving
 
-- **`StratumGame` saves the engines' state** with the id allocator's count, and restores both when it resets to a save
-  point (`addressing_plan.md`, `## Saved zones`). A standard engine
+- **`Game` saves the engines' state** with the id allocator's count in the saved game's `game` part, and restores
+  both when it loads the game (`game_file_spec.md`, `## game`). A standard engine
   writes and reads its state as text through `<<` and `>>`, and a small engine's state is its few words.
 - **Restoring the state repeats the same outcomes after a reload,** which keeps a player from reloading until a roll
   succeeds. Reseeding on load allows it. Which the game does is open.

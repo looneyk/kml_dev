@@ -71,8 +71,8 @@ namespace
 
 //------------------------------------------------------------------------------
 stratum_terminal::Application::Application(const std::string& filepath_zone, View view, const std::string& script, bool incremental) :
-    m_stratum_game(),
-    m_session(m_stratum_game.session()),
+    m_game(),
+    m_session(m_game.session()),
     m_view(view),
     m_view_glyphs(),
     m_terminal(incremental),
@@ -81,9 +81,9 @@ stratum_terminal::Application::Application(const std::string& filepath_zone, Vie
     m_script_slot(0),
     m_running(true)
 {
-    m_stratum_game.starting_region().set<std::shared_ptr<const stratum_sim::Generator>>(std::make_shared<DungenGenerator>());
+    m_game.starting_region().set<std::shared_ptr<const stratum_sim::Generator>>(std::make_shared<DungenGenerator>());
 
-    m_session.load(m_stratum_game.starting_region(), filepath_zone, stratum_sim::access_type(m_stratum_game.world().entities(), entry_access_type),
+    m_session.load(m_game.starting_region(), filepath_zone, stratum_sim::access_type(m_game.world().entities(), entry_access_type),
         entry_level_offset);
 
     if (!m_session.zone().has<stratum_sim::ZoneLevel>())

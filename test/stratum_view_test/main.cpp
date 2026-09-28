@@ -10,8 +10,8 @@
 #include "quetzal/stratum_sim/attachments.hpp"
 #include "quetzal/stratum_sim/commands.hpp"
 #include "quetzal/stratum_sim/DiscreteLayout.hpp"
+#include "quetzal/stratum_sim/Game.hpp"
 #include "quetzal/stratum_sim/load_layout.hpp"
-#include "quetzal/stratum_sim/StratumGame.hpp"
 #include "quetzal/stratum_sim/World.hpp"
 #include "quetzal/stratum_view/ascii.hpp"
 #include "quetzal/stratum_view/cells.hpp"
@@ -44,7 +44,7 @@ namespace
     stratum_sim::random_type g_suite_random(1);
 
     //--------------------------------------------------------------------------
-    // A world with the game's entity types, as StratumGame's has, and a region for the suite's zones
+    // A world with the game's entity types, as Game's has, and a region for the suite's zones
     struct SuiteWorld : stratum_sim::World
     {
         explicit SuiteWorld(stratum_sim::IdAllocator& id_allocator) :

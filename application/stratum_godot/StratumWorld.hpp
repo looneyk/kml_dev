@@ -5,8 +5,8 @@
 // StratumWorld.hpp
 //------------------------------------------------------------------------------
 
+#include "quetzal/stratum_sim/Game.hpp"
 #include "quetzal/stratum_sim/Session.hpp"
-#include "quetzal/stratum_sim/StratumGame.hpp"
 #include <godot_cpp/classes/ref_counted.hpp>
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/variant/packed_byte_array.hpp>
@@ -90,7 +90,7 @@ private:
     // Advances the session and sets the message from its events
     void advance();
 
-    quetzal::stratum_sim::StratumGame m_stratum_game;
+    quetzal::stratum_sim::Game m_game;
     quetzal::stratum_sim::Session& m_session;
     std::string m_message;
 };

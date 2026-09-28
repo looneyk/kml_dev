@@ -3,7 +3,7 @@
 Date: 2026-08-28, revised 2026-09-28
 
 This is the stratum work queue: every item not yet built, and the open questions. An item is referred to by its bold
-name. Once it is built, the reference documents describe it and it leaves this list. `game_system_principles.md` has
+name. `game_system_principles.md` has
 the phases and the principles, `game_system_reference.md` describes what is built, and `modding_plan.md` is the design
 goal that every item is held to: everything a game adds is data or script.
 
@@ -12,104 +12,133 @@ The design behind the items is in these documents, which the items refer to by s
 - `addressing.md` specifies ids and addressing, and `addressing_plan.md` is the design of saved zones, the zone actor
   index, and the links and migration they build on.
 - `discrete_layout.md` is the zone file format, and `discrete_layout_plan.md` the structures a zone file loads into.
+- `game_file_spec.md` is how a game is saved: a directory with a file for the game's state and settings, one for the
+  character, one for the world, and a zone file for each zone.
 - `modding_plan.md` covers mods and data-driven design.
 - `placement_plan.md` is the form placement takes: what fills a zone.
 - `random_engine.md` covers the random engines, their seeds, and saving their state.
 - `region_plan.md` covers regions, relocator targets, and pregenerated content.
-- `session_plan.md` covers how the parts of `StratumGame` divide the work of making and playing zones.
+- `session_plan.md` covers how `Game`, `Session`, `World` and `Player` divide the work of making and playing zones, and
+  the game's lifecycle: `Game` is the game in its entirety, lasting as long as the host, and owns the `World`, the
+  `Player` and the `Session` by value, clearing them in place for each new game or load.
 - `sim_zone_model.md` has the model beneath the code.
 
 `archived/` has the plans whose work is built.
 
+## Commit points
+
+Each box is one commit point. An item too large for one commit is split into boxes of its own before work on it
+starts. When a box's work lands and every suite passes, the box is ticked and that is the moment to commit. The ticked
+boxes are removed at the start of the next piece of work, since the reference documents then describe what they built.
+
 ## Next
 
-These are built in this order, each on the ones before it.
+These are the game's lifecycle (`session_plan.md`, `## Games`), built in this order, each on the ones before it.
 
-1. **Zones added when encountered.** At startup or on a transition, a zone's layout is created, detailed and
-   populated, and the zone is added to the world, where it is playable. A staircase makes its zone the first time it
-   is taken, through the hosts' temporary `DungenGenerator`; `World::populate` is a placeholder.
-2. **One session for the whole game.** One session lasts the whole game, and is cleared when a new game is selected,
-   or on death under a permadeath option.
-3. **Saved zones** (`addressing_plan.md`, `## Saved zones`): unloading a zone writes it, entering it again reads it
-   back, and the game resets to a save point. A zone cannot be written out and read back until there is a reason to
-   unload it, so this comes after the first two.
+- [x] **`StratumGame` renamed `Game`.**
+- [ ] **Generators registered by name** (`session_plan.md`, `## World`): the `RegionGenerator` component with a
+      generator's name and parameters, `World::register_generator`, and the hosts registering dungen, replacing the
+      `std::shared_ptr<const Generator>` component.
+- [ ] **One session for the whole game.** `Game` has its `GameConfig` and `GameOptions`, with `new_game` and
+      `end_game`. `World::clear`, and `Session::clear` and `Session::create` in both forms; `new_game` clears the game in
+      progress in place, resets the id allocator and reseeds the engine. The hosts pass a temporary config and options,
+      and create a game whose first zone is their zone file. A suite case plays a game, clears it, creates another, and
+      checks that only the new game's regions, zones, entities and ids remain.
+- [ ] **The game's end.** The `Dead` tag, `Session::over`, `advance` running no actor once the player is dead,
+      `end_game` deleting the game's directory on death under permadeath, and the hosts ending the game.
+- [ ] **Saved zones** (`addressing_plan.md`, `## Saved zones`): unloading a zone saves it into the game and frees its
+      resources, and entering it again reads it back.
+- [ ] **A game saved** (`game_file_spec.md`): the writer of the game's files, `Game::save_game` and `Session::save`, the
+      rest of `end_game`, and saving on entering a zone under permadeath.
+- [ ] **A game loaded:** the reader of the game's files, `Game::load_game`, `Session::load` and `find_saved_games`.
 
 ## Lifecycle
 
-- **Pre-populated zones** (`session_plan.md`, `## World`): the file's flag, and `load_zone` skipping `populate` when it
-  is set, since the denizens a file places are entities in it.
-- **The zone actor index** (`addressing_plan.md`, `## Actors`): `ActorIndex`, `DiscreteActorIndex`,
-  `Layout::create_actor_index`, the observers, and `entities_at` and `entities_within` querying the index.
-- **Denizens entering relocators,** in limited circumstances. Only the controlled actor enters one.
+- [ ] **Pre-populated zones** (`session_plan.md`, `## World`): the file's flag, and `load_zone` skipping `populate`
+      when it is set, since the denizens a file places are entities in it.
+- [ ] **The zone actor index** (`addressing_plan.md`, `## Actors`): `ActorIndex`, `DiscreteActorIndex`,
+      `Layout::create_actor_index`, the observers, and `entities_at` and `entities_within` querying the index.
+- [ ] **Denizens entering relocators,** in limited circumstances. Only the controlled actor enters one.
 
 ## Generators
 
-- **The generators integrated.** A region's generator builds its zones with dungen or catagen directly, replacing the
-  hosts' temporary `DungenGenerator`.
-- **Staircases in every form** (`session_plan.md`, `## Entering an access point`). The generators can place a staircase
-  in a flat length of wall or in a 1x1 alcove, the two being equivalent across the notations, as well as a block
-  staircase on floor cells in the open space of a room. In the wall notation every staircase is sited on a wall.
-- **The generators on `geometry::DiscreteDirectedPoint`.** dungen's `Staircase` has a `directed_point_type` and still
-  has the separate `position` and `direction` accessors. catagen stores a staircase as a cell type and a map from cell
-  position to facing direction, which a list of directed points would replace.
-- **A second catagen algorithm,** and with it what the two generators have in common becoming `quetzal::procgen`.
+- [ ] **The generators integrated.** A region's generator builds its zones with dungen or catagen directly, replacing
+      the hosts' temporary `DungenGenerator`.
+- [ ] **Staircases in every form** (`session_plan.md`, `## Entering an access point`). The generators can place a
+      staircase in a flat length of wall or in a 1x1 alcove, the two being equivalent across the notations, as well as
+      a block staircase on floor cells in the open space of a room. In the wall notation every staircase is sited on a
+      wall.
+- [ ] **The generators on `geometry::DiscreteDirectedPoint`.** dungen's `Staircase` has a `directed_point_type` and
+      still has the separate `position` and `direction` accessors. catagen stores a staircase as a cell type and a map
+      from cell position to facing direction, which a list of directed points would replace.
+- [ ] **A second catagen algorithm,** and with it what the two generators have in common becoming `quetzal::procgen`.
 
 ## Random engine
 
-- **The gameplay seed passed in and logged, and the engine chosen** (`random_engine.md`, `## Ownership`,
-  `## The engine type`). `StratumGame` owns the gameplay engine and `World` takes it; a host or a suite passing the
-  seed, the host logging it, and the engine type are left.
-- **The generation engine and zone seeds** (`random_engine.md`, `## Streams`, `## Generation`): `StratumGame`'s second
-  engine, `ZoneSeed` set by `create_zone(region, level)`, and a region's generator reading it.
-- **Generation runs as objects** (`random_engine.md`, `## Ownership`): dungen's and catagen's runs, each owning its
-  engine, seeded from the zone's seed, with the reference files regenerated. It comes with **the generators
-  integrated**.
-- **The engines' state saved** (`random_engine.md`, `## Saving`), with **saved zones**.
+- [ ] **The gameplay seed passed in and logged** (`random_engine.md`, `## Ownership`). `Game` owns the gameplay
+      engine and `World` takes it; a host or a suite passing the seed, and the host logging it, are left.
+- [ ] **The engine chosen** (`random_engine.md`, `## The engine type`).
+- [ ] **The generation engine and zone seeds** (`random_engine.md`, `## Streams`, `## Generation`): `Game`'s
+      second engine, `ZoneSeed` set by `create_zone(region, level)`, and a region's generator reading it.
+- [ ] **Generation runs as objects** (`random_engine.md`, `## Ownership`): dungen's and catagen's runs, each owning its
+      engine, seeded from the zone's seed, with the reference files regenerated. It comes with **the generators
+      integrated**.
+- [ ] **The engines' state saved** (`random_engine.md`, `## Saving`), with **a game saved**.
 
 ## Regions
 
-- **A region's properties** as components: a name and, for a dungeon, the overall or starting difficulty and the other
-  properties a whole dungeon has.
-- **Transparent zone and region boundaries.** Contiguous zones joined edge to edge, so an actor walks from one zone
-  into the next, across region boundaries too. Until then, zones connect only through relocators: waypoints, and
-  dungeons with more than one entrance.
-- **A new region made on resolving,** when an unbound relocator finds nothing, instead of a zone in its own or its
-  parent region (`region_plan.md`).
-- **Unloading by region.** Criteria for `World::trim_zones` that choose the zones of other regions first, those left
-  longest ago first, as `ZoneEntryIndex` does, and then those of the player's region, farthest first.
-- **Region files.**
-- **The pregenerated content index** (`region_plan.md`, `## Pregenerated content`): built at game start by scanning
-  `assets/zones`, or read from an index file built in the background, listing each zone or region tag with its zone
-  data file and the names of its relocators; `layout.components.name` as a zone's tag; a `name` in the `relocator`
-  component; and relocator targets with a named zone, a named region, or a position resolved through it.
+- [ ] **A region's properties** as components: a name and, for a dungeon, the overall or starting difficulty and the
+      other properties a whole dungeon has.
+- [ ] **Transparent zone and region boundaries.** Contiguous zones joined edge to edge, so an actor walks from one zone
+      into the next, across region boundaries too. Until then, zones connect only through relocators: waypoints, and
+      dungeons with more than one entrance.
+- [ ] **A new region made on resolving,** when an unbound relocator finds nothing, instead of a zone in its own or its
+      parent region (`region_plan.md`).
+- [ ] **Unloading by region.** Criteria for `World::trim_zones` that choose the zones of other regions first, those
+      left longest ago first, as `ZoneEntryIndex` does, and then those of the player's region, farthest first.
+- [ ] **Region files.**
+- [ ] **The pregenerated content index** (`region_plan.md`, `## Pregenerated content`): built at game start by scanning
+      `assets/zones`, or read from an index file built in the background, listing each zone or region tag, with
+      `layout.components.name` as a zone's tag, and its zone data file.
+- [ ] **Relocator names:** a `name` in the `relocator` component, read, written, and listed in the index.
+- [ ] **Named relocator targets resolved** through the index: a named zone, a named region, and a position.
 
 ## Attachments
 
-- **A destroyed door transformed or unlinked, not deleted** (`archived/attachment_plan.md`, `## Lifetime`). Deleting
-  the assembly would seal the doorway, since a wall with nothing on it is solid.
-- **Crossing that depends on the actor, kept affordable** (`archived/attachment_plan.md`, `## The seam`): only
-  attachments marked overridable consult the actor's properties, so the common case never looks.
-- **A key that opens a lock.** `Access` has `Locked`, and nothing unlocks it.
+- [ ] **A destroyed door transformed or unlinked, not deleted** (`archived/attachment_plan.md`, `## Lifetime`).
+      Deleting the assembly would seal the doorway, since a wall with nothing on it is solid.
+- [ ] **Crossing that depends on the actor, kept affordable** (`archived/attachment_plan.md`, `## The seam`): only
+      attachments marked overridable consult the actor's properties, so the common case never looks.
+- [ ] **A key that opens a lock.** `Access` has `Locked`, and nothing unlocks it.
 
 ## Views
 
-- **Floor access points drawn by their orientation.** The views draw one with the stair glyph and ignore its
-  orientation.
+- [ ] **Floor access points drawn by their orientation.** The views draw one with the stair glyph and ignore its
+      orientation.
 
 ## Modding
 
-- **Place types from data** (`modding_plan.md`, `## What blocks it now`). A reduction maps an entity's type to a place
-  type that the presentation table names, instead of to an enum value, so a modded type has a glyph of its own.
-- **Phase 4** (`modding_plan.md`): **types as prefabs from data**, doors among them, with inheritance and patches;
-  **component schemas from data**, as flecs runtime components; **styles**, with the asset, the parameter map,
-  inheritance by name, and a view that resolves them; **the scripting language chosen and embedded**, with hooks on
-  types and bindings through reflection; and **mods**, with the directory, load order, patches, and skipping what a
-  missing mod declares.
+- [ ] **Place types from data** (`modding_plan.md`, `## What blocks it now`). A reduction maps an entity's type to a
+      place type that the presentation table names, instead of to an enum value, so a modded type has a glyph of its
+      own.
+
+These are Phase 4 (`modding_plan.md`):
+
+- [ ] **Types as prefabs from data**, doors among them, with inheritance and patches.
+- [ ] **Component schemas from data**, as flecs runtime components.
+- [ ] **Styles:** the asset, the parameter map, inheritance by name, and a view that resolves them.
+- [ ] **The scripting language chosen and embedded,** with hooks on types and bindings through reflection.
+- [ ] **Mods:** the directory, load order, patches, and skipping what a missing mod declares.
 
 ## Placement
 
-- **Placement** (`placement_plan.md`, `## Order`), with the population strategy. It is blocked: where it lives is
-  unsettled, which determines what it may depend on, and weighted selection needs `content`.
+These are blocked: where placement lives is unsettled, which determines what it may depend on, and weighted selection
+needs `content`. The population strategy comes with them. `placement_plan.md` (`## Order`) has the design.
+
+- [ ] **The placement interface,** with a zone's doors built from its file through it.
+- [ ] **Weighted selection over a table.**
+- [ ] **The placement distributions:** a count, one per room, and a density per area.
+- [ ] **Placement's first use that is not a door,** items or denizens.
 
 ## Phase order
 
@@ -168,8 +197,6 @@ These are the open questions.
 
 - **Names.** `PersistentId`, `EntityReference`, `make_reference`, `AttachedEntities`, `AddressIndex`, `Access`,
   `Detection` and `ActorIndex` are working names.
-- **Where a saved zone is written,** and how a world's zones are found by persistent id on disk. The session lifecycle
-  settles this.
 
 ### Modding
 
@@ -233,6 +260,13 @@ These are the open questions.
 - **Whether the layout interface returns a wall id.** An address encodes into one, so it can. Whether a handle to a
   wall belongs on an interface that mentions neither cells nor walls is an older question.
 
+### Game file
+
+- **The format's identifier,** `quetzal.stratum_game`, and the file names, `game.json` and the rest, for now.
+- **What a load restores if the player quits without saving** after zones have been written on unloading, since their
+  files are then later than the rest of the saved game.
+- **The character's components:** its description, attributes, and skills.
+
 ### Intent
 
 - **Does intent cover actions or only movement?** Held attacks and channeled spells would need more than movement and
@@ -278,11 +312,11 @@ These are the open questions.
 - **The population strategy from the zone's source,** the template loaded or the generation guidance, which replaces
   `World::populate`'s placeholder (`session_plan.md`, `## World`).
 - **The time a zone was entered:** simulation time or real time.
-- **The game's config file,** which supplies the zone count maximum, now `StratumGame`'s temporary 8, and the game's
+- **The game's config file,** which supplies the zone count maximum, now `Game`'s temporary 8, and the game's
   other settings.
 - **Whether the driver belongs to the game or to a zone.**
 - **Actors.** The player and the denizens are both actors, and differ in what controls them; the actor structure is
-  not designed.
+  not designed, and neither is what kills an actor and marks it `Dead`.
 - **Resident zones the player has left:** whether they are simulated or frozen, which thresholds apply --- memory
   usage among them --- and their values.
 - **Zones made and never entered.** They are not candidates for unloading.

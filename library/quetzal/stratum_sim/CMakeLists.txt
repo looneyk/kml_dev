@@ -9,6 +9,7 @@ add_library(quetzal_stratum_sim STATIC
     file_components.cpp
     layout_entities.cpp
     Flat.cpp
+    Game.cpp
     GridMapping.cpp
     IdAllocator.cpp
     load_layout.cpp
@@ -17,7 +18,6 @@ add_library(quetzal_stratum_sim STATIC
     Scheduler.cpp
     Session.cpp
     Site.cpp
-    StratumGame.cpp
     World.cpp
     ZoneEntryIndex.cpp
     ai.hpp
@@ -35,6 +35,7 @@ add_library(quetzal_stratum_sim STATIC
     file_components.hpp
     layout_entities.hpp
     Flat.hpp
+    Game.hpp
     Generator.hpp
     GridMapping.hpp
     IdAllocator.hpp
@@ -47,7 +48,6 @@ add_library(quetzal_stratum_sim STATIC
     Scheduler.hpp
     Session.hpp
     Site.hpp
-    StratumGame.hpp
     types.hpp
     World.hpp
     Zone.hpp

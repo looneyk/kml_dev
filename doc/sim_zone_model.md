@@ -36,8 +36,9 @@ entities that block an actor. See The Layout interface.
 routine.
 
 **One `World` and one `Session` in a game.** `World` manages the zones, with the flecs world containing their
-entities, and cannot be copied or moved. `StratumGame` owns the `World`, the `Session`, the `Player` and the id
-allocator; the `Session` refers to the `World` rather than containing it.
+entities, and cannot be copied or moved. `Game` is the game in its entirety, lasting as long as the host, and owns the
+`World`, the `Player`, the id allocator, the engines and the `Session`, by value, and a new game or a load clears them
+in place. The `Session` is the game being played, and refers to the `World` rather than containing it.
 
 **A zone's population are its denizens,** not all of them monsters.
 

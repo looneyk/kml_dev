@@ -8,8 +8,8 @@
 #include "key_input.hpp"
 #include "Terminal.hpp"
 #include "quetzal/stratum_sim/EventQueue.hpp"
+#include "quetzal/stratum_sim/Game.hpp"
 #include "quetzal/stratum_sim/Session.hpp"
-#include "quetzal/stratum_sim/StratumGame.hpp"
 #include <string>
 
 namespace stratum_terminal
@@ -53,7 +53,7 @@ namespace stratum_terminal
         void report(const quetzal::stratum_sim::EventQueue& events);
         std::string status() const;
 
-        quetzal::stratum_sim::StratumGame m_stratum_game;
+        quetzal::stratum_sim::Game m_game;
         quetzal::stratum_sim::Session& m_session;
 
         View m_view = View::Null; // Never Null once the zone is loaded

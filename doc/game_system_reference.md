@@ -191,7 +191,7 @@ under `components`. `file_component(entities, name)` returns that component, or 
 whose contents are its children, so migration and unloading are subtree operations, and migration keeps each entity's
 id. A zone is an entity with the `Zone` tag, a `ZoneLayout` component that owns its layout as a
 `std::unique_ptr<Layout>`, and a `ZoneNotation`. Deleting the entity deletes the layout. There is one `World` in a
-game, owned by `StratumGame`, and it cannot be copied or moved.
+game, owned by `Game`, and it cannot be copied or moved.
 
 A region groups contiguous zones: a surface area, a dungeon, a crypt, a tower or a house (`region_plan.md`). It is an
 entity with the `Region` tag and a `PersistentId`, and it is the parent of its zones and of its child regions.
@@ -245,7 +245,7 @@ moves nothing if a bound target's relocator is not loaded, or an unbound target 
 position, or resolves to nothing.
 
 `World` takes the game's random engine by reference in its constructor, as it takes the id allocator: a `random_type`,
-`math::Random<>`, which `StratumGame` owns.
+`math::Random<>`, which `Game` owns.
 
 `load_zone(region, filepath)` reads the file and checks it with `build_error` before making the zone. The zone has the file's persistent id if the file has
 a `zone` section, and a new one otherwise. `load_zone` then has `load_layout` fill the zone and populates it. It throws
@@ -262,7 +262,7 @@ zone that has begun unloading is excluded, even if flecs has deferred its deleti
 
 `trim_zones(zone_entered)` has the world's `ZoneEntryIndex` mark `zone_entered` as the most recently entered zone and
 choose the zones to unload, then unloads them. `zone_count_max`, a constructor argument, is the maximum number of zones
-the world trims to, and `set_zone_count_max` changes it. `StratumGame` passes 8, a temporary value until the game's
+the world trims to, and `set_zone_count_max` changes it. `Game` passes 8, a temporary value until the game's
 config file supplies it.
 
 `unload_zone(zone)` begins an unload: it adds the zone's id to the zones unloading and deletes the entity. Flecs deletes
@@ -306,7 +306,7 @@ finds one, returning a null entity if none is loaded; the caller sets the type's
 type reads each component that inherits --- one with optional fields --- from the type, with nothing copied, because
 `register_file_component` registers such a component with flecs' `(OnInstantiate, Inherit)` through
 `register_inheritance`. Flecs copies any other component onto the entity when it becomes an instance, so each door has
-its own `Access`. `register_game_types(world)`, declared beside `StratumGame`, which calls it, registers the game's
+its own `Access`. `register_game_types(world)`, declared beside `Game`, which calls it, registers the game's
 types until they load from data: `door`, with a closed `Access`. The suites call it too.
 
 A layout entity is the entity of a room, a wall, a flat, a flat's override for a room, or a flat cell. Its address is
@@ -522,11 +522,12 @@ The move taken is to the reachable neighbor nearest the goal, if one is nearer t
 returns placements in a fixed order, so ties break the same way every run. Only topology is consulted, so a pursuer is
 stopped by an occupied cell in `World::move`.
 
-### StratumGame and Player
+### Game and Player
 
-`StratumGame` is the one owner of a game's objects: a `CountingIdAllocator` counting from zero, a `random_type` seeded
-from `std::random_device`, the `World`, the `Player` and the `Session`, constructed in that order, each referring to
-those before it. None of them can be copied or moved. Each host owns one `StratumGame`. `starting_region()` returns the region that a new game's zones are
+`Game` is the game in its entirety, the one object a host owns, for as long as the host runs. It owns the structures
+that survive outside play: a `CountingIdAllocator` counting from zero, a `random_type` seeded from
+`std::random_device`, the `World` and the `Player`, and the `Session` that plays them, constructed in that order, each
+referring to those before it. None of them can be copied or moved. `starting_region()` returns the region that a new game's zones are
 made in, which the constructor creates; it is temporary, until a new game chooses its region.
 
 `Player` is the entity a host controls, created with `Blocking`, the `ControlledActor` tag, a `Speed` and a
@@ -788,7 +789,7 @@ Godot owns `main()` and the frame loop, and loads the simulation as a shared lib
 library, a GDExtension, and `application/stratum_godot/project/` is the Godot project that loads it, through
 `stratum.gdextension`, which refers to `res://bin/`, where the build writes it.
 
-`StratumWorld` is the one registered class, a `RefCounted` that owns a `StratumGame`, with only Godot types in its
+`StratumWorld` is the one registered class, a `RefCounted` that owns a `Game`, with only Godot types in its
 interface: `default_zone_path`, `load_zone`, `extent`, `cell`, `render`, `cells`, `actors`, `step`, `interact`,
 `enter`, `turn`, and `message`. `step` sets the player's intent, turning toward the direction moved as the view does not show the
 facing direction, and advances through the turn-based driver; `interact` submits `Interact` and `enter` submits

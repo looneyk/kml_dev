@@ -15,13 +15,12 @@
 #include "quetzal/stratum_sim/Clock.hpp"
 #include "quetzal/stratum_sim/Scheduler.hpp"
 #include "quetzal/stratum_sim/Session.hpp"
-#include "quetzal/stratum_sim/StratumGame.hpp"
+#include "quetzal/stratum_sim/Game.hpp"
 #include "quetzal/stratum_sim/ai.hpp"
 #include "quetzal/stratum_sim/attachments.hpp"
 #include "quetzal/stratum_sim/file_components.hpp"
 #include "quetzal/stratum_sim/layout_entities.hpp"
 #include "quetzal/stratum_sim/properties.hpp"
-#include "quetzal/stratum_sim/StratumGame.hpp"
 #include "quetzal/stratum_sim/World.hpp"
 #include "quetzal/stratum_format/grid.hpp"
 #include "quetzal/stratum_format/read.hpp"
@@ -56,7 +55,7 @@ namespace
     stratum_sim::random_type g_suite_random(1);
 
     //--------------------------------------------------------------------------
-    // A world with the game's entity types, as StratumGame's has, and a region for the suite's zones
+    // A world with the game's entity types, as Game's has, and a region for the suite's zones
     struct SuiteWorld : stratum_sim::World
     {
         explicit SuiteWorld(stratum_sim::IdAllocator& id_allocator, size_t zone_count_max = suite_zone_count_max) :
@@ -965,11 +964,11 @@ namespace
             player.get<stratum_sim::Intent>().direction.x() == 0.0f);
 
         // A host calls advance the same way under either driver
-        stratum_sim::StratumGame game_turn;
+        stratum_sim::Game game_turn;
         stratum_sim::Session& session_turn = game_turn.session();
         session_turn.load(game_turn.starting_region(), "data/corridor.zone", suite_entry_type(session_turn), suite_entry_offset);
 
-        stratum_sim::StratumGame game_real;
+        stratum_sim::Game game_real;
         stratum_sim::Session& session_real = game_real.session();
         session_real.set_driver(stratum_sim::Driver::RealTime);
         session_real.load(game_real.starting_region(), "data/corridor.zone", suite_entry_type(session_real), suite_entry_offset);
@@ -981,7 +980,7 @@ namespace
             session_real.advance(session_events) == nullid);
 
         // The player acts through its own intent and commands, the door east of where it enters
-        stratum_sim::StratumGame game_door;
+        stratum_sim::Game game_door;
         stratum_sim::Session& session_door = game_door.session();
         session_door.load(game_door.starting_region(), "data/door.zone", suite_entry_type(session_door), suite_entry_offset);
         session_door.advance(session_events);
@@ -2069,7 +2068,7 @@ namespace
     {
         report_group("entering an access point");
 
-        stratum_sim::StratumGame game;
+        stratum_sim::Game game;
         stratum_sim::Session& session = game.session();
         stratum_sim::World& world = game.world();
         flecs::entity player = session.player().entity();
@@ -2163,7 +2162,7 @@ namespace
         report_group("interacting with a relocator");
 
         // A new game's starting region has no generator, so the staircase leading down leads nowhere
-        stratum_sim::StratumGame game;
+        stratum_sim::Game game;
         stratum_sim::Session& session = game.session();
 
         // data/walls.zone: the player enters on cell (2, 1), facing the staircase leading down to the east
@@ -2636,7 +2635,7 @@ namespace
         report_case("a wall id decodes to its cell and its direction", decoded);
 
         // Entering places the player in front of up staircase 0, facing away from it
-        stratum_sim::StratumGame game;
+        stratum_sim::Game game;
         stratum_sim::Session& session = game.session();
         session.load(game.starting_region(), "data/corridor.zone", suite_entry_type(session), suite_entry_offset);
 
@@ -3067,7 +3066,7 @@ namespace
 
         // A zone generated rather than read
         {
-            stratum_sim::StratumGame game_created;
+            stratum_sim::Game game_created;
             stratum_sim::Session& created = game_created.session();
             TestGenerator generator;
             created.create(game_created.starting_region(), generator, suite_entry_type(created), suite_entry_offset);
@@ -3082,7 +3081,7 @@ namespace
                     created.layout()).wall_toward(stratum_sim::discrete_point_type {1, 1}, cardinal_direction(CardinalDirection::East))).is_alive());
 
             // Reading the same geometry from a file gives the same zone
-            stratum_sim::StratumGame game_loaded;
+            stratum_sim::Game game_loaded;
             stratum_sim::Session& loaded = game_loaded.session();
             loaded.load(game_loaded.starting_region(), "data/door.zone", suite_entry_type(loaded), suite_entry_offset);
             report_case("and a zone read whole agrees with it",
@@ -3092,7 +3091,7 @@ namespace
         }
 
         // Through a Session
-        stratum_sim::StratumGame game;
+        stratum_sim::Game game;
         stratum_sim::Session& session = game.session();
         session.load(game.starting_region(), "data/corridor.zone", suite_entry_type(session), suite_entry_offset);
 

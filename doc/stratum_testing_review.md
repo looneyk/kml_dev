@@ -71,8 +71,8 @@ shifts the draws of every case after it:
 - a subset of the suite, once cases can be filtered, draws differently from the full run.
 
 Each `SuiteWorld` should own an engine seeded explicitly, as `random_engine.md` (`## Ownership`) describes for the
-suites. Separately, `StratumGame` seeds from `std::random_device` and cannot be given a seed (`random_engine.md`,
-`## Ownership`, not yet built), so the cases that construct a `StratumGame` draw unseeded values, and a failure through one cannot be
+suites. Separately, `Game` seeds from `std::random_device` and cannot be given a seed (`random_engine.md`,
+`## Ownership`, not yet built), so the cases that construct a `Game` draw unseeded values, and a failure through one cannot be
 replayed.
 
 ### 5. `stratum_sim_test` is one file with no filtering or isolation
@@ -127,7 +127,7 @@ a case, and `git bisect` ends at a commit too large to find it in.
 
 1. A named engine and distributions of the project's own, with the reference files regenerated once (finding 1).
 2. CTest registration and an option for the Vulkan projects (findings 2 and 3).
-3. An engine per `SuiteWorld`, and a seed that `StratumGame` can be given (finding 4).
+3. An engine per `SuiteWorld`, and a seed that `Game` can be given (finding 4).
 4. doctest or a shared harness, and `stratum_sim_test` split by area (findings 5 and 6).
 5. CI: a Windows job, then a Linux job (finding 3).
 6. A stress case and a Godot headless smoke test (finding 8).

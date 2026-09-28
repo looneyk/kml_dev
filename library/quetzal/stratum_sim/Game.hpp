@@ -1,8 +1,8 @@
-#if !defined(QUETZAL_STRATUM_SIM_STRATUMGAME_HPP)
-#define QUETZAL_STRATUM_SIM_STRATUMGAME_HPP
+#if !defined(QUETZAL_STRATUM_SIM_GAME_HPP)
+#define QUETZAL_STRATUM_SIM_GAME_HPP
 //------------------------------------------------------------------------------
 // stratum_sim
-// StratumGame.hpp
+// Game.hpp
 //------------------------------------------------------------------------------
 
 #include "IdAllocator.hpp"
@@ -20,15 +20,15 @@ namespace quetzal::stratum_sim
 
     //--------------------------------------------------------------------------
     // The one owner of a game's world, session and player
-    class StratumGame
+    class Game
     {
     public:
 
-        StratumGame(); // A new game, counting persistent ids from zero
-        StratumGame(const StratumGame&) = delete;
-        ~StratumGame() = default;
+        Game(); // A new game, counting persistent ids from zero
+        Game(const Game&) = delete;
+        ~Game() = default;
 
-        StratumGame& operator=(const StratumGame&) = delete;
+        Game& operator=(const Game&) = delete;
 
         World& world();
         const World& world() const;
@@ -55,4 +55,4 @@ namespace quetzal::stratum_sim
 
 } // namespace quetzal::stratum_sim
 
-#endif // QUETZAL_STRATUM_SIM_STRATUMGAME_HPP
+#endif // QUETZAL_STRATUM_SIM_GAME_HPP
