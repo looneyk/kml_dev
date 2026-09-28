@@ -1,11 +1,9 @@
 # Discrete Layout --- Plan
 
-Status: in progress
 Date: 2026-09-11, revised 2026-09-26
 
 This plan describes the structures a zone file loads into, and the reader and writer on either side of them.
-`discrete_layout.md` is the format and is the authority on the file itself. Progress is tracked under stage 8 of
-`work_plan.md`.
+`discrete_layout.md` is the format and is the authority on the file itself.
 
 ## What the format asks for
 
@@ -170,7 +168,7 @@ The reader uses nlohmann/json, vendored at `library3/json`.
 - **A staircase has a destination**, its relocator's target.
 - **A flat has a file representation**, replacing `load_layout`'s `height_ceiling` parameter.
 - **A room has components**, stored on its entity.
-- **`door_type` goes when a zone is loaded from its entities** (`addressing_plan.md`, step 5), since a door is one
+- **`door_type` goes when a zone is loaded from its entities** (`game_system_reference.md`, `### load_layout`), since a door is one
   entity among many.
 
 ## Open

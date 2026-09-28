@@ -1,6 +1,6 @@
 # dungen --- Reference
 
-This document describes what exists, as built. `dungen_plan.md` is the intent.
+This document describes what exists, as built.
 
 `dungen` is a block-oriented zone generator: a wall takes a whole cell, so solid cells lie between rooms, and a door is
 one of those cells that an actor may pass through. `catagen` is the wall-based generator beside it, where a wall is a
@@ -12,8 +12,8 @@ property of the edge between two cells. The two share no code.
 
 ## The zone file
 
-The generator writes a discrete layout file in the block notation, through `stratum_format`; `discrete_layout.md` is
-the format. `generator.parameters` has the parameters of the run as the tokens their options take: the ones every
+The generator builds a discrete layout document in the block notation, which `stratum_format` writes as a file;
+`discrete_layout.md` is the format. `generator.parameters` has the parameters of the run as the tokens their options take: the ones every
 algorithm shares, then the chosen algorithm's group, then the level if one was given, then the seed, so the file
 reproduces the zone exactly. A level given is also written as the layout's `level`, and the zone's name, if it has one,
 as the layout's `name` component. The name is not a parameter: it does not affect the grid.
@@ -85,7 +85,8 @@ Generation:
 - `remove_doors` --- shared, and run by `maze1` and `grid1` after every other pass. Each algorithm places every doorway
   as a door, and this keeps each door with probability `door_probability`, in the algorithm's group, and leaves the rest
   of the doorways open as corridor.
-- `write_zone` --- writes the zone file.
+- `make_document` --- builds the zone's `stratum_format::Document` in memory, which `load_layout` reads directly.
+- `write_zone` --- writes that document as the zone file.
 
 ## maze1
 

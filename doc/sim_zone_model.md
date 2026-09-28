@@ -191,7 +191,7 @@ toward that cell --- the cell being a block an actor may stand in, with no wall 
 same in both notations; only the walls it is on differ.
 
 Loading a zone creates it: the zone file's door glyphs and its entities become the door and its door facings
-(`discrete_layout_rework.md`).
+(`game_system_reference.md`, `### load_layout`).
 
 ### Walls
 

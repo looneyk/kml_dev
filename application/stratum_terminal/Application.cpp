@@ -4,13 +4,18 @@
 //------------------------------------------------------------------------------
 
 #include "Application.hpp"
+#include "quetzal/dungen/generate.hpp"
+#include "quetzal/dungen/write_zone.hpp"
 #include "quetzal/stratum_sim/attachments.hpp"
 #include "quetzal/stratum_sim/DiscreteLayout.hpp"
 #include "quetzal/stratum_sim/commands.hpp"
+#include "quetzal/stratum_sim/load_layout.hpp"
 #include "quetzal/stratum_sim/Site.hpp"
 #include <cstdlib>
 #include <format>
 #include <iostream>
+#include <memory>
+#include <string>
 
 using namespace quetzal;
 
@@ -27,6 +32,27 @@ namespace
 
     // Temporary: the zone loaded is the first level down if its file states no level
     static constexpr stratum_sim::level_type starting_level = -1;
+
+    //--------------------------------------------------------------------------
+    // Temporary, until the generators are integrated: the starting region makes its zones with dungen, at the level each
+    // is made at. Its warnings are dropped, as they would write over the terminal's frame
+    class DungenGenerator : public stratum_sim::Generator
+    {
+    public:
+
+        void generate(flecs::entity zone) const override
+        {
+            dungen::Parameters parameters;
+            stratum_sim::level_type level = zone.get<stratum_sim::ZoneLevel>().level;
+            parameters.level = level;
+            parameters.seed = dungen::random_seed();
+
+            std::string name = std::format("Dungeon Level {}", std::abs(level));
+            stratum_sim::load_layout(zone, dungen::make_document(dungen::generate(0, name, parameters, [](const std::string&) {}), parameters));
+
+            return;
+        }
+    };
 
     //--------------------------------------------------------------------------
     std::string name_of(const stratum_sim::vector_type& direction)
@@ -55,6 +81,8 @@ stratum_terminal::Application::Application(const std::string& filepath_zone, Vie
     m_script_slot(0),
     m_running(true)
 {
+    m_stratum_game.starting_region().set<std::shared_ptr<const stratum_sim::Generator>>(std::make_shared<DungenGenerator>());
+
     m_session.load(m_stratum_game.starting_region(), filepath_zone, stratum_sim::access_type(m_stratum_game.world().entities(), entry_access_type),
         entry_level_offset);
 

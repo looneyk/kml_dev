@@ -3,10 +3,8 @@
 Status: Phase 3 complete but for presentation tables; real time is done and the layout hierarchy is named
 Date: 2026-08-23, revised 2026-09-22
 
-Near-term ordering is in `work_plan.md`, with the stages within a phase. A stage large enough to need its own detail
-has a plan of its own --- `intent_plan.md` for the input model, `layout_plan.md` for the layout hierarchy,
-`view_plan.md` for the view axis, `attachment_plan.md` for what is attached to a wall --- and what comes of any of them
-is described in `game_system_reference.md`. `modding_plan.md` is the design goal of principle 8. `sim_zone_model.md` has the model beneath the code and
+The work queue is `work_plan.md`, and what is built is described in `game_system_reference.md`. `modding_plan.md` is the
+design goal of principle 8. `sim_zone_model.md` has the model beneath the code and
 `decision_rationale.md` the argument behind the decisions, so neither is repeated here.
 
 ## Synopsis
@@ -215,7 +213,7 @@ per-view presentation tables.
 **Phase 3b --- A minimal first-person 3D view**
 
 This view comes ahead of content and procgen. It is the second genuinely different view, and it validates the wall
-model before procgen generates against it. The wall-aware ASCII view, stage 5 of `work_plan.md`, prepares it. The rest of the Godot 3D view --- the
+model before procgen generates against it. The wall-aware ASCII view prepares it. The rest of the Godot 3D view --- the
 `SubViewport` Dungeon Master layout, camera interpolation, orthographic --- stays in Phase 6.
 
 *Proves:* the per-edge wall model against a view that has to draw it.

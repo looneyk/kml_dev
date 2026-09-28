@@ -1,12 +1,11 @@
 # Regions --- Plan
 
-Status: built
 Date: 2026-09-26
 
 A region groups contiguous zones: a surface area, a dungeon, a crypt, a tower or a house. Regions have parent regions,
 so a dungeon under a surface area is that area's child. Moving between zones through a relocator changes the region,
 the level, or both, and an unbound relocator states how many levels it moves; resolving it needs zones to know their
-region and level. So regions come before relocating through a relocator (`addressing_plan.md` step 8).
+region and level. So regions come before relocating through a relocator.
 `sim_zone_model.md` (`## World, Zones, and Levels`) states the model, and the open items are in `work_plan.md`
 (`### Regions`).
 
@@ -43,7 +42,7 @@ region and level. So regions come before relocating through a relocator (`addres
   leading down, `+1` for one leading up, `-2` for a hole that drops two levels, and `+0` for a way into another region
   at the same level, such as a crypt's door (`## Doors between zones`).
 - **Resolving an unbound relocator finds a zone or makes one,** then binds both ends, so the binding is the connection
-  from then on (`addressing_plan.md` step 8).
+  from then on.
 - **Finding:** an unbound relocator with offset *k* in a zone at level *L* looks among the loaded zones at level
   *L* + *k* for an unbound relocator with the opposite offset, -*k*. Moving up from a region's zone looks in its own
   region and its parent region: an unbound `up` from level -1 looks for an unbound `down` at level 0 of the parent
@@ -138,28 +137,6 @@ name     = letter {letter | digit | "_"}
   into the next, across region boundaries too. Until then, zones connect only through relocators: waypoints, and
   dungeons with more than one entrance.
 - **Making a new region** when an unbound relocator finds nothing, instead of a zone in its own or its parent region.
-- **Unloading by region** and **region files**, in `work_plan.md` (`## Regions`).
-
-## Steps
-
-- [x] **1. The region entity.** A `Region` with a persistent id and a parent region, created by `World`, as the parent
-      of its zones; unloading a region deletes its zones and child regions, and `zone_of` is unchanged.
-- [x] **2. Level.** A zone's level as a component, set by the loader from the file and by a generator, and a region's
-      generation settings, given the level of the zone to make.
-- [x] **3. The level offset.** An unbound relocator's level offset, in the format, read by `stratum_format`, written by
-      both generators, and decoded by the loader, replacing the `down` and `up` destination names. A door entity may
-      have a relocator, and `layout.components.access_points` may refer to it.
-- [x] **4. Finding and making the zone at an offset,** for `addressing_plan.md` step 8: the loaded zones at the target
-      level searched for an unbound relocator with the opposite offset, in the regions `## Relocators with a level
-      offset` names, and otherwise a new zone made in the region those rules choose.
-- [x] **5. Relocator targets as strings,** `[region/]zone[@position]` (`## Relocator targets`), replacing the numeric
-      level offset: the reader's grammar and its errors, the writer, both generators, the loader, `Relocator` in
-      `stratum_format` and the sim, `resolve_relocator_target` resolving relative and absolute zones in the regions `.` and
-      `..` or with the region omitted, and the checked-in zone files and reference files converted. Named regions, named
-      zones, and positions are parsed and stored, and resolving them waits on what their names and a position are. With it, the access points of `## Access points`:
-      the relocator's `entry` renamed `placement` in the format, `stratum_format`, and `AccessPoint`; the access types
-      `up` and `down` replaced by `staircase`, and `door` added; the generators numbering all staircases in one order;
-      and the entry point chosen among the access points of the arrival type as one that leads back.
 
 ## Open
 

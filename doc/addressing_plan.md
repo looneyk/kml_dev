@@ -1,12 +1,12 @@
 # Ids and Addressing --- Plan
 
-Status: steps 1 to 6 and 8 built; the rest designed
 Date: 2026-09-14, revised 2026-09-26
 
 This is the design behind the spec in `addressing.md`. It covers one list of entities in a zone file, with `site` and
 `parent` as file components that the format defines and children derived from `parent`; persistent ids; links in both
 directions between an entity and the wall or flat cell it is sited on; references between entities within a zone and
-across zones; and an actor index for each zone. `site_plan.md` describes where every entity is and what it belongs to.
+across zones; and an actor index for each zone. `game_system_reference.md`, `### Sites and doors`, describes where
+every entity is and what it belongs to.
 Open items are listed in `work_plan.md`, and `game_system_reference.md` describes the implementation.
 
 ## Decided
@@ -56,19 +56,19 @@ Open items are listed in `work_plan.md`, and `game_system_reference.md` describe
 
 ## The format and the generators
 
-Steps 1 and 2 are built. `discrete_layout.md` specifies format 0.4, `addressing.md` specifies its ids and addresses,
+`discrete_layout.md` specifies format 0.4, `addressing.md` specifies its ids and addresses,
 and `game_system_reference.md` describes `stratum_format` and the generators that write it.
 
 ## Loading a zone against 0.4
 
-`discrete_layout_rework.md` (`## Loading a zone`) outlines loading. `load_layout` fills an empty zone from the
+`game_system_reference.md` (`### load_layout`) describes loading. `load_layout` fills an empty zone from the
 `Document`, and as it builds each entity it turns wall addresses into wall ids, flat roles into flat ids, and the flat
 cell where an entity was authored into a placement. Every door and staircase is written in the file, so no glyph
 becomes an entity.
 
 ## Persistent ids
 
-Step 4 is built: `game_system_reference.md` (`### Persistent ids`) describes `PersistentId`, the allocators,
+`game_system_reference.md` (`### Persistent ids`) describes `PersistentId`, the allocators,
 `EntityReference`, the loaded entities and the world index. `PersistentId` has a `std::hash` of its own, which a
 128-bit form would change. Sites and parents are not references in the world index's sense, since they are links
 within one zone. Loading a template is the other path that adds entries to the world index.
@@ -197,7 +197,7 @@ namespace quetzal::stratum_sim
 
 Built (`game_system_reference.md`, `### Sites and doors`). `detection` returns `Visible` if nothing in the chain has a
 `Detection`, `access_entity` returns the entity whose `Access` applies, and `way_through` returns the entity on a wall
-that has access. A staircase has no `Access` yet; entering one is `session_plan.md` step 6.
+that has access. A staircase has no `Access`; entering one is `session_plan.md`, `## Entering an access point`.
 
 ### What the queries become
 
@@ -268,6 +268,8 @@ namespace quetzal::stratum_sim
 - **The index is derived,** so it is never saved, and loading a zone rebuilds it. It cannot disagree with the
   placements, which remain the one source of where an actor is.
 
+The actor index builds against the zones as they are now, and changes no behavior and no frame.
+
 ## Migration
 
 `reparent` moves an entity from one zone to another. It removes the entity from the old zone's lists and actor index,
@@ -328,61 +330,17 @@ a wall or a flat cell, since those addresses belong to the old zone.
   - `CountingIdAllocator` never repeats an id across a save and restore.
 - **`stratum_view_test`:** its frames, which print wall ids, are unchanged apart from the wall ids.
 
-## Steps
+## Saved zones
 
-- [x] **1. Format 0.4 in `stratum_format`.**
-- [x] **2. The generators and every zone file in 0.4.**
-- [x] **3. `flecs::Parent` checked in `flecs_test`** (`## Flecs`).
-- [x] **4. Persistent ids.** `PersistentId`, `IdAllocator`, `CountingIdAllocator`, the loaded entities and the world
-      index, `EntityReference`, `make_reference` and `resolve`.
-- [x] **5. Loading a zone, against 0.4 and with persistent ids.** `discrete_layout_rework.md`'s `## Loading a zone`.
-      `load_layout` builds the zone from the document: an entity for every object of file components, each `IsA` its
-      type, with its component objects decoded into typed components (`modding_plan.md`), and a property resolved when
-      queried from the object, its type, its room and the layout. Making a zone allocates persistent ids and
-      translates references, links sites in both directions through `AttachedEntities` and the layout entities, and
-      gives each parent its children, so `crossable` searches nothing and asks each sited entity's `Access` and
-      `Detection` for the actor crossing. Each staircase gets its relocator with its target. Wall ids are encoded from
-      the normal by `encode_wall_id`. `World` contains zones rather than layouts, and the door functions are gone.
-- [x] **6. Migration and the player's ownership.** Relocating across zones through the links and the index, with the
-      player and the objects it carries owned by the game.
-  - [x] **a. The game's entities in a zone.** `InZone`; `zone_of` reading it; `relocate` keeping an entity with no
-        parent owned by the game; every query for a zone's entities matching it; and the player owned by the game, and
-        scheduled, pursued and drawn as before.
-  - [x] **b. Migration keeping the links.** Nothing below a migrating entity is sited on the layout; the world index
-        follows the entity and everything below it; and the player and the objects it carries are left out of an
-        unloaded zone.
-- [ ] **7. Saved zones.** The `zone` section, unloading a zone by writing it and loading one back by reading it, with
-      the session lifecycle of stage 7. Writing a zone walks its subtree instead of querying its children, since
-      anything with a parent of its own is below that parent. Loading a saved zone that is already loaded is an error; a
-      template makes a new zone each time it is loaded.
-      Resetting to a save point is the game's operation: `StratumGame` unloads every zone, restores the player and the
-      id allocator's count, and loads the zone the player was in, with the others loading as they are entered, so no
-      entity is duplicated or lost.
-- [x] **8. Relocating through a relocator,** `World::relocate_through`, stage 6's item in `work_plan.md`, binding targets by persistent id. It
-      resolves a target, bound or unbound, to a zone the world has or makes; an unbound level finds an unbound access
-      point that leads back, at the target level, or makes a zone there, with `World::resolve_relocator_target`
-      (`region_plan.md`, `## Relocators with a level offset`). The zone relocated from must have a level, so the hosts'
-      starting zones are given one, and it draws from the gameplay engine that `World` takes from `StratumGame` (`random_engine.md`).
-	  It places the arriving actor at the found relocator's access point, or at
-      the new zone's unbound access point with the lowest `order`, of the type at which the relocator's type arrives,
-      that leads back, and binds both ends to each other, writing each as the other's bound target; `entry_point` then skips a bound
-      access point. Entering an access point, by moving into its wall or by a keystroke on its floor cell, starts it
-      (`session_plan.md` step 6).
-- [ ] **9. The zone actor index.** `ActorIndex`, `DiscreteActorIndex`, `Layout::create_actor_index`, the observers,
-      and `entities_at` and `entities_within` querying the index. It builds against the zones as they are now.
+A saved zone has the `zone` section, which makes every id in it persistent. Unloading a zone writes it, and entering it
+again reads it back. Writing a zone walks its subtree instead of querying its children, since anything with a parent
+of its own is below that parent. Loading a saved zone that is already loaded is an error; a template makes a new zone
+each time it is loaded.
 
-Step 9 changes no behavior and no frame. Step 5 moves behavior from the glyphs to the entities, and the frames confirm
-that nothing a player sees changed apart from the wall ids they print.
-
-## Blockers
-
-- **Step 7 waits on stage 7 of `work_plan.md`,** the session lifecycle: a session that outlives one zone, and a zone
-  added to the world when it is encountered. A zone cannot be written out and read back until there is a reason to
-  unload it.
+Resetting to a save point is the game's operation: `StratumGame` unloads every zone, restores the player and the id
+allocator's count, and loads the zone the player was in, with the others loading as they are entered, so no entity is
+duplicated or lost.
 
 ## Open
 
-- **Names.** `PersistentId`, `EntityReference`, `make_reference`, `AttachedEntities`, `AddressIndex`, `Access`,
-  `Detection` and `ActorIndex` are working names.
-- **Where a saved zone is written,** and how a world's zones are found by persistent id on disk. The session lifecycle
-  settles this.
+The open items are tracked in `work_plan.md`, under `### Ids and addressing`.

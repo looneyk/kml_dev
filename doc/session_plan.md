@@ -1,13 +1,11 @@
 # Session --- Plan
 
-Status: steps 1 to 3, 5, and 6 built; steps 4 and 7 designed
 Date: 2026-09-22, revised 2026-09-26
 
 This plan describes how the parts of `StratumGame` divide the work of creating, loading, populating and playing zones.
-`World` does the zone management, and `Session` keeps the state of play and calls into `World`.
-`discrete_layout_rework.md` describes loading a zone from its document, and `sim_zone_model.md` (`### Residency,
-simulation, and persistence`) describes when zones unload. `game_system_reference.md` describes what is built, and the
-open items are in `work_plan.md` (`### Session`).
+`World` does the zone management, and `Session` keeps the state of play and calls into `World`. `sim_zone_model.md`
+(`### Residency, simulation, and persistence`) describes when zones unload. `game_system_reference.md` describes what
+is built, loading a zone from its document among it, and the open items are in `work_plan.md` (`### Session`).
 
 ## Responsibilities
 
@@ -87,12 +85,12 @@ void Session::set_driver(Driver driver, double units_per_second = Clock::units_p
 
 ## Entering an access point
 
-- **An access point on a wall is entered by moving into the wall.** Its orientation is the wall's normal.
+- **An access point on a wall is entered by interacting with the wall,** as a door is opened. Moving into the wall is
+  blocked, so a held movement key never takes the stairs. Its orientation is the wall's normal.
 - **An access point on the floor does not impede movement.** Its orientation, which is its site's, is used only for
   drawing, and a keystroke by an actor on its cell enters it.
 - **Entering an access point relocates the actor through its relocator,** to the zone that its target resolves to, at
-  that zone's entry point of the type at which the relocator's type arrives that leads back (`addressing_plan.md`
-  step 8).
+  that zone's entry point of the type at which the relocator's type arrives that leads back.
 - **In the wall notation every staircase is sited on a wall,** as a door is; a staircase on the floor belongs to the
   block notation.
 - **A staircase in a flat length of wall in the wall notation is the equivalent of one in a 1x1 alcove in the block
@@ -105,33 +103,3 @@ void Session::set_driver(Driver driver, double units_per_second = Clock::units_p
   needs no player. `Pursue::target_id` becomes optional.
 - **An actor has a speed,** which is a component, and entering a zone schedules every entity in it that has one. The
   actor structure is not designed; this is the least that lets the turn order be rebuilt from the zone.
-
-## Steps
-
-- [x] **1. Zones made by `World`.** `create_zone(generator)` and `load_zone(filepath)` with their doors, zones
-      identified by persistent id, `populate`, the speed component, and the optional pursuit target.
-      `Session::populate` has the world populate the zone and schedules the entities that have a speed.
-- [x] **2. `Session` on `World`.** `enter`, `create` and `load` call into `World`, with `set_driver`, the player's
-      speed, and `Session::populate` deleted. The hosts and suites follow.
-- [x] **3. Residency.** `World::trim_zones`, the world's `ZoneEntryIndex` storing when each zone was entered against a
-      zone count maximum, and an unload that completes when flecs runs the deletion, deferred or not.
-- [ ] **4. Pre-populated zones.** The file's flag, and `load_zone` skipping `populate` if it is set, with the loader
-      building every entity in the file (`discrete_layout_rework.md`), since the denizens a file places are entities in
-      it.
-- [x] **5. The entry point.** A `type`, an `order` counted within each type, and an explicit `placement` on each access
-      point, in the format, read by `stratum_format`, written by both generators, and in every zone file. Access points
-      may be on any surface, and glyph discrepancies are warnings. Access point types are registered as entities with
-      their arrivals. The generators' minimum count of staircases leading up is raised to 1, and a staircase leading
-      down is placed with probability 1. The loader builds access points into the zone, and `Session::enter` places the
-      player at the entry point of the type passed; a zone with no access point of the type is an error. Availability
-      is `addressing_plan.md` step 8, where relocators bind, and the probability that varies with level waits on
-      `region_plan.md` step 2.
-- [x] **6. Entering an access point.** The reader requires the site's `orientation` on an access point on the floor or
-      the ceiling. Moving into a wall with an access point on it enters the access point. An access point on the floor
-      does not impede movement, and a keystroke on its cell, which is a command the hosts map, enters it. Entering
-      relocates the actor through the relocator, so this step waits on `addressing_plan.md` step 8 for where the
-      relocator leads. The views draw an access point on the floor with the stair glyph, its orientation not yet drawn.
-      Only the player enters a relocator.
-- [ ] **7. Staircases placed in every form.** The generators can place a staircase in a flat length of wall or in a
-      1x1 alcove, the two being equivalent across the notations, as well as a block staircase on floor cells in the
-      open space of a room. In the wall notation every staircase is sited on a wall.

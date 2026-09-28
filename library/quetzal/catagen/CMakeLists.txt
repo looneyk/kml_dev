@@ -16,4 +16,4 @@ target_include_directories(quetzal_catagen PUBLIC
     ${DEV_ROOT}/library
 )
 
-target_link_libraries(quetzal_catagen PUBLIC quetzal_common quetzal_math PRIVATE quetzal_stratum_format)
+target_link_libraries(quetzal_catagen PUBLIC quetzal_common quetzal_math quetzal_stratum_format)

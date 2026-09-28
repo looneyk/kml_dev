@@ -39,7 +39,7 @@ namespace quetzal::stratum_sim
     };
 
     //--------------------------------------------------------------------------
-    // Enters the relocator on the floor of the actor's cell. A relocator on a wall is entered by moving into the wall
+    // Enters the relocator on the floor of the actor's cell. A relocator on a wall is entered by Interact
     struct Enter
     {
     };

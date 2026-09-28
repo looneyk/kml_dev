@@ -1,6 +1,5 @@
 # Modding and Data-Driven Design --- Plan
 
-Status: design goal; step 2 built
 Date: 2026-09-22, revised 2026-09-26
 
 Every game built on the system is moddable, and custom content --- objects, geometry, visual effects and behavior ---
@@ -29,7 +28,7 @@ The game's own content is loaded the same way, as the first mod.
 
 - **A component is typed in the world.** Loading a zone decodes each component object in the file into the component
   registered under its name, through flecs reflection, and keeps no JSON. `load_layout` decodes them from the
-  `Document` as it builds the zone (`discrete_layout_rework.md`).
+  `Document` as it builds the zone (`game_system_reference.md`, `### load_layout`).
 - **Schemas come from C++ or from data.** The game registers its components in C++. A mod declares its components and
   their fields in a schema file, which becomes a flecs runtime component with reflection that is stored, decoded,
   saved, and accessed from script like any other.
@@ -89,18 +88,6 @@ the file as data structures, and nlohmann does not appear in any `stratum_sim` h
   place type or glyph of its own; the glyph sets load from a file, but the categories they map from are fixed in C++.
 - **The `door` type is registered in C++,** with its `Access`, until types load from data.
 - **Registration is compile-time only** (`game_system_principles.md`, Key abstractions).
-
-## Steps
-
-- [ ] **1. Place types from data.** A reduction maps an entity's type to a place type that the presentation table
-      names, instead of to an enum value, so a modded type has a glyph of its own.
-- [x] **2. Components decoded at load.** With `addressing_plan.md` step 5: `load_layout` decodes each component object
-      into its registered component, and no entity keeps JSON.
-- [ ] **3. Types as prefabs from data**, doors among them, with inheritance and patches.
-- [ ] **4. Component schemas from data**, as flecs runtime components.
-- [ ] **5. Styles:** the asset, the parameter map, inheritance by name, and a view that resolves them.
-- [ ] **6. The scripting language chosen and embedded,** with hooks on types and bindings through reflection.
-- [ ] **7. Mods:** the directory, load order, patches, and skipping what a missing mod declares.
 
 ## Open
 

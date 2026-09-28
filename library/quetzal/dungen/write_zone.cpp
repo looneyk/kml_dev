@@ -153,13 +153,14 @@ namespace
 } // namespace
 
 //------------------------------------------------------------------------------
-void quetzal::dungen::write_zone(ostream& os, const Zone& zone, const Parameters& parameters)
+quetzal::stratum_format::Document quetzal::dungen::make_document(const Zone& zone, const Parameters& parameters)
 {
     auto [nx, ny] = zone.extent().rep();
 
     assert(!zone.staircases().empty());
 
     stratum_format::Document document;
+    document.version = stratum_format::format_version;
     document.generator = generator(zone, parameters);
 
     if (!zone.name().empty())
@@ -242,8 +243,7 @@ void quetzal::dungen::write_zone(ostream& os, const Zone& zone, const Parameters
 
         for (const auto& address : walls)
         {
-            document.entities.push_back({++id, "door_facing", stratum_format::Site {stratum_format::Relation::On, address, nullopt, nullopt},
-                door_id, {}});
+            document.entities.push_back({++id, "door_facing", stratum_format::Site {stratum_format::Relation::On, address, nullopt, nullopt}, door_id, {}});
         }
     }
 
@@ -261,10 +261,15 @@ void quetzal::dungen::write_zone(ostream& os, const Zone& zone, const Parameters
             stratum_format::discrete_directed_point_type(address.cell_position, open_side)};
 
         document.access_points.push_back(++id);
-        document.entities.push_back({id, "staircase", stratum_format::Site {stratum_format::Relation::On, address, nullopt, nullopt}, nullopt,
-            std::move(relocator), {}});
+        document.entities.push_back({id, "staircase", stratum_format::Site {stratum_format::Relation::On, address, nullopt, nullopt}, nullopt, std::move(relocator), {}});
     }
 
-    stratum_format::write(os, document);
+    return document;
+}
+
+//------------------------------------------------------------------------------
+void quetzal::dungen::write_zone(ostream& os, const Zone& zone, const Parameters& parameters)
+{
+    stratum_format::write(os, make_document(zone, parameters));
     return;
 }

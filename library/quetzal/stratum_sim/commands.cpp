@@ -13,6 +13,10 @@
 namespace
 {
 
+    // True if the controlled actor enters a relocator on a wall by moving into the wall, as well as by Interact. Off, so
+    // that a held movement key never takes the stairs by accident
+    constexpr bool enter_relocator_by_moving = false;
+
     //--------------------------------------------------------------------------
     // Returns the cost, zero if the relocator leads nowhere the world can resolve
     int relocate_through(quetzal::stratum_sim::World& world, flecs::entity actor, flecs::entity relocator,
@@ -79,14 +83,17 @@ int quetzal::stratum_sim::apply(World& world, const Command& command, EventQueue
             events.push(Moved {command.entity_id(), result.placement});
         }
 
-        // Moving into a wall with a relocator on it enters the relocator, for the controlled actor
-        flecs::entity relocator = result.blocking_wall_id != nullid && e.has<ControlledActor>()
-            ? find_relocator(zone, WallAddress {result.blocking_wall_id}) : flecs::entity();
-        if (relocator && can_enter(relocator, e))
+        if constexpr (enter_relocator_by_moving)
         {
-            if (int cost = relocate_through(world, e, relocator, events); cost > 0)
+            flecs::entity relocator = result.blocking_wall_id != nullid && e.has<ControlledActor>()
+                ? find_relocator(zone, WallAddress {result.blocking_wall_id}) : flecs::entity();
+
+            if (relocator && can_enter(relocator, e))
             {
-                return cost;
+                if (int cost = relocate_through(world, e, relocator, events); cost > 0)
+                {
+                    return cost;
+                }
             }
         }
 

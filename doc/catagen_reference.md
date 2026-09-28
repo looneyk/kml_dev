@@ -1,6 +1,6 @@
 # catagen --- Reference
 
-This document describes what exists, as built. `catagen_plan.md` is the intent.
+This document describes what exists, as built.
 
 `catagen` is a wall-based zone generator: a wall is a property of the edge between two cells instead of a cell of its
 own, so rooms share walls and a partition of the extent has no solid cell. `dungen` is the block-oriented generator
@@ -13,8 +13,8 @@ beside it. The two share no code.
 
 ## The zone file
 
-The generator writes a discrete layout file in the wall notation, through `stratum_format`; `discrete_layout.md` is
-the format. `generator.parameters` has the parameters of the run as the tokens their options take --- `extent`,
+The generator builds a discrete layout document in the wall notation, which `stratum_format` writes as a file;
+`discrete_layout.md` is the format. `generator.parameters` has the parameters of the run as the tokens their options take --- `extent`,
 `scale`, `spacing`, `density`, `loop`, `stairs_down`, `stairs_up`, `level` if one was given, and `seed` --- so a file
 reproduces its own zone and its parameters read as a command line. A level given is also written as the layout's
 `level`, and the zone's name, if it has one, as the layout's `name` component. The name is not a parameter: it does not
@@ -63,8 +63,8 @@ fault, including an unassigned seed, a count range whose maximum is below its mi
 minimum is zero, since a dungeon zone is entered and left by a staircase leading up. `random_seed()` draws a seed from
 `std::random_device`.
 
-**`generate`** runs the algorithm below over a `Zone` with the name it is given. **`write_zone`** writes the zone file, and **`write_grid`** writes only its
-rows.
+**`generate`** runs the algorithm below over a `Zone` with the name it is given. **`make_document`** builds the zone's `stratum_format::Document` in memory, **`write_zone`** writes that document as the
+zone file, and **`write_grid`** writes only its rows.
 
 ## The algorithm
 
@@ -152,7 +152,7 @@ to the loader, closed like solid, and a catagen zone loads with no rooms.
 ## Tests
 
 `test/catagen_test` checks that what the generator writes now is equivalent to its reference zone files, regenerates
-each from its own parameters, and checks that the reader accepts every zone it generates. Over a sweep of seeds with
+each from its own parameters, and checks that the reader accepts every zone it generates and reads it back as the document built in memory. Over a sweep of seeds with
 ranges of staircases each way, it checks the written zone: the counts keep to their ranges, every floor cell is
 reachable from every other, every edge between a stair cell and floor is a wall, no staircase has a door beside it if a
 free cell does not, and every staircase is sited on one of the walls around its block and opens onto a side that

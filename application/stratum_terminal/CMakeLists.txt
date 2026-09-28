@@ -18,5 +18,6 @@ set_target_properties(stratum_terminal PROPERTIES
 target_compile_definitions(stratum_terminal PRIVATE KML_DEV_ASSETS_ROOT="${DEV_ROOT}/assets")
 
 target_link_libraries(stratum_terminal PRIVATE
+    quetzal_dungen
     quetzal_stratum_view
 )

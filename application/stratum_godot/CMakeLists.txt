@@ -15,6 +15,7 @@ target_compile_definitions(stratum_godot PRIVATE KML_DEV_ASSETS_ROOT="${DEV_ROOT
 target_compile_definitions(stratum_godot PRIVATE flecs_STATIC)
 
 target_link_libraries(stratum_godot PRIVATE
+    quetzal_dungen
     quetzal_stratum_view
     godot-cpp
 )

@@ -12,6 +12,7 @@
 #include "quetzal/stratum_format/read.hpp"
 #include "quetzal/stratum_format/references.hpp"
 #include "quetzal/stratum_format/RelocatorTarget.hpp"
+#include "quetzal/stratum_format/write.hpp"
 #include <nlohmann/json.hpp>
 #include <algorithm>
 #include <charconv>
@@ -561,8 +562,14 @@ namespace
 
             try
             {
-                rows = document_of(zone_text(scenario.parameters)).cells.rows;
+                string text = zone_text(scenario.parameters, scenario.zone_name);
+                stratum_format::Document document = document_of(text);
+                rows = document.cells.rows;
                 report_case(format("{} is a zone the reader accepts", scenario.name), true);
+
+                ostringstream os;
+                stratum_format::write(os, document);
+                report_case(format("{} reads back as the document built in memory", scenario.name), os.str() == text);
             }
             catch (const runtime_error& e)
             {

@@ -387,8 +387,7 @@ everything below it to the new zone, so `relocate` and `reparent` keep the index
 
 ### Sites and doors
 
-This section covers where every entity is, and the entities sited on walls and flat cells. Doors are built; alcoves,
-basins, buttons and torches are planned (`attachment_plan.md`, `site_plan.md`).
+This section covers where every entity is, and the entities sited on walls and flat cells.
 
 `Site` is where an entity is: a `Relation`, `In` or `On`; an optional address, which is a `WallAddress` of one wall id
 or a `FlatCellAddress` of a flat id and a cell position; and a `placement_type` relative to the address, or to the
@@ -444,8 +443,7 @@ actor crosses a wall as it perceives the entities on it.
 
 `Interact` opens the access of the way through on the wall ahead if it is closed, or closes it if it is open, and
 reports `Interaction::Opened`, `Closed` or `Nothing`. A locked way through stays locked. If the wall ahead has a
-relocator on it that the controlled actor `can_enter`, `Interact` goes through it instead, as moving into the wall does,
-and reports `Interaction::NoDestination` if it leads nowhere the world can resolve. `Interacted` has the entity acted
+relocator on it that the controlled actor `can_enter`, `Interact` goes through it instead, and reports `Interaction::NoDestination` if it leads nowhere the world can resolve. `Interacted` has the entity acted
 on, the way through or the relocator, and `access_type_name(e)` returns the name of an access point's type, such as
 `staircase`, for the hosts' messages.
 
@@ -548,7 +546,12 @@ region, with `World::create_zone` and `World::load_zone`, and `enter` it. `load`
 file path. The library has no default type, offset, or region; each host passes `staircase` and 1, a staircase leading
 up, from temporary constants of its own, `entry_access_type` and `entry_level_offset`, and the game's
 `starting_region()`. A zone a host loads is at level -1, the host's temporary `starting_level`, if its file states no
-level, so the relocators in it can be resolved.
+level, so the relocators in it can be resolved. Each host also gives the starting region a temporary generator,
+`DungenGenerator`, until the generators are integrated: it runs dungen with its default parameters at the level of the
+zone being made, with a seed from `dungen::random_seed`, names the zone "Dungeon Level N", where N is the absolute value
+of the level, and has `load_layout` read the document `dungen::make_document` builds in memory into the zone, dropping
+dungen's warnings. So a staircase leads to a new zone the first time it is taken, and back
+through the bound staircase after that.
 
 `Generator` is an interface in `stratum_sim`, implemented where a generator is chosen, so `stratum_sim` depends on no
 generator. Each implementation declares its own parameters. `generate(zone)` fills an empty zone as the loader does:
@@ -562,7 +565,7 @@ player included. If the zone has no such entry point, it throws `std::runtime_er
 where it was. `notation()` returns the entered zone's `ZoneNotation`.
 
 `set_driver(driver, units_per_second)` sets the clock's driver, which lasts until it is set again; it is turn-based by
-default. Stage 7 of `work_plan.md` covers the lifecycle.
+default.
 
 `player()` returns the `Player`, so a host writes `session.player().set_intent(intent)` and
 `session.player().submit(Interact {})`.
@@ -587,11 +590,11 @@ direction; a distance; and `face`, which turns toward the direction within the s
 facing direction, and `Interact` acts on the wall `ahead`. `Enter` enters the relocator on the floor of the actor's
 cell, in a discrete layout. They produce `Moved`, `Blocked`, `Turned`, `Interacted`, and `Relocated` events.
 
-A `Step` by the `ControlledActor` stopped by a wall with a relocator on it that the actor `can_enter` enters the
-relocator, through `World::relocate_through`, instead of reporting `Blocked`; if the relocator leads nowhere the world
-can resolve, the step is blocked as usual. Only the controlled actor enters a relocator, by a step or by `Enter`;
-another actor is blocked by a relocator's wall and has no effect with `Enter`. A relocator on the floor does not impede
-movement. `Relocated` has the actor, the relocator, and the access point arrived at.
+The controlled actor enters a relocator on the wall ahead with `Interact`, and one on the floor of its cell with
+`Enter`, through `World::relocate_through`; any other actor does not enter a relocator. A `Step` into a wall with a
+relocator on it is `Blocked`, like a step into any wall, so a held movement key never takes the stairs. Entering by
+moving into the wall is kept in `commands.cpp` behind `enter_relocator_by_moving`, which is off. A relocator on the
+floor does not impede movement. `Relocated` has the actor, the relocator, and the access point arrived at.
 
 The clock builds `Step` and `TurnTo` from an actor's `Intent`. A one-shot command, such as `Interact`, waits on the
 actor as a `PendingCommand` component, which the clock applies before the actor's `Intent` the next time the actor is
@@ -776,7 +779,7 @@ uses the cursor-addressed output within a scripted run.
 edges. Each uses its own glyph set. With neither, a block notation zone uses the cell view and a wall notation zone the
 wall view; `Session::notation` returns the notation.
 
-Zone files are in `assets/level/`. The host finds them through `KML_DEV_ASSETS_ROOT`, a compile definition that CMake
+Zone files are in `assets/zones/`. The host finds them through `KML_DEV_ASSETS_ROOT`, a compile definition that CMake
 sets from the source tree root, so the working directory does not matter.
 
 ## Godot host

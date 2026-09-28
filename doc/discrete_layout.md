@@ -375,7 +375,7 @@ is floor. The glyphs are visual aids. A zone's staircases are its entities, each
 
 - **On a wall.** The wall is the staircase's open side, the side toward the room it opens into, and the
   staircase's orientation is the wall's normal, the direction of travel from the staircase into the
-  room. Moving into the wall enters the staircase. The other walls around a stair cell are ordinary
+  room. Interacting with the wall, as with a door, enters the staircase. The other walls around a stair cell are ordinary
   walls with components of their own, such as a texture.
 - **On the floor.** Sited on a floor cell, the staircase does not impede movement. Its site's
   `orientation` is required and is used only for drawing. A keystroke by an actor on its cell enters it.

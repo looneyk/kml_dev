@@ -1,13 +1,12 @@
 # Placement --- Plan
 
-Status: not started
 Date: 2026-09-04, revised 2026-09-26
 
 This plan states intent only. `game_system_principles.md` has a `procgen` library for the code that the generators
 have in common. Placement is the first code that would go there which neither generator shares, and its form decides
 whether `procgen` is one library or several.
 
-**`site` in this document is to be renamed.** `site_plan.md` uses `site` for where an entity is, and a site here is a
+**`site` in this document is to be renamed.** `stratum_sim`'s `Site` is where an entity is, and a site here is a
 candidate location that a run chooses among: a wall id, a cell, or a room. The replacement term is tracked in
 `work_plan.md`.
 
@@ -62,20 +61,13 @@ a constraint solver over reachability, which is beyond this form.
 **Weather.** It has no sites and no assignment, and is generated over time rather than once. It shares only a random
 engine with placement.
 
-## Steps
+## Order
 
-- [ ] **1. The interface, and a zone's doors built from its file through it.** The five roles as parameters, with only
-      exhaustive distribution and constant selection. Nothing new is placed and no zone changes, so the reference
-      frames check it exactly.
-- [ ] **2. Weighted selection over a table**: an entry drawn from a weighted list, with its properties. The table
-      itself belongs to `content`.
-- [ ] **3. The distributions**: a count, one per room, and a density per area.
-- [ ] **4. The first use that is not a door**, items or denizens, which settles acceptance and emission.
-
-## Blockers
-
-- **Step 2 needs `content`**, for weighted selection over prototypes.
-- **Where it lives is unsettled,** which determines what it may depend on, and so what a site can be.
+The interface comes first, with a zone's doors built from its file through it: the five roles as parameters, with only
+exhaustive distribution and constant selection. Nothing new is placed and no zone changes, so the reference frames
+check it exactly. Weighted selection over a table follows, an entry drawn from a weighted list with its properties, the
+table itself belonging to `content`. Then the distributions: a count, one per room, and a density per area. The first
+use that is not a door, items or denizens, settles acceptance and emission.
 
 ## Open
 

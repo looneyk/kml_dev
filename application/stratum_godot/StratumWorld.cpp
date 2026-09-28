@@ -4,9 +4,12 @@
 //------------------------------------------------------------------------------
 
 #include "StratumWorld.hpp"
+#include "quetzal/dungen/generate.hpp"
+#include "quetzal/dungen/write_zone.hpp"
 #include "quetzal/stratum_sim/attachments.hpp"
 #include "quetzal/stratum_sim/DiscreteLayout.hpp"
 #include "quetzal/stratum_sim/commands.hpp"
+#include "quetzal/stratum_sim/load_layout.hpp"
 #include "quetzal/stratum_sim/Site.hpp"
 #include "quetzal/stratum_view/ascii.hpp"
 #include "quetzal/stratum_view/cells.hpp"
@@ -14,6 +17,7 @@
 #include <cstdlib>
 #include <exception>
 #include <format>
+#include <memory>
 #include <string>
 
 namespace sim = quetzal::stratum_sim;
@@ -29,6 +33,27 @@ namespace
     // Temporary: a zone loaded is the first level down if its file states no level
     static constexpr sim::level_type starting_level = -1;
 
+    //--------------------------------------------------------------------------
+    // Temporary, until the generators are integrated: the starting region makes its zones with dungen, at the level each
+    // is made at. Its warnings are dropped
+    class DungenGenerator : public sim::Generator
+    {
+    public:
+
+        void generate(flecs::entity zone) const override
+        {
+            quetzal::dungen::Parameters parameters;
+            sim::level_type level = zone.get<sim::ZoneLevel>().level;
+            parameters.level = level;
+            parameters.seed = quetzal::dungen::random_seed();
+
+            std::string name = std::format("Dungeon Level {}", std::abs(level));
+            sim::load_layout(zone, quetzal::dungen::make_document(quetzal::dungen::generate(0, name, parameters, [](const std::string&) {}), parameters));
+
+            return;
+        }
+    };
+
 } // namespace
 
 //------------------------------------------------------------------------------
@@ -37,6 +62,7 @@ StratumWorld::StratumWorld() :
     m_session(m_stratum_game.session()),
     m_message()
 {
+    m_stratum_game.starting_region().set<std::shared_ptr<const sim::Generator>>(std::make_shared<DungenGenerator>());
 }
 
 //------------------------------------------------------------------------------
@@ -73,7 +99,7 @@ void StratumWorld::_bind_methods()
 //------------------------------------------------------------------------------
 godot::String StratumWorld::default_zone_path() const
 {
-    return godot::String::utf8(KML_DEV_ASSETS_ROOT "/level/dungeon.level");
+    return godot::String::utf8(KML_DEV_ASSETS_ROOT "/zones/dungeon.zone");
 }
 
 //------------------------------------------------------------------------------

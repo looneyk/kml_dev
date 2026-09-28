@@ -149,7 +149,7 @@ namespace
 } // namespace
 
 //------------------------------------------------------------------------------
-void quetzal::catagen::write_zone(ostream& os, const Zone& zone, const Parameters& parameters)
+quetzal::stratum_format::Document quetzal::catagen::make_document(const Zone& zone, const Parameters& parameters)
 {
     raw_values_type values = raw_values_type::object();
     values["extent"] = token(parameters.extent);
@@ -168,6 +168,7 @@ void quetzal::catagen::write_zone(ostream& os, const Zone& zone, const Parameter
     values["seed"] = token(parameters.seed.value());
 
     stratum_format::Document document;
+    document.version = stratum_format::format_version;
     document.generator = {{"name", "catagen"}, {"parameters", values}};
 
     if (!zone.name().empty())
@@ -225,7 +226,13 @@ void quetzal::catagen::write_zone(ostream& os, const Zone& zone, const Parameter
         }
     }
 
-    stratum_format::write(os, document);
+    return document;
+}
+
+//------------------------------------------------------------------------------
+void quetzal::catagen::write_zone(ostream& os, const Zone& zone, const Parameters& parameters)
+{
+    stratum_format::write(os, make_document(zone, parameters));
     return;
 }
 
