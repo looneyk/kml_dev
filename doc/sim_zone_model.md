@@ -37,7 +37,7 @@ routine.
 
 **One `World` and one `Session` in a game.** `World` manages the zones, with the flecs world containing their
 entities, and cannot be copied or moved. `Game` is the game in its entirety, lasting as long as the host, and owns the
-`World`, the `Player`, the id allocator, the engines and the `Session`, by value, and a new game or a load clears them
+`World`, the `Character`, the id allocator, the engines and the `Session`, by value, and a new game or a load clears them
 in place. The `Session` is the game being played, and refers to the `World` rather than containing it.
 
 **A zone's population are its denizens,** not all of them monsters.
@@ -70,8 +70,8 @@ in `work_plan.md` (`### Regions`).
   its region. `zone_of` still stops at the first ancestor that is a zone, and an entity's region is its zone's parent.
   Unloading a zone leaves its region; deleting a region deletes its zones. A region, having no zone above it, is given
   its persistent id when it is created, as a zone is.
-- **A region decides which zones unload first.** The zones of other regions than the one the player is in go first,
-  left longest ago first; then the zones of the player's region, farthest first, by distance or by the difference in
+- **A region decides which zones unload first.** The zones of other regions than the one the character is in go first,
+  left longest ago first; then the zones of the character's region, farthest first, by distance or by the difference in
   level.
 
 **Future: region files.** A region's metadata and generation settings, and possibly then its zones, one after another.
@@ -106,10 +106,10 @@ facing whose parent is its door, belongs to the `Zone` through that parent, so a
 what is placed directly in it --- as occupancy and the view need --- while anything over the whole `Zone` walks the
 subtree. Deletion reaches all of it (`addressing.md`, `### Children`).
 
-**Ownership follows current location, not origin.** A monster that chases the player through a relocator migrates into
-the destination, so the `Zone` it came from can unload without it. The player is the exception: always in a resident
+**Ownership follows current location, not origin.** A monster that chases the character through a relocator migrates into
+the destination, so the `Zone` it came from can unload without it. The character is the exception: always in a resident
 `Zone`, but owned by the game rather than by that `Zone`, so unloading or saving the `Zone` leaves it out
-(`addressing.md`, `### The player`).
+(`addressing.md`, `### The character`).
 
 **Entity ids are global though entities are partitioned by `Zone`,** so migration does not renumber and references to
 a denizen --- a quest, a leash, a summoner --- survive the move. Between loaded zones one flecs world supplies this, and
@@ -131,16 +131,16 @@ back, and a save writes every visited `Zone` whatever is resident.
 
 | Tier | State |
 |---|---|
-| The player's `Zone` | resident, simulated |
-| A `Zone` the player has left, until it is unloaded | resident |
+| The character's `Zone` | resident, simulated |
+| A `Zone` the character has left, until it is unloaded | resident |
 | Everything else | unloaded, frozen, on disk |
 
-**Leaving a `Zone` does not unload it.** When the player moves out of a `Zone`, before or after the next one is
+**Leaving a `Zone` does not unload it.** When the character moves out of a `Zone`, before or after the next one is
 loaded, the resident set is checked against a threshold --- a maximum `Zone` count, memory usage, and the like --- and
 `Zone`s are unloaded only when it is exceeded. The world's `ZoneEntryIndex` keeps the order in which the zones were
 entered, and the zone entered longest ago is unloaded first, more than one if a memory threshold requires it.
 
-With more than one `Zone` resident, "near the player" can only mean relocator-graph distance, `Zone`s having no spatial
+With more than one `Zone` resident, "near the character" can only mean relocator-graph distance, `Zone`s having no spatial
 relation, and the relocator graph is enumerable because relocators are on entities.
 
 **Elapsed-time advance on re-entry.** Effects expressible as a function of elapsed time are advanced when a frozen

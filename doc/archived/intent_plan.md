@@ -10,7 +10,7 @@ actor. `game_system_reference.md` describes what exists, under Intent, ai and Cl
 ## Shape
 
 `Intent` is a component on the actor for the durable part: the movement direction and the facing direction asked for.
-The host writes it for the player and an AI system for every other actor, and the clock reads it.
+The host writes it for the character and an AI system for every other actor, and the clock reads it.
 
 One-shot actions stay `Command`s: a direction is held, `Interact` is not.
 
@@ -28,7 +28,7 @@ Turn-based stops, returns control, and does not advance time. Real time treats i
 
 - [x] **1. `Intent` component; the clock reads it; hosts write it.** Turn-based only, behavior unchanged, reflection
       registered member by member, checked against the reference frames.
-- [x] **2. Retire the empty-command path.** `Clock::run` stops returning the actor it is stuck on, and the player is no
+- [x] **2. Retire the empty-command path.** `Clock::run` stops returning the actor it is stuck on, and the character is no
       longer identified by declining a callback.
 - [x] **3. Cost from the result.** `apply` derives the cost from what the command achieved.
 - [x] **4. Time driver in `Clock`.** Turn-based and real-time drivers behind one call, the fractional accumulator in

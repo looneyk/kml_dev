@@ -16,9 +16,9 @@ namespace
 {
 
     //--------------------------------------------------------------------------
-    // Moves the player to the placement of the zone's entry point. Returns false if the zone has none
-    bool place_player(quetzal::stratum_sim::World& world, flecs::entity zone, flecs::entity access_type, quetzal::stratum_sim::level_type offset,
-        flecs::entity player)
+    // Moves the character to the placement of the zone's entry point. Returns false if the zone has none
+    bool place_character(quetzal::stratum_sim::World& world, flecs::entity zone, flecs::entity access_type, quetzal::stratum_sim::level_type offset,
+        flecs::entity character)
     {
         using namespace quetzal::stratum_sim;
 
@@ -29,16 +29,16 @@ namespace
             return false;
         }
 
-        world.relocate(player, zone, entry.get<AccessPoint>().placement);
+        world.relocate(character, zone, entry.get<AccessPoint>().placement);
         return true;
     }
 
 } // namespace
 
 //------------------------------------------------------------------------------
-quetzal::stratum_sim::Session::Session(World& world, Player& player) :
+quetzal::stratum_sim::Session::Session(World& world, Character& character) :
     m_world(world),
-    m_player(player),
+    m_character(character),
     m_scheduler(),
     m_clock(m_world, m_scheduler),
     m_zone()
@@ -75,7 +75,7 @@ void quetzal::stratum_sim::Session::enter(flecs::entity zone, flecs::entity acce
     assert(zone && zone.has<Zone>());
     assert(access_type);
 
-    if (!place_player(m_world, zone, access_type, offset, m_player.entity()))
+    if (!place_character(m_world, zone, access_type, offset, m_character.entity()))
     {
         throw std::runtime_error(std::format("zone has no access point of the type '{}' whose target is {:+}", access_type.name().c_str(), offset));
     }
@@ -149,29 +149,29 @@ flecs::entity quetzal::stratum_sim::Session::zone() const
 }
 
 //------------------------------------------------------------------------------
-quetzal::stratum_sim::Player& quetzal::stratum_sim::Session::player()
+quetzal::stratum_sim::Character& quetzal::stratum_sim::Session::character()
 {
-    return m_player;
+    return m_character;
 }
 
 //------------------------------------------------------------------------------
-const quetzal::stratum_sim::Player& quetzal::stratum_sim::Session::player() const
+const quetzal::stratum_sim::Character& quetzal::stratum_sim::Session::character() const
 {
-    return m_player;
+    return m_character;
 }
 
 //------------------------------------------------------------------------------
 quetzal::id_type quetzal::stratum_sim::Session::advance(EventQueue& events, Clock::duration_type elapsed)
 {
-    id_type actor_controlled = static_cast<id_type>(m_player.entity().id());
+    id_type actor_controlled = static_cast<id_type>(m_character.entity().id());
 
-    // Every actor but the player decides once per call; an actor fast enough to act twice repeats its decision
+    // Every actor but the character decides once per call; an actor fast enough to act twice repeats its decision
     think(m_world, actor_controlled);
 
     id_type actor_id = m_clock.advance(events, actor_controlled, elapsed);
 
-    // The player went through a relocator into another zone
-    if (flecs::entity zone = zone_of(m_player.entity()); zone != m_zone)
+    // The character went through a relocator into another zone
+    if (flecs::entity zone = zone_of(m_character.entity()); zone != m_zone)
     {
         play(zone);
     }
@@ -182,14 +182,14 @@ quetzal::id_type quetzal::stratum_sim::Session::advance(EventQueue& events, Cloc
 //------------------------------------------------------------------------------
 void quetzal::stratum_sim::Session::play(flecs::entity zone)
 {
-    assert(zone_of(m_player.entity()) == zone);
+    assert(zone_of(m_character.entity()) == zone);
 
-    // After the player has moved, so no zone it is in can unload
+    // After the character has moved, so no zone it is in can unload
     m_world.trim_zones(zone);
 
     m_zone = zone;
     m_scheduler = Scheduler();
-    m_player.entity().remove<PendingCommand>();
+    m_character.entity().remove<PendingCommand>();
 
     with_in_zone(m_world.entities().query_builder<const Speed>(), zone)
         .build()

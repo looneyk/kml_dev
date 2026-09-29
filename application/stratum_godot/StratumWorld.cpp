@@ -146,7 +146,7 @@ godot::Vector2i StratumWorld::cell() const
         return {};
     }
 
-    const sim::placement_type& placement = sim::placement_of(m_session.player().entity());
+    const sim::placement_type& placement = sim::placement_of(m_session.character().entity());
     sim::discrete_point_type cell_position = sim::layout_as<sim::DiscreteLayout>(m_session.layout()).cell_position_at(placement.position());
 
     return godot::Vector2i(cell_position.i(), cell_position.j());
@@ -160,7 +160,7 @@ godot::String StratumWorld::render() const
         return {};
     }
 
-    return godot::String::utf8(view::render(m_session.world(), m_session.zone(), m_session.player().entity()).to_string().c_str());
+    return godot::String::utf8(view::render(m_session.world(), m_session.zone(), m_session.character().entity()).to_string().c_str());
 }
 
 //------------------------------------------------------------------------------
@@ -173,7 +173,7 @@ godot::PackedByteArray StratumWorld::cells() const
         return codes;
     }
 
-    view::Cells cells = view::cells(m_session.world(), m_session.zone(), m_session.player().entity());
+    view::Cells cells = view::cells(m_session.world(), m_session.zone(), m_session.character().entity());
 
     const view::vector_type& extent = cells.extent();
     codes.resize(static_cast<int64_t>(extent.x()) * extent.y());
@@ -201,7 +201,7 @@ godot::PackedByteArray StratumWorld::actors() const
         return flags;
     }
 
-    view::Cells cells = view::cells(m_session.world(), m_session.zone(), m_session.player().entity());
+    view::Cells cells = view::cells(m_session.world(), m_session.zone(), m_session.character().entity());
 
     const view::vector_type& extent = cells.extent();
     flags.resize(static_cast<int64_t>(extent.x()) * extent.y());
@@ -230,7 +230,7 @@ godot::Vector2i StratumWorld::step(int32_t di, int32_t dj)
 
     // This view does not show the facing direction, so a move also turns toward the way it goes, and interact acts ahead
     sim::vector_type direction(static_cast<sim::value_type>(di), static_cast<sim::value_type>(dj), sim::value_type(0));
-    m_session.player().set_intent(sim::Intent {direction, sim::value_type(1), direction});
+    m_session.character().set_intent(sim::Intent {direction, sim::value_type(1), direction});
     advance();
 
     return cell();
@@ -244,7 +244,7 @@ void StratumWorld::interact()
         return;
     }
 
-    m_session.player().submit(sim::Interact {});
+    m_session.character().submit(sim::Interact {});
     advance();
 
     return;
@@ -258,7 +258,7 @@ godot::Vector2i StratumWorld::enter()
         return {};
     }
 
-    m_session.player().submit(sim::Enter {});
+    m_session.character().submit(sim::Enter {});
     advance();
 
     return cell();

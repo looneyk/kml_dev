@@ -6,7 +6,7 @@
 //------------------------------------------------------------------------------
 
 #include "IdAllocator.hpp"
-#include "Player.hpp"
+#include "Character.hpp"
 #include "Session.hpp"
 #include "World.hpp"
 
@@ -14,17 +14,16 @@ namespace quetzal::stratum_sim
 {
 
     //--------------------------------------------------------------------------
-    // Registers the game's entity types, such as a door that is closed until opened. Temporary, until the game's types
-    // load from data
+    // Registers the game's entity types, such as a door that is closed until opened. Temporary, until the game's types load from data
     void register_game_types(World& world);
 
     //--------------------------------------------------------------------------
-    // The one owner of a game's world, session and player
+    // The one owner of a game's world, session and character
     class Game
     {
     public:
 
-        Game(); // A new game, counting persistent ids from zero
+        Game();
         Game(const Game&) = delete;
         ~Game() = default;
 
@@ -36,8 +35,8 @@ namespace quetzal::stratum_sim
         Session& session();
         const Session& session() const;
 
-        Player& player();
-        const Player& player() const;
+        Character& character();
+        const Character& character() const;
 
         // The region a new game's zones are made in. Temporary, until a new game chooses its region
         flecs::entity starting_region() const;
@@ -48,7 +47,7 @@ namespace quetzal::stratum_sim
         CountingIdAllocator m_counting_id_allocator;
         random_type m_random; // Seeded from std::random_device
         World m_world;
-        Player m_player;
+        Character m_character;
         Session m_session;
         flecs::entity m_starting_region;
     };

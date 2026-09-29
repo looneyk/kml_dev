@@ -1,6 +1,7 @@
 add_library(quetzal_stratum_sim STATIC
     ai.cpp
     attachments.cpp
+    Character.cpp
     Clock.cpp
     CommandQueue.cpp
     commands.cpp
@@ -13,7 +14,6 @@ add_library(quetzal_stratum_sim STATIC
     GridMapping.cpp
     IdAllocator.cpp
     load_layout.cpp
-    Player.cpp
     properties.cpp
     Scheduler.cpp
     Session.cpp
@@ -22,8 +22,9 @@ add_library(quetzal_stratum_sim STATIC
     ZoneEntryIndex.cpp
     ai.hpp
     attachments.hpp
-    Clock.hpp
     Cell.hpp
+    Character.hpp
+    Clock.hpp
     Command.hpp
     CommandQueue.hpp
     commands.hpp
@@ -43,7 +44,6 @@ add_library(quetzal_stratum_sim STATIC
     Layout.hpp
     load_layout.hpp
     PersistentId.hpp
-    Player.hpp
     properties.hpp
     Scheduler.hpp
     Session.hpp

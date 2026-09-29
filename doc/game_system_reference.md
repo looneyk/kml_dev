@@ -270,7 +270,7 @@ a zone's subtree before the zone itself, and if it is deferring, it runs the who
 operations run. The unload is complete in the `PersistentId` observer on the zone's own removal, which takes the zone
 out of the zones unloading. An unload is therefore correct whether the deletion runs at once or later.
 
-An entity with no parent is owned by the game rather than a zone; the player is one. The exclusive `(InZone, zone)`
+An entity with no parent is owned by the game rather than a zone; the character is one. The exclusive `(InZone, zone)`
 relationship refers to the zone the entity is in, and flecs removes it when that zone is deleted, so unloading the
 zone leaves the entity, and everything below it, in no zone. `with_in_zone(builder, zone)` adds the terms that match
 the entities in a zone: its children, and the game's entities that are in it. Every query for a zone's entities uses
@@ -367,7 +367,7 @@ was never entered, which has no entry, and two trims in one deferred block choos
 as it exists, through unloading and loading again. It compares and hashes as its value, so it is used directly as a
 map key and as a reference's id. An entity gets one from `World::next_id` when it is placed in a zone: the observers on
 `ChildOf`, `Parent` and `InZone` give one to any entity in a zone that has none, whatever created it, except a layout
-entity. A zone, which has no parent, gets one from `create_zone`, and the player gets one from its constructor. A
+entity. A zone, which has no parent, gets one from `create_zone`, and the character gets one from its constructor. A
 `World` is constructed with a reference to an `IdAllocator`, the source of its ids, whose one function is `next`.
 `CountingIdAllocator` counts up from the id it is constructed with. A world is saved with an id from `next` and
 restored with an allocator constructed from that id.
@@ -522,24 +522,24 @@ The move taken is to the reachable neighbor nearest the goal, if one is nearer t
 returns placements in a fixed order, so ties break the same way every run. Only topology is consulted, so a pursuer is
 stopped by an occupied cell in `World::move`.
 
-### Game and Player
+### Game and Character
 
 `Game` is the game in its entirety, the one object a host owns, for as long as the host runs. It owns the structures
 that survive outside play: a `CountingIdAllocator` counting from zero, a `random_type` seeded from
-`std::random_device`, the `World` and the `Player`, and the `Session` that plays them, constructed in that order, each
+`std::random_device`, the `World` and the `Character`, and the `Session` that plays them, constructed in that order, each
 referring to those before it. None of them can be copied or moved. `starting_region()` returns the region that a new game's zones are
 made in, which the constructor creates; it is temporary, until a new game chooses its region.
 
-`Player` is the entity a host controls, created with `Blocking`, the `ControlledActor` tag, a `Speed` and a
+`Character` is the entity a host controls, created with `Blocking`, the `ControlledActor` tag, a `Speed` and a
 `PersistentId`, and it is in no zone
 until one is entered. It is owned by the game and has no parent, so it outlives every zone it moves through. A host
-acts through it: `set_intent(intent)` sets the player's `Intent`, and `submit(action)` sets a `PendingCommand` of the
-action for the player's entity, which the clock applies the next time the player is ready. `entity()` returns the
+acts through it: `set_intent(intent)` sets the character's `Intent`, and `submit(action)` sets a `PendingCommand` of the
+action for the character's entity, which the clock applies the next time the character is ready. `entity()` returns the
 entity, for queries and drawing.
 
 ### Session
 
-`Session` has the zone being played: references to the game's `World` and `Player`, a `Scheduler`, a `Clock`, and the
+`Session` has the zone being played: references to the game's `World` and `Character`, a `Scheduler`, a `Clock`, and the
 zone. A host supplies input mapping and drawing.
 
 `create(region, generator, type, offset)` and `load(region, filepath, type, offset)` have the world make the zone in the
@@ -559,23 +559,23 @@ generator. Each implementation declares its own parameters. `generate(zone)` fil
 its `ZoneLayout` with its floor and ceiling, its `ZoneNotation`, its room and flat entities, and its entities, each
 `IsA` its type, with its doors and access points among them (`placement_plan.md`).
 
-`enter(zone, type, offset)` relocates the player to the placement of the zone's `entry_point(zone, type, offset)`, then
-has the world `trim_zones` with the zone entered, so no zone the player is in can unload. It makes the zone the one being
-played, removes the player's pending command, and rebuilds the turn order from each entity in the zone that has a `Speed`, the
-player included. If the zone has no such entry point, it throws `std::runtime_error`, and the player stays
+`enter(zone, type, offset)` relocates the character to the placement of the zone's `entry_point(zone, type, offset)`, then
+has the world `trim_zones` with the zone entered, so no zone the character is in can unload. It makes the zone the one being
+played, removes the character's pending command, and rebuilds the turn order from each entity in the zone that has a `Speed`, the
+character included. If the zone has no such entry point, it throws `std::runtime_error`, and the character stays
 where it was. `notation()` returns the entered zone's `ZoneNotation`.
 
 `set_driver(driver, units_per_second)` sets the clock's driver, which lasts until it is set again; it is turn-based by
 default.
 
-`player()` returns the `Player`, so a host writes `session.player().set_intent(intent)` and
-`session.player().submit(Interact {})`.
+`character()` returns the `Character`, so a host writes `session.character().set_intent(intent)` and
+`session.character().submit(Interact {})`.
 
 `advance(events, elapsed)` calls `think`, then advances the clock, returning the controlled entity when it needs a
 command, or `nullid` if no actor will ever be ready. `elapsed` is the real time since the last call; a turn-based host
-omits it. If the player went through a relocator into another zone, it then makes that zone the one being played, as
-`enter` does once it has placed the player: the world trims its zones, the player's pending command is dropped, and
-the turn order is rebuilt from the new zone. The actors of the zone left finish the advance in which the player left.
+omits it. If the character went through a relocator into another zone, it then makes that zone the one being played, as
+`enter` does once it has placed the character: the world trims its zones, the character's pending command is dropped, and
+the turn order is rebuilt from the new zone. The actors of the zone left finish the advance in which the character left.
 
 Each host maps `<` and `>` to `Enter`. The hosts report a `Relocated` event with the level arrived on, shown as its
 distance from the surface, and a step `Blocked` by a wall with a relocator on it as "There is a staircase before you",
@@ -599,7 +599,7 @@ floor does not impede movement. `Relocated` has the actor, the relocator, and th
 
 The clock builds `Step` and `TurnTo` from an actor's `Intent`. A one-shot command, such as `Interact`, waits on the
 actor as a `PendingCommand` component, which the clock applies before the actor's `Intent` the next time the actor is
-ready; a host submits one through `Player::submit`.
+ready; a host submits one through `Character::submit`.
 
 `apply(world, command, events)` returns the command's cost, or zero if it did nothing; the `CommandQueue` overload
 drains the queue. A move costs in proportion to the distance traveled against `step_distance`, so a move stopped short
@@ -686,7 +686,7 @@ door that can be shut, locked or concealed is one type. `None` is an edge with n
 which a glyph set may draw outlined. Only a state that changes the drawing is a flag. `applies(type, state)` returns
 true if a place type can be in a state. The reduction is the only code that reads a component on behalf of a view.
 
-Both reductions draw the zone as a viewer perceives it, and the hosts pass the player. A way through that the viewer
+Both reductions draw the zone as a viewer perceives it, and the hosts pass the character. A way through that the viewer
 finds concealed is drawn as though there were none, as a wall. A null viewer gets the general state.
 
 `cells(world, zone, viewer)` returns one `Place` per grid cell: `Solid`, `Floor`, or `Door` for a door that occupies a
@@ -791,21 +791,21 @@ library, a GDExtension, and `application/stratum_godot/project/` is the Godot pr
 
 `StratumWorld` is the one registered class, a `RefCounted` that owns a `Game`, with only Godot types in its
 interface: `default_zone_path`, `load_zone`, `extent`, `cell`, `render`, `cells`, `actors`, `step`, `interact`,
-`enter`, `turn`, and `message`. `step` sets the player's intent, turning toward the direction moved as the view does not show the
+`enter`, `turn`, and `message`. `step` sets the character's intent, turning toward the direction moved as the view does not show the
 facing direction, and advances through the turn-based driver; `interact` submits `Interact` and `enter` submits
 `Enter`, and each advances. `message` returns what the last of them did that the map does not show, such as a door
-opening, a staircase before the player or leading nowhere, or the level arrived on, and the tile view shows it in its status line. A step ends with the next turn already granted,
+opening, a staircase before the character or leading nowhere, or the level arrived on, and the tile view shows it in its status line. A step ends with the next turn already granted,
 so `turn` is the turn awaiting input. Exceptions do not cross into Godot: a failed load pushes the reason to Godot's
 error list and returns false, and the previous zone stays intact.
 
 `cells` is one code per cell from `stratum_view::cells`, row major from row zero; its `PlaceType` constants repeat
 `stratum_view::PlaceType` for Godot, followed by `PlaceTypeDoorOpen` for a door whose access is open. `actors` is one
-`Occupant` per cell in the same order: `OccupantNone`, `OccupantPlayer`, or `OccupantOther` for any other actor.
+`Occupant` per cell in the same order: `OccupantNone`, `OccupantCharacter`, or `OccupantOther` for any other actor.
 
 `game.tscn` is the tile view: a `TileMapLayer` fed from `cells`, a second layer for actors, a camera, and arrow or
 `hjkl` keys, with space calling `interact` and `<` or `>` calling `enter`. A held movement key repeats, and any other
 key acts once per press. Its tileset is built at run time from flat colors: stairs in two blues, an open door lighter than a closed one, the
-player in yellow, and any other actor in red. It repaints from the new extent when the player enters a zone of another
+character in yellow, and any other actor in red. It repaints from the new extent when the character enters a zone of another
 size. Row zero is the lowest in the simulation and y grows
 downward in Godot, so the view inverts j when it paints.
 

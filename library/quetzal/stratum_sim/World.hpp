@@ -192,8 +192,7 @@ namespace quetzal::stratum_sim
         // The entities that property reads, nearest first
         entities_type property_chain(flecs::entity e) const;
 
-        // Returns true if the zone or the whole world is being deleted, in which case the entities deleted with it need no
-        // unlinking
+        // Returns true if the zone or the whole world is being deleted, in which case the entities deleted with it need no unlinking
         bool deleting_with(flecs::entity zone) const;
 
         IdAllocator& m_id_allocator;

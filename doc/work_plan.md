@@ -18,9 +18,9 @@ The design behind the items is in these documents, which the items refer to by s
 - `placement_plan.md` is the form placement takes: what fills a zone.
 - `random_engine.md` covers the random engines, their seeds, and saving their state.
 - `region_plan.md` covers regions, relocator targets, and pregenerated content.
-- `session_plan.md` covers how `Game`, `Session`, `World` and `Player` divide the work of making and playing zones, and
+- `session_plan.md` covers how `Game`, `Session`, `World` and `Character` divide the work of making and playing zones, and
   the game's lifecycle: `Game` is the game in its entirety, lasting as long as the host, and owns the `World`, the
-  `Player` and the `Session` by value, clearing them in place for each new game or load.
+  `Character` and the `Session` by value, clearing them in place for each new game or load.
 - `sim_zone_model.md` has the model beneath the code.
 
 `archived/` has the plans whose work is built.
@@ -36,15 +36,12 @@ boxes are removed at the start of the next piece of work, since the reference do
 These are the game's lifecycle (`session_plan.md`, `## Games`), built in this order, each on the ones before it.
 
 - [x] **`StratumGame` renamed `Game`.**
-- [ ] **Generators registered by name** (`session_plan.md`, `## World`): the `RegionGenerator` component with a
-      generator's name and parameters, `World::register_generator`, and the hosts registering dungen, replacing the
-      `std::shared_ptr<const Generator>` component.
-- [ ] **One session for the whole game.** `Game` has its `GameConfig` and `GameOptions`, with `new_game` and
+- [ ] **One session for the whole game.** `Game` has its `GameConfig` and `GameSettings`, with `new_game` and
       `end_game`. `World::clear`, and `Session::clear` and `Session::create` in both forms; `new_game` clears the game in
-      progress in place, resets the id allocator and reseeds the engine. The hosts pass a temporary config and options,
+      progress in place, resets the id allocator and reseeds the engine. The hosts pass a temporary config and settings,
       and create a game whose first zone is their zone file. A suite case plays a game, clears it, creates another, and
       checks that only the new game's regions, zones, entities and ids remain.
-- [ ] **The game's end.** The `Dead` tag, `Session::over`, `advance` running no actor once the player is dead,
+- [ ] **The game's end.** The `Dead` tag, `Session::over`, `advance` running no actor once the character is dead,
       `end_game` deleting the game's directory on death under permadeath, and the hosts ending the game.
 - [ ] **Saved zones** (`addressing_plan.md`, `## Saved zones`): unloading a zone saves it into the game and frees its
       resources, and entering it again reads it back.
@@ -71,6 +68,9 @@ These are the game's lifecycle (`session_plan.md`, `## Games`), built in this or
 - [ ] **The generators on `geometry::DiscreteDirectedPoint`.** dungen's `Staircase` has a `directed_point_type` and
       still has the separate `position` and `direction` accessors. catagen stores a staircase as a cell type and a map
       from cell position to facing direction, which a list of directed points would replace.
+- [ ] **Generator warnings logged to a file.** The hosts' temporary `DungenGenerator` drops dungen's warnings, which
+      would write over the terminal's frame; they are written to a log file instead, in `dev/` for now, found through a
+      compile definition as `KML_DEV_ASSETS_ROOT` is, so no path in code is absolute.
 - [ ] **A second catagen algorithm,** and with it what the two generators have in common becoming `quetzal::procgen`.
 
 ## Random engine
@@ -95,7 +95,7 @@ These are the game's lifecycle (`session_plan.md`, `## Games`), built in this or
 - [ ] **A new region made on resolving,** when an unbound relocator finds nothing, instead of a zone in its own or its
       parent region (`region_plan.md`).
 - [ ] **Unloading by region.** Criteria for `World::trim_zones` that choose the zones of other regions first, those
-      left longest ago first, as `ZoneEntryIndex` does, and then those of the player's region, farthest first.
+      left longest ago first, as `ZoneEntryIndex` does, and then those of the character's region, farthest first.
 - [ ] **Region files.**
 - [ ] **The pregenerated content index** (`region_plan.md`, `## Pregenerated content`): built at game start by scanning
       `assets/zones`, or read from an index file built in the background, listing each zone or region tag, with
@@ -276,9 +276,13 @@ These are the open questions.
 
 ### Regions
 
+- **A generator registry.** A region's generator is a `std::shared_ptr<const Generator>` component, where the world
+  file writes it as data, a name and parameters. Generators registered by name for as long as the program runs would
+  let a region refer to its generator that way; who registers them, and what the registry holds, need more of the game
+  designed first (`session_plan.md`, `## World`).
 - **The properties each type of region has.** A surface area's and a dungeon's overlap but differ, and difficulty goes
   from the starting value across a dungeon's zones in a way not yet decided.
-- **Distance or level difference** as the measure within the player's region, and whether it differs by type of
+- **Distance or level difference** as the measure within the character's region, and whether it differs by type of
   region.
 - **The contents of a region file:** only the region's metadata and generation settings, or those followed by its
   zones; and how it relates to the zone file format.
@@ -315,14 +319,14 @@ These are the open questions.
 - **The game's config file,** which supplies the zone count maximum, now `Game`'s temporary 8, and the game's
   other settings.
 - **Whether the driver belongs to the game or to a zone.**
-- **Actors.** The player and the denizens are both actors, and differ in what controls them; the actor structure is
+- **Actors.** The character and the denizens are both actors, and differ in what controls them; the actor structure is
   not designed, and neither is what kills an actor and marks it `Dead`.
-- **Resident zones the player has left:** whether they are simulated or frozen, which thresholds apply --- memory
+- **Resident zones the character has left:** whether they are simulated or frozen, which thresholds apply --- memory
   usage among them --- and their values.
 - **Zones made and never entered.** They are not candidates for unloading.
 - **Where the unload order's data is kept** --- `ZoneEntryIndex`'s map from entry count to zone id, or a component on
   each zone with a flecs query ordered by it --- once regions set the criteria: other regions' zones by the time they
-  were entered, and the player's region's zones by distance or level difference (`## Regions`).
+  were entered, and the character's region's zones by distance or level difference (`## Regions`).
 
 ### View
 

@@ -10,7 +10,7 @@
 #include "Generator.hpp"
 #include "EventQueue.hpp"
 #include "Layout.hpp"
-#include "Player.hpp"
+#include "Character.hpp"
 #include "Scheduler.hpp"
 #include "World.hpp"
 #include "quetzal/stratum_format/Notation.hpp"
@@ -24,7 +24,7 @@ namespace quetzal::stratum_sim
     {
     public:
 
-        Session(World& world, Player& player);
+        Session(World& world, Character& character);
         Session(const Session&) = delete;
         ~Session() = default;
 
@@ -35,7 +35,7 @@ namespace quetzal::stratum_sim
 
         void load(flecs::entity region, const std::filesystem::path& filepath, flecs::entity access_type, level_type offset);
 
-        // Moves the player to the placement of the zone's entry_point for the access point type and level offset, and makes
+        // Moves the character to the placement of the zone's entry_point for the access point type and level offset, and makes
         // it the zone being played. Throws std::runtime_error when the zone has no such entry point
         void enter(flecs::entity zone, flecs::entity access_type, level_type offset);
 
@@ -58,21 +58,21 @@ namespace quetzal::stratum_sim
 
         flecs::entity zone() const;
 
-        Player& player();
-        const Player& player() const;
+        Character& character();
+        const Character& character() const;
 
-        // Advances the clock and runs every ready actor, returning the player when it needs a command
+        // Advances the clock and runs every ready actor, returning the character when it needs a command
         // elapsed is the real time since the last call; a turn-based host omits it
         id_type advance(EventQueue& events, Clock::duration_type elapsed = Clock::duration_type::zero());
 
     private:
 
-        // Makes the zone the player is in the one being played: the world trims its zones, the player's pending command is
+        // Makes the zone the character is in the one being played: the world trims its zones, the character's pending command is
         // dropped, and the turn order is rebuilt from the zone's actors
         void play(flecs::entity zone);
 
         World& m_world;
-        Player& m_player;
+        Character& m_character;
         Scheduler m_scheduler;
         Clock m_clock;
         flecs::entity m_zone;

@@ -317,8 +317,8 @@ A zone's entities are children of the zone, except the ones that are children of
 belong to the zone through their parent. So **a zone's contents are its subtree, not its children**: a
 query for the zone's children finds what is placed directly in it, which is what occupancy and the view
 ask for, and whatever has to reach all of a zone --- saving it, unloading it, dumping it --- walks the
-subtree instead. Deleting the zone already reaches all of it. The player is in a zone without being in
-its subtree (`### The player`).
+subtree instead. Deleting the zone already reaches all of it. The character is in a zone without being in
+its subtree (`### The character`).
 
 ### References across zones
 
@@ -335,7 +335,7 @@ zone through the index.
 
 ### Actors
 
-An actor, such as the player or a denizen, is `In` its zone, its site having a placement --- a position and a
+An actor, such as the character or a denizen, is `In` its zone, its site having a placement --- a position and a
 direction --- and no address.
 
 **Each zone has an actor index,** which finds the actors at a place with a lookup. The index is derived
@@ -343,11 +343,11 @@ from the actors' placements: it is updated as they move and rebuilt when the zon
 disagree with them. Each kind of layout supplies its own kind of index, and a `DiscreteLayout`'s finds
 actors by cell. Until the index is built, `World::entities_at` checks every placed entity in the zone.
 
-### The player
+### The character
 
-The player is in a zone, and is owned by the game. It is in its zone's actor index like any actor, and
+The character is in a zone, and is owned by the game. It is in its zone's actor index like any actor, and
 moves between zones as any actor does, but it is not in the zone's subtree, so unloading or saving the
-zone leaves it out. What the player carries is a child of it, sited `on` it, and is owned by the
+zone leaves it out. What the character carries is a child of it, sited `on` it, and is owned by the
 game too. Both are saved with the game.
 
 `addressing_plan.md` has the structures and components for all of this.

@@ -37,7 +37,7 @@ Open items are listed in `work_plan.md`, and `game_system_reference.md` describe
   a door, a staircase or concealment, and nothing on the wall or the cell marks it crossable (`## Crossing a wall`).
 - **Each zone has an actor index,** derived from the actors' placements, which finds the actors at a location without
   a search (`## Actors`).
-- **The player is in a zone, and is owned by the game.** It is in its zone's actor index like any actor, but unloading
+- **The character is in a zone, and is owned by the game.** It is in its zone's actor index like any actor, but unloading
   or saving the zone leaves it out (`## Migration`).
 - **A dropped object is indexed in its zone,** as every sited entity is, and is accessible while the actor is in that
   zone, not from another zone the actor moves to.
@@ -191,7 +191,7 @@ namespace quetzal::stratum_sim
   locked. A door off its hinges is open, and one smashed into rubble that blocks the doorway is closed. How a broken
   door looks is a visual state that a script sets and a view interprets, never a component that states whether the door
   can be crossed.
-- **The view is the player's.** The reductions draw a way through that the viewer finds concealed as a wall, and mark
+- **The view is the character's.** The reductions draw a way through that the viewer finds concealed as a wall, and mark
   one that the viewer has found but that is concealed from actors in general; each denizen crosses as it perceives the
   way through.
 
@@ -273,14 +273,14 @@ The actor index builds against the zones as they are now, and changes no behavio
 ## Migration
 
 `reparent` moves an entity from one zone to another. It removes the entity from the old zone's lists and actor index,
-sets its parent to the destination zone (or, for the player, the zone it is in) and its site at the destination, and
+sets its parent to the destination zone (or, for the character, the zone it is in) and its site at the destination, and
 moves its entry in the world index with it if it has one. Its children move with it.
 
-**The player is owned by the game.** `Game` owns the `Player`, which exists before any zone. The player has no
+**The character is owned by the game.** `Game` owns the `Character`, which exists before any zone. The character has no
 parent: an exclusive `(InZone, zone)` relationship refers to the zone it is in, which relocating changes, `zone_of`
 reads, and flecs removes when that zone is deleted. An entity with no parent is owned by the game, and relocating it
-keeps it that way. The player is in its zone's actor index like any actor, and every query for the entities in a zone
-matches it, but it is not in the zone's subtree, so unloading or saving the zone leaves it out. The objects the player
+keeps it that way. The character is in its zone's actor index like any actor, and every query for the entities in a zone
+matches it, but it is not in the zone's subtree, so unloading or saving the zone leaves it out. The objects the character
 carries are its children, sited `on` it, and are owned by the game too; both are saved with the game.
 
 **An entity that migrates is not anchored to the layout.** Nothing below an entity moving to another zone is sited on
@@ -325,7 +325,7 @@ a wall or a flat cell, since those addresses belong to the old zone.
   - the actor index follows every move, migration, creation and deletion, and `entities_at` and `entities_within`
     return what a scan of the zone returns;
   - migration keeps the persistent id and the runtime entity, and updates the index;
-  - the player is in its zone's actor index, and is left out when that zone is unloaded;
+  - the character is in its zone's actor index, and is left out when that zone is unloaded;
   - a reference resolves again after its zone is unloaded and loaded again;
   - `CountingIdAllocator` never repeats an id across a save and restore.
 - **`stratum_view_test`:** its frames, which print wall ids, are unchanged apart from the wall ids.
@@ -337,8 +337,8 @@ again reads it back. Writing a zone walks its subtree instead of querying its ch
 of its own is below that parent. Loading a saved zone that is already loaded is an error; a template makes a new zone
 each time it is loaded.
 
-Resetting to a save point is loading the game: `Game` constructs a new world from the game's files, restores the player
-and the id allocator's count, and loads the zone the player was in, with the others loading as they are entered, so no
+Resetting to a save point is loading the game: `Game` constructs a new world from the game's files, restores the character
+and the id allocator's count, and loads the zone the character was in, with the others loading as they are entered, so no
 entity is duplicated or lost (`session_plan.md`, `## Games`).
 
 ## Open
