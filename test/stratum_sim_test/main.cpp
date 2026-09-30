@@ -745,21 +745,21 @@ namespace
         flecs::entity zone = load_zone_unpopulated(world, "data/corridor.zone");
 
         stratum_sim::DiscreteLayout& layout = zone_layout(world, zone);
-        flecs::entity player = world.create_entity(zone,
+        flecs::entity character = world.create_entity(zone,
             stratum_sim::placement_type(layout.position(stratum_sim::discrete_point_type {1, 1}),
                 stratum_sim::vector_type(1.0f, 0.0f, 0.0f)));
 
         stratum_sim::Scheduler scheduler;
-        scheduler.add(player.id(), 100);
+        scheduler.add(character.id(), 100);
 
         stratum_sim::Clock clock(world, scheduler);
         stratum_sim::EventQueue events;
 
-        id_type controlled = static_cast<id_type>(player.id());
+        id_type controlled = static_cast<id_type>(character.id());
 
         auto intend = [&](stratum_sim::value_type dx, stratum_sim::value_type dy)
         {
-            player.set<stratum_sim::Intent>(stratum_sim::Intent {
+            character.set<stratum_sim::Intent>(stratum_sim::Intent {
                 stratum_sim::vector_type(dx, dy, 0.0f), 1.0f, stratum_sim::vector_type()});
         };
 
@@ -777,33 +777,33 @@ namespace
         intend(1.0f, 0.0f);
         id_type after = clock.run(events, controlled);
         report_case("running the only actor leaves nobody ready", after == nullid);
-        report_case("and it moved", layout.cell_position_at(stratum_sim::placement_of(player).position()) == stratum_sim::discrete_point_type {2, 1});
-        report_case_equal("its turn was charged", scheduler.energy(player.id()), 0);
-        report_case("what it asked for was spent", player.get<stratum_sim::Intent>().direction.x() == 0.0f);
+        report_case("and it moved", layout.cell_position_at(stratum_sim::placement_of(character).position()) == stratum_sim::discrete_point_type {2, 1});
+        report_case_equal("its turn was charged", scheduler.energy(character.id()), 0);
+        report_case("what it asked for was spent", character.get<stratum_sim::Intent>().direction.x() == 0.0f);
 
         // An intent lasts one action, so a second turn on the same one does nothing
         clock.grant_turn();
         report_case("a spent intent is not acted on again", clock.run(events, controlled) == controlled);
-        report_case("and it did not move", layout.cell_position_at(stratum_sim::placement_of(player).position()) == stratum_sim::discrete_point_type {2, 1});
+        report_case("and it did not move", layout.cell_position_at(stratum_sim::placement_of(character).position()) == stratum_sim::discrete_point_type {2, 1});
 
         // Facing is taken before movement, so the two are one action each
         events.clear();
-        player.set<stratum_sim::Intent>(stratum_sim::Intent {
+        character.set<stratum_sim::Intent>(stratum_sim::Intent {
             stratum_sim::vector_type(1.0f, 0.0f, 0.0f), 1.0f, stratum_sim::vector_type(0.0f, 1.0f, 0.0f)});
 
         clock.run(events, controlled);
-        report_case("facing is taken first", stratum_sim::placement_of(player).direction().y() == 1.0f);
-        report_case("and the movement asked for is still owed", player.get<stratum_sim::Intent>().direction.x() == 1.0f);
+        report_case("facing is taken first", stratum_sim::placement_of(character).direction().y() == 1.0f);
+        report_case("and the movement asked for is still owed", character.get<stratum_sim::Intent>().direction.x() == 1.0f);
         report_case("which remains until a turn is granted for it",
-            layout.cell_position_at(stratum_sim::placement_of(player).position()) == stratum_sim::discrete_point_type {2, 1});
+            layout.cell_position_at(stratum_sim::placement_of(character).position()) == stratum_sim::discrete_point_type {2, 1});
 
         clock.grant_turn();
         clock.run(events, controlled);
-        report_case("the movement follows on the next turn", layout.cell_position_at(stratum_sim::placement_of(player).position()) == stratum_sim::discrete_point_type {3, 1});
+        report_case("the movement follows on the next turn", layout.cell_position_at(stratum_sim::placement_of(character).position()) == stratum_sim::discrete_point_type {3, 1});
 
         // An action that achieves nothing costs no turn, so walking into a wall is free
         clock.grant_turn();
-        while (layout.cell_position_at(stratum_sim::placement_of(player).position()).i() > 1)
+        while (layout.cell_position_at(stratum_sim::placement_of(character).position()).i() > 1)
         {
             intend(-1.0f, 0.0f);
             clock.run(events, controlled);
@@ -814,7 +814,7 @@ namespace
         intend(-1.0f, 0.0f);
         id_type balked = clock.run(events, controlled);
         report_case("an actor that achieved nothing is returned", balked == controlled);
-        report_case("its turn was not charged", scheduler.energy(player.id()) >= stratum_sim::Scheduler::action_cost);
+        report_case("its turn was not charged", scheduler.energy(character.id()) >= stratum_sim::Scheduler::action_cost);
         report_case_equal("and no time passed", scheduler.elapsed(), static_cast<size_t>(elapsed_before));
 
         // Any other actor with no Intent waits. A world of its own, so the energies above do not decide the order
@@ -864,20 +864,20 @@ namespace
         stratum_sim::DiscreteLayout& layout = zone_layout(world, zone);
         stratum_sim::vector_type east(1.0f, 0.0f, 0.0f);
 
-        flecs::entity player = world.create_entity(zone,
+        flecs::entity character = world.create_entity(zone,
             stratum_sim::placement_type(layout.position(stratum_sim::discrete_point_type {1, 1}), east));
 
         stratum_sim::Scheduler scheduler;
-        scheduler.add(player.id(), 100);
+        scheduler.add(character.id(), 100);
 
         stratum_sim::Clock clock(world, scheduler);
         stratum_sim::EventQueue events;
-        id_type controlled = static_cast<id_type>(player.id());
+        id_type controlled = static_cast<id_type>(character.id());
 
         auto restart = [&](double units_per_second)
         {
             scheduler.clear();
-            scheduler.add(player.id(), 100);
+            scheduler.add(character.id(), 100);
             clock.set_driver(stratum_sim::Driver::RealTime, units_per_second);
         };
 
@@ -894,7 +894,7 @@ namespace
 
         clock.advance(events, controlled, stratum_sim::Clock::duration_type(0.5));
         report_case_equal("half a second at two units a second is one unit", scheduler.elapsed(), 1);
-        report_case_equal("which is one action at that speed", scheduler.energy(player.id()), stratum_sim::Scheduler::action_cost);
+        report_case_equal("which is one action at that speed", scheduler.energy(character.id()), stratum_sim::Scheduler::action_cost);
 
         // The fraction is kept, so short frames add up
         restart(2.0);
@@ -915,15 +915,15 @@ namespace
         report_case_equal("so no time passed", scheduler.elapsed(), 0);
 
         // Once elapsed time has made it ready, it acts on what it was asking for
-        player.set<stratum_sim::Intent>(stratum_sim::Intent {east, 1.0f, stratum_sim::vector_type()});
+        character.set<stratum_sim::Intent>(stratum_sim::Intent {east, 1.0f, stratum_sim::vector_type()});
         clock.advance(events, controlled, stratum_sim::Clock::duration_type(0.5));
         report_case("an actor made ready by elapsed time acts",
-            layout.cell_position_at(stratum_sim::placement_of(player).position()) == stratum_sim::discrete_point_type(2, 1));
+            layout.cell_position_at(stratum_sim::placement_of(character).position()) == stratum_sim::discrete_point_type(2, 1));
 
         auto place = [&](const stratum_sim::discrete_point_type& cell, const stratum_sim::vector_type& direction)
         {
-            stratum_sim::set_placement(player, stratum_sim::placement_type(layout.position(cell), east));
-            player.set<stratum_sim::Intent>(stratum_sim::Intent {direction, 1.0f, stratum_sim::vector_type()});
+            stratum_sim::set_placement(character, stratum_sim::placement_type(layout.position(cell), east));
+            character.set<stratum_sim::Intent>(stratum_sim::Intent {direction, 1.0f, stratum_sim::vector_type()});
         };
 
         // A held direction keeps the actor moving
@@ -936,12 +936,12 @@ namespace
         }
 
         report_case("a direction held keeps stepping as the time is earned",
-            layout.cell_position_at(stratum_sim::placement_of(player).position()) == stratum_sim::discrete_point_type(4, 1));
-        report_case("and is still being asked for", player.get<stratum_sim::Intent>().direction.x() == 1.0f);
+            layout.cell_position_at(stratum_sim::placement_of(character).position()) == stratum_sim::discrete_point_type(4, 1));
+        report_case("and is still being asked for", character.get<stratum_sim::Intent>().direction.x() == 1.0f);
 
         // Turn-based clears the Intent after one move
         scheduler.clear();
-        scheduler.add(player.id(), 100);
+        scheduler.add(character.id(), 100);
         clock.set_driver(stratum_sim::Driver::TurnBased);
         place(stratum_sim::discrete_point_type {1, 1}, east);
 
@@ -951,7 +951,7 @@ namespace
         }
 
         report_case("turn-based takes one step from one intent",
-            layout.cell_position_at(stratum_sim::placement_of(player).position()) == stratum_sim::discrete_point_type(2, 1));
+            layout.cell_position_at(stratum_sim::placement_of(character).position()) == stratum_sim::discrete_point_type(2, 1));
 
         // Against a wall the Intent is cleared; the case is that this returns at all
         restart(2.0);
@@ -959,9 +959,9 @@ namespace
         clock.advance(events, controlled, stratum_sim::Clock::duration_type(0.5));
 
         report_case("a mover held against a wall does not move",
-            layout.cell_position_at(stratum_sim::placement_of(player).position()) == stratum_sim::discrete_point_type(1, 1));
+            layout.cell_position_at(stratum_sim::placement_of(character).position()) == stratum_sim::discrete_point_type(1, 1));
         report_case("and stops asking for what it could not have",
-            player.get<stratum_sim::Intent>().direction.x() == 0.0f);
+            character.get<stratum_sim::Intent>().direction.x() == 0.0f);
 
         // A host calls advance the same way under either driver
         stratum_sim::Game game_turn;
@@ -975,30 +975,30 @@ namespace
 
         stratum_sim::EventQueue session_events;
         report_case("a turn-based session hands control out with no elapsed time given",
-            session_turn.advance(session_events) == static_cast<id_type>(session_turn.player().entity().id()));
+            session_turn.advance(session_events) == static_cast<id_type>(session_turn.character().entity().id()));
         report_case("a real-time one does not, having been given none",
             session_real.advance(session_events) == nullid);
 
-        // The player acts through its own intent and commands, the door east of where it enters
+        // The character acts through its own intent and commands, the door east of where it enters
         stratum_sim::Game game_door;
         stratum_sim::Session& session_door = game_door.session();
         session_door.load(game_door.starting_region(), "data/door.zone", suite_entry_type(session_door), suite_entry_offset);
         session_door.advance(session_events);
 
-        stratum_sim::Player& player_door = session_door.player();
-        player_door.set_intent(stratum_sim::Intent {stratum_sim::vector_type(), 1.0f, stratum_sim::vector_type(1.0f, 0.0f, 0.0f)});
+        stratum_sim::Character& character_door = session_door.character();
+        character_door.set_intent(stratum_sim::Intent {stratum_sim::vector_type(), 1.0f, stratum_sim::vector_type(1.0f, 0.0f, 0.0f)});
         session_door.advance(session_events);
-        report_case("the player takes the intent set on it", stratum_sim::placement_of(player_door.entity()).direction().x() == 1.0f);
+        report_case("the character takes the intent set on it", stratum_sim::placement_of(character_door.entity()).direction().x() == 1.0f);
 
-        player_door.submit(stratum_sim::Interact {});
-        report_case("a command the player submits waits on it", player_door.entity().has<stratum_sim::PendingCommand>());
+        character_door.submit(stratum_sim::Interact {});
+        report_case("a command the character submits waits on it", character_door.entity().has<stratum_sim::PendingCommand>());
 
         session_door.advance(session_events);
         flecs::entity door = stratum_sim::access_entity(stratum_sim::way_through(session_door.zone(),
             stratum_sim::layout_as<stratum_sim::DiscreteLayout>(session_door.layout()).wall_toward(stratum_sim::discrete_point_type {1, 1},
                 cardinal_direction(CardinalDirection::East))));
-        report_case("and is taken the next time the player is ready", stratum_sim::access(door) == stratum_sim::AccessState::Open
-            && !player_door.entity().has<stratum_sim::PendingCommand>());
+        report_case("and is taken the next time the character is ready", stratum_sim::access(door) == stratum_sim::AccessState::Open
+            && !character_door.entity().has<stratum_sim::PendingCommand>());
 
         return;
     }
@@ -2071,11 +2071,11 @@ namespace
         stratum_sim::Game game;
         stratum_sim::Session& session = game.session();
         stratum_sim::World& world = game.world();
-        flecs::entity player = session.player().entity();
+        flecs::entity character = session.character().entity();
 
         game.starting_region().set<shared_ptr<const stratum_sim::Generator>>(make_shared<StaircaseGenerator>());
 
-        // data/walls.zone: the player enters on cell (2, 1), facing the staircase leading down to the east
+        // data/walls.zone: the character enters on cell (2, 1), facing the staircase leading down to the east
         session.load(game.starting_region(), "data/walls.zone", suite_entry_type(session), suite_entry_offset);
         flecs::entity first = session.zone();
         first.set<stratum_sim::ZoneLevel>(stratum_sim::ZoneLevel {-1});
@@ -2088,13 +2088,13 @@ namespace
 
         auto step = [&](const stratum_sim::vector_type& direction, stratum_sim::EventQueue& events)
         {
-            session.player().set_intent(stratum_sim::Intent {direction, 1.0f, direction});
+            session.character().set_intent(stratum_sim::Intent {direction, 1.0f, direction});
             session.advance(events);
         };
 
         auto interact = [&](stratum_sim::EventQueue& events)
         {
-            session.player().submit(stratum_sim::Interact {});
+            session.character().submit(stratum_sim::Interact {});
             session.advance(events);
         };
 
@@ -2120,17 +2120,17 @@ namespace
         interact(down_events);
         flecs::entity second = session.zone();
         report_case("interacting with a relocator on the wall ahead enters the relocator", relocated(down_events) && second != first
-            && stratum_sim::zone_of(player) == second && second.get<stratum_sim::ZoneLevel>().level == -2);
-        report_case("and the session plays the zone arrived in, with the player in its turn order", session.scheduler().contains(player.id()));
+            && stratum_sim::zone_of(character) == second && second.get<stratum_sim::ZoneLevel>().level == -2);
+        report_case("and the session plays the zone arrived in, with the character in its turn order", session.scheduler().contains(character.id()));
 
         stratum_sim::EventQueue up_events;
         step(west, up_events);
         interact(up_events);
         report_case("going back up arrives at the staircase gone down", relocated(up_events) && session.zone() == first
-            && zone_layout(world, first).cell_position_at(stratum_sim::placement_of(player).position()) == stratum_sim::discrete_point_type {2, 1}
-            && stratum_sim::placement_of(player).direction().x() < 0.0f);
+            && zone_layout(world, first).cell_position_at(stratum_sim::placement_of(character).position()) == stratum_sim::discrete_point_type {2, 1}
+            && stratum_sim::placement_of(character).direction().x() < 0.0f);
 
-        // A relocator on the floor of the player's cell, bound to the staircase leading down in the second zone
+        // A relocator on the floor of the character's cell, bound to the staircase leading down in the second zone
         stratum_sim::DiscreteLayout& layout = zone_layout(world, first);
         flecs::entity hatch = world.entities().entity();
         stratum_sim::reparent(hatch, first, stratum_sim::Site {stratum_sim::Relation::On,
@@ -2138,14 +2138,14 @@ namespace
         flecs::entity second_down = stratum_sim::entry_point(second, staircase_type, -1);
         hatch.set<stratum_sim::Relocator>(stratum_sim::Relocator {world.make_reference(second_down)});
 
-        session.player().submit(stratum_sim::Enter {});
+        session.character().submit(stratum_sim::Enter {});
         stratum_sim::EventQueue enter_events;
         session.advance(enter_events);
-        report_case("entering the relocator on the floor of the player's cell relocates the player", relocated(enter_events)
-            && session.zone() == second && zone_layout(world, second).cell_position_at(stratum_sim::placement_of(player).position())
+        report_case("entering the relocator on the floor of the character's cell relocates the character", relocated(enter_events)
+            && session.zone() == second && zone_layout(world, second).cell_position_at(stratum_sim::placement_of(character).position())
                 == zone_layout(world, second).cell_position_at(second_down.get<stratum_sim::AccessPoint>().placement.position()));
 
-        // A denizen facing the staircase leading down, in the zone the player left
+        // A denizen facing the staircase leading down, in the zone the character left
         flecs::entity denizen = world.create_entity(first, first_down.get<stratum_sim::AccessPoint>().placement);
         stratum_sim::EventQueue denizen_events;
         stratum_sim::apply(world, stratum_sim::Command(static_cast<id_type>(denizen.id()), stratum_sim::Interact {}), denizen_events);
@@ -2165,12 +2165,12 @@ namespace
         stratum_sim::Game game;
         stratum_sim::Session& session = game.session();
 
-        // data/walls.zone: the player enters on cell (2, 1), facing the staircase leading down to the east
+        // data/walls.zone: the character enters on cell (2, 1), facing the staircase leading down to the east
         session.load(game.starting_region(), "data/walls.zone", suite_entry_type(session), suite_entry_offset);
         session.zone().set<stratum_sim::ZoneLevel>(stratum_sim::ZoneLevel {-1});
         flecs::entity staircase = stratum_sim::entry_point(session.zone(), stratum_sim::access_type(game.world().entities(), "staircase"), -1);
 
-        session.player().submit(stratum_sim::Interact {});
+        session.character().submit(stratum_sim::Interact {});
         stratum_sim::EventQueue events;
         session.advance(events);
 
@@ -2186,7 +2186,7 @@ namespace
 
         game.starting_region().set<shared_ptr<const stratum_sim::Generator>>(make_shared<StaircaseGenerator>());
         flecs::entity first = session.zone();
-        session.player().submit(stratum_sim::Interact {});
+        session.character().submit(stratum_sim::Interact {});
         stratum_sim::EventQueue enter_events;
         session.advance(enter_events);
         report_case("and interacting with one that leads somewhere goes through it", session.zone() != first
@@ -2634,13 +2634,13 @@ namespace
 
         report_case("a wall id decodes to its cell and its direction", decoded);
 
-        // Entering places the player in front of up staircase 0, facing away from it
+        // Entering places the character in front of up staircase 0, facing away from it
         stratum_sim::Game game;
         stratum_sim::Session& session = game.session();
         session.load(game.starting_region(), "data/corridor.zone", suite_entry_type(session), suite_entry_offset);
 
-        const stratum_sim::placement_type& start = stratum_sim::placement_of(session.player().entity());
-        report_case("the player enters on the floor in front of the staircase leading up",
+        const stratum_sim::placement_type& start = stratum_sim::placement_of(session.character().entity());
+        report_case("the character enters on the floor in front of the staircase leading up",
             stratum_sim::layout_as<stratum_sim::DiscreteLayout>(session.layout()).cell_position_at(start.position()) == stratum_sim::discrete_point_type {1, 1});
         report_case("facing away from it", start.direction().y() < 0.0f && start.direction().x() == 0.0f);
 
@@ -2671,8 +2671,8 @@ namespace
         report_case("entering a zone with no staircase leading up throws", thrown && session.zone() != portal_only);
 
         session.enter(portal_only, game_portal_type, 0);
-        report_case("and entering it at its portal places the player at the portal's placement", session.zone() == portal_only
-            && portal_only_layout.cell_position_at(stratum_sim::placement_of(session.player().entity()).position()) == stratum_sim::discrete_point_type {0, 0});
+        report_case("and entering it at its portal places the character at the portal's placement", session.zone() == portal_only
+            && portal_only_layout.cell_position_at(stratum_sim::placement_of(session.character().entity()).position()) == stratum_sim::discrete_point_type {0, 0});
 
         return;
     }
@@ -2981,25 +2981,25 @@ namespace
         auto at = [&](int i) { return stratum_sim::placement_type(layout.position(stratum_sim::discrete_point_type {i, 1}), east); };
         auto cell_of = [&](flecs::entity e) { return layout.cell_position_at(stratum_sim::placement_of(e).position()); };
 
-        flecs::entity player = world.create_entity(zone, at(1));
-        player.add<stratum_sim::Blocking>();
+        flecs::entity character = world.create_entity(zone, at(1));
+        character.add<stratum_sim::Blocking>();
 
         flecs::entity monster = world.create_entity(zone, stratum_sim::placement_type(layout.position(stratum_sim::discrete_point_type {5, 1}), west));
         monster.add<stratum_sim::Blocking>();
-        monster.set<stratum_sim::Pursue>(stratum_sim::Pursue {static_cast<id_type>(player.id()), stratum_sim::point_type(), false});
+        monster.set<stratum_sim::Pursue>(stratum_sim::Pursue {static_cast<id_type>(character.id()), stratum_sim::point_type(), false});
 
-        id_type controlled = static_cast<id_type>(player.id());
+        id_type controlled = static_cast<id_type>(character.id());
 
         // Down one corridor, so it is seen and its position stored
         stratum_sim::think(world, controlled);
 
         report_case("a pursuer that can see its target records where", monster.get<stratum_sim::Pursue>().seen);
         report_case("and asks to move toward it", monster.get<stratum_sim::Intent>().direction.x() < 0.0f);
-        report_case("the controlled entity is not decided for", player.try_get<stratum_sim::Intent>() == nullptr);
+        report_case("the controlled entity is not decided for", character.try_get<stratum_sim::Intent>() == nullptr);
 
         // Running it closes the distance
         stratum_sim::Scheduler scheduler;
-        scheduler.add(player.id(), 100);
+        scheduler.add(character.id(), 100);
         scheduler.add(monster.id(), 100);
 
         stratum_sim::Clock clock(world, scheduler);
@@ -3029,7 +3029,7 @@ namespace
         }
 
         report_case("and stops where its target stands", cell_of(monster) == stratum_sim::discrete_point_type(2, 1));
-        report_case("which is the target's own cell it did not take", cell_of(player) == stratum_sim::discrete_point_type(1, 1));
+        report_case("which is the target's own cell it did not take", cell_of(character) == stratum_sim::discrete_point_type(1, 1));
 
         // A target gone unseen is sought where it was last seen
         flecs::entity gone = world.create_entity(zone, at(4));
@@ -3057,7 +3057,7 @@ namespace
 
         const stratum_sim::Pursue& seeking = seeker.get<stratum_sim::Pursue>();
         report_case("a pursuer with no target pursues the controlled actor",
-            seeking.seen && layout.cell_position_at(seeking.position_last_seen) == cell_of(player));
+            seeking.seen && layout.cell_position_at(seeking.position_last_seen) == cell_of(character));
 
         // Something with no behavior at all is left alone
         flecs::entity inert = world.create_entity(zone, at(4));
@@ -3073,7 +3073,7 @@ namespace
 
             report_case("a constructed zone is loaded", created.loaded());
             report_case("with the notation its generator named", created.notation() == stratum_format::Notation::Block);
-            report_case("and a player in it", created.player().entity().is_alive());
+            report_case("and a character in it", created.character().entity().is_alive());
 
             // A door on the doorway shows the reported walls were built
             report_case("its doors are attached to the walls the generator reported",
@@ -3113,15 +3113,15 @@ namespace
 
         stratum_sim::discrete_point_type after = stratum_sim::layout_as<stratum_sim::DiscreteLayout>(session.layout()).cell_position_at(stratum_sim::placement_of(hunter).position());
         report_case("and it closes on the controlled entity while the host only waits", after.i() < before.i());
-        report_case("the player is the game's, in the zone without being its child",
-            !session.player().entity().parent() && session.player().entity().target<stratum_sim::InZone>() == session.zone());
+        report_case("the character is the game's, in the zone without being its child",
+            !session.character().entity().parent() && session.character().entity().target<stratum_sim::InZone>() == session.zone());
 
-        flecs::entity session_player = session.player().entity();
+        flecs::entity session_character = session.character().entity();
         flecs::entity zone_left = session.zone();
         session.load(game.starting_region(), "data/room.zone", suite_entry_type(session), suite_entry_offset);
 
-        report_case("loading another zone moves the same player into it", &session.player() == &game.player()
-            && session.player().entity() == session_player && stratum_sim::zone_of(session_player) == session.zone());
+        report_case("loading another zone moves the same character into it", &session.character() == &game.character()
+            && session.character().entity() == session_character && stratum_sim::zone_of(session_character) == session.zone());
         report_case("and leaves the zone it left loaded", zone_left.is_alive() && game.world().zone_count() == 2);
 
         flecs::entity zone_entered = session.zone();
@@ -3139,15 +3139,15 @@ namespace
             thrown = true;
         }
 
-        report_case("entering a zone with no open cell throws, the player staying where it was",
-            thrown && session.zone() == zone_entered && stratum_sim::zone_of(session_player) == zone_entered);
+        report_case("entering a zone with no open cell throws, the character staying where it was",
+            thrown && session.zone() == zone_entered && stratum_sim::zone_of(session_character) == zone_entered);
 
         // The zone never entered is no candidate
         session.world().set_zone_count_max(1);
         session.load(game.starting_region(), "data/corridor.zone", suite_entry_type(session), suite_entry_offset);
 
-        report_case("past the maximum, loading another unloads the zones the player entered before",
-            !zone_left.is_alive() && !zone_entered.is_alive() && closed.is_alive() && stratum_sim::zone_of(session_player) == session.zone());
+        report_case("past the maximum, loading another unloads the zones the character entered before",
+            !zone_left.is_alive() && !zone_entered.is_alive() && closed.is_alive() && stratum_sim::zone_of(session_character) == session.zone());
 
         return;
     }

@@ -5,95 +5,109 @@
 
 #include "KeyValueStore.hpp"
 #include "file_util.hpp"
+#include <algorithm>
+#include <format>
 #include <fstream>
-#include <sstream>
+#include <istream>
+#include <ostream>
 
 using namespace std;
 
-namespace quetzal
+namespace
 {
 
-//------------------------------------------------------------------------------
-    KeyValueStore::KeyValueStore(std::initializer_list<map_type::value_type> key_values)
+    //--------------------------------------------------------------------------
+    string_view trim(string_view text)
     {
-        m_values.insert(key_values);
-        return;
+        const size_t first = text.find_first_not_of(" \t");
+        if (first == string_view::npos)
+        {
+            return {};
+        }
+
+        return text.substr(first, text.find_last_not_of(" \t") - first + 1);
     }
 
-//------------------------------------------------------------------------------
-    KeyValueStore::KeyValueStore(std::span<const typename map_type::value_type> key_values)
+    //--------------------------------------------------------------------------
+    // Returns the number of the first line that is not in the text form
+    optional<size_t> read_key_values(istream& is, quetzal::KeyValueStore& key_value_store)
     {
-        m_values.insert_range(key_values);
-        return;
+        string line;
+        size_t line_number = 0;
+        while (quetzal::read_line(is, line))
+        {
+            ++line_number;
+
+            const string_view text = trim(line);
+            if (text.empty() || text.front() == '#' || text.front() == ';')
+            {
+                continue;
+            }
+
+            const size_t position = text.find('=');
+            if (position == string_view::npos)
+            {
+                return line_number;
+            }
+
+            const string_view key = trim(text.substr(0, position));
+            if (key.empty())
+            {
+                return line_number;
+            }
+
+            key_value_store.insert(string(key), string(trim(text.substr(position + 1))));
+        }
+
+        return nullopt;
     }
 
+} // namespace
+
 //------------------------------------------------------------------------------
-KeyValueStore::KeyValueStore(const filesystem::path& path)
+quetzal::KeyValueStore::KeyValueStore(const filesystem::path& path)
 {
     ifstream file(path, ios_base::binary);
     if (!file.is_open())
     {
-        return;
+        throw runtime_error(format("Cannot open {}", path.string()));
     }
 
-    string line;
-    while (read_line(file, line))
+    if (const optional<size_t> line_number = read_key_values(file, *this))
     {
-        // Skip empty lines and comments
-        if (line.empty() || line[0] == '#' || line[0] == ';')
-        {
-            continue;
-        }
-
-        // Find the equals sign
-        size_t pos = line.find('=');
-        if (pos == string::npos)
-        {
-            continue;
-        }
-
-        // Extract key and value, trimming whitespace
-        string key = line.substr(0, pos);
-        string value = line.substr(pos + 1);
-
-        // Trim leading whitespace from key
-        size_t start = key.find_first_not_of(" \t\r\n");
-        if (start == string::npos)
-        {
-            continue;
-        }
-        key = key.substr(start);
-
-        // Trim trailing whitespace from key
-        size_t end = key.find_last_not_of(" \t\r\n");
-        if (end != string::npos)
-        {
-            key = key.substr(0, end + 1);
-        }
-
-        // Trim leading whitespace from value
-        start = value.find_first_not_of(" \t\r\n");
-        if (start != string::npos)
-        {
-            value = value.substr(start);
-        }
-        else
-        {
-            value.clear();
-        }
-
-        // Trim trailing whitespace from value
-        end = value.find_last_not_of(" \t\r\n");
-        if (end != string::npos)
-        {
-            value = value.substr(0, end + 1);
-        }
-
-        if (!key.empty())
-        {
-            m_values[key] = value;
-        }
+        throw runtime_error(format("{}({}): expected key = value", path.string(), *line_number));
     }
+}
+
+//------------------------------------------------------------------------------
+quetzal::KeyValueStore::KeyValueStore(std::initializer_list<map_type::value_type> key_values)
+{
+    for (const auto& key_value : key_values)
+    {
+        insert(key_value);
+    }
+    return;
+}
+
+//------------------------------------------------------------------------------
+quetzal::KeyValueStore::KeyValueStore(std::span<const map_type::value_type> key_values)
+{
+    for (const auto& key_value : key_values)
+    {
+        insert(key_value);
+    }
+    return;
+}
+
+//------------------------------------------------------------------------------
+quetzal::KeyValueStore& quetzal::KeyValueStore::operator|=(const KeyValueStore& rhs)
+{
+    for (const auto& property : rhs)
+    {
+        insert(property);
+    }
+
+    return *this;
 }
 
 //------------------------------------------------------------------------------
@@ -109,29 +123,29 @@ quetzal::KeyValueStore::const_iterator quetzal::KeyValueStore::end() const
 }
 
 //------------------------------------------------------------------------------
-bool quetzal::KeyValueStore::contains(const string& key) const
+bool quetzal::KeyValueStore::contains(string_view key) const
 {
     return m_values.contains(key);
 }
 
 //------------------------------------------------------------------------------
-optional<string> quetzal::KeyValueStore::value(const string& key) const
+std::optional<std::string> quetzal::KeyValueStore::value(string_view key) const
 {
-    auto it = m_values.find(key);
-    return it != m_values.end() ? make_optional(it->second) : nullopt;
+    auto i = m_values.find(key);
+    return i != m_values.end() ? make_optional(i->second) : std::nullopt;
 }
 
 //------------------------------------------------------------------------------
-string quetzal::KeyValueStore::value_or(const string& key, const string& default_value) const
+std::string quetzal::KeyValueStore::value_or(string_view key, const std::string& default_value) const
 {
-    auto it = m_values.find(key);
-    return it != m_values.end() ? it->second : default_value;
+    auto i = m_values.find(key);
+    return i != m_values.end() ? i->second : default_value;
 }
 
 //------------------------------------------------------------------------------
 void quetzal::KeyValueStore::insert(const map_type::value_type& key_value)
 {
-    m_values.insert(key_value);
+    insert(key_value.first, key_value.second);
     return;
 }
 
@@ -143,10 +157,57 @@ void quetzal::KeyValueStore::insert(const string& key, const string& value)
 }
 
 //------------------------------------------------------------------------------
-void KeyValueStore::remove(const string& key)
+void quetzal::KeyValueStore::remove(string_view key)
 {
-    m_values.erase(key);
+    auto i = m_values.find(key);
+    if (i != m_values.end())
+    {
+        m_values.erase(i);
+    }
     return;
 }
 
-} // namespace quetzal
+//------------------------------------------------------------------------------
+vector<string> quetzal::KeyValueStore::find_unknown_keys(span<const string_view> known_keys) const
+{
+    vector<string> unknown_keys;
+    for (const auto& [key, value] : m_values)
+    {
+        if (ranges::find(known_keys, key) == known_keys.end())
+        {
+            unknown_keys.push_back(key);
+        }
+    }
+
+    return unknown_keys;
+}
+
+//------------------------------------------------------------------------------
+quetzal::KeyValueStore quetzal::operator|(KeyValueStore lhs, const KeyValueStore& rhs)
+{
+    return lhs |= rhs;
+}
+
+//------------------------------------------------------------------------------
+ostream& quetzal::operator<<(ostream& os, const KeyValueStore& key_value_store)
+{
+    for (const auto& [key, value] : key_value_store)
+    {
+        os << key << " = " << value << '\n';
+    }
+
+    return os;
+}
+
+//------------------------------------------------------------------------------
+istream& quetzal::operator>>(istream& is, KeyValueStore& key_value_store)
+{
+    if (read_key_values(is, key_value_store))
+    {
+        is.setstate(ios_base::failbit);
+        return is;
+    }
+
+    is.clear(ios_base::eofbit);
+    return is;
+}

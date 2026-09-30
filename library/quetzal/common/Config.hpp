@@ -6,23 +6,12 @@
 //------------------------------------------------------------------------------
 
 #include "KeyValueStore.hpp"
-#include <map>
-#include <string>
 
 namespace quetzal
 {
 
-    class Config : public KeyValueStore
-    {
-    public:
-        using KeyValueStore::KeyValueStore;
-
-        // deprecated ...
-        std::string operator[](const std::string& key) const
-        {
-            return value_or(key, std::string{});
-        }
-    };
+    // Temporary, so that its users need not change until they move to KeyValueStore
+    using Config = KeyValueStore;
 
 } // namespace quetzal
 

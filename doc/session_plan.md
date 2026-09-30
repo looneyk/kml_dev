@@ -22,7 +22,7 @@ in `work_plan.md` (`### Session`).
 
 | Part | Responsible for |
 | --- | --- |
-| `Game` | The game in its entirety, lasting as long as the host: the config, the settings, the id allocator, the engines, the `World`, the `Character` and the `Session`, all by value; the menu operations --- opening and closing the menu, creating, opening, saving and quitting games, and listing the saved games --- and the game's own file |
+| `Game` | The game in its entirety, lasting as long as the host: the config, the settings, the id allocator, the engines, the `World`, the `Character` and the `Session`, all by value; the generator registry; the menu operations --- opening and closing the menu, creating, opening, saving and quitting games, and listing the saved games --- and the game's own file |
 | `Session` | The game being played: starting, pausing, resuming and clearing play; the zone the character is in, entering a zone, the turn order, the clock and its driver, the character's intent and pending command, advancing, and whether the game is over |
 | `World` | Regions and zones: creating a new game's starting region; creating, loading, populating, saving, unloading and clearing zones, knowing which are loaded, and choosing which unload as zones are entered; the world's file; entities and persistent ids; the registrations that last as long as the program |
 | `Character` | The entity the host controls: creating it, opening and saving its file, and clearing it |
@@ -44,17 +44,28 @@ void World::trim_zones(flecs::entity zone_entered);
 - **`clear()`** unloads every region with no parent region, which deletes its child regions and their zones, and
   empties the world index and the `ZoneEntryIndex`. The registrations remain: the file components, the entity types
   and the access point types, which are the program's and, later, its mods'.
-- **`create(region_spec)`** makes a new game's starting region, a region with no parent region, from a `RegionSpec`:
-  its type, terrain, competency level and algorithm, and whatever else a new game chooses. `RegionSpec` has no fields
-  until they are designed. Each game has its own starting region, where `Game`'s constructor makes one now.
+- **`create(region_spec)`** makes a new game's starting region, a region with no parent region, from a `RegionSpec`.
+  Each game has its own starting region, where `Game`'s constructor makes one now.
+- **A `RegionSpec` is a request to create a region,** not the region: the name of the region's generator, the
+  generator's parameters, and the region's own choices, such as its type, terrain, competency level and difficulty. The
+  parameters and the choices are each a `KeyValueStore` (`archived/key_value_store_plan.md`), and most choices are names that
+  `create` resolves to types. `create` builds the region's components from them, and passes the parameters to the
+  generator unchanged. A key `create` does not read, or a value that does not parse, is an error that reaches the host.
 - **`open(directory)`** reads the game's `world.json`: its regions, with their properties and generators, and the
   reference to each zone's file. It loads no zone; each loads as it is entered.
 - **`save(directory)`** writes `world.json` and the file of every loaded zone into the directory.
 - **`save_zone(zone)`** writes one zone's file into the game's directory. The zone's unloading calls it, and so does the
   session when the character exits the zone, so a zone's file is the zone as it was last exited.
-- **A generator registry** would make a region's generator data: the generator's name and its parameters, as the world
-  file writes them (`game_file_spec.md`, `### Regions`), with the generators registered by name for as long as the
-  program runs, in place of the `std::shared_ptr<const Generator>` component (`work_plan.md`, `### Regions`).
+- **The generator registry** is a map from a generator's name to a function that fills an empty zone from the
+  generator's parameters. A generator is stateless: it reads the zone's level from the zone and everything else from
+  the parameters, so two regions share one generator with different parameters. `Game` owns the registry, which lasts
+  as long as the program, as the other registrations do, and `World` takes it by reference in its constructor, as it
+  takes the id allocator and the engine. `World::clear` keeps it.
+- **A region has its generator's name and parameters as data,** which `world.json` writes (`game_file_spec.md`,
+  `### Regions`), in place of the `std::shared_ptr<const Generator>` component. `create_zone(region, level)` looks the
+  name up in the registry, and a name that is not registered is an error, as an unregistered access point type is.
+- **The generators are in `quetzal/stratum_gen`,** which adapts dungen and catagen and registers them with a game, so
+  `stratum_sim` depends on no generator. A host names a generator in its `RegionSpec` and has no flecs code for it.
 
 - **`create_zone(region, level)`** makes an empty zone at the level, has the region's generator fill it, and populates
   it.
@@ -121,10 +132,15 @@ flecs::entity Character::entity() const;
 
 - **`clear()`** deletes the character's entity and its children, the inventory. The world's clear does not reach them,
   since the character has no parent.
-- **`create(character_spec)`** makes the character's entity, with a new persistent id, from a `CharacterSpec`: its
-  class, race, history and appearance, its stats, skills and spells, its inventory, and its character level, which starts at 1. `CharacterSpec`
-  has no fields until they are designed. The entity is in no zone until one is entered. The constructor makes the
-  entity now, so its id is allocated before a new game resets the allocator.
+- **`create(character_spec)`** makes the character's entity, with a new persistent id, from a `CharacterSpec`. The
+  entity is in no zone until one is entered. The constructor makes the entity now, so its id is allocated before a new
+  game resets the allocator.
+- **A `CharacterSpec` is a request to create a character,** not the character: a `KeyValueStore` of the choices a new
+  game makes, such as its name, class, race, history and appearance, and its stats. Most choices are names that
+  `create` resolves to types, from which it builds the character's components, its skills and spells, and its
+  character level, which starts at 1. A list, such as a starting inventory, is named rather than written out: the
+  request names a kit that is defined in data. A key `create` does not read, or a value that does not parse, is an
+  error that reaches the host.
 - **`open(directory)`** reads the game's `character.json`: the character's components, its inventory, and the zone it
   is in and its placement there.
 - **`save(directory)`** writes `character.json`.

@@ -13,10 +13,10 @@
 quetzal::vulkan::Window::Window(const Config& config) :
     game::Window(config)
 {
-    create_windowed(config["title"], {}, { stoi(config["width"]), stoi(config["height"]) });
+    create_windowed(config.value_or("title", ""), {}, { config.value<int>("width").value(), config.value<int>("height").value() });
     // create(mode(config["mode"]), config["title"], {}, {stoi(config["width"]), stoi(config["height"])}); // and other parameters ...
 
-    if (config["cursor"] == "disabled")
+    if (config.value("cursor") == "disabled")
     {
         glfwSetInputMode(m_pwindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     }

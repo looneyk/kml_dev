@@ -131,7 +131,7 @@ quetzal::game::Window::Mode quetzal::game::Window::Settings::mode(const std::str
 quetzal::game::Window::Window(const Config& config) :
     m_glfw_sentry(),
     m_settings_full(Mode::Full, {}, Settings::screen_size()),
-    m_settings_windowed(Mode::Windowed, {stoi(config["x"]), stoi(config["y"])}, {stoi(config["width"]), stoi(config["height"])}, false, true),
+    m_settings_windowed(Mode::Windowed, {config.value<int>("x").value(), config.value<int>("y").value()}, {config.value<int>("width").value(), config.value<int>("height").value()}, false, true),
     m_settings_minimized(Mode::Minimized),
     m_psettings(nullptr),
     m_psettings_prev(nullptr),

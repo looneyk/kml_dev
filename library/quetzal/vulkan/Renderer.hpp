@@ -450,7 +450,7 @@ namespace quetzal::vulkan
 
         size_t swap_frame_count_(const Config& config, size_t n_default = 2)
         {
-            size_t n = static_cast<size_t>(::strtoul(config["swap_frame_count"].c_str(), nullptr, 10));
+            const size_t n = config.value_or<size_t>("swap_frame_count", n_default);
             return n > 0 ? n : n_default;
         }
 

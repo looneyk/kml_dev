@@ -13,7 +13,6 @@ add_library(quetzal_common STATIC
     LogLevel.cpp
     Platform.cpp
     process.cpp
-    Properties.cpp
     string_util.cpp
     system_path.cpp
     Timer.cpp

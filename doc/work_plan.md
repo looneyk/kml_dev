@@ -41,10 +41,16 @@ each on the ones before it. `Game`'s menu and lifecycle functions, and those the
 - [x] **The menu and lifecycle skeleton.** `Game`'s `menu_open`, `menu_close`, `clear`, `create`, `open`, `save`,
       `quit` and `saved_games`; `clear`, `create`, `open` and `save` on `World` and `Character`; `clear`, `start`,
       `pause` and `resume` on `Session`; and `RegionSpec` and `CharacterSpec` as placeholders.
-- [ ] **A new game's first zone designed** (`session_plan.md`, `## Session`): what `RegionSpec` and `CharacterSpec`
-      contain to begin with, what `Session::start` takes to make and enter the first zone, how a host's zone file
-      becomes the first zone, and the directory a new game's zones are saved into.
-- [ ] **One game after another.** `World::clear`, `Character::clear` and `Session::clear`; `Character::create` making
+- [ ] **A new game's first zone designed** (`session_plan.md`, `## Session`): the keys `RegionSpec` and
+      `CharacterSpec` have to begin with, what `Session::start` takes to make and enter the first zone, how a host's
+      zone file becomes the first zone, and the directory a new game's zones are saved into.
+- [x] **`KeyValueStore` built up** (`archived/key_value_store_plan.md`), with `Properties` and `Config` aliases of it.
+- [ ] **The generator registry** (`session_plan.md`, `## World`): `Game`'s map from a generator's name to its function,
+      which `World` takes by reference; a region's generator name and parameters in place of the
+      `std::shared_ptr<const Generator>` component; and `quetzal/stratum_gen`, with dungen's generator moved into it
+      from the hosts' temporary `DungenGenerator` and registered by name.
+- [ ] **One game after another.** `RegionSpec` and `CharacterSpec` made of `KeyValueStore`; `World::clear`,
+      `Character::clear` and `Session::clear`; `Character::create` making
       the entity with a new id, and `World::create` making the starting region, in place of the constructors of
       `Character` and `Game`; `Game::create` resetting the id allocator and reseeding the engine; and `Session::start`.
       The hosts create a game from temporary specs, whose first zone is their zone file. A suite case plays a game,
@@ -77,8 +83,8 @@ each on the ones before it. `Game`'s menu and lifecycle functions, and those the
 
 ## Generators
 
-- [ ] **The generators integrated.** A region's generator builds its zones with dungen or catagen directly, replacing
-      the hosts' temporary `DungenGenerator`.
+- [ ] **The generators integrated.** catagen's generator in `quetzal/stratum_gen` beside dungen's, registered by name,
+      so a region's generator builds its zones with dungen or catagen.
 - [ ] **Staircases in every form** (`session_plan.md`, `## Entering an access point`). The generators can place a
       staircase in a flat length of wall or in a 1x1 alcove, the two being equivalent across the notations, as well as
       a block staircase on floor cells in the open space of a room. In the wall notation every staircase is sited on a
@@ -297,11 +303,6 @@ These are the open questions.
 
 ### Regions
 
-- **A generator registry.** A region's generator is a `std::shared_ptr<const Generator>` component, where the world
-  file writes it as data, a name and parameters. (Or just a reference instead of a pointer if Generator is assigned on
-  construction). Generators registered by name for as long as the program runs would
-  let a region refer to its generator that way; who registers them, and what the registry holds, need more of the game
-  designed first (`session_plan.md`, `## World`).
 - **The properties each type of region has.** A surface area's and a dungeon's overlap but differ, and difficulty goes
   from the starting value across a dungeon's zones in a way not yet decided.
 - **Distance or level difference** as the measure within the character's region, and whether it differs by type of

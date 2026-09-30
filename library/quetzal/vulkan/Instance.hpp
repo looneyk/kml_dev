@@ -27,15 +27,15 @@ namespace quetzal::vulkan
                 throw std::runtime_error("validation layers requested, but not available!");
             }
 
-            std::string applicationName = config["application_name"];
-            std::string engineName = config["engine_name"];
+            std::string applicationName = config.value_or("application_name", "");
+            std::string engineName = config.value_or("engine_name", "");
 
             VkApplicationInfo application_info{};
             application_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
             application_info.pApplicationName = applicationName.c_str();
-            application_info.applicationVersion = to_uint32(std::stoul(config["application_version"]));
+            application_info.applicationVersion = config.value<std::uint32_t>("application_version").value();
             application_info.pEngineName = engineName.c_str();
-            application_info.engineVersion = to_uint32(std::stoul(config["engine_version"]));
+            application_info.engineVersion = config.value<std::uint32_t>("engine_version").value();
             application_info.apiVersion = VK_API_VERSION_1_4;
 
             VkInstanceCreateInfo ci = vk_instance_create_info(application_info, extensions, layers); // ...

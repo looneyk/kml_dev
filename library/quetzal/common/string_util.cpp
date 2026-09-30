@@ -7,6 +7,8 @@
 #include "utf8/cpp11.h"
 #include <ios>
 #include <cassert>
+#include <string_view>
+#include <utility>
 
 using namespace std;
 
@@ -245,47 +247,61 @@ string quetzal::to_string(const bool& b)
 }
 
 //------------------------------------------------------------------------------
+from_chars_result quetzal::from_chars(const char* first, const char* last, bool& value)
+{
+    static constexpr pair<string_view, bool> tokens[] = {{"true", true}, {"false", false}, {"1", true}, {"0", false}};
+
+    const string_view text(first, last);
+    for (const auto& [token, token_value] : tokens)
+    {
+        if (text.starts_with(token))
+        {
+            value = token_value;
+            return {first + token.size(), errc {}};
+        }
+    }
+
+    return {first, errc::invalid_argument};
+}
+
+//------------------------------------------------------------------------------
 template<>
-string quetzal::to_type<string>(const string& str)
+optional<string> quetzal::try_type<string>(const string& str)
 {
     return str;
 }
 
 //------------------------------------------------------------------------------
 template<>
-wstring quetzal::to_type<wstring>(const string& str)
+optional<wstring> quetzal::try_type<wstring>(const string& str)
 {
-    if constexpr (sizeof(wchar_t) == 2)
+    try
     {
-        u16string utf16 = utf8::utf8to16(str);
-        return wstring(utf16.begin(), utf16.end());
+        if constexpr (sizeof(wchar_t) == 2)
+        {
+            u16string utf16 = utf8::utf8to16(str);
+            return wstring(utf16.begin(), utf16.end());
+        }
+        else
+        {
+            u32string utf32 = utf8::utf8to32(str);
+            return wstring(utf32.begin(), utf32.end());
+        }
     }
-    else
+    catch (const utf8::exception&)
     {
-        u32string utf32 = utf8::utf8to32(str);
-        return wstring(utf32.begin(), utf32.end());
+        return nullopt;
     }
-}
-
-//------------------------------------------------------------------------------
-template<>
-bool quetzal::to_type<bool>(const string& str)
-{
-    return(to_bool(str));
 }
 
 //------------------------------------------------------------------------------
 bool quetzal::to_bool(const string& str)
 {
-    if (str == "true" || str == "1")
+    const optional<bool> b = try_type<bool>(str);
+    if (!b)
     {
-        return true;
+        throw std::runtime_error("Invalid boolean string value: " + str);
     }
 
-    if (str != "false" && str != "0")
-    {
-        throw std::domain_error("Invalid boolean string value: " + str);
-    }
-
-    return false;
+    return *b;
 }

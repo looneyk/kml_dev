@@ -438,7 +438,7 @@ namespace
             {
                 to_bool("yes");
             }
-            catch (const domain_error&)
+            catch (const runtime_error&)
             {
                 threw = true;
             }

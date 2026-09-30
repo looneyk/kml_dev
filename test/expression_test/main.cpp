@@ -198,12 +198,19 @@ int main(int argc, char* argv[])
     cout << "shared expression and symbol table, parsed once:" << endl;
     cout << shared_expr << endl;
     cout << "evaluated as float: " << shared_expr.evaluate<float>(st_shared) << endl;
-    cout << "evaluated as int: " << shared_expr.evaluate<int>(st_shared) << endl;
+
+    // should this truncate or round? ...
+    try
+    {
+        int x = shared_expr.evaluate<int>(st_shared);
+        cout << "failed: expected an error evaluating 1.5 and 2.5 as int, got " << x << endl;
+    }
+    catch (const exception& e)
+    {
+        cout << "evaluated as int: " << e.what() << endl;
+    }
 
     cout << "Done" << endl;
-
-    char c;
-    cin >> c;
 
     return 0;
 }

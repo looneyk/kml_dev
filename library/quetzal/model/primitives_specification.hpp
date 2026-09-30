@@ -245,6 +245,11 @@ quetzal::model::CylinderSpecification<T>::CylinderSpecification(size_t nAzimuth,
 template<typename T>
 void quetzal::model::CylinderSpecification<T>::apply(const Properties& properties)
 {
+    // A style resets its termination's names, so the styles are applied before any name ...
+    if (const auto style = properties.value("axis_lower_style")) { axis_termination_lower.init(*style, "end"); }
+    if (const auto style = properties.value("axis_upper_style")) { axis_termination_upper.init(*style, "end"); }
+    if (const auto style = properties.value("azimuth_style")) { azimuth.termination.init(*style, "side"); }
+
     for (const auto& [key, value] : properties)
     {
         if (key == "shell_name") { shell_name = value; }
@@ -258,15 +263,12 @@ void quetzal::model::CylinderSpecification<T>::apply(const Properties& propertie
         else if (key == "azimuth_offset_upper") { axis_azimuth_offset_interval.set_upper(to_type<T>(value)); }
         else if (key == "axis_edge_count") { axis_edge_count = std::stoul(value); }
         else if (key == "axis_smooth") { axis_smooth = to_bool(value); }
-        else if (key == "axis_lower_style") { axis_termination_lower.init(value, "end"); }
         else if (key == "axis_lower_name") { axis_termination_lower.names[0] = value; }
-        else if (key == "axis_upper_style") { axis_termination_upper.init(value, "end"); }
-        else if (key == "axis_upper_name") { axis_termination_upper.names[1] = value; }
+        else if (key == "axis_upper_name") { axis_termination_upper.names[0] = value; }
         else if (key == "azimuth_lower") { azimuth.interval.set_lower(to_type<T>(value)); }
         else if (key == "azimuth_upper") { azimuth.interval.set_upper(to_type<T>(value)); }
         else if (key == "azimuth_edge_count") { azimuth.edge_count = std::stoul(value); }
         else if (key == "azimuth_smooth") { azimuth.smooth = to_bool(value); }
-        else if (key == "azimuth_style") { azimuth.termination.init(value, "side"); }
         else if (key == "azimuth_banded") { azimuth.termination.subdivision = to_bool(value); }
         else if (key == "azimuth_name") { azimuth.termination.names[0] = value; }
         else if (key == "azimuth_lower_name") { azimuth.termination.names[0] = value; }
@@ -305,6 +307,11 @@ quetzal::model::SphereSpecification<T>::SphereSpecification(size_t nAzimuth, siz
 template<typename T>
 void quetzal::model::SphereSpecification<T>::apply(const Properties& properties)
 {
+    // A style resets its termination's names, so the styles are applied before any name ...
+    if (const auto style = properties.value("elevation_lower_style")) { elevation_termination_lower.init(*style, "end"); }
+    if (const auto style = properties.value("elevation_upper_style")) { elevation_termination_upper.init(*style, "end"); }
+    if (const auto style = properties.value("azimuth_style")) { azimuth.termination.init(*style, "side"); }
+
     for (const auto& [key, value] : properties)
     {
         if (key == "shell_name") { shell_name = value; }
@@ -313,15 +320,12 @@ void quetzal::model::SphereSpecification<T>::apply(const Properties& properties)
         else if (key == "elevation_upper") { elevation_interval.set_upper(to_type<T>(value)); }
         else if (key == "elevation_edge_count") { elevation_edge_count = std::stoul(value); }
         else if (key == "elevation_smooth") { elevation_smooth = to_bool(value); }
-        else if (key == "elevation_lower_style") { elevation_termination_lower.init(value, "end"); }
         else if (key == "elevation_lower_name") { elevation_termination_lower.names[0] = value; }
-        else if (key == "elevation_upper_style") { elevation_termination_upper.init(value, "end"); }
-        else if (key == "elevation_upper_name") { elevation_termination_upper.names[1] = value; }
+        else if (key == "elevation_upper_name") { elevation_termination_upper.names[0] = value; }
         else if (key == "azimuth_lower") { azimuth.interval.set_lower(to_type<T>(value)); }
         else if (key == "azimuth_upper") { azimuth.interval.set_upper(to_type<T>(value)); }
         else if (key == "azimuth_edge_count") { azimuth.edge_count = std::stoul(value); }
         else if (key == "azimuth_smooth") { azimuth.smooth = to_bool(value); }
-        else if (key == "azimuth_style") { azimuth.termination.init(value, "side"); }
         else if (key == "azimuth_banded") { azimuth.termination.subdivision = to_bool(value); }
         else if (key == "azimuth_name") { azimuth.termination.names[0] = value; }
         else if (key == "azimuth_lower_name") { azimuth.termination.names[0] = value; }
@@ -364,6 +368,11 @@ quetzal::model::TorusSpecification<T>::TorusSpecification(size_t nMajor, size_t 
 template<typename T>
 void quetzal::model::TorusSpecification<T>::apply(const Properties& properties)
 {
+    // A style resets its termination's names, so the styles are applied before any name ...
+    if (const auto style = properties.value("major_lower_style")) { major_termination_lower.init(*style, "end"); }
+    if (const auto style = properties.value("major_upper_style")) { major_termination_upper.init(*style, "end"); }
+    if (const auto style = properties.value("minor_style")) { minor.termination.init(*style, "side"); }
+
     for (const auto& [key, value] : properties)
     {
         if (key == "shell_name") { shell_name = value; }
@@ -377,15 +386,12 @@ void quetzal::model::TorusSpecification<T>::apply(const Properties& properties)
         else if (key == "minor_radius_upper") { minor_radius_interval.set_upper(to_type<T>(value)); }
         else if (key == "major_edge_count") { major_edge_count = std::stoul(value); }
         else if (key == "major_smooth") { major_smooth = to_bool(value); }
-        else if (key == "major_lower_style") { major_termination_lower.init(value, "end"); }
         else if (key == "major_lower_name") { major_termination_lower.names[0] = value; }
-        else if (key == "major_upper_style") { major_termination_upper.init(value, "end"); }
-        else if (key == "major_upper_name") { major_termination_upper.names[1] = value; }
+        else if (key == "major_upper_name") { major_termination_upper.names[0] = value; }
         else if (key == "minor_azimuth_lower") { minor.interval.set_lower(to_type<T>(value)); }
         else if (key == "minor_azimuth_upper") { minor.interval.set_upper(to_type<T>(value)); }
         else if (key == "minor_edge_count") { minor.edge_count = std::stoul(value); }
         else if (key == "minor_smooth") { minor.smooth = to_bool(value); }
-        else if (key == "minor_style") { minor.termination.init(value, "side"); }
         else if (key == "minor_banded") { minor.termination.subdivision = to_bool(value); }
         else if (key == "minor_name") { minor.termination.names[0] = value; }
         else if (key == "minor_lower_name") { minor.termination.names[0] = value; }

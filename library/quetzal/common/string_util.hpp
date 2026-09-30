@@ -10,6 +10,7 @@
 #include <istream>
 #include <optional>
 #include <ostream>
+#include <stdexcept>
 #include <string>
 #include <type_traits>
 #include <utility>
@@ -250,33 +251,42 @@ namespace quetzal
     std::string to_string(const bool& b);
 
     //--------------------------------------------------------------------------
-    template<typename T>
-    T to_type(const std::string& str)
-    {
-        T t{};
-        using std::from_chars;
-        auto result = from_chars(str.data(), str.data() + str.size(), t);
-        return t;
-    }
+    // At namespace scope, so that an unqualified call finds the standard overloads and quetzal's together
+    using std::from_chars;
+
+    // Reads true, false, 1 or 0, and stops after it, as the standard overloads stop after a number
+    std::from_chars_result from_chars(const char* first, const char* last, bool& value);
 
     //--------------------------------------------------------------------------
     template<typename T>
     std::optional<T> try_type(const std::string& str)
     {
         T t{};
-        using std::from_chars;
-        auto result = from_chars(str.data(), str.data() + str.size(), t);
-        return result.ec == std::errc{} ? std::make_optional(t) : std::nullopt; // result ? ...
+        const char* end = str.data() + str.size();
+        auto result = from_chars(str.data(), end, t);
+        return result.ec == std::errc{} && result.ptr == end ? std::make_optional(t) : std::nullopt; // result && ...
     }
 
     template<>
-    std::string to_type<std::string>(const std::string& str);
+    std::optional<std::string> try_type<std::string>(const std::string& str);
 
+    // Returns std::nullopt if the string is not valid UTF-8
     template<>
-    std::wstring to_type<std::wstring>(const std::string& str);
+    std::optional<std::wstring> try_type<std::wstring>(const std::string& str);
 
-    template<>
-    bool to_type<bool>(const std::string& str);
+    //--------------------------------------------------------------------------
+    // Throws std::runtime_error if the whole string is not a value of the type
+    template<typename T>
+    T to_type(const std::string& str)
+    {
+        std::optional<T> t = try_type<T>(str);
+        if (!t)
+        {
+            throw std::runtime_error(std::format("Invalid value for the type: \"{}\"", str));
+        }
+
+        return *t;
+    }
 
     bool to_bool(const std::string& str);
 

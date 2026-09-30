@@ -39,7 +39,7 @@ namespace quetzal::stratum_sim
         void menu_open();
         void menu_close();
         void clear();
-        void create(const RegionSpec& region_spec, const CharacterSpec& character_spec);
+        void create(const RegionSpec& region_spec, const CharacterSpec& character_spec); // starting specs, maybe read from settings instead ...
         void open(std::string_view directory);
         void save(std::string_view directory);
         void remove(std::string_view directory);
