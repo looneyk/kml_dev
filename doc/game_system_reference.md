@@ -530,6 +530,12 @@ that survive outside play: a `CountingIdAllocator` counting from zero, a `random
 referring to those before it. None of them can be copied or moved. `starting_region()` returns the region that a new game's zones are
 made in, which the constructor creates; it is temporary, until a new game chooses its region.
 
+`Game` has the menu and lifecycle operations a host calls: `menu_open`, `menu_close`, `clear`, `create`, `open`,
+`save`, `quit` and `saved_games`. They call `clear`, `create`, `open` and `save` on `World` and `Character`, and
+`clear`, `start`, `pause` and `resume` on `Session`. All of those are skeletons with empty bodies, `saved_games`
+returns no games, and `RegionSpec` and `CharacterSpec`, which `create` takes, are placeholders with no fields.
+`session_plan.md` (`## Games`) has their design.
+
 `Character` is the entity a host controls, created with `Blocking`, the `ControlledActor` tag, a `Speed` and a
 `PersistentId`, and it is in no zone
 until one is entered. It is owned by the game and has no parent, so it outlives every zone it moves through. A host

@@ -37,6 +37,80 @@ quetzal::stratum_sim::Game::Game() :
 }
 
 //------------------------------------------------------------------------------
+void quetzal::stratum_sim::Game::menu_open()
+{
+    m_session.pause();
+    return;
+}
+
+//------------------------------------------------------------------------------
+void quetzal::stratum_sim::Game::menu_close()
+{
+    m_session.resume();
+    return;
+}
+
+//------------------------------------------------------------------------------
+void quetzal::stratum_sim::Game::clear()
+{
+    m_session.clear();
+    m_character.clear();
+    m_world.clear();
+    return;
+}
+
+//------------------------------------------------------------------------------
+void quetzal::stratum_sim::Game::create(const RegionSpec& region_spec, const CharacterSpec& character_spec)
+{
+    clear();
+    m_character.create(character_spec);
+    m_world.create(region_spec);
+    m_session.start();
+    return;
+}
+
+//------------------------------------------------------------------------------
+void quetzal::stratum_sim::Game::open(std::string_view directory)
+{
+    clear();
+    m_world.open(directory);
+    m_character.open(directory);
+    m_session.start();
+    return;
+}
+
+//------------------------------------------------------------------------------
+void quetzal::stratum_sim::Game::save(std::string_view directory)
+{
+    m_character.save(directory);
+    m_world.save(directory);
+    return;
+}
+
+//------------------------------------------------------------------------------
+void quetzal::stratum_sim::Game::remove(std::string_view directory)
+{
+    directory; // ...
+
+    return;
+}
+
+//------------------------------------------------------------------------------
+void quetzal::stratum_sim::Game::quit()
+{
+    clear();
+    return;
+}
+
+//------------------------------------------------------------------------------
+std::vector<quetzal::stratum_sim::SavedGameDetails> quetzal::stratum_sim::Game::saved_games()
+{
+    // From the saved game directory in config, return all the subdirecties ...
+
+    return {};
+}
+
+//------------------------------------------------------------------------------
 quetzal::stratum_sim::World& quetzal::stratum_sim::Game::world()
 {
     return m_world;

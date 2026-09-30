@@ -7,7 +7,10 @@
 
 #include "IdAllocator.hpp"
 #include "Character.hpp"
+#include "Config.hpp"
+#include "SavedGameDetails.hpp"
 #include "Session.hpp"
+#include "Settings.hpp"
 #include "World.hpp"
 
 namespace quetzal::stratum_sim
@@ -25,9 +28,31 @@ namespace quetzal::stratum_sim
 
         Game();
         Game(const Game&) = delete;
+        Game(Game&&) = delete;
         ~Game() = default;
 
         Game& operator=(const Game&) = delete;
+        Game& operator=(Game&&) = delete;
+
+        // Game state control and menu operations
+
+        void menu_open();
+        void menu_close();
+        void clear();
+        void create(const RegionSpec& region_spec, const CharacterSpec& character_spec);
+        void open(std::string_view directory);
+        void save(std::string_view directory);
+        void remove(std::string_view directory);
+        void quit();
+
+        std::vector<SavedGameDetails> saved_games();
+
+        // Accessors
+
+        const Config& config() const;
+
+        Settings& settings();
+        const Settings& settings() const;
 
         World& world();
         const World& world() const;
@@ -42,6 +67,10 @@ namespace quetzal::stratum_sim
         flecs::entity starting_region() const;
 
     private:
+
+        // Some of these properties, especially Config, are only of importance to the host ...
+        Config m_config; // Immutable properties like file locations, physical hardware configuration, ...
+        Settings m_settings; // User settings, graphics, audio, gameplay, control mapping, ...
 
         // In construction order, each referring to those above it
         CountingIdAllocator m_counting_id_allocator;

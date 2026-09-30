@@ -19,6 +19,38 @@ quetzal::stratum_sim::Character::Character(World& world) :
 }
 
 //------------------------------------------------------------------------------
+void quetzal::stratum_sim::Character::clear()
+{
+    // ...
+
+    return;
+}
+
+//------------------------------------------------------------------------------
+void quetzal::stratum_sim::Character::create(const CharacterSpec& character_spec)
+{
+    character_spec; // create character entity ...
+
+    return;
+}
+
+//------------------------------------------------------------------------------
+void quetzal::stratum_sim::Character::open(std::string_view directory)
+{
+    directory; // ...
+
+    return;
+}
+
+//------------------------------------------------------------------------------
+void quetzal::stratum_sim::Character::save(std::string_view directory)
+{
+    directory; // ...
+
+    return;
+}
+
+//------------------------------------------------------------------------------
 flecs::entity quetzal::stratum_sim::Character::entity() const
 {
     return m_entity;

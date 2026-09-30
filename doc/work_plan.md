@@ -1,6 +1,6 @@
 # Work Plan
 
-Date: 2026-08-28, revised 2026-09-28
+Date: 2026-08-28, revised 2026-09-29
 
 This is the stratum work queue: every item not yet built, and the open questions. An item is referred to by its bold
 name. `game_system_principles.md` has
@@ -19,8 +19,9 @@ The design behind the items is in these documents, which the items refer to by s
 - `random_engine.md` covers the random engines, their seeds, and saving their state.
 - `region_plan.md` covers regions, relocator targets, and pregenerated content.
 - `session_plan.md` covers how `Game`, `Session`, `World` and `Character` divide the work of making and playing zones, and
-  the game's lifecycle: `Game` is the game in its entirety, lasting as long as the host, and owns the `World`, the
-  `Character` and the `Session` by value, clearing them in place for each new game or load.
+  the game's lifecycle and the menu operations behind it: `Game` is the game in its entirety, lasting as long as the
+  host, and owns the `World`, the `Character` and the `Session` by value, clearing them in place for each game created
+  or opened.
 - `sim_zone_model.md` has the model beneath the code.
 
 `archived/` has the plans whose work is built.
@@ -33,21 +34,34 @@ boxes are removed at the start of the next piece of work, since the reference do
 
 ## Next
 
-These are the game's lifecycle (`session_plan.md`, `## Games`), built in this order, each on the ones before it.
+These are the game's lifecycle and the menu operations behind it (`session_plan.md`, `## Games`), built in this order,
+each on the ones before it. `Game`'s menu and lifecycle functions, and those they call on `World`, `Character` and
+`Session`, are skeletons; each item designs what its functions still need and fills them in.
 
-- [x] **`StratumGame` renamed `Game`.**
-- [ ] **One session for the whole game.** `Game` has its `GameConfig` and `GameSettings`, with `new_game` and
-      `end_game`. `World::clear`, and `Session::clear` and `Session::create` in both forms; `new_game` clears the game in
-      progress in place, resets the id allocator and reseeds the engine. The hosts pass a temporary config and settings,
-      and create a game whose first zone is their zone file. A suite case plays a game, clears it, creates another, and
-      checks that only the new game's regions, zones, entities and ids remain.
-- [ ] **The game's end.** The `Dead` tag, `Session::over`, `advance` running no actor once the character is dead,
-      `end_game` deleting the game's directory on death under permadeath, and the hosts ending the game.
-- [ ] **Saved zones** (`addressing_plan.md`, `## Saved zones`): unloading a zone saves it into the game and frees its
-      resources, and entering it again reads it back.
-- [ ] **A game saved** (`game_file_spec.md`): the writer of the game's files, `Game::save_game` and `Session::save`, the
-      rest of `end_game`, and saving on entering a zone under permadeath.
-- [ ] **A game loaded:** the reader of the game's files, `Game::load_game`, `Session::load` and `find_saved_games`.
+- [x] **The menu and lifecycle skeleton.** `Game`'s `menu_open`, `menu_close`, `clear`, `create`, `open`, `save`,
+      `quit` and `saved_games`; `clear`, `create`, `open` and `save` on `World` and `Character`; `clear`, `start`,
+      `pause` and `resume` on `Session`; and `RegionSpec` and `CharacterSpec` as placeholders.
+- [ ] **A new game's first zone designed** (`session_plan.md`, `## Session`): what `RegionSpec` and `CharacterSpec`
+      contain to begin with, what `Session::start` takes to make and enter the first zone, how a host's zone file
+      becomes the first zone, and the directory a new game's zones are saved into.
+- [ ] **One game after another.** `World::clear`, `Character::clear` and `Session::clear`; `Character::create` making
+      the entity with a new id, and `World::create` making the starting region, in place of the constructors of
+      `Character` and `Game`; `Game::create` resetting the id allocator and reseeding the engine; and `Session::start`.
+      The hosts create a game from temporary specs, whose first zone is their zone file. A suite case plays a game,
+      clears it, creates another, and checks that only the new game's regions, zones, entities and ids remain.
+- [ ] **The game's config.** `Config`, with the saves directory and the zone count maximum, passed to `Game`'s
+      constructor, with each host passing a temporary one.
+- [ ] **The menu in the hosts.** Each host draws a menu, opened by a key, with a new game, continuing, and quitting,
+      through `create`, `menu_open`, `menu_close` and `quit`; and `Session::pause` and `resume` stopping and restarting
+      play. The menu offers saving and opening with **A game saved** and **A game loaded**.
+- [ ] **The game's end.** The `Dead` tag, `Session::over`, and `advance` running no actor once the character is dead
+      and reporting the death in its events; the hosts showing it and then calling `quit`.
+- [ ] **Saved zones** (`addressing_plan.md`, `## Saved zones`): `World::save_zone`, called when the character exits a
+      zone and when a zone unloads, which then frees its resources, and entering the zone again reading its file back.
+- [ ] **A game saved** (`game_file_spec.md`): `Game::save` writing `game.json`, `Character::save` writing
+      `character.json`, and `World::save` writing `world.json` and every loaded zone; and the hosts' menu offering it.
+- [ ] **A game loaded:** `Game::open` reading `game.json`, `World::open` and `Character::open` reading theirs, the
+      session starting in the zone the character is in, and `saved_games`; and the hosts' menu offering them.
 
 ## Lifecycle
 
@@ -56,6 +70,10 @@ These are the game's lifecycle (`session_plan.md`, `## Games`), built in this or
 - [ ] **The zone actor index** (`addressing_plan.md`, `## Actors`): `ActorIndex`, `DiscreteActorIndex`,
       `Layout::create_actor_index`, the observers, and `entities_at` and `entities_within` querying the index.
 - [ ] **Denizens entering relocators,** in limited circumstances. Only the controlled actor enters one.
+- [ ] **Auto saves and quick saves** (`### Game file`).
+- [ ] **Permadeath** (`session_plan.md`, `### Permadeath`): `Settings`, chosen when a game is created and saved
+      with it, with `permadeath` its first setting, and `quit` saving the game or deleting it by whether the character
+      is dead.
 
 ## Generators
 
@@ -91,7 +109,10 @@ These are the game's lifecycle (`session_plan.md`, `## Games`), built in this or
       other properties a whole dungeon has.
 - [ ] **Transparent zone and region boundaries.** Contiguous zones joined edge to edge, so an actor walks from one zone
       into the next, across region boundaries too. Until then, zones connect only through relocators: waypoints, and
-      dungeons with more than one entrance.
+      dungeons with more than one entrance. Where zones can be traversed across adjacent edges, or through doorway access points,
+      the zone on the other side is visible and must be rendered.
+      First pass: Zones should be created with natural or constructed barriers that surround them so this problem can be deferred.
+
 - [ ] **A new region made on resolving,** when an unbound relocator finds nothing, instead of a zone in its own or its
       parent region (`region_plan.md`).
 - [ ] **Unloading by region.** Criteria for `World::trim_zones` that choose the zones of other regions first, those
@@ -263,21 +284,22 @@ These are the open questions.
 ### Game file
 
 - **The format's identifier,** `quetzal.stratum_game`, and the file names, `game.json` and the rest, for now.
-- **What a load restores if the player quits without saving** after zones have been written on unloading, since their
-  files are then later than the rest of the saved game.
 - **The character's components:** its description, attributes, and skills.
+- **How auto saves and quick saves keep their zones.** Each saves only the zone the character is in, as a separate
+  loaded zone that is tracked as one, or each loaded zone has a list of its saved zones. Whether those saved zones are
+  themselves saved with the game is also open.
 
 ### Intent
 
 - **Does intent cover actions or only movement?** Held attacks and channeled spells would need more than movement and
   facing direction, which is a design question.
 - **Do actions get durations** --- wind-up, active and recovery? If so, `Intent` is where they go.
-- **Does a partial intent survive save and reload?** Plausibly for movement, and likely not for anything else.
 
 ### Regions
 
 - **A generator registry.** A region's generator is a `std::shared_ptr<const Generator>` component, where the world
-  file writes it as data, a name and parameters. Generators registered by name for as long as the program runs would
+  file writes it as data, a name and parameters. (Or just a reference instead of a pointer if Generator is assigned on
+  construction). Generators registered by name for as long as the program runs would
   let a region refer to its generator that way; who registers them, and what the registry holds, need more of the game
   designed first (`session_plan.md`, `## World`).
 - **The properties each type of region has.** A surface area's and a dungeon's overlap but differ, and difficulty goes

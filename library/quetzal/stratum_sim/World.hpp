@@ -9,6 +9,7 @@
 #include "IdAllocator.hpp"
 #include "Layout.hpp"
 #include "PersistentId.hpp"
+#include "RegionSpec.hpp"
 #include "properties.hpp"
 #include "Site.hpp"
 #include "Zone.hpp"
@@ -61,16 +62,15 @@ namespace quetzal::stratum_sim
     void set_parent(flecs::entity e, flecs::entity parent);
 
     //--------------------------------------------------------------------------
-    // Creates an entity type, which is a prefab. An entity IsA its type, and the type's components are the entity's
-    // defaults. The caller sets the type's components
+    // Creates an entity type, which is a prefab. An entity IsA its type, and the type's components are the entity's defaults
+    // The caller sets the type's components
     flecs::entity create_entity_type(flecs::world& entities, std::string_view name);
 
     // Returns a null entity if no type with that name is loaded
     flecs::entity entity_type(const flecs::world& entities, std::string_view name);
 
     //--------------------------------------------------------------------------
-    // The zones and everything in them. All entities are in one flecs world; a zone's contents are its children, and its
-    // layout is a component on it
+    // The zones and everything in them. All entities are in one flecs world; a its contents are its children, and its layout is a component
     class World
     {
     public:
@@ -79,9 +79,18 @@ namespace quetzal::stratum_sim
 
         World(IdAllocator& id_allocator, random_type& random, size_t zone_count_max);
         World(const World&) = delete;
+        World(World&&) = delete;
         ~World() = default;
 
         World& operator=(const World&) = delete;
+        World& operator=(World&&) = delete;
+
+        // World management
+
+        void clear();
+        void create(const RegionSpec& region_spec); // Starting region
+        void open(std::string_view directory);
+        void save(std::string_view directory);
 
         flecs::world& entities();
         const flecs::world& entities() const;

@@ -493,6 +493,38 @@ quetzal::stratum_sim::World::World(IdAllocator& id_allocator, random_type& rando
 }
 
 //------------------------------------------------------------------------------
+void quetzal::stratum_sim::World::clear()
+{
+    // ...
+
+    return;
+}
+
+//------------------------------------------------------------------------------
+void quetzal::stratum_sim::World::create(const RegionSpec& region_spec)
+{
+    region_spec; // create region ...
+
+    return;
+}
+
+//------------------------------------------------------------------------------
+void quetzal::stratum_sim::World::open(std::string_view directory)
+{
+    directory; // ...
+
+    return;
+}
+
+//------------------------------------------------------------------------------
+void quetzal::stratum_sim::World::save(std::string_view directory)
+{
+    directory; // ...
+
+    return;
+}
+
+//------------------------------------------------------------------------------
 flecs::world& quetzal::stratum_sim::World::entities()
 {
     return m_entities;

@@ -1,17 +1,17 @@
 # Session --- Plan
 
-Date: 2026-09-22, revised 2026-09-28
+Date: 2026-09-22, revised 2026-09-29
 
 This plan describes how `Game`, `Session`, `World` and `Character` divide the work of creating, loading, populating and
-playing zones, and how a game begins, is saved and loaded, and ends.
+playing zones, and how a game begins, is saved and opened, and ends, through the menu operations a host calls.
 
 **`Game` is the game in its entirety.** It is the program from its loading, through the splash screen and the menu, to
 the play sessions it runs, and it lasts as long as the host does. It owns, by value, everything that survives outside
 play: the config, the settings, the id allocator, the engines, the `World`, the `Character` and the `Session`. None of them
-is replaced; a new game or a load clears them in place. The hosts draw the splash screen and the menu; `Game` has the
-state and the operations behind them. A new game resets the persistent id counter to zero.
+is replaced; creating or opening a game clears them in place. The hosts draw the splash screen and the menu; `Game` has
+the state and the operations behind them. A new game resets the persistent id counter to zero.
 
-**`Session` is the game being played,** from a new game or a load until the game ends, across every zone the character
+**`Session` is the game being played,** from its creation or opening until it is quit, across every zone the character
 enters. It plays the zones of the game's `World` through references, and owns none of the structures it plays.
 
 `sim_zone_model.md` (`### Residency, simulation, and persistence`) describes when zones unload.
@@ -22,24 +22,36 @@ in `work_plan.md` (`### Session`).
 
 | Part | Responsible for |
 | --- | --- |
-| `Game` | The game in its entirety, lasting as long as the host: the config, the settings, the id allocator, the engines, the `World`, the `Character` and the `Session`, all by value; creating, loading, saving and ending games, and the game's own file |
-| `Session` | The game being played: creating, loading, saving and clearing its character and world; the zone the character is in, entering a zone, the turn order, the clock and its driver, the character's intent and pending command, advancing, and whether the game is over |
-| `World` | Regions and zones: creating, loading, populating, unloading and clearing them, knowing which are loaded, and choosing which unload as zones are entered; entities and persistent ids; the registrations that last as long as the program |
-| `Character` | The entity the host controls |
+| `Game` | The game in its entirety, lasting as long as the host: the config, the settings, the id allocator, the engines, the `World`, the `Character` and the `Session`, all by value; the menu operations --- opening and closing the menu, creating, opening, saving and quitting games, and listing the saved games --- and the game's own file |
+| `Session` | The game being played: starting, pausing, resuming and clearing play; the zone the character is in, entering a zone, the turn order, the clock and its driver, the character's intent and pending command, advancing, and whether the game is over |
+| `World` | Regions and zones: creating a new game's starting region; creating, loading, populating, saving, unloading and clearing zones, knowing which are loaded, and choosing which unload as zones are entered; the world's file; entities and persistent ids; the registrations that last as long as the program |
+| `Character` | The entity the host controls: creating it, opening and saving its file, and clearing it |
 
 ## World
 
 ```cpp
+void World::clear();
+void World::create(const RegionSpec& region_spec);
+void World::open(std::string_view directory);
+void World::save(std::string_view directory);
+void World::save_zone(flecs::entity zone);
 flecs::entity World::create_zone(flecs::entity region, level_type level);
 flecs::entity World::load_zone(flecs::entity region, const std::filesystem::path& filepath);
 void World::populate(flecs::entity zone);
 void World::trim_zones(flecs::entity zone_entered);
-void World::clear();
 ```
 
 - **`clear()`** unloads every region with no parent region, which deletes its child regions and their zones, and
   empties the world index and the `ZoneEntryIndex`. The registrations remain: the file components, the entity types
   and the access point types, which are the program's and, later, its mods'.
+- **`create(region_spec)`** makes a new game's starting region, a region with no parent region, from a `RegionSpec`:
+  its type, terrain, competency level and algorithm, and whatever else a new game chooses. `RegionSpec` has no fields
+  until they are designed. Each game has its own starting region, where `Game`'s constructor makes one now.
+- **`open(directory)`** reads the game's `world.json`: its regions, with their properties and generators, and the
+  reference to each zone's file. It loads no zone; each loads as it is entered.
+- **`save(directory)`** writes `world.json` and the file of every loaded zone into the directory.
+- **`save_zone(zone)`** writes one zone's file into the game's directory. The zone's unloading calls it, and so does the
+  session when the character exits the zone, so a zone's file is the zone as it was last exited.
 - **A generator registry** would make a region's generator data: the generator's name and its parameters, as the world
   file writes them (`game_file_spec.md`, `### Regions`), with the generators registered by name for as long as the
   program runs, in place of the `std::shared_ptr<const Generator>` component (`work_plan.md`, `### Regions`).
@@ -66,70 +78,83 @@ void World::clear();
 
 ```cpp
 void Session::clear();
-void Session::create(const Generator& generator, level_type level, flecs::entity access_type, level_type offset);
-void Session::create(const Generator& generator, const std::filesystem::path& zone_filepath, level_type level,
-    flecs::entity access_type, level_type offset);
-void Session::load(const std::filesystem::path& directory);
-void Session::save(const std::filesystem::path& directory) const;
+void Session::start();
+void Session::pause();
+void Session::resume();
+void Session::create(flecs::entity region, const Generator& generator, flecs::entity access_type, level_type offset);
+void Session::load(flecs::entity region, const std::filesystem::path& filepath, flecs::entity access_type,
+    level_type offset);
 void Session::enter(flecs::entity zone, flecs::entity access_type, level_type offset);
 void Session::set_driver(Driver driver, double units_per_second = Clock::units_per_second_default);
 bool Session::loaded() const;
 bool Session::over() const;
 ```
 
-- **`clear()`** clears the play state --- the zone being played, the turn order, the clock and the pending command ---
-  then the world, with `World::clear`, and the character, whose entity and inventory are deleted. `loaded()` is then false.
-- **`create`** creates the character's entity, a starting region with the generator, and its first zone at the level, with
-  `World::create_zone(region, level)`, then `enter`s it. The second form is a test convenience: the first zone is the
-  zone file's, at the level if the file states none, and the region's generator makes the zones after it.
-- **`load(directory)`** reads the game's `character.json` and `world.json`, builds the regions and the character, loads the
-  zone the character is in from its file, and plays it, with the character at its saved placement. The other zones load as
-  they are entered.
-- **`save(directory)`** writes `character.json`, `world.json`, and the file of every loaded zone.
+- **`clear()`** clears the play state --- the zone being played, the turn order, the clock and the pending command.
+  `loaded()` is then false. The driver remains. `Game` clears the character and the world.
+- **`start()`** begins play of the game that `Game` has created or opened, in the zone the character is in. For a new
+  game, that is its first zone, which the starting region's generator makes or a host's zone file supplies. What
+  `start` takes to make and enter the first zone is not designed.
+- **`pause()` and `resume()`** stop and restart play while the menu is open. `advance` runs no actor while play is
+  paused, and real time earns nothing, so closing the menu does not credit the time it was open. Both do nothing while
+  no game is loaded.
+- **`create` and `load`** make a zone in the region, with `World::create_zone` or `World::load_zone`, and `enter` it.
+  Each host calls `load` with its zone file, in the game's starting region.
 - **`enter(zone, access_type, offset)`** moves the character into the zone, at its entry point, then has the world `trim_zones`, so no unload can take
   the character with it. It clears the pending command and rebuilds the turn order from the zone's actors, the character
   included.
+- **Changing the zone being played** --- by `enter`, or by the character going through a relocator during `advance` ---
+  saves the zone exited with `World::save_zone`.
 - **The driver is set separately,** not passed to every load.
 - **`populate` moves out of `Session`,** and so do the door walls and the notation passed through it. The notation is
   the zone's, and the host reads it through the zone.
 
+## Character
+
+```cpp
+void Character::clear();
+void Character::create(const CharacterSpec& character_spec);
+void Character::open(std::string_view directory);
+void Character::save(std::string_view directory);
+flecs::entity Character::entity() const;
+```
+
+- **`clear()`** deletes the character's entity and its children, the inventory. The world's clear does not reach them,
+  since the character has no parent.
+- **`create(character_spec)`** makes the character's entity, with a new persistent id, from a `CharacterSpec`: its
+  class, race, history and appearance, its stats, skills and spells, its inventory, and its character level, which starts at 1. `CharacterSpec`
+  has no fields until they are designed. The entity is in no zone until one is entered. The constructor makes the
+  entity now, so its id is allocated before a new game resets the allocator.
+- **`open(directory)`** reads the game's `character.json`: the character's components, its inventory, and the zone it
+  is in and its placement there.
+- **`save(directory)`** writes `character.json`.
 ## Games
 
-A game runs from creating a new game or loading a game until the player quits, loads another game, or dies, and it is
+A game runs from its creation or opening until the player quits, opens another game, or the character dies, and it is
 played in one `Session`. A game is the player's character and the world's regions, which group its zones, and it is
 saved as a directory of files: one for the game's state and settings, one for the character, one for the world, and
-one for each zone (`game_file_spec.md`). The menu that creates, saves, loads and quits games is drawn by a host,
+one for each zone (`game_file_spec.md`). The menu that creates, opens, saves and quits games is drawn by a host,
 which calls `Game` for each of them.
 
 ```cpp
-struct GameConfig
+struct Config
 {
     std::filesystem::path saves_directory;
     std::size_t zone_count_max;
 };
 
-struct GameSettings
-{
-    bool permadeath;
-};
-
-struct SavedGame
-{
-    std::filesystem::path directory;
-    std::string time_saved; // ISO 8601
-    level_type level;       // Of the zone the character is in
-};
-
-Game::Game(const GameConfig& config);
-void Game::new_game(const std::string& name, const GameSettings& settings);
-void Game::load_game(const std::filesystem::path& directory);
-void Game::save_game();
-void Game::end_game();
+Game::Game(const Config& config);
+void Game::menu_open();
+void Game::menu_close();
+void Game::clear();
+void Game::create(const RegionSpec& region_spec, const CharacterSpec& character_spec);
+void Game::open(std::string_view directory);
+void Game::save(std::string_view directory);
+void Game::quit();
+std::vector<std::string> Game::saved_games();
 Session& Game::session();
 World& Game::world();
 Character& Game::character();
-const GameSettings& Game::settings() const;
-std::vector<SavedGame> Game::find_saved_games() const;
 ```
 
 ### Lifetime
@@ -137,46 +162,56 @@ std::vector<SavedGame> Game::find_saved_games() const;
 - **Each host owns one `Game` for as long as it runs,** and `Game` owns its members by value, none of them replaced. A
   host keeps a reference to the session, as it does now, and `Session::loaded()` returns false while no game is being
   played, as while the menu is shown before the first game.
-- **`new_game` and `load_game` clear the game in progress in place,** once the player has chosen, after a confirmation
-  if the host asks for one. `Session::clear` clears the play state, the world and the character, and `Game` resets the id
-  allocator and reseeds the engines, so no state passes from one game to the next. A failure leaves no game in
-  progress; the host reports it and returns to the menu.
-- **`new_game` sets the settings and the game's directory,** and the host then has the session `create` the character, a
-  starting region and its first zone. The host passes the generator, the level, the access point type and the level
-  offset, from temporary constants of its own until a new game chooses its region.
-- **`load_game` reads the game's `game.json`,** restoring the settings, the id allocator's count and the engines' state,
-  then has the session `load` the character and the world.
-- **`end_game` clears nothing.** The world and the character remain until the next new game or load clears them, so a host
-  can draw the game's last state behind the menu or a death screen.
+- **The host's menu calls `Game` for each operation.** `menu_open` pauses play and `menu_close` resumes it; `create`,
+  `open`, `save` and `quit` act on the whole game; and `saved_games` lists the games that `open` can open.
+- **`clear` clears the session, the character and the world, in that order, in place.** `create` and `open` clear
+  first, so the game in progress ends once the player has chosen, after a confirmation if the host asks for one. A
+  failure leaves no game in progress; the host reports it and returns to the menu.
+- **`create`** clears, resets the id allocator and reseeds the engines, so no state passes from one game to the next.
+  It then has the character created from the `CharacterSpec` and the world's starting region from the `RegionSpec`,
+  and starts the session. Until a new game chooses its region, each host passes temporary specs.
+- **`open(directory)`** clears, reads the game's `game.json`, restoring the id allocator's count and the engines'
+  state, has the world and then the character open their files, and starts the session in the zone the character is
+  in, which loads from its file.
+- **`save(directory)`** is the menu's save of the whole game. It writes `game.json`, with the game's state, then has
+  the character and the world save theirs.
+- **`quit`** is called by the host when the player chooses to quit. It clears the game and returns, and the host
+  continues with its termination.
 - **A suite plays a game, clears it, and creates another,** and checks that the world then contains only the new game's
   regions, zones, entities and ids, so that nothing a clear misses survives into the next game.
 - **The config is the program's:** the saves directory and the zone count maximum, from the game's config file. Until
   that file is read, each host passes a temporary config, with the saves directory in the platform's per-user data
   directory: `user://saves` in Godot, and `stratum/saves` under `%APPDATA%` or `$XDG_DATA_HOME` in the terminal host. A
   suite passes a directory of its own.
-- **The settings are the game's,** chosen when it begins and saved with it; `permadeath` is the first. The library has
-  no default settings: each host passes temporary settings of its own until a menu chooses them.
+- **The settings are the game's,** chosen when it begins and saved with it. They come with permadeath, the first of
+  them (`### Permadeath`).
 - **A host's zone file is a test convenience:** it creates a new game whose first zone is the file's.
 
 ### Saving and loading
 
 - **A game is a directory in the saves directory,** named by the game. A host names a new game by the time it began, in
   ISO 8601 basic format, until a player names a game.
-- **Unloading a zone writes its zone file, then frees its resources,** and entering a zone that is not loaded reads its
-  file.
-- **`save_game` writes the game's files:** `game.json`, with the game's state and the settings, then has the session
-  `save` the character, the world, and the file of every loaded zone.
-- **Under permadeath, `Game` saves each time the character enters a zone,** so no earlier state can be loaded.
-- **`find_saved_games`** returns a `SavedGame` for each directory in the saves directory that has a game's files, for a
-  menu to list.
+- **`World::save_zone` writes a zone's file when the character exits the zone and when the zone unloads,** which then
+  frees its resources. Entering a zone that is not loaded reads its file.
+- **A load restores the zones from their files as they are,** including those written on unloading after the game was
+  last saved, so quitting without saving leaves each such zone in the state at which it was last exited. Auto saves and
+  quick saves override this (`work_plan.md`, `### Game file`).
+- **The character's intent and pending command are not saved.** A loaded character starts with neither, so it never
+  continues an action the player may not remember having started.
+- **`saved_games`** returns the name of each game's directory in the saves directory, for a menu to list.
 
 ### Ending
 
 - **`Session::over()` returns true once the character is dead,** and `advance` then runs no actor. The character is dead when
   its entity has the `Dead` tag.
-- **`end_game` is called when the game stops,** by quitting or by the character's death. Under permadeath it deletes the
-  game's directory if the character is dead, and saves the game otherwise. Without permadeath the game remains to be loaded,
-  and a host that offers saving on quitting calls `save_game` first.
+- **The character's death forces a quit.** `advance` reports the death to the host in its events, the host shows it
+  with the game's last state, and then calls `quit`. The game remains as it was last saved, to be opened again.
+
+### Permadeath
+
+- **Permadeath comes later,** as a setting of the game, the first of its `Settings`. It changes what `create`,
+  `save`, `open` and `quit` do, without changing their signatures: `quit` saves the game if the character is alive and
+  deletes the game's directory if the character is dead.
 
 ## Entry point
 

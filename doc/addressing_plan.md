@@ -337,8 +337,8 @@ again reads it back. Writing a zone walks its subtree instead of querying its ch
 of its own is below that parent. Loading a saved zone that is already loaded is an error; a template makes a new zone
 each time it is loaded.
 
-Resetting to a save point is loading the game: `Game` constructs a new world from the game's files, restores the character
-and the id allocator's count, and loads the zone the character was in, with the others loading as they are entered, so no
+Resetting to a save point is opening the game: `Game` clears the world in place, rebuilds it from the game's files,
+restores the character and the id allocator's count, and loads the zone the character was in, with the others loading as they are entered, so no
 entity is duplicated or lost (`session_plan.md`, `## Games`).
 
 ## Open

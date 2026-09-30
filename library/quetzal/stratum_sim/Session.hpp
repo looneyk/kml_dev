@@ -26,9 +26,18 @@ namespace quetzal::stratum_sim
 
         Session(World& world, Character& character);
         Session(const Session&) = delete;
+        Session(Session&&) = delete;
         ~Session() = default;
 
         Session& operator=(const Session&) = delete;
+        Session& operator=(Session&&) = delete;
+
+        // Session management
+
+        void clear();
+        void start();
+        void pause();
+        void resume();
 
         // Generate a zone in the region
         void create(flecs::entity region, const Generator& generator, flecs::entity access_type, level_type offset);

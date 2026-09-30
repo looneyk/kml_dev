@@ -46,6 +46,38 @@ quetzal::stratum_sim::Session::Session(World& world, Character& character) :
 }
 
 //------------------------------------------------------------------------------
+void quetzal::stratum_sim::Session::clear()
+{
+    // ...
+
+    return;
+}
+
+//------------------------------------------------------------------------------
+void quetzal::stratum_sim::Session::start()
+{
+    // ...
+
+    return;
+}
+
+//------------------------------------------------------------------------------
+void quetzal::stratum_sim::Session::pause()
+{
+    // ...
+
+    return;
+}
+
+//------------------------------------------------------------------------------
+void quetzal::stratum_sim::Session::resume()
+{
+    // ...
+
+    return;
+}
+
+//------------------------------------------------------------------------------
 void quetzal::stratum_sim::Session::create(flecs::entity region, const Generator& generator, flecs::entity access_type, level_type offset)
 {
     enter(m_world.create_zone(region, generator), access_type, offset);
