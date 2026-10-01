@@ -25,7 +25,7 @@ namespace
 flecs::entity quetzal::stratum_sim::register_file_component(flecs::world& entities, std::string_view name, flecs::entity_t component)
 {
     assert(file_component(entities, name) == 0);
-    assert(ecs_has(entities.c_ptr(), component, EcsStruct));
+    assert(ecs_has(entities.c_ptr(), component, EcsStruct) || ecs_has(entities.c_ptr(), component, EcsOpaque));
 
     register_inheritance(entities, component);
     return entities.entity(file_component_path(name).c_str()).set<FileComponent>(FileComponent {component});

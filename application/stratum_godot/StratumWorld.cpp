@@ -36,23 +36,23 @@ namespace
     //--------------------------------------------------------------------------
     // Temporary, until the generators are integrated: the starting region makes its zones with dungen, at the level each
     // is made at. Its warnings are dropped
-    class DungenGenerator : public sim::Generator
+    quetzal::stratum_format::Document generate_dungen(const sim::ZoneSpec& zone_spec)
     {
-    public:
+        quetzal::dungen::Parameters parameters;
+        sim::level_type level = zone_spec.value<sim::level_type>(sim::level_key).value();
+        parameters.level = level;
+        parameters.seed = quetzal::dungen::random_seed();
 
-        void generate(flecs::entity zone) const override
-        {
-            quetzal::dungen::Parameters parameters;
-            sim::level_type level = zone.get<sim::ZoneLevel>().level;
-            parameters.level = level;
-            parameters.seed = quetzal::dungen::random_seed();
+        std::string name = std::format("Dungeon Level {}", std::abs(level));
+        return quetzal::dungen::make_document(quetzal::dungen::generate(0, name, parameters, [](const std::string&) {}), parameters);
+    }
 
-            std::string name = std::format("Dungeon Level {}", std::abs(level));
-            sim::load_layout(zone, quetzal::dungen::make_document(quetzal::dungen::generate(0, name, parameters, [](const std::string&) {}), parameters));
-
-            return;
-        }
-    };
+    //--------------------------------------------------------------------------
+    // Temporary, until the generators are integrated: every zone of the starting region is made with dungen
+    sim::Generation::GeneratorSelection select_dungen(const sim::World&, flecs::entity, const sim::ZoneSpec& zone_spec)
+    {
+        return sim::Generation::GeneratorSelection {"dungen", {}, {}, zone_spec};
+    }
 
 } // namespace
 
@@ -62,7 +62,9 @@ StratumWorld::StratumWorld() :
     m_session(m_game.session()),
     m_message()
 {
-    m_game.starting_region().set<std::shared_ptr<const sim::Generator>>(std::make_shared<DungenGenerator>());
+    m_game.generation().m_generators["dungen"] = generate_dungen;
+    m_game.generation().m_generator_selectors["dungen"] = select_dungen;
+    m_game.starting_region().get_mut<sim::Region>().region_spec = sim::RegionSpec {{std::string(sim::generator_selector_key), "dungen"}};
 }
 
 //------------------------------------------------------------------------------

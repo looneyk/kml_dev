@@ -7,7 +7,6 @@
 
 #include "Clock.hpp"
 #include "Command.hpp"
-#include "Generator.hpp"
 #include "EventQueue.hpp"
 #include "Layout.hpp"
 #include "Character.hpp"
@@ -38,9 +37,6 @@ namespace quetzal::stratum_sim
         void start();
         void pause();
         void resume();
-
-        // Generate a zone in the region
-        void create(flecs::entity region, const Generator& generator, flecs::entity access_type, level_type offset);
 
         void load(flecs::entity region, const std::filesystem::path& filepath, flecs::entity access_type, level_type offset);
 

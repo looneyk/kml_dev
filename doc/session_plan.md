@@ -1,6 +1,6 @@
 # Session --- Plan
 
-Date: 2026-09-22, revised 2026-09-29
+Date: 2026-09-22, revised 2026-10-01
 
 This plan describes how `Game`, `Session`, `World` and `Character` divide the work of creating, loading, populating and
 playing zones, and how a game begins, is saved and opened, and ends, through the menu operations a host calls.
@@ -22,56 +22,49 @@ in `work_plan.md` (`### Session`).
 
 | Part | Responsible for |
 | --- | --- |
-| `Game` | The game in its entirety, lasting as long as the host: the config, the settings, the id allocator, the engines, the `World`, the `Character` and the `Session`, all by value; the generator registry; the menu operations --- opening and closing the menu, creating, opening, saving and quitting games, and listing the saved games --- and the game's own file |
+| `Game` | The game in its entirety, lasting as long as the host: the config, the settings, the id allocator, the engines, the `World`, the `Character` and the `Session`, all by value; the registries of generators, generator selectors and region specs; the menu operations --- opening and closing the menu, creating, opening, saving and quitting games, and listing the saved games --- and the game's own file |
 | `Session` | The game being played: starting, pausing, resuming and clearing play; the zone the character is in, entering a zone, the turn order, the clock and its driver, the character's intent and pending command, advancing, and whether the game is over |
-| `World` | Regions and zones: creating a new game's starting region; creating, loading, populating, saving, unloading and clearing zones, knowing which are loaded, and choosing which unload as zones are entered; the world's file; entities and persistent ids; the registrations that last as long as the program |
+| `World` | Regions and zones: creating regions and zones from their specs; creating, loading, populating, saving, unloading and clearing zones, knowing which are loaded, and choosing which unload as zones are entered; the world's file; entities and persistent ids; the registrations that last as long as the program |
 | `Character` | The entity the host controls: creating it, opening and saving its file, and clearing it |
 
 ## World
 
 ```cpp
 void World::clear();
-void World::create(const RegionSpec& region_spec);
+flecs::entity World::create(const RegionSpec& region_spec);
 void World::open(std::string_view directory);
 void World::save(std::string_view directory);
 void World::save_zone(flecs::entity zone);
-flecs::entity World::create_zone(flecs::entity region, level_type level);
+flecs::entity World::create_region_zone(const RegionSpec& region_spec, const ZoneSpec& zone_spec);
+flecs::entity World::create_zone(flecs::entity region, const ZoneSpec& zone_spec);
 flecs::entity World::load_zone(flecs::entity region, const std::filesystem::path& filepath);
 void World::populate(flecs::entity zone);
 void World::trim_zones(flecs::entity zone_entered);
 ```
 
-- **`clear()`** unloads every region with no parent region, which deletes its child regions and their zones, and
-  empties the world index and the `ZoneEntryIndex`. The registrations remain: the file components, the entity types
-  and the access point types, which are the program's and, later, its mods'.
-- **`create(region_spec)`** makes a new game's starting region, a region with no parent region, from a `RegionSpec`.
-  Each game has its own starting region, where `Game`'s constructor makes one now.
-- **A `RegionSpec` is a request to create a region,** not the region: the name of the region's generator, the
-  generator's parameters, and the region's own choices, such as its type, terrain, competency level and difficulty. The
-  parameters and the choices are each a `KeyValueStore` (`archived/key_value_store_plan.md`), and most choices are names that
-  `create` resolves to types. `create` builds the region's components from them, and passes the parameters to the
-  generator unchanged. A key `create` does not read, or a value that does not parse, is an error that reaches the host.
-- **`open(directory)`** reads the game's `world.json`: its regions, with their properties and generators, and the
-  reference to each zone's file. It loads no zone; each loads as it is entered.
+- **`clear()`** unloads every region, which deletes its zones, and empties the world index and the `ZoneEntryIndex`.
+  The registrations remain: the file components, the entity types, the access point types, and the registries that
+  `World` takes from `Game`, which are the program's and, later, its mods'.
+- **`create(region_spec)`** creates a new game's starting region and its first zone from a `RegionSpec`, and returns
+  the zone. Each game has its own starting region, where `Game`'s constructor makes one now.
+- **A `RegionSpec` is a request to create a region,** not the region, and a `ZoneSpec` a request to create a zone.
+  Both are a `KeyValueStore` (`archived/key_value_store_plan.md`). `world_generation_plan.md` describes what they
+  contain and how a region and its zones are created from them. A key that is not read, or a value that does not
+  parse, is an error that reaches the host.
+- **`open(directory)`** reads the game's `world.json`: its regions, with their specs and components, and the reference
+  to each zone's file. It loads no zone; each loads as it is entered.
 - **`save(directory)`** writes `world.json` and the file of every loaded zone into the directory.
 - **`save_zone(zone)`** writes one zone's file into the game's directory. The zone's unloading calls it, and so does the
   session when the character exits the zone, so a zone's file is the zone as it was last exited.
-- **The generator registry** is a map from a generator's name to a function that fills an empty zone from the
-  generator's parameters. A generator is stateless: it reads the zone's level from the zone and everything else from
-  the parameters, so two regions share one generator with different parameters. `Game` owns the registry, which lasts
-  as long as the program, as the other registrations do, and `World` takes it by reference in its constructor, as it
-  takes the id allocator and the engine. `World::clear` keeps it.
-- **A region has its generator's name and parameters as data,** which `world.json` writes (`game_file_spec.md`,
-  `### Regions`), in place of the `std::shared_ptr<const Generator>` component. `create_zone(region, level)` looks the
-  name up in the registry, and a name that is not registered is an error, as an unregistered access point type is.
-- **The generators are in `quetzal/stratum_gen`,** which adapts dungen and catagen and registers them with a game, so
-  `stratum_sim` depends on no generator. A host names a generator in its `RegionSpec` and has no flecs code for it.
-
-- **`create_zone(region, level)`** makes an empty zone at the level, has the region's generator fill it, and populates
-  it.
+- **`create_region_zone(region_spec, zone_spec)`** creates a region and its first zone, and returns the zone; it is how
+  every region is created. **`create_zone(region, zone_spec)`** creates a zone in the region: the region's generator
+  selector chooses a generator and its parameters, the generator returns the zone's `Document`, and `World` builds the
+  zone from it and populates it (`world_generation_plan.md`).
+- **The registries** of generators, generator selectors and region specs are `Game`'s, and `World` takes them by
+  reference in its constructor, as it takes the id allocator and the engine.
 - **`load_zone(region, filepath)`** makes an empty zone, has the loader fill it from the file, and populates it unless the file
   is already populated: a saved zone, or a generated one with its denizens placed, which a flag in the file indicates.
-- **The generator and the loader build the doors** into the zone with its layout and notation. `World` handles none.
+- **A zone's doors are in its `Document`,** generated or read, and `load_layout` builds them. `World` handles none.
 - **Neither unloads anything.** Creating and loading add a zone to the world.
 - **`populate(zone)`** places the zone's denizens. Until placement is built (`placement_plan.md`), it places one
   pursuer at the last open cell.
@@ -89,12 +82,9 @@ void World::trim_zones(flecs::entity zone_entered);
 
 ```cpp
 void Session::clear();
-void Session::start();
+void Session::start(flecs::entity zone);
 void Session::pause();
 void Session::resume();
-void Session::create(flecs::entity region, const Generator& generator, flecs::entity access_type, level_type offset);
-void Session::load(flecs::entity region, const std::filesystem::path& filepath, flecs::entity access_type,
-    level_type offset);
 void Session::enter(flecs::entity zone, flecs::entity access_type, level_type offset);
 void Session::set_driver(Driver driver, double units_per_second = Clock::units_per_second_default);
 bool Session::loaded() const;
@@ -103,14 +93,14 @@ bool Session::over() const;
 
 - **`clear()`** clears the play state --- the zone being played, the turn order, the clock and the pending command.
   `loaded()` is then false. The driver remains. `Game` clears the character and the world.
-- **`start()`** begins play of the game that `Game` has created or opened, in the zone the character is in. For a new
-  game, that is its first zone, which the starting region's generator makes or a host's zone file supplies. What
-  `start` takes to make and enter the first zone is not designed.
+- **`start(zone)`** begins play of the game that `Game` has created or opened, in the zone. For a new game, that is the
+  first zone, which `World::create` returns; for an opened game, the zone the character is in. The session makes no
+  zone.
 - **`pause()` and `resume()`** stop and restart play while the menu is open. `advance` runs no actor while play is
   paused, and real time earns nothing, so closing the menu does not credit the time it was open. Both do nothing while
   no game is loaded.
-- **`create` and `load`** make a zone in the region, with `World::create_zone` or `World::load_zone`, and `enter` it.
-  Each host calls `load` with its zone file, in the game's starting region.
+- **`Session::create` and `Session::load` go.** `World` creates every zone, and the session enters them. The hosts call
+  `load` with a zone file only until generation creates a playable first zone.
 - **`enter(zone, access_type, offset)`** moves the character into the zone, at its entry point, then has the world `trim_zones`, so no unload can take
   the character with it. It clears the pending command and rebuilds the turn order from the zone's actors, the character
   included.
@@ -184,8 +174,9 @@ Character& Game::character();
   first, so the game in progress ends once the player has chosen, after a confirmation if the host asks for one. A
   failure leaves no game in progress; the host reports it and returns to the menu.
 - **`create`** clears, resets the id allocator and reseeds the engines, so no state passes from one game to the next.
-  It then has the character created from the `CharacterSpec` and the world's starting region from the `RegionSpec`,
-  and starts the session. Until a new game chooses its region, each host passes temporary specs.
+  It then has the character created from the `CharacterSpec`, and the world's starting region and its first zone from
+  the `RegionSpec`, and starts the session in that zone. The host passes only the specs. Until a new game chooses its
+  region, each host passes temporary ones.
 - **`open(directory)`** clears, reads the game's `game.json`, restoring the id allocator's count and the engines'
   state, has the world and then the character open their files, and starts the session in the zone the character is
   in, which loads from its file.
@@ -201,7 +192,6 @@ Character& Game::character();
   suite passes a directory of its own.
 - **The settings are the game's,** chosen when it begins and saved with it. They come with permadeath, the first of
   them (`### Permadeath`).
-- **A host's zone file is a test convenience:** it creates a new game whose first zone is the file's.
 
 ### Saving and loading
 

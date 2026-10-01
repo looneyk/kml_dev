@@ -78,13 +78,6 @@ void quetzal::stratum_sim::Session::resume()
 }
 
 //------------------------------------------------------------------------------
-void quetzal::stratum_sim::Session::create(flecs::entity region, const Generator& generator, flecs::entity access_type, level_type offset)
-{
-    enter(m_world.create_zone(region, generator), access_type, offset);
-    return;
-}
-
-//------------------------------------------------------------------------------
 void quetzal::stratum_sim::Session::load(flecs::entity region, const std::filesystem::path& filepath, flecs::entity access_type, level_type offset)
 {
     flecs::entity zone = m_world.load_zone(region, filepath);

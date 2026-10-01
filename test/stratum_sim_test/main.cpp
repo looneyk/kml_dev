@@ -10,6 +10,7 @@
 #include "quetzal/stratum_sim/Intent.hpp"
 #include "quetzal/stratum_sim/ContinuousLayout.hpp"
 #include "quetzal/stratum_sim/DiscreteLayout.hpp"
+#include "quetzal/stratum_sim/DisplayName.hpp"
 #include "quetzal/stratum_sim/load_layout.hpp"
 #include "quetzal/stratum_sim/commands.hpp"
 #include "quetzal/stratum_sim/Clock.hpp"
@@ -53,20 +54,6 @@ namespace
 
     // Seeded, so a random choice is the same on every run
     stratum_sim::random_type g_suite_random(1);
-
-    //--------------------------------------------------------------------------
-    // A world with the game's entity types, as Game's has, and a region for the suite's zones
-    struct SuiteWorld : stratum_sim::World
-    {
-        explicit SuiteWorld(stratum_sim::IdAllocator& id_allocator, size_t zone_count_max = suite_zone_count_max) :
-            World(id_allocator, g_suite_random, zone_count_max),
-            region(create_region())
-        {
-            stratum_sim::register_game_types(*this);
-        }
-
-        flecs::entity region;
-    };
 
     size_t g_case_count = 0;
     size_t g_failure_count = 0;
@@ -120,78 +107,75 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Builds the geometry of data/door.zone
-    class TestGenerator : public stratum_sim::Generator
+    // Returns a generator that reads the zone file, at the requested level if there is one
+    stratum_sim::Generation::generator_type file_generator(const string& filepath)
     {
-    public:
-
-        void generate(flecs::entity zone) const override
+        return [filepath](const stratum_sim::ZoneSpec& zone_spec)
         {
-            auto layout = make_unique<stratum_sim::DiscreteLayout>(stratum_sim::point_type(0.0f, 0.0f, 0.0f), 1.0f,
-                stratum_sim::discrete_vector_type(5, 3));
-            layout->set_flats(0.0f, 1.0f);
-
-            for (stratum_sim::coord_type i = 1; i <= 3; ++i)
-            {
-                layout->set_cell_open(stratum_sim::discrete_point_type {i, 1}, true);
-            }
-
-            // The doorway block walled toward solid, and the floor either side walled toward solid and toward the block
-            using stratum_sim::DirectionMask;
-            layout->set_cell_walls(stratum_sim::discrete_point_type {1, 1}, DirectionMask::East | DirectionMask::North | DirectionMask::West | DirectionMask::South);
-            layout->set_cell_walls(stratum_sim::discrete_point_type {2, 1}, DirectionMask::North | DirectionMask::South);
-            layout->set_cell_walls(stratum_sim::discrete_point_type {3, 1}, DirectionMask::East | DirectionMask::North | DirectionMask::West | DirectionMask::South);
-
-            // The faces the block presents to floor, which is where a door on a block goes
-            std::vector<id_type> door_walls {layout->wall_toward(stratum_sim::discrete_point_type {3, 1}, cardinal_direction(CardinalDirection::West)),
-                layout->wall_toward(stratum_sim::discrete_point_type {1, 1}, cardinal_direction(CardinalDirection::East))};
-
-            // The entrance above the first floor cell, as data/door.zone has, entered facing away from it
-            stratum_sim::Site entrance_site {stratum_sim::Relation::On, stratum_sim::WallAddress {
-                layout->wall_toward(stratum_sim::discrete_point_type {1, 1}, cardinal_direction(CardinalDirection::North))}, {}};
-            stratum_sim::placement_type entrance_placement(layout->position(stratum_sim::discrete_point_type {1, 1}),
-                stratum_sim::vector_type(0.0f, -1.0f, 0.0f));
-
-            const stratum_sim::DiscreteLayout& zone_layout = *layout;
-            zone.set<stratum_sim::ZoneLayout>(stratum_sim::ZoneLayout {std::move(layout)});
-            zone.set<stratum_sim::ZoneNotation>(stratum_sim::ZoneNotation {stratum_format::Notation::Block});
-
-            flecs::world world = zone.world();
-            flecs::entity door = world.entity().is_a(stratum_sim::entity_type(world, "door")).child_of(zone);
-
-            for (id_type wall_id : door_walls)
-            {
-                stratum_sim::reparent(world.entity(), door, stratum_sim::Site {stratum_sim::Relation::On, stratum_sim::WallAddress {wall_id}, {}});
-            }
-
-            flecs::entity entrance = world.entity();
-            stratum_sim::reparent(entrance, zone, entrance_site);
-            entrance.set<stratum_sim::Relocator>(stratum_sim::Relocator {stratum_format::RelocatorTarget {nullopt, stratum_format::RelativeZone {1}, nullopt}});
-            stratum_sim::set_access_point(entrance, stratum_sim::access_type(world, "staircase"), 0, entrance_placement);
-
-            for (id_type room_id = 0; room_id < zone_layout.room_count(); ++room_id)
-            {
-                stratum_sim::ensure_room_entity(zone, room_id);
-            }
-
-            stratum_sim::ensure_flat_entity(zone, zone_layout.floor_id());
-            stratum_sim::ensure_flat_entity(zone, zone_layout.ceiling_id());
-
-            return;
-        }
-    };
+            stratum_format::Document document = stratum_format::read(filepath);
+            document.level = zone_spec.value<stratum_sim::level_type>(stratum_sim::level_key);
+            return document;
+        };
+    }
 
     //--------------------------------------------------------------------------
-    // Reads data/walls.zone, which has one staircase leading up and one leading down
-    class StaircaseGenerator : public stratum_sim::Generator
+    // Returns a generator selector that chooses the one generator for every zone
+    stratum_sim::Generation::generator_selector_type sole_generator_selector(const string& generator_name)
     {
-    public:
-
-        void generate(flecs::entity zone) const override
+        return [generator_name](const stratum_sim::World&, flecs::entity, const stratum_sim::ZoneSpec& zone_spec)
         {
-            stratum_sim::load_layout(zone, stratum_format::read("data/walls.zone"));
-            return;
+            return stratum_sim::Generation::GeneratorSelection {generator_name, {}, {}, zone_spec};
+        };
+    }
+
+    //--------------------------------------------------------------------------
+    // The suite's registries. A region whose spec selects "door" makes zones from data/door.zone, and "staircase" from
+    // data/walls.zone, which has one staircase leading up and one leading down. "next_region" chooses a new region from the
+    // region spec "staircase" for every zone, and "unregistered_generator" a generator that is not registered
+    stratum_sim::Generation suite_generation()
+    {
+        stratum_sim::Generation generation;
+
+        generation.m_generators["door"] = file_generator("data/door.zone");
+        generation.m_generators["staircase"] = file_generator("data/walls.zone");
+        generation.m_generator_selectors["door"] = sole_generator_selector("door");
+        generation.m_generator_selectors["staircase"] = sole_generator_selector("staircase");
+        generation.m_generator_selectors["unregistered_generator"] = sole_generator_selector("unregistered");
+        generation.m_generator_selectors["next_region"] = [](const stratum_sim::World&, flecs::entity, const stratum_sim::ZoneSpec& zone_spec)
+        {
+            return stratum_sim::Generation::GeneratorSelection {{}, {}, "staircase", zone_spec};
+        };
+        generation.m_region_specs["staircase"] = stratum_sim::RegionSpec {{string(stratum_sim::generator_selector_key), "staircase"}};
+
+        return generation;
+    }
+
+    stratum_sim::Generation g_suite_generation = suite_generation();
+
+    //--------------------------------------------------------------------------
+    stratum_sim::RegionSpec suite_region_spec(const string& generator_selector_name)
+    {
+        return stratum_sim::RegionSpec {{string(stratum_sim::generator_selector_key), generator_selector_name}};
+    }
+
+    //--------------------------------------------------------------------------
+    stratum_sim::ZoneSpec suite_zone_spec(stratum_sim::level_type level)
+    {
+        return stratum_sim::ZoneSpec {{string(stratum_sim::level_key), to_string(level)}};
+    }
+
+    //--------------------------------------------------------------------------
+    // A world with the game's entity types, as Game's has, and a region for the suite's zones
+    struct SuiteWorld : stratum_sim::World
+    {
+        explicit SuiteWorld(stratum_sim::IdAllocator& id_allocator, size_t zone_count_max = suite_zone_count_max) :
+            World(id_allocator, g_suite_random, g_suite_generation, zone_count_max),
+            region(create_region())
+        {
+            stratum_sim::register_game_types(*this);
         }
+
+        flecs::entity region;
     };
 
     //--------------------------------------------------------------------------
@@ -1867,11 +1851,19 @@ namespace
             && leveled.get<stratum_sim::ZoneLevel>().level == -3);
         report_case("and none where its file states none", field.try_get<stratum_sim::ZoneLevel>() == nullptr);
 
-        flecs::entity dungeon = world.create_region();
-        dungeon.set<shared_ptr<const stratum_sim::Generator>>(make_shared<TestGenerator>());
-        flecs::entity made = world.create_zone(dungeon, stratum_sim::level_type(-1));
+        stratum_format::Document named_document = stratum_format::read("data/door.zone");
+        named_document.components["name"] = "The Narrow Door";
+        bool named_buildable = !stratum_sim::build_error(world.entities(), named_document).has_value();
+        flecs::entity named = world.create_zone(world.region, world.next_id());
+        stratum_sim::load_layout(named, named_document);
 
-        report_case("a region makes a zone at a level with its generator", stratum_sim::region_of(made) == dungeon
+        report_case("a zone has the name its file states, as its display name", named_buildable
+            && named.try_get<stratum_sim::DisplayName>() != nullptr && named.get<stratum_sim::DisplayName>().name == "The Narrow Door");
+
+        flecs::entity dungeon = world.create_region(suite_region_spec("door"));
+        flecs::entity made = world.create_zone(dungeon, suite_zone_spec(-1));
+
+        report_case("a region makes a zone at a level with the generator its selector chooses", stratum_sim::region_of(made) == dungeon
             && made.get<stratum_sim::ZoneLevel>().level == -1 && made.has<stratum_sim::ZoneLayout>());
 
         return;
@@ -1906,8 +1898,7 @@ namespace
 
         auto zone_arrived_in = [](flecs::entity arrival) { return arrival ? stratum_sim::zone_of(arrival) : flecs::entity(); };
 
-        flecs::entity dungeon = world.create_region(world.region);
-        dungeon.set<shared_ptr<const stratum_sim::Generator>>(make_shared<StaircaseGenerator>());
+        flecs::entity dungeon = world.create_region(suite_region_spec("staircase"), world.region);
 
         flecs::entity field = load_at_level(world.region, 0);
         flecs::entity first = load_at_level(dungeon, -1);
@@ -1926,7 +1917,7 @@ namespace
             }
         };
 
-        report_case("moving down looks only in its own region, which makes no zone without a generator",
+        report_case("moving down looks only in its own region, which makes no zone without a spec",
             !world.resolve_relocator_target(field_down) && world.zone_count() == 3);
         report_case("moving down finds the unbound staircase that leads back, in its region's zone at the level below",
             world.resolve_relocator_target(first_down) == second_up);
@@ -1960,7 +1951,7 @@ namespace
         bind(field_down);
         arrival = world.resolve_relocator_target(first_up);
         made = zone_arrived_in(arrival);
-        report_case("a bound relocator is not found, and a zone at level 0 is made only in a region with a generator", made
+        report_case("a bound relocator is not found, and a zone at level 0 is made only in a region with a spec", made
             && stratum_sim::region_of(made) == dungeon && made.get<stratum_sim::ZoneLevel>().level == 0 && arrival == down_of(made));
         bind(arrival);
 
@@ -1971,7 +1962,7 @@ namespace
         report_case("an unloaded zone and a zone in an unrelated region are not searched", made
             && stratum_sim::region_of(made) == dungeon && made.get<stratum_sim::ZoneLevel>().level == -2);
 
-        world.region.set<shared_ptr<const stratum_sim::Generator>>(make_shared<StaircaseGenerator>());
+        world.region.get_mut<stratum_sim::Region>().region_spec = suite_region_spec("staircase");
         set<flecs::entity_t> regions_made_in;
 
         for (int attempt = 0; attempt < 16; ++attempt)
@@ -2017,8 +2008,7 @@ namespace
             return zone;
         };
 
-        flecs::entity dungeon = world.create_region();
-        dungeon.set<shared_ptr<const stratum_sim::Generator>>(make_shared<StaircaseGenerator>());
+        flecs::entity dungeon = world.create_region(suite_region_spec("staircase"));
 
         flecs::entity first = load_at_level(dungeon, -1);
         flecs::entity second = load_at_level(dungeon, -2);
@@ -2073,7 +2063,8 @@ namespace
         stratum_sim::World& world = game.world();
         flecs::entity character = session.character().entity();
 
-        game.starting_region().set<shared_ptr<const stratum_sim::Generator>>(make_shared<StaircaseGenerator>());
+        game.generation() = suite_generation();
+        game.starting_region().get_mut<stratum_sim::Region>().region_spec = suite_region_spec("staircase");
 
         // data/walls.zone: the character enters on cell (2, 1), facing the staircase leading down to the east
         session.load(game.starting_region(), "data/walls.zone", suite_entry_type(session), suite_entry_offset);
@@ -2184,7 +2175,8 @@ namespace
             && interacted->interaction == stratum_sim::Interaction::NoDestination && interacted->acted_on_id == staircase.id());
         report_case("which is a staircase", stratum_sim::access_type_name(staircase) == "staircase");
 
-        game.starting_region().set<shared_ptr<const stratum_sim::Generator>>(make_shared<StaircaseGenerator>());
+        game.generation() = suite_generation();
+        game.starting_region().get_mut<stratum_sim::Region>().region_spec = suite_region_spec("staircase");
         flecs::entity first = session.zone();
         session.character().submit(stratum_sim::Interact {});
         stratum_sim::EventQueue enter_events;
@@ -2297,7 +2289,7 @@ namespace
                 cardinal_direction(CardinalDirection::East)));
         };
 
-        flecs::entity generated = world.create_zone(world.region, TestGenerator());
+        flecs::entity generated = world.create_zone(world.create_region(suite_region_spec("door")), stratum_sim::ZoneSpec {});
         stratum_sim::World::entities_type generated_pursuers = pursuers_in(generated);
 
         report_case("a generated zone has its doors", door_east_of_start(generated).is_alive());
@@ -2319,6 +2311,50 @@ namespace
             && door_type_east_of_start(loaded) && pursuers_in(loaded).size() == 1
             && loaded.get<stratum_sim::ZoneNotation>().notation == stratum_format::Notation::Block);
         report_case_equal("creating and loading unload nothing", world.zone_count(), 3);
+
+        // Zones created through the registries
+        flecs::entity counted = world.create_region(suite_region_spec("staircase"));
+        world.create_zone(counted, suite_zone_spec(-1));
+        world.load_zone(counted, "data/door.zone");
+        report_case_equal("a region counts the zones created in it, generated or loaded", counted.get<stratum_sim::Region>().zone_count, 2);
+
+        // data/saved.zone is a saved zone, counted when it was created
+        flecs::entity saved = world.load_zone(counted, "data/saved.zone");
+        world.unload_zone(saved);
+        flecs::entity saved_again = world.load_zone(counted, "data/saved.zone");
+        report_case("a saved zone read back is not counted, however often it is loaded after unloading", saved_again.is_alive()
+            && saved_again.get<stratum_sim::PersistentId>() == stratum_sim::PersistentId {900} && counted.get<stratum_sim::Region>().zone_count == 2);
+        world.unload_zone(saved_again);
+
+        flecs::entity leaving = world.create_region(suite_region_spec("next_region"));
+        flecs::entity begun = world.create_zone(leaving, suite_zone_spec(-1));
+        flecs::entity begun_region = stratum_sim::region_of(begun);
+        const stratum_sim::Region& begun_region_data = begun_region.get<stratum_sim::Region>();
+        report_case("a selection of a new region makes the zone the first of a region created from the region spec",
+            begun_region != leaving && begun_region_data.region_spec->value(stratum_sim::generator_selector_key) == "staircase"
+            && begun_region_data.zone_count == 1 && leaving.get<stratum_sim::Region>().zone_count == 0
+            && begun.get<stratum_sim::ZoneLevel>().level == -1);
+
+        auto throws_runtime_error = [](auto f)
+        {
+            try
+            {
+                f();
+            }
+            catch (const runtime_error&)
+            {
+                return true;
+            }
+
+            return false;
+        };
+
+        size_t zone_count_before = world.zone_count();
+        report_case("a generator selector that is not registered is an error, and no zone is created", throws_runtime_error([&]
+            { world.create_zone(world.create_region(suite_region_spec("unregistered")), stratum_sim::ZoneSpec {}); }) && world.zone_count() == zone_count_before);
+        report_case("and so is a generator that is not registered", throws_runtime_error([&]
+            { world.create_zone(world.create_region(suite_region_spec("unregistered_generator")), stratum_sim::ZoneSpec {}); })
+            && world.zone_count() == zone_count_before);
 
         return;
     }
@@ -3068,8 +3104,9 @@ namespace
         {
             stratum_sim::Game game_created;
             stratum_sim::Session& created = game_created.session();
-            TestGenerator generator;
-            created.create(game_created.starting_region(), generator, suite_entry_type(created), suite_entry_offset);
+            game_created.generation() = suite_generation();
+            game_created.starting_region().get_mut<stratum_sim::Region>().region_spec = suite_region_spec("door");
+            created.enter(game_created.world().create_zone(game_created.starting_region(), stratum_sim::ZoneSpec {}), suite_entry_type(created), suite_entry_offset);
 
             report_case("a constructed zone is loaded", created.loaded());
             report_case("with the notation its generator named", created.notation() == stratum_format::Notation::Block);

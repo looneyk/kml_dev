@@ -28,7 +28,8 @@ void quetzal::stratum_sim::register_game_types(World& world)
 quetzal::stratum_sim::Game::Game() :
     m_counting_id_allocator(PersistentId {}),
     m_random(),
-    m_world(m_counting_id_allocator, m_random, zone_count_max),
+    m_generation(),
+    m_world(m_counting_id_allocator, m_random, m_generation, zone_count_max),
     m_character(m_world),
     m_session(m_world, m_character),
     m_starting_region(m_world.create_region())
@@ -108,6 +109,18 @@ std::vector<quetzal::stratum_sim::SavedGameDetails> quetzal::stratum_sim::Game::
     // From the saved game directory in config, return all the subdirecties ...
 
     return {};
+}
+
+//------------------------------------------------------------------------------
+quetzal::stratum_sim::Generation& quetzal::stratum_sim::Game::generation()
+{
+    return m_generation;
+}
+
+//------------------------------------------------------------------------------
+const quetzal::stratum_sim::Generation& quetzal::stratum_sim::Game::generation() const
+{
+    return m_generation;
 }
 
 //------------------------------------------------------------------------------

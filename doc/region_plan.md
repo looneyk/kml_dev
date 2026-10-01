@@ -1,27 +1,28 @@
 # Regions --- Plan
 
-Date: 2026-09-26
+Date: 2026-09-26, revised 2026-10-01
 
-A region groups contiguous zones: a surface area, a dungeon, a crypt, a tower or a house. Regions have parent regions,
-so a dungeon under a surface area is that area's child. Moving between zones through a relocator changes the region,
-the level, or both, and an unbound relocator states how many levels it moves; resolving it needs zones to know their
-region and level. So regions come before relocating through a relocator.
-`sim_zone_model.md` (`## World, Zones, and Levels`) states the model, and the open items are in `work_plan.md`
-(`### Regions`).
+A region groups contiguous zones: a surface area, a dungeon, a crypt, a tower or a house. Regions have no hierarchy;
+zones connect through their access points, within a region and between regions. Moving between zones through a
+relocator changes the region, the level, or both, and an unbound relocator states how many levels it moves; resolving
+it needs zones to know their region and level. So regions come before relocating through a relocator.
+`sim_zone_model.md` (`## World, Zones, and Levels`) states the model, `world_generation_plan.md` how regions and their
+zones are generated, and the open items are in `work_plan.md` (`### Regions`).
 
 ## What a region is
 
 - **A region is data.** It is an entity with its properties as components: a name, and for a dungeon the overall or
   starting difficulty and the other properties a whole dungeon has. It acts on nothing directly, apart from what a
   generator reads from it.
-- **A region has a parent region,** except a region at the top, such as the first surface area. A crypt, a dungeon, a
-  tower or a house is the child of the surface area it is in.
-- **A region is its zones' parent.** It takes the place in the hierarchy that the root has now, so a zone's flecs
-  parent is its region. `zone_of` still stops at the first ancestor that is a zone, and a zone's region is its parent.
-  Unloading a zone leaves its region; deleting a region deletes its zones and its child regions.
+- **A region has no parent region and no child regions.** A crypt in a surface area is a region of its own, reached
+  through a relocator in one of the surface area's zones, and the bound relocators between the two are the only
+  connection between them.
+- **A region is its zones' parent.** A zone's flecs parent is its region. `zone_of` still stops at the first ancestor
+  that is a zone, and a zone's region is its parent. Unloading a zone leaves its region; deleting a region deletes its
+  zones.
 - **A region has a persistent id,** given when it is created, as a zone's is.
-- **A region has the generation settings for the zones it makes:** the generator and its parameters. The generator is
-  given the level of the zone it makes.
+- **A region has its `RegionSpec`,** from which its generator selector creates each of its zones at the level a
+  relocator or the region's starting zone spec states (`world_generation_plan.md`).
 
 ## Level
 
@@ -43,13 +44,12 @@ region and level. So regions come before relocating through a relocator.
   at the same level, such as a crypt's door (`## Doors between zones`).
 - **Resolving an unbound relocator finds a zone or makes one,** then binds both ends, so the binding is the connection
   from then on.
-- **Finding:** an unbound relocator with offset *k* in a zone at level *L* looks among the loaded zones at level
-  *L* + *k* for an unbound relocator with the opposite offset, -*k*. Moving up from a region's zone looks in its own
-  region and its parent region: an unbound `up` from level -1 looks for an unbound `down` at level 0 of the parent
-  region. Moving across, with an offset of 0, follows the same rules as moving up. Moving down looks in its own region.
-- **Making:** if nothing is found, a new zone at level *L* + *k* is made from a region's generation settings. Moving up
-  to level 0 makes it at random in the relocator's own region, such as a crypt's zone at level 0, or in the region it
-  originated from, its parent. Moving down makes it in the relocator's own region.
+- **Finding:** an unbound relocator with offset *k* in a zone at level *L*, whose target has no region, looks among
+  its own region's loaded zones at level *L* + *k* for an unbound relocator with the opposite offset, -*k*. Moving up,
+  down, and across all follow this rule.
+- **Making:** if nothing is found, a new zone at level *L* + *k* is created in the relocator's own region. A target
+  with a region always creates a new region from the region spec of that name, and the region's first zone at level
+  *L* + *k*; it finds nothing.
 - **The arriving actor is placed** at the found relocator's access point, or at the new zone's entry point of the type
   at which the relocator's type arrives.
 
@@ -73,8 +73,7 @@ name     = letter {letter | digit | "_"}
 | `+0` | Another zone at the same level |
 | `=0` | Level 0 |
 | `=-3` | Level -3 |
-| `sewers/=-1` | Level -1 of the region `sewers` |
-| `../=0` | Level 0 of the parent region |
+| `sewers/=-1` | Level -1 of a new region created from the region spec `sewers` |
 | `town/market@fountain` | The zone `market` in the region `town`, at the position `fountain` |
 
 - **A relative zone** is a level offset from the relocator's zone, and always has its sign, so `+0` is the offset 0.
@@ -82,9 +81,8 @@ name     = letter {letter | digit | "_"}
   an offset.
 - **A named zone** is a zone of pregenerated content, and the position is a place in it, for transporting to a
   specific place. A zone name or a region name is a tag in the pregenerated content index (`## Pregenerated content`).
-- **The region** is `..` for the parent region and `.` for the relocator's own region. An omitted region is the
-  relocator's own region, from which the rules of `## Relocators with a level offset` start. A named region confines
-  finding and making to that region.
+- **The region** is the name of a region spec, and the target leads into a new region created from it. An omitted
+  region is the relocator's own region, in which `## Relocators with a level offset` finds and makes zones.
 - **An omitted position** places the arriving actor at an access point, as `## Relocators with a level offset`
   describes.
 - **Finding with an absolute zone:** a relocator whose zone is at level *L*, with the target `=`*n*, looks at level *n*
@@ -136,7 +134,6 @@ name     = letter {letter | digit | "_"}
 - **Transparent zone and region boundaries.** Contiguous zones joined edge to edge, so an actor walks from one zone
   into the next, across region boundaries too. Until then, zones connect only through relocators: waypoints, and
   dungeons with more than one entrance.
-- **Making a new region** when an unbound relocator finds nothing, instead of a zone in its own or its parent region.
 
 ## Open
 

@@ -43,12 +43,15 @@ namespace
     // Seeded, so a random choice is the same on every run
     stratum_sim::random_type g_suite_random(1);
 
+    // No zone is generated, so nothing is registered
+    stratum_sim::Generation g_suite_generation;
+
     //--------------------------------------------------------------------------
     // A world with the game's entity types, as Game's has, and a region for the suite's zones
     struct SuiteWorld : stratum_sim::World
     {
         explicit SuiteWorld(stratum_sim::IdAllocator& id_allocator) :
-            World(id_allocator, g_suite_random, suite_zone_count_max),
+            World(id_allocator, g_suite_random, g_suite_generation, suite_zone_count_max),
             region(create_region())
         {
             stratum_sim::register_game_types(*this);

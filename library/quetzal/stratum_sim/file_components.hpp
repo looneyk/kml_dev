@@ -20,8 +20,9 @@ namespace quetzal::stratum_sim
     };
 
     //--------------------------------------------------------------------------
-    // Makes the file component with this name in a zone file load as the component. The component's fields must already be
-    // registered with flecs. A component with optional fields also inherits (register_inheritance)
+    // Makes the file component with this name in a zone file load as the component. The component's reflection, as a struct
+    // or an opaque type, must already be registered with flecs. A component with optional fields also inherits
+    // (register_inheritance)
     flecs::entity register_file_component(flecs::world& entities, std::string_view name, flecs::entity_t component);
 
     template<typename T>

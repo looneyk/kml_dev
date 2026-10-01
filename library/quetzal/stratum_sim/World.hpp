@@ -5,11 +5,10 @@
 // World.hpp
 //------------------------------------------------------------------------------
 
-#include "Generator.hpp"
+#include "Generation.hpp"
 #include "IdAllocator.hpp"
 #include "Layout.hpp"
 #include "PersistentId.hpp"
-#include "RegionSpec.hpp"
 #include "properties.hpp"
 #include "Site.hpp"
 #include "Zone.hpp"
@@ -77,7 +76,7 @@ namespace quetzal::stratum_sim
 
         using entities_type = std::vector<flecs::entity>;
 
-        World(IdAllocator& id_allocator, random_type& random, size_t zone_count_max);
+        World(IdAllocator& id_allocator, random_type& random, Generation& generation, size_t zone_count_max);
         World(const World&) = delete;
         World(World&&) = delete;
         ~World() = default;
@@ -99,8 +98,12 @@ namespace quetzal::stratum_sim
         entities_type zones() const;
         size_t zone_count() const;
 
-        // Creates a region, a child of the parent region if given
+        // Creates a region, a child of the parent region if given. A region created without a spec creates no zones
         flecs::entity create_region(flecs::entity parent = flecs::entity());
+        flecs::entity create_region(const RegionSpec& region_spec, flecs::entity parent = flecs::entity());
+
+        // Creates a region from the spec and its first zone from the zone spec, and returns the zone
+        flecs::entity create_region_zone(const RegionSpec& region_spec, const ZoneSpec& zone_spec);
 
         // Unloads the zones of the region and of its child regions, and deletes the regions
         void unload_region(flecs::entity region);
@@ -111,13 +114,10 @@ namespace quetzal::stratum_sim
         // Creates a zone in the region that has the layout
         flecs::entity create_zone(flecs::entity region, std::unique_ptr<Layout> layout);
 
-        // Creates a zone in the region, has the generator fill it, and populates it
-        flecs::entity create_zone(flecs::entity region, const Generator& generator);
-
-        // Creates a zone at the level in the region, has the region's generator fill it, and populates it. The region has its
-        // generator as a std::shared_ptr<const Generator> component, and the generator reads the level from the zone's
-        // ZoneLevel
-        flecs::entity create_zone(flecs::entity region, level_type level);
+        // Creates a zone in the region as the region's generator selector chooses: built from the Document a generator returns,
+        // and populated, or the first zone of a new region. Throws std::runtime_error, before anything is built, if a name the
+        // selection depends on is not registered, or the document cannot be built, and passes on what the generator throws
+        flecs::entity create_zone(flecs::entity region, const ZoneSpec& zone_spec);
 
         // Reads a zone into the region from a file and populates it. The zone is given the persistent id of the file if it has
         // one. Throws std::runtime_error, before anything is built, if the reader rejects the file, build_error finds a
@@ -138,7 +138,7 @@ namespace quetzal::stratum_sim
         // loaded zone at the target level, or else the entry point of a zone made there. With the region omitted, moving
         // down looks and makes in the relocator's region; moving up or across also looks in the parent region, and a zone
         // it makes at level 0 is in either region, chosen at random. The region "." or ".." is the only one searched and
-        // made in. Only a region with a generator makes a zone. Returns a null entity if none can, or if the zone made has
+        // made in. Only a region with a spec makes a zone. Returns a null entity if none can, or if the zone made has
         // no access point of the arrival type that leads back
         flecs::entity resolve_relocator_target(flecs::entity relocator);
 
@@ -195,8 +195,10 @@ namespace quetzal::stratum_sim
 
     private:
 
-        // Has the generator fill the zone, then populates it. If the generator throws, unloads the zone and rethrows
-        void fill_zone(flecs::entity zone, const Generator& generator);
+        // Creates a zone in the region from the document and populates it. The zone is given the document's persistent id if
+        // it has one. Throws std::runtime_error, reporting the source, before anything is built, if build_error finds a
+        // reason the world cannot build it, or it is a saved zone that is already loaded
+        flecs::entity build_zone(flecs::entity region, const stratum_format::Document& document, std::string_view source);
 
         // The entities that property reads, nearest first
         entities_type property_chain(flecs::entity e) const;
@@ -206,6 +208,7 @@ namespace quetzal::stratum_sim
 
         IdAllocator& m_id_allocator;
         random_type& m_random;
+        Generation& m_generation;
 
         // All entities in the world with a PersistentId
         std::unordered_map<PersistentId, flecs::entity> m_loaded_entities;

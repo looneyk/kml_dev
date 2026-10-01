@@ -1,6 +1,6 @@
 # Work Plan
 
-Date: 2026-08-28, revised 2026-09-29
+Date: 2026-08-28, revised 2026-10-01
 
 This is the stratum work queue: every item not yet built, and the open questions. An item is referred to by its bold
 name. `game_system_principles.md` has
@@ -23,6 +23,9 @@ The design behind the items is in these documents, which the items refer to by s
   host, and owns the `World`, the `Character` and the `Session` by value, clearing them in place for each game created
   or opened.
 - `sim_zone_model.md` has the model beneath the code.
+- `world_generation_plan.md` covers how a new game's regions and zones are generated: `RegionSpec` and `ZoneSpec`, the
+  registries of generators, generator selectors and region specs, and the relocators that lead to new zones and
+  regions.
 
 `archived/` has the plans whose work is built.
 
@@ -41,19 +44,31 @@ each on the ones before it. `Game`'s menu and lifecycle functions, and those the
 - [x] **The menu and lifecycle skeleton.** `Game`'s `menu_open`, `menu_close`, `clear`, `create`, `open`, `save`,
       `quit` and `saved_games`; `clear`, `create`, `open` and `save` on `World` and `Character`; `clear`, `start`,
       `pause` and `resume` on `Session`; and `RegionSpec` and `CharacterSpec` as placeholders.
-- [ ] **A new game's first zone designed** (`session_plan.md`, `## Session`): the keys `RegionSpec` and
-      `CharacterSpec` have to begin with, what `Session::start` takes to make and enter the first zone, how a host's
-      zone file becomes the first zone, and the directory a new game's zones are saved into.
 - [x] **`KeyValueStore` built up** (`archived/key_value_store_plan.md`), with `Properties` and `Config` aliases of it.
-- [ ] **The generator registry** (`session_plan.md`, `## World`): `Game`'s map from a generator's name to its function,
-      which `World` takes by reference; a region's generator name and parameters in place of the
-      `std::shared_ptr<const Generator>` component; and `quetzal/stratum_gen`, with dungen's generator moved into it
-      from the hosts' temporary `DungenGenerator` and registered by name.
-- [ ] **One game after another.** `RegionSpec` and `CharacterSpec` made of `KeyValueStore`; `World::clear`,
+- [x] **The generator registry: zones created through the registries** (`world_generation_plan.md`). `Generation`, with
+      `RegionSpec` and `ZoneSpec` made of `KeyValueStore`, which `Game` owns and `World` takes by reference;
+      `create_region(region_spec)`, `create_region_zone` and `create_zone(region, zone_spec)`, with the `Region`
+      component having the region's spec and zone count in place of the `std::shared_ptr<const Generator>` component;
+      the selector's generator and new-region outcomes; the zone built from its `Document` as a loaded one is; and
+      `resolve_relocator_target` creating zones through `create_zone(region, zone_spec)`. `Generator`,
+      `create_zone(region, const Generator&)`, `create_zone(region, level)` and `Session::create` are removed. The
+      suites' generators and the hosts' `DungenGenerator` become registered functions, with temporary selectors.
+- [ ] **The generator registry: `Session::load` removed.** The suites and the hosts load a zone with
+      `World::load_zone` and enter it with `Session::enter`.
+- [ ] **The generator registry: `quetzal/stratum_gen`,** with dungen's generator moved into it from the hosts and
+      registered by name, and the hosts linking it.
+- [ ] **A new game's first zone designed** (`world_generation_plan.md`, `## Creating a game`): the keys `RegionSpec`,
+      `ZoneSpec` and `CharacterSpec` have to begin with, the access point at which the character enters the first zone,
+      and the directory a new game's zones are saved into.
+- [ ] **Flat regions** (`region_plan.md`, `world_generation_plan.md`, `## Relocators`): `create_region` with no parent,
+      `unload_region` and `World::clear` with no child regions, `.` and `..` removed from the relocator target grammar in
+      `discrete_layout.md` and `stratum_format`, finding only in the relocator's own region, and a target with a region
+      creating a new region from the region spec of that name with `create_region_zone`.
+- [ ] **One game after another.** `CharacterSpec` made of `KeyValueStore`; `World::clear`,
       `Character::clear` and `Session::clear`; `Character::create` making
-      the entity with a new id, and `World::create` making the starting region, in place of the constructors of
-      `Character` and `Game`; `Game::create` resetting the id allocator and reseeding the engine; and `Session::start`.
-      The hosts create a game from temporary specs, whose first zone is their zone file. A suite case plays a game,
+      the entity with a new id, and `World::create` making the starting region and its first zone, in place of the
+      constructors of `Character` and `Game`; `Game::create` resetting the id allocator and reseeding the engine; and
+      `Session::start(zone)`. The hosts create a game from temporary specs and load no zone file. A suite case plays a game,
       clears it, creates another, and checks that only the new game's regions, zones, entities and ids remain.
 - [ ] **The game's config.** `Config`, with the saves directory and the zone count maximum, passed to `Game`'s
       constructor, with each host passing a temporary one.
@@ -66,8 +81,9 @@ each on the ones before it. `Game`'s menu and lifecycle functions, and those the
       zone and when a zone unloads, which then frees its resources, and entering the zone again reading its file back.
 - [ ] **A game saved** (`game_file_spec.md`): `Game::save` writing `game.json`, `Character::save` writing
       `character.json`, and `World::save` writing `world.json` and every loaded zone; and the hosts' menu offering it.
-- [ ] **A game loaded:** `Game::open` reading `game.json`, `World::open` and `Character::open` reading theirs, the
-      session starting in the zone the character is in, and `saved_games`; and the hosts' menu offering them.
+- [ ] **A game loaded:** `Game::open` reading `game.json`, `World::open` and `Character::open` reading theirs, with each
+      region's zone count set from the number of its zones, the session starting in the zone the character is in, and
+      `saved_games`; and the hosts' menu offering them.
 
 ## Lifecycle
 
@@ -83,8 +99,17 @@ each on the ones before it. `Game`'s menu and lifecycle functions, and those the
 
 ## Generators
 
+- [ ] **The common generator selector** (`world_generation_plan.md`, `## Generator selection`): a region's zone count;
+      `GeneratorSelection` choosing a generator, a pre-built zone, or a new region; the selector reading its opening
+      sequence, primary and rare weighted tables, zone limit, and weighted table of next regions from the `RegionSpec`,
+      with the probability of a new region rising to 1 at the zone limit; and the starting
+      region's spec, with a field or forest, then a town, then fields, hills, forests and towns. It needs field, forest,
+      hills and town generators, and pre-built zones need **The pregenerated content index**.
+- [ ] **Pre-built zones selected** (`world_generation_plan.md`, `## Generator selection`): a selection's
+      `zone_template` read from **The pregenerated content index** into a `Document`, and the zone built from it as a
+      generated zone is.
 - [ ] **The generators integrated.** catagen's generator in `quetzal/stratum_gen` beside dungen's, registered by name,
-      so a region's generator builds its zones with dungen or catagen.
+      so a region's generator selector can choose dungen or catagen for each of its zones.
 - [ ] **Staircases in every form** (`session_plan.md`, `## Entering an access point`). The generators can place a
       staircase in a flat length of wall or in a 1x1 alcove, the two being equivalent across the notations, as well as
       a block staircase on floor cells in the open space of a room. In the wall notation every staircase is sited on a
@@ -103,7 +128,8 @@ each on the ones before it. `Game`'s menu and lifecycle functions, and those the
       engine and `World` takes it; a host or a suite passing the seed, and the host logging it, are left.
 - [ ] **The engine chosen** (`random_engine.md`, `## The engine type`).
 - [ ] **The generation engine and zone seeds** (`random_engine.md`, `## Streams`, `## Generation`): `Game`'s
-      second engine, `ZoneSeed` set by `create_zone(region, level)`, and a region's generator reading it.
+      second engine, and `create_zone(region, zone_spec)` adding the zone's seed, drawn from it, to the zone's
+      parameters, from which its generator reads it.
 - [ ] **Generation runs as objects** (`random_engine.md`, `## Ownership`): dungen's and catagen's runs, each owning its
       engine, seeded from the zone's seed, with the reference files regenerated. It comes with **the generators
       integrated**.
@@ -119,8 +145,6 @@ each on the ones before it. `Game`'s menu and lifecycle functions, and those the
       the zone on the other side is visible and must be rendered.
       First pass: Zones should be created with natural or constructed barriers that surround them so this problem can be deferred.
 
-- [ ] **A new region made on resolving,** when an unbound relocator finds nothing, instead of a zone in its own or its
-      parent region (`region_plan.md`).
 - [ ] **Unloading by region.** Criteria for `World::trim_zones` that choose the zones of other regions first, those
       left longest ago first, as `ZoneEntryIndex` does, and then those of the character's region, farthest first.
 - [ ] **Region files.**
@@ -309,17 +333,28 @@ These are the open questions.
   region.
 - **The contents of a region file:** only the region's metadata and generation settings, or those followed by its
   zones; and how it relates to the zone file format.
-- **Which region the first zone of a new game is made in,** and whether the session asks the region to make it.
 - **How two bound doors keep their `Access` equal** (`region_plan.md`, `## Doors between zones`). With both zones
   loaded, changing one door sets its partner too. With the partner's zone unloaded, only this side changes, and the
   two are reconciled when an actor crosses or when the partner's zone loads; which change is newer needs deciding,
   such as by the simulation time of the last change stored with `Access`.
-- **Where moving down looks, and where it makes a zone.** `region_plan.md` has moving down look for an unbound
-  relocator and make a zone only in its own region; whether a hole from a surface zone at level 0 finds or makes its
-  zone in a child region, and which one, is not settled.
 - **How a relocator between surface zones states where it leads.** It leads neither up nor down, so a level offset of 0
   may be enough, or it may need a horizontal distance or direction instead.
 - **What the pregenerated content index file contains** (`region_plan.md`, `## Pregenerated content`).
+
+### Generation
+
+- **A second entrance into a region that exists.** A target with a region always creates a new region, and an existing
+  region is reached only through relocators bound to it. A dungeon with two entrances in different surface zones needs
+  the second entrance to refer to the region the first created, such as by persistent id once the region exists. A
+  region nearing its zone limit has the same need: each exit that leads out of it creates a new region, where they could
+  lead into a region that already follows it, which the selector would then refer to.
+- **How the probability of a new region rises** with a region's zone count, from 0 to 1 at its limit: the curve, where
+  it starts, and whether it is a parameter of the `RegionSpec`.
+- **The region in a relocator target:** the name of a region spec, from which a new region is created, or a tag in the
+  pregenerated content index (`region_plan.md`, `## Pregenerated content`); how the two are distinguished.
+- **How a `RegionSpec` and a `ZoneSpec` separate their parts** --- metadata, the generator selector's name, the
+  generation parameters, and the starting zone's spec --- within a `KeyValueStore`.
+- **Which `RegionSpec` metadata becomes components** on the region, and which only the selector reads.
 
 ### Random engine
 

@@ -1,6 +1,6 @@
 # Random Engine --- Plan
 
-Date: 2026-09-27
+Date: 2026-09-27, revised 2026-10-01
 
 Where random numbers come from in the game and in the generators: who owns each engine, how it is seeded, and what is
 saved. Gameplay comes first. The engines are arranged for what a player experiences, and reproducibility is a
@@ -93,8 +93,10 @@ and a seed stored with the version of the generators that made it.
 
 ## Generation
 
-- **A zone's seed is a component,** `ZoneSeed`, set by `World::create_zone(region, level)` from the generation engine
-  before the generator runs, as `ZoneLevel` is. The generator reads the level and the seed from the zone.
+- **A zone's seed is one of its generation parameters,** which `World::create_zone(region, zone_spec)` draws from the
+  generation engine and adds to the `ZoneSpec` before the generator runs (`world_generation_plan.md`). The generator
+  reads the level and the seed from the `ZoneSpec`, and nothing from the world.
+- **A generator selector's draws use the generation engine,** since they decide what a zone is.
 - **A zone file records its seed** in `generator.parameters`, as the tools' files do now, so a zone reproduces from its
   file alone.
 - **A retry draws a fresh sub-seed** from the run's engine, for Phase 5's reject-and-retry.

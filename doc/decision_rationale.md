@@ -282,13 +282,14 @@ instead of a property of the type.
 
 ## Zone entries share one construction
 
-A zone is constructed whole when it is encountered, geometry and contents, so `World::create_zone` from a `Generator`
+A zone is constructed whole when it is encountered, geometry and contents, so `World::create_zone` from a generator
 is the general entry, and a zone file is a snapshot of part of the same construction, loaded by the narrower
-`load_zone`. Both make an empty zone with `create_zone(zone_id)`, have the generator or the loader fill it, and populate
-it, so neither route drifts from the other.
+`load_zone`. A generator returns a `Document`, as reading a file does, and both build the zone from it through one
+function, which checks the document, makes the zone, has the loader fill it, and populates it, so neither route drifts
+from the other.
 
-`Generator` is an interface in `stratum_sim` and an implementation wherever a generator is chosen, so `stratum_sim`
-links no generator, and the concrete generator declares the parameters that apply to it.
+A generator is a function registered by name in `Generation`, so `stratum_sim` links no generator, and the generator
+reads the parameters that apply to it from the `ZoneSpec` it is given.
 
 ## The driver belongs to the zone
 

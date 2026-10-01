@@ -8,6 +8,7 @@
 #include "IdAllocator.hpp"
 #include "Character.hpp"
 #include "Config.hpp"
+#include "Generation.hpp"
 #include "SavedGameDetails.hpp"
 #include "Session.hpp"
 #include "Settings.hpp"
@@ -54,6 +55,9 @@ namespace quetzal::stratum_sim
         Settings& settings();
         const Settings& settings() const;
 
+        Generation& generation();
+        const Generation& generation() const;
+
         World& world();
         const World& world() const;
 
@@ -75,6 +79,7 @@ namespace quetzal::stratum_sim
         // In construction order, each referring to those above it
         CountingIdAllocator m_counting_id_allocator;
         random_type m_random; // Seeded from std::random_device
+        Generation m_generation;
         World m_world;
         Character m_character;
         Session m_session;

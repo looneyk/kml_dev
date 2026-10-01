@@ -182,8 +182,26 @@ every component object into a value that it then discards, with flecs' own error
 `build_error` checks.
 
 `register_file_component(entities, name, component)`, or `register_file_component<T>(entities, name)`, registers a
-component, with its reflection, as the one that a component object of that name decodes into. The name is an entity
-under `components`. `file_component(entities, name)` returns that component, or 0 if none is registered.
+component, with its reflection as a struct or an opaque type, as the one that a component object of that name decodes
+into. The name is an entity under `components`. `file_component(entities, name)` returns that component, or 0 if none
+is registered.
+
+`World` registers `name` as `DisplayName`, what an entity is called for a player to read, such as a zone's
+`layout.components.name`. It identifies nothing. `register_display_name` reflects it as a string, so the file's
+`"name": "..."` decodes into it.
+
+### Generation
+
+`Generation` has the registries that `World` creates regions and zones from (`world_generation_plan.md`), each a map
+from a name: `m_generator_selectors`, `m_generators` and `m_region_specs`. `RegionSpec` and `ZoneSpec` are both
+`KeyValueStore`. A `RegionSpec`'s `generator_selector` names the region's selector, and a `ZoneSpec`'s `level` is the
+zone's level; `generator_selector_key` and `level_key` are the two keys.
+
+A generator selector, `generator_selector_type`, is given the world, the region and the `ZoneSpec`, and returns a
+`GeneratorSelection`, which sets exactly one of a generator's name, a zone template's tag, and a region spec's name,
+with the `ZoneSpec` the zone is created from. A generator, `generator_type`, returns the `stratum_format::Document` a
+zone is built from, and reads nothing from the world. `Generation.hpp` declares `Document` without including its
+header, so nlohmann reaches no file that includes `World.hpp`.
 
 ### World
 
@@ -194,9 +212,13 @@ id. A zone is an entity with the `Zone` tag, a `ZoneLayout` component that owns 
 game, owned by `Game`, and it cannot be copied or moved.
 
 A region groups contiguous zones: a surface area, a dungeon, a crypt, a tower or a house (`region_plan.md`). It is an
-entity with the `Region` tag and a `PersistentId`, and it is the parent of its zones and of its child regions.
-`create_region(parent)` makes a child of `parent`, and a region with no parent region if `parent` is null, its
-default.
+entity with a `Region` component and a `PersistentId`, and it is the parent of its zones and of its child regions.
+`Region` has the region's `RegionSpec`, if it was created with one, and `zone_count`, the number of zones created in
+it, which counts zones that have since unloaded. A zone is counted when it is generated, loaded from a template, or
+created with a layout. A saved zone read back was counted when it was created, so it is not counted again. `create_region(parent)` makes a child of `parent`,
+and a region with no parent region if `parent` is null, its default. `create_region(region_spec, parent)` makes one
+with the spec. `create_region_zone(region_spec, zone_spec)` makes a region with no parent region from the spec, then its
+first zone with `create_zone`, and returns the zone.
 `region_of(zone)` returns a zone's region, its parent. `zone_of` is unchanged by the regions above a zone: it returns a
 null entity for a zone itself. `unload_region(region)` adds every zone of the region and of its child regions to the
 zones unloading, then deletes the region, which deletes its child regions and all their zones; each zone's unload
@@ -204,15 +226,19 @@ completes as `unload_zone`'s does.
 
 Every zone is made in a region. `create_zone(region, zone_id)` makes an empty zone in the region, with the `Zone` tag
 and that `PersistentId`, for a generator or the loader to fill. `create_zone(region, layout)` makes one with a new id,
-that layout and nothing else, and asserts that it is given a layout. Zones have no names; each is identified by its persistent id. `zone_count` and `layout` access the zones, with
+that layout and nothing else, and asserts that it is given a layout. A zone may have a `DisplayName`, but each is identified by its persistent id. `zone_count` and `layout` access the zones, with
 `layout` returning the interface; `create_entity`, `move` and `relocate` operate on their contents; and `unload_zone`
 discards a zone, its contents and its layout.
 
-`create_zone(region, generator)` makes an empty zone in the region with a new id, has `Generator::generate` fill it as
-the loader does, and populates it. If the generator throws, the zone is unloaded and the exception passes on.
-`create_zone(region, level)` does the same with the region's generator for the zones it makes, which the region has as a
-`std::shared_ptr<const Generator>` component. It sets the zone's `ZoneLevel` first, so the generator is given the level
-of the zone it fills.
+`World` takes the game's `Generation` by reference in its constructor (`### Generation`). `create_zone(region,
+zone_spec)` creates a zone in a region that has a spec, as the region's generator selector chooses. The selector, named
+by the spec's `generator_selector`, is given the world, the region and the `ZoneSpec`, and returns a
+`GeneratorSelection`. For a generator, `create_zone` calls it with the selection's `ZoneSpec`, and builds the zone from
+the `Document` it returns as `load_zone` builds one from a file; it then sets the zone's `ZoneLevel` from the spec's
+`level`, if it has one. For a region spec, it returns `create_region_zone` with that spec and the `ZoneSpec` it was
+given, so the zone is the first of a new region. A zone template is not built: it throws `std::runtime_error`. So does a
+selector, generator or region spec name that is not registered, and a spec with no `generator_selector`, before anything
+is created; what a generator throws passes on, with nothing created.
 
 A zone's level is its `ZoneLevel`, a `level_type` (`std::int32_t`): 0 at the surface, negative going down and positive
 going up. It is a label, used when making connections between zones, and nothing is looked up by it. The loader sets it
@@ -230,9 +256,9 @@ moving up or across (*k* >= 0) in that region and its parent region; `.` is the 
 parent region alone. Of several, it returns the one in the zone with the lowest persistent id, and then with the lowest
 order.
 
-If none is found, it makes a zone at the target level with `create_zone(region, level)`, in a region chosen by the same
-rules. With the region omitted, moving up or across to level 0 chooses between the two regions with the world's random
-engine, and only a region with a generator is chosen. It returns the new zone's `entry_point` for the arrival type and
+If none is found, it makes a zone with `create_zone(region, zone_spec)`, with a `ZoneSpec` of the target level, in a
+region chosen by the same rules. With the region omitted, moving up or across to level 0 chooses between the two regions
+with the world's random engine, and only a region with a spec is chosen. It returns the new zone's `entry_point` for the arrival type and
 the offset -*k*, the access point that leads back, or a null entity if no region can make the zone or the new zone has
 no such access point. It binds nothing.
 
@@ -247,7 +273,7 @@ position, or resolves to nothing.
 `World` takes the game's random engine by reference in its constructor, as it takes the id allocator: a `random_type`,
 `math::Random<>`, which `Game` owns.
 
-`load_zone(region, filepath)` reads the file and checks it with `build_error` before making the zone. The zone has the file's persistent id if the file has
+`load_zone(region, filepath)` reads the file and builds the zone from its document, which it checks with `build_error` before making the zone. The zone has the file's persistent id if the file has
 a `zone` section, and a new one otherwise. `load_zone` then has `load_layout` fill the zone and populates it. It throws
 `std::runtime_error`, having made nothing, if the reader rejects the file, `build_error` finds a reason, or the file is
 a saved zone that is already loaded; a template makes a new zone each time it is loaded. `World` handles no doors itself, and neither function unloads anything.
@@ -526,8 +552,9 @@ stopped by an occupied cell in `World::move`.
 
 `Game` is the game in its entirety, the one object a host owns, for as long as the host runs. It owns the structures
 that survive outside play: a `CountingIdAllocator` counting from zero, a `random_type` seeded from
-`std::random_device`, the `World` and the `Character`, and the `Session` that plays them, constructed in that order, each
-referring to those before it. None of them can be copied or moved. `starting_region()` returns the region that a new game's zones are
+`std::random_device`, the `Generation`, the `World` and the `Character`, and the `Session` that plays them, constructed in
+that order, each referring to those before it. `generation()` returns the `Generation`, with which a host registers
+its generators, selectors and region specs. Only the `Generation` can be copied or moved. `starting_region()` returns the region that a new game's zones are
 made in, which the constructor creates; it is temporary, until a new game chooses its region.
 
 `Game` has the menu and lifecycle operations a host calls: `menu_open`, `menu_close`, `clear`, `create`, `open`,
@@ -548,22 +575,18 @@ entity, for queries and drawing.
 `Session` has the zone being played: references to the game's `World` and `Character`, a `Scheduler`, a `Clock`, and the
 zone. A host supplies input mapping and drawing.
 
-`create(region, generator, type, offset)` and `load(region, filepath, type, offset)` have the world make the zone in the
-region, with `World::create_zone` and `World::load_zone`, and `enter` it. `load` rethrows a failure to enter with the
-file path. The library has no default type, offset, or region; each host passes `staircase` and 1, a staircase leading
-up, from temporary constants of its own, `entry_access_type` and `entry_level_offset`, and the game's
-`starting_region()`. A zone a host loads is at level -1, the host's temporary `starting_level`, if its file states no
-level, so the relocators in it can be resolved. Each host also gives the starting region a temporary generator,
-`DungenGenerator`, until the generators are integrated: it runs dungen with its default parameters at the level of the
-zone being made, with a seed from `dungen::random_seed`, names the zone "Dungeon Level N", where N is the absolute value
-of the level, and has `load_layout` read the document `dungen::make_document` builds in memory into the zone, dropping
-dungen's warnings. So a staircase leads to a new zone the first time it is taken, and back
-through the bound staircase after that.
+`load(region, filepath, type, offset)` has the world load the zone into the region with `World::load_zone`, and
+`enter` it. It rethrows a failure to enter with the file path. The library has no default type, offset, or region; each
+host passes `staircase` and 1, a staircase leading up, from temporary constants of its own, `entry_access_type` and
+`entry_level_offset`, and the game's `starting_region()`. A zone a host loads is at level -1, the host's temporary
+`starting_level`, if its file states no level, so the relocators in it can be resolved.
 
-`Generator` is an interface in `stratum_sim`, implemented where a generator is chosen, so `stratum_sim` depends on no
-generator. Each implementation declares its own parameters. `generate(zone)` fills an empty zone as the loader does:
-its `ZoneLayout` with its floor and ceiling, its `ZoneNotation`, its room and flat entities, and its entities, each
-`IsA` its type, with its doors and access points among them (`placement_plan.md`).
+Each host registers a temporary generator and generator selector, both named `dungen`, until the generators are
+integrated, and gives the starting region a `RegionSpec` whose `generator_selector` is `dungen`. The selector chooses
+the generator for every zone. The generator runs dungen with its default parameters at the `ZoneSpec`'s level, with a
+seed from `dungen::random_seed`, names the zone "Dungeon Level N", where N is the absolute value of the level, and
+returns the document `dungen::make_document` builds in memory, dropping dungen's warnings. So a staircase leads to a new
+zone the first time it is taken, and back through the bound staircase after that.
 
 `enter(zone, type, offset)` relocates the character to the placement of the zone's `entry_point(zone, type, offset)`, then
 has the world `trim_zones` with the zone entered, so no zone the character is in can unload. It makes the zone the one being

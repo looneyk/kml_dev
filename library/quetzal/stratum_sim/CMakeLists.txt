@@ -8,6 +8,7 @@ add_library(quetzal_stratum_sim STATIC
     Config.cpp
     commands.cpp
     DiscreteLayout.cpp
+    DisplayName.cpp
     EventQueue.cpp
     file_components.cpp
     layout_entities.cpp
@@ -17,7 +18,6 @@ add_library(quetzal_stratum_sim STATIC
     IdAllocator.cpp
     load_layout.cpp
     properties.cpp
-    RegionSpec.cpp
     SavedGameDetails.cpp
     Scheduler.cpp
     Session.cpp
@@ -37,6 +37,7 @@ add_library(quetzal_stratum_sim STATIC
     ContinuousLayout.hpp
     DirectionMask.hpp
     DiscreteLayout.hpp
+    DisplayName.hpp
     Event.hpp
     EventQueue.hpp
     file_components.hpp
@@ -44,14 +45,13 @@ add_library(quetzal_stratum_sim STATIC
     Config.hpp
     Flat.hpp
     Game.hpp
-    Generator.hpp
+    Generation.hpp
     GridMapping.hpp
     IdAllocator.hpp
     Intent.hpp
     Layout.hpp
     load_layout.hpp
     PersistentId.hpp
-    RegionSpec.hpp
     properties.hpp
     SavedGameDetails.hpp
     Scheduler.hpp

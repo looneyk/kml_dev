@@ -5,6 +5,7 @@
 // Zone.hpp
 //------------------------------------------------------------------------------
 
+#include "Generation.hpp"
 #include "Layout.hpp"
 #include "Site.hpp"
 #include "types.hpp"
@@ -12,8 +13,10 @@
 #include "quetzal/stratum_format/Notation.hpp"
 #include <flecs.h>
 #include <compare>
+#include <cstddef>
 #include <map>
 #include <memory>
+#include <optional>
 #include <type_traits>
 #include <utility>
 
@@ -27,9 +30,11 @@ namespace quetzal::stratum_sim
     };
 
     //--------------------------------------------------------------------------
-    // Tag for a group of contiguous and/or interconnected zones
+    // A group of contiguous and/or interconnected zones
     struct Region
     {
+        std::optional<RegionSpec> region_spec; // The spec its zones are created from. A region without one creates no zones
+        std::size_t zone_count = 0;            // The zones created in it, loaded or not; reading a saved zone back creates none
     };
 
     //--------------------------------------------------------------------------

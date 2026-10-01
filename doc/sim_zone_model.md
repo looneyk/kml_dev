@@ -64,10 +64,9 @@ in `work_plan.md` (`### Regions`).
 - **A region is data.** Its properties are components on its entity: a name, and for a dungeon the overall or starting
   difficulty and the other properties a whole dungeon has. It acts on nothing directly, apart from what a generator
   reads from it.
-- **A region has a parent region,** except a region at the top: a crypt, a dungeon, a tower or a house is the child of
-  the surface area it is in.
-- **A region is its zones' parent.** It takes the place in the hierarchy the root has now, so a zone's flecs parent is
-  its region. `zone_of` still stops at the first ancestor that is a zone, and an entity's region is its zone's parent.
+- **Regions have no hierarchy.** A crypt in a surface area is a region of its own, and zones connect only through
+  their access points, within a region and between regions.
+- **A region is its zones' parent.** A zone's flecs parent is its region. `zone_of` still stops at the first ancestor that is a zone, and an entity's region is its zone's parent.
   Unloading a zone leaves its region; deleting a region deletes its zones. A region, having no zone above it, is given
   its persistent id when it is created, as a zone is.
 - **A region decides which zones unload first.** The zones of other regions than the one the character is in go first,

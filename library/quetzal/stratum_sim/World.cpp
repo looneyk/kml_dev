@@ -7,15 +7,20 @@
 #include "ai.hpp"
 #include "attachments.hpp"
 #include "DiscreteLayout.hpp"
+#include "DisplayName.hpp"
+#include "file_components.hpp"
 #include "layout_entities.hpp"
 #include "load_layout.hpp"
 #include "Site.hpp"
+#include "quetzal/stratum_format/Document.hpp"
 #include "quetzal/stratum_format/read.hpp"
 #include <algorithm>
 #include <format>
+#include <map>
 #include <optional>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <variant>
 #include <cassert>
@@ -24,6 +29,22 @@ namespace
 {
 
     static constexpr int denizen_speed = 100;
+
+    //--------------------------------------------------------------------------
+    // Returns the registered value, or throws std::runtime_error, describing it as the registration type, if none is
+    // registered under the name
+    template<typename T>
+    const T& registered(const std::map<std::string, T>& registry, std::string_view registration_type, const std::string& name)
+    {
+        auto i = registry.find(name);
+
+        if (i == registry.end())
+        {
+            throw std::runtime_error(std::format("no {} is registered as {}", registration_type, name));
+        }
+
+        return i->second;
+    }
 
     //--------------------------------------------------------------------------
     // Temporary placeholder placement function, real placement will not work like this ...
@@ -312,9 +333,10 @@ flecs::entity quetzal::stratum_sim::entity_type(const flecs::world& entities, st
 }
 
 //------------------------------------------------------------------------------
-quetzal::stratum_sim::World::World(IdAllocator& id_allocator, random_type& random, size_t zone_count_max) :
+quetzal::stratum_sim::World::World(IdAllocator& id_allocator, random_type& random, Generation& generation, size_t zone_count_max) :
     m_id_allocator(id_allocator),
     m_random(random),
+    m_generation(generation),
     m_loaded_entities(),
     m_entity_zones(),
     m_zones_unloading(),
@@ -324,7 +346,6 @@ quetzal::stratum_sim::World::World(IdAllocator& id_allocator, random_type& rando
     // Registered before the observers, whose callbacks must not register a component mid-operation
     m_entities.component<Zone>();
     m_entities.component<Region>();
-    m_entities.component<std::shared_ptr<const Generator>>();
     m_entities.component<ZoneLevel>().member(&ZoneLevel::level, "level");
     m_entities.component<InZone>().add(flecs::Exclusive);
     m_entities.component<PersistentId>().member(&PersistentId::id, "id");
@@ -484,6 +505,9 @@ quetzal::stratum_sim::World::World(IdAllocator& id_allocator, random_type& rando
             });
     });
 
+    register_display_name(m_entities);
+    register_file_component<DisplayName>(m_entities, "name");
+
     // The default access point types, each arriving at its own type; a mod may register more
     for (std::string_view name : {"staircase", "door", "portal", "waypoint"})
     {
@@ -579,6 +603,21 @@ flecs::entity quetzal::stratum_sim::World::create_region(flecs::entity parent)
 }
 
 //------------------------------------------------------------------------------
+flecs::entity quetzal::stratum_sim::World::create_region(const RegionSpec& region_spec, flecs::entity parent)
+{
+    flecs::entity region = create_region(parent);
+    region.get_mut<Region>().region_spec = region_spec;
+
+    return region;
+}
+
+//------------------------------------------------------------------------------
+flecs::entity quetzal::stratum_sim::World::create_region_zone(const RegionSpec& region_spec, const ZoneSpec& zone_spec)
+{
+    return create_zone(create_region(region_spec), zone_spec);
+}
+
+//------------------------------------------------------------------------------
 void quetzal::stratum_sim::World::unload_region(flecs::entity region)
 {
     assert(region && region.has<Region>());
@@ -619,26 +658,47 @@ flecs::entity quetzal::stratum_sim::World::create_zone(flecs::entity region, std
 
     flecs::entity zone = create_zone(region, next_id());
     zone.set<ZoneLayout>(ZoneLayout {std::move(layout)});
+    ++region.get_mut<Region>().zone_count;
 
     return zone;
 }
 
 //------------------------------------------------------------------------------
-flecs::entity quetzal::stratum_sim::World::create_zone(flecs::entity region, const Generator& generator)
+flecs::entity quetzal::stratum_sim::World::create_zone(flecs::entity region, const ZoneSpec& zone_spec)
 {
-    flecs::entity zone = create_zone(region, next_id());
-    fill_zone(zone, generator);
+    assert(region && region.has<Region>() && region.get<Region>().region_spec.has_value());
 
-    return zone;
-}
+    const RegionSpec& region_spec = *region.get<Region>().region_spec;
+    std::optional<std::string> selector_name = region_spec.value(generator_selector_key);
 
-//------------------------------------------------------------------------------
-flecs::entity quetzal::stratum_sim::World::create_zone(flecs::entity region, level_type level)
-{
-    assert(region && region.has<Region>() && region.has<std::shared_ptr<const Generator>>());
+    if (!selector_name.has_value())
+    {
+        throw std::runtime_error(std::format("region {} has no {}", region.get<PersistentId>().id, generator_selector_key));
+    }
 
-    flecs::entity zone = create_zone(region, next_id()).set<ZoneLevel>(ZoneLevel {level});
-    fill_zone(zone, *region.get<std::shared_ptr<const Generator>>());
+    const Generation::generator_selector_type& selector = registered(m_generation.m_generator_selectors, "generator selector", *selector_name);
+    Generation::GeneratorSelection selection = selector(*this, region, zone_spec);
+
+    assert(selection.generator_name.has_value() + selection.zone_template.has_value() + selection.region_spec_name.has_value() == 1);
+
+    if (selection.region_spec_name.has_value())
+    {
+        return create_region_zone(registered(m_generation.m_region_specs, "region spec", *selection.region_spec_name), zone_spec);
+    }
+
+    if (selection.zone_template.has_value())
+    {
+        throw std::runtime_error(std::format("generator selector {} chose the zone template {}, and no zone is created from a template",
+            *selector_name, *selection.zone_template));
+    }
+
+    const Generation::generator_type& generator = registered(m_generation.m_generators, "generator", *selection.generator_name);
+    flecs::entity zone = build_zone(region, generator(selection.zone_spec), std::format("generator {}", *selection.generator_name));
+
+    if (std::optional<level_type> level = selection.zone_spec.value<level_type>(level_key))
+    {
+        zone.set<ZoneLevel>(ZoneLevel {*level});
+    }
 
     return zone;
 }
@@ -646,29 +706,7 @@ flecs::entity quetzal::stratum_sim::World::create_zone(flecs::entity region, lev
 //------------------------------------------------------------------------------
 flecs::entity quetzal::stratum_sim::World::load_zone(flecs::entity region, const std::filesystem::path& filepath)
 {
-    stratum_format::Document document = stratum_format::read(filepath);
-
-    if (std::optional<std::string> error = build_error(m_entities, document))
-    {
-        throw std::runtime_error(std::format("{}: {}", filepath.string(), *error));
-    }
-
-    if (document.zone_id.has_value() && entity(PersistentId {*document.zone_id}))
-    {
-        throw std::runtime_error(std::format("{}: zone {} is already loaded", filepath.string(), *document.zone_id));
-    }
-
-    flecs::entity zone = create_zone(region, document.zone_id.has_value() ? PersistentId {*document.zone_id} : next_id());
-
-    for (flecs::entity target : load_layout(zone, document))
-    {
-        make_reference(target);
-    }
-
-    // populate only if this is a a zone template, and maybe not even then if it has been pre-populated; look at the file flag for this ...
-    populate(zone);
-
-    return zone;
+    return build_zone(region, stratum_format::read(filepath), filepath.string());
 }
 
 //------------------------------------------------------------------------------
@@ -799,14 +837,15 @@ flecs::entity quetzal::stratum_sim::World::resolve_relocator_target(flecs::entit
         return found;
     }
 
-    std::erase_if(generating_regions, [](flecs::entity candidate) { return !candidate.has<std::shared_ptr<const Generator>>(); });
+    std::erase_if(generating_regions, [](flecs::entity candidate) { return !candidate.get<Region>().region_spec.has_value(); });
 
     if (generating_regions.empty())
     {
         return flecs::entity();
     }
 
-    flecs::entity zone = create_zone(generating_regions[m_random.gen(generating_regions.size())], level);
+    ZoneSpec zone_spec {{std::string(level_key), std::to_string(level)}};
+    flecs::entity zone = create_zone(generating_regions[m_random.gen(generating_regions.size())], zone_spec);
     return entry_point(zone, arrival_type, -offset);
 }
 
@@ -979,21 +1018,35 @@ flecs::entity quetzal::stratum_sim::World::create_entity(flecs::entity zone, con
 }
 
 //------------------------------------------------------------------------------
-void quetzal::stratum_sim::World::fill_zone(flecs::entity zone, const Generator& generator)
+flecs::entity quetzal::stratum_sim::World::build_zone(flecs::entity region, const stratum_format::Document& document, std::string_view source)
 {
-    try
+    if (std::optional<std::string> error = build_error(m_entities, document))
     {
-        generator.generate(zone);
-    }
-    catch (...)
-    {
-        unload_zone(zone);
-        throw;
+        throw std::runtime_error(std::format("{}: {}", source, *error));
     }
 
+    if (document.zone_id.has_value() && entity(PersistentId {*document.zone_id}))
+    {
+        throw std::runtime_error(std::format("{}: zone {} is already loaded", source, *document.zone_id));
+    }
+
+    flecs::entity zone = create_zone(region, document.zone_id.has_value() ? PersistentId {*document.zone_id} : next_id());
+
+    // A saved zone was counted when it was created
+    if (!document.zone_id.has_value())
+    {
+        ++region.get_mut<Region>().zone_count;
+    }
+
+    for (flecs::entity target : load_layout(zone, document))
+    {
+        make_reference(target);
+    }
+
+    // populate only if this is a a zone template, and maybe not even then if it has been pre-populated; look at the file flag for this ...
     populate(zone);
 
-    return;
+    return zone;
 }
 
 //------------------------------------------------------------------------------

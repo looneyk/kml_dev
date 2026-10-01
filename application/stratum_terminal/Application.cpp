@@ -36,23 +36,23 @@ namespace
     //--------------------------------------------------------------------------
     // Temporary, until the generators are integrated: the starting region makes its zones with dungen, at the level each
     // is made at. Its warnings are dropped, as they would write over the terminal's frame
-    class DungenGenerator : public stratum_sim::Generator
+    stratum_format::Document generate_dungen(const stratum_sim::ZoneSpec& zone_spec)
     {
-    public:
+        dungen::Parameters parameters;
+        stratum_sim::level_type level = zone_spec.value<stratum_sim::level_type>(stratum_sim::level_key).value();
+        parameters.level = level;
+        parameters.seed = dungen::random_seed();
 
-        void generate(flecs::entity zone) const override
-        {
-            dungen::Parameters parameters;
-            stratum_sim::level_type level = zone.get<stratum_sim::ZoneLevel>().level;
-            parameters.level = level;
-            parameters.seed = dungen::random_seed();
+        std::string name = std::format("Dungeon Level {}", std::abs(level));
+        return dungen::make_document(dungen::generate(0, name, parameters, [](const std::string&) {}), parameters);
+    }
 
-            std::string name = std::format("Dungeon Level {}", std::abs(level));
-            stratum_sim::load_layout(zone, dungen::make_document(dungen::generate(0, name, parameters, [](const std::string&) {}), parameters));
-
-            return;
-        }
-    };
+    //--------------------------------------------------------------------------
+    // Temporary, until the generators are integrated: every zone of the starting region is made with dungen
+    stratum_sim::Generation::GeneratorSelection select_dungen(const stratum_sim::World&, flecs::entity, const stratum_sim::ZoneSpec& zone_spec)
+    {
+        return stratum_sim::Generation::GeneratorSelection {"dungen", {}, {}, zone_spec};
+    }
 
     //--------------------------------------------------------------------------
     std::string name_of(const stratum_sim::vector_type& direction)
@@ -81,7 +81,9 @@ stratum_terminal::Application::Application(const std::string& filepath_zone, Vie
     m_script_slot(0),
     m_running(true)
 {
-    m_game.starting_region().set<std::shared_ptr<const stratum_sim::Generator>>(std::make_shared<DungenGenerator>());
+    m_game.generation().m_generators["dungen"] = generate_dungen;
+    m_game.generation().m_generator_selectors["dungen"] = select_dungen;
+    m_game.starting_region().get_mut<stratum_sim::Region>().region_spec = stratum_sim::RegionSpec {{std::string(stratum_sim::generator_selector_key), "dungen"}};
 
     m_session.load(m_game.starting_region(), filepath_zone, stratum_sim::access_type(m_game.world().entities(), entry_access_type),
         entry_level_offset);
