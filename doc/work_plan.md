@@ -41,9 +41,7 @@ These are the game's lifecycle and the menu operations behind it (`session_plan.
 each on the ones before it. `Game`'s menu and lifecycle functions, and those they call on `World`, `Character` and
 `Session`, are skeletons; each item designs what its functions still need and fills them in.
 
-- [x] **The generator registry: `Session::load` removed.** The suites and the hosts load a zone with
-      `World::load_zone` and enter it with `Session::enter`.
-- [ ] **The generator registry: `quetzal/stratum_gen`,** with dungen's generator moved into it from the hosts and
+- [x] **The generator registry: `quetzal/stratum_gen`,** with dungen's generator moved into it from the hosts and
       registered by name, and the hosts linking it.
 - [ ] **A new game's first zone designed** (`world_generation_plan.md`, `## Creating a game`): the keys `RegionSpec`,
       `ZoneSpec` and `CharacterSpec` have to begin with, the access point at which the character enters the first zone,
@@ -105,8 +103,8 @@ each on the ones before it. `Game`'s menu and lifecycle functions, and those the
 - [ ] **The generators on `geometry::DiscreteDirectedPoint`.** dungen's `Staircase` has a `directed_point_type` and
       still has the separate `position` and `direction` accessors. catagen stores a staircase as a cell type and a map
       from cell position to facing direction, which a list of directed points would replace.
-- [ ] **Generator warnings logged to a file.** The hosts' temporary `DungenGenerator` drops dungen's warnings, which
-      would write over the terminal's frame; they are written to a log file instead, in `dev/` for now, found through a
+- [ ] **Generator warnings logged to a file.** The hosts pass `stratum_gen::register_generators` a warning function
+      that drops dungen's warnings, which would write over the terminal's frame; they are written to a log file instead, in `dev/` for now, found through a
       compile definition as `KML_DEV_ASSETS_ROOT` is, so no path in code is absolute.
 - [ ] **A second catagen algorithm,** and with it what the two generators have in common becoming `quetzal::procgen`.
 

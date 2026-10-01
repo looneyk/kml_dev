@@ -6,7 +6,8 @@ larger decisions is in `decision_rationale.md`.
 The system has three layers, and none of them uses an engine. `quetzal::stratum_sim` simulates, `quetzal::stratum_view`
 turns a simulation state into characters or place codes, and a host puts those on a device. `stratum_sim` links
 `quetzal_common`, `quetzal_stratum_format` and flecs; `stratum_view` links `stratum_sim`; each host links
-`stratum_view`.
+`stratum_view`. `quetzal::stratum_gen` adapts the generators to `stratum_sim`'s registries, so `stratum_sim` links no
+generator.
 
 The `stratum_` prefix names the layout class they share: open ground extruded vertically between one floor and one
 ceiling.
@@ -17,6 +18,7 @@ ceiling.
 | `library/quetzal/stratum_sim/` | `quetzal_stratum_sim` |
 | `library/quetzal/stratum_view/` | `quetzal_stratum_view` |
 | `library/quetzal/stratum_format/` | `quetzal_stratum_format` --- the zone file format |
+| `library/quetzal/stratum_gen/` | `quetzal_stratum_gen` --- the generators, adapted and registered by name |
 | `application/stratum_terminal/` | `stratum_terminal` |
 | `application/stratum_godot/` | `stratum_godot` |
 | `library/quetzal/godot/` | `quetzal_godot` |
@@ -580,12 +582,16 @@ enters it with `enter`. The library has no default type, offset, or region; each
 staircase leading up, from temporary constants of its own, `entry_access_type` and `entry_level_offset`. A zone a host loads is at level -1, the host's temporary
 `starting_level`, if its file states no level, so the relocators in it can be resolved.
 
-Each host registers a temporary generator and generator selector, both named `dungen`, until the generators are
-integrated, and gives the starting region a `RegionSpec` whose `generator_selector` is `dungen`. The selector chooses
-the generator for every zone. The generator runs dungen with its default parameters at the `ZoneSpec`'s level, with a
-seed from `dungen::random_seed`, names the zone "Dungeon Level N", where N is the absolute value of the level, and
-returns the document `dungen::make_document` builds in memory, dropping dungen's warnings. So a staircase leads to a new
-zone the first time it is taken, and back through the bound staircase after that.
+Each host registers `stratum_gen`'s generators, dropping dungen's warnings, and a temporary generator selector named
+`dungen`, until the generators are integrated, and gives the starting region a `RegionSpec` whose `generator_selector`
+is `dungen`. The selector chooses the `dungen` generator for every zone, and names the zone "Dungeon Level N", where N is
+the absolute value of the level. So a staircase leads to a new zone the first time it is taken, and back through the
+bound staircase after that.
+
+`stratum_gen::register_generators(generation, warning)` registers `generate_dungen` as `dungen`. It runs dungen with
+its default parameters at the `ZoneSpec`'s `level`, if it has one, with a seed from `dungen::random_seed`, names the
+zone with the `ZoneSpec`'s `name`, and returns the document `dungen::make_document` builds in memory. It passes dungen's
+warnings to `warning`.
 
 `enter(zone, type, offset)` relocates the character to the placement of the zone's `entry_point(zone, type, offset)`, then
 has the world `trim_zones` with the zone entered, so no zone the character is in can unload. It makes the zone the one being
@@ -909,7 +915,8 @@ back, and the Godot host by its two headless invocations.
 
 The build is CMake, with the solution at `build/kml_dev.slnx`. `/std:c++latest /bigobj /W4` is used throughout, with
 third-party sources at `/W1` and flecs and godot-cpp included as SYSTEM. `quetzal_stratum_sim` links `quetzal_common`,
-`quetzal_stratum_format` and `flecs_static`; `quetzal_stratum_view` links `quetzal_stratum_sim`; both hosts link
+`quetzal_stratum_format` and `flecs_static`; `quetzal_stratum_view` links `quetzal_stratum_sim`;
+`quetzal_stratum_gen` links `quetzal_dungen` and `quetzal_stratum_sim`; both hosts link `quetzal_stratum_gen` and
 `quetzal_stratum_view`. `quetzal_stratum_format` links `quetzal_common` and `nlohmann_json`, vendored at
 `library3/json` with its headers SYSTEM.
 

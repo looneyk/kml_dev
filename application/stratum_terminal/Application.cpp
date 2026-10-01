@@ -4,17 +4,15 @@
 //------------------------------------------------------------------------------
 
 #include "Application.hpp"
-#include "quetzal/dungen/generate.hpp"
-#include "quetzal/dungen/write_zone.hpp"
+#include "quetzal/stratum_gen/generators.hpp"
 #include "quetzal/stratum_sim/attachments.hpp"
 #include "quetzal/stratum_sim/DiscreteLayout.hpp"
 #include "quetzal/stratum_sim/commands.hpp"
-#include "quetzal/stratum_sim/load_layout.hpp"
 #include "quetzal/stratum_sim/Site.hpp"
 #include <cstdlib>
 #include <format>
 #include <iostream>
-#include <memory>
+#include <optional>
 #include <string>
 
 using namespace quetzal;
@@ -34,24 +32,18 @@ namespace
     static constexpr stratum_sim::level_type starting_level = -1;
 
     //--------------------------------------------------------------------------
-    // Temporary, until the generators are integrated: the starting region makes its zones with dungen, at the level each
-    // is made at. Its warnings are dropped, as they would write over the terminal's frame
-    stratum_format::Document generate_dungen(const stratum_sim::ZoneSpec& zone_spec)
-    {
-        dungen::Parameters parameters;
-        stratum_sim::level_type level = zone_spec.value<stratum_sim::level_type>(stratum_sim::level_key).value();
-        parameters.level = level;
-        parameters.seed = dungen::random_seed();
-
-        std::string name = std::format("Dungeon Level {}", std::abs(level));
-        return dungen::make_document(dungen::generate(0, name, parameters, [](const std::string&) {}), parameters);
-    }
-
-    //--------------------------------------------------------------------------
-    // Temporary, until the generators are integrated: every zone of the starting region is made with dungen
+    // Temporary, until the generators are integrated: every zone of the starting region is made with dungen, named
+    // "Dungeon Level N" for its level
     stratum_sim::Generation::GeneratorSelection select_dungen(const stratum_sim::World&, flecs::entity, const stratum_sim::ZoneSpec& zone_spec)
     {
-        return stratum_sim::Generation::GeneratorSelection {"dungen", {}, {}, zone_spec};
+        stratum_sim::ZoneSpec named_zone_spec = zone_spec;
+
+        if (std::optional<stratum_sim::level_type> level = zone_spec.value<stratum_sim::level_type>(stratum_sim::level_key))
+        {
+            named_zone_spec.insert(std::string(stratum_gen::name_key), std::format("Dungeon Level {}", std::abs(*level)));
+        }
+
+        return stratum_sim::Generation::GeneratorSelection {std::string(stratum_gen::dungen_generator_name), {}, {}, named_zone_spec};
     }
 
     //--------------------------------------------------------------------------
@@ -81,7 +73,8 @@ stratum_terminal::Application::Application(const std::string& filepath_zone, Vie
     m_script_slot(0),
     m_running(true)
 {
-    m_game.generation().m_generators["dungen"] = generate_dungen;
+    // dungen's warnings are dropped, as they would write over the terminal's frame
+    stratum_gen::register_generators(m_game.generation(), [](const std::string&) {});
     m_game.generation().m_generator_selectors["dungen"] = select_dungen;
     m_game.starting_region().get_mut<stratum_sim::Region>().region_spec = stratum_sim::RegionSpec {{std::string(stratum_sim::generator_selector_key), "dungen"}};
 

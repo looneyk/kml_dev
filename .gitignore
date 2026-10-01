@@ -53,6 +53,8 @@
 !/library/quetzal/stl/**
 !/library/quetzal/stratum_format/
 !/library/quetzal/stratum_format/**
+!/library/quetzal/stratum_gen/
+!/library/quetzal/stratum_gen/**
 !/library/quetzal/stratum_sim/
 !/library/quetzal/stratum_sim/**
 !/library/quetzal/stratum_view/
