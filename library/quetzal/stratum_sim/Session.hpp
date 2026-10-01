@@ -13,7 +13,6 @@
 #include "Scheduler.hpp"
 #include "World.hpp"
 #include "quetzal/stratum_format/Notation.hpp"
-#include <filesystem>
 
 namespace quetzal::stratum_sim
 {
@@ -37,8 +36,6 @@ namespace quetzal::stratum_sim
         void start();
         void pause();
         void resume();
-
-        void load(flecs::entity region, const std::filesystem::path& filepath, flecs::entity access_type, level_type offset);
 
         // Moves the character to the placement of the zone's entry_point for the access point type and level offset, and makes
         // it the zone being played. Throws std::runtime_error when the zone has no such entry point

@@ -352,6 +352,16 @@ namespace
     static constexpr stratum_sim::level_type suite_entry_offset = 1;
 
     //--------------------------------------------------------------------------
+    // Loads the zone file into the game's starting region and enters it at the suite's entry type and level offset
+    void enter_zone_file(stratum_sim::Game& game, const string& filepath)
+    {
+        stratum_sim::Session& session = game.session();
+        session.enter(game.world().load_zone(game.starting_region(), filepath), suite_entry_type(session), suite_entry_offset);
+
+        return;
+    }
+
+    //--------------------------------------------------------------------------
     // A zone's layout as a DiscreteLayout
     stratum_sim::DiscreteLayout& zone_layout(stratum_sim::World& world, flecs::entity zone)
     {
@@ -950,12 +960,12 @@ namespace
         // A host calls advance the same way under either driver
         stratum_sim::Game game_turn;
         stratum_sim::Session& session_turn = game_turn.session();
-        session_turn.load(game_turn.starting_region(), "data/corridor.zone", suite_entry_type(session_turn), suite_entry_offset);
+        enter_zone_file(game_turn, "data/corridor.zone");
 
         stratum_sim::Game game_real;
         stratum_sim::Session& session_real = game_real.session();
         session_real.set_driver(stratum_sim::Driver::RealTime);
-        session_real.load(game_real.starting_region(), "data/corridor.zone", suite_entry_type(session_real), suite_entry_offset);
+        enter_zone_file(game_real, "data/corridor.zone");
 
         stratum_sim::EventQueue session_events;
         report_case("a turn-based session hands control out with no elapsed time given",
@@ -966,7 +976,7 @@ namespace
         // The character acts through its own intent and commands, the door east of where it enters
         stratum_sim::Game game_door;
         stratum_sim::Session& session_door = game_door.session();
-        session_door.load(game_door.starting_region(), "data/door.zone", suite_entry_type(session_door), suite_entry_offset);
+        enter_zone_file(game_door, "data/door.zone");
         session_door.advance(session_events);
 
         stratum_sim::Character& character_door = session_door.character();
@@ -2067,7 +2077,7 @@ namespace
         game.starting_region().get_mut<stratum_sim::Region>().region_spec = suite_region_spec("staircase");
 
         // data/walls.zone: the character enters on cell (2, 1), facing the staircase leading down to the east
-        session.load(game.starting_region(), "data/walls.zone", suite_entry_type(session), suite_entry_offset);
+        enter_zone_file(game, "data/walls.zone");
         flecs::entity first = session.zone();
         first.set<stratum_sim::ZoneLevel>(stratum_sim::ZoneLevel {-1});
 
@@ -2157,7 +2167,7 @@ namespace
         stratum_sim::Session& session = game.session();
 
         // data/walls.zone: the character enters on cell (2, 1), facing the staircase leading down to the east
-        session.load(game.starting_region(), "data/walls.zone", suite_entry_type(session), suite_entry_offset);
+        enter_zone_file(game, "data/walls.zone");
         session.zone().set<stratum_sim::ZoneLevel>(stratum_sim::ZoneLevel {-1});
         flecs::entity staircase = stratum_sim::entry_point(session.zone(), stratum_sim::access_type(game.world().entities(), "staircase"), -1);
 
@@ -2673,7 +2683,7 @@ namespace
         // Entering places the character in front of up staircase 0, facing away from it
         stratum_sim::Game game;
         stratum_sim::Session& session = game.session();
-        session.load(game.starting_region(), "data/corridor.zone", suite_entry_type(session), suite_entry_offset);
+        enter_zone_file(game, "data/corridor.zone");
 
         const stratum_sim::placement_type& start = stratum_sim::placement_of(session.character().entity());
         report_case("the character enters on the floor in front of the staircase leading up",
@@ -3120,7 +3130,7 @@ namespace
             // Reading the same geometry from a file gives the same zone
             stratum_sim::Game game_loaded;
             stratum_sim::Session& loaded = game_loaded.session();
-            loaded.load(game_loaded.starting_region(), "data/door.zone", suite_entry_type(loaded), suite_entry_offset);
+            enter_zone_file(game_loaded, "data/door.zone");
             report_case("and a zone read whole agrees with it",
                 loaded.notation() == created.notation()
                 && same_geometry(stratum_sim::layout_as<stratum_sim::DiscreteLayout>(loaded.layout()),
@@ -3130,7 +3140,7 @@ namespace
         // Through a Session
         stratum_sim::Game game;
         stratum_sim::Session& session = game.session();
-        session.load(game.starting_region(), "data/corridor.zone", suite_entry_type(session), suite_entry_offset);
+        enter_zone_file(game, "data/corridor.zone");
 
         flecs::entity hunter;
         session.world().entities().query_builder<const stratum_sim::Pursue>()
@@ -3155,7 +3165,7 @@ namespace
 
         flecs::entity session_character = session.character().entity();
         flecs::entity zone_left = session.zone();
-        session.load(game.starting_region(), "data/room.zone", suite_entry_type(session), suite_entry_offset);
+        enter_zone_file(game, "data/room.zone");
 
         report_case("loading another zone moves the same character into it", &session.character() == &game.character()
             && session.character().entity() == session_character && stratum_sim::zone_of(session_character) == session.zone());
@@ -3181,7 +3191,7 @@ namespace
 
         // The zone never entered is no candidate
         session.world().set_zone_count_max(1);
-        session.load(game.starting_region(), "data/corridor.zone", suite_entry_type(session), suite_entry_offset);
+        enter_zone_file(game, "data/corridor.zone");
 
         report_case("past the maximum, loading another unloads the zones the character entered before",
             !zone_left.is_alive() && !zone_entered.is_alive() && closed.is_alive() && stratum_sim::zone_of(session_character) == session.zone());

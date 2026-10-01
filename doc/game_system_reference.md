@@ -575,10 +575,9 @@ entity, for queries and drawing.
 `Session` has the zone being played: references to the game's `World` and `Character`, a `Scheduler`, a `Clock`, and the
 zone. A host supplies input mapping and drawing.
 
-`load(region, filepath, type, offset)` has the world load the zone into the region with `World::load_zone`, and
-`enter` it. It rethrows a failure to enter with the file path. The library has no default type, offset, or region; each
-host passes `staircase` and 1, a staircase leading up, from temporary constants of its own, `entry_access_type` and
-`entry_level_offset`, and the game's `starting_region()`. A zone a host loads is at level -1, the host's temporary
+`Session` makes no zone. Each host loads its zone file into the game's `starting_region()` with `World::load_zone` and
+enters it with `enter`. The library has no default type, offset, or region; each host passes `staircase` and 1, a
+staircase leading up, from temporary constants of its own, `entry_access_type` and `entry_level_offset`. A zone a host loads is at level -1, the host's temporary
 `starting_level`, if its file states no level, so the relocators in it can be resolved.
 
 Each host registers a temporary generator and generator selector, both named `dungen`, until the generators are

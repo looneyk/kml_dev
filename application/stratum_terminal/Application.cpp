@@ -85,8 +85,8 @@ stratum_terminal::Application::Application(const std::string& filepath_zone, Vie
     m_game.generation().m_generator_selectors["dungen"] = select_dungen;
     m_game.starting_region().get_mut<stratum_sim::Region>().region_spec = stratum_sim::RegionSpec {{std::string(stratum_sim::generator_selector_key), "dungen"}};
 
-    m_session.load(m_game.starting_region(), filepath_zone, stratum_sim::access_type(m_game.world().entities(), entry_access_type),
-        entry_level_offset);
+    flecs::entity zone = m_game.world().load_zone(m_game.starting_region(), filepath_zone);
+    m_session.enter(zone, stratum_sim::access_type(m_game.world().entities(), entry_access_type), entry_level_offset);
 
     if (!m_session.zone().has<stratum_sim::ZoneLevel>())
     {

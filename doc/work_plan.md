@@ -41,19 +41,7 @@ These are the game's lifecycle and the menu operations behind it (`session_plan.
 each on the ones before it. `Game`'s menu and lifecycle functions, and those they call on `World`, `Character` and
 `Session`, are skeletons; each item designs what its functions still need and fills them in.
 
-- [x] **The menu and lifecycle skeleton.** `Game`'s `menu_open`, `menu_close`, `clear`, `create`, `open`, `save`,
-      `quit` and `saved_games`; `clear`, `create`, `open` and `save` on `World` and `Character`; `clear`, `start`,
-      `pause` and `resume` on `Session`; and `RegionSpec` and `CharacterSpec` as placeholders.
-- [x] **`KeyValueStore` built up** (`archived/key_value_store_plan.md`), with `Properties` and `Config` aliases of it.
-- [x] **The generator registry: zones created through the registries** (`world_generation_plan.md`). `Generation`, with
-      `RegionSpec` and `ZoneSpec` made of `KeyValueStore`, which `Game` owns and `World` takes by reference;
-      `create_region(region_spec)`, `create_region_zone` and `create_zone(region, zone_spec)`, with the `Region`
-      component having the region's spec and zone count in place of the `std::shared_ptr<const Generator>` component;
-      the selector's generator and new-region outcomes; the zone built from its `Document` as a loaded one is; and
-      `resolve_relocator_target` creating zones through `create_zone(region, zone_spec)`. `Generator`,
-      `create_zone(region, const Generator&)`, `create_zone(region, level)` and `Session::create` are removed. The
-      suites' generators and the hosts' `DungenGenerator` become registered functions, with temporary selectors.
-- [ ] **The generator registry: `Session::load` removed.** The suites and the hosts load a zone with
+- [x] **The generator registry: `Session::load` removed.** The suites and the hosts load a zone with
       `World::load_zone` and enter it with `Session::enter`.
 - [ ] **The generator registry: `quetzal/stratum_gen`,** with dungen's generator moved into it from the hosts and
       registered by name, and the hosts linking it.

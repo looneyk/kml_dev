@@ -78,23 +78,6 @@ void quetzal::stratum_sim::Session::resume()
 }
 
 //------------------------------------------------------------------------------
-void quetzal::stratum_sim::Session::load(flecs::entity region, const std::filesystem::path& filepath, flecs::entity access_type, level_type offset)
-{
-    flecs::entity zone = m_world.load_zone(region, filepath);
-
-    try
-    {
-        enter(zone, access_type, offset);
-    }
-    catch (const std::runtime_error& e)
-    {
-        throw std::runtime_error(std::format("{}: {}", e.what(), filepath.string()));
-    }
-
-    return;
-}
-
-//------------------------------------------------------------------------------
 void quetzal::stratum_sim::Session::enter(flecs::entity zone, flecs::entity access_type, level_type offset)
 {
     assert(zone && zone.has<Zone>());

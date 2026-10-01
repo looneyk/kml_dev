@@ -99,8 +99,8 @@ bool Session::over() const;
 - **`pause()` and `resume()`** stop and restart play while the menu is open. `advance` runs no actor while play is
   paused, and real time earns nothing, so closing the menu does not credit the time it was open. Both do nothing while
   no game is loaded.
-- **`Session::create` and `Session::load` go.** `World` creates every zone, and the session enters them. The hosts call
-  `load` with a zone file only until generation creates a playable first zone.
+- **The session makes no zone.** `World` creates every zone, and the session enters them. The hosts load a zone file
+  with `World::load_zone` only until generation creates a playable first zone.
 - **`enter(zone, access_type, offset)`** moves the character into the zone, at its entry point, then has the world `trim_zones`, so no unload can take
   the character with it. It clears the pending command and rebuilds the turn order from the zone's actors, the character
   included.
