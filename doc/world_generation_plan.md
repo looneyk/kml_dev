@@ -33,15 +33,18 @@ Saving and opening a game are in `session_plan.md` (`## Games`) and `game_file_s
 ```cpp
 // A request to create a region, kept by the region it created, from which every later zone of the region is created
 using RegionSpec = KeyValueStore;
-// metadata: name, type (surface, dungeon, crypt, ...), competency level, difficulty, service level, ...
-// generator_selector: the name of the region's generator selector
-// parameters: the region's generation parameters, which its selector reads
-// starting_zone: the ZoneSpec of the region's first zone
+// A key with no prefix is the region's: generator_selector, the name of the region's generator selector, and its
+//     metadata: name, type (surface, dungeon, crypt, ...), competency level, difficulty, service level, ...
+// entry_access: the access point type and level offset at which the character enters a new game's first zone, such as
+//     "staircase,1"; read by World::create only, and by no region that is not a game's starting region
+// parameters.*: the region's generation parameters, which its selector reads
+// zone.*: the ZoneSpec that the region's zones are created from, with the prefix removed; the caller and the selector
+//     modify it for each zone, as for its level
 
 // A request to create a zone. The caller states the level; the selector adds the generator's parameters
 using ZoneSpec = KeyValueStore;
-// metadata: level, ...
-// parameters: the zone's generation parameters, which its generator reads, the seed among them
+// level, name, ...
+// parameters.*: the zone's generation parameters, which its generator reads, the seed among them
 
 // Exactly one of generator_name, zone_template and region_spec_name is set
 struct GeneratorSelection
@@ -111,30 +114,44 @@ The entities:
 ## Creating a game
 
 ```cpp
-void Game::create(const RegionSpec& region_spec, const CharacterSpec& character_spec)
+void Game::create(std::string_view name, const RegionSpec& region_spec, const CharacterSpec& character_spec)
 {
     clear();
-    // reset the id allocator, reseed the engines
+    // reset the id allocator, reseed the engines, create the game's directory
     m_character.create(character_spec);
-    flecs::entity zone = m_world.create(region_spec);
-    m_session.start(zone);
+    flecs::entity access_point = m_world.create(region_spec);
+    m_session.start(access_point);
 }
 
 flecs::entity World::create(const RegionSpec& region_spec)
 {
-    return create_region_zone(region_spec, region_spec.starting_zone);
+    ZoneSpec zone_spec = subset(region_spec, "zone.");
+    flecs::entity zone = create_region_zone(region_spec, zone_spec);
+    auto [type_name, offset] = the type and level offset parsed from region_spec's entry_access;
+    return entry_point(zone, access_type(type_name), offset);
 }
 
-void Session::start(flecs::entity zone)
+void Session::start(flecs::entity access_point)
 {
-    enter(zone, entry access point type, entry level offset);
+    // enters zone_of(access_point), placing the character at the access point
 }
 ```
 
-- **`World::create` returns the starting zone,** and `Session::start` enters it. `Game::open` starts the session in the
-  zone the character is in instead.
-- **The access point the character enters the first zone at** is open (`work_plan.md`, `### Discrete layout format`); the
-  hosts' temporary `staircase` and +1 fit only a dungeon level.
+- **A spec's parts are separated by key prefixes.** A key with no prefix is the spec's own, and `subset(store, prefix)`
+  returns the entries under a prefix with it removed, so `zone.` yields an ordinary `ZoneSpec`. Each consumer
+  checks the keys it reads with `find_unknown_keys`: `World::create` the region's own, and the generator selector and
+  generator their prefixes.
+- **The region's `zone.` keys are the zone spec of every zone in it,** which the caller and the selector modify, as
+  with the level a relocator states. The first zone of the starting region is created from them as they are.
+- **The starting region's spec states the entry** in its `entry_access` key: the name of a registered access point
+  type and the level offset of the target at which the character enters, separated by a comma, as a value is one
+  string that its consumer parses. Only `World::create` reads it, so no later zone is affected. The library has no
+  default, and the generator must place a matching access point. `World::create` returns `entry_point(zone, type,
+  offset)` and throws, before the session starts, if the zone has none.
+- **A region that is not a dungeon states its own entry.** A tower entered from below states `door,0`, and a dungeon
+  level states `staircase,1`.
+- **`Session::start` enters the access point's zone,** as `enter` does. `Game::open` starts the session in the zone the
+  character is in instead.
 
 ## Creating a region and its first zone
 
@@ -193,7 +210,7 @@ The values a zone is created from come from three places:
 
 | Value | From |
 | --- | --- |
-| The level, and anything else that depends on where the zone is reached from | The caller: the region's starting zone spec, or the relocator gone through |
+| The level, and anything else that depends on where the zone is reached from | The caller: the region's `zone.` keys, or the relocator gone through |
 | The generator and its parameters, a pre-built zone, or a new region | The region's generator selector, from the region's spec, the region's zone count, and the level |
 | The seed | `World`, from the generation engine |
 
@@ -245,7 +262,9 @@ starting_area
     rare: {hermit_glade 0.02, ruined_shrine 0.01}    // generators or pre-built zones, each drawn with its probability
     zone_count_max: 12
     next_region: {wild_hills 2, deep_forest 1}       // the weighted table of region specs that may follow this one
-    starting_zone: {level: 0, denizens: few}
+    zone.level: 0
+    entry_access: waypoint,0                         // the access point the first zone's generator places
+    zone.parameters.denizens: few
 
 GeneratorSelection common(const World& world, flecs::entity region, const ZoneSpec& zone_spec)
 {
@@ -325,15 +344,16 @@ flecs::entity World::resolve_relocator_target(flecs::entity relocator)
 A new game, from the host's call through the region's first zones, a new region, and a descent into a dungeon:
 
 ```
-host           Game::create(starting_area, character_spec)
+host           Game::create(name, starting_area, character_spec)
 Game           m_world.create(starting_area)
-World            create_region_zone(starting_area, starting_area.starting_zone)
+World            create_region_zone(starting_area, subset(starting_area, "zone."))
 World              create_region(starting_area)                      -> region 1
 World              create_zone(region 1, {level: 0, denizens: few})
 World                selector "common", zone count 0, opening[0]     -> generator "forest"
 World                generator "forest"                              -> Document, exits +0, a staircase to barrow_dungeon/-1
 World                load_layout, populate                           -> zone 2
-Game           m_session.start(zone 2)
+World          entry_point(zone 2, waypoint, 0)                      -> access point
+Game           m_session.start(access point)
 
 character takes an exit from zone 2
 World          resolve_relocator_target                              target +0, in region 1

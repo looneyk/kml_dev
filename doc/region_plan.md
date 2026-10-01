@@ -22,7 +22,7 @@ zones are generated, and the open items are in `work_plan.md` (`### Regions`).
   zones.
 - **A region has a persistent id,** given when it is created, as a zone's is.
 - **A region has its `RegionSpec`,** from which its generator selector creates each of its zones at the level a
-  relocator or the region's starting zone spec states (`world_generation_plan.md`).
+  relocator or the region spec's `zone.` keys state (`world_generation_plan.md`).
 
 ## Level
 

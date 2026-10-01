@@ -82,7 +82,7 @@ void World::trim_zones(flecs::entity zone_entered);
 
 ```cpp
 void Session::clear();
-void Session::start(flecs::entity zone);
+void Session::start(flecs::entity access_point);
 void Session::pause();
 void Session::resume();
 void Session::enter(flecs::entity zone, flecs::entity access_type, level_type offset);
@@ -93,9 +93,9 @@ bool Session::over() const;
 
 - **`clear()`** clears the play state --- the zone being played, the turn order, the clock and the pending command.
   `loaded()` is then false. The driver remains. `Game` clears the character and the world.
-- **`start(zone)`** begins play of the game that `Game` has created or opened, in the zone. For a new game, that is the
-  first zone, which `World::create` returns; for an opened game, the zone the character is in. The session makes no
-  zone.
+- **`start(access_point)`** begins play of the game that `Game` has created or opened, entering the access point's zone
+  and placing the character there. For a new game, that is the entry point `World::create` returns; for an opened game,
+  the zone the character is in. The session makes no zone.
 - **`pause()` and `resume()`** stop and restart play while the menu is open. `advance` runs no actor while play is
   paused, and real time earns nothing, so closing the menu does not credit the time it was open. Both do nothing while
   no game is loaded.
@@ -125,12 +125,42 @@ flecs::entity Character::entity() const;
 - **`create(character_spec)`** makes the character's entity, with a new persistent id, from a `CharacterSpec`. The
   entity is in no zone until one is entered. The constructor makes the entity now, so its id is allocated before a new
   game resets the allocator.
-- **A `CharacterSpec` is a request to create a character,** not the character: a `KeyValueStore` of the choices a new
-  game makes, such as its name, class, race, history and appearance, and its stats. Most choices are names that
-  `create` resolves to types, from which it builds the character's components, its skills and spells, and its
-  character level, which starts at 1. A list, such as a starting inventory, is named rather than written out: the
-  request names a kit that is defined in data. A key `create` does not read, or a value that does not parse, is an
-  error that reaches the host.
+- **A `CharacterSpec` is a request to create a character,** not the character: a structure with a field for each choice
+  a new game makes. `RegionSpec` and `ZoneSpec` are a `KeyValueStore` because their parameters are open-ended; a
+  character's choices are a fixed set, and its stats and inventory are not strings.
+
+  ```cpp
+  struct InventoryLocation
+  {
+      std::string relation; // "in", "worn", ...
+      std::string place;    // "backpack", "legs", ...
+  };
+
+  struct InventoryItem
+  {
+      std::string name;         // The item's type, defined in data
+      std::size_t quantity;
+      InventoryLocation location;
+      KeyValueStore properties; // Only the values that differ from the type's, such as size or weight
+  };
+
+  struct CharacterSpec
+  {
+      std::string name;
+      std::string character_class;
+      std::string race;
+      std::string history;
+      std::string appearance;
+      std::map<std::string, int> stats; // <stat name, value>
+      std::vector<InventoryItem> inventory;
+  };
+  ```
+
+- **`create` resolves the names to types,** from which it builds the character's components, its skills and spells, and
+  its character level, which starts at 1. Each `InventoryItem` becomes the entity of the type its `name` refers to, in
+  the quantity and at the location it states, with its `properties` set over the type's values. A name that does not
+  resolve, or a stat that is not defined, is an error that reaches the host. The spec is not saved: `character.json`
+  has the character it made.
 - **`open(directory)`** reads the game's `character.json`: the character's components, its inventory, and the zone it
   is in and its placement there.
 - **`save(directory)`** writes `character.json`.
@@ -153,7 +183,7 @@ Game::Game(const Config& config);
 void Game::menu_open();
 void Game::menu_close();
 void Game::clear();
-void Game::create(const RegionSpec& region_spec, const CharacterSpec& character_spec);
+void Game::create(std::string_view name, const RegionSpec& region_spec, const CharacterSpec& character_spec);
 void Game::open(std::string_view directory);
 void Game::save(std::string_view directory);
 void Game::quit();
@@ -174,8 +204,9 @@ Character& Game::character();
   first, so the game in progress ends once the player has chosen, after a confirmation if the host asks for one. A
   failure leaves no game in progress; the host reports it and returns to the menu.
 - **`create`** clears, resets the id allocator and reseeds the engines, so no state passes from one game to the next.
-  It then has the character created from the `CharacterSpec`, and the world's starting region and its first zone from
-  the `RegionSpec`, and starts the session in that zone. The host passes only the specs. Until a new game chooses its
+  It creates the game's directory, named by `name`, throwing if it exists, then has the character created from the
+  `CharacterSpec`, and the world's starting region and its first zone from the `RegionSpec`, and starts the session at
+  the access point `World::create` returns. The host passes only the name and the specs. Until a new game chooses its
   region, each host passes temporary ones.
 - **`open(directory)`** clears, reads the game's `game.json`, restoring the id allocator's count and the engines'
   state, has the world and then the character open their files, and starts the session in the zone the character is
@@ -233,9 +264,10 @@ Character& Game::character();
   offset that leads back. Available means not already bound to a relocator elsewhere. With
   two staircases leading up, where the lower-ordered one was bound to the level above by an earlier arrival, an actor
   arriving from a different staircase leading down above enters at the other.
-- **The library has no default type or offset.** The caller passes them; for now each host passes `staircase` and 1
-  from temporary constants of its own, so the character enters at the lowest-ordered staircase leading up. A zone with no
-  such access point is an error.
+- **The library has no default type or offset.** A new game's region spec states them in its `entry_access` key
+  (`world_generation_plan.md`, `## Creating a game`); the hosts' temporary spec states `staircase`
+  and 1, so the character enters at the lowest-ordered staircase leading up. A zone with no such access point is an
+  error.
 - **A dungeon level has at least one staircase leading up,** its way out, so a generator's minimum count of staircases
   leading up is 1. A staircase leading down is optional: its probability is inversely proportional to how far below
   the surface the zone's level is and proportional to its `difficulty`, and is 1 for now (`region_plan.md`,

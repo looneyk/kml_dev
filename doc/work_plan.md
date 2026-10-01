@@ -43,18 +43,21 @@ each on the ones before it. `Game`'s menu and lifecycle functions, and those the
 
 - [x] **The generator registry: `quetzal/stratum_gen`,** with dungen's generator moved into it from the hosts and
       registered by name, and the hosts linking it.
-- [ ] **A new game's first zone designed** (`world_generation_plan.md`, `## Creating a game`): the keys `RegionSpec`,
+- [x] **A new game's first zone designed** (`world_generation_plan.md`, `## Creating a game`): the keys `RegionSpec`,
       `ZoneSpec` and `CharacterSpec` have to begin with, the access point at which the character enters the first zone,
       and the directory a new game's zones are saved into.
 - [ ] **Flat regions** (`region_plan.md`, `world_generation_plan.md`, `## Relocators`): `create_region` with no parent,
       `unload_region` and `World::clear` with no child regions, `.` and `..` removed from the relocator target grammar in
       `discrete_layout.md` and `stratum_format`, finding only in the relocator's own region, and a target with a region
       creating a new region from the region spec of that name with `create_region_zone`.
-- [ ] **One game after another.** `CharacterSpec` made of `KeyValueStore`; `World::clear`,
+- [ ] **One game after another.** `CharacterSpec` a structure of typed fields, with `inventory` a list of
+      `InventoryItem` (`session_plan.md`, `## Character`); `subset(store, prefix)` on `KeyValueStore`; `World::clear`,
       `Character::clear` and `Session::clear`; `Character::create` making
-      the entity with a new id, and `World::create` making the starting region and its first zone, in place of the
-      constructors of `Character` and `Game`; `Game::create` resetting the id allocator and reseeding the engine; and
-      `Session::start(zone)`. The hosts create a game from temporary specs and load no zone file. A suite case plays a game,
+      the entity with a new id, and `World::create` making the starting region and its first zone and returning the
+      entry point its region spec's `zone.` keys state, in place of the constructors of `Character` and `Game`;
+      `Game::create(name, ...)` creating the game's directory, resetting the id allocator and reseeding the engine; and
+      `Session::start(access_point)`. The hosts create a game from temporary specs, with `staircase` and 1 as the entry,
+      and load no zone file. A suite case plays a game,
       clears it, creates another, and checks that only the new game's regions, zones, entities and ids remain.
 - [ ] **The game's config.** `Config`, with the saves directory and the zone count maximum, passed to `Game`'s
       constructor, with each host passing a temporary one.
@@ -287,8 +290,6 @@ These are the open questions.
   floor/door cell on either side satisfies it. A perimeter whose walls all face outward, around a pillar or solid
   ground, passes while enclosing no floor/door cell. The reader already determines which side of each edge is inside;
   a check of the enclosed area is needed to reject these.
-- **The access point type at which a new game enters a zone that is not a dungeon level,** such as a tower entered from
-  below; `staircase` is the hosts' temporary `entry_access_type` (`session_plan.md`, `## Entry point`).
 - **Where access point types are registered from data,** including a mod's, instead of in `World`'s constructor
   (`modding_plan.md`).
 - **The scale of the probability of a staircase leading down,** which is inversely proportional to how far below the
@@ -338,8 +339,6 @@ These are the open questions.
   it starts, and whether it is a parameter of the `RegionSpec`.
 - **The region in a relocator target:** the name of a region spec, from which a new region is created, or a tag in the
   pregenerated content index (`region_plan.md`, `## Pregenerated content`); how the two are distinguished.
-- **How a `RegionSpec` and a `ZoneSpec` separate their parts** --- metadata, the generator selector's name, the
-  generation parameters, and the starting zone's spec --- within a `KeyValueStore`.
 - **Which `RegionSpec` metadata becomes components** on the region, and which only the selector reads.
 
 ### Random engine
