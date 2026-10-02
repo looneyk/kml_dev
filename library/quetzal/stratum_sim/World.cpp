@@ -646,9 +646,9 @@ flecs::entity quetzal::stratum_sim::World::create_zone(flecs::entity region, std
 //------------------------------------------------------------------------------
 flecs::entity quetzal::stratum_sim::World::create_zone(flecs::entity region, const ZoneSpec& zone_spec)
 {
-    assert(region && region.has<Region>() && region.get<Region>().region_spec.has_value());
+    assert(region && region.has<Region>());
 
-    const RegionSpec& region_spec = *region.get<Region>().region_spec;
+    const RegionSpec& region_spec = region.get<Region>().region_spec;
     std::optional<std::string> selector_name = region_spec.value(generator_selector_key);
 
     if (!selector_name.has_value())

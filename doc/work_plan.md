@@ -46,7 +46,7 @@ each on the ones before it. `Game`'s menu and lifecycle functions, and those the
 - [x] **A new game's first zone designed** (`world_generation_plan.md`, `## Creating a game`): the keys `RegionSpec`,
       `ZoneSpec` and `CharacterSpec` have to begin with, the access point at which the character enters the first zone,
       and the directory a new game's zones are saved into.
-- [ ] **Flat regions** (`region_plan.md`, `world_generation_plan.md`, `## Relocators`): `create_region` with no parent,
+- [x] **Flat regions** (`region_plan.md`, `world_generation_plan.md`, `## Relocators`): `create_region` with no parent,
       `unload_region` and `World::clear` with no child regions, `.` and `..` removed from the relocator target grammar in
       `discrete_layout.md` and `stratum_format`, finding only in the relocator's own region, and a target with a region
       creating a new region from the region spec of that name with `create_region_zone`.

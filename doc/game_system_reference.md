@@ -214,10 +214,10 @@ id. A zone is an entity with the `Zone` tag, a `ZoneLayout` component that owns 
 game, owned by `Game`, and it cannot be copied or moved.
 
 A region groups contiguous zones: a surface area, a dungeon, a crypt, a tower or a house (`region_plan.md`). It is an
-entity with a `Region` component and a `PersistentId`, and it is the parent of its zones and of its child regions.
-`Region` has the region's `RegionSpec`, if it was created with one, and `zone_count`, the number of zones created in
+entity with a `Region` component and a `PersistentId`, and it is the parent of its zones. It has no parent of its own.
+`Region` has the region's `RegionSpec` and `zone_count`, the number of zones created in
 it, which counts zones that have since unloaded. A zone is counted when it is generated, loaded from a template, or
-created with a layout. A saved zone read back was counted when it was created, so it is not counted again. `create_region(region_spec, parent)` makes one
+created with a layout. A saved zone read back was counted when it was created, so it is not counted again. `create_region(region_spec)` makes one
 with the spec. `create_region_zone(region_spec, zone_spec)` makes a region, then its
 first zone with `create_zone`, and returns the zone.
 `region_of(zone)` returns a zone's region, its parent. `zone_of` is unchanged by the regions above a zone: it returns a

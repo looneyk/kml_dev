@@ -1942,7 +1942,7 @@ namespace
         flecs::entity region_made = made ? stratum_sim::region_of(made) : flecs::entity();
         report_case("a target with a region makes a zone in a new region created from the region spec of that name, though a zone at the level has a staircase that leads back", made
             && made != field && region_made != dungeon && region_made != world.region
-            && region_made.get<stratum_sim::Region>().region_spec->value(stratum_sim::generator_selector_key) == "staircase"
+            && region_made.get<stratum_sim::Region>().region_spec.value(stratum_sim::generator_selector_key) == "staircase"
             && region_made.get<stratum_sim::Region>().zone_count == 1 && made.get<stratum_sim::ZoneLevel>().level == 0
             && arrival == down_of(made));
 
@@ -2335,7 +2335,7 @@ namespace
         flecs::entity begun_region = stratum_sim::region_of(begun);
         const stratum_sim::Region& begun_region_data = begun_region.get<stratum_sim::Region>();
         report_case("a selection of a new region makes the zone the first of a region created from the region spec",
-            begun_region != leaving && begun_region_data.region_spec->value(stratum_sim::generator_selector_key) == "staircase"
+            begun_region != leaving && begun_region_data.region_spec.value(stratum_sim::generator_selector_key) == "staircase"
             && begun_region_data.zone_count == 1 && leaving.get<stratum_sim::Region>().zone_count == 0
             && begun.get<stratum_sim::ZoneLevel>().level == -1);
 
