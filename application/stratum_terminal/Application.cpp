@@ -10,6 +10,7 @@
 #include "quetzal/stratum_sim/commands.hpp"
 #include "quetzal/stratum_sim/Site.hpp"
 #include <cstdlib>
+#include <filesystem>
 #include <format>
 #include <iostream>
 #include <optional>
@@ -30,6 +31,13 @@ namespace
 
     // Temporary: the zone loaded is the first level down if its file states no level
     static constexpr stratum_sim::level_type starting_level = -1;
+
+    //--------------------------------------------------------------------------
+    // Temporary, until the config file is read: during development the game's directories are in the temp directory
+    stratum_sim::Config temporary_config()
+    {
+        return stratum_sim::Config {std::filesystem::temp_directory_path() / "KML/Stratum/saves", 8};
+    }
 
     //--------------------------------------------------------------------------
     // Temporary, until the generators are integrated: every zone of the starting region is made with dungen, named
@@ -63,7 +71,7 @@ namespace
 
 //------------------------------------------------------------------------------
 stratum_terminal::Application::Application(const std::string& filepath_zone, View view, const std::string& script, bool incremental) :
-    m_game(),
+    m_game(temporary_config()),
     m_session(m_game.session()),
     m_view(view),
     m_view_glyphs(),

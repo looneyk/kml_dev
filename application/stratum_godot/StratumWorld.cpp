@@ -14,6 +14,7 @@
 #include <godot_cpp/variant/utility_functions.hpp>
 #include <cstdlib>
 #include <exception>
+#include <filesystem>
 #include <format>
 #include <optional>
 #include <string>
@@ -30,6 +31,13 @@ namespace
 
     // Temporary: a zone loaded is the first level down if its file states no level
     static constexpr sim::level_type starting_level = -1;
+
+    //--------------------------------------------------------------------------
+    // Temporary, until the config file is read: during development the game's directories are in the temp directory
+    sim::Config temporary_config()
+    {
+        return sim::Config {std::filesystem::temp_directory_path() / "KML/Stratum/saves", 8};
+    }
 
     //--------------------------------------------------------------------------
     // Temporary, until the generators are integrated: every zone of the starting region is made with dungen, named
@@ -50,7 +58,7 @@ namespace
 
 //------------------------------------------------------------------------------
 StratumWorld::StratumWorld() :
-    m_game(),
+    m_game(temporary_config()),
     m_session(m_game.session()),
     m_message()
 {

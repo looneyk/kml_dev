@@ -27,7 +27,7 @@ namespace quetzal::stratum_sim
     {
     public:
 
-        Game();
+        explicit Game(const Config& config);
         Game(const Game&) = delete;
         Game(Game&&) = delete;
         ~Game() = default;

@@ -4,7 +4,6 @@ add_library(quetzal_stratum_sim STATIC
     Character.cpp
     Clock.cpp
     CommandQueue.cpp
-    Config.cpp
     commands.cpp
     DiscreteLayout.cpp
     DisplayName.cpp
@@ -22,6 +21,7 @@ add_library(quetzal_stratum_sim STATIC
     Session.cpp
     Settings.cpp
     Site.cpp
+    specs.cpp
     World.cpp
     ZoneEntryIndex.cpp
     ai.hpp
@@ -57,6 +57,7 @@ add_library(quetzal_stratum_sim STATIC
     Session.hpp
     Settings.hpp
     Site.hpp
+    specs.hpp
     types.hpp
     World.hpp
     Zone.hpp

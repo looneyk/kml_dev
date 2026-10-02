@@ -301,35 +301,6 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    template<typename S>
-    void test_unknown_keys()
-    {
-        report_group("unknown keys");
-
-        constexpr bool has_find_unknown_keys = requires(const S& s, const vector<string_view>& known_keys)
-        {
-            { s.find_unknown_keys(known_keys) } -> convertible_to<vector<string>>;
-        };
-
-        if constexpr (has_find_unknown_keys)
-        {
-            const S key_value_store {{"alpha", "1"}, {"beta", "2"}, {"gamma", "3"}};
-
-            const vector<string> none = key_value_store.find_unknown_keys(vector<string_view> {"alpha", "beta", "gamma", "delta"});
-            report_case("all keys known", none.empty());
-
-            const vector<string> unknown = key_value_store.find_unknown_keys(vector<string_view> {"alpha"});
-            report_case("unknown keys found", unknown == vector<string> {"beta", "gamma"});
-        }
-        else
-        {
-            report_case("find_unknown_keys", false, "not implemented");
-        }
-
-        return;
-    }
-
-    //--------------------------------------------------------------------------
     void test_files()
     {
         report_group("files");
@@ -396,7 +367,6 @@ int main()
         test_order();
         test_union();
         test_typed_access<KeyValueStore>();
-        test_unknown_keys<KeyValueStore>();
         test_files();
         test_text();
         test_aliases();

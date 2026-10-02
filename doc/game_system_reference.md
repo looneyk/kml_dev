@@ -199,6 +199,11 @@ from a name: `m_generator_selectors`, `m_generators` and `m_region_specs`. `Regi
 `KeyValueStore`. A `RegionSpec`'s `generator_selector` names the region's selector, and a `ZoneSpec`'s `level` is the
 zone's level; `generator_selector_key` and `level_key` are the two keys.
 
+`specs.hpp` has two functions over a spec. `find_unknown_keys(spec, known_keys)` returns the spec's keys that are not
+among the known keys, in key order, so a consumer reports a key it does not read. `select_prefixed(spec, prefix)` returns
+the entries whose keys begin with the prefix, with the prefix removed, so one part of a spec, such as its `zone.` keys,
+becomes a spec of its own.
+
 A generator selector, `generator_selector_type`, is given the world, the region and the `ZoneSpec`, and returns a
 `GeneratorSelection`, which sets exactly one of a generator's name, a zone template's tag, and a region spec's name,
 with the `ZoneSpec` the zone is created from. A generator, `generator_type`, returns the `stratum_format::Document` a
@@ -287,8 +292,7 @@ zone that has begun unloading is excluded, even if flecs has deferred its deleti
 
 `trim_zones(zone_entered)` has the world's `ZoneEntryIndex` mark `zone_entered` as the most recently entered zone and
 choose the zones to unload, then unloads them. `zone_count_max`, a constructor argument, is the maximum number of zones
-the world trims to, and `set_zone_count_max` changes it. `Game` passes 8, a temporary value until the game's
-config file supplies it.
+the world trims to, and `set_zone_count_max` changes it. `Game` passes its config's `zone_count_max`.
 
 `unload_zone(zone)` begins an unload: it adds the zone's id to the zones unloading and deletes the entity. Flecs deletes
 a zone's subtree before the zone itself, and if it is deferring, it runs the whole deletion when the deferred
@@ -549,8 +553,12 @@ stopped by an occupied cell in `World::move`.
 
 ### Game and Character
 
-`Game` is the game in its entirety, the one object a host owns, for as long as the host runs. It owns the structures
-that survive outside play: a `CountingIdAllocator` counting from zero, a `random_type` seeded from
+`Game` is the game in its entirety, the one object a host owns, for as long as the host runs. It is constructed with a
+`Config`, the program's configuration, which is the same for every game: `saves_directory`, the directory in which
+each saved game is a directory, and `zone_count_max`, the most zones the world keeps loaded at once. `config()` returns
+it. Each host passes a temporary config, with the saves directory in the temp directory's `KML/Stratum/saves` and a
+maximum of 8, until the game's config file is read. It owns the structures that survive outside play: the config, the
+settings, a `CountingIdAllocator` counting from zero, a `random_type` seeded from
 `std::random_device`, the `Generation`, the `World` and the `Character`, and the `Session` that plays them, constructed in
 that order, each referring to those before it. `generation()` returns the `Generation`, with which a host registers
 its generators, selectors and region specs. Only the `Generation` can be copied or moved. `starting_region()` returns the region that a new game's zones are
@@ -559,8 +567,9 @@ made in, which the constructor creates; it is temporary, until a new game choose
 `Game` has the menu and lifecycle operations a host calls: `menu_open`, `menu_close`, `clear`, `create`, `open`,
 `save`, `quit` and `saved_games`. They call `clear`, `create`, `open` and `save` on `World` and `Character`, and
 `clear`, `start`, `pause` and `resume` on `Session`. All of those are skeletons with empty bodies, `saved_games`
-returns no games. `CharacterSpec`, which `create` takes, is the choices a new game makes: a `name`; `stats`, `skills`
-and `spells`, each a map from a name to a value; an `inventory` of `InventoryItem`, each an item's `type`, its
+returns no games. `CharacterSpec`, which `create` takes, is the choices a new game makes: a `name`; `stats`, a map
+from a name to a value; `skills`, which include feats and abilities, and `aspects`, such as the spells of a
+spellcasting skill, each a map from a name to its properties; an `inventory` of `InventoryItem`, each an item's `type`, its
 `InventoryLocation` (a `relation` and a `place`), and its `properties`; and the game's other choices, such as race and
 class, as `properties`.
 `session_plan.md` (`## Games`) has their design.

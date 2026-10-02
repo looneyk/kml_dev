@@ -5,27 +5,18 @@
 // Config.hpp
 //------------------------------------------------------------------------------
 
+#include <cstddef>
+#include <filesystem>
+
 namespace quetzal::stratum_sim
 {
 
     //--------------------------------------------------------------------------
-    class Config
+    // The program's configuration, which lasts as long as the host and is the same for every game
+    struct Config
     {
-    public:
-
-        Config();
-        Config(const Config&) = default;
-        Config(Config&&) = default;
-        ~Config() = default;
-
-        Config& operator=(const Config&) = default;
-        Config& operator=(Config&&) = default;
-
-    private:
-
-        // ...
-
-        int m_placeholder;
+        std::filesystem::path saves_directory; // Each saved game is a directory in it
+        std::size_t zone_count_max = 0;        // The most zones the world keeps loaded at once
     };
 
 } // namespace quetzal::stratum_sim

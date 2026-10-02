@@ -6,14 +6,6 @@
 #include "Game.hpp"
 #include "attachments.hpp"
 
-namespace
-{
-
-    // Temporary: until the game's config file supplies it
-    static constexpr size_t zone_count_max = 8;
-
-} // namespace
-
 //------------------------------------------------------------------------------
 void quetzal::stratum_sim::register_game_types(World& world)
 {
@@ -25,11 +17,13 @@ void quetzal::stratum_sim::register_game_types(World& world)
 }
 
 //------------------------------------------------------------------------------
-quetzal::stratum_sim::Game::Game() :
+quetzal::stratum_sim::Game::Game(const Config& config) :
+    m_config(config),
+    m_settings(),
     m_counting_id_allocator(PersistentId {}),
     m_random(),
     m_generation(),
-    m_world(m_counting_id_allocator, m_random, m_generation, zone_count_max),
+    m_world(m_counting_id_allocator, m_random, m_generation, m_config.zone_count_max),
     m_character(m_world),
     m_session(m_world, m_character),
     m_starting_region(m_world.create_region(RegionSpec {}))
@@ -109,6 +103,12 @@ std::vector<quetzal::stratum_sim::SavedGameDetails> quetzal::stratum_sim::Game::
     // From the saved game directory in config, return all the subdirecties ...
 
     return {};
+}
+
+//------------------------------------------------------------------------------
+const quetzal::stratum_sim::Config& quetzal::stratum_sim::Game::config() const
+{
+    return m_config;
 }
 
 //------------------------------------------------------------------------------

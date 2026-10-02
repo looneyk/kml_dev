@@ -22,6 +22,7 @@
 #include "quetzal/stratum_sim/file_components.hpp"
 #include "quetzal/stratum_sim/layout_entities.hpp"
 #include "quetzal/stratum_sim/properties.hpp"
+#include "quetzal/stratum_sim/specs.hpp"
 #include "quetzal/stratum_sim/World.hpp"
 #include "quetzal/stratum_format/grid.hpp"
 #include "quetzal/stratum_format/read.hpp"
@@ -51,6 +52,9 @@ namespace
     static constexpr auto escape_rendition_pattern = "\x1b[38;5;{}m";
 
     static constexpr size_t suite_zone_count_max = 8;
+
+    // A game's saves are in the suite's own output directory
+    const stratum_sim::Config g_suite_config {"out/saves", suite_zone_count_max};
 
     // Seeded, so a random choice is the same on every run
     stratum_sim::random_type g_suite_random(1);
@@ -958,11 +962,11 @@ namespace
             character.get<stratum_sim::Intent>().direction.x() == 0.0f);
 
         // A host calls advance the same way under either driver
-        stratum_sim::Game game_turn;
+        stratum_sim::Game game_turn(g_suite_config);
         stratum_sim::Session& session_turn = game_turn.session();
         enter_zone_file(game_turn, "data/corridor.zone");
 
-        stratum_sim::Game game_real;
+        stratum_sim::Game game_real(g_suite_config);
         stratum_sim::Session& session_real = game_real.session();
         session_real.set_driver(stratum_sim::Driver::RealTime);
         enter_zone_file(game_real, "data/corridor.zone");
@@ -974,7 +978,7 @@ namespace
             session_real.advance(session_events) == nullid);
 
         // The character acts through its own intent and commands, the door east of where it enters
-        stratum_sim::Game game_door;
+        stratum_sim::Game game_door(g_suite_config);
         stratum_sim::Session& session_door = game_door.session();
         enter_zone_file(game_door, "data/door.zone");
         session_door.advance(session_events);
@@ -1808,6 +1812,44 @@ namespace
     }
 
     //--------------------------------------------------------------------------
+    void test_game()
+    {
+        report_group("game");
+
+        const stratum_sim::Config config {"out/elsewhere", 3};
+        stratum_sim::Game game(config);
+
+        report_case("a game keeps the config it was constructed with", game.config().saves_directory == config.saves_directory
+            && game.config().zone_count_max == config.zone_count_max);
+        report_case("and its world keeps no more zones loaded than the config's maximum", game.world().zone_count_max() == 3);
+
+        return;
+    }
+
+    //--------------------------------------------------------------------------
+    void test_specs()
+    {
+        report_group("specs");
+
+        const stratum_sim::RegionSpec spec {{"generator_selector", "common"}, {"name", "The Downs"}, {"zone.level", "-1"},
+            {"zone.parameters.denizens", "few"}, {"zones", "3"}};
+
+        report_case("no unknown keys when every key is known", stratum_sim::find_unknown_keys(spec,
+            vector<string_view> {"generator_selector", "name", "zone.level", "zone.parameters.denizens", "zones", "difficulty"}).empty());
+        report_case("the unknown keys, in key order", stratum_sim::find_unknown_keys(spec, vector<string_view> {"name"})
+            == vector<string> {"generator_selector", "zone.level", "zone.parameters.denizens", "zones"});
+
+        const stratum_sim::ZoneSpec zone_spec = stratum_sim::select_prefixed(spec, "zone.");
+        report_case("the entries under a prefix, with the prefix removed, and not the key zones under zone.",
+            zone_spec.value("level") == "-1" && zone_spec.value("parameters.denizens") == "few" && !zone_spec.contains("s")
+            && distance(zone_spec.begin(), zone_spec.end()) == 2);
+        const KeyValueStore none =stratum_sim::select_prefixed(spec, "region.");
+        report_case("nothing under a prefix that no key has", none.begin() == none.end());
+
+        return;
+    }
+
+    //--------------------------------------------------------------------------
     // Reads from data/, so stratum_sim_test runs from its own directory
     void test_regions()
     {
@@ -2062,7 +2104,7 @@ namespace
     {
         report_group("entering an access point");
 
-        stratum_sim::Game game;
+        stratum_sim::Game game(g_suite_config);
         stratum_sim::Session& session = game.session();
         stratum_sim::World& world = game.world();
         flecs::entity character = session.character().entity();
@@ -2156,14 +2198,17 @@ namespace
     {
         report_group("interacting with a relocator");
 
-        // A new game's starting region has no generator, so the staircase leading down leads nowhere
-        stratum_sim::Game game;
+        stratum_sim::Game game(g_suite_config);
         stratum_sim::Session& session = game.session();
 
         // data/walls.zone: the character enters on cell (2, 1), facing the staircase leading down to the east
         enter_zone_file(game, "data/walls.zone");
         session.zone().set<stratum_sim::ZoneLevel>(stratum_sim::ZoneLevel {-1});
         flecs::entity staircase = stratum_sim::entry_point(session.zone(), stratum_sim::access_type(game.world().entities(), "staircase"), -1);
+
+        // A named zone is not resolved, so the staircase leads nowhere
+        stratum_sim::Relocator leading_down = staircase.get<stratum_sim::Relocator>();
+        staircase.set<stratum_sim::Relocator>(stratum_sim::Relocator {*stratum_format::parse_relocator_target("town/market")});
 
         session.character().submit(stratum_sim::Interact {});
         stratum_sim::EventQueue events;
@@ -2179,6 +2224,7 @@ namespace
             && interacted->interaction == stratum_sim::Interaction::NoDestination && interacted->acted_on_id == staircase.id());
         report_case("which is a staircase", stratum_sim::access_type_name(staircase) == "staircase");
 
+        staircase.set<stratum_sim::Relocator>(leading_down);
         game.generation() = suite_generation();
         game.starting_region().get_mut<stratum_sim::Region>().region_spec = suite_region_spec("staircase");
         flecs::entity first = session.zone();
@@ -2675,7 +2721,7 @@ namespace
         report_case("a wall id decodes to its cell and its direction", decoded);
 
         // Entering places the character in front of up staircase 0, facing away from it
-        stratum_sim::Game game;
+        stratum_sim::Game game(g_suite_config);
         stratum_sim::Session& session = game.session();
         enter_zone_file(game, "data/corridor.zone");
 
@@ -3106,7 +3152,7 @@ namespace
 
         // A zone generated rather than read
         {
-            stratum_sim::Game game_created;
+            stratum_sim::Game game_created(g_suite_config);
             stratum_sim::Session& created = game_created.session();
             game_created.generation() = suite_generation();
             game_created.starting_region().get_mut<stratum_sim::Region>().region_spec = suite_region_spec("door");
@@ -3122,7 +3168,7 @@ namespace
                     created.layout()).wall_toward(stratum_sim::discrete_point_type {1, 1}, cardinal_direction(CardinalDirection::East))).is_alive());
 
             // Reading the same geometry from a file gives the same zone
-            stratum_sim::Game game_loaded;
+            stratum_sim::Game game_loaded(g_suite_config);
             stratum_sim::Session& loaded = game_loaded.session();
             enter_zone_file(game_loaded, "data/door.zone");
             report_case("and a zone read whole agrees with it",
@@ -3132,7 +3178,7 @@ namespace
         }
 
         // Through a Session
-        stratum_sim::Game game;
+        stratum_sim::Game game(g_suite_config);
         stratum_sim::Session& session = game.session();
         enter_zone_file(game, "data/corridor.zone");
 
@@ -3343,6 +3389,8 @@ int main()
     test_loaded_entities();
     test_decoded_components();
     test_world();
+    test_game();
+    test_specs();
     test_regions();
     test_level_targets();
     test_relocating_through();

@@ -32,11 +32,11 @@ namespace quetzal::stratum_sim
 
         std::string name;
         std::map<std::string, int> stats;
-        std::map<std::string, int> skills;
-        std::map<std::string, int> spells;
+        std::map<std::string, KeyValueStore> skills; // includes skills, feats, abilities, ...; properties might include level, proficiency, usage_count, usage_count_max, range, aoe
+        std::map<std::string, KeyValueStore> aspects; // where a skill might be spellcasting, this would be the list of spells; properties might include parent skill in addition to the same set as skills might have
         std::vector<InventoryItem> inventory;
 
-        // The game's own choices, which data defines: race, class_role, background, appearance, level, ...
+        // The game's own choices, which data defines: race, class, background, appearance, level, ...
         KeyValueStore properties;
     };
 

@@ -15,7 +15,6 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
-#include <vector>
 
 namespace quetzal
 {
@@ -67,9 +66,6 @@ namespace quetzal
         void insert(const std::string& key, const std::string& value);
 
         void remove(std::string_view key);
-
-        // Returns the keys that are not among known_keys, in key order
-        std::vector<std::string> find_unknown_keys(std::span<const std::string_view> known_keys) const;
 
     private:
 

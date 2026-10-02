@@ -5,7 +5,6 @@
 
 #include "KeyValueStore.hpp"
 #include "file_util.hpp"
-#include <algorithm>
 #include <format>
 #include <fstream>
 #include <istream>
@@ -165,21 +164,6 @@ void quetzal::KeyValueStore::remove(string_view key)
         m_values.erase(i);
     }
     return;
-}
-
-//------------------------------------------------------------------------------
-vector<string> quetzal::KeyValueStore::find_unknown_keys(span<const string_view> known_keys) const
-{
-    vector<string> unknown_keys;
-    for (const auto& [key, value] : m_values)
-    {
-        if (ranges::find(known_keys, key) == known_keys.end())
-        {
-            unknown_keys.push_back(key);
-        }
-    }
-
-    return unknown_keys;
 }
 
 //------------------------------------------------------------------------------

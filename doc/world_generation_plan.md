@@ -125,7 +125,7 @@ void Game::create(std::string_view name, const RegionSpec& region_spec, const Ch
 
 flecs::entity World::create(const RegionSpec& region_spec)
 {
-    ZoneSpec zone_spec = subset(region_spec, "zone.");
+    ZoneSpec zone_spec = select_prefixed(region_spec, "zone.");
     flecs::entity zone = create_region_zone(region_spec, zone_spec);
     auto [type_name, offset] = the type and level offset parsed from region_spec's entry_access;
     return entry_point(zone, access_type(type_name), offset);
@@ -137,9 +137,10 @@ void Session::start(flecs::entity access_point)
 }
 ```
 
-- **A spec's parts are separated by key prefixes.** A key with no prefix is the spec's own, and `subset(store, prefix)`
-  returns the entries under a prefix with it removed, so `zone.` yields an ordinary `ZoneSpec`. Each consumer
-  checks the keys it reads with `find_unknown_keys`: `World::create` the region's own, and the generator selector and
+- **A spec's parts are separated by key prefixes.** A key with no prefix is the spec's own, and
+  `select_prefixed(spec, prefix)` returns the entries under a prefix with it removed, so `zone.` yields an ordinary
+  `ZoneSpec`. Each consumer checks the keys it reads with `find_unknown_keys(spec, known_keys)`. Both are stratum's
+  (`specs.hpp`), not `KeyValueStore`'s: `World::create` the region's own, and the generator selector and
   generator their prefixes.
 - **The region's `zone.` keys are the zone spec of every zone in it,** which the caller and the selector modify, as
   with the level a relocator states. The first zone of the starting region is created from them as they are.
@@ -346,7 +347,7 @@ A new game, from the host's call through the region's first zones, a new region,
 ```
 host           Game::create(name, starting_area, character_spec)
 Game           m_world.create(starting_area)
-World            create_region_zone(starting_area, subset(starting_area, "zone."))
+World            create_region_zone(starting_area, select_prefixed(starting_area, "zone."))
 World              create_region(starting_area)                      -> region 1
 World              create_zone(region 1, {level: 0, denizens: few})
 World                selector "common", zone count 0, opening[0]     -> generator "forest"

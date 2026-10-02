@@ -144,11 +144,11 @@ flecs::entity Character::entity() const;
       };
 
       std::string name;
-      std::map<std::string, int> stats;  // <stat name, value>
-      std::map<std::string, int> skills; // <skill name, value>
-      std::map<std::string, int> spells; // <spell name, value>
+      std::map<std::string, int> stats; // <stat name, value>
+      std::map<std::string, KeyValueStore> skills; // <name, properties>, include skills, feats, abilities, ...; properties might include level, proficiency, usage_count, usage_count_max, range, aoe, ...
+      std::map<std::string, KeyValueStore> aspects; // <name, properties>, where a skill might be spellcasting, this would be the list of spells; properties might include parent skill in addition to the same set as skills might have
       std::vector<InventoryItem> inventory;
-      KeyValueStore properties;          // race, class_role, background, appearance, level, ...
+      KeyValueStore properties; // race, class, background, appearance, level, ...
   };
   ```
 
@@ -218,9 +218,8 @@ Character& Game::character();
 - **A suite plays a game, clears it, and creates another,** and checks that the world then contains only the new game's
   regions, zones, entities and ids, so that nothing a clear misses survives into the next game.
 - **The config is the program's:** the saves directory and the zone count maximum, from the game's config file. Until
-  that file is read, each host passes a temporary config, with the saves directory in the platform's per-user data
-  directory: `user://saves` in Godot, and `stratum/saves` under `%APPDATA%` or `$XDG_DATA_HOME` in the terminal host. A
-  suite passes a directory of its own.
+  that file is read, each host passes a temporary config, with the saves directory in the temp directory's
+  `KML/Stratum/saves` (`game_file_spec.md`, `## A saved game's files`). A suite passes a directory of its own.
 - **The settings are the game's,** chosen when it begins and saved with it. They come with permadeath, the first of
   them (`### Permadeath`).
 

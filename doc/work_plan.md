@@ -41,9 +41,13 @@ These are the game's lifecycle and the menu operations behind it (`session_plan.
 each on the ones before it. `Game`'s menu and lifecycle functions, and those they call on `World`, `Character` and
 `Session`, are skeletons; each item designs what its functions still need and fills them in.
 
-- [x] **`CharacterSpec`** (`session_plan.md`, `## Character`): the name, the stats, skills and spells, the inventory as
+- [x] **`CharacterSpec`** (`session_plan.md`, `## Character`): the name, the stats, skills and aspects, the inventory as
       a list of `InventoryItem`, and `properties` for the game's other choices.
-- [ ] **One game after another.** `subset(store, prefix)` on `KeyValueStore`; `World::clear`,
+- [x] **Spec keys:** `find_unknown_keys` moved from `KeyValueStore` into `stratum_sim`'s `specs.hpp`, with
+      `select_prefixed`, which returns a spec's entries under a prefix.
+- [x] **The game's config.** `Config`, with the saves directory and the zone count maximum, passed to `Game`'s
+      constructor, with each host passing a temporary one.
+- [ ] **One game after another.** `World::clear`,
       `Character::clear` and `Session::clear`; `Character::create` making
       the entity with a new id, and `World::create` making the starting region and its first zone and returning the
       entry point its region spec's `entry_access` states, in place of the constructors of `Character` and `Game`;
@@ -51,8 +55,6 @@ each on the ones before it. `Game`'s menu and lifecycle functions, and those the
       `Session::start(access_point)`. The hosts create a game from temporary specs, with `staircase,1` as the entry,
       and load no zone file. A suite case plays a game,
       clears it, creates another, and checks that only the new game's regions, zones, entities and ids remain.
-- [ ] **The game's config.** `Config`, with the saves directory and the zone count maximum, passed to `Game`'s
-      constructor, with each host passing a temporary one.
 - [ ] **The menu in the hosts.** Each host draws a menu, opened by a key, with a new game, continuing, and quitting,
       through `create`, `menu_open`, `menu_close` and `quit`; and `Session::pause` and `resume` stopping and restarting
       play. The menu offers saving and opening with **A game saved** and **A game loaded**.
@@ -351,8 +353,8 @@ These are the open questions.
 - **The population strategy from the zone's source,** the template loaded or the generation guidance, which replaces
   `World::populate`'s placeholder (`session_plan.md`, `## World`).
 - **The time a zone was entered:** simulation time or real time.
-- **The game's config file,** which supplies the zone count maximum, now `Game`'s temporary 8, and the game's
-  other settings.
+- **The game's config file,** which supplies the `Config` that each host now builds as a temporary value, and the
+  game's other settings.
 - **Whether the driver belongs to the game or to a zone.**
 - **Actors.** The character and the denizens are both actors, and differ in what controls them; the actor structure is
   not designed, and neither is what kills an actor and marks it `Dead`.
