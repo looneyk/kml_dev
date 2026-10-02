@@ -65,3 +65,11 @@ void quetzal::stratum_sim::ZoneEntryIndex::set_zone_count_max(size_t zone_count_
     m_zone_count_max = zone_count_max;
     return;
 }
+
+//------------------------------------------------------------------------------
+void quetzal::stratum_sim::ZoneEntryIndex::clear()
+{
+    m_zone_entry_index.clear();
+    m_entry_count = 0;
+    return;
+}

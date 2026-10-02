@@ -388,7 +388,8 @@ more than `zone_count_max`. It keeps a map from its count of entries to the pers
 count. `select_unloads(zones, zone_entered)` drops the earlier entry of `zone_entered` and the entries of any zone no
 longer among `zones`, adds one for `zone_entered` under the next count, and then returns zones from the first entry on
 until the count left is within the maximum. It never chooses `zone_entered`, whose entry is the last, or a zone that
-was never entered, which has no entry, and two trims in one deferred block choose no more than the excess.
+was never entered, which has no entry, and two trims in one deferred block choose no more than the excess. `clear`
+forgets every entry and keeps the maximum.
 
 ### Persistent ids
 
@@ -513,8 +514,8 @@ earns and returns whether or not an actor became ready. Turn-based ignores the e
 way.
 
 `units_per_second` converts real time to units, one unit being one action for an actor of speed `action_cost`. The
-clock keeps the fraction of a unit, so frames too short to earn one still add up. A host sets the driver through
-`Session::set_driver`.
+clock keeps the fraction of a unit, so frames too short to earn one still add up, and `clear` discards it. A host sets
+the driver through `Session::set_driver`.
 
 `run(events, actor_controlled)` runs each ready actor on its `PendingCommand` if it has one, removing it, and
 otherwise on its `Intent`, charging the action's cost. It returns the controlled actor once that actor is ready with
@@ -566,8 +567,14 @@ made in, which the constructor creates; it is temporary, until a new game choose
 
 `Game` has the menu and lifecycle operations a host calls: `menu_open`, `menu_close`, `clear`, `create`, `open`,
 `save`, `quit` and `saved_games`. They call `clear`, `create`, `open` and `save` on `World` and `Character`, and
-`clear`, `start`, `pause` and `resume` on `Session`. All of those are skeletons with empty bodies, `saved_games`
-returns no games. `CharacterSpec`, which `create` takes, is the choices a new game makes: a `name`; `stats`, a map
+`clear`, `start`, `pause` and `resume` on `Session`. `saved_games` returns no games.
+
+`Game::clear` clears the session, the character and the world, in that order, in place. `Session::clear` ends play:
+no zone is played, and the turn order and the clock's fraction of a unit are emptied, while the driver remains.
+`Character::clear` deletes the character's entity, with what it carries and its pending command. `World::clear` unloads
+every region and empties the world index and the `ZoneEntryIndex`, and keeps the registrations: the entity types, the
+access point types, the file components, and the `Generation` it was given. Every other menu and lifecycle function
+is a skeleton with an empty body. `CharacterSpec`, which `create` takes, is the choices a new game makes: a `name`; `stats`, a map
 from a name to a value; `skills`, which include feats and abilities, and `aspects`, such as the spells of a
 spellcasting skill, each a map from a name to its properties; an `inventory` of `InventoryItem`, each an item's `type`, its
 `InventoryLocation` (a `relation` and a `place`), and its `properties`; and the game's other choices, such as race and

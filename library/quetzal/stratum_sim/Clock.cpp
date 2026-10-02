@@ -53,6 +53,13 @@ void quetzal::stratum_sim::Clock::set_driver(Driver driver, double units_per_sec
 }
 
 //------------------------------------------------------------------------------
+void quetzal::stratum_sim::Clock::clear()
+{
+    m_units_remainder = 0.0;
+    return;
+}
+
+//------------------------------------------------------------------------------
 void quetzal::stratum_sim::Clock::grant_turn()
 {
     m_scheduler.next();

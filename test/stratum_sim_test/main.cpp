@@ -1823,6 +1823,33 @@ namespace
             && game.config().zone_count_max == config.zone_count_max);
         report_case("and its world keeps no more zones loaded than the config's maximum", game.world().zone_count_max() == 3);
 
+        // A game played in two regions, with a character carrying something, then cleared
+        stratum_sim::Game played(g_suite_config);
+        stratum_sim::World& world = played.world();
+        stratum_sim::Session& session = played.session();
+        played.generation() = suite_generation();
+
+        enter_zone_file(played, "data/corridor.zone");
+        flecs::entity character = session.character().entity();
+        stratum_sim::PersistentId character_id = character.get<stratum_sim::PersistentId>();
+        flecs::entity carried = world.entities().entity();
+        stratum_sim::set_parent(carried, character);
+
+        flecs::entity elsewhere = world.create_zone(world.create_region(suite_region_spec("door")), stratum_sim::ZoneSpec {});
+        world.make_reference(world.create_entity(elsewhere, stratum_sim::placement_type()));
+
+        played.clear();
+
+        report_case("clearing a game ends play", !session.loaded() && session.scheduler().count() == 0);
+        report_case("deletes the character and what it carries", !session.character().entity() && !character.is_alive()
+            && !carried.is_alive() && !world.entity(character_id));
+        report_case("and every region and zone", world.entities().count<stratum_sim::Region>() == 0
+            && world.entities().count<stratum_sim::Zone>() == 0 && world.zone_count() == 0);
+        report_case("leaving no entity with a persistent id", world.entities().count<stratum_sim::PersistentId>() == 0);
+        report_case("and keeps the registrations", stratum_sim::entity_type(world.entities(), "door")
+            && stratum_sim::access_type(world.entities(), "staircase") && stratum_sim::file_component(world.entities(), "name") != 0
+            && played.generation().m_generator_selectors.contains("door"));
+
         return;
     }
 

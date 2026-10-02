@@ -47,8 +47,10 @@ each on the ones before it. `Game`'s menu and lifecycle functions, and those the
       `select_prefixed`, which returns a spec's entries under a prefix.
 - [x] **The game's config.** `Config`, with the saves directory and the zone count maximum, passed to `Game`'s
       constructor, with each host passing a temporary one.
-- [ ] **One game after another.** `World::clear`,
-      `Character::clear` and `Session::clear`; `Character::create` making
+- [x] **A game cleared.** `World::clear`, `Character::clear` and `Session::clear`, with `Clock::clear` and
+      `ZoneEntryIndex::clear`; a suite case clears a game played in two regions and checks that only the registrations
+      remain.
+- [ ] **One game after another.** `Character::create` making
       the entity with a new id, and `World::create` making the starting region and its first zone and returning the
       entry point its region spec's `entry_access` states, in place of the constructors of `Character` and `Game`;
       `Game::create(name, ...)` creating the game's directory, resetting the id allocator and reseeding the engine; and

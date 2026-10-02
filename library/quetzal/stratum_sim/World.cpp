@@ -519,7 +519,16 @@ quetzal::stratum_sim::World::World(IdAllocator& id_allocator, random_type& rando
 //------------------------------------------------------------------------------
 void quetzal::stratum_sim::World::clear()
 {
-    // ...
+    entities_type regions;
+    m_entities.query_builder<const Region>().build().each([&](flecs::entity region, const Region&) { regions.push_back(region); });
+
+    for (flecs::entity region : regions)
+    {
+        unload_region(region);
+    }
+
+    m_entity_zones.clear();
+    m_zone_entry_index.clear();
 
     return;
 }
@@ -607,18 +616,14 @@ void quetzal::stratum_sim::World::unload_region(flecs::entity region)
     assert(region && region.has<Region>());
 
     // Each zone's unload finishes in the PersistentId observer, as unload_zone's does
-    auto mark_zones_unloading = [this](this const auto& self, flecs::entity parent) -> void
+    region.children([&](flecs::entity child)
     {
-        parent.children([&](flecs::entity child)
+        if (child.has<Zone>())
         {
-            if (child.has<Zone>())
-            {
-                m_zones_unloading.insert(child.get<PersistentId>());
-            }
-        });
-    };
+            m_zones_unloading.insert(child.get<PersistentId>());
+        }
+    });
 
-    mark_zones_unloading(region);
     region.destruct();
 
     return;

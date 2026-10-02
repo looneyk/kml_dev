@@ -29,6 +29,9 @@ namespace quetzal::stratum_sim
         size_t zone_count_max() const;
         void set_zone_count_max(size_t zone_count_max);
 
+        // Forgets every entry, keeping the maximum
+        void clear();
+
     private:
 
         // <entry_count, zone_id>

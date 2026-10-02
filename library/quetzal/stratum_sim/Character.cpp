@@ -21,7 +21,12 @@ quetzal::stratum_sim::Character::Character(World& world) :
 //------------------------------------------------------------------------------
 void quetzal::stratum_sim::Character::clear()
 {
-    // ...
+    // There is no character before the first game is created
+    if (m_entity)
+    {
+        m_entity.destruct();
+        m_entity = flecs::entity();
+    }
 
     return;
 }

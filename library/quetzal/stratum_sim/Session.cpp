@@ -48,7 +48,9 @@ quetzal::stratum_sim::Session::Session(World& world, Character& character) :
 //------------------------------------------------------------------------------
 void quetzal::stratum_sim::Session::clear()
 {
-    // ...
+    m_zone = flecs::entity();
+    m_scheduler.clear();
+    m_clock.clear();
 
     return;
 }

@@ -44,6 +44,9 @@ namespace quetzal::stratum_sim
         double units_per_second() const;
         void set_driver(Driver driver, double units_per_second = units_per_second_default);
 
+        // Discards the fraction of a unit that real time has earned. The driver remains
+        void clear();
+
         // Grants enough time for the soonest actor to become ready. Turn-based only
         void grant_turn();
 
