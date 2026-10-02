@@ -162,12 +162,20 @@ func _refresh() -> void:
 
 	_status.text = "cell %s   turn %d   %s" % [_world.cell(), _world.turn(), _world.message()]
 
+	if _world.game_over():
+		_status.text += "   Press any key."
+
 
 func _unhandled_key_input(event: InputEvent) -> void:
 	if not event.is_pressed():
 		return
 
-	if _menu.visible:
+	# The death stays on screen until a key is pressed, and the game is then quit
+	if not _menu.visible and _world.game_over():
+		if not event.is_echo():
+			_world.quit_game()
+			_show_menu("")
+	elif _menu.visible:
 		_menu_key(event as InputEventKey)
 	else:
 		_play_key(event as InputEventKey)

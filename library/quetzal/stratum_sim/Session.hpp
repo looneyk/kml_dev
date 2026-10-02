@@ -52,6 +52,9 @@ namespace quetzal::stratum_sim
 
         bool loaded() const;
 
+        // True once the character of the game being played is dead
+        bool over() const;
+
         // Requires a loaded zone
         stratum_format::Notation notation() const;
 
@@ -71,7 +74,8 @@ namespace quetzal::stratum_sim
         const Character& character() const;
 
         // Advances the clock and runs every ready actor, returning the character when it needs a command
-        // elapsed is the real time since the last call; a turn-based host omits it. Requires a loaded game that is not paused
+        // elapsed is the real time since the last call; a turn-based host omits it. Requires a loaded game that is not paused.
+        // Once the character is dead, runs no actor, reports Died in events, and returns nullid
         id_type advance(EventQueue& events, Clock::duration_type elapsed = Clock::duration_type::zero());
 
     private:

@@ -114,6 +114,7 @@ void StratumWorld::_bind_methods()
     godot::ClassDB::bind_method(godot::D_METHOD("turn"), &StratumWorld::turn);
     godot::ClassDB::bind_method(godot::D_METHOD("message"), &StratumWorld::message);
     godot::ClassDB::bind_method(godot::D_METHOD("has_game"), &StratumWorld::has_game);
+    godot::ClassDB::bind_method(godot::D_METHOD("game_over"), &StratumWorld::game_over);
     godot::ClassDB::bind_method(godot::D_METHOD("menu_open"), &StratumWorld::menu_open);
     godot::ClassDB::bind_method(godot::D_METHOD("menu_close"), &StratumWorld::menu_close);
     godot::ClassDB::bind_method(godot::D_METHOD("quit_game"), &StratumWorld::quit_game);
@@ -143,6 +144,12 @@ bool StratumWorld::create_game()
 bool StratumWorld::has_game() const
 {
     return m_session.loaded();
+}
+
+//------------------------------------------------------------------------------
+bool StratumWorld::game_over() const
+{
+    return m_session.over();
 }
 
 //------------------------------------------------------------------------------
@@ -352,6 +359,10 @@ void StratumWorld::advance()
         {
             // A level is shown as its distance from the surface
             m_message = std::format("You arrive on level {}.", std::abs(m_session.zone().get<sim::ZoneLevel>().level));
+        }
+        else if (event.is<sim::Died>())
+        {
+            m_message = "You have died.";
         }
     }
 

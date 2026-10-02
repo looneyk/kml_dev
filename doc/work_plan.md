@@ -60,8 +60,9 @@ each on the ones before it. `Game`'s menu and lifecycle functions, and those the
 - [x] **The menu in the hosts.** Each host draws a menu, opened by a key, with a new game, continuing, and quitting,
       through `create`, `menu_open`, `menu_close` and `quit`; and `Session::pause` and `resume` stopping and restarting
       play. The menu offers saving and opening with **A game saved** and **A game loaded**.
-- [ ] **The game's end.** The `Dead` tag, `Session::over`, and `advance` running no actor once the character is dead
-      and reporting the death in its events; the hosts showing it and then calling `quit`.
+- [x] **The game's end.** The `Dead` tag, `Session::over`, and `advance` running no actor once the character is dead
+      and reporting the death in its events; the hosts showing it until a key is pressed, then calling `quit` and
+      returning to the menu.
 - [ ] **Saved zones** (`addressing_plan.md`, `## Saved zones`): `World::save_zone`, called when the character exits a
       zone and when a zone unloads, which then frees its resources, and entering the zone again reading its file back.
 - [ ] **A game saved** (`game_file_spec.md`): `Game::save` writing `game.json`, `Character::save` writing

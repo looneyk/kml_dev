@@ -99,6 +99,13 @@ namespace quetzal::stratum_sim
         id_type arrival_id = nullid;
     };
 
+    //--------------------------------------------------------------------------
+    // The actor has died
+    struct Died
+    {
+        id_type entity_id = nullid;
+    };
+
     // Applies one command, appending its events. Returns its cost, zero when it did nothing
     int apply(World& world, const Command& command, EventQueue& events);
 

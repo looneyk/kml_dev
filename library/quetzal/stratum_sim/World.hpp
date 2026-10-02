@@ -40,6 +40,12 @@ namespace quetzal::stratum_sim
     };
 
     //--------------------------------------------------------------------------
+    // Tag for an actor that has died. Once the controlled actor has it, no actor runs and the game is over
+    struct Dead
+    {
+    };
+
+    //--------------------------------------------------------------------------
     // The rate at which an actor gains energy in the turn order
     struct Speed
     {

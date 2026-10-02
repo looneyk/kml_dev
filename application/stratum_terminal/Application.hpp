@@ -55,7 +55,10 @@ namespace stratum_terminal
         // Creates a new game and closes the menu, or keeps the menu open with the reason the game could not be created
         void create_game();
 
-        void draw();
+        void draw(const std::string& help);
+
+        // Shows the character's death and waits for a key, then quits the game and opens the menu
+        void end_game();
 
         // Submits a key for the player: movement and facing direction as its intent, and a one-shot action as a command
         void submit_key(const KeyPress& key_press);

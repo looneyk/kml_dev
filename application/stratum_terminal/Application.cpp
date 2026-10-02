@@ -30,6 +30,8 @@ namespace
 
     static constexpr auto menu_help_string = "n starts a new game, c or Esc continues, q quits, ^L redraws";
 
+    static constexpr auto end_help_string = "press any key to return to the menu";
+
     static constexpr char key_redraw = '\x0c'; // Ctrl-L, as curses and the roguelikes bind it
 
     static constexpr char key_escape = '\x1b'; // Escape in a script, which has characters only
@@ -132,14 +134,21 @@ int stratum_terminal::Application::run()
 
         id_type actor_id = m_session.advance(events);
 
+        report(events);
+        events.clear();
+
+        if (m_session.over())
+        {
+            end_game();
+            continue;
+        }
+
         if (actor_id == nullid)
         {
             break;
         }
 
-        report(events);
-        events.clear();
-        draw();
+        draw(help_string);
 
         if (script_exhausted())
         {
@@ -289,13 +298,33 @@ void stratum_terminal::Application::create_game()
 }
 
 //------------------------------------------------------------------------------
-void stratum_terminal::Application::draw()
+void stratum_terminal::Application::draw(const std::string& help)
 {
     stratum_view::Console console = m_view == View::Cell
         ? stratum_view::render(m_session.world(), m_session.zone(), m_session.character().entity(), m_view_glyphs)
         : stratum_view::render_lattice(m_session.world(), m_session.zone(), m_session.character().entity(), m_view_glyphs);
 
-    m_terminal.draw(console, status(), help_string);
+    m_terminal.draw(console, status(), help);
+    return;
+}
+
+//------------------------------------------------------------------------------
+void stratum_terminal::Application::end_game()
+{
+    draw(end_help_string);
+
+    if (script_exhausted())
+    {
+        m_game.quit();
+        m_running = false;
+        return;
+    }
+
+    next_key();
+    m_game.quit();
+    m_message.clear();
+    m_menu_open = true;
+
     return;
 }
 
@@ -384,6 +413,10 @@ void stratum_terminal::Application::report(const quetzal::stratum_sim::EventQueu
         {
             // A level is shown as its distance from the surface
             m_message = std::format("You arrive on level {}.", std::abs(m_session.zone().get<stratum_sim::ZoneLevel>().level));
+        }
+        else if (event.is<stratum_sim::Died>())
+        {
+            m_message = "You have died.";
         }
     }
 

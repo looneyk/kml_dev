@@ -647,6 +647,12 @@ omits it. If the character went through a relocator into another zone, it then m
 `enter` does once it has placed the character: the world trims its zones, the character's pending command is dropped, and
 the turn order is rebuilt from the new zone. The actors of the zone left finish the advance in which the character left.
 
+`Dead` is the tag for an actor that has died. `over()` returns true once the character of the game being played has it.
+The clock then runs no actor, stopping within an advance if the character dies during it, and turn-based skipping ahead
+stops too. Every `advance` once the game is over runs no actor, reports `Died` with the character in its events, and
+returns `nullid`. Each host shows the death with the game's last state until a key is pressed, then calls
+`Game::quit` and returns to its menu.
+
 Each host maps `<` and `>` to `Enter`. The hosts report a `Relocated` event with the level arrived on, shown as its
 distance from the surface, and a step `Blocked` by a wall with a relocator on it as "There is a staircase before you",
 naming the relocator's access point type.
@@ -659,7 +665,8 @@ it acts for. `CommandQueue` and `EventQueue` are deques in submission and occurr
 The commands are `Step`, `TurnTo`, `Interact`, and `Enter`. `Step` has a direction, zero for the actor's facing
 direction; a distance; and `face`, which turns toward the direction within the same action. `TurnTo` has an absolute
 facing direction, and `Interact` acts on the wall `ahead`. `Enter` enters the relocator on the floor of the actor's
-cell, in a discrete layout. They produce `Moved`, `Blocked`, `Turned`, `Interacted`, and `Relocated` events.
+cell, in a discrete layout. They produce `Moved`, `Blocked`, `Turned`, `Interacted`, and `Relocated` events, and `Session::advance` produces
+`Died`.
 
 The controlled actor enters a relocator on the wall ahead with `Interact`, and one on the floor of its cell with
 `Enter`, through `World::relocate_through`; any other actor does not enter a relocator. A `Step` into a wall with a
@@ -843,7 +850,9 @@ become `Key::Up`, `Down`, `Left` or `Right`.
 The host starts at its menu, drawn in place of the map, with `n` for a new game, `c` to continue the game in progress,
 which is offered only while there is one, and `q` to quit, which clears the game and ends the run. Escape on the menu
 also continues. A new game is created from the host's temporary specs, and a failure to create one is shown on the
-menu's status line. During play, Escape opens the menu, through `Game::menu_open`, and no other key quits.
+menu's status line. During play, Escape opens the menu, through `Game::menu_open`, and no other key quits. When the
+character dies, the map stays with "You have died." on the status line until a key is pressed, and the host then quits
+the game and opens the menu.
 
 The loop advances the session to the actor it is waiting on, draws, reads a key, and submits it: movement and facing
 direction as the actor's intent, and a one-shot action as a command. Arrows or `hjkl` move, space interacts, `.`
@@ -864,14 +873,15 @@ library, a GDExtension, and `application/stratum_godot/project/` is the Godot pr
 `stratum.gdextension`, which refers to `res://bin/`, where the build writes it.
 
 `StratumWorld` is the one registered class, a `RefCounted` that owns a `Game`, with only Godot types in its
-interface: `create_game`, `has_game`, `menu_open`, `menu_close`, `quit_game`, `extent`, `cell`, `render`, `cells`,
+interface: `create_game`, `has_game`, `game_over`, `menu_open`, `menu_close`, `quit_game`, `extent`, `cell`, `render`, `cells`,
 `actors`, `step`, `interact`,
 `enter`, `turn`, and `message`. `step` sets the character's intent, turning toward the direction moved as the view does not show the
 facing direction, and advances through the turn-based driver; `interact` submits `Interact` and `enter` submits
 `Enter`, and each advances. `message` returns what the last of them did that the map does not show, such as a door
 opening, a staircase before the character or leading nowhere, or the level arrived on, and the tile view shows it in its status line. A step ends with the next turn already granted,
 so `turn` is the turn awaiting input. `create_game` creates a new game as the terminal host does, `has_game` returns true
-while one is in progress, `menu_open` and `menu_close` pause and resume play, and `quit_game` ends the game in progress.
+while one is in progress, `game_over` returns true once the character is dead, and `message` then reports the death,
+`menu_open` and `menu_close` pause and resume play, and `quit_game` ends the game in progress.
 Exceptions do not cross into Godot: a failed creation pushes the reason to Godot's error list and returns false, and
 leaves no game in progress.
 
@@ -888,8 +898,8 @@ downward in Godot, so the view inverts j when it paints.
 
 The tile view starts at its menu, a dark screen over the view with the same choices and keys as the terminal host's:
 `N` for a new game, `C` or Escape to continue the game in progress, and `Q` to quit the game and Godot. During play,
-Escape opens the menu, and no other key quits. `-- --new-game` on Godot's command line starts a new game without
-showing the menu.
+Escape opens the menu, and no other key quits. When `game_over` returns true, the status line asks for a key, which
+quits the game and shows the menu. `-- --new-game` on Godot's command line starts a new game without showing the menu.
 
 `quetzal_godot` provides what any Godot host needs: `gdextension.cmake` and its `quetzal_configure_gdextension`, which
 names the library as Godot expects and writes it into the project rather than a per-configuration subdirectory.

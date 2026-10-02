@@ -79,7 +79,7 @@ quetzal::id_type quetzal::stratum_sim::Clock::run(EventQueue& events, id_type ac
     for (;;)
     {
         id_type actor_id = m_scheduler.ready();
-        if (actor_id == nullid)
+        if (actor_id == nullid || controlled_dead(actor_controlled))
         {
             return nullid;
         }
@@ -175,7 +175,7 @@ quetzal::id_type quetzal::stratum_sim::Clock::advance(EventQueue& events, id_typ
     for (;;)
     {
         id_type actor_id = run(events, actor_controlled);
-        if (actor_id != nullid)
+        if (actor_id != nullid || controlled_dead(actor_controlled))
         {
             return actor_id;
         }
@@ -186,6 +186,12 @@ quetzal::id_type quetzal::stratum_sim::Clock::advance(EventQueue& events, id_typ
             return nullid; // No actor will ever act
         }
     }
+}
+
+//------------------------------------------------------------------------------
+bool quetzal::stratum_sim::Clock::controlled_dead(id_type actor_controlled) const
+{
+    return m_world.entities().entity(actor_controlled).has<Dead>();
 }
 
 //------------------------------------------------------------------------------

@@ -242,7 +242,8 @@ Character& Game::character();
 - **`Session::over()` returns true once the character is dead,** and `advance` then runs no actor. The character is dead when
   its entity has the `Dead` tag.
 - **The character's death forces a quit.** `advance` reports the death to the host in its events, the host shows it
-  with the game's last state, and then calls `quit`. The game remains as it was last saved, to be opened again.
+  with the game's last state and waits for a key, then calls `quit` and returns to its menu. The game remains as it
+  was last saved, to be opened again.
 
 ### Permadeath
 

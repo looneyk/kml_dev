@@ -71,6 +71,12 @@ bool quetzal::stratum_sim::Session::paused() const
 }
 
 //------------------------------------------------------------------------------
+bool quetzal::stratum_sim::Session::over() const
+{
+    return loaded() && m_character.entity().has<Dead>();
+}
+
+//------------------------------------------------------------------------------
 void quetzal::stratum_sim::Session::enter(flecs::entity zone, flecs::entity access_type, level_type offset)
 {
     assert(zone && zone.has<Zone>());
@@ -169,16 +175,26 @@ quetzal::id_type quetzal::stratum_sim::Session::advance(EventQueue& events, Cloc
     assert(loaded() && !m_paused);
 
     id_type actor_controlled = static_cast<id_type>(m_character.entity().id());
+    id_type actor_id = nullid;
 
-    // Every actor but the character decides once per call; an actor fast enough to act twice repeats its decision
-    think(m_world, actor_controlled);
-
-    id_type actor_id = m_clock.advance(events, actor_controlled, elapsed);
-
-    // The character went through a relocator into another zone
-    if (flecs::entity zone = zone_of(m_character.entity()); zone != m_zone)
+    if (!over())
     {
-        play(zone);
+        // Every actor but the character decides once per call; an actor fast enough to act twice repeats its decision
+        think(m_world, actor_controlled);
+
+        actor_id = m_clock.advance(events, actor_controlled, elapsed);
+
+        // The character went through a relocator into another zone
+        if (flecs::entity zone = zone_of(m_character.entity()); zone != m_zone)
+        {
+            play(zone);
+        }
+    }
+
+    if (over())
+    {
+        events.push(Died {actor_controlled});
+        return nullid;
     }
 
     return actor_id;

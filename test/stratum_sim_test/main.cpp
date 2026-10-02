@@ -1935,6 +1935,44 @@ namespace
         sequence.create("menu_new", region_spec, stratum_sim::CharacterSpec {});
         report_case("a new game chosen from the menu is not paused", sequence_session.loaded() && !sequence_session.paused());
 
+        // The game's end
+        stratum_sim::EventQueue end_events;
+        sequence_session.advance(end_events);
+        report_case("a game with its character alive is not over", !sequence_session.over());
+
+        flecs::entity dying = sequence_session.character().entity();
+        dying.add<stratum_sim::Dead>();
+        long long elapsed_before = sequence_session.scheduler().elapsed();
+        end_events.clear();
+        id_type after_death = sequence_session.advance(end_events);
+        const stratum_sim::Died* died = !end_events.events().empty() ? end_events.events().back().try_get<stratum_sim::Died>() : nullptr;
+
+        report_case("once the character is dead the game is over", sequence_session.over());
+        report_case("and advancing runs no actor, reports the death, and returns no actor", after_death == nullid
+            && sequence_session.scheduler().elapsed() == elapsed_before && end_events.events().size() == 1 && died != nullptr
+            && died->entity_id == static_cast<id_type>(dying.id()));
+
+        {
+            stratum_sim::CountingIdAllocator clock_ids(stratum_sim::PersistentId {});
+            SuiteWorld clock_world(clock_ids);
+            stratum_sim::Scheduler scheduler;
+            stratum_sim::Clock clock(clock_world, scheduler);
+            flecs::entity controlled = clock_world.entities().entity().add<stratum_sim::Dead>();
+            flecs::entity other = clock_world.entities().entity();
+            scheduler.add(other.id(), 100);
+            scheduler.add(controlled.id(), 100);
+            stratum_sim::EventQueue clock_events;
+
+            report_case("a turn-based clock stops at once when the controlled actor is dead",
+                clock.advance(clock_events, static_cast<id_type>(controlled.id())) == nullid && scheduler.elapsed() == 0);
+        }
+
+        sequence.quit();
+        report_case("a game quit is not over", !sequence_session.over());
+
+        sequence.create("after_end", region_spec, stratum_sim::CharacterSpec {});
+        report_case("and a game created after it is not over", !sequence_session.over());
+
         sequence.quit();
         report_case("quitting leaves no game in progress", !sequence_session.loaded() && !sequence_session.character().entity()
             && sequence_world.entities().count<stratum_sim::Region>() == 0);

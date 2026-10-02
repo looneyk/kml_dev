@@ -36,6 +36,9 @@ public:
     // True while a game is in progress, whether or not the menu is open
     bool has_game() const;
 
+    // True once the character is dead; the scene shows the death and then quits the game
+    bool game_over() const;
+
     // Pause play while the menu is open, and resume it when the menu closes
     void menu_open();
     void menu_close();
