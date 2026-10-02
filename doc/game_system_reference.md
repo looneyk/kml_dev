@@ -309,8 +309,16 @@ a saved zone that is already loaded; a template makes a new zone each time it is
 zone that has begun unloading is excluded, even if flecs has deferred its deletion.
 
 `trim_zones(zone_entered)` has the world's `ZoneEntryIndex` mark `zone_entered` as the most recently entered zone and
-choose the zones to unload, then unloads them. `zone_count_max`, a constructor argument, is the maximum number of zones
-the world trims to, and `set_zone_count_max` changes it. `Game` passes its config's `zone_count_max`.
+choose the zones to unload, then saves each, if the world has a working directory, and unloads it. `zone_count_max`, a
+constructor argument, is the maximum number of zones the world trims to, and `set_zone_count_max` changes it. `Game`
+passes its config's `zone_count_max`.
+
+A world has the game's working directory from `create(region_spec, working_directory)` or `open(working_directory)`
+until `clear`. It has none while no game is in progress, and a world that is part of no game, as a suite's is, has none
+at all, so it saves nothing. `save_zone(zone)` writes the zone's `make_document` to `zones/<persistent id>.zone` in the working
+directory, creating `zones` if it is absent; it requires a working directory and a zone built from a document. Leaving a
+zone does not save it, and neither does `unload_zone` nor `unload_region`, which discard what they unload, as clearing a
+game does (`game_file_spec.md`, `## A saved game's files`).
 
 `unload_zone(zone)` begins an unload: it adds the zone's id to the zones unloading and deletes the entity. Flecs deletes
 a zone's subtree before the zone itself, and if it is deferring, it runs the whole deletion when the deferred
@@ -575,9 +583,10 @@ stopped by an occupied cell in `World::move`.
 
 `Game` is the game in its entirety, the one object a host owns, for as long as the host runs. It is constructed with a
 `Config`, the program's configuration, which is the same for every game: `saves_directory`, the directory in which
-each saved game is a directory, and `zone_count_max`, the most zones the world keeps loaded at once. `config()` returns
-it. Each host passes a temporary config, with the saves directory in the temp directory's `KML/Stratum/saves` and a
-maximum of 8, until the game's config file is read. It owns the structures that survive outside play: the config, the
+each saved game is a directory; `working_directory`, the directory in which each game in progress is a directory, which
+play reads and writes; and `zone_count_max`, the most zones the world keeps loaded at once. `config()` returns it. Each
+host passes a temporary config, with the two directories in the temp directory's `KML/Stratum/saves` and
+`KML/Stratum/working` and a maximum of 8, until the game's config file is read. It owns the structures that survive outside play: the config, the
 settings, a `CountingIdAllocator` counting from zero, a `random_type` seeded from
 `std::random_device`, the `Generation`, the `World` and the `Character`, and the `Session` that plays them, constructed in
 that order, each referring to those before it. `generation()` returns the `Generation`, with which a host registers
@@ -589,11 +598,12 @@ character, region or zone; until a game is created, there is none.
 `clear`, `start`, `pause` and `resume` on `Session`. `saved_games` returns no games.
 
 `Game::create(name, region_spec, character_spec)` clears, resets the id allocator to count from zero, and reseeds the
-engine from `std::random_device`, so nothing passes from one game to the next. It then creates the game's directory,
-`name` in the config's saves directory, and throws `std::runtime_error` if that directory exists. It has the character
-created from the `CharacterSpec`, and the world's starting region and its first zone from the `RegionSpec`, and starts
-the session at the entry point `World::create` returns. If either throws, it clears again and removes the directory
-before passing the exception on, so a failure leaves no game in progress.
+engine from `std::random_device`, so nothing passes from one game to the next. It throws `std::runtime_error` if a game
+named `name` is in the saves directory or the working directory, and otherwise creates the game's working directory,
+`name` in the config's working directory. It has the character created from the `CharacterSpec`, and the world's
+starting region and its first zone from the `RegionSpec` with `World::create(region_spec, working_directory)`, and
+starts the session at the entry point `World::create` returns. If either throws, it clears again and removes the working directory before
+passing the exception on, so a failure leaves no game in progress.
 
 `World::create(region_spec)` reads the spec's `entry_access`: a registered access point type, a comma, and a level
 offset, such as `staircase,1`. It creates the starting region from the spec and its first zone from the spec's `zone.`
@@ -633,7 +643,7 @@ Each host registers `stratum_gen`'s generators, dropping dungen's warnings, and 
 `dungen`, until the generators are integrated. It creates the game from a temporary `RegionSpec`, whose
 `generator_selector` is `dungen`, whose `entry_access` is `staircase,1`, and whose `zone.level` is -1, and an empty
 `CharacterSpec`. It names the game by the local time it began, in ISO 8601 basic format, with a suffix of `-2`, `-3`, and
-so on if a game of that name exists. The selector chooses the `dungen` generator for every zone, and names the zone
+so on if a game of that name exists in the saves or the working directory. The selector chooses the `dungen` generator for every zone, and names the zone
 "Dungeon Level N", where N is the absolute value of the level. So the character begins at the staircase leading up on
 the first level down, and a staircase leads to a new zone the first time it is taken, and back through the bound
 staircase after that.

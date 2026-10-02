@@ -11,12 +11,15 @@
 #include "file_components.hpp"
 #include "layout_entities.hpp"
 #include "load_layout.hpp"
+#include "make_document.hpp"
 #include "properties.hpp"
 #include "Site.hpp"
 #include "specs.hpp"
 #include "quetzal/stratum_format/Document.hpp"
 #include "quetzal/stratum_format/read.hpp"
+#include "quetzal/stratum_format/write.hpp"
 #include <algorithm>
+#include <filesystem>
 #include <format>
 #include <map>
 #include <optional>
@@ -343,6 +346,7 @@ quetzal::stratum_sim::World::World(IdAllocator& id_allocator, random_type& rando
     m_entity_zones(),
     m_zones_unloading(),
     m_zone_entry_index(zone_count_max),
+    m_working_directory(),
     m_entities()
 {
     // Registered before the observers, whose callbacks must not register a component mid-operation
@@ -557,13 +561,16 @@ void quetzal::stratum_sim::World::clear()
 
     m_entity_zones.clear();
     m_zone_entry_index.clear();
+    m_working_directory.reset();
 
     return;
 }
 
 //------------------------------------------------------------------------------
-flecs::entity quetzal::stratum_sim::World::create(const RegionSpec& region_spec)
+flecs::entity quetzal::stratum_sim::World::create(const RegionSpec& region_spec, const std::filesystem::path& working_directory)
 {
+    m_working_directory = working_directory;
+
     std::string entry_access = region_spec.value_or(entry_access_key, std::string());
     size_t comma = entry_access.find(',');
     flecs::entity entry_type = comma != std::string::npos ? access_type(m_entities, entry_access.substr(0, comma)) : flecs::entity();
@@ -587,9 +594,9 @@ flecs::entity quetzal::stratum_sim::World::create(const RegionSpec& region_spec)
 }
 
 //------------------------------------------------------------------------------
-void quetzal::stratum_sim::World::open(std::string_view directory)
+void quetzal::stratum_sim::World::open(const std::filesystem::path& working_directory)
 {
-    directory; // ...
+    m_working_directory = working_directory; // read world.json ...
 
     return;
 }
@@ -901,8 +908,27 @@ void quetzal::stratum_sim::World::trim_zones(flecs::entity zone_entered)
     for (flecs::entity zone : m_zone_entry_index.select_unloads(zones(), zone_entered))
     {
         assert(zone != zone_entered);
+
+        if (m_working_directory.has_value())
+        {
+            save_zone(zone);
+        }
+
         unload_zone(zone);
     }
+
+    return;
+}
+
+//------------------------------------------------------------------------------
+void quetzal::stratum_sim::World::save_zone(flecs::entity zone)
+{
+    assert(m_working_directory.has_value());
+    assert(zone && zone.has<Zone>() && zone.has<ZoneDocument>());
+
+    std::filesystem::path zones_directory = *m_working_directory / "zones";
+    std::filesystem::create_directories(zones_directory);
+    stratum_format::write(zones_directory / std::format("{}.zone", zone.get<PersistentId>().id), make_document(zone));
 
     return;
 }

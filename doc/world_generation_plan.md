@@ -117,14 +117,15 @@ The entities:
 void Game::create(std::string_view name, const RegionSpec& region_spec, const CharacterSpec& character_spec)
 {
     clear();
-    // reset the id allocator, reseed the engines, create the game's directory
+    // reset the id allocator, reseed the engines, create the game's working directory
     m_character.create(character_spec);
-    flecs::entity access_point = m_world.create(region_spec);
+    flecs::entity access_point = m_world.create(region_spec, working_directory);
     m_session.start(access_point);
 }
 
-flecs::entity World::create(const RegionSpec& region_spec)
+flecs::entity World::create(const RegionSpec& region_spec, const std::filesystem::path& working_directory)
 {
+    // keep working_directory, which zones are saved into
     ZoneSpec zone_spec = select_prefixed(region_spec, "zone.");
     flecs::entity zone = create_region_zone(region_spec, zone_spec);
     auto [type_name, offset] = the type and level offset parsed from region_spec's entry_access;

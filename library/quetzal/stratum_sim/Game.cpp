@@ -65,22 +65,27 @@ void quetzal::stratum_sim::Game::create(std::string_view name, const RegionSpec&
     m_counting_id_allocator = CountingIdAllocator(PersistentId {});
     m_random.engine().seed(std::random_device {}());
 
-    std::filesystem::path directory = m_config.saves_directory / name;
-
-    if (!std::filesystem::create_directories(directory))
+    if (std::filesystem::exists(m_config.saves_directory / name))
     {
         throw std::runtime_error(std::format("a game named '{}' already exists in {}", name, m_config.saves_directory.string()));
+    }
+
+    std::filesystem::path working_directory = m_config.working_directory / name;
+
+    if (!std::filesystem::create_directories(working_directory))
+    {
+        throw std::runtime_error(std::format("a game named '{}' already exists in {}", name, m_config.working_directory.string()));
     }
 
     try
     {
         m_character.create(character_spec);
-        m_session.start(m_world.create(region_spec));
+        m_session.start(m_world.create(region_spec, working_directory));
     }
     catch (...)
     {
         clear();
-        std::filesystem::remove(directory);
+        std::filesystem::remove_all(working_directory);
         throw;
     }
 

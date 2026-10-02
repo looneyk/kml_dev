@@ -13,9 +13,10 @@ the `Game` that writes and reads these files, and `sim_zone_model.md` the model 
 
 The directory structure is KML/Stratum (probably qualified by the view type) and lives in the AppData or temp directories.
 Subdirectories config/ and saves/ are in the AppData/Roaming path and cache/ is in the AppData/Local path.
-saves are stored in temp with the same directory structure until the first save is made (including quick/auto saves), at which time they are moved to the AppData locations.
-While development is in its early stages as it is now, all three directories will live in the temp directory, same directory structure, and the transfer on save will not be done.
-The path structure, production and development (also production temporary saves) respectively:
+A game in progress is in working/, which is always in temp. Every save of the game, explicit, quick or auto, copies its
+directory from working/ to saves/, so a saved game is one consistent point.
+While development is in its early stages as it is now, all four directories will live in the temp directory, same directory structure.
+The path structure, production and development respectively:
 
 AppData/
   Roaming/
@@ -27,6 +28,10 @@ AppData/
     KML/
       Stratum/
         cache/
+temp/
+  KML/
+    Stratum/
+      working/
 
 temp/
   KML/
@@ -34,6 +39,20 @@ temp/
       config/
       saves/
       cache/
+      working/
+
+**The working directory and the saves directory.** A game's directory is in both, under the same name.
+
+- **Play reads and writes the working directory.** A zone that unloads is written to it, so a zone file there may be
+  newer than the game's last save.
+- **Saving writes and then copies.** `game.json`, `character.json`, `world.json` and every loaded zone are written to the
+  working directory, which is then copied to the saves directory, replacing the game's directory there. Every file in a
+  saved game is therefore from the same moment: the id allocator's count covers every id in its zones, the character's
+  inventory and the zones agree, and `world.json` lists every zone file.
+- **Opening copies back.** Opening a game replaces its working directory with a copy of its saved directory and plays
+  from that. A zone that unloaded after the last save, and was not saved since, is discarded with the old working
+  directory.
+- **A new game** has a working directory from its creation and a saved directory from its first save.
 
 | File | |
 | --- | --- |
@@ -196,8 +215,8 @@ A zone reference is the zone's persistent id and its file, relative to the direc
 ```
 
 A zone's file is a saved zone in the zone file format, with its `zone` section. The zone's region is the region whose
-`zones` refers to it, and its level is its `layout.components.level`. Unloading a zone writes its file, which frees its
-resources, so a zone that is not loaded is in the game only as its file has it.
+`zones` refers to it, and its level is its `layout.components.level`. Unloading a zone writes its file into the working
+directory, which frees its resources, so a zone that is not loaded is in the game only as its file has it.
 
 ## Templates
 

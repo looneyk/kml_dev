@@ -40,9 +40,9 @@ namespace quetzal::stratum_sim
         void menu_open();
         void menu_close();
         void clear();
-        // Clears, then creates a game named name in the saves directory, and starts play at its first zone's entry point.
-        // Throws std::runtime_error if a game of that name exists, and passes on what creating the world throws, leaving
-        // no game in progress
+        // Clears, then creates a game named name, with its directory in the working directory, and starts play at its first
+        // zone's entry point. Throws std::runtime_error if a game of that name exists in the working or the saves directory,
+        // and passes on what creating the world throws, leaving no game in progress
         void create(std::string_view name, const RegionSpec& region_spec, const CharacterSpec& character_spec); // starting specs, maybe read from settings instead ...
         void open(std::string_view directory);
         void save(std::string_view directory);

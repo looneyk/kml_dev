@@ -40,7 +40,8 @@ namespace
     // Temporary, until the config file is read: during development the game's directories are in the temp directory
     stratum_sim::Config temporary_config()
     {
-        return stratum_sim::Config {std::filesystem::temp_directory_path() / "KML/Stratum/saves", 8};
+        const std::filesystem::path root = std::filesystem::temp_directory_path() / "KML/Stratum";
+        return stratum_sim::Config {root / "saves", root / "working", 8};
     }
 
     //--------------------------------------------------------------------------
@@ -55,13 +56,13 @@ namespace
     //--------------------------------------------------------------------------
     // A new game is named by the local time it began, in ISO 8601 basic format, until a player names a game. A second
     // game begun in the same second has a suffix
-    std::string new_game_name(const std::filesystem::path& saves_directory)
+    std::string new_game_name(const stratum_sim::Config& config)
     {
         const std::string time = std::format("{:%Y%m%dT%H%M%S}", std::chrono::zoned_time(std::chrono::current_zone(),
             std::chrono::floor<std::chrono::seconds>(std::chrono::system_clock::now())));
         std::string name = time;
 
-        for (int suffix = 2; std::filesystem::exists(saves_directory / name); ++suffix)
+        for (int suffix = 2; std::filesystem::exists(config.saves_directory / name) || std::filesystem::exists(config.working_directory / name); ++suffix)
         {
             name = std::format("{}-{}", time, suffix);
         }
@@ -280,7 +281,7 @@ void stratum_terminal::Application::create_game()
 {
     try
     {
-        m_game.create(new_game_name(m_game.config().saves_directory), temporary_region_spec(), stratum_sim::CharacterSpec {});
+        m_game.create(new_game_name(m_game.config()), temporary_region_spec(), stratum_sim::CharacterSpec {});
     }
     catch (const std::exception& e)
     {

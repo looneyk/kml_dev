@@ -95,12 +95,17 @@ namespace quetzal::stratum_sim
         void clear();
 
         // Creates a new game's starting region from the spec, and its first zone from the spec's zone keys, and returns the
-        // zone's entry point for the spec's entry_access. Throws std::runtime_error if entry_access is not a registered
-        // access point type and a level offset, or the zone has no such entry point
-        flecs::entity create(const RegionSpec& region_spec);
+        // zone's entry point for the spec's entry_access. The game's working directory is the one zones are saved into until
+        // clear. Throws std::runtime_error if entry_access is not a registered access point type and a level offset, or the
+        // zone has no such entry point
+        flecs::entity create(const RegionSpec& region_spec, const std::filesystem::path& working_directory);
 
-        void open(std::string_view directory);
+        void open(const std::filesystem::path& working_directory);
         void save(std::string_view directory);
+
+        // Writes the zone as a saved zone into the game's working directory's zones, named by its persistent id. Requires a
+        // working directory, which a world has only while a game is in progress, and a zone built from a document
+        void save_zone(flecs::entity zone);
 
         flecs::world& entities();
         const flecs::world& entities() const;
@@ -115,7 +120,7 @@ namespace quetzal::stratum_sim
         // Creates a region and its first zone, returns the zone
         flecs::entity create_region_zone(const RegionSpec& region_spec, const ZoneSpec& zone_spec);
 
-        // Unloads the region and its child zones
+        // Unloads the region and its child zones, discarding them without saving
         void unload_region(flecs::entity region);
 
         // Creates an empty zone in the region for a generator or the loader to fill
@@ -134,6 +139,7 @@ namespace quetzal::stratum_sim
         // reason the world cannot build it, or the file is a saved zone that is already loaded
         flecs::entity load_zone(flecs::entity region, const std::filesystem::path& filepath);
 
+        // Discards the zone, its contents and its layout, without saving
         void unload_zone(flecs::entity zone);
 
         // Places the zone's denizens
@@ -159,7 +165,8 @@ namespace quetzal::stratum_sim
         flecs::entity relocate_through(flecs::entity actor, flecs::entity relocator);
 
         // Marks zone_entered as the most recently entered zone, then unloads the zones entered longest ago until the world
-        // has no more than zone_count_max. Never unloads zone_entered
+        // has no more than zone_count_max, saving each first if the world has a working directory. Never unloads
+        // zone_entered
         void trim_zones(flecs::entity zone_entered);
 
         size_t zone_count_max() const;
@@ -229,6 +236,7 @@ namespace quetzal::stratum_sim
         std::unordered_set<PersistentId> m_zones_unloading;
 
         ZoneEntryIndex m_zone_entry_index;
+        std::optional<std::filesystem::path> m_working_directory;
 
         flecs::world m_entities; // Last, as its teardown runs the observers that update the members above
     };

@@ -67,16 +67,19 @@ each on the ones before it. `Game`'s menu and lifecycle functions, and those the
       geometry and `rebuild_document` a skeleton; an entity in a cell of the zone in the format; `Access`, `Detection`,
       `Speed`, `Pursue`, `Blocking` and `Dead` as file components, with tags written as empty objects; `Pursue::target` a
       reference and `Detection`'s actor states a list.
-- [ ] **Saved zones** (`addressing_plan.md`, `## Saved zones`): `World` given the game's directory, and
-      `World::save_zone` writing `zones/<persistent id>.zone`, called when the character exits a zone and when a zone
-      unloads, which then frees its resources.
+- [x] **Saved zones** (`addressing_plan.md`, `## Saved zones`; `game_file_spec.md`, `## A saved game's files`):
+      `Config::working_directory`, `Game::create` making the game's working directory, `World` given it, and
+      `World::save_zone` writing `zones/<persistent id>.zone` there, called when a zone unloads, which then frees its
+      resources. Leaving a zone does not save it; every save of the game, explicit, quick or auto, saves each loaded zone.
 - [ ] **Saved zones read back:** entering a zone that is not loaded reads its file into its region, which lists its zone
       ids in place of its zone count, and a saved zone is not populated again.
 - [ ] **A game saved** (`game_file_spec.md`): `Game::save` writing `game.json`, `Character::save` writing
-      `character.json`, and `World::save` writing `world.json` and every loaded zone; and the hosts' menu offering it.
-- [ ] **A game loaded:** `Game::open` reading `game.json`, `World::open` and `Character::open` reading theirs, with each
-      region's zone count set from the number of its zones, the session starting in the zone the character is in, and
-      `saved_games`; and the hosts' menu offering them.
+      `character.json`, and `World::save` writing `world.json` and every loaded zone, all into the working directory,
+      which is then copied to the saves directory; and the hosts' menu offering it.
+- [ ] **A game loaded:** `Game::open` replacing the game's working directory with a copy of its saved directory, then
+      reading `game.json`, with `World::open` and `Character::open` reading theirs, each region's zone count set from the
+      number of its zones, the session starting in the zone the character is in, and `saved_games`; and the hosts' menu
+      offering them.
 
 ## Lifecycle
 
@@ -306,9 +309,10 @@ These are the open questions.
 
 - **The format's identifier,** `quetzal.stratum_game`, and the file names, `game.json` and the rest, for now.
 - **The character's components:** its description, attributes, and skills.
-- **How auto saves and quick saves keep their zones.** Each saves only the zone the character is in, as a separate
-  loaded zone that is tracked as one, or each loaded zone has a list of its saved zones. Whether those saved zones are
-  themselves saved with the game is also open.
+- **Save tracks.** Auto saves and quick saves are each a track of their own, separate from the player's explicit saves,
+  so a game has three saved directories: one per track, each a copy of the working directory (`game_file_spec.md`,
+  `## A saved game's files`). The explicit track may later retain a set number of saves instead of one. This comes
+  much later; until then a game has the one saved directory of its explicit saves.
 
 ### Intent
 

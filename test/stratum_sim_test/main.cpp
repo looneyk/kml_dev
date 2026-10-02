@@ -58,7 +58,7 @@ namespace
     static constexpr size_t suite_zone_count_max = 8;
 
     // A game's saves are in the suite's own output directory
-    const stratum_sim::Config g_suite_config {"out/saves", suite_zone_count_max};
+    const stratum_sim::Config g_suite_config {"out/saves", "out/working", suite_zone_count_max};
 
     // Seeded, so a random choice is the same on every run
     stratum_sim::random_type g_suite_random(1);
@@ -1830,7 +1830,7 @@ namespace
     {
         report_group("game");
 
-        const stratum_sim::Config config {"out/elsewhere", 3};
+        const stratum_sim::Config config {"out/elsewhere/saves", "out/elsewhere/working", 3};
         stratum_sim::Game game(config);
 
         report_case("a game keeps the config it was constructed with", game.config().saves_directory == config.saves_directory
@@ -1866,6 +1866,7 @@ namespace
 
         // One game after another, each created from specs. The games' directories are made afresh on every run
         filesystem::remove_all(g_suite_config.saves_directory);
+        filesystem::remove_all(g_suite_config.working_directory);
         stratum_sim::Game sequence(g_suite_config);
         stratum_sim::Session& sequence_session = sequence.session();
         stratum_sim::World& sequence_world = sequence.world();
@@ -1883,8 +1884,8 @@ namespace
         flecs::entity first_zone = sequence_session.zone();
         flecs::entity first_region = stratum_sim::region_of(first_zone);
 
-        report_case("creating a game makes its directory in the saves directory",
-            filesystem::is_directory(g_suite_config.saves_directory / "first"));
+        report_case("creating a game makes its directory in the working directory",
+            filesystem::is_directory(g_suite_config.working_directory / "first"));
         report_case("and the character, with the spec's name and the first id", persistent_id_of(first_character) == 0
             && name_of(first_character) == "Ailis");
         report_case("and starts play in the first zone of a region made from the spec, at the entry point it states",
@@ -1998,7 +1999,55 @@ namespace
 
         report_case("so is an entry access point type that is not registered, which leaves no game and no directory",
             unregistered_thrown && !sequence_session.loaded() && sequence_world.entities().count<stratum_sim::Region>() == 0
-            && !filesystem::exists(g_suite_config.saves_directory / "third"));
+            && !filesystem::exists(g_suite_config.working_directory / "third"));
+
+        filesystem::create_directories(g_suite_config.saves_directory / "saved");
+        bool saved_thrown = false;
+
+        try
+        {
+            sequence.create("saved", region_spec, stratum_sim::CharacterSpec {});
+        }
+        catch (const runtime_error&)
+        {
+            saved_thrown = true;
+        }
+
+        report_case("and so is a game named as one in the saves directory", saved_thrown && !sequence_session.loaded()
+            && !filesystem::exists(g_suite_config.working_directory / "saved"));
+
+        // Saving zones, with a maximum of one zone loaded so that leaving a zone and trimming unloads it
+        const stratum_sim::Config saving_config {"out/saving/saves", "out/saving/working", 1};
+        filesystem::remove_all("out/saving");
+        stratum_sim::Game saving(saving_config);
+        saving.generation() = suite_generation();
+        saving.create("saving", region_spec, stratum_sim::CharacterSpec {});
+
+        stratum_sim::World& saving_world = saving.world();
+        flecs::entity saving_first = saving.session().zone();
+        stratum_sim::PersistentId saving_first_id = saving_first.get<stratum_sim::PersistentId>();
+        filesystem::path zones_directory = saving_config.working_directory / "saving" / "zones";
+        auto zone_file = [&](stratum_sim::PersistentId zone_id) { return zones_directory / format("{}.zone", zone_id.id); };
+
+        flecs::entity saving_second = stratum_sim::zone_of(saving_world.relocate_through(saving.character().entity(),
+            stratum_sim::entry_point(saving_first, staircase_type, -1)));
+        report_case("leaving a zone does not save it", saving_second && !filesystem::exists(zone_file(saving_first_id)));
+
+        saving_world.trim_zones(saving_second);
+        bool saved_back = false;
+
+        if (filesystem::exists(zone_file(saving_first_id)))
+        {
+            stratum_format::Document saved_document = stratum_format::read(zone_file(saving_first_id));
+            saved_back = saved_document.zone_id == saving_first_id.id && saved_document.level == -1;
+        }
+
+        report_case("a zone the world unloads is saved first, as a saved zone in the working directory's zones",
+            saved_back && !saving_first.is_alive() && saving_world.zone_count() == 1);
+
+        stratum_sim::PersistentId saving_second_id = saving_second.get<stratum_sim::PersistentId>();
+        saving.quit();
+        report_case("and a game cleared saves nothing", !filesystem::exists(zone_file(saving_second_id)));
 
         return;
     }
