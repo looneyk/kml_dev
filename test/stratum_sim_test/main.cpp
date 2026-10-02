@@ -170,7 +170,7 @@ namespace
     {
         explicit SuiteWorld(stratum_sim::IdAllocator& id_allocator, size_t zone_count_max = suite_zone_count_max) :
             World(id_allocator, g_suite_random, g_suite_generation, zone_count_max),
-            region(create_region())
+            region(create_region(suite_region_spec("staircase")))
         {
             stratum_sim::register_game_types(*this);
         }
@@ -1816,12 +1816,12 @@ namespace
         stratum_sim::CountingIdAllocator id_allocator(stratum_sim::PersistentId {});
         SuiteWorld world(id_allocator);
 
-        flecs::entity surface = world.create_region();
-        flecs::entity crypt = world.create_region(surface);
+        flecs::entity surface = world.create_region(suite_region_spec("staircase"));
+        flecs::entity crypt = world.create_region(suite_region_spec("staircase"));
 
         report_case("a region has a persistent id", surface.has<stratum_sim::PersistentId>()
             && world.entity(surface.get<stratum_sim::PersistentId>()) == surface);
-        report_case("a region may have a parent region", crypt.parent() == surface && !surface.parent());
+        report_case("a region has no parent", !surface.parent() && !crypt.parent());
 
         flecs::entity field = load_zone_unpopulated(world, "data/room.zone");
         flecs::entity chapel = world.create_zone(crypt, world.next_id());
@@ -1843,11 +1843,11 @@ namespace
         stratum_sim::PersistentId chapel_id = chapel.get<stratum_sim::PersistentId>();
         report_case_equal("a world counts the zones of every region", world.zone_count(), 3);
 
-        world.unload_region(surface);
+        world.unload_region(crypt);
 
-        report_case("unloading a region deletes it, its child regions and their zones", !surface.is_alive() && !crypt.is_alive()
-            && !chapel.is_alive() && !chapel_below.is_alive() && !monk.is_alive());
-        report_case("and leaves the other regions' zones", field.is_alive() && world.zone_count() == 1);
+        report_case("unloading a region deletes it and its zones", !crypt.is_alive() && !chapel.is_alive() && !chapel_below.is_alive()
+            && !monk.is_alive());
+        report_case("and leaves the other regions and their zones", surface.is_alive() && field.is_alive() && world.zone_count() == 1);
         report_case("the world index keeps the zone of an entity something refers to, as an unloaded zone's",
             world.zone_of(monk_reference.persistent_id) == chapel_id && !world.entity(monk_reference.persistent_id));
 
@@ -1908,7 +1908,7 @@ namespace
 
         auto zone_arrived_in = [](flecs::entity arrival) { return arrival ? stratum_sim::zone_of(arrival) : flecs::entity(); };
 
-        flecs::entity dungeon = world.create_region(suite_region_spec("staircase"), world.region);
+        flecs::entity dungeon = world.create_region(suite_region_spec("staircase"));
 
         flecs::entity field = load_at_level(world.region, 0);
         flecs::entity first = load_at_level(dungeon, -1);
@@ -1916,7 +1916,6 @@ namespace
         flecs::entity first_up = up_of(first);
         flecs::entity first_down = down_of(first);
         flecs::entity second_up = up_of(second);
-        flecs::entity field_down = down_of(field);
 
         // Resolving does not bind, so the suite binds an arrival to keep it from being found again
         auto bind = [&](flecs::entity arrival)
@@ -1927,11 +1926,8 @@ namespace
             }
         };
 
-        report_case("moving down looks only in its own region, which makes no zone without a spec",
-            !world.resolve_relocator_target(field_down) && world.zone_count() == 3);
         report_case("moving down finds the unbound staircase that leads back, in its region's zone at the level below",
             world.resolve_relocator_target(first_down) == second_up);
-        report_case("moving up finds one in its parent region's zone at the level above", world.resolve_relocator_target(first_up) == field_down);
 
         retarget(first_down, "=-2");
         report_case("an absolute target finds a zone at its level", world.resolve_relocator_target(first_down) == second_up);
@@ -1940,17 +1936,29 @@ namespace
         report_case("a staircase that leads back with an absolute target is found", world.resolve_relocator_target(first_down) == second_up);
         retarget(second_up, "+1");
 
-        retarget(first_up, "../+1");
-        report_case("the region \"..\" is the parent region", world.resolve_relocator_target(first_up) == field_down);
-        retarget(field_down, "../-1");
-        report_case("and a region with no parent region has none to search or make in", !world.resolve_relocator_target(field_down));
-        retarget(field_down, "-1");
-        retarget(first_up, "./+1");
+        retarget(first_up, "staircase/+1");
         flecs::entity arrival = world.resolve_relocator_target(first_up);
         flecs::entity made = zone_arrived_in(arrival);
-        report_case("the region \".\" is the only one searched and made in", made && stratum_sim::region_of(made) == dungeon
-            && made.get<stratum_sim::ZoneLevel>().level == 0);
-        bind(arrival);
+        flecs::entity region_made = made ? stratum_sim::region_of(made) : flecs::entity();
+        report_case("a target with a region makes a zone in a new region created from the region spec of that name, though a zone at the level has a staircase that leads back", made
+            && made != field && region_made != dungeon && region_made != world.region
+            && region_made.get<stratum_sim::Region>().region_spec->value(stratum_sim::generator_selector_key) == "staircase"
+            && region_made.get<stratum_sim::Region>().zone_count == 1 && made.get<stratum_sim::ZoneLevel>().level == 0
+            && arrival == down_of(made));
+
+        retarget(first_up, "unregistered/+1");
+        bool region_spec_unregistered = false;
+
+        try
+        {
+            world.resolve_relocator_target(first_up);
+        }
+        catch (const runtime_error&)
+        {
+            region_spec_unregistered = true;
+        }
+
+        report_case("a region spec that is not registered is an error", region_spec_unregistered);
         retarget(first_up, "+1");
 
         arrival = world.resolve_relocator_target(down_of(second));
@@ -1958,33 +1966,19 @@ namespace
         report_case("finding none, it makes a zone at the level in its own region and arrives at its entry point", made
             && stratum_sim::region_of(made) == dungeon && made.get<stratum_sim::ZoneLevel>().level == -3 && arrival == up_of(made));
 
-        bind(field_down);
         arrival = world.resolve_relocator_target(first_up);
         made = zone_arrived_in(arrival);
-        report_case("a bound relocator is not found, and a zone at level 0 is made only in a region with a spec", made
-            && stratum_sim::region_of(made) == dungeon && made.get<stratum_sim::ZoneLevel>().level == 0 && arrival == down_of(made));
+        report_case("moving up looks only in its own region, so a zone at level 0 in another is not found and one is made", made
+            && made != field && stratum_sim::region_of(made) == dungeon && made.get<stratum_sim::ZoneLevel>().level == 0
+            && arrival == down_of(made));
         bind(arrival);
 
-        flecs::entity elsewhere = world.create_region();
+        flecs::entity elsewhere = world.create_region(suite_region_spec("staircase"));
         load_at_level(elsewhere, -2);
         world.unload_zone(second);
         made = zone_arrived_in(world.resolve_relocator_target(first_down));
         report_case("an unloaded zone and a zone in an unrelated region are not searched", made
             && stratum_sim::region_of(made) == dungeon && made.get<stratum_sim::ZoneLevel>().level == -2);
-
-        world.region.get_mut<stratum_sim::Region>().region_spec = suite_region_spec("staircase");
-        set<flecs::entity_t> regions_made_in;
-
-        for (int attempt = 0; attempt < 16; ++attempt)
-        {
-            arrival = world.resolve_relocator_target(first_up);
-            made = zone_arrived_in(arrival);
-            regions_made_in.insert(made ? stratum_sim::region_of(made).id() : 0);
-            bind(arrival);
-        }
-
-        report_case("moving up makes a zone at level 0 in its own region or its parent region, at random",
-            regions_made_in == set<flecs::entity_t> {world.region.id(), dungeon.id()});
 
         return;
     }

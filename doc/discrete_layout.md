@@ -621,7 +621,7 @@ is written only in a saved zone, `"target": { "entity": 90412 }`.
 
 ```
 target   = [region "/"] zone ["@" position]
-region   = ".." | "." | name
+region   = name
 zone     = relative | absolute | name
 relative = ("+" | "-") digits
 absolute = "=" ["-"] digits
@@ -637,14 +637,13 @@ position = one or more characters other than "/" and "@"
 | `=0` | Level 0 |
 | `=-3` | Level -3 |
 | `sewers/=-1` | Level -1 of the region `sewers` |
-| `../=0` | Level 0 of the parent region |
 | `town/market@fountain` | The zone `market` in the region `town`, at the position `fountain` |
 
 A relative zone is a number of levels from the relocator's zone (`## layout`), and always has its sign. An absolute
-zone is a level, marked with `=`. A named zone is a zone of pregenerated content, and the position a place in it. `..`
-is the parent region and `.` the relocator's own; an omitted region is the relocator's own region, from which the
-caller's rules for moving down, up, and across start, and a written region is the only one searched. Region names,
-zone names, and positions are the caller's vocabulary, as an entity's `type` is.
+zone is a level, marked with `=`. A named zone is a zone of pregenerated content, and the position a place in it.
+An omitted region is the relocator's own region, from which the
+caller's rules for moving down, up, and across apply, and a written region is the only one searched. Region names,
+zone names, and positions are the caller's vocabulary.
 
 Resolving one finds a zone or makes one. Traversal passes the target to whatever owns zones, which
 returns a zone it has or generates one, and chooses the cell an arriving actor is placed in. What it

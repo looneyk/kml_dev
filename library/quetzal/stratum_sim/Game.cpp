@@ -32,7 +32,7 @@ quetzal::stratum_sim::Game::Game() :
     m_world(m_counting_id_allocator, m_random, m_generation, zone_count_max),
     m_character(m_world),
     m_session(m_world, m_character),
-    m_starting_region(m_world.create_region())
+    m_starting_region(m_world.create_region(RegionSpec {}))
 {
     register_game_types(m_world);
 }

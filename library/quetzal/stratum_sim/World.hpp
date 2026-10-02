@@ -87,7 +87,7 @@ namespace quetzal::stratum_sim
         // World management
 
         void clear();
-        void create(const RegionSpec& region_spec); // Starting region
+        void create(const RegionSpec& region_spec);
         void open(std::string_view directory);
         void save(std::string_view directory);
 
@@ -98,14 +98,13 @@ namespace quetzal::stratum_sim
         entities_type zones() const;
         size_t zone_count() const;
 
-        // Creates a region, a child of the parent region if given. A region created without a spec creates no zones
-        flecs::entity create_region(flecs::entity parent = flecs::entity());
-        flecs::entity create_region(const RegionSpec& region_spec, flecs::entity parent = flecs::entity());
+        // Creates a region and returns it
+        flecs::entity create_region(const RegionSpec& region_spec);
 
-        // Creates a region from the spec and its first zone from the zone spec, and returns the zone
+        // Creates a region and its first zone, returns the zone
         flecs::entity create_region_zone(const RegionSpec& region_spec, const ZoneSpec& zone_spec);
 
-        // Unloads the zones of the region and of its child regions, and deletes the regions
+        // Unloads the region and its child zones
         void unload_region(flecs::entity region);
 
         // Creates an empty zone in the region for a generator or the loader to fill
@@ -134,19 +133,18 @@ namespace quetzal::stratum_sim
         void relocate(flecs::entity e, flecs::entity zone, const placement_type& placement);
 
         // Returns the access point at which an actor arrives through the relocator, whose unbound target is a relative or
-        // absolute level with no position. It is an unbound access point of the arrival type that leads back, in another
-        // loaded zone at the target level, or else the entry point of a zone made there. With the region omitted, moving
-        // down looks and makes in the relocator's region; moving up or across also looks in the parent region, and a zone
-        // it makes at level 0 is in either region, chosen at random. The region "." or ".." is the only one searched and
-        // made in. Only a region with a spec makes a zone. Returns a null entity if none can, or if the zone made has
-        // no access point of the arrival type that leads back
+        // absolute level with no position. With the region omitted, it is an unbound access point of the arrival type that
+        // leads back, in another loaded zone of the relocator's region at the target level, or else the entry point of a
+        // zone made there. With a region, it is the entry point of the first zone of a new region created from the region
+        // spec of that name, and nothing is found. Throws std::runtime_error if that region spec is not registered. Returns
+        // a null entity if the zone made has no access point of the arrival type that leads back
         flecs::entity resolve_relocator_target(flecs::entity relocator);
 
         // Moves the actor through the relocator to the placement of the access point its target refers to, and returns that
         // access point. An unbound target is resolved by resolve_relocator_target, and the relocator and the access point
         // are then bound to each other, so going back through the access point arrives at the relocator. Returns a null
-        // entity, and moves nothing, if a bound target's relocator is not loaded, or an unbound target has a named zone, a
-        // named region, or a position, or resolves to nothing
+        // entity, and moves nothing, if a bound target's relocator is not loaded, or an unbound target has a named zone or a
+        // position, or resolves to nothing
         flecs::entity relocate_through(flecs::entity actor, flecs::entity relocator);
 
         // Marks zone_entered as the most recently entered zone, then unloads the zones entered longest ago until the world

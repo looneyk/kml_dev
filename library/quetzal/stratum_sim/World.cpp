@@ -588,26 +588,10 @@ size_t quetzal::stratum_sim::World::zone_count() const
 }
 
 //------------------------------------------------------------------------------
-flecs::entity quetzal::stratum_sim::World::create_region(flecs::entity parent)
+flecs::entity quetzal::stratum_sim::World::create_region(const RegionSpec& region_spec)
 {
-    assert(!parent || parent.has<Region>());
-
     flecs::entity region = m_entities.entity().add<Region>().set<PersistentId>(next_id());
-
-    if (parent)
-    {
-        region.child_of(parent);
-    }
-
-    return region;
-}
-
-//------------------------------------------------------------------------------
-flecs::entity quetzal::stratum_sim::World::create_region(const RegionSpec& region_spec, flecs::entity parent)
-{
-    flecs::entity region = create_region(parent);
     region.get_mut<Region>().region_spec = region_spec;
-
     return region;
 }
 
@@ -630,10 +614,6 @@ void quetzal::stratum_sim::World::unload_region(flecs::entity region)
             if (child.has<Zone>())
             {
                 m_zones_unloading.insert(child.get<PersistentId>());
-            }
-            else if (child.has<Region>())
-            {
-                self(child);
             }
         });
     };
@@ -773,7 +753,6 @@ flecs::entity quetzal::stratum_sim::World::resolve_relocator_target(flecs::entit
 
     const auto& target = std::get<stratum_format::RelocatorTarget>(relocator.get<Relocator>().target);
     assert(!std::holds_alternative<std::string>(target.zone) && !target.position.has_value());
-    assert(!target.region.has_value() || *target.region == "." || *target.region == "..");
 
     flecs::entity zone_from = stratum_sim::zone_of(relocator);
     assert(zone_from.has<ZoneLevel>());
@@ -783,29 +762,17 @@ flecs::entity quetzal::stratum_sim::World::resolve_relocator_target(flecs::entit
     level_type level = relative != nullptr ? level_from + relative->offset : std::get<stratum_format::AbsoluteZone>(target.zone).level;
     level_type offset = level - level_from;
 
-    // An omitted region follows the rules for moving down, up, and across; a written region is the only one searched and made in
-    flecs::entity region = region_of(zone_from);
-    entities_type searched_regions;
-    entities_type generating_regions;
-
-    if (!target.region.has_value())
-    {
-        searched_regions.push_back(region);
-
-        if (offset >= 0 && region.parent())
-        {
-            searched_regions.push_back(region.parent());
-        }
-
-        generating_regions = offset >= 0 && level == 0 ? searched_regions : entities_type {region};
-    }
-    else if (*target.region == "." || region.parent())
-    {
-        searched_regions.push_back(*target.region == "." ? region : region.parent());
-        generating_regions = searched_regions;
-    }
-
     flecs::entity arrival_type = relocator.target<AccessType>().get<Arrival>().access_type;
+    ZoneSpec zone_spec {{std::string(level_key), std::to_string(level)}};
+
+    // A target with a region always creates a new region, so no loaded zone is searched
+    if (target.region.has_value())
+    {
+        flecs::entity zone = create_region_zone(registered(m_generation.m_region_specs, "region spec", *target.region), zone_spec);
+        return entry_point(zone, arrival_type, -offset);
+    }
+
+    flecs::entity region = region_of(zone_from);
     flecs::entity found;
     std::pair<PersistentId, std::uint64_t> found_zone_id_and_order;
 
@@ -817,8 +784,7 @@ flecs::entity quetzal::stratum_sim::World::resolve_relocator_target(flecs::entit
             flecs::entity zone = stratum_sim::zone_of(e);
 
             if (zone == zone_from || m_zones_unloading.contains(zone.get<PersistentId>()) || !zone.has<ZoneLevel>()
-                || zone.get<ZoneLevel>().level != level || std::ranges::find(searched_regions, region_of(zone)) == searched_regions.end()
-                || !targets_relocator_level(e, -offset))
+                || zone.get<ZoneLevel>().level != level || region_of(zone) != region || !targets_relocator_level(e, -offset))
             {
                 return;
             }
@@ -837,15 +803,7 @@ flecs::entity quetzal::stratum_sim::World::resolve_relocator_target(flecs::entit
         return found;
     }
 
-    std::erase_if(generating_regions, [](flecs::entity candidate) { return !candidate.get<Region>().region_spec.has_value(); });
-
-    if (generating_regions.empty())
-    {
-        return flecs::entity();
-    }
-
-    ZoneSpec zone_spec {{std::string(level_key), std::to_string(level)}};
-    flecs::entity zone = create_zone(generating_regions[m_random.gen(generating_regions.size())], zone_spec);
+    flecs::entity zone = create_zone(region, zone_spec);
     return entry_point(zone, arrival_type, -offset);
 }
 
@@ -863,8 +821,7 @@ flecs::entity quetzal::stratum_sim::World::relocate_through(flecs::entity actor,
     else
     {
         const auto& target = std::get<stratum_format::RelocatorTarget>(relocator.get<Relocator>().target);
-        bool level_target = !std::holds_alternative<std::string>(target.zone) && !target.position.has_value()
-            && (!target.region.has_value() || *target.region == "." || *target.region == "..");
+        bool level_target = !std::holds_alternative<std::string>(target.zone) && !target.position.has_value();
 
         arrival = level_target ? resolve_relocator_target(relocator) : flecs::entity();
 

@@ -961,8 +961,6 @@ namespace
             {"=0", {nullopt, AbsoluteZone {0}, nullopt}},
             {"=-3", {nullopt, AbsoluteZone {-3}, nullopt}},
             {"sewers/=-1", {"sewers", AbsoluteZone {-1}, nullopt}},
-            {"../=0", {"..", AbsoluteZone {0}, nullopt}},
-            {"./-1", {".", RelativeZone {-1}, nullopt}},
             {"town/market@fountain", {"town", string("market"), "fountain"}},
             {"-1@3,5", {nullopt, RelativeZone {-1}, "3,5"}}
         };
@@ -974,7 +972,7 @@ namespace
                 && stratum_format::format_relocator_target(*parsed) == text);
         }
 
-        for (const string& text : {"", "1", "-", "+-1", "=", "=+2", "+1.5", "sewers/", "a/b/c", "1a/-1", "-1@", "-1@a@b", "@x", "market-1",
+        for (const string& text : {"", "1", "-", "+-1", "=", "=+2", "+1.5", "sewers/", "../=0", "./-1", "a/b/c", "1a/-1", "-1@", "-1@a@b", "@x", "market-1",
             "-99999999999"})
         {
             report_case(format("\"{}\" is not a target", text), !stratum_format::parse_relocator_target(text).has_value());

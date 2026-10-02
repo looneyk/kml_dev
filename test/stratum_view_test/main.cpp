@@ -52,7 +52,7 @@ namespace
     {
         explicit SuiteWorld(stratum_sim::IdAllocator& id_allocator) :
             World(id_allocator, g_suite_random, g_suite_generation, suite_zone_count_max),
-            region(create_region())
+            region(create_region(stratum_sim::RegionSpec {}))
         {
             stratum_sim::register_game_types(*this);
         }

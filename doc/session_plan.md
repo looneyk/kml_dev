@@ -147,9 +147,9 @@ flecs::entity Character::entity() const;
   struct CharacterSpec
   {
       std::string name;
-      std::string character_class;
       std::string race;
-      std::string history;
+      std::string class_role;
+      std::string background;
       std::string appearance;
       std::map<std::string, int> stats; // <stat name, value>
       std::vector<InventoryItem> inventory;

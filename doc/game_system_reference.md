@@ -217,13 +217,11 @@ A region groups contiguous zones: a surface area, a dungeon, a crypt, a tower or
 entity with a `Region` component and a `PersistentId`, and it is the parent of its zones and of its child regions.
 `Region` has the region's `RegionSpec`, if it was created with one, and `zone_count`, the number of zones created in
 it, which counts zones that have since unloaded. A zone is counted when it is generated, loaded from a template, or
-created with a layout. A saved zone read back was counted when it was created, so it is not counted again. `create_region(parent)` makes a child of `parent`,
-and a region with no parent region if `parent` is null, its default. `create_region(region_spec, parent)` makes one
-with the spec. `create_region_zone(region_spec, zone_spec)` makes a region with no parent region from the spec, then its
+created with a layout. A saved zone read back was counted when it was created, so it is not counted again. `create_region(region_spec, parent)` makes one
+with the spec. `create_region_zone(region_spec, zone_spec)` makes a region, then its
 first zone with `create_zone`, and returns the zone.
 `region_of(zone)` returns a zone's region, its parent. `zone_of` is unchanged by the regions above a zone: it returns a
-null entity for a zone itself. `unload_region(region)` adds every zone of the region and of its child regions to the
-zones unloading, then deletes the region, which deletes its child regions and all their zones; each zone's unload
+ null entity for a zone itself. `unload_region(region)` unloads every zone of the region, then deletes the region, which deletes all their zones; each zone's unload
 completes as `unload_zone`'s does.
 
 Every zone is made in a region. `create_zone(region, zone_id)` makes an empty zone in the region, with the `Zone` tag
@@ -248,29 +246,28 @@ from the file's `level`, and a zone whose file has none has no `ZoneLevel`.
 
 `resolve_relocator_target(relocator)` returns the access point at which an actor arrives through a relocator whose
 unbound target is a level with no position: relative, `+`*k* or `-`*k*, or absolute, `=`*n*. The relocator's zone must
-have a level, *L*, and the target's region must be omitted, `.`, or `..`; a named zone, a named region, and a position
-are not resolved. The target level is *L* + *k*, or *n*, which is *k* levels from *L*.
+have a level, *L*; a named zone and a position are not resolved. The target level is *L* + *k*, or *n*, which is *k*
+levels from *L*.
 
-It looks in the loaded zones at the target level, other than the relocator's own, for an unbound access point of the
-type at which the relocator's type arrives that leads back: one whose relocator targets level *L*, -*k* levels from its
-own zone (`targets_relocator_level`). With the region omitted, moving down (*k* < 0) looks in the relocator's region, and
-moving up or across (*k* >= 0) in that region and its parent region; `.` is the relocator's region alone, and `..` its
-parent region alone. Of several, it returns the one in the zone with the lowest persistent id, and then with the lowest
-order.
+A target with a region creates a new region with `create_region_zone`, from the region spec of that name and a
+`ZoneSpec` of the target level, without searching the loaded zones. A region spec that is not registered throws `std::runtime_error`.
 
-If none is found, it makes a zone with `create_zone(region, zone_spec)`, with a `ZoneSpec` of the target level, in a
-region chosen by the same rules. With the region omitted, moving up or across to level 0 chooses between the two regions
-with the world's random engine, and only a region with a spec is chosen. It returns the new zone's `entry_point` for the arrival type and
-the offset -*k*, the access point that leads back, or a null entity if no region can make the zone or the new zone has
-no such access point. It binds nothing.
+With the region omitted, it looks in the loaded zones of the relocator's region at the target level, other than the
+relocator's own, for an unbound access point of the type at which the relocator's type arrives that leads back: one
+whose relocator targets level *L*, -*k* levels from its own zone (`targets_relocator_level`). Of several, it returns the
+one in the zone with the lowest persistent id, and then with the lowest order. If none is found, it makes a zone in the
+relocator's region with `create_zone(region, zone_spec)`, with a `ZoneSpec` of the target level.
+
+It returns the new zone's `entry_point` for the arrival type and the offset -*k*, the access point that leads back, or
+a null entity if the new zone has no such access point. It binds nothing.
 
 `relocate_through(actor, relocator)` moves the actor through the relocator and returns the access point it arrives at.
 A bound target is resolved to the relocator it refers to. An unbound target is resolved by `resolve_relocator_target`,
 and the relocator and the access point arrived at are then bound to each other, each target becoming an
 `EntityReference` to the other, so going back arrives at the relocator gone through, and `entry_point` no longer
 chooses either. The actor is relocated to the access point's zone, at its `placement`. It returns a null entity and
-moves nothing if a bound target's relocator is not loaded, or an unbound target has a named zone, a named region, or a
-position, or resolves to nothing.
+moves nothing if a bound target's relocator is not loaded, or an unbound target has a named zone or a position, or
+resolves to nothing.
 
 `World` takes the game's random engine by reference in its constructor, as it takes the id allocator: a `random_type`,
 `math::Random<>`, which `Game` owns.

@@ -49,7 +49,7 @@ zones are generated, and the open items are in `work_plan.md` (`### Regions`).
   down, and across all follow this rule.
 - **Making:** if nothing is found, a new zone at level *L* + *k* is created in the relocator's own region. A target
   with a region always creates a new region from the region spec of that name, and the region's first zone at level
-  *L* + *k*; it finds nothing.
+  *L* + *k*, without searching the loaded zones.
 - **The arriving actor is placed** at the found relocator's access point, or at the new zone's entry point of the type
   at which the relocator's type arrives.
 

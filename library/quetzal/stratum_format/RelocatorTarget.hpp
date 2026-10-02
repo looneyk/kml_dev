@@ -37,7 +37,7 @@ namespace quetzal::stratum_format
 
     //--------------------------------------------------------------------------
     // An unbound relocator's target, written [region/]zone[@position]. The region, a zone name, and the position are kept
-    // as written, the regions "." and ".." included
+    // as written
     struct RelocatorTarget
     {
         std::optional<std::string> region;

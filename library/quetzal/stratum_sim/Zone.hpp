@@ -33,8 +33,8 @@ namespace quetzal::stratum_sim
     // A group of contiguous and/or interconnected zones
     struct Region
     {
-        std::optional<RegionSpec> region_spec; // The spec its zones are created from. A region without one creates no zones
-        std::size_t zone_count = 0;            // The zones created in it, loaded or not; reading a saved zone back creates none
+        std::optional<RegionSpec> region_spec;
+        std::size_t zone_count = 0; // The number of zones that have been created in this region, loaded or stored
     };
 
     //--------------------------------------------------------------------------

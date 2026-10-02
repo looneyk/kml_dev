@@ -91,7 +91,7 @@ std::optional<quetzal::stratum_format::RelocatorTarget> quetzal::stratum_format:
     if (size_t slash = text.find('/'); slash != std::string_view::npos)
     {
         std::string_view region = text.substr(0, slash);
-        if (region != "." && region != ".." && !is_name(region))
+        if (!is_name(region))
         {
             return std::nullopt;
         }
