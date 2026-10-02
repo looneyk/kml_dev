@@ -125,42 +125,42 @@ flecs::entity Character::entity() const;
 - **`create(character_spec)`** makes the character's entity, with a new persistent id, from a `CharacterSpec`. The
   entity is in no zone until one is entered. The constructor makes the entity now, so its id is allocated before a new
   game resets the allocator.
-- **A `CharacterSpec` is a request to create a character,** not the character: a structure with a field for each choice
-  a new game makes. `RegionSpec` and `ZoneSpec` are a `KeyValueStore` because their parameters are open-ended; a
-  character's choices are a fixed set, and its stats and inventory are not strings.
+- **A `CharacterSpec` is a request to create a character,** not the character: the choices a new game makes.
 
   ```cpp
-  struct InventoryLocation
-  {
-      std::string relation; // "in", "worn", ...
-      std::string place;    // "backpack", "legs", ...
-  };
-
-  struct InventoryItem
-  {
-      std::string name;         // The item's type, defined in data
-      std::size_t quantity;
-      InventoryLocation location;
-      KeyValueStore properties; // Only the values that differ from the type's, such as size or weight
-  };
-
   struct CharacterSpec
   {
+      struct InventoryLocation
+      {
+          std::string relation; // "in", "worn", ...
+          std::string place;    // "backpack", "legs", ...
+      };
+
+      struct InventoryItem
+      {
+          std::string type;         // The item's type, defined in data
+          InventoryLocation location;
+          KeyValueStore properties; // name, quantity, and values that differ from the type's, such as size or weight
+      };
+
       std::string name;
-      std::string race;
-      std::string class_role;
-      std::string background;
-      std::string appearance;
-      std::map<std::string, int> stats; // <stat name, value>
+      std::map<std::string, int> stats;  // <stat name, value>
+      std::map<std::string, int> skills; // <skill name, value>
+      std::map<std::string, int> spells; // <spell name, value>
       std::vector<InventoryItem> inventory;
+      KeyValueStore properties;          // race, class_role, background, appearance, level, ...
   };
   ```
 
+- **Only what the engine reads whatever the game is has a field of its own:** the name, which becomes the character's
+  `DisplayName`. Race, class and background are one game's choices, so they are `properties` that data defines, and a
+  game or a mod adds others without changing the structure. The stats, skills and spells are maps of names that data
+  defines, typed because their values are numbers, and the inventory is a list of items.
 - **`create` resolves the names to types,** from which it builds the character's components, its skills and spells, and
-  its character level, which starts at 1. Each `InventoryItem` becomes the entity of the type its `name` refers to, in
-  the quantity and at the location it states, with its `properties` set over the type's values. A name that does not
-  resolve, or a stat that is not defined, is an error that reaches the host. The spec is not saved: `character.json`
-  has the character it made.
+  its character level, which starts at 1. Each `InventoryItem` becomes the entity of its `type`, at the location it
+  states, with its `properties` set over the type's values. A name that does not resolve, a property that data does not
+  define, or a stat that is not defined, is an error that reaches the host. The spec is not saved: `character.json` has
+  the character it made.
 - **`open(directory)`** reads the game's `character.json`: the character's components, its inventory, and the zone it
   is in and its placement there.
 - **`save(directory)`** writes `character.json`.

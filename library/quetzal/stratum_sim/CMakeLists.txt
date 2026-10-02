@@ -2,7 +2,6 @@ add_library(quetzal_stratum_sim STATIC
     ai.cpp
     attachments.cpp
     Character.cpp
-    CharacterSpec.cpp
     Clock.cpp
     CommandQueue.cpp
     Config.cpp

@@ -559,7 +559,10 @@ made in, which the constructor creates; it is temporary, until a new game choose
 `Game` has the menu and lifecycle operations a host calls: `menu_open`, `menu_close`, `clear`, `create`, `open`,
 `save`, `quit` and `saved_games`. They call `clear`, `create`, `open` and `save` on `World` and `Character`, and
 `clear`, `start`, `pause` and `resume` on `Session`. All of those are skeletons with empty bodies, `saved_games`
-returns no games, and `RegionSpec` and `CharacterSpec`, which `create` takes, are placeholders with no fields.
+returns no games. `CharacterSpec`, which `create` takes, is the choices a new game makes: a `name`; `stats`, `skills`
+and `spells`, each a map from a name to a value; an `inventory` of `InventoryItem`, each an item's `type`, its
+`InventoryLocation` (a `relation` and a `place`), and its `properties`; and the game's other choices, such as race and
+class, as `properties`.
 `session_plan.md` (`## Games`) has their design.
 
 `Character` is the entity a host controls, created with `Blocking`, the `ControlledActor` tag, a `Speed` and a

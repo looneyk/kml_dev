@@ -41,22 +41,14 @@ These are the game's lifecycle and the menu operations behind it (`session_plan.
 each on the ones before it. `Game`'s menu and lifecycle functions, and those they call on `World`, `Character` and
 `Session`, are skeletons; each item designs what its functions still need and fills them in.
 
-- [x] **The generator registry: `quetzal/stratum_gen`,** with dungen's generator moved into it from the hosts and
-      registered by name, and the hosts linking it.
-- [x] **A new game's first zone designed** (`world_generation_plan.md`, `## Creating a game`): the keys `RegionSpec`,
-      `ZoneSpec` and `CharacterSpec` have to begin with, the access point at which the character enters the first zone,
-      and the directory a new game's zones are saved into.
-- [x] **Flat regions** (`region_plan.md`, `world_generation_plan.md`, `## Relocators`): `create_region` with no parent,
-      `unload_region` and `World::clear` with no child regions, `.` and `..` removed from the relocator target grammar in
-      `discrete_layout.md` and `stratum_format`, finding only in the relocator's own region, and a target with a region
-      creating a new region from the region spec of that name with `create_region_zone`.
-- [ ] **One game after another.** `CharacterSpec` a structure of typed fields, with `inventory` a list of
-      `InventoryItem` (`session_plan.md`, `## Character`); `subset(store, prefix)` on `KeyValueStore`; `World::clear`,
+- [x] **`CharacterSpec`** (`session_plan.md`, `## Character`): the name, the stats, skills and spells, the inventory as
+      a list of `InventoryItem`, and `properties` for the game's other choices.
+- [ ] **One game after another.** `subset(store, prefix)` on `KeyValueStore`; `World::clear`,
       `Character::clear` and `Session::clear`; `Character::create` making
       the entity with a new id, and `World::create` making the starting region and its first zone and returning the
-      entry point its region spec's `zone.` keys state, in place of the constructors of `Character` and `Game`;
+      entry point its region spec's `entry_access` states, in place of the constructors of `Character` and `Game`;
       `Game::create(name, ...)` creating the game's directory, resetting the id allocator and reseeding the engine; and
-      `Session::start(access_point)`. The hosts create a game from temporary specs, with `staircase` and 1 as the entry,
+      `Session::start(access_point)`. The hosts create a game from temporary specs, with `staircase,1` as the entry,
       and load no zone file. A suite case plays a game,
       clears it, creates another, and checks that only the new game's regions, zones, entities and ids remain.
 - [ ] **The game's config.** `Config`, with the saves directory and the zone count maximum, passed to `Game`'s
