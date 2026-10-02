@@ -96,9 +96,11 @@ bool Session::over() const;
 - **`start(access_point)`** begins play of the game that `Game` has created or opened, entering the access point's zone
   and placing the character there. For a new game, that is the entry point `World::create` returns; for an opened game,
   the zone the character is in. The session makes no zone.
-- **`pause()` and `resume()`** stop and restart play while the menu is open. `advance` runs no actor while play is
-  paused, and real time earns nothing, so closing the menu does not credit the time it was open. Both do nothing while
-  no game is loaded.
+- **`pause()` and `resume()`** stop and restart play while the menu is open, and `paused()` returns whether play is
+  stopped. Calling `advance` while play is paused is an error. Real time earns nothing while paused, so closing the
+  menu does not credit the time it was open. Both do nothing while no game is loaded.
+- **A host starts at its menu,** and opens it with Escape during play. Quitting is chosen from the menu; no key quits
+  during play.
 - **The session makes no zone.** `World` creates every zone, and the session enters them.
 - **`enter(zone, access_type, offset)`** moves the character into the zone, at its entry point, then has the world `trim_zones`, so no unload can take
   the character with it. It clears the pending command and rebuilds the turn order from the zone's actors, the character

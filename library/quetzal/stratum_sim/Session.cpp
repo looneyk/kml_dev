@@ -28,6 +28,7 @@ void quetzal::stratum_sim::Session::clear()
     m_zone = flecs::entity();
     m_scheduler.clear();
     m_clock.clear();
+    m_paused = false;
 
     return;
 }
@@ -47,17 +48,26 @@ void quetzal::stratum_sim::Session::start(flecs::entity access_point)
 //------------------------------------------------------------------------------
 void quetzal::stratum_sim::Session::pause()
 {
-    // ...
-
+    m_paused = loaded();
     return;
 }
 
 //------------------------------------------------------------------------------
 void quetzal::stratum_sim::Session::resume()
 {
-    // ...
+    if (m_paused)
+    {
+        m_clock.clear();
+        m_paused = false;
+    }
 
     return;
+}
+
+//------------------------------------------------------------------------------
+bool quetzal::stratum_sim::Session::paused() const
+{
+    return m_paused;
 }
 
 //------------------------------------------------------------------------------
@@ -156,6 +166,8 @@ const quetzal::stratum_sim::Character& quetzal::stratum_sim::Session::character(
 //------------------------------------------------------------------------------
 quetzal::id_type quetzal::stratum_sim::Session::advance(EventQueue& events, Clock::duration_type elapsed)
 {
+    assert(loaded() && !m_paused);
+
     id_type actor_controlled = static_cast<id_type>(m_character.entity().id());
 
     // Every actor but the character decides once per call; an actor fast enough to act twice repeats its decision

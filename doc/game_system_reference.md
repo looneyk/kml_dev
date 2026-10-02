@@ -586,8 +586,9 @@ It throws `std::runtime_error` if `entry_access` is not a type and an offset, or
 no zone is played, and the turn order and the clock's fraction of a unit are emptied, while the driver remains.
 `Character::clear` deletes the character's entity, with what it carries and its pending command. `World::clear` unloads
 every region and empties the world index and the `ZoneEntryIndex`, and keeps the registrations: the entity types, the
-access point types, the file components, and the `Generation` it was given. Every other menu and lifecycle function
-is a skeleton with an empty body. `CharacterSpec`, which `create` takes, is the choices a new game makes: a `name`; `stats`, a map
+access point types, the file components, and the `Generation` it was given. `menu_open` pauses the session and
+`menu_close` resumes it, and `quit` clears the game. `open`, `save` and `remove`, and the functions on `World` and
+`Character` that they call, are skeletons with empty bodies. `CharacterSpec`, which `create` takes, is the choices a new game makes: a `name`; `stats`, a map
 from a name to a value; `skills`, which include feats and abilities, and `aspects`, such as the spells of a
 spellcasting skill, each a map from a name to its properties; an `inventory` of `InventoryItem`, each an item's `type`, its
 `InventoryLocation` (a `relation` and a `place`), and its `properties`; and the game's other choices, such as race and
@@ -631,6 +632,11 @@ has no such entry point, it throws `std::runtime_error`, and the character stays
 
 `set_driver(driver, units_per_second)` sets the clock's driver, which lasts until it is set again; it is turn-based by
 default.
+
+`pause()` stops play while a host's menu is open, and `resume()` restarts it, discarding the fraction of a unit the
+clock had earned; `paused()` returns whether play is stopped. Neither does anything while no game is loaded, and `clear`
+ends a pause. Calling `advance` while play is paused is an error, which an assertion catches. A real-time host measures
+the elapsed time it next passes from the resume, so the time the menu was open earns nothing.
 
 `character()` returns the `Character`, so a host writes `session.character().set_intent(intent)` and
 `session.character().submit(Interact {})`.
@@ -834,16 +840,22 @@ the xterm extension XTWINOPS to resize.
 `read_key` returns one key without waiting for a newline: `_getch` on Windows, termios raw mode elsewhere. Arrow keys
 become `Key::Up`, `Down`, `Left` or `Right`.
 
+The host starts at its menu, drawn in place of the map, with `n` for a new game, `c` to continue the game in progress,
+which is offered only while there is one, and `q` to quit, which clears the game and ends the run. Escape on the menu
+also continues. A new game is created from the host's temporary specs, and a failure to create one is shown on the
+menu's status line. During play, Escape opens the menu, through `Game::menu_open`, and no other key quits.
+
 The loop advances the session to the actor it is waiting on, draws, reads a key, and submits it: movement and facing
 direction as the actor's intent, and a one-shot action as a command. Arrows or `hjkl` move, space interacts, `.`
-waits, `^L` redraws, and `q` or Escape quits. The view does not show the facing direction, so a move also turns toward
-the way it goes. The host charges a wait. `--script` plays a key sequence instead of the keyboard, and `--incremental`
-uses the cursor-addressed output within a scripted run.
+waits, and `^L` redraws. The view does not show the facing direction, so a move also turns toward the way it goes. The
+host charges a wait. `--script` plays a key sequence instead of the keyboard, beginning at the menu, so a script that
+plays starts with `n`; an ESC character in it is the Escape key, and the run quits once the script is exhausted.
+`--incremental` uses the cursor-addressed output within a scripted run.
 
 `--cell` and `--wall` choose the reduction drawn: a glyph per cell, or the lattice, which also draws walls and doors on
-edges. Each uses its own glyph set. With neither, a block notation zone uses the cell view and a wall notation zone the
-wall view; `Session::notation` returns the notation. The host creates a new game when it starts, and takes no zone
-file.
+edges. Each uses its own glyph set. With neither, each new game chooses by its first zone's notation: the cell view for
+the block notation and the wall view for the wall notation; `Session::notation` returns the notation. The host takes no
+zone file.
 
 ## Godot host
 
@@ -852,14 +864,16 @@ library, a GDExtension, and `application/stratum_godot/project/` is the Godot pr
 `stratum.gdextension`, which refers to `res://bin/`, where the build writes it.
 
 `StratumWorld` is the one registered class, a `RefCounted` that owns a `Game`, with only Godot types in its
-interface: `create_game`, `extent`, `cell`, `render`, `cells`, `actors`, `step`, `interact`,
+interface: `create_game`, `has_game`, `menu_open`, `menu_close`, `quit_game`, `extent`, `cell`, `render`, `cells`,
+`actors`, `step`, `interact`,
 `enter`, `turn`, and `message`. `step` sets the character's intent, turning toward the direction moved as the view does not show the
 facing direction, and advances through the turn-based driver; `interact` submits `Interact` and `enter` submits
 `Enter`, and each advances. `message` returns what the last of them did that the map does not show, such as a door
 opening, a staircase before the character or leading nowhere, or the level arrived on, and the tile view shows it in its status line. A step ends with the next turn already granted,
-so `turn` is the turn awaiting input. `create_game` creates a new game as the terminal host does, and the scripts call
-it when they start. Exceptions do not cross into Godot: a failed creation pushes the reason to Godot's error list and
-returns false, and leaves no game in progress.
+so `turn` is the turn awaiting input. `create_game` creates a new game as the terminal host does, `has_game` returns true
+while one is in progress, `menu_open` and `menu_close` pause and resume play, and `quit_game` ends the game in progress.
+Exceptions do not cross into Godot: a failed creation pushes the reason to Godot's error list and returns false, and
+leaves no game in progress.
 
 `cells` is one code per cell from `stratum_view::cells`, row major from row zero; its `PlaceType` constants repeat
 `stratum_view::PlaceType` for Godot, followed by `PlaceTypeDoorOpen` for a door whose access is open. `actors` is one
@@ -872,6 +886,11 @@ character in yellow, and any other actor in red. It repaints from the new extent
 size. Row zero is the lowest in the simulation and y grows
 downward in Godot, so the view inverts j when it paints.
 
+The tile view starts at its menu, a dark screen over the view with the same choices and keys as the terminal host's:
+`N` for a new game, `C` or Escape to continue the game in progress, and `Q` to quit the game and Godot. During play,
+Escape opens the menu, and no other key quits. `-- --new-game` on Godot's command line starts a new game without
+showing the menu.
+
 `quetzal_godot` provides what any Godot host needs: `gdextension.cmake` and its `quetzal_configure_gdextension`, which
 names the library as Godot expects and writes it into the project rather than a per-configuration subdirectory.
 
@@ -881,7 +900,8 @@ so they do not report `/W4` warnings in the extension's sources. `KML_DEV_GODOT`
 configured off, godot-cpp is not processed and neither the library nor the host exists.
 
 Two headless checks need no display: `--path project --script main.gd` exercises the extension directly, and
-`--path project --quit-after 5` runs the tile scene, which reports the cells it painted. A project has to be imported
+`--path project --quit-after 5 -- --new-game` runs the tile scene in a new game, which reports the cells it painted;
+without `-- --new-game` it reports that the menu is shown. A project has to be imported
 once (`--headless --path project --import`) before Godot sees the extension; otherwise the class is undeclared, with
 no indication why.
 

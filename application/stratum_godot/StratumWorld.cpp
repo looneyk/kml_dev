@@ -113,6 +113,10 @@ void StratumWorld::_bind_methods()
     godot::ClassDB::bind_method(godot::D_METHOD("enter"), &StratumWorld::enter);
     godot::ClassDB::bind_method(godot::D_METHOD("turn"), &StratumWorld::turn);
     godot::ClassDB::bind_method(godot::D_METHOD("message"), &StratumWorld::message);
+    godot::ClassDB::bind_method(godot::D_METHOD("has_game"), &StratumWorld::has_game);
+    godot::ClassDB::bind_method(godot::D_METHOD("menu_open"), &StratumWorld::menu_open);
+    godot::ClassDB::bind_method(godot::D_METHOD("menu_close"), &StratumWorld::menu_close);
+    godot::ClassDB::bind_method(godot::D_METHOD("quit_game"), &StratumWorld::quit_game);
 
     return;
 }
@@ -131,7 +135,35 @@ bool StratumWorld::create_game()
         return false;
     }
 
+    m_message.clear();
     return true;
+}
+
+//------------------------------------------------------------------------------
+bool StratumWorld::has_game() const
+{
+    return m_session.loaded();
+}
+
+//------------------------------------------------------------------------------
+void StratumWorld::menu_open()
+{
+    m_game.menu_open();
+    return;
+}
+
+//------------------------------------------------------------------------------
+void StratumWorld::menu_close()
+{
+    m_game.menu_close();
+    return;
+}
+
+//------------------------------------------------------------------------------
+void StratumWorld::quit_game()
+{
+    m_game.quit();
+    return;
 }
 
 //------------------------------------------------------------------------------

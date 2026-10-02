@@ -33,6 +33,16 @@ public:
     // game cannot be created
     bool create_game();
 
+    // True while a game is in progress, whether or not the menu is open
+    bool has_game() const;
+
+    // Pause play while the menu is open, and resume it when the menu closes
+    void menu_open();
+    void menu_close();
+
+    // Ends the game in progress, before the host quits
+    void quit_game();
+
     godot::Vector2i extent() const;
     godot::Vector2i cell() const;
 

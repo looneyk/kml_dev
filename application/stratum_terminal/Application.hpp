@@ -44,6 +44,17 @@ namespace stratum_terminal
 
         KeyPress next_key();
 
+        // True once a script has played its last key, which ends the run
+        bool script_exhausted() const;
+
+        // Draws the menu, reads a key, and acts on it: a new game, continuing the game in progress, or quitting
+        void run_menu();
+
+        void draw_menu();
+
+        // Creates a new game and closes the menu, or keeps the menu open with the reason the game could not be created
+        void create_game();
+
         void draw();
 
         // Submits a key for the player: movement and facing direction as its intent, and a one-shot action as a command
@@ -55,13 +66,15 @@ namespace stratum_terminal
         quetzal::stratum_sim::Game m_game;
         quetzal::stratum_sim::Session& m_session;
 
-        View m_view = View::Null; // Never Null once the zone is loaded
+        View m_view_requested = View::Null;
+        View m_view = View::Null; // Never Null once a game is created
 
         quetzal::stratum_view::Glyphs m_view_glyphs;
         Terminal m_terminal;
         std::string m_message;
         std::string m_script;
         size_t m_script_slot = 0;
+        bool m_menu_open = true;
         bool m_running = true;
     };
 

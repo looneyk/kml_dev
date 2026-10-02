@@ -1,4 +1,4 @@
-# The 2D tile view, drawn from place types
+# The 2D tile view, drawn from place types, with the menu that creates, continues and quits games
 
 extends Node2D
 
@@ -22,21 +22,21 @@ const ACTOR_COLORS: Array[Color] = [
 	Color(0.85, 0.15, 0.15),       # any other actor
 ]
 
+# Passed after -- on Godot's command line, it starts a new game without showing the menu, for the headless check
+const NEW_GAME_ARGUMENT := "--new-game"
+
 var _world: StratumWorld
 var _layer: TileMapLayer
 var _actor_layer: TileMapLayer
 var _status: Label
-var _extent: Vector2i
+var _camera: Camera2D
+var _menu: Control
+var _menu_text: Label
+var _extent := Vector2i.ZERO
 
 
 func _ready() -> void:
 	_world = StratumWorld.new()
-
-	if not _world.create_game():
-		push_error("could not create a game")
-		return
-
-	_extent = _world.extent()
 
 	var tile_set := _build_tile_set()
 
@@ -57,17 +57,20 @@ func _ready() -> void:
 	_status = Label.new()
 	_status.position = Vector2(8, 8)
 	ui.add_child(_status)
+	_build_menu(ui)
 
-	var camera := Camera2D.new()
-	camera.position = Vector2(_extent.x, _extent.y) * TILE_SIZE * 0.5
-	camera.zoom = Vector2(2.0, 2.0)
-	add_child(camera)
-	camera.make_current()
+	_camera = Camera2D.new()
+	_camera.zoom = Vector2(2.0, 2.0)
+	add_child(_camera)
+	_camera.make_current()
 
-	_refresh()
-
-	print("tile view: ", _extent, " cells, ", _layer.get_used_cells().size(), " painted from ",
-		_layer.tile_set.get_source(0).get_tiles_count(), " tiles")
+	if NEW_GAME_ARGUMENT in OS.get_cmdline_user_args():
+		_new_game()
+		print("tile view: ", _extent, " cells, ", _layer.get_used_cells().size(), " painted from ",
+			_layer.tile_set.get_source(0).get_tiles_count(), " tiles")
+	else:
+		_show_menu("")
+		print("tile view: menu shown")
 
 
 func _build_tile_set() -> TileSet:
@@ -92,6 +95,45 @@ func _build_tile_set() -> TileSet:
 	return tile_set
 
 
+# A dark screen over the view, with the menu's choices on it
+func _build_menu(ui: CanvasLayer) -> void:
+	_menu = ColorRect.new()
+	(_menu as ColorRect).color = Color(0.0, 0.0, 0.0, 0.85)
+	_menu.set_anchors_preset(Control.PRESET_FULL_RECT)
+	ui.add_child(_menu)
+
+	_menu_text = Label.new()
+	_menu_text.set_anchors_preset(Control.PRESET_CENTER)
+	_menu_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_menu_text.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_menu_text.grow_vertical = Control.GROW_DIRECTION_BOTH
+	_menu.add_child(_menu_text)
+
+
+func _show_menu(message: String) -> void:
+	var lines := ["STRATUM", "", "N   New game"]
+
+	if _world.has_game():
+		lines.append("C   Continue")
+
+	lines.append("Q   Quit")
+
+	if not message.is_empty():
+		lines.append_array(["", message])
+
+	_menu_text.text = "\n".join(lines)
+	_menu.visible = true
+
+
+func _new_game() -> void:
+	if not _world.create_game():
+		_show_menu("No game was created; Godot's error list has the reason")
+		return
+
+	_menu.visible = false
+	_refresh()
+
+
 func _refresh() -> void:
 	# The player may have entered a zone of another size
 	var extent := _world.extent()
@@ -99,6 +141,7 @@ func _refresh() -> void:
 		_extent = extent
 		_layer.clear()
 		_actor_layer.clear()
+		_camera.position = Vector2(_extent.x, _extent.y) * TILE_SIZE * 0.5
 
 	var cells := _world.cells()
 	var actors := _world.actors()
@@ -124,11 +167,35 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	if not event.is_pressed():
 		return
 
+	if _menu.visible:
+		_menu_key(event as InputEventKey)
+	else:
+		_play_key(event as InputEventKey)
+
+	get_viewport().set_input_as_handled()
+
+
+func _menu_key(event: InputEventKey) -> void:
+	if event.is_echo():
+		return
+
+	match event.keycode:
+		KEY_N:
+			_new_game()
+		KEY_C, KEY_ESCAPE:
+			if _world.has_game():
+				_world.menu_close()
+				_menu.visible = false
+		KEY_Q:
+			_world.quit_game()
+			get_tree().quit()
+
+
+func _play_key(event: InputEventKey) -> void:
 	# A held movement key repeats; any other key acts once per press
-	var repeat := event.is_echo()
 	var step := Vector2i.ZERO
 
-	match (event as InputEventKey).keycode:
+	match event.keycode:
 		KEY_RIGHT, KEY_L: step = Vector2i(1, 0)
 		KEY_LEFT, KEY_H: step = Vector2i(-1, 0)
 		KEY_UP, KEY_K: step = Vector2i(0, 1)
@@ -137,24 +204,21 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	if step != Vector2i.ZERO:
 		_world.step(step.x, step.y)
 		_refresh()
-		get_viewport().set_input_as_handled()
 		return
 
-	if repeat:
+	if event.is_echo():
 		return
 
 	# < or > enters the relocator on the floor of the player's cell. A key with no character has the code point 0
-	if (event as InputEventKey).unicode in ["<".unicode_at(0), ">".unicode_at(0)]:
+	if event.unicode in ["<".unicode_at(0), ">".unicode_at(0)]:
 		_world.enter()
 		_refresh()
-		get_viewport().set_input_as_handled()
 		return
 
-	match (event as InputEventKey).keycode:
+	match event.keycode:
 		KEY_SPACE:
 			_world.interact()
 			_refresh()
-		KEY_ESCAPE, KEY_Q: get_tree().quit()
-		_: return
-
-	get_viewport().set_input_as_handled()
+		KEY_ESCAPE:
+			_world.menu_open()
+			_show_menu("")

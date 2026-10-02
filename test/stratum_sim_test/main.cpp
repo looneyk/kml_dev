@@ -1922,6 +1922,23 @@ namespace
         report_case("a game named as one that exists is an error, which leaves no game in progress", existing_thrown
             && !sequence_session.loaded() && !sequence_session.character().entity() && sequence_world.entities().count<stratum_sim::Region>() == 0);
 
+        sequence.menu_open();
+        report_case("opening the menu with no game in progress pauses nothing", !sequence_session.paused());
+
+        sequence.create("menu", region_spec, stratum_sim::CharacterSpec {});
+        sequence.menu_open();
+        bool paused_on_open = sequence_session.paused();
+        sequence.menu_close();
+        report_case("opening the menu pauses play, and closing it resumes play", paused_on_open && !sequence_session.paused());
+
+        sequence.menu_open();
+        sequence.create("menu_new", region_spec, stratum_sim::CharacterSpec {});
+        report_case("a new game chosen from the menu is not paused", sequence_session.loaded() && !sequence_session.paused());
+
+        sequence.quit();
+        report_case("quitting leaves no game in progress", !sequence_session.loaded() && !sequence_session.character().entity()
+            && sequence_world.entities().count<stratum_sim::Region>() == 0);
+
         stratum_sim::RegionSpec unregistered_entry = region_spec;
         unregistered_entry.insert(string(stratum_sim::entry_access_key), "trapdoor,1");
         bool unregistered_thrown = false;

@@ -9,22 +9,30 @@
 #include "quetzal/stratum_sim/DiscreteLayout.hpp"
 #include "quetzal/stratum_sim/commands.hpp"
 #include "quetzal/stratum_sim/Site.hpp"
+#include <algorithm>
 #include <chrono>
 #include <cstdlib>
+#include <exception>
 #include <filesystem>
 #include <format>
 #include <iostream>
 #include <optional>
 #include <string>
+#include <vector>
+#include <cassert>
 
 using namespace quetzal;
 
 namespace
 {
 
-    static constexpr auto help_string = "arrows or hjkl move, space acts, < or > enters, . waits, ^L redraws, q quits";
+    static constexpr auto help_string = "arrows or hjkl move, space acts, < or > enters, . waits, ^L redraws, Esc for the menu";
+
+    static constexpr auto menu_help_string = "n starts a new game, c or Esc continues, q quits, ^L redraws";
 
     static constexpr char key_redraw = '\x0c'; // Ctrl-L, as curses and the roguelikes bind it
+
+    static constexpr char key_escape = '\x1b'; // Escape in a script, which has characters only
 
     //--------------------------------------------------------------------------
     // Temporary, until the config file is read: during development the game's directories are in the temp directory
@@ -93,25 +101,19 @@ namespace
 stratum_terminal::Application::Application(View view, const std::string& script, bool incremental) :
     m_game(temporary_config()),
     m_session(m_game.session()),
+    m_view_requested(view),
     m_view(view),
     m_view_glyphs(),
     m_terminal(incremental),
     m_message(),
     m_script(script),
     m_script_slot(0),
+    m_menu_open(true),
     m_running(true)
 {
     // dungen's warnings are dropped, as they would write over the terminal's frame
     stratum_gen::register_generators(m_game.generation(), [](const std::string&) {});
     m_game.generation().m_generator_selectors["dungen"] = select_dungen;
-    m_game.create(new_game_name(m_game.config().saves_directory), temporary_region_spec(), stratum_sim::CharacterSpec {});
-
-    if (m_view == View::Null)
-    {
-        m_view = m_session.notation() == stratum_format::Notation::Wall ? View::Wall : View::Cell;
-    }
-
-    m_view_glyphs = m_view == View::Cell ? stratum_view::cell_glyphs() : stratum_view::lattice_glyphs();
 }
 
 //------------------------------------------------------------------------------
@@ -122,6 +124,12 @@ int stratum_terminal::Application::run()
 
     while (m_running)
     {
+        if (m_menu_open)
+        {
+            run_menu();
+            continue;
+        }
+
         id_type actor_id = m_session.advance(events);
 
         if (actor_id == nullid)
@@ -133,10 +141,17 @@ int stratum_terminal::Application::run()
         events.clear();
         draw();
 
-        KeyPress key_press = next_key();
-        if (key_press.key == Key::Escape || key_press.c == 'q' || key_press.c == 'Q')
+        if (script_exhausted())
         {
-            m_running = false;
+            m_game.quit();
+            break;
+        }
+
+        KeyPress key_press = next_key();
+        if (key_press.key == Key::Escape)
+        {
+            m_game.menu_open();
+            m_menu_open = true;
             continue;
         }
 
@@ -162,17 +177,115 @@ int stratum_terminal::Application::run()
 //------------------------------------------------------------------------------
 stratum_terminal::KeyPress stratum_terminal::Application::next_key()
 {
+    assert(!script_exhausted());
+
     if (m_script.empty())
     {
         return read_key();
     }
 
-    if (m_script_slot == m_script.size())
+    char c = m_script[m_script_slot++];
+    return c == key_escape ? KeyPress {Key::Escape} : KeyPress {Key::Character, c};
+}
+
+//------------------------------------------------------------------------------
+bool stratum_terminal::Application::script_exhausted() const
+{
+    return !m_script.empty() && m_script_slot == m_script.size();
+}
+
+//------------------------------------------------------------------------------
+void stratum_terminal::Application::run_menu()
+{
+    draw_menu();
+
+    if (script_exhausted())
     {
-        return {Key::Escape};
+        m_game.quit();
+        m_running = false;
+        return;
     }
 
-    return {Key::Character, m_script[m_script_slot++]};
+    KeyPress key_press = next_key();
+
+    if (key_press.c == key_redraw)
+    {
+        m_terminal.redraw();
+    }
+    else if (key_press.c == 'n' || key_press.c == 'N')
+    {
+        create_game();
+    }
+    else if ((key_press.key == Key::Escape || key_press.c == 'c' || key_press.c == 'C') && m_session.loaded())
+    {
+        m_game.menu_close();
+        m_menu_open = false;
+    }
+    else if (key_press.c == 'q' || key_press.c == 'Q')
+    {
+        m_game.quit();
+        m_running = false;
+    }
+
+    return;
+}
+
+//------------------------------------------------------------------------------
+void stratum_terminal::Application::draw_menu()
+{
+    std::vector<std::string> lines {"STRATUM", "", "n  New game"};
+
+    if (m_session.loaded())
+    {
+        lines.push_back("c  Continue");
+    }
+
+    lines.push_back("q  Quit");
+
+    stratum_view::coord_type width = 0;
+    for (const std::string& line : lines)
+    {
+        width = std::max(width, static_cast<stratum_view::coord_type>(line.size()));
+    }
+
+    // Row 0 is the lowest, so the first line is written to the highest row
+    const stratum_view::coord_type height = static_cast<stratum_view::coord_type>(lines.size());
+    stratum_view::Console console(stratum_view::vector_type(width, height), ' ');
+
+    for (stratum_view::coord_type j = 0; j < height; ++j)
+    {
+        const std::string& line = lines[static_cast<size_t>(height - 1 - j)];
+
+        for (stratum_view::coord_type i = 0; i < static_cast<stratum_view::coord_type>(line.size()); ++i)
+        {
+            console.set(stratum_view::point_type(i, j), line[static_cast<size_t>(i)]);
+        }
+    }
+
+    m_terminal.draw(console, m_message, menu_help_string);
+    return;
+}
+
+//------------------------------------------------------------------------------
+void stratum_terminal::Application::create_game()
+{
+    try
+    {
+        m_game.create(new_game_name(m_game.config().saves_directory), temporary_region_spec(), stratum_sim::CharacterSpec {});
+    }
+    catch (const std::exception& e)
+    {
+        m_message = std::format("No game was created: {}", e.what());
+        return;
+    }
+
+    m_view = m_view_requested != View::Null ? m_view_requested
+        : m_session.notation() == stratum_format::Notation::Wall ? View::Wall : View::Cell;
+    m_view_glyphs = m_view == View::Cell ? stratum_view::cell_glyphs() : stratum_view::lattice_glyphs();
+    m_message.clear();
+    m_menu_open = false;
+
+    return;
 }
 
 //------------------------------------------------------------------------------

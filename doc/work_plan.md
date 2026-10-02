@@ -57,7 +57,7 @@ each on the ones before it. `Game`'s menu and lifecycle functions, and those the
       `Session::start(access_point)`. The hosts create a game from temporary specs, with `staircase,1` as the entry,
       and load no zone file. A suite case plays a game,
       clears it, creates another, and checks that only the new game's regions, zones, entities and ids remain.
-- [ ] **The menu in the hosts.** Each host draws a menu, opened by a key, with a new game, continuing, and quitting,
+- [x] **The menu in the hosts.** Each host draws a menu, opened by a key, with a new game, continuing, and quitting,
       through `create`, `menu_open`, `menu_close` and `quit`; and `Session::pause` and `resume` stopping and restarting
       play. The menu offers saving and opening with **A game saved** and **A game loaded**.
 - [ ] **The game's end.** The `Dead` tag, `Session::over`, and `advance` running no actor once the character is dead

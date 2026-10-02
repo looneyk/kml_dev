@@ -37,8 +37,12 @@ namespace quetzal::stratum_sim
         // Moves the character to the access point's placement, and makes the access point's zone the one being played
         void start(flecs::entity access_point);
 
+        // Stop and restart play while a host's menu is open. Neither does anything while no game is loaded. Resuming
+        // discards the fraction of a unit the clock had earned; a real-time host measures the elapsed time it next passes
+        // from the resume, so the time the menu was open earns nothing
         void pause();
         void resume();
+        bool paused() const;
 
         // Moves the character to the placement of the zone's entry_point for the access point type and level offset, and makes
         // it the zone being played. Throws std::runtime_error when the zone has no such entry point
@@ -67,7 +71,7 @@ namespace quetzal::stratum_sim
         const Character& character() const;
 
         // Advances the clock and runs every ready actor, returning the character when it needs a command
-        // elapsed is the real time since the last call; a turn-based host omits it
+        // elapsed is the real time since the last call; a turn-based host omits it. Requires a loaded game that is not paused
         id_type advance(EventQueue& events, Clock::duration_type elapsed = Clock::duration_type::zero());
 
     private:
@@ -81,6 +85,7 @@ namespace quetzal::stratum_sim
         Scheduler m_scheduler;
         Clock m_clock;
         flecs::entity m_zone;
+        bool m_paused = false;
     };
 
 } // namespace quetzal::stratum_sim
