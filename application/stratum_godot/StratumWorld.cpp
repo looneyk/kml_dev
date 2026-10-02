@@ -329,9 +329,19 @@ godot::String StratumWorld::message() const
 void StratumWorld::advance()
 {
     sim::EventQueue events;
-    m_session.advance(events);
-
     m_message.clear();
+
+    // Exceptions must not cross into Godot. A game that fails during play cannot continue, so it is quit
+    try
+    {
+        m_session.advance(events);
+    }
+    catch (const std::exception& e)
+    {
+        godot::UtilityFunctions::push_error("the game ended in an error: ", godot::String::utf8(e.what()));
+        m_game.quit();
+        return;
+    }
 
     for (const sim::Event& event : events.events())
     {
@@ -345,13 +355,6 @@ void StratumWorld::advance()
         }
         else if (const sim::Interacted* pinteracted = event.try_get<sim::Interacted>())
         {
-            if (pinteracted->interaction == sim::Interaction::NoDestination)
-            {
-                std::string name = sim::access_type_name(m_session.world().entities().entity(pinteracted->acted_on_id));
-                m_message = std::format("You try the {}, but it leads nowhere.", name.empty() ? "way" : name);
-                continue;
-            }
-
             m_message = pinteracted->interaction == sim::Interaction::Opened ? "The door opens."
                 : pinteracted->interaction == sim::Interaction::Closed ? "The door shuts."
                 : "Nothing happens.";

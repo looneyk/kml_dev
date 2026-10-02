@@ -7,6 +7,7 @@
 
 #include "Generation.hpp"
 #include "Layout.hpp"
+#include "PersistentId.hpp"
 #include "Site.hpp"
 #include "types.hpp"
 #include "quetzal/common/id.hpp"
@@ -19,6 +20,7 @@
 #include <optional>
 #include <type_traits>
 #include <utility>
+#include <vector>
 
 namespace quetzal::stratum_format
 {
@@ -39,7 +41,7 @@ namespace quetzal::stratum_sim
     struct Region
     {
         RegionSpec region_spec;
-        std::size_t zone_count = 0; // The number of zones that have been created in this region, loaded or stored
+        std::vector<PersistentId> zone_ids; // The zones created in this region, loaded or saved, in the order they were created
     };
 
     //--------------------------------------------------------------------------

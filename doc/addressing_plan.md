@@ -332,8 +332,8 @@ a wall or a flat cell, since those addresses belong to the old zone.
 
 ## Saved zones
 
-A saved zone has the `zone` section, which makes every id in it persistent. Unloading a zone writes it into the game's
-working directory, and entering it again reads it back (`game_file_spec.md`, `## A saved game's files`). Writing a zone walks its subtree instead of querying its children, since anything with a parent
+A saved zone has the `zone` section, which makes every id in it persistent. Unloading a zone writes it into the game
+directory, and entering it again reads it back (`game_file_spec.md`, `## A saved game's files`). Writing a zone walks its subtree instead of querying its children, since anything with a parent
 of its own is below that parent. Loading a saved zone that is already loaded is an error; a template makes a new zone
 each time it is loaded.
 

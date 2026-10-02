@@ -41,18 +41,19 @@ temp/
       cache/
       working/
 
-**The working directory and the saves directory.** A game's directory is in both, under the same name.
+**The working directory and the saves directory.** A game's directory is in both, under the same name. The game
+directory is the one in the working directory.
 
-- **Play reads and writes the working directory.** A zone that unloads is written to it, so a zone file there may be
+- **Play reads and writes the game directory.** A zone that unloads is written to it, so a zone file there may be
   newer than the game's last save.
 - **Saving writes and then copies.** `game.json`, `character.json`, `world.json` and every loaded zone are written to the
-  working directory, which is then copied to the saves directory, replacing the game's directory there. Every file in a
+  game directory, which is then copied to the saves directory, replacing the game's directory there. Every file in a
   saved game is therefore from the same moment: the id allocator's count covers every id in its zones, the character's
   inventory and the zones agree, and `world.json` lists every zone file.
-- **Opening copies back.** Opening a game replaces its working directory with a copy of its saved directory and plays
-  from that. A zone that unloaded after the last save, and was not saved since, is discarded with the old working
+- **Opening copies back.** Opening a game replaces its game directory with a copy of its saved directory and plays
+  from that. A zone that unloaded after the last save, and was not saved since, is discarded with the old game
   directory.
-- **A new game** has a working directory from its creation and a saved directory from its first save.
+- **A new game** has a game directory from its creation and a saved directory from its first save.
 
 | File | |
 | --- | --- |
@@ -203,8 +204,8 @@ A region groups contiguous zones: a surface area, a dungeon, a crypt, a tower, o
 A region's zones are every zone the world has made in it. Regions refer to no other region; the bound relocators in
 their zones connect them.
 
-A region's zone count, which its generator selector reads (`world_generation_plan.md`), is not written: it is the number
-of zones in its `zones`, and reading the world sets it from them.
+A region's list of zone ids, whose number is the zone count its generator selector reads (`world_generation_plan.md`), is
+not written separately: it is its `zones`, and reading the world sets it from them.
 
 ### Zones
 
@@ -215,7 +216,7 @@ A zone reference is the zone's persistent id and its file, relative to the direc
 ```
 
 A zone's file is a saved zone in the zone file format, with its `zone` section. The zone's region is the region whose
-`zones` refers to it, and its level is its `layout.components.level`. Unloading a zone writes its file into the working
+`zones` refers to it, and its level is its `layout.components.level`. Unloading a zone writes its file into the game
 directory, which frees its resources, so a zone that is not loaded is in the game only as its file has it.
 
 ## Templates

@@ -139,7 +139,8 @@ namespace
     //--------------------------------------------------------------------------
     // The suite's registries. A region whose spec selects "door" makes zones from data/door.zone, and "staircase" from
     // data/walls.zone, which has one staircase leading up and one leading down. "next_region" chooses a new region from the
-    // region spec "staircase" for every zone, and "unregistered_generator" a generator that is not registered
+    // region spec "staircase" for every zone, and "unregistered_generator" a generator that is not registered. data/door.zone
+    // has one staircase, leading up
     stratum_sim::Generation suite_generation()
     {
         stratum_sim::Generation generation;
@@ -154,6 +155,7 @@ namespace
             return stratum_sim::Generation::GeneratorSelection {{}, {}, "staircase", zone_spec};
         };
         generation.m_region_specs["staircase"] = stratum_sim::RegionSpec {{string(stratum_sim::generator_selector_key), "staircase"}};
+        generation.m_region_specs["door"] = stratum_sim::RegionSpec {{string(stratum_sim::generator_selector_key), "door"}};
 
         return generation;
     }
@@ -2029,8 +2031,20 @@ namespace
         filesystem::path zones_directory = saving_config.working_directory / "saving" / "zones";
         auto zone_file = [&](stratum_sim::PersistentId zone_id) { return zones_directory / format("{}.zone", zone_id.id); };
 
-        flecs::entity saving_second = stratum_sim::zone_of(saving_world.relocate_through(saving.character().entity(),
-            stratum_sim::entry_point(saving_first, staircase_type, -1)));
+        auto pursuers_in = [&](flecs::entity zone)
+        {
+            size_t count = 0;
+            saving_world.entities().each([&](flecs::entity e, const stratum_sim::Pursue&) { count += stratum_sim::zone_of(e) == zone ? 1 : 0; });
+            return count;
+        };
+
+        flecs::entity saving_character = saving.character().entity();
+        size_t first_pursuer_count = pursuers_in(saving_first);
+        flecs::entity first_down = stratum_sim::entry_point(saving_first, staircase_type, -1);
+        stratum_sim::PersistentId first_down_id = first_down.get<stratum_sim::PersistentId>();
+        flecs::entity second_up = saving_world.relocate_through(saving_character, first_down);
+        stratum_sim::PersistentId second_up_id = second_up.get<stratum_sim::PersistentId>();
+        flecs::entity saving_second = stratum_sim::zone_of(second_up);
         report_case("leaving a zone does not save it", saving_second && !filesystem::exists(zone_file(saving_first_id)));
 
         saving_world.trim_zones(saving_second);
@@ -2045,9 +2059,26 @@ namespace
         report_case("a zone the world unloads is saved first, as a saved zone in the working directory's zones",
             saved_back && !saving_first.is_alive() && saving_world.zone_count() == 1);
 
+        // Back up through the staircase bound to the first zone's, which has unloaded
         stratum_sim::PersistentId saving_second_id = saving_second.get<stratum_sim::PersistentId>();
+        flecs::entity back_up = saving_world.relocate_through(saving_character, second_up);
+        flecs::entity first_again = back_up ? stratum_sim::zone_of(back_up) : flecs::entity();
+        flecs::entity saving_region = first_again ? stratum_sim::region_of(first_again) : flecs::entity();
+
+        report_case("going through a relocator bound to one in a zone that has unloaded reads the zone back and arrives there",
+            first_again && first_again.get<stratum_sim::PersistentId>() == saving_first_id && back_up.get<stratum_sim::PersistentId>() == first_down_id
+            && stratum_sim::zone_of(saving_character) == first_again);
+        report_case("a zone read back keeps its denizens and is not populated again, and its region lists it once", first_again
+            && pursuers_in(first_again) == first_pursuer_count && saving_region.get<stratum_sim::Region>().zone_ids.size() == 2);
+
+        saving_world.trim_zones(first_again);
+        flecs::entity down_again = saving_world.relocate_through(saving_character, back_up);
+        report_case("and the zone left, unloaded in its turn, is read back going the other way", down_again
+            && down_again.get<stratum_sim::PersistentId>() == second_up_id && stratum_sim::zone_of(down_again).get<stratum_sim::PersistentId>() == saving_second_id);
+
+        filesystem::remove_all(zones_directory);
         saving.quit();
-        report_case("and a game cleared saves nothing", !filesystem::exists(zone_file(saving_second_id)));
+        report_case("and a game cleared saves nothing", !filesystem::exists(zones_directory));
 
         return;
     }
@@ -2302,7 +2333,7 @@ namespace
         report_case("a target with a region makes a zone in a new region created from the region spec of that name, though a zone at the level has a staircase that leads back", made
             && made != field && region_made != dungeon && region_made != world.region
             && region_made.get<stratum_sim::Region>().region_spec.value(stratum_sim::generator_selector_key) == "staircase"
-            && region_made.get<stratum_sim::Region>().zone_count == 1 && made.get<stratum_sim::ZoneLevel>().level == 0
+            && region_made.get<stratum_sim::Region>().zone_ids.size() == 1 && made.get<stratum_sim::ZoneLevel>().level == 0
             && arrival == down_of(made));
 
         retarget(first_up, "unregistered/+1");
@@ -2338,6 +2369,34 @@ namespace
         made = zone_arrived_in(world.resolve_relocator_target(first_down));
         report_case("an unloaded zone and a zone in an unrelated region are not searched", made
             && stratum_sim::region_of(made) == dungeon && made.get<stratum_sim::ZoneLevel>().level == -2);
+
+        // A zone made from data/door.zone above a staircase leading up has no staircase leading back down
+        auto throws = [&](flecs::entity relocator)
+        {
+            try
+            {
+                world.resolve_relocator_target(relocator);
+            }
+            catch (const runtime_error&)
+            {
+                return true;
+            }
+            return false;
+        };
+
+        int region_count = world.entities().count<stratum_sim::Region>();
+        size_t zone_count = world.zone_count();
+        retarget(first_up, "door/+1");
+        report_case("a zone made in a new region with no access point that leads back is an error, and the region is discarded",
+            throws(first_up) && world.entities().count<stratum_sim::Region>() == region_count && world.zone_count() == zone_count);
+        retarget(first_up, "+1");
+
+        flecs::entity doors = world.create_region(suite_region_spec("door"));
+        flecs::entity below_doors = load_at_level(doors, -1);
+        zone_count = world.zone_count();
+        report_case("a zone made in its own region with no access point that leads back is an error, and only that zone is discarded",
+            throws(up_of(below_doors)) && doors.is_alive() && below_doors.is_alive() && world.zone_count() == zone_count
+            && doors.get<stratum_sim::Region>().zone_ids.empty());
 
         return;
     }
@@ -2402,15 +2461,28 @@ namespace
             && made.get<stratum_sim::ZoneLevel>().level == -3 && stratum_sim::zone_of(actor) == made && refers_to(second_down, arrival)
             && refers_to(arrival, second_down));
 
+        auto throws = [&](flecs::entity relocator)
+        {
+            try
+            {
+                world.relocate_through(actor, relocator);
+            }
+            catch (const runtime_error&)
+            {
+                return true;
+            }
+            return false;
+        };
+
         flecs::entity named = up_of(first);
         named.set<stratum_sim::Relocator>(stratum_sim::Relocator {*stratum_format::parse_relocator_target("town/market@fountain")});
         stratum_format::RelocatorTarget named_target = get<stratum_format::RelocatorTarget>(target_of(named));
-        report_case("a named zone is not resolved, and nothing moves or binds", !world.relocate_through(actor, named)
+        report_case("a named zone is not resolved, which is an error, and nothing moves or binds", throws(named)
             && stratum_sim::zone_of(actor) == made && get<stratum_format::RelocatorTarget>(target_of(named)) == named_target);
 
-        named.set<stratum_sim::Relocator>(stratum_sim::Relocator {stratum_sim::EntityReference {stratum_sim::PersistentId {99999}, flecs::entity()}});
-        report_case("a bound target whose relocator is not loaded moves nothing", !world.relocate_through(actor, named)
-            && stratum_sim::zone_of(actor) == made);
+        world.unload_zone(first);
+        report_case("a bound target whose zone has unloaded, in a world with no game directory to read it back from, is an error, and nothing moves",
+            throws(second_up) && stratum_sim::zone_of(actor) == made);
 
         return;
     }
@@ -2521,32 +2593,39 @@ namespace
         session.zone().set<stratum_sim::ZoneLevel>(stratum_sim::ZoneLevel {-1});
         flecs::entity staircase = stratum_sim::entry_point(session.zone(), stratum_sim::access_type(game.world().entities(), "staircase"), -1);
 
-        // A named zone is not resolved, so the staircase leads nowhere
-        stratum_sim::Relocator leading_down = staircase.get<stratum_sim::Relocator>();
-        staircase.set<stratum_sim::Relocator>(stratum_sim::Relocator {*stratum_format::parse_relocator_target("town/market")});
-
-        session.character().submit(stratum_sim::Interact {});
-        stratum_sim::EventQueue events;
-        session.advance(events);
-
-        const stratum_sim::Interacted* interacted = nullptr;
-        for (const stratum_sim::Event& event : events.events())
-        {
-            interacted = interacted != nullptr ? interacted : event.try_get<stratum_sim::Interacted>();
-        }
-
-        report_case("interacting with a relocator that leads nowhere reports it, with the relocator", interacted != nullptr
-            && interacted->interaction == stratum_sim::Interaction::NoDestination && interacted->acted_on_id == staircase.id());
-        report_case("which is a staircase", stratum_sim::access_type_name(staircase) == "staircase");
-
-        staircase.set<stratum_sim::Relocator>(leading_down);
         game.generation() = suite_generation();
         flecs::entity first = session.zone();
         session.character().submit(stratum_sim::Interact {});
         stratum_sim::EventQueue enter_events;
         session.advance(enter_events);
-        report_case("and interacting with one that leads somewhere goes through it", session.zone() != first
+        report_case("interacting with a relocator goes through it", stratum_sim::access_type_name(staircase) == "staircase"
+            && session.zone() != first
             && ranges::any_of(enter_events.events(), [](const stratum_sim::Event& event) { return event.is<stratum_sim::Relocated>(); }));
+
+        // A named zone is not resolved. A game whose advance throws is quit, so this one is used for nothing else
+        stratum_sim::Game failing(g_suite_config);
+        stratum_sim::Session& failing_session = failing.session();
+        enter_zone_file(failing, "data/walls.zone");
+        failing_session.zone().set<stratum_sim::ZoneLevel>(stratum_sim::ZoneLevel {-1});
+        flecs::entity named = stratum_sim::entry_point(failing_session.zone(), stratum_sim::access_type(failing.world().entities(), "staircase"), -1);
+        named.set<stratum_sim::Relocator>(stratum_sim::Relocator {*stratum_format::parse_relocator_target("town/market")});
+
+        flecs::entity unmoved = failing_session.zone();
+        failing_session.character().submit(stratum_sim::Interact {});
+        bool threw = false;
+
+        try
+        {
+            stratum_sim::EventQueue events;
+            failing_session.advance(events);
+        }
+        catch (const runtime_error&)
+        {
+            threw = true;
+        }
+
+        report_case("interacting with a relocator whose target is not resolved is an error that passes out of advance, and nothing moves",
+            threw && stratum_sim::zone_of(failing_session.character().entity()) == unmoved);
 
         return;
     }
@@ -2678,16 +2757,20 @@ namespace
 
         // Zones created through the registries
         flecs::entity counted = world.create_region(suite_region_spec("staircase"));
-        world.create_zone(counted, suite_zone_spec(-1));
-        world.load_zone(counted, "data/door.zone");
-        report_case_equal("a region counts the zones created in it, generated or loaded", counted.get<stratum_sim::Region>().zone_count, 2);
+        flecs::entity counted_generated = world.create_zone(counted, suite_zone_spec(-1));
+        flecs::entity counted_loaded = world.load_zone(counted, "data/door.zone");
+        report_case("a region lists the zones created in it, generated or loaded, in order", counted.get<stratum_sim::Region>().zone_ids
+            == vector<stratum_sim::PersistentId> {counted_generated.get<stratum_sim::PersistentId>(), counted_loaded.get<stratum_sim::PersistentId>()});
 
-        // data/saved.zone is a saved zone, counted when it was created
+        // data/saved.zone is a saved zone, listed when it was created
         flecs::entity saved = world.load_zone(counted, "data/saved.zone");
         world.unload_zone(saved);
         flecs::entity saved_again = world.load_zone(counted, "data/saved.zone");
-        report_case("a saved zone read back is not counted, however often it is loaded after unloading", saved_again.is_alive()
-            && saved_again.get<stratum_sim::PersistentId>() == stratum_sim::PersistentId {900} && counted.get<stratum_sim::Region>().zone_count == 2);
+        bool saved_unpopulated = true;
+        world.entities().each([&](flecs::entity e, const stratum_sim::Pursue&) { saved_unpopulated = saved_unpopulated && stratum_sim::zone_of(e) != saved_again; });
+        report_case("a saved zone read back is not listed again, however often it is loaded after unloading", saved_again.is_alive()
+            && saved_again.get<stratum_sim::PersistentId>() == stratum_sim::PersistentId {900} && counted.get<stratum_sim::Region>().zone_ids.size() == 2);
+        report_case("and is not populated", saved_unpopulated);
         world.unload_zone(saved_again);
 
         flecs::entity leaving = world.create_region(suite_region_spec("next_region"));
@@ -2696,7 +2779,7 @@ namespace
         const stratum_sim::Region& begun_region_data = begun_region.get<stratum_sim::Region>();
         report_case("a selection of a new region makes the zone the first of a region created from the region spec",
             begun_region != leaving && begun_region_data.region_spec.value(stratum_sim::generator_selector_key) == "staircase"
-            && begun_region_data.zone_count == 1 && leaving.get<stratum_sim::Region>().zone_count == 0
+            && begun_region_data.zone_ids.size() == 1 && leaving.get<stratum_sim::Region>().zone_ids.empty()
             && begun.get<stratum_sim::ZoneLevel>().level == -1);
 
         auto throws_runtime_error = [](auto f)

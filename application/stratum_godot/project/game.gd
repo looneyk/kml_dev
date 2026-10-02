@@ -135,6 +135,11 @@ func _new_game() -> void:
 
 
 func _refresh() -> void:
+	# A game that fails during play is quit
+	if not _world.has_game():
+		_show_menu("The game ended in an error; Godot's error list has the reason")
+		return
+
 	# The player may have entered a zone of another size
 	var extent := _world.extent()
 	if extent != _extent:

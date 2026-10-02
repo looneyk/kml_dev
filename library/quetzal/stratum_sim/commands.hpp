@@ -70,18 +70,16 @@ namespace quetzal::stratum_sim
     };
 
     //--------------------------------------------------------------------------
-    // The effect of an Interact: Nothing for a bare wall or for anything it has no effect on, and NoDestination for a
-    // relocator that leads nowhere the world can resolve
+    // The effect of an Interact: Nothing for a bare wall or for anything it has no effect on
     enum class Interaction
     {
         Nothing,
         Opened,
-        Closed,
-        NoDestination
+        Closed
     };
 
     //--------------------------------------------------------------------------
-    // The entity acted on is the way through or the relocator on the wall, or nullid if there is neither
+    // The entity acted on is the way through on the wall, or nullid if there is none
     struct Interacted
     {
         id_type entity_id = nullid;

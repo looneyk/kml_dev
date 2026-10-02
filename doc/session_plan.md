@@ -31,8 +31,8 @@ in `work_plan.md` (`### Session`).
 
 ```cpp
 void World::clear();
-flecs::entity World::create(const RegionSpec& region_spec, const std::filesystem::path& working_directory);
-void World::open(const std::filesystem::path& working_directory);
+flecs::entity World::create(const RegionSpec& region_spec, const std::filesystem::path& game_directory);
+void World::open(const std::filesystem::path& game_directory);
 void World::save(std::string_view directory);
 void World::save_zone(flecs::entity zone);
 flecs::entity World::create_region_zone(const RegionSpec& region_spec, const ZoneSpec& zone_spec);
@@ -45,9 +45,10 @@ void World::trim_zones(flecs::entity zone_entered);
 - **`clear()`** unloads every region, which deletes its zones, and empties the world index and the `ZoneEntryIndex`.
   The registrations remain: the file components, the entity types, the access point types, and the registries that
   `World` takes from `Game`, which are the program's and, later, its mods'.
-- **`create(region_spec, working_directory)`** creates a new game's starting region and its first zone from a
+- **`create(region_spec, game_directory)`** creates a new game's starting region and its first zone from a
   `RegionSpec`, and returns the zone's entry point for the spec's `entry_access`. Each game has its own starting region.
-  The working directory is the game's, which zones are saved into; `open` takes it too, and `clear` removes it.
+  The game directory is the game's directory in the working directory, which zones are saved into; `open` takes it too,
+  and `clear` removes it.
 - **A `RegionSpec` is a request to create a region,** not the region, and a `ZoneSpec` a request to create a zone.
   Both are a `KeyValueStore` (`archived/key_value_store_plan.md`). `world_generation_plan.md` describes what they
   contain and how a region and its zones are created from them. A key that is not read, or a value that does not
@@ -55,7 +56,7 @@ void World::trim_zones(flecs::entity zone_entered);
 - **`open(directory)`** reads the game's `world.json`: its regions, with their specs and components, and the reference
   to each zone's file. It loads no zone; each loads as it is entered.
 - **`save(directory)`** writes `world.json` and the file of every loaded zone into the directory.
-- **`save_zone(zone)`** writes one zone's file into the game's working directory. The zone's unloading calls it, and so
+- **`save_zone(zone)`** writes one zone's file into the game directory. The zone's unloading calls it, and so
   does every save of the game, explicit, quick or auto, for each loaded zone. Leaving a zone does not save it.
 - **`create_region_zone(region_spec, zone_spec)`** creates a region and its first zone, and returns the zone; it is how
   every region is created. **`create_zone(region, zone_spec)`** creates a zone in the region: the region's generator
@@ -205,18 +206,18 @@ Character& Game::character();
   first, so the game in progress ends once the player has chosen, after a confirmation if the host asks for one. A
   failure leaves no game in progress; the host reports it and returns to the menu.
 - **`create`** clears, resets the id allocator and reseeds the engines, so no state passes from one game to the next.
-  It creates the game's working directory, named by `name`, throwing if a game of that name exists in the working or
-  the saves directory, then has the character created from the
+  It creates the game directory, named by `name`, in the working directory, throwing if a game of that name exists in
+  the working or the saves directory, then has the character created from the
   `CharacterSpec`, and the world's starting region and its first zone from the `RegionSpec`, and starts the session at
   the access point `World::create` returns. The host passes only the name and the specs. Until a new game chooses its
   region, each host passes temporary ones.
-- **`open(directory)`** clears, replaces the game's working directory with a copy of its saved directory, reads
+- **`open(directory)`** clears, replaces the game directory with a copy of its saved directory, reads
   `game.json` from it, restoring the id allocator's count and the engines' state, has the world and then the character
   open their files, and starts the session in the zone the character is in, which loads from its file.
 - **`save(directory)`** is the menu's save of the whole game, and a quick save or an auto save is the same. It writes
-  `game.json`, with the game's state, into the working directory, has the character and the world save theirs there,
-  the world saving every loaded zone, and then copies the working directory to the saves directory, replacing the
-  game's saved directory.
+  `game.json`, with the game's state, into the game directory, has the character and the world save theirs there,
+  the world saving every loaded zone, and then copies the game directory to the saves directory, replacing the game's
+  saved directory.
 - **`quit`** is called by the host when the player chooses to quit. It clears the game and returns, and the host
   continues with its termination.
 - **A suite plays a game, clears it, and creates another,** and checks that the world then contains only the new game's
@@ -233,10 +234,10 @@ Character& Game::character();
 - **A game is a directory in the working directory while it is played, and in the saves directory once saved,** under
   the same name (`game_file_spec.md`, `## A saved game's files`). A host names a new game by the time it began, in ISO
   8601 basic format, until a player names a game.
-- **`World::save_zone` writes a zone's file into the working directory when the zone unloads,** which then frees its
+- **`World::save_zone` writes a zone's file into the game directory when the zone unloads,** which then frees its
   resources, and for every loaded zone when the game is saved, explicitly, by a quick save, or by an auto save. Leaving
-  a zone does not write it. Entering a zone that is not loaded reads its file from the working directory.
-- **A saved game is one consistent point.** Saving copies the whole working directory, so every file in the saved game
+  a zone does not write it. Entering a zone that is not loaded reads its file from the game directory.
+- **A saved game is one consistent point.** Saving copies the whole game directory, so every file in the saved game
   is from the moment of the save. Opening starts from that copy, so a zone that unloaded after the last save, and was
   not saved since, is discarded, and quitting without saving loses everything since the last save.
 - **The character's intent and pending command are not saved.** A loaded character starts with neither, so it never

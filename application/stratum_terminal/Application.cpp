@@ -133,7 +133,21 @@ int stratum_terminal::Application::run()
             continue;
         }
 
-        id_type actor_id = m_session.advance(events);
+        id_type actor_id = nullid;
+
+        // A game that fails during play cannot continue, so it is quit
+        try
+        {
+            actor_id = m_session.advance(events);
+        }
+        catch (const std::exception& e)
+        {
+            m_game.quit();
+            events.clear();
+            m_message = std::format("The game ended in an error: {}", e.what());
+            m_menu_open = true;
+            continue;
+        }
 
         report(events);
         events.clear();
@@ -399,13 +413,6 @@ void stratum_terminal::Application::report(const quetzal::stratum_sim::EventQueu
         }
         else if (const stratum_sim::Interacted* pinteracted = event.try_get<stratum_sim::Interacted>())
         {
-            if (pinteracted->interaction == stratum_sim::Interaction::NoDestination)
-            {
-                std::string name = stratum_sim::access_type_name(m_session.world().entities().entity(pinteracted->acted_on_id));
-                m_message = std::format("You try the {}, but it leads nowhere.", name.empty() ? "way" : name);
-                continue;
-            }
-
             m_message = pinteracted->interaction == stratum_sim::Interaction::Opened ? "The door opens."
                 : pinteracted->interaction == stratum_sim::Interaction::Closed ? "The door shuts."
                 : std::format("Nothing happens at wall {}.", pinteracted->wall_id);

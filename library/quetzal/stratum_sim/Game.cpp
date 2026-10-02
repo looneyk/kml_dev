@@ -70,9 +70,9 @@ void quetzal::stratum_sim::Game::create(std::string_view name, const RegionSpec&
         throw std::runtime_error(std::format("a game named '{}' already exists in {}", name, m_config.saves_directory.string()));
     }
 
-    std::filesystem::path working_directory = m_config.working_directory / name;
+    std::filesystem::path game_directory = m_config.working_directory / name;
 
-    if (!std::filesystem::create_directories(working_directory))
+    if (!std::filesystem::create_directories(game_directory))
     {
         throw std::runtime_error(std::format("a game named '{}' already exists in {}", name, m_config.working_directory.string()));
     }
@@ -80,12 +80,12 @@ void quetzal::stratum_sim::Game::create(std::string_view name, const RegionSpec&
     try
     {
         m_character.create(character_spec);
-        m_session.start(m_world.create(region_spec, working_directory));
+        m_session.start(m_world.create(region_spec, game_directory));
     }
     catch (...)
     {
         clear();
-        std::filesystem::remove_all(working_directory);
+        std::filesystem::remove_all(game_directory);
         throw;
     }
 

@@ -18,17 +18,12 @@ namespace
     constexpr bool enter_relocator_by_moving = false;
 
     //--------------------------------------------------------------------------
-    // Returns the cost, zero if the relocator leads nowhere the world can resolve
     int relocate_through(quetzal::stratum_sim::World& world, flecs::entity actor, flecs::entity relocator,
         quetzal::stratum_sim::EventQueue& events)
     {
         using namespace quetzal::stratum_sim;
 
         flecs::entity arrival = world.relocate_through(actor, relocator);
-        if (!arrival)
-        {
-            return 0;
-        }
 
         events.push(Relocated {static_cast<quetzal::id_type>(actor.id()), static_cast<quetzal::id_type>(relocator.id()),
             static_cast<quetzal::id_type>(arrival.id())});
@@ -90,10 +85,7 @@ int quetzal::stratum_sim::apply(World& world, const Command& command, EventQueue
 
             if (relocator && can_enter(relocator, e))
             {
-                if (int cost = relocate_through(world, e, relocator, events); cost > 0)
-                {
-                    return cost;
-                }
+                return relocate_through(world, e, relocator, events);
             }
         }
 
@@ -140,13 +132,7 @@ int quetzal::stratum_sim::apply(World& world, const Command& command, EventQueue
         flecs::entity relocator = e.has<ControlledActor>() ? find_relocator(zone, WallAddress {wall_id}) : flecs::entity();
         if (relocator && can_enter(relocator, e))
         {
-            if (int cost = relocate_through(world, e, relocator, events); cost > 0)
-            {
-                return cost;
-            }
-
-            events.push(Interacted {command.entity_id(), wall_id, Interaction::NoDestination, static_cast<id_type>(relocator.id())});
-            return Scheduler::action_cost;
+            return relocate_through(world, e, relocator, events);
         }
 
         Interaction interaction = Interaction::Nothing;

@@ -81,7 +81,8 @@ The entities:
 //     Region tag
 //     PersistentId
 //     RegionSpec           its own copy, which every later zone of the region is created from
-//     zone count           the number of zones created in it, loaded or not, which its selector reads; not saved
+//     zone ids             the zones created in it, loaded or not, whose number is the zone count its selector reads;
+//                          not saved apart from world.json's list of its zones
 //     metadata components  built from the spec's metadata: name, type, difficulty, ...
 
 // Zone entity, a child of its region
@@ -117,15 +118,15 @@ The entities:
 void Game::create(std::string_view name, const RegionSpec& region_spec, const CharacterSpec& character_spec)
 {
     clear();
-    // reset the id allocator, reseed the engines, create the game's working directory
+    // reset the id allocator, reseed the engines, create the game directory in the working directory
     m_character.create(character_spec);
-    flecs::entity access_point = m_world.create(region_spec, working_directory);
+    flecs::entity access_point = m_world.create(region_spec, game_directory);
     m_session.start(access_point);
 }
 
-flecs::entity World::create(const RegionSpec& region_spec, const std::filesystem::path& working_directory)
+flecs::entity World::create(const RegionSpec& region_spec, const std::filesystem::path& game_directory)
 {
-    // keep working_directory, which zones are saved into
+    // keep game_directory, which zones are saved into
     ZoneSpec zone_spec = select_prefixed(region_spec, "zone.");
     flecs::entity zone = create_region_zone(region_spec, zone_spec);
     auto [type_name, offset] = the type and level offset parsed from region_spec's entry_access;
@@ -201,7 +202,7 @@ flecs::entity World::create_zone(flecs::entity region, const ZoneSpec& zone_spec
     // check the document with build_error before creating anything
 
     flecs::entity zone = create the zone in the region, with a new PersistentId and the ZoneLevel of zone_spec;
-    increment the region's zone count;
+    add the zone's id to the region's zone ids;
     load_layout(zone, document);
     populate(zone);
     return zone;

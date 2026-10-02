@@ -238,9 +238,10 @@ game, owned by `Game`, and it cannot be copied or moved.
 
 A region groups contiguous zones: a surface area, a dungeon, a crypt, a tower or a house (`region_plan.md`). It is an
 entity with a `Region` component and a `PersistentId`, and it is the parent of its zones. It has no parent of its own.
-`Region` has the region's `RegionSpec` and `zone_count`, the number of zones created in
-it, which counts zones that have since unloaded. A zone is counted when it is generated, loaded from a template, or
-created with a layout. A saved zone read back was counted when it was created, so it is not counted again. `create_region(region_spec)` makes one
+`Region` has the region's `RegionSpec` and `zone_ids`, the persistent id of each zone created in it, in the order they
+were created, loaded or not, so its size is the region's zone count. A zone is listed when it is generated, loaded from
+a template, or created with a layout. A saved zone read back was listed when it was created, so it is not listed again,
+and it is how `World` finds the region to read an unloaded zone back into. `create_region(region_spec)` makes one
 with the spec. `create_region_zone(region_spec, zone_spec)` makes a region, then its
 first zone with `create_zone`, and returns the zone.
 `region_of(zone)` returns a zone's region, its parent. `zone_of` is unchanged by the regions above a zone: it returns a
@@ -269,8 +270,8 @@ from the file's `level`, and a zone whose file has none has no `ZoneLevel`.
 
 `resolve_relocator_target(relocator)` returns the access point at which an actor arrives through a relocator whose
 unbound target is a level with no position: relative, `+`*k* or `-`*k*, or absolute, `=`*n*. The relocator's zone must
-have a level, *L*; a named zone and a position are not resolved. The target level is *L* + *k*, or *n*, which is *k*
-levels from *L*.
+have a level, *L*. A target with a named zone or a position throws `std::runtime_error`. The target level is *L* + *k*,
+or *n*, which is *k* levels from *L*.
 
 A target with a region creates a new region with `create_region_zone`, from the region spec of that name and a
 `ZoneSpec` of the target level, without searching the loaded zones. A region spec that is not registered throws `std::runtime_error`.
@@ -281,24 +282,30 @@ whose relocator targets level *L*, -*k* levels from its own zone (`targets_reloc
 one in the zone with the lowest persistent id, and then with the lowest order. If none is found, it makes a zone in the
 relocator's region with `create_zone(region, zone_spec)`, with a `ZoneSpec` of the target level.
 
-It returns the new zone's `entry_point` for the arrival type and the offset -*k*, the access point that leads back, or
-a null entity if the new zone has no such access point. It binds nothing.
+It returns the new zone's `entry_point` for the arrival type and the offset -*k*, the access point that leads back. If
+the new zone has no such access point, it discards the zone, and the new region if one was created for it, and throws
+`std::runtime_error`; a discarded zone is no longer listed in its region, and the world index no longer has its
+entities. It binds nothing.
 
 `relocate_through(actor, relocator)` moves the actor through the relocator and returns the access point it arrives at.
-A bound target is resolved to the relocator it refers to. An unbound target is resolved by `resolve_relocator_target`,
-and the relocator and the access point arrived at are then bound to each other, each target becoming an
-`EntityReference` to the other, so going back arrives at the relocator gone through, and `entry_point` no longer
-chooses either. The actor is relocated to the access point's zone, at its `placement`. It returns a null entity and
-moves nothing if a bound target's relocator is not loaded, or an unbound target has a named zone or a position, or
-resolves to nothing.
+A bound target is resolved to the relocator it refers to; if that relocator's zone has unloaded, the zone is read back
+first with `load_saved_zone`, the world index having the zone of every entity something refers to. A world with no game
+directory cannot read it back and throws `std::runtime_error`. An unbound target is resolved by
+`resolve_relocator_target`, and the relocator and the access point arrived at are then bound to each other, each target
+becoming an `EntityReference` to the other, so going back arrives at the relocator gone through, and `entry_point` no
+longer chooses either. The actor is relocated to the access point's zone, at its `placement`. Whatever it throws, it
+moves nothing.
 
 `World` takes the game's random engine by reference in its constructor, as it takes the id allocator: a `random_type`,
 `math::Random<>`, which `Game` owns.
 
 `load_zone(region, filepath)` reads the file and builds the zone from its document, which it checks with `build_error` before making the zone. The zone has the file's persistent id if the file has
-a `zone` section, and a new one otherwise. `load_zone` then has `load_layout` fill the zone and populates it. It throws
-`std::runtime_error`, having made nothing, if the reader rejects the file, `build_error` finds a reason, or the file is
-a saved zone that is already loaded; a template makes a new zone each time it is loaded. `World` handles no doors itself, and neither function unloads anything.
+a `zone` section, and a new one otherwise. `load_zone` then has `load_layout` fill the zone and populates it, unless it
+is a saved zone, whose denizens are its entities. It throws `std::runtime_error`, having made nothing, if the reader
+rejects the file, `build_error` finds a reason, or the file is a saved zone that is already loaded; a template makes a
+new zone each time it is loaded. `load_saved_zone(zone_id)` reads a zone of the game that has unloaded back from the
+game directory's `zones/<persistent id>.zone`, into the region whose `zone_ids` lists it, and throws
+`std::runtime_error` if no region lists it. `World` handles no doors itself, and neither function unloads anything.
 
 `populate(zone)` places the zone's denizens: one pursuer at the last open cell in reverse row order, facing west,
 `Blocking`, with a `Speed` and a `Pursue` that has no target.
@@ -309,14 +316,15 @@ a saved zone that is already loaded; a template makes a new zone each time it is
 zone that has begun unloading is excluded, even if flecs has deferred its deletion.
 
 `trim_zones(zone_entered)` has the world's `ZoneEntryIndex` mark `zone_entered` as the most recently entered zone and
-choose the zones to unload, then saves each, if the world has a working directory, and unloads it. `zone_count_max`, a
+choose the zones to unload, then saves each, if the world has a game directory, and unloads it. `zone_count_max`, a
 constructor argument, is the maximum number of zones the world trims to, and `set_zone_count_max` changes it. `Game`
 passes its config's `zone_count_max`.
 
-A world has the game's working directory from `create(region_spec, working_directory)` or `open(working_directory)`
-until `clear`. It has none while no game is in progress, and a world that is part of no game, as a suite's is, has none
-at all, so it saves nothing. `save_zone(zone)` writes the zone's `make_document` to `zones/<persistent id>.zone` in the working
-directory, creating `zones` if it is absent; it requires a working directory and a zone built from a document. Leaving a
+A world has the game directory, the game's directory in the config's working directory, from
+`create(region_spec, game_directory)` or `open(game_directory)` until `clear`. It has none while no game is in progress,
+and a world that is part of no game, as a suite's is, has none at all, so it saves nothing. `save_zone(zone)` writes the
+zone's `make_document` to `zones/<persistent id>.zone` in the game directory, creating `zones` if it is absent; it
+requires a game directory and a zone built from a document. Leaving a
 zone does not save it, and neither does `unload_zone` nor `unload_region`, which discard what they unload, as clearing a
 game does (`game_file_spec.md`, `## A saved game's files`).
 
@@ -500,8 +508,8 @@ actor crosses a wall as it perceives the entities on it.
 
 `Interact` opens the access of the way through on the wall ahead if it is closed, or closes it if it is open, and
 reports `Interaction::Opened`, `Closed` or `Nothing`. A locked way through stays locked. If the wall ahead has a
-relocator on it that the controlled actor `can_enter`, `Interact` goes through it instead, and reports `Interaction::NoDestination` if it leads nowhere the world can resolve. `Interacted` has the entity acted
-on, the way through or the relocator, and `access_type_name(e)` returns the name of an access point's type, such as
+relocator on it that the controlled actor `can_enter`, `Interact` goes through it instead. `Interacted` has the entity acted
+on, the way through, and `access_type_name(e)` returns the name of an access point's type, such as
 `staircase`, for the hosts' messages.
 
 `find_relocator(zone, address)` returns an entity with a `Relocator` sited on a wall or a flat cell, found through
@@ -599,10 +607,10 @@ character, region or zone; until a game is created, there is none.
 
 `Game::create(name, region_spec, character_spec)` clears, resets the id allocator to count from zero, and reseeds the
 engine from `std::random_device`, so nothing passes from one game to the next. It throws `std::runtime_error` if a game
-named `name` is in the saves directory or the working directory, and otherwise creates the game's working directory,
-`name` in the config's working directory. It has the character created from the `CharacterSpec`, and the world's
-starting region and its first zone from the `RegionSpec` with `World::create(region_spec, working_directory)`, and
-starts the session at the entry point `World::create` returns. If either throws, it clears again and removes the working directory before
+named `name` is in the saves directory or the working directory, and otherwise creates the game directory, `name` in
+the config's working directory. It has the character created from the `CharacterSpec`, and the world's starting region
+and its first zone from the `RegionSpec` with `World::create(region_spec, game_directory)`, and starts the session at
+the entry point `World::create` returns. If either throws, it clears again and removes the game directory before
 passing the exception on, so a failure leaves no game in progress.
 
 `World::create(region_spec)` reads the spec's `entry_access`: a registered access point type, a comma, and a level
@@ -883,7 +891,8 @@ which is offered only while there is one, and `q` to quit, which clears the game
 also continues. A new game is created from the host's temporary specs, and a failure to create one is shown on the
 menu's status line. During play, Escape opens the menu, through `Game::menu_open`, and no other key quits. When the
 character dies, the map stays with "You have died." on the status line until a key is pressed, and the host then quits
-the game and opens the menu.
+the game and opens the menu. A game whose `advance` throws cannot continue, so the host quits it and opens the menu,
+with the reason on its status line.
 
 The loop advances the session to the actor it is waiting on, draws, reads a key, and submits it: movement and facing
 direction as the actor's intent, and a one-shot action as a command. Arrows or `hjkl` move, space interacts, `.`
@@ -909,12 +918,13 @@ interface: `create_game`, `has_game`, `game_over`, `menu_open`, `menu_close`, `q
 `enter`, `turn`, and `message`. `step` sets the character's intent, turning toward the direction moved as the view does not show the
 facing direction, and advances through the turn-based driver; `interact` submits `Interact` and `enter` submits
 `Enter`, and each advances. `message` returns what the last of them did that the map does not show, such as a door
-opening, a staircase before the character or leading nowhere, or the level arrived on, and the tile view shows it in its status line. A step ends with the next turn already granted,
+opening, a staircase before the character, or the level arrived on, and the tile view shows it in its status line. A step ends with the next turn already granted,
 so `turn` is the turn awaiting input. `create_game` creates a new game as the terminal host does, `has_game` returns true
 while one is in progress, `game_over` returns true once the character is dead, and `message` then reports the death,
 `menu_open` and `menu_close` pause and resume play, and `quit_game` ends the game in progress.
 Exceptions do not cross into Godot: a failed creation pushes the reason to Godot's error list and returns false, and
-leaves no game in progress.
+leaves no game in progress, and a game whose `advance` throws during `step`, `interact` or `enter` pushes the reason and
+is quit, as it cannot continue.
 
 `cells` is one code per cell from `stratum_view::cells`, row major from row zero; its `PlaceType` constants repeat
 `stratum_view::PlaceType` for Godot, followed by `PlaceTypeDoorOpen` for a door whose access is open. `actors` is one
@@ -930,7 +940,8 @@ downward in Godot, so the view inverts j when it paints.
 The tile view starts at its menu, a dark screen over the view with the same choices and keys as the terminal host's:
 `N` for a new game, `C` or Escape to continue the game in progress, and `Q` to quit the game and Godot. During play,
 Escape opens the menu, and no other key quits. When `game_over` returns true, the status line asks for a key, which
-quits the game and shows the menu. `-- --new-game` on Godot's command line starts a new game without showing the menu.
+quits the game and shows the menu. A game quit because it failed shows the menu with a message referring to Godot's
+error list. `-- --new-game` on Godot's command line starts a new game without showing the menu.
 
 `quetzal_godot` provides what any Godot host needs: `gdextension.cmake` and its `quetzal_configure_gdextension`, which
 names the library as Godot expects and writes it into the project rather than a per-configuration subdirectory.
