@@ -9,6 +9,7 @@
 
 namespace quetzal::stratum_format
 {
+    struct CharacterDocument;
     struct Document;
 }
 
@@ -24,6 +25,10 @@ namespace quetzal::stratum_sim
     // Returns a loaded zone as a saved zone's document with its geometry rebuilt from the zone's layout, for a zone that has
     // no ZoneDocument
     stratum_format::Document rebuild_document(flecs::entity zone);
+
+    // Returns the player's character as a character file's document: its own file components, its zone, its cell and
+    // orientation there, and every entity in its subtree, in persistent id order, as its inventory
+    stratum_format::CharacterDocument make_character_document(flecs::entity character);
 
 } // namespace quetzal::stratum_sim
 

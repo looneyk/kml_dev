@@ -44,15 +44,24 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // A new game is named by the local time it began, in ISO 8601 basic format, until a player names a game. A second
-    // game begun in the same second has a suffix
+    // Temporary, until a new game creates its character: a character with only a name
+    sim::CharacterSpec temporary_character_spec()
+    {
+        sim::CharacterSpec character_spec;
+        character_spec.name = "Adventurer";
+        return character_spec;
+    }
+
+    //--------------------------------------------------------------------------
+    // A new game's directory is named by the local time it began, in ISO 8601 basic format, an identifier and nothing
+    // more. A second game begun in the same second has a suffix
     std::string new_game_name(const sim::Config& config)
     {
         const std::string time = std::format("{:%Y%m%dT%H%M%S}", std::chrono::zoned_time(std::chrono::current_zone(),
             std::chrono::floor<std::chrono::seconds>(std::chrono::system_clock::now())));
         std::string name = time;
 
-        for (int suffix = 2; std::filesystem::exists(config.saves_directory / name) || std::filesystem::exists(config.working_directory / name); ++suffix)
+        for (int suffix = 2; std::filesystem::exists(config.working_directory / name); ++suffix)
         {
             name = std::format("{}-{}", time, suffix);
         }
@@ -119,6 +128,7 @@ void StratumWorld::_bind_methods()
     godot::ClassDB::bind_method(godot::D_METHOD("menu_open"), &StratumWorld::menu_open);
     godot::ClassDB::bind_method(godot::D_METHOD("menu_close"), &StratumWorld::menu_close);
     godot::ClassDB::bind_method(godot::D_METHOD("quit_game"), &StratumWorld::quit_game);
+    godot::ClassDB::bind_method(godot::D_METHOD("save_game"), &StratumWorld::save_game);
 
     return;
 }
@@ -129,7 +139,7 @@ bool StratumWorld::create_game()
     // Exceptions must not cross into Godot. A failed creation leaves no game in progress
     try
     {
-        m_game.create(new_game_name(m_game.config()), temporary_region_spec(), sim::CharacterSpec {});
+        m_game.create(new_game_name(m_game.config()), temporary_region_spec(), temporary_character_spec());
     }
     catch (const std::exception& e)
     {
@@ -172,6 +182,21 @@ void StratumWorld::quit_game()
 {
     m_game.quit();
     return;
+}
+
+//------------------------------------------------------------------------------
+godot::String StratumWorld::save_game()
+{
+    // Exceptions must not cross into Godot
+    try
+    {
+        return godot::String::utf8(m_game.save(sim::SaveType::Explicit).c_str());
+    }
+    catch (const std::exception& e)
+    {
+        godot::UtilityFunctions::push_error("unable to save the game: ", godot::String::utf8(e.what()));
+        return {};
+    }
 }
 
 //------------------------------------------------------------------------------

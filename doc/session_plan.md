@@ -187,7 +187,7 @@ void Game::menu_close();
 void Game::clear();
 void Game::create(std::string_view name, const RegionSpec& region_spec, const CharacterSpec& character_spec);
 void Game::open(std::string_view directory);
-void Game::save(std::string_view directory);
+std::string Game::save(SaveType save_type);
 void Game::quit();
 std::vector<std::string> Game::saved_games();
 Session& Game::session();
@@ -211,13 +211,14 @@ Character& Game::character();
   `CharacterSpec`, and the world's starting region and its first zone from the `RegionSpec`, and starts the session at
   the access point `World::create` returns. The host passes only the name and the specs. Until a new game chooses its
   region, each host passes temporary ones.
-- **`open(directory)`** clears, replaces the game directory with a copy of its saved directory, reads
+- **`open(directory)`** clears, replaces the game directory with a copy of the save, reads
   `game.json` from it, restoring the id allocator's count and the engines' state, has the world and then the character
   open their files, and starts the session in the zone the character is in, which loads from its file.
-- **`save(directory)`** is the menu's save of the whole game, and a quick save or an auto save is the same. It writes
-  `game.json`, with the game's state, into the game directory, has the character and the world save theirs there,
-  the world saving every loaded zone, and then copies the game directory to the saves directory, replacing the game's
-  saved directory.
+- **`save(save_type)`** is the menu's save of the whole game, and a quick save or an auto save is the same, with its
+  `SaveType`. It writes `game.json`, with the game's state, into the game directory, has the character and the world
+  save theirs there, the world saving every loaded zone, and then copies the game directory to a new save directory in
+  the saves directory, `<character name>_<save time>`, the name the character's own, with `_autosave` or `_quicksave`
+  appended for those types. A game whose character is dead cannot be saved.
 - **`quit`** is called by the host when the player chooses to quit. It clears the game and returns, and the host
   continues with its termination.
 - **A suite plays a game, clears it, and creates another,** and checks that the world then contains only the new game's
@@ -231,9 +232,9 @@ Character& Game::character();
 
 ### Saving and loading
 
-- **A game is a directory in the working directory while it is played, and in the saves directory once saved,** under
-  the same name (`game_file_spec.md`, `## A saved game's files`). A host names a new game by the time it began, in ISO
-  8601 basic format, until a player names a game.
+- **A game is a directory in the working directory while it is played, and each save of it a directory in the saves
+  directory,** named by the character's name and the time of the save (`game_file_spec.md`, `## A saved game's files`).
+  The game directory's name is an identifier the host passes to `create`, and nothing more.
 - **`World::save_zone` writes a zone's file into the game directory when the zone unloads,** which then frees its
   resources, and for every loaded zone when the game is saved, explicitly, by a quick save, or by an auto save. Leaving
   a zone does not write it. Entering a zone that is not loaded reads its file from the game directory.

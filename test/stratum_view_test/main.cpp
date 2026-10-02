@@ -5,7 +5,7 @@
 
 #include "quetzal/common/FileValidator.hpp"
 #include "quetzal/stratum_format/grid.hpp"
-#include "quetzal/stratum_format/read.hpp"
+#include "quetzal/stratum_format/read_zone.hpp"
 #include "quetzal/stratum_format/RelocatorTarget.hpp"
 #include "quetzal/stratum_sim/attachments.hpp"
 #include "quetzal/stratum_sim/commands.hpp"

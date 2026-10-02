@@ -73,13 +73,20 @@ each on the ones before it. `Game`'s menu and lifecycle functions, and those the
       resources. Leaving a zone does not save it; every save of the game, explicit, quick or auto, saves each loaded zone.
 - [x] **Saved zones read back:** entering a zone that is not loaded reads its file into its region, which lists its zone
       ids in place of its zone count, and a saved zone is not populated again.
-- [ ] **A game saved** (`game_file_spec.md`): `Game::save` writing `game.json`, `Character::save` writing
-      `character.json`, and `World::save` writing `world.json` and every loaded zone, all into the game directory,
-      which is then copied to the saves directory; and the hosts' menu offering it.
-- [ ] **A game loaded:** `Game::open` replacing the game directory with a copy of its saved directory, then
+- [x] **A game saved** (`game_file_spec.md`), in three commit points:
+  - [x] **The game files' documents:** `GameDocument`, `CharacterDocument` and `WorldDocument` in `stratum_format`,
+        each with a `write` producing its written form.
+  - [x] **Saving:** `Game::save` writing `game.json`, `Character::save` writing `character.json`, and `World::save`
+        writing `world.json` and every loaded zone, all into the game directory, which is then copied to a new save
+        directory, `<character name>_<save time>`.
+  - [x] **The hosts' menu offering it.**
+- [ ] **A game loaded:** `Game::open` replacing the game directory with a copy of a save, then
       reading `game.json`, with `World::open` and `Character::open` reading theirs, each region's zone ids set from its
       zones in `world.json`, the session starting in the zone the character is in, and `saved_games`; and the hosts' menu
       offering them.
+- [ ] **A game removed:** `Game::remove` deleting a save's directory from the saves directory, after checking that it
+      is a save there; and the hosts' menu offering it from the list `saved_games` returns. It should be an option when
+      showing the saved games list after selecting the Open/Load menu option.
 
 ## Lifecycle
 
@@ -129,7 +136,7 @@ each on the ones before it. `Game`'s menu and lifecycle functions, and those the
 - [ ] **Generation runs as objects** (`random_engine.md`, `## Ownership`): dungen's and catagen's runs, each owning its
       engine, seeded from the zone's seed, with the reference files regenerated. It comes with **the generators
       integrated**.
-- [ ] **The engines' state saved** (`random_engine.md`, `## Saving`), with **a game saved**.
+- [ ] **The engines' state restored** (`random_engine.md`, `## Saving`), with **A game loaded**.
 
 ## Regions
 
@@ -310,9 +317,9 @@ These are the open questions.
 - **The format's identifier,** `quetzal.stratum_game`, and the file names, `game.json` and the rest, for now.
 - **The character's components:** its description, attributes, and skills.
 - **Save tracks.** Auto saves and quick saves are each a track of their own, separate from the player's explicit saves,
-  so a game has three saved directories: one per track, each a copy of the game directory (`game_file_spec.md`,
-  `## A saved game's files`). The explicit track may later retain a set number of saves instead of one. This comes
-  much later; until then a game has the one saved directory of its explicit saves.
+  each save a copy of the game directory (`game_file_spec.md`, `## A saved game's files`). An explicit save is always a
+  new save directory; an auto or quick save may replace the previous one in its track. This comes much later; until
+  then a game has only explicit saves.
 
 ### Intent
 

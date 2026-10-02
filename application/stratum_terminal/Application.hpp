@@ -47,13 +47,16 @@ namespace stratum_terminal
         // True once a script has played its last key, which ends the run
         bool script_exhausted() const;
 
-        // Draws the menu, reads a key, and acts on it: a new game, continuing the game in progress, or quitting
+        // Draws the menu, reads a key, and acts on it: a new game, continuing or saving the game in progress, or quitting
         void run_menu();
 
         void draw_menu();
 
         // Creates a new game and closes the menu, or keeps the menu open with the reason the game could not be created
         void create_game();
+
+        // Saves the game in progress, and reports the save's name, or the reason it was not saved, on the menu
+        void save_game();
 
         void draw(const std::string& help);
 

@@ -3,10 +3,13 @@
 // main.cpp
 //------------------------------------------------------------------------------
 
-#include "quetzal/stratum_format/read.hpp"
+#include "quetzal/stratum_format/read_zone.hpp"
 #include "quetzal/stratum_format/references.hpp"
 #include "quetzal/stratum_format/RelocatorTarget.hpp"
-#include "quetzal/stratum_format/write.hpp"
+#include "quetzal/stratum_format/write_character.hpp"
+#include "quetzal/stratum_format/write_game.hpp"
+#include "quetzal/stratum_format/write_world.hpp"
+#include "quetzal/stratum_format/write_zone.hpp"
 #include <nlohmann/json.hpp>
 #include <filesystem>
 #include <format>
@@ -1056,6 +1059,140 @@ namespace
         return;
     }
 
+    //--------------------------------------------------------------------------
+    // Each game file document written to a stream is identical to its written form
+    void test_game_files()
+    {
+        report_group("game files");
+
+        auto written = [](const auto& document)
+        {
+            ostringstream os;
+            stratum_format::write(os, document);
+            return os.str();
+        };
+
+        auto report_written = [](const string& name, const string& text, const string& text_expected)
+        {
+            report_case(name, text == text_expected, format("expected\n{}got\n{}", text_expected, text));
+        };
+
+        stratum_format::GameDocument game;
+        game.next_id = 21;
+        game.seed = "20260928";
+        game.engines = {{"gameplay", "1 2 3"}, {"generation", "4 5 6"}};
+        game.settings = stratum_format::raw_values_type::object();
+        game.settings["permadeath"] = false;
+
+        report_written("a game file has the game on one line and the settings on another", written(game),
+            "{\n"
+            "  \"format\": \"quetzal.stratum_game\",\n"
+            "  \"version\": \"0.1\",\n"
+            "  \"game\": { \"next_id\": 21, \"seed\": \"20260928\", \"engines\": { \"gameplay\": \"1 2 3\", \"generation\": \"4 5 6\" } },\n"
+            "  \"settings\": { \"permadeath\": false }\n"
+            "}\n");
+
+        game.settings = nullptr;
+        report_case("absent settings are written as an empty object", written(game).find("\"settings\": { }\n") != string::npos);
+
+        stratum_format::CharacterDocument character;
+        character.id = 1;
+        character.components = stratum_format::raw_values_type::object();
+        character.components["name"] = "Ailis";
+        character.components["speed"] = 100;
+        character.zone_id = 3;
+        character.placement = stratum_format::discrete_directed_point_type({3, 1}, {0, 1});
+
+        report_written("a character file with no inventory has an empty one", written(character),
+            "{\n"
+            "  \"format\": \"quetzal.stratum_game\",\n"
+            "  \"version\": \"0.1\",\n"
+            "  \"character\": {\n"
+            "    \"id\": 1,\n"
+            "    \"components\": { \"name\": \"Ailis\", \"speed\": 100 },\n"
+            "    \"zone\": 3,\n"
+            "    \"placement\": { \"cell_position\": [3, 1], \"orientation\": [0, 1] },\n"
+            "    \"inventory\": []\n"
+            "  }\n"
+            "}\n");
+
+        stratum_format::Entity torch;
+        torch.id = 20;
+        torch.type = "torch";
+        torch.parent_id = 1;
+        torch.site = stratum_format::Site {stratum_format::Relation::On, {}, {}, {}};
+        character.inventory.push_back(torch);
+
+        report_written("a character file has each entity of its inventory on a line of its own", written(character),
+            "{\n"
+            "  \"format\": \"quetzal.stratum_game\",\n"
+            "  \"version\": \"0.1\",\n"
+            "  \"character\": {\n"
+            "    \"id\": 1,\n"
+            "    \"components\": { \"name\": \"Ailis\", \"speed\": 100 },\n"
+            "    \"zone\": 3,\n"
+            "    \"placement\": { \"cell_position\": [3, 1], \"orientation\": [0, 1] },\n"
+            "    \"inventory\": [\n"
+            "      { \"id\": 20, \"type\": \"torch\", \"components\": { \"parent\": { \"entity\": 1 }, \"site\": { \"relation\": \"on\" } } }\n"
+            "    ]\n"
+            "  }\n"
+            "}\n");
+
+        stratum_format::WorldRegion surface;
+        surface.id = 2;
+        surface.components = stratum_format::raw_values_type::object();
+        surface.components["name"] = "The Barrow Downs";
+        surface.spec = stratum_format::raw_values_type::object();
+        surface.spec["generator_selector"] = "fields_and_hills";
+        surface.zones = {{5, "zones/5.zone"}};
+
+        stratum_format::WorldRegion dungeon;
+        dungeon.id = 4;
+        dungeon.spec = stratum_format::raw_values_type::object();
+        dungeon.spec["generator_selector"] = "dungeon";
+        dungeon.zones = {{3, "zones/3.zone"}, {6, "zones/6.zone"}};
+
+        stratum_format::WorldDocument world;
+        world.regions = {surface, dungeon};
+
+        report_written("a world file opens each region with its id and components, then its spec, then a line per zone", written(world),
+            "{\n"
+            "  \"format\": \"quetzal.stratum_game\",\n"
+            "  \"version\": \"0.1\",\n"
+            "  \"world\": {\n"
+            "    \"regions\": [\n"
+            "      { \"id\": 2, \"components\": { \"name\": \"The Barrow Downs\" },\n"
+            "        \"spec\": { \"generator_selector\": \"fields_and_hills\" },\n"
+            "        \"zones\": [\n"
+            "          { \"id\": 5, \"file\": \"zones/5.zone\" }\n"
+            "        ] },\n"
+            "      { \"id\": 4,\n"
+            "        \"spec\": { \"generator_selector\": \"dungeon\" },\n"
+            "        \"zones\": [\n"
+            "          { \"id\": 3, \"file\": \"zones/3.zone\" },\n"
+            "          { \"id\": 6, \"file\": \"zones/6.zone\" }\n"
+            "        ] }\n"
+            "    ]\n"
+            "  }\n"
+            "}\n");
+
+        bool parsed = true;
+        for (const string& text : {written(game), written(character), written(world)})
+        {
+            parsed = parsed && map_type::accept(text);
+        }
+
+        report_case("each game file is JSON", parsed);
+
+        filesystem::create_directories(out_directory);
+        filesystem::path filepath = out_directory / "world.json";
+        stratum_format::write(filepath, world);
+        ifstream is(filepath, ios::binary);
+        report_case("a game file written to a file is identical to one written to a stream", string(istreambuf_iterator<char>(is), {}) == written(world));
+
+        return;
+    }
+
 } // namespace
 
 //------------------------------------------------------------------------------
@@ -1074,6 +1211,7 @@ int main()
     test_geometry_block_notation();
     test_relocator_targets();
     test_round_trip();
+    test_game_files();
 
     return report_results();
 }

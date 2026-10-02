@@ -1,18 +1,30 @@
 add_library(quetzal_stratum_format STATIC
     Document.cpp
     grid.cpp
-    read.cpp
+    read_zone.cpp
     references.cpp
     RelocatorTarget.cpp
-    write.cpp
+    write_character.cpp
+    write_game.cpp
+    write_world.cpp
+    write_zone.cpp
+    written_form.cpp
+    CharacterDocument.hpp
     Document.hpp
+    GameDocument.hpp
     Notation.hpp
+    WorldDocument.hpp
     grid.hpp
-    read.hpp
+    read_zone.hpp
     references.hpp
     RelocatorTarget.hpp
+    saved_game_format.hpp
     types.hpp
-    write.hpp
+    write_character.hpp
+    write_game.hpp
+    write_world.hpp
+    write_zone.hpp
+    written_form.hpp
 )
 
 set_property(TARGET quetzal_stratum_format PROPERTY FOLDER "library")

@@ -5,12 +5,16 @@
 
 #include "Character.hpp"
 #include "DisplayName.hpp"
+#include "make_document.hpp"
+#include "quetzal/stratum_format/CharacterDocument.hpp"
+#include "quetzal/stratum_format/write_character.hpp"
 #include <cassert>
 
 namespace
 {
 
     static constexpr int character_speed = 100;
+    static constexpr std::string_view character_filename = "character.json";
 
 } // namespace
 
@@ -59,10 +63,11 @@ void quetzal::stratum_sim::Character::open(std::string_view directory)
 }
 
 //------------------------------------------------------------------------------
-void quetzal::stratum_sim::Character::save(std::string_view directory)
+void quetzal::stratum_sim::Character::save(const std::filesystem::path& game_directory) const
 {
-    directory; // ...
+    assert(m_entity);
 
+    stratum_format::write(game_directory / character_filename, make_character_document(m_entity));
     return;
 }
 

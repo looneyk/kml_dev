@@ -17,7 +17,7 @@ ceiling.
 | `assets/` | shared data, owned by no host |
 | `library/quetzal/stratum_sim/` | `quetzal_stratum_sim` |
 | `library/quetzal/stratum_view/` | `quetzal_stratum_view` |
-| `library/quetzal/stratum_format/` | `quetzal_stratum_format` --- the zone file format |
+| `library/quetzal/stratum_format/` | `quetzal_stratum_format` --- the zone file format and the game files |
 | `library/quetzal/stratum_gen/` | `quetzal_stratum_gen` --- the generators, adapted and registered by name |
 | `application/stratum_terminal/` | `stratum_terminal` |
 | `application/stratum_godot/` | `stratum_godot` |
@@ -210,6 +210,10 @@ in a cell of the zone, at the cell its placement is in. A bound relocator's targ
 it is bound to. `rebuild_document(zone)`, which would rebuild the geometry from the layout as well, for a zone that has
 no `ZoneDocument`, is a skeleton with an empty body.
 
+`make_character_document(character)` returns the character as a character file's `CharacterDocument`: its persistent id,
+its own file components, its zone's persistent id, the cell its placement is in and its orientation, and every entity in
+its subtree, in persistent id order, as its inventory, each encoded as a zone's entity is, with its parent.
+
 ### Generation
 
 `Generation` has the registries that `World` creates regions and zones from (`world_generation_plan.md`), each a map
@@ -326,7 +330,9 @@ and a world that is part of no game, as a suite's is, has none at all, so it sav
 zone's `make_document` to `zones/<persistent id>.zone` in the game directory, creating `zones` if it is absent; it
 requires a game directory and a zone built from a document. Leaving a
 zone does not save it, and neither does `unload_zone` nor `unload_region`, which discard what they unload, as clearing a
-game does (`game_file_spec.md`, `## A saved game's files`).
+game does (`game_file_spec.md`, `## A saved game's files`). `save()` saves every loaded zone and then writes
+`world.json` into the game directory: each region in persistent id order, with its id, its region spec, and a reference
+to each zone its `zone_ids` lists, whose file is `zones/<persistent id>.zone`, whether or not the zone is loaded.
 
 `unload_zone(zone)` begins an unload: it adds the zone's id to the zones unloading and deletes the entity. Flecs deletes
 a zone's subtree before the zone itself, and if it is deferring, it runs the whole deletion when the deferred
@@ -606,12 +612,21 @@ character, region or zone; until a game is created, there is none.
 `clear`, `start`, `pause` and `resume` on `Session`. `saved_games` returns no games.
 
 `Game::create(name, region_spec, character_spec)` clears, resets the id allocator to count from zero, and reseeds the
-engine from `std::random_device`, so nothing passes from one game to the next. It throws `std::runtime_error` if a game
-named `name` is in the saves directory or the working directory, and otherwise creates the game directory, `name` in
-the config's working directory. It has the character created from the `CharacterSpec`, and the world's starting region
+engine from `std::random_device`, keeping the seed, so nothing passes from one game to the next. It throws
+`std::runtime_error` if a game directory named `name` is in the working directory, and otherwise creates it; `name` is
+an identifier and nothing more. It has the character created from the `CharacterSpec`, and the world's starting region
 and its first zone from the `RegionSpec` with `World::create(region_spec, game_directory)`, and starts the session at
 the entry point `World::create` returns. If either throws, it clears again and removes the game directory before
 passing the exception on, so a failure leaves no game in progress.
+
+`Game::save(save_type)` writes `game.json` into the game directory, with the id allocator's next id, the seed, and the gameplay
+engine's state as the text `<<` writes; has the character write `character.json` there, through
+`make_character_document`, and the world save; and then copies the game directory to a new directory in the saves
+directory, `<character name>_<save time>`, the name the character's `DisplayName` and the time local and in ISO 8601
+basic format, which it returns. A `SaveType` of `Auto` or `Quick` appends `_autosave` or `_quicksave`, and `Explicit`
+nothing. A character of the name that Windows does not allow in a file name, or a control character, is replaced by
+`_`. If a save of that name exists, it waits for the next second. An earlier save is never
+replaced. It requires a game in progress whose character is alive and named.
 
 `World::create(region_spec)` reads the spec's `entry_access`: a registered access point type, a comma, and a level
 offset, such as `staircase,1`. It creates the starting region from the spec and its first zone from the spec's `zone.`
@@ -624,8 +639,8 @@ no zone is played, and the turn order and the clock's fraction of a unit are emp
 `Character::clear` deletes the character's entity, with what it carries and its pending command. `World::clear` unloads
 every region and empties the world index and the `ZoneEntryIndex`, and keeps the registrations: the entity types, the
 access point types, the file components, and the `Generation` it was given. `menu_open` pauses the session and
-`menu_close` resumes it, and `quit` clears the game. `open`, `save` and `remove`, and the functions on `World` and
-`Character` that they call, are skeletons with empty bodies. `CharacterSpec`, which `create` takes, is the choices a new game makes: a `name`; `stats`, a map
+`menu_close` resumes it, and `quit` clears the game. `open` and `remove`, and the functions on `World` and `Character`
+that `open` calls, are skeletons with empty bodies. `CharacterSpec`, which `create` takes, is the choices a new game makes: a `name`; `stats`, a map
 from a name to a value; `skills`, which include feats and abilities, and `aspects`, such as the spells of a
 spellcasting skill, each a map from a name to its properties; an `inventory` of `InventoryItem`, each an item's `type`, its
 `InventoryLocation` (a `relation` and a `place`), and its `properties`; and the game's other choices, such as race and
@@ -634,7 +649,7 @@ class, as `properties`.
 
 `Character` is the entity a host controls. `create(character_spec)` makes it, with `Blocking`, the `ControlledActor`
 tag, a `Speed`, a new `PersistentId`, and the spec's `name` as its `DisplayName`, and it is in no zone until one is
-entered. `entity()` is null before `create` and after `clear`. It is owned by the game and has no parent, so it outlives every zone it moves through. A host
+entered. `save(game_directory)` writes its `make_character_document` to `character.json` there. `entity()` is null before `create` and after `clear`. It is owned by the game and has no parent, so it outlives every zone it moves through. A host
 acts through it: `set_intent(intent)` sets the character's `Intent`, and `submit(action)` sets a `PendingCommand` of the
 action for the character's entity, which the clock applies the next time the character is ready. `entity()` returns the
 entity, for queries and drawing.
@@ -781,6 +796,15 @@ identification comes first, then the rest in its section's table order, and file
 An entity's `parent` and `site` are written into its `components` ahead of the rest. In runs, a count is written for a
 run of three glyphs or more. A document that `read` produces is written back equivalent to it.
 
+The game, character and world files that `game_file_spec.md` specifies, format `quetzal.stratum_game`, version `0.1`
+(`saved_game_format.hpp`), are each a data structure in a header of its own: `GameDocument`, with the game's next id, seed, each engine's state by stream, and its
+settings; `CharacterDocument`, with the character's id, components, zone, placement, and inventory, whose entities are
+`Entity`s as a zone's are; and `WorldDocument`, whose regions are each a `WorldRegion` with its id, components, the
+spec it was created from, and a `ZoneReference`, an id and a file, for each zone. A `write` overload for each, in
+`write_game.hpp`, `write_character.hpp` and `write_world.hpp`, emits its written form, with an absent object written as
+an empty one. Nothing reads them yet. These writers and the zone's, `write_zone`, share the text of the written form
+through `written_form.hpp`, internal to the library in `stratum_format::detail`.
+
 ## Presentation
 
 The presentation layer is engine-neutral, depending on `stratum_sim` and on no output device.
@@ -886,10 +910,11 @@ the xterm extension XTWINOPS to resize.
 `read_key` returns one key without waiting for a newline: `_getch` on Windows, termios raw mode elsewhere. Arrow keys
 become `Key::Up`, `Down`, `Left` or `Right`.
 
-The host starts at its menu, drawn in place of the map, with `n` for a new game, `c` to continue the game in progress,
-which is offered only while there is one, and `q` to quit, which clears the game and ends the run. Escape on the menu
-also continues. A new game is created from the host's temporary specs, and a failure to create one is shown on the
-menu's status line. During play, Escape opens the menu, through `Game::menu_open`, and no other key quits. When the
+The host starts at its menu, drawn in place of the map, with `n` for a new game, `c` to continue the game in progress
+and `s` to save it, each offered only while there is one, and `q` to quit, which clears the game and ends the run.
+Escape on the menu also continues. A new game is created from the host's temporary specs, its character named
+"Adventurer", and its directory named by the time it began. A failure to create one is shown on the menu's status line,
+and so is a save's name, through `Game::save` with `SaveType::Explicit`, or the reason it failed. During play, Escape opens the menu, through `Game::menu_open`, and no other key quits. When the
 character dies, the map stays with "You have died." on the status line until a key is pressed, and the host then quits
 the game and opens the menu. A game whose `advance` throws cannot continue, so the host quits it and opens the menu,
 with the reason on its status line.
@@ -913,7 +938,7 @@ library, a GDExtension, and `application/stratum_godot/project/` is the Godot pr
 `stratum.gdextension`, which refers to `res://bin/`, where the build writes it.
 
 `StratumWorld` is the one registered class, a `RefCounted` that owns a `Game`, with only Godot types in its
-interface: `create_game`, `has_game`, `game_over`, `menu_open`, `menu_close`, `quit_game`, `extent`, `cell`, `render`, `cells`,
+interface: `create_game`, `has_game`, `game_over`, `menu_open`, `menu_close`, `quit_game`, `save_game`, `extent`, `cell`, `render`, `cells`,
 `actors`, `step`, `interact`,
 `enter`, `turn`, and `message`. `step` sets the character's intent, turning toward the direction moved as the view does not show the
 facing direction, and advances through the turn-based driver; `interact` submits `Interact` and `enter` submits
@@ -921,9 +946,10 @@ facing direction, and advances through the turn-based driver; `interact` submits
 opening, a staircase before the character, or the level arrived on, and the tile view shows it in its status line. A step ends with the next turn already granted,
 so `turn` is the turn awaiting input. `create_game` creates a new game as the terminal host does, `has_game` returns true
 while one is in progress, `game_over` returns true once the character is dead, and `message` then reports the death,
-`menu_open` and `menu_close` pause and resume play, and `quit_game` ends the game in progress.
-Exceptions do not cross into Godot: a failed creation pushes the reason to Godot's error list and returns false, and
-leaves no game in progress, and a game whose `advance` throws during `step`, `interact` or `enter` pushes the reason and
+`menu_open` and `menu_close` pause and resume play, `quit_game` ends the game in progress, and `save_game` saves it
+explicitly and returns the save's name. Exceptions do not cross into Godot: a failed creation pushes the reason to
+Godot's error list and returns false, and leaves no game in progress; a failed save pushes the reason and returns an
+empty name; and a game whose `advance` throws during `step`, `interact` or `enter` pushes the reason and
 is quit, as it cannot continue.
 
 `cells` is one code per cell from `stratum_view::cells`, row major from row zero; its `PlaceType` constants repeat
@@ -938,7 +964,8 @@ size. Row zero is the lowest in the simulation and y grows
 downward in Godot, so the view inverts j when it paints.
 
 The tile view starts at its menu, a dark screen over the view with the same choices and keys as the terminal host's:
-`N` for a new game, `C` or Escape to continue the game in progress, and `Q` to quit the game and Godot. During play,
+`N` for a new game, `C` or Escape to continue the game in progress, `S` to save it, which shows the save's name on the
+menu, and `Q` to quit the game and Godot. During play,
 Escape opens the menu, and no other key quits. When `game_over` returns true, the status line asks for a key, which
 quits the game and shows the menu. A game quit because it failed shows the menu with a message referring to Godot's
 error list. `-- --new-game` on Godot's command line starts a new game without showing the menu.
@@ -951,7 +978,8 @@ a debug build, and quetzal's static libraries then do not link. godot-cpp's head
 so they do not report `/W4` warnings in the extension's sources. `KML_DEV_GODOT` governs all of it; when it is
 configured off, godot-cpp is not processed and neither the library nor the host exists.
 
-Two headless checks need no display: `--path project --script main.gd` exercises the extension directly, and
+Two headless checks need no display: `--path project --script main.gd` exercises the extension directly, through a
+save, and
 `--path project --quit-after 5 -- --new-game` runs the tile scene in a new game, which reports the cells it painted;
 without `-- --new-game` it reports that the menu is shown. A project has to be imported
 once (`--headless --path project --import`) before Godot sees the extension; otherwise the class is undeclared, with
@@ -1002,7 +1030,8 @@ prefix and the suites the `_test` suffix.
 
 `stratum_format_test` reads zone files and checks what they decode to, and rejects every error the reader raises from a
 valid file with one change made to it. It checks that references are found and translated wherever they are written,
-and writes each file through both `write` overloads and reads it back, comparing the two documents as maps.
+and writes each file through both `write` overloads and reads it back, comparing the two documents as maps. It writes
+each game file document and compares it with its written form, text for text.
 
 `flecs_test` checks that the ECS supports zone partitioning, relationships, migration, unload, serialization and
 deterministic iteration.

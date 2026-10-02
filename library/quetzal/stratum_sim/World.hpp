@@ -101,7 +101,10 @@ namespace quetzal::stratum_sim
         flecs::entity create(const RegionSpec& region_spec, const std::filesystem::path& game_directory);
 
         void open(const std::filesystem::path& game_directory);
-        void save(std::string_view directory);
+
+        // Writes every loaded zone as a saved zone, then world.json, with each region and its zones, into the game directory.
+        // Requires a game directory
+        void save();
 
         // Writes the zone as a saved zone into the game directory's zones, named by its persistent id. Requires a game
         // directory, which a world has only while a game is in progress, and a zone built from a document

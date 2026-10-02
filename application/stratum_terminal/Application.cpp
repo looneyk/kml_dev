@@ -28,7 +28,7 @@ namespace
 
     static constexpr auto help_string = "arrows or hjkl move, space acts, < or > enters, . waits, ^L redraws, Esc for the menu";
 
-    static constexpr auto menu_help_string = "n starts a new game, c or Esc continues, q quits, ^L redraws";
+    static constexpr auto menu_help_string = "n starts a new game, c or Esc continues, s saves, q quits, ^L redraws";
 
     static constexpr auto end_help_string = "press any key to return to the menu";
 
@@ -54,15 +54,24 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // A new game is named by the local time it began, in ISO 8601 basic format, until a player names a game. A second
-    // game begun in the same second has a suffix
+    // Temporary, until a new game creates its character: a character with only a name
+    stratum_sim::CharacterSpec temporary_character_spec()
+    {
+        stratum_sim::CharacterSpec character_spec;
+        character_spec.name = "Adventurer";
+        return character_spec;
+    }
+
+    //--------------------------------------------------------------------------
+    // A new game's directory is named by the local time it began, in ISO 8601 basic format, an identifier and nothing
+    // more. A second game begun in the same second has a suffix
     std::string new_game_name(const stratum_sim::Config& config)
     {
         const std::string time = std::format("{:%Y%m%dT%H%M%S}", std::chrono::zoned_time(std::chrono::current_zone(),
             std::chrono::floor<std::chrono::seconds>(std::chrono::system_clock::now())));
         std::string name = time;
 
-        for (int suffix = 2; std::filesystem::exists(config.saves_directory / name) || std::filesystem::exists(config.working_directory / name); ++suffix)
+        for (int suffix = 2; std::filesystem::exists(config.working_directory / name); ++suffix)
         {
             name = std::format("{}-{}", time, suffix);
         }
@@ -243,7 +252,12 @@ void stratum_terminal::Application::run_menu()
     else if ((key_press.key == Key::Escape || key_press.c == 'c' || key_press.c == 'C') && m_session.loaded())
     {
         m_game.menu_close();
+        m_message.clear();
         m_menu_open = false;
+    }
+    else if ((key_press.c == 's' || key_press.c == 'S') && m_session.loaded())
+    {
+        save_game();
     }
     else if (key_press.c == 'q' || key_press.c == 'Q')
     {
@@ -262,6 +276,7 @@ void stratum_terminal::Application::draw_menu()
     if (m_session.loaded())
     {
         lines.push_back("c  Continue");
+        lines.push_back("s  Save");
     }
 
     lines.push_back("q  Quit");
@@ -295,7 +310,7 @@ void stratum_terminal::Application::create_game()
 {
     try
     {
-        m_game.create(new_game_name(m_game.config()), temporary_region_spec(), stratum_sim::CharacterSpec {});
+        m_game.create(new_game_name(m_game.config()), temporary_region_spec(), temporary_character_spec());
     }
     catch (const std::exception& e)
     {
@@ -308,6 +323,21 @@ void stratum_terminal::Application::create_game()
     m_view_glyphs = m_view == View::Cell ? stratum_view::cell_glyphs() : stratum_view::lattice_glyphs();
     m_message.clear();
     m_menu_open = false;
+
+    return;
+}
+
+//------------------------------------------------------------------------------
+void stratum_terminal::Application::save_game()
+{
+    try
+    {
+        m_message = std::format("Saved as {}.", m_game.save(stratum_sim::SaveType::Explicit));
+    }
+    catch (const std::exception& e)
+    {
+        m_message = std::format("The game was not saved: {}", e.what());
+    }
 
     return;
 }

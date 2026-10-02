@@ -46,6 +46,10 @@ public:
     // Ends the game in progress, before the host quits
     void quit_game();
 
+    // Saves the game in progress and returns the save's name. Empty, with the reason pushed to Godot's error list, when the
+    // game cannot be saved
+    godot::String save_game();
+
     godot::Vector2i extent() const;
     godot::Vector2i cell() const;
 

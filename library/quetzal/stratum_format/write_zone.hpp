@@ -1,8 +1,8 @@
-#if !defined(QUETZAL_STRATUM_FORMAT_WRITE_HPP)
-#define QUETZAL_STRATUM_FORMAT_WRITE_HPP
+#if !defined(QUETZAL_STRATUM_FORMAT_WRITE_ZONE_HPP)
+#define QUETZAL_STRATUM_FORMAT_WRITE_ZONE_HPP
 //------------------------------------------------------------------------------
 // stratum_format
-// write.hpp
+// write_zone.hpp
 //------------------------------------------------------------------------------
 
 #include "Document.hpp"
@@ -19,4 +19,4 @@ namespace quetzal::stratum_format
 
 } // namespace quetzal::stratum_format
 
-#endif // QUETZAL_STRATUM_FORMAT_WRITE_HPP
+#endif // QUETZAL_STRATUM_FORMAT_WRITE_ZONE_HPP

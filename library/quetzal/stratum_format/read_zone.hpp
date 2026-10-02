@@ -1,8 +1,8 @@
-#if !defined(QUETZAL_STRATUM_FORMAT_READ_HPP)
-#define QUETZAL_STRATUM_FORMAT_READ_HPP
+#if !defined(QUETZAL_STRATUM_FORMAT_READ_ZONE_HPP)
+#define QUETZAL_STRATUM_FORMAT_READ_ZONE_HPP
 //------------------------------------------------------------------------------
 // stratum_format
-// read.hpp
+// read_zone.hpp
 //------------------------------------------------------------------------------
 
 #include "Document.hpp"
@@ -28,4 +28,4 @@ namespace quetzal::stratum_format
 
 } // namespace quetzal::stratum_format
 
-#endif // QUETZAL_STRATUM_FORMAT_READ_HPP
+#endif // QUETZAL_STRATUM_FORMAT_READ_ZONE_HPP

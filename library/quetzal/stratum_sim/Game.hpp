@@ -13,6 +13,11 @@
 #include "Session.hpp"
 #include "Settings.hpp"
 #include "World.hpp"
+#include <filesystem>
+#include <optional>
+#include <random>
+#include <string>
+#include <string_view>
 
 namespace quetzal::stratum_sim
 {
@@ -20,6 +25,15 @@ namespace quetzal::stratum_sim
     //--------------------------------------------------------------------------
     // Registers the game's entity types, such as a door that is closed until opened. Temporary, until the game's types load from data
     void register_game_types(World& world);
+
+    //--------------------------------------------------------------------------
+    // What made a save: the player's choice, or an auto or quick save, each of which is a track of its own
+    enum class SaveType
+    {
+        Explicit,
+        Auto,
+        Quick
+    };
 
     //--------------------------------------------------------------------------
     // The one owner of a game's world, session and character
@@ -40,12 +54,18 @@ namespace quetzal::stratum_sim
         void menu_open();
         void menu_close();
         void clear();
-        // Clears, then creates a game named name, with its directory in the working directory, and starts play at its first
-        // zone's entry point. Throws std::runtime_error if a game of that name exists in the working or the saves directory,
-        // and passes on what creating the world throws, leaving no game in progress
+        // Clears, then creates a game whose directory in the working directory is named name, and starts play at its first
+        // zone's entry point. Throws std::runtime_error if a game of that name exists in the working directory, and passes
+        // on what creating the world throws, leaving no game in progress
         void create(std::string_view name, const RegionSpec& region_spec, const CharacterSpec& character_spec); // starting specs, maybe read from settings instead ...
         void open(std::string_view directory);
-        void save(std::string_view directory);
+
+        // Writes game.json, the character's and the world's files, and every loaded zone into the game directory, then copies
+        // it to a new save directory, <character name>_<save time>, with _autosave or _quicksave appended for those save
+        // types, waiting for the next second if one of that name exists. A character in the name that cannot be in a
+        // directory name is replaced by '_'. Returns the save's name. Requires a game in progress whose character is alive
+        // and named. Throws std::runtime_error if a file cannot be written
+        std::string save(SaveType save_type);
         void remove(std::string_view directory);
         void quit();
 
@@ -83,6 +103,10 @@ namespace quetzal::stratum_sim
         World m_world;
         Character m_character;
         Session m_session;
+
+        // The game in progress's directory in the working directory, and the seed its engine was seeded from
+        std::optional<std::filesystem::path> m_game_directory;
+        std::random_device::result_type m_seed;
     };
 
 } // namespace quetzal::stratum_sim

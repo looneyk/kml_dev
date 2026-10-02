@@ -1,6 +1,6 @@
 # Game File Format Specification
 
-Status: draft --- nothing reads or writes it yet
+Status: draft --- written by `stratum_format`; nothing reads it yet
 Date: 2026-09-28, revised 2026-10-01
 
 This document specifies how a game is saved. A game has four parts: the game's own state, its settings, the player's
@@ -13,8 +13,8 @@ the `Game` that writes and reads these files, and `sim_zone_model.md` the model 
 
 The directory structure is KML/Stratum (probably qualified by the view type) and lives in the AppData or temp directories.
 Subdirectories config/ and saves/ are in the AppData/Roaming path and cache/ is in the AppData/Local path.
-A game in progress is in working/, which is always in temp. Every save of the game, explicit, quick or auto, copies its
-directory from working/ to saves/, so a saved game is one consistent point.
+A game in progress is in working/, which is always in temp. Every explicit save of the game copies its directory from
+working/ to a new directory in saves/, so each save is one consistent point.
 While development is in its early stages as it is now, all four directories will live in the temp directory, same directory structure.
 The path structure, production and development respectively:
 
@@ -41,19 +41,24 @@ temp/
       cache/
       working/
 
-**The working directory and the saves directory.** A game's directory is in both, under the same name. The game
-directory is the one in the working directory.
+**The working directory and the saves directory.** A game in progress has one directory in the working directory, the
+game directory, whose name is an identifier and nothing more. Each save of it is a directory in the saves directory,
+named by the character's name and the time of the save, `<character name>_<save time>`, the time in ISO 8601 basic
+format, which is what a player looks for. An auto save has `_autosave` appended, and a quick save `_quicksave`. A
+character of the name that cannot be in a directory name is replaced by `_`.
 
 - **Play reads and writes the game directory.** A zone that unloads is written to it, so a zone file there may be
   newer than the game's last save.
 - **Saving writes and then copies.** `game.json`, `character.json`, `world.json` and every loaded zone are written to the
-  game directory, which is then copied to the saves directory, replacing the game's directory there. Every file in a
-  saved game is therefore from the same moment: the id allocator's count covers every id in its zones, the character's
-  inventory and the zones agree, and `world.json` lists every zone file.
-- **Opening copies back.** Opening a game replaces its game directory with a copy of its saved directory and plays
-  from that. A zone that unloaded after the last save, and was not saved since, is discarded with the old game
-  directory.
-- **A new game** has a game directory from its creation and a saved directory from its first save.
+  game directory, which is then copied to a new save directory. An explicit save never replaces an earlier one. Every
+  file in a save is therefore from the same moment: the id allocator's count covers every id in its zones, the
+  character's inventory and the zones agree, and `world.json` lists every zone file.
+- **A save's name is unique.** If a save directory of that name exists, from a save within the same second, the save
+  waits for the next second.
+- **A game whose character is dead cannot be saved.**
+- **Opening copies back.** Opening a save replaces its game's directory with a copy of the save and plays from that. A
+  zone that unloaded after the last save, and was not saved since, is discarded with the old game directory.
+- **A new game** has a game directory from its creation and a save from its first save.
 
 | File | |
 | --- | --- |
@@ -70,10 +75,10 @@ their own keys: `game` and `settings`, `character`, or `world`.
 
 ## An example
 
-A specific game in the saves directory with a surface region of one zone and a dungeon region of one zone reached from it, and a character in it
-carrying a torch would have the following structure:
+A save at 15:30 of a game with a surface region of one zone and a dungeon region of one zone reached from it, and a
+character named Ailis in it carrying a torch, would have the following structure:
 
-    20260928T141500/
+    Ailis_20260928T153000/
       game.json
       character.json
       world.json
@@ -227,7 +232,9 @@ reference's `id`. Its zone references refer to zone templates, whose entity ids 
 
 ## The written form
 
-A writer emits two-space indentation. In the world file, a region's `id` and `components` are on the line that opens
+A writer emits two-space indentation. In the game file, `game` and `settings` are each on one line. In the character
+file, each key of `character` is on a line of its own, and each entity of the inventory is on a line of its own, as a
+zone's entities are. In the world file, a region's `id` and `components` are on the line that opens
 it, its `spec` is on the next line, its `zones` follow, and each zone reference is on a line of its own. A zone file has the
 form that `discrete_layout.md` (`### The written form`) specifies.
 

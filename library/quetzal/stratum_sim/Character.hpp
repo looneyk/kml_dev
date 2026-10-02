@@ -10,6 +10,7 @@
 #include "Intent.hpp"
 #include "World.hpp"
 #include <flecs.h>
+#include <filesystem>
 #include <string_view>
 #include <utility>
 
@@ -36,7 +37,9 @@ namespace quetzal::stratum_sim
         // Makes the character's entity, with a new persistent id and the spec's name, in no zone
         void create(const CharacterSpec& character_spec);
         void open(std::string_view directory);
-        void save(std::string_view directory);
+
+        // Writes character.json into the game directory. Requires a character in a zone
+        void save(const std::filesystem::path& game_directory) const;
 
         flecs::entity entity() const;
 

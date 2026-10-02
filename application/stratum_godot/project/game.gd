@@ -115,6 +115,7 @@ func _show_menu(message: String) -> void:
 
 	if _world.has_game():
 		lines.append("C   Continue")
+		lines.append("S   Save")
 
 	lines.append("Q   Quit")
 
@@ -199,6 +200,10 @@ func _menu_key(event: InputEventKey) -> void:
 			if _world.has_game():
 				_world.menu_close()
 				_menu.visible = false
+		KEY_S:
+			if _world.has_game():
+				var save_name: String = _world.save_game()
+				_show_menu("Saved as %s" % save_name if not save_name.is_empty() else "The game was not saved; Godot's error list has the reason")
 		KEY_Q:
 			_world.quit_game()
 			get_tree().quit()

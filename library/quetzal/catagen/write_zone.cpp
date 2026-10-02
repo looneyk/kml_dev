@@ -6,7 +6,7 @@
 #include "write_zone.hpp"
 #include "quetzal/common/string_util.hpp"
 #include "quetzal/stratum_format/grid.hpp"
-#include "quetzal/stratum_format/write.hpp"
+#include "quetzal/stratum_format/write_zone.hpp"
 #include <optional>
 #include <ostream>
 #include <sstream>

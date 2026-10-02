@@ -30,4 +30,13 @@ func _initialize() -> void:
 	print("cells  -> ", codes.size(), " codes, ", codes.count(StratumWorld.PlaceTypeFloor), " floor, ",
 		actors.count(StratumWorld.OccupantPlayer), " player, ", actors.count(StratumWorld.OccupantOther), " other")
 
+	var save_name: String = world.save_game()
+	if save_name.is_empty():
+		push_error("save_game failed")
+		quit(1)
+		return
+
+	print("save   -> ", save_name)
+	world.quit_game()
+
 	quit()

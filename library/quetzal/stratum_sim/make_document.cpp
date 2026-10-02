@@ -13,6 +13,8 @@
 #include "Site.hpp"
 #include "Zone.hpp"
 #include "quetzal/stratum_format/Document.hpp"
+#include "quetzal/stratum_format/CharacterDocument.hpp"
+#include "quetzal/stratum_format/saved_game_format.hpp"
 #include "quetzal/stratum_format/references.hpp"
 #include <algorithm>
 #include <cstddef>
@@ -215,6 +217,49 @@ namespace
     }
 
     //--------------------------------------------------------------------------
+    // Each entity below the root, in persistent id order
+    std::vector<flecs::entity> sorted_entities(flecs::entity root)
+    {
+        std::vector<flecs::entity> entities;
+        collect_entities(root, entities);
+        std::ranges::sort(entities, {}, [](flecs::entity e) { return e.get<PersistentId>(); });
+
+        return entities;
+    }
+
+    //--------------------------------------------------------------------------
+    // The entity as a file writes it. A child of the zone has no parent in the file, and is in the zone
+    stratum_format::Entity file_entity(flecs::entity e, flecs::entity zone, const DiscreteLayout& layout, const file_components_type& file_components)
+    {
+        stratum_format::Entity entity;
+        entity.id = e.get<PersistentId>().id;
+
+        if (flecs::entity type = e.target(flecs::IsA))
+        {
+            entity.type = type.name().c_str();
+        }
+
+        flecs::entity parent = e.parent();
+        if (parent != zone)
+        {
+            entity.parent_id = parent.get<PersistentId>().id;
+        }
+
+        if (const Site* site = e.try_get<Site>())
+        {
+            entity.site = file_site(*site, layout, parent == zone);
+        }
+
+        if (const Relocator* relocator = e.try_get<Relocator>())
+        {
+            entity.relocator = file_relocator(e, *relocator, layout);
+        }
+
+        entity.components = encode_components(e, file_components);
+        return entity;
+    }
+
+    //--------------------------------------------------------------------------
     // The key of a flat's override entry in a document: a room id or a cell position
     id_type key_of(const FlatRoomAddress& address)
     {
@@ -319,46 +364,43 @@ quetzal::stratum_format::Document quetzal::stratum_sim::make_document(flecs::ent
             [&](const discrete_point_type& cell_position) { return FlatCellAddress {flat_id, cell_position}; });
     }
 
-    std::vector<flecs::entity> entities;
-    collect_entities(zone, entities);
-    std::ranges::sort(entities, {}, [](flecs::entity e) { return e.get<PersistentId>(); });
-
     document.access_points.clear();
     document.entities.clear();
 
-    for (flecs::entity e : entities)
+    for (flecs::entity e : sorted_entities(zone))
     {
-        stratum_format::Entity entity;
-        entity.id = e.get<PersistentId>().id;
-
-        if (flecs::entity type = e.target(flecs::IsA))
-        {
-            entity.type = type.name().c_str();
-        }
-
-        flecs::entity parent = e.parent();
-        if (parent != zone)
-        {
-            entity.parent_id = parent.get<PersistentId>().id;
-        }
-
-        if (const Site* site = e.try_get<Site>())
-        {
-            entity.site = file_site(*site, layout, parent == zone);
-        }
-
-        if (const Relocator* relocator = e.try_get<Relocator>())
-        {
-            entity.relocator = file_relocator(e, *relocator, layout);
-        }
-
         if (e.has<AccessPoint>())
         {
-            document.access_points.push_back(entity.id);
+            document.access_points.push_back(e.get<PersistentId>().id);
         }
 
-        entity.components = encode_components(e, file_components);
-        document.entities.push_back(std::move(entity));
+        document.entities.push_back(file_entity(e, zone, layout, file_components));
+    }
+
+    return document;
+}
+
+//------------------------------------------------------------------------------
+quetzal::stratum_format::CharacterDocument quetzal::stratum_sim::make_character_document(flecs::entity character)
+{
+    flecs::entity zone = zone_of(character);
+    assert(zone && zone.has<ZoneLayout>());
+
+    flecs::world world = character.world();
+    const DiscreteLayout& layout = layout_as<DiscreteLayout>(*zone.get<ZoneLayout>().layout);
+    file_components_type file_components = stratum_sim::file_components(world);
+    const placement_type& placement = character.get<Site>().placement;
+
+    stratum_format::CharacterDocument document;
+    document.version = std::string(stratum_format::saved_game_format_version);
+    document.id = character.get<PersistentId>().id;
+    document.components = encode_components(character, file_components);
+    document.zone_id = zone.get<PersistentId>().id;
+    document.placement = stratum_format::discrete_directed_point_type(layout.cell_position_at(placement.position()), grid_step(placement.direction()));
+
+    for (flecs::entity e : sorted_entities(character))
+    {
+        document.inventory.push_back(file_entity(e, zone, layout, file_components));
     }
 
     return document;

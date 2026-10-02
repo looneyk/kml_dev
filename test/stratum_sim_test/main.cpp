@@ -27,12 +27,13 @@
 #include "quetzal/stratum_sim/World.hpp"
 #include "quetzal/stratum_format/grid.hpp"
 #include "quetzal/stratum_format/Document.hpp"
-#include "quetzal/stratum_format/read.hpp"
+#include "quetzal/stratum_format/read_zone.hpp"
 #include "quetzal/stratum_format/RelocatorTarget.hpp"
-#include "quetzal/stratum_format/write.hpp"
+#include "quetzal/stratum_format/write_zone.hpp"
 #include <algorithm>
 #include <filesystem>
 #include <format>
+#include <fstream>
 #include <iostream>
 #include <map>
 #include <memory>
@@ -2003,27 +2004,14 @@ namespace
             unregistered_thrown && !sequence_session.loaded() && sequence_world.entities().count<stratum_sim::Region>() == 0
             && !filesystem::exists(g_suite_config.working_directory / "third"));
 
-        filesystem::create_directories(g_suite_config.saves_directory / "saved");
-        bool saved_thrown = false;
-
-        try
-        {
-            sequence.create("saved", region_spec, stratum_sim::CharacterSpec {});
-        }
-        catch (const runtime_error&)
-        {
-            saved_thrown = true;
-        }
-
-        report_case("and so is a game named as one in the saves directory", saved_thrown && !sequence_session.loaded()
-            && !filesystem::exists(g_suite_config.working_directory / "saved"));
-
         // Saving zones, with a maximum of one zone loaded so that leaving a zone and trimming unloads it
         const stratum_sim::Config saving_config {"out/saving/saves", "out/saving/working", 1};
         filesystem::remove_all("out/saving");
         stratum_sim::Game saving(saving_config);
         saving.generation() = suite_generation();
-        saving.create("saving", region_spec, stratum_sim::CharacterSpec {});
+        stratum_sim::CharacterSpec ailis;
+        ailis.name = "Ailis";
+        saving.create("saving", region_spec, ailis);
 
         stratum_sim::World& saving_world = saving.world();
         flecs::entity saving_first = saving.session().zone();
@@ -2056,7 +2044,7 @@ namespace
             saved_back = saved_document.zone_id == saving_first_id.id && saved_document.level == -1;
         }
 
-        report_case("a zone the world unloads is saved first, as a saved zone in the working directory's zones",
+        report_case("a zone the world unloads is saved first, as a saved zone in the game directory's zones",
             saved_back && !saving_first.is_alive() && saving_world.zone_count() == 1);
 
         // Back up through the staircase bound to the first zone's, which has unloaded
@@ -2075,6 +2063,88 @@ namespace
         flecs::entity down_again = saving_world.relocate_through(saving_character, back_up);
         report_case("and the zone left, unloaded in its turn, is read back going the other way", down_again
             && down_again.get<stratum_sim::PersistentId>() == second_up_id && stratum_sim::zone_of(down_again).get<stratum_sim::PersistentId>() == saving_second_id);
+
+        // Saving the game, with the first zone unloaded and the second, which the character is in, loaded. The suite moved the
+        // character through the world, so the session is started where the character is
+        saving.session().start(down_again);
+        filesystem::path game_directory = saving_config.working_directory / "saving";
+        string save_name = saving.save(stratum_sim::SaveType::Explicit);
+        filesystem::path save_directory = saving_config.saves_directory / save_name;
+
+        report_case("a save is a directory named by the character's name and the time of the save", save_name.starts_with("Ailis_")
+            && save_name.size() == string("Ailis_20261002T120000").size() && filesystem::is_directory(save_directory));
+
+        auto read_json = [](const filesystem::path& filepath)
+        {
+            ifstream is(filepath, ios::binary);
+            return stratum_format::raw_values_type::parse(is, nullptr, false);
+        };
+
+        bool identical = true;
+        for (const filesystem::directory_entry& entry : filesystem::recursive_directory_iterator(game_directory))
+        {
+            if (!entry.is_regular_file())
+            {
+                continue;
+            }
+
+            filesystem::path saved_path = save_directory / filesystem::relative(entry.path(), game_directory);
+            ifstream in_game(entry.path(), ios::binary);
+            ifstream in_save(saved_path, ios::binary);
+            identical = identical && in_save && string(istreambuf_iterator<char>(in_game), {}) == string(istreambuf_iterator<char>(in_save), {});
+        }
+
+        report_case("the save is a copy of the game directory, file for file", identical);
+
+        stratum_format::raw_values_type game_json = read_json(save_directory / "game.json");
+        stratum_sim::PersistentId largest_id = max({saving_character.get<stratum_sim::PersistentId>(), saving_first_id, saving_second_id,
+            saving_region.get<stratum_sim::PersistentId>()});
+        report_case("game.json has the next id, past every id in the game, the seed, and the gameplay engine's state",
+            !game_json.is_discarded() && game_json["format"] == "quetzal.stratum_game" && game_json["game"]["next_id"].get<uint64_t>() > largest_id.id
+            && !game_json["game"]["seed"].get<string>().empty() && !game_json["game"]["engines"]["gameplay"].get<string>().empty());
+
+        stratum_format::raw_values_type character_json = read_json(save_directory / "character.json");
+        const stratum_sim::placement_type& character_placement = stratum_sim::placement_of(saving_character);
+        stratum_sim::discrete_point_type character_cell = stratum_sim::layout_as<stratum_sim::DiscreteLayout>(saving_world.layout(
+            stratum_sim::zone_of(saving_character))).cell_position_at(character_placement.position());
+        report_case("character.json has the character's id, components, zone and cell, and an empty inventory", !character_json.is_discarded()
+            && character_json["character"]["id"] == saving_character.get<stratum_sim::PersistentId>().id
+            && character_json["character"]["components"].contains("speed") && character_json["character"]["zone"] == saving_second_id.id
+            && character_json["character"]["placement"]["cell_position"] == stratum_format::raw_values_type {character_cell.i(), character_cell.j()}
+            && character_json["character"]["inventory"].empty());
+
+        stratum_format::raw_values_type world_json = read_json(save_directory / "world.json");
+        bool zones_listed = !world_json.is_discarded() && world_json["world"]["regions"].size() == 1;
+        if (zones_listed)
+        {
+            const stratum_format::raw_values_type& region_json = world_json["world"]["regions"][0];
+            zones_listed = region_json["id"] == saving_region.get<stratum_sim::PersistentId>().id && region_json["zones"].size() == 2
+                && region_json["zones"][0]["id"] == saving_first_id.id && region_json["zones"][1]["id"] == saving_second_id.id
+                && region_json["spec"].contains(string(stratum_sim::generator_selector_key));
+
+            for (const auto& zone_json : region_json["zones"])
+            {
+                zones_listed = zones_listed && filesystem::exists(save_directory / zone_json["file"].get<string>());
+            }
+        }
+
+        report_case("world.json lists the region and its zones, each with its file in the save, loaded or not", zones_listed);
+
+        string second_save_name = saving.save(stratum_sim::SaveType::Explicit);
+        report_case("saving again makes another save and keeps the first, waiting for the next second if needed", second_save_name != save_name
+            && filesystem::is_directory(save_directory) && filesystem::is_directory(saving_config.saves_directory / second_save_name));
+
+        string auto_save_name = saving.save(stratum_sim::SaveType::Auto);
+        string quick_save_name = saving.save(stratum_sim::SaveType::Quick);
+        report_case("an auto save and a quick save have their type appended to their names", auto_save_name.starts_with("Ailis_")
+            && auto_save_name.ends_with("_autosave") && quick_save_name.starts_with("Ailis_") && quick_save_name.ends_with("_quicksave")
+            && filesystem::is_directory(saving_config.saves_directory / auto_save_name)
+            && filesystem::is_directory(saving_config.saves_directory / quick_save_name));
+
+        saving_character.set<stratum_sim::DisplayName>(stratum_sim::DisplayName {"Ailis: of the \"Downs\"?"});
+        string replaced_save_name = saving.save(stratum_sim::SaveType::Explicit);
+        report_case("a character in the name that cannot be in a directory name is replaced in the save's", replaced_save_name.starts_with("Ailis_ of the _Downs__")
+            && filesystem::is_directory(saving_config.saves_directory / replaced_save_name));
 
         filesystem::remove_all(zones_directory);
         saving.quit();
