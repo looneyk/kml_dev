@@ -24,8 +24,8 @@ namespace quetzal::stratum_sim
     std::optional<std::string> build_error(const flecs::world& world, const stratum_format::Document& document);
 
     // Fills an empty zone from a document that build_error accepts. It sets the ZoneLayout, with the cells, walls, rooms,
-    // and both flats, and the ZoneNotation, and creates every entity with its component objects decoded. Returns the
-    // entities that references in component objects refer to
+    // and both flats, the ZoneNotation, and the ZoneDocument, and creates every entity with its component objects decoded.
+    // Returns the entities that references in component objects refer to
     std::vector<flecs::entity> load_layout(flecs::entity zone, const stratum_format::Document& document);
 
 } // namespace quetzal::stratum_sim

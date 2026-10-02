@@ -11,6 +11,7 @@
 #include "file_components.hpp"
 #include "layout_entities.hpp"
 #include "load_layout.hpp"
+#include "properties.hpp"
 #include "Site.hpp"
 #include "specs.hpp"
 #include "quetzal/stratum_format/Document.hpp"
@@ -348,6 +349,7 @@ quetzal::stratum_sim::World::World(IdAllocator& id_allocator, random_type& rando
     m_entities.component<Zone>();
     m_entities.component<Region>();
     m_entities.component<ZoneLevel>().member(&ZoneLevel::level, "level");
+    m_entities.component<ZoneDocument>();
     m_entities.component<InZone>().add(flecs::Exclusive);
     m_entities.component<PersistentId>().member(&PersistentId::id, "id");
     m_entities.component<EntityReference>()
@@ -508,6 +510,31 @@ quetzal::stratum_sim::World::World(IdAllocator& id_allocator, random_type& rando
 
     register_display_name(m_entities);
     register_file_component<DisplayName>(m_entities, "name");
+
+    // The state of an entity that a saved zone writes back, which a zone file may also state
+    m_entities.component<AccessState>();
+    m_entities.component<Access>().member(&Access::state, "state");
+    m_entities.component<DetectionState>();
+    m_entities.component<ActorDetection>().member(&ActorDetection::actor, "actor").member(&ActorDetection::state, "state");
+    register_vector<ActorDetection>(m_entities);
+    m_entities.component<Detection>().member(&Detection::state, "state").member(&Detection::actor_states, "actor_states");
+    m_entities.component<Speed>().member(&Speed::value, "value");
+    m_entities.component<Blocking>();
+    m_entities.component<Dead>();
+    static_assert(sizeof(point_type) == 3 * sizeof(value_type));
+    m_entities.component<point_type>().array<value_type>(3);
+    register_optional<EntityReference>(m_entities);
+    m_entities.component<Pursue>()
+        .member(&Pursue::target, "target")
+        .member(&Pursue::position_last_seen, "position_last_seen")
+        .member(&Pursue::seen, "seen");
+
+    register_file_component<Access>(m_entities, "access");
+    register_file_component<Detection>(m_entities, "detection");
+    register_file_component<Speed>(m_entities, "speed");
+    register_file_component<Blocking>(m_entities, "blocking");
+    register_file_component<Dead>(m_entities, "dead");
+    register_file_component<Pursue>(m_entities, "pursue");
 
     // The default access point types, each arriving at its own type; a mod may register more
     for (std::string_view name : {"staircase", "door", "portal", "waypoint"})

@@ -882,6 +882,19 @@ namespace
 
             site.address = flat_cell;
         }
+        else if (const raw_values_type* p = member(v, "cell_position"); p != nullptr)
+        {
+            std::string cell_path = member_path(path, "cell_position");
+            ZoneCell zone_cell {read_cell_position(*p, cell_path)};
+            check_on_grid(cells, zone_cell.cell_position, cell_path);
+
+            if (!floor_door_cell(cells, zone_cell.cell_position))
+            {
+                fail(cell_path, "not a cell an actor can stand in");
+            }
+
+            site.address = zone_cell;
+        }
 
         std::string relation_path = member_path(path, "relation");
         std::optional<Relation> relation = to_relation(string_value(required_member(v, path, "relation"), relation_path));
@@ -891,6 +904,19 @@ namespace
         }
 
         site.relation = *relation;
+
+        if (site.address.has_value() && std::holds_alternative<ZoneCell>(*site.address))
+        {
+            if (site.relation != Relation::In)
+            {
+                fail(relation_path, "an entity in a cell of the zone has the relation in");
+            }
+
+            if (member(v, "orientation") == nullptr)
+            {
+                fail(path, "an entity in a cell of the zone has no orientation");
+            }
+        }
 
         if (const raw_values_type* p = member(v, "position"); p != nullptr)
         {

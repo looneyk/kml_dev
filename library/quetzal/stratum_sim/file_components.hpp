@@ -6,7 +6,10 @@
 //------------------------------------------------------------------------------
 
 #include <flecs.h>
+#include <string>
 #include <string_view>
+#include <utility>
+#include <vector>
 
 namespace quetzal::stratum_sim
 {
@@ -21,8 +24,8 @@ namespace quetzal::stratum_sim
 
     //--------------------------------------------------------------------------
     // Makes the file component with this name in a zone file load as the component. The component's reflection, as a struct
-    // or an opaque type, must already be registered with flecs. A component with optional fields also inherits
-    // (register_inheritance)
+    // or an opaque type, must already be registered with flecs, unless it is a tag, which a zone file writes as an empty
+    // object. A component with optional fields also inherits (register_inheritance)
     flecs::entity register_file_component(flecs::world& entities, std::string_view name, flecs::entity_t component);
 
     template<typename T>
@@ -30,6 +33,12 @@ namespace quetzal::stratum_sim
 
     // Returns zero if no component is registered under the name
     flecs::entity_t file_component(const flecs::world& entities, std::string_view name);
+
+    // Returns each registered file component, with its name, in name order
+    std::vector<std::pair<std::string, flecs::entity_t>> file_components(const flecs::world& entities);
+
+    // Returns true if the component is a tag, which has no value
+    bool is_tag(const flecs::world& entities, flecs::entity_t component);
 
 } // namespace quetzal::stratum_sim
 

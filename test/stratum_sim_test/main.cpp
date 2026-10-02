@@ -12,6 +12,7 @@
 #include "quetzal/stratum_sim/DiscreteLayout.hpp"
 #include "quetzal/stratum_sim/DisplayName.hpp"
 #include "quetzal/stratum_sim/load_layout.hpp"
+#include "quetzal/stratum_sim/make_document.hpp"
 #include "quetzal/stratum_sim/commands.hpp"
 #include "quetzal/stratum_sim/Clock.hpp"
 #include "quetzal/stratum_sim/Scheduler.hpp"
@@ -25,8 +26,10 @@
 #include "quetzal/stratum_sim/specs.hpp"
 #include "quetzal/stratum_sim/World.hpp"
 #include "quetzal/stratum_format/grid.hpp"
+#include "quetzal/stratum_format/Document.hpp"
 #include "quetzal/stratum_format/read.hpp"
 #include "quetzal/stratum_format/RelocatorTarget.hpp"
+#include "quetzal/stratum_format/write.hpp"
 #include <algorithm>
 #include <filesystem>
 #include <format>
@@ -1461,7 +1464,8 @@ namespace
         report_case("a concealed side is a wall", !stratum_sim::crossable(zone, wall_a, actor) && !stratum_sim::crossable(zone, wall_a, other));
         report_case("and the other side of it is not concealed", stratum_sim::crossable(zone, wall_b, actor));
 
-        facings[0].get_mut<stratum_sim::Detection>().actor_states[actor.get<stratum_sim::PersistentId>()] = stratum_sim::DetectionState::Revealed;
+        facings[0].get_mut<stratum_sim::Detection>().actor_states.push_back(
+            stratum_sim::ActorDetection {actor.get<stratum_sim::PersistentId>(), stratum_sim::DetectionState::Revealed});
         report_case("an actor who has found it crosses", stratum_sim::crossable(zone, wall_a, actor));
         report_case("and one who has not does not", !stratum_sim::crossable(zone, wall_a, other));
 
@@ -1662,7 +1666,9 @@ namespace
         report_case("each sited on its wall, which lists it", facing_west && facing_west.try_get<stratum_sim::AttachedEntities>() != nullptr
             && facing_west.get<stratum_sim::AttachedEntities>().entities == vector<flecs::entity> {facings.empty() ? flecs::entity() : facings[0]});
 
-        report_case("an entity whose type is not loaded is built without one", staircase && !staircase.has(flecs::IsA, flecs::Wildcard));
+        flecs::entity staircase_type = stratum_sim::entity_type(world.entities(), "staircase");
+        report_case("an entity whose type is not loaded is an instance of a type of that name, made without the components a type sets",
+            staircase && staircase_type && staircase.has(flecs::IsA, staircase_type) && !staircase_type.has<stratum_sim::Access>());
         report_case("its relocator has its target", staircase && staircase.has<stratum_sim::Relocator>()
             && get<stratum_format::RelocatorTarget>(staircase.get<stratum_sim::Relocator>().target)
                 == stratum_format::RelocatorTarget {nullopt, stratum_format::RelativeZone {1}, nullopt});
@@ -1993,6 +1999,97 @@ namespace
         report_case("so is an entry access point type that is not registered, which leaves no game and no directory",
             unregistered_thrown && !sequence_session.loaded() && sequence_world.entities().count<stratum_sim::Region>() == 0
             && !filesystem::exists(g_suite_config.saves_directory / "third"));
+
+        return;
+    }
+
+    //--------------------------------------------------------------------------
+    // Reads from data/, so stratum_sim_test runs from its own directory
+    void test_saved_zone_documents()
+    {
+        report_group("saved zone documents");
+
+        // Writes the zone as a saved zone, reads it into a second world, and writes it again
+        struct RoundTrip
+        {
+            string written;
+            string rewritten;
+            bool same_geometry = false;
+        };
+
+        auto round_trip = [](flecs::entity zone, auto inspect)
+        {
+            ostringstream written;
+            stratum_format::write(written, stratum_sim::make_document(zone));
+
+            istringstream is(written.str());
+            stratum_format::Document read_back = stratum_format::read(is, "a saved zone");
+
+            stratum_sim::CountingIdAllocator other_ids(stratum_sim::PersistentId {100000});
+            SuiteWorld other(other_ids);
+            flecs::entity copy = other.create_zone(other.region, stratum_sim::PersistentId {*read_back.zone_id});
+            stratum_sim::load_layout(copy, read_back);
+            inspect(other, copy);
+
+            ostringstream rewritten;
+            stratum_format::write(rewritten, stratum_sim::make_document(copy));
+            return RoundTrip {written.str(), rewritten.str(), same_geometry(zone_layout(other, copy), zone_layout(other, zone))};
+        };
+
+        for (const string& filepath : {"data/catagen.zone", "data/corridor.zone", "data/door.zone", "data/loop.zone", "data/room.zone",
+            "data/saved.zone", "data/walls.zone"})
+        {
+            stratum_sim::CountingIdAllocator id_allocator(stratum_sim::PersistentId {});
+            SuiteWorld world(id_allocator);
+            RoundTrip trip = round_trip(world.load_zone(world.region, filepath), [](SuiteWorld&, flecs::entity) {});
+
+            report_case(format("{} is written as a saved zone, read back with its geometry, and written again identically", filepath),
+                trip.same_geometry && !trip.written.empty() && trip.written == trip.rewritten);
+        }
+
+        // data/door.zone: a door on the doorway east of cell (1, 1), and a pursuer that populating places
+        stratum_sim::CountingIdAllocator id_allocator(stratum_sim::PersistentId {});
+        SuiteWorld world(id_allocator);
+        flecs::entity zone = world.load_zone(world.region, "data/door.zone");
+
+        flecs::entity door = stratum_sim::access_entity(stratum_sim::way_through(zone,
+            zone_layout(world, zone).wall_toward(stratum_sim::discrete_point_type {1, 1}, cardinal_direction(CardinalDirection::East))));
+        door.set<stratum_sim::Access>(stratum_sim::Access {stratum_sim::AccessState::Open});
+        stratum_sim::PersistentId door_id = door.get<stratum_sim::PersistentId>();
+
+        flecs::entity pursuer;
+        world.entities().each([&](flecs::entity e, const stratum_sim::Pursue&) { pursuer = e; });
+        stratum_sim::PersistentId pursuer_id = pursuer.get<stratum_sim::PersistentId>();
+        stratum_sim::discrete_point_type pursuer_cell = zone_layout(world, zone).cell_position_at(stratum_sim::placement_of(pursuer).position());
+        pursuer.set<stratum_sim::Pursue>(stratum_sim::Pursue {world.make_reference(door), zone_layout(world, zone).position(stratum_sim::discrete_point_type {1, 1}), true});
+
+        bool door_open = false;
+        bool pursuer_kept = false;
+        bool character_left_out = true;
+
+        round_trip(zone, [&](SuiteWorld& other, flecs::entity copy)
+        {
+            flecs::entity door_copy = other.entity(door_id);
+            door_open = door_copy && stratum_sim::access(door_copy) == stratum_sim::AccessState::Open;
+
+            flecs::entity pursuer_copy = other.entity(pursuer_id);
+            const stratum_sim::Pursue* pursue = pursuer_copy ? pursuer_copy.try_get<stratum_sim::Pursue>() : nullptr;
+            pursuer_kept = pursue != nullptr && pursuer_copy.has<stratum_sim::Blocking>() && pursuer_copy.has<stratum_sim::Speed>()
+                && pursue->seen && pursue->target.has_value() && pursue->target->persistent_id == door_id
+                && zone_layout(other, copy).cell_position_at(stratum_sim::placement_of(pursuer_copy).position()) == pursuer_cell
+                && !pursuer_copy.get<stratum_sim::Site>().address.has_value();
+        });
+
+        report_case("a door's state is written and read back", door_open);
+        report_case("and a denizen's tags, speed and behavior, its cell, and a reference in its behavior", pursuer_kept);
+
+        // The character, which the game owns, is in the zone but in none of its subtree
+        stratum_sim::Game game(g_suite_config);
+        enter_zone_file(game, "data/corridor.zone");
+        stratum_sim::PersistentId character_id = game.character().entity().get<stratum_sim::PersistentId>();
+        stratum_format::Document with_character = stratum_sim::make_document(game.session().zone());
+        character_left_out = std::ranges::none_of(with_character.entities, [&](const stratum_format::Entity& e) { return e.id == character_id.id; });
+        report_case("the character is not written with the zone it is in", character_left_out);
 
         return;
     }
@@ -2515,7 +2612,7 @@ namespace
             generated.get<stratum_sim::ZoneNotation>().notation == stratum_format::Notation::Block);
         report_case("and is populated, its pursuer scheduled by speed and pursuing whoever is controlled",
             generated_pursuers.size() == 1 && generated_pursuers.front().has<stratum_sim::Speed>()
-            && !generated_pursuers.front().get<stratum_sim::Pursue>().target_id.has_value());
+            && !generated_pursuers.front().get<stratum_sim::Pursue>().target.has_value());
 
         flecs::entity loaded = world.load_zone(world.region, "data/door.zone");
 
@@ -3240,7 +3337,7 @@ namespace
 
         flecs::entity monster = world.create_entity(zone, stratum_sim::placement_type(layout.position(stratum_sim::discrete_point_type {5, 1}), west));
         monster.add<stratum_sim::Blocking>();
-        monster.set<stratum_sim::Pursue>(stratum_sim::Pursue {static_cast<id_type>(character.id()), stratum_sim::point_type(), false});
+        monster.set<stratum_sim::Pursue>(stratum_sim::Pursue {world.make_reference(character), stratum_sim::point_type(), false});
 
         id_type controlled = static_cast<id_type>(character.id());
 
@@ -3287,11 +3384,11 @@ namespace
 
         // A target gone unseen is sought where it was last seen
         flecs::entity gone = world.create_entity(zone, at(4));
-        id_type gone_id = static_cast<id_type>(gone.id());
+        stratum_sim::EntityReference gone_reference = world.make_reference(gone);
         gone.destruct();
 
         flecs::entity blind = world.create_entity(zone, at(5));
-        blind.set<stratum_sim::Pursue>(stratum_sim::Pursue {gone_id, layout.position(stratum_sim::discrete_point_type {3, 1}), true});
+        blind.set<stratum_sim::Pursue>(stratum_sim::Pursue {gone_reference, layout.position(stratum_sim::discrete_point_type {3, 1}), true});
 
         stratum_sim::think(world, controlled);
         report_case("a pursuer whose target is gone still goes where it last looked",
@@ -3560,6 +3657,7 @@ int main()
     test_world();
     test_game();
     test_specs();
+    test_saved_zone_documents();
     test_regions();
     test_level_targets();
     test_relocating_through();

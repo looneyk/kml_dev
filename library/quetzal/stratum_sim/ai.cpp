@@ -52,7 +52,7 @@ void quetzal::stratum_sim::think(World& world, id_type actor_controlled)
         const Layout& layout = world.layout(zone);
         Pursue pursue = e.get<Pursue>();
 
-        flecs::entity target = world.entities().entity(pursue.target_id.value_or(actor_controlled));
+        flecs::entity target = pursue.target.has_value() ? world.resolve(*pursue.target) : world.entities().entity(actor_controlled);
         const Site* ptarget_site = target.is_alive() && zone_of(target) == zone ? target.try_get<Site>() : nullptr;
         const placement_type* ptarget = ptarget_site != nullptr ? &ptarget_site->placement : nullptr;
 

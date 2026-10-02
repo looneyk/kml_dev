@@ -547,12 +547,21 @@ The object the entity is in or on, and where on it.
 | `relation` | `in` or `on`. Required |
 | `wall` | A wall address, if the entity is sited on a wall |
 | `flat`, `cell_position` | A flat cell: the flat by role, and a cell position of the cell grid, if the entity is sited on a floor or ceiling |
+| `cell_position` alone | A cell of the zone, if the entity is in the zone at that cell, as an actor is |
 | `position` | Where on it: along and up on a wall, xy within the cell on a flat, or in the parent's frame if there is no address. Centered if absent |
 | `orientation` | A direction, one of the four a cell's sides define |
 
-`wall` and `flat` are the two addresses, and never both. **Neither is written if the entity is sited on
-its parent**, which is what an entity in or on another entity is: a key in a chest, coins in a pouch,
-a mug on a table. An entity sited on its parent must have one.
+`wall`, `flat` and a `cell_position` alone are the three addresses, and never more than one. **None is
+written if the entity is sited on its parent**, which is what an entity in or on another entity is: a
+key in a chest, coins in a pouch, a mug on a table. An entity sited on its parent must have one.
+
+An entity in a cell of the zone stands or rests there rather than being fixed to a surface: an actor, or
+anything that moves or is moved. Its relation is `in`, its `orientation` is required, and its cell is
+one an actor can stand in, a floor/door cell.
+
+```json
+{ "id": 8, "type": "rat", "components": { "site": { "relation": "in", "cell_position": [0, 0], "orientation": [1, 0] } } }
+```
 
 An entity is sited on a flat cell and never on a flat as a whole. A flat is the entire floor or
 ceiling of the zone; what a torch or a shaft is at is one cell of it.
@@ -715,6 +724,8 @@ every check has passed, so a rejected file leaves nothing behind.
   a `position` that is not two numbers.
 - A `parent` is not a reference.
 - A `site` has no address and the entity has no parent.
+- A `site` in a cell of the zone has a relation other than `in`, has no `orientation`, or is in a cell off the
+  grid or one an actor cannot stand in.
 - An entity is not sited on the geometry, is no entity's child and is no entity's parent; or a hierarchy
   of parents and children is sited on the geometry nowhere in it.
 - Following `parent` references from an entity leads back to it.

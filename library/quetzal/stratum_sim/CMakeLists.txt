@@ -15,6 +15,7 @@ add_library(quetzal_stratum_sim STATIC
     GridMapping.cpp
     IdAllocator.cpp
     load_layout.cpp
+    make_document.cpp
     properties.cpp
     SavedGameDetails.cpp
     Scheduler.cpp
@@ -50,6 +51,7 @@ add_library(quetzal_stratum_sim STATIC
     Intent.hpp
     Layout.hpp
     load_layout.hpp
+    make_document.hpp
     PersistentId.hpp
     properties.hpp
     SavedGameDetails.hpp

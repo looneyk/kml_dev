@@ -20,6 +20,11 @@
 #include <type_traits>
 #include <utility>
 
+namespace quetzal::stratum_format
+{
+    struct Document;
+}
+
 namespace quetzal::stratum_sim
 {
 
@@ -42,6 +47,14 @@ namespace quetzal::stratum_sim
     struct ZoneLayout
     {
         std::unique_ptr<Layout> layout;
+    };
+
+    //--------------------------------------------------------------------------
+    // The document the zone was built from, without its entities. A saved zone is written with its geometry, which does not
+    // change during play. Shared, so that nlohmann reaches only the files that read or write a document
+    struct ZoneDocument
+    {
+        std::shared_ptr<const stratum_format::Document> document;
     };
 
     //--------------------------------------------------------------------------

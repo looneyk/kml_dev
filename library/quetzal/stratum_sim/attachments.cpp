@@ -162,9 +162,10 @@ quetzal::stratum_sim::DetectionState quetzal::stratum_sim::detection(flecs::enti
         {
             if (const auto* actor_id = actor ? actor.try_get<PersistentId>() : nullptr)
             {
-                if (auto i = detection->actor_states.find(*actor_id); i != detection->actor_states.end())
+                auto i = std::ranges::find(detection->actor_states, *actor_id, &ActorDetection::actor);
+                if (i != detection->actor_states.end())
                 {
-                    return i->second;
+                    return i->state;
                 }
             }
 

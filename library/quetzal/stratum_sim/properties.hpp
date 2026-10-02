@@ -7,6 +7,7 @@
 
 #include <flecs.h>
 #include <optional>
+#include <vector>
 
 namespace quetzal::stratum_sim
 {
@@ -25,6 +26,12 @@ namespace quetzal::stratum_sim
     // Registers std::optional<T> for reflection as a T, with its OptionalField. T must be registered already
     template<typename T>
     void register_optional(flecs::world& world);
+
+    //--------------------------------------------------------------------------
+    // Registers std::vector<T> for reflection as a list of T, which a zone file writes as an array. T must be registered
+    // already
+    template<typename T>
+    void register_vector(flecs::world& world);
 
     //--------------------------------------------------------------------------
     // Sets each unset optional member of into from the same member of from, recursing into struct members. type is the
@@ -61,6 +68,39 @@ void quetzal::stratum_sim::register_optional(flecs::world& world)
             const auto* p = static_cast<const std::optional<T>*>(optional);
             return p->has_value() ? &**p : nullptr;
         }});
+
+    return;
+}
+
+//------------------------------------------------------------------------------
+template<typename T>
+void quetzal::stratum_sim::register_vector(flecs::world& world)
+{
+    world.component<std::vector<T>>().opaque([](flecs::world& w)
+    {
+        return flecs::opaque<std::vector<T>, T>()
+            .as_type(w.vector<T>())
+            .serialize([](const flecs::serializer* s, const std::vector<T>* data)
+            {
+                for (const T& element : *data)
+                {
+                    s->value(element);
+                }
+
+                return 0;
+            })
+            .count([](const std::vector<T>* data) { return data->size(); })
+            .resize([](std::vector<T>* data, size_t size) { data->resize(size); })
+            .ensure_element([](std::vector<T>* data, size_t slot) -> T*
+            {
+                if (data->size() <= slot)
+                {
+                    data->resize(slot + 1);
+                }
+
+                return &(*data)[slot];
+            });
+    });
 
     return;
 }

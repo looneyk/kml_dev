@@ -136,12 +136,19 @@ namespace quetzal::stratum_format
     };
 
     //--------------------------------------------------------------------------
+    // A cell of the zone that an entity is in, such as an actor standing on it, rather than a surface it is on
+    struct ZoneCell
+    {
+        discrete_point_type cell_position;
+    };
+
+    //--------------------------------------------------------------------------
     // The site file component: the object the entity is in or on, and where on it. With no address, the entity is sited on
     // its parent
     struct Site
     {
         Relation relation = Relation::In;
-        std::optional<std::variant<WallAddress, FlatCell>> address;
+        std::optional<std::variant<WallAddress, FlatCell, ZoneCell>> address;
         std::optional<surface_point_type> position;
         std::optional<discrete_vector_type> orientation;
     };

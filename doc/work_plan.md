@@ -63,8 +63,15 @@ each on the ones before it. `Game`'s menu and lifecycle functions, and those the
 - [x] **The game's end.** The `Dead` tag, `Session::over`, and `advance` running no actor once the character is dead
       and reporting the death in its events; the hosts showing it until a key is pressed, then calling `quit` and
       returning to the menu.
-- [ ] **Saved zones** (`addressing_plan.md`, `## Saved zones`): `World::save_zone`, called when the character exits a
-      zone and when a zone unloads, which then frees its resources, and entering the zone again reading its file back.
+- [x] **A zone as a document:** `make_document`, the reverse of `load_layout`, with each zone keeping its `ZoneDocument`'s
+      geometry and `rebuild_document` a skeleton; an entity in a cell of the zone in the format; `Access`, `Detection`,
+      `Speed`, `Pursue`, `Blocking` and `Dead` as file components, with tags written as empty objects; `Pursue::target` a
+      reference and `Detection`'s actor states a list.
+- [ ] **Saved zones** (`addressing_plan.md`, `## Saved zones`): `World` given the game's directory, and
+      `World::save_zone` writing `zones/<persistent id>.zone`, called when the character exits a zone and when a zone
+      unloads, which then frees its resources.
+- [ ] **Saved zones read back:** entering a zone that is not loaded reads its file into its region, which lists its zone
+      ids in place of its zone count, and a saved zone is not populated again.
 - [ ] **A game saved** (`game_file_spec.md`): `Game::save` writing `game.json`, `Character::save` writing
       `character.json`, and `World::save` writing `world.json` and every loaded zone; and the hosts' menu offering it.
 - [ ] **A game loaded:** `Game::open` reading `game.json`, `World::open` and `Character::open` reading theirs, with each

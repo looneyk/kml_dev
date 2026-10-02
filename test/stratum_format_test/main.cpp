@@ -236,11 +236,14 @@ namespace
         {
             m["wall"] = address_map(*address);
         }
+        else if (const auto* flat_cell = site.address.has_value() ? get_if<stratum_format::FlatCell>(&*site.address) : nullptr; flat_cell != nullptr)
+        {
+            m["flat"] = string(stratum_format::name(flat_cell->role));
+            m["cell_position"] = cell_position_map(flat_cell->cell_position);
+        }
         else if (site.address.has_value())
         {
-            const auto& flat_cell = get<stratum_format::FlatCell>(*site.address);
-            m["flat"] = string(stratum_format::name(flat_cell.role));
-            m["cell_position"] = cell_position_map(flat_cell.cell_position);
+            m["cell_position"] = cell_position_map(get<stratum_format::ZoneCell>(*site.address).cell_position);
         }
 
         m["relation"] = string(stratum_format::name(site.relation));
@@ -658,7 +661,32 @@ namespace
                 {
                     v["zone"] = parse_values(R"({ "id": 7713 })");
                     v["entities"][6]["components"]["opens"] = parse_values(R"({ "entity": 90412 })");
-                }, ""}
+                }, ""},
+            {"an actor in a cell of the zone, which is sited on the geometry", [](auto& v)
+                {
+                    v["entities"].push_back(parse_values(
+                        R"({ "id": 8, "type": "rat", "components": { "site": { "relation": "in", "cell_position": [0, 0], "orientation": [1, 0] } } })"));
+                }, ""},
+            {"an actor in a cell of the zone, on rather than in", [](auto& v)
+                {
+                    v["entities"].push_back(parse_values(
+                        R"({ "id": 8, "type": "rat", "components": { "site": { "relation": "on", "cell_position": [0, 0], "orientation": [1, 0] } } })"));
+                }, "entities[7].components.site.relation: an entity in a cell of the zone has the relation in"},
+            {"an actor in a cell of the zone with no orientation", [](auto& v)
+                {
+                    v["entities"].push_back(parse_values(
+                        R"({ "id": 8, "type": "rat", "components": { "site": { "relation": "in", "cell_position": [0, 0] } } })"));
+                }, "entities[7].components.site: an entity in a cell of the zone has no orientation"},
+            {"an actor in a blank cell", [](auto& v)
+                {
+                    v["entities"].push_back(parse_values(
+                        R"({ "id": 8, "type": "rat", "components": { "site": { "relation": "in", "cell_position": [2, 2], "orientation": [1, 0] } } })"));
+                }, "entities[7].components.site.cell_position: not a cell an actor can stand in"},
+            {"an actor in a cell off the grid", [](auto& v)
+                {
+                    v["entities"].push_back(parse_values(
+                        R"({ "id": 8, "type": "rat", "components": { "site": { "relation": "in", "cell_position": [9, 9], "orientation": [1, 0] } } })"));
+                }, "entities[7].components.site.cell_position: off the grid"}
         });
 
         return;

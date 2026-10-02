@@ -15,9 +15,9 @@
 #include <optional>
 #include <string>
 #include <string_view>
-#include <unordered_map>
 #include <utility>
 #include <variant>
+#include <vector>
 
 namespace quetzal::stratum_sim
 {
@@ -50,12 +50,20 @@ namespace quetzal::stratum_sim
     };
 
     //--------------------------------------------------------------------------
+    // One actor's own detection state for an entity
+    struct ActorDetection
+    {
+        PersistentId actor;
+        DetectionState state = DetectionState::Visible;
+    };
+
+    //--------------------------------------------------------------------------
     // How an entity that not every actor sees, such as one side of a secret door, is detected: its general state, and the
-    // state for each actor whose own state differs
+    // state for each actor whose own state differs, at most one entry per actor
     struct Detection
     {
         DetectionState state = DetectionState::Visible;
-        std::unordered_map<PersistentId, DetectionState> actor_states; // <actor_id, state>
+        std::vector<ActorDetection> actor_states;
     };
 
     //--------------------------------------------------------------------------

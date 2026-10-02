@@ -469,11 +469,14 @@ namespace
         {
             members.push_back(std::format("\"wall\": {}", address_text(*address)));
         }
+        else if (const FlatCell* flat_cell = site.address.has_value() ? std::get_if<FlatCell>(&*site.address) : nullptr; flat_cell != nullptr)
+        {
+            members.push_back(std::format("\"flat\": {}", string_text(name(flat_cell->role))));
+            members.push_back(std::format("\"cell_position\": {}", cell_position_text(flat_cell->cell_position)));
+        }
         else if (site.address.has_value())
         {
-            const FlatCell& flat_cell = std::get<FlatCell>(*site.address);
-            members.push_back(std::format("\"flat\": {}", string_text(name(flat_cell.role))));
-            members.push_back(std::format("\"cell_position\": {}", cell_position_text(flat_cell.cell_position)));
+            members.push_back(std::format("\"cell_position\": {}", cell_position_text(std::get<ZoneCell>(*site.address).cell_position)));
         }
 
         if (site.position.has_value())

@@ -157,11 +157,13 @@ a wall are walled from both sides, which the block notation cannot express, so a
 layout.
 
 It sets the zone's `ZoneLayout` to the `DiscreteLayout`, since both notations are grids of cells, and its
-`ZoneNotation` to the notation the rows were written in. It then builds every entity in the file in two passes, in the
-file's order. The first pass creates each entity in the zone, `IsA` its type if that type is loaded, so that each has
-its persistent id --- the file's own in a saved zone --- before anything refers to it. The second sets each entity's
-parent; its site, with the address resolved to layout ids and the position and orientation to a placement; and its
-`Relocator`. A door is the file's `door` entity, and its door facings are the `door_facing` children sited on the
+`ZoneNotation` to the notation the rows were written in, and its `ZoneDocument` to a copy of the document without its
+entities, whose geometry a saved zone is written with. It then builds every entity in the file in two passes, in the
+file's order. The first pass creates each entity in the zone, `IsA` its type, so that each has its persistent id ---
+the file's own in a saved zone --- before anything refers to it. A type that is not loaded is made with no
+components, so the entity keeps its type. The second sets each entity's parent; its site, with the address resolved to
+layout ids and the position and orientation to a placement, and a site in a cell of the zone made a placement at that
+cell with no address; and its `Relocator`. A door is the file's `door` entity, and its door facings are the `door_facing` children sited on the
 walls of its doorway. Each entity that `layout.components.access_points` refers to is made an access point, with the
 registered access point type that its relocator names, its `order`, and its `placement`.
 
@@ -185,12 +187,28 @@ every component object into a value that it then discards, with flecs' own error
 
 `register_file_component(entities, name, component)`, or `register_file_component<T>(entities, name)`, registers a
 component, with its reflection as a struct or an opaque type, as the one that a component object of that name decodes
-into. The name is an entity under `components`. `file_component(entities, name)` returns that component, or 0 if none
-is registered.
+into. A tag is registered too, and a file writes it as an empty object. The name is an entity under `components`.
+`file_component(entities, name)` returns that component, or 0 if none is registered; `file_components(entities)`
+returns every registered one with its name, in name order; and `is_tag` returns true for a component with no value.
+`register_vector<T>` reflects a `std::vector<T>` as a list, which a file writes as an array.
 
 `World` registers `name` as `DisplayName`, what an entity is called for a player to read, such as a zone's
 `layout.components.name`. It identifies nothing. `register_display_name` reflects it as a string, so the file's
-`"name": "..."` decodes into it.
+`"name": "..."` decodes into it. `World` also registers the state of an entity that a saved zone writes back: `access`
+(`Access`), `detection` (`Detection`), `speed` (`Speed`), `pursue` (`Pursue`), and the tags `blocking` (`Blocking`)
+and `dead` (`Dead`).
+
+`make_document(zone)` returns a loaded zone as a saved zone's `Document`, the reverse of `load_layout`. The geometry is
+its `ZoneDocument`'s, which does not change during play, and the rest is the zone as it is now: its persistent id and
+level; the component objects of the layout and of each room, wall, flat and flat override, each of its own file
+components, with a wall or override that gained components during play added; its access points; and every entity in
+its subtree but the layout entities, in persistent id order. The character, which the game owns, is in no zone's
+subtree. An entity's file components are those it owns, so one it reads from its type through inheritance is the type's.
+Each value is encoded through flecs reflection: an unset optional field is left out, an `EntityReference` is written as a
+reference to its persistent id, and a struct field by field. A site with no address on an entity in the zone is written
+in a cell of the zone, at the cell its placement is in. A bound relocator's target is the persistent id of the relocator
+it is bound to. `rebuild_document(zone)`, which would rebuild the geometry from the layout as well, for a zone that has
+no `ZoneDocument`, is a skeleton with an empty body.
 
 ### Generation
 
@@ -436,7 +454,8 @@ with the `door` type giving it a closed `Access`, and a generator builds one the
 open, and one smashed into rubble that blocks the doorway is closed. `access_entity(e)` returns the entity whose
 `Access` applies to `e`: `e` itself, or its nearest ancestor that has one. `access(e)` returns that state, so a door
 facing has its door's state. `Detection` is how actors perceive an entity: a general `DetectionState` (`Visible`,
-`Concealed` or `Revealed`) and, by persistent id, the state of each actor whose own state differs.
+`Concealed` or `Revealed`) and a list of `ActorDetection`, each an actor's persistent id and its own state, for each
+actor whose own state differs.
 `detection(e, actor)` reads it from `e` or its nearest ancestor that has one, and returns the actor's own state if it
 has one and the general state otherwise. A null actor gets the general state, and an entity with no `Detection` in its
 chain is visible. One side of a secret door is concealed by a `Detection` on that door facing.
@@ -545,8 +564,8 @@ since setting a component during iteration can move an entity to another table.
 
 `Pursue` is the one behavior: the actor moves toward a target while the target is visible and in the pursuer's zone,
 then toward where it was last seen, and stops there if it finds nothing. The position last seen is stored on the
-entity, so it unloads, migrates and saves with it. A `Pursue` with no `target_id` pursues the controlled actor that
-`think` is given.
+entity, so it unloads, migrates and saves with it. Its `target` is an `EntityReference`, resolved each time, and a
+`Pursue` with no `target` pursues the controlled actor that `think` is given.
 
 The move taken is to the reachable neighbor nearest the goal, if one is nearer than the current cell. `neighbors`
 returns placements in a fixed order, so ties break the same way every run. Only topology is consulted, so a pursuer is
@@ -699,7 +718,9 @@ components in the order written, and `translate_references` replaces each with t
 
 `Document` is the file as data structures. The geometry is decoded into types: the grid and its rows, expanded from
 runs; the barriers; each room's perimeter or `RoomLocator`; wall addresses; and each flat's heights. So are each
-entity's `site`, `parent` and `relocator` file components, which the reader validates. A `Relocator` has its target,
+entity's `site`, `parent` and `relocator` file components, which the reader validates. A `Site`'s address is a
+`WallAddress`, a `FlatCell`, or a `ZoneCell`, a cell of the zone that an entity such as an actor is in, with the
+relation `in` and an orientation required. A `Relocator` has its target,
 which is a `RelocatorTarget` or the id of the relocator it is bound to, and, for an access point, its type, order and
 placement. The placement is a `discrete_directed_point_type` (`geometry::DiscreteDirectedPoint`): the cell position and
 orientation given to an arriving actor. The layout's `access_points` are `Document::access_points`, a list of entity

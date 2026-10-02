@@ -50,6 +50,14 @@ namespace
 
         Site result {site.relation == stratum_format::Relation::On ? Relation::On : Relation::In, {}, {}};
 
+        // An entity in a cell of the zone has no address: its placement is the cell and its orientation
+        if (const auto* zone_cell = site.address.has_value() ? std::get_if<stratum_format::ZoneCell>(&*site.address) : nullptr)
+        {
+            result.placement = placement_type(layout.position(zone_cell->cell_position), vector_type(static_cast<value_type>(site.orientation->x()),
+                static_cast<value_type>(site.orientation->y()), value_type(0)));
+            return result;
+        }
+
         if (site.address.has_value())
         {
             if (const auto* wall = std::get_if<stratum_format::WallAddress>(&*site.address))
@@ -278,6 +286,12 @@ namespace
             flecs::entity_t component = quetzal::stratum_sim::file_component(world, name);
             assert(component != 0);
 
+            if (quetzal::stratum_sim::is_tag(world, component))
+            {
+                e.add(component);
+                continue;
+            }
+
             size_t size = static_cast<size_t>(ecs_get_type_info(w, component)->size);
 
             if (ecs_has_pair(w, component, EcsOnInstantiate, EcsInherit))
@@ -330,6 +344,16 @@ std::optional<std::string> quetzal::stratum_sim::build_error(const flecs::world&
             if (component == 0)
             {
                 return std::format("{}: no component is registered under the name", component_path(path, name));
+            }
+
+            if (is_tag(world, component))
+            {
+                if (!value->is_object() || !value->empty())
+                {
+                    return std::format("{}: a tag, which is written as an empty object", component_path(path, name));
+                }
+
+                continue;
             }
 
             ecs_value_t decoded = ecs_value_new(world.c_ptr(), component);
@@ -451,6 +475,10 @@ std::vector<flecs::entity> quetzal::stratum_sim::load_layout(flecs::entity zone,
     zone.set<ZoneLayout>(ZoneLayout {std::move(layout)});
     zone.set<ZoneNotation>(ZoneNotation {cells.notation});
 
+    auto zone_document = std::make_shared<stratum_format::Document>(document);
+    zone_document->entities.clear();
+    zone.set<ZoneDocument>(ZoneDocument {std::move(zone_document)});
+
     if (document.level.has_value())
     {
         zone.set<ZoneLevel>(ZoneLevel {*document.level});
@@ -470,9 +498,11 @@ std::vector<flecs::entity> quetzal::stratum_sim::load_layout(flecs::entity zone,
             e.set<PersistentId>(PersistentId {entity.id});
         }
 
-        if (flecs::entity type = entity_type(world, entity.type))
+        // A type that is not loaded is made with no components, so the entity keeps its type
+        if (!entity.type.empty())
         {
-            e.is_a(type);
+            flecs::entity type = entity_type(world, entity.type);
+            e.is_a(type ? type : create_entity_type(world, entity.type));
         }
 
         entities.emplace(entity.id, e.child_of(zone));
