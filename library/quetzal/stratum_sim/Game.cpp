@@ -5,6 +5,10 @@
 
 #include "Game.hpp"
 #include "attachments.hpp"
+#include <filesystem>
+#include <format>
+#include <random>
+#include <stdexcept>
 
 //------------------------------------------------------------------------------
 void quetzal::stratum_sim::register_game_types(World& world)
@@ -25,8 +29,7 @@ quetzal::stratum_sim::Game::Game(const Config& config) :
     m_generation(),
     m_world(m_counting_id_allocator, m_random, m_generation, m_config.zone_count_max),
     m_character(m_world),
-    m_session(m_world, m_character),
-    m_starting_region(m_world.create_region(RegionSpec {}))
+    m_session(m_world, m_character)
 {
     register_game_types(m_world);
 }
@@ -55,12 +58,32 @@ void quetzal::stratum_sim::Game::clear()
 }
 
 //------------------------------------------------------------------------------
-void quetzal::stratum_sim::Game::create(const RegionSpec& region_spec, const CharacterSpec& character_spec)
+void quetzal::stratum_sim::Game::create(std::string_view name, const RegionSpec& region_spec, const CharacterSpec& character_spec)
 {
     clear();
-    m_character.create(character_spec);
-    m_world.create(region_spec);
-    m_session.start();
+
+    m_counting_id_allocator = CountingIdAllocator(PersistentId {});
+    m_random.engine().seed(std::random_device {}());
+
+    std::filesystem::path directory = m_config.saves_directory / name;
+
+    if (!std::filesystem::create_directories(directory))
+    {
+        throw std::runtime_error(std::format("a game named '{}' already exists in {}", name, m_config.saves_directory.string()));
+    }
+
+    try
+    {
+        m_character.create(character_spec);
+        m_session.start(m_world.create(region_spec));
+    }
+    catch (...)
+    {
+        clear();
+        std::filesystem::remove(directory);
+        throw;
+    }
+
     return;
 }
 
@@ -70,7 +93,6 @@ void quetzal::stratum_sim::Game::open(std::string_view directory)
     clear();
     m_world.open(directory);
     m_character.open(directory);
-    m_session.start();
     return;
 }
 
@@ -157,10 +179,4 @@ quetzal::stratum_sim::Character& quetzal::stratum_sim::Game::character()
 const quetzal::stratum_sim::Character& quetzal::stratum_sim::Game::character() const
 {
     return m_character;
-}
-
-//------------------------------------------------------------------------------
-flecs::entity quetzal::stratum_sim::Game::starting_region() const
-{
-    return m_starting_region;
 }

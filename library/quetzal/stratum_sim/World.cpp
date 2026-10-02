@@ -12,6 +12,7 @@
 #include "layout_entities.hpp"
 #include "load_layout.hpp"
 #include "Site.hpp"
+#include "specs.hpp"
 #include "quetzal/stratum_format/Document.hpp"
 #include "quetzal/stratum_format/read.hpp"
 #include <algorithm>
@@ -534,11 +535,28 @@ void quetzal::stratum_sim::World::clear()
 }
 
 //------------------------------------------------------------------------------
-void quetzal::stratum_sim::World::create(const RegionSpec& region_spec)
+flecs::entity quetzal::stratum_sim::World::create(const RegionSpec& region_spec)
 {
-    region_spec; // create region ...
+    std::string entry_access = region_spec.value_or(entry_access_key, std::string());
+    size_t comma = entry_access.find(',');
+    flecs::entity entry_type = comma != std::string::npos ? access_type(m_entities, entry_access.substr(0, comma)) : flecs::entity();
+    std::optional<level_type> entry_offset = comma != std::string::npos ? try_type<level_type>(entry_access.substr(comma + 1)) : std::nullopt;
 
-    return;
+    if (!entry_type || !entry_offset.has_value())
+    {
+        throw std::runtime_error(std::format("the starting region spec's {} is not a registered access point type, a comma, and a level offset: '{}'",
+            entry_access_key, entry_access));
+    }
+
+    flecs::entity zone = create_region_zone(region_spec, select_prefixed(region_spec, zone_prefix));
+    flecs::entity entry = entry_point(zone, entry_type, *entry_offset);
+
+    if (!entry)
+    {
+        throw std::runtime_error(std::format("the starting region's first zone has no access point for its {}: '{}'", entry_access_key, entry_access));
+    }
+
+    return entry;
 }
 
 //------------------------------------------------------------------------------

@@ -28,6 +28,7 @@
 #include "quetzal/stratum_format/read.hpp"
 #include "quetzal/stratum_format/RelocatorTarget.hpp"
 #include <algorithm>
+#include <filesystem>
 #include <format>
 #include <iostream>
 #include <map>
@@ -356,11 +357,18 @@ namespace
     static constexpr stratum_sim::level_type suite_entry_offset = 1;
 
     //--------------------------------------------------------------------------
-    // Loads the zone file into the game's starting region and enters it at the suite's entry type and level offset
+    // Loads the zone file into a region of its own, made from the region spec "staircase", and enters it at the suite's
+    // entry type and level offset. Creates the game's character first if the game has none
     void enter_zone_file(stratum_sim::Game& game, const string& filepath)
     {
+        if (!game.character().entity())
+        {
+            game.character().create(stratum_sim::CharacterSpec {});
+        }
+
+        flecs::entity region = game.world().create_region(suite_region_spec("staircase"));
         stratum_sim::Session& session = game.session();
-        session.enter(game.world().load_zone(game.starting_region(), filepath), suite_entry_type(session), suite_entry_offset);
+        session.enter(game.world().load_zone(region, filepath), suite_entry_type(session), suite_entry_offset);
 
         return;
     }
@@ -1850,6 +1858,87 @@ namespace
             && stratum_sim::access_type(world.entities(), "staircase") && stratum_sim::file_component(world.entities(), "name") != 0
             && played.generation().m_generator_selectors.contains("door"));
 
+        // One game after another, each created from specs. The games' directories are made afresh on every run
+        filesystem::remove_all(g_suite_config.saves_directory);
+        stratum_sim::Game sequence(g_suite_config);
+        stratum_sim::Session& sequence_session = sequence.session();
+        stratum_sim::World& sequence_world = sequence.world();
+        sequence.generation() = suite_generation();
+        flecs::entity staircase_type = stratum_sim::access_type(sequence_world.entities(), "staircase");
+
+        const stratum_sim::RegionSpec region_spec {{string(stratum_sim::generator_selector_key), "staircase"},
+            {string(stratum_sim::entry_access_key), "staircase,1"}, {format("{}{}", stratum_sim::zone_prefix, stratum_sim::level_key), "-1"}};
+
+        auto persistent_id_of = [](flecs::entity e) { return e.get<stratum_sim::PersistentId>().id; };
+        auto name_of = [](flecs::entity e) { return e.has<stratum_sim::DisplayName>() ? e.get<stratum_sim::DisplayName>().name : string(); };
+
+        sequence.create("first", region_spec, stratum_sim::CharacterSpec {.name = "Ailis"});
+        flecs::entity first_character = sequence_session.character().entity();
+        flecs::entity first_zone = sequence_session.zone();
+        flecs::entity first_region = stratum_sim::region_of(first_zone);
+
+        report_case("creating a game makes its directory in the saves directory",
+            filesystem::is_directory(g_suite_config.saves_directory / "first"));
+        report_case("and the character, with the spec's name and the first id", persistent_id_of(first_character) == 0
+            && name_of(first_character) == "Ailis");
+        report_case("and starts play in the first zone of a region made from the spec, at the entry point it states",
+            sequence_session.loaded() && first_zone.get<stratum_sim::ZoneLevel>().level == -1
+            && first_region.get<stratum_sim::Region>().region_spec.value(stratum_sim::generator_selector_key) == "staircase"
+            && stratum_sim::placement_of(first_character).position()
+                == stratum_sim::entry_point(first_zone, staircase_type, 1).get<stratum_sim::AccessPoint>().placement.position());
+
+        flecs::entity second_zone = stratum_sim::zone_of(sequence_world.relocate_through(first_character,
+            stratum_sim::entry_point(first_zone, staircase_type, -1)));
+        report_case("the first game is played into a second zone", second_zone && second_zone != first_zone && sequence_world.zone_count() == 2);
+
+        sequence.create("second", region_spec, stratum_sim::CharacterSpec {.name = "Bran"});
+        flecs::entity second_character = sequence_session.character().entity();
+
+        report_case("creating another game leaves none of the first game's regions, zones or character", !first_region.is_alive()
+            && !first_zone.is_alive() && !second_zone.is_alive() && !first_character.is_alive()
+            && sequence_world.entities().count<stratum_sim::Region>() == 1 && sequence_world.zone_count() == 1);
+
+        stratum_sim::PersistentId::type persistent_id_max = 0;
+        sequence_world.entities().each([&](flecs::entity, const stratum_sim::PersistentId& persistent_id)
+        {
+            persistent_id_max = max(persistent_id_max, persistent_id.id);
+        });
+
+        report_case("and its ids count from zero again, every one of them the new game's", persistent_id_of(second_character) == 0
+            && name_of(second_character) == "Bran"
+            && persistent_id_max + 1 == static_cast<stratum_sim::PersistentId::type>(sequence_world.entities().count<stratum_sim::PersistentId>()));
+
+        bool existing_thrown = false;
+
+        try
+        {
+            sequence.create("second", region_spec, stratum_sim::CharacterSpec {});
+        }
+        catch (const runtime_error&)
+        {
+            existing_thrown = true;
+        }
+
+        report_case("a game named as one that exists is an error, which leaves no game in progress", existing_thrown
+            && !sequence_session.loaded() && !sequence_session.character().entity() && sequence_world.entities().count<stratum_sim::Region>() == 0);
+
+        stratum_sim::RegionSpec unregistered_entry = region_spec;
+        unregistered_entry.insert(string(stratum_sim::entry_access_key), "trapdoor,1");
+        bool unregistered_thrown = false;
+
+        try
+        {
+            sequence.create("third", unregistered_entry, stratum_sim::CharacterSpec {});
+        }
+        catch (const runtime_error&)
+        {
+            unregistered_thrown = true;
+        }
+
+        report_case("so is an entry access point type that is not registered, which leaves no game and no directory",
+            unregistered_thrown && !sequence_session.loaded() && sequence_world.entities().count<stratum_sim::Region>() == 0
+            && !filesystem::exists(g_suite_config.saves_directory / "third"));
+
         return;
     }
 
@@ -2134,13 +2223,11 @@ namespace
         stratum_sim::Game game(g_suite_config);
         stratum_sim::Session& session = game.session();
         stratum_sim::World& world = game.world();
-        flecs::entity character = session.character().entity();
-
         game.generation() = suite_generation();
-        game.starting_region().get_mut<stratum_sim::Region>().region_spec = suite_region_spec("staircase");
 
         // data/walls.zone: the character enters on cell (2, 1), facing the staircase leading down to the east
         enter_zone_file(game, "data/walls.zone");
+        flecs::entity character = session.character().entity();
         flecs::entity first = session.zone();
         first.set<stratum_sim::ZoneLevel>(stratum_sim::ZoneLevel {-1});
 
@@ -2253,7 +2340,6 @@ namespace
 
         staircase.set<stratum_sim::Relocator>(leading_down);
         game.generation() = suite_generation();
-        game.starting_region().get_mut<stratum_sim::Region>().region_spec = suite_region_spec("staircase");
         flecs::entity first = session.zone();
         session.character().submit(stratum_sim::Interact {});
         stratum_sim::EventQueue enter_events;
@@ -2758,7 +2844,7 @@ namespace
         report_case("facing away from it", start.direction().y() < 0.0f && start.direction().x() == 0.0f);
 
         // A zone with a portal alone is entered at the portal, and not by default
-        flecs::entity portal_only = game.world().create_zone(game.starting_region(), make_unique<stratum_sim::DiscreteLayout>(layout.grid().origin, 1.0f,
+        flecs::entity portal_only = game.world().create_zone(stratum_sim::region_of(session.zone()), make_unique<stratum_sim::DiscreteLayout>(layout.grid().origin, 1.0f,
             layout.grid().extent));
         stratum_sim::DiscreteLayout& portal_only_layout = zone_layout(game.world(), portal_only);
         portal_only_layout.set_cell_open(stratum_sim::discrete_point_type {0, 0}, true);
@@ -3182,8 +3268,9 @@ namespace
             stratum_sim::Game game_created(g_suite_config);
             stratum_sim::Session& created = game_created.session();
             game_created.generation() = suite_generation();
-            game_created.starting_region().get_mut<stratum_sim::Region>().region_spec = suite_region_spec("door");
-            created.enter(game_created.world().create_zone(game_created.starting_region(), stratum_sim::ZoneSpec {}), suite_entry_type(created), suite_entry_offset);
+            game_created.character().create(stratum_sim::CharacterSpec {});
+            created.enter(game_created.world().create_zone(game_created.world().create_region(suite_region_spec("door")), stratum_sim::ZoneSpec {}),
+                suite_entry_type(created), suite_entry_offset);
 
             report_case("a constructed zone is loaded", created.loaded());
             report_case("with the notation its generator named", created.notation() == stratum_format::Notation::Block);
@@ -3239,7 +3326,7 @@ namespace
         report_case("and leaves the zone it left loaded", zone_left.is_alive() && game.world().zone_count() == 2);
 
         flecs::entity zone_entered = session.zone();
-        flecs::entity closed = game.world().create_zone(game.starting_region(), make_unique<stratum_sim::DiscreteLayout>(stratum_sim::point_type(0.0f, 0.0f, 0.0f),
+        flecs::entity closed = game.world().create_zone(stratum_sim::region_of(session.zone()), make_unique<stratum_sim::DiscreteLayout>(stratum_sim::point_type(0.0f, 0.0f, 0.0f),
             1.0f, stratum_sim::discrete_vector_type(2, 2)));
 
         bool thrown = false;

@@ -32,6 +32,8 @@ namespace quetzal::stratum_sim
         // Character management
 
         void clear();
+
+        // Makes the character's entity, with a new persistent id and the spec's name, in no zone
         void create(const CharacterSpec& character_spec);
         void open(std::string_view directory);
         void save(std::string_view directory);
@@ -47,7 +49,8 @@ namespace quetzal::stratum_sim
 
     private:
 
-        flecs::entity m_entity;
+        World& m_world;
+        flecs::entity m_entity; // Null until create, and after clear
     };
 
 } // namespace quetzal::stratum_sim

@@ -12,6 +12,7 @@
 #include "quetzal/stratum_view/ascii.hpp"
 #include "quetzal/stratum_view/cells.hpp"
 #include <godot_cpp/variant/utility_functions.hpp>
+#include <chrono>
 #include <cstdlib>
 #include <exception>
 #include <filesystem>
@@ -25,18 +26,37 @@ namespace view = quetzal::stratum_view;
 namespace
 {
 
-    // Temporary: a zone loaded is entered at its lowest-ordered staircase leading up
-    static constexpr auto entry_access_type = "staircase";
-    static constexpr sim::level_type entry_level_offset = 1;
-
-    // Temporary: a zone loaded is the first level down if its file states no level
-    static constexpr sim::level_type starting_level = -1;
-
     //--------------------------------------------------------------------------
     // Temporary, until the config file is read: during development the game's directories are in the temp directory
     sim::Config temporary_config()
     {
         return sim::Config {std::filesystem::temp_directory_path() / "KML/Stratum/saves", 8};
+    }
+
+    //--------------------------------------------------------------------------
+    // Temporary, until a new game chooses its region: a dungeon whose first zone is the first level down, entered at its
+    // staircase leading up
+    sim::RegionSpec temporary_region_spec()
+    {
+        return sim::RegionSpec {{std::string(sim::generator_selector_key), "dungen"}, {std::string(sim::entry_access_key), "staircase,1"},
+            {std::format("{}{}", sim::zone_prefix, sim::level_key), "-1"}};
+    }
+
+    //--------------------------------------------------------------------------
+    // A new game is named by the local time it began, in ISO 8601 basic format, until a player names a game. A second
+    // game begun in the same second has a suffix
+    std::string new_game_name(const std::filesystem::path& saves_directory)
+    {
+        const std::string time = std::format("{:%Y%m%dT%H%M%S}", std::chrono::zoned_time(std::chrono::current_zone(),
+            std::chrono::floor<std::chrono::seconds>(std::chrono::system_clock::now())));
+        std::string name = time;
+
+        for (int suffix = 2; std::filesystem::exists(saves_directory / name); ++suffix)
+        {
+            name = std::format("{}-{}", time, suffix);
+        }
+
+        return name;
     }
 
     //--------------------------------------------------------------------------
@@ -65,14 +85,12 @@ StratumWorld::StratumWorld() :
     // Temporary: dungen's warnings are dropped, until they are logged to a file
     quetzal::stratum_gen::register_generators(m_game.generation(), [](const std::string&) {});
     m_game.generation().m_generator_selectors["dungen"] = select_dungen;
-    m_game.starting_region().get_mut<sim::Region>().region_spec = sim::RegionSpec {{std::string(sim::generator_selector_key), "dungen"}};
 }
 
 //------------------------------------------------------------------------------
 void StratumWorld::_bind_methods()
 {
-    godot::ClassDB::bind_method(godot::D_METHOD("default_zone_path"), &StratumWorld::default_zone_path);
-    godot::ClassDB::bind_method(godot::D_METHOD("load_zone", "filepath"), &StratumWorld::load_zone);
+    godot::ClassDB::bind_method(godot::D_METHOD("create_game"), &StratumWorld::create_game);
     godot::ClassDB::bind_method(godot::D_METHOD("extent"), &StratumWorld::extent);
     godot::ClassDB::bind_method(godot::D_METHOD("cell"), &StratumWorld::cell);
     godot::ClassDB::bind_method(godot::D_METHOD("render"), &StratumWorld::render);
@@ -100,29 +118,17 @@ void StratumWorld::_bind_methods()
 }
 
 //------------------------------------------------------------------------------
-godot::String StratumWorld::default_zone_path() const
+bool StratumWorld::create_game()
 {
-    return godot::String::utf8(KML_DEV_ASSETS_ROOT "/zones/dungeon.zone");
-}
-
-//------------------------------------------------------------------------------
-bool StratumWorld::load_zone(const godot::String& filepath)
-{
-    // Exceptions must not cross into Godot. A failed load leaves the player in the zone it was in
+    // Exceptions must not cross into Godot. A failed creation leaves no game in progress
     try
     {
-        flecs::entity zone = m_game.world().load_zone(m_game.starting_region(), std::string(filepath.utf8().get_data()));
-        m_session.enter(zone, sim::access_type(m_game.world().entities(), entry_access_type), entry_level_offset);
+        m_game.create(new_game_name(m_game.config().saves_directory), temporary_region_spec(), sim::CharacterSpec {});
     }
     catch (const std::exception& e)
     {
-        godot::UtilityFunctions::push_error("unable to load zone: ", godot::String::utf8(e.what()));
+        godot::UtilityFunctions::push_error("unable to create a game: ", godot::String::utf8(e.what()));
         return false;
-    }
-
-    if (!m_session.zone().has<sim::ZoneLevel>())
-    {
-        m_session.zone().set<sim::ZoneLevel>(sim::ZoneLevel {starting_level});
     }
 
     return true;

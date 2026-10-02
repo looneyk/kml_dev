@@ -9,6 +9,7 @@
 #include "quetzal/stratum_sim/DiscreteLayout.hpp"
 #include "quetzal/stratum_sim/commands.hpp"
 #include "quetzal/stratum_sim/Site.hpp"
+#include <chrono>
 #include <cstdlib>
 #include <filesystem>
 #include <format>
@@ -25,18 +26,37 @@ namespace
 
     static constexpr char key_redraw = '\x0c'; // Ctrl-L, as curses and the roguelikes bind it
 
-    // Temporary: the zone loaded is entered at its lowest-ordered staircase leading up
-    static constexpr auto entry_access_type = "staircase";
-    static constexpr stratum_sim::level_type entry_level_offset = 1;
-
-    // Temporary: the zone loaded is the first level down if its file states no level
-    static constexpr stratum_sim::level_type starting_level = -1;
-
     //--------------------------------------------------------------------------
     // Temporary, until the config file is read: during development the game's directories are in the temp directory
     stratum_sim::Config temporary_config()
     {
         return stratum_sim::Config {std::filesystem::temp_directory_path() / "KML/Stratum/saves", 8};
+    }
+
+    //--------------------------------------------------------------------------
+    // Temporary, until a new game chooses its region: a dungeon whose first zone is the first level down, entered at its
+    // staircase leading up
+    stratum_sim::RegionSpec temporary_region_spec()
+    {
+        return stratum_sim::RegionSpec {{std::string(stratum_sim::generator_selector_key), "dungen"},
+            {std::string(stratum_sim::entry_access_key), "staircase,1"}, {std::format("{}{}", stratum_sim::zone_prefix, stratum_sim::level_key), "-1"}};
+    }
+
+    //--------------------------------------------------------------------------
+    // A new game is named by the local time it began, in ISO 8601 basic format, until a player names a game. A second
+    // game begun in the same second has a suffix
+    std::string new_game_name(const std::filesystem::path& saves_directory)
+    {
+        const std::string time = std::format("{:%Y%m%dT%H%M%S}", std::chrono::zoned_time(std::chrono::current_zone(),
+            std::chrono::floor<std::chrono::seconds>(std::chrono::system_clock::now())));
+        std::string name = time;
+
+        for (int suffix = 2; std::filesystem::exists(saves_directory / name); ++suffix)
+        {
+            name = std::format("{}-{}", time, suffix);
+        }
+
+        return name;
     }
 
     //--------------------------------------------------------------------------
@@ -70,7 +90,7 @@ namespace
 } // namespace
 
 //------------------------------------------------------------------------------
-stratum_terminal::Application::Application(const std::string& filepath_zone, View view, const std::string& script, bool incremental) :
+stratum_terminal::Application::Application(View view, const std::string& script, bool incremental) :
     m_game(temporary_config()),
     m_session(m_game.session()),
     m_view(view),
@@ -84,15 +104,7 @@ stratum_terminal::Application::Application(const std::string& filepath_zone, Vie
     // dungen's warnings are dropped, as they would write over the terminal's frame
     stratum_gen::register_generators(m_game.generation(), [](const std::string&) {});
     m_game.generation().m_generator_selectors["dungen"] = select_dungen;
-    m_game.starting_region().get_mut<stratum_sim::Region>().region_spec = stratum_sim::RegionSpec {{std::string(stratum_sim::generator_selector_key), "dungen"}};
-
-    flecs::entity zone = m_game.world().load_zone(m_game.starting_region(), filepath_zone);
-    m_session.enter(zone, stratum_sim::access_type(m_game.world().entities(), entry_access_type), entry_level_offset);
-
-    if (!m_session.zone().has<stratum_sim::ZoneLevel>())
-    {
-        m_session.zone().set<stratum_sim::ZoneLevel>(stratum_sim::ZoneLevel {starting_level});
-    }
+    m_game.create(new_game_name(m_game.config().saves_directory), temporary_region_spec(), stratum_sim::CharacterSpec {});
 
     if (m_view == View::Null)
     {

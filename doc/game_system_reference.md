@@ -397,7 +397,7 @@ forgets every entry and keeps the maximum.
 as it exists, through unloading and loading again. It compares and hashes as its value, so it is used directly as a
 map key and as a reference's id. An entity gets one from `World::next_id` when it is placed in a zone: the observers on
 `ChildOf`, `Parent` and `InZone` give one to any entity in a zone that has none, whatever created it, except a layout
-entity. A zone, which has no parent, gets one from `create_zone`, and the character gets one from its constructor. A
+entity. A zone, which has no parent, gets one from `create_zone`, and the character gets one from `Character::create`. A
 `World` is constructed with a reference to an `IdAllocator`, the source of its ids, whose one function is `next`.
 `CountingIdAllocator` counts up from the id it is constructed with. A world is saved with an id from `next` and
 restored with an allocator constructed from that id.
@@ -562,12 +562,25 @@ maximum of 8, until the game's config file is read. It owns the structures that 
 settings, a `CountingIdAllocator` counting from zero, a `random_type` seeded from
 `std::random_device`, the `Generation`, the `World` and the `Character`, and the `Session` that plays them, constructed in
 that order, each referring to those before it. `generation()` returns the `Generation`, with which a host registers
-its generators, selectors and region specs. Only the `Generation` can be copied or moved. `starting_region()` returns the region that a new game's zones are
-made in, which the constructor creates; it is temporary, until a new game chooses its region.
+its generators, selectors and region specs. Only the `Generation` can be copied or moved. The constructor makes no
+character, region or zone; until a game is created, there is none.
 
 `Game` has the menu and lifecycle operations a host calls: `menu_open`, `menu_close`, `clear`, `create`, `open`,
 `save`, `quit` and `saved_games`. They call `clear`, `create`, `open` and `save` on `World` and `Character`, and
 `clear`, `start`, `pause` and `resume` on `Session`. `saved_games` returns no games.
+
+`Game::create(name, region_spec, character_spec)` clears, resets the id allocator to count from zero, and reseeds the
+engine from `std::random_device`, so nothing passes from one game to the next. It then creates the game's directory,
+`name` in the config's saves directory, and throws `std::runtime_error` if that directory exists. It has the character
+created from the `CharacterSpec`, and the world's starting region and its first zone from the `RegionSpec`, and starts
+the session at the entry point `World::create` returns. If either throws, it clears again and removes the directory
+before passing the exception on, so a failure leaves no game in progress.
+
+`World::create(region_spec)` reads the spec's `entry_access`: a registered access point type, a comma, and a level
+offset, such as `staircase,1`. It creates the starting region from the spec and its first zone from the spec's `zone.`
+keys, through `create_region_zone` and `select_prefixed`, and returns the zone's `entry_point` for that type and offset.
+It throws `std::runtime_error` if `entry_access` is not a type and an offset, or the zone has no such entry point.
+`entry_access_key` and `zone_prefix` are the key and the prefix.
 
 `Game::clear` clears the session, the character and the world, in that order, in place. `Session::clear` ends play:
 no zone is played, and the turn order and the clock's fraction of a unit are emptied, while the driver remains.
@@ -581,9 +594,9 @@ spellcasting skill, each a map from a name to its properties; an `inventory` of 
 class, as `properties`.
 `session_plan.md` (`## Games`) has their design.
 
-`Character` is the entity a host controls, created with `Blocking`, the `ControlledActor` tag, a `Speed` and a
-`PersistentId`, and it is in no zone
-until one is entered. It is owned by the game and has no parent, so it outlives every zone it moves through. A host
+`Character` is the entity a host controls. `create(character_spec)` makes it, with `Blocking`, the `ControlledActor`
+tag, a `Speed`, a new `PersistentId`, and the spec's `name` as its `DisplayName`, and it is in no zone until one is
+entered. `entity()` is null before `create` and after `clear`. It is owned by the game and has no parent, so it outlives every zone it moves through. A host
 acts through it: `set_intent(intent)` sets the character's `Intent`, and `submit(action)` sets a `PendingCommand` of the
 action for the character's entity, which the clock applies the next time the character is ready. `entity()` returns the
 entity, for queries and drawing.
@@ -593,27 +606,28 @@ entity, for queries and drawing.
 `Session` has the zone being played: references to the game's `World` and `Character`, a `Scheduler`, a `Clock`, and the
 zone. A host supplies input mapping and drawing.
 
-`Session` makes no zone. Each host loads its zone file into the game's `starting_region()` with `World::load_zone` and
-enters it with `enter`. The library has no default type, offset, or region; each host passes `staircase` and 1, a
-staircase leading up, from temporary constants of its own, `entry_access_type` and `entry_level_offset`. A zone a host loads is at level -1, the host's temporary
-`starting_level`, if its file states no level, so the relocators in it can be resolved.
+`Session` makes no zone. Each host creates a game with `Game::create`, which starts the session in the generated first
+zone. The library has no default entry type or offset.
 
 Each host registers `stratum_gen`'s generators, dropping dungen's warnings, and a temporary generator selector named
-`dungen`, until the generators are integrated, and gives the starting region a `RegionSpec` whose `generator_selector`
-is `dungen`. The selector chooses the `dungen` generator for every zone, and names the zone "Dungeon Level N", where N is
-the absolute value of the level. So a staircase leads to a new zone the first time it is taken, and back through the
-bound staircase after that.
+`dungen`, until the generators are integrated. It creates the game from a temporary `RegionSpec`, whose
+`generator_selector` is `dungen`, whose `entry_access` is `staircase,1`, and whose `zone.level` is -1, and an empty
+`CharacterSpec`. It names the game by the local time it began, in ISO 8601 basic format, with a suffix of `-2`, `-3`, and
+so on if a game of that name exists. The selector chooses the `dungen` generator for every zone, and names the zone
+"Dungeon Level N", where N is the absolute value of the level. So the character begins at the staircase leading up on
+the first level down, and a staircase leads to a new zone the first time it is taken, and back through the bound
+staircase after that.
 
 `stratum_gen::register_generators(generation, warning)` registers `generate_dungen` as `dungen`. It runs dungen with
 its default parameters at the `ZoneSpec`'s `level`, if it has one, with a seed from `dungen::random_seed`, names the
 zone with the `ZoneSpec`'s `name`, and returns the document `dungen::make_document` builds in memory. It passes dungen's
 warnings to `warning`.
 
-`enter(zone, type, offset)` relocates the character to the placement of the zone's `entry_point(zone, type, offset)`, then
-has the world `trim_zones` with the zone entered, so no zone the character is in can unload. It makes the zone the one being
-played, removes the character's pending command, and rebuilds the turn order from each entity in the zone that has a `Speed`, the
-character included. If the zone has no such entry point, it throws `std::runtime_error`, and the character stays
-where it was. `notation()` returns the entered zone's `ZoneNotation`.
+`start(access_point)` relocates the character to the access point's placement in its zone, then has the world
+`trim_zones` with the zone entered, so no zone the character is in can unload. It makes the zone the one being played,
+removes the character's pending command, and rebuilds the turn order from each entity in the zone that has a `Speed`,
+the character included. `enter(zone, type, offset)` starts at the zone's `entry_point(zone, type, offset)`; if the zone
+has no such entry point, it throws `std::runtime_error`, and the character stays where it was. `notation()` returns the entered zone's `ZoneNotation`.
 
 `set_driver(driver, units_per_second)` sets the clock's driver, which lasts until it is set again; it is turn-based by
 default.
@@ -828,10 +842,8 @@ uses the cursor-addressed output within a scripted run.
 
 `--cell` and `--wall` choose the reduction drawn: a glyph per cell, or the lattice, which also draws walls and doors on
 edges. Each uses its own glyph set. With neither, a block notation zone uses the cell view and a wall notation zone the
-wall view; `Session::notation` returns the notation.
-
-Zone files are in `assets/zones/`. The host finds them through `KML_DEV_ASSETS_ROOT`, a compile definition that CMake
-sets from the source tree root, so the working directory does not matter.
+wall view; `Session::notation` returns the notation. The host creates a new game when it starts, and takes no zone
+file.
 
 ## Godot host
 
@@ -840,13 +852,14 @@ library, a GDExtension, and `application/stratum_godot/project/` is the Godot pr
 `stratum.gdextension`, which refers to `res://bin/`, where the build writes it.
 
 `StratumWorld` is the one registered class, a `RefCounted` that owns a `Game`, with only Godot types in its
-interface: `default_zone_path`, `load_zone`, `extent`, `cell`, `render`, `cells`, `actors`, `step`, `interact`,
+interface: `create_game`, `extent`, `cell`, `render`, `cells`, `actors`, `step`, `interact`,
 `enter`, `turn`, and `message`. `step` sets the character's intent, turning toward the direction moved as the view does not show the
 facing direction, and advances through the turn-based driver; `interact` submits `Interact` and `enter` submits
 `Enter`, and each advances. `message` returns what the last of them did that the map does not show, such as a door
 opening, a staircase before the character or leading nowhere, or the level arrived on, and the tile view shows it in its status line. A step ends with the next turn already granted,
-so `turn` is the turn awaiting input. Exceptions do not cross into Godot: a failed load pushes the reason to Godot's
-error list and returns false, and the previous zone stays intact.
+so `turn` is the turn awaiting input. `create_game` creates a new game as the terminal host does, and the scripts call
+it when they start. Exceptions do not cross into Godot: a failed creation pushes the reason to Godot's error list and
+returns false, and leaves no game in progress.
 
 `cells` is one code per cell from `stratum_view::cells`, row major from row zero; its `PlaceType` constants repeat
 `stratum_view::PlaceType` for Godot, followed by `PlaceTypeDoorOpen` for a door whose access is open. `actors` is one

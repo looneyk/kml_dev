@@ -87,7 +87,12 @@ namespace quetzal::stratum_sim
         // World management
 
         void clear();
-        void create(const RegionSpec& region_spec);
+
+        // Creates a new game's starting region from the spec, and its first zone from the spec's zone keys, and returns the
+        // zone's entry point for the spec's entry_access. Throws std::runtime_error if entry_access is not a registered
+        // access point type and a level offset, or the zone has no such entry point
+        flecs::entity create(const RegionSpec& region_spec);
+
         void open(std::string_view directory);
         void save(std::string_view directory);
 

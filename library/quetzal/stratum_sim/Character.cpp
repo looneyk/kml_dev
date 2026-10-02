@@ -4,6 +4,8 @@
 //------------------------------------------------------------------------------
 
 #include "Character.hpp"
+#include "DisplayName.hpp"
+#include <cassert>
 
 namespace
 {
@@ -14,7 +16,8 @@ namespace
 
 //------------------------------------------------------------------------------
 quetzal::stratum_sim::Character::Character(World& world) :
-    m_entity(world.entities().entity().add<Blocking>().add<ControlledActor>().set<Speed>(Speed {character_speed}).set<PersistentId>(world.next_id()))
+    m_world(world),
+    m_entity()
 {
 }
 
@@ -34,7 +37,15 @@ void quetzal::stratum_sim::Character::clear()
 //------------------------------------------------------------------------------
 void quetzal::stratum_sim::Character::create(const CharacterSpec& character_spec)
 {
-    character_spec; // create character entity ...
+    assert(!m_entity);
+
+    m_entity = m_world.entities().entity().add<Blocking>().add<ControlledActor>().set<Speed>(Speed {character_speed})
+        .set<PersistentId>(m_world.next_id());
+
+    if (!character_spec.name.empty())
+    {
+        m_entity.set<DisplayName>(DisplayName {character_spec.name});
+    }
 
     return;
 }

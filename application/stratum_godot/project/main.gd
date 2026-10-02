@@ -6,13 +6,12 @@ extends SceneTree
 func _initialize() -> void:
 	var world := StratumWorld.new()
 
-	var path := world.default_zone_path()
-	print("default_zone_path -> ", path)
-
-	if not world.load_zone(path):
-		push_error("load_zone failed")
+	if not world.create_game():
+		push_error("create_game failed")
 		quit(1)
 		return
+
+	print("create_game -> ok")
 
 	print("extent -> ", world.extent())
 	print("start  -> ", world.cell())

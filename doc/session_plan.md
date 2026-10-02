@@ -46,7 +46,7 @@ void World::trim_zones(flecs::entity zone_entered);
   The registrations remain: the file components, the entity types, the access point types, and the registries that
   `World` takes from `Game`, which are the program's and, later, its mods'.
 - **`create(region_spec)`** creates a new game's starting region and its first zone from a `RegionSpec`, and returns
-  the zone. Each game has its own starting region, where `Game`'s constructor makes one now.
+  the zone's entry point for the spec's `entry_access`. Each game has its own starting region.
 - **A `RegionSpec` is a request to create a region,** not the region, and a `ZoneSpec` a request to create a zone.
   Both are a `KeyValueStore` (`archived/key_value_store_plan.md`). `world_generation_plan.md` describes what they
   contain and how a region and its zones are created from them. A key that is not read, or a value that does not
@@ -99,8 +99,7 @@ bool Session::over() const;
 - **`pause()` and `resume()`** stop and restart play while the menu is open. `advance` runs no actor while play is
   paused, and real time earns nothing, so closing the menu does not credit the time it was open. Both do nothing while
   no game is loaded.
-- **The session makes no zone.** `World` creates every zone, and the session enters them. The hosts load a zone file
-  with `World::load_zone` only until generation creates a playable first zone.
+- **The session makes no zone.** `World` creates every zone, and the session enters them.
 - **`enter(zone, access_type, offset)`** moves the character into the zone, at its entry point, then has the world `trim_zones`, so no unload can take
   the character with it. It clears the pending command and rebuilds the turn order from the zone's actors, the character
   included.
@@ -123,8 +122,8 @@ flecs::entity Character::entity() const;
 - **`clear()`** deletes the character's entity and its children, the inventory. The world's clear does not reach them,
   since the character has no parent.
 - **`create(character_spec)`** makes the character's entity, with a new persistent id, from a `CharacterSpec`. The
-  entity is in no zone until one is entered. The constructor makes the entity now, so its id is allocated before a new
-  game resets the allocator.
+  entity is in no zone until one is entered. The constructor makes none, so a game's character has an id from that
+  game's allocator.
 - **A `CharacterSpec` is a request to create a character,** not the character: the choices a new game makes.
 
   ```cpp

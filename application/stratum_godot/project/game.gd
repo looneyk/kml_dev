@@ -32,8 +32,8 @@ var _extent: Vector2i
 func _ready() -> void:
 	_world = StratumWorld.new()
 
-	if not _world.load_zone(_world.default_zone_path()):
-		push_error("could not load the zone")
+	if not _world.create_game():
+		push_error("could not create a game")
 		return
 
 	_extent = _world.extent()

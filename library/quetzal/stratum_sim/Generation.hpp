@@ -29,6 +29,13 @@ namespace quetzal::stratum_sim
     // The RegionSpec key of the region's generator selector
     inline constexpr std::string_view generator_selector_key = "generator_selector";
 
+    // The RegionSpec key of the access point type and level offset at which a new game's character enters the starting
+    // region's first zone, written as the type, a comma, and the offset: "staircase,1"
+    inline constexpr std::string_view entry_access_key = "entry_access";
+
+    // The prefix of a RegionSpec's keys that are the ZoneSpec of each of its zones
+    inline constexpr std::string_view zone_prefix = "zone.";
+
     // The ZoneSpec key of the zone's level
     inline constexpr std::string_view level_key = "level";
 

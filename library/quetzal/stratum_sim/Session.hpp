@@ -33,7 +33,10 @@ namespace quetzal::stratum_sim
         // Session management
 
         void clear();
-        void start();
+
+        // Moves the character to the access point's placement, and makes the access point's zone the one being played
+        void start(flecs::entity access_point);
+
         void pause();
         void resume();
 

@@ -7,9 +7,6 @@ add_library(stratum_godot SHARED
 
 set_property(TARGET stratum_godot PROPERTY FOLDER "application")
 
-# Shared data lives outside any one application, so its location is configured at build time
-target_compile_definitions(stratum_godot PRIVATE KML_DEV_ASSETS_ROOT="${DEV_ROOT}/assets")
-
 # flecs_static carries this as a PUBLIC define, but godot-cpp's headers are compiled into this
 # target too and flecs.h would otherwise declare everything dllimport
 target_compile_definitions(stratum_godot PRIVATE flecs_STATIC)

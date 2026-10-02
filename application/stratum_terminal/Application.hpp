@@ -32,8 +32,7 @@ namespace stratum_terminal
     public:
 
         // A non empty script replaces the keyboard, one character per turn, and the run ends when it is exhausted
-        Application(const std::string& filepath_zone, View view = View::Null,
-            const std::string& script = {}, bool incremental = true);
+        explicit Application(View view = View::Null, const std::string& script = {}, bool incremental = true);
         Application(const Application&) = delete;
         ~Application() = default;
 

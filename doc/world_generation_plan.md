@@ -389,7 +389,7 @@ World          the two staircases bound to each other
   `create_zone(region, const Generator&)` and `create_zone(region, level)` by `create_zone(region, zone_spec)`.
 - **`Session::create` and `Session::load`** go: `World` creates every zone, and the session enters them.
 - **The hosts' `DungenGenerator`** becomes dungen's generator in `stratum_gen`.
-- **The hosts' zone file** is temporary, used only until generation creates a playable first zone.
+- **The hosts' zone file** goes: each host creates a new game with `Game::create`, whose first zone is generated.
 
 ## Open
 

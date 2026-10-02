@@ -12,29 +12,6 @@
 #include <stdexcept>
 #include <cassert>
 
-namespace
-{
-
-    //--------------------------------------------------------------------------
-    // Moves the character to the placement of the zone's entry point. Returns false if the zone has none
-    bool place_character(quetzal::stratum_sim::World& world, flecs::entity zone, flecs::entity access_type, quetzal::stratum_sim::level_type offset,
-        flecs::entity character)
-    {
-        using namespace quetzal::stratum_sim;
-
-        flecs::entity entry = entry_point(zone, access_type, offset);
-
-        if (!entry)
-        {
-            return false;
-        }
-
-        world.relocate(character, zone, entry.get<AccessPoint>().placement);
-        return true;
-    }
-
-} // namespace
-
 //------------------------------------------------------------------------------
 quetzal::stratum_sim::Session::Session(World& world, Character& character) :
     m_world(world),
@@ -56,9 +33,13 @@ void quetzal::stratum_sim::Session::clear()
 }
 
 //------------------------------------------------------------------------------
-void quetzal::stratum_sim::Session::start()
+void quetzal::stratum_sim::Session::start(flecs::entity access_point)
 {
-    // ...
+    assert(access_point && access_point.has<AccessPoint>());
+
+    flecs::entity zone = zone_of(access_point);
+    m_world.relocate(m_character.entity(), zone, access_point.get<AccessPoint>().placement);
+    play(zone);
 
     return;
 }
@@ -85,12 +66,14 @@ void quetzal::stratum_sim::Session::enter(flecs::entity zone, flecs::entity acce
     assert(zone && zone.has<Zone>());
     assert(access_type);
 
-    if (!place_character(m_world, zone, access_type, offset, m_character.entity()))
+    flecs::entity entry = entry_point(zone, access_type, offset);
+
+    if (!entry)
     {
         throw std::runtime_error(std::format("zone has no access point of the type '{}' whose target is {:+}", access_type.name().c_str(), offset));
     }
 
-    play(zone);
+    start(entry);
     return;
 }
 

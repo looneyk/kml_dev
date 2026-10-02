@@ -40,7 +40,10 @@ namespace quetzal::stratum_sim
         void menu_open();
         void menu_close();
         void clear();
-        void create(const RegionSpec& region_spec, const CharacterSpec& character_spec); // starting specs, maybe read from settings instead ...
+        // Clears, then creates a game named name in the saves directory, and starts play at its first zone's entry point.
+        // Throws std::runtime_error if a game of that name exists, and passes on what creating the world throws, leaving
+        // no game in progress
+        void create(std::string_view name, const RegionSpec& region_spec, const CharacterSpec& character_spec); // starting specs, maybe read from settings instead ...
         void open(std::string_view directory);
         void save(std::string_view directory);
         void remove(std::string_view directory);
@@ -67,9 +70,6 @@ namespace quetzal::stratum_sim
         Character& character();
         const Character& character() const;
 
-        // The region a new game's zones are made in. Temporary, until a new game chooses its region
-        flecs::entity starting_region() const;
-
     private:
 
         // Some of these properties, especially Config, are only of importance to the host ...
@@ -83,7 +83,6 @@ namespace quetzal::stratum_sim
         World m_world;
         Character m_character;
         Session m_session;
-        flecs::entity m_starting_region;
     };
 
 } // namespace quetzal::stratum_sim

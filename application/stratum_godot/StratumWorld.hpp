@@ -29,11 +29,9 @@ public:
     StratumWorld();
     ~StratumWorld() override = default;
 
-    // The shared zone file directory, configured at build time
-    godot::String default_zone_path() const;
-
-    // False, with the reason pushed to Godot's error list, when the file cannot be read
-    bool load_zone(const godot::String& filepath);
+    // Creates a new game and starts play in its first zone. False, with the reason pushed to Godot's error list, when the
+    // game cannot be created
+    bool create_game();
 
     godot::Vector2i extent() const;
     godot::Vector2i cell() const;
