@@ -71,7 +71,11 @@ namespace quetzal::stratum_sim
         // directory name is replaced by '_'. Returns the save's name. Requires a game in progress whose character is alive
         // and named. Throws std::runtime_error if a file cannot be written
         std::string save(SaveType save_type);
-        void remove(std::string_view directory);
+
+        // Deletes the save, as saved_games names it, from the saves directory. Throws std::runtime_error, deleting nothing,
+        // unless the name is of a directory directly in the saves directory that has a character file
+        void remove(std::string_view save_name);
+
         void quit();
 
         // Each save in the saves directory, newest first, with its character's name and the time it was saved. Throws

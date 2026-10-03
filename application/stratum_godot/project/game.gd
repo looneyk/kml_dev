@@ -25,7 +25,7 @@ const ACTOR_COLORS: Array[Color] = [
 # Passed after -- on Godot's command line, it starts a new game without showing the menu, for the headless check
 const NEW_GAME_ARGUMENT := "--new-game"
 
-# A digit selects a save, so the saves page lists no more than nine
+# A digit opens a save, so the saves page lists no more than nine
 const SAVED_GAMES_LISTED_MAX := 9
 
 var _world: StratumWorld
@@ -40,6 +40,10 @@ var _extent := Vector2i.ZERO
 # The saves the saves page lists, newest first, while it is shown, and empty while the main page is
 var _saves_listed: Array = []
 var _saves_page_shown := false
+var _save_selected := 0
+
+# The next key answers whether to delete the selected save
+var _save_removal_confirming := false
 
 
 func _ready() -> void:
@@ -137,22 +141,31 @@ func _show_menu(message: String) -> void:
 
 
 # Each save is shown by its character's name and the time of the save, never by its directory's name
-func _show_saves() -> void:
+func _show_saves(message: String) -> void:
 	_saves_listed = _world.saved_games().slice(0, SAVED_GAMES_LISTED_MAX)
+	_save_selected = clampi(_save_selected, 0, maxi(_saves_listed.size() - 1, 0))
+	_draw_saves(message)
+
+
+func _draw_saves(message: String) -> void:
 	var lines := ["OPEN", ""]
 
 	for i in _saves_listed.size():
-		var save: Dictionary = _saves_listed[i]
-		lines.append("%d   %s   %s" % [i + 1, save["character_name"], save["time"]])
+		lines.append("%s %d   %s" % [">" if i == _save_selected else "  ", i + 1, _save_label(_saves_listed[i])])
 
 	if _saves_listed.is_empty():
 		lines.append("No saved games")
 
-	lines.append_array(["", "A digit opens that save, Escape goes back"])
+	lines.append_array(["", message if not message.is_empty()
+		else "Up and Down select, Enter or a digit opens, Delete deletes, Escape goes back"])
 
 	_saves_page_shown = true
 	_menu_text.text = "\n".join(lines)
 	_menu.visible = true
+
+
+func _save_label(save: Dictionary) -> String:
+	return "%s   %s" % [save["character_name"], save["time"]]
 
 
 func _new_game() -> void:
@@ -252,20 +265,49 @@ func _menu_key(event: InputEventKey) -> void:
 				var saved: bool = not _world.save_game().is_empty()
 				_show_menu("Game saved" if saved else "The game was not saved; Godot's error list has the reason")
 		KEY_O:
-			_show_saves()
+			_save_selected = 0
+			_show_saves("")
 		KEY_Q:
 			_world.quit_game()
 			get_tree().quit()
 
 
 func _saves_key(event: InputEventKey) -> void:
+	# Any key but Y answers no
+	if _save_removal_confirming:
+		_save_removal_confirming = false
+
+		if event.keycode == KEY_Y:
+			var removed: bool = _world.remove_game(_saves_listed[_save_selected]["save_name"])
+			_show_saves("Save deleted" if removed else "The save was not deleted; Godot's error list has the reason")
+		else:
+			_draw_saves("")
+
+		return
+
 	if event.keycode == KEY_ESCAPE:
 		_show_menu("")
 		return
 
-	var slot := event.keycode - KEY_1
-	if slot >= 0 and slot < _saves_listed.size():
-		_open_game(_saves_listed[slot])
+	if _saves_listed.is_empty():
+		return
+
+	match event.keycode:
+		KEY_UP, KEY_K:
+			_save_selected = maxi(_save_selected - 1, 0)
+			_draw_saves("")
+		KEY_DOWN, KEY_J:
+			_save_selected = mini(_save_selected + 1, _saves_listed.size() - 1)
+			_draw_saves("")
+		KEY_ENTER, KEY_KP_ENTER:
+			_open_game(_saves_listed[_save_selected])
+		KEY_DELETE:
+			_save_removal_confirming = true
+			_draw_saves("Delete %s? Y or N" % _save_label(_saves_listed[_save_selected]))
+		_:
+			var slot := event.keycode - KEY_1
+			if slot >= 0 and slot < _saves_listed.size():
+				_open_game(_saves_listed[slot])
 
 
 func _play_key(event: InputEventKey) -> void:

@@ -30,9 +30,18 @@ namespace
 
     static constexpr auto menu_help_string = "n starts a new game, c or Esc continues, s saves, o opens a save, q quits, ^L redraws";
 
-    static constexpr auto saves_help_string = "a digit opens that save, Esc goes back, ^L redraws";
+    static constexpr auto saves_help_string = "up/down or j/k select, Enter or a digit opens, Del deletes, Esc goes back, ^L redraws";
 
-    // A digit selects a save, so the saves page lists no more than nine
+    static constexpr auto end_help_string = "press any key to return to the menu";
+
+    static constexpr char key_redraw = '\x0c'; // Ctrl-L, as curses and the roguelikes bind it
+
+    // Keys in a script, which has characters only
+    static constexpr char key_escape = '\x1b';
+    static constexpr char key_enter = '\n';
+    static constexpr char key_delete = '\x7f';
+
+    // A digit opens a save, so the saves page lists no more than nine
     static constexpr size_t saved_games_listed_max = 9;
 
     //--------------------------------------------------------------------------
@@ -44,12 +53,6 @@ namespace
         return std::format("{:<{}}  {:%Y-%m-%d %H:%M}", details.character_name(), name_width,
             std::chrono::zoned_time(std::chrono::current_zone(), std::chrono::floor<std::chrono::minutes>(time)));
     }
-
-    static constexpr auto end_help_string = "press any key to return to the menu";
-
-    static constexpr char key_redraw = '\x0c'; // Ctrl-L, as curses and the roguelikes bind it
-
-    static constexpr char key_escape = '\x1b'; // Escape in a script, which has characters only
 
     //--------------------------------------------------------------------------
     // Temporary, until the config file is read: during development the game's directories are in the temp directory
@@ -216,7 +219,8 @@ stratum_terminal::KeyPress stratum_terminal::Application::next_key()
     }
 
     char c = m_script[m_script_slot++];
-    return c == key_escape ? KeyPress {Key::Escape} : KeyPress {Key::Character, c};
+    return c == key_escape ? KeyPress {Key::Escape} : c == key_enter ? KeyPress {Key::Enter} : c == key_delete ? KeyPress {Key::Delete}
+        : KeyPress {Key::Character, c};
 }
 
 //------------------------------------------------------------------------------
@@ -258,6 +262,23 @@ void stratum_terminal::Application::run_menu()
 //------------------------------------------------------------------------------
 void stratum_terminal::Application::run_saves_page(const KeyPress& key_press)
 {
+    // Any key but y answers no
+    if (m_save_removal_confirming)
+    {
+        m_save_removal_confirming = false;
+
+        if (key_press.c == 'y' || key_press.c == 'Y')
+        {
+            remove_selected_save();
+        }
+        else
+        {
+            m_message.clear();
+        }
+
+        return;
+    }
+
     if (key_press.key == Key::Escape)
     {
         m_message.clear();
@@ -265,7 +286,30 @@ void stratum_terminal::Application::run_saves_page(const KeyPress& key_press)
         return;
     }
 
-    if (key_press.c >= '1' && static_cast<size_t>(key_press.c - '1') < m_saved_games.size())
+    if (m_saved_games.empty())
+    {
+        return;
+    }
+
+    if ((key_press.key == Key::Up || key_press.c == 'k') && m_saved_game_selected > 0)
+    {
+        --m_saved_game_selected;
+    }
+    else if ((key_press.key == Key::Down || key_press.c == 'j') && m_saved_game_selected + 1 < m_saved_games.size())
+    {
+        ++m_saved_game_selected;
+    }
+    else if (key_press.key == Key::Enter)
+    {
+        open_game(m_saved_games[m_saved_game_selected].save_name());
+    }
+    else if (key_press.key == Key::Delete)
+    {
+        const stratum_sim::SavedGameDetails& details = m_saved_games[m_saved_game_selected];
+        m_message = std::format("Delete {}? y/n", format_save_label(details, details.character_name().size()));
+        m_save_removal_confirming = true;
+    }
+    else if (key_press.c >= '1' && static_cast<size_t>(key_press.c - '1') < m_saved_games.size())
     {
         open_game(m_saved_games[static_cast<size_t>(key_press.c - '1')].save_name());
     }
@@ -282,6 +326,7 @@ void stratum_terminal::Application::run_main_page(const KeyPress& key_press)
     }
     else if (key_press.c == 'o' || key_press.c == 'O')
     {
+        m_saved_game_selected = 0;
         list_saved_games();
     }
     else if ((key_press.key == Key::Escape || key_press.c == 'c' || key_press.c == 'C') && m_session.loaded())
@@ -318,7 +363,7 @@ void stratum_terminal::Application::draw_menu()
 
         for (size_t i = 0; i < m_saved_games.size(); ++i)
         {
-            lines.push_back(std::format("{}  {}", i + 1, format_save_label(m_saved_games[i], name_width)));
+            lines.push_back(std::format("{} {}  {}", i == m_saved_game_selected ? '>' : ' ', i + 1, format_save_label(m_saved_games[i], name_width)));
         }
 
         if (m_saved_games.empty())
@@ -399,6 +444,7 @@ void stratum_terminal::Application::list_saved_games()
     catch (const std::exception& e)
     {
         m_message = std::format("The saved games could not be listed: {}", e.what());
+        m_menu_page = MenuPage::Main;
         return;
     }
 
@@ -407,8 +453,32 @@ void stratum_terminal::Application::list_saved_games()
         m_saved_games.erase(m_saved_games.begin() + saved_games_listed_max, m_saved_games.end());
     }
 
+    m_saved_game_selected = std::min(m_saved_game_selected, m_saved_games.empty() ? size_t(0) : m_saved_games.size() - 1);
     m_message.clear();
     m_menu_page = MenuPage::Saves;
+
+    return;
+}
+
+//------------------------------------------------------------------------------
+void stratum_terminal::Application::remove_selected_save()
+{
+    try
+    {
+        m_game.remove(m_saved_games[m_saved_game_selected].save_name());
+    }
+    catch (const std::exception& e)
+    {
+        m_message = std::format("The save was not deleted: {}", e.what());
+        return;
+    }
+
+    list_saved_games();
+
+    if (m_menu_page == MenuPage::Saves)
+    {
+        m_message = "Save deleted.";
+    }
 
     return;
 }

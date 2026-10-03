@@ -2219,6 +2219,34 @@ namespace
         report_case("opening a save that is not there is an error, which leaves no game in progress", absent_thrown && !opened.loaded()
             && !saving.character().entity() && saving_world.entities().count<stratum_sim::Region>() == 0);
 
+        // Removing saves
+        size_t save_count = saving.saved_games().size();
+        saving.remove(second_save_name);
+        report_case("removing a save deletes its directory, and it is no longer listed", !filesystem::exists(saving_config.saves_directory
+            / second_save_name) && saving.saved_games().size() == save_count - 1);
+
+        filesystem::create_directories(saving_config.saves_directory / "stray");
+        auto remove_throws = [&](string_view name)
+        {
+            try
+            {
+                saving.remove(name);
+            }
+            catch (const runtime_error&)
+            {
+                return true;
+            }
+
+            return false;
+        };
+
+        report_case("a name that is not a save in the saves directory is not removed: a parent, a path, or none at all",
+            remove_throws("..") && remove_throws(format("../{}", save_name)) && remove_throws("Nobody_20000101T000000")
+            && remove_throws("") && filesystem::is_directory(saving_config.saves_directory / save_name));
+        report_case("nor a directory there with no character file", remove_throws("stray") && filesystem::is_directory(saving_config.saves_directory
+            / "stray"));
+        filesystem::remove_all(saving_config.saves_directory / "stray");
+
         saving.open(save_name);
         filesystem::remove_all(zones_directory);
         saving.quit();

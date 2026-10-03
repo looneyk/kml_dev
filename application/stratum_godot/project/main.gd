@@ -45,6 +45,14 @@ func _initialize() -> void:
 		return
 
 	print("open   -> ", world.cell(), " (saved at ", saved_cell, ")")
+
+	if not world.remove_game(save_name):
+		push_error("remove_game failed")
+		quit(1)
+		return
+
+	var still_listed := world.saved_games().any(func(save: Dictionary) -> bool: return save["save_name"] == save_name)
+	print("remove -> ", "still listed" if still_listed else "no longer listed")
 	world.quit_game()
 
 	quit()

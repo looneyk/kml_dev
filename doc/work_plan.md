@@ -91,9 +91,9 @@ each on the ones before it. `Game`'s menu and lifecycle functions, and those the
         `saved_games` lists each save's character name, from its `character.json`, and the time of the save.
   - [x] **The hosts' menu offering it:** the nine newest saves, each shown by its character's name and the time of the
         save, a digit opening one, and Escape going back.
-- [ ] **A game removed:** `Game::remove` deleting a save's directory from the saves directory, after checking that it
-      is a save there; and the hosts' menu offering it from the list `saved_games` returns. It should be an option when
-      showing the saved games list after selecting the Open/Load menu option.
+- [x] **A game removed:** `Game::remove` deleting a save's directory from the saves directory, after checking that it
+      is a save there; and the hosts' saves page selecting a save with the arrows and deleting it with Delete, once
+      confirmed.
 
 ## Lifecycle
 

@@ -114,6 +114,7 @@ void StratumWorld::_bind_methods()
     godot::ClassDB::bind_method(godot::D_METHOD("save_game"), &StratumWorld::save_game);
     godot::ClassDB::bind_method(godot::D_METHOD("saved_games"), &StratumWorld::saved_games);
     godot::ClassDB::bind_method(godot::D_METHOD("open_game", "save_name"), &StratumWorld::open_game);
+    godot::ClassDB::bind_method(godot::D_METHOD("remove_game", "save_name"), &StratumWorld::remove_game);
 
     return;
 }
@@ -228,6 +229,23 @@ bool StratumWorld::open_game(const godot::String& save_name)
     }
 
     m_message.clear();
+    return true;
+}
+
+//------------------------------------------------------------------------------
+bool StratumWorld::remove_game(const godot::String& save_name)
+{
+    // Exceptions must not cross into Godot
+    try
+    {
+        m_game.remove(save_name.utf8().get_data());
+    }
+    catch (const std::exception& e)
+    {
+        godot::UtilityFunctions::push_error("unable to delete the save: ", godot::String::utf8(e.what()));
+        return false;
+    }
+
     return true;
 }
 

@@ -299,11 +299,20 @@ std::string quetzal::stratum_sim::Game::save(SaveType save_type)
 }
 
 //------------------------------------------------------------------------------
-void quetzal::stratum_sim::Game::remove(std::string_view directory)
+void quetzal::stratum_sim::Game::remove(std::string_view save_name)
 {
-    // assert that this is a legitimate save directory first for safety ...
-    directory; // ...
+    // The name is checked before anything is deleted, so no name can reach outside the saves directory or delete a
+    // directory that is not a save
+    std::filesystem::path save_directory = m_config.saves_directory / save_name;
+    bool is_save = !save_name.empty() && save_name.find_first_of("/\\") == std::string_view::npos && save_name != "." && save_name != ".."
+        && std::filesystem::is_directory(save_directory) && std::filesystem::is_regular_file(save_directory / stratum_format::character_filename);
 
+    if (!is_save)
+    {
+        throw std::runtime_error(std::format("'{}' is not a save in {}", save_name, m_config.saves_directory.string()));
+    }
+
+    std::filesystem::remove_all(save_directory);
     return;
 }
 

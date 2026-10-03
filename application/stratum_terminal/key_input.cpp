@@ -14,7 +14,7 @@ stratum_terminal::KeyPress stratum_terminal::read_key()
 {
     int c = _getch();
 
-    // An arrow arrives as a lead byte followed by its own code
+    // An arrow or Delete arrives as a lead byte followed by its own code
     if (c == 0x00 || c == 0xE0)
     {
         switch (_getch())
@@ -23,6 +23,7 @@ stratum_terminal::KeyPress stratum_terminal::read_key()
             case 80: return {Key::Down};
             case 75: return {Key::Left};
             case 77: return {Key::Right};
+            case 83: return {Key::Delete};
         }
 
         return {Key::None};
@@ -31,6 +32,11 @@ stratum_terminal::KeyPress stratum_terminal::read_key()
     if (c == 0x1B)
     {
         return {Key::Escape};
+    }
+
+    if (c == '\r')
+    {
+        return {Key::Enter};
     }
 
     return {Key::Character, static_cast<char>(c)};
@@ -91,7 +97,7 @@ stratum_terminal::KeyPress stratum_terminal::read_key()
         return {Key::None};
     }
 
-    // An arrow arrives as the three byte sequence ESC [ code
+    // An arrow arrives as the three byte sequence ESC [ code, and Delete as the four byte ESC [ 3 ~
     if (c == '\x1b')
     {
         char bracket = '\0';
@@ -110,7 +116,18 @@ stratum_terminal::KeyPress stratum_terminal::read_key()
             case 'C': return {Key::Right};
         }
 
+        char tilde = '\0';
+        if (code == '3' && read_char(tilde) && tilde == '~')
+        {
+            return {Key::Delete};
+        }
+
         return {Key::None};
+    }
+
+    if (c == '\n')
+    {
+        return {Key::Enter};
     }
 
     return {Key::Character, c};

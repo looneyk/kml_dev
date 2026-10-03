@@ -17,7 +17,9 @@ namespace stratum_terminal
         Down,
         Left,
         Right,
-        Escape
+        Escape,
+        Enter,
+        Delete
     };
 
     //--------------------------------------------------------------------------

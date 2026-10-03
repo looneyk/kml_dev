@@ -58,7 +58,8 @@ namespace stratum_terminal
         bool script_exhausted() const;
 
         // Draws the menu's page, reads a key, and acts on it. The main page has a new game, continuing or saving the game in
-        // progress, listing the saves to open one, and quitting; the saves page opens the save of a digit
+        // progress, listing the saves, and quitting; the saves page selects a save, opens it or the save of a digit, and
+        // deletes the selected save once confirmed
         void run_menu();
         void run_main_page(const KeyPress& key_press);
         void run_saves_page(const KeyPress& key_press);
@@ -71,8 +72,12 @@ namespace stratum_terminal
         // Creates a new game and closes the menu, or keeps the menu open with the reason the game could not be created
         void create_game();
 
-        // Lists the newest saves on the saves page, or keeps the main page with the reason they could not be listed
+        // Lists the newest saves on the saves page, keeping the selection within them, or shows the main page with the reason
+        // they could not be listed
         void list_saved_games();
+
+        // Deletes the selected save and lists the saves again, or reports the reason it was not deleted
+        void remove_selected_save();
 
         // Opens the save and closes the menu, or returns to the main page with the reason it could not be opened
         void open_game(const std::string& save_name);
@@ -108,6 +113,8 @@ namespace stratum_terminal
         bool m_menu_open = true;
         MenuPage m_menu_page = MenuPage::Main;
         std::vector<quetzal::stratum_sim::SavedGameDetails> m_saved_games; // The newest saves, as the saves page lists them
+        size_t m_saved_game_selected = 0;
+        bool m_save_removal_confirming = false; // The next key answers whether to delete the selected save
         bool m_running = true;
     };
 

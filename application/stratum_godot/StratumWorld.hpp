@@ -60,6 +60,9 @@ public:
     // which leaves no game in progress
     bool open_game(const godot::String& save_name);
 
+    // Deletes the save. False, with the reason pushed to Godot's error list, when it is not deleted
+    bool remove_game(const godot::String& save_name);
+
     godot::Vector2i extent() const;
     godot::Vector2i cell() const;
 
