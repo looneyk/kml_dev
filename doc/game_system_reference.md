@@ -145,7 +145,7 @@ snapped to a cardinal direction, or `nullid` if there is none.
 
 ### load_layout
 
-`load_layout(zone, document)` fills an empty zone from a `Document` that `stratum_format::read` returned. It builds the
+`load_layout(zone, document)` fills an empty zone from a `Document` that `stratum_format::read_zone` returned. It builds the
 layout through the same `stratum_format` functions that validated it. Each floor/door cell is open, with a wall on
 each side for which `has_wall` is true. Each room's cells, from `room_cells`, get its id, and `room_count` is the
 number of rooms. The flats get the file's heights, the floor defaulting to 0 and the ceiling to 1. A stair cell is a
@@ -332,7 +332,8 @@ requires a game directory and a zone built from a document. Leaving a
 zone does not save it, and neither does `unload_zone` nor `unload_region`, which discard what they unload, as clearing a
 game does (`game_file_spec.md`, `## A saved game's files`). `save()` saves every loaded zone and then writes
 `world.json` into the game directory: each region in persistent id order, with its id, its region spec, and a reference
-to each zone its `zone_ids` lists, whose file is `zones/<persistent id>.zone`, whether or not the zone is loaded.
+to each zone its `zone_ids` lists, whose file is `zones/<persistent id>.zone`, whether or not the zone is loaded; and the
+world index.
 
 `unload_zone(zone)` begins an unload: it adds the zone's id to the zones unloading and deletes the entity. Flecs deletes
 a zone's subtree before the zone itself, and if it is deferring, it runs the whole deletion when the deferred
@@ -739,11 +740,11 @@ through a relocator costs one action, and an `Enter` with nothing to enter costs
 ## Zone file format
 
 `quetzal::stratum_format` reads and writes the JSON zone file that `discrete_layout.md` specifies, version `0.4`. It
-depends on `quetzal_common` and nlohmann/json. `load_layout` fills a zone from what `read` returns, and both generators
+depends on `quetzal_common` and nlohmann/json. `load_layout` fills a zone from what `read_zone` returns, and both generators
 write through it.
 
 `grid.hpp` has the geometry the rows define --- `on_grid`, `floor_cell`, `floor_door_cell`, `stair_cell`, `has_wall`,
-`room_cells` and `door_walls` --- which `read` uses to validate a file and `load_layout` uses to build a layout.
+`room_cells` and `door_walls` --- which `read_zone` uses to validate a file and `load_layout` uses to build a layout.
 
 `references.hpp` finds and translates the references a file writes as `{ "entity": id }`. `make_reference` writes one,
 `reference_id` returns the id if a value is a reference, `references` returns every reference within an object of file
@@ -768,7 +769,7 @@ in `RelocatorTarget.hpp`. That header and `Notation.hpp`, which has `Notation` a
 headers that `stratum_sim`'s headers include, so nlohmann reaches only the files that read or write a document. A saved zone's `zone.id` is `Document::zone_id`, which makes every id in the file persistent; it is
 empty in a zone template.
 
-`read` validates the file, throwing `std::runtime_error` with the path within the document and what was wrong there.
+`read_zone` validates the file, throwing `std::runtime_error` with the path within the document and what was wrong there.
 Beyond each section's structure, it checks what the rows determine: in the wall notation, a wall between every floor
 cell and a blank cell, a stair cell or the edge of the grid; a wall in the grid at every wall address, whose cell is a
 floor/door cell; a room's `RoomLocator` cell on a floor cell; a perimeter within the grid and along cell edges that
@@ -786,7 +787,7 @@ cell an actor can stand in. Each relocator's target must be a
 reference or a string that matches `[region/]zone[@position]`. The stair glyphs are visual aids, so a stair glyph with
 no `relocator` on the walls around it, or with a second one, and an access point on a wall that is neither a stair
 cell's open side nor a door's wall, are warnings. So is an access point whose relocator type is neither its entity's
-type nor its parent's, the parent being a door facing's door. They are passed to `read`'s warning callback, `log_warning` by default, which
+type nor its parent's, the parent being a door facing's door. They are passed to `read_zone`'s warning callback, `log_warning` by default, which
 writes them to `std::clog`. Keys the format does not define are not tracked.
 
 `write` emits the written form: two-space indentation, a grid row per line, an entry per line with each of a flat's
@@ -794,16 +795,25 @@ per-room and per-cell entries on a line of its own, and floats as the shortest d
 value, without an exponent. Top-level sections follow the format's key table. Within an entry, its address or
 identification comes first, then the rest in its section's table order, and file components stay in the order read.
 An entity's `parent` and `site` are written into its `components` ahead of the rest. In runs, a count is written for a
-run of three glyphs or more. A document that `read` produces is written back equivalent to it.
+run of three glyphs or more. A document that `read_zone` produces is written back equivalent to it.
 
 The game, character and world files that `game_file_spec.md` specifies, format `quetzal.stratum_game`, version `0.1`
 (`saved_game_format.hpp`), are each a data structure in a header of its own: `GameDocument`, with the game's next id, seed, each engine's state by stream, and its
 settings; `CharacterDocument`, with the character's id, components, zone, placement, and inventory, whose entities are
 `Entity`s as a zone's are; and `WorldDocument`, whose regions are each a `WorldRegion` with its id, components, the
-spec it was created from, and a `ZoneReference`, an id and a file, for each zone. A `write` overload for each, in
-`write_game.hpp`, `write_character.hpp` and `write_world.hpp`, emits its written form, with an absent object written as
-an empty one. Nothing reads them yet. These writers and the zone's, `write_zone`, share the text of the written form
-through `written_form.hpp`, internal to the library in `stratum_format::detail`.
+spec it was created from, and a `ZoneReference`, an id and a file, for each zone, and whose `entity_zones` is the world
+index. A `write` overload for each, in `write_game.hpp`, `write_character.hpp` and `write_world.hpp`, emits its
+written form, with an absent object written as an empty one. These writers and the zone's, `write_zone`, share the text
+of the written form through `written_form.hpp`, internal to the library in `stratum_format::detail`.
+
+`read_game`, `read_character` and `read_world`, in `read_game.hpp`, `read_character.hpp` and `read_world.hpp`, read and
+validate the game files, from a file or from a stream with a name for messages, and throw `std::runtime_error` with the
+path within the document and what was wrong there, as `read_zone` does for a zone. Each requires the format and version,
+and the keys and value types that `game_file_spec.md` specifies. `read_character` also requires that every entity of the
+inventory has a unique id and a parent, the character or another entity of the inventory, with no cycle, and that it
+is sited on its parent if sited at all, with no address and no relocator. `read_world` requires unique region ids, zone
+ids unique across the world, and every entry of the world index in a zone that a region lists, once. The readers share
+the checked reading of values through `read_values.hpp`, in `stratum_format::detail`.
 
 ## Presentation
 
@@ -1031,7 +1041,8 @@ prefix and the suites the `_test` suffix.
 `stratum_format_test` reads zone files and checks what they decode to, and rejects every error the reader raises from a
 valid file with one change made to it. It checks that references are found and translated wherever they are written,
 and writes each file through both `write` overloads and reads it back, comparing the two documents as maps. It writes
-each game file document and compares it with its written form, text for text.
+each game file document and compares it with its written form, text for text, reads each back and writes it again
+identically, and rejects each of a set of game files with one change made to it, with the error the change raises.
 
 `flecs_test` checks that the ECS supports zone partitioning, relationships, migration, unload, serialization and
 deterministic iteration.

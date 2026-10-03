@@ -102,8 +102,8 @@ namespace quetzal::stratum_sim
 
         void open(const std::filesystem::path& game_directory);
 
-        // Writes every loaded zone as a saved zone, then world.json, with each region and its zones, into the game directory.
-        // Requires a game directory
+        // Writes every loaded zone as a saved zone, then world.json, with each region and its zones and the world index, into
+        // the game directory. Requires a game directory
         void save();
 
         // Writes the zone as a saved zone into the game directory's zones, named by its persistent id. Requires a game

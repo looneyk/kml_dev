@@ -645,6 +645,11 @@ void quetzal::stratum_sim::World::save()
         document.regions.push_back(std::move(world_region));
     }
 
+    for (const auto& [entity_id, zone_id] : m_entity_zones)
+    {
+        document.entity_zones.emplace(entity_id.id, zone_id.id);
+    }
+
     for (flecs::entity zone : zones())
     {
         save_zone(zone);
@@ -789,7 +794,7 @@ flecs::entity quetzal::stratum_sim::World::create_zone(flecs::entity region, con
 //------------------------------------------------------------------------------
 flecs::entity quetzal::stratum_sim::World::load_zone(flecs::entity region, const std::filesystem::path& filepath)
 {
-    return build_zone(region, stratum_format::read(filepath), filepath.string());
+    return build_zone(region, stratum_format::read_zone(filepath), filepath.string());
 }
 
 //------------------------------------------------------------------------------

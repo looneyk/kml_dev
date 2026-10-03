@@ -68,8 +68,27 @@ namespace
             regions += indentation(entry_indent) + "]";
         }
 
+        std::string entity_zones = "\"entity_zones\": [";
+
+        if (document.entity_zones.empty())
+        {
+            entity_zones += "]";
+        }
+        else
+        {
+            entity_zones += "\n";
+
+            size_t i = 0;
+            for (const auto& [entity_id, zone_id] : document.entity_zones)
+            {
+                entity_zones += std::format("{}[{}, {}]{}\n", indentation(entry_indent + 2), entity_id, zone_id, ++i == document.entity_zones.size() ? "" : ",");
+            }
+
+            entity_zones += indentation(entry_indent) + "]";
+        }
+
         std::vector<std::string> sections = saved_game_file_sections();
-        sections.push_back(object_section("world", {regions}));
+        sections.push_back(object_section("world", {regions, entity_zones}));
 
         return file_text(sections);
     }

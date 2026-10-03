@@ -6,6 +6,7 @@
 //------------------------------------------------------------------------------
 
 #include "types.hpp"
+#include <map>
 #include <string>
 #include <vector>
 
@@ -31,11 +32,13 @@ namespace quetzal::stratum_format
     };
 
     //--------------------------------------------------------------------------
-    // The data structure analog of a world file
+    // The data structure analog of a world file. entity_zones is the world index: the zone of each entity that something
+    // refers to
     struct WorldDocument
     {
         std::string version;
         std::vector<WorldRegion> regions;
+        std::map<stored_entity_id_type, stored_entity_id_type> entity_zones; // <entity_id, zone_id>
     };
 
 } // namespace quetzal::stratum_format

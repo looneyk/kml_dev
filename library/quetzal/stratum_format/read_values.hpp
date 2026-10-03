@@ -1,0 +1,106 @@
+#if !defined(QUETZAL_STRATUM_FORMAT_READ_VALUES_HPP)
+#define QUETZAL_STRATUM_FORMAT_READ_VALUES_HPP
+//------------------------------------------------------------------------------
+// stratum_format
+// read_values.hpp
+//------------------------------------------------------------------------------
+
+#include "Document.hpp"
+#include "types.hpp"
+#include <cstddef>
+#include <filesystem>
+#include <format>
+#include <fstream>
+#include <functional>
+#include <stdexcept>
+#include <string>
+#include <string_view>
+
+// The checked reading of the values that the zone file and the game files share, for their readers. A value that is not
+// what the format requires throws std::runtime_error, stating the path within the document and what was wrong there
+namespace quetzal::stratum_format::detail
+{
+
+    // A path into the document, for error messages
+    std::string member_path(const std::string& path, std::string_view key);
+    std::string element_path(const std::string& path, size_t i);
+
+    [[noreturn]] void fail(const std::string& path, std::string_view what);
+
+    // Returns the value at a key, or null if the key is absent or set to null
+    const raw_values_type* member(const raw_values_type& v, std::string_view key);
+
+    const raw_values_type& required_member(const raw_values_type& v, const std::string& path, std::string_view key);
+    const raw_values_type& object(const raw_values_type& v, const std::string& path);
+    const raw_values_type& array(const raw_values_type& v, const std::string& path);
+    std::string string_value(const raw_values_type& v, const std::string& path);
+    value_type number_value(const raw_values_type& v, const std::string& path);
+
+    // A whole number within the coordinate range; a fraction is an error
+    coord_type coord_value(const raw_values_type& v, const std::string& path);
+
+    size_t count_value(const raw_values_type& v, const std::string& path);
+
+    // A whole, non-negative number
+    stored_entity_id_type id_value(const raw_values_type& v, const std::string& path);
+
+    const raw_values_type& fixed_array(const raw_values_type& v, const std::string& path, size_t n);
+    discrete_point_type read_cell_position(const raw_values_type& v, const std::string& path);
+    point_type read_position(const raw_values_type& v, const std::string& path);
+    surface_point_type read_surface_position(const raw_values_type& v, const std::string& path);
+
+    // A cardinal direction
+    discrete_vector_type read_direction(const raw_values_type& v, const std::string& path);
+
+    // The cell the wall belongs to, and the normal pointing out of the wall's surface into that cell
+    WallAddress read_wall_address(const raw_values_type& v, const std::string& path);
+
+    // Returns null if the entry has no components
+    raw_values_type read_components(const raw_values_type& v, const std::string& path);
+
+    // Requires the format and version that a reader reads
+    void check_format(const raw_values_type& v, std::string_view required_format, std::string_view required_version);
+
+    // Parses the stream, prefixing a parse error with name, which identifies the stream
+    raw_values_type parse(std::istream& is, const std::string& name);
+
+    // Parses the stream and reads the document from it, prefixing every error with name
+    template<typename D>
+    D read_document(std::istream& is, const std::string& name, const std::function<D(const raw_values_type&)>& read);
+
+    // Opens the file and reads the document from it, prefixing every error with the file's path
+    template<typename D>
+    D read_document(const std::filesystem::path& filepath, const std::function<D(const raw_values_type&)>& read);
+
+} // namespace quetzal::stratum_format::detail
+
+//------------------------------------------------------------------------------
+template<typename D>
+D quetzal::stratum_format::detail::read_document(std::istream& is, const std::string& name, const std::function<D(const raw_values_type&)>& read)
+{
+    raw_values_type v = parse(is, name);
+
+    try
+    {
+        return read(v);
+    }
+    catch (const std::runtime_error& e)
+    {
+        throw std::runtime_error(std::format("{}: {}", name, e.what()));
+    }
+}
+
+//------------------------------------------------------------------------------
+template<typename D>
+D quetzal::stratum_format::detail::read_document(const std::filesystem::path& filepath, const std::function<D(const raw_values_type&)>& read)
+{
+    std::ifstream is(filepath, std::ios::binary);
+    if (!is)
+    {
+        throw std::runtime_error(std::format("{}: cannot be opened", filepath.string()));
+    }
+
+    return read_document(is, filepath.string(), read);
+}
+
+#endif // QUETZAL_STRATUM_FORMAT_READ_VALUES_HPP

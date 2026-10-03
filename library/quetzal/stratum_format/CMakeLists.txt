@@ -1,6 +1,10 @@
 add_library(quetzal_stratum_format STATIC
     Document.cpp
     grid.cpp
+    read_character.cpp
+    read_game.cpp
+    read_values.cpp
+    read_world.cpp
     read_zone.cpp
     references.cpp
     RelocatorTarget.cpp
@@ -15,6 +19,10 @@ add_library(quetzal_stratum_format STATIC
     Notation.hpp
     WorldDocument.hpp
     grid.hpp
+    read_character.hpp
+    read_game.hpp
+    read_values.hpp
+    read_world.hpp
     read_zone.hpp
     references.hpp
     RelocatorTarget.hpp

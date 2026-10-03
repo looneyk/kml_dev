@@ -121,7 +121,7 @@ namespace
     {
         return [filepath](const stratum_sim::ZoneSpec& zone_spec)
         {
-            stratum_format::Document document = stratum_format::read(filepath);
+            stratum_format::Document document = stratum_format::read_zone(filepath);
             document.level = zone_spec.value<stratum_sim::level_type>(stratum_sim::level_key);
             return document;
         };
@@ -324,7 +324,7 @@ namespace
             world(id_allocator),
             zone(world.create_zone(world.region, world.next_id()))
         {
-            stratum_sim::load_layout(zone, stratum_format::read(filepath));
+            stratum_sim::load_layout(zone, stratum_format::read_zone(filepath));
             crossable = [open_zone = zone](id_type wall_id) { return static_cast<bool>(stratum_sim::way_through(open_zone, wall_id)); };
         }
 
@@ -349,7 +349,7 @@ namespace
     flecs::entity load_zone_unpopulated(SuiteWorld& world, const string& filepath)
     {
         flecs::entity zone = world.create_zone(world.region, world.next_id());
-        stratum_sim::load_layout(zone, stratum_format::read(filepath));
+        stratum_sim::load_layout(zone, stratum_format::read_zone(filepath));
         return zone;
     }
 
@@ -1431,7 +1431,7 @@ namespace
             layout.wall_toward(stratum_sim::discrete_point_type {2, 2}, cardinal_direction(CardinalDirection::West))};
         report_case("on the two sides of one edge", wall_a != wall_b && edge_sides.contains(wall_a) && edge_sides.contains(wall_b));
         std::set<id_type> file_door_walls;
-        vector<vector<stratum_format::WallAddress>> file_doors = stratum_format::door_walls(stratum_format::read("data/walls.zone").cells);
+        vector<vector<stratum_format::WallAddress>> file_doors = stratum_format::door_walls(stratum_format::read_zone("data/walls.zone").cells);
 
         for (const vector<stratum_format::WallAddress>& addresses : file_doors)
         {
@@ -1564,7 +1564,7 @@ namespace
             "data/loop.zone", "data/room.zone", "data/walls.zone"})
         {
             string detail;
-            report_case(format("{} has a door entity at each door", filepath), doors_have_entities(stratum_format::read(filepath), detail), detail);
+            report_case(format("{} has a door entity at each door", filepath), doors_have_entities(stratum_format::read_zone(filepath), detail), detail);
         }
 
         return;
@@ -1646,7 +1646,7 @@ namespace
             return children;
         };
 
-        flecs::entity zone = loaded(stratum_format::read("data/door.zone"));
+        flecs::entity zone = loaded(stratum_format::read_zone("data/door.zone"));
         const stratum_sim::DiscreteLayout& layout = zone_layout(world, zone);
         vector<flecs::entity> built = zone_children(zone);
 
@@ -1689,7 +1689,7 @@ namespace
               { "id": 904, "type": "staircase", "components": { "site": { "relation": "on", "wall": { "cell_position": [1, 1], "normal": [0, -1] } },
                 "relocator": { "type": "staircase", "target": { "entity": 7713 }, "order": 0, "placement": { "cell_position": [1, 1], "orientation": [0, -1] } } } } ] })";
         istringstream saved_stream(saved_text);
-        flecs::entity saved = loaded(stratum_format::read(saved_stream, "saved"));
+        flecs::entity saved = loaded(stratum_format::read_zone(saved_stream, "saved"));
 
         report_case("a saved zone keeps its persistent id", saved.get<stratum_sim::PersistentId>() == stratum_sim::PersistentId {900});
         report_case("and each of its entities its own", world.entity(stratum_sim::PersistentId {901}).parent() == saved
@@ -1734,7 +1734,7 @@ namespace
                 staircase_components.empty() ? "" : ", " + staircase_components);
 
             istringstream stream(text);
-            return stratum_format::read(stream, "door level");
+            return stratum_format::read_zone(stream, "door level");
         };
 
         stratum_sim::entity_type(entities, "door").set<SuiteFinish>(SuiteFinish {{}, 0.875f, {}});
@@ -2040,7 +2040,7 @@ namespace
 
         if (filesystem::exists(zone_file(saving_first_id)))
         {
-            stratum_format::Document saved_document = stratum_format::read(zone_file(saving_first_id));
+            stratum_format::Document saved_document = stratum_format::read_zone(zone_file(saving_first_id));
             saved_back = saved_document.zone_id == saving_first_id.id && saved_document.level == -1;
         }
 
@@ -2130,6 +2130,17 @@ namespace
 
         report_case("world.json lists the region and its zones, each with its file in the save, loaded or not", zones_listed);
 
+        auto indexed_in = [&](stratum_sim::PersistentId entity_id, stratum_sim::PersistentId zone_id)
+        {
+            return ranges::any_of(world_json["world"]["entity_zones"], [&](const stratum_format::raw_values_type& entry)
+            {
+                return entry[0] == entity_id.id && entry[1] == zone_id.id;
+            });
+        };
+
+        report_case("and the world index, with each bound staircase in its zone", !world_json.is_discarded()
+            && indexed_in(first_down_id, saving_first_id) && indexed_in(second_up_id, saving_second_id));
+
         string second_save_name = saving.save(stratum_sim::SaveType::Explicit);
         report_case("saving again makes another save and keeps the first, waiting for the next second if needed", second_save_name != save_name
             && filesystem::is_directory(save_directory) && filesystem::is_directory(saving_config.saves_directory / second_save_name));
@@ -2173,7 +2184,7 @@ namespace
             stratum_format::write(written, stratum_sim::make_document(zone));
 
             istringstream is(written.str());
-            stratum_format::Document read_back = stratum_format::read(is, "a saved zone");
+            stratum_format::Document read_back = stratum_format::read_zone(is, "a saved zone");
 
             stratum_sim::CountingIdAllocator other_ids(stratum_sim::PersistentId {100000});
             SuiteWorld other(other_ids);
@@ -2285,7 +2296,7 @@ namespace
 
         flecs::entity field = load_zone_unpopulated(world, "data/room.zone");
         flecs::entity chapel = world.create_zone(crypt, world.next_id());
-        stratum_sim::load_layout(chapel, stratum_format::read("data/corridor.zone"));
+        stratum_sim::load_layout(chapel, stratum_format::read_zone("data/corridor.zone"));
 
         report_case("a zone is its region's child", stratum_sim::region_of(chapel) == crypt && chapel.parent() == crypt
             && stratum_sim::region_of(field) == world.region);
@@ -2299,7 +2310,7 @@ namespace
             && !stratum_sim::zone_of(chapel));
 
         flecs::entity chapel_below = world.create_zone(crypt, world.next_id());
-        stratum_sim::load_layout(chapel_below, stratum_format::read("data/room.zone"));
+        stratum_sim::load_layout(chapel_below, stratum_format::read_zone("data/room.zone"));
         stratum_sim::PersistentId chapel_id = chapel.get<stratum_sim::PersistentId>();
         report_case_equal("a world counts the zones of every region", world.zone_count(), 3);
 
@@ -2312,7 +2323,7 @@ namespace
             world.zone_of(monk_reference.persistent_id) == chapel_id && !world.entity(monk_reference.persistent_id));
 
         // A zone's level, from its file or from the region that makes it
-        stratum_format::Document leveled_document = stratum_format::read("data/door.zone");
+        stratum_format::Document leveled_document = stratum_format::read_zone("data/door.zone");
         leveled_document.level = -3;
         flecs::entity leveled = world.create_zone(world.region, world.next_id());
         stratum_sim::load_layout(leveled, leveled_document);
@@ -2321,7 +2332,7 @@ namespace
             && leveled.get<stratum_sim::ZoneLevel>().level == -3);
         report_case("and none where its file states none", field.try_get<stratum_sim::ZoneLevel>() == nullptr);
 
-        stratum_format::Document named_document = stratum_format::read("data/door.zone");
+        stratum_format::Document named_document = stratum_format::read_zone("data/door.zone");
         named_document.components["name"] = "The Narrow Door";
         bool named_buildable = !stratum_sim::build_error(world.entities(), named_document).has_value();
         flecs::entity named = world.create_zone(world.region, world.next_id());
@@ -2359,7 +2370,7 @@ namespace
         // data/walls.zone has one staircase leading up and one leading down
         auto load_at_level = [&](flecs::entity region, stratum_sim::level_type level)
         {
-            stratum_format::Document document = stratum_format::read("data/walls.zone");
+            stratum_format::Document document = stratum_format::read_zone("data/walls.zone");
             document.level = level;
             flecs::entity zone = world.create_zone(region, world.next_id());
             stratum_sim::load_layout(zone, document);
@@ -2493,7 +2504,7 @@ namespace
         // data/walls.zone has one staircase leading up and one leading down
         auto load_at_level = [&](flecs::entity region, stratum_sim::level_type level)
         {
-            stratum_format::Document document = stratum_format::read("data/walls.zone");
+            stratum_format::Document document = stratum_format::read_zone("data/walls.zone");
             document.level = level;
             flecs::entity zone = world.create_zone(region, world.next_id());
             stratum_sim::load_layout(zone, document);

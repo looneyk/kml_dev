@@ -3,6 +3,9 @@
 // main.cpp
 //------------------------------------------------------------------------------
 
+#include "quetzal/stratum_format/read_character.hpp"
+#include "quetzal/stratum_format/read_game.hpp"
+#include "quetzal/stratum_format/read_world.hpp"
 #include "quetzal/stratum_format/read_zone.hpp"
 #include "quetzal/stratum_format/references.hpp"
 #include "quetzal/stratum_format/RelocatorTarget.hpp"
@@ -109,7 +112,7 @@ namespace
     {
         try
         {
-            stratum_format::Document document = stratum_format::read(filepath);
+            stratum_format::Document document = stratum_format::read_zone(filepath);
             report_case(name, true);
             return document;
         }
@@ -359,7 +362,7 @@ namespace
 
             try
             {
-                stratum_format::read(is, mutation_case.name, [&](const string& warning) { warnings.push_back(warning); });
+                stratum_format::read_zone(is, mutation_case.name, [&](const string& warning) { warnings.push_back(warning); });
 
                 bool warned = mutation_case.warning.empty() || std::any_of(warnings.begin(), warnings.end(),
                     [&](const string& warning) { return warning.find(mutation_case.warning) != string::npos; });
@@ -535,7 +538,7 @@ namespace
 
         try
         {
-            stratum_format::read(data_directory / "absent.json");
+            stratum_format::read_zone(data_directory / "absent.json");
             report_case("an absent file", false, "accepted");
         }
         catch (const runtime_error& e)
@@ -546,7 +549,7 @@ namespace
         try
         {
             istringstream is(R"({ "format": )");
-            stratum_format::read(is, "truncated");
+            stratum_format::read_zone(is, "truncated");
             report_case("text that is not valid JSON", false, "accepted");
         }
         catch (const runtime_error& e)
@@ -823,7 +826,7 @@ namespace
         try
         {
             istringstream is(door_access.dump());
-            stratum_format::read(is, "door access point", [&](const string& warning) { warnings.push_back(warning); });
+            stratum_format::read_zone(is, "door access point", [&](const string& warning) { warnings.push_back(warning); });
             report_case("an access point on a door's wall raises no warning", warnings.empty(), warnings.empty() ? "" : warnings.front());
         }
         catch (const runtime_error& e)
@@ -1034,7 +1037,7 @@ namespace
             {
                 filesystem::path filepath = out_directory / filename;
                 stratum_format::write(filepath, *document);
-                map_type map = document_map(stratum_format::read(filepath));
+                map_type map = document_map(stratum_format::read_zone(filepath));
                 report_case(format("{} written to a file reads back equivalent", filename), map == map_expected, map_type::diff(map_expected, map).dump());
             }
             catch (const runtime_error& e)
@@ -1047,7 +1050,7 @@ namespace
                 ostringstream os;
                 stratum_format::write(os, *document);
                 istringstream is(os.str());
-                map_type map = document_map(stratum_format::read(is, filename));
+                map_type map = document_map(stratum_format::read_zone(is, filename));
                 report_case(format("{} written to a stream reads back equivalent", filename), map == map_expected, map_type::diff(map_expected, map).dump());
             }
             catch (const runtime_error& e)
@@ -1154,8 +1157,10 @@ namespace
 
         stratum_format::WorldDocument world;
         world.regions = {surface, dungeon};
+        world.entity_zones = {{10, 5}, {12, 3}};
 
-        report_written("a world file opens each region with its id and components, then its spec, then a line per zone", written(world),
+        report_written("a world file opens each region with its id and components, then its spec, then a line per zone, and has a line per "
+            "entry of the world index", written(world),
             "{\n"
             "  \"format\": \"quetzal.stratum_game\",\n"
             "  \"version\": \"0.1\",\n"
@@ -1172,6 +1177,10 @@ namespace
             "          { \"id\": 3, \"file\": \"zones/3.zone\" },\n"
             "          { \"id\": 6, \"file\": \"zones/6.zone\" }\n"
             "        ] }\n"
+            "    ],\n"
+            "    \"entity_zones\": [\n"
+            "      [10, 5],\n"
+            "      [12, 3]\n"
             "    ]\n"
             "  }\n"
             "}\n");
@@ -1189,6 +1198,75 @@ namespace
         stratum_format::write(filepath, world);
         ifstream is(filepath, ios::binary);
         report_case("a game file written to a file is identical to one written to a stream", string(istreambuf_iterator<char>(is), {}) == written(world));
+
+        // Each document read back and written again is identical to the first writing
+        auto rewritten = [&](const auto& document, const auto& read_back)
+        {
+            istringstream text(written(document));
+            return written(read_back(text));
+        };
+
+        report_case("a game file reads back as the document written", rewritten(game, [](istream& in) { return stratum_format::read_game(in, "game"); })
+            == written(game));
+        report_case("a character file reads back as the document written, inventory included", rewritten(character,
+            [](istream& in) { return stratum_format::read_character(in, "character"); }) == written(character));
+        report_case("a world file reads back as the document written, world index included", rewritten(world,
+            [](istream& in) { return stratum_format::read_world(in, "world"); }) == written(world));
+        report_case("and from a file", written(stratum_format::read_world(filepath)) == written(world));
+
+        // Each file with one change made to it, and the error the change raises
+        auto rejected = [](const auto& read, const string& text, const string& error_expected)
+        {
+            try
+            {
+                istringstream in(text);
+                read(in);
+            }
+            catch (const runtime_error& e)
+            {
+                return string(e.what()).find(error_expected) != string::npos;
+            }
+
+            return false;
+        };
+
+        auto read_game = [](istream& in) { return stratum_format::read_game(in, "game"); };
+        auto read_character = [](istream& in) { return stratum_format::read_character(in, "character"); };
+        auto read_world = [](istream& in) { return stratum_format::read_world(in, "world"); };
+
+        auto changed = [](string text, const string& from, const string& to)
+        {
+            size_t at = text.find(from);
+            assert(at != string::npos);
+            return text.replace(at, from.size(), to);
+        };
+
+        string game_text = written(game);
+        string character_text = written(character);
+        string world_text = written(world);
+
+        report_case("a game file of another format is rejected", rejected(read_game, changed(game_text, "quetzal.stratum_game",
+            "quetzal.discrete_layout"), "format: 'quetzal.discrete_layout' is not this format"));
+        report_case("and one of another version", rejected(read_game, changed(game_text, "\"0.1\"", "\"0.2\""),
+            "version: '0.2' is not a version this reads"));
+        report_case("a game file with no next id is rejected", rejected(read_game, changed(game_text, "\"next_id\": 21, ", ""),
+            "game.next_id: required and absent"));
+        report_case("and one with an engine state that is not text", rejected(read_game, changed(game_text, "\"1 2 3\"", "123"),
+            "game.engines.gameplay: a string was expected"));
+        report_case("an entity of the inventory with no parent is rejected", rejected(read_character, changed(character_text,
+            "\"parent\": { \"entity\": 1 }, ", ""), "an entity of the inventory has a parent"));
+        report_case("and one whose parent is neither the character nor in the inventory", rejected(read_character, changed(character_text,
+            "\"parent\": { \"entity\": 1 }", "\"parent\": { \"entity\": 7 }"), "entity 7 is neither the character nor an entity of the inventory"));
+        report_case("and one that is its own parent", rejected(read_character, changed(character_text, "\"parent\": { \"entity\": 1 }",
+            "\"parent\": { \"entity\": 20 }"), "its parents form a cycle"));
+        report_case("and one with an address", rejected(read_character, changed(character_text, "\"relation\": \"on\"",
+            "\"relation\": \"in\", \"cell_position\": [1, 1]"), "an entity of the inventory is sited on its parent, with no address"));
+        report_case("a world file with two zones of one id is rejected", rejected(read_world, changed(world_text, "\"id\": 6", "\"id\": 5"),
+            "a second zone with the id 5"));
+        report_case("and one whose world index has an entity in a zone no region lists", rejected(read_world, changed(world_text, "[12, 3]",
+            "[12, 4]"), "zone 4 is in no region"));
+        report_case("and one whose world index has an entity twice", rejected(read_world, changed(world_text, "[12, 3]", "[10, 3]"),
+            "a second entry for entity 10"));
 
         return;
     }

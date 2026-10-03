@@ -5,6 +5,7 @@
 
 #include "read_zone.hpp"
 #include "grid.hpp"
+#include "read_values.hpp"
 #include "references.hpp"
 #include "quetzal/geometry/DiscreteBox.hpp"
 #include <algorithm>
@@ -32,188 +33,10 @@ namespace
 {
 
     using namespace quetzal::stratum_format;
+    using namespace quetzal::stratum_format::detail;
     using quetzal::id_type;
 
     using discrete_box_type = quetzal::geometry::DiscreteBox<coord_type, 2>;
-
-    //--------------------------------------------------------------------------
-    // A path into the document, for error messages
-    std::string member_path(const std::string& path, std::string_view key)
-    {
-        return path.empty() ? std::string(key) : std::format("{}.{}", path, key);
-    }
-
-    //--------------------------------------------------------------------------
-    std::string element_path(const std::string& path, size_t i)
-    {
-        return std::format("{}[{}]", path, i);
-    }
-
-    //--------------------------------------------------------------------------
-    [[noreturn]] void fail(const std::string& path, std::string_view what)
-    {
-        throw std::runtime_error(path.empty()
-            ? std::string(what)
-            : std::format("{}: {}", path, what));
-    }
-
-    //--------------------------------------------------------------------------
-    // Returns the value at a key, or null if the key is absent or set to null
-    const raw_values_type* member(const raw_values_type& v, std::string_view key)
-    {
-        auto i = v.find(key);
-        return i != v.end() && !i->is_null() ? &*i : nullptr;
-    }
-
-    //--------------------------------------------------------------------------
-    const raw_values_type& required_member(const raw_values_type& v, const std::string& path, std::string_view key)
-    {
-        const raw_values_type* p = member(v, key);
-        if (p == nullptr)
-        {
-            fail(member_path(path, key), "required and absent");
-        }
-
-        return *p;
-    }
-
-    //--------------------------------------------------------------------------
-    const raw_values_type& object(const raw_values_type& v, const std::string& path)
-    {
-        if (!v.is_object())
-        {
-            fail(path, "an object was expected");
-        }
-
-        return v;
-    }
-
-    //--------------------------------------------------------------------------
-    const raw_values_type& array(const raw_values_type& v, const std::string& path)
-    {
-        if (!v.is_array())
-        {
-            fail(path, "an array was expected");
-        }
-
-        return v;
-    }
-
-    //--------------------------------------------------------------------------
-    std::string string_value(const raw_values_type& v, const std::string& path)
-    {
-        if (!v.is_string())
-        {
-            fail(path, "a string was expected");
-        }
-
-        return v.get<std::string>();
-    }
-
-    //--------------------------------------------------------------------------
-    value_type number_value(const raw_values_type& v, const std::string& path)
-    {
-        if (!v.is_number())
-        {
-            fail(path, "a number was expected");
-        }
-
-        return static_cast<value_type>(v.get<double>());
-    }
-
-    //--------------------------------------------------------------------------
-    // A whole number within the coordinate range; a fraction is an error
-    coord_type coord_value(const raw_values_type& v, const std::string& path)
-    {
-        if (!v.is_number())
-        {
-            fail(path, "a number was expected");
-        }
-
-        double d = v.get<double>();
-        if (d < std::numeric_limits<coord_type>::min() || d > std::numeric_limits<coord_type>::max())
-        {
-            fail(path, "outside the coordinate range");
-        }
-
-        if (d != static_cast<double>(static_cast<coord_type>(d)))
-        {
-            fail(path, "a whole number was expected");
-        }
-
-        return static_cast<coord_type>(d);
-    }
-
-    //--------------------------------------------------------------------------
-    size_t count_value(const raw_values_type& v, const std::string& path)
-    {
-        coord_type n = coord_value(v, path);
-        if (n < 0)
-        {
-            fail(path, "a count cannot be negative");
-        }
-
-        return static_cast<size_t>(n);
-    }
-
-    //--------------------------------------------------------------------------
-    const raw_values_type& fixed_array(const raw_values_type& v, const std::string& path, size_t n)
-    {
-        const raw_values_type& a = array(v, path);
-        if (a.size() != n)
-        {
-            fail(path, std::format("{} numbers were expected, and there are {}", n, a.size()));
-        }
-
-        return a;
-    }
-
-    //--------------------------------------------------------------------------
-    discrete_point_type read_cell_position(const raw_values_type& v, const std::string& path)
-    {
-        const raw_values_type& a = fixed_array(v, path, 2);
-        return {coord_value(a[0], element_path(path, 0)), coord_value(a[1], element_path(path, 1))};
-    }
-
-    //--------------------------------------------------------------------------
-    point_type read_position(const raw_values_type& v, const std::string& path)
-    {
-        const raw_values_type& a = fixed_array(v, path, 3);
-        return {number_value(a[0], element_path(path, 0)),
-            number_value(a[1], element_path(path, 1)),
-            number_value(a[2], element_path(path, 2))};
-    }
-
-    //--------------------------------------------------------------------------
-    surface_point_type read_surface_position(const raw_values_type& v, const std::string& path)
-    {
-        const raw_values_type& a = fixed_array(v, path, 2);
-        return {number_value(a[0], element_path(path, 0)), number_value(a[1], element_path(path, 1))};
-    }
-
-    //--------------------------------------------------------------------------
-    // A cardinal direction
-    discrete_vector_type read_direction(const raw_values_type& v, const std::string& path)
-    {
-        const raw_values_type& a = fixed_array(v, path, 2);
-        discrete_vector_type direction {coord_value(a[0], element_path(path, 0)), coord_value(a[1], element_path(path, 1))};
-
-        if (std::abs(direction.x()) + std::abs(direction.y()) != 1)
-        {
-            fail(path, "not one of the four directions a cell's sides define");
-        }
-
-        return direction;
-    }
-
-    //--------------------------------------------------------------------------
-    // The cell the wall belongs to, and the normal pointing out of the wall's surface into that cell
-    WallAddress read_wall_address(const raw_values_type& v, const std::string& path)
-    {
-        object(v, path);
-        return {read_cell_position(required_member(v, path, "cell_position"), member_path(path, "cell_position")),
-            read_direction(required_member(v, path, "normal"), member_path(path, "normal"))};
-    }
 
     //--------------------------------------------------------------------------
     // A barrier with a normal is one face of the cell; without one it is the whole cell
@@ -230,19 +53,6 @@ namespace
 
         return barrier;
     }
-
-    //--------------------------------------------------------------------------
-    // Returns null if the entry has no components
-    raw_values_type read_components(const raw_values_type& v, const std::string& path)
-    {
-        const raw_values_type* p = member(v, "components");
-        return p != nullptr ? object(*p, member_path(path, "components")) : raw_values_type();
-    }
-
-} // namespace
-
-namespace
-{
 
     //--------------------------------------------------------------------------
     // The glyphs a position in the notation accepts. A corner accepts only a space
@@ -1039,15 +849,7 @@ namespace
         object(v, path);
 
         Entity entity;
-
-        std::string id_path = member_path(path, "id");
-        const raw_values_type& id = required_member(v, path, "id");
-        if (!id.is_number_unsigned())
-        {
-            fail(id_path, "a whole, non-negative number was expected");
-        }
-
-        entity.id = id.get<stored_entity_id_type>();
+        entity.id = id_value(required_member(v, path, "id"), member_path(path, "id"));
         entity.type = string_value(required_member(v, path, "type"), member_path(path, "type"));
         entity.components = read_components(v, path);
 
@@ -1603,35 +1405,17 @@ namespace
 
     //--------------------------------------------------------------------------
     // The grid is read first, as every address refers to it
-    Document read_document(const raw_values_type& v, const warn_type& warn)
+    Document read_zone_document(const raw_values_type& v, const warn_type& warn)
     {
-        object(v, "");
-
-        std::string format = string_value(required_member(v, "", "format"), "format");
-        if (format != format_name)
-        {
-            fail("format", std::format("'{}' is not this format", format));
-        }
+        check_format(v, format_name, format_version);
 
         Document document;
-        document.version = string_value(required_member(v, "", "version"), "version");
-        if (document.version != format_version)
-        {
-            fail("version", std::format("'{}' is not a version this reads", document.version));
-        }
+        document.version = std::string(format_version);
 
         if (const raw_values_type* p = member(v, "zone"); p != nullptr)
         {
             object(*p, "zone");
-
-            std::string id_path = "zone.id";
-            const raw_values_type& id = required_member(*p, "zone", "id");
-            if (!id.is_number_unsigned())
-            {
-                fail(id_path, "a whole, non-negative number was expected");
-            }
-
-            document.zone_id = id.get<stored_entity_id_type>();
+            document.zone_id = id_value(required_member(*p, "zone", "id"), "zone.id");
         }
 
         if (const raw_values_type* p = member(v, "generator"); p != nullptr)
@@ -1759,37 +1543,22 @@ void quetzal::stratum_format::log_warning(const std::string& warning)
 }
 
 //------------------------------------------------------------------------------
-quetzal::stratum_format::Document quetzal::stratum_format::read(std::istream& is, const std::string& name, const warning_function_type& warning)
+quetzal::stratum_format::Document quetzal::stratum_format::read_zone(std::istream& is, const std::string& name, const warning_function_type& warning)
 {
-    raw_values_type v;
-
-    try
+    return detail::read_document<Document>(is, name, [&](const raw_values_type& v)
     {
-        v = raw_values_type::parse(is);
-    }
-    catch (const raw_values_type::parse_error& e)
-    {
-        throw std::runtime_error(std::format("{}: {}", name, e.what()));
-    }
-
-    try
-    {
-        return read_document(v, [&](const std::string& path, std::string_view what)
+        return read_zone_document(v, [&](const std::string& path, std::string_view what)
         {
             if (warning)
             {
                 warning(std::format("{}: {}: {}", name, path, what));
             }
         });
-    }
-    catch (const std::runtime_error& e)
-    {
-        throw std::runtime_error(std::format("{}: {}", name, e.what()));
-    }
+    });
 }
 
 //------------------------------------------------------------------------------
-quetzal::stratum_format::Document quetzal::stratum_format::read(const std::filesystem::path& filepath, const warning_function_type& warning)
+quetzal::stratum_format::Document quetzal::stratum_format::read_zone(const std::filesystem::path& filepath, const warning_function_type& warning)
 {
     std::ifstream is(filepath, std::ios::binary);
     if (!is)
@@ -1797,5 +1566,5 @@ quetzal::stratum_format::Document quetzal::stratum_format::read(const std::files
         throw std::runtime_error(std::format("{}: cannot be opened", filepath.string()));
     }
 
-    return read(is, filepath.string(), warning);
+    return read_zone(is, filepath.string(), warning);
 }

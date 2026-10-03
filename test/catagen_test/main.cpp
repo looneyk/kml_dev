@@ -175,7 +175,7 @@ namespace
     stratum_format::Document document_of(const string& zone)
     {
         istringstream is(zone);
-        return stratum_format::read(is, "zone");
+        return stratum_format::read_zone(is, "zone");
     }
 
     //--------------------------------------------------------------------------

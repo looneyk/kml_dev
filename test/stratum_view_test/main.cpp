@@ -130,7 +130,7 @@ namespace
     string rows_of(const string& filepath)
     {
         string s;
-        for (const string& row : stratum_format::read(filepath).cells.rows)
+        for (const string& row : stratum_format::read_zone(filepath).cells.rows)
         {
             s += row + '\n';
         }
@@ -212,7 +212,7 @@ namespace
     flecs::entity load_zone_unpopulated(SuiteWorld& world, const string& filepath)
     {
         flecs::entity zone = world.create_zone(world.region, world.next_id());
-        stratum_sim::load_layout(zone, stratum_format::read(filepath));
+        stratum_sim::load_layout(zone, stratum_format::read_zone(filepath));
 
         return zone;
     }
@@ -870,7 +870,7 @@ namespace
         for (const string name : {"corridor", "door", "dungeon", "vault", "walls"})
         {
             string detail;
-            report_case(format("{} has a door entity at each door", name), doors_have_entities(stratum_format::read(format("data/{}.zone", name)), detail),
+            report_case(format("{} has a door entity at each door", name), doors_have_entities(stratum_format::read_zone(format("data/{}.zone", name)), detail),
                 detail);
         }
 

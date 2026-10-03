@@ -21,10 +21,10 @@ namespace quetzal::stratum_format
     void log_warning(const std::string& warning);
 
     // Reads and validates a layout file. Throws std::runtime_error stating what was wrong and where
-    Document read(const std::filesystem::path& filepath, const warning_function_type& warning = log_warning);
+    Document read_zone(const std::filesystem::path& filepath, const warning_function_type& warning = log_warning);
 
     // name identifies the stream in error and warning messages
-    Document read(std::istream& is, const std::string& name, const warning_function_type& warning = log_warning);
+    Document read_zone(std::istream& is, const std::string& name, const warning_function_type& warning = log_warning);
 
 } // namespace quetzal::stratum_format
 

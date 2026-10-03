@@ -80,10 +80,16 @@ each on the ones before it. `Game`'s menu and lifecycle functions, and those the
         writing `world.json` and every loaded zone, all into the game directory, which is then copied to a new save
         directory, `<character name>_<save time>`.
   - [x] **The hosts' menu offering it.**
-- [ ] **A game loaded:** `Game::open` replacing the game directory with a copy of a save, then
-      reading `game.json`, with `World::open` and `Character::open` reading theirs, each region's zone ids set from its
-      zones in `world.json`, the session starting in the zone the character is in, and `saved_games`; and the hosts' menu
-      offering them.
+- [ ] **A game loaded**, in three commit points:
+  - [x] **The game files read:** `read_game`, `read_character` and `read_world` in `stratum_format`, validating each
+        file, and the world index in `world.json`, written by `World::save`.
+  - [ ] **Opening:** `Game::open` emptying the working directory and copying a save into it as the game directory, named
+        by the character, then reading `game.json`, restoring the id allocator and, by a `Settings` field, either
+        restoring the engine's state or reseeding it; `World::open` reading `world.json`, each region with its zone ids,
+        and the world index; `Character::open` reading `character.json`; and the session starting in the character's
+        zone at its placement. `Game::create` loses its name, and names the game directory by the character too.
+        `saved_games` lists each save's character name, from its `character.json`, and the time of the save.
+  - [ ] **The hosts' menu offering it:** the nine newest saves, a digit opening one, and Escape going back.
 - [ ] **A game removed:** `Game::remove` deleting a save's directory from the saves directory, after checking that it
       is a save there; and the hosts' menu offering it from the list `saved_games` returns. It should be an option when
       showing the saved games list after selecting the Open/Load menu option.

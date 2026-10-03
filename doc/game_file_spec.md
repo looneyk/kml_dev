@@ -1,6 +1,6 @@
 # Game File Format Specification
 
-Status: draft --- written by `stratum_format`; nothing reads it yet
+Status: draft --- read and written by `stratum_format`
 Date: 2026-09-28, revised 2026-10-01
 
 This document specifies how a game is saved. A game has four parts: the game's own state, its settings, the player's
@@ -135,13 +135,19 @@ character named Ailis in it carrying a torch, would have the following structure
         "zones": [
           { "id": 3, "file": "zones/3.zone" }
         ] }
+    ],
+    "entity_zones": [
+      [1, 3],
+      [8, 5],
+      [11, 3]
     ]
   }
 }
 ```
 
 `zones/3.zone` is a saved zone, with `"zone": { "id": 3 }`; `discrete_layout.md` (`## An example`) has a whole zone. A
-staircase in zone 5 and one in zone 3 are bound to each other, and are the only connection between the two regions.
+staircase in zone 5, entity 8, and one in zone 3, entity 11, are bound to each other, and are the only connection
+between the two regions. A denizen in zone 3 pursues the character, entity 1.
 
 ## format and version
 
@@ -189,11 +195,16 @@ own zone; they can by reference.
 
 ## world
 
-The world's regions:
+The world's regions, and the world index:
 
 | Key | |
 | --- | --- |
 | `regions` | Every region, in no hierarchy |
+| `entity_zones` | The world index: for each entity that something refers to, its persistent id and its zone's, as a pair |
+
+The world index is how a reference finds the zone its entity is in when that zone is not loaded, such as a bound
+staircase whose partner's zone has unloaded. An entity is in it from the first reference to it, wherever the reference
+is, and its zone changes as the entity moves. Each zone in it is one that a region's `zones` refers to.
 
 ### Regions
 
@@ -235,7 +246,8 @@ reference's `id`. Its zone references refer to zone templates, whose entity ids 
 A writer emits two-space indentation. In the game file, `game` and `settings` are each on one line. In the character
 file, each key of `character` is on a line of its own, and each entity of the inventory is on a line of its own, as a
 zone's entities are. In the world file, a region's `id` and `components` are on the line that opens
-it, its `spec` is on the next line, its `zones` follow, and each zone reference is on a line of its own. A zone file has the
+it, its `spec` is on the next line, its `zones` follow, and each zone reference is on a line of its own, as each pair of
+the world index is, in entity id order. A zone file has the
 form that `discrete_layout.md` (`### The written form`) specifies.
 
 ## Open
