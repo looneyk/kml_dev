@@ -112,6 +112,8 @@ void StratumWorld::_bind_methods()
     godot::ClassDB::bind_method(godot::D_METHOD("menu_close"), &StratumWorld::menu_close);
     godot::ClassDB::bind_method(godot::D_METHOD("quit_game"), &StratumWorld::quit_game);
     godot::ClassDB::bind_method(godot::D_METHOD("save_game"), &StratumWorld::save_game);
+    godot::ClassDB::bind_method(godot::D_METHOD("saved_games"), &StratumWorld::saved_games);
+    godot::ClassDB::bind_method(godot::D_METHOD("open_game", "save_name"), &StratumWorld::open_game);
 
     return;
 }
@@ -180,6 +182,53 @@ godot::String StratumWorld::save_game()
         godot::UtilityFunctions::push_error("unable to save the game: ", godot::String::utf8(e.what()));
         return {};
     }
+}
+
+//------------------------------------------------------------------------------
+godot::Array StratumWorld::saved_games() const
+{
+    godot::Array saves;
+
+    // Exceptions must not cross into Godot
+    try
+    {
+        for (const sim::SavedGameDetails& details : m_game.saved_games())
+        {
+            std::chrono::sys_seconds time = std::chrono::floor<std::chrono::seconds>(std::chrono::clock_cast<std::chrono::system_clock>(details.time()));
+
+            godot::Dictionary save;
+            save["save_name"] = godot::String::utf8(details.save_name().c_str());
+            save["character_name"] = godot::String::utf8(details.character_name().c_str());
+            save["time"] = godot::String::utf8(std::format("{:%Y-%m-%d %H:%M}", std::chrono::zoned_time(std::chrono::current_zone(),
+                std::chrono::floor<std::chrono::minutes>(time))).c_str());
+            saves.push_back(save);
+        }
+    }
+    catch (const std::exception& e)
+    {
+        godot::UtilityFunctions::push_error("unable to list the saved games: ", godot::String::utf8(e.what()));
+        return {};
+    }
+
+    return saves;
+}
+
+//------------------------------------------------------------------------------
+bool StratumWorld::open_game(const godot::String& save_name)
+{
+    // Exceptions must not cross into Godot. A failed opening leaves no game in progress
+    try
+    {
+        m_game.open(save_name.utf8().get_data());
+    }
+    catch (const std::exception& e)
+    {
+        godot::UtilityFunctions::push_error("unable to open the game: ", godot::String::utf8(e.what()));
+        return false;
+    }
+
+    m_message.clear();
+    return true;
 }
 
 //------------------------------------------------------------------------------

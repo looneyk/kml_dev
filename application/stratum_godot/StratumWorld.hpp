@@ -9,6 +9,8 @@
 #include "quetzal/stratum_sim/Session.hpp"
 #include <godot_cpp/classes/ref_counted.hpp>
 #include <godot_cpp/core/class_db.hpp>
+#include <godot_cpp/variant/array.hpp>
+#include <godot_cpp/variant/dictionary.hpp>
 #include <godot_cpp/variant/packed_byte_array.hpp>
 #include <godot_cpp/variant/string.hpp>
 #include <godot_cpp/variant/vector2i.hpp>
@@ -49,6 +51,14 @@ public:
     // Saves the game in progress and returns the save's name. Empty, with the reason pushed to Godot's error list, when the
     // game cannot be saved
     godot::String save_game();
+
+    // The saves, newest first, each a Dictionary with its save_name, which open_game takes, its character_name, and its
+    // time, local and to the minute. Empty, with the reason pushed to Godot's error list, when they cannot be listed
+    godot::Array saved_games() const;
+
+    // Opens the save and starts play in it. False, with the reason pushed to Godot's error list, when it cannot be opened,
+    // which leaves no game in progress
+    bool open_game(const godot::String& save_name);
 
     godot::Vector2i extent() const;
     godot::Vector2i cell() const;

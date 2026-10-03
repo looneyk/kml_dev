@@ -1,4 +1,4 @@
-# The 2D tile view, drawn from place types, with the menu that creates, continues and quits games
+# The 2D tile view, drawn from place types, with the menu that creates, continues, saves, opens and quits games
 
 extends Node2D
 
@@ -25,6 +25,9 @@ const ACTOR_COLORS: Array[Color] = [
 # Passed after -- on Godot's command line, it starts a new game without showing the menu, for the headless check
 const NEW_GAME_ARGUMENT := "--new-game"
 
+# A digit selects a save, so the saves page lists no more than nine
+const SAVED_GAMES_LISTED_MAX := 9
+
 var _world: StratumWorld
 var _layer: TileMapLayer
 var _actor_layer: TileMapLayer
@@ -33,6 +36,10 @@ var _camera: Camera2D
 var _menu: Control
 var _menu_text: Label
 var _extent := Vector2i.ZERO
+
+# The saves the saves page lists, newest first, while it is shown, and empty while the main page is
+var _saves_listed: Array = []
+var _saves_page_shown := false
 
 
 func _ready() -> void:
@@ -117,11 +124,33 @@ func _show_menu(message: String) -> void:
 		lines.append("C   Continue")
 		lines.append("S   Save")
 
+	lines.append("O   Open")
 	lines.append("Q   Quit")
 
 	if not message.is_empty():
 		lines.append_array(["", message])
 
+	_saves_page_shown = false
+	_saves_listed = []
+	_menu_text.text = "\n".join(lines)
+	_menu.visible = true
+
+
+# Each save is shown by its character's name and the time of the save, never by its directory's name
+func _show_saves() -> void:
+	_saves_listed = _world.saved_games().slice(0, SAVED_GAMES_LISTED_MAX)
+	var lines := ["OPEN", ""]
+
+	for i in _saves_listed.size():
+		var save: Dictionary = _saves_listed[i]
+		lines.append("%d   %s   %s" % [i + 1, save["character_name"], save["time"]])
+
+	if _saves_listed.is_empty():
+		lines.append("No saved games")
+
+	lines.append_array(["", "A digit opens that save, Escape goes back"])
+
+	_saves_page_shown = true
 	_menu_text.text = "\n".join(lines)
 	_menu.visible = true
 
@@ -131,6 +160,20 @@ func _new_game() -> void:
 		_show_menu("No game was created; Godot's error list has the reason")
 		return
 
+	_start_play()
+
+
+func _open_game(save: Dictionary) -> void:
+	if not _world.open_game(save["save_name"]):
+		_show_menu("The game was not opened; Godot's error list has the reason")
+		return
+
+	_start_play()
+
+
+func _start_play() -> void:
+	_saves_page_shown = false
+	_saves_listed = []
 	_menu.visible = false
 	_refresh()
 
@@ -193,6 +236,10 @@ func _menu_key(event: InputEventKey) -> void:
 	if event.is_echo():
 		return
 
+	if _saves_page_shown:
+		_saves_key(event)
+		return
+
 	match event.keycode:
 		KEY_N:
 			_new_game()
@@ -202,11 +249,23 @@ func _menu_key(event: InputEventKey) -> void:
 				_menu.visible = false
 		KEY_S:
 			if _world.has_game():
-				var save_name: String = _world.save_game()
-				_show_menu("Saved as %s" % save_name if not save_name.is_empty() else "The game was not saved; Godot's error list has the reason")
+				var saved: bool = not _world.save_game().is_empty()
+				_show_menu("Game saved" if saved else "The game was not saved; Godot's error list has the reason")
+		KEY_O:
+			_show_saves()
 		KEY_Q:
 			_world.quit_game()
 			get_tree().quit()
+
+
+func _saves_key(event: InputEventKey) -> void:
+	if event.keycode == KEY_ESCAPE:
+		_show_menu("")
+		return
+
+	var slot := event.keycode - KEY_1
+	if slot >= 0 and slot < _saves_listed.size():
+		_open_game(_saves_listed[slot])
 
 
 func _play_key(event: InputEventKey) -> void:

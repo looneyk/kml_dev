@@ -37,6 +37,14 @@ func _initialize() -> void:
 		return
 
 	print("save   -> ", save_name)
+
+	var saved_cell := world.cell()
+	if not world.open_game(save_name):
+		push_error("open_game failed")
+		quit(1)
+		return
+
+	print("open   -> ", world.cell(), " (saved at ", saved_cell, ")")
 	world.quit_game()
 
 	quit()

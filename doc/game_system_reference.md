@@ -954,10 +954,13 @@ the xterm extension XTWINOPS to resize.
 become `Key::Up`, `Down`, `Left` or `Right`.
 
 The host starts at its menu, drawn in place of the map, with `n` for a new game, `c` to continue the game in progress
-and `s` to save it, each offered only while there is one, and `q` to quit, which clears the game and ends the run.
-Escape on the menu also continues. A new game is created from the host's temporary specs, its character named
-"Adventurer", and its directory named by the time it began. A failure to create one is shown on the menu's status line,
-and so is a save's name, through `Game::save` with `SaveType::Explicit`, or the reason it failed. During play, Escape opens the menu, through `Game::menu_open`, and no other key quits. When the
+and `s` to save it, each offered only while there is one, `o` to open a save, and `q` to quit, which clears the game
+and ends the run. Escape on the menu also continues. A new game is created from the host's temporary specs, its
+character named "Adventurer". A failure to create one is shown on the menu's status line, and so is "Game saved.",
+after `Game::save` with `SaveType::Explicit`, or the reason it failed. `o` shows the saves page: the nine newest saves
+from `Game::saved_games`, numbered, each as its character's name and the local time of the save to the minute, and
+never by its directory's name. A digit opens that save with `Game::open` and starts play, and Escape returns to the main
+page; a failure to list or to open is shown on the main page's status line. During play, Escape opens the menu, through `Game::menu_open`, and no other key quits. When the
 character dies, the map stays with "You have died." on the status line until a key is pressed, and the host then quits
 the game and opens the menu. A game whose `advance` throws cannot continue, so the host quits it and opens the menu,
 with the reason on its status line.
@@ -981,7 +984,7 @@ library, a GDExtension, and `application/stratum_godot/project/` is the Godot pr
 `stratum.gdextension`, which refers to `res://bin/`, where the build writes it.
 
 `StratumWorld` is the one registered class, a `RefCounted` that owns a `Game`, with only Godot types in its
-interface: `create_game`, `has_game`, `game_over`, `menu_open`, `menu_close`, `quit_game`, `save_game`, `extent`, `cell`, `render`, `cells`,
+interface: `create_game`, `has_game`, `game_over`, `menu_open`, `menu_close`, `quit_game`, `save_game`, `saved_games`, `open_game`, `extent`, `cell`, `render`, `cells`,
 `actors`, `step`, `interact`,
 `enter`, `turn`, and `message`. `step` sets the character's intent, turning toward the direction moved as the view does not show the
 facing direction, and advances through the turn-based driver; `interact` submits `Interact` and `enter` submits
@@ -989,10 +992,12 @@ facing direction, and advances through the turn-based driver; `interact` submits
 opening, a staircase before the character, or the level arrived on, and the tile view shows it in its status line. A step ends with the next turn already granted,
 so `turn` is the turn awaiting input. `create_game` creates a new game as the terminal host does, `has_game` returns true
 while one is in progress, `game_over` returns true once the character is dead, and `message` then reports the death,
-`menu_open` and `menu_close` pause and resume play, `quit_game` ends the game in progress, and `save_game` saves it
-explicitly and returns the save's name. Exceptions do not cross into Godot: a failed creation pushes the reason to
-Godot's error list and returns false, and leaves no game in progress; a failed save pushes the reason and returns an
-empty name; and a game whose `advance` throws during `step`, `interact` or `enter` pushes the reason and
+`menu_open` and `menu_close` pause and resume play, `quit_game` ends the game in progress, `save_game` saves it
+explicitly and returns the save's name, `saved_games` returns the saves, newest first, each a `Dictionary` of its
+`save_name`, its `character_name`, and its local `time` to the minute, and `open_game(save_name)` opens one and starts
+play. Exceptions do not cross into Godot: a failed creation or opening pushes the reason to Godot's error list and
+returns false, and leaves no game in progress; a failed save pushes the reason and returns an empty name, and a failed
+listing an empty array; and a game whose `advance` throws during `step`, `interact` or `enter` pushes the reason and
 is quit, as it cannot continue.
 
 `cells` is one code per cell from `stratum_view::cells`, row major from row zero; its `PlaceType` constants repeat
@@ -1007,8 +1012,9 @@ size. Row zero is the lowest in the simulation and y grows
 downward in Godot, so the view inverts j when it paints.
 
 The tile view starts at its menu, a dark screen over the view with the same choices and keys as the terminal host's:
-`N` for a new game, `C` or Escape to continue the game in progress, `S` to save it, which shows the save's name on the
-menu, and `Q` to quit the game and Godot. During play,
+`N` for a new game, `C` or Escape to continue the game in progress, `S` to save it, which shows "Game saved" on the
+menu, `O` for the saves page, which lists and opens saves as the terminal host's does, and `Q` to quit the game and
+Godot. During play,
 Escape opens the menu, and no other key quits. When `game_over` returns true, the status line asks for a key, which
 quits the game and shows the menu. A game quit because it failed shows the menu with a message referring to Godot's
 error list. `-- --new-game` on Godot's command line starts a new game without showing the menu.
@@ -1022,7 +1028,7 @@ so they do not report `/W4` warnings in the extension's sources. `KML_DEV_GODOT`
 configured off, godot-cpp is not processed and neither the library nor the host exists.
 
 Two headless checks need no display: `--path project --script main.gd` exercises the extension directly, through a
-save, and
+save and the opening of that save, and
 `--path project --quit-after 5 -- --new-game` runs the tile scene in a new game, which reports the cells it painted;
 without `-- --new-game` it reports that the menu is shown. A project has to be imported
 once (`--headless --path project --import`) before Godot sees the extension; otherwise the class is undeclared, with

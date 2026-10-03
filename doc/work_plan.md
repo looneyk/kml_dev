@@ -80,7 +80,7 @@ each on the ones before it. `Game`'s menu and lifecycle functions, and those the
         writing `world.json` and every loaded zone, all into the game directory, which is then copied to a new save
         directory, `<character name>_<save time>`.
   - [x] **The hosts' menu offering it.**
-- [ ] **A game loaded**, in three commit points:
+- [x] **A game loaded**, in three commit points:
   - [x] **The game files read:** `read_game`, `read_character` and `read_world` in `stratum_format`, validating each
         file, and the world index in `world.json`, written by `World::save`.
   - [x] **Opening:** `Game::open` emptying the working directory and copying a save into it as the game directory, named
@@ -89,7 +89,8 @@ each on the ones before it. `Game`'s menu and lifecycle functions, and those the
         and the world index; `Character::open` reading `character.json`; and the session starting in the character's
         zone at its placement. `Game::create` loses its name, and names the game directory by the character too.
         `saved_games` lists each save's character name, from its `character.json`, and the time of the save.
-  - [ ] **The hosts' menu offering it:** the nine newest saves, a digit opening one, and Escape going back.
+  - [x] **The hosts' menu offering it:** the nine newest saves, each shown by its character's name and the time of the
+        save, a digit opening one, and Escape going back.
 - [ ] **A game removed:** `Game::remove` deleting a save's directory from the saves directory, after checking that it
       is a save there; and the hosts' menu offering it from the list `saved_games` returns. It should be an option when
       showing the saved games list after selecting the Open/Load menu option.

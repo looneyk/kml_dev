@@ -28,7 +28,22 @@ namespace
 
     static constexpr auto help_string = "arrows or hjkl move, space acts, < or > enters, . waits, ^L redraws, Esc for the menu";
 
-    static constexpr auto menu_help_string = "n starts a new game, c or Esc continues, s saves, q quits, ^L redraws";
+    static constexpr auto menu_help_string = "n starts a new game, c or Esc continues, s saves, o opens a save, q quits, ^L redraws";
+
+    static constexpr auto saves_help_string = "a digit opens that save, Esc goes back, ^L redraws";
+
+    // A digit selects a save, so the saves page lists no more than nine
+    static constexpr size_t saved_games_listed_max = 9;
+
+    //--------------------------------------------------------------------------
+    // A save as the saves page lists it: the character's name, padded to the width of the longest listed, and the local
+    // time of the save to the minute
+    std::string format_save_label(const stratum_sim::SavedGameDetails& details, size_t name_width)
+    {
+        std::chrono::sys_seconds time = std::chrono::floor<std::chrono::seconds>(std::chrono::clock_cast<std::chrono::system_clock>(details.time()));
+        return std::format("{:<{}}  {:%Y-%m-%d %H:%M}", details.character_name(), name_width,
+            std::chrono::zoned_time(std::chrono::current_zone(), std::chrono::floor<std::chrono::minutes>(time)));
+    }
 
     static constexpr auto end_help_string = "press any key to return to the menu";
 
@@ -228,9 +243,46 @@ void stratum_terminal::Application::run_menu()
     {
         m_terminal.redraw();
     }
-    else if (key_press.c == 'n' || key_press.c == 'N')
+    else if (m_menu_page == MenuPage::Saves)
+    {
+        run_saves_page(key_press);
+    }
+    else
+    {
+        run_main_page(key_press);
+    }
+
+    return;
+}
+
+//------------------------------------------------------------------------------
+void stratum_terminal::Application::run_saves_page(const KeyPress& key_press)
+{
+    if (key_press.key == Key::Escape)
+    {
+        m_message.clear();
+        m_menu_page = MenuPage::Main;
+        return;
+    }
+
+    if (key_press.c >= '1' && static_cast<size_t>(key_press.c - '1') < m_saved_games.size())
+    {
+        open_game(m_saved_games[static_cast<size_t>(key_press.c - '1')].save_name());
+    }
+
+    return;
+}
+
+//------------------------------------------------------------------------------
+void stratum_terminal::Application::run_main_page(const KeyPress& key_press)
+{
+    if (key_press.c == 'n' || key_press.c == 'N')
     {
         create_game();
+    }
+    else if (key_press.c == 'o' || key_press.c == 'O')
+    {
+        list_saved_games();
     }
     else if ((key_press.key == Key::Escape || key_press.c == 'c' || key_press.c == 'C') && m_session.loaded())
     {
@@ -254,6 +306,30 @@ void stratum_terminal::Application::run_menu()
 //------------------------------------------------------------------------------
 void stratum_terminal::Application::draw_menu()
 {
+    if (m_menu_page == MenuPage::Saves)
+    {
+        std::vector<std::string> lines {"OPEN", ""};
+
+        size_t name_width = 0;
+        for (const stratum_sim::SavedGameDetails& details : m_saved_games)
+        {
+            name_width = std::max(name_width, details.character_name().size());
+        }
+
+        for (size_t i = 0; i < m_saved_games.size(); ++i)
+        {
+            lines.push_back(std::format("{}  {}", i + 1, format_save_label(m_saved_games[i], name_width)));
+        }
+
+        if (m_saved_games.empty())
+        {
+            lines.push_back("No saved games");
+        }
+
+        draw_menu_lines(lines, saves_help_string);
+        return;
+    }
+
     std::vector<std::string> lines {"STRATUM", "", "n  New game"};
 
     if (m_session.loaded())
@@ -262,8 +338,16 @@ void stratum_terminal::Application::draw_menu()
         lines.push_back("s  Save");
     }
 
+    lines.push_back("o  Open");
     lines.push_back("q  Quit");
 
+    draw_menu_lines(lines, menu_help_string);
+    return;
+}
+
+//------------------------------------------------------------------------------
+void stratum_terminal::Application::draw_menu_lines(const std::vector<std::string>& lines, const std::string& help)
+{
     stratum_view::coord_type width = 0;
     for (const std::string& line : lines)
     {
@@ -284,7 +368,7 @@ void stratum_terminal::Application::draw_menu()
         }
     }
 
-    m_terminal.draw(console, m_message, menu_help_string);
+    m_terminal.draw(console, m_message, help);
     return;
 }
 
@@ -301,10 +385,60 @@ void stratum_terminal::Application::create_game()
         return;
     }
 
+    start_play();
+    return;
+}
+
+//------------------------------------------------------------------------------
+void stratum_terminal::Application::list_saved_games()
+{
+    try
+    {
+        m_saved_games = m_game.saved_games();
+    }
+    catch (const std::exception& e)
+    {
+        m_message = std::format("The saved games could not be listed: {}", e.what());
+        return;
+    }
+
+    if (m_saved_games.size() > saved_games_listed_max)
+    {
+        m_saved_games.erase(m_saved_games.begin() + saved_games_listed_max, m_saved_games.end());
+    }
+
+    m_message.clear();
+    m_menu_page = MenuPage::Saves;
+
+    return;
+}
+
+//------------------------------------------------------------------------------
+void stratum_terminal::Application::open_game(const std::string& save_name)
+{
+    try
+    {
+        m_game.open(save_name);
+    }
+    catch (const std::exception& e)
+    {
+        m_message = std::format("The game was not opened: {}", e.what());
+        m_menu_page = MenuPage::Main;
+        return;
+    }
+
+    start_play();
+    return;
+}
+
+//------------------------------------------------------------------------------
+void stratum_terminal::Application::start_play()
+{
     m_view = m_view_requested != View::Null ? m_view_requested
         : m_session.notation() == stratum_format::Notation::Wall ? View::Wall : View::Cell;
     m_view_glyphs = m_view == View::Cell ? stratum_view::cell_glyphs() : stratum_view::lattice_glyphs();
     m_message.clear();
+    m_menu_page = MenuPage::Main;
     m_menu_open = false;
 
     return;
@@ -315,7 +449,8 @@ void stratum_terminal::Application::save_game()
 {
     try
     {
-        m_message = std::format("Saved as {}.", m_game.save(stratum_sim::SaveType::Explicit));
+        m_game.save(stratum_sim::SaveType::Explicit);
+        m_message = "Game saved.";
     }
     catch (const std::exception& e)
     {
