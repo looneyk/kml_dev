@@ -53,23 +53,6 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // A new game's directory is named by the local time it began, in ISO 8601 basic format, an identifier and nothing
-    // more. A second game begun in the same second has a suffix
-    std::string new_game_name(const sim::Config& config)
-    {
-        const std::string time = std::format("{:%Y%m%dT%H%M%S}", std::chrono::zoned_time(std::chrono::current_zone(),
-            std::chrono::floor<std::chrono::seconds>(std::chrono::system_clock::now())));
-        std::string name = time;
-
-        for (int suffix = 2; std::filesystem::exists(config.working_directory / name); ++suffix)
-        {
-            name = std::format("{}-{}", time, suffix);
-        }
-
-        return name;
-    }
-
-    //--------------------------------------------------------------------------
     // Temporary, until the generators are integrated: every zone of the starting region is made with dungen, named
     // "Dungeon Level N" for its level
     sim::Generation::GeneratorSelection select_dungen(const sim::World&, flecs::entity, const sim::ZoneSpec& zone_spec)
@@ -139,7 +122,7 @@ bool StratumWorld::create_game()
     // Exceptions must not cross into Godot. A failed creation leaves no game in progress
     try
     {
-        m_game.create(new_game_name(m_game.config()), temporary_region_spec(), temporary_character_spec());
+        m_game.create(temporary_region_spec(), temporary_character_spec());
     }
     catch (const std::exception& e)
     {

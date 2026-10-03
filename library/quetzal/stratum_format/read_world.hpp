@@ -14,10 +14,10 @@ namespace quetzal::stratum_format
 {
 
     // Reads and validates a world file. Region ids are unique, zone ids are unique across the world, and each entry of the
-    // world index is in a zone that a region lists. Throws std::runtime_error stating what was wrong and where. name
-    // identifies the stream in error messages
+    // world index is in a zone that a region lists. Throws std::runtime_error stating what was wrong and where.
+    // stream_name identifies the stream in error messages
     WorldDocument read_world(const std::filesystem::path& filepath);
-    WorldDocument read_world(std::istream& is, const std::string& name);
+    WorldDocument read_world(std::istream& is, const std::string& stream_name);
 
 } // namespace quetzal::stratum_format
 

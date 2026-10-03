@@ -38,8 +38,16 @@ void quetzal::stratum_sim::Session::start(flecs::entity access_point)
 {
     assert(access_point && access_point.has<AccessPoint>());
 
-    flecs::entity zone = zone_of(access_point);
-    m_world.relocate(m_character.entity(), zone, access_point.get<AccessPoint>().placement);
+    start(zone_of(access_point), access_point.get<AccessPoint>().placement);
+    return;
+}
+
+//------------------------------------------------------------------------------
+void quetzal::stratum_sim::Session::start(flecs::entity zone, const placement_type& placement)
+{
+    assert(zone && zone.has<Zone>());
+
+    m_world.relocate(m_character.entity(), zone, placement);
     play(zone);
 
     return;

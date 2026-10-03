@@ -23,8 +23,8 @@ namespace quetzal::stratum_format
     // Reads and validates a layout file. Throws std::runtime_error stating what was wrong and where
     Document read_zone(const std::filesystem::path& filepath, const warning_function_type& warning = log_warning);
 
-    // name identifies the stream in error and warning messages
-    Document read_zone(std::istream& is, const std::string& name, const warning_function_type& warning = log_warning);
+    // stream_name identifies the stream in error and warning messages
+    Document read_zone(std::istream& is, const std::string& stream_name, const warning_function_type& warning = log_warning);
 
 } // namespace quetzal::stratum_format
 

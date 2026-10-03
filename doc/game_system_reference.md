@@ -176,14 +176,20 @@ decoded over the entity's current value, which is a copy of its type's value if 
 is set through its `OptionalField`. A reference in a component object becomes an `EntityReference`. In a template it
 refers to the entity of the same file, with that entity's persistent id; in a saved zone it has the persistent id
 written, and the entity if that entity is in the zone. `load_layout` returns the entities that a template's references
-refer to, which `World::load_zone` adds to the world index.
+refer to, which `World::load_zone` adds to the world index. The decoding is `decode_components`, in
+`decode_components.hpp`, which the character's loading shares.
 
-`build_error(world, document)` returns the first reason the world cannot build a zone from a document, with the path
-to it. The reason is an access point type that is not registered, or a component object that has no component
-registered under its name, has a field the component does not have, or has a value its field cannot take. It decodes
-every component object into a value that it then discards, with flecs' own error logging silenced, so
-`World::load_zone` checks a file completely before making anything. `load_layout` asserts the conditions that
-`build_error` checks.
+`check_buildable(world, document)` checks, before anything is built, that the world can build a zone from a document,
+and returns the first reason it cannot, with the path to it. The reason is an access point type that is not registered,
+or a component object that has no component registered under its name, has a field the component does not have, or has
+a value its field cannot take, which `check_decodable` finds by decoding every component object into a value that it
+then discards. Flecs' own error logging is silenced meanwhile, so `World::load_zone` checks a file completely before
+making anything. `load_layout` asserts the conditions that `check_buildable` checks.
+
+`load_character(character, document)` fills the character's entity from a `CharacterDocument`: its persistent id and
+its component objects, and each entity of its inventory, with its persistent id, its type, its parent, its site on that
+parent, and its component objects. Every reference keeps its persistent id and is resolved when it is first followed.
+The `check_buildable` overload for a `CharacterDocument` checks its component objects as the zone's are checked.
 
 `register_file_component(entities, name, component)`, or `register_file_component<T>(entities, name)`, registers a
 component, with its reflection as a struct or an opaque type, as the one that a component object of that name decodes
@@ -303,10 +309,10 @@ moves nothing.
 `World` takes the game's random engine by reference in its constructor, as it takes the id allocator: a `random_type`,
 `math::Random<>`, which `Game` owns.
 
-`load_zone(region, filepath)` reads the file and builds the zone from its document, which it checks with `build_error` before making the zone. The zone has the file's persistent id if the file has
+`load_zone(region, filepath)` reads the file and builds the zone from its document, which it checks with `check_buildable` before making the zone. The zone has the file's persistent id if the file has
 a `zone` section, and a new one otherwise. `load_zone` then has `load_layout` fill the zone and populates it, unless it
 is a saved zone, whose denizens are its entities. It throws `std::runtime_error`, having made nothing, if the reader
-rejects the file, `build_error` finds a reason, or the file is a saved zone that is already loaded; a template makes a
+rejects the file, `check_buildable` finds a reason, or the file is a saved zone that is already loaded; a template makes a
 new zone each time it is loaded. `load_saved_zone(zone_id)` reads a zone of the game that has unloaded back from the
 game directory's `zones/<persistent id>.zone`, into the region whose `zone_ids` lists it, and throws
 `std::runtime_error` if no region lists it. `World` handles no doors itself, and neither function unloads anything.
@@ -333,7 +339,8 @@ zone does not save it, and neither does `unload_zone` nor `unload_region`, which
 game does (`game_file_spec.md`, `## A saved game's files`). `save()` saves every loaded zone and then writes
 `world.json` into the game directory: each region in persistent id order, with its id, its region spec, and a reference
 to each zone its `zone_ids` lists, whose file is `zones/<persistent id>.zone`, whether or not the zone is loaded; and the
-world index.
+world index. `open(game_directory)`, on a cleared world, reads `world.json` back: each region, made with its persistent
+id, its region spec and its zone ids, and the world index. It loads no zone; each loads when it is entered.
 
 `unload_zone(zone)` begins an unload: it adds the zone's id to the zones unloading and deletes the entity. Flecs deletes
 a zone's subtree before the zone itself, and if it is deferring, it runs the whole deletion when the deferred
@@ -598,10 +605,10 @@ stopped by an occupied cell in `World::move`.
 
 `Game` is the game in its entirety, the one object a host owns, for as long as the host runs. It is constructed with a
 `Config`, the program's configuration, which is the same for every game: `saves_directory`, the directory in which
-each saved game is a directory; `working_directory`, the directory in which each game in progress is a directory, which
-play reads and writes; and `zone_count_max`, the most zones the world keeps loaded at once. `config()` returns it. Each
-host passes a temporary config, with the two directories in the temp directory's `KML/Stratum/saves` and
-`KML/Stratum/working` and a maximum of 8, until the game's config file is read. It owns the structures that survive outside play: the config, the
+each save is a directory; `working_directory`, which has the game directory of the game in progress and nothing else;
+and `zone_count_max`, the most zones the world keeps loaded at once. `config()` returns it. Each host passes a
+temporary config, with the two directories in the temp directory's `KML/Stratum/saves` and `KML/Stratum/working` and a
+maximum of 8, until the game's config file is read. It owns the structures that survive outside play: the config, the
 settings, a `CountingIdAllocator` counting from zero, a `random_type` seeded from
 `std::random_device`, the `Generation`, the `World` and the `Character`, and the `Session` that plays them, constructed in
 that order, each referring to those before it. `generation()` returns the `Generation`, with which a host registers
@@ -610,15 +617,32 @@ character, region or zone; until a game is created, there is none.
 
 `Game` has the menu and lifecycle operations a host calls: `menu_open`, `menu_close`, `clear`, `create`, `open`,
 `save`, `quit` and `saved_games`. They call `clear`, `create`, `open` and `save` on `World` and `Character`, and
-`clear`, `start`, `pause` and `resume` on `Session`. `saved_games` returns no games.
+`clear`, `start`, `pause` and `resume` on `Session`.
 
-`Game::create(name, region_spec, character_spec)` clears, resets the id allocator to count from zero, and reseeds the
-engine from `std::random_device`, keeping the seed, so nothing passes from one game to the next. It throws
-`std::runtime_error` if a game directory named `name` is in the working directory, and otherwise creates it; `name` is
-an identifier and nothing more. It has the character created from the `CharacterSpec`, and the world's starting region
-and its first zone from the `RegionSpec` with `World::create(region_spec, game_directory)`, and starts the session at
-the entry point `World::create` returns. If either throws, it clears again and removes the game directory before
-passing the exception on, so a failure leaves no game in progress.
+The working directory has only the game in progress. `Game::create(region_spec, character_spec)` clears, resets the id
+allocator to count from zero, and reseeds the engine from `std::random_device`, keeping the seed, so nothing passes
+from one game to the next. It empties the working directory and creates the game directory there, named by the
+character, whose name the spec must have, with each character a directory name cannot have replaced by `_`. It has the
+character created from the `CharacterSpec`, and the world's starting region and its first zone from the `RegionSpec`
+with `World::create(region_spec, game_directory)`, and starts the session at the entry point `World::create` returns.
+If either throws, it clears again and removes the game directory before passing the exception on, so a failure leaves
+no game in progress.
+
+`Game::open(save_name)` clears, then empties the working directory and copies the save into it as the game directory,
+named by the character as `create` names it, read from the top of the save's `character.json`. It reads `game.json`: the id
+allocator counts on from `next_id`, and the engine's state is restored from the text `>>` reads, or the engine is
+reseeded from `std::random_device`, as `Settings::random_seeding_on_open` chooses, `RandomSeedingOnOpen::RestoreSavedState` or
+`Reseed`; the engine is the same either way. Restoring repeats the outcomes the save would have had; reseeding gives
+each opening its own. `World::open`
+then reads `world.json`, `Character::open` reads `character.json`, and the session starts in the character's zone,
+which `load_saved_zone` reads, at its cell and orientation. It throws `std::runtime_error` if there is no such save or
+a file in it cannot be read, and clears and removes the game directory first, so a failure leaves no game in progress.
+
+`saved_games()` returns a `SavedGameDetails` for each save in the saves directory, newest first: the save's name,
+which `open` takes; the character's name as the player entered it, read from the top of the save's `character.json`
+without parsing the character; an empty
+description; and the time `game.json` was written. It throws `std::runtime_error` if a save's character file cannot be
+read or has no name.
 
 `Game::save(save_type)` writes `game.json` into the game directory, with the id allocator's next id, the seed, and the gameplay
 engine's state as the text `<<` writes; has the character write `character.json` there, through
@@ -640,8 +664,7 @@ no zone is played, and the turn order and the clock's fraction of a unit are emp
 `Character::clear` deletes the character's entity, with what it carries and its pending command. `World::clear` unloads
 every region and empties the world index and the `ZoneEntryIndex`, and keeps the registrations: the entity types, the
 access point types, the file components, and the `Generation` it was given. `menu_open` pauses the session and
-`menu_close` resumes it, and `quit` clears the game. `open` and `remove`, and the functions on `World` and `Character`
-that `open` calls, are skeletons with empty bodies. `CharacterSpec`, which `create` takes, is the choices a new game makes: a `name`; `stats`, a map
+`menu_close` resumes it, and `quit` clears the game. `remove` is a skeleton with an empty body. `CharacterSpec`, which `create` takes, is the choices a new game makes: a `name`; `stats`, a map
 from a name to a value; `skills`, which include feats and abilities, and `aspects`, such as the spells of a
 spellcasting skill, each a map from a name to its properties; an `inventory` of `InventoryItem`, each an item's `type`, its
 `InventoryLocation` (a `relation` and a `place`), and its `properties`; and the game's other choices, such as race and
@@ -650,7 +673,10 @@ class, as `properties`.
 
 `Character` is the entity a host controls. `create(character_spec)` makes it, with `Blocking`, the `ControlledActor`
 tag, a `Speed`, a new `PersistentId`, and the spec's `name` as its `DisplayName`, and it is in no zone until one is
-entered. `save(game_directory)` writes its `make_character_document` to `character.json` there. `entity()` is null before `create` and after `clear`. It is owned by the game and has no parent, so it outlives every zone it moves through. A host
+entered. `save(game_directory)` writes its `make_character_document` to `character.json` there, and
+`open(game_directory)` makes the entity from `character.json` there, with the `ControlledActor` tag and what
+`load_character` fills, in no zone, and returns its `CharacterPlacement`: its zone's persistent id, and its cell and
+orientation. `entity()` is null before `create` and after `clear`. It is owned by the game and has no parent, so it outlives every zone it moves through. A host
 acts through it: `set_intent(intent)` sets the character's `Intent`, and `submit(action)` sets a `PendingCommand` of the
 action for the character's entity, which the clock applies the next time the character is ready. `entity()` returns the
 entity, for queries and drawing.
@@ -665,9 +691,8 @@ zone. The library has no default entry type or offset.
 
 Each host registers `stratum_gen`'s generators, dropping dungen's warnings, and a temporary generator selector named
 `dungen`, until the generators are integrated. It creates the game from a temporary `RegionSpec`, whose
-`generator_selector` is `dungen`, whose `entry_access` is `staircase,1`, and whose `zone.level` is -1, and an empty
-`CharacterSpec`. It names the game by the local time it began, in ISO 8601 basic format, with a suffix of `-2`, `-3`, and
-so on if a game of that name exists in the saves or the working directory. The selector chooses the `dungen` generator for every zone, and names the zone
+`generator_selector` is `dungen`, whose `entry_access` is `staircase,1`, and whose `zone.level` is -1, and a
+temporary `CharacterSpec` with the name "Adventurer". The selector chooses the `dungen` generator for every zone, and names the zone
 "Dungeon Level N", where N is the absolute value of the level. So the character begins at the staircase leading up on
 the first level down, and a staircase leads to a new zone the first time it is taken, and back through the bound
 staircase after that.
@@ -677,8 +702,8 @@ its default parameters at the `ZoneSpec`'s `level`, if it has one, with a seed f
 zone with the `ZoneSpec`'s `name`, and returns the document `dungen::make_document` builds in memory. It passes dungen's
 warnings to `warning`.
 
-`start(access_point)` relocates the character to the access point's placement in its zone, then has the world
-`trim_zones` with the zone entered, so no zone the character is in can unload. It makes the zone the one being played,
+`start(zone, placement)` relocates the character to the placement in the zone, and `start(access_point)` to the access
+point's placement in its zone; each then has the world `trim_zones` with the zone entered, so no zone the character is in can unload. It makes the zone the one being played,
 removes the character's pending command, and rebuilds the turn order from each entity in the zone that has a `Speed`,
 the character included. `enter(zone, type, offset)` starts at the zone's `entry_point(zone, type, offset)`; if the zone
 has no such entry point, it throws `std::runtime_error`, and the character stays where it was. `notation()` returns the entered zone's `ZoneNotation`.
@@ -809,11 +834,19 @@ of the written form through `written_form.hpp`, internal to the library in `stra
 `read_game`, `read_character` and `read_world`, in `read_game.hpp`, `read_character.hpp` and `read_world.hpp`, read and
 validate the game files, from a file or from a stream with a name for messages, and throw `std::runtime_error` with the
 path within the document and what was wrong there, as `read_zone` does for a zone. Each requires the format and version,
-and the keys and value types that `game_file_spec.md` specifies. `read_character` also requires that every entity of the
-inventory has a unique id and a parent, the character or another entity of the inventory, with no cycle, and that it
+and the keys and value types that `game_file_spec.md` specifies. `read_character` also requires that the file's `name`,
+a copy of the character's name, equals the `name` component, and that every entity of the inventory has a unique id
+and a parent, the character or another entity of the inventory, with no cycle, and that it
 is sited on its parent if sited at all, with no address and no relocator. `read_world` requires unique region ids, zone
 ids unique across the world, and every entry of the world index in a zone that a region lists, once. The readers share
-the checked reading of values through `read_values.hpp`, in `stratum_format::detail`.
+the checked reading of values through `checked_values.hpp`, in `stratum_format::detail`. Each file's header is its
+leading keys, `format` and `version`, and in the character file `name` after them; `check_file_header` checks it, and a
+writer emits it with `file_header_sections`.
+
+`read_character_name` reads only the top of a character file, through nlohmann's SAX parser, and stops once it has the
+format, the version and the name, so nothing after the name is parsed, however much the character carries. It throws
+`std::runtime_error` if any of the three is absent or wrong, or the file is not JSON up to them. `Game::saved_games` and
+`Game::open` read a save's character name with it.
 
 ## Presentation
 

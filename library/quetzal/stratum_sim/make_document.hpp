@@ -26,8 +26,8 @@ namespace quetzal::stratum_sim
     // no ZoneDocument
     stratum_format::Document rebuild_document(flecs::entity zone);
 
-    // Returns the player's character as a character file's document: its own file components, its zone, its cell and
-    // orientation there, and every entity in its subtree, in persistent id order, as its inventory
+    // Returns the player's character as a character document: its name, its components, its zone, its cell
+    // and orientation there, and every entity in its subtree, in persistent id order, as its inventory. Requires a named character
     stratum_format::CharacterDocument make_character_document(flecs::entity character);
 
 } // namespace quetzal::stratum_sim

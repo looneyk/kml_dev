@@ -54,11 +54,16 @@ namespace quetzal::stratum_sim
         void menu_open();
         void menu_close();
         void clear();
-        // Clears, then creates a game whose directory in the working directory is named name, and starts play at its first
-        // zone's entry point. Throws std::runtime_error if a game of that name exists in the working directory, and passes
-        // on what creating the world throws, leaving no game in progress
-        void create(std::string_view name, const RegionSpec& region_spec, const CharacterSpec& character_spec); // starting specs, maybe read from settings instead ...
-        void open(std::string_view directory);
+        // Clears, empties the working directory, and creates a game there, its game directory named by the character, then
+        // starts play at its first zone's entry point. Requires a named character. Passes on what creating the world throws,
+        // leaving no game in progress
+        void create(const RegionSpec& region_spec, const CharacterSpec& character_spec); // starting specs, maybe read from settings instead ...
+
+        // Clears, empties the working directory, and copies the save there as the game directory, named by the character,
+        // then reads it: the id allocator's count, the random engine's state, restored or reseeded as the settings choose,
+        // the world, and the character, and starts play in the character's zone at its placement. Throws
+        // std::runtime_error if there is no such save or a file in it cannot be read, leaving no game in progress
+        void open(std::string_view save_name);
 
         // Writes game.json, the character's and the world's files, and every loaded zone into the game directory, then copies
         // it to a new save directory, <character name>_<save time>, with _autosave or _quicksave appended for those save
@@ -69,7 +74,9 @@ namespace quetzal::stratum_sim
         void remove(std::string_view directory);
         void quit();
 
-        std::vector<SavedGameDetails> saved_games();
+        // Each save in the saves directory, newest first, with its character's name and the time it was saved. Throws
+        // std::runtime_error if a save's character file cannot be read or has no name
+        std::vector<SavedGameDetails> saved_games() const;
 
         // Accessors
 
@@ -91,6 +98,9 @@ namespace quetzal::stratum_sim
         const Character& character() const;
 
     private:
+
+        // Reads game.json: the id allocator's count, the seed, and the engine's state, restored or reseeded as the settings dictate
+        void restore_game_state(const std::filesystem::path& filepath);
 
         // Some of these properties, especially Config, are only of importance to the host ...
         Config m_config; // Immutable properties like file locations, physical hardware configuration, ...

@@ -18,7 +18,7 @@ namespace
     constexpr bool enter_relocator_by_moving = false;
 
     //--------------------------------------------------------------------------
-    int relocate_through(quetzal::stratum_sim::World& world, flecs::entity actor, flecs::entity relocator,
+    int enter_relocator(quetzal::stratum_sim::World& world, flecs::entity actor, flecs::entity relocator,
         quetzal::stratum_sim::EventQueue& events)
     {
         using namespace quetzal::stratum_sim;
@@ -85,7 +85,7 @@ int quetzal::stratum_sim::apply(World& world, const Command& command, EventQueue
 
             if (relocator && can_enter(relocator, e))
             {
-                return relocate_through(world, e, relocator, events);
+                return enter_relocator(world, e, relocator, events);
             }
         }
 
@@ -132,7 +132,7 @@ int quetzal::stratum_sim::apply(World& world, const Command& command, EventQueue
         flecs::entity relocator = e.has<ControlledActor>() ? find_relocator(zone, WallAddress {wall_id}) : flecs::entity();
         if (relocator && can_enter(relocator, e))
         {
-            return relocate_through(world, e, relocator, events);
+            return enter_relocator(world, e, relocator, events);
         }
 
         Interaction interaction = Interaction::Nothing;
@@ -157,7 +157,7 @@ int quetzal::stratum_sim::apply(World& world, const Command& command, EventQueue
         flecs::entity relocator = discrete_layout != nullptr && e.has<ControlledActor>() ? find_relocator(zone, FlatCellAddress {discrete_layout->floor_id(),
             discrete_layout->cell_position_at(placement.position())}) : flecs::entity();
 
-        return relocator && can_enter(relocator, e) ? relocate_through(world, e, relocator, events) : 0;
+        return relocator && can_enter(relocator, e) ? enter_relocator(world, e, relocator, events) : 0;
     }
 
     return 0;

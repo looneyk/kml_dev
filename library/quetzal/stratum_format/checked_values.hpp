@@ -1,8 +1,8 @@
-#if !defined(QUETZAL_STRATUM_FORMAT_READ_VALUES_HPP)
-#define QUETZAL_STRATUM_FORMAT_READ_VALUES_HPP
+#if !defined(QUETZAL_STRATUM_FORMAT_CHECKED_VALUES_HPP)
+#define QUETZAL_STRATUM_FORMAT_CHECKED_VALUES_HPP
 //------------------------------------------------------------------------------
 // stratum_format
-// read_values.hpp
+// checked_values.hpp
 //------------------------------------------------------------------------------
 
 #include "Document.hpp"
@@ -58,15 +58,15 @@ namespace quetzal::stratum_format::detail
     // Returns null if the entry has no components
     raw_values_type read_components(const raw_values_type& v, const std::string& path);
 
-    // Requires the format and version that a reader reads
-    void check_format(const raw_values_type& v, std::string_view required_format, std::string_view required_version);
+    // Requires the file's header to have the format and version that a reader reads
+    void check_file_header(const raw_values_type& v, std::string_view required_format, std::string_view required_version);
 
-    // Parses the stream, prefixing a parse error with name, which identifies the stream
-    raw_values_type parse(std::istream& is, const std::string& name);
+    // Parses the stream as JSON, prefixing a parse error with the stream's name
+    raw_values_type parse_json(std::istream& is, const std::string& stream_name);
 
-    // Parses the stream and reads the document from it, prefixing every error with name
+    // Parses the stream and reads the document from it, prefixing every error with the stream's name
     template<typename D>
-    D read_document(std::istream& is, const std::string& name, const std::function<D(const raw_values_type&)>& read);
+    D read_document(std::istream& is, const std::string& stream_name, const std::function<D(const raw_values_type&)>& read);
 
     // Opens the file and reads the document from it, prefixing every error with the file's path
     template<typename D>
@@ -76,9 +76,9 @@ namespace quetzal::stratum_format::detail
 
 //------------------------------------------------------------------------------
 template<typename D>
-D quetzal::stratum_format::detail::read_document(std::istream& is, const std::string& name, const std::function<D(const raw_values_type&)>& read)
+D quetzal::stratum_format::detail::read_document(std::istream& is, const std::string& stream_name, const std::function<D(const raw_values_type&)>& read)
 {
-    raw_values_type v = parse(is, name);
+    raw_values_type v = parse_json(is, stream_name);
 
     try
     {
@@ -86,7 +86,7 @@ D quetzal::stratum_format::detail::read_document(std::istream& is, const std::st
     }
     catch (const std::runtime_error& e)
     {
-        throw std::runtime_error(std::format("{}: {}", name, e.what()));
+        throw std::runtime_error(std::format("{}: {}", stream_name, e.what()));
     }
 }
 
@@ -103,4 +103,4 @@ D quetzal::stratum_format::detail::read_document(const std::filesystem::path& fi
     return read_document(is, filepath.string(), read);
 }
 
-#endif // QUETZAL_STRATUM_FORMAT_READ_VALUES_HPP
+#endif // QUETZAL_STRATUM_FORMAT_CHECKED_VALUES_HPP

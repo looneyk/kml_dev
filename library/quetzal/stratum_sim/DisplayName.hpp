@@ -7,6 +7,7 @@
 
 #include <flecs.h>
 #include <string>
+#include <string_view>
 
 namespace quetzal::stratum_sim
 {
@@ -17,6 +18,9 @@ namespace quetzal::stratum_sim
     {
         std::string name;
     };
+
+    // The name of DisplayName's file component
+    constexpr std::string_view display_name_component = "name";
 
     // Registers DisplayName with its reflection as a string, so a file's "name": "..." decodes into it
     void register_display_name(flecs::world& entities);

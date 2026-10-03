@@ -304,7 +304,7 @@ namespace
         add_entries("flats", document.flats, flat_entry);
         add_entries("entities", document.entities, entity_entry);
 
-        return file_text(sections);
+        return top_level_object_text(sections);
     }
 
 } // namespace

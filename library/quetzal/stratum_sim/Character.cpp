@@ -5,16 +5,22 @@
 
 #include "Character.hpp"
 #include "DisplayName.hpp"
+#include "load_character.hpp"
 #include "make_document.hpp"
 #include "quetzal/stratum_format/CharacterDocument.hpp"
+#include "quetzal/stratum_format/read_character.hpp"
+#include "quetzal/stratum_format/saved_game_format.hpp"
 #include "quetzal/stratum_format/write_character.hpp"
+#include <format>
+#include <optional>
+#include <stdexcept>
+#include <string>
 #include <cassert>
 
 namespace
 {
 
     static constexpr int character_speed = 100;
-    static constexpr std::string_view character_filename = "character.json";
 
 } // namespace
 
@@ -55,11 +61,22 @@ void quetzal::stratum_sim::Character::create(const CharacterSpec& character_spec
 }
 
 //------------------------------------------------------------------------------
-void quetzal::stratum_sim::Character::open(std::string_view directory)
+quetzal::stratum_sim::CharacterPlacement quetzal::stratum_sim::Character::open(const std::filesystem::path& game_directory)
 {
-    directory; // ...
+    assert(!m_entity);
 
-    return;
+    std::filesystem::path filepath = game_directory / stratum_format::character_filename;
+    stratum_format::CharacterDocument document = stratum_format::read_character(filepath);
+
+    if (std::optional<std::string> error = check_buildable(m_world.entities(), document))
+    {
+        throw std::runtime_error(std::format("{}: {}", filepath.string(), *error));
+    }
+
+    m_entity = m_world.entities().entity().add<ControlledActor>();
+    load_character(m_entity, document);
+
+    return CharacterPlacement {PersistentId {document.zone_id}, document.placement.position(), document.placement.direction()};
 }
 
 //------------------------------------------------------------------------------
@@ -67,7 +84,7 @@ void quetzal::stratum_sim::Character::save(const std::filesystem::path& game_dir
 {
     assert(m_entity);
 
-    stratum_format::write(game_directory / character_filename, make_character_document(m_entity));
+    stratum_format::write(game_directory / stratum_format::character_filename, make_character_document(m_entity));
     return;
 }
 

@@ -66,13 +66,13 @@ namespace quetzal::stratum_format::detail
     entry_type entity_entry(const Entity& entity);
 
     // An absent object is written as an empty one
-    std::string object_value_text(const raw_values_type& values);
+    std::string object_or_empty_text(const raw_values_type& values);
 
-    // The format and version sections that open each file of a saved game but its zones
-    std::vector<std::string> saved_game_file_sections();
+    // The header that opens each file of a saved game but its zones: the format and the version
+    std::vector<std::string> file_header_sections();
 
-    // The sections of a file, each on lines of its own, in one object
-    std::string file_text(const std::vector<std::string>& sections);
+    // The sections of a file, each on lines of its own, in the file's one top-level object
+    std::string top_level_object_text(const std::vector<std::string>& sections);
 
     void write_file(const std::filesystem::path& filepath, const std::string& text);
 

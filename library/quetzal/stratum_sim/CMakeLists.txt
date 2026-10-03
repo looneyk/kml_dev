@@ -5,6 +5,7 @@ add_library(quetzal_stratum_sim STATIC
     Clock.cpp
     CommandQueue.cpp
     commands.cpp
+    decode_components.cpp
     DiscreteLayout.cpp
     DisplayName.cpp
     EventQueue.cpp
@@ -14,6 +15,7 @@ add_library(quetzal_stratum_sim STATIC
     Game.cpp
     GridMapping.cpp
     IdAllocator.cpp
+    load_character.cpp
     load_layout.cpp
     make_document.cpp
     properties.cpp
@@ -35,6 +37,7 @@ add_library(quetzal_stratum_sim STATIC
     CommandQueue.hpp
     commands.hpp
     ContinuousLayout.hpp
+    decode_components.hpp
     DirectionMask.hpp
     DiscreteLayout.hpp
     DisplayName.hpp
@@ -50,6 +53,7 @@ add_library(quetzal_stratum_sim STATIC
     IdAllocator.hpp
     Intent.hpp
     Layout.hpp
+    load_character.hpp
     load_layout.hpp
     make_document.hpp
     PersistentId.hpp

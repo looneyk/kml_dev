@@ -5,37 +5,43 @@
 
 #include "Game.hpp"
 #include "attachments.hpp"
+#include "DiscreteLayout.hpp"
 #include "DisplayName.hpp"
 #include "quetzal/stratum_format/GameDocument.hpp"
+#include "quetzal/stratum_format/read_character.hpp"
+#include "quetzal/stratum_format/read_game.hpp"
 #include "quetzal/stratum_format/saved_game_format.hpp"
 #include "quetzal/stratum_format/write_game.hpp"
 #include <algorithm>
+#include <charconv>
 #include <chrono>
 #include <filesystem>
 #include <format>
+#include <functional>
 #include <random>
 #include <sstream>
 #include <stdexcept>
+#include <system_error>
 #include <thread>
 #include <cassert>
 
 namespace
 {
 
-    constexpr std::string_view game_filename = "game.json";
+    constexpr std::string_view gameplay_engine_key = "gameplay";
 
     // Windows' reserved characters, so a name that one platform accepts every platform accepts
-    constexpr std::string_view unnamable_characters = "<>:\"/\\|?*";
+    constexpr std::string_view reserved_path_characters = "<>:\"/\\|?*";
 
     //--------------------------------------------------------------------------
     // The time in ISO 8601 basic format, local to the player
-    std::string save_time(std::chrono::sys_seconds time)
+    std::string format_save_time(std::chrono::sys_seconds time)
     {
         return std::format("{:%Y%m%dT%H%M%S}", std::chrono::zoned_time(std::chrono::current_zone(), time));
     }
 
     //--------------------------------------------------------------------------
-    std::string_view save_suffix(quetzal::stratum_sim::SaveType save_type)
+    std::string_view get_save_name_suffix(quetzal::stratum_sim::SaveType save_type)
     {
         switch (save_type)
         {
@@ -53,15 +59,40 @@ namespace
 
     //--------------------------------------------------------------------------
     // The name with each character that cannot be in a directory name, reserved or a control character, replaced by '_'
-    std::string make_directory_name(std::string_view name)
+    std::string replace_reserved_characters(std::string_view name)
     {
         std::string directory_name(name);
         std::ranges::replace_if(directory_name, [](char c)
         {
-            return unnamable_characters.find(c) != std::string_view::npos || static_cast<unsigned char>(c) < 0x20;
+            return reserved_path_characters.find(c) != std::string_view::npos || static_cast<unsigned char>(c) < 0x20;
         }, '_');
 
         return directory_name;
+    }
+
+    //--------------------------------------------------------------------------
+    // The working directory has only the game in progress
+    void clear_working_directory(const quetzal::stratum_sim::Config& config)
+    {
+        std::filesystem::remove_all(config.working_directory);
+        return;
+    }
+
+    //--------------------------------------------------------------------------
+    // Creates the game directory in the working directory, named by the character, and returns it
+    std::filesystem::path create_game_directory(const quetzal::stratum_sim::Config& config, std::string_view character_name)
+    {
+        std::filesystem::path game_directory = config.working_directory / replace_reserved_characters(character_name);
+        std::filesystem::create_directories(game_directory);
+
+        return game_directory;
+    }
+
+    //--------------------------------------------------------------------------
+    // The character's name, as the player entered it, from the top of the save's character file
+    std::string read_saved_character_name(const std::filesystem::path& save_directory)
+    {
+        return quetzal::stratum_format::read_character_name(save_directory / quetzal::stratum_format::character_filename);
     }
 
 } // namespace
@@ -117,20 +148,18 @@ void quetzal::stratum_sim::Game::clear()
 }
 
 //------------------------------------------------------------------------------
-void quetzal::stratum_sim::Game::create(std::string_view name, const RegionSpec& region_spec, const CharacterSpec& character_spec)
+void quetzal::stratum_sim::Game::create(const RegionSpec& region_spec, const CharacterSpec& character_spec)
 {
+    assert(!character_spec.name.empty());
+
     clear();
 
     m_counting_id_allocator = CountingIdAllocator(PersistentId {});
     m_seed = std::random_device {}();
     m_random.engine().seed(m_seed);
 
-    std::filesystem::path game_directory = m_config.working_directory / name;
-
-    if (!std::filesystem::create_directories(game_directory))
-    {
-        throw std::runtime_error(std::format("a game named '{}' already exists in {}", name, m_config.working_directory.string()));
-    }
+    clear_working_directory(m_config);
+    std::filesystem::path game_directory = create_game_directory(m_config, character_spec.name);
 
     try
     {
@@ -150,11 +179,79 @@ void quetzal::stratum_sim::Game::create(std::string_view name, const RegionSpec&
 }
 
 //------------------------------------------------------------------------------
-void quetzal::stratum_sim::Game::open(std::string_view directory)
+void quetzal::stratum_sim::Game::open(std::string_view save_name)
 {
     clear();
-    m_world.open(directory);
-    m_character.open(directory);
+
+    std::filesystem::path save_directory = m_config.saves_directory / save_name;
+    if (!std::filesystem::is_directory(save_directory))
+    {
+        throw std::runtime_error(std::format("no save named '{}' is in {}", save_name, m_config.saves_directory.string()));
+    }
+
+    std::string character_name = read_saved_character_name(save_directory);
+    clear_working_directory(m_config);
+    std::filesystem::path game_directory = create_game_directory(m_config, character_name);
+    std::filesystem::copy(save_directory, game_directory, std::filesystem::copy_options::recursive);
+
+    try
+    {
+        restore_game_state(game_directory / stratum_format::game_filename);
+        m_world.open(game_directory);
+
+        CharacterPlacement character_placement = m_character.open(game_directory);
+        flecs::entity zone = m_world.load_saved_zone(character_placement.zone_id);
+        const DiscreteLayout& layout = layout_as<DiscreteLayout>(m_world.layout(zone));
+        vector_type orientation(static_cast<value_type>(character_placement.orientation.x()), static_cast<value_type>(character_placement.orientation.y()),
+            value_type(0));
+
+        m_session.start(zone, placement_type(layout.position(character_placement.cell_position), orientation));
+    }
+    catch (...)
+    {
+        clear();
+        std::filesystem::remove_all(game_directory);
+        throw;
+    }
+
+    m_game_directory = game_directory;
+
+    return;
+}
+
+//------------------------------------------------------------------------------
+void quetzal::stratum_sim::Game::restore_game_state(const std::filesystem::path& filepath)
+{
+    stratum_format::GameDocument document = stratum_format::read_game(filepath);
+    m_counting_id_allocator = CountingIdAllocator(PersistentId {document.next_id});
+
+    const char* seed_end = document.seed.data() + document.seed.size();
+    if (auto [end, ec] = std::from_chars(document.seed.data(), seed_end, m_seed); ec != std::errc() || end != seed_end)
+    {
+        throw std::runtime_error(std::format("{}: game.seed: '{}' is not a seed", filepath.string(), document.seed));
+    }
+
+    if (m_settings.random_seeding_on_open() == RandomSeedingOnOpen::Reseed)
+    {
+        m_seed = std::random_device {}();
+        m_random.engine().seed(m_seed);
+        return;
+    }
+
+    auto i = document.engines.find(std::string(gameplay_engine_key));
+    if (i == document.engines.end())
+    {
+        throw std::runtime_error(std::format("{}: game.engines: no {} engine", filepath.string(), gameplay_engine_key));
+    }
+
+    std::istringstream state(i->second);
+    state >> m_random.engine();
+
+    if (!state)
+    {
+        throw std::runtime_error(std::format("{}: game.engines.{}: not the state of the engine", filepath.string(), gameplay_engine_key));
+    }
+
     return;
 }
 
@@ -165,7 +262,7 @@ std::string quetzal::stratum_sim::Game::save(SaveType save_type)
 
     const auto* display_name = m_character.entity().try_get<DisplayName>();
     assert(display_name != nullptr && !display_name->name.empty());
-    std::string character_name = make_directory_name(display_name->name);
+    std::string character_name = replace_reserved_characters(display_name->name);
 
     std::ostringstream engine_state;
     engine_state << m_random.engine();
@@ -174,9 +271,9 @@ std::string quetzal::stratum_sim::Game::save(SaveType save_type)
     document.version = std::string(stratum_format::saved_game_format_version);
     document.next_id = m_counting_id_allocator.next().id;
     document.seed = std::to_string(m_seed);
-    document.engines["gameplay"] = engine_state.str();
+    document.engines[std::string(gameplay_engine_key)] = engine_state.str();
 
-    stratum_format::write(*m_game_directory / game_filename, document);
+    stratum_format::write(*m_game_directory / stratum_format::game_filename, document);
     m_character.save(*m_game_directory);
     m_world.save();
 
@@ -185,7 +282,7 @@ std::string quetzal::stratum_sim::Game::save(SaveType save_type)
     for (;;)
     {
         std::chrono::sys_seconds now = std::chrono::floor<std::chrono::seconds>(std::chrono::system_clock::now());
-        save_name = std::format("{}_{}{}", character_name, save_time(now), save_suffix(save_type));
+        save_name = std::format("{}_{}{}", character_name, format_save_time(now), get_save_name_suffix(save_type));
 
         if (!std::filesystem::exists(m_config.saves_directory / save_name))
         {
@@ -218,11 +315,38 @@ void quetzal::stratum_sim::Game::quit()
 }
 
 //------------------------------------------------------------------------------
-std::vector<quetzal::stratum_sim::SavedGameDetails> quetzal::stratum_sim::Game::saved_games()
+quetzal::stratum_sim::Settings& quetzal::stratum_sim::Game::settings()
 {
-    // From the saved game directory in config, return all the subdirecties ...
+    return m_settings;
+}
 
-    return {};
+//------------------------------------------------------------------------------
+const quetzal::stratum_sim::Settings& quetzal::stratum_sim::Game::settings() const
+{
+    return m_settings;
+}
+
+//------------------------------------------------------------------------------
+std::vector<quetzal::stratum_sim::SavedGameDetails> quetzal::stratum_sim::Game::saved_games() const
+{
+    std::vector<SavedGameDetails> details;
+
+    if (!std::filesystem::is_directory(m_config.saves_directory))
+    {
+        return details;
+    }
+
+    for (const std::filesystem::directory_entry& entry : std::filesystem::directory_iterator(m_config.saves_directory))
+    {
+        if (entry.is_directory())
+        {
+            details.emplace_back(entry.path().filename().string(), read_saved_character_name(entry.path()), std::string_view(),
+                std::filesystem::last_write_time(entry.path() / stratum_format::game_filename));
+        }
+    }
+
+    std::ranges::sort(details, std::ranges::greater(), &SavedGameDetails::time);
+    return details;
 }
 
 //------------------------------------------------------------------------------

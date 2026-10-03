@@ -13,10 +13,9 @@
 namespace quetzal::stratum_format
 {
 
-    // Reads and validates a game file. Throws std::runtime_error stating what was wrong and where. name identifies the
-    // stream in error messages
+    // Reads and validates a game file. Throws std::runtime_error stating what was wrong and where. stream_name identifies the stream in error messages
     GameDocument read_game(const std::filesystem::path& filepath);
-    GameDocument read_game(std::istream& is, const std::string& name);
+    GameDocument read_game(std::istream& is, const std::string& stream_name);
 
 } // namespace quetzal::stratum_format
 

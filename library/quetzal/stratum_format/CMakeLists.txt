@@ -1,9 +1,9 @@
 add_library(quetzal_stratum_format STATIC
+    checked_values.cpp
     Document.cpp
     grid.cpp
     read_character.cpp
     read_game.cpp
-    read_values.cpp
     read_world.cpp
     read_zone.cpp
     references.cpp
@@ -14,6 +14,7 @@ add_library(quetzal_stratum_format STATIC
     write_zone.cpp
     written_form.cpp
     CharacterDocument.hpp
+    checked_values.hpp
     Document.hpp
     GameDocument.hpp
     Notation.hpp
@@ -21,7 +22,6 @@ add_library(quetzal_stratum_format STATIC
     grid.hpp
     read_character.hpp
     read_game.hpp
-    read_values.hpp
     read_world.hpp
     read_zone.hpp
     references.hpp

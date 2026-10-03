@@ -100,6 +100,9 @@ namespace quetzal::stratum_sim
         // has no such entry point
         flecs::entity create(const RegionSpec& region_spec, const std::filesystem::path& game_directory);
 
+        // Reads world.json from the game directory, which zones are saved into until clear: each region, with its
+        // persistent id, its region spec and its zone ids, and the world index. Loads no zone. Requires a cleared world.
+        // Throws std::runtime_error if the file cannot be read
         void open(const std::filesystem::path& game_directory);
 
         // Writes every loaded zone as a saved zone, then world.json, with each region and its zones and the world index, into
@@ -138,7 +141,7 @@ namespace quetzal::stratum_sim
         flecs::entity create_zone(flecs::entity region, const ZoneSpec& zone_spec);
 
         // Reads a zone into the region from a file, and populates it unless it is a saved zone. The zone is given the persistent
-        // id of the file if it has one. Throws std::runtime_error, before anything is built, if the reader rejects the file, build_error finds a
+        // id of the file if it has one. Throws std::runtime_error, before anything is built, if the reader rejects the file, check_buildable finds a
         // reason the world cannot build it, or the file is a saved zone that is already loaded
         flecs::entity load_zone(flecs::entity region, const std::filesystem::path& filepath);
 
@@ -223,15 +226,17 @@ namespace quetzal::stratum_sim
 
         // Creates a zone in the region from the document, and populates it unless it is a saved zone. The zone is given the
         // document's persistent id if it has one. Throws std::runtime_error, reporting the source, before anything is built,
-        // if build_error finds a reason the world cannot build it, or it is a saved zone that is already loaded
+        // if check_buildable finds a reason the world cannot build it, or it is a saved zone that is already loaded
         flecs::entity build_zone(flecs::entity region, const stratum_format::Document& document, std::string_view source);
 
         // The file of a saved zone in the game directory
         std::filesystem::path saved_zone_path(PersistentId zone_id) const;
 
+        flecs::entity create_region(const RegionSpec& region_spec, PersistentId region_id);
+
         // Returns the entry point of the zone made for the relocator, of the arrival type and leading back offset levels.
         // Throws std::runtime_error, after discarding the zone, if it has none
-        flecs::entity made_zone_entry_point(flecs::entity relocator, flecs::entity zone, flecs::entity arrival_type, level_type offset);
+        flecs::entity require_entry_point(flecs::entity relocator, flecs::entity zone, flecs::entity arrival_type, level_type offset);
 
         // Discards the zone made for the relocator, which has never been entered, with its region if that was made for it
         // too. Otherwise the relocator's region no longer lists it. The world index no longer has its entities

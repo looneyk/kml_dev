@@ -53,9 +53,9 @@ void World::trim_zones(flecs::entity zone_entered);
   Both are a `KeyValueStore` (`archived/key_value_store_plan.md`). `world_generation_plan.md` describes what they
   contain and how a region and its zones are created from them. A key that is not read, or a value that does not
   parse, is an error that reaches the host.
-- **`open(directory)`** reads the game's `world.json`: its regions, with their specs and components, and the reference
-  to each zone's file. It loads no zone; each loads as it is entered.
-- **`save(directory)`** writes `world.json` and the file of every loaded zone into the directory.
+- **`open(game_directory)`** reads the game's `world.json`: its regions, with their specs, components and zone ids,
+  and the world index. It loads no zone; each loads as it is entered.
+- **`save()`** writes `world.json`, with the world index, and the file of every loaded zone into the game directory.
 - **`save_zone(zone)`** writes one zone's file into the game directory. The zone's unloading calls it, and so
   does every save of the game, explicit, quick or auto, for each loaded zone. Leaving a zone does not save it.
 - **`create_region_zone(region_spec, zone_spec)`** creates a region and its first zone, and returns the zone; it is how
@@ -162,9 +162,9 @@ flecs::entity Character::entity() const;
   states, with its `properties` set over the type's values. A name that does not resolve, a property that data does not
   define, or a stat that is not defined, is an error that reaches the host. The spec is not saved: `character.json` has
   the character it made.
-- **`open(directory)`** reads the game's `character.json`: the character's components, its inventory, and the zone it
-  is in and its placement there.
-- **`save(directory)`** writes `character.json`.
+- **`open(game_directory)`** reads the game's `character.json`: the character's components, its inventory, and the
+  zone it is in and its placement there.
+- **`save(game_directory)`** writes `character.json`.
 ## Games
 
 A game runs from its creation or opening until the player quits, opens another game, or the character dies, and it is
@@ -185,11 +185,11 @@ Game::Game(const Config& config);
 void Game::menu_open();
 void Game::menu_close();
 void Game::clear();
-void Game::create(std::string_view name, const RegionSpec& region_spec, const CharacterSpec& character_spec);
-void Game::open(std::string_view directory);
+void Game::create(const RegionSpec& region_spec, const CharacterSpec& character_spec);
+void Game::open(std::string_view save_name);
 std::string Game::save(SaveType save_type);
 void Game::quit();
-std::vector<std::string> Game::saved_games();
+std::vector<SavedGameDetails> Game::saved_games() const;
 Session& Game::session();
 World& Game::world();
 Character& Game::character();
@@ -205,15 +205,17 @@ Character& Game::character();
 - **`clear` clears the session, the character and the world, in that order, in place.** `create` and `open` clear
   first, so the game in progress ends once the player has chosen, after a confirmation if the host asks for one. A
   failure leaves no game in progress; the host reports it and returns to the menu.
+- **The working directory has only the game in progress.** `create` and `open` empty it before making the game
+  directory, which the character names.
 - **`create`** clears, resets the id allocator and reseeds the engines, so no state passes from one game to the next.
-  It creates the game directory, named by `name`, in the working directory, throwing if a game of that name exists in
-  the working or the saves directory, then has the character created from the
-  `CharacterSpec`, and the world's starting region and its first zone from the `RegionSpec`, and starts the session at
-  the access point `World::create` returns. The host passes only the name and the specs. Until a new game chooses its
-  region, each host passes temporary ones.
-- **`open(directory)`** clears, replaces the game directory with a copy of the save, reads
-  `game.json` from it, restoring the id allocator's count and the engines' state, has the world and then the character
-  open their files, and starts the session in the zone the character is in, which loads from its file.
+  It creates the game directory, then has the character created from the `CharacterSpec`, and the world's starting
+  region and its first zone from the `RegionSpec`, and starts the session at the access point `World::create` returns.
+  The host passes only the specs. Until a new game chooses its region and creates its character, each host passes
+  temporary ones.
+- **`open(save_name)`** clears, copies the save into the working directory as the game directory, reads `game.json`
+  from it, restoring the id allocator's count and either restoring the engines' state or reseeding them, as the
+  settings choose, has the world and then the character open their files, and starts the session in the zone the
+  character is in, which loads from its file, at the character's placement.
 - **`save(save_type)`** is the menu's save of the whole game, and a quick save or an auto save is the same, with its
   `SaveType`. It writes `game.json`, with the game's state, into the game directory, has the character and the world
   save theirs there, the world saving every loaded zone, and then copies the game directory to a new save directory in
@@ -234,7 +236,7 @@ Character& Game::character();
 
 - **A game is a directory in the working directory while it is played, and each save of it a directory in the saves
   directory,** named by the character's name and the time of the save (`game_file_spec.md`, `## A saved game's files`).
-  The game directory's name is an identifier the host passes to `create`, and nothing more.
+  The game directory is named by the character.
 - **`World::save_zone` writes a zone's file into the game directory when the zone unloads,** which then frees its
   resources, and for every loaded zone when the game is saved, explicitly, by a quick save, or by an auto save. Leaving
   a zone does not write it. Entering a zone that is not loaded reads its file from the game directory.
@@ -243,7 +245,12 @@ Character& Game::character();
   not saved since, is discarded, and quitting without saving loses everything since the last save.
 - **The character's intent and pending command are not saved.** A loaded character starts with neither, so it never
   continues an action the player may not remember having started.
-- **`saved_games`** returns the name of each game's directory in the saves directory, for a menu to list.
+- **`saved_games`** returns each save in the saves directory, newest first, for a menu to list: the save's name, which
+  `open` takes, the character's name as the player entered it, and the time of the save. The menu shows the character's
+  name and the time, not the save's name.
+- **Whether opening a save repeats its outcomes is the player's setting,** `Settings::random_seeding_on_open`: restoring the
+  engine's saved state repeats them, and reseeding lets a reload have outcomes of its own. The engine is the same
+  either way.
 
 ### Ending
 

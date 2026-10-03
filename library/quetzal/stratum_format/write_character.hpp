@@ -12,8 +12,8 @@
 namespace quetzal::stratum_format
 {
 
-    // Writes the character file in the written form that game_file_spec.md specifies: each key of the character on a line,
-    // and each entity of the inventory on a line, as a zone's entities are
+    // Writes the character file in the written form that game_file_spec.md specifies: the name third, after the format and
+    // the version, each key of the character on a line, and each entity of the inventory on a line, as a zone's entities are
     void write(const std::filesystem::path& filepath, const CharacterDocument& document);
     void write(std::ostream& os, const CharacterDocument& document);
 

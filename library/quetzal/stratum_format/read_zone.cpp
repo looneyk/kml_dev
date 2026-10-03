@@ -5,7 +5,7 @@
 
 #include "read_zone.hpp"
 #include "grid.hpp"
-#include "read_values.hpp"
+#include "checked_values.hpp"
 #include "references.hpp"
 #include "quetzal/geometry/DiscreteBox.hpp"
 #include <algorithm>
@@ -1407,7 +1407,7 @@ namespace
     // The grid is read first, as every address refers to it
     Document read_zone_document(const raw_values_type& v, const warn_type& warn)
     {
-        check_format(v, format_name, format_version);
+        check_file_header(v, format_name, format_version);
 
         Document document;
         document.version = std::string(format_version);
@@ -1543,15 +1543,15 @@ void quetzal::stratum_format::log_warning(const std::string& warning)
 }
 
 //------------------------------------------------------------------------------
-quetzal::stratum_format::Document quetzal::stratum_format::read_zone(std::istream& is, const std::string& name, const warning_function_type& warning)
+quetzal::stratum_format::Document quetzal::stratum_format::read_zone(std::istream& is, const std::string& stream_name, const warning_function_type& warning)
 {
-    return detail::read_document<Document>(is, name, [&](const raw_values_type& v)
+    return detail::read_document<Document>(is, stream_name, [&](const raw_values_type& v)
     {
         return read_zone_document(v, [&](const std::string& path, std::string_view what)
         {
             if (warning)
             {
-                warning(std::format("{}: {}: {}", name, path, what));
+                warning(std::format("{}: {}: {}", stream_name, path, what));
             }
         });
     });

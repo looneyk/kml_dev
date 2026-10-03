@@ -6,6 +6,7 @@
 #include "make_document.hpp"
 #include "attachments.hpp"
 #include "DiscreteLayout.hpp"
+#include "DisplayName.hpp"
 #include "file_components.hpp"
 #include "layout_entities.hpp"
 #include "PersistentId.hpp"
@@ -36,14 +37,14 @@ namespace
     //--------------------------------------------------------------------------
     // The value at ptr of a reflected type, as a zone file writes it, the reverse of load_layout's decoding. An unset
     // optional has no value, so the member that holds it is left out
-    std::optional<stratum_format::raw_values_type> encode_value(const flecs::world& world, flecs::entity_t type, const void* ptr)
+    std::optional<stratum_format::raw_values_type> encoded_value(const flecs::world& world, flecs::entity_t type, const void* ptr)
     {
         const ecs_world_t* w = world.c_ptr();
 
         if (const auto* optional_field = static_cast<const OptionalField*>(ecs_get_id(w, type, world.id<OptionalField>())))
         {
             const void* value = optional_field->value(ptr);
-            return value != nullptr ? encode_value(world, optional_field->type, value) : std::nullopt;
+            return value != nullptr ? encoded_value(world, optional_field->type, value) : std::nullopt;
         }
 
         if (type == world.id<EntityReference>())
@@ -60,7 +61,7 @@ namespace
             {
                 const auto* member_ptr = static_cast<const std::byte*>(ptr) + member.offset;
 
-                if (std::optional<stratum_format::raw_values_type> value = encode_value(world, member.type, member_ptr))
+                if (std::optional<stratum_format::raw_values_type> value = encoded_value(world, member.type, member_ptr))
                 {
                     object[member.name] = std::move(*value);
                 }
@@ -79,7 +80,7 @@ namespace
     //--------------------------------------------------------------------------
     // The entity's own file components, by name. A tag is an empty object, and a component it reads from its type through
     // inheritance is the type's, not its own
-    stratum_format::raw_values_type encode_components(flecs::entity e, const file_components_type& file_components)
+    stratum_format::raw_values_type encoded_components(flecs::entity e, const file_components_type& file_components)
     {
         flecs::world world = e.world();
         stratum_format::raw_values_type components = stratum_format::raw_values_type::object();
@@ -92,7 +93,7 @@ namespace
             }
 
             components[name] = is_tag(world, component) ? stratum_format::raw_values_type::object()
-                : *encode_value(world, component, ecs_get_id(world.c_ptr(), e, component));
+                : *encoded_value(world, component, ecs_get_id(world.c_ptr(), e, component));
         }
 
         return components;
@@ -100,9 +101,9 @@ namespace
 
     //--------------------------------------------------------------------------
     // The entity's file components if it exists and has any, and otherwise none
-    stratum_format::raw_values_type encode_layout_components(flecs::entity e, const file_components_type& file_components)
+    stratum_format::raw_values_type encoded_layout_components(flecs::entity e, const file_components_type& file_components)
     {
-        return e ? encode_components(e, file_components) : stratum_format::raw_values_type::object();
+        return e ? encoded_components(e, file_components) : stratum_format::raw_values_type::object();
     }
 
     //--------------------------------------------------------------------------
@@ -113,7 +114,7 @@ namespace
 
     //--------------------------------------------------------------------------
     // The wall as a zone file addresses it: its cell and the normal pointing out of the wall, away from the cell
-    stratum_format::WallAddress file_wall_address(const DiscreteLayout& layout, id_type wall_id)
+    stratum_format::WallAddress encoded_wall_address(const DiscreteLayout& layout, id_type wall_id)
     {
         return stratum_format::WallAddress {layout.wall_cell_position(wall_id), -layout.wall_direction(wall_id)};
     }
@@ -138,7 +139,7 @@ namespace
 
     //--------------------------------------------------------------------------
     // The entity's site as a zone file writes it. An entity in the zone with no address is in the cell its placement is in
-    stratum_format::Site file_site(const Site& site, const DiscreteLayout& layout, bool in_zone)
+    stratum_format::Site encoded_site(const Site& site, const DiscreteLayout& layout, bool in_zone)
     {
         stratum_format::Site result;
         result.relation = site.relation == Relation::On ? stratum_format::Relation::On : stratum_format::Relation::In;
@@ -147,7 +148,7 @@ namespace
         {
             if (const auto* wall = std::get_if<WallAddress>(&*site.address))
             {
-                result.address = file_wall_address(layout, wall->wall_id);
+                result.address = encoded_wall_address(layout, wall->wall_id);
             }
             else
             {
@@ -173,7 +174,7 @@ namespace
     //--------------------------------------------------------------------------
     // The entity's relocator as a zone file writes it: a bound target is the persistent id of the relocator it is bound to,
     // and an access point's relocator has its type, order and placement
-    stratum_format::Relocator file_relocator(flecs::entity e, const Relocator& relocator, const DiscreteLayout& layout)
+    stratum_format::Relocator encoded_relocator(flecs::entity e, const Relocator& relocator, const DiscreteLayout& layout)
     {
         stratum_format::Relocator result;
 
@@ -218,7 +219,7 @@ namespace
 
     //--------------------------------------------------------------------------
     // Each entity below the root, in persistent id order
-    std::vector<flecs::entity> sorted_entities(flecs::entity root)
+    std::vector<flecs::entity> subtree_by_persistent_id(flecs::entity root)
     {
         std::vector<flecs::entity> entities;
         collect_entities(root, entities);
@@ -229,7 +230,7 @@ namespace
 
     //--------------------------------------------------------------------------
     // The entity as a file writes it. A child of the zone has no parent in the file, and is in the zone
-    stratum_format::Entity file_entity(flecs::entity e, flecs::entity zone, const DiscreteLayout& layout, const file_components_type& file_components)
+    stratum_format::Entity encoded_entity(flecs::entity e, flecs::entity zone, const DiscreteLayout& layout, const file_components_type& file_components)
     {
         stratum_format::Entity entity;
         entity.id = e.get<PersistentId>().id;
@@ -247,26 +248,26 @@ namespace
 
         if (const Site* site = e.try_get<Site>())
         {
-            entity.site = file_site(*site, layout, parent == zone);
+            entity.site = encoded_site(*site, layout, parent == zone);
         }
 
         if (const Relocator* relocator = e.try_get<Relocator>())
         {
-            entity.relocator = file_relocator(e, *relocator, layout);
+            entity.relocator = encoded_relocator(e, *relocator, layout);
         }
 
-        entity.components = encode_components(e, file_components);
+        entity.components = encoded_components(e, file_components);
         return entity;
     }
 
     //--------------------------------------------------------------------------
     // The key of a flat's override entry in a document: a room id or a cell position
-    id_type key_of(const FlatRoomAddress& address)
+    id_type flat_entry_key(const FlatRoomAddress& address)
     {
         return address.room_id;
     }
 
-    discrete_point_type key_of(const FlatCellAddress& address)
+    discrete_point_type flat_entry_key(const FlatCellAddress& address)
     {
         return address.cell_position;
     }
@@ -280,18 +281,18 @@ namespace
     {
         for (auto& [key, properties] : entries)
         {
-            properties.components = encode_layout_components(layout_entity(zone, make_address(key)), file_components);
+            properties.components = encoded_layout_components(layout_entity(zone, make_address(key)), file_components);
         }
 
         if (const auto* index = zone.try_get<AddressIndex<Address>>())
         {
             for (const auto& [address, e] : index->entities)
             {
-                stratum_format::raw_values_type components = encode_components(e, file_components);
+                stratum_format::raw_values_type components = encoded_components(e, file_components);
 
                 if (address.flat_id == flat_id && !components.empty())
                 {
-                    entries[key_of(address)].components = std::move(components);
+                    entries[flat_entry_key(address)].components = std::move(components);
                 }
             }
         }
@@ -316,11 +317,11 @@ quetzal::stratum_format::Document quetzal::stratum_sim::make_document(flecs::ent
     document.version = std::string(stratum_format::format_version);
     document.zone_id = zone.get<PersistentId>().id;
     document.level = zone.has<ZoneLevel>() ? std::optional<level_type>(zone.get<ZoneLevel>().level) : std::nullopt;
-    document.components = encode_components(zone, file_components);
+    document.components = encoded_components(zone, file_components);
 
     for (size_t room_id = 0; room_id < document.rooms.size(); ++room_id)
     {
-        document.rooms[room_id].components = encode_layout_components(room_entity(zone, room_id), file_components);
+        document.rooms[room_id].components = encoded_layout_components(room_entity(zone, room_id), file_components);
     }
 
     // The walls the document names keep their order, and a wall given components during play follows them
@@ -328,7 +329,7 @@ quetzal::stratum_format::Document quetzal::stratum_sim::make_document(flecs::ent
 
     for (const stratum_format::Wall& wall : document.walls)
     {
-        stratum_format::raw_values_type components = encode_layout_components(wall_entity(zone, layout.wall_toward(wall.address.cell_position,
+        stratum_format::raw_values_type components = encoded_layout_components(wall_entity(zone, layout.wall_toward(wall.address.cell_position,
             -wall.address.normal)), file_components);
 
         if (!components.empty())
@@ -341,8 +342,8 @@ quetzal::stratum_format::Document quetzal::stratum_sim::make_document(flecs::ent
     {
         for (const auto& [address, e] : index->entities)
         {
-            stratum_format::WallAddress file_address = file_wall_address(layout, address.wall_id);
-            stratum_format::raw_values_type components = encode_components(e, file_components);
+            stratum_format::WallAddress file_address = encoded_wall_address(layout, address.wall_id);
+            stratum_format::raw_values_type components = encoded_components(e, file_components);
 
             if (!components.empty() && std::ranges::find(walls, file_address, &stratum_format::Wall::address) == walls.end())
             {
@@ -356,7 +357,7 @@ quetzal::stratum_format::Document quetzal::stratum_sim::make_document(flecs::ent
     for (stratum_format::Flat& flat : document.flats)
     {
         id_type flat_id = flat.role == stratum_format::FlatRole::Floor ? layout.floor_id() : layout.ceiling_id();
-        flat.properties.components = encode_layout_components(flat_entity(zone, flat_id), file_components);
+        flat.properties.components = encoded_layout_components(flat_entity(zone, flat_id), file_components);
 
         update_flat_entries<id_type, FlatRoomAddress>(flat.rooms, zone, flat_id, file_components,
             [&](id_type room_id) { return FlatRoomAddress {flat_id, room_id}; });
@@ -367,14 +368,14 @@ quetzal::stratum_format::Document quetzal::stratum_sim::make_document(flecs::ent
     document.access_points.clear();
     document.entities.clear();
 
-    for (flecs::entity e : sorted_entities(zone))
+    for (flecs::entity e : subtree_by_persistent_id(zone))
     {
         if (e.has<AccessPoint>())
         {
             document.access_points.push_back(e.get<PersistentId>().id);
         }
 
-        document.entities.push_back(file_entity(e, zone, layout, file_components));
+        document.entities.push_back(encoded_entity(e, zone, layout, file_components));
     }
 
     return document;
@@ -384,7 +385,7 @@ quetzal::stratum_format::Document quetzal::stratum_sim::make_document(flecs::ent
 quetzal::stratum_format::CharacterDocument quetzal::stratum_sim::make_character_document(flecs::entity character)
 {
     flecs::entity zone = zone_of(character);
-    assert(zone && zone.has<ZoneLayout>());
+    assert(zone && zone.has<ZoneLayout>() && character.has<DisplayName>());
 
     flecs::world world = character.world();
     const DiscreteLayout& layout = layout_as<DiscreteLayout>(*zone.get<ZoneLayout>().layout);
@@ -393,14 +394,15 @@ quetzal::stratum_format::CharacterDocument quetzal::stratum_sim::make_character_
 
     stratum_format::CharacterDocument document;
     document.version = std::string(stratum_format::saved_game_format_version);
+    document.name = character.get<DisplayName>().name;
     document.id = character.get<PersistentId>().id;
-    document.components = encode_components(character, file_components);
+    document.components = encoded_components(character, file_components);
     document.zone_id = zone.get<PersistentId>().id;
     document.placement = stratum_format::discrete_directed_point_type(layout.cell_position_at(placement.position()), grid_step(placement.direction()));
 
-    for (flecs::entity e : sorted_entities(character))
+    for (flecs::entity e : subtree_by_persistent_id(character))
     {
-        document.inventory.push_back(file_entity(e, zone, layout, file_components));
+        document.inventory.push_back(encoded_entity(e, zone, layout, file_components));
     }
 
     return document;

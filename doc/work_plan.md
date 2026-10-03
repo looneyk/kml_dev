@@ -83,7 +83,7 @@ each on the ones before it. `Game`'s menu and lifecycle functions, and those the
 - [ ] **A game loaded**, in three commit points:
   - [x] **The game files read:** `read_game`, `read_character` and `read_world` in `stratum_format`, validating each
         file, and the world index in `world.json`, written by `World::save`.
-  - [ ] **Opening:** `Game::open` emptying the working directory and copying a save into it as the game directory, named
+  - [x] **Opening:** `Game::open` emptying the working directory and copying a save into it as the game directory, named
         by the character, then reading `game.json`, restoring the id allocator and, by a `Settings` field, either
         restoring the engine's state or reseeding it; `World::open` reading `world.json`, each region with its zone ids,
         and the world index; `Character::open` reading `character.json`; and the session starting in the character's
@@ -142,7 +142,8 @@ each on the ones before it. `Game`'s menu and lifecycle functions, and those the
 - [ ] **Generation runs as objects** (`random_engine.md`, `## Ownership`): dungen's and catagen's runs, each owning its
       engine, seeded from the zone's seed, with the reference files regenerated. It comes with **the generators
       integrated**.
-- [ ] **The engines' state restored** (`random_engine.md`, `## Saving`), with **A game loaded**.
+- [x] **The engines' state restored** (`random_engine.md`, `## Saving`), with **A game loaded**, or reseeded, as
+      `Settings::random_seeding_on_open` chooses.
 
 ## Regions
 
@@ -366,8 +367,6 @@ These are the open questions.
 
 - **Which engine** (`random_engine.md`, `## The engine type`): `std::mt19937_64`, xoshiro256**, PCG, or jsf64.
   xoshiro256** is recommended.
-- **Whether reloading a save repeats the same outcomes** (`random_engine.md`, `## Saving`). Restoring the engines'
-  state repeats them; reseeding on load lets a player reload until a roll succeeds.
 - **Whether players get reproducible games from a shared seed.** It needs each zone's seed derived from the world seed
   and the zone's place instead of drawn, so that a world seed builds the same world however it is explored.
 - **Whether checked-in reference files must match across standard libraries.** The standard distributions are

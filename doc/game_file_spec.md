@@ -41,8 +41,8 @@ temp/
       cache/
       working/
 
-**The working directory and the saves directory.** A game in progress has one directory in the working directory, the
-game directory, whose name is an identifier and nothing more. Each save of it is a directory in the saves directory,
+**The working directory and the saves directory.** The working directory has only the game in progress, in the game
+directory, named by the character. Each save of it is a directory in the saves directory,
 named by the character's name and the time of the save, `<character name>_<save time>`, the time in ISO 8601 basic
 format, which is what a player looks for. An auto save has `_autosave` appended, and a quick save `_quicksave`. A
 character of the name that cannot be in a directory name is replaced by `_`.
@@ -56,9 +56,11 @@ character of the name that cannot be in a directory name is replaced by `_`.
 - **A save's name is unique.** If a save directory of that name exists, from a save within the same second, the save
   waits for the next second.
 - **A game whose character is dead cannot be saved.**
-- **Opening copies back.** Opening a save replaces its game's directory with a copy of the save and plays from that. A
-  zone that unloaded after the last save, and was not saved since, is discarded with the old game directory.
-- **A new game** has a game directory from its creation and a save from its first save.
+- **Opening copies back.** Opening a save empties the working directory and copies the save into it as the game
+  directory, and plays from that. A zone that unloaded after the last save, and was not saved since, is discarded with
+  the old game directory.
+- **A new game** empties the working directory too, and has a game directory from its creation and a save from its
+  first save.
 
 | File | |
 | --- | --- |
@@ -105,6 +107,7 @@ character named Ailis in it carrying a torch, would have the following structure
 {
   "format": "quetzal.stratum_game",
   "version": "0.1",
+  "name": "Ailis",
   "character": {
     "id": 1,
     "components": { "name": "Ailis", "speed": 100 },
@@ -151,6 +154,9 @@ between the two regions. A denizen in zone 3 pursues the character, entity 1.
 
 ## format and version
 
+A file's header is its leading keys, which a reader can take without parsing the rest: `format` and `version`, and in
+the character file `name` after them.
+
 `format` is `"quetzal.stratum_game"`. The version is a label that a reader matches, not a number it compares. It is
 `0.1`, and the leading zero marks it as pre-release: no older file is kept readable. A reader given a version it does
 not know rejects the file. A zone file has the zone file format's own `format` and `version`.
@@ -176,6 +182,11 @@ The game's settings, chosen when the game begins, as a component object:
 | `permadeath` | True if the game ends for good when the character dies |
 
 ## character
+
+The character file has `name` third, after `format` and `version`: a copy of the character's `name` component, and
+equal to it. A menu that lists saves reads the name from there and stops, without parsing the character, whatever it
+carries. The two copies are written together, in one file, so they cannot disagree; a reader rejects a file in which
+they do.
 
 The player's character, owned by the game and in no zone's subtree:
 
@@ -244,7 +255,7 @@ reference's `id`. Its zone references refer to zone templates, whose entity ids 
 ## The written form
 
 A writer emits two-space indentation. In the game file, `game` and `settings` are each on one line. In the character
-file, each key of `character` is on a line of its own, and each entity of the inventory is on a line of its own, as a
+file, `name` is on the line after `version`, each key of `character` is on a line of its own, and each entity of the inventory is on a line of its own, as a
 zone's entities are. In the world file, a region's `id` and `components` are on the line that opens
 it, its `spec` is on the next line, its `zones` follow, and each zone reference is on a line of its own, as each pair of
 the world index is, in entity id order. A zone file has the

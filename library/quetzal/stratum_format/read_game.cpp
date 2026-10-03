@@ -4,7 +4,7 @@
 //------------------------------------------------------------------------------
 
 #include "read_game.hpp"
-#include "read_values.hpp"
+#include "checked_values.hpp"
 #include "saved_game_format.hpp"
 
 namespace
@@ -16,7 +16,7 @@ namespace
     //--------------------------------------------------------------------------
     GameDocument read_game_document(const raw_values_type& v)
     {
-        check_format(v, saved_game_format_name, saved_game_format_version);
+        check_file_header(v, saved_game_format_name, saved_game_format_version);
 
         GameDocument document;
         document.version = std::string(saved_game_format_version);
@@ -42,9 +42,9 @@ namespace
 } // namespace
 
 //------------------------------------------------------------------------------
-quetzal::stratum_format::GameDocument quetzal::stratum_format::read_game(std::istream& is, const std::string& name)
+quetzal::stratum_format::GameDocument quetzal::stratum_format::read_game(std::istream& is, const std::string& stream_name)
 {
-    return read_document<GameDocument>(is, name, read_game_document);
+    return read_document<GameDocument>(is, stream_name, read_game_document);
 }
 
 //------------------------------------------------------------------------------

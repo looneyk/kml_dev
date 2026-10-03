@@ -40,17 +40,18 @@ namespace
         std::vector<std::string> character
         {
             std::format("\"id\": {}", document.id),
-            std::format("\"components\": {}", object_value_text(document.components)),
+            std::format("\"components\": {}", object_or_empty_text(document.components)),
             std::format("\"zone\": {}", document.zone_id),
             std::format("\"placement\": {}", object_text({std::format("\"cell_position\": {}", cell_position_text(document.placement.position())),
                 std::format("\"orientation\": {}", direction_text(document.placement.direction()))})),
             inventory
         };
 
-        std::vector<std::string> sections = saved_game_file_sections();
+        std::vector<std::string> sections = file_header_sections();
+        sections.push_back(std::format("{}\"name\": {}", indentation(section_indent), string_text(document.name)));
         sections.push_back(object_section("character", character));
 
-        return file_text(sections);
+        return top_level_object_text(sections);
     }
 
 } // namespace

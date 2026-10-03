@@ -306,13 +306,13 @@ quetzal::stratum_format::detail::entry_type quetzal::stratum_format::detail::ent
 }
 
 //------------------------------------------------------------------------------
-std::string quetzal::stratum_format::detail::object_value_text(const raw_values_type& values)
+std::string quetzal::stratum_format::detail::object_or_empty_text(const raw_values_type& values)
 {
     return values.is_null() ? "{ }" : inline_text(values);
 }
 
 //------------------------------------------------------------------------------
-std::vector<std::string> quetzal::stratum_format::detail::saved_game_file_sections()
+std::vector<std::string> quetzal::stratum_format::detail::file_header_sections()
 {
     return
     {
@@ -322,7 +322,7 @@ std::vector<std::string> quetzal::stratum_format::detail::saved_game_file_sectio
 }
 
 //------------------------------------------------------------------------------
-std::string quetzal::stratum_format::detail::file_text(const std::vector<std::string>& sections)
+std::string quetzal::stratum_format::detail::top_level_object_text(const std::vector<std::string>& sections)
 {
     std::string text = "{\n";
     for (size_t i = 0; i < sections.size(); ++i)

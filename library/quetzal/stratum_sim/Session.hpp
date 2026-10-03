@@ -37,6 +37,9 @@ namespace quetzal::stratum_sim
         // Moves the character to the access point's placement, and makes the access point's zone the one being played
         void start(flecs::entity access_point);
 
+        // Moves the character to the placement in the zone, and makes the zone the one being played
+        void start(flecs::entity zone, const placement_type& placement);
+
         // Stop and restart play while a host's menu is open. Neither does anything while no game is loaded. Resuming
         // discards the fraction of a unit the clock had earned; a real-time host measures the elapsed time it next passes
         // from the resume, so the time the menu was open earns nothing

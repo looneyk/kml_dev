@@ -1741,7 +1741,7 @@ namespace
 
         stratum_format::Document document = door_level(R"("finish": { "gloss": 0.25 })", R"("finish": { "grain": 3, "tint": { "red": 0.5 } })",
             R"("lever": { "opens": { "entity": 1 } })");
-        report_case("a document whose components are registered and fit is accepted", !stratum_sim::build_error(entities, document).has_value());
+        report_case("a document whose components are registered and fit is accepted", !stratum_sim::check_buildable(entities, document).has_value());
 
         flecs::entity zone = world.create_zone(world.region, world.next_id());
         vector<flecs::entity> referred_to = stratum_sim::load_layout(zone, document);
@@ -1766,7 +1766,7 @@ namespace
 
         auto rejected = [&](const string& layout_components, const string& door_components, const string& expected)
         {
-            optional<string> error = stratum_sim::build_error(entities, door_level(layout_components, door_components, ""));
+            optional<string> error = stratum_sim::check_buildable(entities, door_level(layout_components, door_components, ""));
             return error.has_value() && *error == expected;
         };
 
@@ -1791,7 +1791,7 @@ namespace
         stratum_format::Document sectioned = door_level(R"("finish": { "gloss": 0.0625, "tint": { "blue": 0.125 } })", "", "",
             layout_sections);
         report_case("the components of rooms, walls, and flats that are registered and fit are accepted",
-            !stratum_sim::build_error(entities, sectioned).has_value());
+            !stratum_sim::check_buildable(entities, sectioned).has_value());
 
         flecs::entity sectioned_zone = world.create_zone(world.region, world.next_id());
         stratum_sim::load_layout(sectioned_zone, sectioned);
@@ -1820,7 +1820,7 @@ namespace
         report_case("a wall takes what it leaves unset from its room, then the layout", wall_finish.has_value() && wall_finish->grain == 2
             && wall_finish->gloss == 0.375f && wall_finish->tint.blue == 0.125f);
 
-        optional<string> room_error = stratum_sim::build_error(entities, door_level("", "", "",
+        optional<string> room_error = stratum_sim::check_buildable(entities, door_level("", "", "",
             R"("rooms": [ { "cell_position": [1, 1], "components": { "patina": { "age": 3 } } } ])"));
         report_case("a room's component that nothing registers is rejected", room_error.has_value()
             && *room_error == "rooms[0].components.patina: no component is registered under the name");
@@ -1882,13 +1882,13 @@ namespace
         auto persistent_id_of = [](flecs::entity e) { return e.get<stratum_sim::PersistentId>().id; };
         auto name_of = [](flecs::entity e) { return e.has<stratum_sim::DisplayName>() ? e.get<stratum_sim::DisplayName>().name : string(); };
 
-        sequence.create("first", region_spec, stratum_sim::CharacterSpec {.name = "Ailis"});
+        sequence.create(region_spec, stratum_sim::CharacterSpec {.name = "Ailis"});
         flecs::entity first_character = sequence_session.character().entity();
         flecs::entity first_zone = sequence_session.zone();
         flecs::entity first_region = stratum_sim::region_of(first_zone);
 
-        report_case("creating a game makes its directory in the working directory",
-            filesystem::is_directory(g_suite_config.working_directory / "first"));
+        report_case("creating a game makes its directory in the working directory, named by the character",
+            filesystem::is_directory(g_suite_config.working_directory / "Ailis"));
         report_case("and the character, with the spec's name and the first id", persistent_id_of(first_character) == 0
             && name_of(first_character) == "Ailis");
         report_case("and starts play in the first zone of a region made from the spec, at the entry point it states",
@@ -1901,12 +1901,14 @@ namespace
             stratum_sim::entry_point(first_zone, staircase_type, -1)));
         report_case("the first game is played into a second zone", second_zone && second_zone != first_zone && sequence_world.zone_count() == 2);
 
-        sequence.create("second", region_spec, stratum_sim::CharacterSpec {.name = "Bran"});
+        sequence.create(region_spec, stratum_sim::CharacterSpec {.name = "Bran"});
         flecs::entity second_character = sequence_session.character().entity();
 
         report_case("creating another game leaves none of the first game's regions, zones or character", !first_region.is_alive()
             && !first_zone.is_alive() && !second_zone.is_alive() && !first_character.is_alive()
             && sequence_world.entities().count<stratum_sim::Region>() == 1 && sequence_world.zone_count() == 1);
+        report_case("nor its directory, as the working directory has only the game in progress",
+            !filesystem::exists(g_suite_config.working_directory / "Ailis") && filesystem::is_directory(g_suite_config.working_directory / "Bran"));
 
         stratum_sim::PersistentId::type persistent_id_max = 0;
         sequence_world.entities().each([&](flecs::entity, const stratum_sim::PersistentId& persistent_id)
@@ -1918,31 +1920,18 @@ namespace
             && name_of(second_character) == "Bran"
             && persistent_id_max + 1 == static_cast<stratum_sim::PersistentId::type>(sequence_world.entities().count<stratum_sim::PersistentId>()));
 
-        bool existing_thrown = false;
-
-        try
-        {
-            sequence.create("second", region_spec, stratum_sim::CharacterSpec {});
-        }
-        catch (const runtime_error&)
-        {
-            existing_thrown = true;
-        }
-
-        report_case("a game named as one that exists is an error, which leaves no game in progress", existing_thrown
-            && !sequence_session.loaded() && !sequence_session.character().entity() && sequence_world.entities().count<stratum_sim::Region>() == 0);
-
+        sequence.quit();
         sequence.menu_open();
         report_case("opening the menu with no game in progress pauses nothing", !sequence_session.paused());
 
-        sequence.create("menu", region_spec, stratum_sim::CharacterSpec {});
+        sequence.create(region_spec, stratum_sim::CharacterSpec {.name = "Cai"});
         sequence.menu_open();
         bool paused_on_open = sequence_session.paused();
         sequence.menu_close();
         report_case("opening the menu pauses play, and closing it resumes play", paused_on_open && !sequence_session.paused());
 
         sequence.menu_open();
-        sequence.create("menu_new", region_spec, stratum_sim::CharacterSpec {});
+        sequence.create(region_spec, stratum_sim::CharacterSpec {.name = "Cai"});
         report_case("a new game chosen from the menu is not paused", sequence_session.loaded() && !sequence_session.paused());
 
         // The game's end
@@ -1980,7 +1969,7 @@ namespace
         sequence.quit();
         report_case("a game quit is not over", !sequence_session.over());
 
-        sequence.create("after_end", region_spec, stratum_sim::CharacterSpec {});
+        sequence.create(region_spec, stratum_sim::CharacterSpec {.name = "Cai"});
         report_case("and a game created after it is not over", !sequence_session.over());
 
         sequence.quit();
@@ -1993,16 +1982,16 @@ namespace
 
         try
         {
-            sequence.create("third", unregistered_entry, stratum_sim::CharacterSpec {});
+            sequence.create(unregistered_entry, stratum_sim::CharacterSpec {.name = "Dai"});
         }
         catch (const runtime_error&)
         {
             unregistered_thrown = true;
         }
 
-        report_case("so is an entry access point type that is not registered, which leaves no game and no directory",
+        report_case("an entry access point type that is not registered is an error, which leaves no game and no directory",
             unregistered_thrown && !sequence_session.loaded() && sequence_world.entities().count<stratum_sim::Region>() == 0
-            && !filesystem::exists(g_suite_config.working_directory / "third"));
+            && !filesystem::exists(g_suite_config.working_directory / "Dai"));
 
         // Saving zones, with a maximum of one zone loaded so that leaving a zone and trimming unloads it
         const stratum_sim::Config saving_config {"out/saving/saves", "out/saving/working", 1};
@@ -2011,12 +2000,12 @@ namespace
         saving.generation() = suite_generation();
         stratum_sim::CharacterSpec ailis;
         ailis.name = "Ailis";
-        saving.create("saving", region_spec, ailis);
+        saving.create(region_spec, ailis);
 
         stratum_sim::World& saving_world = saving.world();
         flecs::entity saving_first = saving.session().zone();
         stratum_sim::PersistentId saving_first_id = saving_first.get<stratum_sim::PersistentId>();
-        filesystem::path zones_directory = saving_config.working_directory / "saving" / "zones";
+        filesystem::path zones_directory = saving_config.working_directory / "Ailis" / "zones";
         auto zone_file = [&](stratum_sim::PersistentId zone_id) { return zones_directory / format("{}.zone", zone_id.id); };
 
         auto pursuers_in = [&](flecs::entity zone)
@@ -2067,7 +2056,7 @@ namespace
         // Saving the game, with the first zone unloaded and the second, which the character is in, loaded. The suite moved the
         // character through the world, so the session is started where the character is
         saving.session().start(down_again);
-        filesystem::path game_directory = saving_config.working_directory / "saving";
+        filesystem::path game_directory = saving_config.working_directory / "Ailis";
         string save_name = saving.save(stratum_sim::SaveType::Explicit);
         filesystem::path save_directory = saving_config.saves_directory / save_name;
 
@@ -2157,6 +2146,80 @@ namespace
         report_case("a character in the name that cannot be in a directory name is replaced in the save's", replaced_save_name.starts_with("Ailis_ of the _Downs__")
             && filesystem::is_directory(saving_config.saves_directory / replaced_save_name));
 
+        // Opening the first save, made with the first zone unloaded and the character in the second
+        vector<stratum_sim::SavedGameDetails> saves = saving.saved_games();
+        report_case("the saved games are every save, newest first, each with its character's name as entered", saves.size() == 5
+            && saves.front().save_name() == replaced_save_name && saves.front().character_name() == "Ailis: of the \"Downs\"?"
+            && ranges::any_of(saves, [&](const auto& details) { return details.save_name() == save_name && details.character_name() == "Ailis"; })
+            && ranges::is_sorted(saves, ranges::greater(), &stratum_sim::SavedGameDetails::time));
+
+        stratum_sim::PersistentId saving_character_id = saving_character.get<stratum_sim::PersistentId>();
+        stratum_sim::PersistentId region_id = saving_region.get<stratum_sim::PersistentId>();
+        string saved_engine_state = game_json["game"]["engines"]["gameplay"].get<string>();
+        stratum_sim::vector_type character_direction = character_placement.direction();
+
+        saving.open(save_name);
+        stratum_sim::Session& opened = saving.session();
+        flecs::entity opened_character = saving.character().entity();
+        flecs::entity opened_zone = opened.zone();
+
+        report_case("opening a save copies it into the working directory as the game directory, named by the character",
+            filesystem::is_directory(game_directory) && filesystem::exists(game_directory / "world.json"));
+        report_case("and plays in the zone the character was saved in, at its cell, facing as it faced", opened.loaded()
+            && opened_zone.get<stratum_sim::PersistentId>() == saving_second_id && zone_layout(saving_world, opened_zone)
+                .cell_position_at(stratum_sim::placement_of(opened_character).position()) == character_cell
+            && stratum_sim::placement_of(opened_character).direction() == character_direction);
+        report_case("with the character's id, name and components, controlled by the player",
+            opened_character.get<stratum_sim::PersistentId>() == saving_character_id && opened_character.get<stratum_sim::DisplayName>().name == "Ailis"
+            && opened_character.has<stratum_sim::Speed>() && opened_character.has<stratum_sim::Blocking>()
+            && opened_character.has<stratum_sim::ControlledActor>());
+
+        flecs::entity opened_region = saving_world.entity(region_id);
+        report_case("and the region, with its spec and its zone ids, the first zone not loaded", opened_region
+            && opened_region.get<stratum_sim::Region>().zone_ids == vector {saving_first_id, saving_second_id}
+            && opened_region.get<stratum_sim::Region>().region_spec.value(stratum_sim::generator_selector_key) == "staircase"
+            && !saving_world.entity(saving_first_id) && saving_world.zone_count() == 1);
+        report_case("and ids continue past every id in the game", saving_world.next_id().id > largest_id.id);
+
+        flecs::entity opened_second_up = saving_world.entity(second_up_id);
+        flecs::entity up_again = opened_second_up ? saving_world.relocate_through(opened_character, opened_second_up) : flecs::entity();
+        report_case("going up through the staircase bound to one in the zone not loaded reads that zone back, through the world index",
+            up_again && up_again.get<stratum_sim::PersistentId>() == first_down_id
+            && stratum_sim::zone_of(up_again).get<stratum_sim::PersistentId>() == saving_first_id);
+
+        string reopened_save_name = saving.save(stratum_sim::SaveType::Explicit);
+        stratum_format::raw_values_type reopened_game_json = read_json(saving_config.saves_directory / reopened_save_name / "game.json");
+        report_case("the engine's state is restored, so a save made at once has the same state",
+            reopened_game_json["game"]["engines"]["gameplay"] == saved_engine_state);
+
+        saving.settings().set_random_seeding_on_open(stratum_sim::RandomSeedingOnOpen::Reseed);
+        saving.open(save_name);
+        string reseeded_save_name = saving.save(stratum_sim::SaveType::Explicit);
+        stratum_format::raw_values_type reseeded_game_json = read_json(saving_config.saves_directory / reseeded_save_name / "game.json");
+        report_case("or reseeded, as the settings choose", reseeded_game_json["game"]["engines"]["gameplay"] != saved_engine_state
+            && reseeded_game_json["game"]["seed"] != game_json["game"]["seed"]);
+        saving.settings().set_random_seeding_on_open(stratum_sim::RandomSeedingOnOpen::RestoreSavedState);
+
+        saving.open(replaced_save_name);
+        report_case("a save whose character's name cannot name a directory opens into one with the characters replaced", opened.loaded()
+            && filesystem::is_directory(saving_config.working_directory / "Ailis_ of the _Downs__")
+            && !filesystem::exists(game_directory));
+
+        bool absent_thrown = false;
+
+        try
+        {
+            saving.open("Nobody_20000101T000000");
+        }
+        catch (const runtime_error&)
+        {
+            absent_thrown = true;
+        }
+
+        report_case("opening a save that is not there is an error, which leaves no game in progress", absent_thrown && !opened.loaded()
+            && !saving.character().entity() && saving_world.entities().count<stratum_sim::Region>() == 0);
+
+        saving.open(save_name);
         filesystem::remove_all(zones_directory);
         saving.quit();
         report_case("and a game cleared saves nothing", !filesystem::exists(zones_directory));
@@ -2334,7 +2397,7 @@ namespace
 
         stratum_format::Document named_document = stratum_format::read_zone("data/door.zone");
         named_document.components["name"] = "The Narrow Door";
-        bool named_buildable = !stratum_sim::build_error(world.entities(), named_document).has_value();
+        bool named_buildable = !stratum_sim::check_buildable(world.entities(), named_document).has_value();
         flecs::entity named = world.create_zone(world.region, world.next_id());
         stratum_sim::load_layout(named, named_document);
 

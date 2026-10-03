@@ -27,7 +27,7 @@ namespace
 
         size_t continuation_indent = indent + 2;
         std::string text = std::format("{}{{ {},\n", indentation(indent), joined(opening));
-        text += std::format("{}\"spec\": {},\n", indentation(continuation_indent), object_value_text(region.spec));
+        text += std::format("{}\"spec\": {},\n", indentation(continuation_indent), object_or_empty_text(region.spec));
         text += std::format("{}\"zones\": [", indentation(continuation_indent));
 
         if (region.zones.empty())
@@ -87,10 +87,10 @@ namespace
             entity_zones += indentation(entry_indent) + "]";
         }
 
-        std::vector<std::string> sections = saved_game_file_sections();
+        std::vector<std::string> sections = file_header_sections();
         sections.push_back(object_section("world", {regions, entity_zones}));
 
-        return file_text(sections);
+        return top_level_object_text(sections);
     }
 
 } // namespace

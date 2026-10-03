@@ -4,17 +4,148 @@
 //------------------------------------------------------------------------------
 
 #include "read_character.hpp"
-#include "read_values.hpp"
+#include "checked_values.hpp"
 #include "references.hpp"
 #include "saved_game_format.hpp"
+#include <cstddef>
+#include <format>
+#include <fstream>
 #include <map>
+#include <optional>
 #include <set>
+#include <stdexcept>
+#include <string_view>
 
 namespace
 {
 
     using namespace quetzal::stratum_format;
     using namespace quetzal::stratum_format::detail;
+
+    // The key of the character's name in the file's header, and of the name component that it is a copy of
+    constexpr std::string_view name_key = "name";
+
+    //--------------------------------------------------------------------------
+    // Takes the file's header, the format, the version and the name, from the top level as a SAX parser reports them, and
+    // stops the parse once it has all three, so the rest of the file is not parsed. Every other value is passed over
+    class HeaderStringsHandler : public nlohmann::json_sax<raw_values_type>
+    {
+    public:
+
+        bool null() override { return pass_over(); }
+        bool boolean(bool) override { return pass_over(); }
+        bool number_integer(number_integer_t) override { return pass_over(); }
+        bool number_unsigned(number_unsigned_t) override { return pass_over(); }
+        bool number_float(number_float_t, const string_t&) override { return pass_over(); }
+        bool binary(binary_t&) override { return pass_over(); }
+
+        bool string(string_t& value) override
+        {
+            if (m_depth == 1 && m_key != nullptr)
+            {
+                *m_key = value;
+                m_key = nullptr;
+            }
+
+            return !has_all_header_values();
+        }
+
+        bool start_object(std::size_t) override
+        {
+            m_key = nullptr;
+            ++m_depth;
+            return true;
+        }
+
+        bool key(string_t& key) override
+        {
+            if (m_depth == 1)
+            {
+                m_key = key == "format" ? &format : key == "version" ? &version : key == name_key ? &name : nullptr;
+            }
+
+            return true;
+        }
+
+        bool end_object() override
+        {
+            --m_depth;
+            return true;
+        }
+
+        bool start_array(std::size_t) override
+        {
+            m_key = nullptr;
+            ++m_depth;
+            return true;
+        }
+
+        bool end_array() override
+        {
+            --m_depth;
+            return true;
+        }
+
+        bool parse_error(std::size_t, const std::string&, const nlohmann::detail::exception& e) override
+        {
+            throw std::runtime_error(e.what());
+        }
+
+        bool has_all_header_values() const
+        {
+            return format.has_value() && version.has_value() && name.has_value();
+        }
+
+        std::optional<std::string> format;
+        std::optional<std::string> version;
+        std::optional<std::string> name;
+
+    private:
+
+        // A value of another type at a key the handler takes is left unset, for the caller to report
+        bool pass_over()
+        {
+            m_key = nullptr;
+            return true;
+        }
+
+        int m_depth = 0;
+        std::optional<std::string>* m_key = nullptr;
+    };
+
+    //--------------------------------------------------------------------------
+    std::string read_name(std::istream& is, const std::string& stream_name)
+    {
+        HeaderStringsHandler handler;
+
+        try
+        {
+            raw_values_type::sax_parse(is, &handler);
+        }
+        catch (const std::runtime_error& e)
+        {
+            throw std::runtime_error(std::format("{}: {}", stream_name, e.what()));
+        }
+
+        auto required = [&](const std::optional<std::string>& value, std::string_view key, std::string_view required_value) -> const std::string&
+        {
+            if (!value.has_value())
+            {
+                throw std::runtime_error(std::format("{}: {}: required and absent, or not a string", stream_name, key));
+            }
+
+            if (!required_value.empty() && *value != required_value)
+            {
+                throw std::runtime_error(std::format("{}: {}: '{}' is not what this reads", stream_name, key, *value));
+            }
+
+            return *value;
+        };
+
+        required(handler.format, "format", saved_game_format_name);
+        required(handler.version, "version", saved_game_format_version);
+        return required(handler.name, name_key, {});
+    }
 
     //--------------------------------------------------------------------------
     // A site's address belongs to its own zone, so an entity of the inventory has none
@@ -130,15 +261,22 @@ namespace
     //--------------------------------------------------------------------------
     CharacterDocument read_character_document(const raw_values_type& v)
     {
-        check_format(v, saved_game_format_name, saved_game_format_version);
+        check_file_header(v, saved_game_format_name, saved_game_format_version);
 
         CharacterDocument document;
         document.version = std::string(saved_game_format_version);
+        document.name = string_value(required_member(v, "", name_key), std::string(name_key));
 
         const std::string path = "character";
         const raw_values_type& character = object(required_member(v, "", path), path);
         document.id = id_value(required_member(character, path, "id"), member_path(path, "id"));
         document.components = read_components(character, path);
+
+        const raw_values_type* name_component = document.components.is_object() ? member(document.components, name_key) : nullptr;
+        if (name_component == nullptr || *name_component != document.name)
+        {
+            fail(std::string(name_key), "not the same as the character's name component");
+        }
         document.zone_id = id_value(required_member(character, path, "zone"), member_path(path, "zone"));
 
         std::string placement_path = member_path(path, "placement");
@@ -171,13 +309,31 @@ namespace
 } // namespace
 
 //------------------------------------------------------------------------------
-quetzal::stratum_format::CharacterDocument quetzal::stratum_format::read_character(std::istream& is, const std::string& name)
+quetzal::stratum_format::CharacterDocument quetzal::stratum_format::read_character(std::istream& is, const std::string& stream_name)
 {
-    return read_document<CharacterDocument>(is, name, read_character_document);
+    return read_document<CharacterDocument>(is, stream_name, read_character_document);
 }
 
 //------------------------------------------------------------------------------
 quetzal::stratum_format::CharacterDocument quetzal::stratum_format::read_character(const std::filesystem::path& filepath)
 {
     return read_document<CharacterDocument>(filepath, read_character_document);
+}
+
+//------------------------------------------------------------------------------
+std::string quetzal::stratum_format::read_character_name(std::istream& is, const std::string& stream_name)
+{
+    return read_name(is, stream_name);
+}
+
+//------------------------------------------------------------------------------
+std::string quetzal::stratum_format::read_character_name(const std::filesystem::path& filepath)
+{
+    std::ifstream is(filepath, std::ios::binary);
+    if (!is)
+    {
+        throw std::runtime_error(std::format("{}: cannot be opened", filepath.string()));
+    }
+
+    return read_name(is, filepath.string());
 }

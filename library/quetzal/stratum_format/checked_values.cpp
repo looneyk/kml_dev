@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 // stratum_format
-// read_values.cpp
+// checked_values.cpp
 //------------------------------------------------------------------------------
 
-#include "read_values.hpp"
+#include "checked_values.hpp"
 #include <cstdlib>
 #include <istream>
 #include <limits>
@@ -202,7 +202,7 @@ quetzal::stratum_format::raw_values_type quetzal::stratum_format::detail::read_c
 }
 
 //------------------------------------------------------------------------------
-void quetzal::stratum_format::detail::check_format(const raw_values_type& v, std::string_view required_format, std::string_view required_version)
+void quetzal::stratum_format::detail::check_file_header(const raw_values_type& v, std::string_view required_format, std::string_view required_version)
 {
     object(v, "");
 
@@ -222,7 +222,7 @@ void quetzal::stratum_format::detail::check_format(const raw_values_type& v, std
 }
 
 //------------------------------------------------------------------------------
-quetzal::stratum_format::raw_values_type quetzal::stratum_format::detail::parse(std::istream& is, const std::string& name)
+quetzal::stratum_format::raw_values_type quetzal::stratum_format::detail::parse_json(std::istream& is, const std::string& stream_name)
 {
     try
     {
@@ -230,6 +230,6 @@ quetzal::stratum_format::raw_values_type quetzal::stratum_format::detail::parse(
     }
     catch (const raw_values_type::parse_error& e)
     {
-        throw std::runtime_error(std::format("{}: {}", name, e.what()));
+        throw std::runtime_error(std::format("{}: {}", stream_name, e.what()));
     }
 }

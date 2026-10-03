@@ -4,7 +4,7 @@
 //------------------------------------------------------------------------------
 
 #include "read_world.hpp"
-#include "read_values.hpp"
+#include "checked_values.hpp"
 #include "saved_game_format.hpp"
 #include <set>
 
@@ -56,7 +56,7 @@ namespace
     //--------------------------------------------------------------------------
     WorldDocument read_world_document(const raw_values_type& v)
     {
-        check_format(v, saved_game_format_name, saved_game_format_version);
+        check_file_header(v, saved_game_format_name, saved_game_format_version);
 
         WorldDocument document;
         document.version = std::string(saved_game_format_version);
@@ -106,9 +106,9 @@ namespace
 } // namespace
 
 //------------------------------------------------------------------------------
-quetzal::stratum_format::WorldDocument quetzal::stratum_format::read_world(std::istream& is, const std::string& name)
+quetzal::stratum_format::WorldDocument quetzal::stratum_format::read_world(std::istream& is, const std::string& stream_name)
 {
-    return read_document<WorldDocument>(is, name, read_world_document);
+    return read_document<WorldDocument>(is, stream_name, read_world_document);
 }
 
 //------------------------------------------------------------------------------

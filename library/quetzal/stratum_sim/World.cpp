@@ -16,6 +16,7 @@
 #include "Site.hpp"
 #include "specs.hpp"
 #include "quetzal/stratum_format/Document.hpp"
+#include "quetzal/stratum_format/read_world.hpp"
 #include "quetzal/stratum_format/read_zone.hpp"
 #include "quetzal/stratum_format/saved_game_format.hpp"
 #include "quetzal/stratum_format/WorldDocument.hpp"
@@ -232,11 +233,9 @@ namespace
         return std::format("types::{}", name);
     }
 
-    constexpr std::string_view world_filename = "world.json";
-
     //--------------------------------------------------------------------------
     // The file of a saved zone, relative to the game directory
-    std::filesystem::path saved_zone_file(quetzal::stratum_sim::PersistentId zone_id)
+    std::filesystem::path saved_zone_relative_path(quetzal::stratum_sim::PersistentId zone_id)
     {
         return std::filesystem::path("zones") / std::format("{}.zone", zone_id.id);
     }
@@ -525,7 +524,7 @@ quetzal::stratum_sim::World::World(IdAllocator& id_allocator, random_type& rando
     });
 
     register_display_name(m_entities);
-    register_file_component<DisplayName>(m_entities, "name");
+    register_file_component<DisplayName>(m_entities, display_name_component);
 
     // The state of an entity that a saved zone writes back, which a zone file may also state
     m_entities.component<AccessState>();
@@ -608,7 +607,31 @@ flecs::entity quetzal::stratum_sim::World::create(const RegionSpec& region_spec,
 //------------------------------------------------------------------------------
 void quetzal::stratum_sim::World::open(const std::filesystem::path& game_directory)
 {
-    m_game_directory = game_directory; // read world.json ...
+    stratum_format::WorldDocument document = stratum_format::read_world(game_directory / stratum_format::world_filename);
+
+    m_game_directory = game_directory;
+
+    for (const stratum_format::WorldRegion& world_region : document.regions)
+    {
+        RegionSpec region_spec;
+        for (const auto& [key, value] : world_region.spec.items())
+        {
+            region_spec.insert(key, value.get<std::string>());
+        }
+
+        flecs::entity region = create_region(region_spec, PersistentId {world_region.id});
+        std::vector<PersistentId>& zone_ids = region.get_mut<Region>().zone_ids;
+
+        for (const stratum_format::ZoneReference& zone : world_region.zones)
+        {
+            zone_ids.push_back(PersistentId {zone.id});
+        }
+    }
+
+    for (const auto& [entity_id, zone_id] : document.entity_zones)
+    {
+        m_entity_zones.emplace(PersistentId {entity_id}, PersistentId {zone_id});
+    }
 
     return;
 }
@@ -639,7 +662,7 @@ void quetzal::stratum_sim::World::save()
 
         for (PersistentId zone_id : data.zone_ids)
         {
-            world_region.zones.push_back(stratum_format::ZoneReference {zone_id.id, saved_zone_file(zone_id).generic_string()});
+            world_region.zones.push_back(stratum_format::ZoneReference {zone_id.id, saved_zone_relative_path(zone_id).generic_string()});
         }
 
         document.regions.push_back(std::move(world_region));
@@ -655,7 +678,7 @@ void quetzal::stratum_sim::World::save()
         save_zone(zone);
     }
 
-    stratum_format::write(*m_game_directory / world_filename, document);
+    stratum_format::write(*m_game_directory / stratum_format::world_filename, document);
 
     return;
 }
@@ -702,7 +725,13 @@ size_t quetzal::stratum_sim::World::zone_count() const
 //------------------------------------------------------------------------------
 flecs::entity quetzal::stratum_sim::World::create_region(const RegionSpec& region_spec)
 {
-    flecs::entity region = m_entities.entity().add<Region>().set<PersistentId>(next_id());
+    return create_region(region_spec, next_id());
+}
+
+//------------------------------------------------------------------------------
+flecs::entity quetzal::stratum_sim::World::create_region(const RegionSpec& region_spec, PersistentId region_id)
+{
+    flecs::entity region = m_entities.entity().add<Region>().set<PersistentId>(region_id);
     region.get_mut<Region>().region_spec = region_spec;
     return region;
 }
@@ -823,11 +852,11 @@ flecs::entity quetzal::stratum_sim::World::load_saved_zone(PersistentId zone_id)
 std::filesystem::path quetzal::stratum_sim::World::saved_zone_path(PersistentId zone_id) const
 {
     assert(m_game_directory.has_value());
-    return *m_game_directory / saved_zone_file(zone_id);
+    return *m_game_directory / saved_zone_relative_path(zone_id);
 }
 
 //------------------------------------------------------------------------------
-flecs::entity quetzal::stratum_sim::World::made_zone_entry_point(flecs::entity relocator, flecs::entity zone, flecs::entity arrival_type,
+flecs::entity quetzal::stratum_sim::World::require_entry_point(flecs::entity relocator, flecs::entity zone, flecs::entity arrival_type,
     level_type offset)
 {
     flecs::entity entry = entry_point(zone, arrival_type, offset);
@@ -950,7 +979,7 @@ flecs::entity quetzal::stratum_sim::World::resolve_relocator_target(flecs::entit
     // A target with a region always creates a new region, so no loaded zone is searched
     if (target.region.has_value())
     {
-        return made_zone_entry_point(relocator, create_region_zone(registered(m_generation.m_region_specs, "region spec", *target.region),
+        return require_entry_point(relocator, create_region_zone(registered(m_generation.m_region_specs, "region spec", *target.region),
             zone_spec), arrival_type, -offset);
     }
 
@@ -985,7 +1014,7 @@ flecs::entity quetzal::stratum_sim::World::resolve_relocator_target(flecs::entit
         return found;
     }
 
-    return made_zone_entry_point(relocator, create_zone(region, zone_spec), arrival_type, -offset);
+    return require_entry_point(relocator, create_zone(region, zone_spec), arrival_type, -offset);
 }
 
 //------------------------------------------------------------------------------
@@ -1180,7 +1209,7 @@ flecs::entity quetzal::stratum_sim::World::create_entity(flecs::entity zone, con
 //------------------------------------------------------------------------------
 flecs::entity quetzal::stratum_sim::World::build_zone(flecs::entity region, const stratum_format::Document& document, std::string_view source)
 {
-    if (std::optional<std::string> error = build_error(m_entities, document))
+    if (std::optional<std::string> error = check_buildable(m_entities, document))
     {
         throw std::runtime_error(std::format("{}: {}", source, *error));
     }

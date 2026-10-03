@@ -18,6 +18,7 @@ namespace quetzal::stratum_format
     struct CharacterDocument
     {
         std::string version;
+        std::string name; // A copy of the character's name component, accessible without reading the whole file any further
         stored_entity_id_type id = 0;
         raw_values_type components;
         stored_entity_id_type zone_id = 0;

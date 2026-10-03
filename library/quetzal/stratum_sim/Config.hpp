@@ -15,8 +15,8 @@ namespace quetzal::stratum_sim
     // The program's configuration, which lasts as long as the host and is the same for every game
     struct Config
     {
-        std::filesystem::path saves_directory;   // Each saved game is a directory in it
-        std::filesystem::path working_directory; // Each game in progress is a directory in it, which play reads and writes
+        std::filesystem::path saves_directory;   // Each save is a directory in it
+        std::filesystem::path working_directory; // The game directory of the game in progress is in it, and nothing else
         std::size_t zone_count_max = 0;          // The most zones the world keeps loaded at once
     };
 

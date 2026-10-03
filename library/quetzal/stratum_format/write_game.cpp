@@ -32,11 +32,11 @@ namespace
             std::format("\"engines\": {}", object_text(engines))
         };
 
-        std::vector<std::string> sections = saved_game_file_sections();
+        std::vector<std::string> sections = file_header_sections();
         sections.push_back(std::format("{}\"game\": {}", indentation(section_indent), object_text(game)));
-        sections.push_back(std::format("{}\"settings\": {}", indentation(section_indent), object_value_text(document.settings)));
+        sections.push_back(std::format("{}\"settings\": {}", indentation(section_indent), object_or_empty_text(document.settings)));
 
-        return file_text(sections);
+        return top_level_object_text(sections);
     }
 
 } // namespace

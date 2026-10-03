@@ -1099,6 +1099,7 @@ namespace
         report_case("absent settings are written as an empty object", written(game).find("\"settings\": { }\n") != string::npos);
 
         stratum_format::CharacterDocument character;
+        character.name = "Ailis";
         character.id = 1;
         character.components = stratum_format::raw_values_type::object();
         character.components["name"] = "Ailis";
@@ -1106,10 +1107,11 @@ namespace
         character.zone_id = 3;
         character.placement = stratum_format::discrete_directed_point_type({3, 1}, {0, 1});
 
-        report_written("a character file with no inventory has an empty one", written(character),
+        report_written("a character file has its name third, and with no inventory has an empty one", written(character),
             "{\n"
             "  \"format\": \"quetzal.stratum_game\",\n"
             "  \"version\": \"0.1\",\n"
+            "  \"name\": \"Ailis\",\n"
             "  \"character\": {\n"
             "    \"id\": 1,\n"
             "    \"components\": { \"name\": \"Ailis\", \"speed\": 100 },\n"
@@ -1130,6 +1132,7 @@ namespace
             "{\n"
             "  \"format\": \"quetzal.stratum_game\",\n"
             "  \"version\": \"0.1\",\n"
+            "  \"name\": \"Ailis\",\n"
             "  \"character\": {\n"
             "    \"id\": 1,\n"
             "    \"components\": { \"name\": \"Ailis\", \"speed\": 100 },\n"
@@ -1261,6 +1264,29 @@ namespace
             "\"parent\": { \"entity\": 20 }"), "its parents form a cycle"));
         report_case("and one with an address", rejected(read_character, changed(character_text, "\"relation\": \"on\"",
             "\"relation\": \"in\", \"cell_position\": [1, 1]"), "an entity of the inventory is sited on its parent, with no address"));
+        report_case("a character file whose name is not its name component's is rejected", rejected(read_character, changed(character_text,
+            "\"name\": \"Ailis\",\n  \"character\"", "\"name\": \"Bran\",\n  \"character\""), "name: not the same as the character's name component"));
+
+        auto read_name = [](istream& in) { return stratum_format::read_character_name(in, "character"); };
+        istringstream name_text(character_text);
+        report_case("the character's name is read from the top of the file", read_name(name_text) == "Ailis");
+
+        // Everything after the name is cut, so the file is no longer JSON past it
+        string cut_text = character_text.substr(0, character_text.find("\"character\"")) + "{ this is not parsed";
+        bool cut_read = false;
+
+        try
+        {
+            istringstream cut(cut_text);
+            cut_read = read_name(cut) == "Ailis";
+        }
+        catch (const runtime_error&)
+        {
+        }
+
+        report_case("and nothing after the name is parsed", cut_read);
+        report_case("a name read from a file of another format is rejected", rejected(read_name, changed(character_text, "quetzal.stratum_game",
+            "quetzal.discrete_layout"), "format: 'quetzal.discrete_layout' is not what this reads"));
         report_case("a world file with two zones of one id is rejected", rejected(read_world, changed(world_text, "\"id\": 6", "\"id\": 5"),
             "a second zone with the id 5"));
         report_case("and one whose world index has an entity in a zone no region lists", rejected(read_world, changed(world_text, "[12, 3]",

@@ -137,7 +137,7 @@ and a seed stored with the version of the generators that made it.
   both when it loads the game (`game_file_spec.md`, `## game`). A standard engine
   writes and reads its state as text through `<<` and `>>`, and a small engine's state is its few words.
 - **Restoring the state repeats the same outcomes after a reload,** which keeps a player from reloading until a roll
-  succeeds. Reseeding on load allows it. Which the game does is open.
+  succeeds. Reseeding on load allows it. The player's settings choose which, through `Settings::random_seeding_on_open`.
 
 ## Open
 

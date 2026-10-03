@@ -115,10 +115,10 @@ The entities:
 ## Creating a game
 
 ```cpp
-void Game::create(std::string_view name, const RegionSpec& region_spec, const CharacterSpec& character_spec)
+void Game::create(const RegionSpec& region_spec, const CharacterSpec& character_spec)
 {
     clear();
-    // reset the id allocator, reseed the engines, create the game directory in the working directory
+    // reset the id allocator, reseed the engines, empty the working directory and create the game directory there
     m_character.create(character_spec);
     flecs::entity access_point = m_world.create(region_spec, game_directory);
     m_session.start(access_point);
@@ -199,7 +199,7 @@ flecs::entity World::create_zone(flecs::entity region, const ZoneSpec& zone_spec
         document = m_generators.at(*selection.generator_name)(selection.zone_spec);
     }
 
-    // check the document with build_error before creating anything
+    // check the document with check_buildable before creating anything
 
     flecs::entity zone = create the zone in the region, with a new PersistentId and the ZoneLevel of zone_spec;
     add the zone's id to the region's zone ids;
@@ -347,7 +347,7 @@ flecs::entity World::resolve_relocator_target(flecs::entity relocator)
 A new game, from the host's call through the region's first zones, a new region, and a descent into a dungeon:
 
 ```
-host           Game::create(name, starting_area, character_spec)
+host           Game::create(starting_area, character_spec)
 Game           m_world.create(starting_area)
 World            create_region_zone(starting_area, select_prefixed(starting_area, "zone."))
 World              create_region(starting_area)                      -> region 1
