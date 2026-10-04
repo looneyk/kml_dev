@@ -2,7 +2,7 @@
   "format": "quetzal.discrete_layout",
   "version": "0.4",
   "layout": {
-    "components": { "name": "Two Rooms", "access_points": [ { "entity": 4 }, { "entity": 6 } ] }
+    "components": { "name": "Two Rooms", "access_points": [ { "entity": 4 }, { "entity": 6 } ], "unpopulated": true }
   },
   "cells": {
     "notation": "block",

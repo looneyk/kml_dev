@@ -53,7 +53,7 @@ blocks, a staircase down above it and the entrance, a staircase up, below it.
     "parameters": { "extent": "4,3", "scale": "3-7", "spacing": "2", "density": "1.0", "loop": "0.1", "seed": "20260829" }
   },
   "layout": {
-    "components": { "name": "The Flooded Cistern", "type": "dungeon", "difficulty": 3, "style": "cistern", "access_points": [ { "entity": 4 }, { "entity": 5 } ] }
+    "components": { "name": "The Flooded Cistern", "type": "dungeon", "difficulty": 3, "style": "cistern", "access_points": [ { "entity": 4 }, { "entity": 5 } ], "unpopulated": true }
   },
   "cells": {
     "notation": "wall",
@@ -223,6 +223,15 @@ making connections between zones. The reader decodes it out of the layout's comp
 
 ```json
 "layout": { "components": { "access_points": [ { "entity": 4 } ], "level": -2 } }
+```
+
+`unpopulated` is an optional boolean, false if absent, which the reader decodes out of the layout's components as it
+does `level`. It marks a zone whose denizens are not placed yet: loading it places them, and the zone is then no longer
+unpopulated, so a saved zone never is. A file whose denizens are already placed is not unpopulated. `unpopulated` in a
+file with a `zone` section is a warning.
+
+```json
+"layout": { "components": { "access_points": [ { "entity": 4 } ], "unpopulated": true } }
 ```
 
 `access_points` is required: a list of at least one reference to the relocators at which an arriving
@@ -740,7 +749,9 @@ every check has passed, so a rejected file leaves nothing behind.
 - A relocator has no `target`, or one that is neither a string nor a reference; a string that does not match
   `[region/]zone[@position]`; or a template has a bound target.
 - `layout.components.level` is not a whole number.
+- `layout.components.unpopulated` is not true or false.
 
 A stair glyph with no entity with a relocator on the walls its open neighbors present to it, or with a
 second one, an access point on a wall that is neither a stair cell's open side nor a door's wall, and an access
-point's relocator type that is neither its entity's type nor its parent's, are warnings, not errors.
+point's relocator type that is neither its entity's type nor its parent's, and `unpopulated` in a file with a `zone`
+section, are warnings, not errors.

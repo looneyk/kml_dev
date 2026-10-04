@@ -186,7 +186,8 @@ namespace quetzal::stratum_format
         raw_values_type generator;
         std::vector<stored_entity_id_type> access_points; // The layout's access_points file component, decoded
         std::optional<level_type> level; // The layout's level file component, decoded
-        raw_values_type components; // The layout's other components, excluding access_points and level
+        bool is_unpopulated = false; // The layout's unpopulated file component, decoded
+        raw_values_type components; // The layout's other components, excluding access_points, level and unpopulated
         std::optional<stored_entity_id_type> zone_id; // Persistent id, empty in a zone template
         Cells cells;
         std::vector<Barrier> barriers;

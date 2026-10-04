@@ -93,6 +93,17 @@ quetzal::stratum_format::value_type quetzal::stratum_format::detail::number_valu
 }
 
 //------------------------------------------------------------------------------
+bool quetzal::stratum_format::detail::boolean_value(const raw_values_type& v, const std::string& path)
+{
+    if (!v.is_boolean())
+    {
+        fail(path, "true or false was expected");
+    }
+
+    return v.get<bool>();
+}
+
+//------------------------------------------------------------------------------
 quetzal::stratum_format::coord_type quetzal::stratum_format::detail::coord_value(const raw_values_type& v, const std::string& path)
 {
     if (!v.is_number())

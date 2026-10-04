@@ -158,7 +158,8 @@ layout.
 
 It sets the zone's `ZoneLayout` to the `DiscreteLayout`, since both notations are grids of cells, and its
 `ZoneNotation` to the notation the rows were written in, and its `ZoneDocument` to a copy of the document without its
-entities, whose geometry a saved zone is written with. It then builds every entity in the file in two passes, in the
+entities and with its `unpopulated` flag cleared, whose geometry a saved zone is written with. It then
+builds every entity in the file in two passes, in the
 file's order. The first pass creates each entity in the zone, `IsA` its type, so that each has its persistent id ---
 the file's own in a saved zone --- before anything refers to it. A type that is not loaded is made with no
 components, so the entity keeps its type. The second sets each entity's parent; its site, with the address resolved to
@@ -267,8 +268,8 @@ discards a zone, its contents and its layout.
 `World` takes the game's `Generation` by reference in its constructor (`### Generation`). `create_zone(region,
 zone_spec)` creates a zone in a region that has a spec, as the region's generator selector chooses. The selector, named
 by the spec's `generator_selector`, is given the world, the region and the `ZoneSpec`, and returns a
-`GeneratorSelection`. For a generator, `create_zone` calls it with the selection's `ZoneSpec`, and builds the zone from
-the `Document` it returns as `load_zone` builds one from a file; it then sets the zone's `ZoneLevel` from the spec's
+`GeneratorSelection`. For a generator, `create_zone` calls it with the selection's `ZoneSpec`, sets the `Document` it
+returns unpopulated, and builds the zone from it as `load_zone` builds one from a file; it then sets the zone's `ZoneLevel` from the spec's
 `level`, if it has one. For a region spec, it returns `create_region_zone` with that spec and the `ZoneSpec` it was
 given, so the zone is the first of a new region. A zone template is not built: it throws `std::runtime_error`. So does a
 selector, generator or region spec name that is not registered, and a spec with no `generator_selector`, before anything
@@ -310,8 +311,8 @@ moves nothing.
 `math::Random<>`, which `Game` owns.
 
 `load_zone(region, filepath)` reads the file and builds the zone from its document, which it checks with `check_buildable` before making the zone. The zone has the file's persistent id if the file has
-a `zone` section, and a new one otherwise. `load_zone` then has `load_layout` fill the zone and populates it, unless it
-is a saved zone, whose denizens are its entities. It throws `std::runtime_error`, having made nothing, if the reader
+a `zone` section, and a new one otherwise. `load_zone` then has `load_layout` fill the zone and populates it if its
+document is unpopulated. It throws `std::runtime_error`, having made nothing, if the reader
 rejects the file, `check_buildable` finds a reason, or the file is a saved zone that is already loaded; a template makes a
 new zone each time it is loaded. `load_saved_zone(zone_id)` reads a zone of the game that has unloaded back from the
 game directory's `zones/<persistent id>.zone`, into the region whose `zone_ids` lists it, and throws
@@ -785,7 +786,8 @@ relation `in` and an orientation required. A `Relocator` has its target,
 which is a `RelocatorTarget` or the id of the relocator it is bound to, and, for an access point, its type, order and
 placement. The placement is a `discrete_directed_point_type` (`geometry::DiscreteDirectedPoint`): the cell position and
 orientation given to an arriving actor. The layout's `access_points` are `Document::access_points`, a list of entity
-ids, and its optional `level` is `Document::level`. The generator and every other file component are `raw_values_type`, nlohmann's `ordered_json`, as the file wrote
+ids, its optional `level` is `Document::level`, and its `unpopulated` flag is `Document::is_unpopulated`, false if
+absent. The generator and every other file component are `raw_values_type`, nlohmann's `ordered_json`, as the file wrote
 them. A room is kept as the file identified it.
 
 A `RelocatorTarget` is an unbound target, `[region/]zone[@position]`: an optional region, a zone that is a
@@ -814,7 +816,8 @@ cell an actor can stand in. Each relocator's target must be a
 reference or a string that matches `[region/]zone[@position]`. The stair glyphs are visual aids, so a stair glyph with
 no `relocator` on the walls around it, or with a second one, and an access point on a wall that is neither a stair
 cell's open side nor a door's wall, are warnings. So is an access point whose relocator type is neither its entity's
-type nor its parent's, the parent being a door facing's door. They are passed to `read_zone`'s warning callback, `log_warning` by default, which
+type nor its parent's, the parent being a door facing's door, and so is `unpopulated` in a file with a `zone` section.
+They are passed to `read_zone`'s warning callback, `log_warning` by default, which
 writes them to `std::clog`. Keys the format does not define are not tracked.
 
 `write` emits the written form: two-space indentation, a grid row per line, an entry per line with each of a flat's

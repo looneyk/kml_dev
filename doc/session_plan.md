@@ -64,8 +64,9 @@ void World::trim_zones(flecs::entity zone_entered);
   zone from it and populates it (`world_generation_plan.md`).
 - **The registries** of generators, generator selectors and region specs are `Game`'s, and `World` takes them by
   reference in its constructor, as it takes the id allocator and the engine.
-- **`load_zone(region, filepath)`** makes an empty zone, has the loader fill it from the file, and populates it unless the file
-  is already populated: a saved zone, or a generated one with its denizens placed, which a flag in the file indicates.
+- **`load_zone(region, filepath)`** makes an empty zone, has the loader fill it from the file, and populates it if the
+  file's `unpopulated` flag is set. A file whose denizens are already placed is not unpopulated, and a saved zone never
+  is.
 - **A zone's doors are in its `Document`,** generated or read, and `load_layout` builds them. `World` handles none.
 - **Neither unloads anything.** Creating and loading add a zone to the world.
 - **`populate(zone)`** places the zone's denizens. Until placement is built (`placement_plan.md`), it places one

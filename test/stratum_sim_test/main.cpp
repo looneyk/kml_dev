@@ -116,13 +116,15 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Returns a generator that reads the zone file, at the requested level if there is one
+    // Returns a generator that reads the zone file, at the requested level if there is one, and without the unpopulated
+    // flag, which a generator does not set
     stratum_sim::Generation::generator_type file_generator(const string& filepath)
     {
         return [filepath](const stratum_sim::ZoneSpec& zone_spec)
         {
             stratum_format::Document document = stratum_format::read_zone(filepath);
             document.level = zone_spec.value<stratum_sim::level_type>(stratum_sim::level_key);
+            document.is_unpopulated = false;
             return document;
         };
     }
@@ -2926,6 +2928,21 @@ namespace
             && door_type_east_of_start(loaded) && pursuers_in(loaded).size() == 1
             && loaded.get<stratum_sim::ZoneNotation>().notation == stratum_format::Notation::Block);
         report_case_equal("creating and loading unload nothing", world.zone_count(), 3);
+
+        report_case("a zone loaded unpopulated is written populated", !stratum_sim::make_document(loaded).is_unpopulated);
+
+        stratum_format::Document prepopulated_document = stratum_format::read_zone("data/door.zone");
+        prepopulated_document.is_unpopulated = false;
+        filesystem::create_directories("out");
+        {
+            ofstream prepopulated_file("out/prepopulated.zone", ios::binary);
+            stratum_format::write(prepopulated_file, prepopulated_document);
+        }
+
+        flecs::entity prepopulated = world.load_zone(world.create_region(suite_region_spec("door")), "out/prepopulated.zone");
+        report_case("a zone whose file is not unpopulated is not populated", pursuers_in(prepopulated).empty()
+            && door_east_of_start(prepopulated).is_alive());
+        world.unload_region(stratum_sim::region_of(prepopulated));
 
         // Zones created through the registries
         flecs::entity counted = world.create_region(suite_region_spec("staircase"));

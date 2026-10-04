@@ -7,6 +7,7 @@
 #include "quetzal/dungen/write_zone.hpp"
 #include "quetzal/common/string_util.hpp"
 #include "quetzal/math/Random.hpp"
+#include "quetzal/stratum_format/write_zone.hpp"
 #include <algorithm>
 #include <charconv>
 #include <exception>
@@ -243,8 +244,11 @@ int main(int argc, char* argv[])
             throw runtime_error(format("unable to open zone file {}", filepath));
         }
 
-        dungen::write_zone(os, zone, parameters);
-        dungen::write_zone(cout, zone, parameters);
+        stratum_format::Document document = dungen::make_document(zone, parameters);
+        document.is_unpopulated = true;
+
+        stratum_format::write(os, document);
+        stratum_format::write(cout, document);
     }
     catch (const exception& e)
     {

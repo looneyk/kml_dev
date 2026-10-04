@@ -277,6 +277,7 @@ std::vector<flecs::entity> quetzal::stratum_sim::load_layout(flecs::entity zone,
 
     auto zone_document = std::make_shared<stratum_format::Document>(document);
     zone_document->entities.clear();
+    zone_document->is_unpopulated = false;
     zone.set<ZoneDocument>(ZoneDocument {std::move(zone_document)});
 
     if (document.level.has_value())

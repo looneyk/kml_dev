@@ -784,6 +784,14 @@ namespace
     }
 
     //--------------------------------------------------------------------------
+    // Returns false if the layout's components do not have the flag
+    bool read_unpopulated(const raw_values_type& components)
+    {
+        const raw_values_type* p = components.is_object() ? member(components, "unpopulated") : nullptr;
+        return p != nullptr && boolean_value(*p, "layout.components.unpopulated");
+    }
+
+    //--------------------------------------------------------------------------
     // The type, order, and placement that an access point's relocator requires are checked with the access points
     Relocator read_relocator(const raw_values_type& v, const std::string& path, const Cells& cells)
     {
@@ -1431,10 +1439,17 @@ namespace
 
         document.access_points = read_access_points(document.components);
         document.level = read_level(document.components);
+        document.is_unpopulated = read_unpopulated(document.components);
         if (document.components.is_object())
         {
             document.components.erase("access_points");
             document.components.erase("level");
+            document.components.erase("unpopulated");
+        }
+
+        if (document.is_unpopulated && document.zone_id.has_value())
+        {
+            warn("layout.components.unpopulated", "set in a zone with a zone id");
         }
 
         document.cells = read_cells(required_member(v, "", "cells"), "cells");

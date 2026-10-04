@@ -6,7 +6,7 @@
     "parameters": { "extent": "4,3", "scale": "3-7", "spacing": "2", "density": "1.0", "loop": "0.1", "seed": "20260829" }
   },
   "layout": {
-    "components": { "name": "The Flooded Cistern", "type": "dungeon", "difficulty": 3, "style": "cistern", "access_points": [ { "entity": 4 }, { "entity": 5 } ], "level": -2 }
+    "components": { "name": "The Flooded Cistern", "type": "dungeon", "difficulty": 3, "style": "cistern", "access_points": [ { "entity": 4 }, { "entity": 5 } ], "level": -2, "unpopulated": true }
   },
   "cells": {
     "notation": "wall",

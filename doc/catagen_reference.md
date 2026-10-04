@@ -124,7 +124,7 @@ catagen [zone] [--extent nx,ny] [--name text] [--scale min-max] [--spacing min-m
 ```
 
 The tool writes the zone to the named file, `catagen.zone` by default, and to standard output unless `--quiet` is
-given. A run given no `--seed` takes `random_seed()` before generating, so the file has a seed either way and any run
+given, with its layout's `unpopulated` set. A run given no `--seed` takes `random_seed()` before generating, so the file has a seed either way and any run
 can be reproduced from what it printed. The option names are the parameter names, so a file's parameters read back as a
 command line. `--stairs-down` and `--stairs-up` take a closed range of counts; the options keep the shorter "stairs" for
 typing, where names in code and prose say "staircase".

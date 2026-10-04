@@ -8,6 +8,7 @@
 #include "quetzal/common/string_util.hpp"
 #include "quetzal/math/Interval.hpp"
 #include "quetzal/math/Random.hpp"
+#include "quetzal/stratum_format/write_zone.hpp"
 #include <algorithm>
 #include <charconv>
 #include <exception>
@@ -188,11 +189,14 @@ int main(int argc, char* argv[])
             throw runtime_error(format("unable to open zone file {}", filepath));
         }
 
-        catagen::write_zone(os, zone, parameters);
+        stratum_format::Document document = catagen::make_document(zone, parameters);
+        document.is_unpopulated = true;
+
+        stratum_format::write(os, document);
 
         if (!quiet)
         {
-            catagen::write_zone(cout, zone, parameters);
+            stratum_format::write(cout, document);
         }
     }
     catch (const exception& e)

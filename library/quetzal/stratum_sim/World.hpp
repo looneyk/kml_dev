@@ -136,17 +136,17 @@ namespace quetzal::stratum_sim
         flecs::entity create_zone(flecs::entity region, std::unique_ptr<Layout> layout);
 
         // Creates a zone in the region as the region's generator selector chooses: built from the Document a generator returns,
-        // and populated, or the first zone of a new region. Throws std::runtime_error, before anything is built, if a name the
+        // and populated if the document is marked unpopulated, or the first zone of a new region. Throws std::runtime_error, before anything is built, if a name the
         // selection depends on is not registered, or the document cannot be built, and passes on what the generator throws
         flecs::entity create_zone(flecs::entity region, const ZoneSpec& zone_spec);
 
-        // Reads a zone into the region from a file, and populates it unless it is a saved zone. The zone is given the persistent
+        // Reads a zone into the region from a file, and populates it if the file is marked unpopulated. The zone is given the persistent
         // id of the file if it has one. Throws std::runtime_error, before anything is built, if the reader rejects the file, check_buildable finds a
         // reason the world cannot build it, or the file is a saved zone that is already loaded
         flecs::entity load_zone(flecs::entity region, const std::filesystem::path& filepath);
 
-        // Reads a zone of the game that has unloaded back from the game directory, into the region that lists it, without
-        // populating it. Requires a game directory. Throws std::runtime_error if no region lists the zone, or as load_zone
+        // Reads a zone of the game that has unloaded back from the game directory, into the region that lists it, as load_zone
+        // does. Requires a game directory. Throws std::runtime_error if no region lists the zone, or as load_zone
         // does
         flecs::entity load_saved_zone(PersistentId zone_id);
 
@@ -224,7 +224,7 @@ namespace quetzal::stratum_sim
 
     private:
 
-        // Creates a zone in the region from the document, and populates it unless it is a saved zone. The zone is given the
+        // Creates a zone in the region from the document, and populates it if the document is marked unpopulated. The zone is given the
         // document's persistent id if it has one. Throws std::runtime_error, reporting the source, before anything is built,
         // if check_buildable finds a reason the world cannot build it, or it is a saved zone that is already loaded
         flecs::entity build_zone(flecs::entity region, const stratum_format::Document& document, std::string_view source);

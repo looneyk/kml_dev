@@ -2,7 +2,7 @@
   "format": "quetzal.discrete_layout",
   "version": "0.4",
   "layout": {
-    "components": { "access_points": [ { "entity": 1 } ] }
+    "components": { "access_points": [ { "entity": 1 } ], "unpopulated": true }
   },
   "cells": {
     "notation": "wall",

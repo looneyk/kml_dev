@@ -97,8 +97,9 @@ each on the ones before it. `Game`'s menu and lifecycle functions, and those the
 
 ## Lifecycle
 
-- [ ] **Pre-populated zones** (`session_plan.md`, `## World`): the file's flag, and `load_zone` skipping `populate`
-      when it is set, since the denizens a file places are entities in it.
+- [x] **Pre-populated zones** (`session_plan.md`, `## World`): the layout's `unpopulated` flag, `populate`
+      called only for an unpopulated zone, and a saved zone never written unpopulated; `World::create_zone`, the
+      generator tools and every template file setting it, and a warning for `unpopulated` in a saved zone.
 - [ ] **The zone actor index** (`addressing_plan.md`, `## Actors`): `ActorIndex`, `DiscreteActorIndex`,
       `Layout::create_actor_index`, the observers, and `entities_at` and `entities_within` querying the index.
 - [ ] **Denizens entering relocators,** in limited circumstances. Only the controlled actor enters one.
@@ -375,8 +376,6 @@ These are the open questions.
 
 ### Session
 
-- **The pre-populated flag's name and place in the format** (`session_plan.md`), and whether it is a format version
-  change.
 - **The population strategy from the zone's source,** the template loaded or the generation guidance, which replaces
   `World::populate`'s placeholder (`session_plan.md`, `## World`).
 - **The time a zone was entered:** simulation time or real time.

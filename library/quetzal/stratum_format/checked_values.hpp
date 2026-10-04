@@ -35,6 +35,7 @@ namespace quetzal::stratum_format::detail
     const raw_values_type& array(const raw_values_type& v, const std::string& path);
     std::string string_value(const raw_values_type& v, const std::string& path);
     value_type number_value(const raw_values_type& v, const std::string& path);
+    bool boolean_value(const raw_values_type& v, const std::string& path);
 
     // A whole number within the coordinate range; a fraction is an error
     coord_type coord_value(const raw_values_type& v, const std::string& path);

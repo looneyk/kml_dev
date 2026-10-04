@@ -146,8 +146,8 @@ has eight solid neighbors --- generate a zone that is solid throughout.
 
 ## The tool
 
-`dungen` parses the command line, generates, and writes the zone to a file and to standard output. It writes warnings
-to `std::clog`.
+`dungen` parses the command line, generates, and writes the zone to a file and to standard output, with its layout's
+`unpopulated` set. It writes warnings to `std::clog`.
 
 ```
 dungen [zone] [--algorithm maze1|grid1|cave1] [--extent nx,ny] [--name text]

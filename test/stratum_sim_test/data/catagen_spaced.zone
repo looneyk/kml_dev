@@ -6,7 +6,7 @@
     "parameters": { "extent": "30,18", "scale": "4-7", "spacing": "2-4", "density": "1", "loop": "0.1", "seed": "314159" }
   },
   "layout": {
-    "components": { "access_points": [ { "entity": 55 }, { "entity": 56 } ] }
+    "components": { "access_points": [ { "entity": 55 }, { "entity": 56 } ], "unpopulated": true }
   },
   "cells": {
     "notation": "wall",

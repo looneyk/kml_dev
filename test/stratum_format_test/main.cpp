@@ -297,6 +297,7 @@ namespace
         m["layout"] = components_map(document.components);
         m["access_points"] = document.access_points;
         m["level"] = document.level.has_value() ? map_type(*document.level) : map_type();
+        m["unpopulated"] = document.is_unpopulated;
 
         m["cells"] =
         {
@@ -464,6 +465,12 @@ namespace
         report_case("layout components are kept as written", document.components["difficulty"] == 3 && document.components["style"] == "cistern");
         report_case("the access points are decoded out of them", !document.access_points.empty() && !document.components.contains("access_points"));
         report_case("and so is the level", document.level == -2 && !document.components.contains("level"));
+        report_case("and so is the unpopulated flag", document.is_unpopulated && !document.components.contains("unpopulated"));
+
+        stratum_format::raw_values_type unflagged = load_values(data_directory / "cistern.json");
+        unflagged["layout"]["components"].erase("unpopulated");
+        istringstream unflagged_stream(unflagged.dump());
+        report_case("an absent unpopulated flag is false", !stratum_format::read_zone(unflagged_stream, "unflagged").is_unpopulated);
 
         return;
     }
@@ -742,6 +749,10 @@ namespace
                 "layout.components.access_points: required and absent"},
             {"a level that is not a whole number", [](auto& v) { v["layout"]["components"]["level"] = -1.5; },
                 "layout.components.level: a whole number was expected"},
+            {"an unpopulated flag that is not true or false", [](auto& v) { v["layout"]["components"]["unpopulated"] = 1; },
+                "layout.components.unpopulated: true or false was expected"},
+            {"an unpopulated flag in a zone with a zone id", [](auto& v) { v["zone"] = parse_values(R"({ "id": 7713 })"); },
+                "", "layout.components.unpopulated: set in a zone with a zone id"},
             {"no layout, and so no access points", [](auto& v) { v.erase("layout"); }, "layout.components.access_points: required and absent"},
             {"access points that are not a list", [](auto& v) { v["layout"]["components"]["access_points"] = "stairs"; },
                 "layout.components.access_points: an array was expected"},

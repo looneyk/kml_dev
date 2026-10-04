@@ -266,6 +266,11 @@ namespace
             components.push_back(std::format("\"level\": {}", *document.level));
         }
 
+        if (document.is_unpopulated)
+        {
+            components.push_back("\"unpopulated\": true");
+        }
+
         if (document.components.is_object())
         {
             for (const auto& [key, value] : document.components.items())

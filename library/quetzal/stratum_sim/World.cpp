@@ -810,7 +810,9 @@ flecs::entity quetzal::stratum_sim::World::create_zone(flecs::entity region, con
     }
 
     const Generation::generator_type& generator = registered(m_generation.m_generators, "generator", *selection.generator_name);
-    flecs::entity zone = build_zone(region, generator(selection.zone_spec), std::format("generator {}", *selection.generator_name));
+    stratum_format::Document document = generator(selection.zone_spec);
+    document.is_unpopulated = true;
+    flecs::entity zone = build_zone(region, document, std::format("generator {}", *selection.generator_name));
 
     if (std::optional<level_type> level = selection.zone_spec.value<level_type>(level_key))
     {
@@ -1232,8 +1234,7 @@ flecs::entity quetzal::stratum_sim::World::build_zone(flecs::entity region, cons
         make_reference(target);
     }
 
-    // populate only if this is a a zone template, and maybe not even then if it has been pre-populated; look at the file flag for this ...
-    if (!document.zone_id.has_value())
+    if (document.is_unpopulated)
     {
         populate(zone);
     }
