@@ -156,10 +156,10 @@ design against.
 It also settles that a pushed boulder blocks the way a monster in a doorway does, which would otherwise diverge
 between the two layout models.
 
-## Actors are found through a zone actor index
+## Actors are found through a zone placement index
 
-An actor's site has a placement and no address, and each zone has an index of its actors by place, derived from the
-placements (`addressing.md`, `### Actors`).
+An actor's site has a placement and no address, and each zone has an index of the entities placed in it by place,
+derived from the placements (`addressing.md`, `### Actors`).
 
 **Not a scan.** Checking every placed entity in the zone costs more as the zone fills, and `World::move` asks what is
 at a cell for every cell it moves into.

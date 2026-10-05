@@ -4,6 +4,7 @@
 //------------------------------------------------------------------------------
 
 #include "DiscreteLayout.hpp"
+#include "DiscretePlacementIndex.hpp"
 #include "quetzal/math/floating_point.hpp"
 #include <cassert>
 #include <cmath>
@@ -480,5 +481,11 @@ quetzal::id_type quetzal::stratum_sim::DiscreteLayout::ahead(const placement_typ
     }
 
     return wall_toward(cell_position_at(placement.position()), step);
+}
+
+//------------------------------------------------------------------------------
+std::unique_ptr<quetzal::stratum_sim::PlacementIndex> quetzal::stratum_sim::DiscreteLayout::create_placement_index() const
+{
+    return std::make_unique<DiscretePlacementIndex>(*this);
 }
 

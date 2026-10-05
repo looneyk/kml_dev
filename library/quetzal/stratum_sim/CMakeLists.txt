@@ -7,6 +7,7 @@ add_library(quetzal_stratum_sim STATIC
     commands.cpp
     decode_components.cpp
     DiscreteLayout.cpp
+    DiscretePlacementIndex.cpp
     DisplayName.cpp
     EventQueue.cpp
     file_components.cpp
@@ -40,6 +41,7 @@ add_library(quetzal_stratum_sim STATIC
     decode_components.hpp
     DirectionMask.hpp
     DiscreteLayout.hpp
+    DiscretePlacementIndex.hpp
     DisplayName.hpp
     Event.hpp
     EventQueue.hpp
@@ -57,6 +59,7 @@ add_library(quetzal_stratum_sim STATIC
     load_layout.hpp
     make_document.hpp
     PersistentId.hpp
+    PlacementIndex.hpp
     properties.hpp
     SavedGameDetails.hpp
     Scheduler.hpp

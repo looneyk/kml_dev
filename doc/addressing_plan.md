@@ -5,7 +5,7 @@ Date: 2026-09-14, revised 2026-09-26
 This is the design behind the spec in `addressing.md`. It covers one list of entities in a zone file, with `site` and
 `parent` as file components that the format defines and children derived from `parent`; persistent ids; links in both
 directions between an entity and the wall or flat cell it is sited on; references between entities within a zone and
-across zones; and an actor index for each zone. `game_system_reference.md`, `### Sites and doors`, describes where
+across zones; and a placement index for each zone. `game_system_reference.md`, `### Sites and doors`, describes where
 every entity is and what it belongs to.
 Open items are listed in `work_plan.md`, and `game_system_reference.md` describes the implementation.
 
@@ -35,9 +35,9 @@ Open items are listed in `work_plan.md`, and `game_system_reference.md` describe
   locked, and its detection state for the actor asking, each resolved from the entity and then its ancestors. An
   entity with no access state anywhere in that chain is not crossable. One rule reads the properties, with no case for
   a door, a staircase or concealment, and nothing on the wall or the cell marks it crossable (`## Crossing a wall`).
-- **Each zone has an actor index,** derived from the actors' placements, which finds the actors at a location without
-  a search (`## Actors`).
-- **The character is in a zone, and is owned by the game.** It is in its zone's actor index like any actor, but unloading
+- **Each zone has a placement index,** derived from the placements of the actors and of anything else in a cell of the
+  zone, which finds the entities at a location without a search (`## Placement index`).
+- **The character is in a zone, and is owned by the game.** It is in its zone's placement index like any actor, but unloading
   or saving the zone leaves it out (`## Migration`).
 - **A dropped object is indexed in its zone,** as every sited entity is, and is accessible while the actor is in that
   zone, not from another zone the actor moves to.
@@ -125,7 +125,7 @@ namespace quetzal::stratum_sim
 
 A wall's or flat cell's entity exists while it has components or something sited on it, and is deleted when it has
 neither; every room and each flat has one. Each has its address as a component and is found by it, through the zone's
-`AddressIndex` for its address type, beside its layout and actor index. Built (`layout_entities.hpp`).
+`AddressIndex` for its address type, beside its layout and placement index. Built (`layout_entities.hpp`).
 
 A layout entity, its list and a parent's children are derived, and are rebuilt when the zone loads (`addressing.md`,
 `### A saved zone`). A layout entity has no `PersistentId`; it is referred to by its address.
@@ -204,82 +204,42 @@ that has access. A staircase has no `Access`; entering one is `session_plan.md`,
 - **The entities on a wall or flat cell:** the wall's or cell's entity, then its `AttachedEntities`.
 - **Where an entity is:** its `Site`, and its parent if the site has no address.
 - **The other side of a door:** the door facing's parent, then that parent's other child.
-- **The actors at a location:** the zone's actor index (`## Actors`).
+- **The actors at a location:** the zone's placement index (`## Placement index`).
 
 `Door`, `DoorFacing`, `Openable`, `Crossable`, `Concealed`, `facing_on`, `door_of`, `other_facing`, `create_door`,
 `create_doors`, `door_walls_type`, and `load_layout`'s `door_type` are gone.
 
-## Actors
+## Placement index
 
-An actor is located by its site's placement. Each zone has an actor index, of the type its layout supplies, so finding
-the actors at a location is a lookup instead of a scan of the zone.
+An actor is located by its site's placement, as is anything else in a cell of the zone with no address. Each zone has a
+placement index of those entities, of the type its layout supplies, so finding the entities at a location is a lookup
+instead of a scan of the zone. `PlacementIndex`, `DiscretePlacementIndex` and `Layout::create_placement_index` are
+built (`game_system_reference.md`, `### PlacementIndex`); what remains is the zone's index and keeping it current.
 
-```cpp
-namespace quetzal::stratum_sim
-{
-    // The actors in one zone by location, derived from their placements
-    class ActorIndex
-    {
-    public:
-        virtual ~ActorIndex() = default;
-
-        // Adds the actor, or moves it if it is already in the index
-        virtual void place(flecs::entity actor, const placement_type& placement) = 0;
-        virtual void remove(flecs::entity actor) = 0;
-
-        // Both ordered by entity id
-        virtual std::vector<flecs::entity> actors_at(const placement_type& placement) const = 0;
-        virtual std::vector<flecs::entity> actors_within(const placement_type& placement, value_type range) const = 0;
-    };
-
-    class DiscreteActorIndex final : public ActorIndex
-    {
-    public:
-        explicit DiscreteActorIndex(const DiscreteLayout& discrete_layout);
-
-        void place(flecs::entity actor, const placement_type& placement) override;
-        void remove(flecs::entity actor) override;
-        std::vector<flecs::entity> actors_at(const placement_type& placement) const override;
-        std::vector<flecs::entity> actors_within(const placement_type& placement, value_type range) const override;
-
-        std::vector<flecs::entity> actors_at(const discrete_point_type& cell_position) const;
-
-    private:
-        const DiscreteLayout& m_discrete_layout;
-        std::unordered_map<size_t, std::vector<flecs::entity>> m_actors_by_slot; // <slot, actors in that cell>
-        std::unordered_map<flecs::entity_t, size_t> m_slots_by_actor; // <actor, slot of the cell it is in>
-    };
-}
-```
-
-`Layout` gains:
-
-```cpp
-        virtual std::unique_ptr<ActorIndex> create_actor_index() const = 0;
-```
-
-- **The index follows the placements.** An `OnSet` observer on an actor's `Site` places the actor in its zone's index
-  and an `OnRemove` observer removes it, so no path that moves, creates or deletes an actor can leave the index out of
-  date. A move costs two map updates.
-- **Relocating removes the actor from the old zone's index** before changing its zone, and the observer places it in
+- **The zone owns its index** through a component beside `ZoneLayout`, created by the layout wherever `ZoneLayout` is
+  set.
+- **The index follows the placements.** An `OnSet` observer on an entity's `Site` with no address places the entity in
+  its zone's index and an `OnRemove` observer removes it, so no path that moves, creates or deletes an entity can leave
+  the index out of date. A move costs two map updates.
+- **Relocating removes the entity from the old zone's index** before changing its zone, and the observer places it in
   the new one.
-- **`entities_at` and `entities_within` query the index,** with `DiscreteActorIndex::actors_within` walking the cells
-  in range, and keep their ordering by entity id.
+- **`entities_at` and `entities_within` query the index,** converting its entity ids to entities, and keep their
+  ordering by entity id.
 - **The index is derived,** so it is never saved, and loading a zone rebuilds it. It cannot disagree with the
-  placements, which remain the one source of where an actor is.
+  placements, which remain the one source of where an entity is.
 
-The actor index builds against the zones as they are now, and changes no behavior and no frame.
+The placement index builds against the zones as they are now, and changes no behavior and no frame.
 
 ## Migration
 
-`reparent` moves an entity from one zone to another. It removes the entity from the old zone's lists and actor index,
+`reparent` moves an entity from one zone to another. It removes the entity from the old zone's lists and placement index,
 sets its parent to the destination zone (or, for the character, the zone it is in) and its site at the destination, and
 moves its entry in the world index with it if it has one. Its children move with it.
 
 **The character is owned by the game.** `Game` owns the `Character`, which exists before any zone. The character has no
 parent: an exclusive `(InZone, zone)` relationship refers to the zone it is in, which relocating changes, `zone_of`
 reads, and flecs removes when that zone is deleted. An entity with no parent is owned by the game, and relocating it
-keeps it that way. The character is in its zone's actor index like any actor, and every query for the entities in a zone
+keeps it that way. The character is in its zone's placement index like any actor, and every query for the entities in a zone
 matches it, but it is not in the zone's subtree, so unloading or saving the zone leaves it out. The objects the character
 carries are its children, sited `on` it, and are owned by the game too; both are saved with the game.
 
@@ -322,10 +282,10 @@ a wall or a flat cell, since those addresses belong to the old zone.
     access, and concealed for one actor and not another; an entity with no `Access` in its chain never crossable; and
     a staircase crossed from its open side and from no other;
   - one wall is crossed by one actor and not by another, in the same layout;
-  - the actor index follows every move, migration, creation and deletion, and `entities_at` and `entities_within`
+  - the placement index follows every move, migration, creation and deletion, and `entities_at` and `entities_within`
     return what a scan of the zone returns;
   - migration keeps the persistent id and the runtime entity, and updates the index;
-  - the character is in its zone's actor index, and is left out when that zone is unloaded;
+  - the character is in its zone's placement index, and is left out when that zone is unloaded;
   - a reference resolves again after its zone is unloaded and loaded again;
   - `CountingIdAllocator` never repeats an id across a save and restore.
 - **`stratum_view_test`:** its frames, which print wall ids, are unchanged apart from the wall ids.

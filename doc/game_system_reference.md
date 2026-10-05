@@ -138,10 +138,26 @@ each cell and reports the result as `blocking_entity_id`. `World::move` supplies
 
 `step_distance` returns the grid scale, the distance one action of movement travels.
 
+`slot(cell_position)` returns a cell's position in the cell table, and asserts that the cell is on the grid.
+
 `neighbors` returns the placements reachable in one move. `visible` walks the cells that the ray between two
 placements passes through, one edge at a time, and fails at the first wall that cannot be crossed. `field_of_view` is
 declared and not implemented. `ahead(placement)` returns the wall of the placement's cell in its facing direction,
 snapped to a cardinal direction, or `nullid` if there is none.
+
+### PlacementIndex
+
+`PlacementIndex` is an interface to the entities placed in one zone, by location: `place` adds an entity at a
+placement or moves it there, `remove` takes out an entity that is in the index, and `contains` and `entity_count` report
+on it. `entities_at(placement)` returns the entities at the same location as a placement, and
+`entities_within(placement, range)` those whose positions are within the range of its position in 3D, both in ascending
+id order. It refers to entities by `id_type`, as `MoveResult` does, so `Layout.hpp` includes no flecs.
+`Layout::create_placement_index()` returns an empty index of the layout's own type, which must not outlive the layout.
+
+`DiscretePlacementIndex` is `DiscreteLayout`'s. It maps each cell's slot to the ids in it, kept in ascending order, and
+each entity to its placement. `entities_at` takes a placement or a cell position. `entities_within` visits the cells
+that the range overlaps, clipped to the grid, or, if the zone has fewer entities than those cells, every entity, and
+keeps those within the range.
 
 ### load_layout
 
@@ -1052,7 +1068,7 @@ must not already have the project open, or the library is locked and the build f
 
 ## Tests
 
-`stratum_sim_test` covers the layout hierarchy, layout structure, rooms, the grid, flats, blocking, the scheduler, the
+`stratum_sim_test` covers the layout hierarchy, layout structure, rooms, the grid, the placement index, flats, blocking, the scheduler, the
 clock, movement, adjacency and sight, loading, doors, the world, persistent ids, access points, residency, commands and
 occupancy. It and `stratum_view_test` each check that every zone file in their `data/` has one `door` entity per door
 glyph, with a `door_facing` child on each wall that `stratum_format::door_walls` finds for that glyph and no door

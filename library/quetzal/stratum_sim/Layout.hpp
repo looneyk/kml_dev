@@ -8,11 +8,14 @@
 #include "types.hpp"
 #include "quetzal/common/id.hpp"
 #include <functional>
+#include <memory>
 #include <vector>
 #include <cassert>
 
 namespace quetzal::stratum_sim
 {
+
+    class PlacementIndex;
 
     //--------------------------------------------------------------------------
     enum class Rotation
@@ -71,6 +74,9 @@ namespace quetzal::stratum_sim
 
         // The distance one action of movement travels
         virtual value_type step_distance() const = 0;
+
+        // An empty index of the entities placed in the zone, which must not outlive the layout
+        virtual std::unique_ptr<PlacementIndex> create_placement_index() const = 0;
 
     protected:
 

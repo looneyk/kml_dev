@@ -10,6 +10,7 @@
 #include "quetzal/stratum_sim/Intent.hpp"
 #include "quetzal/stratum_sim/ContinuousLayout.hpp"
 #include "quetzal/stratum_sim/DiscreteLayout.hpp"
+#include "quetzal/stratum_sim/DiscretePlacementIndex.hpp"
 #include "quetzal/stratum_sim/DisplayName.hpp"
 #include "quetzal/stratum_sim/load_layout.hpp"
 #include "quetzal/stratum_sim/make_document.hpp"
@@ -555,6 +556,90 @@ namespace
         report_case("a cell maps back to its center", layout.position(stratum_sim::discrete_point_type {2, 3}).x() == 2.5f);
         report_case("round tripping a cell center returns the cell", layout.cell_position_at(layout.position(stratum_sim::discrete_point_type {5, 6})) == stratum_sim::discrete_point_type(5, 6));
         report_case("a point left of the origin lands in a negative cell", layout.cell_position_at(stratum_sim::point_type(-0.5f, 0.5f, 0.0f)) == stratum_sim::discrete_point_type(-1, 0));
+
+        return;
+    }
+
+    //--------------------------------------------------------------------------
+    void test_placement_index()
+    {
+        report_group("placement index");
+
+        using entity_ids_type = stratum_sim::PlacementIndex::entity_ids_type;
+
+        stratum_sim::DiscreteLayout layout {stratum_sim::point_type(0.0f, 0.0f, 0.0f), 1.0f, stratum_sim::discrete_vector_type(8, 8)};
+        unique_ptr<stratum_sim::PlacementIndex> index = layout.create_placement_index();
+        auto* discrete_index = dynamic_cast<stratum_sim::DiscretePlacementIndex*>(index.get());
+
+        report_case("a discrete layout creates an empty discrete placement index", discrete_index != nullptr && index->entity_count() == 0);
+        if (discrete_index == nullptr)
+        {
+            return;
+        }
+
+        auto at = [&](stratum_sim::coord_type i, stratum_sim::coord_type j)
+        {
+            return stratum_sim::placement_type(layout.position(stratum_sim::discrete_point_type {i, j}), stratum_sim::vector_type(1.0f, 0.0f, 0.0f));
+        };
+
+        index->place(7, at(2, 3));
+        index->place(3, at(2, 3));
+        index->place(5, at(4, 3));
+        report_case("the entities in a cell are in ascending id order", discrete_index->entities_at(stratum_sim::discrete_point_type {2, 3})
+            == entity_ids_type {3, 7});
+        report_case("and are found by a placement in the cell", index->entities_at(at(2, 3)) == entity_ids_type {3, 7});
+        report_case("a cell with nothing in it has no entities", index->entities_at(at(0, 0)).empty());
+
+        index->place(7, at(2, 3));
+        report_case("placing an entity again in its cell does not add it twice", index->entity_count() == 3
+            && index->entities_at(at(2, 3)) == entity_ids_type {3, 7});
+
+        index->place(7, at(4, 3));
+        report_case("placing it in another cell moves it", index->entities_at(at(2, 3)) == entity_ids_type {3}
+            && index->entities_at(at(4, 3)) == entity_ids_type {5, 7});
+
+        index->remove(3);
+        report_case("a removed entity is in no cell", !index->contains(3) && index->entities_at(at(2, 3)).empty() && index->entity_count() == 2);
+
+        // Enough entities that small ranges visit cells and large ones visit entities
+        vector<pair<id_type, stratum_sim::placement_type>> placed {{5, at(4, 3)}, {7, at(4, 3)}};
+        for (id_type entity_id = 10; entity_id < 30; ++entity_id)
+        {
+            stratum_sim::placement_type placement = at(static_cast<stratum_sim::coord_type>(entity_id % 8), static_cast<stratum_sim::coord_type>(entity_id / 4));
+            index->place(entity_id, placement);
+            placed.push_back({entity_id, placement});
+        }
+
+        auto scanned_within = [&](const stratum_sim::placement_type& placement, stratum_sim::value_type range)
+        {
+            entity_ids_type entity_ids;
+            for (const auto& [entity_id, other] : placed)
+            {
+                stratum_sim::value_type dx = other.position().x() - placement.position().x();
+                stratum_sim::value_type dy = other.position().y() - placement.position().y();
+                stratum_sim::value_type dz = other.position().z() - placement.position().z();
+                if (dx * dx + dy * dy + dz * dz <= range * range)
+                {
+                    entity_ids.push_back(entity_id);
+                }
+            }
+
+            sort(entity_ids.begin(), entity_ids.end());
+            return entity_ids;
+        };
+
+        bool within_as_scanned = true;
+        for (stratum_sim::placement_type origin : {at(2, 3), at(0, 0), at(7, 7)})
+        {
+            for (stratum_sim::value_type range : {0.0f, 0.5f, 1.0f, 1.5f, 2.0f, 3.0f, 12.0f})
+            {
+                within_as_scanned = within_as_scanned && index->entities_within(origin, range) == scanned_within(origin, range);
+            }
+        }
+
+        report_case("the entities within a range are those a scan finds, over cells or over entities", within_as_scanned);
+        report_case("a range reaches a cell center at exactly its distance", index->entities_within(at(2, 3), 2.0f) == scanned_within(at(2, 3), 2.0f)
+            && !index->entities_within(at(2, 3), 2.0f).empty());
 
         return;
     }
@@ -3962,6 +4047,7 @@ int main()
     test_zone_layout();
     test_rooms();
     test_grid();
+    test_placement_index();
     test_flats();
     test_blocking();
     test_scheduler();

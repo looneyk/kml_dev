@@ -30,7 +30,7 @@ Date: 2026-09-14, revised 2026-09-26
 | References between entities | Built |
 | Relocator targets bound to relocators | Designed |
 | Saved zones | Designed |
-| An actor index for each zone | Designed |
+| A placement index for each zone | Designed; the index itself is built |
 
 ## Every identifier at a glance
 
@@ -242,7 +242,7 @@ What a zone saves is its geometry, the file components of its places, and its en
 theirs. Each fact is saved once, in the place it comes from. That a chest lies on a flat cell is saved in
 the chest's `site`, and a wall's style in the zone's `walls` section. Nothing derived is saved: not
 layout entities, not the lists of what is sited on something, not a parent's children, not the
-actor index. They are all rebuilt when the zone loads. The world separately saves its id allocator's
+placement index. They are all rebuilt when the zone loads. The world separately saves its id allocator's
 count and its index of which zone each entity that something refers to is in.
 
 ## Part 3: In a layout
@@ -338,14 +338,14 @@ zone through the index.
 An actor, such as the character or a denizen, is `In` its zone, its site having a placement --- a position and a
 direction --- and no address.
 
-**Each zone has an actor index,** which finds the actors at a place with a lookup. The index is derived
-from the actors' placements: it is updated as they move and rebuilt when the zone loads, so it cannot
-disagree with them. Each kind of layout supplies its own kind of index, and a `DiscreteLayout`'s finds
-actors by cell. Until the index is built, `World::entities_at` checks every placed entity in the zone.
+**Each zone has a placement index,** which finds the actors, and anything else placed in a cell of the zone, at a
+place with a lookup. The index is derived from the placements: it is updated as they move and rebuilt when the zone
+loads, so it cannot disagree with them. Each kind of layout supplies its own kind of index, and a `DiscreteLayout`'s
+finds entities by cell. Until the index is built, `World::entities_at` checks every placed entity in the zone.
 
 ### The character
 
-The character is in a zone, and is owned by the game. It is in its zone's actor index like any actor, and
+The character is in a zone, and is owned by the game. It is in its zone's placement index like any actor, and
 moves between zones as any actor does, but it is not in the zone's subtree, so unloading or saving the
 zone leaves it out. What the character carries is a child of it, sited `on` it, and is owned by the
 game too. Both are saved with the game.

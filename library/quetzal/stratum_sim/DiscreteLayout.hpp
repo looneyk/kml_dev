@@ -104,13 +104,17 @@ namespace quetzal::stratum_sim
         // The set of cells visible by shadowcasting, not implemented ...
         cell_positions_type field_of_view(const discrete_point_type& cell_position, coord_type range, const crossable_function_type& is_wall_crossable) const;
 
-        // The wall of the placement's cell in its facing direction snapped to a cardinal direction, or nullid
+        // The wall of the placement's cell in its facing direction snapped to a cardinal direction if any
         id_type ahead(const placement_type& placement) const override;
 
-    private:
+        // A DiscretePlacementIndex over this layout
+        std::unique_ptr<PlacementIndex> create_placement_index() const override;
 
         // The position must be on the grid
         size_t slot(const discrete_point_type& cell_position) const;
+
+    private:
+
         const Cell& cell(const discrete_point_type& cell_position) const;
         Cell& cell(const discrete_point_type& cell_position);
 

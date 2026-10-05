@@ -100,8 +100,10 @@ each on the ones before it. `Game`'s menu and lifecycle functions, and those the
 - [x] **Pre-populated zones** (`session_plan.md`, `## World`): the layout's `unpopulated` flag, `populate`
       called only for an unpopulated zone, and a saved zone never written unpopulated; `World::create_zone`, the
       generator tools and every template file setting it, and a warning for `unpopulated` in a saved zone.
-- [ ] **The zone actor index** (`addressing_plan.md`, `## Actors`): `ActorIndex`, `DiscreteActorIndex`,
-      `Layout::create_actor_index`, the observers, and `entities_at` and `entities_within` querying the index.
+- [ ] **The zone placement index** (`addressing_plan.md`, `## Placement index`), in two commit points:
+  - [x] **The index on its own:** `PlacementIndex`, `DiscretePlacementIndex`, and `Layout::create_placement_index`.
+  - [ ] **The index in the zones:** the zone's component, the observers, and `entities_at` and `entities_within`
+        querying the index.
 - [ ] **Denizens entering relocators,** in limited circumstances. Only the controlled actor enters one.
 - [ ] **Auto saves and quick saves** (`### Game file`).
 - [ ] **Permadeath** (`session_plan.md`, `### Permadeath`): `Settings`, chosen when a game is created and saved
@@ -258,8 +260,8 @@ These are the open questions.
 
 ### Ids and addressing
 
-- **Names.** `PersistentId`, `EntityReference`, `make_reference`, `AttachedEntities`, `AddressIndex`, `Access`,
-  `Detection` and `ActorIndex` are working names.
+- **Names.** `PersistentId`, `EntityReference`, `make_reference`, `AttachedEntities`, `AddressIndex`, `Access`
+  and `Detection` are working names.
 
 ### Modding
 
