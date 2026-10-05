@@ -667,7 +667,7 @@ a file in it cannot be read, and clears and removes the game directory first, so
 `saved_games()` returns a `SavedGameDetails` for each save in the saves directory, newest first: the save's name,
 which `open` takes; the character's name as the player entered it, read from the top of the save's `character.json`
 without parsing the character; an empty
-description; and the time `game.json` was written. It throws `std::runtime_error` if a save's character file cannot be
+description; the time `game.json` was written; and its `SaveType`, from the suffix that ends the save's name. It throws `std::runtime_error` if a save's character file cannot be
 read or has no name.
 
 `Game::save(save_type)` writes `game.json` into the game directory, with the id allocator's next id, the seed, and the gameplay
@@ -988,8 +988,8 @@ and `s` to save it, each offered only while there is one, `o` to open a save, an
 and ends the run. Escape on the menu also continues. A new game is created from the host's temporary specs, its
 character named "Adventurer". A failure to create one is shown on the menu's status line, and so is "Game saved.",
 after `Game::save` with `SaveType::Explicit`, or the reason it failed. `o` shows the saves page: the nine newest saves
-from `Game::saved_games`, numbered, each as its character's name and the local time of the save to the minute, and
-never by its directory's name, with the selected save marked `>`. Up and Down, or `k` and `j`, move the selection,
+from `Game::saved_games`, numbered, each as its character's name, the local time of the save to the minute, and its
+save type, "Autosave", "Quicksave" or nothing for an explicit save, and never by its directory's name, with the selected save marked `>`. Up and Down, or `k` and `j`, move the selection,
 Enter opens the selected save and a digit the save of that number, with `Game::open`, and start play. Delete asks on
 the status line whether to delete the selected save; `y` deletes it with `Game::remove` and lists the saves again,
 keeping the selection on its row or the new last one, and any other key keeps it. Escape returns to the main page. A
@@ -1030,7 +1030,8 @@ so `turn` is the turn awaiting input. `create_game` creates a new game as the te
 while one is in progress, `game_over` returns true once the character is dead, and `message` then reports the death,
 `menu_open` and `menu_close` pause and resume play, `quit_game` ends the game in progress, `save_game` saves it
 explicitly and returns the save's name, `saved_games` returns the saves, newest first, each a `Dictionary` of its
-`save_name`, its `character_name`, and its local `time` to the minute, `open_game(save_name)` opens one and starts
+`save_name`, its `character_name`, its local `time` to the minute, and its `save_type`, shown in the tile view's saves
+page as the terminal host shows it, `open_game(save_name)` opens one and starts
 play, and `remove_game(save_name)` deletes one. Exceptions do not cross into Godot: a failed creation, opening or
 deletion pushes the reason to Godot's error list and returns false, and a failed creation or opening leaves no game in
 progress; a failed save pushes the reason and returns an empty name, and a failed

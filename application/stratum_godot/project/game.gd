@@ -165,7 +165,7 @@ func _draw_saves(message: String) -> void:
 
 
 func _save_label(save: Dictionary) -> String:
-	return "%s   %s" % [save["character_name"], save["time"]]
+	return "%s   %s   %s" % [save["character_name"], save["time"], save["save_type"]]
 
 
 func _new_game() -> void:

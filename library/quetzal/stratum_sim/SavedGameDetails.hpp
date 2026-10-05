@@ -14,6 +14,15 @@ namespace quetzal::stratum_sim
 {
 
     //--------------------------------------------------------------------------
+    // What made a save: the player's choice, an autosave, or a quick save. They differ only in the save's name
+    enum class SaveType
+    {
+        Explicit,
+        Auto,
+        Quick
+    };
+
+    //--------------------------------------------------------------------------
     // A save as a menu lists it. The save name is its directory's, which Game::open takes, and the character's name is as
     // the player entered it
     class SavedGameDetails
@@ -22,7 +31,8 @@ namespace quetzal::stratum_sim
 
         using time_type = std::filesystem::file_time_type;
 
-        SavedGameDetails(std::string_view save_name, std::string_view character_name, std::string_view description, const time_type& time);
+        SavedGameDetails(std::string_view save_name, std::string_view character_name, std::string_view description, const time_type& time,
+            SaveType save_type);
         SavedGameDetails(const SavedGameDetails&) = default;
         SavedGameDetails(SavedGameDetails&&) = default;
         ~SavedGameDetails() = default;
@@ -34,6 +44,7 @@ namespace quetzal::stratum_sim
         const std::string& character_name() const;
         const std::string& description() const;
         const time_type& time() const;
+        SaveType save_type() const;
 
     private:
 
@@ -41,6 +52,7 @@ namespace quetzal::stratum_sim
         std::string m_character_name;
         std::string m_description;
         time_type m_time;
+        SaveType m_save_type;
         // game type ...
         // preview, thumbnail ...
     };

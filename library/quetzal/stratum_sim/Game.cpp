@@ -58,6 +58,21 @@ namespace
     }
 
     //--------------------------------------------------------------------------
+    // Returns the type whose suffix ends the save's name
+    quetzal::stratum_sim::SaveType parse_save_type(std::string_view save_name)
+    {
+        for (quetzal::stratum_sim::SaveType save_type : {quetzal::stratum_sim::SaveType::Auto, quetzal::stratum_sim::SaveType::Quick})
+        {
+            if (save_name.ends_with(get_save_name_suffix(save_type)))
+            {
+                return save_type;
+            }
+        }
+
+        return quetzal::stratum_sim::SaveType::Explicit;
+    }
+
+    //--------------------------------------------------------------------------
     // The name with each character that cannot be in a directory name, reserved or a control character, replaced by '_'
     std::string replace_reserved_characters(std::string_view name)
     {
@@ -349,8 +364,9 @@ std::vector<quetzal::stratum_sim::SavedGameDetails> quetzal::stratum_sim::Game::
     {
         if (entry.is_directory())
         {
-            details.emplace_back(entry.path().filename().string(), read_saved_character_name(entry.path()), std::string_view(),
-                std::filesystem::last_write_time(entry.path() / stratum_format::game_filename));
+            std::string save_name = entry.path().filename().string();
+            details.emplace_back(save_name, read_saved_character_name(entry.path()), std::string_view(),
+                std::filesystem::last_write_time(entry.path() / stratum_format::game_filename), parse_save_type(save_name));
         }
     }
 

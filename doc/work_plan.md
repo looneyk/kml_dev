@@ -97,18 +97,14 @@ each on the ones before it. `Game`'s menu and lifecycle functions, and those the
 
 ## Lifecycle
 
-- [x] **Pre-populated zones** (`session_plan.md`, `## World`): the layout's `unpopulated` flag, `populate`
-      called only for an unpopulated zone, and a saved zone never written unpopulated; `World::create_zone`, the
-      generator tools and every template file setting it, and a warning for `unpopulated` in a saved zone.
-- [x] **The zone placement index** (`addressing_plan.md`, `## Placement index`), in two commit points:
-  - [x] **The index on its own:** `PlacementIndex`, `DiscretePlacementIndex`, and `Layout::create_placement_index`.
-  - [x] **The index in the zones:** the zone's component, the observers, and `entities_at` and `entities_within`
-        querying the index.
-- [ ] **Denizens entering relocators,** in limited circumstances. Only the controlled actor enters one.
-- [ ] **Auto saves and quick saves** (`### Game file`).
+- [x] **The save type column.** `SavedGameDetails::save_type`, read from the save's name, and the hosts' saves pages
+      showing it after the time.
 - [ ] **Permadeath** (`session_plan.md`, `### Permadeath`): `Settings`, chosen when a game is created and saved
       with it, with `permadeath` its first setting, and `quit` saving the game or deleting it by whether the character
       is dead.
+- [ ] **Quick saves and autosaves** (`session_plan.md`, `### Quick saves and autosaves`): `read_key` reporting
+      function keys, F5 quick saving and a quickload key in both hosts, and an autosave on entering a zone, through a
+      function that `Game` gives `Session`.
 
 ## Generators
 
@@ -260,8 +256,8 @@ These are the open questions.
 
 ### Ids and addressing
 
-- **Names.** `PersistentId`, `EntityReference`, `make_reference`, `AttachedEntities`, `AddressIndex`, `Access`
-  and `Detection` are working names.
+- **Names.** `PersistentId`, `EntityReference`, `make_reference`, `AttachedEntities`, `AddressIndex`, `Access`,
+  `Detection` and `InterzonePursuitCapability` are working names.
 
 ### Modding
 
@@ -327,10 +323,9 @@ These are the open questions.
 
 - **The format's identifier,** `quetzal.stratum_game`, and the file names, `game.json` and the rest, for now.
 - **The character's components:** its description, attributes, and skills.
-- **Save tracks.** Auto saves and quick saves are each a track of their own, separate from the player's explicit saves,
-  each save a copy of the game directory (`game_file_spec.md`, `## A saved game's files`). An explicit save is always a
-  new save directory; an auto or quick save may replace the previous one in its track. This comes much later; until
-  then a game has only explicit saves.
+- **What triggers an autosave.** Entering any zone, for now. Entering a town may be the trigger as well or instead,
+  which depends on the generator selector's town zones (`## Generators`).
+- **The quickload key,** F8 or F9, and which save it opens.
 
 ### Intent
 
@@ -412,6 +407,8 @@ These are the open questions.
 
 These are set aside on purpose.
 
+- **Pursuers following the character through a relocator** (`session_plan.md`, `### Following through a relocator`).
+  Only the controlled actor enters a relocator.
 - **A doorway into a dead end,** which has a wall on one side only: what a door glyph there requires, and what the
   generators and the reader do with one.
 - **maze1's unreachable corridor.** Excavation can leave corridor that no door reaches, which dead-end pruning removes

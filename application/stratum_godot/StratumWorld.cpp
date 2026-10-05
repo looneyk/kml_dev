@@ -19,6 +19,7 @@
 #include <format>
 #include <optional>
 #include <string>
+#include <cassert>
 
 namespace sim = quetzal::stratum_sim;
 namespace view = quetzal::stratum_view;
@@ -65,6 +66,24 @@ namespace
         }
 
         return sim::Generation::GeneratorSelection {std::string(quetzal::stratum_gen::dungen_generator_name), {}, {}, named_zone_spec};
+    }
+
+    //--------------------------------------------------------------------------
+    // Empty for an explicit save
+    const char* get_save_type_label(sim::SaveType save_type)
+    {
+        switch (save_type)
+        {
+        case sim::SaveType::Explicit:
+            return "";
+        case sim::SaveType::Auto:
+            return "Autosave";
+        case sim::SaveType::Quick:
+            return "Quicksave";
+        }
+
+        assert(false);
+        return "";
     }
 
 } // namespace
@@ -202,6 +221,7 @@ godot::Array StratumWorld::saved_games() const
             save["character_name"] = godot::String::utf8(details.character_name().c_str());
             save["time"] = godot::String::utf8(std::format("{:%Y-%m-%d %H:%M}", std::chrono::zoned_time(std::chrono::current_zone(),
                 std::chrono::floor<std::chrono::minutes>(time))).c_str());
+            save["save_type"] = godot::String(get_save_type_label(details.save_type()));
             saves.push_back(save);
         }
     }

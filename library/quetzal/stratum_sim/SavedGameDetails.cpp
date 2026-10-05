@@ -7,11 +7,12 @@
 
 //------------------------------------------------------------------------------
 quetzal::stratum_sim::SavedGameDetails::SavedGameDetails(std::string_view save_name, std::string_view character_name, std::string_view description,
-    const time_type& time) :
+    const time_type& time, SaveType save_type) :
     m_save_name(save_name),
     m_character_name(character_name),
     m_description(description),
-    m_time(time)
+    m_time(time),
+    m_save_type(save_type)
 {
 }
 
@@ -37,4 +38,10 @@ const std::string& quetzal::stratum_sim::SavedGameDetails::description() const
 const quetzal::stratum_sim::SavedGameDetails::time_type& quetzal::stratum_sim::SavedGameDetails::time() const
 {
     return m_time;
+}
+
+//------------------------------------------------------------------------------
+quetzal::stratum_sim::SaveType quetzal::stratum_sim::SavedGameDetails::save_type() const
+{
+    return m_save_type;
 }

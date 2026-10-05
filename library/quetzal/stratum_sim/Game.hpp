@@ -27,15 +27,6 @@ namespace quetzal::stratum_sim
     void register_game_types(World& world);
 
     //--------------------------------------------------------------------------
-    // What made a save: the player's choice, or an auto or quick save, each of which is a track of its own
-    enum class SaveType
-    {
-        Explicit,
-        Auto,
-        Quick
-    };
-
-    //--------------------------------------------------------------------------
     // The one owner of a game's world, session and character
     class Game
     {
@@ -78,8 +69,8 @@ namespace quetzal::stratum_sim
 
         void quit();
 
-        // Each save in the saves directory, newest first, with its character's name and the time it was saved. Throws
-        // std::runtime_error if a save's character file cannot be read or has no name
+        // Each save in the saves directory, newest first, with its character's name, the time it was saved, and its type, read from its name.
+        // Throws std::runtime_error if a save's character file cannot be read or has no name
         std::vector<SavedGameDetails> saved_games() const;
 
         // Accessors

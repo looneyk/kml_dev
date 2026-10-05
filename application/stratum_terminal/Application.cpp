@@ -18,6 +18,7 @@
 #include <iostream>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 #include <cassert>
 
@@ -45,13 +46,34 @@ namespace
     static constexpr size_t saved_games_listed_max = 9;
 
     //--------------------------------------------------------------------------
-    // A save as the saves page lists it: the character's name, padded to the width of the longest listed, and the local
-    // time of the save to the minute
+    // Empty for an explicit save
+    std::string_view get_save_type_label(stratum_sim::SaveType save_type)
+    {
+        switch (save_type)
+        {
+        case stratum_sim::SaveType::Explicit:
+            return "";
+        case stratum_sim::SaveType::Auto:
+            return "Autosave";
+        case stratum_sim::SaveType::Quick:
+            return "Quicksave";
+        }
+
+        assert(false);
+        return "";
+    }
+
+    //--------------------------------------------------------------------------
+    // A save as the saves page lists it: the character's name, padded to the width of the longest listed, the local time
+    // of the save to the minute, and its type
     std::string format_save_label(const stratum_sim::SavedGameDetails& details, size_t name_width)
     {
         std::chrono::sys_seconds time = std::chrono::floor<std::chrono::seconds>(std::chrono::clock_cast<std::chrono::system_clock>(details.time()));
-        return std::format("{:<{}}  {:%Y-%m-%d %H:%M}", details.character_name(), name_width,
-            std::chrono::zoned_time(std::chrono::current_zone(), std::chrono::floor<std::chrono::minutes>(time)));
+        std::string_view save_type_label = get_save_type_label(details.save_type());
+
+        return std::format("{:<{}}  {:%Y-%m-%d %H:%M}{}{}", details.character_name(), name_width,
+            std::chrono::zoned_time(std::chrono::current_zone(), std::chrono::floor<std::chrono::minutes>(time)),
+            save_type_label.empty() ? "" : "  ", save_type_label);
     }
 
     //--------------------------------------------------------------------------

@@ -2240,6 +2240,15 @@ namespace
             && ranges::any_of(saves, [&](const auto& details) { return details.save_name() == save_name && details.character_name() == "Ailis"; })
             && ranges::is_sorted(saves, ranges::greater(), &stratum_sim::SavedGameDetails::time));
 
+        auto save_type_of = [&](const string& name)
+        {
+            auto details = ranges::find(saves, name, &stratum_sim::SavedGameDetails::save_name);
+            return details != saves.end() ? optional<stratum_sim::SaveType>(details->save_type()) : nullopt;
+        };
+
+        report_case("each has its save type", save_type_of(save_name) == stratum_sim::SaveType::Explicit
+            && save_type_of(auto_save_name) == stratum_sim::SaveType::Auto && save_type_of(quick_save_name) == stratum_sim::SaveType::Quick);
+
         stratum_sim::PersistentId saving_character_id = saving_character.get<stratum_sim::PersistentId>();
         stratum_sim::PersistentId region_id = saving_region.get<stratum_sim::PersistentId>();
         string saved_engine_state = game_json["game"]["engines"]["gameplay"].get<string>();

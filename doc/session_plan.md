@@ -247,11 +247,32 @@ Character& Game::character();
 - **The character's intent and pending command are not saved.** A loaded character starts with neither, so it never
   continues an action the player may not remember having started.
 - **`saved_games`** returns each save in the saves directory, newest first, for a menu to list: the save's name, which
-  `open` takes, the character's name as the player entered it, and the time of the save. The menu shows the character's
-  name and the time, not the save's name.
+  `open` takes, the character's name as the player entered it, the time of the save, and its save type, read from its
+  name. The menu shows the character's name, the time, and the save type, "Autosave", "Quicksave" or nothing for an
+  explicit save, and not the save's name.
 - **Whether opening a save repeats its outcomes is the player's setting,** `Settings::random_seeding_on_open`: restoring the
   engine's saved state repeats them, and reseeding lets a reload have outcomes of its own. The engine is the same
   either way.
+
+### Quick saves and autosaves
+
+- **A quick save and an autosave are ordinary saves,** differing from an explicit save only in the `_quicksave` or
+  `_autosave` that ends the save's name. Depending on the game's settings, an autosave or quicksave may replace the previous one in its track.
+  There should be a quicksave_count and autosave_count, and only the most recent of that sequence should be retained. Generally those counts will be 1.
+- **F5 quick saves during play** in both hosts, through `save(SaveType::Quick)`, and the status line reports it as the
+  menu's save is reported.
+- **A quickload key opens a quick save during play,** F8 or F9, through `open`.
+- **The game autosaves when the character enters a zone,** through `save(SaveType::Auto)`, once, at the end of the
+  advance in which it entered, after the session has made the new zone the one being played, so the save is of a
+  finished advance.
+- **`Game` gives `Session` the function that autosaves** when it constructs it, as it gives it the `World` and the
+  `Character`. `Session::advance` calls it when the character went through a relocator into another zone during that
+  advance. The hosts call `Session::advance` as they do now, and only `Game`'s function decides what triggers an
+  autosave. `start`, from `create` or `open`, does not call it.
+- **A failed autosave does not end the game.** `Game`'s function catches the error and reports it in an event of the
+  advance, which the hosts show on the status line; an exception leaving `advance` would make the hosts quit the game.
+- **`read_key` reports the function keys** the hosts use: on Windows, `_getch`'s prefix of 0 or 0xE0 and its code, and
+  elsewhere the terminal's escape sequence, as it does for the arrows.
 
 ### Ending
 
@@ -312,3 +333,25 @@ Character& Game::character();
   needs no character. `Pursue::target_id` becomes optional.
 - **An actor has a speed,** which is a component, and entering a zone schedules every entity in it that has one. The
   actor structure is not designed; this is the least that lets the turn order be rebuilt from the zone.
+
+### Following through a relocator
+
+This is a future feature. Only the controlled actor enters a relocator.
+
+- **An active pursuer can follow the character through a relocator** if it has the `InterzonePursuitCapability`
+  component. The component is set when the pursuer is created, from its type, or given to it by script.
+- **When the character leaves through a relocator,** such a pursuer is removed from its zone and queued for placement in
+  the zone the character arrived in.
+- **A queued pursuer is placed when the conditions allow,** for timing and for space. At least one turn passes first,
+  and it is placed only at the placement of the access point the character arrived at, so the character has to move off
+  that cell before the pursuer can arrive.
+- **The character's use of a relocator may be restricted while hostiles are nearby,** which, where it applies, leaves
+  no pursuer close enough to follow.
+
+Open:
+
+- **Which pursuers follow:** any active pursuer of the character, or only those within some distance or in sight of it
+  when it leaves.
+- **Where the queue is kept,** and what becomes of a queued pursuer whose destination zone unloads before it is placed.
+- **A queued pursuer is in no zone,** so it is unscheduled and in no zone's save; how it is saved with the game.
+- **How the delay is measured:** turns of the character, or the scheduler's units.
