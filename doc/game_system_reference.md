@@ -63,7 +63,7 @@ special members are protected and defaulted, so a concrete layout copies and mov
 through the base.
 
 `layout_as<L>(layout)` returns the layout as its concrete class, through a cast that asserts the class. The loader, the
-view reductions, `Session`'s initial placement, `World::entities_at` by cell position and the host status readouts use
+view reductions, `Session`'s initial placement and the host status readouts use
 it. `commands.cpp` refers to no cell and no concrete class.
 
 `DiscreteLayout` and `ContinuousLayout` are the two classes beneath it, and only `DiscreteLayout` is implemented.
@@ -153,6 +153,7 @@ on it. `entities_at(placement)` returns the entities at the same location as a p
 `entities_within(placement, range)` those whose positions are within the range of its position in 3D, both in ascending
 id order. It refers to entities by `id_type`, as `MoveResult` does, so `Layout.hpp` includes no flecs.
 `Layout::create_placement_index()` returns an empty index of the layout's own type, which must not outlive the layout.
+Each zone owns one (`### World`).
 
 `DiscretePlacementIndex` is `DiscreteLayout`'s. It maps each cell's slot to the ids in it, kept in ascending order, and
 each entity to its placement. `entities_at` takes a placement or a cell position. `entities_within` visits the cells
@@ -260,7 +261,7 @@ header, so nlohmann reaches no file that includes `World.hpp`.
 `World` contains the zones and everything in them. One flecs world contains the entities, and a zone is an entity
 whose contents are its children, so migration and unloading are subtree operations, and migration keeps each entity's
 id. A zone is an entity with the `Zone` tag, a `ZoneLayout` component that owns its layout as a
-`std::unique_ptr<Layout>`, and a `ZoneNotation`. Deleting the entity deletes the layout. There is one `World` in a
+`std::unique_ptr<Layout>`, a `ZonePlacementIndex`, and a `ZoneNotation`. Deleting the entity deletes the layout. There is one `World` in a
 game, owned by `Game`, and it cannot be copied or moved.
 
 A region groups contiguous zones: a surface area, a dungeon, a crypt, a tower or a house (`region_plan.md`). It is an
@@ -383,9 +384,17 @@ its entities through `ChildOf`, and an entity contains its children through flec
 `parent()`, `children()` and a `ChildOf` query term work with both, and `has(ChildOf, ...)` is true for a `Parent`
 child as well.
 
-Occupancy is `entities_at` and `entities_within`, over the entities in the zone that have no site address, sorted by
-id, since flecs iterates by archetype rather than by id. `entities_at` takes either a placement, compared with the
-layout's `same_location`, or a cell position, through `DiscreteLayout`.
+Occupancy is `entities_at` and `entities_within`, over the entities in the zone whose sites have no address, in
+ascending id order, which the zone's placement index returns (`### PlacementIndex`). `entities_at` takes either a
+placement or a cell position, through `DiscretePlacementIndex`. `placement_index(zone)` returns the index.
+
+A zone's `ZonePlacementIndex` owns its index. `set_layout(zone, layout)` sets the zone's `ZoneLayout` and the empty
+index the layout creates, and `create_zone(region, layout)` and `load_layout` set a zone's layout through it. Observers on
+`Site` keep the index current. An entity that is a child of a zone, or is in it through `InZone`, is placed in the
+zone's index when its site is set with no address, and removed when its site gains an address or is removed. An entity
+in a zone through another entity, such as a coin in a chest, is not indexed. Every change of zone, through `reparent` or
+`relocate`, removes the site first and sets it again after, so the entity leaves one index and joins the other. A zone
+being unloaded removes nothing from its index, which is deleted with it.
 
 `move`, `neighbors` and `visible` run the layout's queries from an entity's zone and placement. A wall is crossable if
 the entities sited on it let that entity through. In `move`, every `Blocking` entity other than the one moving blocks
@@ -1068,7 +1077,8 @@ must not already have the project open, or the library is locked and the build f
 
 ## Tests
 
-`stratum_sim_test` covers the layout hierarchy, layout structure, rooms, the grid, the placement index, flats, blocking, the scheduler, the
+`stratum_sim_test` covers the layout hierarchy, layout structure, rooms, the grid, the placement index and each zone's,
+flats, blocking, the scheduler, the
 clock, movement, adjacency and sight, loading, doors, the world, persistent ids, access points, residency, commands and
 occupancy. It and `stratum_view_test` each check that every zone file in their `data/` has one `door` entity per door
 glyph, with a `door_facing` child on each wall that `stratum_format::door_walls` finds for that glyph and no door

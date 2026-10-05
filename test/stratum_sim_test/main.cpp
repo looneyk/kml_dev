@@ -3656,6 +3656,108 @@ namespace
     }
 
     //--------------------------------------------------------------------------
+    void test_zone_placement_index()
+    {
+        report_group("zone placement index");
+
+        stratum_sim::CountingIdAllocator id_allocator(stratum_sim::PersistentId {});
+        SuiteWorld world(id_allocator);
+        flecs::entity hall = load_zone_unpopulated(world, "data/corridor.zone");
+        flecs::entity moor = load_zone_unpopulated(world, "data/corridor.zone");
+
+        stratum_sim::DiscreteLayout& layout = zone_layout(world, hall);
+        stratum_sim::vector_type east(1.0f, 0.0f, 0.0f);
+        auto place = [&](int i, int j) { return stratum_sim::placement_type(layout.position(stratum_sim::discrete_point_type {i, j}), east); };
+
+        // Each entity whose site has no address, found by a scan of the zone, is in the index at its placement, and the
+        // index has no other
+        auto index_agrees = [&](flecs::entity zone)
+        {
+            size_t scanned_count = 0;
+            bool found = true;
+
+            stratum_sim::with_in_zone(world.entities().query_builder<const stratum_sim::Site>(), zone)
+                .build()
+                .each([&](flecs::entity e, const stratum_sim::Site& site)
+                {
+                    if (site.address.has_value())
+                    {
+                        return;
+                    }
+
+                    ++scanned_count;
+                    stratum_sim::World::entities_type at = world.entities_at(zone, site.placement);
+                    found = found && find(at.begin(), at.end(), e) != at.end();
+                });
+
+            return found && scanned_count == world.placement_index(zone).entity_count();
+        };
+
+        report_case("a zone loaded from a file has an empty index", world.placement_index(hall).entity_count() == 0 && index_agrees(hall));
+
+        flecs::entity rat = world.create_entity(hall, place(1, 1));
+        flecs::entity bat = world.create_entity(hall, place(2, 1));
+        report_case("a created entity is indexed", world.placement_index(hall).entity_count() == 2 && index_agrees(hall));
+
+        stratum_sim::set_placement(rat, place(3, 1));
+        report_case("a moved entity is indexed where it moved", world.entities_at(hall, stratum_sim::discrete_point_type {3, 1})
+            == stratum_sim::World::entities_type {rat} && world.entities_at(hall, stratum_sim::discrete_point_type {1, 1}).empty()
+            && index_agrees(hall));
+
+        stratum_sim::EventQueue events;
+        stratum_sim::apply(world, stratum_sim::Command(rat.id(), stratum_sim::Step {east, 1.0f}), events);
+        report_case("and so is one moved by a command", world.entities_at(hall, stratum_sim::discrete_point_type {4, 1})
+            == stratum_sim::World::entities_type {rat} && index_agrees(hall));
+
+        flecs::entity torch = world.create_entity(hall, place(2, 1));
+        torch.set<stratum_sim::Site>(stratum_sim::Site {stratum_sim::Relation::On,
+            stratum_sim::FlatCellAddress {layout.floor_id(), stratum_sim::discrete_point_type {2, 1}}, {}});
+        report_case("an entity sited on an address leaves the index", !world.placement_index(hall).contains(torch.id())
+            && world.entities_at(hall, stratum_sim::discrete_point_type {2, 1}) == stratum_sim::World::entities_type {bat} && index_agrees(hall));
+
+        flecs::entity chest = world.create_entity(hall, place(5, 1));
+        flecs::entity coin = world.create_entity(hall, place(5, 1));
+        stratum_sim::reparent(coin, chest, stratum_sim::Site {stratum_sim::Relation::In, {}, {}});
+        report_case("an entity put in another leaves the index", !world.placement_index(hall).contains(coin.id())
+            && world.entities_at(hall, stratum_sim::discrete_point_type {5, 1}) == stratum_sim::World::entities_type {chest} && index_agrees(hall));
+
+        world.relocate(chest, moor, place(1, 1));
+        report_case("a relocated entity leaves its zone's index for the other's", !world.placement_index(hall).contains(chest.id())
+            && world.entities_at(moor, stratum_sim::discrete_point_type {1, 1}) == stratum_sim::World::entities_type {chest}
+            && !world.placement_index(moor).contains(coin.id()) && index_agrees(hall) && index_agrees(moor));
+
+        flecs::entity wanderer = world.entities().entity();
+        world.relocate(wanderer, hall, place(5, 1));
+        report_case("an entity owned by the game is indexed in the zone it is in", world.entities_at(hall, stratum_sim::discrete_point_type {5, 1})
+            == stratum_sim::World::entities_type {wanderer} && index_agrees(hall));
+
+        world.relocate(wanderer, moor, place(5, 1));
+        report_case("and moves to the index of the zone it is relocated to", !world.placement_index(hall).contains(wanderer.id())
+            && world.placement_index(moor).contains(wanderer.id()) && index_agrees(hall) && index_agrees(moor));
+
+        bat.destruct();
+        report_case("a deleted entity leaves the index", world.placement_index(hall).entity_count() == 1 && index_agrees(hall));
+
+        world.unload_zone(moor);
+        report_case("unloading a zone leaves the game's entity in no zone", wanderer.is_alive() && !stratum_sim::zone_of(wanderer));
+
+        world.relocate(wanderer, hall, place(5, 1));
+        report_case("from which it is relocated into another zone's index", world.entities_at(hall, stratum_sim::discrete_point_type {5, 1})
+            == stratum_sim::World::entities_type {wanderer} && index_agrees(hall));
+
+        stratum_format::Document saved = stratum_sim::make_document(hall);
+        bool saved_without_wanderer = none_of(saved.entities.begin(), saved.entities.end(),
+            [&](const stratum_format::Entity& entity) { return entity.id == wanderer.get<stratum_sim::PersistentId>().id; });
+        report_case("and is left out of the zone's saved document", saved_without_wanderer);
+
+        flecs::entity loaded = world.load_zone(world.region, "data/door.zone");
+        report_case("a populated zone indexes its denizen and not its staircase", world.placement_index(loaded).entity_count() == 1
+            && index_agrees(loaded));
+
+        return;
+    }
+
+    //--------------------------------------------------------------------------
     // World composes topology and occupancy
     void test_world_move()
     {
@@ -4077,6 +4179,7 @@ int main()
     test_residency();
     test_commands();
     test_occupancy();
+    test_zone_placement_index();
     test_world_move();
     test_ai();
     test_walk();

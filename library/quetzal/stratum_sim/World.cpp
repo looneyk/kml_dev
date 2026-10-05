@@ -7,6 +7,7 @@
 #include "ai.hpp"
 #include "attachments.hpp"
 #include "DiscreteLayout.hpp"
+#include "DiscretePlacementIndex.hpp"
 #include "DisplayName.hpp"
 #include "file_components.hpp"
 #include "layout_entities.hpp"
@@ -76,24 +77,29 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Returns the entities in the zone that have no site address and whose placement satisfies accept, in id order. A
-    // placement with an address is relative to that address
-    template<typename F>
-    quetzal::stratum_sim::World::entities_type placed_in(flecs::entity zone, F accept)
+    // Returns the zone that the entity is a child of, or is in through InZone, or a null entity if it is in no zone or is in
+    // one through another entity
+    flecs::entity zone_containing(flecs::entity e)
+    {
+        if (flecs::entity zone = e.target<quetzal::stratum_sim::InZone>())
+        {
+            return zone;
+        }
+
+        flecs::entity parent = e.parent();
+        return parent && parent.has<quetzal::stratum_sim::Zone>() ? parent : flecs::entity();
+    }
+
+    //--------------------------------------------------------------------------
+    quetzal::stratum_sim::World::entities_type entities_of(flecs::entity zone, const quetzal::stratum_sim::PlacementIndex::entity_ids_type& entity_ids)
     {
         quetzal::stratum_sim::World::entities_type entities;
+        entities.reserve(entity_ids.size());
 
-        quetzal::stratum_sim::with_in_zone(zone.world().query_builder<const quetzal::stratum_sim::Site>(), zone)
-            .build()
-            .each([&](flecs::entity e, const quetzal::stratum_sim::Site& site)
-            {
-                if (!site.address.has_value() && accept(site.placement))
-                {
-                    entities.push_back(e);
-                }
-            });
-
-        std::sort(entities.begin(), entities.end(), [](flecs::entity a, flecs::entity b) { return a.id() < b.id(); });
+        for (quetzal::id_type entity_id : entity_ids)
+        {
+            entities.push_back(flecs::entity(zone.world(), static_cast<flecs::entity_t>(entity_id)));
+        }
 
         return entities;
     }
@@ -302,6 +308,18 @@ flecs::entity quetzal::stratum_sim::region_of(flecs::entity zone)
 }
 
 //------------------------------------------------------------------------------
+void quetzal::stratum_sim::set_layout(flecs::entity zone, std::unique_ptr<Layout> layout)
+{
+    assert(zone && zone.has<Zone>() && layout != nullptr);
+
+    std::unique_ptr<PlacementIndex> placement_index = layout->create_placement_index();
+    zone.set<ZoneLayout>(ZoneLayout {std::move(layout)});
+    zone.set<ZonePlacementIndex>(ZonePlacementIndex {std::move(placement_index)});
+
+    return;
+}
+
+//------------------------------------------------------------------------------
 void quetzal::stratum_sim::reparent(flecs::entity e, flecs::entity parent, const Site& site)
 {
     assert(e && parent && e != parent);
@@ -365,6 +383,7 @@ quetzal::stratum_sim::World::World(IdAllocator& id_allocator, random_type& rando
     m_entities.component<Region>();
     m_entities.component<ZoneLevel>().member(&ZoneLevel::level, "level");
     m_entities.component<ZoneDocument>();
+    m_entities.component<ZonePlacementIndex>();
     m_entities.component<InZone>().add(flecs::Exclusive);
     m_entities.component<PersistentId>().member(&PersistentId::id, "id");
     m_entities.component<EntityReference>()
@@ -464,6 +483,47 @@ quetzal::stratum_sim::World::World(IdAllocator& id_allocator, random_type& rando
                     attached.push_back(e);
                 }
             }, *site.address);
+        });
+
+    // An entity in a zone whose site has no address is in the zone's placement index, at its placement
+    m_entities.observer<const Site>()
+        .event(flecs::OnSet)
+        .each([](flecs::entity e, const Site& site)
+        {
+            flecs::entity zone = zone_containing(e);
+            if (!zone)
+            {
+                return;
+            }
+
+            PlacementIndex& placement_index = *zone.get<ZonePlacementIndex>().placement_index;
+
+            if (!site.address.has_value())
+            {
+                placement_index.place(e.id(), site.placement);
+            }
+            else if (placement_index.contains(e.id()))
+            {
+                placement_index.remove(e.id());
+            }
+        });
+
+    m_entities.observer<const Site>()
+        .event(flecs::OnRemove)
+        .each([this](flecs::entity e, const Site& site)
+        {
+            if (site.address.has_value())
+            {
+                return;
+            }
+
+            flecs::entity zone = zone_containing(e);
+            if (!zone || deleting_with(zone))
+            {
+                return;
+            }
+
+            zone.get<ZonePlacementIndex>().placement_index->remove(e.id());
         });
 
     // A wall's or flat cell's entity is deleted when nothing is sited on it and it has no components of its own
@@ -774,7 +834,7 @@ flecs::entity quetzal::stratum_sim::World::create_zone(flecs::entity region, std
     assert(layout != nullptr);
 
     flecs::entity zone = create_zone(region, next_id());
-    zone.set<ZoneLayout>(ZoneLayout {std::move(layout)});
+    set_layout(zone, std::move(layout));
     region.get_mut<Region>().zone_ids.push_back(zone.get<PersistentId>());
 
     return zone;
@@ -1161,42 +1221,28 @@ const quetzal::stratum_sim::Layout& quetzal::stratum_sim::World::layout(flecs::e
 }
 
 //------------------------------------------------------------------------------
+const quetzal::stratum_sim::PlacementIndex& quetzal::stratum_sim::World::placement_index(flecs::entity zone) const
+{
+    assert(zone && zone.has<Zone>());
+    return *zone.get<ZonePlacementIndex>().placement_index;
+}
+
+//------------------------------------------------------------------------------
 quetzal::stratum_sim::World::entities_type quetzal::stratum_sim::World::entities_at(flecs::entity zone, const placement_type& placement) const
 {
-    const Layout& zone_layout = layout(zone);
-
-    return placed_in(zone, [&](const placement_type& other)
-    {
-        return zone_layout.same_location(other, placement);
-    });
+    return entities_of(zone, placement_index(zone).entities_at(placement));
 }
 
 //------------------------------------------------------------------------------
 quetzal::stratum_sim::World::entities_type quetzal::stratum_sim::World::entities_at(flecs::entity zone, const discrete_point_type& cell_position) const
 {
-    const DiscreteLayout& zone_layout = layout_as<DiscreteLayout>(layout(zone));
-
-    return placed_in(zone, [&](const placement_type& placement)
-    {
-        return zone_layout.cell_position_at(placement.position()) == cell_position;
-    });
+    return entities_of(zone, dynamic_cast<const DiscretePlacementIndex&>(placement_index(zone)).entities_at(cell_position));
 }
 
 //------------------------------------------------------------------------------
 quetzal::stratum_sim::World::entities_type quetzal::stratum_sim::World::entities_within(flecs::entity zone, const placement_type& placement, value_type range) const
 {
-    auto [x, y, z] = placement.position().rep();
-    value_type range2 = range * range;
-
-    return placed_in(zone, [&](const placement_type& other)
-    {
-        auto [ox, oy, oz] = other.position().rep();
-        value_type dx = ox - x;
-        value_type dy = oy - y;
-        value_type dz = oz - z;
-
-        return dx * dx + dy * dy + dz * dz <= range2;
-    });
+    return entities_of(zone, placement_index(zone).entities_within(placement, range));
 }
 
 //------------------------------------------------------------------------------

@@ -272,7 +272,7 @@ std::vector<flecs::entity> quetzal::stratum_sim::load_layout(flecs::entity zone,
     }
 
     const DiscreteLayout& zone_layout = *layout;
-    zone.set<ZoneLayout>(ZoneLayout {std::move(layout)});
+    set_layout(zone, std::move(layout));
     zone.set<ZoneNotation>(ZoneNotation {cells.notation});
 
     auto zone_document = std::make_shared<stratum_format::Document>(document);

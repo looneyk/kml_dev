@@ -30,7 +30,7 @@ Date: 2026-09-14, revised 2026-09-26
 | References between entities | Built |
 | Relocator targets bound to relocators | Designed |
 | Saved zones | Designed |
-| A placement index for each zone | Designed; the index itself is built |
+| A placement index for each zone | Built |
 
 ## Every identifier at a glance
 
@@ -341,7 +341,7 @@ direction --- and no address.
 **Each zone has a placement index,** which finds the actors, and anything else placed in a cell of the zone, at a
 place with a lookup. The index is derived from the placements: it is updated as they move and rebuilt when the zone
 loads, so it cannot disagree with them. Each kind of layout supplies its own kind of index, and a `DiscreteLayout`'s
-finds entities by cell. Until the index is built, `World::entities_at` checks every placed entity in the zone.
+finds entities by cell.
 
 ### The character
 

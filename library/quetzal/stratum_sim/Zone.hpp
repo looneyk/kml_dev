@@ -8,6 +8,7 @@
 #include "Generation.hpp"
 #include "Layout.hpp"
 #include "PersistentId.hpp"
+#include "PlacementIndex.hpp"
 #include "Site.hpp"
 #include "types.hpp"
 #include "quetzal/common/id.hpp"
@@ -49,6 +50,13 @@ namespace quetzal::stratum_sim
     struct ZoneLayout
     {
         std::unique_ptr<Layout> layout;
+    };
+
+    //--------------------------------------------------------------------------
+    // The entities in the zone whose sites have no address, by location, in an index that the zone's layout creates
+    struct ZonePlacementIndex
+    {
+        std::unique_ptr<PlacementIndex> placement_index;
     };
 
     //--------------------------------------------------------------------------

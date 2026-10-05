@@ -213,22 +213,9 @@ that has access. A staircase has no `Access`; entering one is `session_plan.md`,
 
 An actor is located by its site's placement, as is anything else in a cell of the zone with no address. Each zone has a
 placement index of those entities, of the type its layout supplies, so finding the entities at a location is a lookup
-instead of a scan of the zone. `PlacementIndex`, `DiscretePlacementIndex` and `Layout::create_placement_index` are
-built (`game_system_reference.md`, `### PlacementIndex`); what remains is the zone's index and keeping it current.
-
-- **The zone owns its index** through a component beside `ZoneLayout`, created by the layout wherever `ZoneLayout` is
-  set.
-- **The index follows the placements.** An `OnSet` observer on an entity's `Site` with no address places the entity in
-  its zone's index and an `OnRemove` observer removes it, so no path that moves, creates or deletes an entity can leave
-  the index out of date. A move costs two map updates.
-- **Relocating removes the entity from the old zone's index** before changing its zone, and the observer places it in
-  the new one.
-- **`entities_at` and `entities_within` query the index,** converting its entity ids to entities, and keep their
-  ordering by entity id.
-- **The index is derived,** so it is never saved, and loading a zone rebuilds it. It cannot disagree with the
-  placements, which remain the one source of where an entity is.
-
-The placement index builds against the zones as they are now, and changes no behavior and no frame.
+instead of a scan of the zone. The index follows the placements through observers on `Site`, is never saved, and cannot
+disagree with the placements, which remain the one source of where an entity is. Built (`game_system_reference.md`,
+`### PlacementIndex` and `### World`).
 
 ## Migration
 

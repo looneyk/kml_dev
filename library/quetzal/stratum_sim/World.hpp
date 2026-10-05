@@ -59,6 +59,9 @@ namespace quetzal::stratum_sim
     // Returns the region that the zone is in
     flecs::entity region_of(flecs::entity zone);
 
+    // Sets the zone's layout, and the empty placement index the layout creates
+    void set_layout(flecs::entity zone, std::unique_ptr<Layout> layout);
+
     //--------------------------------------------------------------------------
     // Sets an entity's parent and site together
     void reparent(flecs::entity e, flecs::entity parent, const Site& site);
@@ -194,6 +197,10 @@ namespace quetzal::stratum_sim
         Layout& layout(flecs::entity zone);
         const Layout& layout(flecs::entity zone) const;
 
+        // The entities in the zone whose sites have no address, by location
+        const PlacementIndex& placement_index(flecs::entity zone) const;
+
+        // Each in ascending id order, from the zone's placement index
         entities_type entities_at(flecs::entity zone, const placement_type& placement) const;
         entities_type entities_at(flecs::entity zone, const discrete_point_type& cell_position) const;
         entities_type entities_within(flecs::entity zone, const placement_type& placement, value_type range) const;
