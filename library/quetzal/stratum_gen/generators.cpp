@@ -7,21 +7,23 @@
 #include "quetzal/dungen/generate.hpp"
 #include "quetzal/dungen/Parameters.hpp"
 #include "quetzal/dungen/write_zone.hpp"
+#include <type_traits>
+
+static_assert(std::is_same_v<quetzal::stratum_gen::level_type, quetzal::dungen::level_type>);
+static_assert(std::is_same_v<quetzal::stratum_gen::seed_type, quetzal::dungen::Parameters::seed_type>);
 
 //------------------------------------------------------------------------------
-quetzal::stratum_format::Document quetzal::stratum_gen::generate_dungen(const stratum_sim::ZoneSpec& zone_spec)
+quetzal::stratum_format::Document quetzal::stratum_gen::generate_dungen(const ZoneRequest& request)
 {
     dungen::Parameters parameters;
-    parameters.level = zone_spec.value<dungen::level_type>(stratum_sim::level_key);
-    parameters.seed = dungen::random_seed();
+    parameters.level = request.level;
+    parameters.seed = request.seed;
 
-    std::string name = zone_spec.value_or(name_key, std::string());
-    return dungen::make_document(dungen::generate(0, name, parameters), parameters);
+    return dungen::make_document(dungen::generate(0, request.name, parameters), parameters);
 }
 
 //------------------------------------------------------------------------------
-void quetzal::stratum_gen::register_generators(stratum_sim::Generation& generation)
+std::map<std::string, quetzal::stratum_gen::generator_function_type, std::less<>> quetzal::stratum_gen::generators()
 {
-    generation.m_generators[std::string(dungen_generator_name)] = generate_dungen;
-    return;
+    return {{std::string(dungen_generator_name), generate_dungen}};
 }

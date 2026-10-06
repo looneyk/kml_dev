@@ -111,18 +111,19 @@ each on the ones before it. `Game`'s menu and lifecycle functions, and those the
 
 ## Generators
 
-- [ ] **`stratum_gen` independent of `stratum_sim`.** A `stratum_gen` function is passed its parameters themselves,
-      such as the level, the name, the seed and the generator's own parameters, and not `Settings` or a `ZoneSpec`.
-      `stratum_gen` returns a map from each generator's name to its function and registers nothing; `Game` or the host
-      registers them in `Generation`, drawing each function's parameters from `Settings` and the `ZoneSpec`.
-      `quetzal_stratum_gen` no longer links `quetzal_stratum_sim`.
+- [x] **`stratum_gen` independent of `stratum_sim`.** A `stratum_gen` function takes a `ZoneRequest`, the name, the
+      level, the seed and the generator's own parameters, and not `Settings` or a `ZoneSpec`. `stratum_gen::generators()`
+      returns a map from each generator's name to its function and registers nothing; each host registers them in
+      `Generation`, making the `ZoneRequest` from the `ZoneSpec`. `quetzal_stratum_gen` no longer links
+      `quetzal_stratum_sim`.
 - [ ] **The settings process-wide** (`session_plan.md`, `## Settings, the log, and the random engines`): `Settings` reached
       through a function from the sim, the views and the hosts, in place of `Game`'s member and accessors, and set by
       `Game` when a game is created or opened.
 - [ ] **The generators integrated.** catagen's generator in `quetzal/stratum_gen` beside dungen's. The game's
       notation, a setting chosen when the game is created, decides which of them generates every zone: dungen for the
-      block notation and catagen for the wall notation, with the zone's one seed. Each is passed its parameters, or the
-      subset that applies, rather than running with a default-constructed set.
+      block notation and catagen for the wall notation, with the zone's one seed. Each reads its parameters, or the
+      subset that applies, from the `ZoneRequest`'s `parameters` tokens, rather than running with a default-constructed
+      set.
 - [ ] **The generators on `geometry::DiscreteDirectedPoint`.** dungen's `Staircase` has a `directed_point_type` and
       still has the separate `position` and `direction` accessors. catagen stores a staircase as a cell type and a map
       from cell position to facing direction, which a list of directed points would replace.
@@ -149,7 +150,8 @@ each on the ones before it. `Game`'s menu and lifecycle functions, and those the
 - [ ] **The random engine chosen** (`random_engine.md`, `## The random engine type`).
 - [ ] **The generation random engine and zone seeds** (`random_engine.md`, `## Streams`, `## Generation`): the
       process-wide, thread-safe generation random engine, and `create_zone(region, zone_spec)` adding the zone's seed,
-      drawn from it, to the zone's parameters, from which its generator is passed it.
+      drawn from it, to the `ZoneSpec` under `seed_key`, from which the host's `make_zone_request` passes it to the
+      generator; the hosts' fallback to `std::random_device` for a `ZoneSpec` without a seed is removed.
 - [ ] **Generation runs as objects** (`random_engine.md`, `## Ownership`): dungen's and catagen's runs, each owning its
       random engine, seeded from the zone's seed, with the reference files regenerated. It comes with **the generators
       integrated**.

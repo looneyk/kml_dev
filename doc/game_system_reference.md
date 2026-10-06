@@ -6,8 +6,8 @@ larger decisions is in `decision_rationale.md`.
 The system has three layers, and none of them uses an engine. `quetzal::stratum_sim` simulates, `quetzal::stratum_view`
 turns a simulation state into characters or place codes, and a host puts those on a device. `stratum_sim` links
 `quetzal_common`, `quetzal_stratum_format` and flecs; `stratum_view` links `stratum_sim`; each host links
-`stratum_view`. `quetzal::stratum_gen` adapts the generators to `stratum_sim`'s registries, so `stratum_sim` links no
-generator.
+`stratum_view`. `quetzal::stratum_gen` puts the generators behind one signature, independent of `stratum_sim`, and each
+host registers them in `stratum_sim`'s registries, so neither links the other.
 
 The `stratum_` prefix names the layout class they share: open ground extruded vertically between one floor and one
 ceiling.
@@ -18,7 +18,7 @@ ceiling.
 | `library/quetzal/stratum_sim/` | `quetzal_stratum_sim` |
 | `library/quetzal/stratum_view/` | `quetzal_stratum_view` |
 | `library/quetzal/stratum_format/` | `quetzal_stratum_format` --- the zone file format and the game files |
-| `library/quetzal/stratum_gen/` | `quetzal_stratum_gen` --- the generators, adapted and registered by name |
+| `library/quetzal/stratum_gen/` | `quetzal_stratum_gen` --- the generators by name, behind one signature |
 | `library/quetzal/log/` | `quetzal_log` --- the process-wide log, which every library writes its warnings to (`log_plan.md`) |
 | `application/stratum_terminal/` | `stratum_terminal` |
 | `application/stratum_godot/` | `stratum_godot` |
@@ -724,7 +724,9 @@ write over its frame. Godot installs them when its extension initializes at the 
 uninitializes: a sink writing errors and critical entries with `push_error`, warnings with `push_warning`, and the rest
 with `print`, and a `FileLogSink` writing to `KML/Stratum/logs/stratum_godot.log`. The log is at `info`.
 
-Each host registers `stratum_gen`'s generators, and a temporary generator selector named
+Each host registers each of `stratum_gen::generators()` as a `Generation::generator_type` that makes a `ZoneRequest`
+from the `ZoneSpec` and passes it on: the `name`, the `level`, the `seed`, and the keys after `parameters.`. Nothing
+writes a `seed` yet, so a `ZoneSpec` without one has a seed from `std::random_device`. It also registers a temporary generator selector named
 `dungen`, until the generators are integrated. It creates the game from a temporary `RegionSpec`, whose
 `generator_selector` is `dungen`, whose `entry_access` is `staircase,1`, and whose `zone.level` is -1, and a
 temporary `CharacterSpec` with the name "Adventurer". The selector chooses the `dungen` generator for every zone, and names the zone
@@ -732,10 +734,14 @@ temporary `CharacterSpec` with the name "Adventurer". The selector chooses the `
 the first level down, and a staircase leads to a new zone the first time it is taken, and back through the bound
 staircase after that.
 
-`stratum_gen::register_generators(generation)` registers `generate_dungen` as `dungen`. It runs dungen with
-its default parameters at the `ZoneSpec`'s `level`, if it has one, with a seed from `dungen::random_seed`, names the
-zone with the `ZoneSpec`'s `name`, and returns the document `dungen::make_document` builds in memory. dungen writes its
-warnings to the process-wide log.
+`stratum_gen` links no part of `stratum_sim`. A `ZoneRequest` is what one zone is generated from: its `name`, empty for
+none, an optional `level`, a `seed`, and `parameters`, the generator's own, as the tokens its zone file's `generator`
+section has. `generator_function_type` takes a `ZoneRequest` and returns a `stratum_format::Document`, and
+`stratum_gen::generators()` returns a map from each generator's name to its function. `generate_dungen`, under
+`dungen`, runs dungen with its default parameters at the request's level, with its name and seed, and returns the
+document `dungen::make_document` builds in memory; it reads no `parameters` yet. dungen writes its warnings to the
+process-wide log. The `ZoneSpec` keys are `stratum_sim::name_key`, `level_key`, `seed_key` and
+`parameters_prefix`.
 
 `start(zone, placement)` relocates the character to the placement in the zone, and `start(access_point)` to the access
 point's placement in its zone; each then has the world `trim_zones` with the zone entered, so no zone the character is in can unload. It makes the zone the one being played,
@@ -1143,7 +1149,7 @@ back, and the Godot host by its two headless invocations.
 The build is CMake, with the solution at `build/kml_dev.slnx`. `/std:c++latest /bigobj /W4` is used throughout, with
 third-party sources at `/W1` and flecs and godot-cpp included as SYSTEM. `quetzal_stratum_sim` links `quetzal_common`,
 `quetzal_stratum_format` and `flecs_static`; `quetzal_stratum_view` links `quetzal_stratum_sim`;
-`quetzal_stratum_gen` links `quetzal_dungen` and `quetzal_stratum_sim`; both hosts link `quetzal_log`,
+`quetzal_stratum_gen` links `quetzal_common`, `quetzal_dungen` and `quetzal_stratum_format`; both hosts link `quetzal_log`,
 `quetzal_stratum_gen` and `quetzal_stratum_view`. `quetzal_dungen` links `quetzal_log`. `quetzal_stratum_format`
 links `quetzal_common`, `quetzal_log` and `nlohmann_json`, vendored at
 `library3/json` with its headers SYSTEM.

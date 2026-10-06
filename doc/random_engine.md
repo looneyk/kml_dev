@@ -114,8 +114,8 @@ engine type`), and a seed stored with the version of the generators that made it
 ## Generation
 
 - **A zone's seed is one of its generation parameters,** which `World::create_zone(region, zone_spec)` draws from the
-  generation random engine and adds to the `ZoneSpec` before the generator runs (`world_generation_plan.md`). The
-  generator is passed the level and the seed, and reads nothing from the world.
+  generation random engine and adds to the `ZoneSpec`, under `seed_key`, before the generator runs (`world_generation_plan.md`). The
+  generator is passed the level and the seed.
 - **A generator selector's draws use the generation random engine,** since they decide what a zone is.
 - **A zone file records its seed** in `generator.parameters`, as the tools' files do now, so a zone reproduces from its
   file alone.

@@ -11,6 +11,7 @@
 #include "quetzal/stratum_sim/DiscreteLayout.hpp"
 #include "quetzal/stratum_sim/commands.hpp"
 #include "quetzal/stratum_sim/Site.hpp"
+#include "quetzal/stratum_sim/specs.hpp"
 #include <algorithm>
 #include <chrono>
 #include <cstdlib>
@@ -19,6 +20,7 @@
 #include <format>
 #include <iostream>
 #include <optional>
+#include <random>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -120,10 +122,22 @@ namespace
 
         if (std::optional<stratum_sim::level_type> level = zone_spec.value<stratum_sim::level_type>(stratum_sim::level_key))
         {
-            named_zone_spec.insert(std::string(stratum_gen::name_key), std::format("Dungeon Level {}", std::abs(*level)));
+            named_zone_spec.insert(std::string(stratum_sim::name_key), std::format("Dungeon Level {}", std::abs(*level)));
         }
 
         return stratum_sim::Generation::GeneratorSelection {std::string(stratum_gen::dungen_generator_name), {}, {}, named_zone_spec};
+    }
+
+    //--------------------------------------------------------------------------
+    // Temporary, until the generation random engine supplies each zone's seed: a ZoneSpec with no seed has one from the
+    // platform's entropy source
+    stratum_gen::ZoneRequest make_zone_request(const stratum_sim::ZoneSpec& zone_spec)
+    {
+        std::optional<stratum_gen::seed_type> seed = zone_spec.value<stratum_gen::seed_type>(stratum_sim::seed_key);
+
+        return stratum_gen::ZoneRequest {zone_spec.value_or(stratum_sim::name_key, std::string()),
+            zone_spec.value<stratum_gen::level_type>(stratum_sim::level_key), seed ? *seed : std::random_device {}(),
+            stratum_sim::select_prefixed(zone_spec, stratum_sim::parameters_prefix)};
     }
 
     //--------------------------------------------------------------------------
@@ -157,7 +171,14 @@ stratum_terminal::Application::Application(View view, const std::string& script,
 {
     // A file, since anything written to the console would write over the terminal's frame
     log::process_log().add_sink(log::FileLogSink(temporary_log_filepath()));
-    stratum_gen::register_generators(m_game.generation());
+    for (const auto& [name, generate] : stratum_gen::generators())
+    {
+        m_game.generation().m_generators[name] = [generate](const stratum_sim::ZoneSpec& zone_spec)
+        {
+            return generate(make_zone_request(zone_spec));
+        };
+    }
+
     m_game.generation().m_generator_selectors["dungen"] = select_dungen;
 }
 

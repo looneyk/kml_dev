@@ -5,26 +5,41 @@
 // generators.hpp
 //------------------------------------------------------------------------------
 
+#include "quetzal/common/KeyValueStore.hpp"
 #include "quetzal/stratum_format/Document.hpp"
-#include "quetzal/stratum_sim/Generation.hpp"
+#include <cstdint>
+#include <functional>
+#include <map>
+#include <optional>
+#include <random>
+#include <string>
 #include <string_view>
 
 namespace quetzal::stratum_gen
 {
 
+    using level_type = std::int32_t;
+    using seed_type = std::default_random_engine::result_type;
+
+    //--------------------------------------------------------------------------
+    struct ZoneRequest
+    {
+        std::string name; // Display name, empty for none
+        std::optional<level_type> level;
+        seed_type seed = 0;
+        KeyValueStore parameters; // Generator specific
+    };
+
+    using generator_function_type = std::function<stratum_format::Document(const ZoneRequest& request)>;
+
     // The name the dungen generator is registered under
     inline constexpr std::string_view dungen_generator_name = "dungen";
 
-    // The ZoneSpec key of the zone's display name, which a generator writes as the zone's name
-    inline constexpr std::string_view name_key = "name";
+    // Returns the document of a zone that dungen generates
+    stratum_format::Document generate_dungen(const ZoneRequest& request);
 
-    //--------------------------------------------------------------------------
-    // Returns the document of a zone that dungen generates with its default parameters, at the ZoneSpec's level if it has
-    // one, with the ZoneSpec's name, and with a seed from the platform's entropy source
-    stratum_format::Document generate_dungen(const stratum_sim::ZoneSpec& zone_spec);
-
-    // Registers each generator under its name
-    void register_generators(stratum_sim::Generation& generation);
+    // <generator name, function>
+    std::map<std::string, generator_function_type, std::less<>> generators();
 
 } // namespace quetzal::stratum_gen
 

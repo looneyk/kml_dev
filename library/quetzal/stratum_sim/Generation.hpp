@@ -36,8 +36,11 @@ namespace quetzal::stratum_sim
     // The prefix of a RegionSpec's keys that are the ZoneSpec of each of its zones
     inline constexpr std::string_view zone_prefix = "zone.";
 
-    // The ZoneSpec key of the zone's level
+    // ZoneSpec keys
+    inline constexpr std::string_view name_key = "name";
     inline constexpr std::string_view level_key = "level";
+    inline constexpr std::string_view seed_key = "seed";
+    inline constexpr std::string_view parameters_prefix = "parameters.";
 
     //--------------------------------------------------------------------------
     // The registries that World creates regions and zones from

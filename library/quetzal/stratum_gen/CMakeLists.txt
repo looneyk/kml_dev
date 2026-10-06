@@ -9,4 +9,4 @@ target_include_directories(quetzal_stratum_gen PUBLIC
     ${DEV_ROOT}/library
 )
 
-target_link_libraries(quetzal_stratum_gen PUBLIC quetzal_dungen quetzal_stratum_sim)
+target_link_libraries(quetzal_stratum_gen PUBLIC quetzal_common quetzal_dungen quetzal_stratum_format)

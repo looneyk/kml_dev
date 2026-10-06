@@ -107,9 +107,9 @@ The entities:
 - **`Game` owns the three maps,** which last as long as the program, as the other registrations do. `World` takes them by
   reference in its constructor, as it takes the id allocator, and `World::clear` keeps them.
 - **The generators are in `quetzal/stratum_gen`,** which returns a map from each generator's name to its function, each
-  passed its parameters themselves. `Game` or the host registers them as `generator_type`, drawing each function's
-  parameters from the settings and the `ZoneSpec`. `stratum_sim` depends on no generator, and `stratum_gen` on no part
-  of `stratum_sim`.
+  taking a `ZoneRequest`: the name, the level, the seed, and the generator's own parameters. Each host registers them as
+  `generator_type`, making the `ZoneRequest` from the settings and the `ZoneSpec`, since the hosts are what link both
+  libraries. `stratum_sim` depends on no generator, and `stratum_gen` on no part of `stratum_sim`.
 - **The generator selectors and the region specs are the game's content.** They become data or script (`modding_plan.md`);
   until then each host registers temporary ones.
 - **A name that is not registered is an error** that reaches the host, as an unregistered access point type is.

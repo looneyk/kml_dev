@@ -9,6 +9,7 @@
 #include "quetzal/stratum_sim/DiscreteLayout.hpp"
 #include "quetzal/stratum_sim/commands.hpp"
 #include "quetzal/stratum_sim/Site.hpp"
+#include "quetzal/stratum_sim/specs.hpp"
 #include "quetzal/stratum_view/ascii.hpp"
 #include "quetzal/stratum_view/cells.hpp"
 #include <godot_cpp/variant/utility_functions.hpp>
@@ -18,6 +19,7 @@
 #include <filesystem>
 #include <format>
 #include <optional>
+#include <random>
 #include <string>
 #include <cassert>
 
@@ -62,10 +64,22 @@ namespace
 
         if (std::optional<sim::level_type> level = zone_spec.value<sim::level_type>(sim::level_key))
         {
-            named_zone_spec.insert(std::string(quetzal::stratum_gen::name_key), std::format("Dungeon Level {}", std::abs(*level)));
+            named_zone_spec.insert(std::string(sim::name_key), std::format("Dungeon Level {}", std::abs(*level)));
         }
 
         return sim::Generation::GeneratorSelection {std::string(quetzal::stratum_gen::dungen_generator_name), {}, {}, named_zone_spec};
+    }
+
+    //--------------------------------------------------------------------------
+    // Temporary, until the generation random engine supplies each zone's seed: a ZoneSpec with no seed has one from the
+    // platform's entropy source
+    quetzal::stratum_gen::ZoneRequest make_zone_request(const sim::ZoneSpec& zone_spec)
+    {
+        std::optional<quetzal::stratum_gen::seed_type> seed = zone_spec.value<quetzal::stratum_gen::seed_type>(sim::seed_key);
+
+        return quetzal::stratum_gen::ZoneRequest {zone_spec.value_or(sim::name_key, std::string()),
+            zone_spec.value<quetzal::stratum_gen::level_type>(sim::level_key), seed ? *seed : std::random_device {}(),
+            sim::select_prefixed(zone_spec, sim::parameters_prefix)};
     }
 
     //--------------------------------------------------------------------------
@@ -94,7 +108,14 @@ StratumWorld::StratumWorld() :
     m_session(m_game.session()),
     m_message()
 {
-    quetzal::stratum_gen::register_generators(m_game.generation());
+    for (const auto& [name, generate] : quetzal::stratum_gen::generators())
+    {
+        m_game.generation().m_generators[name] = [generate](const sim::ZoneSpec& zone_spec)
+        {
+            return generate(make_zone_request(zone_spec));
+        };
+    }
+
     m_game.generation().m_generator_selectors["dungen"] = select_dungen;
 }
 
