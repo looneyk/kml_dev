@@ -37,7 +37,7 @@ their own libraries:
 - the seed-dependent cases in `stratum_sim_test` fail ("At this seed the door is in the top row of the shared wall");
 - an update to MSVC's standard library is free to change the distributions, with the same result on Windows.
 
-`random_engine.md` (`## The engine type`) names the engine explicitly, which fixes the sequence of raw values. The
+`random_engine.md` (`## The random engine type`) names the random engine explicitly, which fixes the sequence of raw values. The
 distributions remain open in `work_plan.md` (`### Random engine`): whether reference files must match across standard
 libraries. They should. A CI job on a second platform and a seed quoted in a bug report both depend on it, and the
 distributions of the project's own are short: a bounded integer by Lemire's method, a real from the top 53 bits of a

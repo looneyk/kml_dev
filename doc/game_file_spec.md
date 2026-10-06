@@ -64,7 +64,7 @@ character of the name that cannot be in a directory name is replaced by `_`.
 
 | File | |
 | --- | --- |
-| `game.json` | The game's own state --- the engines' state, the seeds, and the next persistent id --- and its settings |
+| `game.json` | The game's own state --- the random engines' state, the seeds, and the next persistent id --- and its settings |
 | `character.json` | The player's character: its description, its skills and other properties, its inventory, and where it is |
 | `world.json` | The regions, and a reference to the file of each of their zones |
 | `zones/<persistent id>.zone` | One zone, in the zone file format |
@@ -90,13 +90,13 @@ character named Ailis in it carrying a torch, would have the following structure
 
 (With a zones directory, we can use .json for the zone file extension as well.)
 
-`game.json`, with the engines' state elided:
+`game.json`, with the random engines' state elided:
 
 ```json
 {
   "format": "quetzal.stratum_game",
   "version": "0.1",
-  "game": { "next_id": 21, "seed": "20260928", "engines": { "gameplay": "...", "generation": "..." } },
+  "game": { "next_id": 21, "seed": "20260928", "random_engines": { "gameplay": "...", "generation": "..." } },
   "settings": { "permadeath": false }
 }
 ```
@@ -168,10 +168,10 @@ The state the game needs to continue from where it was saved, which belongs to n
 | Key | |
 | --- | --- |
 | `next_id` | The persistent id the game's id allocator returns next |
-| `seed` | The world seed the engines were seeded from |
-| `engines` | The state of each engine, by the engine's stream: `gameplay` and `generation` (`random_engine.md`, `## Streams`) |
+| `seed` | The world seed the random engines were seeded from |
+| `random_engines` | The state of each random engine, by the random engine's stream: `gameplay` and `generation` (`random_engine.md`, `## Streams`) |
 
-An engine's state is written as the text that the engine writes and reads (`random_engine.md`, `## Saving`).
+A random engine's state is written as the text that the random engine writes and reads (`random_engine.md`, `## Saving`).
 
 ## settings
 

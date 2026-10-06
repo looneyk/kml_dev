@@ -2175,9 +2175,9 @@ namespace
         stratum_format::raw_values_type game_json = read_json(save_directory / "game.json");
         stratum_sim::PersistentId largest_id = max({saving_character.get<stratum_sim::PersistentId>(), saving_first_id, saving_second_id,
             saving_region.get<stratum_sim::PersistentId>()});
-        report_case("game.json has the next id, past every id in the game, the seed, and the gameplay engine's state",
+        report_case("game.json has the next id, past every id in the game, the seed, and the gameplay random engine's state",
             !game_json.is_discarded() && game_json["format"] == "quetzal.stratum_game" && game_json["game"]["next_id"].get<uint64_t>() > largest_id.id
-            && !game_json["game"]["seed"].get<string>().empty() && !game_json["game"]["engines"]["gameplay"].get<string>().empty());
+            && !game_json["game"]["seed"].get<string>().empty() && !game_json["game"]["random_engines"]["gameplay"].get<string>().empty());
 
         stratum_format::raw_values_type character_json = read_json(save_directory / "character.json");
         const stratum_sim::placement_type& character_placement = stratum_sim::placement_of(saving_character);
@@ -2251,7 +2251,7 @@ namespace
 
         stratum_sim::PersistentId saving_character_id = saving_character.get<stratum_sim::PersistentId>();
         stratum_sim::PersistentId region_id = saving_region.get<stratum_sim::PersistentId>();
-        string saved_engine_state = game_json["game"]["engines"]["gameplay"].get<string>();
+        string saved_random_engine_state = game_json["game"]["random_engines"]["gameplay"].get<string>();
         stratum_sim::vector_type character_direction = character_placement.direction();
 
         saving.open(save_name);
@@ -2285,14 +2285,14 @@ namespace
 
         string reopened_save_name = saving.save(stratum_sim::SaveType::Explicit);
         stratum_format::raw_values_type reopened_game_json = read_json(saving_config.saves_directory / reopened_save_name / "game.json");
-        report_case("the engine's state is restored, so a save made at once has the same state",
-            reopened_game_json["game"]["engines"]["gameplay"] == saved_engine_state);
+        report_case("the random engine's state is restored, so a save made at once has the same state",
+            reopened_game_json["game"]["random_engines"]["gameplay"] == saved_random_engine_state);
 
         saving.settings().set_random_seeding_on_open(stratum_sim::RandomSeedingOnOpen::Reseed);
         saving.open(save_name);
         string reseeded_save_name = saving.save(stratum_sim::SaveType::Explicit);
         stratum_format::raw_values_type reseeded_game_json = read_json(saving_config.saves_directory / reseeded_save_name / "game.json");
-        report_case("or reseeded, as the settings choose", reseeded_game_json["game"]["engines"]["gameplay"] != saved_engine_state
+        report_case("or reseeded, as the settings choose", reseeded_game_json["game"]["random_engines"]["gameplay"] != saved_random_engine_state
             && reseeded_game_json["game"]["seed"] != game_json["game"]["seed"]);
         saving.settings().set_random_seeding_on_open(stratum_sim::RandomSeedingOnOpen::RestoreSavedState);
 

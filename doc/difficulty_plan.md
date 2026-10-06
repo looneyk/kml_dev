@@ -1,0 +1,55 @@
+# Difficulty --- Plan
+
+Date: 2026-10-04
+
+This plan describes the game's difficulty modes: what each sets, and how a mode relates to the game's settings and to a
+region's difficulty. It is a first draft, and the values in it are placeholders until the research behind them is
+done. The open items are in `work_plan.md` (`### Difficulty`).
+
+## What a mode is
+
+- **A difficulty mode is a named preset of individual settings,** chosen when a game is created and saved in
+  `game.json`'s `settings` (`game_file_spec.md`, `## settings`). Permadeath, the save rules, and each multiplier are a
+  setting of their own, and a mode fills them in. Permadeath is not a mode; it is a setting that the hardest mode has.
+- **The modes are Story, Novice, Adventure, Challenging and Hardcore,** from easiest to hardest, with Adventure the
+  normal game.
+- **Custom sets each setting,** starting from any of the five.
+- **The modes are data,** a table that a mod can extend or rebalance, and not an enum (`modding_plan.md`).
+- **A game's mode can be changed during play,** in either direction, with no restriction.
+- **A mode is not a region's difficulty.** A region's `difficulty` grows with the depth and progress of the game
+  (`world_generation_plan.md`). A mode scales the whole game: generation reads the region's difficulty, and the mode's
+  settings scale what it generates.
+- **Luck is a hidden stat of the character,** which the mode sets and the player does not see. It affects drops,
+  critical hits, and rare finds.
+
+## The modes
+
+| | Story | Novice | Adventure | Challenging | Hardcore |
+| --- | --- | --- | --- | --- | --- |
+| **On death** | Revived at the zone's entry point, with no loss | Reload any save | Reload any save | Reload any save | Permadeath: the save is deleted |
+| **Saving** | Any time; autosave and quick save | Any time; autosave and quick save | Any time; autosave and quick save | Explicit save and autosave; no quick save or quickload | One save, written on quit; no explicit save, autosave, or quick save |
+| **Opening a save** | Reseeds the random engines | Reseeds the random engines | Reseeds the random engines | Restores the random engines | Restores the random engines |
+| **Damage taken** | x0.5 | x0.75 | x1 | x1.25 | x1.5 |
+| **Denizen level** | -2 | -1 | 0 | +1 | +2 |
+| **Denizen count** | x0.5 | x0.75 | x1 | x1.25 | x1.5 |
+| **Luck** | High | Raised | Neutral | Lowered | Low |
+| **Pursuit:** how long a pursuer hunts after losing sight | Short | Short | Normal | Long | Long, and pursuers follow through relocators |
+| **Denizen tactics:** groups, flanking, items | None | Basic | Normal | Full | Full, with reinforcements |
+| **Aids:** concealed doors hinted, items identified | All | Most | Some | None | None |
+| **Rest and healing** | Free | Easy | Normal | Limited | Scarce |
+
+Hardcore is the pure roguelike game: one life, and one save that exists only to continue a game after quitting it.
+
+## What the settings replace
+
+- **`Settings::random_seeding_on_open`** becomes the mode's setting for opening a save.
+- **Permadeath** (`session_plan.md`, `### Permadeath`) becomes Hardcore's death and save settings: `quit` saves the
+  game while the character lives, and deletes the save once it is dead.
+- **The quick save and autosave counts** (`session_plan.md`, `### Quick saves and autosaves`), and whether quick saves,
+  quickloads and autosaves exist at all, are the mode's save settings.
+- **`InterzonePursuitCapability`** (`session_plan.md`, `### Following through a relocator`) is given to pursuers by
+  the mode's pursuit setting, as well as by a denizen's type or by script.
+
+## Open
+
+The open items are tracked in `work_plan.md`, under `### Difficulty`.

@@ -9,8 +9,6 @@ add_library(quetzal_common STATIC
     FileValidator.cpp
     Flags.cpp
     KeyValueStore.cpp
-    logger.cpp
-    LogLevel.cpp
     Platform.cpp
     process.cpp
     string_util.cpp
@@ -35,9 +33,6 @@ add_library(quetzal_common STATIC
     Flags.hpp
     id.hpp
     KeyValueStore.hpp
-    Log.hpp
-    logger.hpp
-    LogLevel.hpp
     Platform.hpp
     process.hpp
     Properties.hpp

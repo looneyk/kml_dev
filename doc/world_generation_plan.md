@@ -24,9 +24,9 @@ Saving and opening a game are in `session_plan.md` (`## Games`) and `game_file_s
   unusual rules has a selector of its own.
 - **A generator creates one zone.** It is a function from a `ZoneSpec` to a `Document`, and reads nothing from the world.
 - **Zones are created on demand.** A new game creates its starting region and that region's first zone. Every other zone
-  is created when an unbound relocator is first gone through, in the relocator's own region or in a new region.
-- **The host only passes specs.** It calls `Game::create` with the starting region's spec, which includes the starting
-  zone's spec, and the character's spec. It creates no region and no zone, and uses no generator directly.
+  is created when an unbound relocator is first accessed.
+- **The host only passes specs.** The host delegates game, region/zone, and character creation to `Game`.
+  It calls `Game::create` with the specs for each of these.
 
 ## Data structures
 
@@ -105,9 +105,11 @@ The entities:
 ## Registries
 
 - **`Game` owns the three maps,** which last as long as the program, as the other registrations do. `World` takes them by
-  reference in its constructor, as it takes the id allocator and the engine, and `World::clear` keeps them.
-- **The generators are in `quetzal/stratum_gen`,** which adapts dungen and catagen to `generator_type` and registers them
-  by name. `stratum_sim` depends on no generator.
+  reference in its constructor, as it takes the id allocator, and `World::clear` keeps them.
+- **The generators are in `quetzal/stratum_gen`,** which returns a map from each generator's name to its function, each
+  passed its parameters themselves. `Game` or the host registers them as `generator_type`, drawing each function's
+  parameters from the settings and the `ZoneSpec`. `stratum_sim` depends on no generator, and `stratum_gen` on no part
+  of `stratum_sim`.
 - **The generator selectors and the region specs are the game's content.** They become data or script (`modding_plan.md`);
   until then each host registers temporary ones.
 - **A name that is not registered is an error** that reaches the host, as an unregistered access point type is.
@@ -118,7 +120,7 @@ The entities:
 void Game::create(const RegionSpec& region_spec, const CharacterSpec& character_spec)
 {
     clear();
-    // reset the id allocator, reseed the engines, empty the working directory and create the game directory there
+    // reset the id allocator, reseed the random engines, empty the working directory and create the game directory there
     m_character.create(character_spec);
     flecs::entity access_point = m_world.create(region_spec, game_directory);
     m_session.start(access_point);
@@ -195,7 +197,7 @@ flecs::entity World::create_zone(flecs::entity region, const ZoneSpec& zone_spec
     }
     else
     {
-        // add the zone's seed to selection.zone_spec, drawn from the generation engine
+        // add the zone's seed to selection.zone_spec, drawn from the generation random engine
         document = m_generators.at(*selection.generator_name)(selection.zone_spec);
     }
 
@@ -215,10 +217,10 @@ The values a zone is created from come from three places:
 | --- | --- |
 | The level, and anything else that depends on where the zone is reached from | The caller: the region's `zone.` keys, or the relocator gone through |
 | The generator and its parameters, a pre-built zone, or a new region | The region's generator selector, from the region's spec, the region's zone count, and the level |
-| The seed | `World`, from the generation engine |
+| The seed | `World`, from the generation random engine |
 
 - **The selector reads the world; the generator does not.** The selector reads the region and its zone count, and its
-  random draws use the generation engine. Anything from the region that a generator needs, such as difficulty, the
+  random draws use the generation random engine. Anything from the region that a generator needs, such as difficulty, the
   selector copies into the zone's parameters.
 - **The level comes from the request.** `World` sets `ZoneLevel` from the `ZoneSpec`, and the generator writes the same
   level into the `Document`.
@@ -282,7 +284,7 @@ GeneratorSelection common(const World& world, flecs::entity region, const ZoneSp
     // Rises with zone_count, and is 1 at zone_count_max
     double new_region_probability = new_region_probability(zone_count, region_spec.zone_count_max);
 
-    if (the generation engine draws below new_region_probability)
+    if (the generation random engine draws below new_region_probability)
     {
         return {region_spec_name: draw from region_spec.next_region, zone_spec};
     }

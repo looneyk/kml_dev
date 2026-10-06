@@ -19,17 +19,17 @@ namespace
     //--------------------------------------------------------------------------
     std::string document_text(const GameDocument& document)
     {
-        std::vector<std::string> engines;
-        for (const auto& [stream, state] : document.engines)
+        std::vector<std::string> random_engines;
+        for (const auto& [stream, state] : document.random_engines)
         {
-            engines.push_back(std::format("{}: {}", string_text(stream), string_text(state)));
+            random_engines.push_back(std::format("{}: {}", string_text(stream), string_text(state)));
         }
 
         std::vector<std::string> game
         {
             std::format("\"next_id\": {}", document.next_id),
             std::format("\"seed\": {}", string_text(document.seed)),
-            std::format("\"engines\": {}", object_text(engines))
+            std::format("\"random_engines\": {}", object_text(random_engines))
         };
 
         std::vector<std::string> sections = file_header_sections();

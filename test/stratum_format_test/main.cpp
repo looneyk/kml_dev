@@ -1094,7 +1094,7 @@ namespace
         stratum_format::GameDocument game;
         game.next_id = 21;
         game.seed = "20260928";
-        game.engines = {{"gameplay", "1 2 3"}, {"generation", "4 5 6"}};
+        game.random_engines = {{"gameplay", "1 2 3"}, {"generation", "4 5 6"}};
         game.settings = stratum_format::raw_values_type::object();
         game.settings["permadeath"] = false;
 
@@ -1102,7 +1102,7 @@ namespace
             "{\n"
             "  \"format\": \"quetzal.stratum_game\",\n"
             "  \"version\": \"0.1\",\n"
-            "  \"game\": { \"next_id\": 21, \"seed\": \"20260928\", \"engines\": { \"gameplay\": \"1 2 3\", \"generation\": \"4 5 6\" } },\n"
+            "  \"game\": { \"next_id\": 21, \"seed\": \"20260928\", \"random_engines\": { \"gameplay\": \"1 2 3\", \"generation\": \"4 5 6\" } },\n"
             "  \"settings\": { \"permadeath\": false }\n"
             "}\n");
 
@@ -1265,8 +1265,8 @@ namespace
             "version: '0.2' is not a version this reads"));
         report_case("a game file with no next id is rejected", rejected(read_game, changed(game_text, "\"next_id\": 21, ", ""),
             "game.next_id: required and absent"));
-        report_case("and one with an engine state that is not text", rejected(read_game, changed(game_text, "\"1 2 3\"", "123"),
-            "game.engines.gameplay: a string was expected"));
+        report_case("and one with a random engine state that is not text", rejected(read_game, changed(game_text, "\"1 2 3\"", "123"),
+            "game.random_engines.gameplay: a string was expected"));
         report_case("an entity of the inventory with no parent is rejected", rejected(read_character, changed(character_text,
             "\"parent\": { \"entity\": 1 }, ", ""), "an entity of the inventory has a parent"));
         report_case("and one whose parent is neither the character nor in the inventory", rejected(read_character, changed(character_text,

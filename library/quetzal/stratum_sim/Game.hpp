@@ -94,7 +94,7 @@ namespace quetzal::stratum_sim
 
     private:
 
-        // Reads game.json: the id allocator's count, the seed, and the engine's state, restored or reseeded as the settings dictate
+        // Reads game.json: the id allocator's count, the seed, and the random engine's state, restored or reseeded as the settings dictate
         void restore_game_state(const std::filesystem::path& filepath);
 
         // Some of these properties, especially Config, are only of importance to the host ...
@@ -109,7 +109,7 @@ namespace quetzal::stratum_sim
         Character m_character;
         Session m_session;
 
-        // The game in progress's directory in the working directory, and the seed its engine was seeded from
+        // The game in progress's directory in the working directory, and the seed its random engine was seeded from
         std::optional<std::filesystem::path> m_game_directory;
         std::random_device::result_type m_seed;
     };

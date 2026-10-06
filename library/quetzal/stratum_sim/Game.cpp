@@ -28,7 +28,7 @@
 namespace
 {
 
-    constexpr std::string_view gameplay_engine_key = "gameplay";
+    constexpr std::string_view gameplay_random_engine_key = "gameplay";
 
     // Windows' reserved characters, so a name that one platform accepts every platform accepts
     constexpr std::string_view reserved_path_characters = "<>:\"/\\|?*";
@@ -253,10 +253,10 @@ void quetzal::stratum_sim::Game::restore_game_state(const std::filesystem::path&
         return;
     }
 
-    auto i = document.engines.find(std::string(gameplay_engine_key));
-    if (i == document.engines.end())
+    auto i = document.random_engines.find(std::string(gameplay_random_engine_key));
+    if (i == document.random_engines.end())
     {
-        throw std::runtime_error(std::format("{}: game.engines: no {} engine", filepath.string(), gameplay_engine_key));
+        throw std::runtime_error(std::format("{}: game.random_engines: no {} random engine", filepath.string(), gameplay_random_engine_key));
     }
 
     std::istringstream state(i->second);
@@ -264,7 +264,7 @@ void quetzal::stratum_sim::Game::restore_game_state(const std::filesystem::path&
 
     if (!state)
     {
-        throw std::runtime_error(std::format("{}: game.engines.{}: not the state of the engine", filepath.string(), gameplay_engine_key));
+        throw std::runtime_error(std::format("{}: game.random_engines.{}: not the state of the random engine", filepath.string(), gameplay_random_engine_key));
     }
 
     return;
@@ -279,14 +279,14 @@ std::string quetzal::stratum_sim::Game::save(SaveType save_type)
     assert(display_name != nullptr && !display_name->name.empty());
     std::string character_name = replace_reserved_characters(display_name->name);
 
-    std::ostringstream engine_state;
-    engine_state << m_random.engine();
+    std::ostringstream random_engine_state;
+    random_engine_state << m_random.engine();
 
     stratum_format::GameDocument document;
     document.version = std::string(stratum_format::saved_game_format_version);
     document.next_id = m_counting_id_allocator.next().id;
     document.seed = std::to_string(m_seed);
-    document.engines[std::string(gameplay_engine_key)] = engine_state.str();
+    document.random_engines[std::string(gameplay_random_engine_key)] = random_engine_state.str();
 
     stratum_format::write(*m_game_directory / stratum_format::game_filename, document);
     m_character.save(*m_game_directory);

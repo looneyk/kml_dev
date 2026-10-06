@@ -1,13 +1,13 @@
 # Session --- Plan
 
-Date: 2026-09-22, revised 2026-10-01
+Date: 2026-09-22, revised 2026-10-05
 
 This plan describes how `Game`, `Session`, `World` and `Character` divide the work of creating, loading, populating and
 playing zones, and how a game begins, is saved and opened, and ends, through the menu operations a host calls.
 
 **`Game` is the game in its entirety.** It is the program from its loading, through the splash screen and the menu, to
 the play sessions it runs, and it lasts as long as the host does. It owns, by value, everything that survives outside
-play: the config, the settings, the id allocator, the engines, the `World`, the `Character` and the `Session`. None of them
+play: the config, the id allocator, the `World`, the `Character` and the `Session`. None of them
 is replaced; creating or opening a game clears them in place. The hosts draw the splash screen and the menu; `Game` has
 the state and the operations behind them. A new game resets the persistent id counter to zero.
 
@@ -22,10 +22,44 @@ in `work_plan.md` (`### Session`).
 
 | Part | Responsible for |
 | --- | --- |
-| `Game` | The game in its entirety, lasting as long as the host: the config, the settings, the id allocator, the engines, the `World`, the `Character` and the `Session`, all by value; the registries of generators, generator selectors and region specs; the menu operations --- opening and closing the menu, creating, opening, saving and quitting games, and listing the saved games --- and the game's own file |
+| `Game` | The game in its entirety, lasting as long as the host: the config, the id allocator, the `World`, the `Character` and the `Session`, all by value; setting and saving the settings, and seeding and saving the random engines; the registries of generators, generator selectors and region specs; the menu operations --- opening and closing the menu, creating, opening, saving and quitting games, and listing the saved games --- and the game's own file |
 | `Session` | The game being played: starting, pausing, resuming and clearing play; the zone the character is in, entering a zone, the turn order, the clock and its driver, the character's intent and pending command, advancing, and whether the game is over |
 | `World` | Regions and zones: creating regions and zones from their specs; creating, loading, populating, saving, unloading and clearing zones, knowing which are loaded, and choosing which unload as zones are entered; the world's file; entities and persistent ids; the registrations that last as long as the program |
 | `Character` | The entity the host controls: creating it, opening and saving its file, and clearing it |
+
+## Settings, the log, and the random engines
+
+The settings, the log, and the gameplay and generation random engines are process-wide, each reached through a function
+from any code that uses it, and passed to none. They are independent of flecs and of `World`, so the views and the
+hosts reach them as the sim does.
+
+- **The settings** apply to any part of the game: play, generation, the views, audio, and controls. `Game` sets them
+  when a game is created or opened, and saves the game's settings in `game.json`.
+- **The log** is the process-wide instance of the log library's class (`log_plan.md`), with sinks that the host
+  installs: a file in the terminal, and Godot's output and a file in Godot. A library writes its warnings to it in
+  place of taking a warning function. It is thread-safe.
+- **The random engines** are the gameplay and generation streams of `random_engine.md` (`## Ownership`). `Game` seeds
+  them and saves their state. Each is thread-safe.
+- **A suite sets each of them before a case,** since every game in its process shares them.
+
+### What other games do with settings
+
+- **NetHack** keeps its options in global structs that any code reads. `flags` holds the options that affect play and is
+  written into the save file, so a game reopens with them; `iflags` holds the interface options, which are the
+  player's and are not saved with a game. The division is the one between a game's settings and the program's.
+- **Dungeon Crawl Stone Soup** reads the player's options file into one global, `Options`, that every part of the game
+  reads by field, `Options.autopickup_on` among them. Changing an option in play assigns the field.
+- **Godot** has the `ProjectSettings` singleton, a store of named values under slash-separated paths such as
+  `display/window/size/viewport_width`, read with `ProjectSettings.get_setting` from any script or engine code. A
+  game's own player preferences are usually a `ConfigFile` written to `user://`, loaded into an autoload singleton
+  that every scene reaches by name.
+- **Unreal Engine** reads its configuration into `GConfig`, a global cache of ini files layered from the engine's base
+  values, the project's defaults, and the user's saved values. A class marked `config` loads its properties from it, and
+  `UGameUserSettings`, which holds resolution and quality, is reached through `GEngine->GetGameUserSettings()`. A
+  `UDeveloperSettings` subclass is read anywhere with `GetDefault<T>()`.
+
+Each makes its settings readable from any code without passing them, and keeps the settings that belong to one game
+apart from the program's, NetHack in its two structs and Unreal in its ini layers.
 
 ## World
 
@@ -63,7 +97,7 @@ void World::trim_zones(flecs::entity zone_entered);
   selector chooses a generator and its parameters, the generator returns the zone's `Document`, and `World` builds the
   zone from it and populates it (`world_generation_plan.md`).
 - **The registries** of generators, generator selectors and region specs are `Game`'s, and `World` takes them by
-  reference in its constructor, as it takes the id allocator and the engine.
+  reference in its constructor, as it takes the id allocator.
 - **`load_zone(region, filepath)`** makes an empty zone, has the loader fill it from the file, and populates it if the
   file's `unpopulated` flag is set. A file whose denizens are already placed is not unpopulated, and a saved zone never
   is.
@@ -208,13 +242,13 @@ Character& Game::character();
   failure leaves no game in progress; the host reports it and returns to the menu.
 - **The working directory has only the game in progress.** `create` and `open` empty it before making the game
   directory, which the character names.
-- **`create`** clears, resets the id allocator and reseeds the engines, so no state passes from one game to the next.
+- **`create`** clears, resets the id allocator and reseeds the random engines, so no state passes from one game to the next.
   It creates the game directory, then has the character created from the `CharacterSpec`, and the world's starting
   region and its first zone from the `RegionSpec`, and starts the session at the access point `World::create` returns.
   The host passes only the specs. Until a new game chooses its region and creates its character, each host passes
   temporary ones.
 - **`open(save_name)`** clears, copies the save into the working directory as the game directory, reads `game.json`
-  from it, restoring the id allocator's count and either restoring the engines' state or reseeding them, as the
+  from it, restoring the id allocator's count and either restoring the random engines' state or reseeding them, as the
   settings choose, has the world and then the character open their files, and starts the session in the zone the
   character is in, which loads from its file, at the character's placement.
 - **`save(save_type)`** is the menu's save of the whole game, and a quick save or an auto save is the same, with its
@@ -230,8 +264,8 @@ Character& Game::character();
   game's config file. Until that file is read, each host passes a temporary config, with the two directories in the temp
   directory's `KML/Stratum/saves` and `KML/Stratum/working` (`game_file_spec.md`, `## A saved game's files`). A suite
   passes directories of its own.
-- **The settings are the game's,** chosen when it begins and saved with it. They come with permadeath, the first of
-  them (`### Permadeath`).
+- **The settings are the game's,** applied when it begins and saved with it. A difficulty mode is one of them
+  (`difficulty_plan.md`).
 
 ### Saving and loading
 
@@ -251,8 +285,8 @@ Character& Game::character();
   name. The menu shows the character's name, the time, and the save type, "Autosave", "Quicksave" or nothing for an
   explicit save, and not the save's name.
 - **Whether opening a save repeats its outcomes is the player's setting,** `Settings::random_seeding_on_open`: restoring the
-  engine's saved state repeats them, and reseeding lets a reload have outcomes of its own. The engine is the same
-  either way.
+  random engines' saved state repeats them, and reseeding lets a reload have outcomes of its own. The random engines
+  are the same either way.
 
 ### Quick saves and autosaves
 
@@ -284,9 +318,9 @@ Character& Game::character();
 
 ### Permadeath
 
-- **Permadeath comes later,** as a setting of the game, the first of its `Settings`. It changes what `create`,
-  `save`, `open` and `quit` do, without changing their signatures: `quit` saves the game if the character is alive and
-  deletes the game's directory if the character is dead.
+- **Permadeath is a setting of the game,** which the Hardcore difficulty mode sets (`difficulty_plan.md`). It changes
+  what `create`, `save`, `open` and `quit` do, without changing their signatures: the game has one save, written on
+  quit, and `quit` deletes it once the character is dead.
 
 ## Entry point
 

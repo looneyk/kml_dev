@@ -25,10 +25,10 @@ namespace
         document.next_id = id_value(required_member(game, "game", "next_id"), "game.next_id");
         document.seed = string_value(required_member(game, "game", "seed"), "game.seed");
 
-        const raw_values_type& engines = object(required_member(game, "game", "engines"), "game.engines");
-        for (const auto& [stream, state] : engines.items())
+        const raw_values_type& random_engines = object(required_member(game, "game", "random_engines"), "game.random_engines");
+        for (const auto& [stream, state] : random_engines.items())
         {
-            document.engines[stream] = string_value(state, member_path("game.engines", stream));
+            document.random_engines[stream] = string_value(state, member_path("game.random_engines", stream));
         }
 
         if (const raw_values_type* p = member(v, "settings"); p != nullptr)

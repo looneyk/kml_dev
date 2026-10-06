@@ -36,6 +36,8 @@
 !/library/quetzal/geometry/**
 !/library/quetzal/godot/
 !/library/quetzal/godot/**
+!/library/quetzal/log/
+!/library/quetzal/log/**
 !/library/quetzal/math/
 !/library/quetzal/math/**
 !/library/quetzal/model/

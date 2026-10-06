@@ -11,9 +11,11 @@ The design behind the items is in these documents, which the items refer to by s
 
 - `addressing.md` specifies ids and addressing, and `addressing_plan.md` is the design of saved zones, the zone actor
   index, and the links and migration they build on.
+- `difficulty_plan.md` covers the difficulty modes: the settings each is a preset of, permadeath among them.
 - `discrete_layout.md` is the zone file format, and `discrete_layout_plan.md` the structures a zone file loads into.
 - `game_file_spec.md` is how a game is saved: a directory with a file for the game's state and settings, one for the
   character, one for the world, and a zone file for each zone.
+- `log_plan.md` is the reusable, thread-safe log library in `quetzal/log`, and the process-wide log the game writes to.
 - `modding_plan.md` covers mods and data-driven design.
 - `placement_plan.md` is the form placement takes: what fills a zone.
 - `random_engine.md` covers the random engines, their seeds, and saving their state.
@@ -53,7 +55,7 @@ each on the ones before it. `Game`'s menu and lifecycle functions, and those the
 - [x] **One game after another.** `Character::create` making
       the entity with a new id, and `World::create` making the starting region and its first zone and returning the
       entry point its region spec's `entry_access` states, in place of the constructors of `Character` and `Game`;
-      `Game::create(name, ...)` creating the game's directory, resetting the id allocator and reseeding the engine; and
+      `Game::create(name, ...)` creating the game's directory, resetting the id allocator and reseeding the random engine; and
       `Session::start(access_point)`. The hosts create a game from temporary specs, with `staircase,1` as the entry,
       and load no zone file. A suite case plays a game,
       clears it, creates another, and checks that only the new game's regions, zones, entities and ids remain.
@@ -85,7 +87,7 @@ each on the ones before it. `Game`'s menu and lifecycle functions, and those the
         file, and the world index in `world.json`, written by `World::save`.
   - [x] **Opening:** `Game::open` emptying the working directory and copying a save into it as the game directory, named
         by the character, then reading `game.json`, restoring the id allocator and, by a `Settings` field, either
-        restoring the engine's state or reseeding it; `World::open` reading `world.json`, each region with its zone ids,
+        restoring the random engine's state or reseeding it; `World::open` reading `world.json`, each region with its zone ids,
         and the world index; `Character::open` reading `character.json`; and the session starting in the character's
         zone at its placement. `Game::create` loses its name, and names the game directory by the character too.
         `saved_games` lists each save's character name, from its `character.json`, and the time of the save.
@@ -95,19 +97,38 @@ each on the ones before it. `Game`'s menu and lifecycle functions, and those the
       is a save there; and the hosts' saves page selecting a save with the arrows and deleting it with Delete, once
       confirmed.
 
-## Lifecycle
+## Log
 
-- [x] **The save type column.** `SavedGameDetails::save_type`, read from the save's name, and the hosts' saves pages
-      showing it after the time.
-- [ ] **Permadeath** (`session_plan.md`, `### Permadeath`): `Settings`, chosen when a game is created and saved
-      with it, with `permadeath` its first setting, and `quit` saving the game or deleting it by whether the character
-      is dead.
-- [ ] **Quick saves and autosaves** (`session_plan.md`, `### Quick saves and autosaves`): `read_key` reporting
-      function keys, F5 quick saving and a quickload key in both hosts, and an autosave on entering a zone, through a
-      function that `Game` gives `Session`.
+- [x] **The log library** (`log_plan.md`): `library/quetzal/log/`, the target `quetzal_log` in the namespace
+      `quetzal::log`, with the reusable, thread-safe `Log` class, its sinks, an optional level for each sink and each
+      category, and the process-wide instance, with `log_test`; `quetzal/common`'s `Log.hpp`, `logger.hpp`,
+      `logger.cpp` and `LogLevel` removed.
+- [ ] **The log in use** (`log_plan.md`, `## The game's use`): the terminal installs a file sink writing to a `logs`
+      directory in the same place as the saves and working directories; Godot installs a sink writing to Godot's
+      output, and a file sink; the tools install a `std::clog` sink and take `--log-level`. dungen writes its warnings
+      to the process-wide log in place of taking a warning function, and `stratum_gen` and the hosts stop passing one.
 
 ## Generators
 
+- [ ] **`stratum_gen` independent of `stratum_sim`.** A `stratum_gen` function is passed its parameters themselves,
+      such as the level, the name, the seed and the generator's own parameters, and not `Settings` or a `ZoneSpec`.
+      `stratum_gen` returns a map from each generator's name to its function and registers nothing; `Game` or the host
+      registers them in `Generation`, drawing each function's parameters from `Settings` and the `ZoneSpec`.
+      `quetzal_stratum_gen` no longer links `quetzal_stratum_sim`.
+- [ ] **The settings process-wide** (`session_plan.md`, `## Settings, the log, and the random engines`): `Settings` reached
+      through a function from the sim, the views and the hosts, in place of `Game`'s member and accessors, and set by
+      `Game` when a game is created or opened.
+- [ ] **The generators integrated.** catagen's generator in `quetzal/stratum_gen` beside dungen's. The game's
+      notation, a setting chosen when the game is created, decides which of them generates every zone: dungen for the
+      block notation and catagen for the wall notation, with the zone's one seed. Each is passed its parameters, or the
+      subset that applies, rather than running with a default-constructed set.
+- [ ] **The generators on `geometry::DiscreteDirectedPoint`.** dungen's `Staircase` has a `directed_point_type` and
+      still has the separate `position` and `direction` accessors. catagen stores a staircase as a cell type and a map
+      from cell position to facing direction, which a list of directed points would replace.
+- [ ] **Staircases in every form** (`session_plan.md`, `## Entering an access point`). The generators can place a
+      staircase in a flat length of wall or in a 1x1 alcove, the two being equivalent across the notations, as well as
+      a block staircase on floor cells in the open space of a room. In the wall notation every staircase is sited on a
+      wall.
 - [ ] **The common generator selector** (`world_generation_plan.md`, `## Generator selection`): a region's zone count;
       `GeneratorSelection` choosing a generator, a pre-built zone, or a new region; the selector reading its opening
       sequence, primary and rare weighted tables, zone limit, and weighted table of next regions from the `RegionSpec`,
@@ -117,32 +138,21 @@ each on the ones before it. `Game`'s menu and lifecycle functions, and those the
 - [ ] **Pre-built zones selected** (`world_generation_plan.md`, `## Generator selection`): a selection's
       `zone_template` read from **The pregenerated content index** into a `Document`, and the zone built from it as a
       generated zone is.
-- [ ] **The generators integrated.** catagen's generator in `quetzal/stratum_gen` beside dungen's, registered by name,
-      so a region's generator selector can choose dungen or catagen for each of its zones.
-- [ ] **Staircases in every form** (`session_plan.md`, `## Entering an access point`). The generators can place a
-      staircase in a flat length of wall or in a 1x1 alcove, the two being equivalent across the notations, as well as
-      a block staircase on floor cells in the open space of a room. In the wall notation every staircase is sited on a
-      wall.
-- [ ] **The generators on `geometry::DiscreteDirectedPoint`.** dungen's `Staircase` has a `directed_point_type` and
-      still has the separate `position` and `direction` accessors. catagen stores a staircase as a cell type and a map
-      from cell position to facing direction, which a list of directed points would replace.
-- [ ] **Generator warnings logged to a file.** The hosts pass `stratum_gen::register_generators` a warning function
-      that drops dungen's warnings, which would write over the terminal's frame; they are written to a log file instead, in `dev/` for now, found through a
-      compile definition as `KML_DEV_ASSETS_ROOT` is, so no path in code is absolute.
 - [ ] **A second catagen algorithm,** and with it what the two generators have in common becoming `quetzal::procgen`.
 
 ## Random engine
 
-- [ ] **The gameplay seed passed in and logged** (`random_engine.md`, `## Ownership`). `Game` owns the gameplay
-      engine and `World` takes it; a host or a suite passing the seed, and the host logging it, are left.
-- [ ] **The engine chosen** (`random_engine.md`, `## The engine type`).
-- [ ] **The generation engine and zone seeds** (`random_engine.md`, `## Streams`, `## Generation`): `Game`'s
-      second engine, and `create_zone(region, zone_spec)` adding the zone's seed, drawn from it, to the zone's
-      parameters, from which its generator reads it.
+- [ ] **The gameplay random engine process-wide** (`random_engine.md`, `## Ownership`): the gameplay random engine
+      reached through a function in place of `Game`'s member and `World`'s reference, and thread-safe, locking its
+      mutex for each draw; a host or a suite passing the seed, and the host logging it.
+- [ ] **The random engine chosen** (`random_engine.md`, `## The random engine type`).
+- [ ] **The generation random engine and zone seeds** (`random_engine.md`, `## Streams`, `## Generation`): the
+      process-wide, thread-safe generation random engine, and `create_zone(region, zone_spec)` adding the zone's seed,
+      drawn from it, to the zone's parameters, from which its generator is passed it.
 - [ ] **Generation runs as objects** (`random_engine.md`, `## Ownership`): dungen's and catagen's runs, each owning its
-      engine, seeded from the zone's seed, with the reference files regenerated. It comes with **the generators
+      random engine, seeded from the zone's seed, with the reference files regenerated. It comes with **the generators
       integrated**.
-- [x] **The engines' state restored** (`random_engine.md`, `## Saving`), with **A game loaded**, or reseeded, as
+- [x] **The random engines' state restored** (`random_engine.md`, `## Saving`), with **A game loaded**, or reseeded, as
       `Settings::random_seeding_on_open` chooses.
 
 ## Regions
@@ -200,6 +210,20 @@ needs `content`. The population strategy comes with them. `placement_plan.md` (`
 - [ ] **Weighted selection over a table.**
 - [ ] **The placement distributions:** a count, one per room, and a density per area.
 - [ ] **Placement's first use that is not a door,** items or denizens.
+
+## Lifecycle
+
+Saving, and the difficulty modes that determine how a game may be saved and what ends it. The difficulty modes wait on
+research into what each mode sets; `difficulty_plan.md` has the draft.
+
+- [ ] **Quick saves and autosaves** (`session_plan.md`, `### Quick saves and autosaves`): `read_key` reporting
+      function keys, F5 quick saving and a quickload key in both hosts, and an autosave on entering a zone, through a
+      function that `Game` gives `Session`.
+- [ ] **Difficulty modes** (`difficulty_plan.md`): Story, Novice, Adventure, Challenging and Hardcore, and Custom, as
+      presets of individual settings in data, chosen when a game is created and saved with it, and changeable during
+      play.
+- [ ] **Permadeath,** Hardcore's death and save settings (`session_plan.md`, `### Permadeath`): one save, written on
+      quit, and `quit` deleting it once the character is dead.
 
 ## Phase order
 
@@ -327,6 +351,13 @@ These are the open questions.
   which depends on the generator selector's town zones (`## Generators`).
 - **The quickload key,** F8 or F9, and which save it opens.
 
+### Difficulty
+
+- **What each mode sets,** and the values: the draft table in `difficulty_plan.md` (`## The modes`) is a placeholder.
+- **What death does in the easy modes:** revival at the zone's entry point in Story, and reloading from Novice up, or
+  something else.
+- **How luck is applied** as a hidden stat of the character: what it changes, and by how much.
+
 ### Intent
 
 - **Does intent cover actions or only movement?** Held attacks and channeled spells would need more than movement and
@@ -362,9 +393,17 @@ These are the open questions.
   pregenerated content index (`region_plan.md`, `## Pregenerated content`); how the two are distinguished.
 - **Which `RegionSpec` metadata becomes components** on the region, and which only the selector reads.
 
+### Log
+
+- **Whether entries are written asynchronously,** from a queue by a worker thread as spdlog's asynchronous mode does, or
+  on the thread that logs.
+- **The log file's name and how many are kept:** a file for each run, named by the program and its start time, with
+  the oldest removed past a count, as Godot keeps them, or one file appended to.
+- **Whether entries written before the first sink is installed are kept** and written to it, rather than dropped.
+
 ### Random engine
 
-- **Which engine** (`random_engine.md`, `## The engine type`): `std::mt19937_64`, xoshiro256**, PCG, or jsf64.
+- **Which random engine** (`random_engine.md`, `## The random engine type`): `std::mt19937_64`, xoshiro256**, PCG, or jsf64.
   xoshiro256** is recommended.
 - **Whether players get reproducible games from a shared seed.** It needs each zone's seed derived from the world seed
   and the zone's place instead of drawn, so that a world seed builds the same world however it is explored.

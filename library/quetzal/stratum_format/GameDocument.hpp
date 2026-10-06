@@ -19,7 +19,7 @@ namespace quetzal::stratum_format
         std::string version;
         stored_entity_id_type next_id = 0;
         std::string seed;
-        std::map<std::string, std::string> engines; // <stream, state>
+        std::map<std::string, std::string> random_engines; // <stream, state>
         raw_values_type settings;
     };
 

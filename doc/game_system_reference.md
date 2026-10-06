@@ -646,7 +646,7 @@ character, region or zone; until a game is created, there is none.
 `clear`, `start`, `pause` and `resume` on `Session`.
 
 The working directory has only the game in progress. `Game::create(region_spec, character_spec)` clears, resets the id
-allocator to count from zero, and reseeds the engine from `std::random_device`, keeping the seed, so nothing passes
+allocator to count from zero, and reseeds the random engine from `std::random_device`, keeping the seed, so nothing passes
 from one game to the next. It empties the working directory and creates the game directory there, named by the
 character, whose name the spec must have, with each character a directory name cannot have replaced by `_`. It has the
 character created from the `CharacterSpec`, and the world's starting region and its first zone from the `RegionSpec`
@@ -656,9 +656,9 @@ no game in progress.
 
 `Game::open(save_name)` clears, then empties the working directory and copies the save into it as the game directory,
 named by the character as `create` names it, read from the top of the save's `character.json`. It reads `game.json`: the id
-allocator counts on from `next_id`, and the engine's state is restored from the text `>>` reads, or the engine is
+allocator counts on from `next_id`, and the random engine's state is restored from the text `>>` reads, or the random engine is
 reseeded from `std::random_device`, as `Settings::random_seeding_on_open` chooses, `RandomSeedingOnOpen::RestoreSavedState` or
-`Reseed`; the engine is the same either way. Restoring repeats the outcomes the save would have had; reseeding gives
+`Reseed`; the random engine is the same either way. Restoring repeats the outcomes the save would have had; reseeding gives
 each opening its own. `World::open`
 then reads `world.json`, `Character::open` reads `character.json`, and the session starts in the character's zone,
 which `load_saved_zone` reads, at its cell and orientation. It throws `std::runtime_error` if there is no such save or
@@ -671,7 +671,7 @@ description; the time `game.json` was written; and its `SaveType`, from the suff
 read or has no name.
 
 `Game::save(save_type)` writes `game.json` into the game directory, with the id allocator's next id, the seed, and the gameplay
-engine's state as the text `<<` writes; has the character write `character.json` there, through
+random engine's state as the text `<<` writes, under `random_engines`; has the character write `character.json` there, through
 `make_character_document`, and the world save; and then copies the game directory to a new directory in the saves
 directory, `<character name>_<save time>`, the name the character's `DisplayName` and the time local and in ISO 8601
 basic format, which it returns. A `SaveType` of `Auto` or `Quick` appends `_autosave` or `_quicksave`, and `Explicit`
@@ -853,7 +853,7 @@ An entity's `parent` and `site` are written into its `components` ahead of the r
 run of three glyphs or more. A document that `read_zone` produces is written back equivalent to it.
 
 The game, character and world files that `game_file_spec.md` specifies, format `quetzal.stratum_game`, version `0.1`
-(`saved_game_format.hpp`), are each a data structure in a header of its own: `GameDocument`, with the game's next id, seed, each engine's state by stream, and its
+(`saved_game_format.hpp`), are each a data structure in a header of its own: `GameDocument`, with the game's next id, seed, each random engine's state by stream in `random_engines`, and its
 settings; `CharacterDocument`, with the character's id, components, zone, placement, and inventory, whose entities are
 `Entity`s as a zone's are; and `WorldDocument`, whose regions are each a `WorldRegion` with its id, components, the
 spec it was created from, and a `ZoneReference`, an id and a file, for each zone, and whose `entity_zones` is the world

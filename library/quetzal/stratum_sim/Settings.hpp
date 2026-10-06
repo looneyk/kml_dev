@@ -9,7 +9,7 @@ namespace quetzal::stratum_sim
 {
 
     //--------------------------------------------------------------------------
-    // How opening a save sets the state of the game's random engine, which is the same engine either way: restored to the
+    // How opening a save sets the state of the game's random engine, which is the same random engine either way: restored to the
     // state saved, so the game continues with the same outcomes however often the save is opened, or reseeded, so each
     // opening has outcomes of its own
     enum class RandomSeedingOnOpen
