@@ -4,6 +4,8 @@
 //------------------------------------------------------------------------------
 
 #include "Application.hpp"
+#include "quetzal/log/FileLogSink.hpp"
+#include "quetzal/log/Log.hpp"
 #include "quetzal/stratum_gen/generators.hpp"
 #include "quetzal/stratum_sim/attachments.hpp"
 #include "quetzal/stratum_sim/DiscreteLayout.hpp"
@@ -85,6 +87,13 @@ namespace
     }
 
     //--------------------------------------------------------------------------
+    // Temporary, until the config file is read: the log is in a logs directory beside the saves and working directories
+    std::filesystem::path temporary_log_filepath()
+    {
+        return std::filesystem::temp_directory_path() / "KML/Stratum/logs/stratum_terminal.log";
+    }
+
+    //--------------------------------------------------------------------------
     // Temporary, until a new game chooses its region: a dungeon whose first zone is the first level down, entered at its
     // staircase leading up
     stratum_sim::RegionSpec temporary_region_spec()
@@ -146,8 +155,9 @@ stratum_terminal::Application::Application(View view, const std::string& script,
     m_menu_open(true),
     m_running(true)
 {
-    // dungen's warnings are dropped, as they would write over the terminal's frame
-    stratum_gen::register_generators(m_game.generation(), [](const std::string&) {});
+    // A file, since anything written to the console would write over the terminal's frame
+    log::process_log().add_sink(log::FileLogSink(temporary_log_filepath()));
+    stratum_gen::register_generators(m_game.generation());
     m_game.generation().m_generator_selectors["dungen"] = select_dungen;
 }
 

@@ -19,6 +19,7 @@ ceiling.
 | `library/quetzal/stratum_view/` | `quetzal_stratum_view` |
 | `library/quetzal/stratum_format/` | `quetzal_stratum_format` --- the zone file format and the game files |
 | `library/quetzal/stratum_gen/` | `quetzal_stratum_gen` --- the generators, adapted and registered by name |
+| `library/quetzal/log/` | `quetzal_log` --- the process-wide log, which every library writes its warnings to (`log_plan.md`) |
 | `application/stratum_terminal/` | `stratum_terminal` |
 | `application/stratum_godot/` | `stratum_godot` |
 | `library/quetzal/godot/` | `quetzal_godot` |
@@ -717,7 +718,13 @@ zone. A host supplies input mapping and drawing.
 `Session` makes no zone. Each host creates a game with `Game::create`, which starts the session in the generated first
 zone. The library has no default entry type or offset.
 
-Each host registers `stratum_gen`'s generators, dropping dungen's warnings, and a temporary generator selector named
+Each host installs its sinks on the process-wide log (`log_plan.md`). The terminal installs a `FileLogSink`
+writing to `KML/Stratum/logs/stratum_terminal.log` in the temp directory, since anything written to the console would
+write over its frame. Godot installs them when its extension initializes at the scene level, and clears them when it
+uninitializes: a sink writing errors and critical entries with `push_error`, warnings with `push_warning`, and the rest
+with `print`, and a `FileLogSink` writing to `KML/Stratum/logs/stratum_godot.log`. The log is at `info`.
+
+Each host registers `stratum_gen`'s generators, and a temporary generator selector named
 `dungen`, until the generators are integrated. It creates the game from a temporary `RegionSpec`, whose
 `generator_selector` is `dungen`, whose `entry_access` is `staircase,1`, and whose `zone.level` is -1, and a
 temporary `CharacterSpec` with the name "Adventurer". The selector chooses the `dungen` generator for every zone, and names the zone
@@ -725,10 +732,10 @@ temporary `CharacterSpec` with the name "Adventurer". The selector chooses the `
 the first level down, and a staircase leads to a new zone the first time it is taken, and back through the bound
 staircase after that.
 
-`stratum_gen::register_generators(generation, warning)` registers `generate_dungen` as `dungen`. It runs dungen with
+`stratum_gen::register_generators(generation)` registers `generate_dungen` as `dungen`. It runs dungen with
 its default parameters at the `ZoneSpec`'s `level`, if it has one, with a seed from `dungen::random_seed`, names the
-zone with the `ZoneSpec`'s `name`, and returns the document `dungen::make_document` builds in memory. It passes dungen's
-warnings to `warning`.
+zone with the `ZoneSpec`'s `name`, and returns the document `dungen::make_document` builds in memory. dungen writes its
+warnings to the process-wide log.
 
 `start(zone, placement)` relocates the character to the placement in the zone, and `start(access_point)` to the access
 point's placement in its zone; each then has the world `trim_zones` with the zone entered, so no zone the character is in can unload. It makes the zone the one being played,
@@ -842,8 +849,8 @@ reference or a string that matches `[region/]zone[@position]`. The stair glyphs 
 no `relocator` on the walls around it, or with a second one, and an access point on a wall that is neither a stair
 cell's open side nor a door's wall, are warnings. So is an access point whose relocator type is neither its entity's
 type nor its parent's, the parent being a door facing's door, and so is `unpopulated` in a file with a `zone` section.
-They are passed to `read_zone`'s warning callback, `log_warning` by default, which
-writes them to `std::clog`. Keys the format does not define are not tracked.
+`read_zone` writes them to the process-wide log as warnings in the category `stratum_format`
+(`log_plan.md`). Keys the format does not define are not tracked.
 
 `write` emits the written form: two-space indentation, a grid row per line, an entry per line with each of a flat's
 per-room and per-cell entries on a line of its own, and floats as the shortest digits that read back as the same
@@ -1136,8 +1143,9 @@ back, and the Godot host by its two headless invocations.
 The build is CMake, with the solution at `build/kml_dev.slnx`. `/std:c++latest /bigobj /W4` is used throughout, with
 third-party sources at `/W1` and flecs and godot-cpp included as SYSTEM. `quetzal_stratum_sim` links `quetzal_common`,
 `quetzal_stratum_format` and `flecs_static`; `quetzal_stratum_view` links `quetzal_stratum_sim`;
-`quetzal_stratum_gen` links `quetzal_dungen` and `quetzal_stratum_sim`; both hosts link `quetzal_stratum_gen` and
-`quetzal_stratum_view`. `quetzal_stratum_format` links `quetzal_common` and `nlohmann_json`, vendored at
+`quetzal_stratum_gen` links `quetzal_dungen` and `quetzal_stratum_sim`; both hosts link `quetzal_log`,
+`quetzal_stratum_gen` and `quetzal_stratum_view`. `quetzal_dungen` links `quetzal_log`. `quetzal_stratum_format`
+links `quetzal_common`, `quetzal_log` and `nlohmann_json`, vendored at
 `library3/json` with its headers SYSTEM.
 
 `KML_DEV_GODOT` governs the Godot targets and defaults on. When it is configured off, godot-cpp is not processed and

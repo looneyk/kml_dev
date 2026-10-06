@@ -7,6 +7,7 @@
 #include "quetzal/dungen/generate.hpp"
 #include "quetzal/dungen/place_staircases.hpp"
 #include "quetzal/dungen/write_zone.hpp"
+#include "quetzal/log/Log.hpp"
 #include "quetzal/math/Random.hpp"
 #include "quetzal/stratum_format/grid.hpp"
 #include "quetzal/stratum_format/read_zone.hpp"
@@ -109,10 +110,10 @@ namespace
     const string unplaced_rise_error = "at least one of each requested staircase rise could not be placed";
 
     //--------------------------------------------------------------------------
-    // A zone as the tool writes it, header and grid. Warnings are the subject of cases of their own, and are dropped here
+    // A zone as the tool writes it, header and grid
     string zone_text(const dungen::Parameters& parameters, const string& name = {})
     {
-        dungen::Zone zone = dungen::generate(0, name, parameters, [](const string&) {});
+        dungen::Zone zone = dungen::generate(0, name, parameters);
 
         ostringstream os;
         dungen::write_zone(os, zone, parameters);
@@ -1232,22 +1233,32 @@ namespace
             return zone;
         };
 
-        // Returns the error place_staircases throws, or an empty string if it places what it can
+        // Returns the error place_staircases throws, or an empty string if it places what it can. Adds the messages of the
+        // warnings it writes to the process-wide log under dungen's category to warnings
         auto placing = [](dungen::Zone& zone, const vector<dungen::point_type>& candidates, math::Interval<size_t> up, math::Interval<size_t> down,
             vector<string>& warnings)
         {
             dungen::random_type random(1u);
+            log::process_log().add_sink([&warnings](const log::LogEntry& entry)
+            {
+                if (entry.level == log::LogLevel::Warning && entry.category == dungen::log_category)
+                {
+                    warnings.push_back(entry.message);
+                }
+            });
 
+            string error;
             try
             {
-                dungen::place_staircases(zone, candidates, up, down, random, [&](const string& warning) { warnings.push_back(warning); });
+                dungen::place_staircases(zone, candidates, up, down, random);
             }
             catch (const runtime_error& e)
             {
-                return string(e.what());
+                error = e.what();
             }
 
-            return string();
+            log::process_log().clear_sinks();
+            return error;
         };
 
         {

@@ -57,7 +57,8 @@ These structures are the same whichever algorithm fills them:
 - `Pattern` --- a `Cells` with an origin and a shift, matched and replaced over a `Zone` by `match` and
   `match_replace`. `maze1` prunes with these.
 - `types.hpp` --- `coord_type`, `point_type`, `vector_type`, `directed_point_type`, `random_type` (the random number
-  source of a run), and `warning_function_type`.
+  source of a run), and `log_category`, `dungen`, the category of dungen's entries in the process-wide log
+  (`log_plan.md`).
 
 Generation:
 
@@ -71,8 +72,7 @@ Generation:
   count whose minimum is zero, since a dungeon zone is entered and left by a staircase leading up.
 - `generate` --- dispatches on `parameters.algorithm` to `generate_maze1`, `generate_grid1` or `generate_cave1`, one
   file each. Each asserts the algorithm it was given, validates, seeds its own `random_type` from `parameters.seed`, and
-  is deterministic in its parameters. `generate` takes a warning function, `log_warning` by default, which writes to
-  `std::clog`.
+  is deterministic in its parameters.
 - `place_staircases` --- shared, and given the candidate cells by each algorithm. It draws a count leading down from
   `staircase_down_count` and a count leading up from `staircase_up_count`, with a range of one value drawing nothing,
   and shuffles the candidates. It then places staircases alternately leading up and leading down, while both counts
@@ -80,8 +80,8 @@ Generation:
   staircase faces, or would leave its block cutting a passage or leave it or a staircase beside it no passable side to
   face; a door counts as passable. A doorway is a `Door` cell, or a corridor cell beside room floor, as a removed door
   leaves. A placed staircase faces a random side with floor beyond. If a count above zero has none placed,
-  `place_staircases` throws `std::runtime_error`; if the candidates run out with fewer placed than drawn, it reports a
-  warning.
+  `place_staircases` throws `std::runtime_error`; if the candidates run out with fewer placed than drawn, it writes a
+  warning to the process-wide log.
 - `remove_doors` --- shared, and run by `maze1` and `grid1` after every other pass. Each algorithm places every doorway
   as a door, and this keeps each door with probability `door_probability`, in the algorithm's group, and leaves the rest
   of the doorways open as corridor.
@@ -147,11 +147,13 @@ has eight solid neighbors --- generate a zone that is solid throughout.
 ## The tool
 
 `dungen` parses the command line, generates, and writes the zone to a file and to standard output, with its layout's
-`unpopulated` set. It writes warnings to `std::clog`.
+`unpopulated` set. It installs a `StreamLogSink` writing the process-wide log to `std::clog`, at the level
+`--log-level` sets, `info` by default.
 
 ```
 dungen [zone] [--algorithm maze1|grid1|cave1] [--extent nx,ny] [--name text]
             [--stairs-down min-max] [--stairs-up min-max] [--room-density d] [--door-probability p] [--level n] [--seed n]
+            [--log-level trace|debug|info|warning|error|critical|off]
   maze1: [--room-dimension-base n] [--room-dimension-variation n] [--room-merge]
          [--corridor-straightness s] [--probability-dead-end-removal p]
          [--probability-loop-removal p]

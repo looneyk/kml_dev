@@ -6,6 +6,8 @@
 #include "quetzal/dungen/generate.hpp"
 #include "quetzal/dungen/write_zone.hpp"
 #include "quetzal/common/string_util.hpp"
+#include "quetzal/log/Log.hpp"
+#include "quetzal/log/StreamLogSink.hpp"
 #include "quetzal/math/Random.hpp"
 #include "quetzal/stratum_format/write_zone.hpp"
 #include <algorithm>
@@ -14,6 +16,7 @@
 #include <format>
 #include <fstream>
 #include <iostream>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -95,10 +98,23 @@ namespace
     }
 
     //--------------------------------------------------------------------------
+    log::LogLevel to_level(const string& s)
+    {
+        optional<log::LogLevel> level = log::to_log_level(s);
+        if (!level)
+        {
+            throw invalid_argument(format("\"{}\" is not a log level", s));
+        }
+
+        return *level;
+    }
+
+    //--------------------------------------------------------------------------
     void usage(ostream& os)
     {
         os << "Usage: dungen [zone] [--algorithm maze1|grid1|cave1] [--extent nx,ny] [--name text]"
-            << " [--stairs-down min-max] [--stairs-up min-max] [--room-density d] [--door-probability p] [--level n] [--seed n]" << endl;
+            << " [--stairs-down min-max] [--stairs-up min-max] [--room-density d] [--door-probability p] [--level n] [--seed n]"
+            << " [--log-level trace|debug|info|warning|error|critical|off]" << endl;
         os << "  maze1: [--room-dimension-base n] [--room-dimension-variation n] [--room-merge]"
             << " [--corridor-straightness s] [--probability-dead-end-removal p]"
             << " [--probability-loop-removal p]" << endl;
@@ -116,6 +132,7 @@ int main(int argc, char* argv[])
     string filepath = "dungen.zone";
     string name;
     dungen::Parameters parameters;
+    log::process_log().add_sink(log::StreamLogSink(clog));
 
     try
     {
@@ -218,6 +235,10 @@ int main(int argc, char* argv[])
             else if (arg == "--seed" && i + 1 < argc)
             {
                 parameters.seed = math::to_seed(argv[++i]);
+            }
+            else if (arg == "--log-level" && i + 1 < argc)
+            {
+                log::process_log().set_level(to_level(argv[++i]));
             }
             else if (arg.starts_with("--"))
             {

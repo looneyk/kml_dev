@@ -5,10 +5,48 @@
 
 #include "register_types.hpp"
 #include "StratumWorld.hpp"
+#include "quetzal/log/FileLogSink.hpp"
+#include "quetzal/log/Log.hpp"
 #include <gdextension_interface.h>
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/core/defs.hpp>
 #include <godot_cpp/godot.hpp>
+#include <godot_cpp/variant/utility_functions.hpp>
+#include <filesystem>
+
+namespace
+{
+
+    //--------------------------------------------------------------------------
+    // Temporary, until the config file is read: the log is in a logs directory beside the saves and working directories
+    std::filesystem::path temporary_log_filepath()
+    {
+        return std::filesystem::temp_directory_path() / "KML/Stratum/logs/stratum_godot.log";
+    }
+
+    //--------------------------------------------------------------------------
+    // Errors and warnings as Godot's, so the editor marks them, and the rest as printed lines
+    void write_to_godot_output(const quetzal::log::LogEntry& entry)
+    {
+        godot::String line = quetzal::log::format_entry(entry).c_str();
+
+        if (entry.level >= quetzal::log::LogLevel::Error)
+        {
+            godot::UtilityFunctions::push_error(line);
+        }
+        else if (entry.level == quetzal::log::LogLevel::Warning)
+        {
+            godot::UtilityFunctions::push_warning(line);
+        }
+        else
+        {
+            godot::UtilityFunctions::print(line);
+        }
+
+        return;
+    }
+
+} // namespace
 
 //------------------------------------------------------------------------------
 void initialize_stratum_module(godot::ModuleInitializationLevel level)
@@ -17,6 +55,9 @@ void initialize_stratum_module(godot::ModuleInitializationLevel level)
     {
         return;
     }
+
+    quetzal::log::process_log().add_sink(write_to_godot_output);
+    quetzal::log::process_log().add_sink(quetzal::log::FileLogSink(temporary_log_filepath()));
 
     GDREGISTER_CLASS(StratumWorld);
 
@@ -30,6 +71,8 @@ void uninitialize_stratum_module(godot::ModuleInitializationLevel level)
     {
         return;
     }
+
+    quetzal::log::process_log().clear_sinks();
 
     return;
 }

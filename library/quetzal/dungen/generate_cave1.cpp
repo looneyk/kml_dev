@@ -150,8 +150,7 @@ namespace
 } // namespace
 
 //------------------------------------------------------------------------------
-quetzal::dungen::Zone quetzal::dungen::generate_cave1(id_type id, const string& name, const Parameters& parameters,
-    const warning_function_type& warning)
+quetzal::dungen::Zone quetzal::dungen::generate_cave1(id_type id, const string& name, const Parameters& parameters)
 {
     assert(parameters.algorithm == Algorithm::Cave1);
     validate(parameters);
@@ -175,7 +174,7 @@ quetzal::dungen::Zone quetzal::dungen::generate_cave1(id_type id, const string& 
         zone.cell(position).set_type(CellType::Corridor);
     }
 
-    place_staircases(zone, area, parameters.staircase_up_count, parameters.staircase_down_count, random, warning);
+    place_staircases(zone, area, parameters.staircase_up_count, parameters.staircase_down_count, random);
 
     return zone;
 }

@@ -15,6 +15,7 @@ set_target_properties(stratum_terminal PROPERTIES
 )
 
 target_link_libraries(stratum_terminal PRIVATE
+    quetzal_log
     quetzal_stratum_gen
     quetzal_stratum_view
 )

@@ -94,8 +94,7 @@ StratumWorld::StratumWorld() :
     m_session(m_game.session()),
     m_message()
 {
-    // Temporary: dungen's warnings are dropped, until they are logged to a file
-    quetzal::stratum_gen::register_generators(m_game.generation(), [](const std::string&) {});
+    quetzal::stratum_gen::register_generators(m_game.generation());
     m_game.generation().m_generator_selectors["dungen"] = select_dungen;
 }
 

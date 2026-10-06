@@ -103,10 +103,11 @@ each on the ones before it. `Game`'s menu and lifecycle functions, and those the
       `quetzal::log`, with the reusable, thread-safe `Log` class, its sinks, an optional level for each sink and each
       category, and the process-wide instance, with `log_test`; `quetzal/common`'s `Log.hpp`, `logger.hpp`,
       `logger.cpp` and `LogLevel` removed.
-- [ ] **The log in use** (`log_plan.md`, `## The game's use`): the terminal installs a file sink writing to a `logs`
+- [x] **The log in use** (`log_plan.md`, `## The game's use`): the terminal installs a file sink writing to a `logs`
       directory in the same place as the saves and working directories; Godot installs a sink writing to Godot's
-      output, and a file sink; the tools install a `std::clog` sink and take `--log-level`. dungen writes its warnings
-      to the process-wide log in place of taking a warning function, and `stratum_gen` and the hosts stop passing one.
+      output, and a file sink; the tools install a `std::clog` sink and take `--log-level`. dungen and
+      `stratum_format::read_zone` write their warnings to the process-wide log in place of taking a warning function,
+      and `stratum_gen` and the hosts stop passing one.
 
 ## Generators
 

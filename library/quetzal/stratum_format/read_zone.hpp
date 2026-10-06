@@ -7,24 +7,18 @@
 
 #include "Document.hpp"
 #include <filesystem>
-#include <functional>
 #include <iosfwd>
 #include <string>
 
 namespace quetzal::stratum_format
 {
 
-    // Called with each discrepancy that is not an error, stating what it is and where
-    using warning_function_type = std::function<void(const std::string& warning)>;
-
-    // Writes a warning to std::clog
-    void log_warning(const std::string& warning);
-
-    // Reads and validates a layout file. Throws std::runtime_error stating what was wrong and where
-    Document read_zone(const std::filesystem::path& filepath, const warning_function_type& warning = log_warning);
+    // Reads and validates a layout file. Throws std::runtime_error stating what was wrong and where. Writes each
+    // discrepancy that is not an error to the process-wide log as a warning, stating what it is and where
+    Document read_zone(const std::filesystem::path& filepath);
 
     // stream_name identifies the stream in error and warning messages
-    Document read_zone(std::istream& is, const std::string& stream_name, const warning_function_type& warning = log_warning);
+    Document read_zone(std::istream& is, const std::string& stream_name);
 
 } // namespace quetzal::stratum_format
 

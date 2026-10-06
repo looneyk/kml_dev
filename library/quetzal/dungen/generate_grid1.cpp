@@ -518,8 +518,7 @@ namespace
 } // namespace
 
 //------------------------------------------------------------------------------
-quetzal::dungen::Zone quetzal::dungen::generate_grid1(id_type id, const string& name, const Parameters& parameters,
-    const warning_function_type& warning)
+quetzal::dungen::Zone quetzal::dungen::generate_grid1(id_type id, const string& name, const Parameters& parameters)
 {
     assert(parameters.algorithm == Algorithm::Grid1);
     validate(parameters);
@@ -580,7 +579,7 @@ quetzal::dungen::Zone quetzal::dungen::generate_grid1(id_type id, const string& 
         connect(zone, sectors[connection.slot_a], sectors[connection.slot_b], connection.horizontal, random);
     }
 
-    place_staircases(zone, staircase_candidates(zone), parameters.staircase_up_count, parameters.staircase_down_count, random, warning);
+    place_staircases(zone, staircase_candidates(zone), parameters.staircase_up_count, parameters.staircase_down_count, random);
     remove_doors(zone, grid1.door_probability, random);
 
     return zone;

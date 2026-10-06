@@ -8,11 +8,11 @@
 #include "checked_values.hpp"
 #include "references.hpp"
 #include "quetzal/geometry/DiscreteBox.hpp"
+#include "quetzal/log/Log.hpp"
 #include <algorithm>
 #include <format>
 #include <fstream>
 #include <functional>
-#include <iostream>
 #include <iterator>
 #include <limits>
 #include <map>
@@ -1551,29 +1551,19 @@ namespace
 } // namespace
 
 //------------------------------------------------------------------------------
-void quetzal::stratum_format::log_warning(const std::string& warning)
-{
-    std::clog << "warning: " << warning << std::endl;
-    return;
-}
-
-//------------------------------------------------------------------------------
-quetzal::stratum_format::Document quetzal::stratum_format::read_zone(std::istream& is, const std::string& stream_name, const warning_function_type& warning)
+quetzal::stratum_format::Document quetzal::stratum_format::read_zone(std::istream& is, const std::string& stream_name)
 {
     return detail::read_document<Document>(is, stream_name, [&](const raw_values_type& v)
     {
         return read_zone_document(v, [&](const std::string& path, std::string_view what)
         {
-            if (warning)
-            {
-                warning(std::format("{}: {}: {}", stream_name, path, what));
-            }
+            log::process_log().warning(log_category, "{}: {}: {}", stream_name, path, what);
         });
     });
 }
 
 //------------------------------------------------------------------------------
-quetzal::stratum_format::Document quetzal::stratum_format::read_zone(const std::filesystem::path& filepath, const warning_function_type& warning)
+quetzal::stratum_format::Document quetzal::stratum_format::read_zone(const std::filesystem::path& filepath)
 {
     std::ifstream is(filepath, std::ios::binary);
     if (!is)
@@ -1581,5 +1571,5 @@ quetzal::stratum_format::Document quetzal::stratum_format::read_zone(const std::
         throw std::runtime_error(std::format("{}: cannot be opened", filepath.string()));
     }
 
-    return read_zone(is, filepath.string(), warning);
+    return read_zone(is, filepath.string());
 }

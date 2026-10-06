@@ -9,9 +9,7 @@ passed it. The program installs the sinks the entries are written to. The librar
 
 ## Where it is now
 
-- **The library is built,** in `library/quetzal/log/`, with `log_test`; nothing writes to it yet.
-- **dungen takes a warning function,** `log_warning` by default, which writes to `std::clog`. `stratum_gen` passes on
-  the function the hosts give it, and both hosts drop the warnings, since they would write over the terminal's frame.
+- **The library is built and in use,** in `library/quetzal/log/`, with `log_test`, as `## The game's use` describes.
 - **catagen has no warnings,** and `stratum_sim` reports a failure by throwing or through its event queue.
 
 ## What other projects do
@@ -222,11 +220,14 @@ log::process_log().clear_sinks();
 
 - **The terminal installs a file sink** writing to a file in a `logs` directory in the same place as the saves and
   working directories, since anything written to the console would write over its frame.
-- **Godot installs a sink that writes to Godot's output,** through `UtilityFunctions::print` and `push_warning`, and a
-  file sink.
-- **The tools install a `std::clog` sink,** where dungen's warnings are written now.
-- **dungen writes its warnings to the process-wide log** under the category `dungen`, and no longer takes a warning
-  function. `stratum_gen`'s functions and `register_generators` lose theirs, and the hosts stop passing one.
+- **Godot installs a sink that writes to Godot's output,** errors and critical entries through `push_error`, warnings
+  through `push_warning` and the rest through `print`, and a file sink. It installs them when its extension initializes
+  at the scene level, once for the process, and clears them when the extension uninitializes.
+- **The tools install a `std::clog` sink** and take `--log-level`.
+- **dungen writes its warnings to the process-wide log** under the category `dungen`, and takes no warning function.
+- **`stratum_format::read_zone` writes its warnings to the process-wide log** under the category `stratum_format`,
+  and takes no warning function.
+- **A suite that checks warnings** adds a sink collecting them to the process-wide log, and clears the sinks after.
 - **A host logs the gameplay seed** (`random_engine.md`, `## Ownership`).
 
 ## Open

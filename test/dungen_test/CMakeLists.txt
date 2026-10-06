@@ -11,6 +11,7 @@ set_target_properties(dungen_test PROPERTIES
 target_link_libraries(dungen_test PRIVATE
     quetzal_common
     quetzal_dungen
+    quetzal_log
     quetzal_math
     quetzal_stratum_format
 )

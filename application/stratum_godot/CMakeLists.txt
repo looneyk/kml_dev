@@ -12,6 +12,7 @@ set_property(TARGET stratum_godot PROPERTY FOLDER "application")
 target_compile_definitions(stratum_godot PRIVATE flecs_STATIC)
 
 target_link_libraries(stratum_godot PRIVATE
+    quetzal_log
     quetzal_stratum_gen
     quetzal_stratum_view
     godot-cpp

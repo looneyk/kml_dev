@@ -3,6 +3,7 @@
 // main.cpp
 //------------------------------------------------------------------------------
 
+#include "quetzal/log/Log.hpp"
 #include "quetzal/stratum_format/read_character.hpp"
 #include "quetzal/stratum_format/read_game.hpp"
 #include "quetzal/stratum_format/read_world.hpp"
@@ -49,6 +50,31 @@ namespace
     {
         cout << name << endl;
         return;
+    }
+
+    //--------------------------------------------------------------------------
+    // Reads the zone, adding the messages of the warnings it writes to the process-wide log to warnings
+    stratum_format::Document read_zone_with_warnings(istream& is, const string& stream_name, vector<string>& warnings)
+    {
+        log::process_log().add_sink([&warnings](const log::LogEntry& entry)
+        {
+            if (entry.level == log::LogLevel::Warning && entry.category == stratum_format::log_category)
+            {
+                warnings.push_back(entry.message);
+            }
+        });
+
+        try
+        {
+            stratum_format::Document document = stratum_format::read_zone(is, stream_name);
+            log::process_log().clear_sinks();
+            return document;
+        }
+        catch (...)
+        {
+            log::process_log().clear_sinks();
+            throw;
+        }
     }
 
     //--------------------------------------------------------------------------
@@ -363,7 +389,7 @@ namespace
 
             try
             {
-                stratum_format::read_zone(is, mutation_case.name, [&](const string& warning) { warnings.push_back(warning); });
+                read_zone_with_warnings(is, mutation_case.name, warnings);
 
                 bool warned = mutation_case.warning.empty() || std::any_of(warnings.begin(), warnings.end(),
                     [&](const string& warning) { return warning.find(mutation_case.warning) != string::npos; });
@@ -837,7 +863,7 @@ namespace
         try
         {
             istringstream is(door_access.dump());
-            stratum_format::read_zone(is, "door access point", [&](const string& warning) { warnings.push_back(warning); });
+            read_zone_with_warnings(is, "door access point", warnings);
             report_case("an access point on a door's wall raises no warning", warnings.empty(), warnings.empty() ? "" : warnings.front());
         }
         catch (const runtime_error& e)

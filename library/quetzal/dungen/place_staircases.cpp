@@ -4,8 +4,8 @@
 //------------------------------------------------------------------------------
 
 #include "place_staircases.hpp"
+#include "quetzal/log/Log.hpp"
 #include <algorithm>
-#include <format>
 #include <map>
 #include <stdexcept>
 #include <tuple>
@@ -212,7 +212,7 @@ namespace
 
 //------------------------------------------------------------------------------
 void quetzal::dungen::place_staircases(Zone& zone, vector<point_type> candidates, const math::Interval<size_t>& up_interval,
-    const math::Interval<size_t>& down_interval, random_type& random, const warning_function_type& warning)
+    const math::Interval<size_t>& down_interval, random_type& random)
 {
     size_t down_count = draw_count(down_interval, random);
     size_t up_count = draw_count(up_interval, random);
@@ -268,8 +268,8 @@ void quetzal::dungen::place_staircases(Zone& zone, vector<point_type> candidates
     }
     else if (up_count > 0 || down_count > 0)
     {
-        warning(format("{} of {} staircases leading up and {} of {} leading down placed, the candidates running out",
-            up_requested - up_count, up_requested, down_requested - down_count, down_requested));
+        log::process_log().warning(log_category, "{} of {} staircases leading up and {} of {} leading down placed, the candidates running out",
+            up_requested - up_count, up_requested, down_requested - down_count, down_requested);
     }
 
     return;

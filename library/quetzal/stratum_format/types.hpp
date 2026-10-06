@@ -12,10 +12,14 @@
 #include "quetzal/math/DiscreteVector.hpp"
 #include <nlohmann/json.hpp>
 #include <array>
+#include <string_view>
 #include <cstdint>
 
 namespace quetzal::stratum_format
 {
+
+    // The category of stratum_format's entries in the process-wide log
+    inline constexpr std::string_view log_category = "stratum_format";
 
     // These match stratum_sim's, so a layout is built without conversion
     using value_type = float;

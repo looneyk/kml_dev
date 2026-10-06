@@ -121,7 +121,11 @@ nothing before them changes.
 ```
 catagen [zone] [--extent nx,ny] [--name text] [--scale min-max] [--spacing min-max] [--density d]
              [--loop l] [--stairs-down min-max] [--stairs-up min-max] [--level n] [--seed n] [--quiet]
+             [--log-level trace|debug|info|warning|error|critical|off]
 ```
+
+The tool installs a `StreamLogSink` writing the process-wide log (`log_plan.md`) to `std::clog`, at the level
+`--log-level` sets, `info` by default. catagen itself writes nothing to it.
 
 The tool writes the zone to the named file, `catagen.zone` by default, and to standard output unless `--quiet` is
 given, with its layout's `unpopulated` set. A run given no `--seed` takes `random_seed()` before generating, so the file has a seed either way and any run

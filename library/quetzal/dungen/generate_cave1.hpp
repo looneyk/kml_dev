@@ -17,7 +17,7 @@ namespace quetzal::dungen
     // No rooms and no doors: open floor is corridor, and the border is left solid
     // Reads parameters.cave1; parameters.algorithm is expected to be Algorithm::Cave1
     // Throws std::invalid_argument by way of validate, and as place_staircases does
-    Zone generate_cave1(id_type id, const std::string& name, const Parameters& parameters, const warning_function_type& warning);
+    Zone generate_cave1(id_type id, const std::string& name, const Parameters& parameters);
 
 } // namespace quetzal::dungen
 

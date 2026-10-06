@@ -6,6 +6,8 @@
 #include "quetzal/catagen/generate.hpp"
 #include "quetzal/catagen/write_zone.hpp"
 #include "quetzal/common/string_util.hpp"
+#include "quetzal/log/Log.hpp"
+#include "quetzal/log/StreamLogSink.hpp"
 #include "quetzal/math/Interval.hpp"
 #include "quetzal/math/Random.hpp"
 #include "quetzal/stratum_format/write_zone.hpp"
@@ -15,6 +17,7 @@
 #include <format>
 #include <fstream>
 #include <iostream>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -97,10 +100,23 @@ namespace
     }
 
     //--------------------------------------------------------------------------
+    log::LogLevel to_level(const string& s)
+    {
+        optional<log::LogLevel> level = log::to_log_level(s);
+        if (!level)
+        {
+            throw invalid_argument(format("\"{}\" is not a log level", s));
+        }
+
+        return *level;
+    }
+
+    //--------------------------------------------------------------------------
     void usage(ostream& os)
     {
         os << "Usage: catagen [zone] [--extent nx,ny] [--name text] [--scale min-max] [--spacing min-max]"
-            << " [--density d] [--loop l] [--stairs-down min-max] [--stairs-up min-max] [--level n] [--seed n] [--quiet]" << endl;
+            << " [--density d] [--loop l] [--stairs-down min-max] [--stairs-up min-max] [--level n] [--seed n] [--quiet]"
+            << " [--log-level trace|debug|info|warning|error|critical|off]" << endl;
         return;
     }
 
@@ -113,6 +129,7 @@ int main(int argc, char* argv[])
     string name;
     catagen::Parameters parameters;
     bool quiet = false;
+    log::process_log().add_sink(log::StreamLogSink(clog));
 
     try
     {
@@ -163,6 +180,10 @@ int main(int argc, char* argv[])
             else if (arg == "--quiet")
             {
                 quiet = true;
+            }
+            else if (arg == "--log-level" && i + 1 < argc)
+            {
+                log::process_log().set_level(to_level(argv[++i]));
             }
             else if (arg.starts_with("--"))
             {

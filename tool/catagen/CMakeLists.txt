@@ -10,4 +10,5 @@ set_target_properties(catagen PROPERTIES
 
 target_link_libraries(catagen PRIVATE
     quetzal_catagen
+    quetzal_log
 )

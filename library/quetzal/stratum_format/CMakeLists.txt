@@ -42,4 +42,4 @@ target_include_directories(quetzal_stratum_format PUBLIC
 )
 
 # Not nlohmann_json::nlohmann_json, as library3 is added after library/ and a namespaced target must already exist
-target_link_libraries(quetzal_stratum_format PUBLIC quetzal_common nlohmann_json)
+target_link_libraries(quetzal_stratum_format PUBLIC quetzal_common quetzal_log nlohmann_json)

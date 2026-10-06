@@ -17,7 +17,7 @@ namespace quetzal::dungen
     // corridors that bend once in the solid cells between and enter a room through a door
     // Reads parameters.grid1; parameters.algorithm is expected to be Algorithm::Grid1
     // Throws std::invalid_argument by way of validate, and as place_staircases does
-    Zone generate_grid1(id_type id, const std::string& name, const Parameters& parameters, const warning_function_type& warning);
+    Zone generate_grid1(id_type id, const std::string& name, const Parameters& parameters);
 
 } // namespace quetzal::dungen
 

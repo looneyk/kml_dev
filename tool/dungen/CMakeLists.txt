@@ -10,5 +10,6 @@ set_target_properties(dungen PROPERTIES
 
 target_link_libraries(dungen PRIVATE
     quetzal_dungen
+    quetzal_log
     quetzal_math
 )

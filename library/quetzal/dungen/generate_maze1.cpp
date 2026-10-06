@@ -506,8 +506,7 @@ namespace
 } // namespace
 
 //------------------------------------------------------------------------------
-quetzal::dungen::Zone quetzal::dungen::generate_maze1(id_type id, const string& name, const Parameters& parameters,
-    const warning_function_type& warning)
+quetzal::dungen::Zone quetzal::dungen::generate_maze1(id_type id, const string& name, const Parameters& parameters)
 {
     assert(parameters.algorithm == Algorithm::Maze1);
     validate(parameters);
@@ -559,7 +558,7 @@ quetzal::dungen::Zone quetzal::dungen::generate_maze1(id_type id, const string& 
     excavate(zone, maze1.corridor_straightness, random);
 
     // Staircases, before the dead ends they occupy are pruned
-    place_staircases(zone, staircase_candidates(zone), parameters.staircase_up_count, parameters.staircase_down_count, random, warning);
+    place_staircases(zone, staircase_candidates(zone), parameters.staircase_up_count, parameters.staircase_down_count, random);
 
     // Dead end and loop removal
     shorten_dead_ends(zone, maze1.probability_dead_end_removal, random);

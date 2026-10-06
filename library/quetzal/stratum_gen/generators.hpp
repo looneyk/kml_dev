@@ -7,14 +7,10 @@
 
 #include "quetzal/stratum_format/Document.hpp"
 #include "quetzal/stratum_sim/Generation.hpp"
-#include <functional>
-#include <string>
 #include <string_view>
 
 namespace quetzal::stratum_gen
 {
-
-    using warning_function_type = std::function<void(const std::string& warning)>;
 
     // The name the dungen generator is registered under
     inline constexpr std::string_view dungen_generator_name = "dungen";
@@ -24,11 +20,11 @@ namespace quetzal::stratum_gen
 
     //--------------------------------------------------------------------------
     // Returns the document of a zone that dungen generates with its default parameters, at the ZoneSpec's level if it has
-    // one, with the ZoneSpec's name, and with a seed from the platform's entropy source. Passes dungen's warnings to warning
-    stratum_format::Document generate_dungen(const stratum_sim::ZoneSpec& zone_spec, const warning_function_type& warning);
+    // one, with the ZoneSpec's name, and with a seed from the platform's entropy source
+    stratum_format::Document generate_dungen(const stratum_sim::ZoneSpec& zone_spec);
 
     // Registers each generator under its name
-    void register_generators(stratum_sim::Generation& generation, const warning_function_type& warning);
+    void register_generators(stratum_sim::Generation& generation);
 
 } // namespace quetzal::stratum_gen
 

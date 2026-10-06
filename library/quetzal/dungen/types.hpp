@@ -11,8 +11,7 @@
 #include "quetzal/geometry/DiscreteDirectedPoint.hpp"
 #include "quetzal/geometry/DiscretePoint.hpp"
 #include "quetzal/math/Random.hpp"
-#include <functional>
-#include <string>
+#include <string_view>
 #include <cstdint>
 
 namespace quetzal::dungen
@@ -28,8 +27,8 @@ namespace quetzal::dungen
     // A zone's position relative to the surface: 0 at the surface, negative going down and positive going up
     using level_type = std::int32_t;
 
-    // Called when the generator does less than was asked, if that is not an error
-    using warning_function_type = std::function<void(const std::string& warning)>;
+    // The category of dungen's entries in the process-wide log
+    inline constexpr std::string_view log_category = "dungen";
 
     using math::CardinalDirection;
 

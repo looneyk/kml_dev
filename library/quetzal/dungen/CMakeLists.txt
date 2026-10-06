@@ -46,4 +46,4 @@ target_include_directories(quetzal_dungen PUBLIC
     ${DEV_ROOT}/library
 )
 
-target_link_libraries(quetzal_dungen PUBLIC quetzal_common quetzal_math quetzal_stratum_format)
+target_link_libraries(quetzal_dungen PUBLIC quetzal_common quetzal_log quetzal_math quetzal_stratum_format)
