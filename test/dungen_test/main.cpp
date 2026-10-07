@@ -1239,7 +1239,7 @@ namespace
             vector<string>& warnings)
         {
             dungen::random_type random(1u);
-            log::process_log().add_sink([&warnings](const log::LogEntry& entry)
+            log::logger().add_sink([&warnings](const log::LogEntry& entry)
             {
                 if (entry.level == log::LogLevel::Warning && entry.category == dungen::log_category)
                 {
@@ -1257,7 +1257,7 @@ namespace
                 error = e.what();
             }
 
-            log::process_log().clear_sinks();
+            log::logger().clear_sinks();
             return error;
         };
 

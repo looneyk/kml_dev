@@ -1557,7 +1557,7 @@ quetzal::stratum_format::Document quetzal::stratum_format::read_zone(std::istrea
     {
         return read_zone_document(v, [&](const std::string& path, std::string_view what)
         {
-            log::process_log().warning(log_category, "{}: {}: {}", stream_name, path, what);
+            log::logger().warning(log_category, "{}: {}: {}", stream_name, path, what);
         });
     });
 }

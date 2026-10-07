@@ -160,7 +160,7 @@ namespace
 
         Log log;
         report_case("a log starts at info", log.level() == LogLevel::Info);
-        report_case("and the process-wide log is one log, at info", &process_log() == &process_log() && process_log().level() == LogLevel::Info);
+        report_case("and the process-wide log is one log, at info", &logger() == &logger() && logger().level() == LogLevel::Info);
         return;
     }
 

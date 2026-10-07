@@ -23,3 +23,10 @@ void quetzal::stratum_sim::Settings::set_random_seeding_on_open(RandomSeedingOnO
     m_random_seeding_on_open = random_seeding_on_open;
     return;
 }
+
+//------------------------------------------------------------------------------
+quetzal::stratum_sim::Settings& quetzal::stratum_sim::settings()
+{
+    static Settings s_settings;
+    return s_settings;
+}

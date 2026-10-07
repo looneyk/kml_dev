@@ -30,11 +30,17 @@ in `work_plan.md` (`### Session`).
 ## Settings, the log, and the random engines
 
 The settings, the log, and the gameplay and generation random engines are process-wide, each reached through a function
-from any code that uses it, and passed to none. They are independent of flecs and of `World`, so the views and the
+from any code that uses them. They are independent of flecs and of `World`, so the views and the
 hosts reach them as the sim does.
 
-- **The settings** apply to any part of the game: play, generation, the views, audio, and controls. `Game` sets them
-  when a game is created or opened, and saves the game's settings in `game.json`.
+- **The settings** apply to any subsystem: play, generation, the views, audio, and controls, and `settings()`
+  returns the store of them. There may be a hundred or more, so each is a value under a key with one declaration,
+  rather than a getter and a setter of its own (`settings_plan.md`). The store is in a library below the sim, and
+  each layer declares and reads only its own sections: the sim `gameplay`, the view `video`, and the hosts `audio` and
+  `controls`.
+- **A setting's scope is a game or the program.** A game setting, such as the difficulty mode or the notation, is saved
+  in `game.json`, and `Game` sets it when the game is created or opened. A program setting, such as video, audio or
+  controls, is the player's, the same in every game, and saved in the user settings file.
 - **The log** is the process-wide instance of the log library's class (`log_plan.md`), with sinks that the host
   installs: a file in the terminal, and Godot's output and a file in Godot. A library writes its warnings to it in
   place of taking a warning function. It is thread-safe.
@@ -47,9 +53,9 @@ hosts reach them as the sim does.
 - **NetHack** keeps its options in global structs that any code reads. `flags` holds the options that affect play and is
   written into the save file, so a game reopens with them; `iflags` holds the interface options, which are the
   player's and are not saved with a game. The division is the one between a game's settings and the program's.
-- **Dungeon Crawl Stone Soup** reads the player's options file into one global, `Options`, that every part of the game
-  reads by field, `Options.autopickup_on` among them. Changing an option in play assigns the field.
-- **Godot** has the `ProjectSettings` singleton, a store of named values under slash-separated paths such as
+- **Dungeon Crawl Stone Soup** reads the player's options file into one global, `Options`, that every subsystem of the
+  game reads by field, `Options.autopickup_on` among them. Changing an option in play assigns the field.
+- **Godot** has the `ProjectSettings` singleton, a store of values under slash-separated names such as
   `display/window/size/viewport_width`, read with `ProjectSettings.get_setting` from any script or engine code. A
   game's own player preferences are usually a `ConfigFile` written to `user://`, loaded into an autoload singleton
   that every scene reaches by name.
@@ -264,6 +270,10 @@ Character& Game::character();
   game's config file. Until that file is read, each host passes a temporary config, with the two directories in the temp
   directory's `KML/Stratum/saves` and `KML/Stratum/working` (`game_file_spec.md`, `## A saved game's files`). A suite
   passes directories of its own.
+- **The config file's directory is the one location in code:** the program's data directory, `%APPDATA%/KML/Stratum`
+  on Windows, for now. SDL calls it the pref path, `SDL_GetPrefPath("KML", "Stratum")`, and Qt the app config
+  location; Godot's `user://` is in the same place. The config file gives every other location: the saves, working and
+  logs directories, and the user settings file.
 - **The settings are the game's,** applied when it begins and saved with it. A difficulty mode is one of them
   (`difficulty_plan.md`).
 

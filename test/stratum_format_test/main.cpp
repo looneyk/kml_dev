@@ -56,7 +56,7 @@ namespace
     // Reads the zone, adding the messages of the warnings it writes to the process-wide log to warnings
     stratum_format::Document read_zone_with_warnings(istream& is, const string& stream_name, vector<string>& warnings)
     {
-        log::process_log().add_sink([&warnings](const log::LogEntry& entry)
+        log::logger().add_sink([&warnings](const log::LogEntry& entry)
         {
             if (entry.level == log::LogLevel::Warning && entry.category == stratum_format::log_category)
             {
@@ -67,12 +67,12 @@ namespace
         try
         {
             stratum_format::Document document = stratum_format::read_zone(is, stream_name);
-            log::process_log().clear_sinks();
+            log::logger().clear_sinks();
             return document;
         }
         catch (...)
         {
-            log::process_log().clear_sinks();
+            log::logger().clear_sinks();
             throw;
         }
     }

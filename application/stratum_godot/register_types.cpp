@@ -56,8 +56,8 @@ void initialize_stratum_module(godot::ModuleInitializationLevel level)
         return;
     }
 
-    quetzal::log::process_log().add_sink(write_to_godot_output);
-    quetzal::log::process_log().add_sink(quetzal::log::FileLogSink(temporary_log_filepath()));
+    quetzal::log::logger().add_sink(write_to_godot_output);
+    quetzal::log::logger().add_sink(quetzal::log::FileLogSink(temporary_log_filepath()));
 
     GDREGISTER_CLASS(StratumWorld);
 
@@ -72,7 +72,7 @@ void uninitialize_stratum_module(godot::ModuleInitializationLevel level)
         return;
     }
 
-    quetzal::log::process_log().clear_sinks();
+    quetzal::log::logger().clear_sinks();
 
     return;
 }

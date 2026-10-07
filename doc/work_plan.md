@@ -24,6 +24,8 @@ The design behind the items is in these documents, which the items refer to by s
   the game's lifecycle and the menu operations behind it: `Game` is the game in its entirety, lasting as long as the
   host, and owns the `World`, the `Character` and the `Session` by value, clearing them in place for each game created
   or opened.
+- `settings_plan.md` covers the settings: one keyed store or typed structures for each layer, and game and program
+  settings.
 - `sim_zone_model.md` has the model beneath the code.
 - `world_generation_plan.md` covers how a new game's regions and zones are generated: `RegionSpec` and `ZoneSpec`, the
   registries of generators, generator selectors and region specs, and the relocators that lead to new zones and
@@ -116,11 +118,32 @@ each on the ones before it. `Game`'s menu and lifecycle functions, and those the
       returns a map from each generator's name to its function and registers nothing; each host registers them in
       `Generation`, making the `ZoneRequest` from the `ZoneSpec`. `quetzal_stratum_gen` no longer links
       `quetzal_stratum_sim`.
-- [ ] **The settings process-wide** (`session_plan.md`, `## Settings, the log, and the random engines`): `Settings` reached
-      through a function from the sim, the views and the hosts, in place of `Game`'s member and accessors, and set by
-      `Game` when a game is created or opened.
+- [x] **The settings process-wide** (`session_plan.md`, `## Settings, the log, and the random engines`): `Settings`
+      reached through `settings()` from the sim, the views and the hosts, in place of `Game`'s member and accessors.
+- [ ] **The config file** (`session_plan.md`, `### Lifetime`): the one location in code, the program's data
+      directory, `%APPDATA%/KML/Stratum` on Windows for now, has the config file, which gives the saves, working and logs
+      directories, the user settings file, and the zone count maximum. The hosts read it into the `Config` they now
+      build as a temporary value.
+- [ ] **Keyed settings** (`settings_plan.md`, `## Terms`): each setting's value kept in one store under its key, such
+      as `gameplay.random_seeding_on_open`, read and written with `settings().value(declaration)` and `set_value`. It
+      replaces a getter and a setter on `Settings` for each of what may become a hundred or more settings.
+  - **One store, below the sim:** a `quetzal/settings` library beside `quetzal/log`, which `stratum_sim::Settings` and
+    its `settings()` move into, since a keyed store is not stratum's own.
+  - **Each layer declares its own settings, in its own sections:** the sim `gameplay`, the view `video`, and the hosts
+    `audio` and `controls`. Each reads only its own, so the sim depends on none of the view's or the hosts', as each
+    section of Godot's `ProjectSettings` and Unreal's config is read by the module it belongs to.
+  - **Each setting has one declaration,** with its key, type, default and scope: a `Setting<T>` in C++ for a setting
+    C++ reads, as an Unreal `TAutoConsoleVariable` or a Source `ConVar` is declared, and an entry in data for one only
+    data and scripts read, so a mod can add its own.
+  - **Scope:** a game setting, such as the difficulty mode or the notation, is saved in `game.json` and set by `Game`
+    when the game is opened. A program setting, such as video, audio or controls, is the player's, the same in every
+    game, and saved in the user settings file, where the config file puts it.
+  - **Each subsystem applies its settings** into structures of its own, as Unreal's `ApplySettings` does, when it starts,
+    when a game is created or opened, and on a change notification for its section; it never reads the store
+    otherwise, and never writes its structures back.
 - [ ] **The generators integrated.** catagen's generator in `quetzal/stratum_gen` beside dungen's. The game's
-      notation, a setting chosen when the game is created, decides which of them generates every zone: dungen for the
+      notation, a setting chosen when the game is created, saved in `game.json`'s `settings` and set again by `Game`
+      when the game is opened, decides which of them generates every zone: dungen for the
       block notation and catagen for the wall notation, with the zone's one seed. Each reads its parameters, or the
       subset that applies, from the `ZoneRequest`'s `parameters` tokens, rather than running with a default-constructed
       set.
@@ -418,8 +441,11 @@ These are the open questions.
 - **The population strategy from the zone's source,** the template loaded or the generation guidance, which replaces
   `World::populate`'s placeholder (`session_plan.md`, `## World`).
 - **The time a zone was entered:** simulation time or real time.
-- **The game's config file,** which supplies the `Config` that each host now builds as a temporary value, and the
-  game's other settings.
+- **The config file's name and format,** and what the program does when there is none: write one with the defaults,
+  or run on the defaults alone.
+- **The data directory on other platforms:** `~/.local/share/KML/Stratum` under XDG on Linux, and
+  `~/Library/Application Support/KML/Stratum` on macOS, as `SDL_GetPrefPath` returns them, and whether to take it from
+  a library or compute it.
 - **Whether the driver belongs to the game or to a zone.**
 - **Actors.** The character and the denizens are both actors, and differ in what controls them; the actor structure is
   not designed, and neither is what kills an actor and marks it `Dead`.
@@ -429,6 +455,22 @@ These are the open questions.
 - **Where the unload order's data is kept** --- `ZoneEntryIndex`'s map from entry count to zone id, or a component on
   each zone with a flecs query ordered by it --- once regions set the criteria: other regions' zones by the time they
   were entered, and the character's region's zones by distance or level difference (`## Regions`).
+
+### Settings
+
+- **Typed structures for each layer or one keyed store** (`settings_plan.md`, `## Typed structures or keyed values`).
+- **The names in code:** `Setting<T>` for a declaration, `SettingScope` and its values, and the library's namespace,
+  checked against the terms in `settings_plan.md` (`## Terms`) before any is written.
+- **The declaration format:** the file or files the settings are declared in, what a declaration has --- type, default,
+  scope, range or allowed values, display name, and whether a restart is required --- and how a mod adds a setting or
+  changes another's default.
+- **The user settings file:** its name and its format. The config file gives where it is.
+- **When a setting may change:** a program setting while a game is open, and a game setting during play, as the
+  difficulty mode may (`difficulty_plan.md`). A game setting applies between advances, never partway through a turn.
+- **How a subsystem registers for its change notifications:** a function for each section, or for each setting, and on
+  which thread it is called once anything but the sim's thread can change a setting.
+- **Whether a new game's settings start from the player's,** such as the difficulty mode last chosen, or from the
+  declared defaults.
 
 ### View
 

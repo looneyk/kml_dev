@@ -93,7 +93,7 @@ namespace quetzal::log
     };
 
     // Returns the process-wide log, constructed at Info on first use
-    Log& process_log();
+    Log& logger();
 
 } // namespace quetzal::log
 

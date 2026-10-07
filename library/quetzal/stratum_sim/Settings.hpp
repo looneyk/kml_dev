@@ -19,6 +19,7 @@ namespace quetzal::stratum_sim
     };
 
     //--------------------------------------------------------------------------
+    // User settings, graphics, audio, gameplay, control mapping, ...
     class Settings
     {
     public:
@@ -40,6 +41,9 @@ namespace quetzal::stratum_sim
 
         RandomSeedingOnOpen m_random_seeding_on_open;
     };
+
+    // Returns the process-wide settings, constructed on first use
+    Settings& settings();
 
 } // namespace quetzal::stratum_sim
 

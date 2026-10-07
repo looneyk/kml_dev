@@ -132,8 +132,8 @@ void quetzal::log::Log::write_entry(const LogEntry& entry)
 }
 
 //------------------------------------------------------------------------------
-quetzal::log::Log& quetzal::log::process_log()
+quetzal::log::Log& quetzal::log::logger()
 {
-    static Log s_process_log;
-    return s_process_log;
+    static Log s_logger;
+    return s_logger;
 }

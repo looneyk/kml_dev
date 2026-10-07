@@ -170,7 +170,7 @@ stratum_terminal::Application::Application(View view, const std::string& script,
     m_running(true)
 {
     // A file, since anything written to the console would write over the terminal's frame
-    log::process_log().add_sink(log::FileLogSink(temporary_log_filepath()));
+    log::logger().add_sink(log::FileLogSink(temporary_log_filepath()));
     for (const auto& [name, generate] : stratum_gen::generators())
     {
         m_game.generation().m_generators[name] = [generate](const stratum_sim::ZoneSpec& zone_spec)

@@ -268,7 +268,7 @@ void quetzal::dungen::place_staircases(Zone& zone, vector<point_type> candidates
     }
     else if (up_count > 0 || down_count > 0)
     {
-        log::process_log().warning(log_category, "{} of {} staircases leading up and {} of {} leading down placed, the candidates running out",
+        log::logger().warning(log_category, "{} of {} staircases leading up and {} of {} leading down placed, the candidates running out",
             up_requested - up_count, up_requested, down_requested - down_count, down_requested);
     }
 

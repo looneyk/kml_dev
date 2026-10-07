@@ -2288,13 +2288,13 @@ namespace
         report_case("the random engine's state is restored, so a save made at once has the same state",
             reopened_game_json["game"]["random_engines"]["gameplay"] == saved_random_engine_state);
 
-        saving.settings().set_random_seeding_on_open(stratum_sim::RandomSeedingOnOpen::Reseed);
+        stratum_sim::settings().set_random_seeding_on_open(stratum_sim::RandomSeedingOnOpen::Reseed);
         saving.open(save_name);
         string reseeded_save_name = saving.save(stratum_sim::SaveType::Explicit);
         stratum_format::raw_values_type reseeded_game_json = read_json(saving_config.saves_directory / reseeded_save_name / "game.json");
         report_case("or reseeded, as the settings choose", reseeded_game_json["game"]["random_engines"]["gameplay"] != saved_random_engine_state
             && reseeded_game_json["game"]["seed"] != game_json["game"]["seed"]);
-        saving.settings().set_random_seeding_on_open(stratum_sim::RandomSeedingOnOpen::RestoreSavedState);
+        stratum_sim::settings().set_random_seeding_on_open(stratum_sim::RandomSeedingOnOpen::RestoreSavedState);
 
         saving.open(replaced_save_name);
         report_case("a save whose character's name cannot name a directory opens into one with the characters replaced", opened.loaded()

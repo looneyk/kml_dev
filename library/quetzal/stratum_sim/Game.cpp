@@ -125,7 +125,6 @@ void quetzal::stratum_sim::register_game_types(World& world)
 //------------------------------------------------------------------------------
 quetzal::stratum_sim::Game::Game(const Config& config) :
     m_config(config),
-    m_settings(),
     m_counting_id_allocator(PersistentId {}),
     m_random(),
     m_generation(),
@@ -246,7 +245,7 @@ void quetzal::stratum_sim::Game::restore_game_state(const std::filesystem::path&
         throw std::runtime_error(std::format("{}: game.seed: '{}' is not a seed", filepath.string(), document.seed));
     }
 
-    if (m_settings.random_seeding_on_open() == RandomSeedingOnOpen::Reseed)
+    if (settings().random_seeding_on_open() == RandomSeedingOnOpen::Reseed)
     {
         m_seed = std::random_device {}();
         m_random.engine().seed(m_seed);
@@ -336,18 +335,6 @@ void quetzal::stratum_sim::Game::quit()
 {
     clear();
     return;
-}
-
-//------------------------------------------------------------------------------
-quetzal::stratum_sim::Settings& quetzal::stratum_sim::Game::settings()
-{
-    return m_settings;
-}
-
-//------------------------------------------------------------------------------
-const quetzal::stratum_sim::Settings& quetzal::stratum_sim::Game::settings() const
-{
-    return m_settings;
 }
 
 //------------------------------------------------------------------------------

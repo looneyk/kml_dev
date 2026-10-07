@@ -635,12 +635,16 @@ stopped by an occupied cell in `World::move`.
 each save is a directory; `working_directory`, which has the game directory of the game in progress and nothing else;
 and `zone_count_max`, the most zones the world keeps loaded at once. `config()` returns it. Each host passes a
 temporary config, with the two directories in the temp directory's `KML/Stratum/saves` and `KML/Stratum/working` and a
-maximum of 8, until the game's config file is read. It owns the structures that survive outside play: the config, the
-settings, a `CountingIdAllocator` counting from zero, a `random_type` seeded from
+maximum of 8, until the game's config file is read. It owns the structures that survive outside play: the config, a
+`CountingIdAllocator` counting from zero, a `random_type` seeded from
 `std::random_device`, the `Generation`, the `World` and the `Character`, and the `Session` that plays them, constructed in
 that order, each referring to those before it. `generation()` returns the `Generation`, with which a host registers
 its generators, selectors and region specs. Only the `Generation` can be copied or moved. The constructor makes no
 character, region or zone; until a game is created, there is none.
+
+`Settings` are process-wide: `settings()` returns the one instance, constructed on first use, which the sim,
+the views and the hosts reach without its being passed. Its one setting is `random_seeding_on_open`. A suite that
+changes a setting sets it back after its cases.
 
 `Game` has the menu and lifecycle operations a host calls: `menu_open`, `menu_close`, `clear`, `create`, `open`,
 `save`, `quit` and `saved_games`. They call `clear`, `create`, `open` and `save` on `World` and `Character`, and

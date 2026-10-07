@@ -117,7 +117,7 @@ namespace quetzal::log
     };
 
     // The process-wide log, constructed on first use
-    Log& process_log();
+    Log& logger();
 
     // Sinks: a file appended to, and a stream such as std::clog
     class FileLogSink;
@@ -131,8 +131,10 @@ namespace quetzal::log
 
 - **`Log` is reusable.** A program can make one of its own, as `log_test` does to test the class. The process-wide
   instance is a `Log` like any other.
-- **`process_log()` returns the process-wide log,** a function-local static, which C++ constructs once, on first use,
-  safely across threads. No code passes a log to another.
+- **`logger()` returns the process-wide log,** a function-local static, which C++ constructs once, on first use,
+  safely across threads, as Rust's `log::logger()` returns its global one. No code passes a log to another. Every
+  call names it, `log::logger().warning(...)`, so a line that logs is plain to see. Free functions that forward to it,
+  as spdlog's `spdlog::warn` does, can be added later without changing a call written this way.
 - **The program installs the sinks.** The process-wide log has none until then, and an entry written before a sink is
   installed is dropped. A suite or a tool that wants the entries installs a sink first.
 - **A sink is a function,** given each entry, so a file, a stream, Godot's output, or a suite's collection are all the
@@ -145,7 +147,7 @@ namespace quetzal::log
   log can be read or filtered by its source.
 - **The log does not end the program.** A `Critical` entry is written like any other, as in spdlog; a failure is an
   assert or a thrown exception, which the code that fails raises after logging.
-- **A `Log` starts at `Info`,** spdlog's default level, and `process_log()` constructs the process-wide log at it.
+- **A `Log` starts at `Info`,** spdlog's default level, and `logger()` constructs the process-wide log at it.
 - **The program sets the levels at startup,** where it installs the sinks. The game's levels, the log's and any
   category's or sink's, are process-wide settings, which the host applies when it starts and again whenever a setting
   changes, as Unreal's `log` console command changes a category's level while the game runs. The tools take a
@@ -185,35 +187,34 @@ takes a `LogEntry`; `FileLogSink` and `StreamLogSink` are two the library provid
 using namespace quetzal;
 
 // At startup, in the host
-log::Log& process_log = log::process_log();
-process_log.set_level(log::LogLevel::Info);
-process_log.set_category_level("dungen", log::LogLevel::Debug);
+log::logger().set_level(log::LogLevel::Info);
+log::logger().set_category_level("dungen", log::LogLevel::Debug);
 
 // A sink of the caller's own, here Godot's output, writing only warnings and above
-process_log.add_sink([](const log::LogEntry& entry)
+log::logger().add_sink([](const log::LogEntry& entry)
 {
     godot::UtilityFunctions::print(log::format_entry(entry).c_str());
 }, log::LogLevel::Warning);
 
 // A sink the library provides, writing every entry its category's level passes
-process_log.add_sink(log::FileLogSink(logs_directory / "stratum_godot.log"));
+log::logger().add_sink(log::FileLogSink(logs_directory / "stratum_godot.log"));
 
 // Anywhere in the program, with no log passed to it
-log::process_log().warning("dungen", "{} of {} staircases placed", placed_count, drawn_count);
+log::logger().warning("dungen", "{} of {} staircases placed", placed_count, drawn_count);
 ```
 
 A suite collects the entries that the code it tests writes to the process-wide log, and clears the sinks after:
 
 ```cpp
 std::vector<log::LogEntry> entries;
-log::process_log().add_sink([&entries](const log::LogEntry& entry)
+log::logger().add_sink([&entries](const log::LogEntry& entry)
 {
     entries.push_back(entry);
 });
 
 // ... run the generator, then check the warnings in entries
 
-log::process_log().clear_sinks();
+log::logger().clear_sinks();
 ```
 
 ## The game's use

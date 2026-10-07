@@ -129,7 +129,7 @@ int main(int argc, char* argv[])
     string name;
     catagen::Parameters parameters;
     bool quiet = false;
-    log::process_log().add_sink(log::StreamLogSink(clog));
+    log::logger().add_sink(log::StreamLogSink(clog));
 
     try
     {
@@ -183,7 +183,7 @@ int main(int argc, char* argv[])
             }
             else if (arg == "--log-level" && i + 1 < argc)
             {
-                log::process_log().set_level(to_level(argv[++i]));
+                log::logger().set_level(to_level(argv[++i]));
             }
             else if (arg.starts_with("--"))
             {

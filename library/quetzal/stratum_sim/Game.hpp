@@ -77,9 +77,6 @@ namespace quetzal::stratum_sim
 
         const Config& config() const;
 
-        Settings& settings();
-        const Settings& settings() const;
-
         Generation& generation();
         const Generation& generation() const;
 
@@ -99,7 +96,6 @@ namespace quetzal::stratum_sim
 
         // Some of these properties, especially Config, are only of importance to the host ...
         Config m_config; // Immutable properties like file locations, physical hardware configuration, ...
-        Settings m_settings; // User settings, graphics, audio, gameplay, control mapping, ...
 
         // In construction order, each referring to those above it
         CountingIdAllocator m_counting_id_allocator;
