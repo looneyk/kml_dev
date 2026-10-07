@@ -81,21 +81,6 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Temporary, until the config file is read: during development the game's directories are in the temp directory
-    stratum_sim::Config temporary_config()
-    {
-        const std::filesystem::path root = std::filesystem::temp_directory_path() / "KML/Stratum";
-        return stratum_sim::Config {root / "saves", root / "working", 8};
-    }
-
-    //--------------------------------------------------------------------------
-    // Temporary, until the config file is read: the log is in a logs directory beside the saves and working directories
-    std::filesystem::path temporary_log_filepath()
-    {
-        return std::filesystem::temp_directory_path() / "KML/Stratum/logs/stratum_terminal.log";
-    }
-
-    //--------------------------------------------------------------------------
     // Temporary, until a new game chooses its region: a dungeon whose first zone is the first level down, entered at its
     // staircase leading up
     stratum_sim::RegionSpec temporary_region_spec()
@@ -157,7 +142,7 @@ namespace
 
 //------------------------------------------------------------------------------
 stratum_terminal::Application::Application(View view, const std::string& script, bool incremental) :
-    m_game(temporary_config()),
+    m_game(stratum_sim::load_config(stratum_sim::data_directory())),
     m_session(m_game.session()),
     m_view_requested(view),
     m_view(view),
@@ -170,7 +155,7 @@ stratum_terminal::Application::Application(View view, const std::string& script,
     m_running(true)
 {
     // A file, since anything written to the console would write over the terminal's frame
-    log::logger().add_sink(log::FileLogSink(temporary_log_filepath()));
+    log::logger().add_sink(log::FileLogSink(m_game.config().logs_directory / "stratum_terminal.log"));
     for (const auto& [name, generate] : stratum_gen::generators())
     {
         m_game.generation().m_generators[name] = [generate](const stratum_sim::ZoneSpec& zone_spec)

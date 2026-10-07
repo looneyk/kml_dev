@@ -16,6 +16,7 @@
 #include "quetzal/stratum_sim/make_document.hpp"
 #include "quetzal/stratum_sim/commands.hpp"
 #include "quetzal/stratum_sim/Clock.hpp"
+#include "quetzal/stratum_sim/Config.hpp"
 #include "quetzal/stratum_sim/Scheduler.hpp"
 #include "quetzal/stratum_sim/Session.hpp"
 #include "quetzal/stratum_sim/Game.hpp"
@@ -4147,6 +4148,39 @@ namespace
         return;
     }
 
+    //--------------------------------------------------------------------------
+    void test_config()
+    {
+        report_group("config");
+
+        const filesystem::path directory = "out/config";
+        filesystem::remove_all(directory);
+
+        stratum_sim::Config config = stratum_sim::load_config(directory);
+        report_case("with no config file, one is written with the defaults", filesystem::exists(directory / "config.json")
+            && config.zone_count_max == 8);
+        report_case("and its locations are relative to its directory", config.saves_directory == directory / "saves"
+            && config.working_directory == directory / "working" && config.logs_directory == directory / "logs"
+            && config.cache_directory == directory / "cache" && config.user_settings_filepath == directory / "settings.json");
+
+        const filesystem::path absolute_logs = filesystem::absolute("out/config_logs");
+        {
+            ofstream os(directory / "config.json", ios_base::binary);
+            os << "{ \"format\": \"quetzal.stratum_config\", \"version\": \"0.1\", \"saves_directory\": \"elsewhere/saves\", "
+                << "\"working_directory\": \"working\", \"logs_directory\": \"" << absolute_logs.generic_string() << "\", "
+                << "\"cache_directory\": \"cache\", \"user_settings_file\": \"settings.json\", \"zone_count_max\": 3 }";
+        }
+
+        config = stratum_sim::load_config(directory);
+        report_case("a config file that exists is read, a relative location joined to its directory and an absolute one kept",
+            config.zone_count_max == 3 && config.saves_directory == directory / "elsewhere/saves" && config.logs_directory == absolute_logs);
+
+        report_case("the data directory is KML/Stratum in the platform's directory for application data",
+            stratum_sim::data_directory().generic_string().ends_with("KML/Stratum"));
+
+        return;
+    }
+
 } // namespace
 
 //------------------------------------------------------------------------------
@@ -4193,6 +4227,7 @@ int main()
     test_ai();
     test_walk();
     test_polygon_containment();
+    test_config();
 
     return report_results();
 }

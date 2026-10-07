@@ -7,22 +7,15 @@
 #include "StratumWorld.hpp"
 #include "quetzal/log/FileLogSink.hpp"
 #include "quetzal/log/Log.hpp"
+#include "quetzal/stratum_sim/Config.hpp"
 #include <gdextension_interface.h>
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/core/defs.hpp>
 #include <godot_cpp/godot.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
-#include <filesystem>
 
 namespace
 {
-
-    //--------------------------------------------------------------------------
-    // Temporary, until the config file is read: the log is in a logs directory beside the saves and working directories
-    std::filesystem::path temporary_log_filepath()
-    {
-        return std::filesystem::temp_directory_path() / "KML/Stratum/logs/stratum_godot.log";
-    }
 
     //--------------------------------------------------------------------------
     // Errors and warnings as Godot's, so the editor marks them, and the rest as printed lines
@@ -57,7 +50,8 @@ void initialize_stratum_module(godot::ModuleInitializationLevel level)
     }
 
     quetzal::log::logger().add_sink(write_to_godot_output);
-    quetzal::log::logger().add_sink(quetzal::log::FileLogSink(temporary_log_filepath()));
+    const quetzal::stratum_sim::Config config = quetzal::stratum_sim::load_config(quetzal::stratum_sim::data_directory());
+    quetzal::log::logger().add_sink(quetzal::log::FileLogSink(config.logs_directory / "stratum_godot.log"));
 
     GDREGISTER_CLASS(StratumWorld);
 

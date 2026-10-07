@@ -1,7 +1,7 @@
 # Game File Format Specification
 
 Status: draft --- read and written by `stratum_format`
-Date: 2026-09-28, revised 2026-10-01
+Date: 2026-09-28, revised 2026-10-07
 
 This document specifies how a game is saved. A game has four parts: the game's own state, its settings, the player's
 character, and the world, which is a set of regions, each containing zones. A saved game is a
@@ -11,35 +11,29 @@ the `Game` that writes and reads these files, and `sim_zone_model.md` the model 
 
 ## A saved game's files
 
-The directory structure is KML/Stratum (probably qualified by the view type) and lives in the AppData or temp directories.
-Subdirectories config/ and saves/ are in the AppData/Roaming path and cache/ is in the AppData/Local path.
-A game in progress is in working/, which is always in temp. Every explicit save of the game copies its directory from
-working/ to a new directory in saves/, so each save is one consistent point.
-While development is in its early stages as it is now, all four directories will live in the temp directory, same directory structure.
-The path structure, production and development respectively:
+Everything is in one directory, the program's data directory, `KML/Stratum` in `%LOCALAPPDATA%` on Windows,
+`~/Library/Application Support` on macOS, and `$XDG_DATA_HOME` or `~/.local/share` elsewhere. It is the one location in
+code. It has the config file, `config.json`, which gives every other location, relative to the data directory unless
+absolute; when there is none, one is written with the defaults, which are these:
 
-AppData/
-  Roaming/
-    KML/
-      Stratum/
-        config/
-        saves/
-  Local/
-    KML/
-      Stratum/
-        cache/
-temp/
+```
+%LOCALAPPDATA%/
   KML/
     Stratum/
-      working/
-
-temp/
-  KML/
-    Stratum/
-      config/
-      saves/
+      config.json     the config file
+      settings.json   the user settings file
       cache/
+      logs/
+      saves/
       working/
+```
+
+`settings.json` is the user settings file, which has the user's settings: video, audio, controls, and the rest that are
+the same in every game (`settings_plan.md`). A game's settings are in its `game.json`. `cache/` has data the program
+can make again, which may be deleted.
+
+A game in progress is in `working/`. Every save of the game copies its directory from `working/` to a new directory in
+`saves/`, so each save is one consistent point.
 
 **The working directory and the saves directory.** The working directory has only the game in progress, in the game
 directory, named by the character. Each save of it is a directory in the saves directory,
@@ -259,7 +253,37 @@ file, `name` is on the line after `version`, each key of `character` is on a lin
 zone's entities are. In the world file, a region's `id` and `components` are on the line that opens
 it, its `spec` is on the next line, its `zones` follow, and each zone reference is on a line of its own, as each pair of
 the world index is, in entity id order. A zone file has the
-form that `discrete_layout.md` (`### The written form`) specifies.
+form that `discrete_layout.md` (`### The written form`) specifies. In the config file, each key is on a line of its
+own.
+
+## The config file
+
+`config.json`, in the data directory, is the program's `Config`: where its files are, and the most zones the world keeps
+loaded. It is not a saved game's file, and has a format of its own, `quetzal.stratum_config`, version `0.1`.
+
+```json
+{
+  "format": "quetzal.stratum_config",
+  "version": "0.1",
+  "saves_directory": "saves",
+  "working_directory": "working",
+  "logs_directory": "logs",
+  "cache_directory": "cache",
+  "user_settings_file": "settings.json",
+  "zone_count_max": 8
+}
+```
+
+| Key | |
+| --- | --- |
+| `saves_directory` | The directory each save is a directory in |
+| `working_directory` | The directory the game in progress is in |
+| `logs_directory` | The directory each host writes its log file in |
+| `cache_directory` | The directory of data the program can make again |
+| `user_settings_file` | The user settings file, `settings.json` by default, with the user's settings (`settings_plan.md`) |
+| `zone_count_max` | The most zones the world keeps loaded at once |
+
+Each location is relative to the data directory unless it is absolute, and every key is required.
 
 ## Open
 

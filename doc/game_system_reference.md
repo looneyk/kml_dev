@@ -633,9 +633,15 @@ stopped by an occupied cell in `World::move`.
 `Game` is the game in its entirety, the one object a host owns, for as long as the host runs. It is constructed with a
 `Config`, the program's configuration, which is the same for every game: `saves_directory`, the directory in which
 each save is a directory; `working_directory`, which has the game directory of the game in progress and nothing else;
-and `zone_count_max`, the most zones the world keeps loaded at once. `config()` returns it. Each host passes a
-temporary config, with the two directories in the temp directory's `KML/Stratum/saves` and `KML/Stratum/working` and a
-maximum of 8, until the game's config file is read. It owns the structures that survive outside play: the config, a
+`zone_count_max`, the most zones the world keeps loaded at once; `logs_directory`; `cache_directory`, for data the
+program can make again; and `user_settings_filepath`, the user settings file.
+`config()` returns it. Each host passes `load_config(data_directory())`. `data_directory()` is the one location in
+code: `KML/Stratum` in `%LOCALAPPDATA%` on Windows, `~/Library/Application Support` on macOS, and `$XDG_DATA_HOME` or
+`~/.local/share` elsewhere, read from the environment; it throws `std::runtime_error` if the environment does not give
+it. `load_config(directory)` reads the directory's `config.json` with `stratum_format::read_config`, after writing one
+with the defaults if there is none: `saves`, `working`, `logs`, `cache`, `settings.json` as the user settings file,
+and 8. It joins each location to the
+directory, which an absolute location replaces (`game_file_spec.md`, `## The config file`). It owns the structures that survive outside play: the config, a
 `CountingIdAllocator` counting from zero, a `random_type` seeded from
 `std::random_device`, the `Generation`, the `World` and the `Character`, and the `Session` that plays them, constructed in
 that order, each referring to those before it. `generation()` returns the `Generation`, with which a host registers
@@ -723,10 +729,11 @@ zone. A host supplies input mapping and drawing.
 zone. The library has no default entry type or offset.
 
 Each host installs its sinks on the process-wide log (`log_plan.md`). The terminal installs a `FileLogSink`
-writing to `KML/Stratum/logs/stratum_terminal.log` in the temp directory, since anything written to the console would
-write over its frame. Godot installs them when its extension initializes at the scene level, and clears them when it
-uninitializes: a sink writing errors and critical entries with `push_error`, warnings with `push_warning`, and the rest
-with `print`, and a `FileLogSink` writing to `KML/Stratum/logs/stratum_godot.log`. The log is at `info`.
+writing to `stratum_terminal.log` in the config's `logs_directory`, since anything written to the console would write
+over its frame. Godot installs them when its extension initializes at the scene level, reading the config for the
+purpose, and clears them when it uninitializes: a sink writing errors and critical entries with `push_error`, warnings
+with `push_warning`, and the rest with `print`, and a `FileLogSink` writing to `stratum_godot.log` in the logs
+directory. The log is at `info`.
 
 Each host registers each of `stratum_gen::generators()` as a `Generation::generator_type` that makes a `ZoneRequest`
 from the `ZoneSpec` and passes it on: the `name`, the `level`, the `seed`, and the keys after `parameters.`. Nothing
@@ -889,6 +896,11 @@ ids unique across the world, and every entry of the world index in a zone that a
 the checked reading of values through `checked_values.hpp`, in `stratum_format::detail`. Each file's header is its
 leading keys, `format` and `version`, and in the character file `name` after them; `check_file_header` checks it, and a
 writer emits it with `file_header_sections`.
+
+The config file is in the same library with a format of its own, `quetzal.stratum_config`, in `config_format.hpp` with
+its filename, `config.json`. `ConfigDocument` has each location as written and `zone_count_max`; `write`, in
+`write_config.hpp`, emits each key on a line of its own, and `read_config`, in `read_config.hpp`, requires the format,
+the version, and every key (`game_file_spec.md`, `## The config file`).
 
 `read_character_name` reads only the top of a character file, through nlohmann's SAX parser, and stops once it has the
 format, the version and the name, so nothing after the name is parsed, however much the character carries. It throws

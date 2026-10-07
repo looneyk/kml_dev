@@ -5,6 +5,7 @@ add_library(quetzal_stratum_sim STATIC
     Clock.cpp
     CommandQueue.cpp
     commands.cpp
+    Config.cpp
     decode_components.cpp
     DiscreteLayout.cpp
     DiscretePlacementIndex.cpp

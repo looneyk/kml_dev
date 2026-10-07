@@ -70,6 +70,7 @@ namespace quetzal::stratum_format::detail
 
     // The header that opens each file of a saved game but its zones: the format and the version
     std::vector<std::string> file_header_sections();
+    std::vector<std::string> file_header_sections(std::string_view header_format, std::string_view header_version);
 
     // The sections of a file, each on lines of its own, in the file's one top-level object
     std::string top_level_object_text(const std::vector<std::string>& sections);

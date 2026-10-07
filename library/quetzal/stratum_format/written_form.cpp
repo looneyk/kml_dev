@@ -314,10 +314,16 @@ std::string quetzal::stratum_format::detail::object_or_empty_text(const raw_valu
 //------------------------------------------------------------------------------
 std::vector<std::string> quetzal::stratum_format::detail::file_header_sections()
 {
+    return file_header_sections(saved_game_format_name, saved_game_format_version);
+}
+
+//------------------------------------------------------------------------------
+std::vector<std::string> quetzal::stratum_format::detail::file_header_sections(std::string_view header_format, std::string_view header_version)
+{
     return
     {
-        std::format("{}\"format\": {}", indentation(section_indent), string_text(saved_game_format_name)),
-        std::format("{}\"version\": {}", indentation(section_indent), string_text(saved_game_format_version))
+        std::format("{}\"format\": {}", indentation(section_indent), string_text(header_format)),
+        std::format("{}\"version\": {}", indentation(section_indent), string_text(header_version))
     };
 }
 

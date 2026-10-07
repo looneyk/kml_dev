@@ -3,24 +3,29 @@ add_library(quetzal_stratum_format STATIC
     Document.cpp
     grid.cpp
     read_character.cpp
+    read_config.cpp
     read_game.cpp
     read_world.cpp
     read_zone.cpp
     references.cpp
     RelocatorTarget.cpp
     write_character.cpp
+    write_config.cpp
     write_game.cpp
     write_world.cpp
     write_zone.cpp
     written_form.cpp
     CharacterDocument.hpp
     checked_values.hpp
+    config_format.hpp
+    ConfigDocument.hpp
     Document.hpp
     GameDocument.hpp
     Notation.hpp
     WorldDocument.hpp
     grid.hpp
     read_character.hpp
+    read_config.hpp
     read_game.hpp
     read_world.hpp
     read_zone.hpp
@@ -29,6 +34,7 @@ add_library(quetzal_stratum_format STATIC
     saved_game_format.hpp
     types.hpp
     write_character.hpp
+    write_config.hpp
     write_game.hpp
     write_world.hpp
     write_zone.hpp

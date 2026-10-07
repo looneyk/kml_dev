@@ -5,12 +5,14 @@
 
 #include "quetzal/log/Log.hpp"
 #include "quetzal/stratum_format/read_character.hpp"
+#include "quetzal/stratum_format/read_config.hpp"
 #include "quetzal/stratum_format/read_game.hpp"
 #include "quetzal/stratum_format/read_world.hpp"
 #include "quetzal/stratum_format/read_zone.hpp"
 #include "quetzal/stratum_format/references.hpp"
 #include "quetzal/stratum_format/RelocatorTarget.hpp"
 #include "quetzal/stratum_format/write_character.hpp"
+#include "quetzal/stratum_format/write_config.hpp"
 #include "quetzal/stratum_format/write_game.hpp"
 #include "quetzal/stratum_format/write_world.hpp"
 #include "quetzal/stratum_format/write_zone.hpp"
@@ -1334,6 +1336,71 @@ namespace
         return;
     }
 
+    //--------------------------------------------------------------------------
+    void test_config_file()
+    {
+        report_group("config file");
+
+        stratum_format::ConfigDocument config;
+        config.saves_directory = "saves";
+        config.working_directory = "working";
+        config.logs_directory = "D:/logs";
+        config.cache_directory = "cache";
+        config.user_settings_file = "settings.json";
+        config.zone_count_max = 8;
+
+        ostringstream os;
+        stratum_format::write(os, config);
+        const string config_text = os.str();
+        const string config_text_expected =
+            "{\n"
+            "  \"format\": \"quetzal.stratum_config\",\n"
+            "  \"version\": \"0.1\",\n"
+            "  \"saves_directory\": \"saves\",\n"
+            "  \"working_directory\": \"working\",\n"
+            "  \"logs_directory\": \"D:/logs\",\n"
+            "  \"cache_directory\": \"cache\",\n"
+            "  \"user_settings_file\": \"settings.json\",\n"
+            "  \"zone_count_max\": 8\n"
+            "}\n";
+        report_case("a config file has each value on a line of its own", config_text == config_text_expected,
+            format("expected\n{}got\n{}", config_text_expected, config_text));
+
+        istringstream is(config_text);
+        stratum_format::ConfigDocument read_back = stratum_format::read_config(is, "config");
+        report_case("and reads back as the document written", read_back.saves_directory == "saves" && read_back.working_directory == "working"
+            && read_back.logs_directory == "D:/logs" && read_back.cache_directory == "cache" && read_back.user_settings_file == "settings.json"
+            && read_back.zone_count_max == 8);
+
+        auto rejected = [&config_text](const string& from, const string& to, const string& error_expected)
+        {
+            string text = config_text;
+            size_t at = text.find(from);
+            assert(at != string::npos);
+            text.replace(at, from.size(), to);
+
+            try
+            {
+                istringstream in(text);
+                stratum_format::read_config(in, "config");
+            }
+            catch (const runtime_error& e)
+            {
+                return string(e.what()).find(error_expected) != string::npos;
+            }
+
+            return false;
+        };
+
+        report_case("a config file of another format is rejected", rejected("quetzal.stratum_config", "quetzal.stratum_game",
+            "format: 'quetzal.stratum_game' is not this format"));
+        report_case("and one with no saves directory", rejected("  \"saves_directory\": \"saves\",\n", "", "saves_directory: required and absent"));
+        report_case("and one whose zone count maximum is not a count", rejected("\"zone_count_max\": 8", "\"zone_count_max\": -1",
+            "zone_count_max"));
+
+        return;
+    }
+
 } // namespace
 
 //------------------------------------------------------------------------------
@@ -1353,6 +1420,7 @@ int main()
     test_relocator_targets();
     test_round_trip();
     test_game_files();
+    test_config_file();
 
     return report_results();
 }

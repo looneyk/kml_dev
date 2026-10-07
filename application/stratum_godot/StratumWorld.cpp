@@ -30,14 +30,6 @@ namespace
 {
 
     //--------------------------------------------------------------------------
-    // Temporary, until the config file is read: during development the game's directories are in the temp directory
-    sim::Config temporary_config()
-    {
-        const std::filesystem::path root = std::filesystem::temp_directory_path() / "KML/Stratum";
-        return sim::Config {root / "saves", root / "working", 8};
-    }
-
-    //--------------------------------------------------------------------------
     // Temporary, until a new game chooses its region: a dungeon whose first zone is the first level down, entered at its
     // staircase leading up
     sim::RegionSpec temporary_region_spec()
@@ -104,7 +96,7 @@ namespace
 
 //------------------------------------------------------------------------------
 StratumWorld::StratumWorld() :
-    m_game(temporary_config()),
+    m_game(sim::load_config(sim::data_directory())),
     m_session(m_game.session()),
     m_message()
 {

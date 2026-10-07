@@ -120,10 +120,10 @@ each on the ones before it. `Game`'s menu and lifecycle functions, and those the
       `quetzal_stratum_sim`.
 - [x] **The settings process-wide** (`session_plan.md`, `## Settings, the log, and the random engines`): `Settings`
       reached through `settings()` from the sim, the views and the hosts, in place of `Game`'s member and accessors.
-- [ ] **The config file** (`session_plan.md`, `### Lifetime`): the one location in code, the program's data
-      directory, `%APPDATA%/KML/Stratum` on Windows for now, has the config file, which gives the saves, working and logs
-      directories, the user settings file, and the zone count maximum. The hosts read it into the `Config` they now
-      build as a temporary value.
+- [x] **The config file** (`game_file_spec.md`, `## The config file`): the one location in code, the program's data
+      directory, `%LOCALAPPDATA%/KML/Stratum` on Windows, has `config.json`, which gives the saves, working, logs and
+      cache directories, the user settings file (`settings.json`), and the zone count maximum, and is written with the defaults if there is
+      none. The hosts read it into their `Config` with `load_config(data_directory())`.
 - [ ] **Keyed settings** (`settings_plan.md`, `## Terms`): each setting's value kept in one store under its key, such
       as `gameplay.random_seeding_on_open`, read and written with `settings().value(declaration)` and `set_value`. It
       replaces a getter and a setter on `Settings` for each of what may become a hundred or more settings.
@@ -441,11 +441,9 @@ These are the open questions.
 - **The population strategy from the zone's source,** the template loaded or the generation guidance, which replaces
   `World::populate`'s placeholder (`session_plan.md`, `## World`).
 - **The time a zone was entered:** simulation time or real time.
-- **The config file's name and format,** and what the program does when there is none: write one with the defaults,
-  or run on the defaults alone.
-- **The data directory on other platforms:** `~/.local/share/KML/Stratum` under XDG on Linux, and
-  `~/Library/Application Support/KML/Stratum` on macOS, as `SDL_GetPrefPath` returns them, and whether to take it from
-  a library or compute it.
+- **The saves directory's default on Windows:** `%USERPROFILE%\Saved Games\KML\Stratum`, the known folder
+  `FOLDERID_SavedGames`, which Microsoft's GDK guidance recommends for a game that manages its own saves, and which
+  Cyberpunk 2077 and The Outer Worlds 2 use, in place of the data directory's `saves`.
 - **Whether the driver belongs to the game or to a zone.**
 - **Actors.** The character and the denizens are both actors, and differ in what controls them; the actor structure is
   not designed, and neither is what kills an actor and marks it `Dead`.
@@ -464,7 +462,8 @@ These are the open questions.
 - **The declaration format:** the file or files the settings are declared in, what a declaration has --- type, default,
   scope, range or allowed values, display name, and whether a restart is required --- and how a mod adds a setting or
   changes another's default.
-- **The user settings file:** its name and its format. The config file gives where it is.
+- **The user settings file's format.** It is `settings.json`, in the data directory by default, where the config file
+  puts it (`game_file_spec.md`).
 - **When a setting may change:** a program setting while a game is open, and a game setting during play, as the
   difficulty mode may (`difficulty_plan.md`). A game setting applies between advances, never partway through a turn.
 - **How a subsystem registers for its change notifications:** a function for each section, or for each setting, and on

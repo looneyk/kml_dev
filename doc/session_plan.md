@@ -40,7 +40,7 @@ hosts reach them as the sim does.
   `controls`.
 - **A setting's scope is a game or the program.** A game setting, such as the difficulty mode or the notation, is saved
   in `game.json`, and `Game` sets it when the game is created or opened. A program setting, such as video, audio or
-  controls, is the player's, the same in every game, and saved in the user settings file.
+  controls, is the player's, the same in every game, and saved in the user settings file, `settings.json`.
 - **The log** is the process-wide instance of the log library's class (`log_plan.md`), with sinks that the host
   installs: a file in the terminal, and Godot's output and a file in Godot. A library writes its warnings to it in
   place of taking a warning function. It is thread-safe.
@@ -266,14 +266,13 @@ Character& Game::character();
   continues with its termination.
 - **A suite plays a game, clears it, and creates another,** and checks that the world then contains only the new game's
   regions, zones, entities and ids, so that nothing a clear misses survives into the next game.
-- **The config is the program's:** the saves directory, the working directory and the zone count maximum, from the
-  game's config file. Until that file is read, each host passes a temporary config, with the two directories in the temp
-  directory's `KML/Stratum/saves` and `KML/Stratum/working` (`game_file_spec.md`, `## A saved game's files`). A suite
-  passes directories of its own.
-- **The config file's directory is the one location in code:** the program's data directory, `%APPDATA%/KML/Stratum`
-  on Windows, for now. SDL calls it the pref path, `SDL_GetPrefPath("KML", "Stratum")`, and Qt the app config
-  location; Godot's `user://` is in the same place. The config file gives every other location: the saves, working and
-  logs directories, and the user settings file.
+- **The config is the program's:** the saves, working, logs and cache directories, the user settings file
+  (`settings.json`), and the zone count maximum, from the config file, `config.json` (`game_file_spec.md`, `## The config file`). A suite passes a config of
+  its own.
+- **The config file's directory is the one location in code:** the program's data directory, `%LOCALAPPDATA%/KML/Stratum`
+  on Windows, with everything else in it by default (`game_file_spec.md`, `## A saved game's files`). SDL calls such a
+  directory the pref path, `SDL_GetPrefPath("KML", "Stratum")`, and Qt the app data location; Unreal keeps a game's
+  files in `%LOCALAPPDATA%` too.
 - **The settings are the game's,** applied when it begins and saved with it. A difficulty mode is one of them
   (`difficulty_plan.md`).
 
