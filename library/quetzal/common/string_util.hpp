@@ -46,20 +46,20 @@ namespace quetzal
     std::istream& operator>>(std::istream& is, const element_delim_manip& manip);
 
     // What the manipulators put on the stream, or the default where none was set
-    std::string array_element_delimiter(std::ios_base& stream, const std::string& default_delimiter = " ");
+    std::string array_element_delimiter(std::ios_base& stream, std::string_view default_delimiter = " ");
 
     // Returns the first position that is neither a space nor a tab
     const char* skip_whitespace(const char* first, const char* last);
 
     std::istream& skip_object_delimiter(std::istream& is, char delimiter);
-    std::istream& skip_element_delimiter(std::istream& is, const std::string& delimiter_pattern);
+    std::istream& skip_element_delimiter(std::istream& is, std::string_view delimiter_pattern);
 
     // Matched exactly, except that whitespace in the pattern skips a run of it.
-    const char* skip_element_delimiter(const char* first, const char* last, const std::string& delimiter_pattern);
+    const char* skip_element_delimiter(const char* first, const char* last, std::string_view delimiter_pattern);
 
     //--------------------------------------------------------------------------
     template<typename T>
-    std::from_chars_result array_from_chars(const char* first, const char* last, T& t, const std::string& element_delimiter = " ")
+    std::from_chars_result array_from_chars(const char* first, const char* last, T& t, std::string_view element_delimiter = " ")
     {
         std::from_chars_result result {first, std::errc {}};
 
@@ -86,7 +86,7 @@ namespace quetzal
 
     //--------------------------------------------------------------------------
     template<typename T>
-    std::to_chars_result array_to_chars(char* first, char* last, const T& t, const std::string& element_delimiter = " ")
+    std::to_chars_result array_to_chars(char* first, char* last, const T& t, std::string_view element_delimiter = " ")
     {
         using element_type = typename T::value_type;
 
@@ -221,7 +221,7 @@ namespace quetzal
     // The std::format spec fragment equivalent to an ostream's delimiter manipulators, precision and fixed/scientific
     // flags. The defaults match the empty spec, so operator<< and format({}) produce the same output
     std::string array_format_spec(const std::ostream& os, char default_object_delim = '\0',
-        const std::string& default_element_delim = " ", bool precision = true);
+        std::string_view default_element_delim = " ", bool precision = true);
 
     //--------------------------------------------------------------------------
     // to_string following the stream's delimiter and floating point manipulators
@@ -259,7 +259,7 @@ namespace quetzal
 
     //--------------------------------------------------------------------------
     template<typename T>
-    std::optional<T> try_type(const std::string& str)
+    std::optional<T> try_type(std::string_view str)
     {
         T t{};
         const char* end = str.data() + str.size();
@@ -268,16 +268,16 @@ namespace quetzal
     }
 
     template<>
-    std::optional<std::string> try_type<std::string>(const std::string& str);
+    std::optional<std::string> try_type<std::string>(std::string_view str);
 
     // Returns std::nullopt if the string is not valid UTF-8
     template<>
-    std::optional<std::wstring> try_type<std::wstring>(const std::string& str);
+    std::optional<std::wstring> try_type<std::wstring>(std::string_view str);
 
     //--------------------------------------------------------------------------
     // Throws std::runtime_error if the whole string is not a value of the type
     template<typename T>
-    T to_type(const std::string& str)
+    T to_type(std::string_view str)
     {
         std::optional<T> t = try_type<T>(str);
         if (!t)
@@ -288,7 +288,7 @@ namespace quetzal
         return *t;
     }
 
-    bool to_bool(const std::string& str);
+    bool to_bool(std::string_view str);
 
 // to_utf8 ...
 //    std::string to_utf8(char16_t c);

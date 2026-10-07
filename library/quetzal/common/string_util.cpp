@@ -5,7 +5,9 @@
 #include "string_util.hpp"
 #include "utf8.h"
 #include "utf8/cpp11.h"
+#include <format>
 #include <ios>
+#include <iterator>
 #include <cassert>
 #include <string_view>
 #include <utility>
@@ -107,10 +109,10 @@ istream& quetzal::operator>>(istream& is, const element_delim_manip& manip)
 }
 
 //------------------------------------------------------------------------------
-string quetzal::array_element_delimiter(ios_base& stream, const string& default_delimiter)
+string quetzal::array_element_delimiter(ios_base& stream, string_view default_delimiter)
 {
     void* p = stream.pword(array_element_delim_index());
-    return p != nullptr ? *static_cast<string*>(p) : default_delimiter;
+    return p != nullptr ? *static_cast<string*>(p) : string(default_delimiter);
 }
 
 //------------------------------------------------------------------------------
@@ -140,7 +142,7 @@ istream& quetzal::skip_object_delimiter(istream& is, char delimiter)
 }
 
 //------------------------------------------------------------------------------
-istream& quetzal::skip_element_delimiter(istream& is, const string& delimiter_pattern)
+istream& quetzal::skip_element_delimiter(istream& is, string_view delimiter_pattern)
 {
     for (char c : delimiter_pattern)
     {
@@ -163,7 +165,7 @@ istream& quetzal::skip_element_delimiter(istream& is, const string& delimiter_pa
 }
 
 //------------------------------------------------------------------------------
-const char* quetzal::skip_element_delimiter(const char* first, const char* last, const string& delimiter_pattern)
+const char* quetzal::skip_element_delimiter(const char* first, const char* last, string_view delimiter_pattern)
 {
     for (char c : delimiter_pattern)
     {
@@ -185,7 +187,7 @@ const char* quetzal::skip_element_delimiter(const char* first, const char* last,
 }
 
 //------------------------------------------------------------------------------
-string quetzal::array_format_spec(const ostream& os, char default_object_delim, const string& default_element_delim, bool precision)
+string quetzal::array_format_spec(const ostream& os, char default_object_delim, string_view default_element_delim, bool precision)
 {
     auto& mutable_os = const_cast<ostream&>(os); // iword/pword aren't const, though this only reads
 
@@ -266,27 +268,28 @@ from_chars_result quetzal::from_chars(const char* first, const char* last, bool&
 
 //------------------------------------------------------------------------------
 template<>
-optional<string> quetzal::try_type<string>(const string& str)
+optional<string> quetzal::try_type<string>(string_view str)
 {
-    return str;
+    return string(str);
 }
 
 //------------------------------------------------------------------------------
 template<>
-optional<wstring> quetzal::try_type<wstring>(const string& str)
+optional<wstring> quetzal::try_type<wstring>(string_view str)
 {
     try
     {
+        wstring wstr;
         if constexpr (sizeof(wchar_t) == 2)
         {
-            u16string utf16 = utf8::utf8to16(str);
-            return wstring(utf16.begin(), utf16.end());
+            utf8::utf8to16(str.begin(), str.end(), back_inserter(wstr));
         }
         else
         {
-            u32string utf32 = utf8::utf8to32(str);
-            return wstring(utf32.begin(), utf32.end());
+            utf8::utf8to32(str.begin(), str.end(), back_inserter(wstr));
         }
+
+        return wstr;
     }
     catch (const utf8::exception&)
     {
@@ -295,12 +298,12 @@ optional<wstring> quetzal::try_type<wstring>(const string& str)
 }
 
 //------------------------------------------------------------------------------
-bool quetzal::to_bool(const string& str)
+bool quetzal::to_bool(string_view str)
 {
     const optional<bool> b = try_type<bool>(str);
     if (!b)
     {
-        throw std::runtime_error("Invalid boolean string value: " + str);
+        throw std::runtime_error(format("Invalid boolean string value: {}", str));
     }
 
     return *b;

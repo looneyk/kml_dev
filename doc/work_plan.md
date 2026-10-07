@@ -125,8 +125,22 @@ each on the ones before it. `Game`'s menu and lifecycle functions, and those the
       cache directories, the user settings file (`settings.json`), and the zone count maximum, and is written with the defaults if there is
       none. The hosts read it into their `Config` with `load_config(data_directory())`.
 - [ ] **Keyed settings** (`settings_plan.md`, `## Terms`): each setting's value kept in one store under its key, such
-      as `gameplay.random_seeding_on_open`, read and written with `settings().value(declaration)` and `set_value`. It
-      replaces a getter and a setter on `Settings` for each of what may become a hundred or more settings.
+      as `gameplay.random_seeding_on_open`, read and written with `settings::store().value(declaration)` and
+      `set_value`. It replaces a getter and a setter on `Settings` for each of what may become a hundred or more
+      settings. In four commit points:
+  - [x] **The settings library:** `library/quetzal/settings/`, the target `quetzal_settings` in the namespace
+        `quetzal::settings`, with `Setting<T>` for any type that formats and parses through `string_util`,
+        `SettingScope` `User` and `Game`, nested sections, types registered by name for declarations in data, and the
+        store, a `Settings`, that `settings::store()` returns, with `settings_test`.
+  - [ ] **`random_seeding_on_open` on the store:** `RandomSeedingOnOpen` given a `std::formatter` and a `from_chars`;
+        `stratum_sim` registers it and declares `gameplay.random_seeding_on_open`, `Game` applies it, and
+        `stratum_sim::Settings` and its `settings()` are removed.
+  - [ ] **The settings saved:** `settings.json` in its own format, `quetzal.stratum_settings`, read and written by
+        `stratum_format` with a `settings` object of each value as its declared JSON type; each host loads it when it
+        starts and writes it when a setting changes;
+        `Game` writes the game's values into `game.json`'s `settings` and sets them when the game is opened, and
+        `Game::clear` returns them to their defaults.
+  - [ ] **Settings declared in data,** so a mod can add its own.
   - **One store, below the sim:** a `quetzal/settings` library beside `quetzal/log`, which `stratum_sim::Settings` and
     its `settings()` move into, since a keyed store is not stratum's own.
   - **Each layer declares its own settings, in its own sections:** the sim `gameplay`, the view `video`, and the hosts
@@ -136,7 +150,7 @@ each on the ones before it. `Game`'s menu and lifecycle functions, and those the
     C++ reads, as an Unreal `TAutoConsoleVariable` or a Source `ConVar` is declared, and an entry in data for one only
     data and scripts read, so a mod can add its own.
   - **Scope:** a game setting, such as the difficulty mode or the notation, is saved in `game.json` and set by `Game`
-    when the game is opened. A program setting, such as video, audio or controls, is the player's, the same in every
+    when the game is opened. A user setting, such as video, audio or controls, is the player's, the same in every
     game, and saved in the user settings file, where the config file puts it.
   - **Each subsystem applies its settings** into structures of its own, as Unreal's `ApplySettings` does, when it starts,
     when a game is created or opened, and on a change notification for its section; it never reads the store
@@ -456,18 +470,13 @@ These are the open questions.
 
 ### Settings
 
-- **Typed structures for each layer or one keyed store** (`settings_plan.md`, `## Typed structures or keyed values`).
-- **The names in code:** `Setting<T>` for a declaration, `SettingScope` and its values, and the library's namespace,
-  checked against the terms in `settings_plan.md` (`## Terms`) before any is written.
 - **The declaration format:** the file or files the settings are declared in, what a declaration has --- type, default,
   scope, range or allowed values, display name, and whether a restart is required --- and how a mod adds a setting or
   changes another's default.
-- **The user settings file's format.** It is `settings.json`, in the data directory by default, where the config file
-  puts it (`game_file_spec.md`).
-- **When a setting may change:** a program setting while a game is open, and a game setting during play, as the
+- **When a setting may change:** a user setting while a game is open, and a game setting during play, as the
   difficulty mode may (`difficulty_plan.md`). A game setting applies between advances, never partway through a turn.
-- **How a subsystem registers for its change notifications:** a function for each section, or for each setting, and on
-  which thread it is called once anything but the sim's thread can change a setting.
+- **The thread a change notification is called on** once a thread other than the host's main thread can change a
+  setting. It is now called on the thread that changed it.
 - **Whether a new game's settings start from the player's,** such as the difficulty mode last chosen, or from the
   declared defaults.
 

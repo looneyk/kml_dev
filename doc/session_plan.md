@@ -39,7 +39,7 @@ hosts reach them as the sim does.
   each layer declares and reads only its own sections: the sim `gameplay`, the view `video`, and the hosts `audio` and
   `controls`.
 - **A setting's scope is a game or the program.** A game setting, such as the difficulty mode or the notation, is saved
-  in `game.json`, and `Game` sets it when the game is created or opened. A program setting, such as video, audio or
+  in `game.json`, and `Game` sets it when the game is created or opened. A user setting, such as video, audio or
   controls, is the player's, the same in every game, and saved in the user settings file, `settings.json`.
 - **The log** is the process-wide instance of the log library's class (`log_plan.md`), with sinks that the host
   installs: a file in the terminal, and Godot's output and a file in Godot. A library writes its warnings to it in

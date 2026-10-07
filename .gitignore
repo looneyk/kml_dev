@@ -49,6 +49,8 @@
 !/library/quetzal/scene_graph/
 !/library/quetzal/scene_graph/**
 /library/quetzal/scene_graph/shaders/*.spv
+!/library/quetzal/settings/
+!/library/quetzal/settings/**
 !/library/quetzal/spatial_search/
 !/library/quetzal/spatial_search/**
 !/library/quetzal/stl/
