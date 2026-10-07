@@ -633,15 +633,20 @@ stopped by an occupied cell in `World::move`.
 `Game` is the game in its entirety, the one object a host owns, for as long as the host runs. It is constructed with a
 `Config`, the program's configuration, which is the same for every game: `saves_directory`, the directory in which
 each save is a directory; `working_directory`, which has the game directory of the game in progress and nothing else;
-`zone_count_max`, the most zones the world keeps loaded at once; `logs_directory`; `cache_directory`, for data the
-program can make again; and `user_settings_filepath`, the user settings file.
-`config()` returns it. Each host passes `load_config(data_directory())`. `data_directory()` is the one location in
-code: `KML/Stratum` in `%LOCALAPPDATA%` on Windows, `~/Library/Application Support` on macOS, and `$XDG_DATA_HOME` or
-`~/.local/share` elsewhere, read from the environment; it throws `std::runtime_error` if the environment does not give
-it. `load_config(directory)` reads the directory's `config.json` with `stratum_format::read_config`, after writing one
-with the defaults if there is none: `saves`, `working`, `logs`, `cache`, `settings.json` as the user settings file,
-and 8. It joins each location to the
-directory, which an absolute location replaces (`game_file_spec.md`, `## The config file`). It owns the structures that survive outside play: the config, a
+`zone_count_max`, the most zones the world keeps loaded at once; `assets_directory`, the program's own data, which it
+only reads; `user_directory`, in which it writes everything it creates; `logs_directory`; `cache_directory`, for data
+the program can make again; `mods_directory`; and `user_settings_filepath`, the user settings file. `config()` returns
+it. The terminal passes `load_config(executable_directory())`, `executable_directory()` being `quetzal/common`'s
+`file_util`, which reads the executable's path with `GetModuleFileNameW` and throws `std::runtime_error` on other
+platforms. The Godot host's executable is Godot's, so it passes its project's directory, from `ProjectSettings`'s
+`globalize_path("res://")`. `load_config(program_directory)` builds the defaults: `assets` in the program directory,
+`default_user_directory()`, which is `KML/Stratum` in `%LOCALAPPDATA%` on Windows, `~/Library/Application Support` on
+macOS, and `$XDG_DATA_HOME` or `~/.local/share` elsewhere, read from the environment, and `saves`, `working`, `logs`,
+`cache`, `mods` and `settings.json` in the user directory, and 8. If the program directory has a `config.json`, each
+value it has overrides its default, the assets and user directories relative to the program directory and the rest
+relative to the user directory, an absolute location replacing either (`game_file_spec.md`, `## The config file`). It
+writes nothing. The terminal's build copies its development `config.json`, which sets `assets_directory` to
+`../../assets`, beside the executable in `bin/<Config>/`, and the Godot project has its own. It owns the structures that survive outside play: the config, a
 `CountingIdAllocator` counting from zero, a `random_type` seeded from
 `std::random_device`, the `Generation`, the `World` and the `Character`, and the `Session` that plays them, constructed in
 that order, each referring to those before it. `generation()` returns the `Generation`, with which a host registers

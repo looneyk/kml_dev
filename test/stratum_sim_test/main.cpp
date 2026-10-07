@@ -3,6 +3,7 @@
 // main.cpp
 //------------------------------------------------------------------------------
 
+#include "quetzal/common/file_util.hpp"
 #include "quetzal/stratum_sim/Command.hpp"
 #include "quetzal/stratum_sim/CommandQueue.hpp"
 #include "quetzal/stratum_sim/Event.hpp"
@@ -4153,30 +4154,56 @@ namespace
     {
         report_group("config");
 
-        const filesystem::path directory = "out/config";
-        filesystem::remove_all(directory);
+        // The program directory, with or without a config file
+        const filesystem::path program_directory = "out/config";
+        filesystem::remove_all(program_directory);
+        filesystem::create_directories(program_directory);
 
-        stratum_sim::Config config = stratum_sim::load_config(directory);
-        report_case("with no config file, one is written with the defaults", filesystem::exists(directory / "config.json")
+        const filesystem::path user_directory = stratum_sim::default_user_directory();
+        stratum_sim::Config config = stratum_sim::load_config(program_directory);
+        report_case("with no config file, the assets are in the program directory, and the rest in the user directory",
+            config.assets_directory == program_directory / "assets" && config.user_directory == user_directory
+            && config.saves_directory == user_directory / "saves" && config.working_directory == user_directory / "working"
+            && config.logs_directory == user_directory / "logs" && config.cache_directory == user_directory / "cache"
+            && config.mods_directory == user_directory / "mods" && config.user_settings_filepath == user_directory / "settings.json"
             && config.zone_count_max == 8);
-        report_case("and its locations are relative to its directory", config.saves_directory == directory / "saves"
-            && config.working_directory == directory / "working" && config.logs_directory == directory / "logs"
-            && config.cache_directory == directory / "cache" && config.user_settings_filepath == directory / "settings.json");
+        report_case("and nothing is written in the program directory", filesystem::is_empty(program_directory));
 
         const filesystem::path absolute_logs = filesystem::absolute("out/config_logs");
         {
-            ofstream os(directory / "config.json", ios_base::binary);
-            os << "{ \"format\": \"quetzal.stratum_config\", \"version\": \"0.1\", \"saves_directory\": \"elsewhere/saves\", "
-                << "\"working_directory\": \"working\", \"logs_directory\": \"" << absolute_logs.generic_string() << "\", "
-                << "\"cache_directory\": \"cache\", \"user_settings_file\": \"settings.json\", \"zone_count_max\": 3 }";
+            ofstream os(program_directory / "config.json", ios_base::binary);
+            os << "{ \"format\": \"quetzal.stratum_config\", \"version\": \"0.1\", \"assets_directory\": \"../../assets\", "
+                << "\"user_directory\": \"user\", \"saves_directory\": \"elsewhere/saves\", \"logs_directory\": \""
+                << absolute_logs.generic_string() << "\", \"zone_count_max\": 3 }";
         }
 
-        config = stratum_sim::load_config(directory);
-        report_case("a config file that exists is read, a relative location joined to its directory and an absolute one kept",
-            config.zone_count_max == 3 && config.saves_directory == directory / "elsewhere/saves" && config.logs_directory == absolute_logs);
+        config = stratum_sim::load_config(program_directory);
+        report_case("a config file overrides the values it has, the assets and user directories relative to the program directory",
+            config.assets_directory == program_directory / "../../assets" && config.user_directory == program_directory / "user"
+            && config.zone_count_max == 3);
+        report_case("and the other locations relative to the user directory, an absolute one kept",
+            config.saves_directory == program_directory / "user/elsewhere/saves" && config.logs_directory == absolute_logs
+            && config.working_directory == program_directory / "user/working");
 
-        report_case("the data directory is KML/Stratum in the platform's directory for application data",
-            stratum_sim::data_directory().generic_string().ends_with("KML/Stratum"));
+        {
+            ofstream os(program_directory / "config.json", ios_base::binary);
+            os << "{ \"format\": \"quetzal.stratum_config\", \"version\": \"0.1\", \"save_directory\": \"saves\" }";
+        }
+
+        bool unknown_key_rejected = false;
+        try
+        {
+            stratum_sim::load_config(program_directory);
+        }
+        catch (const runtime_error&)
+        {
+            unknown_key_rejected = true;
+        }
+
+        report_case("a key the config file does not have is an error", unknown_key_rejected);
+        report_case("the default user directory is KML/Stratum in the platform's directory for application data",
+            user_directory.generic_string().ends_with("KML/Stratum"));
+        report_case("the executable's directory has the suite's executable", filesystem::exists(executable_directory() / "stratum_sim_test.exe"));
 
         return;
     }

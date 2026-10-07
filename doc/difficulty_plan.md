@@ -1,6 +1,6 @@
 # Difficulty --- Plan
 
-Date: 2026-10-04
+Date: 2026-10-04, revised 2026-10-07
 
 This plan describes the game's difficulty modes: what each sets, and how a mode relates to the game's settings and to a
 region's difficulty. It is a first draft, and the values in it are placeholders until the research behind them is
@@ -14,7 +14,8 @@ done. The open items are in `work_plan.md` (`### Difficulty`).
 - **The modes are Story, Novice, Adventure, Challenging and Hardcore,** from easiest to hardest, with Adventure the
   normal game.
 - **Custom sets each setting,** starting from any of the five.
-- **The modes are data,** a table that a mod can extend or rebalance, and not an enum (`modding_plan.md`).
+- **The modes are data,** the game's own table of them in `assets/data`, which a mod can extend or rebalance, and not
+  an enum (`modding_plan.md`).
 - **A game's mode can be changed during play,** in either direction, with no restriction.
 - **A mode is not a region's difficulty.** A region's `difficulty` grows with the depth and progress of the game
   (`world_generation_plan.md`). A mode scales the whole game: generation reads the region's difficulty, and the mode's
@@ -39,6 +40,54 @@ done. The open items are in `work_plan.md` (`### Difficulty`).
 | **Rest and healing** | Free | Easy | Normal | Limited | Scarce |
 
 Hardcore is the pure roguelike game: one life, and one save that exists only to continue a game after quitting it.
+
+## The sample modes
+
+Until the research behind the five modes is done, the game has three sample modes and Custom, enough to build the
+mechanism on. Each sets the settings that the sim has something to act on now: `World::populate` places the denizens,
+and `Speed` and `Detection` are components it gives them. Damage, luck and the rest wait for what they act on.
+
+| Key | Type | `easy` | `normal` | `hard` |
+| --- | --- | --- | --- | --- |
+| `gameplay.difficulty.mode` | text, one of the table's mode names | `easy` | `normal` | `hard` |
+| `gameplay.difficulty.denizen_count_multiplier` | real | 0.5 | 1 | 1.5 |
+| `gameplay.difficulty.denizen_speed_multiplier` | real | 0.75 | 1 | 1.25 |
+| `gameplay.difficulty.detection_range_multiplier` | real | 0.75 | 1 | 1.25 |
+
+- **Every difficulty setting is a game setting,** in the section `gameplay.difficulty`, saved in `game.json`.
+- **A new game is always Normal.**
+- **Custom is a mode of the table,** selectable like the others, with no values of its own: choosing it keeps the
+  values the game has, and changing any one of the multipliers makes the mode Custom. A game built on the same
+  framework that does not allow customization leaves Custom out of its table, and then no multiplier can be changed on
+  its own.
+
+## The mode table
+
+`assets/data/difficulty_modes.json` is the game's default table, which a mod can extend or rebalance. It has a format
+of its own, `quetzal.stratum_difficulty_modes`, read by `stratum_format`:
+
+```json
+{
+  "format": "quetzal.stratum_difficulty_modes",
+  "version": "0.1",
+  "default": "normal",
+  "modes": [
+    { "name": "easy", "display_name": "Easy", "settings": { "gameplay.difficulty.denizen_count_multiplier": "0.5", "gameplay.difficulty.denizen_speed_multiplier": "0.75", "gameplay.difficulty.detection_range_multiplier": "0.75" } },
+    { "name": "normal", "display_name": "Normal", "settings": { "gameplay.difficulty.denizen_count_multiplier": "1", "gameplay.difficulty.denizen_speed_multiplier": "1", "gameplay.difficulty.detection_range_multiplier": "1" } },
+    { "name": "hard", "display_name": "Hard", "settings": { "gameplay.difficulty.denizen_count_multiplier": "1.5", "gameplay.difficulty.denizen_speed_multiplier": "1.25", "gameplay.difficulty.detection_range_multiplier": "1.25" } },
+    { "name": "custom", "display_name": "Custom", "settings": { } }
+  ]
+}
+```
+
+- **A mode's `settings` are what `set_values` takes:** each key and its value as text.
+- **Choosing a mode is one `set_values`,** of `gameplay.difficulty.mode` and the mode's settings together, so the
+  section is notified once, and no listener sets a value from within a notification.
+- **`gameplay.difficulty.mode`'s allowed values are the table's names,** so it is declared once the table is read. A
+  declaration's allowed values are a list the store's `accepts` check enforces, as Godot's `PROPERTY_HINT_ENUM` lists
+  a property's.
+- **The sim applies the section into a `Difficulty` struct** of the multipliers, which `World` keeps, applied by a
+  listener on `gameplay.difficulty`. `populate`, `Speed` and `Detection` read the struct, never the store.
 
 ## What the settings replace
 

@@ -7,6 +7,7 @@
 #include "config_format.hpp"
 #include "written_form.hpp"
 #include <format>
+#include <optional>
 #include <ostream>
 #include <string>
 #include <vector>
@@ -22,17 +23,27 @@ namespace
     {
         std::vector<std::string> sections = file_header_sections(config_format_name, config_format_version);
 
-        auto add_section = [&sections](std::string_view key, const std::string& value_text)
+        auto add_location = [&sections](std::string_view key, const std::optional<std::string>& location)
         {
-            sections.push_back(std::format("{}{}: {}", indentation(section_indent), string_text(key), value_text));
+            if (location)
+            {
+                sections.push_back(std::format("{}{}: {}", indentation(section_indent), string_text(key), string_text(*location)));
+            }
         };
 
-        add_section("saves_directory", string_text(document.saves_directory));
-        add_section("working_directory", string_text(document.working_directory));
-        add_section("logs_directory", string_text(document.logs_directory));
-        add_section("cache_directory", string_text(document.cache_directory));
-        add_section("user_settings_file", string_text(document.user_settings_file));
-        add_section("zone_count_max", std::to_string(document.zone_count_max));
+        add_location("assets_directory", document.assets_directory);
+        add_location("user_directory", document.user_directory);
+        add_location("saves_directory", document.saves_directory);
+        add_location("working_directory", document.working_directory);
+        add_location("logs_directory", document.logs_directory);
+        add_location("cache_directory", document.cache_directory);
+        add_location("mods_directory", document.mods_directory);
+        add_location("user_settings_file", document.user_settings_file);
+
+        if (document.zone_count_max)
+        {
+            sections.push_back(std::format("{}\"zone_count_max\": {}", indentation(section_indent), *document.zone_count_max));
+        }
 
         return top_level_object_text(sections);
     }

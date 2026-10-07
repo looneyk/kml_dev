@@ -14,7 +14,7 @@ namespace quetzal::stratum_format
     constexpr std::string_view config_format_name = "quetzal.stratum_config";
     constexpr std::string_view config_format_version = "0.1";
 
-    // The config file, in the program's data directory
+    // The config file, beside the program's executable, if it has one
     constexpr std::string_view config_filename = "config.json";
 
 } // namespace quetzal::stratum_format

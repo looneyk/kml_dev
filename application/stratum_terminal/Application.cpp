@@ -4,6 +4,7 @@
 //------------------------------------------------------------------------------
 
 #include "Application.hpp"
+#include "quetzal/common/file_util.hpp"
 #include "quetzal/log/FileLogSink.hpp"
 #include "quetzal/log/Log.hpp"
 #include "quetzal/stratum_gen/generators.hpp"
@@ -142,7 +143,7 @@ namespace
 
 //------------------------------------------------------------------------------
 stratum_terminal::Application::Application(View view, const std::string& script, bool incremental) :
-    m_game(stratum_sim::load_config(stratum_sim::data_directory())),
+    m_game(stratum_sim::load_config(executable_directory())),
     m_session(m_game.session()),
     m_view_requested(view),
     m_view(view),

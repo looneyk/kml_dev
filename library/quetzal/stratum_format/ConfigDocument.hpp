@@ -6,23 +6,26 @@
 //------------------------------------------------------------------------------
 
 #include <cstddef>
+#include <optional>
 #include <string>
 
 namespace quetzal::stratum_format
 {
 
     //--------------------------------------------------------------------------
-    // The data structure analog of the config file. Each location is as written, relative to the config file's directory
-    // unless it is absolute
+    // The data structure analog of the config file which overrides the program's defaults if it exists
     struct ConfigDocument
     {
         std::string version;
-        std::string saves_directory;
-        std::string working_directory;
-        std::string logs_directory;
-        std::string cache_directory;
-        std::string user_settings_file;
-        std::size_t zone_count_max = 0;
+        std::optional<std::string> assets_directory;
+        std::optional<std::string> user_directory;
+        std::optional<std::string> saves_directory;
+        std::optional<std::string> working_directory;
+        std::optional<std::string> logs_directory;
+        std::optional<std::string> cache_directory;
+        std::optional<std::string> mods_directory;
+        std::optional<std::string> user_settings_file;
+        std::optional<std::size_t> zone_count_max;
     };
 
 } // namespace quetzal::stratum_format

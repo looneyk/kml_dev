@@ -12,6 +12,7 @@
 #include "quetzal/stratum_sim/specs.hpp"
 #include "quetzal/stratum_view/ascii.hpp"
 #include "quetzal/stratum_view/cells.hpp"
+#include <godot_cpp/classes/project_settings.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
 #include <chrono>
 #include <cstdlib>
@@ -95,8 +96,15 @@ namespace
 } // namespace
 
 //------------------------------------------------------------------------------
+std::filesystem::path project_directory()
+{
+    godot::CharString utf8 = godot::ProjectSettings::get_singleton()->globalize_path("res://").utf8();
+    return std::filesystem::path(std::u8string(reinterpret_cast<const char8_t*>(utf8.get_data())));
+}
+
+//------------------------------------------------------------------------------
 StratumWorld::StratumWorld() :
-    m_game(sim::load_config(sim::data_directory())),
+    m_game(sim::load_config(project_directory())),
     m_session(m_game.session()),
     m_message()
 {

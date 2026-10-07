@@ -50,7 +50,7 @@ void initialize_stratum_module(godot::ModuleInitializationLevel level)
     }
 
     quetzal::log::logger().add_sink(write_to_godot_output);
-    const quetzal::stratum_sim::Config config = quetzal::stratum_sim::load_config(quetzal::stratum_sim::data_directory());
+    const quetzal::stratum_sim::Config config = quetzal::stratum_sim::load_config(project_directory());
     quetzal::log::logger().add_sink(quetzal::log::FileLogSink(config.logs_directory / "stratum_godot.log"));
 
     GDREGISTER_CLASS(StratumWorld);

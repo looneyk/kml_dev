@@ -4,15 +4,50 @@
 //------------------------------------------------------------------------------
 
 #include "file_util.hpp"
+#include <stdexcept>
+#include <vector>
 #include <cstdio>
 #include <cassert>
 
 #if defined(_WIN32)
+#if !defined(WIN32_LEAN_AND_MEAN)
+#define WIN32_LEAN_AND_MEAN
+#endif
+#if !defined(NOMINMAX)
+#define NOMINMAX
+#endif
+#include <windows.h>
 #include <fcntl.h>
 #include <io.h>
 #endif
 
 using namespace std;
+
+//------------------------------------------------------------------------------
+filesystem::path quetzal::executable_directory()
+{
+#if defined(_WIN32)
+    // GetModuleFileNameW truncates a path that does not fit, so the buffer grows until it does
+    vector<wchar_t> buffer(MAX_PATH);
+    for (;;)
+    {
+        DWORD length = GetModuleFileNameW(nullptr, buffer.data(), static_cast<DWORD>(buffer.size()));
+        if (length == 0)
+        {
+            throw runtime_error("the executable's path cannot be read");
+        }
+
+        if (length < buffer.size())
+        {
+            return filesystem::path(wstring(buffer.data(), length)).parent_path();
+        }
+
+        buffer.resize(buffer.size() * 2);
+    }
+#else
+    throw runtime_error("the executable's directory is not implemented on this platform");
+#endif
+}
 
 //------------------------------------------------------------------------------
 quetzal::OstreamRedirect::OstreamRedirect(std::ostream& os_orig, std::ostream& os_redirect) :

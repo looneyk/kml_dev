@@ -11,26 +11,36 @@ the `Game` that writes and reads these files, and `sim_zone_model.md` the model 
 
 ## A saved game's files
 
-Everything is in one directory, the program's data directory, `KML/Stratum` in `%LOCALAPPDATA%` on Windows,
-`~/Library/Application Support` on macOS, and `$XDG_DATA_HOME` or `~/.local/share` elsewhere. It is the one location in
-code. It has the config file, `config.json`, which gives every other location, relative to the data directory unless
-absolute; when there is none, one is written with the defaults, which are these:
+The program's files are in two directories. The program reads the program directory, and writes only in the user
+directory; SDL calls the two the base path and the pref path.
 
 ```
-%LOCALAPPDATA%/
-  KML/
-    Stratum/
-      config.json     the config file
-      settings.json   the user settings file
-      cache/
-      logs/
-      saves/
-      working/
+<install>/                      the program directory, which the program never writes
+  stratum_terminal.exe
+  config.json                   optional, the config file
+  assets/                       the program's own data, read only
+
+%LOCALAPPDATA%/KML/Stratum/     the user directory, everything the program creates while it runs
+  settings.json                 the user settings file
+  cache/
+  logs/
+  mods/
+  saves/
+  working/
 ```
+
+- **The program directory is the one location in code:** the executable's directory, which `executable_directory()`
+  finds, or, for the Godot host, whose executable is Godot's, its project's directory.
+- **The user directory** is `KML/Stratum` in `%LOCALAPPDATA%` on Windows, `~/Library/Application Support` on macOS, and
+  `$XDG_DATA_HOME` or `~/.local/share` elsewhere, unless the config file gives another.
+- **The config file is optional.** Without one, these locations are the program's defaults; with one, each value it
+  has overrides its default (`## The config file`). In development the executables are in `bin/<Config>/`, so the
+  build copies a development `config.json` beside each, whose `assets_directory` is the source tree's `../../assets`,
+  and the Godot project has its own.
 
 `settings.json` is the user settings file, which has the user's settings: video, audio, controls, and the rest that are
 the same in every game (`settings_plan.md`). A game's settings are in its `game.json`. `cache/` has data the program
-can make again, which may be deleted.
+can make again, which may be deleted, and `mods/` the mods the user adds.
 
 A game in progress is in `working/`. Every save of the game copies its directory from `working/` to a new directory in
 `saves/`, so each save is one consistent point.
@@ -253,37 +263,38 @@ file, `name` is on the line after `version`, each key of `character` is on a lin
 zone's entities are. In the world file, a region's `id` and `components` are on the line that opens
 it, its `spec` is on the next line, its `zones` follow, and each zone reference is on a line of its own, as each pair of
 the world index is, in entity id order. A zone file has the
-form that `discrete_layout.md` (`### The written form`) specifies. In the config file, each key is on a line of its
-own.
+form that `discrete_layout.md` (`### The written form`) specifies. In the config file, each key that is set is on a line
+of its own.
 
 ## The config file
 
-`config.json`, in the data directory, is the program's `Config`: where its files are, and the most zones the world keeps
-loaded. It is not a saved game's file, and has a format of its own, `quetzal.stratum_config`, version `0.1`.
+`config.json`, in the program directory if it is there at all, overrides the program's `Config`: where its files are,
+and the most zones the world keeps loaded. It is not a saved game's file, and has a format of its own,
+`quetzal.stratum_config`, version `0.1`. The program never writes it. The development config of the terminal is:
 
 ```json
 {
   "format": "quetzal.stratum_config",
   "version": "0.1",
-  "saves_directory": "saves",
-  "working_directory": "working",
-  "logs_directory": "logs",
-  "cache_directory": "cache",
-  "user_settings_file": "settings.json",
-  "zone_count_max": 8
+  "assets_directory": "../../assets"
 }
 ```
 
-| Key | |
-| --- | --- |
-| `saves_directory` | The directory each save is a directory in |
-| `working_directory` | The directory the game in progress is in |
-| `logs_directory` | The directory each host writes its log file in |
-| `cache_directory` | The directory of data the program can make again |
-| `user_settings_file` | The user settings file, `settings.json` by default, with the user's settings (`settings_plan.md`) |
-| `zone_count_max` | The most zones the world keeps loaded at once |
+| Key | Default | |
+| --- | --- | --- |
+| `assets_directory` | `assets`, in the program directory | The program's own data |
+| `user_directory` | `KML/Stratum` in the platform's directory for each user's application data | Everything the program creates |
+| `saves_directory` | `saves` | The directory each save is a directory in |
+| `working_directory` | `working` | The directory the game in progress is in |
+| `logs_directory` | `logs` | The directory each host writes its log file in |
+| `cache_directory` | `cache` | The directory of data the program can make again |
+| `mods_directory` | `mods` | The directory of the mods the user adds |
+| `user_settings_file` | `settings.json` | The user settings file, with the user's settings (`settings_plan.md`) |
+| `zone_count_max` | 8 | The most zones the world keeps loaded at once |
 
-Each location is relative to the data directory unless it is absolute, and every key is required.
+Every key is optional, and a key the format does not have is an error. `assets_directory` and `user_directory` are
+relative to the program directory unless absolute, so a `user_directory` there makes a portable install; the other
+locations are relative to the user directory unless absolute.
 
 ## Open
 

@@ -120,26 +120,35 @@ each on the ones before it. `Game`'s menu and lifecycle functions, and those the
       `quetzal_stratum_sim`.
 - [x] **The settings process-wide** (`session_plan.md`, `## Settings, the log, and the random engines`): `Settings`
       reached through `settings()` from the sim, the views and the hosts, in place of `Game`'s member and accessors.
-- [x] **The config file** (`game_file_spec.md`, `## The config file`): the one location in code, the program's data
-      directory, `%LOCALAPPDATA%/KML/Stratum` on Windows, has `config.json`, which gives the saves, working, logs and
-      cache directories, the user settings file (`settings.json`), and the zone count maximum, and is written with the defaults if there is
-      none. The hosts read it into their `Config` with `load_config(data_directory())`.
+- [x] **The config file** (`game_file_spec.md`, `## The config file`): the one location in code is the program
+      directory, the executable's, from `executable_directory()`, or the Godot project's; the program only reads it.
+      `load_config(program_directory)` builds the defaults, the assets in the program directory and everything the
+      program creates in the user directory, `%LOCALAPPDATA%/KML/Stratum` on Windows, and an optional `config.json` in
+      the program directory overrides any of them. The terminal's build copies a development `config.json` beside it
+      in `bin/<Config>/`, and the Godot project has its own.
 - [ ] **Keyed settings** (`settings_plan.md`, `## Terms`): each setting's value kept in one store under its key, such
       as `gameplay.random_seeding_on_open`, read and written with `settings::store().value(declaration)` and
       `set_value`. It replaces a getter and a setter on `Settings` for each of what may become a hundred or more
-      settings. In four commit points:
+      settings. In these commit points:
   - [x] **The settings library:** `library/quetzal/settings/`, the target `quetzal_settings` in the namespace
         `quetzal::settings`, with `Setting<T>` for any type that formats and parses through `string_util`,
         `SettingScope` `User` and `Game`, nested sections, types registered by name for declarations in data, and the
         store, a `Settings`, that `settings::store()` returns, with `settings_test`.
-  - [ ] **`random_seeding_on_open` on the store:** `RandomSeedingOnOpen` given a `std::formatter` and a `from_chars`;
-        `stratum_sim` registers it and declares `gameplay.random_seeding_on_open`, `Game` applies it, and
-        `stratum_sim::Settings` and its `settings()` are removed.
+  - [ ] **Allowed values:** an optional list of allowed values on a declaration, in C++ or in data, which its
+        `accepts` check enforces.
+  - [ ] **The difficulty mode table** (`difficulty_plan.md`, `## The mode table`): its format,
+        `quetzal.stratum_difficulty_modes`, read by `stratum_format`; `assets/data/difficulty_modes.json` with `easy`,
+        `normal`, `hard` and `custom`, read from the config's `assets_directory`.
+  - [ ] **The sample difficulty modes in the sim** (`difficulty_plan.md`, `## The sample modes`): `stratum_sim`
+        declares the `gameplay.difficulty` settings, the mode's with the table's names as its allowed values; `World`
+        keeps a `Difficulty` struct applied by a listener on the section; `populate`, `Speed` and `Detection` read it;
+        a new game is Normal. `RandomSeedingOnOpen` is given a `std::formatter` and a `from_chars`, registered, and
+        declared as `gameplay.random_seeding_on_open`, which `Game` applies; `stratum_sim::Settings` and its
+        `settings()` are removed.
   - [ ] **The settings saved:** `settings.json` in its own format, `quetzal.stratum_settings`, read and written by
-        `stratum_format` with a `settings` object of each value as its declared JSON type; each host loads it when it
-        starts and writes it when a setting changes;
-        `Game` writes the game's values into `game.json`'s `settings` and sets them when the game is opened, and
-        `Game::clear` returns them to their defaults.
+        `stratum_format` with a `settings` object of each value as text; each host loads it when it starts and writes
+        it when a setting changes; `Game` writes the game's values into `game.json`'s `settings` and sets them when the
+        game is opened, and `Game::clear` returns them to their defaults.
   - [ ] **Settings declared in data,** so a mod can add its own.
   - **One store, below the sim:** a `quetzal/settings` library beside `quetzal/log`, which `stratum_sim::Settings` and
     its `settings()` move into, since a keyed store is not stratum's own.
@@ -457,7 +466,7 @@ These are the open questions.
 - **The time a zone was entered:** simulation time or real time.
 - **The saves directory's default on Windows:** `%USERPROFILE%\Saved Games\KML\Stratum`, the known folder
   `FOLDERID_SavedGames`, which Microsoft's GDK guidance recommends for a game that manages its own saves, and which
-  Cyberpunk 2077 and The Outer Worlds 2 use, in place of the data directory's `saves`.
+  Cyberpunk 2077 and The Outer Worlds 2 use, in place of the user directory's `saves`.
 - **Whether the driver belongs to the game or to a zone.**
 - **Actors.** The character and the denizens are both actors, and differ in what controls them; the actor structure is
   not designed, and neither is what kills an actor and marks it `Dead`.

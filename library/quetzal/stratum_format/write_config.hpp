@@ -12,7 +12,6 @@
 namespace quetzal::stratum_format
 {
 
-    // Writes the config file in the written form that game_file_spec.md specifies: each value on a line of its own
     void write(const std::filesystem::path& filepath, const ConfigDocument& document);
     void write(std::ostream& os, const ConfigDocument& document);
 

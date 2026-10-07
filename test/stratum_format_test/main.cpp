@@ -1342,11 +1342,9 @@ namespace
         report_group("config file");
 
         stratum_format::ConfigDocument config;
+        config.assets_directory = "../../assets";
         config.saves_directory = "saves";
-        config.working_directory = "working";
         config.logs_directory = "D:/logs";
-        config.cache_directory = "cache";
-        config.user_settings_file = "settings.json";
         config.zone_count_max = 8;
 
         ostringstream os;
@@ -1356,21 +1354,24 @@ namespace
             "{\n"
             "  \"format\": \"quetzal.stratum_config\",\n"
             "  \"version\": \"0.1\",\n"
+            "  \"assets_directory\": \"../../assets\",\n"
             "  \"saves_directory\": \"saves\",\n"
-            "  \"working_directory\": \"working\",\n"
             "  \"logs_directory\": \"D:/logs\",\n"
-            "  \"cache_directory\": \"cache\",\n"
-            "  \"user_settings_file\": \"settings.json\",\n"
             "  \"zone_count_max\": 8\n"
             "}\n";
-        report_case("a config file has each value on a line of its own", config_text == config_text_expected,
+        report_case("a config file has each value that is set on a line of its own", config_text == config_text_expected,
             format("expected\n{}got\n{}", config_text_expected, config_text));
 
         istringstream is(config_text);
         stratum_format::ConfigDocument read_back = stratum_format::read_config(is, "config");
-        report_case("and reads back as the document written", read_back.saves_directory == "saves" && read_back.working_directory == "working"
-            && read_back.logs_directory == "D:/logs" && read_back.cache_directory == "cache" && read_back.user_settings_file == "settings.json"
-            && read_back.zone_count_max == 8);
+        report_case("and reads back as the document written, with the values not set absent", read_back.assets_directory == "../../assets"
+            && read_back.saves_directory == "saves" && read_back.logs_directory == "D:/logs" && read_back.zone_count_max == 8
+            && !read_back.user_directory && !read_back.working_directory && !read_back.cache_directory && !read_back.mods_directory
+            && !read_back.user_settings_file);
+
+        istringstream header_only("{ \"format\": \"quetzal.stratum_config\", \"version\": \"0.1\" }");
+        stratum_format::ConfigDocument empty = stratum_format::read_config(header_only, "config");
+        report_case("a config file with only its header sets nothing", !empty.assets_directory && !empty.zone_count_max);
 
         auto rejected = [&config_text](const string& from, const string& to, const string& error_expected)
         {
@@ -1394,7 +1395,8 @@ namespace
 
         report_case("a config file of another format is rejected", rejected("quetzal.stratum_config", "quetzal.stratum_game",
             "format: 'quetzal.stratum_game' is not this format"));
-        report_case("and one with no saves directory", rejected("  \"saves_directory\": \"saves\",\n", "", "saves_directory: required and absent"));
+        report_case("and one with a key the format does not have", rejected("\"saves_directory\"", "\"save_directory\"",
+            "save_directory: not a key of the config file"));
         report_case("and one whose zone count maximum is not a count", rejected("\"zone_count_max\": 8", "\"zone_count_max\": -1",
             "zone_count_max"));
 

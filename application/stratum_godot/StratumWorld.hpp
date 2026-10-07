@@ -14,7 +14,11 @@
 #include <godot_cpp/variant/packed_byte_array.hpp>
 #include <godot_cpp/variant/string.hpp>
 #include <godot_cpp/variant/vector2i.hpp>
+#include <filesystem>
 #include <string>
+
+// Returns the Godot project's directory, res://, which is the program directory: the host's executable is Godot's
+std::filesystem::path project_directory();
 
 //------------------------------------------------------------------------------
 // One simulation zone and the player, exposed to Godot through Godot types only

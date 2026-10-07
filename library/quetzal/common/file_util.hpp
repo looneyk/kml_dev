@@ -6,12 +6,18 @@
 //
 //------------------------------------------------------------------------------
 
+#include <filesystem>
 #include <iostream>
 #include <istream>
 #include <string>
 
 namespace quetzal
 {
+
+    // The path of the running executable
+    // Throws std::runtime_error on error
+    // Implemented for Windows only
+    std::filesystem::path executable_directory();
 
     //--------------------------------------------------------------------------
     // Reads a line, dropping a trailing cr, so a file with crlf endings reads the same on every platform

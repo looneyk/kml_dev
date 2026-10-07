@@ -6,7 +6,6 @@
 #include "Config.hpp"
 #include "quetzal/stratum_format/config_format.hpp"
 #include "quetzal/stratum_format/read_config.hpp"
-#include "quetzal/stratum_format/write_config.hpp"
 #include <cstdlib>
 #include <optional>
 #include <stdexcept>
@@ -66,46 +65,42 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    quetzal::stratum_format::ConfigDocument default_config_document()
+    // Returns the location, or the default if there is none, joined to the directory. An absolute location replaces the
+    // directory, as operator/ joins them
+    std::filesystem::path located(const std::filesystem::path& directory, const std::optional<std::string>& location,
+        const std::filesystem::path& default_location)
     {
-        quetzal::stratum_format::ConfigDocument document;
-        document.version = std::string(quetzal::stratum_format::config_format_version);
-        document.saves_directory = "saves";
-        document.working_directory = "working";
-        document.logs_directory = "logs";
-        document.cache_directory = "cache";
-        document.user_settings_file = "settings.json";
-        document.zone_count_max = 8;
-        return document;
+        return directory / (location ? std::filesystem::path(*location) : default_location);
     }
 
 } // namespace
 
 //------------------------------------------------------------------------------
-std::filesystem::path quetzal::stratum_sim::data_directory()
+std::filesystem::path quetzal::stratum_sim::default_user_directory()
 {
     return application_data_directory() / organization_name / program_name;
 }
 
 //------------------------------------------------------------------------------
-quetzal::stratum_sim::Config quetzal::stratum_sim::load_config(const std::filesystem::path& directory)
+quetzal::stratum_sim::Config quetzal::stratum_sim::load_config(const std::filesystem::path& program_directory)
 {
-    const std::filesystem::path filepath = directory / stratum_format::config_filename;
+    const std::filesystem::path filepath = program_directory / stratum_format::config_filename;
 
-    if (!std::filesystem::exists(filepath))
+    stratum_format::ConfigDocument document;
+    if (std::filesystem::exists(filepath))
     {
-        std::filesystem::create_directories(directory);
-        stratum_format::write(filepath, default_config_document());
+        document = stratum_format::read_config(filepath);
     }
 
-    stratum_format::ConfigDocument document = stratum_format::read_config(filepath);
-
-    // An absolute location replaces the directory, as operator/ joins them
-    auto located = [&directory](const std::string& location)
-    {
-        return directory / std::filesystem::path(location);
-    };
-
-    return Config {located(document.saves_directory), located(document.working_directory), document.zone_count_max,
-        located(document.logs_directory), located(document.cache_directory), located(document.user_settings_file)};
+    Config config;
+    config.assets_directory = located(program_directory, document.assets_directory, "assets");
+    config.user_directory = document.user_directory ? program_directory / *document.user_directory : default_user_directory();
+    config.saves_directory = located(config.user_directory, document.saves_directory, "saves");
+    config.working_directory = located(config.user_directory, document.working_directory, "working");
+    config.logs_directory = located(config.user_directory, document.logs_directory, "logs");
+    config.cache_directory = located(config.user_directory, document.cache_directory, "cache");
+    config.mods_directory = located(config.user_directory, document.mods_directory, "mods");
+    config.user_settings_filepath = located(config.user_directory, document.user_settings_file, "settings.json");
+    config.zone_count_max = document.zone_count_max.value_or(8);
+    return config;
 }
