@@ -16,6 +16,7 @@ game. The open items are in `work_plan.md` (`### Settings`), and the work in **K
 | **store** | The one map from key to value, the `Settings` that `settings::store()` returns, and the only place a value is kept | *ProjectSettings* in Godot; *GConfig*, the config cache, in Unreal; the *console manager* for Unreal's cvars and the *cvar registry* for Source's |
 | **declaration** | What defines a setting once: its key, type, default and scope | `GLOBAL_DEF` in Godot; a `TAutoConsoleVariable` in Unreal and a `ConVar` in Source; a `GameOption` in DCSS; an entry in NetHack's options table |
 | **default** | The value a setting has until something sets it | *default* everywhere |
+| **preset** | One of the values a setting allows, keyed by the setting and the value, with the settings that choosing it sets | a *level* of an Unreal scalability group, `[ShadowQuality@2]`; a *preset* in an options menu, "graphics preset: High" |
 | **apply** | A subsystem reading its settings from the store into structures of its own | *apply* in Unreal's `ApplySettings`; a `ConVar`'s *change callback* in Source does it for one setting |
 | **change notification** | The store telling the subsystem that declared a setting that it changed, so the subsystem applies its section again | *change callback* in Source (`FnChangeCallback_t`); the `settings_changed` signal of Godot's `ProjectSettings` |
 | **restart required** | A setting that takes effect only when the program starts again | `restart_if_changed` in Godot; `ConfigRestartRequired` in Unreal; *requires restart* in options menus |
@@ -46,6 +47,9 @@ choose.
   belongs to one game, is saved in its `game.json`, and is set by `Game` when the game is created or opened. A user
   setting, such as video, audio or controls, belongs to the player and the machine, is the same in every game, and is
   saved in the user settings file.
+- **A new game's settings are the declared defaults,** whoever plays it and whatever an earlier game chose.
+- **Any setting may change at any time,** a user setting while a game is open and a game setting during play, as the
+  difficulty mode may (`difficulty_plan.md`). A game setting changes between advances, never partway through a turn.
 - **Each subsystem applies its settings into structures of its own,** and works from those, never from the
   store. The sim builds the difficulty multipliers it applies on every hit, a host its key map from the bindings, the
   log its levels, and the view its video mode. A subsystem reads the store only when it applies its settings: when it
@@ -257,6 +261,47 @@ namespace quetzal::settings
 - **A change is notified for a section, not for each setting,** so a subsystem applies all of its settings again, as
   Unreal's `ApplySettings` applies them together. Sections nest, as Qt's groups and .NET's sections do, so a listener
   can be as broad as `video` or as narrow as `video.window`.
+
+### Presets
+
+Presets are not designed yet. This section states the problem; the model is chosen once its questions are answered.
+
+**What is needed:**
+
+1. **Settings:** named, typed values with a default and a scope, which the store keeps and subsystems apply.
+2. **A named choice that sets a group of other settings.** Choosing Hard sets several multipliers at once, and a video
+   quality preset sets several video settings.
+3. **A record of which choice was made,** so the menu can show "Hard" and the game can save it.
+4. **Custom:** no choice applies, and the group's settings are edited one at a time, starting from the last choice's
+   values.
+5. **Display:** the menu may show what each choice sets.
+
+**Where the first design tangled:**
+
+- **It made the choice a setting, and the presets its values.** A preset is not a value of a type, as `"1.5"` is; it is
+  a bundle of other settings' values. Making it a value put presets into the setting's declaration, which raised the
+  questions of default presets and of defaults taken from presets.
+- **The defaults of the grouped settings,** the multipliers, had two candidate homes: their own declarations, or the
+  default preset.
+- **Which of the choice and the grouped settings is the state was unclear.** The sim reads only the multipliers; the
+  mode exists for the menu and the save.
+
+**The questions that define it:**
+
+1. **What is saved: the choice's name, the grouped settings' values, or both?** It matters when an update rebalances
+   Hard: a saved `"hard"` takes the new values in an old game, and saved values keep the old ones. Custom has to save
+   the values whichever is chosen.
+2. **Is the choice something code reads, or only the menu and the save?** If only those, it is metadata of the group
+   rather than a setting a subsystem applies.
+3. **Is a group always a set of settings chosen together, and can a setting belong to two groups?** Unreal forbids it:
+   each console variable is in at most one scalability group.
+4. **Where do the grouped settings' defaults come from:** the default preset, or each setting's own?
+5. **Are presets only data,** in the game's file and mods', or can C++ define them too?
+
+**How Unreal frames it:** a scalability group, `sg.ShadowQuality`, is a concept of its own, apart from the console
+variables it sets. The group has a current level, and each level, an ini section such as `[ShadowQuality@2]`, lists
+values for the group's member variables. The group is not one of its members, and its levels are not values of any
+member. Separating the group from the settings it sets untangles most of the above.
 
 ## Open
 

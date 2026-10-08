@@ -49,43 +49,38 @@ and `Speed` and `Detection` are components it gives them. Damage, luck and the r
 
 | Key | Type | `easy` | `normal` | `hard` |
 | --- | --- | --- | --- | --- |
-| `gameplay.difficulty.mode` | text, one of the table's mode names | `easy` | `normal` | `hard` |
+| `gameplay.difficulty.mode` | text, one of the presets' values | `easy` | `normal` | `hard` |
 | `gameplay.difficulty.denizen_count_multiplier` | real | 0.5 | 1 | 1.5 |
 | `gameplay.difficulty.denizen_speed_multiplier` | real | 0.75 | 1 | 1.25 |
 | `gameplay.difficulty.detection_range_multiplier` | real | 0.75 | 1 | 1.25 |
 
 - **Every difficulty setting is a game setting,** in the section `gameplay.difficulty`, saved in `game.json`.
 - **A new game is always Normal.**
-- **Custom is a mode of the table,** selectable like the others, with no values of its own: choosing it keeps the
-  values the game has, and changing any one of the multipliers makes the mode Custom. A game built on the same
-  framework that does not allow customization leaves Custom out of its table, and then no multiplier can be changed on
-  its own.
+- **Each mode is a preset** of the setting `gameplay.difficulty.mode` (`settings_plan.md`, `### Presets`): choosing it
+  sets the mode and the preset's multipliers together.
+- **Custom is a preset with no settings of its own.** Choosing it keeps the values of the mode chosen before it, and
+  the menu opens an editor of the multipliers, starting from those values. A multiplier is edited only in that editor.
+  A game built on the same framework that does not allow customization leaves Custom out of its presets.
+- **The menu may show each preset's values** beside it, from the preset itself.
 
-## The mode table
+## The modes' presets
 
-`assets/data/difficulty_modes.json` is the game's default table, which a mod can extend or rebalance. It has a format
-of its own, `quetzal.stratum_difficulty_modes`, read by `stratum_format`:
+`assets/data/difficulty_modes.json` has the game's presets of the mode, which a mod can extend or rebalance:
 
 ```json
 {
-  "format": "quetzal.stratum_difficulty_modes",
+  "format": "quetzal.stratum_presets",
   "version": "0.1",
-  "default": "normal",
-  "modes": [
-    { "name": "easy", "display_name": "Easy", "settings": { "gameplay.difficulty.denizen_count_multiplier": "0.5", "gameplay.difficulty.denizen_speed_multiplier": "0.75", "gameplay.difficulty.detection_range_multiplier": "0.75" } },
-    { "name": "normal", "display_name": "Normal", "settings": { "gameplay.difficulty.denizen_count_multiplier": "1", "gameplay.difficulty.denizen_speed_multiplier": "1", "gameplay.difficulty.detection_range_multiplier": "1" } },
-    { "name": "hard", "display_name": "Hard", "settings": { "gameplay.difficulty.denizen_count_multiplier": "1.5", "gameplay.difficulty.denizen_speed_multiplier": "1.25", "gameplay.difficulty.detection_range_multiplier": "1.25" } },
-    { "name": "custom", "display_name": "Custom", "settings": { } }
+  "setting": "gameplay.difficulty.mode",
+  "presets": [
+    { "value": "easy", "display_name": "Easy", "settings": { "gameplay.difficulty.denizen_count_multiplier": "0.5", "gameplay.difficulty.denizen_speed_multiplier": "0.75", "gameplay.difficulty.detection_range_multiplier": "0.75" } },
+    { "value": "normal", "display_name": "Normal", "settings": { "gameplay.difficulty.denizen_count_multiplier": "1", "gameplay.difficulty.denizen_speed_multiplier": "1", "gameplay.difficulty.detection_range_multiplier": "1" } },
+    { "value": "hard", "display_name": "Hard", "settings": { "gameplay.difficulty.denizen_count_multiplier": "1.5", "gameplay.difficulty.denizen_speed_multiplier": "1.25", "gameplay.difficulty.detection_range_multiplier": "1.25" } },
+    { "value": "custom", "display_name": "Custom", "settings": { } }
   ]
 }
 ```
 
-- **A mode's `settings` are what `set_values` takes:** each key and its value as text.
-- **Choosing a mode is one `set_values`,** of `gameplay.difficulty.mode` and the mode's settings together, so the
-  section is notified once, and no listener sets a value from within a notification.
-- **`gameplay.difficulty.mode`'s allowed values are the table's names,** so it is declared once the table is read. A
-  declaration's allowed values are a list the store's `accepts` check enforces, as Godot's `PROPERTY_HINT_ENUM` lists
-  a property's.
 - **The sim applies the section into a `Difficulty` struct** of the multipliers, which `World` keeps, applied by a
   listener on `gameplay.difficulty`. `populate`, `Speed` and `Detection` read the struct, never the store.
 

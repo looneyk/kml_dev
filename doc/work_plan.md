@@ -134,13 +134,13 @@ each on the ones before it. `Game`'s menu and lifecycle functions, and those the
         `quetzal::settings`, with `Setting<T>` for any type that formats and parses through `string_util`,
         `SettingScope` `User` and `Game`, nested sections, types registered by name for declarations in data, and the
         store, a `Settings`, that `settings::store()` returns, with `settings_test`.
-  - [ ] **Allowed values:** an optional list of allowed values on a declaration, in C++ or in data, which its
-        `accepts` check enforces.
-  - [ ] **The difficulty mode table** (`difficulty_plan.md`, `## The mode table`): its format,
-        `quetzal.stratum_difficulty_modes`, read by `stratum_format`; `assets/data/difficulty_modes.json` with `easy`,
-        `normal`, `hard` and `custom`, read from the config's `assets_directory`.
+  - [ ] **Presets** (`settings_plan.md`, `### Presets`): a named choice that sets a group of other settings, designed
+        once the section's questions are answered, then built.
+  - [ ] **The game's setting definitions:** one file in `assets/data`, read by `stratum_format` from the config's
+        `assets_directory`, declaring the settings defined in data and their presets, with the difficulty modes
+        `easy`, `normal`, `hard` and `custom`.
   - [ ] **The sample difficulty modes in the sim** (`difficulty_plan.md`, `## The sample modes`): `stratum_sim`
-        declares the `gameplay.difficulty` settings, the mode's with the table's names as its allowed values; `World`
+        declares the `gameplay.difficulty` settings and the mode's presets; `World`
         keeps a `Difficulty` struct applied by a listener on the section; `populate`, `Speed` and `Detection` read it;
         a new game is Normal. `RandomSeedingOnOpen` is given a `std::formatter` and a `from_chars`, registered, and
         declared as `gameplay.random_seeding_on_open`, which `Game` applies; `stratum_sim::Settings` and its
@@ -482,12 +482,8 @@ These are the open questions.
 - **The declaration format:** the file or files the settings are declared in, what a declaration has --- type, default,
   scope, range or allowed values, display name, and whether a restart is required --- and how a mod adds a setting or
   changes another's default.
-- **When a setting may change:** a user setting while a game is open, and a game setting during play, as the
-  difficulty mode may (`difficulty_plan.md`). A game setting applies between advances, never partway through a turn.
 - **The thread a change notification is called on** once a thread other than the host's main thread can change a
   setting. It is now called on the thread that changed it.
-- **Whether a new game's settings start from the player's,** such as the difficulty mode last chosen, or from the
-  declared defaults.
 
 ### View
 

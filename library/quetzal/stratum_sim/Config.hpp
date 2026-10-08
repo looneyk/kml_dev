@@ -27,7 +27,7 @@ namespace quetzal::stratum_sim
         std::filesystem::path user_settings_filepath; // The user settings file
     };
 
-    // Returns the user directory, possibly overridden by the config file
+    // Returns the platform's user directory
     // Throws std::runtime_error on error
     std::filesystem::path default_user_directory();
 
