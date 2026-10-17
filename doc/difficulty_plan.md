@@ -49,40 +49,41 @@ and `Speed` and `Detection` are components it gives them. Damage, luck and the r
 
 | Key | Type | `easy` | `normal` | `hard` |
 | --- | --- | --- | --- | --- |
-| `gameplay.difficulty.mode` | text, one of the presets' values | `easy` | `normal` | `hard` |
 | `gameplay.difficulty.denizen_count_multiplier` | real | 0.5 | 1 | 1.5 |
 | `gameplay.difficulty.denizen_speed_multiplier` | real | 0.75 | 1 | 1.25 |
 | `gameplay.difficulty.detection_range_multiplier` | real | 0.75 | 1 | 1.25 |
 
 - **Every difficulty setting is a game setting,** in the section `gameplay.difficulty`, saved in `game.json`.
-- **A new game is always Normal.**
-- **Each mode is a preset** of the setting `gameplay.difficulty.mode` (`settings_plan.md`, `### Presets`): choosing it
-  sets the mode and the preset's multipliers together.
-- **Custom is a preset with no settings of its own.** Choosing it keeps the values of the mode chosen before it, and
-  the menu opens an editor of the multipliers, starting from those values. A multiplier is edited only in that editor.
-  A game built on the same framework that does not allow customization leaves Custom out of its presets.
+- **A new game is Normal by default.**
+- **The mode is the settings group `gameplay.difficulty`,** and each mode is one of its presets (`settings_plan.md`,
+  `### Settings groups`). Choosing a mode sets the group's chosen preset and the preset's multipliers together.
+- **Normal is the default preset,** the one a new game has. Each multiplier's default is in its own definition.
+- **Custom is an editable preset.** Choosing it keeps the values of the mode chosen before it, and the menu opens an
+  editor of the multipliers, starting from those values. The menu edits a multiplier only in that editor; a script or
+  the console setting one switches the mode to Custom. A game built on the same framework that does not allow
+  customization defines no editable preset.
 - **The menu may show each preset's values** beside it, from the preset itself.
 
 ## The modes' presets
 
-`assets/data/difficulty_modes.json` has the game's presets of the mode, which a mod can extend or rebalance:
+The game's setting definitions in `assets/data` define the group and its presets, which a mod can extend or rebalance:
 
 ```json
-{
-  "format": "quetzal.stratum_presets",
-  "version": "0.1",
-  "setting": "gameplay.difficulty.mode",
-  "presets": [
-    { "value": "easy", "display_name": "Easy", "settings": { "gameplay.difficulty.denizen_count_multiplier": "0.5", "gameplay.difficulty.denizen_speed_multiplier": "0.75", "gameplay.difficulty.detection_range_multiplier": "0.75" } },
-    { "value": "normal", "display_name": "Normal", "settings": { "gameplay.difficulty.denizen_count_multiplier": "1", "gameplay.difficulty.denizen_speed_multiplier": "1", "gameplay.difficulty.detection_range_multiplier": "1" } },
-    { "value": "hard", "display_name": "Hard", "settings": { "gameplay.difficulty.denizen_count_multiplier": "1.5", "gameplay.difficulty.denizen_speed_multiplier": "1.25", "gameplay.difficulty.detection_range_multiplier": "1.25" } },
-    { "value": "custom", "display_name": "Custom", "settings": { } }
-  ]
-}
+"groups": [
+  {
+    "key": "gameplay.difficulty", "scope": "game", "default_preset": "normal",
+    "presets": [
+      { "name": "easy", "display_name": "Easy", "values": { "gameplay.difficulty.denizen_count_multiplier": "0.5", "gameplay.difficulty.denizen_speed_multiplier": "0.75", "gameplay.difficulty.detection_range_multiplier": "0.75" } },
+      { "name": "normal", "display_name": "Normal", "values": { "gameplay.difficulty.denizen_count_multiplier": "1", "gameplay.difficulty.denizen_speed_multiplier": "1", "gameplay.difficulty.detection_range_multiplier": "1" } },
+      { "name": "hard", "display_name": "Hard", "values": { "gameplay.difficulty.denizen_count_multiplier": "1.5", "gameplay.difficulty.denizen_speed_multiplier": "1.25", "gameplay.difficulty.detection_range_multiplier": "1.25" } },
+      { "name": "custom", "display_name": "Custom", "editable": true }
+    ]
+  }
+]
 ```
 
-- **The sim applies the section into a `Difficulty` struct** of the multipliers, which `World` keeps, applied by a
-  listener on `gameplay.difficulty`. `populate`, `Speed` and `Detection` read the struct, never the store.
+- **The sim applies the multipliers into a `Difficulty` struct,** which `World` keeps, applied by a change listener
+  when any of the group's members changes. `populate`, `Speed` and `Detection` read the struct, never the store.
 
 ## What the settings replace
 

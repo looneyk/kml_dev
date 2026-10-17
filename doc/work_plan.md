@@ -126,44 +126,57 @@ each on the ones before it. `Game`'s menu and lifecycle functions, and those the
       program creates in the user directory, `%LOCALAPPDATA%/KML/Stratum` on Windows, and an optional `config.json` in
       the program directory overrides any of them. The terminal's build copies a development `config.json` beside it
       in `bin/<Config>/`, and the Godot project has its own.
-- [ ] **Keyed settings** (`settings_plan.md`, `## Terms`): each setting's value kept in one store under its key, such
-      as `gameplay.random_seeding_on_open`, read and written with `settings::store().value(declaration)` and
-      `set_value`. It replaces a getter and a setter on `Settings` for each of what may become a hundred or more
-      settings. In these commit points:
+- [ ] **Keyed settings** (`settings_plan.md`, `## Terms`): each setting defined in data and its value kept in one
+      store under its key, such as `gameplay.random_seeding_on_open`, read and written with
+      `settings::store().value<T>(key)` and `set_value<T>`. It replaces a getter and a setter on `Settings` for each of
+      what may become a hundred or more settings. In these commit points:
   - [x] **The settings library:** `library/quetzal/settings/`, the target `quetzal_settings` in the namespace
         `quetzal::settings`, with `Setting<T>` for any type that formats and parses through `string_util`,
         `SettingScope` `User` and `Game`, nested sections, types registered by name for declarations in data, and the
         store, a `Settings`, that `settings::store()` returns, with `settings_test`.
-  - [ ] **Presets** (`settings_plan.md`, `### Presets`): a named choice that sets a group of other settings, designed
-        once the section's questions are answered, then built.
+  - [x] **Opaque keys and change listeners** (`settings_plan.md`, `### The store`): `sections_of`, `is_setting_key`,
+        `add_section_listener` and its section loop in `notify` are removed, and a key is only required not to be
+        empty; `add_change_listener` calls each listener once for each operation with the keys it changed.
+  - [ ] **Settings by key:** `Setting<T>` and the C++ `declare` are removed; `value<T>(key)` and
+        `set_value<T>(key, value)`, with `T` not deduced from the value, assert the setting's C++ type;
+        `SettingDeclaration` becomes `Setting`, with its type name and its value; `declare` becomes `insert`,
+        `declares` `contains`, and `declaration` `setting`.
+  - [ ] **Types with base types and values:** a `SettingType` for each registered type, with its C++ type, its base
+        type and an enumeration's values; `register_type<T>(name, values)` for an enumeration in C++, checking that
+        each value parses; `register_enumeration(name, values)` for one defined in data, read as a `std::string`.
+  - [ ] **Settings groups** (`settings_plan.md`, `### Settings groups`): `insert_group`, `insert_preset`, `group` and
+        `choose_preset`; members from the keys the presets set, each keeping its own default; at most one editable
+        preset, which setting a member switches the group to; `values` writing a group's chosen preset and, for an
+        editable preset, its members; `reset` choosing each group's default preset.
   - [ ] **The game's setting definitions:** one file in `assets/data`, read by `stratum_format` from the config's
-        `assets_directory`, declaring the settings defined in data and their presets, with the difficulty modes
-        `easy`, `normal`, `hard` and `custom`.
-  - [ ] **The sample difficulty modes in the sim** (`difficulty_plan.md`, `## The sample modes`): `stratum_sim`
-        declares the `gameplay.difficulty` settings and the mode's presets; `World`
-        keeps a `Difficulty` struct applied by a listener on the section; `populate`, `Speed` and `Detection` read it;
-        a new game is Normal. `RandomSeedingOnOpen` is given a `std::formatter` and a `from_chars`, registered, and
-        declared as `gameplay.random_seeding_on_open`, which `Game` applies; `stratum_sim::Settings` and its
-        `settings()` are removed.
+        `assets_directory`, defining the game's enumerations, settings, groups and presets, with the difficulty
+        group's presets `easy`, `normal`, `hard` and the editable `custom`.
+  - [ ] **The sample difficulty modes in the sim** (`difficulty_plan.md`, `## The sample modes`): `World` keeps a
+        `Difficulty` struct, applied by a change listener on the `gameplay.difficulty` members; `populate`, `Speed`
+        and `Detection` read it; a new game is Normal. `RandomSeedingOnOpen` is given a `std::formatter` and a
+        `from_chars`, and registered with its values; `gameplay.random_seeding_on_open` is defined in data, and `Game`
+        applies it; `stratum_sim::Settings` and its `settings()` are removed.
   - [ ] **The settings saved:** `settings.json` in its own format, `quetzal.stratum_settings`, read and written by
         `stratum_format` with a `settings` object of each value as text; each host loads it when it starts and writes
         it when a setting changes; `Game` writes the game's values into `game.json`'s `settings` and sets them when the
         game is opened, and `Game::clear` returns them to their defaults.
-  - [ ] **Settings declared in data,** so a mod can add its own.
+  - [ ] **Mods' settings** (`settings_plan.md`, `### Mods' settings`), after **Mods**: each mod's definitions read
+        after the game's, with the loader checking the `mod.<id>` section of the keys a mod defines; patches to
+        another's settings, groups and presets by full key, skipped with a warning for a mod that is not loaded; a
+        missing mod's saved values kept by the loader and written back.
   - **One store, below the sim:** a `quetzal/settings` library beside `quetzal/log`, which `stratum_sim::Settings` and
     its `settings()` move into, since a keyed store is not stratum's own.
-  - **Each layer declares its own settings, in its own sections:** the sim `gameplay`, the view `video`, and the hosts
-    `audio` and `controls`. Each reads only its own, so the sim depends on none of the view's or the hosts', as each
+  - **Each layer reads only its own settings,** named by convention in its own sections: the sim `gameplay`, the view
+    `video`, and the hosts `audio` and `controls`. The sim depends on none of the view's or the hosts', as each
     section of Godot's `ProjectSettings` and Unreal's config is read by the module it belongs to.
-  - **Each setting has one declaration,** with its key, type, default and scope: a `Setting<T>` in C++ for a setting
-    C++ reads, as an Unreal `TAutoConsoleVariable` or a Source `ConVar` is declared, and an entry in data for one only
-    data and scripts read, so a mod can add its own.
-  - **Scope:** a game setting, such as the difficulty mode or the notation, is saved in `game.json` and set by `Game`
-    when the game is opened. A user setting, such as video, audio or controls, is the player's, the same in every
-    game, and saved in the user settings file, where the config file puts it.
+  - **Each setting has one definition, in data,** with its key, type, default and scope, as Factorio defines a mod's
+    settings. C++ registers the types of the settings it reads, and reads them by key.
+  - **Scope:** a game setting, such as a difficulty multiplier or the notation, is saved in `game.json` and set by
+    `Game` when the game is opened. A user setting, such as video, audio or controls, is the player's, the same in
+    every game, and saved in the user settings file, where the config file puts it.
   - **Each subsystem applies its settings** into structures of its own, as Unreal's `ApplySettings` does, when it starts,
-    when a game is created or opened, and on a change notification for its section; it never reads the store
-    otherwise, and never writes its structures back.
+    when a game is created or opened, and when its change listener is called with any of their keys; it never reads
+    the store otherwise, and never writes its structures back.
 - [ ] **The generators integrated.** catagen's generator in `quetzal/stratum_gen` beside dungen's. The game's
       notation, a setting chosen when the game is created, saved in `game.json`'s `settings` and set again by `Game`
       when the game is opened, decides which of them generates every zone: dungen for the
@@ -479,9 +492,9 @@ These are the open questions.
 
 ### Settings
 
-- **The declaration format:** the file or files the settings are declared in, what a declaration has --- type, default,
-  scope, range or allowed values, display name, and whether a restart is required --- and how a mod adds a setting or
-  changes another's default.
+- **The definition format:** the file or files the settings, enumerations, groups and presets are defined in, and the
+  menu fields a definition has beside its type, default, scope and restart flag: display name, description, menu
+  category, and a range for a number.
 - **The thread a change notification is called on** once a thread other than the host's main thread can change a
   setting. It is now called on the thread that changed it.
 

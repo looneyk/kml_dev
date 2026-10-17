@@ -6,7 +6,6 @@
 #include "Settings.hpp"
 #include <cstdint>
 #include <format>
-#include <set>
 #include <stdexcept>
 #include <vector>
 
@@ -15,7 +14,7 @@ quetzal::settings::Settings::Settings() :
     m_registered_types(),
     m_declarations(),
     m_values(),
-    m_section_listeners()
+    m_change_listeners()
 {
     register_built_in_types();
 }
@@ -30,9 +29,9 @@ bool quetzal::settings::Settings::registers_type(std::string_view type_name) con
 void quetzal::settings::Settings::declare(std::string_view key, std::string_view type_name, std::string_view default_text,
     SettingScope scope, bool restart_required)
 {
-    if (!is_setting_key(key))
+    if (key.empty())
     {
-        throw std::runtime_error(std::format("'{}' is not a setting key: it has no section, or an empty segment", key));
+        throw std::runtime_error("a setting key is empty");
     }
 
     if (declares(key))
@@ -161,9 +160,9 @@ void quetzal::settings::Settings::reset(SettingScope scope)
 }
 
 //------------------------------------------------------------------------------
-void quetzal::settings::Settings::add_section_listener(std::string_view section, std::function<void()> apply)
+void quetzal::settings::Settings::add_change_listener(std::function<void(const std::vector<std::string>& keys_changed)> listener)
 {
-    m_section_listeners.emplace(std::string(section), std::move(apply));
+    m_change_listeners.push_back(std::move(listener));
     return;
 }
 
@@ -173,7 +172,7 @@ void quetzal::settings::Settings::clear()
     m_registered_types.clear();
     m_declarations.clear();
     m_values.clear();
-    m_section_listeners.clear();
+    m_change_listeners.clear();
     register_built_in_types();
     return;
 }
@@ -208,22 +207,14 @@ bool quetzal::settings::Settings::assign(std::string_view key, std::string_view 
 //------------------------------------------------------------------------------
 void quetzal::settings::Settings::notify(const std::vector<std::string>& keys_changed)
 {
-    std::set<std::string_view> sections_changed;
-    for (const auto& key : keys_changed)
+    if (keys_changed.empty())
     {
-        for (std::string_view section : sections_of(key))
-        {
-            sections_changed.insert(section);
-        }
+        return;
     }
 
-    for (std::string_view section : sections_changed)
+    for (const auto& listener : m_change_listeners)
     {
-        auto [first, last] = m_section_listeners.equal_range(section);
-        for (auto i = first; i != last; ++i)
-        {
-            i->second();
-        }
+        listener(keys_changed);
     }
 
     return;

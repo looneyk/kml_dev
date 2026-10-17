@@ -87,9 +87,9 @@ namespace quetzal::settings
         // Returns each setting of the scope to its default
         void reset(SettingScope scope);
 
-        // apply is called after a setting in the section changes, a setting in a section nested in it included, once
-        // for each set_value, set_text, set_values or reset that changes any
-        void add_section_listener(std::string_view section, std::function<void()> apply);
+        // The listener is called once for each set_value, set_text, set_values or reset that changes any setting, after
+        // every setting it changes has changed, with their keys
+        void add_change_listener(std::function<void(const std::vector<std::string>& keys_changed)> listener);
 
         // Removes every declaration, value, listener and registered type but the four the constructor registers
         void clear();
@@ -111,13 +111,13 @@ namespace quetzal::settings
         std::string value_text(std::string_view key) const;
         bool assign(std::string_view key, std::string_view text);
 
-        // Calls each listener of a section that one of the keys is in, once
+        // Calls each change listener, unless no key changed
         void notify(const std::vector<std::string>& keys_changed);
 
         std::map<std::string, RegisteredType, std::less<>> m_registered_types; // <type name, type>
         std::map<std::string, SettingDeclaration, std::less<>> m_declarations; // <key, declaration>
         std::map<std::string, std::string, std::less<>> m_values; // <key, text>
-        std::multimap<std::string, std::function<void()>, std::less<>> m_section_listeners; // <section, apply>
+        std::vector<std::function<void(const std::vector<std::string>& keys_changed)>> m_change_listeners;
     };
 
     // Returns the process-wide store, constructed on first use
@@ -138,7 +138,7 @@ void quetzal::settings::Settings::register_type(std::string_view type_name)
 template<quetzal::settings::SettingValue T>
 void quetzal::settings::Settings::declare(const Setting<T>& setting)
 {
-    assert(!declares(setting.key) && is_setting_key(setting.key));
+    assert(!declares(setting.key) && !setting.key.empty());
 
     m_declarations.emplace(std::string(setting.key), SettingDeclaration {std::type_index(typeid(T)), quetzal::to_string(setting.default_value),
         setting.scope, setting.restart_required, accepts_function<T>()});

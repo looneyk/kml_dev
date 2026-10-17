@@ -6,6 +6,7 @@
 #include "quetzal/common/string_util.hpp"
 #include "quetzal/settings/Setting.hpp"
 #include "quetzal/settings/Settings.hpp"
+#include <algorithm>
 #include <charconv>
 #include <cstdint>
 #include <exception>
@@ -141,6 +142,13 @@ namespace
     }
 
     //--------------------------------------------------------------------------
+    vector<string> sorted(vector<string> keys)
+    {
+        ranges::sort(keys);
+        return keys;
+    }
+
+    //--------------------------------------------------------------------------
     void declare_all(Settings& test_settings)
     {
         test_settings.declare(mode_setting);
@@ -166,12 +174,7 @@ namespace
         report_case("an enumeration's value is the text its formatter writes and its from_chars reads", quetzal::to_string(Mode::Reseed) == "reseed"
             && quetzal::try_type<Mode>("restore") == Mode::Restore && !quetzal::try_type<Mode>("Reseed") && !quetzal::try_type<Mode>("reseeded"));
         report_case("the types a setting may have are those that format and parse", SettingValue<bool> && SettingValue<int> && SettingValue<double>
-            && SettingValue<std::string> && SettingValue<Mode> && !SettingValue<SettingScope>);
-        report_case("a key is in each leading run of its segments but the last", sections_of("video.window.width") == vector<string_view> {"video",
-            "video.window"} && sections_of("video.width") == vector<string_view> {"video"} && sections_of("width").empty());
-        report_case("a setting key is in a section and has no empty segment", is_setting_key("video.window.width") && !is_setting_key("width")
-            && !is_setting_key(".width") && !is_setting_key("video.") && !is_setting_key("video..width"));
-        return;
+            && SettingValue<std::string> && SettingValue<Mode> && !SettingValue<SettingScope>);        return;
     }
 
     //--------------------------------------------------------------------------
@@ -228,8 +231,8 @@ namespace
             SettingScope::User, false); }));
         report_case("and so is a default that is no value of the type", throws([&] { test_settings.declare("torches.count", "integer", "many",
             SettingScope::User, false); }));
-        report_case("and a key declared twice, or with no section", throws([&] { test_settings.declare("torches.flicker", "bool", "false",
-            SettingScope::User, false); }) && throws([&] { test_settings.declare("flicker", "bool", "false", SettingScope::User, false); }));
+        report_case("and a key declared twice, or empty", throws([&] { test_settings.declare("torches.flicker", "bool", "false",
+            SettingScope::User, false); }) && throws([&] { test_settings.declare("", "bool", "false", SettingScope::User, false); }));
 
         test_settings.clear();
         report_case("clearing the store keeps the four types it starts with, and no other", test_settings.registers_type("bool")
@@ -275,57 +278,32 @@ namespace
         Settings test_settings;
         declare_all(test_settings);
 
-        size_t video_applied = 0;
-        size_t gameplay_applied = 0;
-        test_settings.add_section_listener("video", [&video_applied] { ++video_applied; });
-        test_settings.add_section_listener("gameplay", [&gameplay_applied] { ++gameplay_applied; });
+        vector<vector<string>> notifications;
+        test_settings.add_change_listener([&notifications](const vector<string>& keys_changed) { notifications.push_back(keys_changed); });
 
         test_settings.set_value(width_setting, 1920);
-        report_case("a change notifies its section", video_applied == 1 && gameplay_applied == 0);
+        report_case("a change calls each listener with the key changed", notifications == vector<vector<string>> {{"video.width"}});
 
         test_settings.set_value(width_setting, 1920);
-        report_case("and setting the same value again does not", video_applied == 1);
+        report_case("and setting the same value again does not", notifications.size() == 1);
 
+        const vector<string> keys_set {"gameplay.mode", "video.fullscreen", "video.width"};
         test_settings.set_values({{"video.width", "800"}, {"video.fullscreen", "true"}, {"gameplay.mode", "reseed"}});
-        report_case("setting values notifies each section changed once", video_applied == 2 && gameplay_applied == 1);
+        report_case("setting values calls each listener once, with every key changed", notifications.size() == 2
+            && sorted(notifications.back()) == keys_set);
 
         test_settings.reset(SettingScope::User);
-        report_case("and so does resetting a scope", video_applied == 3 && gameplay_applied == 2);
+        report_case("and so does resetting a scope", notifications.size() == 3 && sorted(notifications.back()) == keys_set);
 
-        // The listener reads the new value, as a subsystem applying its section does
+        test_settings.declare("flicker", "bool", "true", SettingScope::User, false);
+        test_settings.set_text("flicker", "false");
+        report_case("a key is notified as a whole, whatever its segments", notifications.back() == vector<string> {"flicker"});
+
+        // The listener reads the new value, as a subsystem applying its settings does
         int width_applied = 0;
-        test_settings.add_section_listener("video", [&test_settings, &width_applied] { width_applied = test_settings.value(width_setting); });
+        test_settings.add_change_listener([&test_settings, &width_applied](const vector<string>&) { width_applied = test_settings.value(width_setting); });
         test_settings.set_value(width_setting, 2560);
         report_case("a listener reads the value already changed", width_applied == 2560);
-        return;
-    }
-
-    //--------------------------------------------------------------------------
-    void test_nested_sections()
-    {
-        report_group("nested sections");
-
-        const Setting<int> window_width_setting {"video.window.width", 1280};
-        const Setting<int> window_height_setting {"video.window.height", 720};
-
-        Settings test_settings;
-        test_settings.declare(fullscreen_setting);
-        test_settings.declare(window_width_setting);
-        test_settings.declare(window_height_setting);
-
-        size_t video_applied = 0;
-        size_t window_applied = 0;
-        test_settings.add_section_listener("video", [&video_applied] { ++video_applied; });
-        test_settings.add_section_listener("video.window", [&window_applied] { ++window_applied; });
-
-        test_settings.set_value(window_width_setting, 1920);
-        report_case("a change notifies each section its key is in, the outer as well as the inner", video_applied == 1 && window_applied == 1);
-
-        test_settings.set_value(fullscreen_setting, true);
-        report_case("and not a section nested in one of them that its key is not in", video_applied == 2 && window_applied == 1);
-
-        test_settings.set_values({{"video.window.width", "800"}, {"video.window.height", "600"}, {"video.fullscreen", "false"}});
-        report_case("values set together notify each section once, however many of its keys changed", video_applied == 3 && window_applied == 2);
         return;
     }
 
@@ -350,7 +328,6 @@ int main()
         test_data_declarations();
         test_scopes();
         test_notifications();
-        test_nested_sections();
         test_process_store();
     }
     catch (const exception& e)

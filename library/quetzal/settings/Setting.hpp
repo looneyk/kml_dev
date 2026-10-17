@@ -11,7 +11,6 @@
 #include <format>
 #include <string>
 #include <string_view>
-#include <vector>
 
 namespace quetzal::settings
 {
@@ -38,18 +37,11 @@ namespace quetzal::settings
     template<SettingValue T>
     struct Setting
     {
-        std::string_view key; // Its sections and its name, separated by '.': "gameplay.random_seeding_on_open"
+        std::string_view key; // "gameplay.random_seeding_on_open"
         T default_value {};
         SettingScope scope = SettingScope::User;
         bool restart_required = false;
     };
-
-    // Returns each section the key is in, from the outermost: every leading run of its '.'-separated segments but the
-    // last. "video.window.width" is in "video" and "video.window"
-    std::vector<std::string_view> sections_of(std::string_view key);
-
-    // Returns true if the key is in a section and none of its segments is empty
-    bool is_setting_key(std::string_view key);
 
 } // namespace quetzal::settings
 

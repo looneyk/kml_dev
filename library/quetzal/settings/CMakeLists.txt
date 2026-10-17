@@ -1,5 +1,4 @@
 add_library(quetzal_settings STATIC
-    Setting.cpp
     Settings.cpp
     Setting.hpp
     Settings.hpp
