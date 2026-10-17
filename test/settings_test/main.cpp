@@ -145,7 +145,7 @@ namespace
     //--------------------------------------------------------------------------
     void insert_all(Settings& test_settings)
     {
-        test_settings.register_type<Mode>("mode");
+        test_settings.register_type<Mode>("mode", {"restore", "reseed"});
         test_settings.insert("gameplay.mode", "mode", "restore", SettingScope::User, false);
         test_settings.insert("gameplay.difficulty", "text", "adventure", SettingScope::Game, false);
         test_settings.insert("video.fullscreen", "boolean", "false", SettingScope::User, true);
@@ -169,7 +169,8 @@ namespace
         report_case("an enumeration's value is the text its formatter writes and its from_chars reads", quetzal::to_string(Mode::Reseed) == "reseed"
             && quetzal::try_type<Mode>("restore") == Mode::Restore && !quetzal::try_type<Mode>("Reseed") && !quetzal::try_type<Mode>("reseeded"));
         report_case("the types a setting may have are those that format and parse", SettingValue<bool> && SettingValue<int> && SettingValue<double>
-            && SettingValue<std::string> && SettingValue<Mode> && !SettingValue<SettingScope>);        return;
+            && SettingValue<std::string> && SettingValue<Mode> && !SettingValue<SettingScope>);
+        return;
     }
 
     //--------------------------------------------------------------------------
@@ -213,16 +214,30 @@ namespace
             test_settings.type("boolean").cpp_type == type_index(typeid(bool)) && test_settings.type("integer").cpp_type == type_index(typeid(int64_t))
             && test_settings.type("real").cpp_type == type_index(typeid(double)) && test_settings.type("text").cpp_type == type_index(typeid(std::string))
             && !test_settings.registered_type("mode"));
+        report_case("and each is its own base type, with no values", test_settings.type("boolean").base_type == SettingBaseType::Boolean
+            && test_settings.type("integer").base_type == SettingBaseType::Integer && test_settings.type("real").base_type == SettingBaseType::Real
+            && test_settings.type("text").base_type == SettingBaseType::Text && test_settings.type("integer").values.empty());
 
         test_settings.insert("torches.flicker", "boolean", "true", SettingScope::User, false);
         report_case("a setting is read as the C++ type of its type", test_settings.contains("torches.flicker")
             && test_settings.value<bool>("torches.flicker") && test_settings.text("torches.flicker") == "true");
 
-        test_settings.register_type<Mode>("mode");
+        test_settings.register_type<Mode>("mode", {"restore", "reseed"});
         test_settings.insert("torches.mode", "mode", "reseed", SettingScope::Game, false);
         report_case("a type a library registers, an enumeration among them, may be a setting's type",
             test_settings.type("mode").cpp_type == type_index(typeid(Mode)) && test_settings.value<Mode>("torches.mode") == Mode::Reseed
             && throws([&] { test_settings.set_text("torches.mode", "sometimes"); }));
+        report_case("and an enumeration in C++ has its values, and is based on text", test_settings.type("mode").values
+            == vector<string> {"restore", "reseed"} && test_settings.type("mode").base_type == SettingBaseType::Text);
+
+        test_settings.register_enumeration("torches.style", {"steady", "flicker", "gutter"});
+        test_settings.insert("torches.style", "torches.style", "flicker", SettingScope::User, false);
+        test_settings.set_text("torches.style", "gutter");
+        report_case("an enumeration defined in data is text, limited to its values", test_settings.type("torches.style").cpp_type
+            == type_index(typeid(std::string)) && test_settings.type("torches.style").base_type == SettingBaseType::Text
+            && test_settings.value<std::string>("torches.style") == "gutter" && throws([&] { test_settings.set_text("torches.style", "dim"); }));
+        report_case("and one registered twice, or with no values, is an error", throws([&] { test_settings.register_enumeration("torches.style",
+            {"steady"}); }) && throws([&] { test_settings.register_enumeration("torches.shade", {}); }));
 
         report_case("a type name that is not registered is an error", throws([&] { test_settings.insert("torches.colour", "colour", "red",
             SettingScope::User, false); }));

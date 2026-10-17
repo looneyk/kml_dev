@@ -19,6 +19,25 @@ quetzal::settings::Settings::Settings() :
 }
 
 //------------------------------------------------------------------------------
+void quetzal::settings::Settings::register_enumeration(std::string_view type_name, std::vector<std::string> values)
+{
+    if (registered_type(type_name))
+    {
+        throw std::runtime_error(std::format("the setting type '{}' is defined twice", type_name));
+    }
+
+    if (values.empty())
+    {
+        throw std::runtime_error(std::format("the enumeration '{}' has no values", type_name));
+    }
+
+    auto accepts = [values](std::string_view text) { return std::ranges::find(values, text) != values.end(); };
+    m_registered_types.emplace(std::string(type_name), SettingType {std::type_index(typeid(std::string)), SettingBaseType::Text, std::move(values),
+        accepts});
+    return;
+}
+
+//------------------------------------------------------------------------------
 bool quetzal::settings::Settings::registered_type(std::string_view type_name) const
 {
     return m_registered_types.contains(type_name);

@@ -7,6 +7,8 @@
 
 #include "Setting.hpp"
 #include "quetzal/common/KeyValueStore.hpp"
+#include <algorithm>
+#include <concepts>
 #include <functional>
 #include <map>
 #include <optional>
@@ -35,9 +37,14 @@ namespace quetzal::settings
         Settings& operator=(const Settings&) = delete;
         Settings& operator=(Settings&&) = delete;
 
-        // Type names must be unique
+        // Type names must be unique. values are for enumerations in code as opposed to data
         template<SettingValue T>
-        void register_type(std::string_view type_name);
+        void register_type(std::string_view type_name, std::vector<std::string> values = {});
+
+        // An enumeration defined in data
+        // Throws std::runtime_error if the type name is already registered or values is empty
+        void register_enumeration(std::string_view type_name, std::vector<std::string> values);
+
         bool registered_type(std::string_view type_name) const;
 
         const SettingType& type(std::string_view type_name) const;
@@ -76,6 +83,9 @@ namespace quetzal::settings
     private:
 
         template<SettingValue T>
+        static SettingBaseType base_type();
+
+        template<SettingValue T>
         static std::function<bool(std::string_view text)> accepts_function();
 
         void register_built_in_types();
@@ -98,10 +108,13 @@ namespace quetzal::settings
 
 //------------------------------------------------------------------------------
 template<quetzal::settings::SettingValue T>
-void quetzal::settings::Settings::register_type(std::string_view type_name)
+void quetzal::settings::Settings::register_type(std::string_view type_name, std::vector<std::string> values)
 {
-    assert(!registered_type(type_name));
-    m_registered_types.emplace(std::string(type_name), SettingType {std::type_index(typeid(T)), accepts_function<T>()});
+    assert(!registered_type(type_name) && std::is_enum_v<T> == !values.empty());
+    assert(std::ranges::all_of(values, [](const std::string& value) { return quetzal::try_type<T>(value).has_value(); }));
+
+    m_registered_types.emplace(std::string(type_name), SettingType {std::type_index(typeid(T)), base_type<T>(), std::move(values),
+        accepts_function<T>()});
     return;
 }
 
@@ -128,6 +141,28 @@ void quetzal::settings::Settings::set_value(std::string_view key, const std::typ
     }
 
     return;
+}
+
+//------------------------------------------------------------------------------
+template<quetzal::settings::SettingValue T>
+quetzal::settings::SettingBaseType quetzal::settings::Settings::base_type()
+{
+    if constexpr (std::same_as<T, bool>)
+    {
+        return SettingBaseType::Boolean;
+    }
+    else if constexpr (std::integral<T>)
+    {
+        return SettingBaseType::Integer;
+    }
+    else if constexpr (std::floating_point<T>)
+    {
+        return SettingBaseType::Real;
+    }
+    else
+    {
+        return SettingBaseType::Text;
+    }
 }
 
 //------------------------------------------------------------------------------

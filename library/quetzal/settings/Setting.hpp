@@ -14,6 +14,7 @@
 #include <string>
 #include <string_view>
 #include <typeindex>
+#include <vector>
 
 namespace quetzal::settings
 {
@@ -24,6 +25,16 @@ namespace quetzal::settings
     {
         User,
         Game
+    };
+
+    //--------------------------------------------------------------------------
+    // The built-in type a setting type is based on, which a script reads its values as
+    enum class SettingBaseType
+    {
+        Boolean,
+        Integer,
+        Real,
+        Text
     };
 
     // A type a setting may have: one that std::format writes, and that quetzal::try_type reads back through from_chars.
@@ -40,6 +51,8 @@ namespace quetzal::settings
     struct SettingType
     {
         std::type_index cpp_type;
+        SettingBaseType base_type;
+        std::vector<std::string> values; // An enumeration's values
         std::function<bool(std::string_view text)> accepts; // Returns true if the text is a value of the type
     };
 

@@ -20,11 +20,12 @@ ceiling.
 | `library/quetzal/stratum_format/` | `quetzal_stratum_format` --- the zone file format and the game files |
 | `library/quetzal/stratum_gen/` | `quetzal_stratum_gen` --- the generators by name, behind one signature |
 | `library/quetzal/log/` | `quetzal_log` --- the process-wide log, which every library writes its warnings to (`log_plan.md`) |
+| `library/quetzal/settings/` | `quetzal_settings` --- the process-wide store of settings by key (`settings_plan.md`) |
 | `application/stratum_terminal/` | `stratum_terminal` |
 | `application/stratum_godot/` | `stratum_godot` |
 | `library/quetzal/godot/` | `quetzal_godot` |
 | `tool/dungen/`, `tool/catagen/` | `dungen`, `catagen` --- the generator drivers |
-| `test/stratum_sim_test/`, `test/stratum_view_test/`, `test/stratum_format_test/`, `test/dungen_test/`, `test/catagen_test/`, `test/flecs_test/` | test executables |
+| `test/stratum_sim_test/`, `test/stratum_view_test/`, `test/stratum_format_test/`, `test/dungen_test/`, `test/catagen_test/`, `test/flecs_test/`, `test/settings_test/` | test executables |
 
 ## Simulation
 
@@ -628,6 +629,32 @@ The move taken is to the reachable neighbor nearest the goal, if one is nearer t
 returns placements in a fixed order, so ties break the same way every run. Only topology is consulted, so a pursuer is
 stopped by an occupied cell in `World::move`.
 
+### The settings store
+
+`quetzal::settings::store()` returns the process-wide `Settings`, constructed on first use, which keeps each setting
+under its key. A key is compared only as a whole string. `insert(key, type_name, default_value, scope,
+restart_required)` adds a setting, and throws `std::runtime_error` if the key is empty or is a setting's already, the
+type name is not registered, or the default is not a value of the type. A `Setting` has its type name, its default,
+its `SettingScope`, `User` or `Game`, whether a restart is required, and its value as text, which is empty while the
+setting has its default.
+
+`register_type<T>(type_name, values)` registers a type for any `T` that `std::format` writes and `from_chars` reads,
+with its values if it is an enumeration, each of which must parse as `T`. The store registers `boolean`, `integer` as
+`std::int64_t`, `real` as `double`, and `text` as `std::string`. `register_enumeration(type_name, values)` registers an
+enumeration defined in data, a `std::string` whose text must be one of its values, and throws `std::runtime_error` if
+the type name is registered already or there are no values. `type(type_name)` returns the `SettingType`: the C++ type;
+the base type, `Boolean`, `Integer`, `Real` or `Text`, which is `Text` for every enumeration; an enumeration's values;
+and a function that returns true if a text is a value of the type.
+
+`value<T>(key)` and `set_value<T>(key, value)` read and write a setting as `T`, and assert that its type's C++ type is
+`T`, which is never deduced from the value. `text` and `set_text` read and write it as text, and throw if the key is
+not a setting's or the text is not a value of its type. `values(scope)` returns the settings of a scope that are set,
+by key, as text; `set_values` sets each of them, and sets none if any is invalid; `reset(scope)` returns the scope's
+settings to their defaults.
+
+A change listener, added with `add_change_listener`, is called once for each `set_value`, `set_text`, `set_values` or
+`reset` that changes any setting, after every setting it changes has changed, with their keys.
+
 ### Game and Character
 
 `Game` is the game in its entirety, the one object a host owns, for as long as the host runs. It is constructed with a
@@ -1160,6 +1187,8 @@ identically, and rejects each of a set of game files with one change made to it,
 `flecs_test` checks that the ECS supports zone partitioning, relationships, migration, unload, serialization and
 deterministic iteration.
 
+`settings_test` covers the settings store: types, values, scopes and change listeners.
+
 Each test runs from its own directory, since its data and reference paths are relative.
 
 No test executable covers a host. The terminal host is checked by running it with `--script` and reading the frames
@@ -1169,7 +1198,8 @@ back, and the Godot host by its two headless invocations.
 
 The build is CMake, with the solution at `build/kml_dev.slnx`. `/std:c++latest /bigobj /W4` is used throughout, with
 third-party sources at `/W1` and flecs and godot-cpp included as SYSTEM. `quetzal_stratum_sim` links `quetzal_common`,
-`quetzal_stratum_format` and `flecs_static`; `quetzal_stratum_view` links `quetzal_stratum_sim`;
+`quetzal_stratum_format` and `flecs_static`; `quetzal_stratum_view` links `quetzal_stratum_sim`; `quetzal_settings`
+links `quetzal_common`;
 `quetzal_stratum_gen` links `quetzal_common`, `quetzal_dungen` and `quetzal_stratum_format`; both hosts link `quetzal_log`,
 `quetzal_stratum_gen` and `quetzal_stratum_view`. `quetzal_dungen` links `quetzal_log`. `quetzal_stratum_format`
 links `quetzal_common`, `quetzal_log` and `nlohmann_json`, vendored at

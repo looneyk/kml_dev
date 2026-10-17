@@ -15,7 +15,7 @@ game. The open items are in `work_plan.md` (`### Settings`), and the work in **K
 | **section** | A leading run of a key's `.`-separated segments, by naming convention only: `video.window.width` is in `video` and `video.window`. In stratum, a key's outermost section is the subsystem the setting belongs to, and a mod's settings are in `mod.<id>`. Neither the store nor a settings group interprets a section | *section* in ini files, Unreal's config, Godot's `ConfigFile` and .NET; *group* in Qt, which is unrelated to a settings group; *node* in Java's `Preferences`; a dotted prefix by convention for cvars, `r.` for rendering |
 | **store** | The one map from key to setting, the `Settings` that `settings::store()` returns, and the only place a value is kept | *ProjectSettings* in Godot; *GConfig*, the config cache, in Unreal; the *console manager* for Unreal's cvars and the *cvar registry* for Source's |
 | **definition** | A setting's one entry in data: its key, type, default and scope, and whether a restart is required | a `bool-setting` or `string-setting` prototype in Factorio's mod settings; `GLOBAL_DEF` in Godot; a `TAutoConsoleVariable` in Unreal and a `ConVar` in Source, each in C++; a `GameOption` in DCSS; an entry in NetHack's options table |
-| **type** | A registered name for the values a setting may have: `bool`, `integer`, `real` or `text`, which the store registers; an enumeration that a subsystem registers in C++; or an enumeration defined in data | the *setting type* of a Factorio prototype; a *simple type* in XML Schema |
+| **type** | A registered name for the values a setting may have: `boolean`, `integer`, `real` or `text`, which the store registers; an enumeration that a subsystem registers in C++; or an enumeration defined in data | the *setting type* of a Factorio prototype; a *simple type* in XML Schema |
 | **base type** | The built-in type a registered type is based on: `text` for every enumeration. A script reads a setting as a value of its base type | the *base* of an XML Schema restriction, `<xs:restriction base="xs:string">` |
 | **default** | The value a setting has until something sets it, from the setting's definition | *default* everywhere |
 | **settings group** | A set of settings that its presets assign together, with one preset chosen at a time. Its members are the settings its presets set | a *scalability group* in Unreal, `sg.ShadowQuality` |
@@ -36,8 +36,6 @@ choose.
 
 ## Where it is now
 
-- **The store is built** with settings inserted and read by key, opaque keys and change listeners. Base types,
-  enumerations' values and settings groups are not built yet. Nothing inserts a setting on it yet.
 - **`stratum_sim::Settings` is a class with a getter and a setter for each setting,** and `stratum_sim::settings()`
   returns the one process-wide instance, constructed on first use. Its only setting is `random_seeding_on_open`.
 - **Nothing saves the settings.** `game.json` has a `settings` section, which `Game` neither writes nor reads.
@@ -164,10 +162,10 @@ A mod's setting is defined the same way. A script reads it by key as a value of 
 `settings.value("mod.torches.flicker")` returns a boolean.
 
 ```json
-{ "key": "mod.torches.flicker", "type": "bool", "default": "true", "scope": "user" }
+{ "key": "mod.torches.flicker", "type": "boolean", "default": "true", "scope": "user" }
 ```
 
-A definition's type is a registered type name. The store registers `bool`, `integer`, `real` and `text`; a subsystem
+A definition's type is a registered type name. The store registers `boolean`, `integer`, `real` and `text`; a subsystem
 registers each enumeration its settings have, with the enumeration's values; and the loader registers each enumeration
 defined in data. An enumeration defined in data is text with a list of allowed values, and C++ reads it as a
 `std::string`:
@@ -192,7 +190,7 @@ namespace quetzal::settings
 {
 
     enum class SettingScope { User, Game };
-    enum class SettingBaseType { Bool, Integer, Real, Text };
+    enum class SettingBaseType { Boolean, Integer, Real, Text };
 
     // A C++ type a setting may have: one that std::format writes, and that quetzal::try_type reads back through
     // from_chars. An enumeration needs a std::formatter specialization and a from_chars overload in its namespace
@@ -212,10 +210,10 @@ namespace quetzal::settings
     struct Setting
     {
         std::string type_name;
-        std::string default_text;
+        std::string default_value;
         SettingScope scope;
         bool restart_required;
-        std::optional<std::string> value_text;     // Empty if no value is set, and the setting has its default
+        std::optional<std::string> value;          // If empty, has its default value
     };
 
     struct Preset
@@ -241,10 +239,10 @@ namespace quetzal::settings
         template<SettingValue T>
         void register_type(std::string_view type_name, std::vector<std::string> values = {});        // from C++
         void register_enumeration(std::string_view type_name, std::vector<std::string> values);       // from data
-        bool registers_type(std::string_view type_name) const;
+        bool registered_type(std::string_view type_name) const;
         const SettingType& type(std::string_view type_name) const;
 
-        void insert(std::string_view key, std::string_view type_name, std::string_view default_text, SettingScope scope,
+        void insert(std::string_view key, std::string_view type_name, std::string_view default_value, SettingScope scope,
             bool restart_required);
         bool contains(std::string_view key) const;
         const Setting& setting(std::string_view key) const;

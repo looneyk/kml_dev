@@ -130,20 +130,8 @@ each on the ones before it. `Game`'s menu and lifecycle functions, and those the
       store under its key, such as `gameplay.random_seeding_on_open`, read and written with
       `settings::store().value<T>(key)` and `set_value<T>`. It replaces a getter and a setter on `Settings` for each of
       what may become a hundred or more settings. In these commit points:
-  - [x] **The settings library:** `library/quetzal/settings/`, the target `quetzal_settings` in the namespace
-        `quetzal::settings`, with `Setting<T>` for any type that formats and parses through `string_util`,
-        `SettingScope` `User` and `Game`, nested sections, types registered by name for declarations in data, and the
-        store, a `Settings`, that `settings::store()` returns, with `settings_test`.
-  - [x] **Opaque keys and change listeners** (`settings_plan.md`, `### The store`): `sections_of`, `is_setting_key`,
-        `add_section_listener` and its section loop in `notify` are removed, and a key is only required not to be
-        empty; `add_change_listener` calls each listener once for each operation with the keys it changed.
-  - [x] **Settings by key:** `Setting<T>` and the C++ `declare` are removed; `value<T>(key)` and
-        `set_value<T>(key, value)`, with `T` not deduced from the value, assert the setting's C++ type;
-        `SettingDeclaration` becomes `Setting`, with its type name and its value; `declare` becomes `insert`,
-        `declares` `contains`, and `declaration` `setting`; a registered type is a public `SettingType`, with its C++
-        type and `accepts`, which `type(name)` returns.
-  - [ ] **Types with base types and values:** `SettingType` given its base type and an enumeration's values; `register_type<T>(name, values)` for an enumeration in C++, checking that
-        each value parses; `register_enumeration(name, values)` for one defined in data, read as a `std::string`.
+  - [x] **Types with base types and values:** `SettingType` given its base type and an enumeration's values;
+        `register_type<T>(name, values)` for an enumeration in C++, checking that each value parses; `register_enumeration(name, values)` for one defined in data, read as a `std::string`.
   - [ ] **Settings groups** (`settings_plan.md`, `### Settings groups`): `insert_group`, `insert_preset`, `group` and
         `choose_preset`; members from the keys the presets set, each keeping its own default; at most one editable
         preset, which setting a member switches the group to; `values` writing a group's chosen preset and, for an
