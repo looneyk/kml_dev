@@ -77,12 +77,6 @@ namespace
     size_t g_case_count = 0;
     size_t g_failure_count = 0;
 
-    const Setting<Mode> mode_setting {"gameplay.mode", Mode::Restore, SettingScope::User};
-    const Setting<std::string> difficulty_setting {"gameplay.difficulty", "adventure", SettingScope::Game};
-    const Setting<bool> fullscreen_setting {"video.fullscreen", false, SettingScope::User, true};
-    const Setting<int> width_setting {"video.width", 1280, SettingScope::User};
-    const Setting<double> volume_setting {"audio.volume", 0.8, SettingScope::User};
-
     //--------------------------------------------------------------------------
     void report_group(const string& name)
     {
@@ -149,13 +143,14 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    void declare_all(Settings& test_settings)
+    void insert_all(Settings& test_settings)
     {
-        test_settings.declare(mode_setting);
-        test_settings.declare(difficulty_setting);
-        test_settings.declare(fullscreen_setting);
-        test_settings.declare(width_setting);
-        test_settings.declare(volume_setting);
+        test_settings.register_type<Mode>("mode");
+        test_settings.insert("gameplay.mode", "mode", "restore", SettingScope::User, false);
+        test_settings.insert("gameplay.difficulty", "text", "adventure", SettingScope::Game, false);
+        test_settings.insert("video.fullscreen", "boolean", "false", SettingScope::User, true);
+        test_settings.insert("video.width", "integer", "1280", SettingScope::User, false);
+        test_settings.insert("audio.volume", "real", "0.8", SettingScope::User, false);
         return;
     }
 
@@ -183,60 +178,62 @@ namespace
         report_group("values");
 
         Settings test_settings;
-        declare_all(test_settings);
+        insert_all(test_settings);
 
-        report_case("a declared setting has its default until set", test_settings.value(mode_setting) == Mode::Restore
-            && test_settings.value(width_setting) == 1280 && test_settings.value(volume_setting) == 0.8 && !test_settings.value(fullscreen_setting));
-        report_case("and its declaration has its C++ type, default text, scope and whether a restart is required",
-            test_settings.declaration("video.fullscreen").type == std::type_index(typeid(bool)) && test_settings.declaration("video.fullscreen").default_text == "false"
-            && test_settings.declaration("video.fullscreen").scope == SettingScope::User && test_settings.declaration("video.fullscreen").restart_required);
+        report_case("a setting has its default until set", test_settings.value<Mode>("gameplay.mode") == Mode::Restore
+            && test_settings.value<int64_t>("video.width") == 1280 && test_settings.value<double>("audio.volume") == 0.8
+            && !test_settings.value<bool>("video.fullscreen"));
+        report_case("and has its type name, default text, scope and whether a restart is required",
+            test_settings.setting("video.fullscreen").type_name == "boolean" && test_settings.setting("video.fullscreen").default_value == "false"
+            && test_settings.setting("video.fullscreen").scope == SettingScope::User && test_settings.setting("video.fullscreen").restart_required);
 
-        test_settings.set_value(mode_setting, Mode::Reseed);
-        test_settings.set_value(width_setting, 1920);
-        report_case("a value set is the value read", test_settings.value(mode_setting) == Mode::Reseed && test_settings.value(width_setting) == 1920);
+        test_settings.set_value<Mode>("gameplay.mode", Mode::Reseed);
+        test_settings.set_value<int64_t>("video.width", 1920);
+        report_case("a value set is the value read", test_settings.value<Mode>("gameplay.mode") == Mode::Reseed
+            && test_settings.value<int64_t>("video.width") == 1920);
         report_case("and is read by key as text", test_settings.text("gameplay.mode") == "reseed" && test_settings.text("video.width") == "1920"
             && test_settings.text("gameplay.difficulty") == "adventure");
 
         test_settings.set_text("audio.volume", "0.25");
-        report_case("a value set by key as text is read as its type", test_settings.value(volume_setting) == 0.25);
-        report_case("a key that is not declared is an error", throws([&] { test_settings.text("video.height"); })
-            && throws([&] { test_settings.set_text("video.height", "720"); }) && !test_settings.declares("video.height"));
+        report_case("a value set by key as text is read as its type", test_settings.value<double>("audio.volume") == 0.25);
+        report_case("a key that is not a setting's is an error", throws([&] { test_settings.text("video.height"); })
+            && throws([&] { test_settings.set_text("video.height", "720"); }) && !test_settings.contains("video.height"));
         report_case("and so is text that is no value of the setting's type", throws([&] { test_settings.set_text("video.width", "wide"); })
-            && test_settings.value(width_setting) == 1920);
+            && test_settings.value<int64_t>("video.width") == 1920);
         return;
     }
 
     //--------------------------------------------------------------------------
-    void test_data_declarations()
+    void test_types()
     {
-        report_group("declarations in data");
+        report_group("types");
 
         Settings test_settings;
-        report_case("bool, integer, real and text are the types a declaration in data may give", test_settings.registers_type("bool")
-            && test_settings.registers_type("integer") && test_settings.registers_type("real") && test_settings.registers_type("text")
-            && !test_settings.registers_type("mode"));
+        report_case("boolean, integer, real and text are the types the store registers, with their C++ types",
+            test_settings.type("boolean").cpp_type == type_index(typeid(bool)) && test_settings.type("integer").cpp_type == type_index(typeid(int64_t))
+            && test_settings.type("real").cpp_type == type_index(typeid(double)) && test_settings.type("text").cpp_type == type_index(typeid(std::string))
+            && !test_settings.registered_type("mode"));
 
-        test_settings.declare("torches.flicker", "bool", "true", SettingScope::User, false);
-        report_case("a setting declared in data has the C++ type its type name registers", test_settings.declares("torches.flicker")
-            && test_settings.declaration("torches.flicker").type == std::type_index(typeid(bool)) && test_settings.text("torches.flicker") == "true");
-        report_case("and a C++ declaration of that key and type reads it", test_settings.value(Setting<bool> {"torches.flicker", true}));
+        test_settings.insert("torches.flicker", "boolean", "true", SettingScope::User, false);
+        report_case("a setting is read as the C++ type of its type", test_settings.contains("torches.flicker")
+            && test_settings.value<bool>("torches.flicker") && test_settings.text("torches.flicker") == "true");
 
         test_settings.register_type<Mode>("mode");
-        test_settings.declare("torches.mode", "mode", "reseed", SettingScope::Game, false);
-        report_case("a type a library registers, an enumeration's among them, may be given by a declaration in data",
-            test_settings.declaration("torches.mode").type == std::type_index(typeid(Mode)) && test_settings.text("torches.mode") == "reseed"
+        test_settings.insert("torches.mode", "mode", "reseed", SettingScope::Game, false);
+        report_case("a type a library registers, an enumeration among them, may be a setting's type",
+            test_settings.type("mode").cpp_type == type_index(typeid(Mode)) && test_settings.value<Mode>("torches.mode") == Mode::Reseed
             && throws([&] { test_settings.set_text("torches.mode", "sometimes"); }));
 
-        report_case("a type name that is not registered is an error", throws([&] { test_settings.declare("torches.colour", "colour", "red",
+        report_case("a type name that is not registered is an error", throws([&] { test_settings.insert("torches.colour", "colour", "red",
             SettingScope::User, false); }));
-        report_case("and so is a default that is no value of the type", throws([&] { test_settings.declare("torches.count", "integer", "many",
+        report_case("and so is a default that is no value of the type", throws([&] { test_settings.insert("torches.count", "integer", "many",
             SettingScope::User, false); }));
-        report_case("and a key declared twice, or empty", throws([&] { test_settings.declare("torches.flicker", "bool", "false",
-            SettingScope::User, false); }) && throws([&] { test_settings.declare("", "bool", "false", SettingScope::User, false); }));
+        report_case("and a key inserted twice, or empty", throws([&] { test_settings.insert("torches.flicker", "boolean", "false",
+            SettingScope::User, false); }) && throws([&] { test_settings.insert("", "boolean", "false", SettingScope::User, false); }));
 
         test_settings.clear();
-        report_case("clearing the store keeps the four types it starts with, and no other", test_settings.registers_type("bool")
-            && !test_settings.registers_type("mode") && !test_settings.declares("torches.flicker"));
+        report_case("clearing the store keeps the four types it starts with, and no other", test_settings.registered_type("boolean")
+            && !test_settings.registered_type("mode") && !test_settings.contains("torches.flicker"));
         return;
     }
 
@@ -246,10 +243,10 @@ namespace
         report_group("scopes");
 
         Settings test_settings;
-        declare_all(test_settings);
+        insert_all(test_settings);
 
-        test_settings.set_value(difficulty_setting, std::string("hardcore"));
-        test_settings.set_value(fullscreen_setting, true);
+        test_settings.set_value<std::string>("gameplay.difficulty", "hardcore");
+        test_settings.set_value<bool>("video.fullscreen", true);
 
         quetzal::KeyValueStore user_values = test_settings.values(SettingScope::User);
         quetzal::KeyValueStore game_values = test_settings.values(SettingScope::Game);
@@ -258,15 +255,16 @@ namespace
 
         test_settings.reset(SettingScope::Game);
         quetzal::KeyValueStore game_values_reset = test_settings.values(SettingScope::Game);
-        report_case("resetting a scope returns its settings to their defaults, and leaves the other's", test_settings.value(difficulty_setting) == "adventure"
-            && test_settings.value(fullscreen_setting) && game_values_reset.begin() == game_values_reset.end());
+        report_case("resetting a scope returns its settings to their defaults, and leaves the other's",
+            test_settings.value<std::string>("gameplay.difficulty") == "adventure" && test_settings.value<bool>("video.fullscreen")
+            && game_values_reset.begin() == game_values_reset.end());
 
         test_settings.set_values(game_values);
-        report_case("and setting the values saved restores them", test_settings.value(difficulty_setting) == "hardcore");
+        report_case("and setting the values saved restores them", test_settings.value<std::string>("gameplay.difficulty") == "hardcore");
 
         quetzal::KeyValueStore partly_wrong {{"video.width", "1600"}, {"video.height", "900"}};
-        report_case("values with a key that is not declared are an error, and none of them is set", throws([&] { test_settings.set_values(partly_wrong); })
-            && test_settings.value(width_setting) == 1280);
+        report_case("values with a key that is not a setting's are an error, and none of them is set",
+            throws([&] { test_settings.set_values(partly_wrong); }) && test_settings.value<int64_t>("video.width") == 1280);
         return;
     }
 
@@ -276,15 +274,15 @@ namespace
         report_group("change notifications");
 
         Settings test_settings;
-        declare_all(test_settings);
+        insert_all(test_settings);
 
         vector<vector<string>> notifications;
         test_settings.add_change_listener([&notifications](const vector<string>& keys_changed) { notifications.push_back(keys_changed); });
 
-        test_settings.set_value(width_setting, 1920);
+        test_settings.set_value<int64_t>("video.width", 1920);
         report_case("a change calls each listener with the key changed", notifications == vector<vector<string>> {{"video.width"}});
 
-        test_settings.set_value(width_setting, 1920);
+        test_settings.set_value<int64_t>("video.width", 1920);
         report_case("and setting the same value again does not", notifications.size() == 1);
 
         const vector<string> keys_set {"gameplay.mode", "video.fullscreen", "video.width"};
@@ -295,14 +293,17 @@ namespace
         test_settings.reset(SettingScope::User);
         report_case("and so does resetting a scope", notifications.size() == 3 && sorted(notifications.back()) == keys_set);
 
-        test_settings.declare("flicker", "bool", "true", SettingScope::User, false);
+        test_settings.insert("flicker", "boolean", "true", SettingScope::User, false);
         test_settings.set_text("flicker", "false");
         report_case("a key is notified as a whole, whatever its segments", notifications.back() == vector<string> {"flicker"});
 
         // The listener reads the new value, as a subsystem applying its settings does
-        int width_applied = 0;
-        test_settings.add_change_listener([&test_settings, &width_applied](const vector<string>&) { width_applied = test_settings.value(width_setting); });
-        test_settings.set_value(width_setting, 2560);
+        int64_t width_applied = 0;
+        test_settings.add_change_listener([&test_settings, &width_applied](const vector<string>&)
+        {
+            width_applied = test_settings.value<int64_t>("video.width");
+        });
+        test_settings.set_value<int64_t>("video.width", 2560);
         report_case("a listener reads the value already changed", width_applied == 2560);
         return;
     }
@@ -325,7 +326,7 @@ int main()
     {
         test_text();
         test_values();
-        test_data_declarations();
+        test_types();
         test_scopes();
         test_notifications();
         test_process_store();

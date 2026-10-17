@@ -36,8 +36,8 @@ choose.
 
 ## Where it is now
 
-- **The store is built,** with C++ declarations (`Setting<T>`), declarations in data, opaque keys and change
-  listeners. `### The store` is its revision. Nothing declares a setting on it yet.
+- **The store is built** with settings inserted and read by key, opaque keys and change listeners. Base types,
+  enumerations' values and settings groups are not built yet. Nothing inserts a setting on it yet.
 - **`stratum_sim::Settings` is a class with a getter and a setter for each setting,** and `stratum_sim::settings()`
   returns the one process-wide instance, constructed on first use. Its only setting is `random_seeding_on_open`.
 - **Nothing saves the settings.** `game.json` has a `settings` section, which `Game` neither writes nor reads.

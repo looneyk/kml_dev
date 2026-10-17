@@ -137,12 +137,12 @@ each on the ones before it. `Game`'s menu and lifecycle functions, and those the
   - [x] **Opaque keys and change listeners** (`settings_plan.md`, `### The store`): `sections_of`, `is_setting_key`,
         `add_section_listener` and its section loop in `notify` are removed, and a key is only required not to be
         empty; `add_change_listener` calls each listener once for each operation with the keys it changed.
-  - [ ] **Settings by key:** `Setting<T>` and the C++ `declare` are removed; `value<T>(key)` and
+  - [x] **Settings by key:** `Setting<T>` and the C++ `declare` are removed; `value<T>(key)` and
         `set_value<T>(key, value)`, with `T` not deduced from the value, assert the setting's C++ type;
         `SettingDeclaration` becomes `Setting`, with its type name and its value; `declare` becomes `insert`,
-        `declares` `contains`, and `declaration` `setting`.
-  - [ ] **Types with base types and values:** a `SettingType` for each registered type, with its C++ type, its base
-        type and an enumeration's values; `register_type<T>(name, values)` for an enumeration in C++, checking that
+        `declares` `contains`, and `declaration` `setting`; a registered type is a public `SettingType`, with its C++
+        type and `accepts`, which `type(name)` returns.
+  - [ ] **Types with base types and values:** `SettingType` given its base type and an enumeration's values; `register_type<T>(name, values)` for an enumeration in C++, checking that
         each value parses; `register_enumeration(name, values)` for one defined in data, read as a `std::string`.
   - [ ] **Settings groups** (`settings_plan.md`, `### Settings groups`): `insert_group`, `insert_preset`, `group` and
         `choose_preset`; members from the keys the presets set, each keeping its own default; at most one editable

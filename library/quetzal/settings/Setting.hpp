@@ -9,8 +9,11 @@
 #include <charconv>
 #include <concepts>
 #include <format>
+#include <functional>
+#include <optional>
 #include <string>
 #include <string_view>
+#include <typeindex>
 
 namespace quetzal::settings
 {
@@ -33,14 +36,21 @@ namespace quetzal::settings
         });
 
     //--------------------------------------------------------------------------
-    // A setting's one declaration in C++, which holds no value
-    template<SettingValue T>
+    // A type registered by setting type name
+    struct SettingType
+    {
+        std::type_index cpp_type;
+        std::function<bool(std::string_view text)> accepts; // Returns true if the text is a value of the type
+    };
+
+    //--------------------------------------------------------------------------
     struct Setting
     {
-        std::string_view key; // "gameplay.random_seeding_on_open"
-        T default_value {};
+        std::string type_name;
+        std::string default_value;
         SettingScope scope = SettingScope::User;
         bool restart_required = false;
+        std::optional<std::string> value; // If empty, has its default value
     };
 
 } // namespace quetzal::settings
