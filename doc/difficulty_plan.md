@@ -87,7 +87,7 @@ The game's setting definitions in `assets/data` define the group and its presets
 
 ## What the settings replace
 
-- **`Settings::random_seeding_on_open`** becomes the mode's setting for opening a save.
+- **`gameplay.reseed_on_open`** becomes the mode's setting for opening a save.
 - **Permadeath** (`session_plan.md`, `### Permadeath`) becomes Hardcore's death and save settings: `quit` saves the
   game while the character lives, and deletes the save once it is dead.
 - **The quick save and autosave counts** (`session_plan.md`, `### Quick saves and autosaves`), and whether quick saves,

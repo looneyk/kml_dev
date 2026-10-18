@@ -7,7 +7,10 @@
 #include "StratumWorld.hpp"
 #include "quetzal/log/FileLogSink.hpp"
 #include "quetzal/log/Log.hpp"
+#include "quetzal/settings/Settings.hpp"
+#include "quetzal/settings/SettingsGroups.hpp"
 #include "quetzal/stratum_sim/Config.hpp"
+#include "quetzal/stratum_sim/load_setting_definitions.hpp"
 #include <gdextension_interface.h>
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/core/defs.hpp>
@@ -52,6 +55,7 @@ void initialize_stratum_module(godot::ModuleInitializationLevel level)
     quetzal::log::logger().add_sink(write_to_godot_output);
     const quetzal::stratum_sim::Config config = quetzal::stratum_sim::load_config(project_directory());
     quetzal::log::logger().add_sink(quetzal::log::FileLogSink(config.logs_directory / "stratum_godot.log"));
+    quetzal::stratum_sim::load_setting_definitions(config.assets_directory, quetzal::settings::store(), quetzal::settings::groups());
 
     GDREGISTER_CLASS(StratumWorld);
 

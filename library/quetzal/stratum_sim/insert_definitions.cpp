@@ -20,8 +20,7 @@ namespace
 } // namespace
 
 //------------------------------------------------------------------------------
-void quetzal::stratum_sim::insert_definitions(const stratum_format::SettingDefinitionsDocument& document, settings::Settings& settings,
-    settings::SettingsGroups& groups)
+void quetzal::stratum_sim::insert_definitions(const stratum_format::SettingDefinitionsDocument& document, settings::Settings& settings, settings::SettingsGroups& groups)
 {
     for (const auto& enumeration : document.enumerations)
     {

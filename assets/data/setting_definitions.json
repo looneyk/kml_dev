@@ -2,6 +2,8 @@
   "format": "quetzal.stratum_setting_definitions",
   "version": "0.1",
   "settings": [
+    { "key": "gameplay.reseed_on_open", "type": "boolean", "default": "false", "scope": "user",
+      "display_name": "Reseed on open", "description": "Whether opening a save draws new outcomes rather than repeating its own", "category": "gameplay" },
     { "key": "gameplay.difficulty.denizen_count_multiplier", "type": "real", "default": "1", "scope": "game", "minimum": "0.25", "maximum": "4",
       "display_name": "Denizen count", "description": "How many denizens a zone is populated with", "category": "difficulty" },
     { "key": "gameplay.difficulty.denizen_speed_multiplier", "type": "real", "default": "1", "scope": "game", "minimum": "0.25", "maximum": "4",

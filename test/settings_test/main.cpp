@@ -505,7 +505,7 @@ namespace
         report_group("the process-wide store");
 
         report_case("is one store", &store() == &store());
-        report_case("and has one set of groups", &settings_groups() == &settings_groups());
+        report_case("and has one set of groups", &groups() == &groups());
         return;
     }
 

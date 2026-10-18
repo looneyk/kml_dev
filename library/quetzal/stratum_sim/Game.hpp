@@ -11,7 +11,6 @@
 #include "Generation.hpp"
 #include "SavedGameDetails.hpp"
 #include "Session.hpp"
-#include "Settings.hpp"
 #include "World.hpp"
 #include <filesystem>
 #include <optional>
@@ -31,6 +30,9 @@ namespace quetzal::stratum_sim
     class Game
     {
     public:
+
+        // A boolean setting: true if opening a save reseeds the random engine, false if it restores the state saved
+        static constexpr std::string_view reseed_on_open_key = "gameplay.reseed_on_open";
 
         explicit Game(const Config& config);
         Game(const Game&) = delete;

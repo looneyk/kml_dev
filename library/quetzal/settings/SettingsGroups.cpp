@@ -324,8 +324,8 @@ void quetzal::settings::SettingsGroups::notify(const std::vector<std::string>& g
 }
 
 //------------------------------------------------------------------------------
-quetzal::settings::SettingsGroups& quetzal::settings::settings_groups()
+quetzal::settings::SettingsGroups& quetzal::settings::groups()
 {
-    static SettingsGroups s_settings_groups(store());
-    return s_settings_groups;
+    static SettingsGroups s_groups(store());
+    return s_groups;
 }

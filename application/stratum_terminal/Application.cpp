@@ -7,10 +7,13 @@
 #include "quetzal/common/file_util.hpp"
 #include "quetzal/log/FileLogSink.hpp"
 #include "quetzal/log/Log.hpp"
+#include "quetzal/settings/Settings.hpp"
+#include "quetzal/settings/SettingsGroups.hpp"
 #include "quetzal/stratum_gen/generators.hpp"
 #include "quetzal/stratum_sim/attachments.hpp"
 #include "quetzal/stratum_sim/DiscreteLayout.hpp"
 #include "quetzal/stratum_sim/commands.hpp"
+#include "quetzal/stratum_sim/load_setting_definitions.hpp"
 #include "quetzal/stratum_sim/Site.hpp"
 #include "quetzal/stratum_sim/specs.hpp"
 #include <algorithm>
@@ -157,6 +160,8 @@ stratum_terminal::Application::Application(View view, const std::string& script,
 {
     // A file, since anything written to the console would write over the terminal's frame
     log::logger().add_sink(log::FileLogSink(m_game.config().logs_directory / "stratum_terminal.log"));
+    stratum_sim::load_setting_definitions(m_game.config().assets_directory, settings::store(), settings::groups());
+
     for (const auto& [name, generate] : stratum_gen::generators())
     {
         m_game.generation().m_generators[name] = [generate](const stratum_sim::ZoneSpec& zone_spec)

@@ -662,7 +662,7 @@ listener.
 
 A settings group is a set of settings that its presets assign together, one preset at a time. The store knows nothing
 of groups: `SettingsGroups`, in `SettingsGroups.hpp`, keeps a store's groups and uses only the store's public functions
-and listeners, and `settings_groups()` returns the process-wide one, of `store()`. `insert(group)` adds a
+and listeners, and `groups()` returns the process-wide one, of `store()`. `insert(group)` adds a
 `SettingsGroup` and selects its default preset; `insert_preset(group_key, preset)` adds a `Preset` to one. A `Preset` has a name, a display name, whether it is editable, and its values by key.
 The group's members are the settings its presets set, each of the group's scope and in no other group. Group keys are
 apart from setting keys. Each throws `std::runtime_error` if a key, a preset or a value is invalid.
@@ -711,13 +711,17 @@ that order, each referring to those before it. `generation()` returns the `Gener
 its generators, selectors and region specs. Only the `Generation` can be copied or moved. The constructor makes no
 character, region or zone; until a game is created, there is none.
 
-`Settings` are process-wide: `settings()` returns the one instance, constructed on first use, which the sim,
-the views and the hosts reach without its being passed. Its one setting is `random_seeding_on_open`. A suite that
+The game's settings are in the process-wide `settings::store()` and `settings::groups()`. Each host calls
+`load_setting_definitions(config.assets_directory, store, groups)`, in `load_setting_definitions.hpp`, once when it
+starts, which inserts the game's setting definition file, and `stratum_sim_test` calls it once in `main`. A suite that
 changes a setting sets it back after its cases.
 
 `Game` has the menu and lifecycle operations a host calls: `menu_open`, `menu_close`, `clear`, `create`, `open`,
 `save`, `quit` and `saved_games`. They call `clear`, `create`, `open` and `save` on `World` and `Character`, and
 `clear`, `start`, `pause` and `resume` on `Session`.
+
+`Game::clear` returns the game scope's settings to their defaults and selects its groups' default presets, so a game
+created or opened starts from them.
 
 The working directory has only the game in progress. `Game::create(region_spec, character_spec)` clears, resets the id
 allocator to count from zero, and reseeds the random engine from `std::random_device`, keeping the seed, so nothing passes
@@ -731,8 +735,8 @@ no game in progress.
 `Game::open(save_name)` clears, then empties the working directory and copies the save into it as the game directory,
 named by the character as `create` names it, read from the top of the save's `character.json`. It reads `game.json`: the id
 allocator counts on from `next_id`, and the random engine's state is restored from the text `>>` reads, or the random engine is
-reseeded from `std::random_device`, as `Settings::random_seeding_on_open` chooses, `RandomSeedingOnOpen::RestoreSavedState` or
-`Reseed`; the random engine is the same either way. Restoring repeats the outcomes the save would have had; reseeding gives
+reseeded from `std::random_device` if the boolean setting `Game::reseed_on_open_key`, `gameplay.reseed_on_open`, is true;
+the random engine is the same either way. Restoring repeats the outcomes the save would have had; reseeding gives
 each opening its own. `World::open`
 then reads `world.json`, `Character::open` reads `character.json`, and the session starts in the character's zone,
 which `load_saved_zone` reads, at its cell and orientation. It throws `std::runtime_error` if there is no such save or

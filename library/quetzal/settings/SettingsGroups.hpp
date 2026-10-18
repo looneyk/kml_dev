@@ -86,7 +86,7 @@ namespace quetzal::settings
     };
 
     // Returns the process-wide groups store, constructed on first use
-    SettingsGroups& settings_groups();
+    SettingsGroups& groups();
 
 } // namespace quetzal::settings
 

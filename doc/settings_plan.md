@@ -10,7 +10,7 @@ game. The open items are in `work_plan.md` (`### Settings`), and the work in **K
 | Term | What it is | What others call it |
 | --- | --- | --- |
 | **setting** | One value the player or the game chooses, such as a difficulty multiplier or the video mode | *option* in NetHack and DCSS; *preference* in Apple's and Java's APIs and Unity's `PlayerPrefs`; *console variable* (*cvar*) in Quake, Source and Unreal when the console can set it |
-| **key** | A setting's name, the string the store maps: `"gameplay.random_seeding_on_open"`. The store compares a key only as a whole string | *key* in Qt, ini files, .NET, Unity and Godot's `ConfigFile`; *name* in Godot's `ProjectSettings` (whose docs also call it a path), and for a cvar or a `ConVar`; *option name* in NetHack and DCSS |
+| **key** | A setting's name, the string the store maps: `"video.fullscreen"`. The store compares a key only as a whole string | *key* in Qt, ini files, .NET, Unity and Godot's `ConfigFile`; *name* in Godot's `ProjectSettings` (whose docs also call it a path), and for a cvar or a `ConVar`; *option name* in NetHack and DCSS |
 | **subsystem** | A library or host with settings of its own, which registers their C++ types and applies them: the sim, a view, a host, the log | *module* in Unreal and Godot; *subsystem* in Unreal's `USubsystem` classes |
 | **section** | A leading run of a key's `.`-separated segments, by naming convention only: `video.window.width` is in `video` and `video.window`. In stratum, a key's outermost section is the subsystem the setting belongs to, and a mod's settings are in `mod.<id>`. Neither the store nor a settings group interprets a section | *section* in ini files, Unreal's config, Godot's `ConfigFile` and .NET; *group* in Qt, which is unrelated to a settings group; *node* in Java's `Preferences`; a dotted prefix by convention for cvars, `r.` for rendering |
 | **store** | The one map from key to setting, the `Settings` that `settings::store()` returns, and the only place a value is kept | *ProjectSettings* in Godot; *GConfig*, the config cache, in Unreal; the *console manager* for Unreal's cvars and the *cvar registry* for Source's |
@@ -37,8 +37,6 @@ choose.
 
 ## Where it is now
 
-- **`stratum_sim::Settings` is a class with a getter and a setter for each setting,** and `stratum_sim::settings()`
-  returns the one process-wide instance, constructed on first use. Its only setting is `random_seeding_on_open`.
 - **Nothing saves the settings.** `game.json` has a `settings` section, which `Game` neither writes nor reads.
 
 ## What the settings are
@@ -78,7 +76,7 @@ There are two ways to hold them.
   and a setter for each: `SimSettings` in `stratum_sim`, `ViewSettings` in `stratum_view`, and the hosts' own. Each is
   saved by code that names each member.
 - **Keyed values in one store.** One store, in a library below the sim, contains every setting's value under its key,
-  such as `gameplay.random_seeding_on_open` or `video.fullscreen`. Each setting has one definition, and each layer reads
+  such as `gameplay.difficulty.denizen_count_multiplier` or `video.fullscreen`. Each setting has one definition, and each layer reads
   only its own settings.
 
 ### What other games do
@@ -139,24 +137,21 @@ store keeps every setting's value; each subsystem applies its own into structure
 when its change listener is called with any of their keys.
 
 ```json
-{ "key": "gameplay.random_seeding_on_open", "type": "random_seeding_on_open", "default": "restore_saved_state", "scope": "user" }
+{ "key": "video.fullscreen", "type": "boolean", "default": "false", "scope": "user", "restart_required": true }
 ```
 
 ```cpp
-// stratum_sim registers the type of its setting, with the type's values, when it starts
-settings::store().register_type<RandomSeedingOnOpen>("random_seeding_on_open", {"restore_saved_state", "reseed"});
-
-// Game applies it, when a save is opened: the store asserts that the setting's type is a RandomSeedingOnOpen
-if (settings::store().value<RandomSeedingOnOpen>("gameplay.random_seeding_on_open") == RandomSeedingOnOpen::Reseed)
+// The view applies it: the store asserts that the setting's type is a bool
+if (settings::store().value<bool>("video.fullscreen"))
 
 // The options menu changes it
-settings::store().set_value<RandomSeedingOnOpen>("gameplay.random_seeding_on_open", RandomSeedingOnOpen::Reseed);
+settings::store().set_value<bool>("video.fullscreen", true);
 ```
 
 The user settings file has only the value, under its key:
 
 ```json
-{ "gameplay.random_seeding_on_open": "reseed" }
+{ "settings": { "video.fullscreen": "true" } }
 ```
 
 A mod's setting is defined the same way. A script reads it by key as a value of its base type:
@@ -331,17 +326,18 @@ namespace quetzal::settings
     };
 
     // The process-wide groups of the process-wide store, constructed on first use
-    SettingsGroups& settings_groups();
+    SettingsGroups& groups();
 
 } // namespace quetzal::settings
 ```
 
 **How it is used:**
 
-- **At startup, each subsystem registers its types,** calling `settings::store().register_type<T>(name, values)` for
-  each enumeration its settings have. Then the loader reads the definitions, the game's and then each mod's, and
-  registers their enumerations, inserts their settings into the store, and then inserts their groups and presets into
-  `settings_groups()`.
+- **At startup, in each host's `main`,** the config is loaded, any C++ enumeration a subsystem's settings have is
+  registered with `settings::store().register_type<T>(name, values)`, and the loader reads the definitions, the game's
+  and then each mod's, registering their enumerations, inserting their settings into the store, and then inserting
+  their groups and presets into `groups()`. The user's values are loaded then; a game's are set when it is
+  created or opened.
 - **Loading sets the values:** from the user settings file at startup, and from `game.json` when a game is opened. The
   loader passes the file's `groups` to `SettingsGroups::set_values` first, and its `settings` to
   `Settings::set_values`, so an editable preset is selected before its members' values are set. A key that is not a
@@ -353,7 +349,7 @@ namespace quetzal::settings
   groups' `values` of the scope in its `groups`. A setting never set is not written, so it keeps its default, even if the default changes. A member is not
   written while `has_value_from_preset` returns true for it.
 - **A game cleared** returns the game scope's settings to their defaults with `reset(SettingScope::Game)`, and then
-  selects its groups' default presets with `settings_groups().reset(SettingScope::Game)`.
+  selects its groups' default presets with `groups().reset(SettingScope::Game)`.
 
 **What the store decides:**
 

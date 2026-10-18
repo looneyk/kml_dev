@@ -127,21 +127,17 @@ each on the ones before it. `Game`'s menu and lifecycle functions, and those the
       the program directory overrides any of them. The terminal's build copies a development `config.json` beside it
       in `bin/<Config>/`, and the Godot project has its own.
 - [ ] **Keyed settings** (`settings_plan.md`, `## Terms`): each setting defined in data and its value kept in one
-      store under its key, such as `gameplay.random_seeding_on_open`, read and written with
-      `settings::store().value<T>(key)` and `set_value<T>`. It replaces a getter and a setter on `Settings` for each of
-      what may become a hundred or more settings. In these commit points:
-  - [x] **The definitions inserted:** `stratum_sim`'s `insert_definitions(document, settings, groups)`, inserting a
-        document's enumerations, settings and groups in that order; `SettingsGroup` given the group's display name and
-        category, which the document has and the store does not yet.
-  - [ ] **The sample difficulty modes in the sim** (`difficulty_plan.md`, `## The sample modes`): `World` keeps a
-        `Difficulty` struct, applied by a change listener on the `gameplay.difficulty` members; `populate`, `Speed`
-        and `Detection` read it; a new game is Normal. `RandomSeedingOnOpen` is given a `std::formatter` and a
-        `from_chars`, and registered with its values; `gameplay.random_seeding_on_open` is defined in data, and `Game`
-        applies it; `stratum_sim::Settings` and its `settings()` are removed.
+      store under its key, such as `video.fullscreen`, read and written with `settings::store().value<T>(key)` and
+      `set_value<T>`. It replaces a getter and a setter on `Settings` for each of what may become a hundred or more
+      settings. In these commit points:
+  - [x] **The settings in the game:** each host loading the game's definitions at startup with
+        `load_setting_definitions`; the placeholder boolean `gameplay.reseed_on_open` defined in data and read by
+        `Game::open`; `Game::clear` resetting the game scope and selecting the default presets; `stratum_sim::Settings`
+        and its `settings()` removed. The difficulty settings and presets are data only, with nothing reading them.
   - [ ] **The settings saved:** `settings.json` in its own format, `quetzal.stratum_settings`, read and written by
-        `stratum_format` with a `settings` object of each value as text; each host loads it when it starts and writes
-        it when a setting changes; `Game` writes the game's values into `game.json`'s `settings` and sets them when the
-        game is opened, and `Game::clear` returns them to their defaults.
+        `stratum_format` with a `settings` object and a `groups` object of each value as text; each host loads it when it starts and writes
+        it when a setting changes; `Game` writes the game's values and selections into `game.json`'s `settings` and
+        `groups` and sets them when the game is opened.
   - [ ] **Mods' settings** (`settings_plan.md`, `### Mods' settings`), after **Mods**: each mod's definitions read
         after the game's, with the loader checking the `mod.<id>` section of the keys a mod defines; patches to
         another's settings, groups and presets by full key, skipped with a warning for a mod that is not loaded; a
@@ -197,7 +193,7 @@ each on the ones before it. `Game`'s menu and lifecycle functions, and those the
       random engine, seeded from the zone's seed, with the reference files regenerated. It comes with **the generators
       integrated**.
 - [x] **The random engines' state restored** (`random_engine.md`, `## Saving`), with **A game loaded**, or reseeded, as
-      `Settings::random_seeding_on_open` chooses.
+      the setting `gameplay.reseed_on_open` chooses.
 
 ## Regions
 

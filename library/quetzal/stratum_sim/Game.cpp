@@ -7,6 +7,8 @@
 #include "attachments.hpp"
 #include "DiscreteLayout.hpp"
 #include "DisplayName.hpp"
+#include "quetzal/settings/Settings.hpp"
+#include "quetzal/settings/SettingsGroups.hpp"
 #include "quetzal/stratum_format/GameDocument.hpp"
 #include "quetzal/stratum_format/read_character.hpp"
 #include "quetzal/stratum_format/read_game.hpp"
@@ -158,6 +160,8 @@ void quetzal::stratum_sim::Game::clear()
     m_character.clear();
     m_world.clear();
     m_game_directory.reset();
+    settings::store().reset(settings::SettingScope::Game);
+    settings::groups().reset(settings::SettingScope::Game);
     return;
 }
 
@@ -245,7 +249,7 @@ void quetzal::stratum_sim::Game::restore_game_state(const std::filesystem::path&
         throw std::runtime_error(std::format("{}: game.seed: '{}' is not a seed", filepath.string(), document.seed));
     }
 
-    if (settings().random_seeding_on_open() == RandomSeedingOnOpen::Reseed)
+    if (settings::store().value<bool>(reseed_on_open_key))
     {
         m_seed = std::random_device {}();
         m_random.engine().seed(m_seed);
