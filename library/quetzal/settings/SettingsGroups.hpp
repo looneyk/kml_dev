@@ -31,9 +31,8 @@ namespace quetzal::settings
         SettingsGroups& operator=(const SettingsGroups&) = delete;
         SettingsGroups& operator=(SettingsGroups&&) = delete;
 
-        // Selects the default preset. Throws std::runtime_error if the key is empty or already defined, the group or a
-        // preset is invalid, or a preset contains an invalid value
-        void insert(std::string_view key, SettingScope scope, std::string_view default_preset_name, std::vector<Preset> presets);
+        // Selects the default preset. Throws std::runtime_error if the key is empty or already defined or a preset contains an invalid value
+        void insert(SettingsGroup group);
 
         // Throws std::runtime_error if there is no group defined for that key or the preset is invalid
         void insert_preset(std::string_view group_key, Preset preset);

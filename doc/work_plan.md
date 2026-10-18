@@ -130,11 +130,7 @@ each on the ones before it. `Game`'s menu and lifecycle functions, and those the
       store under its key, such as `gameplay.random_seeding_on_open`, read and written with
       `settings::store().value<T>(key)` and `set_value<T>`. It replaces a getter and a setter on `Settings` for each of
       what may become a hundred or more settings. In these commit points:
-  - [x] **The definition file** (`settings_plan.md`, `### The definition file`): `SettingDefinitionsDocument`, read by
-        `stratum_format`'s `read_setting_definitions`; the game's `assets/data/setting_definitions.json`, with the
-        difficulty multipliers and the `gameplay.difficulty` group's presets `easy`, `normal`, `hard` and the editable
-        `custom`.
-  - [ ] **The definitions inserted:** `stratum_sim`'s `insert_definitions(document, settings, groups)`, inserting a
+  - [x] **The definitions inserted:** `stratum_sim`'s `insert_definitions(document, settings, groups)`, inserting a
         document's enumerations, settings and groups in that order; `SettingsGroup` given the group's display name and
         category, which the document has and the store does not yet.
   - [ ] **The sample difficulty modes in the sim** (`difficulty_plan.md`, `## The sample modes`): `World` keeps a

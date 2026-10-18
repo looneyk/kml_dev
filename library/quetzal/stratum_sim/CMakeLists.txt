@@ -17,6 +17,7 @@ add_library(quetzal_stratum_sim STATIC
     Game.cpp
     GridMapping.cpp
     IdAllocator.cpp
+    insert_definitions.cpp
     load_character.cpp
     load_layout.cpp
     make_document.cpp
@@ -54,6 +55,7 @@ add_library(quetzal_stratum_sim STATIC
     Generation.hpp
     GridMapping.hpp
     IdAllocator.hpp
+    insert_definitions.hpp
     Intent.hpp
     Layout.hpp
     load_character.hpp
@@ -81,4 +83,4 @@ target_include_directories(quetzal_stratum_sim PUBLIC
 )
 
 # Not flecs::flecs_static, as library3 is added after library/ and a namespaced target must already exist
-target_link_libraries(quetzal_stratum_sim PUBLIC quetzal_common quetzal_stratum_format flecs_static)
+target_link_libraries(quetzal_stratum_sim PUBLIC quetzal_common quetzal_settings quetzal_stratum_format flecs_static)

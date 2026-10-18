@@ -26,9 +26,9 @@ quetzal::settings::SettingsGroups::~SettingsGroups()
 }
 
 //------------------------------------------------------------------------------
-void quetzal::settings::SettingsGroups::insert(std::string_view key, SettingScope scope, std::string_view default_preset_name,
-    std::vector<Preset> presets)
+void quetzal::settings::SettingsGroups::insert(SettingsGroup group)
 {
+    const std::string key = group.key();
     if (key.empty())
     {
         throw std::runtime_error("a settings group key is empty");
@@ -39,19 +39,19 @@ void quetzal::settings::SettingsGroups::insert(std::string_view key, SettingScop
         throw std::runtime_error(std::format("the settings group '{}' is defined twice", key));
     }
 
-    for (const auto& preset : presets)
+    for (const auto& preset : group.presets())
     {
-        check_preset_values(key, scope, preset);
+        check_preset_values(key, group.scope(), preset);
     }
 
-    SettingsGroup group(key, scope, default_preset_name, std::move(presets));
     for (const auto& member_key : group.setting_keys())
     {
-        m_parent_groups.emplace(member_key, std::string(key));
+        m_parent_groups.emplace(member_key, key);
     }
 
-    m_groups.emplace(std::string(key), std::move(group));
-    select_presets({{std::string(key), std::string(default_preset_name)}});
+    const std::string default_preset_name = group.default_preset_name();
+    m_groups.emplace(key, std::move(group));
+    select_presets({{key, default_preset_name}});
     return;
 }
 

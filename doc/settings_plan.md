@@ -283,10 +283,13 @@ namespace quetzal::settings
     {
     public:
 
-        SettingsGroup(std::string_view key, SettingScope scope, std::string_view default_preset_name, std::vector<Preset> presets);
+        SettingsGroup(std::string_view key, SettingScope scope, std::string_view default_preset_name, std::vector<Preset> presets,
+            std::string_view display_name = {}, std::string_view category = {});
 
         const std::string& key() const;
         SettingScope scope() const;
+        const std::string& display_name() const;
+        const std::string& category() const;
         const std::string& default_preset_name() const;
         const std::vector<Preset>& presets() const;
         const Preset& selected() const;
@@ -307,7 +310,7 @@ namespace quetzal::settings
         explicit SettingsGroups(Settings& settings);
         ~SettingsGroups();
 
-        void insert(std::string_view key, SettingScope scope, std::string_view default_preset_name, std::vector<Preset> presets);
+        void insert(SettingsGroup group);
         void insert_preset(std::string_view group_key, Preset preset);
         bool contains(std::string_view key) const;
         const SettingsGroup& group(std::string_view key) const;

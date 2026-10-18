@@ -22,6 +22,7 @@
 #include "quetzal/stratum_sim/Session.hpp"
 #include "quetzal/stratum_sim/Game.hpp"
 #include "quetzal/stratum_sim/ai.hpp"
+#include "quetzal/stratum_sim/insert_definitions.hpp"
 #include "quetzal/stratum_sim/attachments.hpp"
 #include "quetzal/stratum_sim/file_components.hpp"
 #include "quetzal/stratum_sim/layout_entities.hpp"
@@ -30,6 +31,7 @@
 #include "quetzal/stratum_sim/World.hpp"
 #include "quetzal/stratum_format/grid.hpp"
 #include "quetzal/stratum_format/Document.hpp"
+#include "quetzal/stratum_format/read_setting_definitions.hpp"
 #include "quetzal/stratum_format/read_zone.hpp"
 #include "quetzal/stratum_format/RelocatorTarget.hpp"
 #include "quetzal/stratum_format/write_zone.hpp"
@@ -4150,6 +4152,51 @@ namespace
     }
 
     //--------------------------------------------------------------------------
+    void test_insert_definitions()
+    {
+        report_group("setting definitions inserted");
+
+        settings::Settings test_settings;
+        settings::SettingsGroups test_groups(test_settings);
+        stratum_sim::insert_definitions(stratum_format::read_setting_definitions(filesystem::path("../../assets")
+            / stratum_format::SettingDefinitionsDocument::filepath), test_settings, test_groups);
+
+        const string count_key = "gameplay.difficulty.denizen_count_multiplier";
+        report_case("the game's definitions insert its settings, with their menu fields and ranges", test_settings.contains(count_key)
+            && test_settings.setting(count_key).scope == settings::SettingScope::Game && test_settings.setting(count_key).category == "difficulty"
+            && test_settings.setting(count_key).minimum == "0.25" && !test_settings.bounded_inclusive(count_key, "5"));
+        report_case("and its difficulty group, on its default preset", test_groups.contains("gameplay.difficulty")
+            && test_groups.group("gameplay.difficulty").selected().name == "normal" && test_groups.group("gameplay.difficulty").display_name() == "Difficulty"
+            && test_settings.value<double>(count_key) == 1);
+
+        test_groups.select("gameplay.difficulty", "hard");
+        report_case("whose presets set its members", test_settings.value<double>(count_key) == 1.5
+            && test_settings.value<double>("gameplay.difficulty.denizen_speed_multiplier") == 1.25);
+
+        stratum_format::SettingDefinitionsDocument document;
+        document.enumerations.push_back({"mod.torches.style", {"steady", "flicker"}});
+        document.settings.push_back({.key = "mod.torches.style", .type_name = "mod.torches.style", .default_value = "flicker",
+            .scope = stratum_format::SettingDefinitionsDocument::Scope::User, .restart_required = true});
+        stratum_sim::insert_definitions(document, test_settings, test_groups);
+        report_case("an enumeration is registered before the settings that have it", test_settings.registered_type("mod.torches.style")
+            && test_settings.text("mod.torches.style") == "flicker" && test_settings.setting("mod.torches.style").restart_required
+            && test_settings.setting("mod.torches.style").scope == settings::SettingScope::User);
+
+        bool inserted_twice_throws = false;
+        try
+        {
+            stratum_sim::insert_definitions(document, test_settings, test_groups);
+        }
+        catch (const runtime_error&)
+        {
+            inserted_twice_throws = true;
+        }
+
+        report_case("and a definition that is invalid is an error", inserted_twice_throws);
+        return;
+    }
+
+    //--------------------------------------------------------------------------
     void test_config()
     {
         report_group("config");
@@ -4254,6 +4301,7 @@ int main()
     test_ai();
     test_walk();
     test_polygon_containment();
+    test_insert_definitions();
     test_config();
 
     return report_results();

@@ -5,7 +5,7 @@ larger decisions is in `decision_rationale.md`.
 
 The system has three layers, and none of them uses an engine. `quetzal::stratum_sim` simulates, `quetzal::stratum_view`
 turns a simulation state into characters or place codes, and a host puts those on a device. `stratum_sim` links
-`quetzal_common`, `quetzal_stratum_format` and flecs; `stratum_view` links `stratum_sim`; each host links
+`quetzal_common`, `quetzal_settings`, `quetzal_stratum_format` and flecs; `stratum_view` links `stratum_sim`; each host links
 `stratum_view`. `quetzal::stratum_gen` puts the generators behind one signature, independent of `stratum_sim`, and each
 host registers them in `stratum_sim`'s registries, so neither links the other.
 
@@ -662,14 +662,13 @@ listener.
 
 A settings group is a set of settings that its presets assign together, one preset at a time. The store knows nothing
 of groups: `SettingsGroups`, in `SettingsGroups.hpp`, keeps a store's groups and uses only the store's public functions
-and listeners, and `settings_groups()` returns the process-wide one, of `store()`. `insert(key, scope,
-default_preset_name, presets)` adds a `SettingsGroup` and selects its default preset; `insert_preset(group_key,
-preset)` adds a `Preset` to one. A `Preset` has a name, a display name, whether it is editable, and its values by key.
+and listeners, and `settings_groups()` returns the process-wide one, of `store()`. `insert(group)` adds a
+`SettingsGroup` and selects its default preset; `insert_preset(group_key, preset)` adds a `Preset` to one. A `Preset` has a name, a display name, whether it is editable, and its values by key.
 The group's members are the settings its presets set, each of the group's scope and in no other group. Group keys are
 apart from setting keys. Each throws `std::runtime_error` if a key, a preset or a value is invalid.
 
-`SettingsGroup`, in `SettingsGroup.hpp`, is a class with the group's key, scope, default preset, presets and selected
-preset. It checks its own presets: a name that is empty or used, a second editable preset, or an editable preset with
+`SettingsGroup`, in `SettingsGroup.hpp`, is a class with the group's key, scope, display name, category, default
+preset, presets and selected preset. It checks its own presets: a name that is empty or used, a second editable preset, or an editable preset with
 values. Its `select` changes only the selected preset.
 
 `SettingsGroups::select(group_key, preset_name)` selects a preset and, unless it is editable, sets each member to the
@@ -973,7 +972,9 @@ the file's order, with every value as text and a scope as `Scope::User` or `Scop
 `read_setting_definitions.hpp`, requires the format and the version, allows each section to be absent, and throws
 `std::runtime_error` for a key the format does not have, a required key that is absent, a value that is not text, or a
 scope that is not `user` or `game`. The game's file is `assets/data/setting_definitions.json`, with the difficulty
-multipliers and the `gameplay.difficulty` group.
+multipliers and the `gameplay.difficulty` group. `stratum_sim`'s `insert_definitions(document, settings, groups)`, in
+`insert_definitions.hpp`, registers a document's enumerations, then inserts its settings into the store, then its
+groups into the `SettingsGroups`, and throws `std::runtime_error` as they do for a definition that is invalid.
 
 `read_character_name` reads only the top of a character file, through nlohmann's SAX parser, and stops once it has the
 format, the version and the name, so nothing after the name is parsed, however much the character carries. It throws
@@ -1182,8 +1183,8 @@ must not already have the project open, or the library is locked and the build f
 
 `stratum_sim_test` covers the layout hierarchy, layout structure, rooms, the grid, the placement index and each zone's,
 flats, blocking, the scheduler, the
-clock, movement, adjacency and sight, loading, doors, the world, persistent ids, access points, residency, commands and
-occupancy. It and `stratum_view_test` each check that every zone file in their `data/` has one `door` entity per door
+clock, movement, adjacency and sight, loading, doors, the world, persistent ids, access points, residency, commands,
+occupancy, and the game's setting definitions inserted into a store. It and `stratum_view_test` each check that every zone file in their `data/` has one `door` entity per door
 glyph, with a `door_facing` child on each wall that `stratum_format::door_walls` finds for that glyph and no door
 facing anywhere else.
 
@@ -1239,7 +1240,7 @@ back, and the Godot host by its two headless invocations.
 
 The build is CMake, with the solution at `build/kml_dev.slnx`. `/std:c++latest /bigobj /W4` is used throughout, with
 third-party sources at `/W1` and flecs and godot-cpp included as SYSTEM. `quetzal_stratum_sim` links `quetzal_common`,
-`quetzal_stratum_format` and `flecs_static`; `quetzal_stratum_view` links `quetzal_stratum_sim`; `quetzal_settings`
+`quetzal_settings`, `quetzal_stratum_format` and `flecs_static`; `quetzal_stratum_view` links `quetzal_stratum_sim`; `quetzal_settings`
 links `quetzal_common`;
 `quetzal_stratum_gen` links `quetzal_common`, `quetzal_dungen` and `quetzal_stratum_format`; both hosts link `quetzal_log`,
 `quetzal_stratum_gen` and `quetzal_stratum_view`. `quetzal_dungen` links `quetzal_log`. `quetzal_stratum_format`

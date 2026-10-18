@@ -29,10 +29,13 @@ namespace quetzal::settings
     public:
 
         // Creates a group with the default preset selected. Throws std::runtime_error if there is no default preset or a preset is invalid
-        SettingsGroup(std::string_view key, SettingScope scope, std::string_view default_preset_name, std::vector<Preset> presets);
+        SettingsGroup(std::string_view key, SettingScope scope, std::string_view default_preset_name, std::vector<Preset> presets,
+            std::string_view display_name = {}, std::string_view category = {});
 
         const std::string& key() const;
         SettingScope scope() const;
+        const std::string& display_name() const;
+        const std::string& category() const;
         const std::string& default_preset_name() const;
         const std::vector<Preset>& presets() const;
         const Preset& selected() const;
@@ -54,6 +57,8 @@ namespace quetzal::settings
 
         std::string m_key;
         SettingScope m_scope;
+        std::string m_display_name;
+        std::string m_category; // The menu page that shows it
         std::string m_default_preset_name;
         std::string m_selected_preset_name;
         std::vector<Preset> m_presets;

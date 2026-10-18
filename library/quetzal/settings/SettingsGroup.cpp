@@ -12,9 +12,11 @@
 
 //------------------------------------------------------------------------------
 quetzal::settings::SettingsGroup::SettingsGroup(std::string_view key, SettingScope scope, std::string_view default_preset_name,
-    std::vector<Preset> presets) :
+    std::vector<Preset> presets, std::string_view display_name, std::string_view category) :
     m_key(key),
     m_scope(scope),
+    m_display_name(display_name),
+    m_category(category),
     m_default_preset_name(default_preset_name),
     m_selected_preset_name(default_preset_name),
     m_presets()
@@ -40,6 +42,18 @@ const std::string& quetzal::settings::SettingsGroup::key() const
 quetzal::settings::SettingScope quetzal::settings::SettingsGroup::scope() const
 {
     return m_scope;
+}
+
+//------------------------------------------------------------------------------
+const std::string& quetzal::settings::SettingsGroup::display_name() const
+{
+    return m_display_name;
+}
+
+//------------------------------------------------------------------------------
+const std::string& quetzal::settings::SettingsGroup::category() const
+{
+    return m_category;
 }
 
 //------------------------------------------------------------------------------
