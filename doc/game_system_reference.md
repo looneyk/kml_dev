@@ -966,6 +966,15 @@ its filename, `config.json`. `ConfigDocument` has each location as written and `
 `write_config.hpp`, emits each key on a line of its own, and `read_config`, in `read_config.hpp`, requires the format,
 the version, and every key (`game_file_spec.md`, `## The config file`).
 
+A setting definition file has the format `quetzal.stratum_setting_definitions` (`settings_plan.md`, `### The definition
+file`). `SettingDefinitionsDocument` has the format's name and version and the file's path, `data/setting_definitions.json`
+relative to the assets directory or a mod's directory, and the file's `enumerations`, `settings` and `groups`, each in
+the file's order, with every value as text and a scope as `Scope::User` or `Scope::Game`. `read_setting_definitions`, in
+`read_setting_definitions.hpp`, requires the format and the version, allows each section to be absent, and throws
+`std::runtime_error` for a key the format does not have, a required key that is absent, a value that is not text, or a
+scope that is not `user` or `game`. The game's file is `assets/data/setting_definitions.json`, with the difficulty
+multipliers and the `gameplay.difficulty` group.
+
 `read_character_name` reads only the top of a character file, through nlohmann's SAX parser, and stops once it has the
 format, the version and the name, so nothing after the name is parsed, however much the character carries. It throws
 `std::runtime_error` if any of the three is absent or wrong, or the file is not JSON up to them. `Game::saved_games` and

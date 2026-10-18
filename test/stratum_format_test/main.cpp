@@ -7,6 +7,7 @@
 #include "quetzal/stratum_format/read_character.hpp"
 #include "quetzal/stratum_format/read_config.hpp"
 #include "quetzal/stratum_format/read_game.hpp"
+#include "quetzal/stratum_format/read_setting_definitions.hpp"
 #include "quetzal/stratum_format/read_world.hpp"
 #include "quetzal/stratum_format/read_zone.hpp"
 #include "quetzal/stratum_format/references.hpp"
@@ -1403,6 +1404,90 @@ namespace
         return;
     }
 
+    //--------------------------------------------------------------------------
+    void test_setting_definitions_file()
+    {
+        report_group("setting definition file");
+
+        using document_type = stratum_format::SettingDefinitionsDocument;
+
+        const string definitions_text =
+            "{\n"
+            "  \"format\": \"quetzal.stratum_setting_definitions\",\n"
+            "  \"version\": \"0.1\",\n"
+            "  \"enumerations\": [ { \"name\": \"mod.torches.style\", \"values\": [\"steady\", \"flicker\"] } ],\n"
+            "  \"settings\": [\n"
+            "    { \"key\": \"video.fullscreen\", \"type\": \"boolean\", \"default\": \"false\", \"scope\": \"user\", \"restart_required\": true,\n"
+            "      \"display_name\": \"Fullscreen\", \"category\": \"video\" },\n"
+            "    { \"key\": \"gameplay.count\", \"type\": \"real\", \"default\": \"1\", \"scope\": \"game\", \"minimum\": \"0.5\", \"maximum\": \"2\",\n"
+            "      \"description\": \"How many\" }\n"
+            "  ],\n"
+            "  \"groups\": [\n"
+            "    { \"key\": \"gameplay.difficulty\", \"scope\": \"game\", \"default_preset\": \"normal\", \"display_name\": \"Difficulty\",\n"
+            "      \"presets\": [ { \"name\": \"normal\", \"display_name\": \"Normal\", \"values\": { \"gameplay.count\": \"1\" } },\n"
+            "        { \"name\": \"custom\", \"editable\": true } ] }\n"
+            "  ]\n"
+            "}\n";
+
+        istringstream is(definitions_text);
+        document_type document = stratum_format::read_setting_definitions(is, "definitions");
+        report_case("a setting definition file reads its enumerations, settings and groups in order", document.enumerations.size() == 1
+            && document.enumerations[0].name == "mod.torches.style" && document.enumerations[0].values == vector<string> {"steady", "flicker"}
+            && document.settings.size() == 2 && document.settings[0].key == "video.fullscreen" && document.settings[1].key == "gameplay.count"
+            && document.groups.size() == 1 && document.groups[0].presets.size() == 2);
+
+        const document_type::Setting& fullscreen = document.settings[0];
+        const document_type::Setting& count = document.settings[1];
+        report_case("a setting has its fields, with those absent empty or false", fullscreen.type_name == "boolean" && fullscreen.default_value == "false"
+            && fullscreen.scope == document_type::Scope::User && fullscreen.restart_required && fullscreen.display_name == "Fullscreen"
+            && fullscreen.category == "video" && fullscreen.description.empty() && !fullscreen.minimum && count.scope == document_type::Scope::Game
+            && !count.restart_required && count.minimum == "0.5" && count.maximum == "2" && count.description == "How many");
+
+        const document_type::Group& difficulty = document.groups[0];
+        report_case("a group has its fields and presets", difficulty.key == "gameplay.difficulty" && difficulty.scope == document_type::Scope::Game
+            && difficulty.default_preset_name == "normal" && difficulty.display_name == "Difficulty" && difficulty.presets[0].name == "normal"
+            && difficulty.presets[0].values.value("gameplay.count") == "1" && !difficulty.presets[0].editable && difficulty.presets[1].editable
+            && difficulty.presets[1].values.begin() == difficulty.presets[1].values.end());
+
+        istringstream header_only("{ \"format\": \"quetzal.stratum_setting_definitions\", \"version\": \"0.1\" }");
+        document_type empty = stratum_format::read_setting_definitions(header_only, "definitions");
+        report_case("a setting definition file with only its header defines nothing", empty.enumerations.empty() && empty.settings.empty()
+            && empty.groups.empty());
+
+        auto rejected = [&definitions_text](const string& from, const string& to, const string& error_expected)
+        {
+            string text = definitions_text;
+            size_t at = text.find(from);
+            assert(at != string::npos);
+            text.replace(at, from.size(), to);
+
+            try
+            {
+                istringstream in(text);
+                stratum_format::read_setting_definitions(in, "definitions");
+            }
+            catch (const runtime_error& e)
+            {
+                return string(e.what()).find(error_expected) != string::npos;
+            }
+
+            return false;
+        };
+
+        report_case("a setting definition file with a key the format does not have is rejected", rejected("\"restart_required\"", "\"restart\"",
+            "settings[0].restart: not a key of the setting definition file"));
+        report_case("and one with a scope that is not user or game", rejected("\"scope\": \"user\"", "\"scope\": \"player\"",
+            "settings[0].scope: 'player' is not a scope"));
+        report_case("and one with a value that is not text", rejected("\"default\": \"1\"", "\"default\": 1", "settings[1].default: a string was expected"));
+        report_case("and one with a setting that has no type", rejected("\"type\": \"real\", ", "", "settings[1].type: required and absent"));
+        report_case("and one with a group that has no presets", rejected("\"presets\"", "\"options\"", "groups[0].options: not a key"));
+
+        document_type game = stratum_format::read_setting_definitions(filesystem::path("../../assets") / document_type::filepath);
+        report_case("the game's setting definition file reads", !game.settings.empty() && game.groups.size() == 1
+            && game.groups[0].key == "gameplay.difficulty");
+        return;
+    }
+
 } // namespace
 
 //------------------------------------------------------------------------------
@@ -1423,6 +1508,7 @@ int main()
     test_round_trip();
     test_game_files();
     test_config_file();
+    test_setting_definitions_file();
 
     return report_results();
 }

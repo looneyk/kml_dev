@@ -5,6 +5,7 @@ add_library(quetzal_stratum_format STATIC
     read_character.cpp
     read_config.cpp
     read_game.cpp
+    read_setting_definitions.cpp
     read_world.cpp
     read_zone.cpp
     references.cpp
@@ -27,11 +28,13 @@ add_library(quetzal_stratum_format STATIC
     read_character.hpp
     read_config.hpp
     read_game.hpp
+    read_setting_definitions.hpp
     read_world.hpp
     read_zone.hpp
     references.hpp
     RelocatorTarget.hpp
     saved_game_format.hpp
+    SettingDefinitionsDocument.hpp
     types.hpp
     write_character.hpp
     write_config.hpp
