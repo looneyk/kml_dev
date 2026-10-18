@@ -28,6 +28,8 @@ namespace quetzal::settings
     {
     public:
 
+        using listener_id_type = std::size_t;
+
         // Registers the types boolean, integer, real, and text
         Settings();
         Settings(const Settings&) = delete;
@@ -49,35 +51,47 @@ namespace quetzal::settings
 
         const SettingType& type(std::string_view type_name) const;
 
-        // Throws std::runtime_error if the key is invalid, already used, unregistered, or the default is invalid
-        void insert(std::string_view key, std::string_view type_name, std::string_view default_value, SettingScope scope, bool restart_required);
+        // Requires a setting with no value. Throws std::runtime_error if the key is invalid or already used, the type is
+        // unregistered, the default is invalid or out of range, or a minimum or maximum is invalid or of a type with none
+        void insert(std::string_view key, Setting setting);
         bool contains(std::string_view key) const;
 
         const Setting& setting(std::string_view key) const;
 
+        // Checks if the value is in the range [minimum, maximum]
+        bool bounded_inclusive(std::string_view key, std::string_view value) const;
+
         template<SettingValue T>
         T value(std::string_view key) const;
+
+        // Returns false if a value is out of range
         template<SettingValue T>
-        void set_value(std::string_view key, const std::type_identity_t<T>& value);
+        bool set_value(std::string_view key, const std::type_identity_t<T>& value);
 
         // Throws std::runtime_error if the key is not found or the value is invalid for its type
         std::string text(std::string_view key) const;
-        void set_text(std::string_view key, std::string_view value);
+        bool set_text(std::string_view key, std::string_view value);
 
         // Returns each setting in the scope
         KeyValueStore values(SettingScope scope) const;
 
-        // Change nothing on any set_text failure
-        void set_values(const KeyValueStore& values);
+        // Change nothing on any set_text failure. Returns false, setting nothing, if a value is out of range
+        bool set_values(const KeyValueStore& values);
 
         // Sets each setting in the scope to its default
         void reset(SettingScope scope);
 
+        // The listener is called by set_values, set_value and set_text with the values after they are checked and before any
+        // is set, and may throw to reject them. It must not set a setting
+        listener_id_type add_pre_change_listener(std::function<void(const KeyValueStore& values)> listener);
+
         // The listener is called once for each set_value, set_text, set_values or reset that changes any setting, after
         // every setting it changes has changed, with their keys
-        void add_change_listener(std::function<void(const std::vector<std::string>& keys_changed)> listener);
+        listener_id_type add_change_listener(std::function<void(const std::vector<std::string>& keys_changed)> listener);
 
-        // Retains only built-in registered types
+        void remove_listener(listener_id_type listener_id);
+
+        // Retains only built-in registered types, and every listener
         void clear();
 
     private:
@@ -93,12 +107,17 @@ namespace quetzal::settings
         std::string current_text(std::string_view key) const;
         bool assign(std::string_view key, std::string_view text); // Returns true if the value changed
 
+        // Requires a value of the setting's type
+        bool bounded_inclusive(const Setting& setting, std::string_view text) const;
+
         // Calls each change listener, unless no key changed
         void notify(const std::vector<std::string>& keys_changed);
 
         std::map<std::string, SettingType, std::less<>> m_registered_types; // <type name, type>
         std::map<std::string, Setting, std::less<>> m_settings; // <key, setting>
-        std::vector<std::function<void(const std::vector<std::string>& keys_changed)>> m_change_listeners;
+        std::map<listener_id_type, std::function<void(const KeyValueStore& values)>> m_pre_change_listeners; // <listener_id, listener>
+        std::map<listener_id_type, std::function<void(const std::vector<std::string>& keys_changed)>> m_change_listeners; // <listener_id, listener>
+        listener_id_type m_next_listener_id = 0;
     };
 
     // Returns the process-wide store, constructed on first use
@@ -131,16 +150,11 @@ T quetzal::settings::Settings::value(std::string_view key) const
 
 //------------------------------------------------------------------------------
 template<quetzal::settings::SettingValue T>
-void quetzal::settings::Settings::set_value(std::string_view key, const std::type_identity_t<T>& value)
+bool quetzal::settings::Settings::set_value(std::string_view key, const std::type_identity_t<T>& value)
 {
     assert(type(setting(key).type_name).cpp_type == std::type_index(typeid(T)));
 
-    if (assign(key, quetzal::to_string(value)))
-    {
-        notify({std::string(key)});
-    }
-
-    return;
+    return set_values({{std::string(key), quetzal::to_string(value)}});
 }
 
 //------------------------------------------------------------------------------

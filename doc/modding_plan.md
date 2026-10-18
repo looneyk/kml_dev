@@ -1,6 +1,6 @@
 # Modding and Data-Driven Design --- Plan
 
-Date: 2026-09-22, revised 2026-09-26
+Date: 2026-09-22, revised 2026-10-17
 
 Every game built on the system is moddable, and custom content --- objects, geometry, visual effects and behavior ---
 is added as data and script without recompiling. What a mod may add cannot be predicted, so the system is built from
@@ -13,7 +13,7 @@ most a script, and nothing in C++ changes.
 
 ## What a mod is
 
-A mod is a directory that the game loads beside its own data, containing any of:
+A mod is a directory that the game loads beside its own data, containing its manifest and any of:
 
 - component schemas;
 - types;
@@ -23,6 +23,37 @@ A mod is a directory that the game loads beside its own data, containing any of:
 - patches to types and styles loaded before it.
 
 The game's own content is loaded the same way, as the first mod.
+
+## A mod's identity
+
+- **Each mod's directory has a manifest, `mod.json`,** with the mod's id and version.
+- **A mod's settings are in the section `mod.<id>`** (`settings_plan.md`, `### Mods' settings`).
+- **A preset that a mod adds to another's settings group is named `mod.<id>.<name>`,** so two mods cannot add presets
+  of the same name to one group.
+- **The mod list, `mods/mods.json`, records what the user intends.** The mod menu writes it whenever the user installs,
+  enables, disables or removes a mod.
+
+## A missing mod
+
+A missing mod produces at least a warning, and play continues without it if the user chooses. A mod removed
+deliberately never makes a game that used it unplayable. A mod that is missing without having been removed is damage
+to the installation, and the user is told.
+
+- **A mod that is missing and not enabled in the mod list was removed deliberately.**
+- **A mod that the mod list has as enabled, but whose directory is gone or whose files fail to load, is damage.** It is
+  reported to the user at startup, by name and with what failed, not only logged. A directory deleted by hand counts as
+  damage, since the program cannot tell the difference, and the report lets the user confirm the removal.
+- **`game.json` lists each mod the game uses,** with its id and version, in load order, and is read before the
+  settings.
+- **Opening a game with a missing mod warns the user,** who chooses to cancel, to continue without the mod, or to remove
+  it from the game.
+  - **Continuing** keeps the mod's saved setting values and selected presets as text, untouched, and writes them back on
+    save, so reinstalling the mod restores them. A group whose selected preset is the missing mod's has its default
+    preset selected meanwhile. The warning appears again the next time the game is opened.
+  - **Removing it from the game** drops the mod's saved values and its entry in the game's mods, and the warning stops.
+  - Either way, the game plays, whatever the mod declared is skipped, and its patches are not applied.
+- **A key that a loaded mod no longer defines** is dropped from a saved file with a warning. Any other key that nothing
+  defines is an error.
 
 ## Components
 

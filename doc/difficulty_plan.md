@@ -56,9 +56,9 @@ and `Speed` and `Detection` are components it gives them. Damage, luck and the r
 - **Every difficulty setting is a game setting,** in the section `gameplay.difficulty`, saved in `game.json`.
 - **A new game is Normal by default.**
 - **The mode is the settings group `gameplay.difficulty`,** and each mode is one of its presets (`settings_plan.md`,
-  `### Settings groups`). Choosing a mode sets the group's chosen preset and the preset's multipliers together.
+  `### Settings groups`). Selecting a mode sets the group's selected preset and the preset's multipliers together.
 - **Normal is the default preset,** the one a new game has. Each multiplier's default is in its own definition.
-- **Custom is an editable preset.** Choosing it keeps the values of the mode chosen before it, and the menu opens an
+- **Custom is an editable preset.** Selecting it keeps the values of the mode selected before it, and the menu opens an
   editor of the multipliers, starting from those values. The menu edits a multiplier only in that editor; a script or
   the console setting one switches the mode to Custom. A game built on the same framework that does not allow
   customization defines no editable preset.

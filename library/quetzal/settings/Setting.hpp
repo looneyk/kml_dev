@@ -63,6 +63,11 @@ namespace quetzal::settings
         std::string default_value;
         SettingScope scope = SettingScope::User;
         bool restart_required = false;
+        std::string display_name;
+        std::string description;
+        std::string category; // The menu page that shows it
+        std::optional<std::string> minimum; // An integer's or a real's
+        std::optional<std::string> maximum;
         std::optional<std::string> value; // If empty, has its default value
     };
 

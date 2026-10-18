@@ -9,10 +9,24 @@
 #include <stdexcept>
 #include <vector>
 
+namespace
+{
+
+    //--------------------------------------------------------------------------
+    template<typename T>
+    bool bounded_inclusive(std::string_view text, const std::optional<std::string>& minimum, const std::optional<std::string>& maximum)
+    {
+        T value = *quetzal::try_type<T>(text);
+        return (!minimum.has_value() || *quetzal::try_type<T>(*minimum) <= value) && (!maximum.has_value() || value <= *quetzal::try_type<T>(*maximum));
+    }
+
+} // namespace
+
 //------------------------------------------------------------------------------
 quetzal::settings::Settings::Settings() :
     m_registered_types(),
     m_settings(),
+    m_pre_change_listeners(),
     m_change_listeners()
 {
     register_built_in_types();
@@ -52,30 +66,53 @@ const quetzal::settings::SettingType& quetzal::settings::Settings::type(std::str
 }
 
 //------------------------------------------------------------------------------
-void quetzal::settings::Settings::insert(std::string_view key, std::string_view type_name, std::string_view default_value,
-    SettingScope scope, bool restart_required)
+void quetzal::settings::Settings::insert(std::string_view key, Setting setting)
 {
+    assert(!setting.value.has_value());
+
     if (key.empty())
     {
-        throw std::runtime_error("a setting key is empty");
+        throw std::runtime_error("the setting key is empty");
     }
 
     if (contains(key))
     {
-        throw std::runtime_error(std::format("the setting '{}' is defined twice", key));
+        throw std::runtime_error(std::format("the setting '{}' is already defined", key));
     }
 
-    if (!registered_type(type_name))
+    if (!registered_type(setting.type_name))
     {
-        throw std::runtime_error(std::format("the setting '{}' has the type '{}', which is no type a setting may have", key, type_name));
+        throw std::runtime_error(std::format("the setting '{}' has the invalid type '{}'", key, setting.type_name));
     }
 
-    if (!type(type_name).accepts(default_value))
+    const SettingType& setting_type = type(setting.type_name);
+    if (!setting_type.accepts(setting.default_value))
     {
-        throw std::runtime_error(std::format("the setting '{}' has the default '{}', which is no value of its type", key, default_value));
+        throw std::runtime_error(std::format("the setting '{}' has the invalid default value '{}'", key, setting.default_value));
     }
 
-    m_settings.emplace(std::string(key), Setting {std::string(type_name), std::string(default_value), scope, restart_required, std::nullopt});
+    if (setting.minimum.has_value() || setting.maximum.has_value())
+    {
+        if (setting_type.base_type != SettingBaseType::Integer && setting_type.base_type != SettingBaseType::Real)
+        {
+            throw std::runtime_error(std::format("the setting '{}' has a minimum or a maximum, which is not allowed for its type", key));
+        }
+
+        for (const auto& bound : {setting.minimum, setting.maximum})
+        {
+            if (bound.has_value() && !setting_type.accepts(*bound))
+            {
+                throw std::runtime_error(std::format("the setting '{}' has the invalid bound value '{}'", key, *bound));
+            }
+        }
+
+        if (!bounded_inclusive(setting, setting.default_value))
+        {
+            throw std::runtime_error(std::format("the setting '{}' has an out of range default value '{}'", key, setting.default_value));
+        }
+    }
+
+    m_settings.emplace(key, std::move(setting));
     return;
 }
 
@@ -94,23 +131,31 @@ const quetzal::settings::Setting& quetzal::settings::Settings::setting(std::stri
 }
 
 //------------------------------------------------------------------------------
+bool quetzal::settings::Settings::bounded_inclusive(std::string_view key, std::string_view value) const
+{
+    const Setting& key_setting = setting(key);
+    assert(type(key_setting.type_name).accepts(value));
+
+    return bounded_inclusive(key_setting, value);
+}
+
+//------------------------------------------------------------------------------
 std::string quetzal::settings::Settings::text(std::string_view key) const
 {
     if (!contains(key))
     {
-        throw std::runtime_error(std::format("'{}' is not a setting", key));
+        throw std::runtime_error(std::format("'{}' is not a defined setting", key));
     }
 
     return current_text(key);
 }
 
 //------------------------------------------------------------------------------
-void quetzal::settings::Settings::set_text(std::string_view key, std::string_view value)
+bool quetzal::settings::Settings::set_text(std::string_view key, std::string_view value)
 {
     KeyValueStore values;
     values.insert(std::string(key), std::string(value));
-    set_values(values);
-    return;
+    return set_values(values);
 }
 
 //------------------------------------------------------------------------------
@@ -129,19 +174,32 @@ quetzal::KeyValueStore quetzal::settings::Settings::values(SettingScope scope) c
 }
 
 //------------------------------------------------------------------------------
-void quetzal::settings::Settings::set_values(const KeyValueStore& values)
+bool quetzal::settings::Settings::set_values(const KeyValueStore& values)
 {
     for (const auto& [key, value] : values)
     {
         if (!contains(key))
         {
-            throw std::runtime_error(std::format("'{}' is not a setting", key));
+            throw std::runtime_error(std::format("'{}' is not a defined setting", key));
         }
 
         if (!type(setting(key).type_name).accepts(value))
         {
-            throw std::runtime_error(std::format("'{}' is not a value of the setting '{}'", value, key));
+            throw std::runtime_error(std::format("'{}' is not an valid value of the setting '{}'", value, key));
         }
+    }
+
+    for (const auto& [key, value] : values)
+    {
+        if (!bounded_inclusive(key, value))
+        {
+            return false;
+        }
+    }
+
+    for (const auto& [listener_id, listener] : m_pre_change_listeners)
+    {
+        listener(values);
     }
 
     std::vector<std::string> keys_changed;
@@ -154,7 +212,7 @@ void quetzal::settings::Settings::set_values(const KeyValueStore& values)
     }
 
     notify(keys_changed);
-    return;
+    return true;
 }
 
 //------------------------------------------------------------------------------
@@ -183,9 +241,27 @@ void quetzal::settings::Settings::reset(SettingScope scope)
 }
 
 //------------------------------------------------------------------------------
-void quetzal::settings::Settings::add_change_listener(std::function<void(const std::vector<std::string>& keys_changed)> listener)
+quetzal::settings::Settings::listener_id_type quetzal::settings::Settings::add_pre_change_listener(std::function<void(const KeyValueStore& values)> listener)
 {
-    m_change_listeners.push_back(std::move(listener));
+    m_pre_change_listeners.emplace(m_next_listener_id, std::move(listener));
+    return m_next_listener_id++;
+}
+
+//------------------------------------------------------------------------------
+quetzal::settings::Settings::listener_id_type quetzal::settings::Settings::add_change_listener(
+    std::function<void(const std::vector<std::string>& keys_changed)> listener)
+{
+    m_change_listeners.emplace(m_next_listener_id, std::move(listener));
+    return m_next_listener_id++;
+}
+
+//------------------------------------------------------------------------------
+void quetzal::settings::Settings::remove_listener(listener_id_type listener_id)
+{
+    assert(m_pre_change_listeners.contains(listener_id) || m_change_listeners.contains(listener_id));
+
+    m_pre_change_listeners.erase(listener_id);
+    m_change_listeners.erase(listener_id);
     return;
 }
 
@@ -194,7 +270,6 @@ void quetzal::settings::Settings::clear()
 {
     m_registered_types.clear();
     m_settings.clear();
-    m_change_listeners.clear();
     register_built_in_types();
     return;
 }
@@ -228,6 +303,20 @@ bool quetzal::settings::Settings::assign(std::string_view key, std::string_view 
 }
 
 //------------------------------------------------------------------------------
+bool quetzal::settings::Settings::bounded_inclusive(const Setting& setting, std::string_view text) const
+{
+    switch (type(setting.type_name).base_type)
+    {
+        case SettingBaseType::Integer:
+            return ::bounded_inclusive<std::int64_t>(text, setting.minimum, setting.maximum);
+        case SettingBaseType::Real:
+            return ::bounded_inclusive<double>(text, setting.minimum, setting.maximum);
+        default:
+            return true;
+    }
+}
+
+//------------------------------------------------------------------------------
 void quetzal::settings::Settings::notify(const std::vector<std::string>& keys_changed)
 {
     if (keys_changed.empty())
@@ -235,7 +324,7 @@ void quetzal::settings::Settings::notify(const std::vector<std::string>& keys_ch
         return;
     }
 
-    for (const auto& listener : m_change_listeners)
+    for (const auto& [listener_id, listener] : m_change_listeners)
     {
         listener(keys_changed);
     }

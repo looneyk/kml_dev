@@ -18,10 +18,11 @@ game. The open items are in `work_plan.md` (`### Settings`), and the work in **K
 | **type** | A registered name for the values a setting may have: `boolean`, `integer`, `real` or `text`, which the store registers; an enumeration that a subsystem registers in C++; or an enumeration defined in data | the *setting type* of a Factorio prototype; a *simple type* in XML Schema |
 | **base type** | The built-in type a registered type is based on: `text` for every enumeration. A script reads a setting as a value of its base type | the *base* of an XML Schema restriction, `<xs:restriction base="xs:string">` |
 | **default** | The value a setting has until something sets it, from the setting's definition | *default* everywhere |
-| **settings group** | A set of settings that its presets assign together, with one preset chosen at a time. Its members are the settings its presets set | a *scalability group* in Unreal, `sg.ShadowQuality` |
-| **preset** | A set of values for a settings group's settings, defined in data. A group's default preset is the one chosen for a new game. An editable preset, such as Custom, has values the player sets | a *level* of an Unreal scalability group, `[ShadowQuality@2]`; a *preset* in an options menu, "graphics preset: High" |
+| **settings group** | A set of settings that its presets assign together, with one preset selected at a time. Its members are the settings its presets set | a *scalability group* in Unreal, `sg.ShadowQuality` |
+| **preset** | A set of values for a settings group's settings, defined in data. A group's default preset is the one selected for a new game. An editable preset, such as Custom, has values the player sets | a *level* of an Unreal scalability group, `[ShadowQuality@2]`; a *preset* in an options menu, "graphics preset: High" |
 | **apply** | A subsystem reading its settings from the store into structures of its own | *apply* in Unreal's `ApplySettings`; a `ConVar`'s *change callback* in Source does it for one setting |
 | **change notification** | The store calling each change listener once after an operation that changed one or more settings, with the keys it changed | *change callback* in Source (`FnChangeCallback_t`); the `onDidChangeConfiguration` event of VS Code's settings; the `settings_changed` signal of Godot's `ProjectSettings` |
+| **pre-change listener** | A function the store calls with the values an operation is about to set, which may reject them by throwing | `INotifyPropertyChanging` in .NET; the cancellable `Validating` event in WinForms |
 | **restart required** | A setting that takes effect only when the program starts again | `restart_if_changed` in Godot; `ConfigRestartRequired` in Unreal; *requires restart* in options menus |
 | **scope** | Whether a setting is a game's, saved in `game.json`, or the user's, saved in the user settings file: `SettingScope::Game` or `SettingScope::User` | NetHack's `flags` and `iflags`; Source's `FCVAR_ARCHIVE` flag; Godot's project settings and editor settings; the *layers* of Unreal's config: engine, project, platform and user |
 | **user settings file** | `settings.json` in the user directory, unless the config file puts it elsewhere (`game_file_spec.md`): the file the user settings are saved in | *config.cfg* in Source; *GameUserSettings.ini* in Unreal; a `ConfigFile` in `user://` in Godot; the *options file* or *rc file*, `.nethackrc` and `init.txt`, in the roguelikes |
@@ -49,7 +50,7 @@ choose.
   belongs to one game, is saved in its `game.json`, and is set by `Game` when the game is created or opened. A user
   setting, such as video, audio or controls, belongs to the player and the machine, is the same in every game, and is
   saved in the user settings file.
-- **A new game's settings are the defaults, with each settings group's default preset chosen,** whoever plays it and
+- **A new game's settings are the defaults, with each settings group's default preset selected,** whoever plays it and
   whatever an earlier game chose.
 - **Any setting may change at any time,** a user setting while a game is open and a game setting during play, as the
   difficulty mode may (`difficulty_plan.md`). A game setting changes between advances, never partway through a turn.
@@ -213,8 +214,62 @@ namespace quetzal::settings
         std::string default_value;
         SettingScope scope;
         bool restart_required;
+        std::string display_name;
+        std::string description;
+        std::string category;                      // The menu page that shows it
+        std::optional<std::string> minimum;        // An integer's or a real's
+        std::optional<std::string> maximum;
         std::optional<std::string> value;          // If empty, has its default value
     };
+
+    class Settings
+    {
+    public:
+
+        using listener_id_type = std::size_t;
+
+        template<SettingValue T>
+        void register_type(std::string_view type_name, std::vector<std::string> values = {});        // from C++
+        void register_enumeration(std::string_view type_name, std::vector<std::string> values);       // from data
+        bool registered_type(std::string_view type_name) const;
+        const SettingType& type(std::string_view type_name) const;
+
+        void insert(std::string_view key, Setting setting);                                          // a setting with no value
+        bool contains(std::string_view key) const;
+        const Setting& setting(std::string_view key) const;
+        bool bounded_inclusive(std::string_view key, std::string_view text) const;
+
+        // Each set returns false, setting nothing, if a value is out of its setting's range
+        template<SettingValue T> T value(std::string_view key) const;                                // applying
+        template<SettingValue T> bool set_value(std::string_view key, const std::type_identity_t<T>& value);
+
+        std::string text(std::string_view key) const;                                                // by key, as text
+        bool set_text(std::string_view key, std::string_view text);
+
+        KeyValueStore values(SettingScope scope) const;                                              // saving
+        bool set_values(const KeyValueStore& values);                                                // loading
+        void reset(SettingScope scope);                                                              // a game cleared
+
+        // A pre-change listener may throw to reject the values, and must not set a setting
+        listener_id_type add_pre_change_listener(std::function<void(const KeyValueStore& values)> listener);
+        listener_id_type add_change_listener(std::function<void(const std::vector<std::string>& keys_changed)> listener);
+        void remove_listener(listener_id_type listener_id);
+
+        void clear();                                                                                // keeps the listeners
+    };
+
+    // The process-wide store, constructed on first use
+    Settings& store();
+
+} // namespace quetzal::settings
+```
+
+The groups are in `SettingsGroup.hpp`, with `Preset`, and `SettingsGroups.hpp`, which depends on `Settings` and is not
+included by it:
+
+```cpp
+namespace quetzal::settings
+{
 
     struct Preset
     {
@@ -224,49 +279,56 @@ namespace quetzal::settings
         KeyValueStore values;                      // Empty for an editable preset
     };
 
-    struct SettingsGroup
-    {
-        SettingScope scope;
-        std::string default_preset_name;
-        std::string preset_name;                   // The chosen preset
-        std::vector<Preset> presets;
-    };
-
-    class Settings
+    class SettingsGroup
     {
     public:
 
-        template<SettingValue T>
-        void register_type(std::string_view type_name, std::vector<std::string> values = {});        // from C++
-        void register_enumeration(std::string_view type_name, std::vector<std::string> values);       // from data
-        bool registered_type(std::string_view type_name) const;
-        const SettingType& type(std::string_view type_name) const;
+        SettingsGroup(std::string_view key, SettingScope scope, std::string_view default_preset_name, std::vector<Preset> presets);
 
-        void insert(std::string_view key, std::string_view type_name, std::string_view default_value, SettingScope scope,
-            bool restart_required);
-        bool contains(std::string_view key) const;
-        const Setting& setting(std::string_view key) const;
+        const std::string& key() const;
+        SettingScope scope() const;
+        const std::string& default_preset_name() const;
+        const std::vector<Preset>& presets() const;
+        const Preset& selected() const;
+        bool editable() const;
+        const Preset& editable_preset() const;
+        std::vector<std::string> setting_keys() const;
+        bool contains(std::string_view preset_name) const;
 
-        template<SettingValue T> T value(std::string_view key) const;                                // applying
-        template<SettingValue T> void set_value(std::string_view key, const std::type_identity_t<T>& value);
-
-        std::string text(std::string_view key) const;                                                // by key, as text
-        void set_text(std::string_view key, std::string_view text);
-
-        void insert_group(std::string_view key, SettingScope scope, std::string_view default_preset_name);
-        void insert_preset(std::string_view group_key, const Preset& preset);
-        const SettingsGroup& group(std::string_view group_key) const;
-        void choose_preset(std::string_view group_key, std::string_view preset_name);
-
-        KeyValueStore values(SettingScope scope) const;                                              // saving
-        void set_values(const KeyValueStore& values);                                                // loading
-        void reset(SettingScope scope);                                                              // a game cleared
-
-        void add_change_listener(std::function<void(const std::vector<std::string>& keys_changed)> listener);
+        void insert(Preset preset);
+        bool select(std::string_view preset_name);                 // Sets no setting
     };
 
-    // The process-wide store, constructed on first use
-    Settings& store();
+    class SettingsGroups
+    {
+    public:
+
+        // Adds a pre-change listener to the settings, and removes it when destroyed
+        explicit SettingsGroups(Settings& settings);
+        ~SettingsGroups();
+
+        void insert(std::string_view key, SettingScope scope, std::string_view default_preset_name, std::vector<Preset> presets);
+        void insert_preset(std::string_view group_key, Preset preset);
+        bool contains(std::string_view key) const;
+        const SettingsGroup& group(std::string_view key) const;
+
+        void select(std::string_view group_key, std::string_view preset_name);
+
+        // Returns true if the key is a member of a group whose selected preset is not editable
+        bool has_value_from_preset(std::string_view key) const;
+
+        KeyValueStore values(SettingScope scope) const;            // saving
+        void set_values(const KeyValueStore& values);              // loading
+        void reset(SettingScope scope);                            // a game cleared
+
+        Settings::listener_id_type add_selection_listener(std::function<void(const std::vector<std::string>& group_keys)> listener);
+        void remove_listener(Settings::listener_id_type listener_id);
+
+        void clear();                                              // keeps the listeners
+    };
+
+    // The process-wide groups of the process-wide store, constructed on first use
+    SettingsGroups& settings_groups();
 
 } // namespace quetzal::settings
 ```
@@ -275,18 +337,20 @@ namespace quetzal::settings
 
 - **At startup, each subsystem registers its types,** calling `settings::store().register_type<T>(name, values)` for
   each enumeration its settings have. Then the loader reads the definitions, the game's and then each mod's, and
-  registers their enumerations and inserts their settings, groups and presets.
-- **Loading sets the values,** with `set_values`: from the user settings file at startup, and from `game.json`'s
-  `settings` when a game is opened. A key that is neither a setting nor a group, or text that is no value of its
-  setting's type, is an error, and none of the values is set.
+  registers their enumerations, inserts their settings into the store, and then inserts their groups and presets into
+  `settings_groups()`.
+- **Loading sets the values:** from the user settings file at startup, and from `game.json` when a game is opened. The
+  loader passes the file's `groups` to `SettingsGroups::set_values` first, and its `settings` to
+  `Settings::set_values`, so an editable preset is selected before its members' values are set. A key that is not a
+  group's or a setting's, or text that is no value of its setting's type, is an error, and none of the values is set.
 - **Each subsystem applies its settings** with `value<T>(key)`, into structures of its own, and adds a change listener
   that applies them again when any of their keys is among the keys changed.
 - **Saving writes the values set in each scope,** `values(SettingScope::Game)` into `game.json`, and
-  `values(SettingScope::User)` into the user settings file, each value as text. A setting never set is not written, so
-  it keeps its default, even if the default changes. A group is written as its chosen preset's name under the group's
-  key, and its members' values are written only when that preset is editable.
-- **A game cleared** returns the game scope's settings to their defaults, and then chooses its groups' default
-  presets, with `reset(SettingScope::Game)`, in one operation.
+  `values(SettingScope::User)` into the user settings file, each value as text, in the file's `settings`, and the
+  groups' `values` of the scope in its `groups`. A setting never set is not written, so it keeps its default, even if the default changes. A member is not
+  written while `has_value_from_preset` returns true for it.
+- **A game cleared** returns the game scope's settings to their defaults with `reset(SettingScope::Game)`, and then
+  selects its groups' default presets with `settings_groups().reset(SettingScope::Game)`.
 
 **What the store decides:**
 
@@ -300,39 +364,107 @@ namespace quetzal::settings
 - **An enumeration registered in C++ lists its values,** so the menu can offer them. Registering it checks that each
   value parses.
 - **A setting has its type's C++ type,** so reading a setting with the wrong type asserts, whatever registered it.
-- **A value whose key is not a setting or a group is an error,** reported when its file is loaded, so a misspelled key
-  in a file or a mod is found at once.
+- **An integer or a real may have a minimum and a maximum,** which the store enforces. `insert` throws if the default is
+  out of range. A set returns false, setting nothing, if any value is out of range, so the menu can tell the player;
+  `bounded_inclusive` checks a value before it is set.
+- **The store keeps a setting's menu fields** --- its display name, description and category, the menu page that shows
+  it --- which only the menu reads.
+- **A value whose key is not a setting is an error,** reported when its file is loaded, so a misspelled key in a file
+  or a mod is found at once.
 - **A key is opaque.** The store compares only whole keys, and requires only that a key is not empty.
+- **The store knows nothing of groups.** Groups use only its public functions and its listeners.
+- **Pre-change listeners are called by `set_values`,** and so by `set_value` and `set_text`, with the values to be set,
+  after the store has checked them and before any is set. A pre-change listener may throw to reject them all, as .NET's
+  `INotifyPropertyChanging` and WinForms' cancellable `Validating` event precede a change. `reset` calls none.
 - **A change is notified once for each operation,** after every value it changes has changed, with all of their keys,
-  so loading a file, resetting a scope or choosing a preset notifies once. Setting a value it already has notifies
-  nothing. Which keys matter is the listener's to decide.
+  so loading a file or resetting a scope notifies once. Setting a value it already has notifies nothing. Which keys
+  matter is the listener's to decide.
+- **Listeners last until they are removed.** Each add returns an id, which `remove_listener` takes, and `clear` keeps
+  them, so the listeners of subsystems that last as long as the store survive a test's `clear`.
+
+### The definition file
+
+Each mod has one definition file, and the game's own is the first: `assets/data/setting_definitions.json` in the
+program directory, and `data/setting_definitions.json` in each mod's directory. It defines settings of both scopes.
+
+```json
+{
+  "format": "quetzal.stratum_setting_definitions",
+  "version": "0.1",
+  "enumerations": [
+    { "name": "mod.torches.style", "values": ["steady", "flicker", "gutter"] }
+  ],
+  "settings": [
+    { "key": "gameplay.difficulty.denizen_count_multiplier", "type": "real", "default": "1", "scope": "game",
+      "minimum": "0.25", "maximum": "4", "display_name": "Denizen count", "category": "difficulty" },
+    { "key": "video.fullscreen", "type": "boolean", "default": "false", "scope": "user", "restart_required": true,
+      "display_name": "Fullscreen", "category": "video" }
+  ],
+  "groups": [
+    { "key": "gameplay.difficulty", "scope": "game", "default_preset": "normal", "display_name": "Difficulty", "category": "difficulty",
+      "presets": [
+        { "name": "easy", "display_name": "Easy", "values": { "gameplay.difficulty.denizen_count_multiplier": "0.5" } },
+        { "name": "normal", "display_name": "Normal", "values": { "gameplay.difficulty.denizen_count_multiplier": "1" } },
+        { "name": "custom", "display_name": "Custom", "editable": true }
+      ] }
+  ]
+}
+```
+
+- **Each section is an array of entries with a key or a name,** so a duplicate reaches `insert` and is reported, and the
+  menu shows entries in the file's order.
+- **The sections are inserted in order:** enumerations, then settings, then groups, each of which may refer to those
+  before it. The files are inserted in mod order, the game's first.
+- **Every value is text,** as in the store and the saved files.
+- **A setting's entry has what `Setting` has:** `type`, `default`, `scope`, `restart_required`, which is false if
+  absent, and the menu fields `display_name`, `description`, `category`, `minimum` and `maximum`. A group's entry has
+  what `SettingsGroups::insert` takes, and a `display_name` and `category`.
+- **`stratum_format` reads the file** into a `SettingDefinitionsDocument`, and `stratum_sim`'s `insert_definitions`
+  inserts it into a store and its groups, so the settings library has no JSON.
+
+The values are saved apart from the definitions: the user's in the user settings file, `settings.json` in the user
+directory, and a game's in its `game.json`. Each file has the settings' values in `settings` and the groups' selected
+presets in `groups`, so setting keys and group keys never share an object. The values of a mod's settings, and a
+selection of a mod's preset, are under that mod's entry in each file's `mods`, so the loader can keep them while the
+mod is not loaded:
+
+```json
+{ "format": "quetzal.stratum_settings", "version": "0.1",
+  "settings": { "video.fullscreen": "true" },
+  "groups": { "video.quality": "high" },
+  "mods": [ { "id": "torches", "settings": { "mod.torches.flicker": "false" }, "groups": { } } ] }
+```
 
 ### Settings groups
 
 A settings group is a concept of its own, apart from the settings it sets, as Unreal's scalability groups are. The
-difficulty mode is one (`difficulty_plan.md`), and a video quality preset another.
+difficulty mode is one (`difficulty_plan.md`), and a video quality preset another. A group has settings, and a setting
+has no group, so the groups are in `SettingsGroups`, which uses the store as any subsystem does.
 
-- **A group has a key, a scope and its presets, one of which is its default.** The group's key is in the settings' key
-  space, and its chosen preset's name is saved under it: `"gameplay.difficulty": "hard"`.
+- **A group has a key, a scope and its presets, one of which is its default.** Group keys are apart from setting keys,
+  and its selected preset's name is saved under its key in a file's `groups`: `"gameplay.difficulty": "hard"`.
 - **The group's members are the settings its presets set.** Each member has its own default, in its definition, like
-  any other setting. The default preset is a set of values like any other, and is the preset chosen for a new game and
+  any other setting. The default preset is a set of values like any other, and is the preset selected for a new game and
   when the group's scope is reset; it has no effect on the members' defaults.
 - **Each member has the group's scope, and a setting is a member of at most one group,** as each Unreal console
   variable is in at most one scalability group. Inserting a group or a preset checks both.
-- **Choosing a preset** sets every member to the preset's value and the group's chosen preset to it, in one operation.
-  A member the preset leaves out returns to its default. The keys notified include the group's key.
-- **A group has at most one editable preset, such as Custom, which has no values in data.** Choosing it keeps the
-  members' current values, which the player then edits. Choosing another preset writes over them, and choosing the
+- **Selecting a preset** sets every member to the preset's value with one `Settings::set_values`, so the store notifies
+  the members' keys once. A member the preset leaves out returns to its default. The group then calls its selection
+  listeners with the group's key. A value change and a selection are two events, notified separately.
+- **A group has at most one editable preset, such as Custom, which has no values in data.** Selecting it keeps the
+  members' current values, which the player then edits. Selecting another preset writes over them, and selecting the
   editable preset again starts from that preset's values.
-- **Setting a member while a preset that is not editable is chosen switches the group to its editable preset,** in
-  the same operation, so a chosen preset that is not editable always matches its members. The menu edits a member
-  only while the editable preset is chosen; a script or the console may set one at any time. In a group with no
-  editable preset, setting a member is an error.
+- **Setting a member while a preset that is not editable is selected switches the group to its editable preset.**
+  `SettingsGroups`' pre-change listener selects the editable preset before the value is set, which changes no setting,
+  so a selected preset that is not editable always matches its members. In a group with no editable preset, the
+  listener throws, and nothing is set. The listener ignores the values `SettingsGroups` sets itself when it applies a
+  preset. The menu edits a member only while the editable preset is selected; a script or the console may set one at
+  any time.
 - **A game that does not allow customization defines no editable preset.**
 - **What is saved depends on the preset.** For a preset that is not editable, only its name is saved, so a rebalanced
   Hard reaches old Hard games. For an editable preset, its name and every member's value are saved, and a member
   added since the save has its default.
-- **Only the menu and the save list read the chosen preset.** Other code reads the members: permadeath is read from its
+- **Only the menu and the save list read the selected preset.** Other code reads the members: permadeath is read from its
   own setting, not from the mode.
 - **Presets are data,** in the game's definitions and mods'.
 
@@ -344,9 +476,11 @@ difficulty mode is one (`difficulty_plan.md`), and a video quality preset anothe
   setting's default, its menu fields and a data enumeration's values, a preset's values, and a group's presets. It
   cannot change a type, a scope or whether a restart is required.
 - **A patch addressed to a mod that is not loaded is skipped with a warning.**
+- **A preset that a mod adds to another's group is named `mod.<id>.<name>`.**
 - **The saved values of a mod that is not loaded are kept by the loader,** not the store. `game.json` keeps each mod's
   values under its entry in the game's mods, so the loader sets only those of loaded mods, keeps the others as text,
-  and writes them back on save.
+  and writes them back on save. A selected preset of a mod that is not loaded is kept the same way, and its group has
+  its default preset selected meanwhile (`modding_plan.md`, `## A missing mod`).
 
 ## Open
 

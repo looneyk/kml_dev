@@ -130,15 +130,15 @@ each on the ones before it. `Game`'s menu and lifecycle functions, and those the
       store under its key, such as `gameplay.random_seeding_on_open`, read and written with
       `settings::store().value<T>(key)` and `set_value<T>`. It replaces a getter and a setter on `Settings` for each of
       what may become a hundred or more settings. In these commit points:
-  - [x] **Types with base types and values:** `SettingType` given its base type and an enumeration's values;
-        `register_type<T>(name, values)` for an enumeration in C++, checking that each value parses; `register_enumeration(name, values)` for one defined in data, read as a `std::string`.
-  - [ ] **Settings groups** (`settings_plan.md`, `### Settings groups`): `insert_group`, `insert_preset`, `group` and
-        `choose_preset`; members from the keys the presets set, each keeping its own default; at most one editable
-        preset, which setting a member switches the group to; `values` writing a group's chosen preset and, for an
-        editable preset, its members; `reset` choosing each group's default preset.
-  - [ ] **The game's setting definitions:** one file in `assets/data`, read by `stratum_format` from the config's
-        `assets_directory`, defining the game's enumerations, settings, groups and presets, with the difficulty
-        group's presets `easy`, `normal`, `hard` and the editable `custom`.
+  - [x] **Menu fields and ranges** (`settings_plan.md`, `### The store`): `Setting` given a display name, description,
+        category, minimum and maximum; `insert(key, Setting)`; the store enforcing the range, `insert` throwing for a
+        default out of range and each set returning false for a value out of range; `bounded_inclusive`.
+  - [ ] **The definition file** (`settings_plan.md`, `### The definition file`): `SettingDefinitionsDocument`, read by
+        `stratum_format`'s `read_setting_definitions`; the game's `assets/data/setting_definitions.json`, with the
+        difficulty multipliers and the `gameplay.difficulty` group's presets `easy`, `normal`, `hard` and the editable
+        `custom`.
+  - [ ] **The definitions inserted:** `stratum_sim`'s `insert_definitions(document, settings, groups)`, inserting a
+        document's enumerations, settings and groups in that order.
   - [ ] **The sample difficulty modes in the sim** (`difficulty_plan.md`, `## The sample modes`): `World` keeps a
         `Difficulty` struct, applied by a change listener on the `gameplay.difficulty` members; `populate`, `Speed`
         and `Detection` read it; a new game is Normal. `RandomSeedingOnOpen` is given a `std::formatter` and a
@@ -249,7 +249,8 @@ These are Phase 4 (`modding_plan.md`):
 - [ ] **Component schemas from data**, as flecs runtime components.
 - [ ] **Styles:** the asset, the parameter map, inheritance by name, and a view that resolves them.
 - [ ] **The scripting language chosen and embedded,** with hooks on types and bindings through reflection.
-- [ ] **Mods:** the directory, load order, patches, and skipping what a missing mod declares.
+- [ ] **Mods** (`modding_plan.md`): the directory, the manifest, the mod list, load order, patches, and a missing mod:
+      skipping what it declares, telling deliberate removal from damage, and the user's choice when a game used it.
 
 ## Placement
 
@@ -344,6 +345,10 @@ These are the open questions.
 - **Which components inherit** along the chain, and therefore which have fields that may be left unset.
 - **How a place type is defined in data** --- as a name the presentation table maps, or as a field on the type --- and
   how `cells` and `lattice` reduce an entity of a modded type.
+- **A different version:** what opening a game does when a mod's version differs from the one the game recorded.
+- **Entities of a missing mod:** whether a zone keeps the entities of a missing mod's types, so they return with the
+  mod as its settings do, or loses them when it is saved.
+- **Dependencies:** whether a mod's manifest lists the mods it requires.
 
 ### Sites
 
@@ -480,9 +485,6 @@ These are the open questions.
 
 ### Settings
 
-- **The definition format:** the file or files the settings, enumerations, groups and presets are defined in, and the
-  menu fields a definition has beside its type, default, scope and restart flag: display name, description, menu
-  category, and a range for a number.
 - **The thread a change notification is called on** once a thread other than the host's main thread can change a
   setting. It is now called on the thread that changed it.
 

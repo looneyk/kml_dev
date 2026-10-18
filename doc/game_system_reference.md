@@ -632,11 +632,12 @@ stopped by an occupied cell in `World::move`.
 ### The settings store
 
 `quetzal::settings::store()` returns the process-wide `Settings`, constructed on first use, which keeps each setting
-under its key. A key is compared only as a whole string. `insert(key, type_name, default_value, scope,
-restart_required)` adds a setting, and throws `std::runtime_error` if the key is empty or is a setting's already, the
-type name is not registered, or the default is not a value of the type. A `Setting` has its type name, its default,
-its `SettingScope`, `User` or `Game`, whether a restart is required, and its value as text, which is empty while the
-setting has its default.
+under its key. A key is compared only as a whole string. `insert(key, setting)` adds a `Setting` that has no value,
+and throws `std::runtime_error` if the key is empty or is a setting's already, the type name is not registered, the
+default is not a value of the type or is out of range, or a minimum or maximum is not a value of the type or is given
+for a type that is not an integer or a real. A `Setting` has its type name, its default, its `SettingScope`, `User` or
+`Game`, whether a restart is required, its display name, description and category, the menu page that shows it, an
+optional minimum and maximum, and its value as text, which is empty while the setting has its default.
 
 `register_type<T>(type_name, values)` registers a type for any `T` that `std::format` writes and `from_chars` reads,
 with its values if it is an enumeration, each of which must parse as `T`. The store registers `boolean`, `integer` as
@@ -650,10 +651,41 @@ and a function that returns true if a text is a value of the type.
 `T`, which is never deduced from the value. `text` and `set_text` read and write it as text, and throw if the key is
 not a setting's or the text is not a value of its type. `values(scope)` returns the settings of a scope that are set,
 by key, as text; `set_values` sets each of them, and sets none if any is invalid; `reset(scope)` returns the scope's
-settings to their defaults.
+settings to their defaults. `set_value`, `set_text` and `set_values` return false, setting nothing, if a value is out
+of its setting's range, and `bounded_inclusive(key, text)` checks a value before it is set.
 
 A change listener, added with `add_change_listener`, is called once for each `set_value`, `set_text`, `set_values` or
-`reset` that changes any setting, after every setting it changes has changed, with their keys.
+`reset` that changes any setting, after all of them have changed, with their keys. A pre-change listener, added with `add_pre_change_listener`, is called by `set_values`, and so by
+`set_value` and `set_text`, with the values after they are checked and before any is set, and may throw to reject them
+all; `reset` calls none. Each add returns a `Settings::listener_id_type`, which `remove_listener` takes, and `clear` keeps every
+listener.
+
+A settings group is a set of settings that its presets assign together, one preset at a time. The store knows nothing
+of groups: `SettingsGroups`, in `SettingsGroups.hpp`, keeps a store's groups and uses only the store's public functions
+and listeners, and `settings_groups()` returns the process-wide one, of `store()`. `insert(key, scope,
+default_preset_name, presets)` adds a `SettingsGroup` and selects its default preset; `insert_preset(group_key,
+preset)` adds a `Preset` to one. A `Preset` has a name, a display name, whether it is editable, and its values by key.
+The group's members are the settings its presets set, each of the group's scope and in no other group. Group keys are
+apart from setting keys. Each throws `std::runtime_error` if a key, a preset or a value is invalid.
+
+`SettingsGroup`, in `SettingsGroup.hpp`, is a class with the group's key, scope, default preset, presets and selected
+preset. It checks its own presets: a name that is empty or used, a second editable preset, or an editable preset with
+values. Its `select` changes only the selected preset.
+
+`SettingsGroups::select(group_key, preset_name)` selects a preset and, unless it is editable, sets each member to the
+preset's value, or to its default if the preset has none, with one `Settings::set_values`. `set_values` selects a
+preset for each group key, and `reset(scope)` selects the default preset of each of the scope's groups. A selection
+listener, added with `add_selection_listener`, is called once for each operation that changes any group's selected
+preset, after its members are set, with the groups' keys.
+
+`SettingsGroups` adds a pre-change listener to its store, which it removes when destroyed. Setting a member while the
+selected preset is not editable selects the editable preset before the value is set, keeping the members' values, and
+throws if the group has none. The listener ignores the values `SettingsGroups` sets itself.
+
+`values(scope)` returns each group's selected preset under its key, unless it is the default, and
+`has_value_from_preset(key)` returns true for a member of a group whose selected preset is not editable, which a game's
+saved values leave out. Saved values are set with the groups' selections first, through `SettingsGroups::set_values`,
+and the settings' values second.
 
 ### Game and Character
 
@@ -1187,7 +1219,7 @@ identically, and rejects each of a set of game files with one change made to it,
 `flecs_test` checks that the ECS supports zone partitioning, relationships, migration, unload, serialization and
 deterministic iteration.
 
-`settings_test` covers the settings store: types, values, scopes and change listeners.
+`settings_test` covers the settings store: types, values, scopes, change and pre-change listeners, and settings groups.
 
 Each test runs from its own directory, since its data and reference paths are relative.
 
