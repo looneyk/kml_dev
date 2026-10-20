@@ -130,14 +130,10 @@ each on the ones before it. `Game`'s menu and lifecycle functions, and those the
       store under its key, such as `video.fullscreen`, read and written with `settings::store().value<T>(key)` and
       `set_value<T>`. It replaces a getter and a setter on `Settings` for each of what may become a hundred or more
       settings. In these commit points:
-  - [x] **The settings saved:** `settings.json` in its own format, `quetzal.stratum_settings`, read and written by
-        `stratum_format` with a `settings` object and a `groups` object of each value as text; each host loads it when it starts, tracks its
-        changes, and writes it when it closes if any; `Game` writes the game's values and selections into `game.json`'s `settings` and
-        `groups` and sets them when the game is opened.
-  - [ ] **Complete presets** (`settings_plan.md`, `### Setting groups`, `### The definition file`): a group's
+  - [x] **Complete presets** (`settings_plan.md`, `### Setting groups`, `### The definition file`): a group's
         `members` listed in its definition, each preset that is not editable setting each of its group's members, a
-        default preset that is not editable, and each member's default taken from it, with no `default` in a member's
-        definition; `SettingGroup` with the member keys it is given. `SettingGroups` remains.
+        default preset that is not editable, and every setting's `default` required, a member's included;
+        `SettingGroup` with the member keys it is given. `SettingGroups` remains.
   - [ ] **Groups in the store** (`settings_plan.md`, `### The store`, `### Setting groups`): a group as a setting
         whose type is an enumeration of its preset names marked as a group's; `Settings::insert_group`, the preset
         table, and a member's value read from the selected preset; the editable preset's values kept in the table,

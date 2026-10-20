@@ -43,8 +43,8 @@ void quetzal::stratum_sim::insert_definitions(const stratum_format::SettingDefin
             presets.push_back({preset.name, preset.display_name, preset.editable, preset.values});
         }
 
-        group_store.insert(settings::SettingGroup(definition.key, setting_scope(definition.scope), definition.default_preset_name, std::move(presets),
-            definition.display_name, definition.category));
+        group_store.insert(settings::SettingGroup(definition.key, setting_scope(definition.scope), definition.default_preset_name,
+            definition.member_keys, std::move(presets), definition.display_name, definition.category));
     }
 
     return;

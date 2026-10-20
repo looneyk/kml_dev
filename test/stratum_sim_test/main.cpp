@@ -4269,6 +4269,16 @@ namespace
         }
 
         report_case("and a definition that is invalid is an error", inserted_twice_throws);
+
+        using document_type = stratum_format::SettingDefinitionsDocument;
+        document_type member_document;
+        member_document.settings.push_back({.key = "gameplay.size", .type_name = "integer", .default_value = "2",
+            .scope = document_type::Scope::Game});
+        member_document.groups.push_back({.key = "gameplay.scale", .scope = document_type::Scope::Game, .default_preset_name = "small",
+            .member_keys = {"gameplay.size"}, .presets = {{.name = "small", .values = {{"gameplay.size", "1"}}}}});
+        stratum_sim::insert_definitions(member_document, test_settings, test_groups);
+        report_case("a member keeps its own default, and has its value in the default preset",
+            test_settings.setting("gameplay.size").default_value == "2" && test_settings.value<int64_t>("gameplay.size") == 1);
         return;
     }
 

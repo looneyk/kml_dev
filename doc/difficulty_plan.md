@@ -57,7 +57,8 @@ and `Speed` and `Detection` are components it gives them. Damage, luck and the r
 - **A new game is Normal by default.**
 - **The mode is the setting group `gameplay.difficulty`,** and each mode is one of its presets (`settings_plan.md`,
   `### Setting groups`). Selecting a mode sets the group's value, and the multipliers are then the mode's.
-- **Normal is the default preset,** the one a new game has, and each multiplier's default is Normal's value for it.
+- **Normal is the default preset,** the one a new game has. Each multiplier's own default is what resetting it in
+  Custom's editor sets.
 - **Custom is an editable preset.** Its values are undefined in a new game; the first time it is selected, they are
   the mode selected before it, and from then on they are the game's own, kept when another mode is selected and
   restored when Custom is selected again. The menu opens an editor of the multipliers while Custom is selected, and

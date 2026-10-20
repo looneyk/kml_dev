@@ -66,6 +66,7 @@ namespace quetzal::stratum_format
             std::string default_preset_name;
             std::string display_name;
             std::string category;
+            std::vector<std::string> member_keys;
             std::vector<Preset> presets;
         };
 

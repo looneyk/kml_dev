@@ -664,15 +664,18 @@ A setting group is a set of settings that its presets assign together, one prese
 of groups: `SettingGroups`, in `SettingGroups.hpp`, keeps a store's groups and uses only the store's public functions
 and listeners, and `group_store()` returns the process-wide one, of `store()`. `insert(group)` adds a
 `SettingGroup` and selects its default preset; `insert_preset(group_key, preset)` adds a `Preset` to one. A `Preset` has a name, a display name, whether it is editable, and its values by key.
-The group's members are the settings its presets set, each of the group's scope and a member of exactly one group. Group keys are
-apart from setting keys. Each throws `std::runtime_error` if a key, a preset or a value is invalid.
+Each of the group's members is of the group's scope and a member of exactly one group. Group keys are apart from
+setting keys. Each throws `std::runtime_error` if a key, a
+preset or a value is invalid.
 
-`SettingGroup`, in `SettingGroup.hpp`, is a class with the group's key, scope, display name, category, default
-preset, presets and selected preset. It checks its own presets: a name that is empty or used, a second editable preset, or an editable preset with
-values. Its `select` changes only the selected preset.
+`SettingGroup`, in `SettingGroup.hpp`, is a class with the group's key, scope, display name, category, member keys,
+default preset, presets and selected preset. It checks its members and its presets: no members or a member given
+twice, a default preset that is missing or editable, a preset name that is empty or used, a second editable preset, an
+editable preset with values, and a preset that is not editable and does not set each of the members, or sets a key
+that is not one. Its `select` changes only the selected preset.
 
 `SettingGroups::select(group_key, preset_name)` selects a preset and, unless it is editable, sets each member to the
-preset's value, or to its default if the preset has none, with one `Settings::set_values`. `set_values` selects a
+preset's value with one `Settings::set_values`. `set_values` selects a
 preset for each group key, and `reset(scope)` selects the default preset of each of the scope's groups. A selection
 listener, added with `add_selection_listener`, is called once for each operation that changes any group's selected
 preset, after its members are set, with the groups' keys.
@@ -994,7 +997,8 @@ the version, and every key (`game_file_spec.md`, `## The config file`).
 A setting definition file has the format `quetzal.stratum_setting_definitions` (`settings_plan.md`, `### The definition
 file`). `SettingDefinitionsDocument`, in `SettingDefinitionsDocument.hpp`, has the format's name and version and the file's path, `data/setting_definitions.json` relative to the assets directory or
 a mod's directory, and the file's `enumerations`, `settings` and `groups`, each in the file's order, with every value as
-text and a scope as `Scope::User` or `Scope::Game`. `read_setting_definitions` requires the format and the version,
+text and a scope as `Scope::User` or `Scope::Game`. A setting's `default` is required, and so are a group's `members` and
+`presets`. `read_setting_definitions` requires the format and the version,
 allows each section to be absent, and throws `std::runtime_error` for a key the format does not have, a required key
 that is absent, a value that is not text, or a scope that is not `user` or `game`. The game's file is
 `assets/data/setting_definitions.json`, with the difficulty multipliers and the `gameplay.difficulty` group.

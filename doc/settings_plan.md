@@ -359,7 +359,7 @@ program directory, and `data/setting_definitions.json` in each mod's directory. 
     { "name": "mod.torches.style", "values": ["steady", "flicker", "gutter"] }
   ],
   "settings": [
-    { "key": "gameplay.difficulty.denizen_count_multiplier", "type": "real", "scope": "game",
+    { "key": "gameplay.difficulty.denizen_count_multiplier", "type": "real", "default": "1", "scope": "game",
       "minimum": "0.25", "maximum": "4", "display_name": "Denizen count", "category": "difficulty" },
     { "key": "video.fullscreen", "type": "boolean", "default": "false", "scope": "user", "restart_required": true,
       "display_name": "Fullscreen", "category": "video" }
@@ -382,9 +382,8 @@ program directory, and `data/setting_definitions.json` in each mod's directory. 
   before it. The files are inserted in mod order, the game's first.
 - **Every value is text,** as in the store and the saved files.
 - **A setting's entry has what `Setting` has:** `type`, `default`, `scope`, `restart_required`, which is false if
-  absent, and the menu fields `display_name`, `description`, `category`, `minimum` and `maximum`. A group's member has
-  no `default`: its default is the default preset's value for it, and `insert_definitions` sets it from there, so a
-  member has one default. A setting with no `default` that is no group's member is an error.
+  absent, and the menu fields `display_name`, `description`, `category`, `minimum` and `maximum`. Every setting has a
+  `default`, a group's member included.
 - **A group's entry has what `insert_group` takes:** `key`, `scope`, `default_preset`, `members`, `presets`,
   `display_name` and `category`. A preset's entry has `name`, `display_name`, `editable`, which is false if absent, and
   `values`, which an editable preset does not have.
@@ -419,8 +418,8 @@ one store, one key space and one change notification, for settings and groups al
 - **A member's value is the selected preset's value for it.** A member never has a value of its own, so reading a
   member reads the selected preset's row of the table, and a rebalanced preset reaches every game that selected it.
 - **Every preset that is not editable sets each of its group's members.** Setting them is the preset's purpose, so a
-  member's value always comes from a preset. A member's default is its value in the default preset, which is not
-  editable.
+  member's value always comes from a preset. The default preset is not editable. A member's own default, in its
+  definition, is independent of the presets: it is the value that resetting the member in the editable preset sets.
 - **Each member has the group's scope, a setting is a member of at most one group,** as each Unreal console variable is
   in at most one scalability group, **and a member is not a group.** `insert_group` checks each. Nested groups, such as
   an overall video quality that selects the shadow and texture qualities, are not supported; the member lookup and

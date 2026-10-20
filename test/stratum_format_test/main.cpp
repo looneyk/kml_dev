@@ -1490,6 +1490,7 @@ namespace
             "  ],\n"
             "  \"groups\": [\n"
             "    { \"key\": \"gameplay.difficulty\", \"scope\": \"game\", \"default_preset\": \"normal\", \"display_name\": \"Difficulty\",\n"
+            "      \"members\": [\"gameplay.count\"],\n"
             "      \"presets\": [ { \"name\": \"normal\", \"display_name\": \"Normal\", \"values\": { \"gameplay.count\": \"1\" } },\n"
             "        { \"name\": \"custom\", \"editable\": true } ] }\n"
             "  ]\n"
@@ -1507,10 +1508,11 @@ namespace
         report_case("a setting has its fields, with those absent empty or false", fullscreen.type_name == "boolean" && fullscreen.default_value == "false"
             && fullscreen.scope == document_type::Scope::User && fullscreen.restart_required && fullscreen.display_name == "Fullscreen"
             && fullscreen.category == "video" && fullscreen.description.empty() && !fullscreen.minimum && count.scope == document_type::Scope::Game
-            && !count.restart_required && count.minimum == "0.5" && count.maximum == "2" && count.description == "How many");
+            && count.default_value == "1" && !count.restart_required && count.minimum == "0.5" && count.maximum == "2" && count.description == "How many");
 
         const document_type::Group& difficulty = document.groups[0];
-        report_case("a group has its fields and presets", difficulty.key == "gameplay.difficulty" && difficulty.scope == document_type::Scope::Game
+        report_case("a group has its fields, members and presets", difficulty.key == "gameplay.difficulty"
+            && difficulty.scope == document_type::Scope::Game && difficulty.member_keys == vector<string> {"gameplay.count"}
             && difficulty.default_preset_name == "normal" && difficulty.display_name == "Difficulty" && difficulty.presets[0].name == "normal"
             && difficulty.presets[0].values.value("gameplay.count") == "1" && !difficulty.presets[0].editable && difficulty.presets[1].editable
             && difficulty.presets[1].values.begin() == difficulty.presets[1].values.end());
@@ -1544,9 +1546,14 @@ namespace
             "settings[0].restart: not a key of the setting definition file"));
         report_case("and one with a scope that is not user or game", rejected("\"scope\": \"user\"", "\"scope\": \"player\"",
             "settings[0].scope: 'player' is not a scope"));
-        report_case("and one with a value that is not text", rejected("\"default\": \"1\"", "\"default\": 1", "settings[1].default: a string was expected"));
+        report_case("and one with a value that is not text", rejected("\"minimum\": \"0.5\"", "\"minimum\": 0.5",
+            "settings[1].minimum: a string was expected"));
         report_case("and one with a setting that has no type", rejected("\"type\": \"real\", ", "", "settings[1].type: required and absent"));
+        report_case("and one with a setting that has no default", rejected("\"default\": \"1\", ", "", "settings[1].default: required and absent"));
         report_case("and one with a group that has no presets", rejected("\"presets\"", "\"options\"", "groups[0].options: not a key"));
+        report_case("and one with a group that has no members", rejected("      \"members\": [\"gameplay.count\"],\n", "",
+            "groups[0].members: required and absent"));
+        report_case("and one with a member that is not text", rejected("[\"gameplay.count\"]", "[1]", "groups[0].members[0]: a string was expected"));
 
         document_type game = stratum_format::read_setting_definitions(filesystem::path("../../assets") / document_type::filepath);
         report_case("the game's setting definition file reads", !game.settings.empty() && game.groups.size() == 1

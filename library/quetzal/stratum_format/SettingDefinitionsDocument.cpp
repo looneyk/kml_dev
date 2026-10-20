@@ -24,7 +24,7 @@ namespace
     constexpr std::array<std::string_view, 2> enumeration_keys {"name", "values"};
     constexpr std::array<std::string_view, 10> setting_keys {"key", "type", "default", "scope", "restart_required", "display_name", "description",
         "category", "minimum", "maximum"};
-    constexpr std::array<std::string_view, 6> group_keys {"key", "scope", "default_preset", "display_name", "category", "presets"};
+    constexpr std::array<std::string_view, 7> group_keys {"key", "scope", "default_preset", "display_name", "category", "members", "presets"};
     constexpr std::array<std::string_view, 4> preset_keys {"name", "display_name", "editable", "values"};
 
     //--------------------------------------------------------------------------
@@ -52,6 +52,21 @@ namespace
     {
         const raw_values_type* p = member(v, key);
         return p != nullptr && boolean_value(*p, member_path(path, key));
+    }
+
+    //--------------------------------------------------------------------------
+    std::vector<std::string> required_strings(const raw_values_type& v, const std::string& path, std::string_view key)
+    {
+        const std::string strings_path = member_path(path, key);
+        const raw_values_type& a = array(required_member(v, path, key), strings_path);
+
+        std::vector<std::string> strings;
+        for (size_t i = 0; i < a.size(); ++i)
+        {
+            strings.push_back(string_value(a[i], element_path(strings_path, i)));
+        }
+
+        return strings;
     }
 
     //--------------------------------------------------------------------------
@@ -101,14 +116,7 @@ namespace
 
         document_type::Enumeration enumeration;
         enumeration.name = required_string(v, path, "name");
-
-        const std::string values_path = member_path(path, "values");
-        const raw_values_type& values = array(required_member(v, path, "values"), values_path);
-        for (size_t i = 0; i < values.size(); ++i)
-        {
-            enumeration.values.push_back(string_value(values[i], element_path(values_path, i)));
-        }
-
+        enumeration.values = required_strings(v, path, "values");
         return enumeration;
     }
 
@@ -160,6 +168,7 @@ namespace
         group.default_preset_name = required_string(v, path, "default_preset");
         group.display_name = optional_string(v, path, "display_name").value_or("");
         group.category = optional_string(v, path, "category").value_or("");
+        group.member_keys = required_strings(v, path, "members");
 
         required_member(v, path, "presets");
         group.presets = read_entries<document_type::Preset>(v, path, "presets", read_preset);

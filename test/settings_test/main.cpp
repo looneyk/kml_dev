@@ -405,9 +405,9 @@ namespace
     {
         test_settings.insert("difficulty.count", {.type_name = "real", .default_value = "1", .scope = SettingScope::Game, .maximum = "4"});
         test_settings.insert("difficulty.speed", {.type_name = "real", .default_value = "1", .scope = SettingScope::Game});
-        test_groups.insert(SettingGroup("difficulty", SettingScope::Game, "normal", {
+        test_groups.insert(SettingGroup("difficulty", SettingScope::Game, "normal", {"difficulty.count", "difficulty.speed"}, {
             {"easy", "Easy", false, {{"difficulty.count", "0.5"}, {"difficulty.speed", "0.75"}}},
-            {"normal", "Normal", false, {{"difficulty.count", "1.2"}}},
+            {"normal", "Normal", false, {{"difficulty.count", "1.2"}, {"difficulty.speed", "1"}}},
             {"hard", "Hard", false, {{"difficulty.count", "1.5"}, {"difficulty.speed", "1.25"}}},
             {"custom", "Custom", true, {}}}, "Difficulty", "difficulty"));
         return;
@@ -422,8 +422,9 @@ namespace
         Settings test_settings;
         SettingGroups test_groups(test_settings);
         insert_difficulty(test_settings, test_groups);
-        report_case("a group has its display name, category and default preset, and its members the preset's values",
+        report_case("a group has its display name, category, members and default preset, and its members the preset's values",
             test_groups.group("difficulty").display_name() == "Difficulty" && test_groups.group("difficulty").category() == "difficulty"
+            && test_groups.group("difficulty").member_keys() == vector<string> {"difficulty.count", "difficulty.speed"}
             && test_groups.group("difficulty").selected().name == "normal"
             && test_settings.value<double>("difficulty.count") == 1.2 && test_settings.value<double>("difficulty.speed") == 1);
 
@@ -454,7 +455,7 @@ namespace
 
         test_groups.select("difficulty", "normal");
         SettingsSnapshot normal = SettingsSnapshot::capture(SettingScope::Game, test_settings, test_groups);
-        report_case("a member a preset leaves out returns to its default", test_settings.value<double>("difficulty.count") == 1.2
+        report_case("selecting the default preset sets its values, and saves nothing", test_settings.value<double>("difficulty.count") == 1.2
             && test_settings.value<double>("difficulty.speed") == 1 && normal.groups.begin() == normal.groups.end()
             && normal.settings.begin() == normal.settings.end());
 
@@ -482,30 +483,42 @@ namespace
             && throws([&] { test_groups.select("challenge", "hard"); }));
 
         test_settings.insert("video.width", {.type_name = "integer", .default_value = "1280"});
-        test_settings.insert("other.count", {.type_name = "real", .default_value = "1", .scope = SettingScope::Game});
+        test_settings.insert("other.count", {.type_name = "real", .default_value = "2", .scope = SettingScope::Game});
+        const vector<string> other_members {"other.count"};
+        const Preset other_a {"a", "A", false, {{"other.count", "2"}}};
         report_case("a group key that is a group's already is an error", throws([&] { test_groups.insert(SettingGroup("difficulty",
-            SettingScope::Game, "a", {{"a", "A"}})); }));
-        report_case("and so is a group with no default preset", throws([&] { test_groups.insert(SettingGroup("other", SettingScope::Game, "a",
-            {{"b", "B", false, {{"other.count", "2"}}}})); }));
+            SettingScope::Game, "a", other_members, {other_a})); }));
+        report_case("and so is a group with no members or a member twice, or a default preset that is missing or editable",
+            throws([&] { SettingGroup("other", SettingScope::Game, "a", {}, {other_a}); })
+            && throws([&] { SettingGroup("other", SettingScope::Game, "a", {"other.count", "other.count"}, {other_a}); })
+            && throws([&] { SettingGroup("other", SettingScope::Game, "b", other_members, {other_a}); })
+            && throws([&] { SettingGroup("other", SettingScope::Game, "a", other_members, {{"a", "A", true}}); }));
+        report_case("and a preset that leaves out a member, or sets a key that is not one",
+            throws([&] { test_groups.insert_preset("difficulty", {"bad", "Bad", false, {{"difficulty.count", "1"}}}); })
+            && throws([&] { SettingGroup("other", SettingScope::Game, "a", other_members, {{"a", "A", false, {{"other.count", "2"},
+                {"difficulty.speed", "1"}}}}); }));
         report_case("and a preset that sets no setting, another scope's, another group's, no value of its type, or one out of its range",
-            throws([&] { test_groups.insert_preset("difficulty", {"bad", "Bad", false, {{"difficulty.size", "1"}}}); })
-            && throws([&] { test_groups.insert_preset("difficulty", {"bad", "Bad", false, {{"video.width", "800"}}}); })
-            && throws([&] { test_groups.insert(SettingGroup("other", SettingScope::Game, "a", {{"a", "A", false, {{"difficulty.count", "2"}}}})); })
-            && throws([&] { test_groups.insert_preset("difficulty", {"bad", "Bad", false, {{"difficulty.count", "fast"}}}); })
-            && throws([&] { test_groups.insert_preset("difficulty", {"bad", "Bad", false, {{"difficulty.count", "5"}}}); }));
+            throws([&] { test_groups.insert_preset("difficulty", {"bad", "Bad", false, {{"difficulty.count", "1"}, {"difficulty.speed", "1"},
+                {"difficulty.size", "1"}}}); })
+            && throws([&] { test_groups.insert_preset("difficulty", {"bad", "Bad", false, {{"difficulty.count", "1"}, {"difficulty.speed", "1"},
+                {"video.width", "800"}}}); })
+            && throws([&] { test_groups.insert(SettingGroup("other", SettingScope::Game, "a", {"difficulty.count"}, {{"a", "A", false,
+                {{"difficulty.count", "1.2"}}}})); })
+            && throws([&] { test_groups.insert_preset("difficulty", {"bad", "Bad", false, {{"difficulty.count", "fast"}, {"difficulty.speed", "1"}}}); })
+            && throws([&] { test_groups.insert_preset("difficulty", {"bad", "Bad", false, {{"difficulty.count", "5"}, {"difficulty.speed", "1"}}}); }));
         report_case("and a preset named twice, a second editable preset, or an editable preset with values",
             throws([&] { test_groups.insert_preset("difficulty", {"hard", "Hard"}); })
             && throws([&] { test_groups.insert_preset("difficulty", {"custom2", "Custom 2", true}); })
-            && throws([&] { test_groups.insert(SettingGroup("other", SettingScope::Game, "a", {{"a", "A", true, {{"other.count", "2"}}}})); }));
+            && throws([&] { SettingGroup("other", SettingScope::Game, "a", other_members, {other_a, {"b", "B", true, {{"other.count", "2"}}}}); }));
 
-        test_groups.insert(SettingGroup("other", SettingScope::Game, "a", {{"a", "A", false, {{"other.count", "2"}}}}));
+        test_groups.insert(SettingGroup("other", SettingScope::Game, "a", other_members, {other_a}));
         report_case("setting a member of a group with no editable preset is an error", throws([&] { test_settings.set_value<double>("other.count", 3); })
             && test_settings.value<double>("other.count") == 2);
 
-        test_groups.insert_preset("difficulty", {"nightmare", "Nightmare", false, {{"difficulty.count", "3"}}});
+        test_groups.insert_preset("difficulty", {"nightmare", "Nightmare", false, {{"difficulty.count", "3"}, {"difficulty.speed", "1.5"}}});
         test_groups.select("difficulty", "nightmare");
         report_case("a preset inserted later may be selected", test_settings.value<double>("difficulty.count") == 3
-            && test_settings.value<double>("difficulty.speed") == 1);
+            && test_settings.value<double>("difficulty.speed") == 1.5);
         return;
     }
 

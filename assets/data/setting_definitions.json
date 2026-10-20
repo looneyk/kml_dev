@@ -13,6 +13,8 @@
   ],
   "groups": [
     { "key": "gameplay.difficulty", "scope": "game", "default_preset": "normal", "display_name": "Difficulty", "category": "difficulty",
+      "members": ["gameplay.difficulty.denizen_count_multiplier", "gameplay.difficulty.denizen_speed_multiplier",
+        "gameplay.difficulty.detection_range_multiplier"],
       "presets": [
         { "name": "easy", "display_name": "Easy", "values": { "gameplay.difficulty.denizen_count_multiplier": "0.5",
           "gameplay.difficulty.denizen_speed_multiplier": "0.75", "gameplay.difficulty.detection_range_multiplier": "0.75" } },
