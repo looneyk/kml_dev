@@ -1,11 +1,12 @@
-#if !defined(QUETZAL_STRATUM_FORMAT_WRITTEN_FORM_HPP)
-#define QUETZAL_STRATUM_FORMAT_WRITTEN_FORM_HPP
+#if !defined(QUETZAL_STRATUM_FORMAT_JSON_UTIL_HPP)
+#define QUETZAL_STRATUM_FORMAT_JSON_UTIL_HPP
 //------------------------------------------------------------------------------
 // stratum_format
-// written_form.hpp
+// json_util.hpp
 //------------------------------------------------------------------------------
 
 #include "Document.hpp"
+#include "quetzal/common/KeyValueStore.hpp"
 #include <array>
 #include <charconv>
 #include <concepts>
@@ -39,6 +40,9 @@ namespace quetzal::stratum_format::detail
     std::string joined(const std::vector<std::string>& parts);
 
     std::string object_text(const std::vector<std::string>& members);
+
+    // An object of the values, each as text, on one line
+    std::string text_values_text(const KeyValueStore& values);
     std::string cell_position_text(const discrete_point_type& cell_position);
     std::string direction_text(const discrete_vector_type& direction);
     std::string address_text(const WallAddress& address);
@@ -98,4 +102,4 @@ std::string quetzal::stratum_format::detail::number_text(T value)
     return text;
 }
 
-#endif // QUETZAL_STRATUM_FORMAT_WRITTEN_FORM_HPP
+#endif // QUETZAL_STRATUM_FORMAT_JSON_UTIL_HPP

@@ -185,7 +185,7 @@ bool quetzal::settings::Settings::set_values(const KeyValueStore& values)
 
         if (!type(setting(key).type_name).accepts(value))
         {
-            throw std::runtime_error(std::format("'{}' is not an valid value of the setting '{}'", value, key));
+            throw std::runtime_error(std::format("'{}' is not a valid value of the setting '{}'", value, key));
         }
     }
 

@@ -11,6 +11,7 @@
 #include "quetzal/stratum_sim/Game.hpp"
 #include "quetzal/stratum_sim/SavedGameDetails.hpp"
 #include "quetzal/stratum_sim/Session.hpp"
+#include "quetzal/stratum_sim/PersistentSettings.hpp"
 #include <string>
 #include <vector>
 
@@ -44,7 +45,8 @@ namespace stratum_terminal
         // A non empty script replaces the keyboard, one character per turn, and the run ends when it is exhausted
         explicit Application(View view = View::Null, const std::string& script = {}, bool incremental = true);
         Application(const Application&) = delete;
-        ~Application() = default;
+
+        ~Application();
 
         Application& operator=(const Application&) = delete;
 
@@ -101,6 +103,7 @@ namespace stratum_terminal
 
         quetzal::stratum_sim::Game m_game;
         quetzal::stratum_sim::Session& m_session;
+        quetzal::stratum_sim::PersistentSettings m_user_settings;
 
         View m_view_requested = View::Null;
         View m_view = View::Null; // Never Null once a game is created

@@ -68,7 +68,7 @@ character of the name that cannot be in a directory name is replaced by `_`.
 
 | File | |
 | --- | --- |
-| `game.json` | The game's own state --- the random engines' state, the seeds, and the next persistent id --- and its settings |
+| `game.json` | The game's own state --- the random engines' state, the seeds, and the next persistent id --- its settings' values and its setting groups' selected presets |
 | `character.json` | The player's character: its description, its skills and other properties, its inventory, and where it is |
 | `world.json` | The regions, and a reference to the file of each of their zones |
 | `zones/<persistent id>.zone` | One zone, in the zone file format |
@@ -77,7 +77,7 @@ Every id in a saved game is persistent: the id the entity, zone or region has in
 files. The whole world is in the directory, so every reference in it refers to an entity in it.
 
 `game.json`, `character.json` and `world.json` are each one JSON object with `format`, `version`, and its parts under
-their own keys: `game` and `settings`, `character`, or `world`.
+their own keys: `game`, `settings` and `groups`, `character`, or `world`.
 
 ## An example
 
@@ -101,7 +101,8 @@ character named Ailis in it carrying a torch, would have the following structure
   "format": "quetzal.stratum_game",
   "version": "0.1",
   "game": { "next_id": 21, "seed": "20260928", "random_engines": { "gameplay": "...", "generation": "..." } },
-  "settings": { "permadeath": false }
+  "settings": { "gameplay.difficulty.detection_range_multiplier": "2" },
+  "groups": { "gameplay.difficulty": "custom" }
 }
 ```
 
@@ -177,13 +178,16 @@ The state the game needs to continue from where it was saved, which belongs to n
 
 A random engine's state is written as the text that the random engine writes and reads (`random_engine.md`, `## Saving`).
 
-## settings
+## settings and groups
 
-The game's settings, chosen when the game begins, as a component object:
+`settings` has the value of each game setting that is set and that no selected preset sets, by its key, as text.
+`groups` has the selected preset of each game setting group whose selected preset is not its default, by the group's
+key. Either is an empty object when it has none (`settings_plan.md`, `### The definition file`).
 
-| Key | |
-| --- | --- |
-| `permadeath` | True if the game ends for good when the character dies |
+Opening a game first returns the game settings to their defaults and selects each group's default preset, then
+selects the presets in `groups`, then sets the values in `settings`. A key that is not a game setting's or a group's,
+a value that is not one of its setting's, a value out of its setting's range, or a preset that is not one of its
+group's, is an error.
 
 ## character
 
@@ -258,7 +262,8 @@ reference's `id`. Its zone references refer to zone templates, whose entity ids 
 
 ## The written form
 
-A writer emits two-space indentation. In the game file, `game` and `settings` are each on one line. In the character
+A writer emits two-space indentation. In the game file, `game`, `settings` and `groups` are each on one line, and so
+are `settings` and `groups` in the user settings file. In the character
 file, `name` is on the line after `version`, each key of `character` is on a line of its own, and each entity of the inventory is on a line of its own, as a
 zone's entities are. In the world file, a region's `id` and `components` are on the line that opens
 it, its `spec` is on the next line, its `zones` follow, and each zone reference is on a line of its own, as each pair of
@@ -295,6 +300,28 @@ and the most zones the world keeps loaded. It is not a saved game's file, and ha
 Every key is optional, and a key the format does not have is an error. `assets_directory` and `user_directory` are
 relative to the program directory unless absolute, so a `user_directory` there makes a portable install; the other
 locations are relative to the user directory unless absolute.
+
+## The user settings file
+
+`settings.json`, in the user directory unless the config file puts it elsewhere, has the user's settings: those that
+are the same in every game. It is not a saved game's file, and has a format of its own, `quetzal.stratum_settings`,
+version `0.1`. It has `settings` and `groups` as `game.json` has them (`## settings and groups`), for the user
+settings and the user setting groups:
+
+```json
+{
+  "format": "quetzal.stratum_settings",
+  "version": "0.1",
+  "settings": { "gameplay.reseed_on_open": "true" },
+  "groups": { }
+}
+```
+
+Each key is optional, and a key the format does not have is an error. In `settings` and `groups`, a key that is not a
+user setting's or a user setting group's is an error, as is any value or preset that would be one in `game.json`. A host
+reads the file when it starts, if it
+exists, and writes it when it closes if a user setting or a user setting group's selected preset changed, creating its
+directory if needed.
 
 ## Open
 

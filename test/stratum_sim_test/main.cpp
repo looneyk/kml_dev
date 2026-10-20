@@ -22,8 +22,8 @@
 #include "quetzal/stratum_sim/Session.hpp"
 #include "quetzal/stratum_sim/Game.hpp"
 #include "quetzal/stratum_sim/ai.hpp"
-#include "quetzal/stratum_sim/insert_definitions.hpp"
-#include "quetzal/stratum_sim/load_setting_definitions.hpp"
+#include "quetzal/stratum_sim/PersistentSettings.hpp"
+#include "quetzal/stratum_sim/setting_definitions.hpp"
 #include "quetzal/stratum_sim/attachments.hpp"
 #include "quetzal/stratum_sim/file_components.hpp"
 #include "quetzal/stratum_sim/layout_entities.hpp"
@@ -32,7 +32,6 @@
 #include "quetzal/stratum_sim/World.hpp"
 #include "quetzal/stratum_format/grid.hpp"
 #include "quetzal/stratum_format/Document.hpp"
-#include "quetzal/stratum_format/read_setting_definitions.hpp"
 #include "quetzal/stratum_format/read_zone.hpp"
 #include "quetzal/stratum_format/RelocatorTarget.hpp"
 #include "quetzal/stratum_format/write_zone.hpp"
@@ -2301,6 +2300,22 @@ namespace
             && reseeded_game_json["game"]["seed"] != game_json["game"]["seed"]);
         settings::store().set_value<bool>(stratum_sim::Game::reseed_on_open_key, false);
 
+        const string detection_key = "gameplay.difficulty.detection_range_multiplier";
+        settings::group_store().select("gameplay.difficulty", "hard");
+        settings::store().set_value<double>(detection_key, 2);
+        string settings_save_name = saving.save(stratum_sim::SaveType::Explicit);
+        stratum_format::raw_values_type settings_game_json = read_json(saving_config.saves_directory / settings_save_name / "game.json");
+        report_case("a game saves its group's selected preset and its settings set by no preset", settings_game_json["groups"]["gameplay.difficulty"]
+            == "custom" && settings_game_json["settings"][detection_key] == "2" && !settings_game_json["settings"].contains("gameplay.reseed_on_open"));
+
+        saving.open(save_name);
+        report_case("and a game opened without them has the game settings' defaults", settings::group_store().group("gameplay.difficulty").selected().name
+            == "normal" && settings::store().value<double>(detection_key) == 1);
+
+        saving.open(settings_save_name);
+        report_case("and opened with them has them again", settings::group_store().group("gameplay.difficulty").selected().name == "custom"
+            && settings::store().value<double>(detection_key) == 2 && settings::store().value<double>("gameplay.difficulty.denizen_count_multiplier") == 1.5);
+
         saving.open(replaced_save_name);
         report_case("a save whose character's name cannot name a directory opens into one with the characters replaced", opened.loaded()
             && filesystem::is_directory(saving_config.working_directory / "Ailis_ of the _Downs__")
@@ -4153,12 +4168,72 @@ namespace
     }
 
     //--------------------------------------------------------------------------
+    void test_persistent_settings()
+    {
+        report_group("persistent settings");
+
+        const filesystem::path filepath = "out/user/settings.json";
+        filesystem::remove_all("out/user");
+
+        settings::Settings test_settings;
+        settings::SettingGroups test_groups(test_settings);
+        stratum_sim::load_setting_definitions("../../assets", test_settings, test_groups);
+
+        stratum_sim::PersistentSettings user_settings(filepath, settings::SettingScope::User, test_settings, test_groups);
+        user_settings.load();
+        report_case("with no settings file, the settings have their defaults, and nothing has changed",
+            !test_settings.value<bool>(stratum_sim::Game::reseed_on_open_key) && !user_settings.changed());
+
+        test_groups.select("gameplay.difficulty", "hard");
+        report_case("a change in another scope is not a change of the file's", !user_settings.changed());
+
+        test_settings.set_value<bool>(stratum_sim::Game::reseed_on_open_key, true);
+        report_case("and a change in its scope is, but writes nothing until it is saved", user_settings.changed() && !filesystem::exists(filepath));
+
+        user_settings.save_if_changed();
+        ifstream settings_stream(filepath, ios::binary);
+        stratum_format::raw_values_type settings_json = stratum_format::raw_values_type::parse(settings_stream, nullptr, false);
+        report_case("saving it writes only the scope's values, and leaves no change", !user_settings.changed()
+            && settings_json["settings"]["gameplay.reseed_on_open"] == "true" && settings_json["groups"].empty() && settings_json["settings"].size() == 1);
+
+        settings::Settings opened_settings;
+        settings::SettingGroups opened_groups(opened_settings);
+        stratum_sim::load_setting_definitions("../../assets", opened_settings, opened_groups);
+        stratum_sim::PersistentSettings opened_user_settings(filepath, settings::SettingScope::User, opened_settings, opened_groups);
+        opened_user_settings.load();
+        report_case("and loading it sets them again, which is no change", opened_settings.value<bool>(stratum_sim::Game::reseed_on_open_key)
+            && opened_groups.group("gameplay.difficulty").selected().name == "normal" && !opened_user_settings.changed());
+
+        {
+            ofstream game_setting_stream(filepath, ios::binary);
+            game_setting_stream << "{ \"format\": \"quetzal.stratum_settings\", \"version\": \"0.1\", "
+                "\"settings\": { \"gameplay.difficulty.denizen_count_multiplier\": \"2\" } }\n";
+        }
+
+        string game_setting_error;
+
+        try
+        {
+            opened_user_settings.load();
+        }
+        catch (const runtime_error& e)
+        {
+            game_setting_error = e.what();
+        }
+
+        report_case("a game setting in the user settings file is an error, which names the file and the setting",
+            game_setting_error == "out/user/settings.json: 'gameplay.difficulty.denizen_count_multiplier' is not a user setting"
+            && opened_settings.value<double>("gameplay.difficulty.denizen_count_multiplier") == 1);
+        return;
+    }
+
+    //--------------------------------------------------------------------------
     void test_insert_definitions()
     {
         report_group("setting definitions inserted");
 
         settings::Settings test_settings;
-        settings::SettingsGroups test_groups(test_settings);
+        settings::SettingGroups test_groups(test_settings);
         stratum_sim::insert_definitions(stratum_format::read_setting_definitions(filesystem::path("../../assets")
             / stratum_format::SettingDefinitionsDocument::filepath), test_settings, test_groups);
 
@@ -4261,7 +4336,7 @@ namespace
 //------------------------------------------------------------------------------
 int main()
 {
-    stratum_sim::load_setting_definitions("../../assets", settings::store(), settings::groups());
+    stratum_sim::load_setting_definitions("../../assets", settings::store(), settings::group_store());
 
     test_command_queue();
     test_event_queue();
@@ -4305,6 +4380,7 @@ int main()
     test_walk();
     test_polygon_containment();
     test_insert_definitions();
+    test_persistent_settings();
     test_config();
 
     return report_results();

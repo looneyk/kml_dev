@@ -1,11 +1,13 @@
 add_library(quetzal_settings STATIC
     Settings.cpp
-    SettingsGroup.cpp
-    SettingsGroups.cpp
+    SettingGroup.cpp
+    SettingGroups.cpp
+    SettingsSnapshot.cpp
     Setting.hpp
     Settings.hpp
-    SettingsGroup.hpp
-    SettingsGroups.hpp
+    SettingGroup.hpp
+    SettingGroups.hpp
+    SettingsSnapshot.hpp
 )
 
 set_property(TARGET quetzal_settings PROPERTY FOLDER "library")

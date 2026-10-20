@@ -130,18 +130,26 @@ each on the ones before it. `Game`'s menu and lifecycle functions, and those the
       store under its key, such as `video.fullscreen`, read and written with `settings::store().value<T>(key)` and
       `set_value<T>`. It replaces a getter and a setter on `Settings` for each of what may become a hundred or more
       settings. In these commit points:
-  - [x] **The settings in the game:** each host loading the game's definitions at startup with
-        `load_setting_definitions`; the placeholder boolean `gameplay.reseed_on_open` defined in data and read by
-        `Game::open`; `Game::clear` resetting the game scope and selecting the default presets; `stratum_sim::Settings`
-        and its `settings()` removed. The difficulty settings and presets are data only, with nothing reading them.
-  - [ ] **The settings saved:** `settings.json` in its own format, `quetzal.stratum_settings`, read and written by
-        `stratum_format` with a `settings` object and a `groups` object of each value as text; each host loads it when it starts and writes
-        it when a setting changes; `Game` writes the game's values and selections into `game.json`'s `settings` and
+  - [x] **The settings saved:** `settings.json` in its own format, `quetzal.stratum_settings`, read and written by
+        `stratum_format` with a `settings` object and a `groups` object of each value as text; each host loads it when it starts, tracks its
+        changes, and writes it when it closes if any; `Game` writes the game's values and selections into `game.json`'s `settings` and
         `groups` and sets them when the game is opened.
+  - [ ] **Complete presets** (`settings_plan.md`, `### Setting groups`, `### The definition file`): a group's
+        `members` listed in its definition, each preset that is not editable setting each of its group's members, a
+        default preset that is not editable, and each member's default taken from it, with no `default` in a member's
+        definition; `SettingGroup` with the member keys it is given. `SettingGroups` remains.
+  - [ ] **Groups in the store** (`settings_plan.md`, `### The store`, `### Setting groups`): a group as a setting
+        whose type is an enumeration of its preset names marked as a group's; `Settings::insert_group`, the preset
+        table, and a member's value read from the selected preset; the editable preset's values kept in the table,
+        defined on its first selection or a member's first change, saved and restored, and undefined after `reset`;
+        selections and the members they change in one operation and one notification. `SettingGroups`,
+        `group_store()`, the pre-change listener and the selection listener removed. The settings files lose `groups`,
+        a selection being a key in `settings`, and gain `presets`; `SettingsSnapshot` follows, and `Game`,
+        `PersistentSettings`, the hosts and the suites use the one store.
   - [ ] **Mods' settings** (`settings_plan.md`, `### Mods' settings`), after **Mods**: each mod's definitions read
         after the game's, with the loader checking the `mod.<id>` section of the keys a mod defines; patches to
-        another's settings, groups and presets by full key, skipped with a warning for a mod that is not loaded; a
-        missing mod's saved values kept by the loader and written back.
+        another's settings by full key, skipped with a warning for a mod that is not loaded; a missing mod's saved
+        values kept by the loader and written back.
   - **One store, below the sim:** a `quetzal/settings` library beside `quetzal/log`, which `stratum_sim::Settings` and
     its `settings()` move into, since a keyed store is not stratum's own.
   - **Each layer reads only its own settings,** named by convention in its own sections: the sim `gameplay`, the view
@@ -477,6 +485,11 @@ These are the open questions.
 
 - **The thread a change notification is called on** once a thread other than the host's main thread can change a
   setting. It is now called on the thread that changed it.
+- **Whether a preset must set every member.** It must, for now; a preset that leaves members out would need a fallback
+  for them.
+- **Whether a mod may add a preset to another's group,** named `mod.<id>.<name>` as `modding_plan.md` (`## A mod's
+  identity`) has it, or change a preset's values. A mod cannot change a group's members.
+- **Nested groups,** a preset selecting another group's preset, as an overall video quality would.
 
 ### View
 

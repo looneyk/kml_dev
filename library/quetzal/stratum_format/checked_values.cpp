@@ -4,6 +4,7 @@
 //------------------------------------------------------------------------------
 
 #include "checked_values.hpp"
+#include <algorithm>
 #include <cstdlib>
 #include <istream>
 #include <limits>
@@ -79,6 +80,33 @@ std::string quetzal::stratum_format::detail::string_value(const raw_values_type&
     }
 
     return v.get<std::string>();
+}
+
+//------------------------------------------------------------------------------
+quetzal::KeyValueStore quetzal::stratum_format::detail::text_values(const raw_values_type& v, const std::string& path)
+{
+    KeyValueStore values;
+    for (const auto& [key, value] : object(v, path).items())
+    {
+        values.insert(key, string_value(value, member_path(path, key)));
+    }
+
+    return values;
+}
+
+//------------------------------------------------------------------------------
+void quetzal::stratum_format::detail::check_keys(const raw_values_type& v, const std::string& path, std::span<const std::string_view> keys,
+    std::string_view file_description)
+{
+    for (const auto& [key, value] : v.items())
+    {
+        if (std::ranges::find(keys, key) == keys.end())
+        {
+            fail(member_path(path, key), std::format("not a key of the {}", file_description));
+        }
+    }
+
+    return;
 }
 
 //------------------------------------------------------------------------------

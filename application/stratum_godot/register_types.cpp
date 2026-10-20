@@ -8,17 +8,23 @@
 #include "quetzal/log/FileLogSink.hpp"
 #include "quetzal/log/Log.hpp"
 #include "quetzal/settings/Settings.hpp"
-#include "quetzal/settings/SettingsGroups.hpp"
+#include "quetzal/settings/SettingGroups.hpp"
 #include "quetzal/stratum_sim/Config.hpp"
-#include "quetzal/stratum_sim/load_setting_definitions.hpp"
+#include "quetzal/stratum_sim/PersistentSettings.hpp"
+#include "quetzal/stratum_sim/setting_definitions.hpp"
 #include <gdextension_interface.h>
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/core/defs.hpp>
 #include <godot_cpp/godot.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
+#include <exception>
+#include <optional>
 
 namespace
 {
+
+    // From the module's initialization to its uninitialization
+    std::optional<quetzal::stratum_sim::PersistentSettings> g_user_settings;
 
     //--------------------------------------------------------------------------
     // Errors and warnings as Godot's, so the editor marks them, and the rest as printed lines
@@ -55,7 +61,10 @@ void initialize_stratum_module(godot::ModuleInitializationLevel level)
     quetzal::log::logger().add_sink(write_to_godot_output);
     const quetzal::stratum_sim::Config config = quetzal::stratum_sim::load_config(project_directory());
     quetzal::log::logger().add_sink(quetzal::log::FileLogSink(config.logs_directory / "stratum_godot.log"));
-    quetzal::stratum_sim::load_setting_definitions(config.assets_directory, quetzal::settings::store(), quetzal::settings::groups());
+    quetzal::stratum_sim::load_setting_definitions(config.assets_directory, quetzal::settings::store(), quetzal::settings::group_store());
+    g_user_settings.emplace(config.user_settings_filepath, quetzal::settings::SettingScope::User, quetzal::settings::store(),
+        quetzal::settings::group_store());
+    g_user_settings->load();
 
     GDREGISTER_CLASS(StratumWorld);
 
@@ -70,6 +79,16 @@ void uninitialize_stratum_module(godot::ModuleInitializationLevel level)
         return;
     }
 
+    try
+    {
+        g_user_settings->save_if_changed();
+    }
+    catch (const std::exception& e)
+    {
+        quetzal::log::logger().error("settings", "The user settings file was not saved: {}", e.what());
+    }
+
+    g_user_settings.reset();
     quetzal::log::logger().clear_sinks();
 
     return;

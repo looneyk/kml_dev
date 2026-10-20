@@ -7,11 +7,13 @@
 
 #include "Document.hpp"
 #include "types.hpp"
+#include "quetzal/common/KeyValueStore.hpp"
 #include <cstddef>
 #include <filesystem>
 #include <format>
 #include <fstream>
 #include <functional>
+#include <span>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -34,6 +36,12 @@ namespace quetzal::stratum_format::detail
     const raw_values_type& object(const raw_values_type& v, const std::string& path);
     const raw_values_type& array(const raw_values_type& v, const std::string& path);
     std::string string_value(const raw_values_type& v, const std::string& path);
+
+    // An object whose every value is text
+    KeyValueStore text_values(const raw_values_type& v, const std::string& path);
+
+    // Requires every key of the object to be one of the keys, naming the file in the error for any other
+    void check_keys(const raw_values_type& v, const std::string& path, std::span<const std::string_view> keys, std::string_view file_description);
     value_type number_value(const raw_values_type& v, const std::string& path);
     bool boolean_value(const raw_values_type& v, const std::string& path);
 

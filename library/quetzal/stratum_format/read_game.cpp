@@ -6,6 +6,7 @@
 #include "read_game.hpp"
 #include "checked_values.hpp"
 #include "saved_game_format.hpp"
+#include "SettingsDocument.hpp"
 
 namespace
 {
@@ -31,11 +32,7 @@ namespace
             document.random_engines[stream] = string_value(state, member_path("game.random_engines", stream));
         }
 
-        if (const raw_values_type* p = member(v, "settings"); p != nullptr)
-        {
-            document.settings = object(*p, "settings");
-        }
-
+        document.settings_snapshot = read_snapshot(v);
         return document;
     }
 

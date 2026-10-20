@@ -4,7 +4,8 @@
 //------------------------------------------------------------------------------
 
 #include "write_game.hpp"
-#include "written_form.hpp"
+#include "json_util.hpp"
+#include "SettingsDocument.hpp"
 #include <format>
 #include <ostream>
 #include <string>
@@ -34,7 +35,7 @@ namespace
 
         std::vector<std::string> sections = file_header_sections();
         sections.push_back(std::format("{}\"game\": {}", indentation(section_indent), object_text(game)));
-        sections.push_back(std::format("{}\"settings\": {}", indentation(section_indent), object_or_empty_text(document.settings)));
+        add_snapshot_sections(sections, document.settings_snapshot);
 
         return top_level_object_text(sections);
     }

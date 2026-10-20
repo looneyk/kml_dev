@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 // stratum_format
-// written_form.cpp
+// json_util.cpp
 //------------------------------------------------------------------------------
 
-#include "written_form.hpp"
+#include "json_util.hpp"
 #include "saved_game_format.hpp"
 #include <algorithm>
 #include <format>
@@ -175,6 +175,18 @@ std::string quetzal::stratum_format::detail::joined(const std::vector<std::strin
 std::string quetzal::stratum_format::detail::object_text(const std::vector<std::string>& members)
 {
     return members.empty() ? "{ }" : std::format("{{ {} }}", joined(members));
+}
+
+//------------------------------------------------------------------------------
+std::string quetzal::stratum_format::detail::text_values_text(const KeyValueStore& values)
+{
+    std::vector<std::string> members;
+    for (const auto& [key, value] : values)
+    {
+        members.push_back(std::format("{}: {}", string_text(key), string_text(value)));
+    }
+
+    return object_text(members);
 }
 
 //------------------------------------------------------------------------------

@@ -1,11 +1,10 @@
 //------------------------------------------------------------------------------
 // stratum_format
-// read_setting_definitions.cpp
+// SettingDefinitionsDocument.cpp
 //------------------------------------------------------------------------------
 
-#include "read_setting_definitions.hpp"
+#include "SettingDefinitionsDocument.hpp"
 #include "checked_values.hpp"
-#include <algorithm>
 #include <array>
 #include <format>
 #include <functional>
@@ -29,16 +28,9 @@ namespace
     constexpr std::array<std::string_view, 4> preset_keys {"name", "display_name", "editable", "values"};
 
     //--------------------------------------------------------------------------
-    void check_keys(const raw_values_type& v, const std::string& path, std::span<const std::string_view> keys)
+    void check_definition_keys(const raw_values_type& v, const std::string& path, std::span<const std::string_view> keys)
     {
-        for (const auto& [key, value] : v.items())
-        {
-            if (std::ranges::find(keys, key) == keys.end())
-            {
-                fail(member_path(path, key), "not a key of the setting definition file");
-            }
-        }
-
+        check_keys(v, path, keys, "setting definition file");
         return;
     }
 
@@ -105,7 +97,7 @@ namespace
     //--------------------------------------------------------------------------
     document_type::Enumeration read_enumeration(const raw_values_type& v, const std::string& path)
     {
-        check_keys(v, path, enumeration_keys);
+        check_definition_keys(v, path, enumeration_keys);
 
         document_type::Enumeration enumeration;
         enumeration.name = required_string(v, path, "name");
@@ -123,7 +115,7 @@ namespace
     //--------------------------------------------------------------------------
     document_type::Setting read_setting(const raw_values_type& v, const std::string& path)
     {
-        check_keys(v, path, setting_keys);
+        check_definition_keys(v, path, setting_keys);
 
         document_type::Setting setting;
         setting.key = required_string(v, path, "key");
@@ -142,7 +134,7 @@ namespace
     //--------------------------------------------------------------------------
     document_type::Preset read_preset(const raw_values_type& v, const std::string& path)
     {
-        check_keys(v, path, preset_keys);
+        check_definition_keys(v, path, preset_keys);
 
         document_type::Preset preset;
         preset.name = required_string(v, path, "name");
@@ -151,11 +143,7 @@ namespace
 
         if (const raw_values_type* p = member(v, "values"); p != nullptr)
         {
-            const std::string values_path = member_path(path, "values");
-            for (const auto& [key, value] : object(*p, values_path).items())
-            {
-                preset.values.insert(key, string_value(value, member_path(values_path, key)));
-            }
+            preset.values = text_values(*p, member_path(path, "values"));
         }
 
         return preset;
@@ -164,7 +152,7 @@ namespace
     //--------------------------------------------------------------------------
     document_type::Group read_group(const raw_values_type& v, const std::string& path)
     {
-        check_keys(v, path, group_keys);
+        check_definition_keys(v, path, group_keys);
 
         document_type::Group group;
         group.key = required_string(v, path, "key");
@@ -182,7 +170,7 @@ namespace
     document_type read_setting_definitions_document(const raw_values_type& v)
     {
         check_file_header(v, document_type::format_name, document_type::format_version);
-        check_keys(v, "", file_keys);
+        check_definition_keys(v, "", file_keys);
 
         document_type document;
         document.version = std::string(document_type::format_version);
@@ -195,14 +183,14 @@ namespace
 } // namespace
 
 //------------------------------------------------------------------------------
+quetzal::stratum_format::SettingDefinitionsDocument quetzal::stratum_format::read_setting_definitions(const std::filesystem::path& filepath)
+{
+    return read_document<SettingDefinitionsDocument>(filepath, read_setting_definitions_document);
+}
+
+//------------------------------------------------------------------------------
 quetzal::stratum_format::SettingDefinitionsDocument quetzal::stratum_format::read_setting_definitions(std::istream& is,
     const std::string& stream_name)
 {
     return read_document<SettingDefinitionsDocument>(is, stream_name, read_setting_definitions_document);
-}
-
-//------------------------------------------------------------------------------
-quetzal::stratum_format::SettingDefinitionsDocument quetzal::stratum_format::read_setting_definitions(const std::filesystem::path& filepath)
-{
-    return read_document<SettingDefinitionsDocument>(filepath, read_setting_definitions_document);
 }

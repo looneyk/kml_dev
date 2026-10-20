@@ -8,12 +8,12 @@
 #include "quetzal/log/FileLogSink.hpp"
 #include "quetzal/log/Log.hpp"
 #include "quetzal/settings/Settings.hpp"
-#include "quetzal/settings/SettingsGroups.hpp"
+#include "quetzal/settings/SettingGroups.hpp"
 #include "quetzal/stratum_gen/generators.hpp"
 #include "quetzal/stratum_sim/attachments.hpp"
 #include "quetzal/stratum_sim/DiscreteLayout.hpp"
 #include "quetzal/stratum_sim/commands.hpp"
-#include "quetzal/stratum_sim/load_setting_definitions.hpp"
+#include "quetzal/stratum_sim/setting_definitions.hpp"
 #include "quetzal/stratum_sim/Site.hpp"
 #include "quetzal/stratum_sim/specs.hpp"
 #include <algorithm>
@@ -148,6 +148,7 @@ namespace
 stratum_terminal::Application::Application(View view, const std::string& script, bool incremental) :
     m_game(stratum_sim::load_config(executable_directory())),
     m_session(m_game.session()),
+    m_user_settings(m_game.config().user_settings_filepath, settings::SettingScope::User, settings::store(), settings::group_store()),
     m_view_requested(view),
     m_view(view),
     m_view_glyphs(),
@@ -160,7 +161,8 @@ stratum_terminal::Application::Application(View view, const std::string& script,
 {
     // A file, since anything written to the console would write over the terminal's frame
     log::logger().add_sink(log::FileLogSink(m_game.config().logs_directory / "stratum_terminal.log"));
-    stratum_sim::load_setting_definitions(m_game.config().assets_directory, settings::store(), settings::groups());
+    stratum_sim::load_setting_definitions(m_game.config().assets_directory, settings::store(), settings::group_store());
+    m_user_settings.load();
 
     for (const auto& [name, generate] : stratum_gen::generators())
     {
@@ -171,6 +173,19 @@ stratum_terminal::Application::Application(View view, const std::string& script,
     }
 
     m_game.generation().m_generator_selectors["dungen"] = select_dungen;
+}
+
+//------------------------------------------------------------------------------
+stratum_terminal::Application::~Application()
+{
+    try
+    {
+        m_user_settings.save_if_changed();
+    }
+    catch (const std::exception& e)
+    {
+        log::logger().error("settings", "The user settings file was not saved: {}", e.what());
+    }
 }
 
 //------------------------------------------------------------------------------

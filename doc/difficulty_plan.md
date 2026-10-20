@@ -55,23 +55,26 @@ and `Speed` and `Detection` are components it gives them. Damage, luck and the r
 
 - **Every difficulty setting is a game setting,** in the section `gameplay.difficulty`, saved in `game.json`.
 - **A new game is Normal by default.**
-- **The mode is the settings group `gameplay.difficulty`,** and each mode is one of its presets (`settings_plan.md`,
-  `### Settings groups`). Selecting a mode sets the group's selected preset and the preset's multipliers together.
-- **Normal is the default preset,** the one a new game has. Each multiplier's default is in its own definition.
-- **Custom is an editable preset.** Selecting it keeps the values of the mode selected before it, and the menu opens an
-  editor of the multipliers, starting from those values. The menu edits a multiplier only in that editor; a script or
-  the console setting one switches the mode to Custom. A game built on the same framework that does not allow
-  customization defines no editable preset.
+- **The mode is the setting group `gameplay.difficulty`,** and each mode is one of its presets (`settings_plan.md`,
+  `### Setting groups`). Selecting a mode sets the group's value, and the multipliers are then the mode's.
+- **Normal is the default preset,** the one a new game has, and each multiplier's default is Normal's value for it.
+- **Custom is an editable preset.** Its values are undefined in a new game; the first time it is selected, they are
+  the mode selected before it, and from then on they are the game's own, kept when another mode is selected and
+  restored when Custom is selected again. The menu opens an editor of the multipliers while Custom is selected, and
+  edits a multiplier only there. A script or the console setting one under another mode switches the mode to Custom
+  with that mode's values, replacing Custom's own, and then sets the multiplier. A game built on the same framework that
+  does not allow customization defines no editable preset.
 - **The menu may show each preset's values** beside it, from the preset itself.
 
 ## The modes' presets
 
-The game's setting definitions in `assets/data` define the group and its presets, which a mod can extend or rebalance:
+The game's setting definitions in `assets/data` define the group, its members and its presets:
 
 ```json
 "groups": [
   {
     "key": "gameplay.difficulty", "scope": "game", "default_preset": "normal",
+    "members": ["gameplay.difficulty.denizen_count_multiplier", "gameplay.difficulty.denizen_speed_multiplier", "gameplay.difficulty.detection_range_multiplier"],
     "presets": [
       { "name": "easy", "display_name": "Easy", "values": { "gameplay.difficulty.denizen_count_multiplier": "0.5", "gameplay.difficulty.denizen_speed_multiplier": "0.75", "gameplay.difficulty.detection_range_multiplier": "0.75" } },
       { "name": "normal", "display_name": "Normal", "values": { "gameplay.difficulty.denizen_count_multiplier": "1", "gameplay.difficulty.denizen_speed_multiplier": "1", "gameplay.difficulty.detection_range_multiplier": "1" } },

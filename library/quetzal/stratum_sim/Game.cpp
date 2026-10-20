@@ -8,7 +8,8 @@
 #include "DiscreteLayout.hpp"
 #include "DisplayName.hpp"
 #include "quetzal/settings/Settings.hpp"
-#include "quetzal/settings/SettingsGroups.hpp"
+#include "quetzal/settings/SettingGroups.hpp"
+#include "quetzal/settings/SettingsSnapshot.hpp"
 #include "quetzal/stratum_format/GameDocument.hpp"
 #include "quetzal/stratum_format/read_character.hpp"
 #include "quetzal/stratum_format/read_game.hpp"
@@ -161,7 +162,7 @@ void quetzal::stratum_sim::Game::clear()
     m_world.clear();
     m_game_directory.reset();
     settings::store().reset(settings::SettingScope::Game);
-    settings::groups().reset(settings::SettingScope::Game);
+    settings::group_store().reset(settings::SettingScope::Game);
     return;
 }
 
@@ -249,6 +250,15 @@ void quetzal::stratum_sim::Game::restore_game_state(const std::filesystem::path&
         throw std::runtime_error(std::format("{}: game.seed: '{}' is not a seed", filepath.string(), document.seed));
     }
 
+    try
+    {
+        document.settings_snapshot.restore(settings::SettingScope::Game, settings::store(), settings::group_store());
+    }
+    catch (const std::runtime_error& e)
+    {
+        throw std::runtime_error(std::format("{}: {}", filepath.string(), e.what()));
+    }
+
     if (settings::store().value<bool>(reseed_on_open_key))
     {
         m_seed = std::random_device {}();
@@ -290,6 +300,7 @@ std::string quetzal::stratum_sim::Game::save(SaveType save_type)
     document.next_id = m_counting_id_allocator.next().id;
     document.seed = std::to_string(m_seed);
     document.random_engines[std::string(gameplay_random_engine_key)] = random_engine_state.str();
+    document.settings_snapshot = settings::SettingsSnapshot::capture(settings::SettingScope::Game, settings::store(), settings::group_store());
 
     stratum_format::write(*m_game_directory / stratum_format::game_filename, document);
     m_character.save(*m_game_directory);

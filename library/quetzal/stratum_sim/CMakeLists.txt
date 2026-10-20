@@ -17,15 +17,15 @@ add_library(quetzal_stratum_sim STATIC
     Game.cpp
     GridMapping.cpp
     IdAllocator.cpp
-    insert_definitions.cpp
     load_character.cpp
-    load_setting_definitions.cpp
     load_layout.cpp
     make_document.cpp
     properties.cpp
     SavedGameDetails.cpp
     Scheduler.cpp
     Session.cpp
+    PersistentSettings.cpp
+    setting_definitions.cpp
     Site.cpp
     specs.cpp
     World.cpp
@@ -55,12 +55,10 @@ add_library(quetzal_stratum_sim STATIC
     Generation.hpp
     GridMapping.hpp
     IdAllocator.hpp
-    insert_definitions.hpp
     Intent.hpp
     Layout.hpp
     load_character.hpp
     load_layout.hpp
-    load_setting_definitions.hpp
     make_document.hpp
     PersistentId.hpp
     PlacementIndex.hpp
@@ -68,6 +66,8 @@ add_library(quetzal_stratum_sim STATIC
     SavedGameDetails.hpp
     Scheduler.hpp
     Session.hpp
+    PersistentSettings.hpp
+    setting_definitions.hpp
     Site.hpp
     specs.hpp
     types.hpp

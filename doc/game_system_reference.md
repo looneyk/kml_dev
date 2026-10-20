@@ -660,30 +660,30 @@ A change listener, added with `add_change_listener`, is called once for each `se
 all; `reset` calls none. Each add returns a `Settings::listener_id_type`, which `remove_listener` takes, and `clear` keeps every
 listener.
 
-A settings group is a set of settings that its presets assign together, one preset at a time. The store knows nothing
-of groups: `SettingsGroups`, in `SettingsGroups.hpp`, keeps a store's groups and uses only the store's public functions
-and listeners, and `groups()` returns the process-wide one, of `store()`. `insert(group)` adds a
-`SettingsGroup` and selects its default preset; `insert_preset(group_key, preset)` adds a `Preset` to one. A `Preset` has a name, a display name, whether it is editable, and its values by key.
-The group's members are the settings its presets set, each of the group's scope and in no other group. Group keys are
+A setting group is a set of settings that its presets assign together, one preset at a time. The store knows nothing
+of groups: `SettingGroups`, in `SettingGroups.hpp`, keeps a store's groups and uses only the store's public functions
+and listeners, and `group_store()` returns the process-wide one, of `store()`. `insert(group)` adds a
+`SettingGroup` and selects its default preset; `insert_preset(group_key, preset)` adds a `Preset` to one. A `Preset` has a name, a display name, whether it is editable, and its values by key.
+The group's members are the settings its presets set, each of the group's scope and a member of exactly one group. Group keys are
 apart from setting keys. Each throws `std::runtime_error` if a key, a preset or a value is invalid.
 
-`SettingsGroup`, in `SettingsGroup.hpp`, is a class with the group's key, scope, display name, category, default
+`SettingGroup`, in `SettingGroup.hpp`, is a class with the group's key, scope, display name, category, default
 preset, presets and selected preset. It checks its own presets: a name that is empty or used, a second editable preset, or an editable preset with
 values. Its `select` changes only the selected preset.
 
-`SettingsGroups::select(group_key, preset_name)` selects a preset and, unless it is editable, sets each member to the
+`SettingGroups::select(group_key, preset_name)` selects a preset and, unless it is editable, sets each member to the
 preset's value, or to its default if the preset has none, with one `Settings::set_values`. `set_values` selects a
 preset for each group key, and `reset(scope)` selects the default preset of each of the scope's groups. A selection
 listener, added with `add_selection_listener`, is called once for each operation that changes any group's selected
 preset, after its members are set, with the groups' keys.
 
-`SettingsGroups` adds a pre-change listener to its store, which it removes when destroyed. Setting a member while the
+`SettingGroups` adds a pre-change listener to its store, which it removes when destroyed. Setting a member while the
 selected preset is not editable selects the editable preset before the value is set, keeping the members' values, and
-throws if the group has none. The listener ignores the values `SettingsGroups` sets itself.
+throws if the group has none. The listener ignores the values `SettingGroups` sets itself.
 
 `values(scope)` returns each group's selected preset under its key, unless it is the default, and
 `has_value_from_preset(key)` returns true for a member of a group whose selected preset is not editable, which a game's
-saved values leave out. Saved values are set with the groups' selections first, through `SettingsGroups::set_values`,
+saved values leave out. Saved values are set with the groups' selections first, through `SettingGroups::set_values`,
 and the settings' values second.
 
 ### Game and Character
@@ -711,10 +711,31 @@ that order, each referring to those before it. `generation()` returns the `Gener
 its generators, selectors and region specs. Only the `Generation` can be copied or moved. The constructor makes no
 character, region or zone; until a game is created, there is none.
 
-The game's settings are in the process-wide `settings::store()` and `settings::groups()`. Each host calls
-`load_setting_definitions(config.assets_directory, store, groups)`, in `load_setting_definitions.hpp`, once when it
-starts, which inserts the game's setting definition file, and `stratum_sim_test` calls it once in `main`. A suite that
-changes a setting sets it back after its cases.
+The game's settings are in the process-wide `settings::store()` and `settings::group_store()`.
+
+In the settings library, `SettingsSnapshot`, in `SettingsSnapshot.hpp`, is one scope's values as they are saved and
+restored: each setting that is set and that no preset sets, and each group's selected preset that is not its default,
+as text. `SettingsSnapshot::capture(scope, store, group_store)` takes one, and `restore(scope, store, group_store)`
+checks every key, preset and value, then selects its presets and then sets its settings. It throws `std::runtime_error`,
+changing nothing, for a key that is not a setting's or a group's of the scope, a preset or value that is invalid, or a
+value out of range, naming the key.
+
+In `stratum_sim`, `setting_definitions.hpp` has `insert_definitions(document, store, group_store)`, which registers a
+definition document's enumerations, then inserts its settings, then its groups, and throws as they do for a definition
+that is invalid, and `load_setting_definitions(assets_directory, store, group_store)`, which reads the game's
+definition file and inserts it.
+
+`PersistentSettings(filepath, scope, store, group_store)`, in `PersistentSettings.hpp`, is one scope's settings, kept
+in a settings file. It adds a change listener and a selection listener, removed when it is destroyed, that note
+whether a setting or a group of its scope changed. `load` restores the file's snapshot if there is a file, counting
+none of it as a change, and throws, naming the file, if it cannot be read or restored; `changed` returns true if any
+changed since the settings were loaded or saved; and `save` and `save_if_changed` write the scope's snapshot, creating
+the file's directory if needed.
+
+Each host calls `load_setting_definitions` once when it starts, then loads a `PersistentSettings` of the user settings
+file and `SettingScope::User` (`game_file_spec.md`, `## The user settings file`), and calls its `save_if_changed` when
+it closes: the terminal in `Application`'s destructor, and Godot in `uninitialize_stratum_module`. `stratum_sim_test`
+calls `load_setting_definitions` once in `main`. A suite that changes a setting sets it back after its cases.
 
 `Game` has the menu and lifecycle operations a host calls: `menu_open`, `menu_close`, `clear`, `create`, `open`,
 `save`, `quit` and `saved_games`. They call `clear`, `create`, `open` and `save` on `World` and `Character`, and
@@ -734,7 +755,7 @@ no game in progress.
 
 `Game::open(save_name)` clears, then empties the working directory and copies the save into it as the game directory,
 named by the character as `create` names it, read from the top of the save's `character.json`. It reads `game.json`: the id
-allocator counts on from `next_id`, and the random engine's state is restored from the text `>>` reads, or the random engine is
+allocator counts on from `next_id`, the game's settings snapshot is restored, and the random engine's state is restored from the text `>>` reads, or the random engine is
 reseeded from `std::random_device` if the boolean setting `Game::reseed_on_open_key`, `gameplay.reseed_on_open`, is true;
 the random engine is the same either way. Restoring repeats the outcomes the save would have had; reseeding gives
 each opening its own. `World::open`
@@ -749,7 +770,8 @@ description; the time `game.json` was written; and its `SaveType`, from the suff
 read or has no name.
 
 `Game::save(save_type)` writes `game.json` into the game directory, with the id allocator's next id, the seed, and the gameplay
-random engine's state as the text `<<` writes, under `random_engines`; has the character write `character.json` there, through
+random engine's state as the text `<<` writes, under `random_engines`, and the game scope's settings snapshot
+under `settings` and `groups`; has the character write `character.json` there, through
 `make_character_document`, and the world save; and then copies the game directory to a new directory in the saves
 directory, `<character name>_<save time>`, the name the character's `DisplayName` and the time local and in ISO 8601
 basic format, which it returns. A `SaveType` of `Auto` or `Quick` appends `_autosave` or `_quicksave`, and `Explicit`
@@ -950,7 +972,7 @@ settings; `CharacterDocument`, with the character's id, components, zone, placem
 spec it was created from, and a `ZoneReference`, an id and a file, for each zone, and whose `entity_zones` is the world
 index. A `write` overload for each, in `write_game.hpp`, `write_character.hpp` and `write_world.hpp`, emits its
 written form, with an absent object written as an empty one. These writers and the zone's, `write_zone`, share the text
-of the written form through `written_form.hpp`, internal to the library in `stratum_format::detail`.
+of the written form through `json_util.hpp`, internal to the library in `stratum_format::detail`.
 
 `read_game`, `read_character` and `read_world`, in `read_game.hpp`, `read_character.hpp` and `read_world.hpp`, read and
 validate the game files, from a file or from a stream with a name for messages, and throw `std::runtime_error` with the
@@ -970,15 +992,18 @@ its filename, `config.json`. `ConfigDocument` has each location as written and `
 the version, and every key (`game_file_spec.md`, `## The config file`).
 
 A setting definition file has the format `quetzal.stratum_setting_definitions` (`settings_plan.md`, `### The definition
-file`). `SettingDefinitionsDocument` has the format's name and version and the file's path, `data/setting_definitions.json`
-relative to the assets directory or a mod's directory, and the file's `enumerations`, `settings` and `groups`, each in
-the file's order, with every value as text and a scope as `Scope::User` or `Scope::Game`. `read_setting_definitions`, in
-`read_setting_definitions.hpp`, requires the format and the version, allows each section to be absent, and throws
-`std::runtime_error` for a key the format does not have, a required key that is absent, a value that is not text, or a
-scope that is not `user` or `game`. The game's file is `assets/data/setting_definitions.json`, with the difficulty
-multipliers and the `gameplay.difficulty` group. `stratum_sim`'s `insert_definitions(document, settings, groups)`, in
-`insert_definitions.hpp`, registers a document's enumerations, then inserts its settings into the store, then its
-groups into the `SettingsGroups`, and throws `std::runtime_error` as they do for a definition that is invalid.
+file`). `SettingDefinitionsDocument`, in `SettingDefinitionsDocument.hpp`, has the format's name and version and the file's path, `data/setting_definitions.json` relative to the assets directory or
+a mod's directory, and the file's `enumerations`, `settings` and `groups`, each in the file's order, with every value as
+text and a scope as `Scope::User` or `Scope::Game`. `read_setting_definitions` requires the format and the version,
+allows each section to be absent, and throws `std::runtime_error` for a key the format does not have, a required key
+that is absent, a value that is not text, or a scope that is not `user` or `game`. The game's file is
+`assets/data/setting_definitions.json`, with the difficulty multipliers and the `gameplay.difficulty` group.
+
+A settings file, such as the user settings file, has the format `quetzal.stratum_settings` (`game_file_spec.md`, `## The
+user settings file`). `SettingsDocument`, in `SettingsDocument.hpp`, has one scope's `settings::SettingsSnapshot`, as
+`GameDocument` has the game scope's. `read_settings` and `write` read and write a settings file, and
+`detail::read_snapshot` and `detail::add_snapshot_sections` read and write a snapshot's two sections for both files.
+`quetzal_stratum_format` links `quetzal_settings` for the snapshot.
 
 `read_character_name` reads only the top of a character file, through nlohmann's SAX parser, and stops once it has the
 format, the version and the name, so nothing after the name is parsed, however much the character carries. It throws
@@ -1233,7 +1258,7 @@ identically, and rejects each of a set of game files with one change made to it,
 `flecs_test` checks that the ECS supports zone partitioning, relationships, migration, unload, serialization and
 deterministic iteration.
 
-`settings_test` covers the settings store: types, values, scopes, change and pre-change listeners, and settings groups.
+`settings_test` covers the settings store: types, values, scopes, change and pre-change listeners, and setting groups.
 
 Each test runs from its own directory, since its data and reference paths are relative.
 
@@ -1248,7 +1273,7 @@ third-party sources at `/W1` and flecs and godot-cpp included as SYSTEM. `quetza
 links `quetzal_common`;
 `quetzal_stratum_gen` links `quetzal_common`, `quetzal_dungen` and `quetzal_stratum_format`; both hosts link `quetzal_log`,
 `quetzal_stratum_gen` and `quetzal_stratum_view`. `quetzal_dungen` links `quetzal_log`. `quetzal_stratum_format`
-links `quetzal_common`, `quetzal_log` and `nlohmann_json`, vendored at
+links `quetzal_common`, `quetzal_log`, `quetzal_settings` and `nlohmann_json`, vendored at
 `library3/json` with its headers SYSTEM.
 
 `KML_DEV_GODOT` governs the Godot targets and defaults on. When it is configured off, godot-cpp is not processed and

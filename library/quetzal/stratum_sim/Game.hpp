@@ -32,6 +32,7 @@ namespace quetzal::stratum_sim
     public:
 
         // A boolean setting: true if opening a save reseeds the random engine, false if it restores the state saved
+        // We need a better general centralized settings configuration for game ...
         static constexpr std::string_view reseed_on_open_key = "gameplay.reseed_on_open";
 
         explicit Game(const Config& config);

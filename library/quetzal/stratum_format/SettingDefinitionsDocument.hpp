@@ -6,6 +6,8 @@
 //------------------------------------------------------------------------------
 
 #include "quetzal/common/KeyValueStore.hpp"
+#include <filesystem>
+#include <iosfwd>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -72,6 +74,10 @@ namespace quetzal::stratum_format
         std::vector<Setting> settings;
         std::vector<Group> groups;
     };
+
+    // Throws std::runtime_error on error or an unsupported key, stream_name used in error messages
+    SettingDefinitionsDocument read_setting_definitions(const std::filesystem::path& filepath);
+    SettingDefinitionsDocument read_setting_definitions(std::istream& is, const std::string& stream_name);
 
 } // namespace quetzal::stratum_format
 

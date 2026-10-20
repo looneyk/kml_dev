@@ -28,7 +28,7 @@ The game's own content is loaded the same way, as the first mod.
 
 - **Each mod's directory has a manifest, `mod.json`,** with the mod's id and version.
 - **A mod's settings are in the section `mod.<id>`** (`settings_plan.md`, `### Mods' settings`).
-- **A preset that a mod adds to another's settings group is named `mod.<id>.<name>`,** so two mods cannot add presets
+- **A preset that a mod adds to another's setting group is named `mod.<id>.<name>`,** so two mods cannot add presets
   of the same name to one group.
 - **The mod list, `mods/mods.json`, records what the user intends.** The mod menu writes it whenever the user installs,
   enables, disables or removes a mod.

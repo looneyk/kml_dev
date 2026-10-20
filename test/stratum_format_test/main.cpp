@@ -7,11 +7,12 @@
 #include "quetzal/stratum_format/read_character.hpp"
 #include "quetzal/stratum_format/read_config.hpp"
 #include "quetzal/stratum_format/read_game.hpp"
-#include "quetzal/stratum_format/read_setting_definitions.hpp"
 #include "quetzal/stratum_format/read_world.hpp"
 #include "quetzal/stratum_format/read_zone.hpp"
 #include "quetzal/stratum_format/references.hpp"
 #include "quetzal/stratum_format/RelocatorTarget.hpp"
+#include "quetzal/stratum_format/SettingDefinitionsDocument.hpp"
+#include "quetzal/stratum_format/SettingsDocument.hpp"
 #include "quetzal/stratum_format/write_character.hpp"
 #include "quetzal/stratum_format/write_config.hpp"
 #include "quetzal/stratum_format/write_game.hpp"
@@ -1124,19 +1125,26 @@ namespace
         game.next_id = 21;
         game.seed = "20260928";
         game.random_engines = {{"gameplay", "1 2 3"}, {"generation", "4 5 6"}};
-        game.settings = stratum_format::raw_values_type::object();
-        game.settings["permadeath"] = false;
+        game.settings_snapshot.settings.insert("gameplay.difficulty.denizen_count_multiplier", "2");
+        game.settings_snapshot.groups.insert("gameplay.difficulty", "custom");
 
-        report_written("a game file has the game on one line and the settings on another", written(game),
+        report_written("a game file has the game, the settings and the groups each on a line of its own", written(game),
             "{\n"
             "  \"format\": \"quetzal.stratum_game\",\n"
             "  \"version\": \"0.1\",\n"
             "  \"game\": { \"next_id\": 21, \"seed\": \"20260928\", \"random_engines\": { \"gameplay\": \"1 2 3\", \"generation\": \"4 5 6\" } },\n"
-            "  \"settings\": { \"permadeath\": false }\n"
+            "  \"settings\": { \"gameplay.difficulty.denizen_count_multiplier\": \"2\" },\n"
+            "  \"groups\": { \"gameplay.difficulty\": \"custom\" }\n"
             "}\n");
 
-        game.settings = nullptr;
-        report_case("absent settings are written as an empty object", written(game).find("\"settings\": { }\n") != string::npos);
+        istringstream game_settings_text(written(game));
+        stratum_format::GameDocument game_read_back = stratum_format::read_game(game_settings_text, "game");
+        report_case("and reads back with its settings and groups as text", game_read_back.settings_snapshot.settings.value(
+            "gameplay.difficulty.denizen_count_multiplier") == "2" && game_read_back.settings_snapshot.groups.value("gameplay.difficulty") == "custom");
+
+        game.settings_snapshot = {};
+        report_case("absent settings and groups are written as empty objects", written(game).find("\"settings\": { },\n  \"groups\": { }\n")
+            != string::npos);
 
         stratum_format::CharacterDocument character;
         character.name = "Ailis";
@@ -1405,6 +1413,64 @@ namespace
     }
 
     //--------------------------------------------------------------------------
+    void test_settings_file()
+    {
+        report_group("settings file");
+
+        stratum_format::SettingsDocument user_settings;
+        user_settings.snapshot.settings.insert("video.fullscreen", "true");
+        user_settings.snapshot.groups.insert("video.quality", "high");
+
+        ostringstream os;
+        stratum_format::write(os, user_settings);
+        const string user_settings_text = os.str();
+        const string user_settings_text_expected =
+            "{\n"
+            "  \"format\": \"quetzal.stratum_settings\",\n"
+            "  \"version\": \"0.1\",\n"
+            "  \"settings\": { \"video.fullscreen\": \"true\" },\n"
+            "  \"groups\": { \"video.quality\": \"high\" }\n"
+            "}\n";
+        report_case("a settings file has the settings and the groups each on a line of its own", user_settings_text == user_settings_text_expected,
+            format("expected\n{}got\n{}", user_settings_text_expected, user_settings_text));
+
+        istringstream is(user_settings_text);
+        stratum_format::SettingsDocument read_back = stratum_format::read_settings(is, "settings");
+        report_case("and reads back as the document written", read_back.snapshot.settings.value("video.fullscreen") == "true"
+            && read_back.snapshot.groups.value("video.quality") == "high");
+
+        istringstream header_only("{ \"format\": \"quetzal.stratum_settings\", \"version\": \"0.1\" }");
+        stratum_format::SettingsDocument empty = stratum_format::read_settings(header_only, "settings");
+        report_case("a settings file with only its header sets nothing", empty.snapshot.settings.begin() == empty.snapshot.settings.end()
+            && empty.snapshot.groups.begin() == empty.snapshot.groups.end());
+
+        auto rejected = [&user_settings_text](const string& from, const string& to, const string& error_expected)
+        {
+            string text = user_settings_text;
+            size_t at = text.find(from);
+            assert(at != string::npos);
+            text.replace(at, from.size(), to);
+
+            try
+            {
+                istringstream in(text);
+                stratum_format::read_settings(in, "settings");
+            }
+            catch (const runtime_error& e)
+            {
+                return string(e.what()).find(error_expected) != string::npos;
+            }
+
+            return false;
+        };
+
+        report_case("a settings file with a key the format does not have is rejected", rejected("\"groups\"", "\"presets\"",
+            "presets: not a key of the settings file"));
+        report_case("and one with a value that is not text", rejected("\"true\"", "true", "settings.video.fullscreen: a string was expected"));
+        return;
+    }
+
+    //--------------------------------------------------------------------------
     void test_setting_definitions_file()
     {
         report_group("setting definition file");
@@ -1508,6 +1574,7 @@ int main()
     test_round_trip();
     test_game_files();
     test_config_file();
+    test_settings_file();
     test_setting_definitions_file();
 
     return report_results();
