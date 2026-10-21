@@ -7,7 +7,6 @@
 
 #include "quetzal/settings/Setting.hpp"
 #include "quetzal/settings/Settings.hpp"
-#include "quetzal/settings/SettingGroups.hpp"
 #include <filesystem>
 
 namespace quetzal::stratum_sim
@@ -20,8 +19,8 @@ namespace quetzal::stratum_sim
     {
     public:
 
-        // Adds listeners to the stores, which must outlive it, and removes them when destroyed
-        PersistentSettings(const std::filesystem::path& filepath, settings::SettingScope scope, settings::Settings& store, settings::SettingGroups& group_store);
+        // Adds a change listener to the store, which must outlive it, and removes it when destroyed
+        PersistentSettings(const std::filesystem::path& filepath, settings::SettingScope scope, settings::Settings& store);
         PersistentSettings(const PersistentSettings&) = delete;
         PersistentSettings(PersistentSettings&&) = delete;
         ~PersistentSettings();
@@ -33,7 +32,7 @@ namespace quetzal::stratum_sim
         // naming the file, if it cannot be read or restored
         void load();
 
-        // Returns true if a setting or a group's selected preset of the scope changed since the settings were loaded or saved
+        // Returns true if a setting of the scope changed since the settings were loaded or saved
         bool changed() const;
 
         // Writes the scope's snapshot, creating the file's directory if needed
@@ -45,9 +44,7 @@ namespace quetzal::stratum_sim
         std::filesystem::path m_filepath;
         settings::SettingScope m_scope;
         settings::Settings& m_settings;
-        settings::SettingGroups& m_setting_groups;
         settings::Settings::listener_id_type m_change_listener_id;
-        settings::Settings::listener_id_type m_selection_listener_id;
         bool m_changed = false;
     };
 

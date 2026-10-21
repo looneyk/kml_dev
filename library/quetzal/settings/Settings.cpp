@@ -6,6 +6,7 @@
 #include "Settings.hpp"
 #include <cstdint>
 #include <format>
+#include <set>
 #include <stdexcept>
 #include <vector>
 
@@ -26,7 +27,9 @@ namespace
 quetzal::settings::Settings::Settings() :
     m_registered_types(),
     m_settings(),
-    m_pre_change_listeners(),
+    m_groups(),
+    m_member_groups(),
+    m_presets(),
     m_change_listeners()
 {
     register_built_in_types();
@@ -140,6 +143,164 @@ bool quetzal::settings::Settings::bounded_inclusive(std::string_view key, std::s
 }
 
 //------------------------------------------------------------------------------
+void quetzal::settings::Settings::insert_group(std::string_view key, SettingScope scope, std::string_view default_preset_name,
+    std::vector<std::string> member_keys, std::vector<std::pair<std::string, Preset>> presets, std::string_view display_name,
+    std::string_view category)
+{
+    if (key.empty())
+    {
+        throw std::runtime_error("the setting group key is empty");
+    }
+
+    if (contains(key) || registered_type(key))
+    {
+        throw std::runtime_error(std::format("the setting group '{}' is already defined as a setting or a type", key));
+    }
+
+    if (member_keys.empty())
+    {
+        throw std::runtime_error(std::format("the setting group '{}' has no members", key));
+    }
+
+    if (std::set<std::string>(member_keys.begin(), member_keys.end()).size() != member_keys.size())
+    {
+        throw std::runtime_error(std::format("the setting group '{}' has a member more than once", key));
+    }
+
+    for (const auto& member_key : member_keys)
+    {
+        if (!contains(member_key))
+        {
+            throw std::runtime_error(std::format("the member '{}' of the setting group '{}' is not a setting", member_key, key));
+        }
+
+        const Setting& member = setting(member_key);
+
+        // Nested groups would be allowed here, with current_value resolving a member group's selection through its own group
+        if (type(member.type_name).group)
+        {
+            throw std::runtime_error(std::format("the member '{}' of the setting group '{}' is a setting group", member_key, key));
+        }
+
+        if (member.scope != scope)
+        {
+            throw std::runtime_error(std::format("the member '{}' of the setting group '{}' is not of the group's scope", member_key, key));
+        }
+
+        if (auto member_group = m_member_groups.find(member_key); member_group != m_member_groups.end())
+        {
+            throw std::runtime_error(std::format("the member '{}' of the setting group '{}' is a member of the setting group '{}'", member_key, key,
+                member_group->second));
+        }
+
+        assert(!member.value.has_value());
+    }
+
+    std::vector<std::string> preset_names;
+    bool editable_found = false;
+    for (const auto& [preset_name, key_preset] : presets)
+    {
+        if (preset_name.empty())
+        {
+            throw std::runtime_error(std::format("a preset of the setting group '{}' has no name", key));
+        }
+
+        if (std::ranges::find(preset_names, preset_name) != preset_names.end())
+        {
+            throw std::runtime_error(std::format("the setting group '{}' has the preset '{}' twice", key, preset_name));
+        }
+
+        if (key_preset.editable)
+        {
+            if (editable_found)
+            {
+                throw std::runtime_error(std::format("the setting group '{}' has more than one editable preset", key));
+            }
+
+            if (!key_preset.values.empty())
+            {
+                throw std::runtime_error(std::format("the editable preset '{}' of the setting group '{}' has values", preset_name, key));
+            }
+
+            editable_found = true;
+        }
+        else
+        {
+            check_preset_members(key, preset_name, member_keys, key_preset.values);
+            for (const auto& [member_key, value] : key_preset.values)
+            {
+                if (!bounded_inclusive(member_key, value))
+                {
+                    throw std::runtime_error(std::format("the preset '{}' of the setting group '{}' sets '{}' to '{}', which is out of its range",
+                        preset_name, key, member_key, value));
+                }
+            }
+        }
+
+        preset_names.push_back(preset_name);
+    }
+
+    auto default_preset = std::ranges::find(presets, default_preset_name, &std::pair<std::string, Preset>::first);
+    if (default_preset == presets.end())
+    {
+        throw std::runtime_error(std::format("the setting group '{}' has no default preset '{}'", key, default_preset_name));
+    }
+
+    if (default_preset->second.editable)
+    {
+        throw std::runtime_error(std::format("the default preset '{}' of the setting group '{}' is editable", default_preset_name, key));
+    }
+
+    const std::string group_key(key);
+    auto accepts = [preset_names](std::string_view text) { return std::ranges::find(preset_names, text) != preset_names.end(); };
+    m_registered_types.emplace(group_key, SettingType {std::type_index(typeid(std::string)), SettingBaseType::Text, preset_names, accepts, true});
+    m_settings.emplace(group_key, Setting {.type_name = group_key, .default_value = std::string(default_preset_name), .scope = scope,
+        .display_name = std::string(display_name), .category = std::string(category)});
+
+    for (const auto& member_key : member_keys)
+    {
+        m_member_groups.emplace(member_key, group_key);
+    }
+
+    m_groups.emplace(group_key, SettingGroup {group_key, std::move(member_keys)});
+    for (auto& [preset_name, key_preset] : presets)
+    {
+        m_presets.emplace(preset_key(group_key, preset_name), std::move(key_preset));
+    }
+
+    return;
+}
+
+//------------------------------------------------------------------------------
+bool quetzal::settings::Settings::contains_group(std::string_view key) const
+{
+    return m_groups.contains(key);
+}
+
+//------------------------------------------------------------------------------
+const quetzal::settings::SettingGroup& quetzal::settings::Settings::group(std::string_view key) const
+{
+    auto i = m_groups.find(key);
+    assert(i != m_groups.end());
+    return i->second;
+}
+
+//------------------------------------------------------------------------------
+std::optional<std::string> quetzal::settings::Settings::member_group_key(std::string_view key) const
+{
+    auto i = m_member_groups.find(key);
+    return i != m_member_groups.end() ? std::make_optional(i->second) : std::nullopt;
+}
+
+//------------------------------------------------------------------------------
+const quetzal::settings::Preset& quetzal::settings::Settings::preset(std::string_view group_key, std::string_view preset_name) const
+{
+    auto i = m_presets.find(preset_key(group_key, preset_name));
+    assert(i != m_presets.end());
+    return i->second;
+}
+
+//------------------------------------------------------------------------------
 std::string quetzal::settings::Settings::text(std::string_view key) const
 {
     if (!contains(key))
@@ -147,7 +308,7 @@ std::string quetzal::settings::Settings::text(std::string_view key) const
         throw std::runtime_error(std::format("'{}' is not a defined setting", key));
     }
 
-    return current_text(key);
+    return current_value(key);
 }
 
 //------------------------------------------------------------------------------
@@ -176,75 +337,75 @@ quetzal::KeyValueStore quetzal::settings::Settings::values(SettingScope scope) c
 //------------------------------------------------------------------------------
 bool quetzal::settings::Settings::set_values(const KeyValueStore& values)
 {
-    for (const auto& [key, value] : values)
-    {
-        if (!contains(key))
-        {
-            throw std::runtime_error(std::format("'{}' is not a defined setting", key));
-        }
+    return set_values(values, {});
+}
 
-        if (!type(setting(key).type_name).accepts(value))
-        {
-            throw std::runtime_error(std::format("'{}' is not a valid value of the setting '{}'", value, key));
-        }
+//------------------------------------------------------------------------------
+bool quetzal::settings::Settings::set_values(const KeyValueStore& values, const preset_values_type& preset_values)
+{
+    // Both are checked before either returns, so an invalid value throws even when another is out of range
+    const bool values_in_range = check_values(values);
+    const bool presets_in_range = check_presets(preset_values);
+    if (!values_in_range || !presets_in_range)
+    {
+        return false;
     }
 
-    for (const auto& [key, value] : values)
-    {
-        if (!bounded_inclusive(key, value))
-        {
-            return false;
-        }
-    }
+    const std::vector<std::string> keys = extract_keys(values, preset_values);
+    const std::vector<std::string> original_values = current_values(keys);
 
-    for (const auto& [listener_id, listener] : m_pre_change_listeners)
-    {
-        listener(values);
-    }
+    // The presets' values are set first, so selecting one of them among the values restores them
+    assign_presets(preset_values);
+    assign_values(values);
 
-    std::vector<std::string> keys_changed;
-    for (const auto& [key, value] : values)
-    {
-        if (assign(key, value))
-        {
-            keys_changed.push_back(key);
-        }
-    }
-
-    notify(keys_changed);
+    notify(changed_keys(keys, original_values));
     return true;
 }
 
 //------------------------------------------------------------------------------
 void quetzal::settings::Settings::reset(SettingScope scope)
 {
-    std::vector<std::string> keys_changed;
-
-    for (auto i = m_settings.begin(); i != m_settings.end(); ++i)
+    std::vector<std::string> keys;
+    for (const auto& [key, key_setting] : m_settings)
     {
-        Setting& key_setting = i->second;
-        if (key_setting.scope != scope || !key_setting.value.has_value())
+        if (key_setting.scope == scope)
         {
-            continue;
+            keys.push_back(key);
         }
-
-        if (*key_setting.value != key_setting.default_value)
-        {
-            keys_changed.push_back(i->first);
-        }
-
-        key_setting.value.reset();
     }
 
-    notify(keys_changed);
+    const std::vector<std::string> original_values = current_values(keys);
+
+    for (const auto& key : keys)
+    {
+        m_settings.find(key)->second.value.reset();
+    }
+
+    for (auto& [key, key_preset] : m_presets)
+    {
+        if (key_preset.editable && setting(key.first).scope == scope)
+        {
+            key_preset.values.clear();
+        }
+    }
+
+    notify(changed_keys(keys, original_values));
     return;
 }
 
 //------------------------------------------------------------------------------
-quetzal::settings::Settings::listener_id_type quetzal::settings::Settings::add_pre_change_listener(std::function<void(const KeyValueStore& values)> listener)
+quetzal::settings::Settings::preset_values_type quetzal::settings::Settings::preset_values(SettingScope scope) const
 {
-    m_pre_change_listeners.emplace(m_next_listener_id, std::move(listener));
-    return m_next_listener_id++;
+    preset_values_type scope_values;
+    for (const auto& [key, key_preset] : m_presets)
+    {
+        if (key_preset.editable && !key_preset.values.empty() && setting(key.first).scope == scope)
+        {
+            scope_values.emplace(key, key_preset.values);
+        }
+    }
+
+    return scope_values;
 }
 
 //------------------------------------------------------------------------------
@@ -258,9 +419,8 @@ quetzal::settings::Settings::listener_id_type quetzal::settings::Settings::add_c
 //------------------------------------------------------------------------------
 void quetzal::settings::Settings::remove_listener(listener_id_type listener_id)
 {
-    assert(m_pre_change_listeners.contains(listener_id) || m_change_listeners.contains(listener_id));
+    assert(m_change_listeners.contains(listener_id));
 
-    m_pre_change_listeners.erase(listener_id);
     m_change_listeners.erase(listener_id);
     return;
 }
@@ -270,6 +430,9 @@ void quetzal::settings::Settings::clear()
 {
     m_registered_types.clear();
     m_settings.clear();
+    m_groups.clear();
+    m_member_groups.clear();
+    m_presets.clear();
     register_built_in_types();
     return;
 }
@@ -285,21 +448,23 @@ void quetzal::settings::Settings::register_built_in_types()
 }
 
 //------------------------------------------------------------------------------
-std::string quetzal::settings::Settings::current_text(std::string_view key) const
+quetzal::settings::Settings::preset_key_type quetzal::settings::Settings::preset_key(std::string_view group_key, std::string_view preset_name)
 {
-    const Setting& key_setting = setting(key);
-    return key_setting.value.value_or(key_setting.default_value);
+    return {std::string(group_key), std::string(preset_name)};
 }
 
 //------------------------------------------------------------------------------
-bool quetzal::settings::Settings::assign(std::string_view key, std::string_view value)
+std::string quetzal::settings::Settings::current_value(std::string_view key) const
 {
-    auto i = m_settings.find(key);
-    assert(i != m_settings.end() && type(i->second.type_name).accepts(value));
+    if (auto member_group = m_member_groups.find(key); member_group != m_member_groups.end())
+    {
+        const Preset& selected = selected_preset(member_group->second);
+        assert(!selected.values.empty());
+        return *selected.values.value(key);
+    }
 
-    bool changed = current_text(key) != value;
-    i->second.value = std::string(value);
-    return changed;
+    const Setting& key_setting = setting(key);
+    return key_setting.value.value_or(key_setting.default_value);
 }
 
 //------------------------------------------------------------------------------
@@ -314,6 +479,250 @@ bool quetzal::settings::Settings::bounded_inclusive(const Setting& setting, std:
         default:
             return true;
     }
+}
+
+//------------------------------------------------------------------------------
+const quetzal::settings::Preset& quetzal::settings::Settings::selected_preset(std::string_view group_key) const
+{
+    return preset(group_key, current_value(group_key));
+}
+
+//------------------------------------------------------------------------------
+std::optional<std::string> quetzal::settings::Settings::editable_preset_name(std::string_view group_key) const
+{
+    for (const auto& preset_name : type(setting(group_key).type_name).values)
+    {
+        if (preset(group_key, preset_name).editable)
+        {
+            return preset_name;
+        }
+    }
+
+    return std::nullopt;
+}
+
+//------------------------------------------------------------------------------
+void quetzal::settings::Settings::check_preset_members(std::string_view group_key, std::string_view preset_name,
+    const std::vector<std::string>& member_keys, const KeyValueStore& values) const
+{
+    for (const auto& member_key : member_keys)
+    {
+        if (!values.contains(member_key))
+        {
+            throw std::runtime_error(std::format("the preset '{}' of the setting group '{}' does not set its member '{}'", preset_name, group_key,
+                member_key));
+        }
+    }
+
+    for (const auto& [key, value] : values)
+    {
+        if (std::ranges::find(member_keys, key) == member_keys.end())
+        {
+            throw std::runtime_error(std::format("the preset '{}' of the setting group '{}' sets '{}', which is not one of its members", preset_name,
+                group_key, key));
+        }
+
+        if (!type(setting(key).type_name).accepts(value))
+        {
+            throw std::runtime_error(std::format("the preset '{}' of the setting group '{}' sets '{}' to '{}', which is no value of its type",
+                preset_name, group_key, key, value));
+        }
+    }
+
+    return;
+}
+
+//------------------------------------------------------------------------------
+void quetzal::settings::Settings::check_editable_preset_values(const preset_key_type& key, const KeyValueStore& values) const
+{
+    const auto& [group_key, preset_name] = key;
+    if (!contains_group(group_key))
+    {
+        throw std::runtime_error(std::format("'{}' is not a setting group", group_key));
+    }
+
+    auto i = m_presets.find(key);
+    if (i == m_presets.end())
+    {
+        throw std::runtime_error(std::format("'{}' is not a preset of the setting group '{}'", preset_name, group_key));
+    }
+
+    if (!i->second.editable)
+    {
+        throw std::runtime_error(std::format("the preset '{}' of the setting group '{}' is not editable", preset_name, group_key));
+    }
+
+    check_preset_members(group_key, preset_name, group(group_key).member_keys, values);
+    return;
+}
+
+//------------------------------------------------------------------------------
+bool quetzal::settings::Settings::check_values(const KeyValueStore& values) const
+{
+    for (const auto& [key, value] : values)
+    {
+        if (!contains(key))
+        {
+            throw std::runtime_error(std::format("'{}' is not a defined setting", key));
+        }
+
+        if (!type(setting(key).type_name).accepts(value))
+        {
+            throw std::runtime_error(std::format("'{}' is not a valid value of the setting '{}'", value, key));
+        }
+
+        std::optional<std::string> group_key = member_group_key(key);
+        if (group_key.has_value() && !editable_preset_name(*group_key).has_value())
+        {
+            throw std::runtime_error(std::format("the setting '{}' is a member of the setting group '{}', which has no editable preset", key, *group_key));
+        }
+    }
+
+    // Ranges are checked after every type, since a range check requires a value of the type
+    return std::ranges::all_of(values, [this](const auto& key_value) { return bounded_inclusive(key_value.first, key_value.second); });
+}
+
+//------------------------------------------------------------------------------
+bool quetzal::settings::Settings::check_presets(const preset_values_type& preset_values) const
+{
+    for (const auto& [key, key_values] : preset_values)
+    {
+        check_editable_preset_values(key, key_values);
+    }
+
+    return std::ranges::all_of(preset_values, [this](const auto& preset_key_values)
+    {
+        return std::ranges::all_of(preset_key_values.second, [this](const auto& key_value) { return bounded_inclusive(key_value.first, key_value.second); });
+    });
+}
+
+//------------------------------------------------------------------------------
+void quetzal::settings::Settings::assign_presets(const preset_values_type& preset_values)
+{
+    for (const auto& [key, key_values] : preset_values)
+    {
+        m_presets.find(key)->second.values = key_values;
+    }
+
+    return;
+}
+
+//------------------------------------------------------------------------------
+void quetzal::settings::Settings::assign_values(const KeyValueStore& values)
+{
+    // Selects each group's preset before any member is set, since a member is set in the preset its group then has
+    for (const auto& [key, value] : values)
+    {
+        if (contains_group(key))
+        {
+            select(key, value);
+        }
+    }
+
+    for (const auto& [key, value] : values)
+    {
+        if (member_group_key(key).has_value())
+        {
+            set_member(key, value);
+        }
+        else if (!contains_group(key))
+        {
+            m_settings.find(key)->second.value = value;
+        }
+    }
+
+    return;
+}
+
+//------------------------------------------------------------------------------
+void quetzal::settings::Settings::select(std::string_view group_key, std::string_view preset_name)
+{
+    Preset& selection = m_presets.find(preset_key(group_key, preset_name))->second;
+    if (selection.editable && selection.values.empty())
+    {
+        selection.values = selected_preset(group_key).values;
+    }
+
+    m_settings.find(group_key)->second.value = std::string(preset_name);
+    return;
+}
+
+//------------------------------------------------------------------------------
+void quetzal::settings::Settings::set_member(std::string_view key, std::string_view value)
+{
+    const std::string group_key = *member_group_key(key);
+    const std::string editable_name = *editable_preset_name(group_key);
+    Preset& editable = m_presets.find(preset_key(group_key, editable_name))->second;
+
+    if (current_value(group_key) != editable_name)
+    {
+        editable.values = selected_preset(group_key).values;
+        m_settings.find(group_key)->second.value = editable_name;
+    }
+
+    editable.values.insert(std::string(key), std::string(value));
+    return;
+}
+
+//------------------------------------------------------------------------------
+std::vector<std::string> quetzal::settings::Settings::extract_keys(const KeyValueStore& values, const preset_values_type& preset_values) const
+{
+    std::set<std::string> keys;
+
+    // Nested groups would add the members of each member that is a group here
+    auto insert_group_keys = [this, &keys](const std::string& group_key)
+    {
+        keys.insert(group_key);
+        keys.insert(group(group_key).member_keys.begin(), group(group_key).member_keys.end());
+    };
+
+    for (const auto& [key, value] : values)
+    {
+        keys.insert(key);
+        if (contains_group(key))
+        {
+            insert_group_keys(key);
+        }
+        else if (std::optional<std::string> group_key = member_group_key(key); group_key.has_value())
+        {
+            insert_group_keys(*group_key);
+        }
+    }
+
+    for (const auto& [key, key_values] : preset_values)
+    {
+        insert_group_keys(key.first);
+    }
+
+    return {keys.begin(), keys.end()};
+}
+
+//------------------------------------------------------------------------------
+std::vector<std::string> quetzal::settings::Settings::current_values(const std::vector<std::string>& keys) const
+{
+    std::vector<std::string> texts;
+    for (const auto& key : keys)
+    {
+        texts.push_back(current_value(key));
+    }
+
+    return texts;
+}
+
+//------------------------------------------------------------------------------
+std::vector<std::string> quetzal::settings::Settings::changed_keys(const std::vector<std::string>& keys,
+    const std::vector<std::string>& original_values) const
+{
+    std::vector<std::string> keys_changed;
+    for (size_t i = 0; i < keys.size(); ++i)
+    {
+        if (current_value(keys[i]) != original_values[i])
+        {
+            keys_changed.push_back(keys[i]);
+        }
+    }
+
+    return keys_changed;
 }
 
 //------------------------------------------------------------------------------

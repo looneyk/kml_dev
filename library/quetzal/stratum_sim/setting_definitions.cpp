@@ -4,6 +4,8 @@
 //------------------------------------------------------------------------------
 
 #include "setting_definitions.hpp"
+#include <string>
+#include <utility>
 #include <vector>
 
 namespace
@@ -20,8 +22,7 @@ namespace
 } // namespace
 
 //------------------------------------------------------------------------------
-void quetzal::stratum_sim::insert_definitions(const stratum_format::SettingDefinitionsDocument& document, settings::Settings& store,
-    settings::SettingGroups& group_store)
+void quetzal::stratum_sim::insert_definitions(const stratum_format::SettingDefinitionsDocument& document, settings::Settings& store)
 {
     for (const auto& enumeration : document.enumerations)
     {
@@ -37,24 +38,23 @@ void quetzal::stratum_sim::insert_definitions(const stratum_format::SettingDefin
 
     for (const auto& definition : document.groups)
     {
-        std::vector<settings::Preset> presets;
-        for (const auto& preset : definition.presets)
+        std::vector<std::pair<std::string, settings::Preset>> presets;
+        for (const auto& preset_definition : definition.presets)
         {
-            presets.push_back({preset.name, preset.display_name, preset.editable, preset.values});
+            presets.emplace_back(preset_definition.name, settings::Preset {preset_definition.display_name, preset_definition.editable,
+                preset_definition.values});
         }
 
-        group_store.insert(settings::SettingGroup(definition.key, setting_scope(definition.scope), definition.default_preset_name,
-            definition.member_keys, std::move(presets), definition.display_name, definition.category));
+        store.insert_group(definition.key, setting_scope(definition.scope), definition.default_preset_name, definition.member_keys,
+            std::move(presets), definition.display_name, definition.category);
     }
 
     return;
 }
 
 //------------------------------------------------------------------------------
-void quetzal::stratum_sim::load_setting_definitions(const std::filesystem::path& assets_directory, settings::Settings& store,
-    settings::SettingGroups& group_store)
+void quetzal::stratum_sim::load_setting_definitions(const std::filesystem::path& assets_directory, settings::Settings& store)
 {
-    insert_definitions(stratum_format::read_setting_definitions(assets_directory / stratum_format::SettingDefinitionsDocument::filepath), store,
-        group_store);
+    insert_definitions(stratum_format::read_setting_definitions(assets_directory / stratum_format::SettingDefinitionsDocument::filepath), store);
     return;
 }

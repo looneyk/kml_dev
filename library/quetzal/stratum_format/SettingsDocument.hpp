@@ -37,10 +37,10 @@ namespace quetzal::stratum_format
     namespace detail
     {
 
-        // Reads a file's settings and groups, either of which may be absent
+        // Reads a file's settings and presets, either of which may be absent
         settings::SettingsSnapshot read_snapshot(const raw_values_type& v);
 
-        // Adds the snapshot's settings and groups, each a section on one line
+        // Adds the snapshot's settings and presets, each a section on one line
         void add_snapshot_sections(std::vector<std::string>& sections, const settings::SettingsSnapshot& snapshot);
 
     } // namespace detail

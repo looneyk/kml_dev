@@ -5,8 +5,8 @@
 
 #include "quetzal/common/string_util.hpp"
 #include "quetzal/settings/Setting.hpp"
+#include "quetzal/settings/SettingGroup.hpp"
 #include "quetzal/settings/Settings.hpp"
-#include "quetzal/settings/SettingGroups.hpp"
 #include "quetzal/settings/SettingsSnapshot.hpp"
 #include <algorithm>
 #include <charconv>
@@ -19,6 +19,7 @@
 #include <string>
 #include <string_view>
 #include <typeindex>
+#include <utility>
 #include <vector>
 
 using namespace std;
@@ -301,7 +302,7 @@ namespace
         quetzal::KeyValueStore game_values_reset = test_settings.values(SettingScope::Game);
         report_case("resetting a scope returns its settings to their defaults, and leaves the other's",
             test_settings.value<std::string>("gameplay.difficulty") == "adventure" && test_settings.value<bool>("video.fullscreen")
-            && game_values_reset.begin() == game_values_reset.end());
+            && game_values_reset.empty());
 
         test_settings.set_values(game_values);
         report_case("and setting the values saved restores them", test_settings.value<std::string>("gameplay.difficulty") == "hardcore");
@@ -353,43 +354,19 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    void test_pre_change_listeners()
+    void test_listeners()
     {
-        report_group("pre-change listeners");
+        report_group("listeners");
 
         Settings test_settings;
         insert_all(test_settings);
 
-        int64_t width_before = 0;
-        quetzal::KeyValueStore values_seen;
-        Settings::listener_id_type listener_id = test_settings.add_pre_change_listener([&](const quetzal::KeyValueStore& values)
-        {
-            width_before = test_settings.value<int64_t>("video.width");
-            values_seen = values;
-        });
-
+        size_t removed_count = 0;
+        Settings::listener_id_type listener_id = test_settings.add_change_listener([&removed_count](const vector<string>&) { ++removed_count; });
         test_settings.set_value<int64_t>("video.width", 1920);
-        report_case("a pre-change listener is called with the values before any is set", width_before == 1280
-            && values_seen.value("video.width") == "1920" && test_settings.value<int64_t>("video.width") == 1920);
-
-        test_settings.add_pre_change_listener([](const quetzal::KeyValueStore& values)
-        {
-            if (values.contains("video.fullscreen"))
-            {
-                throw runtime_error("fullscreen is locked");
-            }
-        });
-        report_case("and one that throws rejects every value", throws([&] { test_settings.set_values({{"video.width", "800"},
-            {"video.fullscreen", "true"}}); }) && test_settings.value<int64_t>("video.width") == 1920 && !test_settings.value<bool>("video.fullscreen"));
-
-        values_seen = {};
-        test_settings.reset(SettingScope::User);
-        report_case("resetting a scope calls no pre-change listener", values_seen.begin() == values_seen.end()
-            && test_settings.value<int64_t>("video.width") == 1280);
-
         test_settings.remove_listener(listener_id);
         test_settings.set_value<int64_t>("video.width", 1600);
-        report_case("a listener removed is not called", values_seen.begin() == values_seen.end());
+        report_case("a listener removed is not called", removed_count == 1);
 
         size_t change_count = 0;
         test_settings.add_change_listener([&change_count](const vector<string>&) { ++change_count; });
@@ -401,15 +378,18 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    void insert_difficulty(Settings& test_settings, SettingGroups& test_groups)
+    using presets_type = vector<pair<string, Preset>>;
+
+    //--------------------------------------------------------------------------
+    void insert_difficulty(Settings& test_settings)
     {
         test_settings.insert("difficulty.count", {.type_name = "real", .default_value = "1", .scope = SettingScope::Game, .maximum = "4"});
         test_settings.insert("difficulty.speed", {.type_name = "real", .default_value = "1", .scope = SettingScope::Game});
-        test_groups.insert(SettingGroup("difficulty", SettingScope::Game, "normal", {"difficulty.count", "difficulty.speed"}, {
-            {"easy", "Easy", false, {{"difficulty.count", "0.5"}, {"difficulty.speed", "0.75"}}},
-            {"normal", "Normal", false, {{"difficulty.count", "1.2"}, {"difficulty.speed", "1"}}},
-            {"hard", "Hard", false, {{"difficulty.count", "1.5"}, {"difficulty.speed", "1.25"}}},
-            {"custom", "Custom", true, {}}}, "Difficulty", "difficulty"));
+        test_settings.insert_group("difficulty", SettingScope::Game, "normal", {"difficulty.count", "difficulty.speed"}, {
+            {"easy", {"Easy", false, quetzal::KeyValueStore {{"difficulty.count", "0.5"}, {"difficulty.speed", "0.75"}}}},
+            {"normal", {"Normal", false, quetzal::KeyValueStore {{"difficulty.count", "1.2"}, {"difficulty.speed", "1"}}}},
+            {"hard", {"Hard", false, quetzal::KeyValueStore {{"difficulty.count", "1.5"}, {"difficulty.speed", "1.25"}}}},
+            {"custom", {"Custom", true}}}, "Difficulty", "difficulty");
         return;
     }
 
@@ -420,105 +400,139 @@ namespace
         report_group("setting groups");
 
         Settings test_settings;
-        SettingGroups test_groups(test_settings);
-        insert_difficulty(test_settings, test_groups);
-        report_case("a group has its display name, category, members and default preset, and its members the preset's values",
-            test_groups.group("difficulty").display_name() == "Difficulty" && test_groups.group("difficulty").category() == "difficulty"
-            && test_groups.group("difficulty").member_keys() == vector<string> {"difficulty.count", "difficulty.speed"}
-            && test_groups.group("difficulty").selected().name == "normal"
-            && test_settings.value<double>("difficulty.count") == 1.2 && test_settings.value<double>("difficulty.speed") == 1);
+        insert_difficulty(test_settings);
+        const SettingType& difficulty_type = test_settings.type(test_settings.setting("difficulty").type_name);
+        report_case("a group is a setting of a group type whose values are its presets' names, with its display name and category",
+            test_settings.contains_group("difficulty") && difficulty_type.group
+            && difficulty_type.values == vector<string> {"easy", "normal", "hard", "custom"}
+            && test_settings.setting("difficulty").display_name == "Difficulty" && test_settings.setting("difficulty").category == "difficulty"
+            && test_settings.group("difficulty").member_keys == vector<string> {"difficulty.count", "difficulty.speed"}
+            && test_settings.member_group_key("difficulty.count") == "difficulty" && !test_settings.member_group_key("difficulty").has_value());
+        report_case("and has its default preset selected, whose values its members have, while each keeps a default of its own",
+            test_settings.text("difficulty") == "normal" && test_settings.value<double>("difficulty.count") == 1.2
+            && test_settings.value<double>("difficulty.speed") == 1 && test_settings.setting("difficulty.count").default_value == "1");
 
         vector<vector<string>> notifications;
-        vector<vector<string>> selections;
         test_settings.add_change_listener([&notifications](const vector<string>& keys_changed) { notifications.push_back(keys_changed); });
-        test_groups.add_selection_listener([&selections](const vector<string>& group_keys) { selections.push_back(group_keys); });
 
-        test_groups.select("difficulty", "hard");
-        report_case("selecting a preset sets each member to its value, with one notification of the members and one of the selection",
+        test_settings.set_text("difficulty", "hard");
+        report_case("selecting a preset changes its members to its values, with one notification of the group and each member changed",
             test_settings.value<double>("difficulty.count") == 1.5 && test_settings.value<double>("difficulty.speed") == 1.25
-            && notifications.size() == 1 && sorted(notifications.back()) == vector<string> {"difficulty.count", "difficulty.speed"}
-            && selections == vector<vector<string>> {{"difficulty"}});
+            && notifications.size() == 1 && sorted(notifications.back()) == vector<string> {"difficulty", "difficulty.count", "difficulty.speed"});
 
-        SettingsSnapshot hard = SettingsSnapshot::capture(SettingScope::Game, test_settings, test_groups);
-        report_case("a preset that is not editable is saved as its name alone", hard.groups.value("difficulty") == "hard"
-            && hard.settings.begin() == hard.settings.end());
+        SettingsSnapshot hard = SettingsSnapshot::capture(SettingScope::Game, test_settings);
+        report_case("a preset that is not editable is saved as the group's value alone", hard.settings.value("difficulty") == "hard"
+            && hard.settings.value("difficulty.count") == nullopt && hard.presets.empty());
 
         test_settings.set_value<double>("difficulty.speed", 2);
-        report_case("setting a member selects the editable preset, and keeps the other members' values",
-            test_groups.group("difficulty").selected().name == "custom" && test_settings.value<double>("difficulty.count") == 1.5
-            && test_settings.value<double>("difficulty.speed") == 2 && notifications.back() == vector<string> {"difficulty.speed"}
-            && selections.back() == vector<string> {"difficulty"});
+        report_case("setting a member selects the editable preset with the selected preset's values, and sets the member there",
+            test_settings.text("difficulty") == "custom" && test_settings.value<double>("difficulty.count") == 1.5
+            && test_settings.value<double>("difficulty.speed") == 2 && notifications.size() == 2
+            && sorted(notifications.back()) == vector<string> {"difficulty", "difficulty.speed"});
 
-        SettingsSnapshot custom = SettingsSnapshot::capture(SettingScope::Game, test_settings, test_groups);
-        report_case("an editable preset is saved with its members' values", custom.groups.value("difficulty") == "custom"
-            && custom.settings.value("difficulty.count") == "1.5" && custom.settings.value("difficulty.speed") == "2");
+        const Settings::preset_key_type custom_key {"difficulty", "custom"};
+        SettingsSnapshot custom = SettingsSnapshot::capture(SettingScope::Game, test_settings);
+        report_case("an editable preset is saved with its values", custom.settings.value("difficulty") == "custom"
+            && custom.presets.at(custom_key).value("difficulty.count") == "1.5" && custom.presets.at(custom_key).value("difficulty.speed") == "2");
 
-        test_groups.select("difficulty", "normal");
-        SettingsSnapshot normal = SettingsSnapshot::capture(SettingScope::Game, test_settings, test_groups);
-        report_case("selecting the default preset sets its values, and saves nothing", test_settings.value<double>("difficulty.count") == 1.2
-            && test_settings.value<double>("difficulty.speed") == 1 && normal.groups.begin() == normal.groups.end()
-            && normal.settings.begin() == normal.settings.end());
+        test_settings.set_text("difficulty", "easy");
+        test_settings.set_text("difficulty", "custom");
+        report_case("selecting another preset and then the editable preset again restores its values",
+            test_settings.value<double>("difficulty.count") == 1.5 && test_settings.value<double>("difficulty.speed") == 2);
 
-        custom.restore(SettingScope::Game, test_settings, test_groups);
-        report_case("setting the values saved restores the preset and its members", test_groups.group("difficulty").selected().name == "custom"
-            && test_settings.value<double>("difficulty.count") == 1.5 && test_settings.value<double>("difficulty.speed") == 2);
+        test_settings.set_text("difficulty", "hard");
+        test_settings.set_value<double>("difficulty.count", 3);
+        report_case("but setting a member under another preset replaces them with that preset's, then sets the member",
+            test_settings.text("difficulty") == "custom" && test_settings.value<double>("difficulty.count") == 3
+            && test_settings.value<double>("difficulty.speed") == 1.25);
 
-        report_case("restoring values saved in another scope is an error",
-            throws_with([&] { custom.restore(SettingScope::User, test_settings, test_groups); }, "'difficulty' is not a user setting group")
-            && throws_with([&] { SettingsSnapshot {.settings = {{"difficulty.count", "2"}}}.restore(SettingScope::User, test_settings, test_groups); },
-            "'difficulty.count' is not a user setting"));
-
-        SettingsSnapshot out_of_range {.settings = {{"difficulty.count", "5"}}, .groups = {{"difficulty", "hard"}}};
-        report_case("and so is a value out of its range, which names the setting, and selects and sets nothing",
-            throws_with([&] { out_of_range.restore(SettingScope::Game, test_settings, test_groups); },
-            "'5' is out of the range of the setting 'difficulty.count'")
-            && test_groups.group("difficulty").selected().name == "custom" && test_settings.value<double>("difficulty.count") == 1.5);
+        test_settings.set_text("difficulty", "normal");
+        SettingsSnapshot normal = SettingsSnapshot::capture(SettingScope::Game, test_settings);
+        report_case("the editable preset's values are kept and saved while another preset is selected",
+            test_settings.value<double>("difficulty.count") == 1.2 && normal.settings.value("difficulty") == "normal"
+            && normal.presets.at(custom_key).value("difficulty.count") == "3");
 
         test_settings.reset(SettingScope::Game);
-        test_groups.reset(SettingScope::Game);
-        report_case("resetting a scope selects its groups' default presets", test_groups.group("difficulty").selected().name == "normal"
-            && test_settings.value<double>("difficulty.count") == 1.2 && test_settings.value<double>("difficulty.speed") == 1);
+        const quetzal::KeyValueStore game_values_reset = test_settings.values(SettingScope::Game);
+        const bool reset_to_default = test_settings.text("difficulty") == "normal" && game_values_reset.empty()
+            && test_settings.preset_values(SettingScope::Game).empty();
+        test_settings.set_text("difficulty", "hard");
+        test_settings.set_text("difficulty", "custom");
+        report_case("resetting a scope selects its groups' default presets, and leaves editable presets undefined until selected",
+            reset_to_default && test_settings.value<double>("difficulty.count") == 1.5 && test_settings.value<double>("difficulty.speed") == 1.25);
 
-        report_case("an unknown preset or group is an error", throws([&] { test_groups.select("difficulty", "nightmare"); })
-            && throws([&] { test_groups.select("challenge", "hard"); }));
+        test_settings.reset(SettingScope::Game);
+        custom.restore(SettingScope::Game, test_settings);
+        report_case("restoring the values saved restores the selection and the editable preset's values",
+            test_settings.text("difficulty") == "custom" && test_settings.value<double>("difficulty.count") == 1.5
+            && test_settings.value<double>("difficulty.speed") == 2);
+
+        report_case("restoring values saved in another scope is an error",
+            throws_with([&] { custom.restore(SettingScope::User, test_settings); }, "'difficulty' is not a user setting group")
+            && throws_with([&] { SettingsSnapshot {.settings = {{"difficulty", "hard"}}}.restore(SettingScope::User, test_settings); },
+            "'difficulty' is not a user setting"));
+        SettingsSnapshot out_of_range {.settings = {{"difficulty", "hard"}},
+            .presets = {{custom_key, quetzal::KeyValueStore {{"difficulty.count", "5"}, {"difficulty.speed", "1"}}}}};
+        report_case("and a preset's value out of its range, which names the setting, and selects and sets nothing",
+            throws_with([&] { out_of_range.restore(SettingScope::Game, test_settings); }, "'5' is out of the range of the setting 'difficulty.count'")
+            && test_settings.text("difficulty") == "custom" && test_settings.value<double>("difficulty.count") == 1.5);
+
+        SettingsSnapshot incomplete {.presets = {{custom_key, quetzal::KeyValueStore {{"difficulty.count", "2"}}}}};
+        SettingsSnapshot not_editable {.presets = {{{"difficulty", "hard"}, quetzal::KeyValueStore {{"difficulty.count", "2"},
+            {"difficulty.speed", "1"}}}}};
+        report_case("and an editable preset's values that leave out a member, or values of a preset that is not editable",
+            throws_with([&] { incomplete.restore(SettingScope::Game, test_settings); },
+            "the preset 'custom' of the setting group 'difficulty' does not set its member 'difficulty.speed'")
+            && throws_with([&] { not_editable.restore(SettingScope::Game, test_settings); },
+            "the preset 'hard' of the setting group 'difficulty' is not editable"));
+
+        SettingsSnapshot member_value {.settings = {{"difficulty", "hard"}, {"difficulty.count", "2"}}};
+        member_value.restore(SettingScope::Game, test_settings);
+        report_case("a member's value restored is set as setting the member sets it, after the group's selection",
+            test_settings.text("difficulty") == "custom" && test_settings.value<double>("difficulty.count") == 2
+            && test_settings.value<double>("difficulty.speed") == 1.25);
+
+        report_case("a preset that is not one of the group's is an error", throws_with([&] { test_settings.set_text("difficulty", "nightmare"); },
+            "'nightmare' is not a valid value of the setting 'difficulty'"));
 
         test_settings.insert("video.width", {.type_name = "integer", .default_value = "1280"});
-        test_settings.insert("other.count", {.type_name = "real", .default_value = "2", .scope = SettingScope::Game});
-        const vector<string> other_members {"other.count"};
-        const Preset other_a {"a", "A", false, {{"other.count", "2"}}};
-        report_case("a group key that is a group's already is an error", throws([&] { test_groups.insert(SettingGroup("difficulty",
-            SettingScope::Game, "a", other_members, {other_a})); }));
-        report_case("and so is a group with no members or a member twice, or a default preset that is missing or editable",
-            throws([&] { SettingGroup("other", SettingScope::Game, "a", {}, {other_a}); })
-            && throws([&] { SettingGroup("other", SettingScope::Game, "a", {"other.count", "other.count"}, {other_a}); })
-            && throws([&] { SettingGroup("other", SettingScope::Game, "b", other_members, {other_a}); })
-            && throws([&] { SettingGroup("other", SettingScope::Game, "a", other_members, {{"a", "A", true}}); }));
-        report_case("and a preset that leaves out a member, or sets a key that is not one",
-            throws([&] { test_groups.insert_preset("difficulty", {"bad", "Bad", false, {{"difficulty.count", "1"}}}); })
-            && throws([&] { SettingGroup("other", SettingScope::Game, "a", other_members, {{"a", "A", false, {{"other.count", "2"},
-                {"difficulty.speed", "1"}}}}); }));
-        report_case("and a preset that sets no setting, another scope's, another group's, no value of its type, or one out of its range",
-            throws([&] { test_groups.insert_preset("difficulty", {"bad", "Bad", false, {{"difficulty.count", "1"}, {"difficulty.speed", "1"},
-                {"difficulty.size", "1"}}}); })
-            && throws([&] { test_groups.insert_preset("difficulty", {"bad", "Bad", false, {{"difficulty.count", "1"}, {"difficulty.speed", "1"},
-                {"video.width", "800"}}}); })
-            && throws([&] { test_groups.insert(SettingGroup("other", SettingScope::Game, "a", {"difficulty.count"}, {{"a", "A", false,
-                {{"difficulty.count", "1.2"}}}})); })
-            && throws([&] { test_groups.insert_preset("difficulty", {"bad", "Bad", false, {{"difficulty.count", "fast"}, {"difficulty.speed", "1"}}}); })
-            && throws([&] { test_groups.insert_preset("difficulty", {"bad", "Bad", false, {{"difficulty.count", "5"}, {"difficulty.speed", "1"}}}); }));
-        report_case("and a preset named twice, a second editable preset, or an editable preset with values",
-            throws([&] { test_groups.insert_preset("difficulty", {"hard", "Hard"}); })
-            && throws([&] { test_groups.insert_preset("difficulty", {"custom2", "Custom 2", true}); })
-            && throws([&] { SettingGroup("other", SettingScope::Game, "a", other_members, {other_a, {"b", "B", true, {{"other.count", "2"}}}}); }));
+        test_settings.insert("other.count", {.type_name = "real", .default_value = "2", .scope = SettingScope::Game, .maximum = "4"});
+        const Preset other_a {"A", false, quetzal::KeyValueStore {{"other.count", "2"}}};
+        auto insert_other = [&test_settings](const vector<string>& member_keys, const presets_type& presets, string_view default_preset_name = "a")
+        {
+            test_settings.insert_group("other", SettingScope::Game, default_preset_name, member_keys, presets);
+        };
 
-        test_groups.insert(SettingGroup("other", SettingScope::Game, "a", other_members, {other_a}));
+        report_case("a group whose key is a setting's is an error", throws([&] { test_settings.insert_group("difficulty", SettingScope::Game, "a",
+            {"other.count"}, {{"a", other_a}}); }));
+        report_case("and so is a group with no members or a member twice, or a default preset that is missing or editable",
+            throws([&] { insert_other({}, {{"a", other_a}}); })
+            && throws([&] { insert_other({"other.count", "other.count"}, {{"a", other_a}}); })
+            && throws([&] { insert_other({"other.count"}, {{"a", other_a}}, "b"); })
+            && throws([&] { insert_other({"other.count"}, {{"a", {"A", true}}}); }));
+        report_case("and a member that is not a setting, is another scope's, is another group's member, or is a group",
+            throws([&] { insert_other({"other.size"}, {{"a", {"A", false, quetzal::KeyValueStore {{"other.size", "1"}}}}}); })
+            && throws([&] { insert_other({"video.width"}, {{"a", {"A", false, quetzal::KeyValueStore {{"video.width", "800"}}}}}); })
+            && throws([&] { insert_other({"difficulty.count"}, {{"a", {"A", false, quetzal::KeyValueStore {{"difficulty.count", "1"}}}}}); })
+            && throws_with([&] { insert_other({"difficulty"}, {{"a", {"A", false, quetzal::KeyValueStore {{"difficulty", "hard"}}}}}); },
+            "the member 'difficulty' of the setting group 'other' is a setting group"));
+        report_case("and a preset that leaves out a member, sets a key that is not one, or sets no value of its type or one out of its range",
+            throws([&] { insert_other({"other.count"}, {{"a", other_a}, {"b", {"B", false, quetzal::KeyValueStore {}}}}); })
+            && throws([&] { insert_other({"other.count"}, {{"a", {"A", false, quetzal::KeyValueStore {{"other.count", "2"}, {"video.width", "800"}}}}}); })
+            && throws([&] { insert_other({"other.count"}, {{"a", {"A", false, quetzal::KeyValueStore {{"other.count", "fast"}}}}}); })
+            && throws([&] { insert_other({"other.count"}, {{"a", {"A", false, quetzal::KeyValueStore {{"other.count", "5"}}}}}); }));
+        report_case("and a preset named twice or with no name, a second editable preset, an editable preset with values, or one that is not and has none",
+            throws([&] { insert_other({"other.count"}, {{"a", other_a}, {"a", other_a}}); })
+            && throws([&] { insert_other({"other.count"}, {{"a", other_a}, {"", other_a}}); })
+            && throws([&] { insert_other({"other.count"}, {{"a", other_a}, {"b", {"B", true}}, {"c", {"C", true}}}); })
+            && throws([&] { insert_other({"other.count"}, {{"a", other_a}, {"b", {"B", true, quetzal::KeyValueStore {{"other.count", "2"}}}}}); })
+            && throws([&] { insert_other({"other.count"}, {{"a", other_a}, {"b", {"B"}}}); }));
+        report_case("and none of them inserts anything", !test_settings.contains("other") && !test_settings.contains_group("other")
+            && !test_settings.registered_type("other") && !test_settings.member_group_key("other.count").has_value());
+
+        insert_other({"other.count"}, {{"a", other_a}});
         report_case("setting a member of a group with no editable preset is an error", throws([&] { test_settings.set_value<double>("other.count", 3); })
             && test_settings.value<double>("other.count") == 2);
-
-        test_groups.insert_preset("difficulty", {"nightmare", "Nightmare", false, {{"difficulty.count", "3"}, {"difficulty.speed", "1.5"}}});
-        test_groups.select("difficulty", "nightmare");
-        report_case("a preset inserted later may be selected", test_settings.value<double>("difficulty.count") == 3
-            && test_settings.value<double>("difficulty.speed") == 1.5);
         return;
     }
 
@@ -528,7 +542,6 @@ namespace
         report_group("the process-wide store");
 
         report_case("is one store", &store() == &store());
-        report_case("and has one set of groups", &group_store() == &group_store());
         return;
     }
 
@@ -544,7 +557,7 @@ int main()
         test_types();
         test_scopes();
         test_notifications();
-        test_pre_change_listeners();
+        test_listeners();
         test_groups();
         test_process_store();
     }

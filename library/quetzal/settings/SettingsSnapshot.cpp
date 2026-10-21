@@ -21,35 +21,29 @@ namespace
 } // namespace
 
 //------------------------------------------------------------------------------
-quetzal::settings::SettingsSnapshot quetzal::settings::SettingsSnapshot::capture(SettingScope scope, const Settings& store,
-    const SettingGroups& group_store)
+quetzal::settings::SettingsSnapshot quetzal::settings::SettingsSnapshot::capture(SettingScope scope, const Settings& store)
 {
-    SettingsSnapshot snapshot;
-    for (const auto& [key, value] : store.values(scope))
-    {
-        if (!group_store.has_value_from_preset(key))
-        {
-            snapshot.settings.insert(key, value);
-        }
-    }
-
-    snapshot.groups = group_store.values(scope);
-    return snapshot;
+    return {store.values(scope), store.preset_values(scope)};
 }
 
 //------------------------------------------------------------------------------
-void quetzal::settings::SettingsSnapshot::restore(SettingScope scope, Settings& store, SettingGroups& group_store) const
+void quetzal::settings::SettingsSnapshot::restore(SettingScope scope, Settings& store) const
 {
-    for (const auto& [key, preset_name] : groups)
+    for (const auto& [key, key_values] : presets)
     {
-        if (!group_store.contains(key) || group_store.group(key).scope() != scope)
+        const auto& [group_key, preset_name] = key;
+        if (!store.contains_group(group_key) || store.setting(group_key).scope != scope)
         {
-            throw std::runtime_error(std::format("'{}' is not a {} setting group", key, scope_name(scope)));
+            throw std::runtime_error(std::format("'{}' is not a {} setting group", group_key, scope_name(scope)));
         }
 
-        if (!group_store.group(key).contains(preset_name))
+        for (const auto& [member_key, value] : key_values)
         {
-            throw std::runtime_error(std::format("'{}' is not a preset of the setting group '{}'", preset_name, key));
+            if (store.contains(member_key) && store.type(store.setting(member_key).type_name).accepts(value)
+                && !store.bounded_inclusive(member_key, value))
+            {
+                throw std::runtime_error(std::format("'{}' is out of the range of the setting '{}'", value, member_key));
+            }
         }
     }
 
@@ -71,8 +65,7 @@ void quetzal::settings::SettingsSnapshot::restore(SettingScope scope, Settings& 
         }
     }
 
-    group_store.set_values(groups);
-    [[maybe_unused]] const bool set = store.set_values(settings);
+    [[maybe_unused]] const bool set = store.set_values(settings, presets);
     assert(set);
     return;
 }

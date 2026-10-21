@@ -67,6 +67,10 @@ namespace quetzal
 
         void remove(std::string_view key);
 
+        void clear();
+        bool empty() const;
+        size_t size() const;
+
     private:
 
         map_type m_values;

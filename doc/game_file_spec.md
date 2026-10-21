@@ -68,7 +68,7 @@ character of the name that cannot be in a directory name is replaced by `_`.
 
 | File | |
 | --- | --- |
-| `game.json` | The game's own state --- the random engines' state, the seeds, and the next persistent id --- its settings' values and its setting groups' selected presets |
+| `game.json` | The game's own state --- the random engines' state, the seeds, and the next persistent id --- its settings' values, its setting groups' selected presets among them, and its editable presets' values |
 | `character.json` | The player's character: its description, its skills and other properties, its inventory, and where it is |
 | `world.json` | The regions, and a reference to the file of each of their zones |
 | `zones/<persistent id>.zone` | One zone, in the zone file format |
@@ -77,7 +77,7 @@ Every id in a saved game is persistent: the id the entity, zone or region has in
 files. The whole world is in the directory, so every reference in it refers to an entity in it.
 
 `game.json`, `character.json` and `world.json` are each one JSON object with `format`, `version`, and its parts under
-their own keys: `game`, `settings` and `groups`, `character`, or `world`.
+their own keys: `game`, `settings` and `presets`, `character`, or `world`.
 
 ## An example
 
@@ -101,8 +101,8 @@ character named Ailis in it carrying a torch, would have the following structure
   "format": "quetzal.stratum_game",
   "version": "0.1",
   "game": { "next_id": 21, "seed": "20260928", "random_engines": { "gameplay": "...", "generation": "..." } },
-  "settings": { "gameplay.difficulty.detection_range_multiplier": "2" },
-  "groups": { "gameplay.difficulty": "custom" }
+  "settings": { "gameplay.difficulty": "custom" },
+  "presets": { "gameplay.difficulty": { "custom": { "gameplay.difficulty.denizen_count_multiplier": "1", "gameplay.difficulty.denizen_speed_multiplier": "1", "gameplay.difficulty.detection_range_multiplier": "2" } } }
 }
 ```
 
@@ -178,16 +178,20 @@ The state the game needs to continue from where it was saved, which belongs to n
 
 A random engine's state is written as the text that the random engine writes and reads (`random_engine.md`, `## Saving`).
 
-## settings and groups
+## settings and presets
 
-`settings` has the value of each game setting that is set and that no selected preset sets, by its key, as text.
-`groups` has the selected preset of each game setting group whose selected preset is not its default, by the group's
-key. Either is an empty object when it has none (`settings_plan.md`, `### The definition file`).
+`settings` has the value of each game setting that is set, by its key, as text. A setting group is a setting whose
+value is its selected preset's name, so its selection is in `settings` too. A group's member has no value of its own,
+so a writer never puts it in `settings`; a member's value that `settings` has is set as setting the member sets it, in
+its group's editable preset. `presets` has the values of each game setting group's editable preset that are defined,
+by the group's key and then the preset's name. Either is an empty object when it has none (`settings_plan.md`,
+`### Setting groups`).
 
-Opening a game first returns the game settings to their defaults and selects each group's default preset, then
-selects the presets in `groups`, then sets the values in `settings`. A key that is not a game setting's or a group's,
-a value that is not one of its setting's, a value out of its setting's range, or a preset that is not one of its
-group's, is an error.
+Opening a game first returns the game settings to their defaults, which selects each group's default preset and
+leaves its editable preset undefined, then sets the values in `presets`, then those in `settings`. A key that is not a
+game setting's or a group's, a value that is not one of its setting's, a value out of its
+setting's range, a preset that is not one of its group's or is not editable, or an editable preset's values that do
+not set each of its group's members, is an error.
 
 ## character
 
@@ -262,8 +266,8 @@ reference's `id`. Its zone references refer to zone templates, whose entity ids 
 
 ## The written form
 
-A writer emits two-space indentation. In the game file, `game`, `settings` and `groups` are each on one line, and so
-are `settings` and `groups` in the user settings file. In the character
+A writer emits two-space indentation. In the game file, `game`, `settings` and `presets` are each on one line, and so
+are `settings` and `presets` in the user settings file. In the character
 file, `name` is on the line after `version`, each key of `character` is on a line of its own, and each entity of the inventory is on a line of its own, as a
 zone's entities are. In the world file, a region's `id` and `components` are on the line that opens
 it, its `spec` is on the next line, its `zones` follow, and each zone reference is on a line of its own, as each pair of
@@ -305,7 +309,7 @@ locations are relative to the user directory unless absolute.
 
 `settings.json`, in the user directory unless the config file puts it elsewhere, has the user's settings: those that
 are the same in every game. It is not a saved game's file, and has a format of its own, `quetzal.stratum_settings`,
-version `0.1`. It has `settings` and `groups` as `game.json` has them (`## settings and groups`), for the user
+version `0.1`. It has `settings` and `presets` as `game.json` has them (`## settings and presets`), for the user
 settings and the user setting groups:
 
 ```json
@@ -313,15 +317,14 @@ settings and the user setting groups:
   "format": "quetzal.stratum_settings",
   "version": "0.1",
   "settings": { "gameplay.reseed_on_open": "true" },
-  "groups": { }
+  "presets": { }
 }
 ```
 
-Each key is optional, and a key the format does not have is an error. In `settings` and `groups`, a key that is not a
-user setting's or a user setting group's is an error, as is any value or preset that would be one in `game.json`. A host
-reads the file when it starts, if it
-exists, and writes it when it closes if a user setting or a user setting group's selected preset changed, creating its
-directory if needed.
+Each key is optional, and a key the format does not have is an error. In `settings` and `presets`, a key that is not a
+user setting's or a user setting group's is an error, as is any key, value or preset that would be one in `game.json`.
+A host reads the file when it starts, if it exists, and writes it when it closes if a user setting changed, creating
+its directory if needed.
 
 ## Open
 

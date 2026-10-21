@@ -54,6 +54,7 @@ namespace quetzal::settings
         SettingBaseType base_type;
         std::vector<std::string> values; // An enumeration's values
         std::function<bool(std::string_view text)> accepts; // Returns true if the text is a value of the type
+        bool group = false; // The enumeration values are preset names
     };
 
     //--------------------------------------------------------------------------

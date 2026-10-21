@@ -126,15 +126,11 @@ each on the ones before it. `Game`'s menu and lifecycle functions, and those the
       program creates in the user directory, `%LOCALAPPDATA%/KML/Stratum` on Windows, and an optional `config.json` in
       the program directory overrides any of them. The terminal's build copies a development `config.json` beside it
       in `bin/<Config>/`, and the Godot project has its own.
-- [ ] **Keyed settings** (`settings_plan.md`, `## Terms`): each setting defined in data and its value kept in one
+- [x] **Keyed settings** (`settings_plan.md`, `## Terms`): each setting defined in data and its value kept in one
       store under its key, such as `video.fullscreen`, read and written with `settings::store().value<T>(key)` and
       `set_value<T>`. It replaces a getter and a setter on `Settings` for each of what may become a hundred or more
       settings. In these commit points:
-  - [x] **Complete presets** (`settings_plan.md`, `### Setting groups`, `### The definition file`): a group's
-        `members` listed in its definition, each preset that is not editable setting each of its group's members, a
-        default preset that is not editable, and every setting's `default` required, a member's included;
-        `SettingGroup` with the member keys it is given. `SettingGroups` remains.
-  - [ ] **Groups in the store** (`settings_plan.md`, `### The store`, `### Setting groups`): a group as a setting
+  - [x] **Groups in the store** (`settings_plan.md`, `### The store`, `### Setting groups`): a group as a setting
         whose type is an enumeration of its preset names marked as a group's; `Settings::insert_group`, the preset
         table, and a member's value read from the selected preset; the editable preset's values kept in the table,
         defined on its first selection or a member's first change, saved and restored, and undefined after `reset`;
@@ -142,10 +138,6 @@ each on the ones before it. `Game`'s menu and lifecycle functions, and those the
         `group_store()`, the pre-change listener and the selection listener removed. The settings files lose `groups`,
         a selection being a key in `settings`, and gain `presets`; `SettingsSnapshot` follows, and `Game`,
         `PersistentSettings`, the hosts and the suites use the one store.
-  - [ ] **Mods' settings** (`settings_plan.md`, `### Mods' settings`), after **Mods**: each mod's definitions read
-        after the game's, with the loader checking the `mod.<id>` section of the keys a mod defines; patches to
-        another's settings by full key, skipped with a warning for a mod that is not loaded; a missing mod's saved
-        values kept by the loader and written back.
   - **One store, below the sim:** a `quetzal/settings` library beside `quetzal/log`, which `stratum_sim::Settings` and
     its `settings()` move into, since a keyed store is not stratum's own.
   - **Each layer reads only its own settings,** named by convention in its own sections: the sim `gameplay`, the view
@@ -156,9 +148,7 @@ each on the ones before it. `Game`'s menu and lifecycle functions, and those the
   - **Scope:** a game setting, such as a difficulty multiplier or the notation, is saved in `game.json` and set by
     `Game` when the game is opened. A user setting, such as video, audio or controls, is the player's, the same in
     every game, and saved in the user settings file, where the config file puts it.
-  - **Each subsystem applies its settings** into structures of its own, as Unreal's `ApplySettings` does, when it starts,
-    when a game is created or opened, and when its change listener is called with any of their keys; it never reads
-    the store otherwise, and never writes its structures back.
+  - **An operation reads the settings it needs from the store,** when it begins or as it needs them.
 - [ ] **The generators integrated.** catagen's generator in `quetzal/stratum_gen` beside dungen's. The game's
       notation, a setting chosen when the game is created, saved in `game.json`'s `settings` and set again by `Game`
       when the game is opened, decides which of them generates every zone: dungen for the
@@ -245,6 +235,10 @@ These are Phase 4 (`modding_plan.md`):
 - [ ] **The scripting language chosen and embedded,** with hooks on types and bindings through reflection.
 - [ ] **Mods** (`modding_plan.md`): the directory, the manifest, the mod list, load order, patches, and a missing mod:
       skipping what it declares, telling deliberate removal from damage, and the user's choice when a game used it.
+- [ ] **Mods' settings** (`settings_plan.md`, `### Mods' settings`), after **Mods**: each mod's definitions read after
+      the game's, with the loader checking the `mod.<id>` section of the keys a mod defines; patches to another's
+      settings by full key, skipped with a warning for a mod that is not loaded; a missing mod's saved values kept by
+      the loader and written back.
 
 ## Placement
 

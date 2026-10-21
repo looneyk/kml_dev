@@ -86,8 +86,9 @@ The game's setting definitions in `assets/data` define the group, its members an
 ]
 ```
 
-- **The sim applies the multipliers into a `Difficulty` struct,** which `World` keeps, applied by a change listener
-  when any of the group's members changes. `populate`, `Speed` and `Detection` read the struct, never the store.
+- **Each multiplier is read from the store where it applies:** the denizen count by `populate`, the speed where a
+  denizen is given its `Speed`, and the detection range where its `Detection` is set. They are used in separate places,
+  so no one structure has them all.
 
 ## What the settings replace
 

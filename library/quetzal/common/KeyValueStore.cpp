@@ -167,6 +167,25 @@ void quetzal::KeyValueStore::remove(string_view key)
 }
 
 //------------------------------------------------------------------------------
+void quetzal::KeyValueStore::clear()
+{
+    m_values.clear();
+    return;
+}
+
+//------------------------------------------------------------------------------
+bool quetzal::KeyValueStore::empty() const
+{
+    return m_values.empty();
+}
+
+//------------------------------------------------------------------------------
+size_t quetzal::KeyValueStore::size() const
+{
+    return m_values.size();
+}
+
+//------------------------------------------------------------------------------
 quetzal::KeyValueStore quetzal::operator|(KeyValueStore lhs, const KeyValueStore& rhs)
 {
     return lhs |= rhs;

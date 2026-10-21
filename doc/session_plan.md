@@ -274,7 +274,7 @@ Character& Game::character();
   directory, `%LOCALAPPDATA%/KML/Stratum` on Windows by default, which SDL calls the pref path (`game_file_spec.md`,
   `## A saved game's files`), as Unreal, Unity and Godot each keep a game's own data beside its executable and the
   user's elsewhere.
-- **The settings are the game's,** applied when it begins and saved with it. A difficulty mode is one of them
+- **The settings are the game's,** set when it is created or opened and saved with it. A difficulty mode is one of them
   (`difficulty_plan.md`).
 
 ### Saving and loading

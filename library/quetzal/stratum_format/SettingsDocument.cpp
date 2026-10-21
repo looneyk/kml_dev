@@ -8,8 +8,11 @@
 #include "json_util.hpp"
 #include <array>
 #include <format>
+#include <map>
 #include <ostream>
+#include <string>
 #include <string_view>
+#include <vector>
 
 namespace
 {
@@ -17,7 +20,7 @@ namespace
     using namespace quetzal::stratum_format;
     using namespace quetzal::stratum_format::detail;
 
-    constexpr std::array<std::string_view, 4> file_keys {"format", "version", "settings", "groups"};
+    constexpr std::array<std::string_view, 4> file_keys {"format", "version", "settings", "presets"};
 
     //--------------------------------------------------------------------------
     SettingsDocument read_settings_document(const raw_values_type& v)
@@ -77,9 +80,17 @@ quetzal::settings::SettingsSnapshot quetzal::stratum_format::detail::read_snapsh
         snapshot.settings = text_values(*p, "settings");
     }
 
-    if (const raw_values_type* p = member(v, "groups"); p != nullptr)
+    if (const raw_values_type* p = member(v, "presets"); p != nullptr)
     {
-        snapshot.groups = text_values(*p, "groups");
+        for (const auto& [group_key, group_presets] : object(*p, "presets").items())
+        {
+            const std::string group_path = member_path("presets", group_key);
+            for (const auto& [preset_name, values] : object(group_presets, group_path).items())
+            {
+                snapshot.presets.emplace(settings::Settings::preset_key_type {group_key, preset_name}, text_values(values,
+                    member_path(group_path, preset_name)));
+            }
+        }
     }
 
     return snapshot;
@@ -88,7 +99,19 @@ quetzal::settings::SettingsSnapshot quetzal::stratum_format::detail::read_snapsh
 //------------------------------------------------------------------------------
 void quetzal::stratum_format::detail::add_snapshot_sections(std::vector<std::string>& sections, const settings::SettingsSnapshot& snapshot)
 {
+    std::map<std::string, std::vector<std::string>> group_presets; // <group key, preset members>
+    for (const auto& [key, values] : snapshot.presets)
+    {
+        group_presets[key.first].push_back(std::format("{}: {}", string_text(key.second), text_values_text(values)));
+    }
+
+    std::vector<std::string> groups;
+    for (const auto& [group_key, preset_members] : group_presets)
+    {
+        groups.push_back(std::format("{}: {}", string_text(group_key), object_text(preset_members)));
+    }
+
     sections.push_back(std::format("{}\"settings\": {}", indentation(section_indent), text_values_text(snapshot.settings)));
-    sections.push_back(std::format("{}\"groups\": {}", indentation(section_indent), text_values_text(snapshot.groups)));
+    sections.push_back(std::format("{}\"presets\": {}", indentation(section_indent), object_text(groups)));
     return;
 }

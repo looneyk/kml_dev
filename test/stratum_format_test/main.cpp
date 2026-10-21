@@ -1125,25 +1125,26 @@ namespace
         game.next_id = 21;
         game.seed = "20260928";
         game.random_engines = {{"gameplay", "1 2 3"}, {"generation", "4 5 6"}};
-        game.settings_snapshot.settings.insert("gameplay.difficulty.denizen_count_multiplier", "2");
-        game.settings_snapshot.groups.insert("gameplay.difficulty", "custom");
+        const quetzal::settings::Settings::preset_key_type custom_key {"gameplay.difficulty", "custom"};
+        game.settings_snapshot.settings.insert("gameplay.difficulty", "custom");
+        game.settings_snapshot.presets.emplace(custom_key, quetzal::KeyValueStore {{"gameplay.difficulty.denizen_count_multiplier", "2"}});
 
-        report_written("a game file has the game, the settings and the groups each on a line of its own", written(game),
+        report_written("a game file has the game, the settings and the presets each on a line of its own", written(game),
             "{\n"
             "  \"format\": \"quetzal.stratum_game\",\n"
             "  \"version\": \"0.1\",\n"
             "  \"game\": { \"next_id\": 21, \"seed\": \"20260928\", \"random_engines\": { \"gameplay\": \"1 2 3\", \"generation\": \"4 5 6\" } },\n"
-            "  \"settings\": { \"gameplay.difficulty.denizen_count_multiplier\": \"2\" },\n"
-            "  \"groups\": { \"gameplay.difficulty\": \"custom\" }\n"
+            "  \"settings\": { \"gameplay.difficulty\": \"custom\" },\n"
+            "  \"presets\": { \"gameplay.difficulty\": { \"custom\": { \"gameplay.difficulty.denizen_count_multiplier\": \"2\" } } }\n"
             "}\n");
 
         istringstream game_settings_text(written(game));
         stratum_format::GameDocument game_read_back = stratum_format::read_game(game_settings_text, "game");
-        report_case("and reads back with its settings and groups as text", game_read_back.settings_snapshot.settings.value(
-            "gameplay.difficulty.denizen_count_multiplier") == "2" && game_read_back.settings_snapshot.groups.value("gameplay.difficulty") == "custom");
+        report_case("and reads back with its settings and presets as text", game_read_back.settings_snapshot.settings.value("gameplay.difficulty")
+            == "custom" && game_read_back.settings_snapshot.presets.at(custom_key).value("gameplay.difficulty.denizen_count_multiplier") == "2");
 
         game.settings_snapshot = {};
-        report_case("absent settings and groups are written as empty objects", written(game).find("\"settings\": { },\n  \"groups\": { }\n")
+        report_case("absent settings and presets are written as empty objects", written(game).find("\"settings\": { },\n  \"presets\": { }\n")
             != string::npos);
 
         stratum_format::CharacterDocument character;
@@ -1418,8 +1419,10 @@ namespace
         report_group("settings file");
 
         stratum_format::SettingsDocument user_settings;
+        const quetzal::settings::Settings::preset_key_type custom_key {"video.quality", "custom"};
         user_settings.snapshot.settings.insert("video.fullscreen", "true");
-        user_settings.snapshot.groups.insert("video.quality", "high");
+        user_settings.snapshot.settings.insert("video.quality", "custom");
+        user_settings.snapshot.presets.emplace(custom_key, quetzal::KeyValueStore {{"video.shadows", "high"}, {"video.textures", "low"}});
 
         ostringstream os;
         stratum_format::write(os, user_settings);
@@ -1428,21 +1431,22 @@ namespace
             "{\n"
             "  \"format\": \"quetzal.stratum_settings\",\n"
             "  \"version\": \"0.1\",\n"
-            "  \"settings\": { \"video.fullscreen\": \"true\" },\n"
-            "  \"groups\": { \"video.quality\": \"high\" }\n"
+            "  \"settings\": { \"video.fullscreen\": \"true\", \"video.quality\": \"custom\" },\n"
+            "  \"presets\": { \"video.quality\": { \"custom\": { \"video.shadows\": \"high\", \"video.textures\": \"low\" } } }\n"
             "}\n";
-        report_case("a settings file has the settings and the groups each on a line of its own", user_settings_text == user_settings_text_expected,
+        report_case("a settings file has the settings and the presets each on a line of its own", user_settings_text == user_settings_text_expected,
             format("expected\n{}got\n{}", user_settings_text_expected, user_settings_text));
 
         istringstream is(user_settings_text);
         stratum_format::SettingsDocument read_back = stratum_format::read_settings(is, "settings");
         report_case("and reads back as the document written", read_back.snapshot.settings.value("video.fullscreen") == "true"
-            && read_back.snapshot.groups.value("video.quality") == "high");
+            && read_back.snapshot.settings.value("video.quality") == "custom" && read_back.snapshot.presets.size() == 1
+            && read_back.snapshot.presets.at(custom_key).value("video.textures") == "low");
 
         istringstream header_only("{ \"format\": \"quetzal.stratum_settings\", \"version\": \"0.1\" }");
         stratum_format::SettingsDocument empty = stratum_format::read_settings(header_only, "settings");
-        report_case("a settings file with only its header sets nothing", empty.snapshot.settings.begin() == empty.snapshot.settings.end()
-            && empty.snapshot.groups.begin() == empty.snapshot.groups.end());
+        report_case("a settings file with only its header sets nothing", empty.snapshot.settings.empty()
+            && empty.snapshot.presets.empty());
 
         auto rejected = [&user_settings_text](const string& from, const string& to, const string& error_expected)
         {
@@ -1464,9 +1468,13 @@ namespace
             return false;
         };
 
-        report_case("a settings file with a key the format does not have is rejected", rejected("\"groups\"", "\"presets\"",
-            "presets: not a key of the settings file"));
+        report_case("a settings file with a key the format does not have is rejected", rejected("\"presets\"", "\"groups\"",
+            "groups: not a key of the settings file"));
         report_case("and one with a value that is not text", rejected("\"true\"", "true", "settings.video.fullscreen: a string was expected"));
+        report_case("and one with a preset's value that is not text", rejected("\"low\"", "1",
+            "presets.video.quality.custom.video.textures: a string was expected"));
+        report_case("and one with a group's presets that are not an object", rejected("{ \"custom\": { \"video.shadows\": \"high\", \"video.textures\": \"low\" } }",
+            "1", "presets.video.quality: an object was expected"));
         return;
     }
 
@@ -1515,7 +1523,7 @@ namespace
             && difficulty.scope == document_type::Scope::Game && difficulty.member_keys == vector<string> {"gameplay.count"}
             && difficulty.default_preset_name == "normal" && difficulty.display_name == "Difficulty" && difficulty.presets[0].name == "normal"
             && difficulty.presets[0].values.value("gameplay.count") == "1" && !difficulty.presets[0].editable && difficulty.presets[1].editable
-            && difficulty.presets[1].values.begin() == difficulty.presets[1].values.end());
+            && difficulty.presets[1].values.empty());
 
         istringstream header_only("{ \"format\": \"quetzal.stratum_setting_definitions\", \"version\": \"0.1\" }");
         document_type empty = stratum_format::read_setting_definitions(header_only, "definitions");

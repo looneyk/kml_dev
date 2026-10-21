@@ -11,7 +11,7 @@ game. The open items are in `work_plan.md` (`### Settings`), and the work in **K
 | --- | --- | --- |
 | **setting** | One value the player or the game chooses, such as a difficulty multiplier or the video mode | *option* in NetHack and DCSS; *preference* in Apple's and Java's APIs and Unity's `PlayerPrefs`; *console variable* (*cvar*) in Quake, Source and Unreal when the console can set it |
 | **key** | A setting's name, the string the store maps: `"video.fullscreen"`. The store compares a key only as a whole string | *key* in Qt, ini files, .NET, Unity and Godot's `ConfigFile`; *name* in Godot's `ProjectSettings` (whose docs also call it a path), and for a cvar or a `ConVar`; *option name* in NetHack and DCSS |
-| **subsystem** | A library or host with settings of its own, which registers their C++ types and applies them: the sim, a view, a host, the log | *module* in Unreal and Godot; *subsystem* in Unreal's `USubsystem` classes |
+| **subsystem** | A library or host with settings of its own, which registers their C++ types and reads them: the sim, a view, a host, the log | *module* in Unreal and Godot; *subsystem* in Unreal's `USubsystem` classes |
 | **section** | A leading run of a key's `.`-separated segments, by naming convention only: `video.window.width` is in `video` and `video.window`. In stratum, a key's outermost section is the subsystem the setting belongs to, and a mod's settings are in `mod.<id>`. Neither the store nor a setting group interprets a section | *section* in ini files, Unreal's config, Godot's `ConfigFile` and .NET; *group* in Qt, which is unrelated to a setting group; *node* in Java's `Preferences`; a dotted prefix by convention for cvars, `r.` for rendering |
 | **store** | The one map from key to setting, the `Settings` that `settings::store()` returns, and the only place a value is kept | *ProjectSettings* in Godot; *GConfig*, the config cache, in Unreal; the *console manager* for Unreal's cvars and the *cvar registry* for Source's |
 | **definition** | A setting's one entry in data: its key, type, default and scope, and whether a restart is required | a `bool-setting` or `string-setting` prototype in Factorio's mod settings; `GLOBAL_DEF` in Godot; a `TAutoConsoleVariable` in Unreal and a `ConVar` in Source, each in C++; a `GameOption` in DCSS; an entry in NetHack's options table |
@@ -20,7 +20,7 @@ game. The open items are in `work_plan.md` (`### Settings`), and the work in **K
 | **default** | The value a setting has until something sets it, from the setting's definition | *default* everywhere |
 | **setting group** | A setting whose value is the name of one of its presets, and whose members are the settings those presets assign. A member's value is the selected preset's value for it | a *scalability group* in Unreal, `sg.ShadowQuality`, which is itself a console variable |
 | **preset** | A value for each of a setting group's members, defined in data. A group's default preset is the one selected for a new game. An editable preset, such as Custom, has values the player sets, which the store keeps | a *level* of an Unreal scalability group, `[ShadowQuality@2]`; a *preset* in an options menu, "graphics preset: High" |
-| **apply** | A subsystem reading its settings from the store into structures of its own | *apply* in Unreal's `ApplySettings`; a `ConVar`'s *change callback* in Source does it for one setting |
+| **apply** | Putting a change into effect where the next read is not soon enough, such as switching the video mode | *apply* in Unreal's `ApplySettings`; a `ConVar`'s *change callback* in Source does it for one setting |
 | **change notification** | The store calling each change listener once after an operation that changed one or more settings, with the keys it changed | *change callback* in Source (`FnChangeCallback_t`); the `onDidChangeConfiguration` event of VS Code's settings; the `settings_changed` signal of Godot's `ProjectSettings` |
 | **restart required** | A setting that takes effect only when the program starts again | `restart_if_changed` in Godot; `ConfigRestartRequired` in Unreal; *requires restart* in options menus |
 | **scope** | Whether a setting is a game's, saved in `game.json`, or the user's, saved in the user settings file: `SettingScope::Game` or `SettingScope::User` | NetHack's `flags` and `iflags`; Source's `FCVAR_ARCHIVE` flag; Godot's project settings and editor settings; the *layers* of Unreal's config: engine, project, platform and user |
@@ -46,21 +46,19 @@ choose.
 - **A new game's settings are the defaults, with each setting group's default preset selected,**
 - **Any setting may change at any time,** a user setting while a game is open and a game setting during play, as the
   difficulty mode may (`difficulty_plan.md`). A game setting change is applied between advances, never partway through a turn.
-- **Each subsystem applies its settings into structures of its own,** and works from those, never from the
-  store. The sim builds the difficulty multipliers it applies on every hit, a host its key map from the bindings, the
-  log its levels, and the view its video mode. A subsystem reads the store only when it applies its settings: when it
-  starts, when a game is created or opened, and when one of its settings changes. So reading a setting is never
-  frequent, and what a read costs does not matter.
-- **This is how the engines treat their settings.** Unreal's `UGameUserSettings::ApplySettings` pushes the stored
-  settings into the renderer and audio, which work from their own state. Godot's servers read `ProjectSettings` when
-  they start. DCSS reads its key bindings into keymaps, which a key press consults. A Source `ConVar` can have a change
-  callback, which rebuilds what depends on it. The roguelikes' gameplay options are the exception: NetHack reads
-  `flags.verbose` and DCSS `Options.autopickup_on` wherever they are needed. A subsystem's structure may be a plain struct
-  of the values it applied, which costs little more.
-- **A change notifies every change listener** with the keys it changed, and each listener decides from the keys
-  whether to act. Settings that take effect together, such as the video mode, the resolution and the UI scale, are
-  applied together by one listener, as Unreal's `ApplySettings` applies them; another listener may watch one setting.
-- **The store is the one source of truth.** Saving reads the store; a subsystem's structures are never written back to it.
+- **An operation reads the settings it needs from the store,** when it begins or as it needs them, as NetHack reads
+  `flags.verbose` and DCSS `Options.autopickup_on` wherever they are needed, and as code reads Godot's
+  `ProjectSettings` and Unreal's console variables. The difficulty multipliers are read where each one applies: the
+  denizen count when a zone is populated, the speed where a denizen is given its `Speed`, and the detection range
+  where its `Detection` is set.
+- **A copy changes only when a setting is read.** An operation may load settings into a structure to pass them
+  around, or cache them where it reads them often, as DCSS reads its key bindings into keymaps that a key press
+  consults. The settings it reads are the same either way.
+- **A change that has to take effect at once is applied by a change listener.** A change notifies every change
+  listener with the keys it changed, and each listener decides from the keys whether to act. Settings that take effect
+  together, such as the video mode, the resolution and the UI scale, are applied together by one listener, as Unreal's
+  `UGameUserSettings::ApplySettings` applies them; a listener may also refresh a cached copy.
+- **The store is the one source of truth.** Saving reads the store; a copy is never written back to it.
 
 ## Typed structures or keyed values
 
@@ -111,31 +109,30 @@ are defined only in data.
 | **Saving and loading** | Code for each member, or a name table beside the members, as NetHack and DCSS keep | One loop over the store, by key |
 | **An options menu** | Written by hand, or drawn through the same name table | Drawn from the definitions, as Godot's and Unreal's editors draw theirs |
 | **Scripts** | Each setting exposed by hand | Read by key, as a value of the setting's base type |
-| **A wrong name or type** | A compile error | An assert at the read, which runs when the subsystem applies its settings at startup |
-| **Reading cost** | A member read | A map lookup, made only when a subsystem applies its settings |
+| **A wrong name or type** | A compile error | An assert at the read |
+| **Reading cost** | A member read | A map lookup and a conversion from text at each read, which a copy avoids where reads are frequent |
 | **Tools** | Completion and refactoring see every setting | They see a key in C++ only as a string |
 | **Ownership by layer** | Each structure in its own library; nothing shared | One store below the sim; each layer reads only its own settings |
 | **Scope** | Which structure a setting is in, or a member's annotation | A field of each definition, as a `ConVar`'s flags and a Factorio prototype's setting type state it |
 
 The typed structures check at compile time, but each setting is C++ in three places, mods cannot add any, and a name
 table has to be built beside them anyway, for the file and the menu. The keyed store makes a setting data, which is
-the design goal (`modding_plan.md`). Every read in C++ runs when its subsystem applies its settings at startup, so a
-misspelled key or a wrong type is found then.
+the design goal (`modding_plan.md`). A misspelled key or a wrong type asserts at the read, so a suite that runs the
+operation finds it.
 
 ### Recommendation
 
 **Keyed values in one store, each setting defined once, in data,** as Factorio defines a mod's settings, and read by
 key, as Unreal's console manager, Source's cvar registry, Godot's `ProjectSettings` and Qt's `QSettings` are read. C++
 defines no setting: it registers the types its settings have, and reads a setting by its key and its C++ type. The
-store keeps every setting's value; each subsystem applies its own into structures of its own, and applies them again
-when its change listener is called with any of their keys.
+store keeps every setting's value, and an operation reads the settings it needs when it needs them.
 
 ```json
 { "key": "video.fullscreen", "type": "boolean", "default": "false", "scope": "user", "restart_required": true }
 ```
 
 ```cpp
-// The view applies it: the store asserts that the setting's type is a bool
+// The view reads it: the store asserts that the setting's type is a bool
 if (settings::store().value<bool>("video.fullscreen"))
 
 // The options menu changes it
@@ -207,7 +204,7 @@ namespace quetzal::settings
     {
         std::string display_name;
         bool editable = false;
-        std::optional<KeyValueStore> values;       // <member key, value>; empty for an editable preset not yet defined
+        KeyValueStore values;                      // <member key, value>; empty for an editable preset not yet defined
     };
 
     // What the store keeps for every setting
@@ -230,6 +227,8 @@ namespace quetzal::settings
     public:
 
         using listener_id_type = std::size_t;
+        using preset_key_type = std::pair<std::string, std::string>;                                  // {group key, preset name}
+        using preset_values_type = std::map<preset_key_type, KeyValueStore>;                          // <{group key, preset name}, values>
 
         template<SettingValue T>
         void register_type(std::string_view type_name, std::vector<std::string> values = {});        // from C++
@@ -246,13 +245,13 @@ namespace quetzal::settings
         // setting of that type, whose default is the default preset. Requires the members to be inserted already
         void insert_group(std::string_view key, SettingScope scope, std::string_view default_preset_name, std::vector<std::string> member_keys,
             std::vector<std::pair<std::string, Preset>> presets, std::string_view display_name = {}, std::string_view category = {});
+        bool contains_group(std::string_view key) const;
         const SettingGroup& group(std::string_view key) const;
         std::optional<std::string> member_group_key(std::string_view key) const;                     // a member's group
         const Preset& preset(std::string_view group_key, std::string_view preset_name) const;
-        void set_preset_values(std::string_view group_key, std::string_view preset_name, const KeyValueStore& values); // an editable preset's
 
         // Each set returns false, setting nothing, if a value is out of its setting's range
-        template<SettingValue T> T value(std::string_view key) const;                                // applying
+        template<SettingValue T> T value(std::string_view key) const;                                // reading
         template<SettingValue T> bool set_value(std::string_view key, const std::type_identity_t<T>& value);
 
         std::string text(std::string_view key) const;                                                // by key, as text
@@ -260,10 +259,11 @@ namespace quetzal::settings
 
         KeyValueStore values(SettingScope scope) const;                                              // saving
         bool set_values(const KeyValueStore& values);                                                // loading
+        bool set_values(const KeyValueStore& values, const preset_values_type& preset_values);       // editable presets' first
         void reset(SettingScope scope);                                                              // a game cleared
 
-        // <{group key, preset name}, values> of each editable preset of the scope whose values are defined
-        std::map<std::pair<std::string, std::string>, KeyValueStore> preset_values(SettingScope scope) const;
+        // The defined values of each editable preset of the scope's groups
+        preset_values_type preset_values(SettingScope scope) const;
 
         listener_id_type add_change_listener(std::function<void(const std::vector<std::string>& keys_changed)> listener);
         void remove_listener(listener_id_type listener_id);
@@ -287,11 +287,12 @@ namespace quetzal::settings
     struct SettingsSnapshot
     {
         KeyValueStore settings;                                       // <key, value>, groups' selections included
-        std::map<std::pair<std::string, std::string>, KeyValueStore> presets; // <{group key, preset name}, values>
+        Settings::preset_values_type presets;                         // <{group key, preset name}, values>
 
         static SettingsSnapshot capture(SettingScope scope, const Settings& store);
 
-        // Checks every key, preset and value before changing any. Sets the presets' values first, then the settings
+        // Checks every key, preset and value before changing any. Sets the presets' values first, then the settings, with one
+        // set_values, so loading a file notifies once
         void restore(SettingScope scope, Settings& store) const;
     };
 
@@ -308,13 +309,14 @@ namespace quetzal::settings
   through `SettingsSnapshot::restore`. A key that is not a setting's of the file's scope, text that is no value of its
   setting's type, a value out of range, or a preset's values that are not exactly its group's members, is an error, and
   nothing is set.
-- **Each subsystem applies its settings** with `value<T>(key)`, into structures of its own, and adds a change listener
-  that applies them again when any of their keys is among the keys changed.
+- **An operation reads its settings** with `value<T>(key)`, when it begins or as it needs them. A subsystem that has to
+  act on a change at once, such as the view switching the video mode, adds a change listener that acts when any of its
+  keys is among the keys changed.
 - **Saving writes the values set in each scope,** `values(SettingScope::Game)` into `game.json`, and
   `values(SettingScope::User)` into the user settings file, each value as text, in the file's `settings`, and the
   defined values of the scope's editable presets, `preset_values`, in its `presets`. A setting never set is not
-  written, so it keeps its default, even if the default changes. A member never has a value of its own, so it is never
-  in `settings`.
+  written, so it keeps its default, even if the default changes. A member never has a value of its own, so saving
+  writes none for it in `settings`; a member's value that a file's `settings` has is set as setting the member sets it.
 - **A game cleared** returns the game scope's settings to their defaults with `reset(SettingScope::Game)`, which
   selects each group's default preset and leaves the values of its editable presets undefined.
 
@@ -322,7 +324,7 @@ namespace quetzal::settings
 
 - **A value is kept as text, in the store and in a file, and converted on each read,** as ini files, Source's
   `config.cfg`, Minecraft's `options.txt` and Qt's `QSettings` keep theirs. The store needs no `std::variant` or
-  `std::any`, and a setting is read only when it is applied, so the conversion costs nothing that matters.
+  `std::any`. Each read converts the text, which a copy avoids where an operation reads a setting often.
 - **A C++ type is described only by its formatting and parsing.** `quetzal::to_string` writes a value through
   `std::format` and `quetzal::try_type` reads it through `from_chars`, as `KeyValueStore` reads its values, so an
   enumeration that is a setting works with `std::format`, the log and `KeyValueStore` too. Its formatter's `format` is a
@@ -438,7 +440,8 @@ one store, one key space and one change notification, for settings and groups al
   member only while the editable preset is selected; a script or the console may set one at any time.
 - **A game that does not allow customization defines no editable preset.**
 - **What is saved follows from the table.** A selection is the group's value in `settings`, and an editable preset's
-  defined values are in `presets`, whichever preset is selected. Members are never in `settings`.
+  defined values are in `presets`, whichever preset is selected. A member is a setting like any other, but has no value
+  of its own to save.
 - **Only the menu and the save list read the selected preset.** Other code reads the members: permadeath is read from its
   own setting, not from the mode.
 - **Presets are data,** in the game's definitions.

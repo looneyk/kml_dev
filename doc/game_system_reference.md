@@ -655,39 +655,32 @@ settings to their defaults. `set_value`, `set_text` and `set_values` return fals
 of its setting's range, and `bounded_inclusive(key, text)` checks a value before it is set.
 
 A change listener, added with `add_change_listener`, is called once for each `set_value`, `set_text`, `set_values` or
-`reset` that changes any setting, after all of them have changed, with their keys. A pre-change listener, added with `add_pre_change_listener`, is called by `set_values`, and so by
-`set_value` and `set_text`, with the values after they are checked and before any is set, and may throw to reject them
-all; `reset` calls none. Each add returns a `Settings::listener_id_type`, which `remove_listener` takes, and `clear` keeps every
+`reset` that changes the value of any setting, a member's or a group's included, after all of them have changed, with
+their keys. Each add returns a `Settings::listener_id_type`, which `remove_listener` takes, and `clear` keeps every
 listener.
 
-A setting group is a set of settings that its presets assign together, one preset at a time. The store knows nothing
-of groups: `SettingGroups`, in `SettingGroups.hpp`, keeps a store's groups and uses only the store's public functions
-and listeners, and `group_store()` returns the process-wide one, of `store()`. `insert(group)` adds a
-`SettingGroup` and selects its default preset; `insert_preset(group_key, preset)` adds a `Preset` to one. A `Preset` has a name, a display name, whether it is editable, and its values by key.
-Each of the group's members is of the group's scope and a member of exactly one group. Group keys are apart from
-setting keys. Each throws `std::runtime_error` if a key, a
-preset or a value is invalid.
+A setting group is itself a setting, whose value is the name of its selected preset. `insert_group(key, scope,
+default_preset_name, member_keys, presets, display_name, category)` registers a type under the group's key, an
+enumeration of the presets' names in order whose `SettingType::group` is true, and inserts the group's setting of that
+type, whose default is the default preset. It requires the members to be inserted already, and throws
+`std::runtime_error` for a key that is empty or a setting's or a type's already; no members or a member given twice;
+a member that is not a setting, is of another scope, is another group's member, or is a group; a default preset that
+is missing or editable; a preset name that is empty or used; a second editable preset or one with values; and a
+preset that is not editable and has no values, does not set each of the members, sets a key that is not one, or sets
+a value that is not one of its member's type or is out of its range. It inserts nothing if it throws.
+`contains_group(key)`, `group(key)`, a `SettingGroup` of the group's key and member keys, `member_group_key(key)`, and
+`preset(group_key, preset_name)` read them. A `Preset`, in `SettingGroup.hpp`, has its display name, whether it is
+editable, and its values by member key, which are empty for an editable preset until they are defined.
 
-`SettingGroup`, in `SettingGroup.hpp`, is a class with the group's key, scope, display name, category, member keys,
-default preset, presets and selected preset. It checks its members and its presets: no members or a member given
-twice, a default preset that is missing or editable, a preset name that is empty or used, a second editable preset, an
-editable preset with values, and a preset that is not editable and does not set each of the members, or sets a key
-that is not one. Its `select` changes only the selected preset.
-
-`SettingGroups::select(group_key, preset_name)` selects a preset and, unless it is editable, sets each member to the
-preset's value with one `Settings::set_values`. `set_values` selects a
-preset for each group key, and `reset(scope)` selects the default preset of each of the scope's groups. A selection
-listener, added with `add_selection_listener`, is called once for each operation that changes any group's selected
-preset, after its members are set, with the groups' keys.
-
-`SettingGroups` adds a pre-change listener to its store, which it removes when destroyed. Setting a member while the
-selected preset is not editable selects the editable preset before the value is set, keeping the members' values, and
-throws if the group has none. The listener ignores the values `SettingGroups` sets itself.
-
-`values(scope)` returns each group's selected preset under its key, unless it is the default, and
-`has_value_from_preset(key)` returns true for a member of a group whose selected preset is not editable, which a game's
-saved values leave out. Saved values are set with the groups' selections first, through `SettingGroups::set_values`,
-and the settings' values second.
+A member's value is the selected preset's value for it, and a member never has a value of its own. Setting a group's
+value selects a preset; an editable preset whose values are undefined first takes the values of the preset selected
+before it. Setting a member writes it into the group's editable preset; if another preset is selected, the editable
+preset first takes that preset's values and is selected. A group with no editable preset makes setting a member an
+error. `set_values` selects groups' presets before it sets members, and its overload with a
+`Settings::preset_values_type`, a map from a group key and an editable preset's name to the preset's values, sets
+those values first, each set required to set each of the group's members. Either changes nothing if any value is
+invalid, and notifies once, with the group's key and each member whose value changed. `reset(scope)` also leaves the
+values of the scope's editable presets undefined, and `preset_values(scope)` returns those that are defined.
 
 ### Game and Character
 
@@ -714,23 +707,22 @@ that order, each referring to those before it. `generation()` returns the `Gener
 its generators, selectors and region specs. Only the `Generation` can be copied or moved. The constructor makes no
 character, region or zone; until a game is created, there is none.
 
-The game's settings are in the process-wide `settings::store()` and `settings::group_store()`.
+The game's settings are in the process-wide `settings::store()`.
 
 In the settings library, `SettingsSnapshot`, in `SettingsSnapshot.hpp`, is one scope's values as they are saved and
-restored: each setting that is set and that no preset sets, and each group's selected preset that is not its default,
-as text. `SettingsSnapshot::capture(scope, store, group_store)` takes one, and `restore(scope, store, group_store)`
-checks every key, preset and value, then selects its presets and then sets its settings. It throws `std::runtime_error`,
-changing nothing, for a key that is not a setting's or a group's of the scope, a preset or value that is invalid, or a
-value out of range, naming the key.
+restored: each setting that is set, groups' selections among them, and the defined values of each editable preset, as
+text. `SettingsSnapshot::capture(scope, store)` takes one, and `restore(scope, store)` checks every key, preset and
+value, then sets the presets' values and then the settings, with one `set_values`, so a member's value among the
+settings is set as `set_values` sets one. It throws `std::runtime_error`, changing nothing, for a key that is not a
+setting's or a group's of the scope, a preset or value that is invalid, or a value out of range, naming the key.
 
-In `stratum_sim`, `setting_definitions.hpp` has `insert_definitions(document, store, group_store)`, which registers a
-definition document's enumerations, then inserts its settings, then its groups, and throws as they do for a definition
-that is invalid, and `load_setting_definitions(assets_directory, store, group_store)`, which reads the game's
-definition file and inserts it.
+In `stratum_sim`, `setting_definitions.hpp` has `insert_definitions(document, store)`, which registers a definition
+document's enumerations, then inserts its settings, then its groups, an editable preset with no values in the file
+being undefined, and throws as they do for a definition that is invalid, and `load_setting_definitions(assets_directory,
+store)`, which reads the game's definition file and inserts it.
 
-`PersistentSettings(filepath, scope, store, group_store)`, in `PersistentSettings.hpp`, is one scope's settings, kept
-in a settings file. It adds a change listener and a selection listener, removed when it is destroyed, that note
-whether a setting or a group of its scope changed. `load` restores the file's snapshot if there is a file, counting
+`PersistentSettings(filepath, scope, store)`, in `PersistentSettings.hpp`, is one scope's settings, kept in a settings
+file. It adds a change listener, removed when it is destroyed, that notes whether a setting of its scope changed. `load` restores the file's snapshot if there is a file, counting
 none of it as a change, and throws, naming the file, if it cannot be read or restored; `changed` returns true if any
 changed since the settings were loaded or saved; and `save` and `save_if_changed` write the scope's snapshot, creating
 the file's directory if needed.
@@ -744,8 +736,8 @@ calls `load_setting_definitions` once in `main`. A suite that changes a setting 
 `save`, `quit` and `saved_games`. They call `clear`, `create`, `open` and `save` on `World` and `Character`, and
 `clear`, `start`, `pause` and `resume` on `Session`.
 
-`Game::clear` returns the game scope's settings to their defaults and selects its groups' default presets, so a game
-created or opened starts from them.
+`Game::clear` returns the game scope's settings to their defaults, which selects its groups' default presets and leaves
+their editable presets undefined, so a game created or opened starts from them.
 
 The working directory has only the game in progress. `Game::create(region_spec, character_spec)` clears, resets the id
 allocator to count from zero, and reseeds the random engine from `std::random_device`, keeping the seed, so nothing passes
@@ -774,7 +766,7 @@ read or has no name.
 
 `Game::save(save_type)` writes `game.json` into the game directory, with the id allocator's next id, the seed, and the gameplay
 random engine's state as the text `<<` writes, under `random_engines`, and the game scope's settings snapshot
-under `settings` and `groups`; has the character write `character.json` there, through
+under `settings` and `presets`; has the character write `character.json` there, through
 `make_character_document`, and the world save; and then copies the game directory to a new directory in the saves
 directory, `<character name>_<save time>`, the name the character's `DisplayName` and the time local and in ISO 8601
 basic format, which it returns. A `SaveType` of `Auto` or `Quick` appends `_autosave` or `_quicksave`, and `Explicit`
@@ -1262,7 +1254,7 @@ identically, and rejects each of a set of game files with one change made to it,
 `flecs_test` checks that the ECS supports zone partitioning, relationships, migration, unload, serialization and
 deterministic iteration.
 
-`settings_test` covers the settings store: types, values, scopes, change and pre-change listeners, and setting groups.
+`settings_test` covers the settings store: types, values, scopes, change listeners, and setting groups.
 
 Each test runs from its own directory, since its data and reference paths are relative.
 

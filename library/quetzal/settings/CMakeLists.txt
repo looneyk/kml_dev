@@ -1,12 +1,9 @@
 add_library(quetzal_settings STATIC
     Settings.cpp
-    SettingGroup.cpp
-    SettingGroups.cpp
     SettingsSnapshot.cpp
     Setting.hpp
     Settings.hpp
     SettingGroup.hpp
-    SettingGroups.hpp
     SettingsSnapshot.hpp
 )
 
