@@ -26,13 +26,13 @@ These are the decisions that are expensive to reverse.
 2. **Layout is abstracted from the start.** Discrete cells never appear in core interfaces.
 3. **Scheduling is abstracted from the start.** A `Scheduler` over abstract units; the driver decides whether they
    advance on player command (turn-based) or on real time.
-4. **Views own their animation state.** The simulation is discrete and has no frame concept; interpolation and easing
+4. **Views keep their own animation state.** The simulation is discrete and has no frame concept; interpolation and easing
    belong to presentation.
 5. **Every view can rebuild from a full snapshot,** not only from incremental events, so one view can be swapped for
    another at runtime, and a separate process can attach to a running simulation at an arbitrary point and be correct
    immediately.
 6. **Generation is deterministic,** with explicit RNG and hierarchical seeding.
-7. **Abstract on the second implementation, not the first.** Seams are designed early; interfaces are finalized only
+7. **Abstract on the second implementation, not the first.** Interface boundaries are designed early; interfaces are finalized only
    once two real cases exist to derive them from. This bounds principles 2 and 3.
 8. **Everything a game adds is data or script.** Every game is moddable. Types, components, styles, geometry and
    behavior are definitions loaded at runtime, from the game and from mods alike, and C++ supplies the mechanisms and
@@ -116,7 +116,7 @@ application/
     stratum_terminal/ the engine-free host: input mapping, turn loop, terminal output
     stratum_godot/    the Godot front end: registration, node classes, and its project
 assets/
-    level/          shared data, owned by no host and reached through a configured root
+    level/          shared data, used by every host and located through a configured root
 ```
 
 ## Key abstractions
@@ -128,7 +128,7 @@ neither: it composes with topology on `World`, which contains both. `sim_zone_mo
 discrete and continuous cases share them.
 
 **Scheduler.** The scheduler orders actors' turns over abstract units, with a pluggable driver. Turn-based and real time are drivers, not separate
-schedulers. The core does not know what a unit is worth in seconds.
+schedulers. The core has no conversion from units to seconds.
 
 **Entity and component.** Entities are ids; behavior comes from composed components. There is no class hierarchy of
 entity types --- `goblin_archer` is a data key, never a C++ type. flecs supplies the storage (`sim_zone_model.md`).

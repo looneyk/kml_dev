@@ -655,7 +655,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Gives each staircase a random facing direction among the sides of its cell that have no wall and floor beyond, or, if
+    // Assigns each staircase a random facing direction among the sides of its cell that have no wall and floor beyond, or, if
     // there are none, among the sides with a door
     void face_staircases(Zone& zone, random_type& random)
     {

@@ -24,9 +24,9 @@ rules      behavior over entities                             have commands, eve
 ```
 
 A `Layout` is geometric --- it has positions, normals, and extents. Geometry travels outward through it toward the
-view, and never inward into the rules: a rule asks the `Layout` where a move ends; it does not compute a destination.
+view, and never inward into the rules: a rule queries the `Layout` for where a move ends and computes no destination itself.
 
-Movement is asked of `World` rather than of a `Layout` directly, because only `World` has both the walls and the
+Movement is requested of `World` rather than of a `Layout` directly, because only `World` has both the walls and the
 entities that block an actor. See The Layout interface.
 
 ## World, Zones, and Levels
@@ -144,7 +144,7 @@ relation, and the relocator graph is enumerable because relocators are on entiti
 
 **Elapsed-time advance on re-entry.** Effects expressible as a function of elapsed time are advanced when a frozen
 `Zone` loads: corpses age, growth continues, stores restock. This is per component: a component that can state itself
-as a function of elapsed time is asked to advance, and one that cannot stays frozen. Rot, growth, restocking and
+as a function of elapsed time is advanced, and one that cannot stays frozen. Rot, growth, restocking and
 schedules advance; anything needing pathfinding or combat resolution stays frozen.
 
 ### Naming
@@ -211,8 +211,8 @@ The caller supplies the predicate --- the layout is independent of entities --- 
 each take one, and `World`, which has the layout and the entities both, binds it for the zone. The answer depends on who
 is crossing as much as on the wall, which an actor-specific rule needs.
 
-The layout has one wall question, `crossable`, asked of a move: no wall is a way through, and a wall is the predicate's
-to decide. The grid boundary is no separate case: floor is enclosed by walls, so a wall stops the move there.
+The layout has one wall query, `crossable`, which a move calls: a side with no wall is crossable, and the predicate
+decides whether a wall is. The grid boundary is no separate case: floor is enclosed by walls, so a wall stops the move there.
 
 **Open.** Sight may need a question of its own: a portcullis passes sight and not an actor, a curtain the reverse.
 
@@ -311,7 +311,7 @@ than from a field on the placement.
 A discrete layout does not accumulate: it recomputes the position from the cell reached on every move, so error never
 builds up, which makes a shared representation safe under principle 6.
 
-Rules never decompose a placement --- they hand it back to the layout, so a cached location handle can be added later
+Rules never decompose a placement --- they pass it back to the layout, so a cached location handle can be added later
 without changing a rule.
 
 **Attachment.** A placement may be relative rather than absolute: a wall or a flat, and a position on that surface,
@@ -319,7 +319,7 @@ resolved using the surface's geometry. A basin stays on its wall whatever angle 
 any number of attachments --- a wall's position is along-and-up, a flat's is xy.
 
 **Extent** is a separate component: how much space the attachment occupies. A pressure plate has one, as do a boulder
-and a monster. An entity spanning more than one cell is therefore no separate kind: a trigger noticing an actor half on
+and a monster. An entity spanning more than one cell is therefore no separate type: a trigger noticing an actor half on
 it works as collision does.
 
 ## The Layout interface
@@ -357,13 +357,13 @@ layout resolves the same questions of its geometry and shares none of this machi
 **A cell position is a position, and a displacement is a discrete vector.** A cell position moves only by adding a
 vector to it, subtracting two gives the vector between them, and a grid's extent is a vector, a count of cells along
 each axis being a displacement. A query about what adjoins a cell takes that cell and a direction, so the neighbor need
-not exist. `GridMapping::contains` is asked only in assertions: the loader walls every boundary cell, so a move off the
+not exist. `GridMapping::contains` is called only in assertions: the loader walls every boundary cell, so a move off the
 grid cannot be made.
 
 The interface as written is in `Layout.hpp`, described in `game_system_reference.md`.
 
 `MoveResult` is a placement and what stopped the actor, the wall or the entity, neither set meaning nothing did. It
-reports "the door is locked" without the rule asking a second question.
+reports "the door is locked" without a second query from the rule.
 
 **Relative and absolute movement are one call.** Relative passes the entity's own facing direction as the direction;
 absolute passes a direction the view chose, leaving the facing direction unchanged. A top-down view maps west to a

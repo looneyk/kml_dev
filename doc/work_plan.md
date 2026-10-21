@@ -36,119 +36,11 @@ The design behind the items is in these documents, which the items refer to by s
 ## Commit points
 
 Each box is one commit point. An item too large for one commit is split into boxes of its own before work on it
-starts. When a box's work lands and every suite passes, the box is ticked and that is the moment to commit. The ticked
+starts. When a box's work is done and every suite passes, the box is ticked and that is the moment to commit. The ticked
 boxes are removed at the start of the next piece of work, since the reference documents then describe what they built.
-
-## Next
-
-These are the game's lifecycle and the menu operations behind it (`session_plan.md`, `## Games`), built in this order,
-each on the ones before it. `Game`'s menu and lifecycle functions, and those they call on `World`, `Character` and
-`Session`, are skeletons; each item designs what its functions still need and fills them in.
-
-- [x] **`CharacterSpec`** (`session_plan.md`, `## Character`): the name, the stats, skills and aspects, the inventory as
-      a list of `InventoryItem`, and `properties` for the game's other choices.
-- [x] **Spec keys:** `find_unknown_keys` moved from `KeyValueStore` into `stratum_sim`'s `specs.hpp`, with
-      `select_prefixed`, which returns a spec's entries under a prefix.
-- [x] **The game's config.** `Config`, with the saves directory and the zone count maximum, passed to `Game`'s
-      constructor, with each host passing a temporary one.
-- [x] **A game cleared.** `World::clear`, `Character::clear` and `Session::clear`, with `Clock::clear` and
-      `ZoneEntryIndex::clear`; a suite case clears a game played in two regions and checks that only the registrations
-      remain.
-- [x] **One game after another.** `Character::create` making
-      the entity with a new id, and `World::create` making the starting region and its first zone and returning the
-      entry point its region spec's `entry_access` states, in place of the constructors of `Character` and `Game`;
-      `Game::create(name, ...)` creating the game's directory, resetting the id allocator and reseeding the random engine; and
-      `Session::start(access_point)`. The hosts create a game from temporary specs, with `staircase,1` as the entry,
-      and load no zone file. A suite case plays a game,
-      clears it, creates another, and checks that only the new game's regions, zones, entities and ids remain.
-- [x] **The menu in the hosts.** Each host draws a menu, opened by a key, with a new game, continuing, and quitting,
-      through `create`, `menu_open`, `menu_close` and `quit`; and `Session::pause` and `resume` stopping and restarting
-      play. The menu offers saving and opening with **A game saved** and **A game loaded**.
-- [x] **The game's end.** The `Dead` tag, `Session::over`, and `advance` running no actor once the character is dead
-      and reporting the death in its events; the hosts showing it until a key is pressed, then calling `quit` and
-      returning to the menu.
-- [x] **A zone as a document:** `make_document`, the reverse of `load_layout`, with each zone keeping its `ZoneDocument`'s
-      geometry and `rebuild_document` a skeleton; an entity in a cell of the zone in the format; `Access`, `Detection`,
-      `Speed`, `Pursue`, `Blocking` and `Dead` as file components, with tags written as empty objects; `Pursue::target` a
-      reference and `Detection`'s actor states a list.
-- [x] **Saved zones** (`addressing_plan.md`, `## Saved zones`; `game_file_spec.md`, `## A saved game's files`):
-      `Config::working_directory`, `Game::create` making the game directory in it, `World` given that, and
-      `World::save_zone` writing `zones/<persistent id>.zone` there, called when a zone unloads, which then frees its
-      resources. Leaving a zone does not save it; every save of the game, explicit, quick or auto, saves each loaded zone.
-- [x] **Saved zones read back:** entering a zone that is not loaded reads its file into its region, which lists its zone
-      ids in place of its zone count, and a saved zone is not populated again.
-- [x] **A game saved** (`game_file_spec.md`), in three commit points:
-  - [x] **The game files' documents:** `GameDocument`, `CharacterDocument` and `WorldDocument` in `stratum_format`,
-        each with a `write` producing its written form.
-  - [x] **Saving:** `Game::save` writing `game.json`, `Character::save` writing `character.json`, and `World::save`
-        writing `world.json` and every loaded zone, all into the game directory, which is then copied to a new save
-        directory, `<character name>_<save time>`.
-  - [x] **The hosts' menu offering it.**
-- [x] **A game loaded**, in three commit points:
-  - [x] **The game files read:** `read_game`, `read_character` and `read_world` in `stratum_format`, validating each
-        file, and the world index in `world.json`, written by `World::save`.
-  - [x] **Opening:** `Game::open` emptying the working directory and copying a save into it as the game directory, named
-        by the character, then reading `game.json`, restoring the id allocator and, by a `Settings` field, either
-        restoring the random engine's state or reseeding it; `World::open` reading `world.json`, each region with its zone ids,
-        and the world index; `Character::open` reading `character.json`; and the session starting in the character's
-        zone at its placement. `Game::create` loses its name, and names the game directory by the character too.
-        `saved_games` lists each save's character name, from its `character.json`, and the time of the save.
-  - [x] **The hosts' menu offering it:** the nine newest saves, each shown by its character's name and the time of the
-        save, a digit opening one, and Escape going back.
-- [x] **A game removed:** `Game::remove` deleting a save's directory from the saves directory, after checking that it
-      is a save there; and the hosts' saves page selecting a save with the arrows and deleting it with Delete, once
-      confirmed.
-
-## Log
-
-- [x] **The log library** (`log_plan.md`): `library/quetzal/log/`, the target `quetzal_log` in the namespace
-      `quetzal::log`, with the reusable, thread-safe `Log` class, its sinks, an optional level for each sink and each
-      category, and the process-wide instance, with `log_test`; `quetzal/common`'s `Log.hpp`, `logger.hpp`,
-      `logger.cpp` and `LogLevel` removed.
-- [x] **The log in use** (`log_plan.md`, `## The game's use`): the terminal installs a file sink writing to a `logs`
-      directory in the same place as the saves and working directories; Godot installs a sink writing to Godot's
-      output, and a file sink; the tools install a `std::clog` sink and take `--log-level`. dungen and
-      `stratum_format::read_zone` write their warnings to the process-wide log in place of taking a warning function,
-      and `stratum_gen` and the hosts stop passing one.
 
 ## Generators
 
-- [x] **`stratum_gen` independent of `stratum_sim`.** A `stratum_gen` function takes a `ZoneRequest`, the name, the
-      level, the seed and the generator's own parameters, and not `Settings` or a `ZoneSpec`. `stratum_gen::generators()`
-      returns a map from each generator's name to its function and registers nothing; each host registers them in
-      `Generation`, making the `ZoneRequest` from the `ZoneSpec`. `quetzal_stratum_gen` no longer links
-      `quetzal_stratum_sim`.
-- [x] **The settings process-wide** (`session_plan.md`, `## Settings, the log, and the random engines`): `Settings`
-      reached through `settings()` from the sim, the views and the hosts, in place of `Game`'s member and accessors.
-- [x] **The config file** (`game_file_spec.md`, `## The config file`): the one location in code is the program
-      directory, the executable's, from `executable_directory()`, or the Godot project's; the program only reads it.
-      `load_config(program_directory)` builds the defaults, the assets in the program directory and everything the
-      program creates in the user directory, `%LOCALAPPDATA%/KML/Stratum` on Windows, and an optional `config.json` in
-      the program directory overrides any of them. The terminal's build copies a development `config.json` beside it
-      in `bin/<Config>/`, and the Godot project has its own.
-- [x] **Keyed settings** (`settings_plan.md`, `## Terms`): each setting defined in data and its value kept in one
-      store under its key, such as `video.fullscreen`, read and written with `settings::store().value<T>(key)` and
-      `set_value<T>`. It replaces a getter and a setter on `Settings` for each of what may become a hundred or more
-      settings. In these commit points:
-  - [x] **Groups in the store** (`settings_plan.md`, `### The store`, `### Setting groups`): a group as a setting
-        whose type is an enumeration of its preset names marked as a group's; `Settings::insert_group`, the preset
-        table, and a member's value read from the selected preset; the editable preset's values kept in the table,
-        defined on its first selection or a member's first change, saved and restored, and undefined after `reset`;
-        selections and the members they change in one operation and one notification. `SettingGroups`,
-        `group_store()`, the pre-change listener and the selection listener removed. The settings files lose `groups`,
-        a selection being a key in `settings`, and gain `presets`; `SettingsSnapshot` follows, and `Game`,
-        `PersistentSettings`, the hosts and the suites use the one store.
-  - **One store, below the sim:** a `quetzal/settings` library beside `quetzal/log`, which `stratum_sim::Settings` and
-    its `settings()` move into, since a keyed store is not stratum's own.
-  - **Each layer reads only its own settings,** named by convention in its own sections: the sim `gameplay`, the view
-    `video`, and the hosts `audio` and `controls`. The sim depends on none of the view's or the hosts', as each
-    section of Godot's `ProjectSettings` and Unreal's config is read by the module it belongs to.
-  - **Each setting has one definition, in data,** with its key, type, default and scope, as Factorio defines a mod's
-    settings. C++ registers the types of the settings it reads, and reads them by key.
-  - **Scope:** a game setting, such as a difficulty multiplier or the notation, is saved in `game.json` and set by
-    `Game` when the game is opened. A user setting, such as video, audio or controls, is the player's, the same in
-    every game, and saved in the user settings file, where the config file puts it.
-  - **An operation reads the settings it needs from the store,** when it begins or as it needs them.
 - [ ] **The generators integrated.** catagen's generator in `quetzal/stratum_gen` beside dungen's. The game's
       notation, a setting chosen when the game is created, saved in `game.json`'s `settings` and set again by `Game`
       when the game is opened, decides which of them generates every zone: dungen for the
@@ -186,8 +78,6 @@ each on the ones before it. `Game`'s menu and lifecycle functions, and those the
 - [ ] **Generation runs as objects** (`random_engine.md`, `## Ownership`): dungen's and catagen's runs, each owning its
       random engine, seeded from the zone's seed, with the reference files regenerated. It comes with **the generators
       integrated**.
-- [x] **The random engines' state restored** (`random_engine.md`, `## Saving`), with **A game loaded**, or reseeded, as
-      the setting `gameplay.reseed_on_open` chooses.
 
 ## Regions
 
@@ -314,8 +204,8 @@ These are the open questions.
 - **How an actor selects the adjacent door it means.** In a corridor past an open door, a move turns toward the way it
   goes, so turning toward the door is moving into the doorway, and from inside a block there is nothing to shut.
   Acting on any adjacent door fails in a corridor with an open door on each side, since both are adjacent. The
-  interaction needs a way to select a side that is neither the facing direction nor adjacency. The problem follows
-  from the terminal host having no turn of its own, and the door is where it shows.
+  interaction needs a way to select a side that is neither the facing direction nor adjacency. The problem arises
+  because the terminal host has no turn of its own, and doors are where it appears.
 
 ### Ids and addressing
 
@@ -340,14 +230,14 @@ These are the open questions.
 
 ### Sites
 
-- **The word that replaces `site` where it means a candidate location.** `stratum_sim`'s `Site` takes the word for
+- **The word that replaces `site` where it means a candidate location.** `stratum_sim`'s `Site` uses the word for
   where an entity is. Two places use it for a location that a generator or a placement pass chooses among, and one term
   replaces both, since the sense is the same: `placement_plan.md`, where the sites are one of the five roles of a run,
   and `catagen`'s `site_type`, `sites_type` and `door_sites`.
 
 ### Placement
 
-- **Where it lives.** `procgen` is a slot rather than a library, and placement may not belong beside the zone generators
+- **Where it lives.** `procgen` is a name reserved in the module layout rather than a library, and placement may not belong beside the zone generators
   at all, since its dependencies are tables and prototypes, not grids.
 - **What the roles are called.** `distribution` in particular collides with `std::uniform_int_distribution` and the
   rest, in code that uses them.

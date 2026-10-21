@@ -14,7 +14,7 @@ ceiling.
 
 | Directory | Target |
 | --- | --- |
-| `assets/` | shared data, owned by no host |
+| `assets/` | shared data, used by every host |
 | `library/quetzal/stratum_sim/` | `quetzal_stratum_sim` |
 | `library/quetzal/stratum_view/` | `quetzal_stratum_view` |
 | `library/quetzal/stratum_format/` | `quetzal_stratum_format` --- the zone file format and the game files |
@@ -33,11 +33,11 @@ A `World` contains zones. A zone is one independently loadable 3D coordinate spa
 so a placement is meaningful only within its own zone, and an entity's zone is the zone among its ancestors. Each zone
 has a layout, which is its geometry and topology, and the entities in it.
 
-A caller asks the layout where a move ends; it does not compute a destination and hand it back.
+The layout computes where a move ends, and a caller passes it the direction and distance.
 
 ### Types
 
-`value_type` is `float` and `traits_type` is `math::CartesianTraits<value_type, 3>`, which gives `point_type`,
+`value_type` is `float` and `traits_type` is `math::CartesianTraits<value_type, 3>`, which defines `point_type`,
 `vector_type`, `points_type` and `polygon_type`. `placement_type` is `geometry::DirectedPoint<traits_type>`, a position
 and a facing direction.
 
@@ -129,7 +129,7 @@ boundary returns the wall that closes the layout.
 flat's. `position(cell_position)` returns the cell center with z at the floor height there, or on the grid's plane
 before the flats are set.
 
-`turn` is relative and `face` absolute. A view with a relative turn asks `turn` for the resulting direction and sends
+`turn` is relative and `face` absolute. A view with a relative turn calls `turn` for the resulting direction and sends
 it as a facing direction, so the layout does the quantizing in both cases. `face` snaps to a cardinal direction and
 leaves the facing direction unchanged for a zero direction.
 
@@ -244,7 +244,7 @@ its subtree, in persistent id order, as its inventory, each encoded as a zone's 
 
 `Generation` has the registries that `World` creates regions and zones from (`world_generation_plan.md`), each a map
 from a name: `m_generator_selectors`, `m_generators` and `m_region_specs`. `RegionSpec` and `ZoneSpec` are both
-`KeyValueStore`. A `RegionSpec`'s `generator_selector` names the region's selector, and a `ZoneSpec`'s `level` is the
+`KeyValueStore`. A `RegionSpec`'s `generator_selector` is the name of the region's selector, and a `ZoneSpec`'s `level` is the
 zone's level; `generator_selector_key` and `level_key` are the two keys.
 
 `specs.hpp` has two functions over a spec. `find_unknown_keys(spec, known_keys)` returns the spec's keys that are not
@@ -508,7 +508,7 @@ the wall notation, the two sides of one cell edge, and in the block notation, th
 doorway block. A door with one wall is a doorway into a dead end. The loader builds a door from the file's entities,
 with the `door` type giving it a closed `Access`, and a generator builds one the same way.
 
-`Access` is the state of a way through --- `Open`, `Closed` or `Locked` --- and nothing else. A door off its hinges is
+`Access` is the state of a way through --- `Open`, `Closed` or `Locked`. A door off its hinges is
 open, and one smashed into rubble that blocks the doorway is closed. `access_entity(e)` returns the entity whose
 `Access` applies to `e`: `e` itself, or its nearest ancestor that has one. `access(e)` returns that state, so a door
 facing has its door's state. `Detection` is how actors perceive an entity: a general `DetectionState` (`Visible`,
@@ -576,7 +576,7 @@ now --- the one with the most energy, with the lowest id breaking ties --- or `n
 the moment the soonest actor can act and returns it, which is the turn-based policy; a real-time caller converts
 elapsed time to units and calls `advance`.
 
-Granting four units to actors of speed 100 and 25 gives the fast one four actions' worth of energy by the time the
+Granting four units to actors of speed 100 and 25 leaves the fast one with four actions' worth of energy by the time the
 slow one reaches its first; `next` would have stopped at the first.
 
 ### Clock
@@ -621,7 +621,7 @@ to its own. `Intent` registers no reflection, so it is not serialized.
 since setting a component during iteration can move an entity to another table.
 
 `Pursue` is the one behavior: the actor moves toward a target while the target is visible and in the pursuer's zone,
-then toward where it was last seen, and stops there if it finds nothing. The position last seen is stored on the
+then toward where it was last seen, and stops there if the target is not in sight. The position last seen is stored on the
 entity, so it unloads, migrates and saves with it. Its `target` is an `EntityReference`, resolved each time, and a
 `Pursue` with no `target` pursues the controlled actor that `think` is given.
 
@@ -1078,11 +1078,11 @@ each state flag, a mask, and an actor add one to the specificity. Ties go to the
 if no line matches. A set with a `door open` line draws an open door differently from a shut one, and a set with only
 `door` draws both the same.
 
-`cell_glyphs()` covers the three types a cell can be, a door shut and open, and an actor on each type it can be on.
+`cell_glyphs()` has lines for the three types a cell can be, a door shut and open, and an actor on each type it can be on.
 Its actor lines come first, so an actor in an open doorway is drawn. `lattice_glyphs()` draws in the wall notation's
 glyphs, with floor as a space and a line for each of the sixteen wall masks.
 
-`read_glyphs` reads a glyph set from a file; `assets/glyphs/` has the two built-in sets. The first line gives the
+`read_glyphs` reads a glyph set from a file; `assets/glyphs/` has the two built-in sets. The first line states the
 format and version. A glyph line is a place type, the states it requires in any order (`open`, `concealed`), `actor`
 if it requires an actor, `mask=` and the directions it requires, then the character in single quotes, with `\\` and
 `\'` as the escapes. Omitting the states, `actor` or `mask=` matches any; `mask=` with no directions requires that no
@@ -1143,7 +1143,7 @@ zone file.
 
 ## Godot host
 
-Godot owns `main()` and the frame loop, and loads the simulation as a shared library. `stratum_godot` builds that
+Godot provides `main()` and the frame loop, and loads the simulation as a shared library. `stratum_godot` builds that
 library, a GDExtension, and `application/stratum_godot/project/` is the Godot project that loads it, through
 `stratum.gdextension`, which refers to `res://bin/`, where the build writes it.
 
@@ -1275,7 +1275,7 @@ links `quetzal_common`, `quetzal_log`, `quetzal_settings` and `nlohmann_json`, v
 `KML_DEV_GODOT` governs the Godot targets and defaults on. When it is configured off, godot-cpp is not processed and
 neither `quetzal_godot` nor `stratum_godot` exists.
 
-`KML_DEV_ASSETS_ROOT` is a per-target compile definition giving the shared data root, so no source file has an
+`KML_DEV_ASSETS_ROOT` is a per-target compile definition that defines the shared data root, so no source file has an
 absolute path and no program depends on where it was started from. `KML_DEV_GODOT_VERSION` is the Godot release the
 host targets, and `KML_DEV_GODOT_EXECUTABLE`, found from it, is what Visual Studio launches.
 

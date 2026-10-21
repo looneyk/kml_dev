@@ -66,7 +66,7 @@ namespace quetzal::stratum_sim
         // and named. Throws std::runtime_error if a file cannot be written
         std::string save(SaveType save_type);
 
-        // Deletes the save, as saved_games names it, from the saves directory. Throws std::runtime_error, deleting nothing,
+        // Deletes the save, by the name saved_games returns, from the saves directory. Throws std::runtime_error, deleting nothing,
         // unless the name is of a directory directly in the saves directory that has a character file
         void remove(std::string_view save_name);
 

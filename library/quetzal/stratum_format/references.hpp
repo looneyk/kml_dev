@@ -14,7 +14,7 @@ namespace quetzal::stratum_format
 {
 
     // A reference to an entity is written { "entity": id }, and anything else is an ordinary value.
-    // Finding and translating references needs no knowledge of what a file component means
+    // Finding and translating references requires no interpretation of a file component
 
     raw_values_type make_reference(stored_entity_id_type id);
 

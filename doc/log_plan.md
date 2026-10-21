@@ -133,10 +133,10 @@ namespace quetzal::log
   instance is a `Log` like any other.
 - **`logger()` returns the process-wide log,** a function-local static, which C++ constructs once, on first use,
   safely across threads, as Rust's `log::logger()` returns its global one. No code passes a log to another. Every
-  call names it, `log::logger().warning(...)`, so a line that logs is plain to see. Free functions that forward to it,
+  call writes it out, `log::logger().warning(...)`, so a line that logs is plain to see. Free functions that forward to it,
   as spdlog's `spdlog::warn` does, can be added later without changing a call written this way.
 - **The program installs the sinks.** The process-wide log has none until then, and an entry written before a sink is
-  installed is dropped. A suite or a tool that wants the entries installs a sink first.
+  installed is dropped. A suite or a tool that needs the entries installs a sink first.
 - **A sink is a function,** given each entry, so a file, a stream, Godot's output, or a suite's collection are all the
   same type. `FileLogSink` and `StreamLogSink` are function objects that own their stream; a file is opened in binary
   mode and each line ends with `\n`.

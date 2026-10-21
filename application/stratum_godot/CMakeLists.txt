@@ -7,7 +7,7 @@ add_library(stratum_godot SHARED
 
 set_property(TARGET stratum_godot PROPERTY FOLDER "application")
 
-# flecs_static carries this as a PUBLIC define, but godot-cpp's headers are compiled into this
+# flecs_static has this as a PUBLIC define, but godot-cpp's headers are compiled into this
 # target too and flecs.h would otherwise declare everything dllimport
 target_compile_definitions(stratum_godot PRIVATE flecs_STATIC)
 

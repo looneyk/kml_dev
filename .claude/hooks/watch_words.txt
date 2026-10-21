@@ -1,0 +1,99 @@
+# Words and phrases the wording check flags in added comments, strings and document text.
+# One entry per line, matched case-insensitively as whole words. A line starting with re: is a regular expression,
+# and one starting with comment-re: is a regular expression applied only to code comments. Blank lines and lines
+# starting with # are ignored.
+
+# The CLAUDE.md watch list
+stands
+standing
+carries
+carry
+carried
+carrying
+names
+lands
+landed
+landing
+answers
+records
+recorded
+recording
+holds
+says
+wants
+wanted
+knows
+knowing
+sits
+sitting
+gives
+giving
+gave
+serves
+serving
+takes in
+reaches for
+covers
+covering
+gate
+gates
+gated
+gating
+thing
+things
+shape
+shapes
+kind
+kinds
+
+# Words that describe code as if it acted
+asks
+asked
+owns
+lives in
+lives on
+talks to
+speaks
+listens
+knows about
+
+# Jargon
+load-bearing
+orthogonal
+footgun
+footguns
+blast radius
+belt-and-suspenders
+belt and suspenders
+hallmark
+hallmarks
+seam
+seams
+carried over
+
+# Exclusion clauses
+nothing else
+no other
+
+# UK spellings
+re:\bneighbour
+re:\bbehaviour
+re:\bcolour
+re:\bcentre
+re:\brecognis
+re:\bnormalis
+re:\binitialis
+re:\bserialis
+re:\borganis
+re:\bcatalogue
+re:\bgrey\b
+re:metre\b
+re:\btravelled
+re:\bmodelling
+re:\bfavour
+re:\blicence
+
+# Clipped comment openings
+comment-re:^\s*What an?\b
+comment-re:^\s*Whether\b
+comment-re:^\s*On an? [^:]*:

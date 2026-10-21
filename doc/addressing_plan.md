@@ -28,11 +28,11 @@ Open items are listed in `work_plan.md`, and `game_system_reference.md` describe
   may go is the generators' concern: it must not cut a passage in two, and at a dead end its open side faces the one
   open neighbor.
 - **A reference is written `{ "entity": id }`,** an object with that one key, so making a zone translates every
-  reference without knowing what a file component means.
+  reference without interpreting a file component.
 - **Walls are barriers to movement** and define the borders of rooms. Passage through a wall comes from the entities
   sited on it, a staircase included: an actor moves into a staircase through its open side.
 - **`crossable` reads the properties of each entity sited on the wall:** its access state, which is open, closed or
-  locked, and its detection state for the actor asking, each resolved from the entity and then its ancestors. An
+  locked, and its detection state for the actor crossing, each resolved from the entity and then its ancestors. An
   entity with no access state anywhere in that chain is not crossable. One rule reads the properties, with no case for
   a door, a staircase or concealment, and nothing on the wall or the cell marks it crossable (`## Crossing a wall`).
 - **Each zone has a placement index,** derived from the placements of the actors and of anything else in a cell of the
@@ -175,14 +175,14 @@ namespace quetzal::stratum_sim
 }
 ```
 
-- **`crossable`** takes the wall's entity and asks each entity in its `AttachedEntities`. An entity lets the actor
+- **`crossable`** takes the wall's entity and checks each entity in its `AttachedEntities`. An entity lets the actor
   through if its access is open and its detection for that actor is not concealed. A wall with no entity, or with no
   entity on it that lets the actor through, cannot be crossed.
 - **No access means no way through.** An entity whose chain has no `Access` at all --- a torch, a lever --- is not
   examined further.
 - **A property comes from the entity or from an ancestor.** A door facing has no `Access` of its own and its door has
   one, so both sides of a door open together. A staircase's own `Access` is open and stays open.
-- **There is one rule, with no type in it.** `crossable` reads `Access` and `Detection` and nothing else, so a new type
+- **There is one rule, with no type in it.** `crossable` reads only `Access` and `Detection`, so a new type
   of way through needs only the right components, not code here.
 - **The result depends on the actor.** `move`, `neighbors` and `visible` take a `crossable_function_type`, and
   `World::move`, `World::neighbors` and `World::visible` bind `crossable(zone, wall_id, actor)` for the actor moving

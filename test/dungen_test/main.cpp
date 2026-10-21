@@ -427,7 +427,7 @@ namespace
 
             try
             {
-                // The name is the zone's, not a parameter of its run, so it is carried over as the file wrote it
+                // The name is the zone's, not a parameter of its run, so it is copied as the file wrote it
                 stratum_format::Document document = document_of(reference);
                 string name = document.components.is_object() ? document.components.value("name", string()) : string();
 
@@ -477,11 +477,11 @@ namespace
         parameters.extent = {21, 15};
         parameters.seed = 7u;
 
-        report_case("one seed gives one zone", zone_text(parameters) == zone_text(parameters));
+        report_case("one seed produces one zone", zone_text(parameters) == zone_text(parameters));
 
         dungen::Parameters other = parameters;
         other.seed = 8u;
-        report_case("and another seed gives another", zone_text(other) != zone_text(parameters));
+        report_case("and another seed produces another", zone_text(other) != zone_text(parameters));
 
         auto write = [&](id_type id, const string& name)
         {
@@ -490,11 +490,11 @@ namespace
             return os.str();
         };
 
-        report_case("the id a Zone holds does not reach its file", write(0, "one") == write(7, "one"));
+        report_case("a Zone's id is not written to its file", write(0, "one") == write(7, "one"));
 
         stratum_format::Document named = document_of(write(0, "Cistern Level 1"));
         stratum_format::Document unnamed = document_of(write(0, ""));
-        report_case("the name a Zone holds is written as the layout's name",
+        report_case("a Zone's name is written as the layout's name",
             named.components.is_object() && named.components.value("name", string()) == "Cistern Level 1");
         report_case("an empty name is not written", !unnamed.components.is_object() || !unnamed.components.contains("name"));
         report_case("and the name does not affect the grid", named.cells.rows == unnamed.cells.rows);
@@ -552,7 +552,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Every algorithm produces a zone the reader accepts, of the size asked for
+    // Every algorithm produces a zone the reader accepts, of the requested size
     void test_grid_shape()
     {
         report_group("grid shape");
@@ -810,7 +810,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Returns true if the rooms the reader finds cover exactly the cells generation laid out as each room. It fails if a
+    // Returns true if the rooms the reader finds contain exactly the cells generation laid out as each room. It fails if a
     // barrier is missing and a room's fill leaks out through an open doorway
     bool rooms_read_back(const dungen::Parameters& parameters, string& detail)
     {
@@ -945,7 +945,7 @@ namespace
     //--------------------------------------------------------------------------
     // Checks the written zone, and checks each stair cell's surroundings, which the file does not record, in the zone
     // generated again. There must be as many staircases each way as the counts allow, and no floor cut off by a stair
-    // block. No staircase may block a doorway if a cell beside it would not. Every staircase must be attached to the wall
+    // block. No staircase may block a doorway if a cell beside it would not. Every staircase must be sited on the wall
     // on an open side with floor beyond, or with a door if no side has floor beyond, and the access points must refer to
     // every staircase
     bool staircases_placed_and_faced(const string& zone, const dungen::Parameters& parameters, string& detail)
@@ -1268,7 +1268,7 @@ namespace
             report_case("a staircase is placed on a candidate", placing(zone, {{1, 1}}, {1, 1}, {0, 0}, warnings).empty()
                 && zone.staircases().size() == 1 && zone.cell({1, 1}).type() == dungen::CellType::Staircase);
             report_case("facing the floor beside it", !zone.staircases().empty() && zone.staircases()[0].direction() == dungen::vector_type {1, 0});
-            report_case("the floor a staircase faces takes no other", placing(zone, {{2, 1}}, {1, 1}, {0, 0}, warnings) == unplaced_rise_error);
+            report_case("the floor a staircase faces gets no second staircase", placing(zone, {{2, 1}}, {1, 1}, {0, 0}, warnings) == unplaced_rise_error);
         }
 
         {

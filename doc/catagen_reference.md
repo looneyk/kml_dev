@@ -9,7 +9,7 @@ beside it. The two share no code.
 - `library/quetzal/catagen` --- the generator
 - `tool/catagen` --- the driver
 - `library/quetzal/stratum_sim/load_layout.cpp` --- reads a zone file into a zone
-- `assets/zones/catagen.zone` --- a generated zone that `stratum_terminal` loads
+- `assets/zones/catagen.zone` --- a generated zone, which `catagen_test` compares against
 
 ## The zone file
 
@@ -77,7 +77,7 @@ both halves would still reach the scale minimum, with the cut at a uniformly cho
 Each cut also draws a spacing from its range, and that many solid cells are left along the cut, so the gap between two
 rooms is the spacing drawn. Two rectangles that touch do so only across the cut of their lowest common ancestor, so
 spacing every cut spaces every pair: at any spacing above zero no two rooms share a wall, and corridors join them all.
-A side must reach `2 * scale_min + spacing` to be cut, so a large spacing makes rooms larger than the scale asked for.
+A side must reach `2 * scale_min + spacing` to be cut, so a large spacing makes rooms larger than the scale range.
 At spacing zero, the default, the rectangles tile the extent exactly, and no value is drawn, since a range of one value
 offers no choice.
 

@@ -24,7 +24,7 @@ in `work_plan.md` (`### Session`).
 | --- | --- |
 | `Game` | The game in its entirety, lasting as long as the host: the config, the id allocator, the `World`, the `Character` and the `Session`, all by value; setting and saving the settings, and seeding and saving the random engines; the registries of generators, generator selectors and region specs; the menu operations --- opening and closing the menu, creating, opening, saving and quitting games, and listing the saved games --- and the game's own file |
 | `Session` | The game being played: starting, pausing, resuming and clearing play; the zone the character is in, entering a zone, the turn order, the clock and its driver, the character's intent and pending command, advancing, and whether the game is over |
-| `World` | Regions and zones: creating regions and zones from their specs; creating, loading, populating, saving, unloading and clearing zones, knowing which are loaded, and choosing which unload as zones are entered; the world's file; entities and persistent ids; the registrations that last as long as the program |
+| `World` | Regions and zones: creating regions and zones from their specs; creating, loading, populating, saving, unloading and clearing zones, tracking which are loaded, and choosing which unload as zones are entered; the world's file; entities and persistent ids; the registrations that last as long as the program |
 | `Character` | The entity the host controls: creating it, opening and saving its file, and clearing it |
 
 ## Settings, the log, and the random engines
@@ -342,7 +342,7 @@ Character& Game::character();
 - **Each access point has an `order`,** given when it is created, counting from 0 within its type, so each type has its
   own 0.
 - **The entry point is the available access point with the lowest `order` among those of the desired type whose
-  relocators target the desired level offset,** and any type is allowed. An actor arriving from another level wants the
+  relocators target the desired level offset,** and any type is allowed. An actor arriving from another level needs the
   offset that leads back. Available means not already bound to a relocator elsewhere. With
   two staircases leading up, where the lower-ordered one was bound to the level above by an earlier arrival, an actor
   arriving from a different staircase leading down above enters at the other.

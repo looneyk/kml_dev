@@ -1,0 +1,13 @@
+# Phrases the wording check removes before matching, because each uses a watch-list word in its ordinary sense.
+# One phrase per line, matched case-insensitively. Blank lines and lines starting with # are ignored.
+
+stands on
+stands in
+stands in for
+as it stands
+gives up
+gives way
+one more thing
+the whole thing
+invariant holds
+the remainder carries

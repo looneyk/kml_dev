@@ -114,7 +114,7 @@ keep a generated file the same for the same parameters, which is what the genera
 ## Persistent ids are a 64-bit count, not UUIDs
 
 A UUID's advantage is that it can be created with no coordination. Templates with local ids remove the one place that
-needed it, a generator run as a tool with no world to ask, and once a world exists it is the one place ids are made,
+needed it, a generator run as a tool with no world to query, and once a world exists it is the one place ids are made,
 so a count saved with the world suffices.
 
 A UUID is 16 bytes where a count is 8, in the component on every persistent entity, in every reference that may reach
@@ -161,7 +161,7 @@ between the two layout models.
 An actor's site has a placement and no address, and each zone has an index of the entities placed in it by place,
 derived from the placements (`addressing.md`, `### Actors`).
 
-**Not a scan.** Checking every placed entity in the zone costs more as the zone fills, and `World::move` asks what is
+**Not a scan.** Checking every placed entity in the zone costs more as the zone fills, and `World::move` queries what is
 at a cell for every cell it moves into.
 
 **Not an address.** Siting an actor on the cell it stands on would make what is at a cell one lookup for actors as for
@@ -171,12 +171,12 @@ cells to attach to. And attachment would mean two different relations: a torch s
 only standing somewhere this turn.
 
 **An index.** A move costs two map updates and no entities. The placement remains the one statement of where an actor
-is, the index being rebuilt from it, and each kind of layout indexes in its own way.
+is, the index being rebuilt from it, and each type of layout indexes in its own way.
 
 ## Passage is not a field on the wall
 
-A wall is there or it is not. Whether an actor may cross it is decided by what is sited on it: `crossable` asks each
-entity sited on it whether its properties let the actor through, and has no special case for doors or concealment.
+A wall is there or it is not. Whether an actor may cross it is decided by what is sited on it: `crossable` checks
+whether the properties of an entity sited on it let the actor through, and has no special case for doors or concealment.
 Nothing on the wall or the cell marks it crossable, so no state is kept twice.
 
 A flag on the wall would be mutable state in layout data, which is the line the entity model is drawn on: layout data
@@ -200,7 +200,7 @@ into the room, so there is no orientation to write, choose or check.
 different.
 
 **Passage is a door's.** An actor goes through the open side as through an open door, so moving into a staircase needs
-nothing beyond what `crossable` already asks.
+nothing beyond what `crossable` already checks.
 
 ## A minable block is a destructible container entity
 
@@ -218,8 +218,8 @@ of entities. A layout's size stays a direct function of how much digging is perm
 
 ## Walls decide collision alone, as bits on the cells
 
-**Collision reads the walls and nothing else.** `DiscreteLayout::move` moves cell to cell calling `wall_toward`, and
-asks whether the wall there may be crossed. `move`, `neighbors` and `visible` all go through the layout's `crossable`,
+**Collision reads only the walls.** `DiscreteLayout::move` moves cell to cell calling `wall_toward`, and checks
+whether the wall there may be crossed. `move`, `neighbors` and `visible` all go through the layout's `crossable`,
 and `World::move` adds the occupancy predicate above it. None of that path reads a room. Rooms are metadata, and
 movement, sight and adjacency are independent of them.
 
@@ -236,7 +236,7 @@ from them.
 
 This is the background for splitting the two types, and for `math::DiscreteVector`.
 
-**One type was serving three roles.** `Cell` was a coordinate, a move (`Cell {-1, 0}` in `move` and `neighbors`), and
+**One type had three roles.** `Cell` was a coordinate, a move (`Cell {-1, 0}` in `move` and `neighbors`), and
 a count (the grid extent). Only the first is a position, and the confusion showed: a cell was moved by writing out
 `{cell.i + step.i, cell.j + step.j}` at four sites, and the extent as a position let a count be compared against a
 coordinate without anything objecting.
@@ -254,13 +254,12 @@ be rejected. Unsigned components would turn both into wraparound.
 **`math::DiscreteVector<T, N>` rather than a type local to the layout.** `dungen` already had a 2D integer vector named
 `Vector`, aliased as its `position_type`, `dimensions_type` and `vector_type`, and a second copy in `stratum_sim` would
 have been the same class twice. Templating it on a signed integral type and a dimension, alongside `math::Vector`,
-gives one of them. Signed because a displacement runs both ways along every axis.
+makes it one class. Signed because a displacement runs both ways along every axis.
 
 **Quantizing is a choice of axis, not a rounding.** `direction` takes the largest component and returns a unit vector
-along that axis alone; reducing each component instead turns a direction that was nearly east into a diagonal nobody
-asked for. Its continuous form requires the source and result to have the same dimension, so a caller taking a
+along that axis alone; reducing each component instead turns a direction that was nearly east into a diagonal. Its continuous form requires the source and result to have the same dimension, so a caller taking a
 direction through space to a flat grid reduces to the plane first --- `stratum_sim::grid_step` does that with
-`geometry::MinProjection`, the dropped height staying in the layer that knows the layout is flat.
+`geometry::MinProjection`, the dropped height staying in the layer in which the layout is flat.
 
 ## The boundary keeps an actor on the grid, and the bounds test is an assertion
 
@@ -277,7 +276,7 @@ release build.
 
 **The queries take a direction, not a second cell.** `wall_toward(cell_position, direction)` replaced
 `wall_between(cell_a, cell_b)`, which only ever used the difference of its two arguments. The old signature let a
-caller name a cell that need not exist purely to express a direction, and made the adjacency of the two an assertion
+caller pass a cell that need not exist purely to express a direction, and made the adjacency of the two an assertion
 instead of a property of the type.
 
 ## Zone entries share one construction
@@ -313,7 +312,7 @@ continuous one: the discrete case snaps and the continuous case will not.
 
 ## The layout does all turning
 
-`turn` is relative and `face` absolute. A view with a relative turn asks `turn` for the resulting direction and sends
+`turn` is relative and `face` absolute. A view with a relative turn calls `turn` for the resulting direction and sends
 it as an absolute facing direction, so the quantizing is the layout's in both cases, and neither the command nor the
 host stores a rotation.
 
@@ -328,17 +327,17 @@ entity id an entity, so the two ids are not interchangeable.
 
 ## Presentation is a reduction and a mapping, with no view interface
 
-A reduction takes a zone to places, and a mapping takes places to what a device emits. Neither host owns a view and
-asks it to draw; each is written against the stage it uses, so a view interface would be a vtable with no call site.
+A reduction takes a zone to places, and a mapping takes places to what a device emits. Neither host calls a view
+object to draw; each is written against the stage it uses, so a view interface would be a vtable with no call site.
 The first-person view, which produces mesh instances rather than a buffer, is what will settle whether `Buffer<T>` is
 the shared form.
 
 `lattice` exists beside `cells` rather than replacing it: the two are not the same picture at a different scale, and
 the tile view has no use for edges.
 
-**An actor is a flag over a place.** An actor is on a place rather than a kind of place. A `PlaceType` value for it
+**An actor is a flag over a place.** An actor is on a place rather than a type of place. A `PlaceType` value for it
 overwrote the floor, state and mask beneath, leaving a tile view nothing to draw under an actor. `Place::actor` is
-layered over the structure instead, and a glyph line asks for it as for a state.
+layered over the structure instead, and a glyph line requires it as it requires a state.
 
 **`PlaceType` has no value per state.** A door that can be shut, locked or concealed is one place type, its state
 beside it, so nothing enumerates the cross product. A state is added only when it changes the drawing.
@@ -403,7 +402,7 @@ Godot's `Object`, `ClassDB`, `Variant` and virtual filesystem.
 
 Compositing configurations A and B into one window --- Godot for 2D and UI, quetzal for the 3D viewport --- means two
 windowing stacks in one window, two event loops and two presentation paths, with no clean answer for input focus,
-z-order, or which one owns the swap chain. That argues against mixing hosts in one process and nothing else: not
+z-order, or which one owns the swap chain. That argues only against mixing hosts in one process: not
 against B, whose costs are its own, and not against the terminal application, a separate process.
 
 Building B would be the strongest proof of the view abstraction: a second front end on different infrastructure,
@@ -471,7 +470,7 @@ closest precedent: a grid dungeon crawler whose mods define objects as component
 behavior in Lua. Script state in components is what keeps saving a matter of components, and the seeded random source
 is what keeps generation reproducible.
 
-**The limit.** A new kind of layout is a `Layout` subclass in C++. Every data-driven game places the engine line there.
+**The limit.** A new type of layout is a `Layout` subclass in C++. Every data-driven game places the engine line there.
 
 ## Where an entity is, as components
 

@@ -21,7 +21,7 @@
 std::filesystem::path project_directory();
 
 //------------------------------------------------------------------------------
-// One simulation zone and the player, exposed to Godot through Godot types only
+// The game, exposed to Godot through Godot types only
 class StratumWorld : public godot::RefCounted
 {
     GDCLASS(StratumWorld, godot::RefCounted);

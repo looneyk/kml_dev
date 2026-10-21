@@ -22,7 +22,7 @@ namespace quetzal::stratum_view
     //     door open '\'
     //     wall mask=EW '-'
     //
-    // The first line gives the format and its version. A glyph line is a place type, then the states it requires in any
+    // The first line states the format and its version. A glyph line is a place type, then the states it requires in any
     // order, then actor if it requires an actor on the place, then mask= and the directions it requires, then the
     // character in single quotes, so a space can be a glyph. \\ and \' are the escapes
     // Omitting the states, actor or mask= matches any. mask= with no directions requires that no wall line reach the

@@ -15,7 +15,7 @@ These are the words the genre uses, several of which collide with each other or 
 
 **Room-and-corridor** --- generation that places discrete rooms and then digs passages between them, as against
 **cave** or **cellular** generation, which carves open space out of solid ground and has no room concept to begin
-with. The distinction under survey here exists only in the first kind.
+with. The distinction under survey here exists only in the first type.
 
 **Corridor**, also **passage** --- floor connecting rooms, one or two cells wide, not part of any room. Rogue's `#`
 glyph is called a passage.
@@ -24,7 +24,7 @@ glyph is called a passage.
 
 - In Angband, DCSS and their descendants, a vault is authored content placed into a generated level: a fixed layout,
   written as an ASCII template with its own monsters and objects, usually more dangerous and better rewarded than the
-  level around it. The generator treats the region as owned and will not dig through it. DCSS writes them in `.des`
+  level around it. The generator treats the region as reserved and will not dig through it. DCSS writes them in `.des`
   files, a Lua and ASCII DSL, and they range from a few decorative cells to an entire level. Angband grades them lesser
   and greater by size and danger.
 - In NetHack, a vault is a specific level feature: a closed 2 by 2 room full of gold with no door, reachable only by
@@ -33,7 +33,7 @@ glyph is called a passage.
 **Machine** --- Brogue's term for a self-contained arrangement of terrain, items and monsters built into a level after
 the base layout is dug: a reward room whose item is guarded, a flooded room with a lever, a captive monster in a cage. A
 machine is instantiated from a **blueprint** by rules rather than stamped from a fixed map, which is what separates it
-from a vault. Each cell has a machine number, so the game can ask which machine a cell belongs to.
+from a vault. Each cell has a machine number, so the game can look up which machine a cell belongs to.
 
 **Subroom** --- NetHack's term for a room inside another room, such as a shop's back closet.
 
@@ -52,25 +52,25 @@ uses the same word for an independently loadable area, which is the same idea; i
 | **Angband** | `.` for both | a per-grid room flag, nothing else | none; vaults get a flag of their own | room lit by flood fill over the flag |
 | **DCSS** | `.` for both | nothing for ordinary rooms; a vault mask per square | vaults only, named and tagged in `.des` | line of sight; no room lighting |
 | **Brogue** | `.` for both | nothing for ordinary rooms; a machine number per cell | machines only | physical light model; no room rule |
-| **ADOM** | `.` for both *(uncertain)* | generated rooms have a kind; whole levels are authored outright | special room types --- shop, kitchen, treasure chamber, fungus and swamp rooms, big room | dark rooms and dark levels; light sources matter |
+| **ADOM** | `.` for both *(uncertain)* | generated rooms have a type; whole levels are authored outright | special room types --- shop, kitchen, treasure chamber, fungus and swamp rooms, big room | dark rooms and dark levels; light sources matter |
 | **ToME 4** | `.` for both, tiles by default | rooms are a generator-side concept; the grid keeps terrain *(inferred)* | vaults and greater vaults | lite radius, inherited from Angband |
 | **Caves of Qud** | `.` for both, tiles by default | zone builders; ruins do carve rooms *(inferred)* | villages, sites and named structures, at and above zone scale | light radius |
 | **stratum** | `.` for both; view glyphs are chosen separately | `rooms` in the zone file; `Cell::room_id` after load | a room id, with components from the file such as a name and a style | none |
 
 ## Three axes, and they are independent
 
-**Notation.** Distinguishing corridor from room floor on screen is a Rogue-lineage trait and nothing else does it. Both
+**Notation.** Only the Rogue lineage distinguishes corridor from room floor on screen. Both
 games that do use `#` for the corridor and `.` for the room. Blank is solid or unseen everywhere in the genre, the one
 convention that is close to universal.
 
 **Determination.** Two settled answers. Keep what generation knew, as Rogue and NetHack do, since the generator made a
 room and can store it. Or discard it and keep a per-cell flag, as Angband does, recovering a region by flood fill
-whenever one is needed --- room lighting being the case that needs it. Both work; they differ in what can be asked
+whenever one is needed --- room lighting being the case that needs it. Both work; they differ in what can be queried
 afterward.
 
-**Identity.** Every game that discards room records still keeps identity for the rooms that carry meaning: Angband and
+**Identity.** Every game that discards room records still keeps identity for the rooms that have meaning: Angband and
 DCSS for vaults, Brogue for machines. What varies is where the line falls between a room that is merely an area and a
-room with identity. NetHack and ADOM draw it furthest toward identity for all, giving ordinary rooms a kind as well as
+room with identity. NetHack and ADOM draw it furthest toward identity for all, giving ordinary rooms a type as well as
 shops and temples.
 
 ### Persistence decides determination
@@ -79,7 +79,7 @@ Whether a level survives being left tracks closely with whether room records are
 
 Angband keeps the least identity and is also the game that discards the level: leave and return and it is generated
 afresh, so nothing is lost by discarding what generation knew. NetHack and ADOM both persist levels and both keep room
-tables. DCSS and Brogue persist levels too, and keep records for the regions that carry meaning while letting ordinary
+tables. DCSS and Brogue persist levels too, and keep records for the regions that have meaning while letting ordinary
 rooms go.
 
 Flood fill recovers a region from the level as it is now, not as it was generated. Against a level that will never be
@@ -93,7 +93,7 @@ rather than an area. The differences are scale and authorship: identity is at zo
 rectangle of floor, and it comes with generated history rather than a type tag. So it answers the identity question and
 has no position on the corridor question, its zones not being built from rooms and passages.
 
-Recording rooms at generation and reading them back, or flagging cells and recovering regions, are the only two answers
+Storing rooms at generation and reading them back, or flagging cells and recovering regions, are the only two answers
 in shipped games. Every game choosing the second keeps records anyway for the rooms that mean something, and the games
 choosing it are the ones whose levels do not have to survive being left.
 

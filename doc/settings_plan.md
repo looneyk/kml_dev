@@ -3,7 +3,7 @@
 Date: 2026-10-05, revised 2026-10-19
 
 How the game's settings are defined, stored, read and saved. There may be a hundred or more, from every subsystem of the
-game. The open items are in `work_plan.md` (`### Settings`), and the work in **Keyed settings**.
+game. The open items are in `work_plan.md` (`### Settings`), and the work that remains in **Mods' settings**.
 
 ## Terms
 

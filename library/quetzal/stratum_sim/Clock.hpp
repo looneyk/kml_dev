@@ -16,7 +16,7 @@ namespace quetzal::stratum_sim
 {
 
     //--------------------------------------------------------------------------
-    // How a clock grants time. Set when a world is loaded, not by the host
+    // How a clock grants time
     enum class Driver
     {
         TurnBased,

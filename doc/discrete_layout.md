@@ -124,10 +124,10 @@ specified in `addressing.md`.
 
 Everything in the file that is not geometry is a component object: named values under a
 `components` key. The reader interprets none of it. It builds the layout from the geometry and
-hands the components to its caller, which has a world to build entities in; a name the caller does
-not recognize is its to ignore.
+passes the components to its caller, which has a world to build entities in and ignores a name it does
+not recognize.
 
-So the reader reports where a door goes and never learns what a door is, and terrain, difficulty, a
+So the reader reports where a door is without interpreting what a door is, and terrain, difficulty, a
 relocator's target and whatever content later adds pass through to the caller the same way.
 
 ### Inheritance
@@ -147,7 +147,7 @@ the room's. Where both are specified at one level the flat's wins. `height` desc
 The nearest level wins, component by component, and a component whose value is an object merges
 property by property the same way, so a level overrides part of one by stating only that part.
 Merging takes no notice of what a property is. Which components inherit is the consumer's vocabulary,
-as every component name is. The reader resolves no chain, and hands back each component object at
+as every component name is. The reader resolves no chain, and returns each component object at
 the level it was written.
 
 `style` is one: a theme and how it is built. Its value is a name, an object of properties, or an
@@ -207,7 +207,7 @@ A file that was authored rather than generated omits `generator`.
 
 ## layout
 
-The name and properties of the layout as a whole. It is a component object and nothing else.
+The name and properties of the layout as a whole. It is a component object.
 
 ```json
 "layout": { "components": { "name": "The Flooded Cistern", "type": "dungeon", "difficulty": 3, "style": "cistern" } }
@@ -251,7 +251,7 @@ wall's normal (`### Staircases and access points`).
 The JSON defines a zone's access points; the stair glyphs `<` and `>` are visual aids. The reader warns
 if they disagree --- a stair cell with no relocator on the walls around it, or a second one, or
 an access point on a wall that is neither a stair cell's open side nor a door's wall --- and reads the file as the JSON has
-it. Warnings go to the reader's warning callback, which by default writes them to `std::clog`.
+it. Warnings are written to the process-wide log.
 
 A door facing may be an access point, with a relocator of its own, and then leads to another zone. A door between
 two zones is two doors, one in each, their relocators bound to each other.
@@ -366,8 +366,8 @@ and the corners at the even positions in both.
 A position's parity determines which of the three it is.
 
 A corner position is always blank, and so is a cell with no floor. The edges either side of a corner
-express everything a corner could, and a solid cell is the absence of floor. A zone draws its floor and the
-walls around it, and nothing else.
+express everything a corner could, and a solid cell is the absence of floor. A zone file draws only its floor
+and the walls around it.
 
 A wall always separates a floor cell from a blank cell, from a stair cell, and from the border of the grid.
 A stair cell is a block with no walls of its own, so nothing is required between one and a blank cell or
@@ -453,8 +453,7 @@ in it.
 A cell position with a normal is a barrier across that edge; a cell position alone closes off the whole
 cell.
 
-A fill does not cross a barrier, and that is all a barrier does. It is never in the layout: it builds
-nothing and blocks nothing, and an actor crosses one with nothing to notice.
+A barrier only stops a fill. It is not stored in the layout and does not block movement.
 
 What remains is the room's cells, so a perimeter traced from them later runs
 along a barrier as it runs along a wall.
@@ -492,7 +491,7 @@ no ceiling. If `flats` is absent, the floor is at height 0 and the ceiling at 1.
 
 | Key | |
 | --- | --- |
-| `role` | `"floor"` or `"ceiling"`. The two differ by role and nothing else |
+| `role` | `"floor"` or `"ceiling"`. The two differ only by role |
 | `height` | Where the surface is across the whole flat |
 | `components` | The surface's components across the whole flat |
 | `rooms` | Per room: a room id, and what that room overrides |
@@ -600,7 +599,7 @@ never leads back to it.
 
 A reference to an entity is an object whose only key is `entity`, written anywhere in a file component.
 `parent` is a reference in this form too, so a reader finds every reference by its form alone, without
-knowing what a file component means.
+interpreting a file component.
 
 ```json
 { "id": 5, "type": "lever", "components": { "controls": { "entity": 1 } } }
@@ -663,7 +662,7 @@ An omitted region is the relocator's own region, from which the
 caller's rules for moving down, up, and across apply, and a written region is the only one searched. Region names,
 zone names, and positions are the caller's vocabulary.
 
-Resolving one finds a zone or makes one. Traversal passes the target to whatever owns zones, which
+Resolving one finds a zone or makes one. Traversal passes the target to whatever manages the zones, which
 returns a zone it has or generates one, and chooses the cell an arriving actor is placed in. What it
 resolves to is written back as a bound target, so leaving and returning arrive at the same place.
 
@@ -680,7 +679,7 @@ a template.
 
 ## What a reader must do with it
 
-Load and validate the geometry, and hand back everything else as the file wrote it. What was read,
+Load and validate the geometry, and return everything else as the file wrote it. What was read,
 written back, is equivalent to the file and complete, if not identical to it.
 A reader has no world to build entities in, so where the file puts a door it reports the door rather
 than placing one, and the same applies to every component object and every entity.

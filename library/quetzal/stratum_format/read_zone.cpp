@@ -1144,7 +1144,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Each door glyph is one entity with a child sited on each wall of its doorway and on no other wall
+    // Each door glyph is one entity whose children are sited on exactly the walls of its doorway
     void check_door_glyphs(const Document& document, const EntityIndex& index)
     {
         auto child_on = [&](stored_entity_id_type parent, const WallAddress& address)

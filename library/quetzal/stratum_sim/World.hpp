@@ -78,7 +78,7 @@ namespace quetzal::stratum_sim
     flecs::entity entity_type(const flecs::world& entities, std::string_view name);
 
     //--------------------------------------------------------------------------
-    // The zones and everything in them. All entities are in one flecs world; a its contents are its children, and its layout is a component
+    // The zones and everything in them. All entities are in one flecs world; a zone's contents are its children, and its layout is a component
     class World
     {
     public:
@@ -167,7 +167,7 @@ namespace quetzal::stratum_sim
         // absolute level with no position. With the region omitted, it is an unbound access point of the arrival type that
         // leads back, in another loaded zone of the relocator's region at the target level, or else the entry point of a
         // zone made there. With a region, it is the entry point of the first zone of a new region created from the region
-        // spec of that name, and nothing is found. Throws std::runtime_error if the target has a named zone or a position, if
+        // spec of that name, without searching the loaded zones. Throws std::runtime_error if the target has a named zone or a position, if
         // that region spec is not registered, or, after discarding the zone made, if it has no access point of the arrival
         // type that leads back
         flecs::entity resolve_relocator_target(flecs::entity relocator);

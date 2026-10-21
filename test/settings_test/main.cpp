@@ -269,7 +269,7 @@ namespace
         report_case("and one registered twice, or with no values, is an error", throws([&] { test_settings.register_enumeration("torches.style",
             {"steady"}); }) && throws([&] { test_settings.register_enumeration("torches.shade", {}); }));
 
-        report_case("a type name that is not registered is an error", throws([&] { test_settings.insert("torches.colour", {.type_name = "colour",
+        report_case("a type name that is not registered is an error", throws([&] { test_settings.insert("torches.color", {.type_name = "color",
             .default_value = "red"}); }));
         report_case("and so is a default that is no value of the type", throws([&] { test_settings.insert("torches.count", {.type_name = "integer",
             .default_value = "many"}); }));
@@ -277,7 +277,7 @@ namespace
             .default_value = "false"}); }) && throws([&] { test_settings.insert("", {.type_name = "boolean", .default_value = "false"}); }));
 
         test_settings.clear();
-        report_case("clearing the store keeps the four types it starts with, and no other", test_settings.registered_type("boolean")
+        report_case("clearing the store keeps only the four types it starts with", test_settings.registered_type("boolean")
             && !test_settings.registered_type("mode") && !test_settings.contains("torches.flicker"));
         return;
     }

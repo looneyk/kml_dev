@@ -43,7 +43,7 @@ namespace quetzal::stratum_sim
 
     namespace detail
     {
-        // The parent that ensure_layout_entity gives a new entity
+        // The parent that ensure_layout_entity assigns to a new entity
         template<typename Address>
         flecs::entity layout_parent(flecs::entity zone, const Address& address);
 

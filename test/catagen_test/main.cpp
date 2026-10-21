@@ -359,7 +359,7 @@ namespace
 
             try
             {
-                // The name is the zone's, not a parameter of its run, so it is carried over as the file wrote it
+                // The name is the zone's, not a parameter of its run, so it is copied as the file wrote it
                 stratum_format::Document document = document_of(reference);
                 string name = document.components.is_object() ? document.components.value("name", string()) : string();
 
@@ -553,15 +553,15 @@ namespace
         parameters.extent = {16, 12};
         parameters.seed = 7u;
 
-        report_case("one seed gives one zone", zone_text(parameters) == zone_text(parameters));
+        report_case("one seed produces one zone", zone_text(parameters) == zone_text(parameters));
 
         catagen::Parameters other = parameters;
         other.seed = 8u;
-        report_case("and another seed gives another", zone_text(other) != zone_text(parameters));
+        report_case("and another seed produces another", zone_text(other) != zone_text(parameters));
 
         stratum_format::Document named = document_of(zone_text(parameters, "Catacombs Level 1"));
         stratum_format::Document unnamed = document_of(zone_text(parameters));
-        report_case("the name a Zone holds is written as the layout's name",
+        report_case("a Zone's name is written as the layout's name",
             named.components.is_object() && named.components.value("name", string()) == "Catacombs Level 1");
         report_case("an empty name is not written", !unnamed.components.is_object() || !unnamed.components.contains("name"));
         report_case("and the name does not affect the grid", named.cells.rows == unnamed.cells.rows);
@@ -655,7 +655,7 @@ namespace
     // Checks the written zone, and checks which sides of each stair cell were open, which its written walls hide, in the
     // zone generated again. There must be as many staircases each way as the counts allow, no floor cut off by a stair
     // block, and every stair cell walled toward floor. No staircase may block a doorway if a cell beside it would not. Every
-    // staircase must be attached to the wall on an open side with floor beyond, or with a door if there is no such side,
+    // staircase must be sited on the wall on an open side with floor beyond, or with a door if there is no such side,
     // and the access points must refer to every staircase
     bool staircases_placed_and_faced(const string& zone, const catagen::Parameters& parameters, string& detail)
     {

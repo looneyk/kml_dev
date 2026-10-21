@@ -30,7 +30,7 @@ The game's own content is loaded the same way, as the first mod.
 - **A mod's settings are in the section `mod.<id>`** (`settings_plan.md`, `### Mods' settings`).
 - **A preset that a mod adds to another's setting group is named `mod.<id>.<name>`,** so two mods cannot add presets
   of the same name to one group.
-- **The mod list, `mods/mods.json`, records what the user intends.** The mod menu writes it whenever the user installs,
+- **The mod list, `mods/mods.json`, lists each mod the user has installed and whether it is enabled.** The mod menu writes it whenever the user installs,
   enables, disables or removes a mod.
 
 ## A missing mod
@@ -78,11 +78,11 @@ to the installation, and the user is told.
 
 ## Styles and visuals
 
-- **A style is an asset name and a parameter map.** The asset names a material, a shader and meshes; the parameters are
+- **A style is an asset name and a parameter map.** The asset refers to a material, a shader and meshes; the parameters are
   named numbers, vectors, colors and asset references, passed to the shader by name.
 - **A style inherits along the zone's chain** --- entity, room, layout and type --- with its parameters merging by
   name, so a zone overrides part of a style by stating only that part.
-- **A style may replace a surface's mesh.** A wall, floor or ceiling is drawn from the kit piece its style names
+- **A style may replace a surface's mesh.** A wall, floor or ceiling is drawn from the kit piece its style refers to
   instead of as a flat face, so a curved mirror is a mesh. Collision is unchanged: a wall is still a bit on its cell.
 - **A view resolves a style,** as it resolves glyphs and tiles from its presentation table. The simulation refers only
   to the name.
@@ -101,7 +101,7 @@ to the installation, and the user is told.
 - **Behavior is script wherever practical:** event hooks on types (interacting, entering, or a turn passing), AI
   writing `Intent`, rules and commands, and generators and placement.
 - **Inner loops stay in C++:** movement queries, sight, pathfinding and rendering. Scripts call them.
-- **Script state lives in components.** A script keeps nothing between calls, so saving a zone saves everything.
+- **Script state is stored in components.** A script keeps nothing between calls, so saving a zone saves everything.
 - **Scripts use the simulation's seeded random source and time,** never the wall clock, so generation and replays
   reproduce.
 - **Bindings come from reflection.** A script reads and writes any registered component, including a mod's, through
@@ -110,7 +110,7 @@ to the installation, and the user is told.
 
 ## JSON
 
-JSON is the file format and nothing else. `stratum_format::Document` has component objects as parsed JSON, since it is
+JSON is used only as the file format. `stratum_format::Document` has component objects as parsed JSON, since it is
 the file as data structures, and nlohmann does not appear in any `stratum_sim` header. Nothing in the world is JSON.
 
 ## What blocks it now

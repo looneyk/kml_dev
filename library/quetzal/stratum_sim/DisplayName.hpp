@@ -13,7 +13,7 @@ namespace quetzal::stratum_sim
 {
 
     //--------------------------------------------------------------------------
-    // What an entity is called for a player to read. It identifies nothing. The file component name decodes into it
+    // The name of an entity for a player to read. It identifies nothing. The file component name decodes into it
     struct DisplayName
     {
         std::string name;

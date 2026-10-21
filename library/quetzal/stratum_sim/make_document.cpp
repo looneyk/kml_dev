@@ -324,7 +324,7 @@ quetzal::stratum_format::Document quetzal::stratum_sim::make_document(flecs::ent
         document.rooms[room_id].components = encoded_layout_components(room_entity(zone, room_id), file_components);
     }
 
-    // The walls the document names keep their order, and a wall given components during play follows them
+    // The walls the document lists keep their order, and a wall given components during play follows them
     std::vector<stratum_format::Wall> walls;
 
     for (const stratum_format::Wall& wall : document.walls)

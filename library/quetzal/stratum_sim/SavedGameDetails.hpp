@@ -14,7 +14,7 @@ namespace quetzal::stratum_sim
 {
 
     //--------------------------------------------------------------------------
-    // What made a save: the player's choice, an autosave, or a quick save. They differ only in the save's name
+    // The type of a save: an explicit save, an autosave, or a quick save. They differ only in the save's name
     enum class SaveType
     {
         Explicit,

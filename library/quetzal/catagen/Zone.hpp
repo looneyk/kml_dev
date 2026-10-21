@@ -39,7 +39,7 @@ namespace quetzal::catagen
         CellType cell(const point_type& cell) const;
         void set_cell(const point_type& cell, CellType type);
 
-        // Walls addressed by the line they lie on, which reaches the outermost lines too
+        // Walls addressed by the line they lie on, including the outermost lines
         // A vertical wall separates cells east to west: wall_vertical(i, j) lies between
         // cells (i - 1, j) and (i, j), so i runs to nx inclusive and j over the cells
         WallType wall_vertical(coord_type i, coord_type j) const;

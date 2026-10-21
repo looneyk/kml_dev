@@ -19,8 +19,8 @@ open items are in `work_plan.md` (`### Random engine`).
   libstdc++'s is `minstd_rand0`. The standard distributions are implementation-defined too, so one seed makes different
   zones with different standard libraries.
 - **The other documents state goals and no mechanism.** `game_system_principles.md` (Phase 5) calls for hierarchical
-  seeding, `sim_zone_model.md` counts RNG streams as world state, and `placement_plan.md` hands placement a random engine
-  without saying whose.
+  seeding, `sim_zone_model.md` counts RNG streams as world state, and `placement_plan.md` passes placement a random engine
+  without stating which one.
 
 ## What other games do
 
@@ -99,7 +99,8 @@ engine type`), and a seed stored with the version of the generators that made it
   `std::random_device` if none is passed, and the host logs the seed. A suite seeds them explicitly before each case.
 - **A generation run owns its own random engine,** seeded from the zone's seed (`## Generation`). In dungen and
   catagen, a run becomes an object with its parameters, its random engine, and the state it builds, and the functions
-  that now take a `random_type&` become its members. That ends the passing inside the generators, and it comes with their integration. A run's random engine
+  that now take a `random_type&` become its members. The generators' functions then no longer pass a random engine to one another, and the change comes with their
+  integration. A run's random engine
   is used by one thread and needs no lock.
 - **A view never draws from the simulation's random engines.** A view that animates has a cosmetic random engine of its
   own, so what is drawn on screen never changes what happens.
@@ -117,7 +118,7 @@ engine type`), and a seed stored with the version of the generators that made it
   generation random engine and adds to the `ZoneSpec`, under `seed_key`, before the generator runs (`world_generation_plan.md`). The
   generator is passed the level and the seed.
 - **A generator selector's draws use the generation random engine,** since they decide what a zone is.
-- **A zone file records its seed** in `generator.parameters`, as the tools' files do now, so a zone reproduces from its
+- **A zone file stores its seed** in `generator.parameters`, as the tools' files do now, so a zone reproduces from its
   file alone.
 - **A retry draws a fresh sub-seed** from the run's random engine, for Phase 5's reject-and-retry.
 - **Placement draws from the run's random engine** when it is part of generation (`placement_plan.md`), and from the

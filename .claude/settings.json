@@ -51,5 +51,20 @@
       "PowerShell($d='C:/Users/Keith/AppData/Local/Temp/claude/c--Users-Keith-Documents-kml-dev/682343e2-f685-4b4a-9c87-2195b0909b7f/scratchpad'; $p = Start-Process -FilePath 'C:/Users/Keith/Documents/kml/dev/bin/Debug/mesh_operations.exe' -WorkingDirectory 'C:/Users/Keith/Documents/kml/dev/model/mesh_operations' -RedirectStandardOutput \"$d/vv3e.out\" -RedirectStandardError \"$d/vv3e.err\" -PassThru -NoNewWindow; if \\(-not $p.WaitForExit\\(300000\\)\\) { $p.Kill\\(\\); Write-Output 'TIMEOUT' } else { Write-Output \"EXITCODE $\\($p.ExitCode\\)\" })",
       "PowerShell(MSBuild C:/Users/Keith/Documents/kml/dev/build/model/mesh_operations/mesh_operations.vcxproj -p:Configuration=Debug -p:Platform=x64 -m -v:minimal 2>&1 | Select-String -Pattern ': error' | Select-Object -Last 3; $d='C:/Users/Keith/AppData/Local/Temp/claude/c--Users-Keith-Documents-kml-dev/682343e2-f685-4b4a-9c87-2195b0909b7f/scratchpad'; $p = Start-Process -FilePath 'C:/Users/Keith/Documents/kml/dev/bin/Debug/mesh_operations.exe' -WorkingDirectory 'C:/Users/Keith/Documents/kml/dev/model/mesh_operations' -RedirectStandardOutput \"$d/walk2.out\" -RedirectStandardError \"$d/walk2.err\" -PassThru -NoNewWindow; $p.WaitForExit\\(300000\\)|Out-Null; Write-Output \"EXITCODE $\\($p.ExitCode\\)\"; $c=Get-Content \"$d/walk2.out\"; \\($c|Select-String 'validate_connections:'\\)|Select-Object -First 3)"
     ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/check_wording.sh\"",
+            "timeout": 30,
+            "statusMessage": "Checking wording"
+          }
+        ]
+      }
+    ]
   }
 }

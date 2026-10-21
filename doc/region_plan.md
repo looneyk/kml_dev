@@ -5,7 +5,7 @@ Date: 2026-09-26, revised 2026-10-01
 A region groups contiguous zones: a surface area, a dungeon, a crypt, a tower or a house. Regions have no hierarchy;
 zones connect through their access points, within a region and between regions. Moving between zones through a
 relocator changes the region, the level, or both, and an unbound relocator states how many levels it moves; resolving
-it needs zones to know their region and level. So regions come before relocating through a relocator.
+it requires each zone to have its region and level. So regions come before relocating through a relocator.
 `sim_zone_model.md` (`## World, Zones, and Levels`) states the model, `world_generation_plan.md` how regions and their
 zones are generated, and the open items are in `work_plan.md` (`### Regions`).
 

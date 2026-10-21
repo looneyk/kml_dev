@@ -358,7 +358,7 @@ std::vector<flecs::entity> quetzal::stratum_sim::load_layout(flecs::entity zone,
     decode_components(zone, document.components, "layout", resolve);
 
     // Every room and both flats have an entity. A wall, or a flat's override for a room or a cell, has one only if the
-    // file gives it components
+    // file has components for it
     for (id_type room_id = 0; room_id < zone_layout.room_count(); ++room_id)
     {
         ensure_room_entity(zone, room_id);

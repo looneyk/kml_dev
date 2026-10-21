@@ -452,7 +452,7 @@ namespace
         report_case_equal("push grows the queue", queue.size(), 2);
 
         const stratum_sim::Event& event = queue.front();
-        report_case("front is the first event recorded", event.is<EntityMoved>());
+        report_case("front is the first event pushed", event.is<EntityMoved>());
         report_case("get returns the event", event.get<EntityMoved>().x == 3 && event.get<EntityMoved>().y == 4);
         report_case_equal("an event payload has its own fields", event.get<EntityMoved>().entity_id, 7);
         report_case("try_get is null for another event type", event.try_get<DoorOpened>() == nullptr);
@@ -559,7 +559,7 @@ namespace
         report_case("a point maps to its cell", layout.cell_position_at(stratum_sim::point_type(2.7f, 3.2f, 0.0f)) == stratum_sim::discrete_point_type(2, 3));
         report_case("a cell maps back to its center", layout.position(stratum_sim::discrete_point_type {2, 3}).x() == 2.5f);
         report_case("round tripping a cell center returns the cell", layout.cell_position_at(layout.position(stratum_sim::discrete_point_type {5, 6})) == stratum_sim::discrete_point_type(5, 6));
-        report_case("a point left of the origin lands in a negative cell", layout.cell_position_at(stratum_sim::point_type(-0.5f, 0.5f, 0.0f)) == stratum_sim::discrete_point_type(-1, 0));
+        report_case("a point left of the origin maps to a negative cell", layout.cell_position_at(stratum_sim::point_type(-0.5f, 0.5f, 0.0f)) == stratum_sim::discrete_point_type(-1, 0));
 
         return;
     }
@@ -656,7 +656,7 @@ namespace
         // A zone with no height data loads a constant
         stratum_sim::Flat floor(2.0f);
 
-        report_case("a flat is a floor unless it says otherwise", !floor.ceiling());
+        report_case("a flat is a floor unless it is made a ceiling", !floor.ceiling());
         report_case("a flat with no room or cell heights has none", !floor.room_height(0) && !floor.cell_height(stratum_sim::discrete_point_type {1, 1}));
 
         floor.set_room_height(0, -0.25f);
@@ -794,7 +794,7 @@ namespace
         report_case("and time does not advance for it", scheduler.elapsed() == 0);
 
         scheduler.set_speed(1, 50);
-        report_case("giving it speed lets it act", scheduler.next() == 1);
+        report_case("setting its speed lets it act", scheduler.next() == 1);
         report_case_equal("at half speed it waits two units", scheduler.elapsed(), 2);
 
         scheduler.remove(1);
@@ -882,7 +882,7 @@ namespace
         report_case("running the only actor leaves nobody ready", after == nullid);
         report_case("and it moved", layout.cell_position_at(stratum_sim::placement_of(character).position()) == stratum_sim::discrete_point_type {2, 1});
         report_case_equal("its turn was charged", scheduler.energy(character.id()), 0);
-        report_case("what it asked for was spent", character.get<stratum_sim::Intent>().direction.x() == 0.0f);
+        report_case("the intent was spent", character.get<stratum_sim::Intent>().direction.x() == 0.0f);
 
         // An intent lasts one action, so a second turn on the same one does nothing
         clock.grant_turn();
@@ -955,7 +955,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // The clock's driver, set when the zone is loaded
+    // The clock's driver
     void test_driver()
     {
         report_group("time driver");
@@ -1017,7 +1017,7 @@ namespace
             clock.advance(events, controlled, stratum_sim::Clock::duration_type::zero()) == nullid);
         report_case_equal("so no time passed", scheduler.elapsed(), 0);
 
-        // Once elapsed time has made it ready, it acts on what it was asking for
+        // Once elapsed time has made it ready, it acts on its intent
         character.set<stratum_sim::Intent>(stratum_sim::Intent {east, 1.0f, stratum_sim::vector_type()});
         clock.advance(events, controlled, stratum_sim::Clock::duration_type(0.5));
         report_case("an actor made ready by elapsed time acts",
@@ -1124,7 +1124,7 @@ namespace
         stratum_sim::placement_type start(layout.position(stratum_sim::discrete_point_type {0, 0}), east);
 
         stratum_sim::MoveResult one = layout.move(start, east, 1.0f);
-        report_case("a step lands in the next cell", layout.cell_position_at(one.placement.position()) == stratum_sim::discrete_point_type(1, 0));
+        report_case("a step ends in the next cell", layout.cell_position_at(one.placement.position()) == stratum_sim::discrete_point_type(1, 0));
         report_case("a step with nothing in the way reports nothing", one.blocking_wall_id == nullid);
         report_case("moving does not turn", one.placement.direction().x() == 1.0f);
 
@@ -1290,7 +1290,7 @@ namespace
 
         report_case("a block is walled sideways", !door.crossable(stratum_sim::discrete_point_type {2, 1}, cardinal_direction(CardinalDirection::North), door_zone->crossable)
             && !door.crossable(stratum_sim::discrete_point_type {2, 1}, cardinal_direction(CardinalDirection::South), door_zone->crossable));
-        report_case("and it is a wall that says so", door.wall_toward(stratum_sim::discrete_point_type {2, 1}, cardinal_direction(CardinalDirection::North)) != nullid);
+        report_case("because a wall is there", door.wall_toward(stratum_sim::discrete_point_type {2, 1}, cardinal_direction(CardinalDirection::North)) != nullid);
 
         // Between a block and floor the wall is on the floor's side, so the block's own side of it is bare
         report_case("a block sees no wall on the way out", door.wall_toward(stratum_sim::discrete_point_type {2, 1}, cardinal_direction(CardinalDirection::East)) == nullid);
@@ -1324,7 +1324,7 @@ namespace
         // 292 of its 961 cells are room floor and 247 corridor, the rest solid, doorways and stairways
         report_case_equal("every room cell belongs to a room", room_cells, 292);
         report_case("a corridor cell belongs to no room", generated.room_at(stratum_sim::discrete_point_type {7, 29}) == nullid);
-        report_case("a room cell names the room that covers it", generated.room_at(stratum_sim::discrete_point_type {1, 1}) != nullid);
+        report_case("a room cell refers to the room that contains it", generated.room_at(stratum_sim::discrete_point_type {1, 1}) != nullid);
 
         // Two areas never share an edge in the block notation: a block lies between them, and a wall is on the floor's
         // side of it alone. Walling an edge from both sides is what the wall notation can express and this cannot
@@ -1455,8 +1455,8 @@ namespace
         report_case_equal("every open cell is reachable from the first", cells_reached(generated, generated_zone->crossable),
             open_cells(generated));
 
-        // At full density with no spacing every cell is room, so a solid cell here is the spacing
-        // and nothing else, and nothing but a corridor joins any two rooms
+        // At full density with no spacing every cell is room, so every solid cell here is spacing, and only corridors join
+        // rooms
         auto spaced_zone = load_open("data/catagen_spaced.zone");
         const stratum_sim::DiscreteLayout& spaced = spaced_zone->layout();
 
@@ -2891,7 +2891,7 @@ namespace
             && session.zone() != first
             && ranges::any_of(enter_events.events(), [](const stratum_sim::Event& event) { return event.is<stratum_sim::Relocated>(); }));
 
-        // A named zone is not resolved. A game whose advance throws is quit, so this one is used for nothing else
+        // A named zone is not resolved. A game whose advance throws is quit, so this game is used only for this case
         stratum_sim::Game failing(g_suite_config);
         stratum_sim::Session& failing_session = failing.session();
         enter_zone_file(failing, "data/walls.zone");
@@ -2937,7 +2937,7 @@ namespace
         report_case("a zone is found by its persistent id", world.entity(crypt.get<stratum_sim::PersistentId>()) == crypt);
         report_case("each zone has its own layout", &world.layout(crypt) != &world.layout(moor));
 
-        report_case("a zone holds the layout it was created with", zone_layout(world, crypt).grid().extent == stratum_sim::discrete_vector_type(6, 5));
+        report_case("a zone has the layout it was created with", zone_layout(world, crypt).grid().extent == stratum_sim::discrete_vector_type(6, 5));
         report_case("the other stays empty", zone_layout(world, moor).flat_store_count() == 0);
 
         stratum_sim::vector_type east(1.0f, 0.0f, 0.0f);
@@ -3377,7 +3377,7 @@ namespace
         report_case("the loader builds each access point of the file, of its type", up && down && up != down);
         report_case("each sited on the wall the file sites it on", stratum_sim::wall_id_of(up.get<stratum_sim::Site>())
             == layout.wall_toward(stratum_sim::discrete_point_type {2, 1}, cardinal_direction(CardinalDirection::West)));
-        report_case("with the order and the placement the file gives it", up.get<stratum_sim::AccessPoint>().order == 0
+        report_case("with the order and the placement the file states", up.get<stratum_sim::AccessPoint>().order == 0
             && down.get<stratum_sim::AccessPoint>().order == 1
             && layout.cell_position_at(up.get<stratum_sim::AccessPoint>().placement.position()) == stratum_sim::discrete_point_type {2, 1}
             && up.get<stratum_sim::AccessPoint>().placement.direction().x() > 0.0f);
@@ -3603,7 +3603,7 @@ namespace
         stratum_sim::Command overreach(actor.id(), stratum_sim::Step {east, 4.0f});
         int cost_short = stratum_sim::apply(world, overreach, events);
 
-        report_case("a step stopped short costs less than it asked for",
+        report_case("a step stopped short costs less than the full distance",
             cost_short > 0 && cost_short < 4 * stratum_sim::Scheduler::action_cost);
         report_case("and stopped where the wall is", cell_of() == stratum_sim::discrete_point_type(3, 1));
         report_case_equal("charged an action per cell it did reach",
@@ -3665,7 +3665,7 @@ namespace
 
         report_case_equal("two entities share a cell", world.entities_at(zone, stratum_sim::discrete_point_type {1, 1}).size(), 2);
         report_case("and are returned in id order", world.entities_at(zone, stratum_sim::discrete_point_type {1, 1}).front() == a);
-        report_case_equal("an empty cell holds none", world.entities_at(zone, stratum_sim::discrete_point_type {3, 1}).size(), 0);
+        report_case_equal("an empty cell contains none", world.entities_at(zone, stratum_sim::discrete_point_type {3, 1}).size(), 0);
         report_case_equal("a distant one is elsewhere", world.entities_at(zone, stratum_sim::discrete_point_type {4, 1}).size(), 1);
 
         report_case_equal("range reaches its own cell", world.entities_within(zone, place(1, 1), 0.5f).size(), 2);
@@ -3699,8 +3699,8 @@ namespace
         stratum_sim::vector_type east(1.0f, 0.0f, 0.0f);
         auto place = [&](int i, int j) { return stratum_sim::placement_type(layout.position(stratum_sim::discrete_point_type {i, j}), east); };
 
-        // Each entity whose site has no address, found by a scan of the zone, is in the index at its placement, and the
-        // index has no other
+        // The index has exactly the entities whose sites have no address, found by a scan of the zone, each at its
+        // placement
         auto index_agrees = [&](flecs::entity zone)
         {
             size_t scanned_count = 0;
@@ -3808,7 +3808,7 @@ namespace
         // Nothing in the way, so the world returns what the layout alone would
         stratum_sim::MoveResult clear = world.move(mover, east, 2.0f);
         report_case("a move with nothing in the way reaches its distance", layout.cell_position_at(clear.placement.position()) == stratum_sim::discrete_point_type(3, 1));
-        report_case("and reports neither kind of blocker", clear.blocking_wall_id == nullid && clear.blocking_entity_id == nullid);
+        report_case("and reports no blocker", clear.blocking_wall_id == nullid && clear.blocking_entity_id == nullid);
 
         // A blocking entity stops it where a wall would
         flecs::entity boulder = world.create_entity(zone, place(3, 1));
@@ -3847,7 +3847,7 @@ namespace
             events.events().back().get<stratum_sim::Blocked>().blocking_entity_id == static_cast<id_type>(boulder.id())
             && events.events().back().get<stratum_sim::Blocked>().blocking_wall_id == nullid);
 
-        // A layout asked directly still resolves its own geometry and nothing else
+        // A layout queried directly resolves only its own geometry
         stratum_sim::MoveResult geometric = layout.move(place(1, 1), east, 4.0f);
         report_case("the layout alone does not stop for entities", layout.cell_position_at(geometric.placement.position()).i() > 3);
 
@@ -3882,8 +3882,8 @@ namespace
         // Down one corridor, so it is seen and its position stored
         stratum_sim::think(world, controlled);
 
-        report_case("a pursuer that can see its target records where", monster.get<stratum_sim::Pursue>().seen);
-        report_case("and asks to move toward it", monster.get<stratum_sim::Intent>().direction.x() < 0.0f);
+        report_case("a pursuer that can see its target stores where", monster.get<stratum_sim::Pursue>().seen);
+        report_case("and intends to move toward it", monster.get<stratum_sim::Intent>().direction.x() < 0.0f);
         report_case("the controlled entity is not decided for", character.try_get<stratum_sim::Intent>() == nullptr);
 
         // Running it closes the distance
@@ -3931,9 +3931,9 @@ namespace
         stratum_sim::think(world, controlled);
         report_case("a pursuer whose target is gone still goes where it last looked",
             blind.get<stratum_sim::Intent>().direction.x() < 0.0f);
-        report_case("and still knows where that was", blind.get<stratum_sim::Pursue>().seen);
+        report_case("and keeps the position last seen", blind.get<stratum_sim::Pursue>().seen);
 
-        // Arriving there and finding nothing, it stops
+        // Arriving there with the target out of sight, it stops
         stratum_sim::set_placement(blind, at(3));
         stratum_sim::think(world, controlled);
 
@@ -3971,7 +3971,7 @@ namespace
                 stratum_sim::way_through(created.zone(), stratum_sim::layout_as<stratum_sim::DiscreteLayout>(
                     created.layout()).wall_toward(stratum_sim::discrete_point_type {1, 1}, cardinal_direction(CardinalDirection::East))).is_alive());
 
-            // Reading the same geometry from a file gives the same zone
+            // Reading the same geometry from a file produces the same zone
             stratum_sim::Game game_loaded(g_suite_config);
             stratum_sim::Session& loaded = game_loaded.session();
             enter_zone_file(game_loaded, "data/door.zone");

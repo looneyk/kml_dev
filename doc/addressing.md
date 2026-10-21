@@ -28,8 +28,8 @@ Date: 2026-09-14, revised 2026-09-26
 | Persistent ids, the id allocator and the world index | Built |
 | Links in both directions between an entity and the place it is sited on; location maps | Built |
 | References between entities | Built |
-| Relocator targets bound to relocators | Designed |
-| Saved zones | Designed |
+| Relocator targets bound to relocators | Built |
+| Saved zones | Built |
 | A placement index for each zone | Built |
 
 ## Every identifier at a glance
@@ -67,7 +67,7 @@ side of an edge. Everything is per wall: surface treatment, what is sited on it,
 A wall exists only where open space meets something. The side of an edge toward a solid cell has no
 wall.
 
-**Stair cells.** A stair cell is a block, and like a solid cell it owns no wall: each open neighbor
+**Stair cells.** A stair cell is a block, and like a solid cell it has no wall of its own: each open neighbor
 presents a wall to it. The staircase is sited on the wall on its open side, the side toward the room
 it opens into. Its other sides are ordinary walls, each with its own surface treatment.
 
@@ -89,7 +89,7 @@ layout defines one.
 
 An entity is anything with identity or physical presence: a door, a door facing, a staircase, a
 torch, a key, a monster. Topology, heights and surface appearance are geometry data, not entities
-(`sim_zone_model.md`, `## Entities and level data`).
+(`sim_zone_model.md`, `## Entities and zone data`).
 
 **Everything has a site.** A door facing is sited on a wall of its doorway, a torch on a wall, a chest
 on a floor cell, and a key on the floor cell it lies on or in the chest it is inside. An entity has at
@@ -114,8 +114,8 @@ Taking the key out is a change of parent and of site together.
 hierarchy of parents and children is sited on the geometry somewhere in it.
 
 **An entity can refer to another.** A lever refers to the door it controls, a summoned monster to its
-summoner, a quest to its object. A generator makes these references while both entities are in front
-of it: it places a lever beside a door and writes the door's id into the lever. What a reference does is up
+summoner, a quest to its object. A generator makes these references when it creates both entities: it
+places a lever beside a door and writes the door's id into the lever. What a reference does is up
 to script, such as a triggered script that opens the door a lever controls.
 
 **A link to something that does not exist yet uses a shared value, not a reference.** A key in one
@@ -172,7 +172,7 @@ and `[2, 1]` is on two walls: `{ "cell_position": [1, 1], "normal": [-1, 0] }` a
 `{ "cell_position": [2, 1], "normal": [1, 0] }`.
 
 The cell at an address's cell position is a floor or door cell; door cells exist only in the block
-notation. Solid cells and stair cells own no walls, a wall existing only on the open side of an edge, so
+notation. Solid cells and stair cells have no walls, a wall existing only on the open side of an edge, so
 an address can never be written from their side. Where only the edge matters, as for a barrier, the
 address from either side identifies it. (We may need to review this to make sure it is consistent
 with neighbor walls.)
@@ -199,8 +199,8 @@ and orientation on that, if it needs them.
 the file; they are found on reading, from each child's `parent`.
 
 **A reference** to another entity is written `{ "entity": id }`, anywhere in a file component. `parent`
-is a reference in this form too. Loading finds every reference by this form, without needing to know
-what the file component means.
+is a reference in this form too. Loading finds every reference by this form, without interpreting the
+file component.
 
 ```json
 "entities": [
@@ -221,7 +221,7 @@ glyphs require.
 ### Relocators and access points
 
 A relocator is the component of an entity, such as a staircase, a portal or a waypoint, that moves an
-actor (`discrete_layout.md`, `### A relocator's target`). Its target is one of two kinds:
+actor (`discrete_layout.md`, `### A relocator's target`). Its target is unbound or bound:
 
 - **Unbound:** a string, `[region/]zone[@position]`, such as `-1` for the next level down, `=0` for level 0, or
   `town/market@fountain` for a place in pregenerated content. Every relocator in a template is unbound.
@@ -274,7 +274,7 @@ any room.
 
 - Their type is `PersistentId`, used everywhere a persistent id is kept: the component on an
   entity, references, the world index, and saves. It is 64 bits.
-- A world has one allocator, and it is the only thing that creates persistent ids. An id from the
+- A world has one allocator, and it is the only source of persistent ids. An id from the
   allocator is saved with the world, and the restored allocator continues from it.
 - No code relies on ids being ordered, dense or small, or reads bits out of one, except the allocator
   that created it.
@@ -302,8 +302,8 @@ and slot to flat cell entity.
   read its list.
 - **What is in that chest:** read the chest's children, keeping those sited `in` it.
 - **Where an entity is:** read its `site`, and its parent if the site has no address.
-- **Whether a wall can be crossed:** ask each entity on the wall's list whether its access is open and
-  it is not concealed from the actor, reading each property from the entity or, if it has none, from its
+- **Whether a wall can be crossed:** check each entity on the wall's list for open access that is not
+  concealed from the actor, reading each property from the entity or, if it has none, from its
   nearest ancestor that has one. An entity with no access at all, a torch or a lever, is no way through. `crossable` has
   no case for a door, a staircase or concealment.
 
@@ -316,7 +316,7 @@ them, and reading a door's door facings, or the other side of a door, is reading
 A zone's entities are children of the zone, except the ones that are children of another entity, which
 belong to the zone through their parent. So **a zone's contents are its subtree, not its children**: a
 query for the zone's children finds what is placed directly in it, which is what occupancy and the view
-ask for, and whatever has to reach all of a zone --- saving it, unloading it, dumping it --- walks the
+query, and whatever has to reach all of a zone --- saving it, unloading it, dumping it --- walks the
 subtree instead. Deleting the zone already reaches all of it. The character is in a zone without being in
 its subtree (`### The character`).
 
@@ -340,7 +340,7 @@ direction --- and no address.
 
 **Each zone has a placement index,** which finds the actors, and anything else placed in a cell of the zone, at a
 place with a lookup. The index is derived from the placements: it is updated as they move and rebuilt when the zone
-loads, so it cannot disagree with them. Each kind of layout supplies its own kind of index, and a `DiscreteLayout`'s
+loads, so it cannot disagree with them. Each type of layout supplies its own type of index, and a `DiscreteLayout`'s
 finds entities by cell.
 
 ### The character
@@ -362,7 +362,7 @@ game too. Both are saved with the game.
 - **A door is a parent with door facings as children.** 0.3 writes a door as one entry listing both
   walls.
 - **A staircase is sited on the wall on its open side.** 0.3 attaches it to its stair cell's floor,
-  with a `facing` file component giving the open side.
+  with a `facing` file component for the open side.
 - **Contents are children, sited on their parent.** 0.3 nests an entity's contents in its `contains`,
   which goes.
 - **Wall addresses are a cell position and a normal, written separately.** 0.3 writes one array,

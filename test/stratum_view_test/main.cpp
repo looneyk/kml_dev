@@ -145,17 +145,17 @@ namespace
 
         stratum_view::Console console({4, 3}, '.');
 
-        report_case_equal("it has the width asked for", console.extent().x(), 4);
+        report_case_equal("it has the requested width", console.extent().x(), 4);
         report_case_equal("and the height", console.extent().y(), 3);
         report_case("every cell starts filled", console.at({0, 0}) == '.' && console.at({3, 2}) == '.');
 
         console.set({1, 0}, '@');
-        report_case("a set cell holds its character", console.at({1, 0}) == '@');
+        report_case("a set cell has its character", console.at({1, 0}) == '@');
         report_case("and its neighbors are untouched", console.at({0, 0}) == '.' && console.at({2, 0}) == '.');
 
         // Row 0 is the lowest, so it prints last
         string s = console.to_string();
-        report_case_equal("printing gives one line per row", s.size(), 3 * 5);
+        report_case_equal("printing produces one line per row", s.size(), 3 * 5);
         report_case("the highest row prints first", s.substr(0, 4) == "....");
         report_case("and row zero last", s.substr(10, 4) == ".@..");
 
@@ -232,7 +232,7 @@ namespace
         report_case_equal("it covers the zone's grid", cells.extent().x(), 7);
         report_case_equal("in both directions", cells.extent().y(), 3);
         report_case("a closed cell is solid", cells.at({0, 1}).type == stratum_view::PlaceType::Solid);
-        report_case("floor where it says open", cells.at({1, 1}).type == stratum_view::PlaceType::Floor);
+        report_case("floor where the cell is open", cells.at({1, 1}).type == stratum_view::PlaceType::Floor);
         report_case("no actor before one exists", !cells.at({3, 1}).actor);
 
         const stratum_sim::DiscreteLayout& layout = stratum_sim::layout_as<stratum_sim::DiscreteLayout>(world.layout(zone));
@@ -318,12 +318,12 @@ namespace
         };
 
         stratum_view::Glyphs set = read("glyphs 0.1\ndoor open '\\'\nwall mask=EW '-'\nfloor ' '\n");
-        report_case_equal("a set holds a line per row that names one", set.glyphs().size(), 3);
-        report_case("an escaped backslash is the character it names",
+        report_case_equal("a set has a line for each glyph line of the file", set.glyphs().size(), 3);
+        report_case("an escaped backslash is the character it represents",
             set(stratum_view::Place {stratum_view::PlaceType::Door, stratum_view::State::Open}) == '\\');
         report_case("a quoted space is a glyph like any other",
             set(stratum_view::Place {stratum_view::PlaceType::Floor}) == ' ');
-        report_case("a mask is asked for only where it is named",
+        report_case("a mask is required only where it is given",
             set(stratum_view::Place {stratum_view::PlaceType::Wall, stratum_view::State::None,
                 stratum_view::DirectionMask::East | stratum_view::DirectionMask::West}) == '-'
             && set(stratum_view::Place {stratum_view::PlaceType::Wall}) == ' ');
@@ -369,7 +369,7 @@ namespace
         report_case_equal("it covers twice the grid plus one", lattice.extent().x(), 9);
         report_case_equal("in both directions", lattice.extent().y(), 7);
 
-        report_case("a cell sits at an odd position both ways", lattice.at({1, 1}).type == stratum_view::PlaceType::Floor);
+        report_case("a cell is at an odd position both ways", lattice.at({1, 1}).type == stratum_view::PlaceType::Floor);
         report_case("the wall two rooms share lies between them", lattice.at({4, 1}).type == stratum_view::PlaceType::Wall);
         report_case("and the door in it is a door", lattice.at({4, 5}).type == stratum_view::PlaceType::Door);
         report_case("shut, which is a state rather than a type of its own",
@@ -377,7 +377,7 @@ namespace
         report_case("a state a wall cannot be in is rejected",
             !stratum_view::applies(stratum_view::PlaceType::Wall, stratum_view::State::Open)
             && stratum_view::applies(stratum_view::PlaceType::Door, stratum_view::State::Open));
-        report_case("an edge within one room holds nothing", lattice.at({2, 1}).type == stratum_view::PlaceType::None);
+        report_case("an edge within one room has nothing", lattice.at({2, 1}).type == stratum_view::PlaceType::None);
         report_case("the boundary is walled", lattice.at({0, 1}).type == stratum_view::PlaceType::Wall
             && lattice.at({8, 1}).type == stratum_view::PlaceType::Wall);
 

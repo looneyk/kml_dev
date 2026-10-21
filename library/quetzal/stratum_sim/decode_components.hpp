@@ -28,7 +28,7 @@ namespace quetzal::stratum_sim
 
     // Checks, by decoding each into a value that is then discarded, that the component objects can be decoded. Returns the
     // first reason one cannot, or none: a component object that has no component registered under its name or does not
-    // fit that component. Flecs' error logging is the caller's to silence
+    // fit that component. The caller silences flecs' error logging
     std::optional<std::string> check_decodable(const flecs::world& world, const stratum_format::raw_values_type& components, const std::string& path);
 
     // Sets each component object on the entity as the component registered under its name, which check_decodable has

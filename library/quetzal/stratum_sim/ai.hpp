@@ -14,7 +14,7 @@ namespace quetzal::stratum_sim
 {
 
     //--------------------------------------------------------------------------
-    // Moves toward a target while it is visible, then toward where it was last seen, stopping there if it finds nothing
+    // Moves toward a target while it is visible, then toward where it was last seen, stopping there if the target is not in sight
     struct Pursue
     {
         std::optional<EntityReference> target; // The controlled actor if absent

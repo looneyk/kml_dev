@@ -55,7 +55,7 @@ character of the name that cannot be in a directory name is replaced by `_`.
   newer than the game's last save.
 - **Saving writes and then copies.** `game.json`, `character.json`, `world.json` and every loaded zone are written to the
   game directory, which is then copied to a new save directory. An explicit save never replaces an earlier one. Every
-  file in a save is therefore from the same moment: the id allocator's count covers every id in its zones, the
+  file in a save is therefore from the same moment: the id allocator's count is above every id in its zones, the
   character's inventory and the zones agree, and `world.json` lists every zone file.
 - **A save's name is unique.** If a save directory of that name exists, from a save within the same second, the save
   waits for the next second.

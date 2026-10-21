@@ -1,26 +1,23 @@
-# Building a GDExtension: what Godot requires of the library it loads, which is enough of it to be
-# worth keeping in one place rather than in each host that builds one
+# Building a GDExtension: what Godot requires of the library it loads, for every host that builds one
 #
 # Include this from a host's CMakeLists, then call quetzal_configure_gdextension on its shared
-# library target. The CRT match godot-cpp would otherwise cache over is handled by the root
-# CMakeLists, since it applies to every target rather than only to these
+# library target. The root CMakeLists sets the CRT that godot-cpp caches, since it applies to every target
 
-# Which Godot the extension is run against, stated rather than discovered: GDExtension
-# compatibility is version specific, and picking up whichever Godot happened to be first on PATH
-# could launch a release the bindings were not generated for
+# The Godot release the extension runs against. GDExtension compatibility is version specific, so
+# the release is set here and not taken from the first Godot on PATH
 set(KML_DEV_GODOT_VERSION "4.7.2-stable" CACHE STRING "Godot release the host is run against")
 
-# The console build first, its output being the point when debugging. HINTS covers the
-# conventional install location for a PATH that has not been set or a shell that predates it
+# The console build first, for its output when debugging. HINTS adds the conventional install
+# location, for a PATH that does not include it
 find_program(KML_DEV_GODOT_EXECUTABLE
     NAMES "Godot_v${KML_DEV_GODOT_VERSION}_win64_console" "Godot_v${KML_DEV_GODOT_VERSION}_win64"
     HINTS "$ENV{LOCALAPPDATA}/Programs/Godot"
     DOC "Godot executable that Visual Studio launches to debug a GDExtension"
 )
 
-# Names the target as Godot expects and writes it into the project's bin directory, where the
-# .gdextension file refers to it from, then points Visual Studio's debugger at Godot so that F5
-# on a target that is only ever a DLL launches something
+# Names the target as Godot expects and writes it into the project's bin directory, which the
+# .gdextension file refers to, then sets Visual Studio's debugger to launch Godot, since the target
+# is a DLL
 # project_dir is the directory holding project.godot
 function(quetzal_configure_gdextension target project_dir)
 
@@ -53,8 +50,7 @@ function(quetzal_configure_gdextension target project_dir)
         return()
     endif()
 
-    # Runs the project's main scene, so F5 gives a running game with breakpoints live in the
-    # extension it loaded
+    # Runs the project's main scene, so F5 starts the game with breakpoints active in the extension
     set_target_properties(${target} PROPERTIES
         VS_DEBUGGER_COMMAND "${KML_DEV_GODOT_EXECUTABLE}"
         VS_DEBUGGER_COMMAND_ARGUMENTS "--path \"${project_dir}\""

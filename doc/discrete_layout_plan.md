@@ -5,7 +5,7 @@ Date: 2026-09-11, revised 2026-09-26
 This plan describes the structures a zone file loads into, and the reader and writer on either side of them.
 `discrete_layout.md` is the format and is the authority on the file itself.
 
-## What the format asks for
+## What the format specifies
 
 The file states five things, and each goes somewhere different:
 
