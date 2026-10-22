@@ -5,6 +5,7 @@
             "includePath": [
                 "${workspaceFolder}",
                 "${workspaceFolder}/library",
+                "${workspaceFolder}/library3/doctest",
                 "${workspaceFolder}/library3/flecs/include",
                 "${workspaceFolder}/library3/glfw/include",
                 "${workspaceFolder}/library3/glm",

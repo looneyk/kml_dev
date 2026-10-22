@@ -13,3 +13,13 @@ set_target_properties(to_utf8_test PROPERTIES
 target_include_directories(to_utf8_test PRIVATE
     ${DEV_ROOT}/utility/to_utf8
 )
+
+target_link_libraries(to_utf8_test PRIVATE
+    quetzal_testing
+)
+
+doctest_discover_tests(to_utf8_test
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+    TEST_PREFIX "to_utf8_test:"
+    PROPERTIES LABELS "quetzal"
+)

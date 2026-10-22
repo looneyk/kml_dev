@@ -15,4 +15,11 @@ target_include_directories(expression_test PRIVATE
 target_link_libraries(expression_test PRIVATE
     quetzal_common
     quetzal_expression
+    quetzal_testing
+)
+
+doctest_discover_tests(expression_test
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+    TEST_PREFIX "expression_test:"
+    PROPERTIES LABELS "quetzal"
 )

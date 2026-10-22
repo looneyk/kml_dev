@@ -9,8 +9,9 @@
 #include "quetzal/geometry/Projection.hpp"
 #include "quetzal/math/HomogeneousTraits.hpp"
 #include "quetzal/math/floating_point.hpp"
+#include "quetzal/testing/named_checks.hpp"
+#include <doctest/doctest.h>
 #include <format>
-#include <iostream>
 #include <string>
 
 using namespace std;
@@ -26,28 +27,6 @@ namespace
     using projection_type = geometry::Projection<vector_traits>;
     using projected_type = projection_type::projected_type;
 
-    size_t n_cases = 0;
-    size_t n_failures = 0;
-
-    //--------------------------------------------------------------------------
-    void check(const string& name, bool b, const string& detail = {})
-    {
-        ++n_cases;
-        if (!b)
-        {
-            ++n_failures;
-        }
-
-        cout << (b ? "pass  " : "FAIL  ") << name;
-        if (!detail.empty())
-        {
-            cout << "  " << detail;
-        }
-
-        cout << endl;
-        return;
-    }
-
     //--------------------------------------------------------------------------
     bool near(const projected_type& a, const projected_type& b, value_type tolerance = 1.0e-9)
     {
@@ -62,35 +41,24 @@ namespace
 
     //--------------------------------------------------------------------------
     // Projection itself, independent of any mapping
-    void test_projection()
+    TEST_CASE("projection")
     {
-        cout << endl << "projection" << endl;
-
         projection_type projection_z(vector_type(0.0, 0.0, 1.0));
-        check("projection z: origin", near(projection_z(point_type(0.0, 0.0, 0.0)), projected_type(0.0, 0.0)),
+        CHECK_CASE("projection z: origin", near(projection_z(point_type(0.0, 0.0, 0.0)), projected_type(0.0, 0.0)),
             std::format("got {}", to_string(projection_z(point_type(0.0, 0.0, 0.0)))));
 
         // Points differing only in the projection direction must project to the same point
         projected_type a = projection_z(point_type(1.0, 2.0, 0.0));
         projected_type b = projection_z(point_type(1.0, 2.0, 5.0));
-        check("projection z: depth is discarded", near(a, b), std::format("{} vs {}", to_string(a), to_string(b)));
+        CHECK_CASE("projection z: depth is discarded", near(a, b), std::format("{} vs {}", to_string(a), to_string(b)));
 
         // Distances within the plane are preserved by an orthographic projection of that plane
         projection_type projection_x(vector_type(1.0, 0.0, 0.0));
         projected_type p0 = projection_x(point_type(0.0, 0.0, 0.0));
         projected_type p1 = projection_x(point_type(0.0, 3.0, 4.0));
         value_type d = sqrt((p1.x() - p0.x()) * (p1.x() - p0.x()) + (p1.y() - p0.y()) * (p1.y() - p0.y()));
-        check("projection x: in-plane distance preserved", abs(d - 5.0) <= 1.0e-9, std::format("got {:.9f} expected 5", d));
+        CHECK_CASE("projection x: in-plane distance preserved", abs(d - 5.0) <= 1.0e-9, std::format("got {:.9f} expected 5", d));
         return;
     }
 
 } // namespace
-
-//------------------------------------------------------------------------------
-int main()
-{
-    test_projection();
-
-    cout << endl << (n_failures == 0 ? "OK: " : "Error: ") << (n_cases - n_failures) << " of " << n_cases << " cases passed" << endl;
-    return n_failures == 0 ? 0 : 1;
-}

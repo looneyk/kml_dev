@@ -15,6 +15,13 @@ target_include_directories(projection_test PRIVATE
 target_link_libraries(projection_test PRIVATE
     quetzal_common
     quetzal_math
+    quetzal_testing
+)
+
+doctest_discover_tests(projection_test
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+    TEST_PREFIX "projection_test:"
+    PROPERTIES LABELS "mesh_operations"
 )
 
 add_dependencies(projection_test

@@ -15,8 +15,9 @@
 #include "quetzal/geometry/Projection.hpp"
 #include "quetzal/math/HomogeneousTraits.hpp"
 #include "quetzal/math/floating_point.hpp"
+#include "quetzal/testing/named_checks.hpp"
+#include <doctest/doctest.h>
 #include <format>
-#include <iostream>
 #include <string>
 #include <vector>
 
@@ -33,28 +34,6 @@ namespace
     using projection_type = geometry::Projection<vector_traits>;
     using texcoord_type = projection_type::projected_type;
     using mapping_type = geometry::Mapping<point_type, texcoord_type, projection_type>;
-
-    size_t n_cases = 0;
-    size_t n_failures = 0;
-
-    //--------------------------------------------------------------------------
-    void check(const string& name, bool b, const string& detail = {})
-    {
-        ++n_cases;
-        if (!b)
-        {
-            ++n_failures;
-        }
-
-        cout << (b ? "pass  " : "FAIL  ") << name;
-        if (!detail.empty())
-        {
-            cout << "  " << detail;
-        }
-
-        cout << endl;
-        return;
-    }
 
     //--------------------------------------------------------------------------
     // An absolute tolerance, for an error that would show in a model
@@ -76,7 +55,7 @@ namespace
         for (size_t i = 0; i < positions.size(); ++i)
         {
             texcoord_type t = mapping(positions[i]);
-            check(std::format("{}: corner {} round trips", name, i), near(t, texcoords[i]),
+            CHECK_CASE(std::format("{}: corner {} round trips", name, i), near(t, texcoords[i]),
                 std::format("got {} expected {}", to_string(t), to_string(texcoords[i])));
         }
 
@@ -91,7 +70,7 @@ namespace
         {
             texcoord_type mapped = mapping(lerp(p0, p1, t));
             texcoord_type interpolated = lerp(t0, t1, t);
-            check(std::format("{}: edge t={} mapping matches lerp", name, t), near(mapped, interpolated),
+            CHECK_CASE(std::format("{}: edge t={} mapping matches lerp", name, t), near(mapped, interpolated),
                 std::format("mapping {} lerp {}", to_string(mapped), to_string(interpolated)));
         }
 
@@ -108,17 +87,15 @@ namespace
         texcoord_type c = mapping(p1);
 
         value_type area = (b.x() - a.x()) * (c.y() - a.y()) - (b.y() - a.y()) * (c.x() - a.x());
-        check(std::format("{}: collinear maps collinear", name), abs(area) <= 1.0e-9,
+        CHECK_CASE(std::format("{}: collinear maps collinear", name), abs(area) <= 1.0e-9,
             std::format("area {:.12f}", area));
         return;
     }
 
     //--------------------------------------------------------------------------
     // Three correspondences give an affine transform, which must be exact
-    void test_triangle_affine()
+    TEST_CASE("triangle, affine mapping")
     {
-        cout << endl << "triangle, affine mapping" << endl;
-
         vector<point_type> positions = {{0.0, 0.0, 0.0}, {2.0, 0.0, 0.0}, {0.0, 3.0, 0.0}};
         vector<texcoord_type> texcoords = {{0.0, 0.0}, {1.0, 0.0}, {0.0, 1.0}};
 
@@ -132,10 +109,8 @@ namespace
 
     //--------------------------------------------------------------------------
     // A parallelogram with affine texcoords, which the four point projective path must reproduce
-    void test_quad_affine()
+    TEST_CASE("quad, affine texcoords")
     {
-        cout << endl << "quad, affine texcoords" << endl;
-
         vector<point_type> positions = {{0.0, 0.0, 0.0}, {2.0, 0.0, 0.0}, {2.0, 3.0, 0.0}, {0.0, 3.0, 0.0}};
         vector<texcoord_type> texcoords = {{0.0, 0.0}, {1.0, 0.0}, {1.0, 1.0}, {0.0, 1.0}};
 
@@ -144,17 +119,15 @@ namespace
         check_correspondences("quad affine", mapping, positions, texcoords);
         check_edge_agrees_with_lerp("quad affine edge 0-1", mapping, positions[0], positions[1], texcoords[0], texcoords[1]);
         check_edge_agrees_with_lerp("quad affine edge 1-2", mapping, positions[1], positions[2], texcoords[1], texcoords[2]);
-        check(std::format("quad affine: center maps to (0.5, 0.5)"), near(mapping(point_type(1.0, 1.5, 0.0)), texcoord_type(0.5, 0.5)),
+        CHECK_CASE(std::format("quad affine: center maps to (0.5, 0.5)"), near(mapping(point_type(1.0, 1.5, 0.0)), texcoord_type(0.5, 0.5)),
             std::format("got {}", to_string(mapping(point_type(1.0, 1.5, 0.0)))));
         return;
     }
 
     //--------------------------------------------------------------------------
     // A trapezoid, which no affine transform reproduces
-    void test_quad_projective()
+    TEST_CASE("quad, projective (trapezoid)")
     {
-        cout << endl << "quad, projective (trapezoid)" << endl;
-
         vector<point_type> positions = {{0.0, 0.0, 0.0}, {4.0, 0.0, 0.0}, {3.0, 2.0, 0.0}, {1.0, 2.0, 0.0}};
         vector<texcoord_type> texcoords = {{0.0, 0.0}, {1.0, 0.0}, {1.0, 1.0}, {0.0, 1.0}};
 
@@ -169,10 +142,8 @@ namespace
 
     //--------------------------------------------------------------------------
     // More than four consistent correspondences, which least squares must fit exactly
-    void test_quad_overdetermined()
+    TEST_CASE("quad, overdetermined (six correspondences)")
     {
-        cout << endl << "quad, overdetermined (six correspondences)" << endl;
-
         vector<point_type> positions = {{0.0, 0.0, 0.0}, {4.0, 0.0, 0.0}, {3.0, 2.0, 0.0}, {1.0, 2.0, 0.0}};
         vector<texcoord_type> texcoords = {{0.0, 0.0}, {1.0, 0.0}, {1.0, 1.0}, {0.0, 1.0}};
 
@@ -188,13 +159,13 @@ namespace
 
         mapping_type mapping_6(positions, texcoords, projection);
 
-        check("overdetermined: six correspondences accepted", true);
+        CHECK_CASE("overdetermined: six correspondences accepted", true);
         check_correspondences("quad overdetermined", mapping_6, positions, texcoords);
 
         // and it must agree with the exactly determined fit everywhere, not just at the samples
         for (const point_type& p : {point_type(2.0, 0.5, 0.0), point_type(2.5, 1.5, 0.0)})
         {
-            check(std::format("overdetermined: agrees with exact fit at {:.1f},{:.1f}", p.x(), p.y()),
+            CHECK_CASE(std::format("overdetermined: agrees with exact fit at {:.1f},{:.1f}", p.x(), p.y()),
                 near(mapping_6(p), mapping_4(p)),
                 std::format("six {} four {}", to_string(mapping_6(p)), to_string(mapping_4(p))));
         }
@@ -205,10 +176,8 @@ namespace
     //--------------------------------------------------------------------------
     // A quad off the xy-plane, as the mesh_operations torus faces are, with texcoords in the range of the box_torus4
     // outputs
-    void test_quad_off_plane()
+    TEST_CASE("quad, off axis plane (torus-like)")
     {
-        cout << endl << "quad, off axis plane (torus-like)" << endl;
-
         vector<point_type> positions = {{2.0, 0.0, 1.0}, {2.5, 0.0, 2.0}, {2.5, 1.0, 2.0}, {2.0, 1.0, 1.0}};
         vector<texcoord_type> texcoords = {{0.389499, 0.474156}, {0.610499, 0.471134}, {0.616667, 0.500000}, {0.395667, 0.503000}};
 
@@ -239,7 +208,7 @@ namespace
         for (size_t i = 0; i < mapping.vertex_count(); ++i)
         {
             texcoord_type t = mapping(corners[i].position());
-            check(std::format("{}: corner {} round trips", name, i), near(t, corners[i].texcoord()),
+            CHECK_CASE(std::format("{}: corner {} round trips", name, i), near(t, corners[i].texcoord()),
                 std::format("got {} expected {}", to_string(t), to_string(corners[i].texcoord())));
         }
 
@@ -253,7 +222,7 @@ namespace
         {
             texcoord_type mapped = mapping(lerp(a.position(), b.position(), t));
             texcoord_type interpolated = lerp(a.texcoord(), b.texcoord(), t);
-            check(std::format("{}: edge t={} matches lerp", name, t), near(mapped, interpolated),
+            CHECK_CASE(std::format("{}: edge t={} matches lerp", name, t), near(mapped, interpolated),
                 std::format("mapping {} lerp {}", to_string(mapped), to_string(interpolated)));
         }
 
@@ -261,10 +230,8 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    void test_polygon_mapping()
+    TEST_CASE("PolygonMapping")
     {
-        cout << endl << "PolygonMapping" << endl;
-
         vector_type n(0.0, 0.0, 1.0);
 
         // Triangle, affine path
@@ -285,7 +252,7 @@ namespace
         polygon_mapping_type mapping_parallelogram(parallelogram, n);
         check_polygon_corners("parallelogram", mapping_parallelogram, parallelogram);
         check_polygon_edge("parallelogram edge 1-2", mapping_parallelogram, parallelogram[1], parallelogram[2]);
-        check("parallelogram: center", near(mapping_parallelogram(point_type(1.0, 1.5, 0.0)), texcoord_type(0.5, 0.5)),
+        CHECK_CASE("parallelogram: center", near(mapping_parallelogram(point_type(1.0, 1.5, 0.0)), texcoord_type(0.5, 0.5)),
             std::format("got {}", to_string(mapping_parallelogram(point_type(1.0, 1.5, 0.0)))));
 
         // Trapezoid, which no affine map reproduces
@@ -311,10 +278,8 @@ namespace
     // At float, as models are built, the cancellation noise in the pentagon's zero twist term is large enough to send the
     // solve down the quadratic branch
     template<typename T>
-    void test_pentagon(const string& precision, T tolerance)
+    void check_pentagon(const string& precision, T tolerance)
     {
-        cout << endl << "regular pentagon, more corners than the patch takes, " << precision << endl;
-
         using traits = math::HomogeneousTraits<T, 3>;
         using pentagon_point_type = geometry::Point<traits>;
         using pentagon_vector_type = pentagon_point_type::vector_type;
@@ -348,13 +313,13 @@ namespace
             {
                 pentagon_texcoord_type tc = mapping(rotated[i].position());
                 bool round_trips = abs(tc.x() - rotated[i].texcoord().x()) <= tolerance && abs(tc.y() - rotated[i].texcoord().y()) <= tolerance;
-                check(std::format("pentagon {} start {}: corner {} round trips", precision, start, i), round_trips,
+                CHECK_CASE(std::format("pentagon {} start {}: corner {} round trips", precision, start, i), round_trips,
                     std::format("got ({:.6f}, {:.6f}) expected ({:.6f}, {:.6f})", tc.x(), tc.y(), rotated[i].texcoord().x(), rotated[i].texcoord().y()));
             }
 
             pentagon_texcoord_type t = mapping(center);
             bool b = abs(t.x() - centroid.x()) <= tolerance && abs(t.y() - centroid.y()) <= tolerance;
-            check(std::format("pentagon {} start {}: center maps to uv centroid", precision, start), b,
+            CHECK_CASE(std::format("pentagon {} start {}: center maps to uv centroid", precision, start), b,
                 std::format("got ({:.6f}, {:.6f}) expected ({:.6f}, {:.6f})", t.x(), t.y(), centroid.x(), centroid.y()));
         }
 
@@ -408,10 +373,22 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    void test_inverse_bilinear_accuracy()
+    TEST_CASE("regular pentagon, more corners than the patch takes, double")
     {
-        cout << endl << "inverse bilinear accuracy, near parallelogram quads" << endl;
+        check_pentagon<double>("double", 1.0e-6);
+        return;
+    }
 
+    //--------------------------------------------------------------------------
+    TEST_CASE("regular pentagon, more corners than the patch takes, float")
+    {
+        check_pentagon<float>("float", 1.0e-4f);
+        return;
+    }
+
+    //--------------------------------------------------------------------------
+    TEST_CASE("inverse bilinear accuracy, near parallelogram quads")
+    {
         std::array<std::pair<double, double>, 4> uv = {{{0.0, 0.0}, {1.0, 0.0}, {1.0, 1.0}, {0.0, 1.0}}};
 
         // Twist shrinking toward zero, so the quadratic gets steadily worse conditioned
@@ -423,27 +400,10 @@ namespace
             double ed = inverse_bilinear_error<double>(xy, uv);
 
             // Tight enough to fail on any conditioning regression; the stable solve is near one ulp at both precisions
-            check(std::format("twist {:<8g} float error {:.3e}, double error {:.3e}", twist, ef, ed), ef >= 0.0 && ef < 1.0e-6 && ed < 1.0e-14);
+            CHECK_CASE(std::format("twist {:<8g} float error {:.3e}, double error {:.3e}", twist, ef, ed), ef >= 0.0 && ef < 1.0e-6 && ed < 1.0e-14);
         }
 
         return;
     }
 
 } // namespace
-
-//------------------------------------------------------------------------------
-int main()
-{
-    test_triangle_affine();
-    test_quad_affine();
-    test_quad_projective();
-    test_quad_overdetermined();
-    test_quad_off_plane();
-    test_polygon_mapping();
-    test_pentagon<double>("double", 1.0e-6);
-    test_pentagon<float>("float", 1.0e-4f);
-    test_inverse_bilinear_accuracy();
-
-    cout << endl << (n_failures == 0 ? "OK: " : "Error: ") << (n_cases - n_failures) << " of " << n_cases << " cases passed" << endl;
-    return n_failures == 0 ? 0 : 1;
-}

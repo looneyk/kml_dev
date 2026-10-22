@@ -17,6 +17,9 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 set(DEV_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
 set(LIBRARY3_DIR ${DEV_ROOT}/library3)
 
+enable_testing()
+include(${LIBRARY3_DIR}/doctest/scripts/cmake/doctest.cmake)
+
 # Forced into the cache, as godot-cpp's windows.cmake caches MultiThreaded, the static release CRT, even for a debug
 # build, and quetzal's static libraries link into a GDExtension only when the two agree
 set(CMAKE_MSVC_RUNTIME_LIBRARY "$<IF:$<CONFIG:Debug>,MultiThreadedDebug,MultiThreaded>"
@@ -70,6 +73,7 @@ add_subdirectory_ext(library/quetzal/stratum_gen quetzal_stratum_gen)
 add_subdirectory_ext(library/quetzal/stratum_sim quetzal_stratum_sim)
 add_subdirectory_ext(library/quetzal/stratum_view quetzal_stratum_view)
 add_subdirectory_ext(library/quetzal/svg quetzal_svg)
+add_subdirectory_ext(library/quetzal/testing quetzal_testing)
 add_subdirectory_ext(library/quetzal/triangulation quetzal_triangulation)
 add_subdirectory_ext(library/quetzal/vulkan quetzal_vulkan)
 add_subdirectory_ext(library/quetzal/wavefront_obj quetzal_wavefront_obj)

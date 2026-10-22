@@ -13,4 +13,11 @@ target_link_libraries(catagen_test PRIVATE
     quetzal_common
     quetzal_math
     quetzal_stratum_format
+    quetzal_testing
+)
+
+doctest_discover_tests(catagen_test
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+    TEST_PREFIX "catagen_test:"
+    PROPERTIES LABELS "stratum"
 )

@@ -21,6 +21,7 @@ ceiling.
 | `library/quetzal/stratum_gen/` | `quetzal_stratum_gen` --- the generators by name, behind one signature |
 | `library/quetzal/log/` | `quetzal_log` --- the process-wide log, which every library writes its warnings to (`log_plan.md`) |
 | `library/quetzal/settings/` | `quetzal_settings` --- the process-wide store of settings by key (`settings_plan.md`) |
+| `library/quetzal/testing/` | `quetzal_testing` --- the `main` of every test executable on doctest, and reference file checks, and named checks |
 | `application/stratum_terminal/` | `stratum_terminal` |
 | `application/stratum_godot/` | `stratum_godot` |
 | `library/quetzal/godot/` | `quetzal_godot` |
@@ -732,8 +733,9 @@ the file's directory if needed.
 
 Each host calls `load_setting_definitions` once when it starts, then loads a `PersistentSettings` of the user settings
 file and `SettingScope::User` (`game_file_spec.md`, `## The user settings file`), and calls its `save_if_changed` when
-it closes: the terminal in `Application`'s destructor, and Godot in `uninitialize_stratum_module`. `stratum_sim_test`
-calls `load_setting_definitions` once in `main`. A test executable that changes a setting sets it back after its cases.
+it closes: the terminal in `Application`'s destructor, and Godot in `uninitialize_stratum_module`. In
+`stratum_sim_test`, `WorldFixture` calls `load_setting_definitions` once in the process, and returns every setting to its
+default before each test case that starts from it.
 
 `Game` has the menu and lifecycle operations a host calls: `menu_open`, `menu_close`, `clear`, `create`, `open`,
 `save`, `quit` and `saved_games`. They call `clear`, `create`, `open` and `save` on `World` and `Character`, and
@@ -1218,14 +1220,14 @@ facing anywhere else.
 
 `stratum_view_test` covers the console buffer, frame differencing, glyph sets and their files, the cell and lattice
 reductions, both renderings and both round trips, and the reference frames. The reference frames are fixed command
-sequences rendered to text and compared byte for byte by `FileValidator` against `test/stratum_view_test/reference/`.
+sequences rendered to text and compared byte for byte by `check_reference` against `test/stratum_view_test/reference/`.
 The sequences are played against the two libraries, not through a host. Three scenarios are block notation zones drawn
 through the cell view. Two use the wall view: `walls_door`, a wall notation zone, moves through a door, back, and into
 the wall two rooms share, which blocks, then interacts with it; `door_cell`, a block notation zone, moves into a
 doorway, where the door is drawn in its cell, and out the far side.
 
 `dungen_test` and `catagen_test` compare reference zone files written now against those checked in, which must be
-equivalent as parsed JSON, and check determinism, parameter validation, grid shape, and that the reader accepts every
+equivalent as parsed JSON, and check determinism, parameter validation, grid dimensions, and that the reader accepts every
 generated zone. For their scenarios and over a sweep of seeds, both check that each door glyph has one `door` entity
 whose door facings are on that doorway's walls in the order `door_walls` returns them, and that no door facing is
 anywhere else. `dungen_test` also reads back the rooms of zones with every door, half of them, and none, over a sweep
@@ -1260,6 +1262,26 @@ deterministic iteration.
 `settings_test` covers the settings store: types, values, scopes, change listeners, and setting groups.
 
 Each test runs from its own directory, since its data and reference paths are relative.
+
+Every test executable is written in doctest and links `quetzal_testing`, which compiles doctest's implementation and
+defines `main`. `main` reads `--update-references` and passes every other argument to doctest. A test case has a named
+check for each condition: `CHECK_CASE` reports its name, and the detail it is given, when it fails, and
+`CHECK_CASE_EQUAL` its name and both values. A case repeated for each scenario is a subcase of one test case.
+`check_reference` compares a file a test case wrote to `out/` with the reference file at the same path in `reference/`,
+through a comparison the caller passes, byte for byte by default; dungen_test's and catagen_test's compare zone files as
+parsed JSON. With `--update-references`, it copies the file over the reference instead.
+
+`stratum_sim_test`'s test cases are in a source file for each area, each a test suite named for it: `scheduling.cpp`,
+`layout.cpp`, `occupancy.cpp`, `loading.cpp`, `world.cpp`, `relocation.cpp` and `game.cpp`. `test_support.hpp` declares
+what they share: `TestWorld`, a world with the game's entity types and a region made from the test registries of
+`test_generation`, and the helpers that load and enter zone files. A test case that builds a world or a game starts from
+`WorldFixture`, which loads the setting definitions once in the process, returns every setting to its default, and
+reseeds `g_test_random`, so it runs the same alone or in the full run.
+
+`doctest_discover_tests` registers each test case with CTest, named for the test executable, a colon and the test case,
+and run from the test executable's directory. Stratum's test executables have the label `stratum`, the geometry and mesh
+file tests `mesh_operations`, and the other libraries' tests `quetzal`. `stratum_sim_test`'s test cases share
+`out/saves` and `out/working`, so a CTest resource lock runs them one at a time.
 
 No test executable covers a host. The terminal host is checked by running it with `--script` and reading the frames
 back, and the Godot host by its two headless invocations.

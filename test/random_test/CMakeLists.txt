@@ -14,4 +14,11 @@ target_include_directories(random_test PRIVATE
 
 target_link_libraries(random_test PRIVATE
     quetzal_math
+    quetzal_testing
+)
+
+doctest_discover_tests(random_test
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+    TEST_PREFIX "random_test:"
+    PROPERTIES LABELS "quetzal"
 )

@@ -14,4 +14,11 @@ target_link_libraries(dungen_test PRIVATE
     quetzal_log
     quetzal_math
     quetzal_stratum_format
+    quetzal_testing
+)
+
+doctest_discover_tests(dungen_test
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+    TEST_PREFIX "dungen_test:"
+    PROPERTIES LABELS "stratum"
 )

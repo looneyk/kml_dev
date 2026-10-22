@@ -91,22 +91,22 @@ boxes are removed at the start of the next piece of work, since the reference do
 These follow **The random engine chosen**, so the reference files are regenerated for the named random engine before
 the test executables are converted (`testing_plan.md`).
 
-- [ ] **doctest and `quetzal_testing`, with `catagen_test` on them** (`testing_plan.md`, `## quetzal_testing`): doctest
+- [x] **doctest and `quetzal_testing`, with `catagen_test` on them** (`testing_plan.md`, `## quetzal_testing`): doctest
       vendored with `doctest.cmake`, `enable_testing()` in the root, the library with the `main` every test executable
       links, `check_reference` and `--update-references`, and `catagen_test` converted and registered with CTest under
       the label `stratum`.
-- [ ] **`dungen_test` on doctest.**
-- [ ] **`stratum_format_test` on doctest.**
-- [ ] **`stratum_view_test` on doctest,** its frames checked by `check_reference` in place of `FileValidator`.
-- [ ] **`stratum_sim_test` split by area** (`testing_plan.md`, `## stratum_sim_test by area`), on the current harness,
-      which moves to `test_support.hpp`.
-- [ ] **`stratum_sim_test` on doctest,** with a fixture seeding each test case.
-- [ ] **The settings, log, key-value store and flecs tests on doctest:** `settings_test`, `log_test`,
+- [x] **`dungen_test` on doctest.**
+- [x] **`stratum_format_test` on doctest.**
+- [x] **`stratum_view_test` on doctest,** its frames checked by `check_reference` in place of `FileValidator`.
+- [x] **`stratum_sim_test` split by area and on doctest** (`testing_plan.md`, `## stratum_sim_test by area`): a test
+      suite for each area, the shared helpers in `test_support.hpp`, and `WorldFixture` starting each test case that
+      builds a world.
+- [x] **The settings, log, key-value store and flecs tests on doctest:** `settings_test`, `log_test`,
       `keyvaluestore_test` and `flecs_test`.
-- [ ] **The string, vector, expression and UTF-8 tests on doctest:** `string_util_test`, `vector_point_test`,
+- [x] **The string, vector, expression and UTF-8 tests on doctest:** `string_util_test`, `vector_point_test`,
       `expression_test` and `to_utf8_test`.
-- [ ] **The geometry tests on doctest:** `geometry_test`, `mapping_test` and `projection_test`.
-- [ ] **The mesh file tests on doctest:** `mesh_diff_test` and `wavefront_obj_test`.
+- [x] **The geometry tests on doctest:** `geometry_test`, `mapping_test` and `projection_test`.
+- [x] **The mesh file tests on doctest:** `mesh_diff_test` and `wavefront_obj_test`.
 
 ## Regions
 
@@ -376,7 +376,6 @@ These are the open questions.
 
 - **What happens to a reference file whose test case no longer exists?** `--update-references` could remove it, which a
   filtered run must not do, or a run could report it, as Jest reports an obsolete snapshot.
-- **What labels do the test executables outside stratum get?**
 - **Which record of each test case's result is kept?** The candidates are CTest's `LastTest.log`, a JUnit XML file from
   each run, and doctest's output with `--success`.
 

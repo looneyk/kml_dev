@@ -33,6 +33,10 @@ add_subdirectory(flecs)
 get_target_property(flecs_include_directories flecs_static INTERFACE_INCLUDE_DIRECTORIES)
 set_target_properties(flecs_static PROPERTIES INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${flecs_include_directories}")
 
+set(DOCTEST_WITH_MAIN_IN_STATIC_LIB OFF CACHE BOOL "" FORCE)
+set(DOCTEST_NO_INSTALL ON CACHE BOOL "" FORCE)
+add_subdirectory(doctest)
+
 set(UTF8CPP_ENABLE_TESTS OFF CACHE BOOL "" FORCE)
 set(UTF8CPP_ENABLE_BENCHMARKS OFF CACHE BOOL "" FORCE)
 add_subdirectory(utfcpp)

@@ -14,4 +14,11 @@ target_include_directories(keyvaluestore_test PRIVATE
 
 target_link_libraries(keyvaluestore_test PRIVATE
     quetzal_common
+    quetzal_testing
+)
+
+doctest_discover_tests(keyvaluestore_test
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+    TEST_PREFIX "keyvaluestore_test:"
+    PROPERTIES LABELS "quetzal"
 )

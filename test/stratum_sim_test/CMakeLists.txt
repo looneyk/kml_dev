@@ -1,5 +1,13 @@
 add_executable(stratum_sim_test
-    main.cpp
+    game.cpp
+    layout.cpp
+    loading.cpp
+    occupancy.cpp
+    relocation.cpp
+    scheduling.cpp
+    test_support.cpp
+    test_support.hpp
+    world.cpp
 )
 
 set_property(TARGET stratum_sim_test PROPERTY FOLDER "test")
@@ -14,4 +22,11 @@ target_include_directories(stratum_sim_test PRIVATE
 
 target_link_libraries(stratum_sim_test PRIVATE
     quetzal_stratum_sim
+    quetzal_testing
+)
+
+doctest_discover_tests(stratum_sim_test
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+    TEST_PREFIX "stratum_sim_test:"
+    PROPERTIES LABELS "stratum" RESOURCE_LOCK "stratum_sim_test_out"
 )

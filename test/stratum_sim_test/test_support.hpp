@@ -1,0 +1,100 @@
+#if !defined(STRATUM_SIM_TEST_TEST_SUPPORT_HPP)
+#define STRATUM_SIM_TEST_TEST_SUPPORT_HPP
+//------------------------------------------------------------------------------
+// stratum_sim_test
+// test_support.hpp
+//------------------------------------------------------------------------------
+
+#include "quetzal/stratum_sim/Config.hpp"
+#include "quetzal/stratum_sim/DiscreteLayout.hpp"
+#include "quetzal/stratum_sim/Game.hpp"
+#include "quetzal/stratum_sim/Generation.hpp"
+#include "quetzal/stratum_sim/IdAllocator.hpp"
+#include "quetzal/stratum_sim/Layout.hpp"
+#include "quetzal/stratum_sim/Session.hpp"
+#include "quetzal/stratum_sim/World.hpp"
+#include "quetzal/stratum_sim/types.hpp"
+#include <cstddef>
+#include <memory>
+#include <string>
+
+namespace stratum_sim_test
+{
+
+    inline constexpr size_t test_zone_count_max = 8;
+
+    // A game's saves are in the test executable's own output directory
+    extern const quetzal::stratum_sim::Config g_test_config;
+
+    // Seeded, so a random choice is the same on every run
+    extern quetzal::stratum_sim::random_type g_test_random;
+
+    extern quetzal::stratum_sim::Generation g_test_generation;
+
+    // The state a test case that builds a world starts from: the setting definitions loaded, every setting at its default, and
+    // g_test_random at its seed. The definitions are loaded once in the process
+    struct WorldFixture
+    {
+        WorldFixture();
+    };
+
+    // Returns the test executable's registries. A region whose spec selects "door" makes zones from data/door.zone, and
+    // "staircase" from data/walls.zone, which has one staircase leading up and one leading down. "next_region" chooses a new
+    // region from the region spec "staircase" for every zone, and "unregistered_generator" a generator that is not
+    // registered. data/door.zone has one staircase, leading up
+    quetzal::stratum_sim::Generation test_generation();
+
+    quetzal::stratum_sim::RegionSpec test_region_spec(const std::string& generator_selector_name);
+    quetzal::stratum_sim::ZoneSpec test_zone_spec(quetzal::stratum_sim::level_type level);
+
+    // A world with the game's entity types, as Game's has, and a region for the test executable's zones
+    struct TestWorld : quetzal::stratum_sim::World
+    {
+        explicit TestWorld(quetzal::stratum_sim::IdAllocator& id_allocator, size_t zone_count_max = test_zone_count_max);
+
+        flecs::entity region;
+    };
+
+    // Counts the walled sides of every open cell, and how many of those edges are walled from the other side too
+    struct WallCounts
+    {
+        size_t sides = 0;
+        size_t both_sides = 0;
+    };
+
+    WallCounts wall_counts(const quetzal::stratum_sim::DiscreteLayout& layout);
+
+    // Reads a zone from a file into a world of its own, with a predicate that crosses its door walls as though every door were
+    // open
+    struct OpenZone
+    {
+        explicit OpenZone(const std::string& filepath);
+
+        quetzal::stratum_sim::DiscreteLayout& layout();
+
+        quetzal::stratum_sim::CountingIdAllocator id_allocator;
+        TestWorld world;
+        flecs::entity zone;
+        quetzal::stratum_sim::Layout::crossable_function_type crossable;
+    };
+
+    std::unique_ptr<OpenZone> load_open(const std::string& filepath);
+
+    // Loads a zone from a file with its doors and without denizens
+    flecs::entity load_zone_unpopulated(TestWorld& world, const std::string& filepath);
+
+    // The access point type the test cases enter zones at, and the level offset its relocator targets: a staircase leading up
+    flecs::entity test_entry_type(const quetzal::stratum_sim::Session& session);
+
+    inline constexpr quetzal::stratum_sim::level_type test_entry_offset = 1;
+
+    // Loads the zone file into a region of its own, made from the region spec "staircase", and enters it at the test entry type
+    // and level offset. Creates the game's character first if the game has none
+    void enter_zone_file(quetzal::stratum_sim::Game& game, const std::string& filepath);
+
+    // A zone's layout as a DiscreteLayout
+    quetzal::stratum_sim::DiscreteLayout& zone_layout(quetzal::stratum_sim::World& world, flecs::entity zone);
+
+} // namespace stratum_sim_test
+
+#endif // STRATUM_SIM_TEST_TEST_SUPPORT_HPP

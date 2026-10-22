@@ -14,13 +14,15 @@
 #include "quetzal/stratum_format/references.hpp"
 #include "quetzal/stratum_format/RelocatorTarget.hpp"
 #include "quetzal/stratum_format/write_zone.hpp"
+#include "quetzal/testing/named_checks.hpp"
+#include "quetzal/testing/reference_files.hpp"
+#include <doctest/doctest.h>
 #include <nlohmann/json.hpp>
 #include <algorithm>
 #include <charconv>
 #include <filesystem>
 #include <format>
 #include <fstream>
-#include <iostream>
 #include <map>
 #include <optional>
 #include <set>
@@ -36,14 +38,8 @@ using namespace quetzal;
 namespace
 {
 
-    static constexpr auto escape_reset_string = "\x1b[0m";
-    static constexpr auto escape_rendition_pattern = "\x1b[38;5;{}m";
-
     // Compares regardless of key order
     using map_type = nlohmann::json;
-
-    size_t g_case_count = 0;
-    size_t g_failure_count = 0;
 
     //--------------------------------------------------------------------------
     // Returns the wall an entity is sited on, or null if it is sited on a flat cell or on its parent
@@ -55,54 +51,6 @@ namespace
         }
 
         return get_if<stratum_format::WallAddress>(&*entity.site->address);
-    }
-
-    //--------------------------------------------------------------------------
-    void report_group(const string& name)
-    {
-        cout << name << endl;
-        return;
-    }
-
-    //--------------------------------------------------------------------------
-    void report_case(const string& name, bool b, const string& detail = {})
-    {
-        ++g_case_count;
-
-        if (b)
-        {
-            cout << format(escape_rendition_pattern, 34) << "    ok   " << escape_reset_string << name << endl;
-            return;
-        }
-
-        ++g_failure_count;
-        cout << format(escape_rendition_pattern, 196) << "    FAIL " << escape_reset_string << name;
-        if (!detail.empty())
-        {
-            cout << ": " << detail;
-        }
-        cout << endl;
-        return;
-    }
-
-    //--------------------------------------------------------------------------
-    void report_case_equal(const string& name, size_t value, size_t value_expected)
-    {
-        report_case(name, value == value_expected, format("expected {}, got {}", value_expected, value));
-        return;
-    }
-
-    //--------------------------------------------------------------------------
-    int report_results()
-    {
-        if (g_failure_count == 0)
-        {
-            cout << format(escape_rendition_pattern, 34) << format("OK: {} cases", g_case_count) << escape_reset_string << endl;
-            return 0;
-        }
-
-        cout << format(escape_rendition_pattern, 196) << format("Error: {} of {} cases failed", g_failure_count, g_case_count) << escape_reset_string << endl;
-        return 1;
     }
 
     //--------------------------------------------------------------------------
@@ -158,6 +106,29 @@ namespace
         }
 
         return s;
+    }
+
+    //--------------------------------------------------------------------------
+    // Returns nothing if the two zone files are equivalent as parsed JSON, or the JSON patch from the reference to the
+    // file written
+    optional<string> compare_equivalent(const filesystem::path& out_filepath, const filesystem::path& reference_filepath)
+    {
+        try
+        {
+            map_type map = map_type::parse(read_file(out_filepath.string()));
+            map_type map_expected = map_type::parse(read_file(reference_filepath.string()));
+
+            if (map == map_expected)
+            {
+                return nullopt;
+            }
+
+            return map_type::diff(map_expected, map).dump();
+        }
+        catch (const map_type::parse_error& e)
+        {
+            return e.what();
+        }
     }
 
     //--------------------------------------------------------------------------
@@ -376,33 +347,17 @@ namespace
 
     //--------------------------------------------------------------------------
     // Zone files written now against those checked in, which must be equivalent
-    void test_reference_zones()
+    TEST_CASE("reference zones")
     {
-        report_group("reference zones");
-
-        filesystem::create_directories("out");
+        filesystem::create_directories(testing::out_directory);
 
         for (const Scenario& scenario : scenarios())
         {
-            string zone = zone_text(scenario.parameters, scenario.zone_name);
-            write_file(format("out/{}.zone", scenario.name), zone);
-
-            string reference = read_file(format("reference/{}.zone", scenario.name));
-            if (reference.empty())
+            SUBCASE(format("{} is equivalent to its reference", scenario.name))
             {
-                report_case(format("{} is equivalent to its reference", scenario.name), false, "no reference is checked in");
-                continue;
-            }
-
-            try
-            {
-                map_type map = map_type::parse(zone);
-                map_type map_expected = map_type::parse(reference);
-                report_case(format("{} is equivalent to its reference", scenario.name), map == map_expected, map_type::diff(map_expected, map).dump());
-            }
-            catch (const map_type::parse_error& e)
-            {
-                report_case(format("{} is equivalent to its reference", scenario.name), false, e.what());
+                const string filename = scenario.name + ".zone";
+                write_file((testing::out_directory / filename).string(), zone_text(scenario.parameters, scenario.zone_name));
+                testing::check_reference(filename, compare_equivalent);
             }
         }
 
@@ -411,14 +366,12 @@ namespace
 
     //--------------------------------------------------------------------------
     // A zone file has every parameter of its run, so it can be reproduced from the file alone
-    void test_parameters_reproduce()
+    TEST_CASE("parameters reproduce their zone")
     {
-        report_group("parameters reproduce their zone");
-
         for (const Scenario& scenario : scenarios())
         {
             string reference = read_file(format("reference/{}.zone", scenario.name));
-            report_case(format("{} is checked in", scenario.name), !reference.empty());
+            CHECK_CASE(format("{} is checked in", scenario.name), !reference.empty());
 
             if (reference.empty())
             {
@@ -432,12 +385,12 @@ namespace
                 string name = document.components.is_object() ? document.components.value("name", string()) : string();
 
                 dungen::Parameters parameters = parameters_of(document.generator);
-                report_case(format("{} regenerates from its own parameters", scenario.name),
+                CHECK_CASE(format("{} regenerates from its own parameters", scenario.name),
                     map_type::parse(zone_text(parameters, name)) == map_type::parse(reference));
             }
             catch (const exception& e)
             {
-                report_case(format("{} regenerates from its own parameters", scenario.name), false, e.what());
+                CHECK_CASE(format("{} regenerates from its own parameters", scenario.name), false, e.what());
             }
         }
 
@@ -454,34 +407,32 @@ namespace
             rejected = true;
         }
 
-        report_case("a parameter this does not read is rejected", rejected);
+        CHECK_CASE("a parameter this does not read is rejected", rejected);
 
         // A level, when given, is written into the layout and the parameters both
         dungen::Parameters leveled = scenarios().front().parameters;
         leveled.level = -2;
         stratum_format::Document leveled_document = document_of(zone_text(leveled));
 
-        report_case("a zone given a level has it in its layout", leveled_document.level == -2);
-        report_case("and in its parameters, from which it regenerates",
+        CHECK_CASE("a zone given a level has it in its layout", leveled_document.level == -2);
+        CHECK_CASE("and in its parameters, from which it regenerates",
             parameters_of(leveled_document.generator).level == -2 && document_of(zone_text(scenarios().front().parameters)).level == nullopt);
 
         return;
     }
 
     //--------------------------------------------------------------------------
-    void test_determinism()
+    TEST_CASE("determinism")
     {
-        report_group("determinism");
-
         dungen::Parameters parameters;
         parameters.extent = {21, 15};
         parameters.seed = 7u;
 
-        report_case("one seed produces one zone", zone_text(parameters) == zone_text(parameters));
+        CHECK_CASE("one seed produces one zone", zone_text(parameters) == zone_text(parameters));
 
         dungen::Parameters other = parameters;
         other.seed = 8u;
-        report_case("and another seed produces another", zone_text(other) != zone_text(parameters));
+        CHECK_CASE("and another seed produces another", zone_text(other) != zone_text(parameters));
 
         auto write = [&](id_type id, const string& name)
         {
@@ -490,26 +441,24 @@ namespace
             return os.str();
         };
 
-        report_case("a Zone's id is not written to its file", write(0, "one") == write(7, "one"));
+        CHECK_CASE("a Zone's id is not written to its file", write(0, "one") == write(7, "one"));
 
         stratum_format::Document named = document_of(write(0, "Cistern Level 1"));
         stratum_format::Document unnamed = document_of(write(0, ""));
-        report_case("a Zone's name is written as the layout's name",
+        CHECK_CASE("a Zone's name is written as the layout's name",
             named.components.is_object() && named.components.value("name", string()) == "Cistern Level 1");
-        report_case("an empty name is not written", !unnamed.components.is_object() || !unnamed.components.contains("name"));
-        report_case("and the name does not affect the grid", named.cells.rows == unnamed.cells.rows);
+        CHECK_CASE("an empty name is not written", !unnamed.components.is_object() || !unnamed.components.contains("name"));
+        CHECK_CASE("and the name does not affect the grid", named.cells.rows == unnamed.cells.rows);
 
-        report_case("a random seed is not the same one every time",
+        CHECK_CASE("a random seed is not the same one every time",
             dungen::random_seed() != dungen::random_seed());
 
         return;
     }
 
     //--------------------------------------------------------------------------
-    void test_validate()
+    TEST_CASE("parameter validation")
     {
-        report_group("parameter validation");
-
         auto rejected = [](const dungen::Parameters& parameters)
         {
             try
@@ -527,36 +476,34 @@ namespace
         dungen::Parameters parameters;
         parameters.extent = {21, 15};
         parameters.seed = 1u;
-        report_case("a sound set of parameters passes", !rejected(parameters));
+        CHECK_CASE("a sound set of parameters passes", !rejected(parameters));
 
         dungen::Parameters seedless = parameters;
         seedless.seed.reset();
-        report_case("no seed is rejected rather than quietly fixed", rejected(seedless));
+        CHECK_CASE("no seed is rejected rather than quietly fixed", rejected(seedless));
 
         dungen::Parameters empty = parameters;
         empty.extent = {0, 0};
-        report_case("an empty size is rejected", rejected(empty));
+        CHECK_CASE("an empty size is rejected", rejected(empty));
 
         // Only the chosen algorithm's group is read, so another group's invalid values are not rejected
         dungen::Parameters unread = parameters;
         unread.algorithm = dungen::Algorithm::Maze1;
         unread.cave1.fill = -1.0;
-        report_case("a group the algorithm does not read is not judged", !rejected(unread));
+        CHECK_CASE("a group the algorithm does not read is not judged", !rejected(unread));
 
         dungen::Parameters pinched = parameters;
         pinched.algorithm = dungen::Algorithm::Grid1;
         pinched.grid1.room_dimension_min = 1;
-        report_case("a room of a single cell is allowed", !rejected(pinched));
+        CHECK_CASE("a room of a single cell is allowed", !rejected(pinched));
 
         return;
     }
 
     //--------------------------------------------------------------------------
     // Every algorithm produces a zone the reader accepts, of the requested size
-    void test_grid_shape()
+    TEST_CASE("grid dimensions")
     {
-        report_group("grid shape");
-
         for (const Scenario& scenario : scenarios())
         {
             vector<string> rows;
@@ -566,22 +513,22 @@ namespace
                 string text = zone_text(scenario.parameters, scenario.zone_name);
                 stratum_format::Document document = document_of(text);
                 rows = document.cells.rows;
-                report_case(format("{} is a zone the reader accepts", scenario.name), true);
+                CHECK_CASE(format("{} is a zone the reader accepts", scenario.name), true);
 
                 ostringstream os;
                 stratum_format::write(os, document);
-                report_case(format("{} reads back as the document built in memory", scenario.name), os.str() == text);
+                CHECK_CASE(format("{} reads back as the document built in memory", scenario.name), os.str() == text);
             }
             catch (const runtime_error& e)
             {
-                report_case(format("{} is a zone the reader accepts", scenario.name), false, e.what());
+                CHECK_CASE(format("{} is a zone the reader accepts", scenario.name), false, e.what());
                 continue;
             }
 
             auto [nx, ny] = scenario.parameters.extent.rep();
 
-            report_case_equal(format("{} has a row per cell", scenario.name), rows.size(), static_cast<size_t>(ny));
-            report_case(format("{} has a column per cell", scenario.name),
+            CHECK_CASE_EQUAL(format("{} has a row per cell", scenario.name), rows.size(), static_cast<size_t>(ny));
+            CHECK_CASE(format("{} has a column per cell", scenario.name),
                 !rows.empty() && rows.front().size() == static_cast<size_t>(nx));
         }
 
@@ -706,23 +653,21 @@ namespace
 
     //--------------------------------------------------------------------------
     // Swept over seeds as well as the checked in zone files, as a placement fault depends on where the rooms are
-    void test_door_placement()
+    TEST_CASE("doorway placement")
     {
-        report_group("doorway placement");
-
         constexpr dungen::Parameters::seed_type seed_count = 64;
 
         for (const Scenario& scenario : scenarios())
         {
             string detail;
-            report_case(format("{} places every doorway in a wall line", scenario.name),
+            CHECK_CASE(format("{} places every doorway in a wall line", scenario.name),
                 doorways_in_wall_lines(zone_text(scenario.parameters), detail), detail);
         }
 
         for (const Scenario& scenario : scenarios())
         {
             string detail;
-            report_case(format("{} writes a door entity at each door", scenario.name), doors_have_entities(zone_text(scenario.parameters), detail),
+            CHECK_CASE(format("{} writes a door entity at each door", scenario.name), doors_have_entities(zone_text(scenario.parameters), detail),
                 detail);
         }
 
@@ -754,7 +699,7 @@ namespace
                 }
             }
 
-            report_case(format("{} holds over {} seeds", scenario.name, seed_count), failures == 0 && unplaced < seed_count,
+            CHECK_CASE(format("{} holds over {} seeds", scenario.name, seed_count), failures == 0 && unplaced < seed_count,
                 format("{} seeds failed, first at {}; {} with too few candidates for a staircase", failures, detail, unplaced));
         }
 
@@ -802,7 +747,7 @@ namespace
                 }
             }
 
-            report_case(format("grid1 holds with {}", variant.name), failures == 0 && unplaced < seed_count,
+            CHECK_CASE(format("grid1 holds with {}", variant.name), failures == 0 && unplaced < seed_count,
                 format("{} seeds failed, first at {}; {} with too few candidates for a staircase", failures, detail, unplaced));
         }
 
@@ -881,10 +826,8 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    void test_barriers()
+    TEST_CASE("barriers")
     {
-        report_group("barriers");
-
         constexpr dungen::Parameters::seed_type seed_count = 64;
 
         struct Variant
@@ -925,7 +868,7 @@ namespace
                 }
             }
 
-            report_case(format("{} reads back its rooms over {} seeds", variant.name, seed_count), failures == 0,
+            CHECK_CASE(format("{} reads back its rooms over {} seeds", variant.name, seed_count), failures == 0,
                 format("{} seeds failed, first at {}", failures, detail));
         }
 
@@ -936,7 +879,7 @@ namespace
         doorless.grid1.door_probability = 0.0;
 
         const vector<string> rows = document_of(zone_text(doorless)).cells.rows;
-        report_case("a door probability of zero leaves no door",
+        CHECK_CASE("a door probability of zero leaves no door",
             none_of(rows.begin(), rows.end(), [](const string& row) { return row.find('+') != string::npos; }));
 
         return;
@@ -1173,16 +1116,14 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    void test_staircases()
+    TEST_CASE("staircases")
     {
-        report_group("staircases");
-
         constexpr dungen::Parameters::seed_type seed_count = 64;
 
         for (const Scenario& scenario : scenarios())
         {
             string detail;
-            report_case(format("{} places and faces its staircases", scenario.name),
+            CHECK_CASE(format("{} places and faces its staircases", scenario.name),
                 staircases_placed_and_faced(zone_text(scenario.parameters), scenario.parameters, detail), detail);
         }
 
@@ -1216,7 +1157,7 @@ namespace
                 }
             }
 
-            report_case(format("{} places and faces ranges of staircases over {} seeds", scenario.name, seed_count),
+            CHECK_CASE(format("{} places and faces ranges of staircases over {} seeds", scenario.name, seed_count),
                 failures == 0 && unplaced < seed_count,
                 format("{} seeds failed, first at {}; {} with too few candidates for a staircase", failures, detail, unplaced));
         }
@@ -1265,24 +1206,24 @@ namespace
             dungen::Zone zone = corridor(2);
             vector<string> warnings;
 
-            report_case("a staircase is placed on a candidate", placing(zone, {{1, 1}}, {1, 1}, {0, 0}, warnings).empty()
+            CHECK_CASE("a staircase is placed on a candidate", placing(zone, {{1, 1}}, {1, 1}, {0, 0}, warnings).empty()
                 && zone.staircases().size() == 1 && zone.cell({1, 1}).type() == dungen::CellType::Staircase);
-            report_case("facing the floor beside it", !zone.staircases().empty() && zone.staircases()[0].direction() == dungen::vector_type {1, 0});
-            report_case("the floor a staircase faces gets no second staircase", placing(zone, {{2, 1}}, {1, 1}, {0, 0}, warnings) == unplaced_rise_error);
+            CHECK_CASE("facing the floor beside it", !zone.staircases().empty() && zone.staircases()[0].direction() == dungen::vector_type {1, 0});
+            CHECK_CASE("the floor a staircase faces gets no second staircase", placing(zone, {{2, 1}}, {1, 1}, {0, 0}, warnings) == unplaced_rise_error);
         }
 
         {
             dungen::Zone zone = corridor(3);
             vector<string> warnings;
 
-            report_case("a count drawn above zero with none placed is an error", placing(zone, {{1, 1}}, {1, 1}, {1, 1}, warnings) == unplaced_rise_error);
+            CHECK_CASE("a count drawn above zero with none placed is an error", placing(zone, {{1, 1}}, {1, 1}, {1, 1}, warnings) == unplaced_rise_error);
         }
 
         {
             dungen::Zone zone = corridor(3);
             vector<string> warnings;
 
-            report_case("a candidate that would cut a passage in two is skipped", placing(zone, {{2, 1}}, {1, 1}, {0, 0}, warnings) == unplaced_rise_error);
+            CHECK_CASE("a candidate that would cut a passage in two is skipped", placing(zone, {{2, 1}}, {1, 1}, {0, 0}, warnings) == unplaced_rise_error);
         }
 
         {
@@ -1290,7 +1231,7 @@ namespace
             zone.cell({3, 1}).set_type(dungen::CellType::Door);
             vector<string> warnings;
 
-            report_case("a candidate beside a door is skipped", placing(zone, {{2, 1}}, {1, 1}, {0, 0}, warnings) == unplaced_rise_error);
+            CHECK_CASE("a candidate beside a door is skipped", placing(zone, {{2, 1}}, {1, 1}, {0, 0}, warnings) == unplaced_rise_error);
         }
 
         {
@@ -1301,7 +1242,7 @@ namespace
             size_t up_count = static_cast<size_t>(count_if(zone.staircases().begin(), zone.staircases().end(),
                 [](const dungen::Staircase& staircase) { return staircase.rise() == dungen::Rise::Up; }));
 
-            report_case("staircases leading up and down alternate", placed && zone.staircases().size() == 2 && up_count == 1 && warnings.empty());
+            CHECK_CASE("staircases leading up and down alternate", placed && zone.staircases().size() == 2 && up_count == 1 && warnings.empty());
         }
 
         {
@@ -1309,7 +1250,7 @@ namespace
             vector<string> warnings;
 
             bool placed = placing(zone, {{1, 1}, {5, 1}}, {3, 3}, {0, 0}, warnings).empty();
-            report_case("fewer placed than were drawn is a warning", placed && zone.staircases().size() == 2
+            CHECK_CASE("fewer placed than were drawn is a warning", placed && zone.staircases().size() == 2
                 && warnings == vector<string> {"2 of 3 staircases leading up and 0 of 0 leading down placed, the candidates running out"});
         }
 
@@ -1328,7 +1269,7 @@ namespace
             rejected = true;
         }
 
-        report_case("a staircase count whose maximum is below its minimum is rejected", rejected);
+        CHECK_CASE("a staircase count whose maximum is below its minimum is rejected", rejected);
 
         dungen::Parameters entryless;
         entryless.extent = {21, 15};
@@ -1346,7 +1287,7 @@ namespace
             rejected = true;
         }
 
-        report_case("staircase counts that may both be zero, leaving no entry, are rejected", rejected);
+        CHECK_CASE("staircase counts that may both be zero, leaving no entry, are rejected", rejected);
 
         dungen::Parameters down_only;
         down_only.extent = {21, 15};
@@ -1364,32 +1305,9 @@ namespace
             rejected = true;
         }
 
-        report_case("a staircase down alone is rejected, a dungeon zone needing one leading up", rejected);
+        CHECK_CASE("a staircase down alone is rejected, a dungeon zone needing one leading up", rejected);
 
         return;
     }
 
 } // namespace
-
-//------------------------------------------------------------------------------
-int main()
-{
-    try
-    {
-        test_reference_zones();
-        test_parameters_reproduce();
-        test_determinism();
-        test_validate();
-        test_grid_shape();
-        test_door_placement();
-        test_barriers();
-        test_staircases();
-    }
-    catch (const exception& e)
-    {
-        cout << format(escape_rendition_pattern, 196) << "Error: " << escape_reset_string << e.what() << endl;
-        return 1;
-    }
-
-    return report_results();
-}

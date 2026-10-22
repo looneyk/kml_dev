@@ -9,11 +9,12 @@
 #include "quetzal/math/HomogeneousTraits.hpp"
 #include "quetzal/model/mesh_diff.hpp"
 #include "quetzal/model/obj_io.hpp"
+#include "quetzal/testing/named_checks.hpp"
+#include <doctest/doctest.h>
 #include <algorithm>
 #include <filesystem>
 #include <format>
 #include <fstream>
-#include <iostream>
 #include <string>
 #include <vector>
 #include <cmath>
@@ -36,26 +37,13 @@ namespace
     using face_type = vector<point_type>;
     using faces_type = vector<face_type>;
 
-    size_t n_cases = 0;
-    size_t n_failures = 0;
-
     //--------------------------------------------------------------------------
-    void check(const string& name, bool b, const string& detail = {})
+    // A directory of the test case's own, so test cases running at once write no file in each other's
+    filesystem::path scratch_directory(const string& name)
     {
-        ++n_cases;
-        if (!b)
-        {
-            ++n_failures;
-        }
-
-        cout << (b ? "pass  " : "FAIL  ") << name;
-        if (!detail.empty())
-        {
-            cout << "  " << detail;
-        }
-
-        cout << endl;
-        return;
+        filesystem::path dir = filesystem::temp_directory_path() / "mesh_diff_test" / name;
+        filesystem::create_directories(dir);
+        return dir;
     }
 
     //--------------------------------------------------------------------------
@@ -125,32 +113,31 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    void test_comparison()
+    TEST_CASE("comparison")
     {
-        cout << endl << "comparison" << endl;
-
+        set_output_file_lf_endings();
         model_type a = make_model(base_faces());
 
         {
             model::Comparison c = model::detail::compare_models(a, a);
-            check("identical model", c.identical() && c.n_identical == 4, counts(c));
+            CHECK_CASE("identical model", c.identical() && c.n_identical == 4, counts(c));
         }
 
         {
             faces_type faces = base_faces();
             std::reverse(faces.begin(), faces.end());
             model::Comparison c = model::detail::compare_models(a, make_model(faces));
-            check("face order ignored", c.identical(), counts(c));
+            CHECK_CASE("face order ignored", c.identical(), counts(c));
         }
 
         {
             model::Comparison c = model::detail::compare_models(a, make_model(rotate_loops(base_faces())));
-            check("vertex loop rotation ignored", c.identical(), counts(c));
+            CHECK_CASE("vertex loop rotation ignored", c.identical(), counts(c));
         }
 
         {
             model::Comparison c = model::detail::compare_models(a, make_model(reverse_loops(base_faces())));
-            check("reversed winding detected", !c.equivalent() && c.n_reversed == 4 && c.n_identical == 0, counts(c));
+            CHECK_CASE("reversed winding detected", !c.equivalent() && c.n_reversed == 4 && c.n_identical == 0, counts(c));
         }
 
         {
@@ -158,14 +145,14 @@ namespace
             faces_type faces = base_faces();
             faces[0][1].set_x(std::nextafter(faces[0][1].x(), 2.0f));
             model::Comparison c = model::detail::compare_models(a, make_model(faces));
-            check("position within tolerance is equivalent", c.equivalent() && !c.identical(), counts(c));
+            CHECK_CASE("position within tolerance is equivalent", c.equivalent() && !c.identical(), counts(c));
         }
 
         {
             faces_type faces = base_faces();
             faces[0][0].set_x(faces[0][0].x() + 0.5f);
             model::Comparison c = model::detail::compare_models(a, make_model(faces));
-            check("position beyond tolerance is not equivalent", !c.equivalent(), counts(c));
+            CHECK_CASE("position beyond tolerance is not equivalent", !c.equivalent(), counts(c));
         }
 
         {
@@ -177,44 +164,44 @@ namespace
             }
 
             model::Comparison c = model::detail::compare_models(a, make_model(faces));
-            check("displaced face is unmatched on both sides", c.n_unmatched == 1 && c.n_unmatched_other == 1, counts(c));
+            CHECK_CASE("displaced face is unmatched on both sides", c.n_unmatched == 1 && c.n_unmatched_other == 1, counts(c));
         }
 
         {
             model::Comparison c = model::detail::compare_models(a, make_model(base_faces(), "object", "other"));
-            check("surface name difference", c.n_surface_differences == 4 && !c.identical(), counts(c));
+            CHECK_CASE("surface name difference", c.n_surface_differences == 4 && !c.identical(), counts(c));
         }
 
         {
             model::Comparison c = model::detail::compare_models(a, make_model(base_faces(), "other", "body"));
-            check("submesh name difference", c.n_surface_differences == 4 && !c.identical(), counts(c));
+            CHECK_CASE("submesh name difference", c.n_surface_differences == 4 && !c.identical(), counts(c));
         }
 
         {
             model::Options options;
             options.compare_surfaces = false;
             model::Comparison c = model::detail::compare_models(a, make_model(base_faces(), "object", "other"), options);
-            check("surface comparison can be disabled", c.identical(), counts(c));
+            CHECK_CASE("surface comparison can be disabled", c.identical(), counts(c));
         }
 
         {
             faces_type faces = base_faces();
             faces.push_back({point_type(9.0f, 9.0f, 0.0f), point_type(10.0f, 9.0f, 0.0f), point_type(9.0f, 10.0f, 0.0f)});
             model::Comparison c = model::detail::compare_models(a, make_model(faces));
-            check("extra face on the right", !c.comparable() && c.n_unmatched_other == 1, counts(c));
+            CHECK_CASE("extra face on the right", !c.comparable() && c.n_unmatched_other == 1, counts(c));
         }
 
         {
             faces_type faces = base_faces();
             faces.pop_back();
             model::Comparison c = model::detail::compare_models(a, make_model(faces));
-            check("missing face on the right", !c.comparable() && c.n_unmatched == 1, counts(c));
+            CHECK_CASE("missing face on the right", !c.comparable() && c.n_unmatched == 1, counts(c));
         }
 
         {
             model_type empty;
             model::Comparison c = model::detail::compare_models(empty, empty);
-            check("empty models are identical", c.identical() && c.n_faces == 0, counts(c));
+            CHECK_CASE("empty models are identical", c.identical() && c.n_faces == 0, counts(c));
         }
 
         {
@@ -229,7 +216,7 @@ namespace
 
             model_type b = make_model(faces);
             model::Comparison c = model::detail::compare_models(a, b);
-            check("differing vertex count at the same centroid is unmatched",
+            CHECK_CASE("differing vertex count at the same centroid is unmatched",
                 c.n_unmatched == 1 && c.n_unmatched_other == 1 && c.n_identical == 3, counts(c));
         }
 
@@ -368,10 +355,8 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    void test_reader(const filesystem::path& dir)
+    void check_reader(const filesystem::path& dir)
     {
-        cout << endl << "obj reader" << endl;
-
         // v/vt/vn, v//vn, v/vt, and v must all read and compare against themselves
         struct Form
         {
@@ -392,13 +377,13 @@ namespace
             filesystem::path path = write_file(dir, form.name + ".obj", obj_source(form.texcoords, form.normals));
 
             model::Comparison c = model::mesh_diff<vector_traits>(path, path);
-            check("reference form " + form.name, c.n_faces == 2 && c.identical(), counts(c));
+            CHECK_CASE("reference form " + form.name, c.n_faces == 2 && c.identical(), counts(c));
         }
 
         {
             model::Comparison c = model::mesh_diff<vector_traits>(dir / "full.obj", dir / "no_vn.obj");
             const model::FaceDifferences& d = c.differences[0].differences;
-            check("missing vn differs in all three normals only", d.normals == 3 && d.texcoords == 0 && d.positions == 0,
+            CHECK_CASE("missing vn differs in all three normals only", d.normals == 3 && d.texcoords == 0 && d.positions == 0,
                 std::format("[{} position, {} normal, {} texcoord]", d.positions, d.normals, d.texcoords));
         }
 
@@ -406,14 +391,14 @@ namespace
             model::Comparison c = model::mesh_diff<vector_traits>(dir / "full.obj", dir / "no_vt.obj");
             const model::FaceDifferences& d = c.differences[0].differences;
             // The first vertex has vt 0 0, so this also tests a supplied attribute equal to the default
-            check("missing vt differs in all three texcoords only", d.texcoords == 3 && d.normals == 0 && d.positions == 0,
+            CHECK_CASE("missing vt differs in all three texcoords only", d.texcoords == 3 && d.normals == 0 && d.positions == 0,
                 std::format("[{} position, {} normal, {} texcoord]", d.positions, d.normals, d.texcoords));
         }
 
         {
             filesystem::path path = write_file(dir, "crlf.obj", to_crlf(obj_source(true, true)));
             model::Comparison c = model::mesh_diff<vector_traits>(dir / "full.obj", path);
-            check("crlf reads the same as lf", c.identical(), counts(c));
+            CHECK_CASE("crlf reads the same as lf", c.identical(), counts(c));
         }
 
         {
@@ -422,7 +407,7 @@ namespace
             bool b = crlf.submeshes().size() == 1 && crlf.submeshes()[0].name == "object"
                 && crlf.surfaces().size() == 2
                 && crlf.surfaces()[0].name == "body0" && crlf.surfaces()[1].name == "body1";
-            check("crlf leaves no cr in submesh and surface names", b);
+            CHECK_CASE("crlf leaves no cr in submesh and surface names", b);
         }
 
         {
@@ -432,7 +417,7 @@ namespace
                 && full.surfaces()[0].face_ids.size() == 1 && full.surfaces()[1].face_ids.size() == 1
                 && full.face(full.surfaces()[0].face_ids[0]).surface_id == 0
                 && full.face(full.surfaces()[1].face_ids[0]).surface_id == 1;
-            check("each group takes the faces that follow it", b,
+            CHECK_CASE("each group takes the faces that follow it", b,
                 std::format("[{} surfaces]", full.surfaces().size()));
         }
 
@@ -441,18 +426,16 @@ namespace
             filesystem::path first = write_file(dir, "declarations_first.obj", obj_declarations_first);
 
             model::Comparison c = model::mesh_diff<vector_traits>(last, first);
-            check("object and group declared before the vertex data reads the same", c.identical(), counts(c));
+            CHECK_CASE("object and group declared before the vertex data reads the same", c.identical(), counts(c));
         }
 
         return;
     }
 
     //--------------------------------------------------------------------------
-    void test_overloads(const filesystem::path& dir)
+    void check_overloads(const filesystem::path& dir)
     {
-        cout << endl << "mesh_diff overloads" << endl;
-
-        filesystem::path path = dir / "full.obj";
+        filesystem::path path = write_file(dir, "full.obj", obj_source(true, true));
 
         mesh_type mesh;
         model::read_obj(mesh, path);
@@ -467,29 +450,29 @@ namespace
 
         {
             model::Comparison c = model::mesh_diff<vector_traits>(path, path);
-            check("file against file", c.n_faces == 2 && c.identical(), counts(c));
+            CHECK_CASE("file against file", c.n_faces == 2 && c.identical(), counts(c));
         }
 
         {
             model::Comparison c = model::mesh_diff(mesh, mesh_other);
-            check("mesh against mesh", c.n_faces == 2 && c.identical(), counts(c));
+            CHECK_CASE("mesh against mesh", c.n_faces == 2 && c.identical(), counts(c));
         }
 
         {
             model::Comparison c = model::mesh_diff(path, mesh, options);
-            check("file against mesh", c.n_faces == 2 && c.identical(), counts(c));
+            CHECK_CASE("file against mesh", c.n_faces == 2 && c.identical(), counts(c));
         }
 
         {
             model::Comparison c = model::mesh_diff(mesh, path, options);
-            check("mesh against file", c.n_faces == 2 && c.identical(), counts(c));
+            CHECK_CASE("mesh against file", c.n_faces == 2 && c.identical(), counts(c));
         }
 
         {
             // The adapter has to reproduce the grouping, not just the geometry
             model_type adapted = model::detail::to_model(mesh);
             model_type direct = model::detail::read_obj_model<model_type>(path);
-            check("adapted grouping matches the file",
+            CHECK_CASE("adapted grouping matches the file",
                 adapted.face_count() == direct.face_count()
                     && adapted.surfaces().size() == direct.surfaces().size()
                     && adapted.submeshes().size() == direct.submeshes().size(),
@@ -499,22 +482,28 @@ namespace
         return;
     }
 
+    //--------------------------------------------------------------------------
+    TEST_CASE("obj reader")
+    {
+        set_output_file_lf_endings();
+
+        filesystem::path dir = scratch_directory("obj_reader");
+        check_reader(dir);
+        filesystem::remove_all(dir);
+
+        return;
+    }
+
+    //--------------------------------------------------------------------------
+    TEST_CASE("mesh_diff overloads")
+    {
+        set_output_file_lf_endings();
+
+        filesystem::path dir = scratch_directory("overloads");
+        check_overloads(dir);
+        filesystem::remove_all(dir);
+
+        return;
+    }
+
 } // namespace
-
-//------------------------------------------------------------------------------
-int main()
-{
-    set_output_file_lf_endings();
-
-    filesystem::path dir = filesystem::temp_directory_path() / "mesh_diff_test";
-    filesystem::create_directories(dir);
-
-    test_comparison();
-    test_reader(dir);
-    test_overloads(dir);
-
-    filesystem::remove_all(dir);
-
-    cout << endl << (n_failures == 0 ? "OK: " : "Error: ") << (n_cases - n_failures) << " of " << n_cases << " cases passed" << endl;
-    return n_failures == 0 ? 0 : 1;
-}

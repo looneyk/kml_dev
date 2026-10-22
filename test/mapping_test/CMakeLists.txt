@@ -15,6 +15,13 @@ target_include_directories(mapping_test PRIVATE
 target_link_libraries(mapping_test PRIVATE
     quetzal_common
     quetzal_math
+    quetzal_testing
+)
+
+doctest_discover_tests(mapping_test
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+    TEST_PREFIX "mapping_test:"
+    PROPERTIES LABELS "mesh_operations"
 )
 
 add_dependencies(mapping_test

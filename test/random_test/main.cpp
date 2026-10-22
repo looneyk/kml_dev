@@ -5,14 +5,14 @@
 
 #include "quetzal/math/Random.hpp"
 #include "quetzal/math/Xoshiro256StarStar.hpp"
+#include "quetzal/testing/named_checks.hpp"
+#include <doctest/doctest.h>
 #include <algorithm>
 #include <array>
 #include <cmath>
 #include <concepts>
 #include <cstdint>
-#include <exception>
 #include <format>
-#include <iostream>
 #include <limits>
 #include <numeric>
 #include <random>
@@ -27,61 +27,7 @@ using namespace quetzal;
 namespace
 {
 
-    static constexpr auto escape_reset_string = "\x1b[0m";
-    static constexpr auto escape_rendition_pattern = "\x1b[38;5;{}m";
-
-    size_t g_case_count = 0;
-    size_t g_failure_count = 0;
-
     using engine_type = math::Xoshiro256StarStar;
-
-    //--------------------------------------------------------------------------
-    void report_group(const string& name)
-    {
-        cout << name << endl;
-        return;
-    }
-
-    //--------------------------------------------------------------------------
-    void report_case(const string& name, bool b, const string& detail = {})
-    {
-        ++g_case_count;
-
-        if (b)
-        {
-            cout << format(escape_rendition_pattern, 34) << "    ok   " << escape_reset_string << name << endl;
-            return;
-        }
-
-        ++g_failure_count;
-        cout << format(escape_rendition_pattern, 196) << "    FAIL " << escape_reset_string << name;
-        if (!detail.empty())
-        {
-            cout << ": " << detail;
-        }
-        cout << endl;
-        return;
-    }
-
-    //--------------------------------------------------------------------------
-    void report_case_equal(const string& name, const vector<uint64_t>& values, const vector<uint64_t>& values_expected)
-    {
-        report_case(name, values == values_expected, format("expected {}, got {}", values_expected, values));
-        return;
-    }
-
-    //--------------------------------------------------------------------------
-    int report_results()
-    {
-        if (g_failure_count == 0)
-        {
-            cout << format(escape_rendition_pattern, 34) << format("OK: {} cases", g_case_count) << escape_reset_string << endl;
-            return 0;
-        }
-
-        cout << format(escape_rendition_pattern, 196) << format("Error: {} of {} cases failed", g_failure_count, g_case_count) << escape_reset_string << endl;
-        return 1;
-    }
 
     //--------------------------------------------------------------------------
     vector<uint64_t> draw(engine_type& engine, size_t count)
@@ -95,34 +41,32 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    void test_xoshiro256starstar()
+    TEST_CASE("xoshiro256**")
     {
-        report_group("xoshiro256**");
-
-        report_case("is a uniform random bit generator", uniform_random_bit_generator<engine_type>);
+        CHECK_CASE("is a uniform random bit generator", uniform_random_bit_generator<engine_type>);
 
         engine_type from_state(engine_type::state_type {1, 2, 3, 4});
-        report_case_equal("from the state 1, 2, 3, 4, draws the reference implementation's values", draw(from_state, 10),
-            {11520, 0, 1509978240, 1215971899390074240, 1216172134540287360, 607988272756665600, 16172922978634559625ull,
-            8476171486693032832, 10595114339597558777ull, 2904607092377533576});
+        CHECK_CASE_EQUAL("from the state 1, 2, 3, 4, draws the reference implementation's values", draw(from_state, 10),
+            (vector<uint64_t> {11520, 0, 1509978240, 1215971899390074240, 1216172134540287360, 607988272756665600, 16172922978634559625ull,
+            8476171486693032832, 10595114339597558777ull, 2904607092377533576}));
 
         engine_type seeded(0);
-        report_case("seeded with 0, its state is splitmix64's first four values from 0",
+        CHECK_CASE("seeded with 0, its state is splitmix64's first four values from 0",
             seeded == engine_type(engine_type::state_type {0xe220a8397b1dcdaf, 0x6e789e6aa1b965f4, 0x06c45d188009454f, 0xf88bb8a8724c81ec}));
-        report_case_equal("seeded with 0, draws the values of that state", draw(seeded, 5),
-            {11091344671253066420ull, 13793997310169335082ull, 1900383378846508768, 7684712102626143532, 13521403990117723737ull});
+        CHECK_CASE_EQUAL("seeded with 0, draws the values of that state", draw(seeded, 5),
+            (vector<uint64_t> {11091344671253066420ull, 13793997310169335082ull, 1900383378846508768, 7684712102626143532, 13521403990117723737ull}));
 
-        report_case("a default-constructed engine is seeded with the default seed", engine_type() == engine_type(engine_type::default_seed));
+        CHECK_CASE("a default-constructed engine is seeded with the default seed", engine_type() == engine_type(engine_type::default_seed));
 
         engine_type a(20261022);
         engine_type b(20261022);
-        report_case("two engines seeded alike draw alike", draw(a, 1000) == draw(b, 1000));
+        CHECK_CASE("two engines seeded alike draw alike", draw(a, 1000) == draw(b, 1000));
 
         a.seed(20261022);
         b.seed(20261022);
-        report_case("seeding again restarts the sequence", draw(a, 10) == draw(b, 10));
+        CHECK_CASE("seeding again restarts the sequence", draw(a, 10) == draw(b, 10));
 
-        report_case("two seeds draw differently", engine_type(1)() != engine_type(2)());
+        CHECK_CASE("two seeds draw differently", engine_type(1)() != engine_type(2)());
 
         engine_type saved(7);
         draw(saved, 3);
@@ -131,23 +75,22 @@ namespace
         engine_type restored;
         istringstream is(os.str());
         is >> restored;
-        report_case("the state written and read back is equal", restored == saved);
-        report_case("and continues the same sequence", draw(restored, 10) == draw(saved, 10));
+        CHECK_CASE("the state written and read back is equal", restored == saved);
+        CHECK_CASE("and continues the same sequence", draw(restored, 10) == draw(saved, 10));
 
         engine_type unchanged(7);
         istringstream malformed("1 2 three 4");
         malformed >> unchanged;
-        report_case("reading a malformed state fails and leaves the engine unchanged", !malformed && unchanged == engine_type(7));
+        CHECK_CASE("reading a malformed state fails and leaves the engine unchanged", !malformed && unchanged == engine_type(7));
+        return;
     }
 
     //--------------------------------------------------------------------------
-    void test_random()
+    TEST_CASE("Random")
     {
-        report_group("Random");
-
         using random_type = math::Random<>;
 
-        report_case("its default random engine is the portable random engine", is_same_v<random_type, math::Random<math::portable_random_engine_type>>);
+        CHECK_CASE("its default random engine is the portable random engine", (is_same_v<random_type, math::Random<math::portable_random_engine_type>>));
 
         random_type sequence(20261022);
         vector<int> integers;
@@ -172,7 +115,7 @@ namespace
         }
         vector<int> shuffled {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
         sequence.shuffle(shuffled);
-        report_case("seeded with 20261022, draws the values of the reference computation",
+        CHECK_CASE("seeded with 20261022, draws the values of the reference computation",
             integers == vector<int> {7, 0, 0, 6, 6}
             && reals == vector<double> {0.6576664257676362, 0.10932904142476729, 0.676894204682186}
             && closed == vector<int> {-1, 5, 1, 4, 3}
@@ -202,7 +145,7 @@ namespace
         {
             mixed_integers.push_back(closed_sequence.random_closed(10));
         }
-        report_case("seeded with 20261023, draws the closed and half-open values of the reference computation",
+        CHECK_CASE("seeded with 20261023, draws the closed and half-open values of the reference computation",
             closed_reals == vector<double> {0.7597855801818301, 0.5594030035670937, 0.13107050224712602, 0.59324933165946, 0.9919538129350103}
             && mixed_integers == vector<int> {5, 3, 2, 0, -5, 2, 9, 2});
 
@@ -220,7 +163,7 @@ namespace
                 ++below_counts[static_cast<size_t>(value)];
             }
         }
-        report_case("random(n) draws integers in [0, n), each about equally often", below_bounded && ranges::all_of(below_counts, [](int count)
+        CHECK_CASE("random(n) draws integers in [0, n), each about equally often", below_bounded && ranges::all_of(below_counts, [](int count)
         {
             return count > draw_count / 7 * 9 / 10 && count < draw_count / 7 * 11 / 10;
         }));
@@ -236,7 +179,7 @@ namespace
                 ++half_open_counts[static_cast<size_t>(value + 3)];
             }
         }
-        report_case("random(first, last) draws integers in [first, last), each about equally often", half_open_bounded && ranges::all_of(half_open_counts, [](int count)
+        CHECK_CASE("random(first, last) draws integers in [first, last), each about equally often", half_open_bounded && ranges::all_of(half_open_counts, [](int count)
         {
             return count > draw_count / 7 * 9 / 10 && count < draw_count / 7 * 11 / 10;
         }));
@@ -252,7 +195,7 @@ namespace
                 ++closed_counts[static_cast<size_t>(value + 3)];
             }
         }
-        report_case("random_closed(first, last) draws integers in [first, last], each about equally often", closed_bounded && ranges::all_of(closed_counts, [](int count)
+        CHECK_CASE("random_closed(first, last) draws integers in [first, last], each about equally often", closed_bounded && ranges::all_of(closed_counts, [](int count)
         {
             return count > draw_count / 7 * 9 / 10 && count < draw_count / 7 * 11 / 10;
         }));
@@ -268,7 +211,7 @@ namespace
                 ++closed_below_counts[static_cast<size_t>(value)];
             }
         }
-        report_case("random_closed(n) draws integers in [0, n], each about equally often", closed_below_bounded && ranges::all_of(closed_below_counts, [](int count)
+        CHECK_CASE("random_closed(n) draws integers in [0, n], each about equally often", closed_below_bounded && ranges::all_of(closed_below_counts, [](int count)
         {
             return count > draw_count / 7 * 9 / 10 && count < draw_count / 7 * 11 / 10;
         }));
@@ -281,9 +224,9 @@ namespace
             uint8_t byte = random.random_closed(uint8_t(0), uint8_t(255));
             full_range_drawn = full_range_drawn && byte <= 255;
         }
-        report_case("random and random_closed draw over a type's whole range", full_range_drawn);
+        CHECK_CASE("random and random_closed draw over a type's whole range", full_range_drawn);
 
-        report_case("random_closed of an interval of one value draws that value", random.random_closed(4, 4) == 4 && random.random_closed(2.5, 2.5) == 2.5
+        CHECK_CASE("random_closed of an interval of one value draws that value", random.random_closed(4, 4) == 4 && random.random_closed(2.5, 2.5) == 2.5
             && random.random_closed(0) == 0 && random.random_closed(0.0) == 0.0);
 
         bool reals_bounded = true;
@@ -294,7 +237,7 @@ namespace
             float between = random.random(1.0f, 2.0f);
             reals_bounded = reals_bounded && unit >= 0.0 && unit < 1.0 && below >= 0.0 && below < 2.5 && between >= 1.0f && between < 2.0f;
         }
-        report_case("the half-open real draws keep to their intervals", reals_bounded);
+        CHECK_CASE("the half-open real draws keep to their intervals", reals_bounded);
 
         bool closed_reals_bounded = true;
         for (int i = 0; i < draw_count; ++i)
@@ -305,7 +248,7 @@ namespace
             closed_reals_bounded = closed_reals_bounded && below >= 0.0 && below <= 2.5 && between >= 1.0f && between <= 2.0f
                 && wide >= -1.0e300 && wide <= 1.0e300;
         }
-        report_case("the closed real draws keep to their intervals", closed_reals_bounded);
+        CHECK_CASE("the closed real draws keep to their intervals", closed_reals_bounded);
 
         double sum = 0.0;
         double sum_squares = 0.0;
@@ -317,7 +260,7 @@ namespace
         }
         double mean = sum / draw_count;
         double sd = sqrt(sum_squares / draw_count - mean * mean);
-        report_case("gaussian draws with the mean and standard deviation it is given", abs(mean - 10.0) < 0.05 && abs(sd - 2.0) < 0.05,
+        CHECK_CASE("gaussian draws with the mean and standard deviation it is given", abs(mean - 10.0) < 0.05 && abs(sd - 2.0) < 0.05,
             format("mean {}, standard deviation {}", mean, sd));
 
         double triangular_sum = 0.0;
@@ -328,7 +271,7 @@ namespace
             triangular_bounded = triangular_bounded && value >= 3.0 && value <= 7.0;
             triangular_sum += value;
         }
-        report_case("triangular keeps to [mode - halfwidth, mode + halfwidth] about its mode",
+        CHECK_CASE("triangular keeps to [mode - halfwidth, mode + halfwidth] about its mode",
             triangular_bounded && abs(triangular_sum / draw_count - 5.0) < 0.02);
 
         vector<int> permutation(50);
@@ -338,41 +281,25 @@ namespace
         ranges::sort(sorted);
         vector<int> identity(50);
         iota(identity.begin(), identity.end(), 0);
-        report_case("shuffle permutes the range", sorted == identity && permutation != identity);
+        CHECK_CASE("shuffle permutes the range", sorted == identity && permutation != identity);
 
         vector<int> empty;
         vector<int> single {7};
         random.shuffle(empty);
         random.shuffle(single);
-        report_case("shuffle leaves an empty range and a range of one unchanged", empty.empty() && single == vector<int> {7});
+        CHECK_CASE("shuffle leaves an empty range and a range of one unchanged", empty.empty() && single == vector<int> {7});
 
         vector<int> partial {0, 1, 2, 3, 4, 5};
         random.shuffle(partial.begin() + 3, partial.end());
-        report_case("shuffle of part of a range leaves the rest unchanged", partial[0] == 0 && partial[1] == 1 && partial[2] == 2);
+        CHECK_CASE("shuffle of part of a range leaves the rest unchanged", partial[0] == 0 && partial[1] == 1 && partial[2] == 2);
 
         vector<int> choices {1, 2, 3};
         int& chosen = random.choose(choices);
         chosen = 10;
-        report_case("choose returns a reference to an element of the range", ranges::count(choices, 10) == 1);
+        CHECK_CASE("choose returns a reference to an element of the range", ranges::count(choices, 10) == 1);
 
-        report_case("random_seed draws from the platform's entropy source", math::random_seed() != math::random_seed());
+        CHECK_CASE("random_seed draws from the platform's entropy source", math::random_seed() != math::random_seed());
+        return;
     }
 
 } // namespace
-
-//------------------------------------------------------------------------------
-int main()
-{
-    try
-    {
-        test_xoshiro256starstar();
-        test_random();
-    }
-    catch (const exception& e)
-    {
-        cout << format(escape_rendition_pattern, 196) << "exception: " << e.what() << escape_reset_string << endl;
-        return 1;
-    }
-
-    return report_results();
-}

@@ -11,4 +11,11 @@ set_target_properties(stratum_format_test PROPERTIES
 target_link_libraries(stratum_format_test PRIVATE
     quetzal_log
     quetzal_stratum_format
+    quetzal_testing
+)
+
+doctest_discover_tests(stratum_format_test
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+    TEST_PREFIX "stratum_format_test:"
+    PROPERTIES LABELS "stratum"
 )

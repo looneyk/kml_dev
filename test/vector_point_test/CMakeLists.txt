@@ -15,4 +15,11 @@ target_include_directories(vector_point_test PRIVATE
 target_link_libraries(vector_point_test PRIVATE
     quetzal_common
     quetzal_math
+    quetzal_testing
+)
+
+doctest_discover_tests(vector_point_test
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+    TEST_PREFIX "vector_point_test:"
+    PROPERTIES LABELS "quetzal"
 )

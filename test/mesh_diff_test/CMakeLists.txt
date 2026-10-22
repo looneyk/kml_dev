@@ -15,7 +15,14 @@ target_include_directories(mesh_diff_test PRIVATE
 target_link_libraries(mesh_diff_test PRIVATE
     quetzal_common
     quetzal_math
+    quetzal_testing
     quetzal_wavefront_obj
+)
+
+doctest_discover_tests(mesh_diff_test
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+    TEST_PREFIX "mesh_diff_test:"
+    PROPERTIES LABELS "mesh_operations"
 )
 
 add_dependencies(mesh_diff_test

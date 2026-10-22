@@ -29,13 +29,15 @@
 #include "quetzal/math/Vector.hpp"
 #include "quetzal/math/floating_point.hpp"
 #include "quetzal/physics/gjk.hpp"
+#include "quetzal/testing/named_checks.hpp"
+#include <doctest/doctest.h>
+#include <algorithm>
+#include <array>
+#include <format>
 #include <iomanip>
 #include <iostream>
 #include <random>
-
-#include <array>
 #include <vector>
-#include <cassert>
 
 using namespace std;
 using namespace quetzal;
@@ -84,22 +86,6 @@ namespace
     geometry::Plane<Traits> random_plane(typename Traits::value_type dimension_extent)
     {
         return geometry::Plane<Traits>(random_position<Traits>(dimension_extent), random_unit_vector<Traits>());
-    }
-
-    size_t n_cases = 0;
-    size_t n_failures = 0;
-
-    //--------------------------------------------------------------------------
-    void check(const std::string& name, bool b)
-    {
-        ++n_cases;
-        if (!b)
-        {
-            ++n_failures;
-        }
-
-        std::cout << (b ? "pass  " : "FAIL  ") << name << std::endl;
-        return;
     }
 
     //--------------------------------------------------------------------------
@@ -157,8 +143,8 @@ namespace
         geometry::Line<Traits> line_y(origin, vector_type::y_direction());
         geometry::Segment<Traits> segment_x(make_point<Traits>(T(0), T(1), T(0)), make_point<Traits>(T(1), T(1), T(0)));
 
-        check(d + " parallel: line and segment along x", geometry::parallel(line_x, segment_x));
-        check(d + " parallel: lines along x and y are not", !geometry::parallel(line_x, line_y));
+        CHECK_CASE(d + " parallel: line and segment along x", geometry::parallel(line_x, segment_x));
+        CHECK_CASE(d + " parallel: lines along x and y are not", !geometry::parallel(line_x, line_y));
 
         // The plane overloads are only reachable where normal() is, which Plane declares for 3D and up
         if constexpr (Traits::dimension >= 3)
@@ -166,10 +152,10 @@ namespace
             geometry::Plane<Traits> plane_xy(origin, vector_type::z_direction());
             geometry::Plane<Traits> plane_yz(origin, vector_type::x_direction());
 
-            check(d + " parallel: line lies parallel to plane", geometry::parallel(line_x, plane_xy));
-            check(d + " parallel: line crossing plane is not", !geometry::parallel(line_x, plane_yz));
-            check(d + " parallel: plane with itself", geometry::parallel(plane_xy, plane_xy));
-            check(d + " parallel: perpendicular planes are not", !geometry::parallel(plane_xy, plane_yz));
+            CHECK_CASE(d + " parallel: line lies parallel to plane", geometry::parallel(line_x, plane_xy));
+            CHECK_CASE(d + " parallel: line crossing plane is not", !geometry::parallel(line_x, plane_yz));
+            CHECK_CASE(d + " parallel: plane with itself", geometry::parallel(plane_xy, plane_xy));
+            CHECK_CASE(d + " parallel: perpendicular planes are not", !geometry::parallel(plane_xy, plane_yz));
         }
 
         return;
@@ -189,8 +175,8 @@ namespace
         geometry::Line<Traits> line_y(origin, vector_type::y_direction());
 
         // Lines must also meet to be perpendicular
-        check(d + " perpendicular: lines along x and y meeting at the origin", geometry::perpendicular(line_x, line_y));
-        check(d + " perpendicular: line with itself is not", !geometry::perpendicular(line_x, line_x));
+        CHECK_CASE(d + " perpendicular: lines along x and y meeting at the origin", geometry::perpendicular(line_x, line_y));
+        CHECK_CASE(d + " perpendicular: line with itself is not", !geometry::perpendicular(line_x, line_x));
 
         if constexpr (Traits::dimension >= 3)
         {
@@ -198,10 +184,10 @@ namespace
             geometry::Plane<Traits> plane_xy(origin, vector_type::z_direction());
             geometry::Plane<Traits> plane_yz(origin, vector_type::x_direction());
 
-            check(d + " perpendicular: line along the plane normal", geometry::perpendicular(line_z, plane_xy));
-            check(d + " perpendicular: line lying in the plane is not", !geometry::perpendicular(line_x, plane_xy));
-            check(d + " perpendicular: planes with orthogonal normals", geometry::perpendicular(plane_xy, plane_yz));
-            check(d + " perpendicular: plane with itself is not", !geometry::perpendicular(plane_xy, plane_xy));
+            CHECK_CASE(d + " perpendicular: line along the plane normal", geometry::perpendicular(line_z, plane_xy));
+            CHECK_CASE(d + " perpendicular: line lying in the plane is not", !geometry::perpendicular(line_x, plane_xy));
+            CHECK_CASE(d + " perpendicular: planes with orthogonal normals", geometry::perpendicular(plane_xy, plane_yz));
+            CHECK_CASE(d + " perpendicular: plane with itself is not", !geometry::perpendicular(plane_xy, plane_xy));
         }
 
         return;
@@ -228,8 +214,8 @@ namespace
             d.set_y(d.y() + scale / T(1000));
             bool displaced = geometry::colinear(a, b, d);
 
-            check(std::format("{} colinear: colinear at scale {}", traits_name<Traits>(), scale), exact);
-            check(std::format("{} colinear: displaced at scale {}", traits_name<Traits>(), scale), !displaced);
+            CHECK_CASE(std::format("{} colinear: colinear at scale {}", traits_name<Traits>(), scale), exact);
+            CHECK_CASE(std::format("{} colinear: displaced at scale {}", traits_name<Traits>(), scale), !displaced);
         }
 
         return;
@@ -307,10 +293,27 @@ namespace
         return;
     }
 
+    //--------------------------------------------------------------------------
+    TEST_CASE_TEMPLATE("two dimensions", Traits, math::CartesianTraits<double, 2>, math::CartesianTraits<float, 2>,
+        math::HomogeneousTraits<double, 2>, math::HomogeneousTraits<float, 2>)
+    {
+        test2<Traits>();
+        return;
+    }
+
+    //--------------------------------------------------------------------------
+    TEST_CASE_TEMPLATE("three dimensions", Traits, math::CartesianTraits<double, 3>, math::CartesianTraits<float, 3>,
+        math::HomogeneousTraits<double, 3>, math::HomogeneousTraits<float, 3>)
+    {
+        test3<Traits>();
+        return;
+    }
+
 }
 
 //------------------------------------------------------------------------------
-int main(int argc, char* argv[])
+// Printed for reading, as nothing here is compared
+TEST_CASE("formatting")
 {
     math::Vector<math::CartesianTraits<double, 3>> smoke_v(1.5, 2.25, 3.0);
     std::cout << std::format("default [{}]", smoke_v) << std::endl;
@@ -400,7 +403,13 @@ int main(int argc, char* argv[])
     std::cout << std::format("half plane default [{}]", smoke_hp) << std::endl;
     std::cout << std::format("half plane combo [{:[,_.2f}]", smoke_hp) << std::endl;
 
-    // GJK cross-validation against known closed-form results
+    return;
+}
+
+//------------------------------------------------------------------------------
+// GJK cross-validation against known closed-form results
+TEST_CASE("gjk agrees with closed forms")
+{
     {
         using traits3 = math::CartesianTraits<double, 3>;
         using point3 = geometry::Point<traits3>;
@@ -411,52 +420,43 @@ int main(int argc, char* argv[])
 
         bool aabb_overlap_gjk = physics::intersects_gjk(aabb_a, aabb_b_overlap);
         bool aabb_overlap_expected = !geometry::disjoint(aabb_a, aabb_b_overlap);
-        std::cout << "gjk aabb-aabb overlap: gjk=" << aabb_overlap_gjk << " expected=" << aabb_overlap_expected << (aabb_overlap_gjk == aabb_overlap_expected ? " OK" : " MISMATCH") << std::endl;
+        CHECK_CASE("gjk aabb-aabb overlap", aabb_overlap_gjk == aabb_overlap_expected);
 
         bool aabb_disjoint_gjk = physics::intersects_gjk(aabb_a, aabb_c_disjoint);
         bool aabb_disjoint_expected = !geometry::disjoint(aabb_a, aabb_c_disjoint);
-        std::cout << "gjk aabb-aabb disjoint: gjk=" << aabb_disjoint_gjk << " expected=" << aabb_disjoint_expected << (aabb_disjoint_gjk == aabb_disjoint_expected ? " OK" : " MISMATCH") << std::endl;
+        CHECK_CASE("gjk aabb-aabb disjoint", aabb_disjoint_gjk == aabb_disjoint_expected);
 
         geometry::BoundingSphere<traits3> sphere_a(point3(0.0, 0.0, 0.0), 2.0);
         geometry::BoundingSphere<traits3> sphere_b_overlap(point3(3.0, 0.0, 0.0), 2.0);
         geometry::BoundingSphere<traits3> sphere_c_disjoint(point3(10.0, 0.0, 0.0), 1.0);
 
         bool sphere_overlap_gjk = physics::intersects_gjk(sphere_a, sphere_b_overlap);
-        std::cout << "gjk sphere-sphere overlap: gjk=" << sphere_overlap_gjk << " expected=1" << (sphere_overlap_gjk == true ? " OK" : " MISMATCH") << std::endl;
+        CHECK_CASE("gjk sphere-sphere overlap", sphere_overlap_gjk);
 
         bool sphere_disjoint_gjk = physics::intersects_gjk(sphere_a, sphere_c_disjoint);
-        std::cout << "gjk sphere-sphere disjoint: gjk=" << sphere_disjoint_gjk << " expected=0" << (sphere_disjoint_gjk == false ? " OK" : " MISMATCH") << std::endl;
+        CHECK_CASE("gjk sphere-sphere disjoint", !sphere_disjoint_gjk);
 
         geometry::BoundingSphere<traits3> sphere_unit(point3(0.0, 0.0, 0.0), 1.0);
         geometry::AxisAlignedBoundingBox<traits3> aabb_overlap_sphere(point3(0.5, 0.5, 0.5), point3(2.0, 2.0, 2.0));
         geometry::AxisAlignedBoundingBox<traits3> aabb_disjoint_sphere(point3(5.0, 5.0, 5.0), point3(6.0, 6.0, 6.0));
 
         bool sphere_aabb_overlap_gjk = physics::intersects_gjk(sphere_unit, aabb_overlap_sphere);
-        std::cout << "gjk sphere-aabb overlap: gjk=" << sphere_aabb_overlap_gjk << " expected=1" << (sphere_aabb_overlap_gjk == true ? " OK" : " MISMATCH") << std::endl;
+        CHECK_CASE("gjk sphere-aabb overlap", sphere_aabb_overlap_gjk);
 
         bool sphere_aabb_disjoint_gjk = physics::intersects_gjk(sphere_unit, aabb_disjoint_sphere);
-        std::cout << "gjk sphere-aabb disjoint: gjk=" << sphere_aabb_disjoint_gjk << " expected=0" << (sphere_aabb_disjoint_gjk == false ? " OK" : " MISMATCH") << std::endl;
+        CHECK_CASE("gjk sphere-aabb disjoint", !sphere_aabb_disjoint_gjk);
 
         // argument-order symmetry
         bool sphere_aabb_overlap_swapped = physics::intersects_gjk(aabb_overlap_sphere, sphere_unit);
-        std::cout << "gjk aabb-sphere overlap (swapped): gjk=" << sphere_aabb_overlap_swapped << " expected=1" << (sphere_aabb_overlap_swapped == true ? " OK" : " MISMATCH") << std::endl;
+        CHECK_CASE("gjk aabb-sphere overlap (swapped)", sphere_aabb_overlap_swapped);
     }
 
-    argc;
-    argv;
+    return;
+}
 
-    test2<math::CartesianTraits<double, 2>>();
-    test2<math::CartesianTraits<float, 2>>();
-    test2<math::HomogeneousTraits<double, 2>>();
-    test2<math::HomogeneousTraits<float, 2>>();
-
-    test3<math::CartesianTraits<double, 3>>();
-    test3<math::CartesianTraits<float, 3>>();
-    test3<math::HomogeneousTraits<double, 3>>();
-    test3<math::HomogeneousTraits<float, 3>>();
-
-    std::cout << (n_failures == 0 ? "OK: " : "Error: ") << (n_cases - n_failures) << " of " << n_cases << " cases passed" << std::endl;
-
+//------------------------------------------------------------------------------
+TEST_CASE("triangles and polygons")
+{
     // original ...
 
     using value_type = float;
@@ -506,20 +506,20 @@ int main(int argc, char* argv[])
     value_type a;
 
     b = geometry::triangle_ccw(t2s[0], t2s[1], t2s[2]);
-    assert(b);
+    CHECK(b);
 
     b = geometry::triangle_contains(t3s[0], t3s[1], t3s[2], {0.0f, 0.0f, 0.5f});
-    assert(b);
+    CHECK(b);
 
     b = geometry::triangle_contains(t3s[0], t3s[1], t3s[2], {1.0f, 1.0f, 0.5f});
-    assert(!b);
+    CHECK(!b);
 
     auto normal_z = vector3_type::z_direction();
 
     a = geometry::triangle_area(t3s[0], t3s[1], t3s[2]);
-    assert(math::float_eq(a, 2.0f));
+    CHECK(math::float_eq(a, 2.0f));
     a = geometry::triangle_area(t3s[0], t3s[1], t3s[2]);
-    assert(math::float_eq(a, 2.0f));
+    CHECK(math::float_eq(a, 2.0f));
 
     geometry::Polygon<vector3_traits> p3(v3s);
     geometry::Polygon<vector2_traits> p2(v2s);
@@ -531,22 +531,22 @@ int main(int argc, char* argv[])
     geometry::Polygon<vector2_traits> p2r(v2s);
 
     a = p3.area(normal_z);
-    assert(math::float_eq(a, 3.0f));
+    CHECK(math::float_eq(a, 3.0f));
     a = p3.signed_area(normal_z);
-    assert(math::float_eq(a, 3.0f));
+    CHECK(math::float_eq(a, 3.0f));
     a = p2.area();
-    assert(math::float_eq(a, 3.0f));
+    CHECK(math::float_eq(a, 3.0f));
     a = p2.signed_area();
-    assert(math::float_eq(a, 3.0f));
+    CHECK(math::float_eq(a, 3.0f));
 
     a = p3r.area(normal_z);
-    assert(math::float_eq(a, 3.0f));
+    CHECK(math::float_eq(a, 3.0f));
     a = p3r.signed_area(normal_z);
-    assert(math::float_eq(a, -3.0f));
+    CHECK(math::float_eq(a, -3.0f));
     a = p2r.area();
-    assert(math::float_eq(a, 3.0f));
+    CHECK(math::float_eq(a, 3.0f));
     a = p2r.signed_area();
-    assert(math::float_eq(a, -3.0f));
+    CHECK(math::float_eq(a, -3.0f));
 
-    return 0;
+    return;
 }

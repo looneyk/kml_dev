@@ -18,12 +18,14 @@
 #include "quetzal/stratum_format/write_game.hpp"
 #include "quetzal/stratum_format/write_world.hpp"
 #include "quetzal/stratum_format/write_zone.hpp"
+#include "quetzal/testing/named_checks.hpp"
+#include <doctest/doctest.h>
 #include <nlohmann/json.hpp>
+#include <algorithm>
 #include <filesystem>
 #include <format>
 #include <fstream>
 #include <functional>
-#include <iostream>
 #include <optional>
 #include <sstream>
 #include <stdexcept>
@@ -37,24 +39,11 @@ using namespace quetzal;
 namespace
 {
 
-    static constexpr auto escape_reset_string = "\x1b[0m";
-    static constexpr auto escape_rendition_pattern = "\x1b[38;5;{}m";
-
     const filesystem::path data_directory = "data";
     const filesystem::path out_directory = "out";
 
     // Compares regardless of key order
     using map_type = nlohmann::json;
-
-    size_t g_case_count = 0;
-    size_t g_failure_count = 0;
-
-    //--------------------------------------------------------------------------
-    void report_group(const string& name)
-    {
-        cout << name << endl;
-        return;
-    }
 
     //--------------------------------------------------------------------------
     // Reads the zone, adding the messages of the warnings it writes to the process-wide log to warnings
@@ -82,48 +71,6 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // detail is written only for a failure
-    void report_case(const string& name, bool b, const string& detail = {})
-    {
-        ++g_case_count;
-
-        if (b)
-        {
-            cout << format(escape_rendition_pattern, 34) << "    ok   " << escape_reset_string << name << endl;
-            return;
-        }
-
-        ++g_failure_count;
-        cout << format(escape_rendition_pattern, 196) << "    FAIL " << escape_reset_string << name;
-        if (!detail.empty())
-        {
-            cout << ": " << detail;
-        }
-        cout << endl;
-        return;
-    }
-
-    //--------------------------------------------------------------------------
-    void report_case_equal(const string& name, size_t value, size_t value_expected)
-    {
-        report_case(name, value == value_expected, format("expected {}, got {}", value_expected, value));
-        return;
-    }
-
-    //--------------------------------------------------------------------------
-    int report_results()
-    {
-        if (g_failure_count == 0)
-        {
-            cout << format(escape_rendition_pattern, 34) << format("OK: {} cases", g_case_count) << escape_reset_string << endl;
-            return 0;
-        }
-
-        cout << format(escape_rendition_pattern, 196) << format("Error: {} of {} cases failed", g_failure_count, g_case_count) << escape_reset_string << endl;
-        return 1;
-    }
-
-    //--------------------------------------------------------------------------
     stratum_format::raw_values_type parse_values(const string& text)
     {
         return stratum_format::raw_values_type::parse(text);
@@ -143,12 +90,12 @@ namespace
         try
         {
             stratum_format::Document document = stratum_format::read_zone(filepath);
-            report_case(name, true);
+            CHECK_CASE(name, true);
             return document;
         }
         catch (const runtime_error& e)
         {
-            report_case(name, false, e.what());
+            CHECK_CASE(name, false, e.what());
             return nullopt;
         }
     }
@@ -397,14 +344,14 @@ namespace
 
                 bool warned = mutation_case.warning.empty() || std::any_of(warnings.begin(), warnings.end(),
                     [&](const string& warning) { return warning.find(mutation_case.warning) != string::npos; });
-                report_case(mutation_case.name, mutation_case.message.empty() && warned,
+                CHECK_CASE(mutation_case.name, mutation_case.message.empty() && warned,
                     warned ? "accepted" : format("accepted without the warning \"{}\"", mutation_case.warning));
             }
             catch (const runtime_error& e)
             {
                 string what = e.what();
                 bool expected = !mutation_case.message.empty() && what.find(mutation_case.message) != string::npos;
-                report_case(mutation_case.name, expected,
+                CHECK_CASE(mutation_case.name, expected,
                     mutation_case.message.empty() ? what : format("expected \"{}\", got \"{}\"", mutation_case.message, what));
             }
         }
@@ -413,10 +360,8 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    void test_read_wall_notation()
+    TEST_CASE("read, wall notation")
     {
-        report_group("read, wall notation");
-
         optional<stratum_format::Document> read = read_case("cistern.json reads", data_directory / "cistern.json");
         if (!read.has_value())
         {
@@ -425,50 +370,50 @@ namespace
 
         const stratum_format::Document& document = *read;
 
-        report_case("the notation is wall", document.cells.notation == stratum_format::Notation::Wall);
-        report_case("the encoding defaults to characters", document.cells.encoding == stratum_format::Encoding::Characters);
-        report_case("the extent is 4 by 3", document.cells.extent.x() == 4 && document.cells.extent.y() == 3);
-        report_case_equal("the rows number 2 * 3 + 1", document.cells.rows.size(), 7);
-        report_case("the first row written is the highest", document.cells.rows[1] == "|. .| |>|");
+        CHECK_CASE("the notation is wall", document.cells.notation == stratum_format::Notation::Wall);
+        CHECK_CASE("the encoding defaults to characters", document.cells.encoding == stratum_format::Encoding::Characters);
+        CHECK_CASE("the extent is 4 by 3", document.cells.extent.x() == 4 && document.cells.extent.y() == 3);
+        CHECK_CASE_EQUAL("the rows number 2 * 3 + 1", document.cells.rows.size(), 7);
+        CHECK_CASE("the first row written is the highest", document.cells.rows[1] == "|. .| |>|");
 
-        report_case_equal("one barrier", document.barriers.size(), 1);
-        report_case("the barrier is an edge", document.barriers[0].normal == stratum_format::discrete_vector_type {1, 0});
+        CHECK_CASE_EQUAL("one barrier", document.barriers.size(), 1);
+        CHECK_CASE("the barrier is an edge", document.barriers[0].normal == stratum_format::discrete_vector_type {1, 0});
 
-        report_case_equal("two rooms", document.rooms.size(), 2);
+        CHECK_CASE_EQUAL("two rooms", document.rooms.size(), 2);
         const auto* perimeter = get_if<stratum_format::Perimeter>(&document.rooms[0].identification);
-        report_case("the first room is identified by its perimeter", perimeter != nullptr && perimeter->junctions.size() == 4);
+        CHECK_CASE("the first room is identified by its perimeter", perimeter != nullptr && perimeter->junctions.size() == 4);
         const auto* locator = get_if<stratum_format::RoomLocator>(&document.rooms[1].identification);
-        report_case("the second room is identified by a cell in it",
+        CHECK_CASE("the second room is identified by a cell in it",
             locator != nullptr && locator->cell_position == stratum_format::discrete_point_type {3, 1});
-        report_case("a style is a component kept as written", document.rooms[0].components["style"]["terrain"] == "water");
+        CHECK_CASE("a style is a component kept as written", document.rooms[0].components["style"]["terrain"] == "water");
 
-        report_case("the wall address's normal points into its cell",
+        CHECK_CASE("the wall address's normal points into its cell",
             document.walls[0].address == stratum_format::WallAddress {{1, 1}, {-1, 0}});
 
-        report_case_equal("two flats", document.flats.size(), 2);
-        report_case("the first flat is the floor", document.flats[0].role == stratum_format::FlatRole::Floor);
-        report_case("the floor's room entry has its height",
+        CHECK_CASE_EQUAL("two flats", document.flats.size(), 2);
+        CHECK_CASE("the first flat is the floor", document.flats[0].role == stratum_format::FlatRole::Floor);
+        CHECK_CASE("the floor's room entry has its height",
             document.flats[0].rooms.contains(0) && document.flats[0].rooms.at(0).height == -0.25f);
-        report_case("the ceiling's height", document.flats[1].properties.height == 3.0f);
+        CHECK_CASE("the ceiling's height", document.flats[1].properties.height == 3.0f);
 
-        report_case_equal("seven entities", document.entities.size(), 7);
-        report_case("a door is a parent, sited on nothing of its own",
+        CHECK_CASE_EQUAL("seven entities", document.entities.size(), 7);
+        CHECK_CASE("a door is a parent, sited on nothing of its own",
             !document.entities[0].site.has_value() && !document.entities[0].parent_id.has_value());
-        report_case("a door facing is a child of its door", document.entities[1].parent_id == 1u);
+        CHECK_CASE("a door facing is a child of its door", document.entities[1].parent_id == 1u);
 
         const auto* door_wall = wall_address(document.entities[1]);
-        report_case("a door facing is sited on a wall of its doorway",
+        CHECK_CASE("a door facing is sited on a wall of its doorway",
             door_wall != nullptr && *door_wall == stratum_format::WallAddress {{1, 1}, {-1, 0}});
 
-        report_case("site and parent are decoded out of components",
+        CHECK_CASE("site and parent are decoded out of components",
             !document.entities[1].components.contains("site") && !document.entities[1].components.contains("parent"));
-        report_case("a file component the format does not define is kept as written", document.entities[2].components["concealed"] == true);
+        CHECK_CASE("a file component the format does not define is kept as written", document.entities[2].components["concealed"] == true);
 
         const auto* stair_wall = wall_address(document.entities[3]);
-        report_case("a staircase is sited on the wall on its open side",
+        CHECK_CASE("a staircase is sited on the wall on its open side",
             stair_wall != nullptr && *stair_wall == stratum_format::WallAddress {{3, 1}, {0, -1}});
         const auto& stair_relocator = document.entities[3].relocator;
-        report_case("a relocator is decoded out of components", stair_relocator.has_value()
+        CHECK_CASE("a relocator is decoded out of components", stair_relocator.has_value()
             && holds_alternative<stratum_format::RelocatorTarget>(stair_relocator->target)
             && get<stratum_format::RelocatorTarget>(stair_relocator->target) == stratum_format::RelocatorTarget {nullopt, stratum_format::RelativeZone {-1}, nullopt}
             && !document.entities[3].components.contains("relocator"));
@@ -476,40 +421,38 @@ namespace
         const auto& chest_site = document.entities[5].site;
         const auto* flat_cell = chest_site.has_value() && chest_site->address.has_value()
             ? get_if<stratum_format::FlatCell>(&*chest_site->address) : nullptr;
-        report_case("a chest is sited on a flat cell, with an orientation",
+        CHECK_CASE("a chest is sited on a flat cell, with an orientation",
             flat_cell != nullptr && flat_cell->role == stratum_format::FlatRole::Floor
             && flat_cell->cell_position == stratum_format::discrete_point_type {0, 2}
             && document.entities[5].site->orientation == stratum_format::discrete_vector_type {1, 0}
             && document.entities[5].site->relation == stratum_format::Relation::On);
 
-        report_case("a key is in its parent chest, with no address of its own",
+        CHECK_CASE("a key is in its parent chest, with no address of its own",
             document.entities[6].parent_id == 6u && document.entities[6].site.has_value()
             && !document.entities[6].site->address.has_value() && document.entities[6].site->relation == stratum_format::Relation::In);
-        report_case("a reference in a file component the format does not define is kept as written",
+        CHECK_CASE("a reference in a file component the format does not define is kept as written",
             stratum_format::reference_id(document.entities[6].components["opens"]) == 1u);
 
-        report_case("the document is a template, with no zone id of its own", !document.zone_id.has_value());
+        CHECK_CASE("the document is a template, with no zone id of its own", !document.zone_id.has_value());
 
-        report_case("the generator keeps its parameters in the order written",
+        CHECK_CASE("the generator keeps its parameters in the order written",
             document.generator["parameters"].begin().key() == "extent" && next(document.generator["parameters"].begin()).key() == "scale");
-        report_case("layout components are kept as written", document.components["difficulty"] == 3 && document.components["style"] == "cistern");
-        report_case("the access points are decoded out of them", !document.access_points.empty() && !document.components.contains("access_points"));
-        report_case("and so is the level", document.level == -2 && !document.components.contains("level"));
-        report_case("and so is the unpopulated flag", document.is_unpopulated && !document.components.contains("unpopulated"));
+        CHECK_CASE("layout components are kept as written", document.components["difficulty"] == 3 && document.components["style"] == "cistern");
+        CHECK_CASE("the access points are decoded out of them", !document.access_points.empty() && !document.components.contains("access_points"));
+        CHECK_CASE("and so is the level", document.level == -2 && !document.components.contains("level"));
+        CHECK_CASE("and so is the unpopulated flag", document.is_unpopulated && !document.components.contains("unpopulated"));
 
         stratum_format::raw_values_type unflagged = load_values(data_directory / "cistern.json");
         unflagged["layout"]["components"].erase("unpopulated");
         istringstream unflagged_stream(unflagged.dump());
-        report_case("an absent unpopulated flag is false", !stratum_format::read_zone(unflagged_stream, "unflagged").is_unpopulated);
+        CHECK_CASE("an absent unpopulated flag is false", !stratum_format::read_zone(unflagged_stream, "unflagged").is_unpopulated);
 
         return;
     }
 
     //--------------------------------------------------------------------------
-    void test_read_block_notation()
+    TEST_CASE("read, block notation")
     {
-        report_group("read, block notation");
-
         optional<stratum_format::Document> read = read_case("block.json reads", data_directory / "block.json");
         if (!read.has_value())
         {
@@ -518,33 +461,31 @@ namespace
 
         const stratum_format::Document& document = *read;
 
-        report_case("the notation is block", document.cells.notation == stratum_format::Notation::Block);
-        report_case_equal("the rows number the extent", document.cells.rows.size(), 5);
-        report_case("the scale", document.cells.scale == 2.0f);
+        CHECK_CASE("the notation is block", document.cells.notation == stratum_format::Notation::Block);
+        CHECK_CASE_EQUAL("the rows number the extent", document.cells.rows.size(), 5);
+        CHECK_CASE("the scale", document.cells.scale == 2.0f);
 
         const auto* locator = get_if<stratum_format::RoomLocator>(&document.rooms[0].identification);
-        report_case("a room identified by a cell in it has its own barrier", locator != nullptr && locator->barriers.size() == 1
+        CHECK_CASE("a room identified by a cell in it has its own barrier", locator != nullptr && locator->barriers.size() == 1
             && !locator->barriers[0].normal.has_value());
-        report_case("a style naming an asset and overriding part of it is kept as written",
+        CHECK_CASE("a style naming an asset and overriding part of it is kept as written",
             document.rooms[1].components["style"]["name"] == "hall" && document.rooms[1].components["style"]["lit"] == true);
 
         const auto& site = document.entities[1].site;
-        report_case("a site's position on its wall",
+        CHECK_CASE("a site's position on its wall",
             site.has_value() && site->position.has_value() && site->position->x() == 0.5f && site->position->y() == 0.0f);
-        report_case("a key the format does not define inside a file component is kept",
+        CHECK_CASE("a key the format does not define inside a file component is kept",
             document.entities[4].components["custom"]["anything"][2] == 3);
 
-        report_case("the floor's cell entry has its height",
+        CHECK_CASE("the floor's cell entry has its height",
             document.flats[0].cells.contains({5, 2}) && document.flats[0].cells.at({5, 2}).height == -0.5f);
 
         return;
     }
 
     //--------------------------------------------------------------------------
-    void test_read_runs()
+    TEST_CASE("read, runs")
     {
-        report_group("read, runs");
-
         optional<stratum_format::Document> runs = read_case("runs.json reads", data_directory / "runs.json");
         optional<stratum_format::Document> characters = read_case("cistern.json reads", data_directory / "cistern.json");
         if (!runs.has_value() || !characters.has_value())
@@ -552,56 +493,50 @@ namespace
             return;
         }
 
-        report_case("the encoding is runs", runs->cells.encoding == stratum_format::Encoding::Runs);
-        report_case("rows in runs read as the same rows in characters", runs->cells.rows == characters->cells.rows);
+        CHECK_CASE("the encoding is runs", runs->cells.encoding == stratum_format::Encoding::Runs);
+        CHECK_CASE("rows in runs read as the same rows in characters", runs->cells.rows == characters->cells.rows);
 
         return;
     }
 
     //--------------------------------------------------------------------------
-    void test_read_pillar()
+    TEST_CASE("read, a pillar on a room's edge")
     {
-        report_group("read, a pillar on a room's edge");
-
         read_case("pillar.json reads, the pillar inside the first room's perimeter", data_directory / "pillar.json");
 
         return;
     }
 
     //--------------------------------------------------------------------------
-    void test_read_failures()
+    TEST_CASE("read, files that cannot be read")
     {
-        report_group("read, files that cannot be read");
-
         try
         {
             stratum_format::read_zone(data_directory / "absent.json");
-            report_case("an absent file", false, "accepted");
+            CHECK_CASE("an absent file", false, "accepted");
         }
         catch (const runtime_error& e)
         {
-            report_case("an absent file", string(e.what()).find("cannot be opened") != string::npos, e.what());
+            CHECK_CASE("an absent file", string(e.what()).find("cannot be opened") != string::npos, e.what());
         }
 
         try
         {
             istringstream is(R"({ "format": )");
             stratum_format::read_zone(is, "truncated");
-            report_case("text that is not valid JSON", false, "accepted");
+            CHECK_CASE("text that is not valid JSON", false, "accepted");
         }
         catch (const runtime_error& e)
         {
-            report_case("text that is not valid JSON", string(e.what()).find("parse_error") != string::npos, e.what());
+            CHECK_CASE("text that is not valid JSON", string(e.what()).find("parse_error") != string::npos, e.what());
         }
 
         return;
     }
 
     //--------------------------------------------------------------------------
-    void test_structure()
+    TEST_CASE("structure")
     {
-        report_group("structure");
-
         report_mutations(data_directory / "cistern.json",
         {
             {"a format other than this", [](auto& v) { v["format"] = "other"; }, "format: 'other' is not this format"},
@@ -640,10 +575,8 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    void test_entities()
+    TEST_CASE("entities")
     {
-        report_group("entities");
-
         report_mutations(data_directory / "cistern.json",
         {
             {"entities that are not a list", [](auto& v) { v["entities"] = parse_values("{}"); }, "entities: an array was expected"},
@@ -736,10 +669,8 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    void test_glyph_entities()
+    TEST_CASE("entities the glyphs require")
     {
-        report_group("entities the glyphs require");
-
         report_mutations(data_directory / "cistern.json",
         {
             {"a doorway whose walls have no one parent between them", [](auto& v) { v["entities"][2]["components"]["parent"]["entity"] = 6; },
@@ -868,41 +799,39 @@ namespace
         {
             istringstream is(door_access.dump());
             read_zone_with_warnings(is, "door access point", warnings);
-            report_case("an access point on a door's wall raises no warning", warnings.empty(), warnings.empty() ? "" : warnings.front());
+            CHECK_CASE("an access point on a door's wall raises no warning", warnings.empty(), warnings.empty() ? "" : warnings.front());
         }
         catch (const runtime_error& e)
         {
-            report_case("an access point on a door's wall raises no warning", false, e.what());
+            CHECK_CASE("an access point on a door's wall raises no warning", false, e.what());
         }
 
         return;
     }
 
     //--------------------------------------------------------------------------
-    void test_references()
+    TEST_CASE("references")
     {
-        report_group("references");
-
         stratum_format::raw_values_type components = parse_values(
             R"({ "controls": { "entity": 1 }, "watched_by": [{ "guard": { "entity": 2 } }, { "entity": 3 }],)"
             R"( "lock": "vault", "near": { "entity": 4, "how": "beside" } })");
 
         vector<stratum_format::stored_entity_id_type> found = stratum_format::references(components);
-        report_case("every reference is found, in the order they are written",
+        CHECK_CASE("every reference is found, in the order they are written",
             found == vector<stratum_format::stored_entity_id_type> {1, 2, 3}, format("found {} of them", found.size()));
 
         stratum_format::translate_references(components, [](stratum_format::stored_entity_id_type id) { return id + 100; });
         vector<stratum_format::stored_entity_id_type> translated = stratum_format::references(components);
-        report_case("each reference is replaced by what translate returns for it",
+        CHECK_CASE("each reference is replaced by what translate returns for it",
             translated == vector<stratum_format::stored_entity_id_type> {101, 102, 103});
-        report_case("a value that is not a reference is left as it is",
+        CHECK_CASE("a value that is not a reference is left as it is",
             components["lock"] == "vault" && components["near"]["entity"] == 4);
 
-        report_case("an object whose only key is entity is a reference",
+        CHECK_CASE("an object whose only key is entity is a reference",
             stratum_format::reference_id(parse_values(R"({ "entity": 7 })")) == 7u);
-        report_case("an object with a key beside entity is not a reference",
+        CHECK_CASE("an object with a key beside entity is not a reference",
             !stratum_format::reference_id(parse_values(R"({ "entity": 7, "how": "in" })")).has_value());
-        report_case("an entity that is not a whole, non-negative number is not a reference",
+        CHECK_CASE("an entity that is not a whole, non-negative number is not a reference",
             !stratum_format::reference_id(parse_values(R"({ "entity": "seven" })")).has_value()
             && !stratum_format::reference_id(parse_values(R"({ "entity": -7 })")).has_value());
 
@@ -910,10 +839,8 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    void test_geometry_wall_notation()
+    TEST_CASE("geometry, wall notation")
     {
-        report_group("geometry, wall notation");
-
         report_mutations(data_directory / "cistern.json",
         {
             {"floor with no wall toward the edge of the grid", [](auto& v) { v["cells"]["rows"][3] = "|. .+. . "; },
@@ -986,10 +913,8 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    void test_geometry_block_notation()
+    TEST_CASE("geometry, block notation")
     {
-        report_group("geometry, block notation");
-
         report_mutations(data_directory / "block.json",
         {
             {"a wall on a door cell's side toward floor",
@@ -1021,10 +946,8 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    void test_relocator_targets()
+    TEST_CASE("relocator targets")
     {
-        report_group("relocator targets");
-
         using stratum_format::AbsoluteZone;
         using stratum_format::RelativeZone;
         using stratum_format::RelocatorTarget;
@@ -1043,14 +966,14 @@ namespace
         for (const auto& [text, expected] : targets)
         {
             optional<RelocatorTarget> parsed = stratum_format::parse_relocator_target(text);
-            report_case(format("{} is read and written back the same", text), parsed == expected
+            CHECK_CASE(format("{} is read and written back the same", text), parsed == expected
                 && stratum_format::format_relocator_target(*parsed) == text);
         }
 
         for (const string& text : {"", "1", "-", "+-1", "=", "=+2", "+1.5", "sewers/", "../=0", "./-1", "a/b/c", "1a/-1", "-1@", "-1@a@b", "@x", "market-1",
             "-99999999999"})
         {
-            report_case(format("\"{}\" is not a target", text), !stratum_format::parse_relocator_target(text).has_value());
+            CHECK_CASE(format("\"{}\" is not a target", text), !stratum_format::parse_relocator_target(text).has_value());
         }
 
         return;
@@ -1058,10 +981,8 @@ namespace
 
     //--------------------------------------------------------------------------
     // A document written by each of the writer's two overloads and read again is equivalent to the one first read
-    void test_round_trip()
+    TEST_CASE("round trip")
     {
-        report_group("round trip");
-
         filesystem::create_directories(out_directory);
 
         for (const auto& filename : {"cistern.json", "block.json", "pillar.json", "runs.json"})
@@ -1079,11 +1000,11 @@ namespace
                 filesystem::path filepath = out_directory / filename;
                 stratum_format::write(filepath, *document);
                 map_type map = document_map(stratum_format::read_zone(filepath));
-                report_case(format("{} written to a file reads back equivalent", filename), map == map_expected, map_type::diff(map_expected, map).dump());
+                CHECK_CASE(format("{} written to a file reads back equivalent", filename), map == map_expected, map_type::diff(map_expected, map).dump());
             }
             catch (const runtime_error& e)
             {
-                report_case(format("{} written to a file reads back equivalent", filename), false, e.what());
+                CHECK_CASE(format("{} written to a file reads back equivalent", filename), false, e.what());
             }
 
             try
@@ -1092,11 +1013,11 @@ namespace
                 stratum_format::write(os, *document);
                 istringstream is(os.str());
                 map_type map = document_map(stratum_format::read_zone(is, filename));
-                report_case(format("{} written to a stream reads back equivalent", filename), map == map_expected, map_type::diff(map_expected, map).dump());
+                CHECK_CASE(format("{} written to a stream reads back equivalent", filename), map == map_expected, map_type::diff(map_expected, map).dump());
             }
             catch (const runtime_error& e)
             {
-                report_case(format("{} written to a stream reads back equivalent", filename), false, e.what());
+                CHECK_CASE(format("{} written to a stream reads back equivalent", filename), false, e.what());
             }
         }
 
@@ -1105,10 +1026,8 @@ namespace
 
     //--------------------------------------------------------------------------
     // Each game file document written to a stream is identical to its written form
-    void test_game_files()
+    TEST_CASE("game files")
     {
-        report_group("game files");
-
         auto written = [](const auto& document)
         {
             ostringstream os;
@@ -1118,7 +1037,7 @@ namespace
 
         auto report_written = [](const string& name, const string& text, const string& text_expected)
         {
-            report_case(name, text == text_expected, format("expected\n{}got\n{}", text_expected, text));
+            CHECK_CASE(name, text == text_expected, format("expected\n{}got\n{}", text_expected, text));
         };
 
         stratum_format::GameDocument game;
@@ -1140,11 +1059,11 @@ namespace
 
         istringstream game_settings_text(written(game));
         stratum_format::GameDocument game_read_back = stratum_format::read_game(game_settings_text, "game");
-        report_case("and reads back with its settings and presets as text", game_read_back.settings_snapshot.settings.value("gameplay.difficulty")
+        CHECK_CASE("and reads back with its settings and presets as text", game_read_back.settings_snapshot.settings.value("gameplay.difficulty")
             == "custom" && game_read_back.settings_snapshot.presets.at(custom_key).value("gameplay.difficulty.denizen_count_multiplier") == "2");
 
         game.settings_snapshot = {};
-        report_case("absent settings and presets are written as empty objects", written(game).find("\"settings\": { },\n  \"presets\": { }\n")
+        CHECK_CASE("absent settings and presets are written as empty objects", written(game).find("\"settings\": { },\n  \"presets\": { }\n")
             != string::npos);
 
         stratum_format::CharacterDocument character;
@@ -1243,13 +1162,13 @@ namespace
             parsed = parsed && map_type::accept(text);
         }
 
-        report_case("each game file is JSON", parsed);
+        CHECK_CASE("each game file is JSON", parsed);
 
         filesystem::create_directories(out_directory);
         filesystem::path filepath = out_directory / "world.json";
         stratum_format::write(filepath, world);
         ifstream is(filepath, ios::binary);
-        report_case("a game file written to a file is identical to one written to a stream", string(istreambuf_iterator<char>(is), {}) == written(world));
+        CHECK_CASE("a game file written to a file is identical to one written to a stream", string(istreambuf_iterator<char>(is), {}) == written(world));
 
         // Each document read back and written again is identical to the first writing
         auto rewritten = [&](const auto& document, const auto& read_back)
@@ -1258,13 +1177,13 @@ namespace
             return written(read_back(text));
         };
 
-        report_case("a game file reads back as the document written", rewritten(game, [](istream& in) { return stratum_format::read_game(in, "game"); })
+        CHECK_CASE("a game file reads back as the document written", rewritten(game, [](istream& in) { return stratum_format::read_game(in, "game"); })
             == written(game));
-        report_case("a character file reads back as the document written, inventory included", rewritten(character,
+        CHECK_CASE("a character file reads back as the document written, inventory included", rewritten(character,
             [](istream& in) { return stratum_format::read_character(in, "character"); }) == written(character));
-        report_case("a world file reads back as the document written, world index included", rewritten(world,
+        CHECK_CASE("a world file reads back as the document written, world index included", rewritten(world,
             [](istream& in) { return stratum_format::read_world(in, "world"); }) == written(world));
-        report_case("and from a file", written(stratum_format::read_world(filepath)) == written(world));
+        CHECK_CASE("and from a file", written(stratum_format::read_world(filepath)) == written(world));
 
         // Each file with one change made to it, and the error the change raises
         auto rejected = [](const auto& read, const string& text, const string& error_expected)
@@ -1297,28 +1216,28 @@ namespace
         string character_text = written(character);
         string world_text = written(world);
 
-        report_case("a game file of another format is rejected", rejected(read_game, changed(game_text, "quetzal.stratum_game",
+        CHECK_CASE("a game file of another format is rejected", rejected(read_game, changed(game_text, "quetzal.stratum_game",
             "quetzal.discrete_layout"), "format: 'quetzal.discrete_layout' is not this format"));
-        report_case("and one of another version", rejected(read_game, changed(game_text, "\"0.1\"", "\"0.2\""),
+        CHECK_CASE("and one of another version", rejected(read_game, changed(game_text, "\"0.1\"", "\"0.2\""),
             "version: '0.2' is not a version this reads"));
-        report_case("a game file with no next id is rejected", rejected(read_game, changed(game_text, "\"next_id\": 21, ", ""),
+        CHECK_CASE("a game file with no next id is rejected", rejected(read_game, changed(game_text, "\"next_id\": 21, ", ""),
             "game.next_id: required and absent"));
-        report_case("and one with a random engine state that is not text", rejected(read_game, changed(game_text, "\"1 2 3\"", "123"),
+        CHECK_CASE("and one with a random engine state that is not text", rejected(read_game, changed(game_text, "\"1 2 3\"", "123"),
             "game.random_engines.gameplay: a string was expected"));
-        report_case("an entity of the inventory with no parent is rejected", rejected(read_character, changed(character_text,
+        CHECK_CASE("an entity of the inventory with no parent is rejected", rejected(read_character, changed(character_text,
             "\"parent\": { \"entity\": 1 }, ", ""), "an entity of the inventory has a parent"));
-        report_case("and one whose parent is neither the character nor in the inventory", rejected(read_character, changed(character_text,
+        CHECK_CASE("and one whose parent is neither the character nor in the inventory", rejected(read_character, changed(character_text,
             "\"parent\": { \"entity\": 1 }", "\"parent\": { \"entity\": 7 }"), "entity 7 is neither the character nor an entity of the inventory"));
-        report_case("and one that is its own parent", rejected(read_character, changed(character_text, "\"parent\": { \"entity\": 1 }",
+        CHECK_CASE("and one that is its own parent", rejected(read_character, changed(character_text, "\"parent\": { \"entity\": 1 }",
             "\"parent\": { \"entity\": 20 }"), "its parents form a cycle"));
-        report_case("and one with an address", rejected(read_character, changed(character_text, "\"relation\": \"on\"",
+        CHECK_CASE("and one with an address", rejected(read_character, changed(character_text, "\"relation\": \"on\"",
             "\"relation\": \"in\", \"cell_position\": [1, 1]"), "an entity of the inventory is sited on its parent, with no address"));
-        report_case("a character file whose name is not its name component's is rejected", rejected(read_character, changed(character_text,
+        CHECK_CASE("a character file whose name is not its name component's is rejected", rejected(read_character, changed(character_text,
             "\"name\": \"Ailis\",\n  \"character\"", "\"name\": \"Bran\",\n  \"character\""), "name: not the same as the character's name component"));
 
         auto read_name = [](istream& in) { return stratum_format::read_character_name(in, "character"); };
         istringstream name_text(character_text);
-        report_case("the character's name is read from the top of the file", read_name(name_text) == "Ailis");
+        CHECK_CASE("the character's name is read from the top of the file", read_name(name_text) == "Ailis");
 
         // Everything after the name is cut, so the file is no longer JSON past it
         string cut_text = character_text.substr(0, character_text.find("\"character\"")) + "{ this is not parsed";
@@ -1333,24 +1252,22 @@ namespace
         {
         }
 
-        report_case("and nothing after the name is parsed", cut_read);
-        report_case("a name read from a file of another format is rejected", rejected(read_name, changed(character_text, "quetzal.stratum_game",
+        CHECK_CASE("and nothing after the name is parsed", cut_read);
+        CHECK_CASE("a name read from a file of another format is rejected", rejected(read_name, changed(character_text, "quetzal.stratum_game",
             "quetzal.discrete_layout"), "format: 'quetzal.discrete_layout' is not what this reads"));
-        report_case("a world file with two zones of one id is rejected", rejected(read_world, changed(world_text, "\"id\": 6", "\"id\": 5"),
+        CHECK_CASE("a world file with two zones of one id is rejected", rejected(read_world, changed(world_text, "\"id\": 6", "\"id\": 5"),
             "a second zone with the id 5"));
-        report_case("and one whose world index has an entity in a zone no region lists", rejected(read_world, changed(world_text, "[12, 3]",
+        CHECK_CASE("and one whose world index has an entity in a zone no region lists", rejected(read_world, changed(world_text, "[12, 3]",
             "[12, 4]"), "zone 4 is in no region"));
-        report_case("and one whose world index has an entity twice", rejected(read_world, changed(world_text, "[12, 3]", "[10, 3]"),
+        CHECK_CASE("and one whose world index has an entity twice", rejected(read_world, changed(world_text, "[12, 3]", "[10, 3]"),
             "a second entry for entity 10"));
 
         return;
     }
 
     //--------------------------------------------------------------------------
-    void test_config_file()
+    TEST_CASE("config file")
     {
-        report_group("config file");
-
         stratum_format::ConfigDocument config;
         config.assets_directory = "../../assets";
         config.saves_directory = "saves";
@@ -1369,19 +1286,19 @@ namespace
             "  \"logs_directory\": \"D:/logs\",\n"
             "  \"zone_count_max\": 8\n"
             "}\n";
-        report_case("a config file has each value that is set on a line of its own", config_text == config_text_expected,
+        CHECK_CASE("a config file has each value that is set on a line of its own", config_text == config_text_expected,
             format("expected\n{}got\n{}", config_text_expected, config_text));
 
         istringstream is(config_text);
         stratum_format::ConfigDocument read_back = stratum_format::read_config(is, "config");
-        report_case("and reads back as the document written, with the values not set absent", read_back.assets_directory == "../../assets"
+        CHECK_CASE("and reads back as the document written, with the values not set absent", read_back.assets_directory == "../../assets"
             && read_back.saves_directory == "saves" && read_back.logs_directory == "D:/logs" && read_back.zone_count_max == 8
             && !read_back.user_directory && !read_back.working_directory && !read_back.cache_directory && !read_back.mods_directory
             && !read_back.user_settings_file);
 
         istringstream header_only("{ \"format\": \"quetzal.stratum_config\", \"version\": \"0.1\" }");
         stratum_format::ConfigDocument empty = stratum_format::read_config(header_only, "config");
-        report_case("a config file with only its header sets nothing", !empty.assets_directory && !empty.zone_count_max);
+        CHECK_CASE("a config file with only its header sets nothing", !empty.assets_directory && !empty.zone_count_max);
 
         auto rejected = [&config_text](const string& from, const string& to, const string& error_expected)
         {
@@ -1403,21 +1320,19 @@ namespace
             return false;
         };
 
-        report_case("a config file of another format is rejected", rejected("quetzal.stratum_config", "quetzal.stratum_game",
+        CHECK_CASE("a config file of another format is rejected", rejected("quetzal.stratum_config", "quetzal.stratum_game",
             "format: 'quetzal.stratum_game' is not this format"));
-        report_case("and one with a key the format does not have", rejected("\"saves_directory\"", "\"save_directory\"",
+        CHECK_CASE("and one with a key the format does not have", rejected("\"saves_directory\"", "\"save_directory\"",
             "save_directory: not a key of the config file"));
-        report_case("and one whose zone count maximum is not a count", rejected("\"zone_count_max\": 8", "\"zone_count_max\": -1",
+        CHECK_CASE("and one whose zone count maximum is not a count", rejected("\"zone_count_max\": 8", "\"zone_count_max\": -1",
             "zone_count_max"));
 
         return;
     }
 
     //--------------------------------------------------------------------------
-    void test_settings_file()
+    TEST_CASE("settings file")
     {
-        report_group("settings file");
-
         stratum_format::SettingsDocument user_settings;
         const quetzal::settings::Settings::preset_key_type custom_key {"video.quality", "custom"};
         user_settings.snapshot.settings.insert("video.fullscreen", "true");
@@ -1434,18 +1349,18 @@ namespace
             "  \"settings\": { \"video.fullscreen\": \"true\", \"video.quality\": \"custom\" },\n"
             "  \"presets\": { \"video.quality\": { \"custom\": { \"video.shadows\": \"high\", \"video.textures\": \"low\" } } }\n"
             "}\n";
-        report_case("a settings file has the settings and the presets each on a line of its own", user_settings_text == user_settings_text_expected,
+        CHECK_CASE("a settings file has the settings and the presets each on a line of its own", user_settings_text == user_settings_text_expected,
             format("expected\n{}got\n{}", user_settings_text_expected, user_settings_text));
 
         istringstream is(user_settings_text);
         stratum_format::SettingsDocument read_back = stratum_format::read_settings(is, "settings");
-        report_case("and reads back as the document written", read_back.snapshot.settings.value("video.fullscreen") == "true"
+        CHECK_CASE("and reads back as the document written", read_back.snapshot.settings.value("video.fullscreen") == "true"
             && read_back.snapshot.settings.value("video.quality") == "custom" && read_back.snapshot.presets.size() == 1
             && read_back.snapshot.presets.at(custom_key).value("video.textures") == "low");
 
         istringstream header_only("{ \"format\": \"quetzal.stratum_settings\", \"version\": \"0.1\" }");
         stratum_format::SettingsDocument empty = stratum_format::read_settings(header_only, "settings");
-        report_case("a settings file with only its header sets nothing", empty.snapshot.settings.empty()
+        CHECK_CASE("a settings file with only its header sets nothing", empty.snapshot.settings.empty()
             && empty.snapshot.presets.empty());
 
         auto rejected = [&user_settings_text](const string& from, const string& to, const string& error_expected)
@@ -1468,21 +1383,19 @@ namespace
             return false;
         };
 
-        report_case("a settings file with a key the format does not have is rejected", rejected("\"presets\"", "\"groups\"",
+        CHECK_CASE("a settings file with a key the format does not have is rejected", rejected("\"presets\"", "\"groups\"",
             "groups: not a key of the settings file"));
-        report_case("and one with a value that is not text", rejected("\"true\"", "true", "settings.video.fullscreen: a string was expected"));
-        report_case("and one with a preset's value that is not text", rejected("\"low\"", "1",
+        CHECK_CASE("and one with a value that is not text", rejected("\"true\"", "true", "settings.video.fullscreen: a string was expected"));
+        CHECK_CASE("and one with a preset's value that is not text", rejected("\"low\"", "1",
             "presets.video.quality.custom.video.textures: a string was expected"));
-        report_case("and one with a group's presets that are not an object", rejected("{ \"custom\": { \"video.shadows\": \"high\", \"video.textures\": \"low\" } }",
+        CHECK_CASE("and one with a group's presets that are not an object", rejected("{ \"custom\": { \"video.shadows\": \"high\", \"video.textures\": \"low\" } }",
             "1", "presets.video.quality: an object was expected"));
         return;
     }
 
     //--------------------------------------------------------------------------
-    void test_setting_definitions_file()
+    TEST_CASE("setting definition file")
     {
-        report_group("setting definition file");
-
         using document_type = stratum_format::SettingDefinitionsDocument;
 
         const string definitions_text =
@@ -1506,20 +1419,20 @@ namespace
 
         istringstream is(definitions_text);
         document_type document = stratum_format::read_setting_definitions(is, "definitions");
-        report_case("a setting definition file reads its enumerations, settings and groups in order", document.enumerations.size() == 1
+        CHECK_CASE("a setting definition file reads its enumerations, settings and groups in order", document.enumerations.size() == 1
             && document.enumerations[0].name == "mod.torches.style" && document.enumerations[0].values == vector<string> {"steady", "flicker"}
             && document.settings.size() == 2 && document.settings[0].key == "video.fullscreen" && document.settings[1].key == "gameplay.count"
             && document.groups.size() == 1 && document.groups[0].presets.size() == 2);
 
         const document_type::Setting& fullscreen = document.settings[0];
         const document_type::Setting& count = document.settings[1];
-        report_case("a setting has its fields, with those absent empty or false", fullscreen.type_name == "boolean" && fullscreen.default_value == "false"
+        CHECK_CASE("a setting has its fields, with those absent empty or false", fullscreen.type_name == "boolean" && fullscreen.default_value == "false"
             && fullscreen.scope == document_type::Scope::User && fullscreen.restart_required && fullscreen.display_name == "Fullscreen"
             && fullscreen.category == "video" && fullscreen.description.empty() && !fullscreen.minimum && count.scope == document_type::Scope::Game
             && count.default_value == "1" && !count.restart_required && count.minimum == "0.5" && count.maximum == "2" && count.description == "How many");
 
         const document_type::Group& difficulty = document.groups[0];
-        report_case("a group has its fields, members and presets", difficulty.key == "gameplay.difficulty"
+        CHECK_CASE("a group has its fields, members and presets", difficulty.key == "gameplay.difficulty"
             && difficulty.scope == document_type::Scope::Game && difficulty.member_keys == vector<string> {"gameplay.count"}
             && difficulty.default_preset_name == "normal" && difficulty.display_name == "Difficulty" && difficulty.presets[0].name == "normal"
             && difficulty.presets[0].values.value("gameplay.count") == "1" && !difficulty.presets[0].editable && difficulty.presets[1].editable
@@ -1527,7 +1440,7 @@ namespace
 
         istringstream header_only("{ \"format\": \"quetzal.stratum_setting_definitions\", \"version\": \"0.1\" }");
         document_type empty = stratum_format::read_setting_definitions(header_only, "definitions");
-        report_case("a setting definition file with only its header defines nothing", empty.enumerations.empty() && empty.settings.empty()
+        CHECK_CASE("a setting definition file with only its header defines nothing", empty.enumerations.empty() && empty.settings.empty()
             && empty.groups.empty());
 
         auto rejected = [&definitions_text](const string& from, const string& to, const string& error_expected)
@@ -1550,47 +1463,23 @@ namespace
             return false;
         };
 
-        report_case("a setting definition file with a key the format does not have is rejected", rejected("\"restart_required\"", "\"restart\"",
+        CHECK_CASE("a setting definition file with a key the format does not have is rejected", rejected("\"restart_required\"", "\"restart\"",
             "settings[0].restart: not a key of the setting definition file"));
-        report_case("and one with a scope that is not user or game", rejected("\"scope\": \"user\"", "\"scope\": \"player\"",
+        CHECK_CASE("and one with a scope that is not user or game", rejected("\"scope\": \"user\"", "\"scope\": \"player\"",
             "settings[0].scope: 'player' is not a scope"));
-        report_case("and one with a value that is not text", rejected("\"minimum\": \"0.5\"", "\"minimum\": 0.5",
+        CHECK_CASE("and one with a value that is not text", rejected("\"minimum\": \"0.5\"", "\"minimum\": 0.5",
             "settings[1].minimum: a string was expected"));
-        report_case("and one with a setting that has no type", rejected("\"type\": \"real\", ", "", "settings[1].type: required and absent"));
-        report_case("and one with a setting that has no default", rejected("\"default\": \"1\", ", "", "settings[1].default: required and absent"));
-        report_case("and one with a group that has no presets", rejected("\"presets\"", "\"options\"", "groups[0].options: not a key"));
-        report_case("and one with a group that has no members", rejected("      \"members\": [\"gameplay.count\"],\n", "",
+        CHECK_CASE("and one with a setting that has no type", rejected("\"type\": \"real\", ", "", "settings[1].type: required and absent"));
+        CHECK_CASE("and one with a setting that has no default", rejected("\"default\": \"1\", ", "", "settings[1].default: required and absent"));
+        CHECK_CASE("and one with a group that has no presets", rejected("\"presets\"", "\"options\"", "groups[0].options: not a key"));
+        CHECK_CASE("and one with a group that has no members", rejected("      \"members\": [\"gameplay.count\"],\n", "",
             "groups[0].members: required and absent"));
-        report_case("and one with a member that is not text", rejected("[\"gameplay.count\"]", "[1]", "groups[0].members[0]: a string was expected"));
+        CHECK_CASE("and one with a member that is not text", rejected("[\"gameplay.count\"]", "[1]", "groups[0].members[0]: a string was expected"));
 
         document_type game = stratum_format::read_setting_definitions(filesystem::path("../../assets") / document_type::filepath);
-        report_case("the game's setting definition file reads", !game.settings.empty() && game.groups.size() == 1
+        CHECK_CASE("the game's setting definition file reads", !game.settings.empty() && game.groups.size() == 1
             && game.groups[0].key == "gameplay.difficulty");
         return;
     }
 
 } // namespace
-
-//------------------------------------------------------------------------------
-int main()
-{
-    test_read_wall_notation();
-    test_read_block_notation();
-    test_read_runs();
-    test_read_pillar();
-    test_read_failures();
-    test_structure();
-    test_entities();
-    test_glyph_entities();
-    test_references();
-    test_geometry_wall_notation();
-    test_geometry_block_notation();
-    test_relocator_targets();
-    test_round_trip();
-    test_game_files();
-    test_config_file();
-    test_settings_file();
-    test_setting_definitions_file();
-
-    return report_results();
-}

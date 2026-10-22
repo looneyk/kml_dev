@@ -140,6 +140,7 @@ template<typename E>
 void quetzal::math::Random<E>::seed(E::result_type value)
 {
     m_engine.seed(value);
+    return;
 }
 
 //------------------------------------------------------------------------------
@@ -294,6 +295,7 @@ template<std::ranges::random_access_range R>
 void quetzal::math::Random<E>::shuffle(R&& range)
 {
     shuffle(std::ranges::begin(range), std::ranges::end(range));
+    return;
 }
 
 //------------------------------------------------------------------------------
@@ -308,6 +310,8 @@ void quetzal::math::Random<E>::shuffle(I first, S last)
     {
         std::ranges::iter_swap(first + i, first + random(i + 1));
     }
+
+    return;
 }
 
 //------------------------------------------------------------------------------

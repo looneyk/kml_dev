@@ -10,9 +10,9 @@
 #include "quetzal/math/DiscreteVector.hpp"
 #include "quetzal/math/HomogeneousTraits.hpp"
 #include "quetzal/math/Vector.hpp"
-#include <exception>
+#include "quetzal/testing/named_checks.hpp"
+#include <doctest/doctest.h>
 #include <format>
-#include <iostream>
 #include <sstream>
 #include <string>
 
@@ -21,60 +21,6 @@ using namespace quetzal;
 
 namespace
 {
-
-    static constexpr auto escape_reset_string = "\x1b[0m";
-    static constexpr auto escape_rendition_pattern = "\x1b[38;5;{}m";
-
-    size_t g_case_count = 0;
-    size_t g_failure_count = 0;
-
-    //--------------------------------------------------------------------------
-    void report_group(const string& name)
-    {
-        cout << name << endl;
-        return;
-    }
-
-    //--------------------------------------------------------------------------
-    void report_case(const string& name, bool b, const string& detail = {})
-    {
-        ++g_case_count;
-
-        if (b)
-        {
-            cout << format(escape_rendition_pattern, 34) << "    ok   " << escape_reset_string << name << endl;
-            return;
-        }
-
-        ++g_failure_count;
-        cout << format(escape_rendition_pattern, 196) << "    FAIL " << escape_reset_string << name;
-        if (!detail.empty())
-        {
-            cout << ": " << detail;
-        }
-        cout << endl;
-        return;
-    }
-
-    //--------------------------------------------------------------------------
-    void report_case_equal(const string& name, const string& value, const string& value_expected)
-    {
-        report_case(name, value == value_expected, format("expected \"{}\", got \"{}\"", value_expected, value));
-        return;
-    }
-
-    //--------------------------------------------------------------------------
-    int report_results()
-    {
-        if (g_failure_count == 0)
-        {
-            cout << format(escape_rendition_pattern, 34) << format("OK: {} cases", g_case_count) << escape_reset_string << endl;
-            return 0;
-        }
-
-        cout << format(escape_rendition_pattern, 196) << format("Error: {} of {} cases failed", g_failure_count, g_case_count) << escape_reset_string << endl;
-        return 1;
-    }
 
     //--------------------------------------------------------------------------
     using cartesian_traits_type = math::CartesianTraits<double, 3>;
@@ -105,47 +51,43 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    void test_skip_whitespace()
+    TEST_CASE("skip_whitespace")
     {
-        report_group("skip_whitespace");
-
         string s = "  \t x";
-        report_case("spaces and tabs are skipped", skip_whitespace(s.data(), s.data() + s.size()) == s.data() + 4);
+        CHECK_CASE("spaces and tabs are skipped", skip_whitespace(s.data(), s.data() + s.size()) == s.data() + 4);
 
         string none = "x  ";
-        report_case("a non-blank first position is returned as it is", skip_whitespace(none.data(), none.data() + none.size()) == none.data());
+        CHECK_CASE("a non-blank first position is returned as it is", skip_whitespace(none.data(), none.data() + none.size()) == none.data());
 
         string blank = "   ";
-        report_case("all blank reaches the end", skip_whitespace(blank.data(), blank.data() + blank.size()) == blank.data() + blank.size());
+        CHECK_CASE("all blank reaches the end", skip_whitespace(blank.data(), blank.data() + blank.size()) == blank.data() + blank.size());
 
         string empty;
-        report_case("an empty range is returned as it is", skip_whitespace(empty.data(), empty.data()) == empty.data());
+        CHECK_CASE("an empty range is returned as it is", skip_whitespace(empty.data(), empty.data()) == empty.data());
 
         // Only space and tab count, so a line break stops the skip
         string newline = " \n ";
-        report_case("a line break is not skipped", skip_whitespace(newline.data(), newline.data() + newline.size()) == newline.data() + 1);
+        CHECK_CASE("a line break is not skipped", skip_whitespace(newline.data(), newline.data() + newline.size()) == newline.data() + 1);
 
         return;
     }
 
     //--------------------------------------------------------------------------
-    void test_skip_delimiters()
+    TEST_CASE("skip_object_delimiter and skip_element_delimiter")
     {
-        report_group("skip_object_delimiter and skip_element_delimiter");
-
         {
             istringstream is("  ( rest");
             skip_object_delimiter(is, '(');
             string rest;
             is >> rest;
-            report_case("the object delimiter is consumed past leading whitespace", is.good() || is.eof());
-            report_case_equal("and what follows it is left", rest, "rest");
+            CHECK_CASE("the object delimiter is consumed past leading whitespace", is.good() || is.eof());
+            CHECK_CASE_EQUAL("and what follows it is left", rest, "rest");
         }
 
         {
             istringstream is("x");
             skip_object_delimiter(is, '(');
-            report_case("a missing object delimiter sets failbit", is.fail());
+            CHECK_CASE("a missing object delimiter sets failbit", is.fail());
         }
 
         {
@@ -153,7 +95,7 @@ namespace
             skip_element_delimiter(is, ",");
             string rest;
             is >> rest;
-            report_case_equal("the element delimiter is consumed", rest, "rest");
+            CHECK_CASE_EQUAL("the element delimiter is consumed", rest, "rest");
         }
 
         {
@@ -161,14 +103,14 @@ namespace
             skip_element_delimiter(is, "");
             string rest;
             is >> rest;
-            report_case("an empty pattern skips nothing and succeeds", !is.fail());
-            report_case_equal("leaving the stream where it was", rest, "rest");
+            CHECK_CASE("an empty pattern skips nothing and succeeds", !is.fail());
+            CHECK_CASE_EQUAL("leaving the stream where it was", rest, "rest");
         }
 
         {
             istringstream is("x");
             skip_element_delimiter(is, ",");
-            report_case("a missing element delimiter sets failbit", is.fail());
+            CHECK_CASE("a missing element delimiter sets failbit", is.fail());
         }
 
         return;
@@ -176,45 +118,43 @@ namespace
 
     //--------------------------------------------------------------------------
     // The one pair of conversions all four vector and point types go through
-    void test_array_from_chars()
+    TEST_CASE("array_from_chars")
     {
-        report_group("array_from_chars");
-
         {
             discrete_vector_type v;
             string s = "1 -2 30";
             auto result = from_chars(s.data(), s.data() + s.size(), v);
-            report_case("a discrete vector reads every component", result.ec == errc {} && result.ptr == s.data() + s.size());
-            report_case("with the values the string names", v == discrete_vector_type(1L, -2L, 30L));
+            CHECK_CASE("a discrete vector reads every component", result.ec == errc {} && result.ptr == s.data() + s.size());
+            CHECK_CASE("with the values the string names", v == discrete_vector_type(1L, -2L, 30L));
         }
 
         {
             discrete_vector_type v;
             string s = "  4\t 5   6";
             auto result = from_chars(s.data(), s.data() + s.size(), v);
-            report_case("leading and inner whitespace is skipped", result.ec == errc {} && v == discrete_vector_type(4L, 5L, 6L));
+            CHECK_CASE("leading and inner whitespace is skipped", result.ec == errc {} && v == discrete_vector_type(4L, 5L, 6L));
         }
 
         {
             discrete_vector_type v;
             string s = "7 x 9";
             auto result = from_chars(s.data(), s.data() + s.size(), v);
-            report_case("a component that cannot be read is an error", result.ec == errc::invalid_argument);
-            report_case("reported where it stopped", result.ptr == s.data() + 2);
+            CHECK_CASE("a component that cannot be read is an error", result.ec == errc::invalid_argument);
+            CHECK_CASE("reported where it stopped", result.ptr == s.data() + 2);
         }
 
         {
             discrete_vector_type v;
             string s = "1 2";
             auto result = from_chars(s.data(), s.data() + s.size(), v);
-            report_case("a string of too few components is an error", result.ec != errc {});
+            CHECK_CASE("a string of too few components is an error", result.ec != errc {});
         }
 
         {
             discrete_point_type p;
             string s = " 11 -22\t33";
             auto result = from_chars(s.data(), s.data() + s.size(), p);
-            report_case("a discrete point reads every component",
+            CHECK_CASE("a discrete point reads every component",
                 result.ec == errc {} && p.x() == 11L && p.y() == -22L && p.z() == 33L);
         }
 
@@ -222,7 +162,7 @@ namespace
             vector_type v;
             string s = "1.5 -2.5 3";
             auto result = from_chars(s.data(), s.data() + s.size(), v);
-            report_case("a cartesian vector reads every component",
+            CHECK_CASE("a cartesian vector reads every component",
                 result.ec == errc {} && v.x() == 1.5 && v.y() == -2.5 && v.z() == 3.0);
         }
 
@@ -230,7 +170,7 @@ namespace
             point_type p;
             string s = "1.5 -2.5 3";
             auto result = from_chars(s.data(), s.data() + s.size(), p);
-            report_case("a cartesian point reads every component",
+            CHECK_CASE("a cartesian point reads every component",
                 result.ec == errc {} && p.x() == 1.5 && p.y() == -2.5 && p.z() == 3.0);
         }
 
@@ -240,7 +180,7 @@ namespace
             homogeneous_vector_type v;
             string s = "1.5 -2.5 3";
             auto result = from_chars(s.data(), s.data() + s.size(), v);
-            report_case("a homogeneous vector reads three and concludes a weight of 0",
+            CHECK_CASE("a homogeneous vector reads three and concludes a weight of 0",
                 result.ec == errc {} && result.ptr == s.data() + s.size() && v.weight() == 0.0);
         }
 
@@ -248,7 +188,7 @@ namespace
             homogeneous_point_type p;
             string s = "1.5 -2.5 3";
             auto result = from_chars(s.data(), s.data() + s.size(), p);
-            report_case("a homogeneous point reads three and concludes a weight of 1",
+            CHECK_CASE("a homogeneous point reads three and concludes a weight of 1",
                 result.ec == errc {} && result.ptr == s.data() + s.size() && p.weight() == 1.0);
         }
 
@@ -257,15 +197,13 @@ namespace
 
     //--------------------------------------------------------------------------
     // Reading matches the delimiter between components exactly
-    void test_element_delimiters()
+    TEST_CASE("element delimiters")
     {
-        report_group("element delimiters");
-
         {
             discrete_vector_type v;
             string s = "16,10,4";
             auto result = math::from_chars(s.data(), s.data() + s.size(), v, ",");
-            report_case("a named delimiter reads the components it separates",
+            CHECK_CASE("a named delimiter reads the components it separates",
                 result.ec == errc {} && result.ptr == s.data() + s.size() && v == discrete_vector_type(16L, 10L, 4L));
         }
 
@@ -273,15 +211,15 @@ namespace
             discrete_vector_type v;
             string s = "16 10 4";
             auto result = math::from_chars(s.data(), s.data() + s.size(), v, ",");
-            report_case("and rejects a string the delimiter is absent from", result.ec == errc::invalid_argument);
-            report_case("reporting where it expected one", result.ptr == s.data() + 2);
+            CHECK_CASE("and rejects a string the delimiter is absent from", result.ec == errc::invalid_argument);
+            CHECK_CASE("reporting where it expected one", result.ptr == s.data() + 2);
         }
 
         {
             char buffer[64];
             discrete_vector_type v(16L, 10L, 4L);
             auto result = math::to_chars(buffer, buffer + sizeof buffer, v, ",");
-            report_case("writing uses the delimiter given", string(buffer, result.ptr) == "16,10,4");
+            CHECK_CASE("writing uses the delimiter given", string(buffer, result.ptr) == "16,10,4");
         }
 
         {
@@ -290,7 +228,7 @@ namespace
             discrete_vector_type w;
             auto written = math::to_chars(buffer, buffer + sizeof buffer, v, ", ");
             auto read = math::from_chars(buffer, written.ptr, w, ", ");
-            report_case("a multi-character delimiter round trips",
+            CHECK_CASE("a multi-character delimiter round trips",
                 read.ec == errc {} && read.ptr == written.ptr && w == v);
         }
 
@@ -298,7 +236,7 @@ namespace
             point_type p;
             string s = "1.5,-2.5,3";
             auto result = geometry::from_chars(s.data(), s.data() + s.size(), p, ",");
-            report_case("a cartesian point takes one too",
+            CHECK_CASE("a cartesian point takes one too",
                 result.ec == errc {} && p.x() == 1.5 && p.y() == -2.5 && p.z() == 3.0);
         }
 
@@ -306,21 +244,21 @@ namespace
             istringstream is("16,10,4");
             discrete_vector_type v;
             is >> element_delim(",") >> v;
-            report_case("a stream reads what the manipulator names",
+            CHECK_CASE("a stream reads what the manipulator names",
                 !is.fail() && v == discrete_vector_type(16L, 10L, 4L));
         }
 
         {
             ostringstream os;
             os << element_delim(",") << discrete_vector_type(16L, 10L, 4L);
-            report_case("and writes the same", os.str() == "16,10,4");
+            CHECK_CASE("and writes the same", os.str() == "16,10,4");
         }
 
         {
             istringstream is("1,2,3");
             vector_type v;
             is >> element_delim(",") >> v;
-            report_case("a traits vector reads every component past the first",
+            CHECK_CASE("a traits vector reads every component past the first",
                 !is.fail() && v.x() == 1.0 && v.y() == 2.0 && v.z() == 3.0);
         }
 
@@ -328,46 +266,44 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    void test_array_to_chars()
+    TEST_CASE("array_to_chars")
     {
-        report_group("array_to_chars");
-
-        report_case_equal("a discrete vector writes its components", written(discrete_vector_type(1L, -2L, 30L)), "1 -2 30");
-        report_case_equal("a discrete point writes its components", written(discrete_point_type(11L, -22L, 33L)), "11 -22 33");
-        report_case_equal("a cartesian vector writes its components", written(vector_type(1.5, -2.5, 3.0)), "1.5 -2.5 3");
-        report_case_equal("a cartesian point writes its components", written(point_type(1.5, -2.5, 3.0)), "1.5 -2.5 3");
-        report_case_equal("a homogeneous vector writes the dimension, not the weight", written(homogeneous_vector_type(1.5, -2.5, 3.0)), "1.5 -2.5 3");
-        report_case_equal("a homogeneous point writes the dimension, not the weight", written(homogeneous_point_type(1.5, -2.5, 3.0)), "1.5 -2.5 3");
+        CHECK_CASE_EQUAL("a discrete vector writes its components", written(discrete_vector_type(1L, -2L, 30L)), "1 -2 30");
+        CHECK_CASE_EQUAL("a discrete point writes its components", written(discrete_point_type(11L, -22L, 33L)), "11 -22 33");
+        CHECK_CASE_EQUAL("a cartesian vector writes its components", written(vector_type(1.5, -2.5, 3.0)), "1.5 -2.5 3");
+        CHECK_CASE_EQUAL("a cartesian point writes its components", written(point_type(1.5, -2.5, 3.0)), "1.5 -2.5 3");
+        CHECK_CASE_EQUAL("a homogeneous vector writes the dimension, not the weight", written(homogeneous_vector_type(1.5, -2.5, 3.0)), "1.5 -2.5 3");
+        CHECK_CASE_EQUAL("a homogeneous point writes the dimension, not the weight", written(homogeneous_point_type(1.5, -2.5, 3.0)), "1.5 -2.5 3");
 
         // A weighted point is reduced before it is written, so what comes out is where it is
         {
             homogeneous_point_type p(6.0, -10.0, 14.0);
             p.rep()[3] = 2.0;
-            report_case_equal("a weighted homogeneous point is reduced before writing", written(p), "3 -5 7");
+            CHECK_CASE_EQUAL("a weighted homogeneous point is reduced before writing", written(p), "3 -5 7");
         }
 
-        report_case_equal("a negative zero is written as zero", written(vector_type(-0.0, 1.0, 2.0)), "0 1 2");
+        CHECK_CASE_EQUAL("a negative zero is written as zero", written(vector_type(-0.0, 1.0, 2.0)), "0 1 2");
 
         {
             char buffer[4] {};
             auto result = to_chars(buffer, buffer + sizeof buffer, discrete_vector_type(100L, 200L, 300L));
-            report_case("a buffer too small for a discrete vector is an error", result.ec == errc::value_too_large);
+            CHECK_CASE("a buffer too small for a discrete vector is an error", result.ec == errc::value_too_large);
         }
 
         {
             char buffer[4] {};
             auto result = to_chars(buffer, buffer + sizeof buffer, vector_type(100.0, 200.0, 300.0));
-            report_case("a buffer too small for a cartesian vector is an error", result.ec == errc::value_too_large);
+            CHECK_CASE("a buffer too small for a cartesian vector is an error", result.ec == errc::value_too_large);
         }
 
         // The delimiter is not written where there is no room left for it
         {
             char buffer[3] {};
             auto result = array_to_chars(buffer, buffer + sizeof buffer, discrete_vector_type(1L, 2L, 3L), ", ");
-            report_case("a delimiter that will not fit is an error", result.ec == errc::value_too_large);
+            CHECK_CASE("a delimiter that will not fit is an error", result.ec == errc::value_too_large);
         }
 
-        report_case_equal("a delimiter other than a space is written",
+        CHECK_CASE_EQUAL("a delimiter other than a space is written",
             [] { char buffer[32] {}; auto r = array_to_chars(buffer, buffer + sizeof buffer, discrete_vector_type(1L, 2L, 3L), ", ");
                 return r.ec == errc {} ? string(buffer, r.ptr) : string("<error>"); }(), "1, 2, 3");
 
@@ -375,16 +311,14 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    void test_round_trip()
+    TEST_CASE("round trip")
     {
-        report_group("round trip");
-
         {
             char buffer[64] {};
             auto written_result = to_chars(buffer, buffer + sizeof buffer, discrete_vector_type(-7L, 0L, 123L));
             discrete_vector_type v;
             auto read_result = from_chars(buffer, written_result.ptr, v);
-            report_case("a discrete vector survives a round trip",
+            CHECK_CASE("a discrete vector survives a round trip",
                 read_result.ec == errc {} && v == discrete_vector_type(-7L, 0L, 123L));
         }
 
@@ -393,7 +327,7 @@ namespace
             auto written_result = to_chars(buffer, buffer + sizeof buffer, discrete_point_type(-7L, 0L, 123L));
             discrete_point_type p;
             auto read_result = from_chars(buffer, written_result.ptr, p);
-            report_case("a discrete point survives a round trip",
+            CHECK_CASE("a discrete point survives a round trip",
                 read_result.ec == errc {} && p.x() == -7L && p.y() == 0L && p.z() == 123L);
         }
 
@@ -402,7 +336,7 @@ namespace
             auto written_result = to_chars(buffer, buffer + sizeof buffer, vector_type(-7.25, 0.0, 123.5));
             vector_type v;
             auto read_result = from_chars(buffer, written_result.ptr, v);
-            report_case("a cartesian vector survives a round trip",
+            CHECK_CASE("a cartesian vector survives a round trip",
                 read_result.ec == errc {} && v.x() == -7.25 && v.y() == 0.0 && v.z() == 123.5);
         }
 
@@ -411,7 +345,7 @@ namespace
             auto written_result = to_chars(buffer, buffer + sizeof buffer, homogeneous_point_type(-7.25, 0.0, 123.5));
             homogeneous_point_type p;
             auto read_result = from_chars(buffer, written_result.ptr, p);
-            report_case("a homogeneous point survives a round trip with its weight restored",
+            CHECK_CASE("a homogeneous point survives a round trip with its weight restored",
                 read_result.ec == errc {} && p.x() == -7.25 && p.z() == 123.5 && p.weight() == 1.0);
         }
 
@@ -419,18 +353,16 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    void test_to_type()
+    TEST_CASE("to_type and to_bool")
     {
-        report_group("to_type and to_bool");
-
-        report_case("an integer is read", to_type<int>("42") == 42);
-        report_case("a negative integer is read", to_type<long>("-17") == -17);
-        report_case("a real is read", to_type<double>("2.5") == 2.5);
-        report_case_equal("a string is returned as it is", to_type<string>("text"), "text");
-        report_case("true is read", to_type<bool>("true"));
-        report_case("1 is read as true", to_bool("1"));
-        report_case("false is read", !to_bool("false"));
-        report_case("0 is read as false", !to_bool("0"));
+        CHECK_CASE("an integer is read", to_type<int>("42") == 42);
+        CHECK_CASE("a negative integer is read", to_type<long>("-17") == -17);
+        CHECK_CASE("a real is read", to_type<double>("2.5") == 2.5);
+        CHECK_CASE_EQUAL("a string is returned as it is", to_type<string>("text"), "text");
+        CHECK_CASE("true is read", to_type<bool>("true"));
+        CHECK_CASE("1 is read as true", to_bool("1"));
+        CHECK_CASE("false is read", !to_bool("false"));
+        CHECK_CASE("0 is read as false", !to_bool("0"));
 
         {
             bool threw = false;
@@ -442,28 +374,26 @@ namespace
             {
                 threw = true;
             }
-            report_case("a value that is neither is rejected", threw);
+            CHECK_CASE("a value that is neither is rejected", threw);
         }
 
-        report_case("try_type reads what it can", try_type<int>("42") == 42);
-        report_case("try_type reports what it cannot", !try_type<int>("x").has_value());
+        CHECK_CASE("try_type reads what it can", try_type<int>("42") == 42);
+        CHECK_CASE("try_type reports what it cannot", !try_type<int>("x").has_value());
 
         return;
     }
 
     //--------------------------------------------------------------------------
-    void test_to_string()
+    TEST_CASE("to_string")
     {
-        report_group("to_string");
-
-        report_case_equal("a string is returned as it is", to_string(string("text")), "text");
-        report_case_equal("a wide string is converted", to_string(wstring(L"text")), "text");
-        report_case_equal("true", to_string(true), "true");
-        report_case_equal("false", to_string(false), "false");
-        report_case_equal("an array type is space separated", to_string(vector_type(1.0, 2.0, 3.0)), "1 2 3");
-        report_case_equal("to_array_string brackets and comma separates", to_array_string(vector_type(1.0, 2.0, 3.0)), "[1, 2, 3]");
-        report_case_equal("an optional with a value", to_string(optional<int>(7)), "7");
-        report_case_equal("an optional without one", to_string(optional<int>()), "nullopt");
+        CHECK_CASE_EQUAL("a string is returned as it is", to_string(string("text")), "text");
+        CHECK_CASE_EQUAL("a wide string is converted", to_string(wstring(L"text")), "text");
+        CHECK_CASE_EQUAL("true", to_string(true), "true");
+        CHECK_CASE_EQUAL("false", to_string(false), "false");
+        CHECK_CASE_EQUAL("an array type is space separated", to_string(vector_type(1.0, 2.0, 3.0)), "1 2 3");
+        CHECK_CASE_EQUAL("to_array_string brackets and comma separates", to_array_string(vector_type(1.0, 2.0, 3.0)), "[1, 2, 3]");
+        CHECK_CASE_EQUAL("an optional with a value", to_string(optional<int>(7)), "7");
+        CHECK_CASE_EQUAL("an optional without one", to_string(optional<int>()), "nullopt");
 
         return;
     }
@@ -471,70 +401,44 @@ namespace
     //--------------------------------------------------------------------------
     // The manipulators and the format spec they produce are what put operator<< and
     // std::format in agreement over an array type
-    void test_stream_delimiters()
+    TEST_CASE("object_delim, element_delim and array_format_spec")
     {
-        report_group("object_delim, element_delim and array_format_spec");
-
         {
             ostringstream os;
             os << vector_type(1.0, 2.0, 3.0);
-            report_case_equal("the default is space separated and unbracketed", os.str(), "1 2 3");
+            CHECK_CASE_EQUAL("the default is space separated and unbracketed", os.str(), "1 2 3");
         }
 
         {
             ostringstream os;
             os << object_delim('[') << element_delim(", ") << vector_type(1.0, 2.0, 3.0);
-            report_case_equal("the manipulators bracket and separate", os.str(), "[1, 2, 3]");
+            CHECK_CASE_EQUAL("the manipulators bracket and separate", os.str(), "[1, 2, 3]");
         }
 
         {
             ostringstream os;
             os << object_delim('[') << element_delim(", ") << object_delim('\0') << vector_type(1.0, 2.0, 3.0);
-            report_case_equal("a null object delimiter resets the bracket", os.str(), "1, 2, 3");
+            CHECK_CASE_EQUAL("a null object delimiter resets the bracket", os.str(), "1, 2, 3");
         }
 
         {
             ostringstream os;
             os << element_delim(", ") << element_delim("") << vector_type(1.0, 2.0, 3.0);
-            report_case_equal("an empty element delimiter leaves the one in effect", os.str(), "1, 2, 3");
+            CHECK_CASE_EQUAL("an empty element delimiter leaves the one in effect", os.str(), "1, 2, 3");
         }
 
         {
             ostringstream os;
             os << object_delim('(') << element_delim(", ");
-            report_case_equal("the spec reflects the manipulators", array_format_spec(os).substr(0, 3), "(,_");
+            CHECK_CASE_EQUAL("the spec reflects the manipulators", array_format_spec(os).substr(0, 3), "(,_");
         }
 
         {
             ostringstream os;
-            report_case_equal("and its defaults where none are set", array_format_spec(os).substr(0, 1), "_");
+            CHECK_CASE_EQUAL("and its defaults where none are set", array_format_spec(os).substr(0, 1), "_");
         }
 
         return;
     }
 
 } // namespace
-
-//------------------------------------------------------------------------------
-int main()
-{
-    try
-    {
-        test_skip_whitespace();
-        test_skip_delimiters();
-        test_array_from_chars();
-        test_element_delimiters();
-        test_array_to_chars();
-        test_round_trip();
-        test_to_type();
-        test_to_string();
-        test_stream_delimiters();
-    }
-    catch (const exception& e)
-    {
-        cout << format(escape_rendition_pattern, 196) << "Error: " << escape_reset_string << e.what() << endl;
-        return 1;
-    }
-
-    return report_results();
-}

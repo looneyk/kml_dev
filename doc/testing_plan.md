@@ -39,16 +39,22 @@ no library under `library/quetzal` other than `quetzal_testing` includes doctest
 
 - **The harness is removed.** `report_group`, `report_case`, `report_case_equal`, `report_results` and their counters
   leave every test executable.
-- **A harness group becomes a test suite** of the same name.
-- **A harness case becomes a test case of the same name** where it is independent of the cases before it. Cases that
-  build on one another, such as a game created, saved and then opened, become one test case with a check for each, each
-  check with the case's name as its message.
+- **A harness group becomes a test case** of the same name, and **a harness case a named check** in it, `CHECK_CASE`
+  or `CHECK_CASE_EQUAL`, which reports the case's name and its detail when it fails. Most cases build on the ones
+  before them, such as a game created, saved and then opened, so a test case for each would repeat their setup.
+- **A test suite is a set of related test cases,** such as a source file of `stratum_sim_test`.
 - **A sweep over seeds or files is a loop in one test case,** with `CAPTURE` of the seed or the file, so a failure
   reports which one failed.
-- **A failure's detail is the check's message,** through `CHECK_MESSAGE` or `INFO`, where `report_case` took a detail.
-- **A test case that builds a world starts from a fixture,** which returns the settings and the log to their state at
-  startup, and seeds the process-wide random engines with a fixed seed once they exist (`random_engine.md`,
-  `## Ownership`), so a test case runs the same alone, filtered, or in the full run.
+- **A case repeated for each scenario is a test case with a subcase for each scenario,** named as the case was, such as
+  "shipped is equivalent to its reference". doctest registers no test case at run time, and its subcases are how it
+  repeats a test case over values, as GoogleTest's value-parameterized tests and Catch2's `GENERATE` do. `-sc` selects
+  a subcase. CTest runs the subcases of one test case in one process.
+- **A failure's detail is the check's message,** through `CHECK_CASE`'s detail, `CHECK_MESSAGE` or `INFO`, where
+  `report_case` took a detail.
+- **A test case that builds a world starts from a fixture,** which loads the setting definitions once in the process,
+  returns every setting to its default, and seeds the test executable's random engine, and the process-wide random
+  engines once they exist (`random_engine.md`, `## Ownership`), so a test case runs the same alone, filtered, or in the
+  full run.
 
 ## quetzal_testing
 
@@ -59,33 +65,44 @@ What every test executable shares, in `library/quetzal/testing/`, the target `qu
 namespace quetzal::testing
 {
 
-    using equivalent_function_type = std::function<bool(const std::filesystem::path& out_filepath, const std::filesystem::path& reference_filepath)>;
+    // Returns nothing if the file a test case wrote matches its reference file, or a description of the difference
+    using comparison_function_type = std::function<std::optional<std::string>(const std::filesystem::path& out_filepath,
+        const std::filesystem::path& reference_filepath)>;
 
-    // Returns true if the two files' bytes are equal
-    bool identical(const std::filesystem::path& out_filepath, const std::filesystem::path& reference_filepath);
+    // Returns nothing if the two files are identical, byte for byte, or the first line on which they differ
+    std::optional<std::string> compare_identical(const std::filesystem::path& out_filepath, const std::filesystem::path& reference_filepath);
 
     // Returns true if the run was given --update-references
     bool updating_references();
 
-    // Checks that a file a test case wrote to out/ matches the reference file at the same relative path in reference/,
+    // Checks that the file a test case wrote to out/ matches the reference file at the same relative path in reference/,
     // or, when updating references, copies it over the reference file
-    void check_reference(const std::filesystem::path& relative_filepath, const equivalent_function_type& equivalent = identical);
+    void check_reference(const std::filesystem::path& relative_filepath, const comparison_function_type& compare = compare_identical);
 
 } // namespace quetzal::testing
+
+// Checks a condition, reported under a name, and with a detail if one is given, when it fails
+#define CHECK_CASE(name, ...)
+
+// Checks that a value equals the value expected, reported under a name with both values when it fails
+#define CHECK_CASE_EQUAL(name, value, value_expected)
 ```
 
 - **`main` is defined once, in `quetzal_testing`,** as `gtest_main` defines it for GoogleTest and `Catch2WithMain` for
   Catch2. A test executable's sources are only its test cases, and linking the library supplies `main`, which reads
   `--update-references`, passes every other argument to doctest, runs the test cases, and returns doctest's result.
 - **A test executable whose reference files are equivalent rather than identical passes its own comparison.** The
-  generator test executables compare zone files as parsed JSON.
-- **`FileValidator` is unchanged,** for mesh_operations.
+  generator test executables compare zone files as parsed JSON, and report the JSON patch between them.
+- **`FileValidator` is unchanged,** for the model programs.
 
 ## Registering and running
 
 - **The root `CMakeLists.txt` calls `enable_testing()`,** and each test executable calls `doctest_discover_tests` with
-  its own directory as the working directory, its name as the prefix of each test case's name, and its labels. Stratum's
-  test executables have the label `stratum`.
+  its own directory as the working directory, its name and a colon as the prefix of each test case's name, and its
+  label: `stratum` for stratum's test executables, `mesh_operations` for the geometry and mesh file tests, and `quetzal`
+  for the other libraries' tests.
+- **Test cases that share output files run one at a time,** through a CTest resource lock, as `stratum_sim_test`'s
+  share `out/saves` and `out/working`.
 - **CTest runs each test case in a process of its own,** so an assert, an uncaught exception or a flecs abort fails that
   test case alone.
 - **CTest writes a line for each test case,** passed or failed, and the output of every test case to
@@ -94,7 +111,7 @@ namespace quetzal::testing
 
 ```
 ctest --test-dir build -C Debug -L stratum -j 8           every stratum test case
-ctest --test-dir build -C Debug -R "^stratum_sim_test: "   one test executable
+ctest --test-dir build -C Debug -R "^stratum_sim_test:"    one test executable
 ctest --test-dir build -C Debug -R "door"                  the test cases whose names match
 ```
 
@@ -102,7 +119,7 @@ From a test executable's own directory, doctest's filters select a test suite, t
 of a source file, and `--success` prints every passing check:
 
 ```
-../../bin/Debug/stratum_sim_test.exe -ts="doors"
+../../bin/Debug/stratum_sim_test.exe -ts="loading"
 ../../bin/Debug/stratum_sim_test.exe -tc="*locked*" --success
 ../../bin/Debug/stratum_sim_test.exe -sf="*relocation*"
 ../../bin/Debug/dungen_test.exe --update-references
@@ -112,9 +129,9 @@ of a source file, and `--success` prints every passing check:
 
 `main.cpp` becomes a source file for each area, all compiled into the one test executable `stratum_sim_test`, with the
 fixture and the helpers they share in `test_support.hpp` and `test_support.cpp`. doctest registers a test case from whichever source
-file defines it, so no file lists another's test cases.
+file defines it, so no file lists another's test cases. Each file is a test suite named for its area.
 
-| File | Test suites |
+| File | Test cases |
 | --- | --- |
 | `scheduling.cpp` | command queue, event queue, scheduler, clock, driver, commands |
 | `layout.cpp` | layout hierarchy, zone layout, rooms, grid, flats, blocking, movement, adjacency and sight, walk, polygon containment |

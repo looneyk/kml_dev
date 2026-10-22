@@ -68,6 +68,8 @@
 !/library/quetzal/stratum_view/**
 !/library/quetzal/svg/
 !/library/quetzal/svg/**
+!/library/quetzal/testing/
+!/library/quetzal/testing/**
 !/library/quetzal/triangulation/
 !/library/quetzal/triangulation/**
 !/library/quetzal/vulkan/

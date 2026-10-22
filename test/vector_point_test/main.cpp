@@ -10,12 +10,12 @@
 #include "quetzal/math/HomogeneousTraits.hpp"
 #include "quetzal/math/Vector.hpp"
 #include "quetzal/math/floating_point.hpp"
+#include "quetzal/testing/named_checks.hpp"
+#include <doctest/doctest.h>
 #include <algorithm>
 #include <array>
 #include <concepts>
-#include <exception>
 #include <format>
-#include <iostream>
 #include <span>
 #include <string>
 #include <type_traits>
@@ -26,53 +26,6 @@ using namespace quetzal;
 
 namespace
 {
-
-    static constexpr auto escape_reset_string = "\x1b[0m";
-    static constexpr auto escape_rendition_pattern = "\x1b[38;5;{}m";
-
-    size_t g_case_count = 0;
-    size_t g_failure_count = 0;
-
-    //--------------------------------------------------------------------------
-    void report_group(const string& name)
-    {
-        cout << name << endl;
-        return;
-    }
-
-    //--------------------------------------------------------------------------
-    void report_case(const string& name, bool b, const string& detail = {})
-    {
-        ++g_case_count;
-
-        if (b)
-        {
-            cout << format(escape_rendition_pattern, 34) << "    ok   " << escape_reset_string << name << endl;
-            return;
-        }
-
-        ++g_failure_count;
-        cout << format(escape_rendition_pattern, 196) << "    FAIL " << escape_reset_string << name;
-        if (!detail.empty())
-        {
-            cout << ": " << detail;
-        }
-        cout << endl;
-        return;
-    }
-
-    //--------------------------------------------------------------------------
-    int report_results()
-    {
-        if (g_failure_count == 0)
-        {
-            cout << format(escape_rendition_pattern, 34) << format("OK: {} cases", g_case_count) << escape_reset_string << endl;
-            return 0;
-        }
-
-        cout << format(escape_rendition_pattern, 196) << format("Error: {} of {} cases failed", g_failure_count, g_case_count) << escape_reset_string << endl;
-        return 1;
-    }
 
     //--------------------------------------------------------------------------
     using traits2_type = math::CartesianTraits<float, 2>;
@@ -122,346 +75,332 @@ namespace
     concept perpable = requires(const T& v) { perp(v); };
 
     //--------------------------------------------------------------------------
-    void test_construction()
+    TEST_CASE("construction")
     {
-        report_group("construction");
+        CHECK_CASE("a two dimensional vector takes two components", constructible_from<vector2_type, float, float>);
+        CHECK_CASE("and not three", !constructible_from<vector2_type, float, float, float>);
+        CHECK_CASE("and not four", !constructible_from<vector2_type, float, float, float, float>);
 
-        report_case("a two dimensional vector takes two components", constructible_from<vector2_type, float, float>);
-        report_case("and not three", !constructible_from<vector2_type, float, float, float>);
-        report_case("and not four", !constructible_from<vector2_type, float, float, float, float>);
+        CHECK_CASE("a three dimensional vector takes three components", constructible_from<vector3_type, float, float, float>);
+        CHECK_CASE("and not two", !constructible_from<vector3_type, float, float>);
+        CHECK_CASE("and not four", !constructible_from<vector3_type, float, float, float, float>);
 
-        report_case("a three dimensional vector takes three components", constructible_from<vector3_type, float, float, float>);
-        report_case("and not two", !constructible_from<vector3_type, float, float>);
-        report_case("and not four", !constructible_from<vector3_type, float, float, float, float>);
-
-        report_case("a four dimensional vector takes four components", constructible_from<vector4_type, float, float, float, float>);
-        report_case("and not three", !constructible_from<vector4_type, float, float, float>);
+        CHECK_CASE("a four dimensional vector takes four components", constructible_from<vector4_type, float, float, float, float>);
+        CHECK_CASE("and not three", !constructible_from<vector4_type, float, float, float>);
 
         // Each component converts on its own, so the arguments need not share a type
-        report_case("components may be given as mixed literals", constructible_from<vector3_type, float, int, double>);
-        report_case("a point takes them too", constructible_from<point3_type, float, int, double>);
-        report_case("with the values converted", vector3_type(1.0f, 2, 3.0) == vector3_type(1.0f, 2.0f, 3.0f));
+        CHECK_CASE("components may be given as mixed literals", constructible_from<vector3_type, float, int, double>);
+        CHECK_CASE("a point takes them too", constructible_from<point3_type, float, int, double>);
+        CHECK_CASE("with the values converted", vector3_type(1.0f, 2, 3.0) == vector3_type(1.0f, 2.0f, 3.0f));
 
         {
             vector3_type v;
-            report_case("a default vector is zero", v.zero());
+            CHECK_CASE("a default vector is zero", v.zero());
         }
 
         {
             vector3_type v(1.0f, 2.0f, 3.0f);
             vector3_type copy = v;
-            report_case("a copy holds the same components", copy == v);
+            CHECK_CASE("a copy holds the same components", copy == v);
         }
 
         {
             array<float, 3> a {1.0f, 2.0f, 3.0f};
             vector3_type v(a);
-            report_case("a vector reads its rep", v == vector3_type(1.0f, 2.0f, 3.0f));
+            CHECK_CASE("a vector reads its rep", v == vector3_type(1.0f, 2.0f, 3.0f));
         }
 
         {
             array<float, 3> a {4.0f, 5.0f, 6.0f};
             span<float, 3> s(a);
             vector3_type v(s);
-            report_case("a vector reads a span", v == vector3_type(4.0f, 5.0f, 6.0f));
+            CHECK_CASE("a vector reads a span", v == vector3_type(4.0f, 5.0f, 6.0f));
         }
 
         {
             vector<vector3_type> vs {{1.0f, 2.0f, 3.0f}, {4.0f, 5.0f, 6.0f}};
-            report_case("a container of vectors takes braced components", vs.size() == 2 && vs[1] == vector3_type(4.0f, 5.0f, 6.0f));
+            CHECK_CASE("a container of vectors takes braced components", vs.size() == 2 && vs[1] == vector3_type(4.0f, 5.0f, 6.0f));
         }
 
         {
             point3_type p(1.0f, 2.0f, 3.0f);
-            report_case("a point takes its components", p.x() == 1.0f && p.y() == 2.0f && p.z() == 3.0f);
+            CHECK_CASE("a point takes its components", p.x() == 1.0f && p.y() == 2.0f && p.z() == 3.0f);
         }
 
         {
             vector3_type v(1.0f, 2.0f, 3.0f);
             point3_type p(v);
-            report_case("a point is built from a vector", p.x() == 1.0f && p.z() == 3.0f);
+            CHECK_CASE("a point is built from a vector", p.x() == 1.0f && p.z() == 3.0f);
         }
 
-        report_case("the origin is zero", point3_type::origin().zero());
+        CHECK_CASE("the origin is zero", point3_type::origin().zero());
 
         return;
     }
 
     //--------------------------------------------------------------------------
-    void test_component_access()
+    TEST_CASE("component access")
     {
-        report_group("component access");
-
         {
             vector3_type v(1.0f, 2.0f, 3.0f);
-            report_case("indexing reads every component", v[0] == 1.0f && v[1] == 2.0f && v[2] == 3.0f);
-            report_case("the named accessors agree with indexing", v.x() == v[0] && v.y() == v[1] && v.z() == v[2]);
-            report_case("size reports the component count", v.size() == 3);
-            report_case("data addresses the first component", *v.data() == 1.0f);
+            CHECK_CASE("indexing reads every component", v[0] == 1.0f && v[1] == 2.0f && v[2] == 3.0f);
+            CHECK_CASE("the named accessors agree with indexing", v.x() == v[0] && v.y() == v[1] && v.z() == v[2]);
+            CHECK_CASE("size reports the component count", v.size() == 3);
+            CHECK_CASE("data addresses the first component", *v.data() == 1.0f);
         }
 
         {
             vector3_type v(1.0f, 2.0f, 3.0f);
             v[1] = 20.0f;
             v.set_z(30.0f);
-            report_case("indexing and the setters write", v == vector3_type(1.0f, 20.0f, 30.0f));
+            CHECK_CASE("indexing and the setters write", v == vector3_type(1.0f, 20.0f, 30.0f));
         }
 
         {
             vector3_type v(1.0f, 2.0f, 3.0f);
             v.set(4.0f, 5.0f, 6.0f);
-            report_case("set writes every component at once", v == vector3_type(4.0f, 5.0f, 6.0f));
+            CHECK_CASE("set writes every component at once", v == vector3_type(4.0f, 5.0f, 6.0f));
         }
 
         {
             vector3_type v(1.0f, 2.0f, 3.0f);
-            report_case("get reads by compile time index", v.get<2>() == 3.0f);
+            CHECK_CASE("get reads by compile time index", v.get<2>() == 3.0f);
         }
 
-        report_case("a two dimensional vector has no z", !has_set_z<vector2_type>);
-        report_case("a three dimensional vector has a z", has_set_z<vector3_type>);
-        report_case("and no w", !has_set_w<vector3_type>);
-        report_case("a four dimensional vector has a w", has_set_w<vector4_type>);
+        CHECK_CASE("a two dimensional vector has no z", !has_set_z<vector2_type>);
+        CHECK_CASE("a three dimensional vector has a z", has_set_z<vector3_type>);
+        CHECK_CASE("and no w", !has_set_w<vector3_type>);
+        CHECK_CASE("a four dimensional vector has a w", has_set_w<vector4_type>);
 
         {
             vector3_type v;
             v.clear();
-            report_case("clear zeroes every component", v.zero());
+            CHECK_CASE("clear zeroes every component", v.zero());
         }
 
         return;
     }
 
     //--------------------------------------------------------------------------
-    void test_vector_arithmetic()
+    TEST_CASE("vector arithmetic")
     {
-        report_group("vector arithmetic");
-
         const vector3_type a(1.0f, 2.0f, 3.0f);
         const vector3_type b(4.0f, 5.0f, 6.0f);
 
-        report_case("addition", a + b == vector3_type(5.0f, 7.0f, 9.0f));
-        report_case("subtraction", b - a == vector3_type(3.0f, 3.0f, 3.0f));
-        report_case("scaling on the right", a * 2.0f == vector3_type(2.0f, 4.0f, 6.0f));
-        report_case("scaling on the left", 2.0f * a == vector3_type(2.0f, 4.0f, 6.0f));
-        report_case("division", b / 2.0f == vector3_type(2.0f, 2.5f, 3.0f));
-        report_case("componentwise multiplication", a * b == vector3_type(4.0f, 10.0f, 18.0f));
-        report_case("unary minus", -a == vector3_type(-1.0f, -2.0f, -3.0f));
-        report_case("unary plus leaves it alone", +a == a);
+        CHECK_CASE("addition", a + b == vector3_type(5.0f, 7.0f, 9.0f));
+        CHECK_CASE("subtraction", b - a == vector3_type(3.0f, 3.0f, 3.0f));
+        CHECK_CASE("scaling on the right", a * 2.0f == vector3_type(2.0f, 4.0f, 6.0f));
+        CHECK_CASE("scaling on the left", 2.0f * a == vector3_type(2.0f, 4.0f, 6.0f));
+        CHECK_CASE("division", b / 2.0f == vector3_type(2.0f, 2.5f, 3.0f));
+        CHECK_CASE("componentwise multiplication", a * b == vector3_type(4.0f, 10.0f, 18.0f));
+        CHECK_CASE("unary minus", -a == vector3_type(-1.0f, -2.0f, -3.0f));
+        CHECK_CASE("unary plus leaves it alone", +a == a);
 
         {
             vector3_type v = a;
             v += b;
-            report_case("compound addition", v == a + b);
+            CHECK_CASE("compound addition", v == a + b);
         }
 
         {
             vector3_type v = b;
             v -= a;
-            report_case("compound subtraction", v == b - a);
+            CHECK_CASE("compound subtraction", v == b - a);
         }
 
         {
             vector3_type v = a;
             v *= 3.0f;
-            report_case("compound scaling", v == vector3_type(3.0f, 6.0f, 9.0f));
+            CHECK_CASE("compound scaling", v == vector3_type(3.0f, 6.0f, 9.0f));
         }
 
         {
             vector3_type v = a;
             v /= 2.0f;
-            report_case("compound division", v == vector3_type(0.5f, 1.0f, 1.5f));
+            CHECK_CASE("compound division", v == vector3_type(0.5f, 1.0f, 1.5f));
         }
 
-        report_case("equal vectors compare equal", a == vector3_type(1.0f, 2.0f, 3.0f));
-        report_case("different vectors do not", !(a == b));
+        CHECK_CASE("equal vectors compare equal", a == vector3_type(1.0f, 2.0f, 3.0f));
+        CHECK_CASE("different vectors do not", !(a == b));
 
         return;
     }
 
     //--------------------------------------------------------------------------
-    void test_vector_algebra()
+    TEST_CASE("vector algebra")
     {
-        report_group("vector algebra");
-
         const vector3_type v(3.0f, 4.0f, 0.0f);
 
-        report_case("norm", v.norm() == 5.0f);
-        report_case("norm squared avoids the root", v.norm_squared() == 25.0f);
-        report_case("a normalized vector is a unit vector", normalize(v).unit());
-        report_case("direction is the normalized vector", v.direction() == normalize(v));
-        report_case("a zero vector is zero", vector3_type().zero());
-        report_case("and a nonzero one is not", !v.zero());
-        report_case("the longest component is named", v.longest_component() == 1);
+        CHECK_CASE("norm", v.norm() == 5.0f);
+        CHECK_CASE("norm squared avoids the root", v.norm_squared() == 25.0f);
+        CHECK_CASE("a normalized vector is a unit vector", normalize(v).unit());
+        CHECK_CASE("direction is the normalized vector", v.direction() == normalize(v));
+        CHECK_CASE("a zero vector is zero", vector3_type().zero());
+        CHECK_CASE("and a nonzero one is not", !v.zero());
+        CHECK_CASE("the longest component is named", v.longest_component() == 1);
 
         {
             vector3_type u = v;
             u.normalize();
-            report_case("normalize in place", u.unit());
+            CHECK_CASE("normalize in place", u.unit());
         }
 
-        report_case("dot of perpendicular axes is zero", dot(vector3_type::x_direction(), vector3_type::y_direction()) == 0.0f);
-        report_case("dot of a unit axis with itself is one", dot(vector3_type::x_direction(), vector3_type::x_direction()) == 1.0f);
-        report_case("cross of x and y is z", cross(vector3_type::x_direction(), vector3_type::y_direction()) == vector3_type::z_direction());
-        report_case("cross is anticommutative",
+        CHECK_CASE("dot of perpendicular axes is zero", dot(vector3_type::x_direction(), vector3_type::y_direction()) == 0.0f);
+        CHECK_CASE("dot of a unit axis with itself is one", dot(vector3_type::x_direction(), vector3_type::x_direction()) == 1.0f);
+        CHECK_CASE("cross of x and y is z", cross(vector3_type::x_direction(), vector3_type::y_direction()) == vector3_type::z_direction());
+        CHECK_CASE("cross is anticommutative",
             cross(vector3_type::y_direction(), vector3_type::x_direction()) == -vector3_type::z_direction());
 
-        report_case("the axis directions are unit vectors",
+        CHECK_CASE("the axis directions are unit vectors",
             vector3_type::x_direction().unit() && vector3_type::y_direction().unit() && vector3_type::z_direction().unit());
-        report_case("direction by index agrees with the named form", vector3_type::direction(1) == vector3_type::y_direction());
+        CHECK_CASE("direction by index agrees with the named form", vector3_type::direction(1) == vector3_type::y_direction());
 
-        report_case("perpendicular axes report perpendicular", perpendicular(vector3_type::x_direction(), vector3_type::y_direction()));
-        report_case("parallel vectors report parallel", parallel(v, v * 2.0f));
-        report_case("perpendicular vectors are not parallel", !parallel(vector3_type::x_direction(), vector3_type::y_direction()));
+        CHECK_CASE("perpendicular axes report perpendicular", perpendicular(vector3_type::x_direction(), vector3_type::y_direction()));
+        CHECK_CASE("parallel vectors report parallel", parallel(v, v * 2.0f));
+        CHECK_CASE("perpendicular vectors are not parallel", !parallel(vector3_type::x_direction(), vector3_type::y_direction()));
 
         // perp and cross are each defined at one dimension only
-        report_case("cross is three dimensional", crossable<vector3_type> && !crossable<vector2_type>);
-        report_case("perp is two dimensional", perpable<vector2_type> && !perpable<vector3_type>);
+        CHECK_CASE("cross is three dimensional", crossable<vector3_type> && !crossable<vector2_type>);
+        CHECK_CASE("perp is two dimensional", perpable<vector2_type> && !perpable<vector3_type>);
 
         {
             vector2_type p = perp(vector2_type(1.0f, 0.0f));
-            report_case("perp turns a two dimensional vector a quarter turn", p == vector2_type(0.0f, 1.0f));
-            report_case("dot_perp of a vector with itself is zero", dot_perp(vector2_type(1.0f, 2.0f), vector2_type(1.0f, 2.0f)) == 0.0f);
+            CHECK_CASE("perp turns a two dimensional vector a quarter turn", p == vector2_type(0.0f, 1.0f));
+            CHECK_CASE("dot_perp of a vector with itself is zero", dot_perp(vector2_type(1.0f, 2.0f), vector2_type(1.0f, 2.0f)) == 0.0f);
         }
 
         return;
     }
 
     //--------------------------------------------------------------------------
-    void test_point_and_vector()
+    TEST_CASE("point and vector")
     {
-        report_group("point and vector");
-
         const point3_type p(1.0f, 2.0f, 3.0f);
         const point3_type q(4.0f, 6.0f, 8.0f);
         const vector3_type v(1.0f, 1.0f, 1.0f);
 
-        report_case("a point displaced by a vector is a point", p + v == point3_type(2.0f, 3.0f, 4.0f));
-        report_case("the displacement may come first", v + p == p + v);
-        report_case("a point less a vector is a point", p - v == point3_type(0.0f, 1.0f, 2.0f));
-        report_case("a point less a point is a vector", q - p == vector3_type(3.0f, 4.0f, 5.0f));
-        report_case("and its type is the vector type", is_same_v<decltype(q - p), vector3_type>);
+        CHECK_CASE("a point displaced by a vector is a point", p + v == point3_type(2.0f, 3.0f, 4.0f));
+        CHECK_CASE("the displacement may come first", v + p == p + v);
+        CHECK_CASE("a point less a vector is a point", p - v == point3_type(0.0f, 1.0f, 2.0f));
+        CHECK_CASE("a point less a point is a vector", q - p == vector3_type(3.0f, 4.0f, 5.0f));
+        CHECK_CASE("and its type is the vector type", is_same_v<decltype(q - p), vector3_type>);
 
-        report_case("two points do not add", !addable<point3_type>);
-        report_case("two vectors do", addable<vector3_type>);
-        report_case("a point takes a displacement", displaceable<point3_type, vector3_type>);
+        CHECK_CASE("two points do not add", !addable<point3_type>);
+        CHECK_CASE("two vectors do", addable<vector3_type>);
+        CHECK_CASE("a point takes a displacement", displaceable<point3_type, vector3_type>);
 
         {
             point3_type moved = p;
             moved += v;
-            report_case("compound displacement", moved == p + v);
+            CHECK_CASE("compound displacement", moved == p + v);
         }
 
         {
             point3_type moved = p + v;
             moved -= v;
-            report_case("and its inverse returns the point", moved == p);
+            CHECK_CASE("and its inverse returns the point", moved == p);
         }
 
-        report_case("scaling a position is scaling its coordinates", p * 2.0f == point3_type(2.0f, 4.0f, 6.0f));
-        report_case("to_vector is the displacement from the origin", to_vector(p) == vector3_type(1.0f, 2.0f, 3.0f));
+        CHECK_CASE("scaling a position is scaling its coordinates", p * 2.0f == point3_type(2.0f, 4.0f, 6.0f));
+        CHECK_CASE("to_vector is the displacement from the origin", to_vector(p) == vector3_type(1.0f, 2.0f, 3.0f));
         // to_vector is reachable by lookup on a Point, to_point is not: its argument is a
         // Vector, whose namespace is math rather than geometry
-        report_case("to_point is its inverse", geometry::to_point<traits3_type>(vector3_type(1.0f, 2.0f, 3.0f)) == p);
-        report_case("a point knows the vector to itself", p.vector() == to_vector(p));
+        CHECK_CASE("to_point is its inverse", geometry::to_point<traits3_type>(vector3_type(1.0f, 2.0f, 3.0f)) == p);
+        CHECK_CASE("a point knows the vector to itself", p.vector() == to_vector(p));
 
-        report_case("lerp at 0 is the first point", lerp(p, q, 0.0f) == p);
-        report_case("lerp at 1 is the second", lerp(p, q, 1.0f) == q);
-        report_case("and halfway is the midpoint", lerp(p, q, 0.5f) == point3_type(2.5f, 4.0f, 5.5f));
+        CHECK_CASE("lerp at 0 is the first point", lerp(p, q, 0.0f) == p);
+        CHECK_CASE("lerp at 1 is the second", lerp(p, q, 1.0f) == q);
+        CHECK_CASE("and halfway is the midpoint", lerp(p, q, 0.5f) == point3_type(2.5f, 4.0f, 5.5f));
 
-        report_case("min is componentwise", min(p, q) == p);
-        report_case("max is componentwise", max(p, q) == q);
+        CHECK_CASE("min is componentwise", min(p, q) == p);
+        CHECK_CASE("max is componentwise", max(p, q) == q);
 
-        report_case("equal points compare equal", p == point3_type(1.0f, 2.0f, 3.0f));
-        report_case("ordering runs by the highest component first", p < q);
+        CHECK_CASE("equal points compare equal", p == point3_type(1.0f, 2.0f, 3.0f));
+        CHECK_CASE("ordering runs by the highest component first", p < q);
 
-        report_case("all_less holds where every component is", all_less(p, q));
-        report_case("any_less holds where one is", any_less(p, point3_type(0.0f, 6.0f, 0.0f)));
+        CHECK_CASE("all_less holds where every component is", all_less(p, q));
+        CHECK_CASE("any_less holds where one is", any_less(p, point3_type(0.0f, 6.0f, 0.0f)));
 
         return;
     }
 
     //--------------------------------------------------------------------------
-    void test_homogeneous()
+    TEST_CASE("homogeneous coordinates")
     {
-        report_group("homogeneous coordinates");
-
-        report_case("the stored count exceeds the dimension",
+        CHECK_CASE("the stored count exceeds the dimension",
             homogeneous_traits_type::size == homogeneous_traits_type::dimension + 1);
-        report_case("a cartesian type stores its dimension", traits3_type::size == traits3_type::dimension);
+        CHECK_CASE("a cartesian type stores its dimension", traits3_type::size == traits3_type::dimension);
 
-        report_case("a homogeneous type has a weight", has_weight<homogeneous_vector_type>);
-        report_case("a cartesian type does not", !has_weight<vector3d_type>);
+        CHECK_CASE("a homogeneous type has a weight", has_weight<homogeneous_vector_type>);
+        CHECK_CASE("a cartesian type does not", !has_weight<vector3d_type>);
 
-        report_case("a homogeneous vector weighs 0", homogeneous_vector_type(1.0, 2.0, 3.0).weight() == 0.0);
-        report_case("a homogeneous point weighs 1", homogeneous_point_type(1.0, 2.0, 3.0).weight() == 1.0);
+        CHECK_CASE("a homogeneous vector weighs 0", homogeneous_vector_type(1.0, 2.0, 3.0).weight() == 0.0);
+        CHECK_CASE("a homogeneous point weighs 1", homogeneous_point_type(1.0, 2.0, 3.0).weight() == 1.0);
 
         {
             homogeneous_point_type p(6.0, -10.0, 14.0);
             p.rep()[3] = 2.0;
             p.projective_divide();
-            report_case("projective division reduces to a weight of 1", p.weight() == 1.0);
-            report_case("scaling the coordinates with it", p.x() == 3.0 && p.y() == -5.0 && p.z() == 7.0);
+            CHECK_CASE("projective division reduces to a weight of 1", p.weight() == 1.0);
+            CHECK_CASE("scaling the coordinates with it", p.x() == 3.0 && p.y() == -5.0 && p.z() == 7.0);
         }
 
         {
             homogeneous_point_type p(1.0, 2.0, 3.0);
             homogeneous_point_type q(4.0, 6.0, 8.0);
             auto d = q - p;
-            report_case("a difference of homogeneous points weighs 0", d.weight() == 0.0);
-            report_case("and holds the displacement", d.x() == 3.0 && d.y() == 4.0 && d.z() == 5.0);
+            CHECK_CASE("a difference of homogeneous points weighs 0", d.weight() == 0.0);
+            CHECK_CASE("and holds the displacement", d.x() == 3.0 && d.y() == 4.0 && d.z() == 5.0);
         }
 
         return;
     }
 
     //--------------------------------------------------------------------------
-    void test_structured_bindings()
+    TEST_CASE("structured bindings")
     {
-        report_group("structured bindings");
-
-        report_case("a cartesian vector binds its dimension", tuple_size_v<vector3d_type> == 3);
-        report_case("a homogeneous vector binds its weight as well", tuple_size_v<homogeneous_vector_type> == 4);
-        report_case("a cartesian point binds its dimension", tuple_size_v<point3d_type> == 3);
-        report_case("a homogeneous point binds its weight as well", tuple_size_v<homogeneous_point_type> == 4);
-        report_case("a discrete vector binds its dimension", tuple_size_v<discrete_vector_type> == 3);
-        report_case("a discrete point binds its dimension", tuple_size_v<discrete_point_type> == 3);
+        CHECK_CASE("a cartesian vector binds its dimension", tuple_size_v<vector3d_type> == 3);
+        CHECK_CASE("a homogeneous vector binds its weight as well", tuple_size_v<homogeneous_vector_type> == 4);
+        CHECK_CASE("a cartesian point binds its dimension", tuple_size_v<point3d_type> == 3);
+        CHECK_CASE("a homogeneous point binds its weight as well", tuple_size_v<homogeneous_point_type> == 4);
+        CHECK_CASE("a discrete vector binds its dimension", tuple_size_v<discrete_vector_type> == 3);
+        CHECK_CASE("a discrete point binds its dimension", tuple_size_v<discrete_point_type> == 3);
 
         {
             vector3d_type v(1.0, 2.0, 3.0);
             auto [x, y, z] = v;
-            report_case("a copy binds every component", x == 1.0 && y == 2.0 && z == 3.0);
+            CHECK_CASE("a copy binds every component", x == 1.0 && y == 2.0 && z == 3.0);
         }
 
         {
             vector3d_type v(1.0, 2.0, 3.0);
             auto& [x, y, z] = v;
             y = 20.0;
-            report_case("a reference binds the components themselves", v.y() == 20.0);
+            CHECK_CASE("a reference binds the components themselves", v.y() == 20.0);
         }
 
         {
             const point3d_type p(4.0, 5.0, 6.0);
             const auto& [x, y, z] = p;
-            report_case("a const reference reads every component", x == 4.0 && y == 5.0 && z == 6.0);
+            CHECK_CASE("a const reference reads every component", x == 4.0 && y == 5.0 && z == 6.0);
         }
 
         {
             homogeneous_vector_type v(7.0, 8.0, 9.0);
             auto [x, y, z, w] = v;
-            report_case("a homogeneous vector binds a weight of 0", x == 7.0 && z == 9.0 && w == 0.0);
+            CHECK_CASE("a homogeneous vector binds a weight of 0", x == 7.0 && z == 9.0 && w == 0.0);
         }
 
         {
             homogeneous_point_type p(7.0, 8.0, 9.0);
             auto [x, y, z, w] = p;
-            report_case("a homogeneous point binds a weight of 1", x == 7.0 && z == 9.0 && w == 1.0);
+            CHECK_CASE("a homogeneous point binds a weight of 1", x == 7.0 && z == 9.0 && w == 1.0);
         }
 
         {
             discrete_vector_type v(1L, 2L, 3L);
             auto [i, j, k] = v;
-            report_case("a discrete vector binds every component", i == 1L && j == 2L && k == 3L);
+            CHECK_CASE("a discrete vector binds every component", i == 1L && j == 2L && k == 3L);
         }
 
         return;
@@ -469,32 +408,30 @@ namespace
 
     //--------------------------------------------------------------------------
     // The order a discrete vector sorts in, which decides what a container of them holds
-    void test_discrete_vector_order()
+    TEST_CASE("discrete vector ordering")
     {
-        report_group("discrete vector ordering");
-
         using discrete_vector2_type = math::DiscreteVector<long, 2>;
         using discrete_vector4_type = math::DiscreteVector<long, 4>;
 
-        report_case("y outranks x", discrete_vector2_type(5L, 0L) < discrete_vector2_type(0L, 1L));
-        report_case("x decides where y is equal", discrete_vector2_type(1L, 7L) < discrete_vector2_type(2L, 7L));
-        report_case("z outranks y and x", discrete_vector_type(9L, 9L, 0L) < discrete_vector_type(0L, 0L, 1L));
-        report_case("y decides where z is equal", discrete_vector_type(9L, 5L, 3L) < discrete_vector_type(0L, 9L, 3L));
-        report_case("x decides where z and y are equal", discrete_vector_type(1L, 2L, 3L) < discrete_vector_type(2L, 2L, 3L));
-        report_case("w outranks z", discrete_vector4_type(9L, 9L, 9L, 0L) < discrete_vector4_type(0L, 0L, 0L, 1L));
+        CHECK_CASE("y outranks x", discrete_vector2_type(5L, 0L) < discrete_vector2_type(0L, 1L));
+        CHECK_CASE("x decides where y is equal", discrete_vector2_type(1L, 7L) < discrete_vector2_type(2L, 7L));
+        CHECK_CASE("z outranks y and x", discrete_vector_type(9L, 9L, 0L) < discrete_vector_type(0L, 0L, 1L));
+        CHECK_CASE("y decides where z is equal", discrete_vector_type(9L, 5L, 3L) < discrete_vector_type(0L, 9L, 3L));
+        CHECK_CASE("x decides where z and y are equal", discrete_vector_type(1L, 2L, 3L) < discrete_vector_type(2L, 2L, 3L));
+        CHECK_CASE("w outranks z", discrete_vector4_type(9L, 9L, 9L, 0L) < discrete_vector4_type(0L, 0L, 0L, 1L));
 
-        report_case("greater is the mirror of less", discrete_vector_type(0L, 0L, 1L) > discrete_vector_type(9L, 9L, 0L));
-        report_case("equal is neither less nor greater",
+        CHECK_CASE("greater is the mirror of less", discrete_vector_type(0L, 0L, 1L) > discrete_vector_type(9L, 9L, 0L));
+        CHECK_CASE("equal is neither less nor greater",
             !(discrete_vector_type(1L, 2L, 3L) < discrete_vector_type(1L, 2L, 3L))
             && !(discrete_vector_type(1L, 2L, 3L) > discrete_vector_type(1L, 2L, 3L)));
-        report_case("equal satisfies both inclusive forms",
+        CHECK_CASE("equal satisfies both inclusive forms",
             discrete_vector_type(1L, 2L, 3L) <= discrete_vector_type(1L, 2L, 3L)
             && discrete_vector_type(1L, 2L, 3L) >= discrete_vector_type(1L, 2L, 3L));
-        report_case("negatives order below positives", discrete_vector_type(0L, 0L, -1L) < discrete_vector_type(0L, 0L, 0L));
+        CHECK_CASE("negatives order below positives", discrete_vector_type(0L, 0L, -1L) < discrete_vector_type(0L, 0L, 0L));
 
-        report_case("equality holds", discrete_vector_type(1L, 2L, 3L) == discrete_vector_type(1L, 2L, 3L));
-        report_case("inequality holds", discrete_vector_type(1L, 2L, 3L) != discrete_vector_type(1L, 2L, 4L));
-        report_case("the comparison reports equivalence",
+        CHECK_CASE("equality holds", discrete_vector_type(1L, 2L, 3L) == discrete_vector_type(1L, 2L, 3L));
+        CHECK_CASE("inequality holds", discrete_vector_type(1L, 2L, 3L) != discrete_vector_type(1L, 2L, 4L));
+        CHECK_CASE("the comparison reports equivalence",
             (discrete_vector_type(1L, 2L, 3L) <=> discrete_vector_type(1L, 2L, 3L)) == strong_ordering::equal);
 
         {
@@ -504,7 +441,7 @@ namespace
                 discrete_vector_type(1L, 0L, 0L),
                 discrete_vector_type(0L, 0L, 1L)};
             sort(vs.begin(), vs.end());
-            report_case("a sort runs by z, then y, then x",
+            CHECK_CASE("a sort runs by z, then y, then x",
                 vs[0] == discrete_vector_type(1L, 0L, 0L)
                 && vs[1] == discrete_vector_type(0L, 1L, 0L)
                 && vs[2] == discrete_vector_type(0L, 0L, 1L)
@@ -516,67 +453,41 @@ namespace
 
     //--------------------------------------------------------------------------
     // The discrete pair keeps the same separation the floating point pair does, over a lattice
-    void test_discrete_point_and_vector()
+    TEST_CASE("discrete point and vector")
     {
-        report_group("discrete point and vector");
-
         const discrete_point_type p(1L, 2L, 3L);
         const discrete_vector_type v(1L, 1L, 1L);
 
-        report_case("a discrete point displaced by a discrete vector is a point",
+        CHECK_CASE("a discrete point displaced by a discrete vector is a point",
             is_same_v<decltype(p + v), discrete_point_type>);
 
         {
             discrete_point_type moved = p + v;
-            report_case("with the components summed", moved.x() == 2L && moved.y() == 3L && moved.z() == 4L);
+            CHECK_CASE("with the components summed", moved.x() == 2L && moved.y() == 3L && moved.z() == 4L);
         }
 
         {
             discrete_point_type moved = v + p;
-            report_case("the displacement may come first", moved.x() == 2L && moved.z() == 4L);
+            CHECK_CASE("the displacement may come first", moved.x() == 2L && moved.z() == 4L);
         }
 
         {
             discrete_point_type moved = p;
             moved += v;
-            report_case("compound displacement", moved.x() == 2L && moved.z() == 4L);
+            CHECK_CASE("compound displacement", moved.x() == 2L && moved.z() == 4L);
             moved -= v;
-            report_case("and its inverse returns the point", moved.x() == 1L && moved.z() == 3L);
+            CHECK_CASE("and its inverse returns the point", moved.x() == 1L && moved.z() == 3L);
         }
 
-        report_case("two discrete points do not add", !addable<discrete_point_type>);
-        report_case("two discrete vectors do", addable<discrete_vector_type>);
+        CHECK_CASE("two discrete points do not add", !addable<discrete_point_type>);
+        CHECK_CASE("two discrete vectors do", addable<discrete_vector_type>);
 
-        report_case("a discrete vector reduces to its longest axis",
+        CHECK_CASE("a discrete vector reduces to its longest axis",
             discrete_vector_type(1L, 5L, 2L).direction() == discrete_vector_type(0L, 1L, 0L));
-        report_case("keeping the sign", discrete_vector_type(0L, 0L, -9L).direction() == discrete_vector_type(0L, 0L, -1L));
-        report_case("a null vector has no direction", discrete_vector_type().direction().zero());
+        CHECK_CASE("keeping the sign", discrete_vector_type(0L, 0L, -9L).direction() == discrete_vector_type(0L, 0L, -1L));
+        CHECK_CASE("a null vector has no direction", discrete_vector_type().direction().zero());
 
         return;
     }
 
 } // namespace
-
-//------------------------------------------------------------------------------
-int main()
-{
-    try
-    {
-        test_construction();
-        test_component_access();
-        test_vector_arithmetic();
-        test_vector_algebra();
-        test_point_and_vector();
-        test_homogeneous();
-        test_structured_bindings();
-        test_discrete_vector_order();
-        test_discrete_point_and_vector();
-    }
-    catch (const exception& e)
-    {
-        cout << format(escape_rendition_pattern, 196) << "Error: " << escape_reset_string << e.what() << endl;
-        return 1;
-    }
-
-    return report_results();
-}

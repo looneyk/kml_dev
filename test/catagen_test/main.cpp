@@ -14,15 +14,17 @@
 #include "quetzal/stratum_format/references.hpp"
 #include "quetzal/stratum_format/RelocatorTarget.hpp"
 #include "quetzal/stratum_format/write_zone.hpp"
+#include "quetzal/testing/reference_files.hpp"
+#include <doctest/doctest.h>
 #include <nlohmann/json.hpp>
 #include <algorithm>
 #include <charconv>
 #include <filesystem>
 #include <format>
 #include <fstream>
-#include <iostream>
 #include <map>
 #include <optional>
+#include <set>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -36,14 +38,10 @@ using namespace quetzal;
 namespace
 {
 
-    static constexpr auto escape_reset_string = "\x1b[0m";
-    static constexpr auto escape_rendition_pattern = "\x1b[38;5;{}m";
-
     // Compares regardless of key order
     using map_type = nlohmann::json;
 
-    size_t g_case_count = 0;
-    size_t g_failure_count = 0;
+    constexpr catagen::Parameters::seed_type seed_count = 64;
 
     //--------------------------------------------------------------------------
     // Returns the wall an entity is sited on, or null if it is sited on a flat cell or on its parent
@@ -58,67 +56,17 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    void report_group(const string& name)
-    {
-        cout << name << endl;
-        return;
-    }
-
-    //--------------------------------------------------------------------------
-    void report_case(const string& name, bool b, const string& detail = {})
-    {
-        ++g_case_count;
-
-        if (b)
-        {
-            cout << format(escape_rendition_pattern, 34) << "    ok   " << escape_reset_string << name << endl;
-            return;
-        }
-
-        ++g_failure_count;
-        cout << format(escape_rendition_pattern, 196) << "    FAIL " << escape_reset_string << name;
-        if (!detail.empty())
-        {
-            cout << ": " << detail;
-        }
-        cout << endl;
-        return;
-    }
-
-    //--------------------------------------------------------------------------
-    void report_case_equal(const string& name, size_t value, size_t value_expected)
-    {
-        report_case(name, value == value_expected, format("expected {}, got {}", value_expected, value));
-        return;
-    }
-
-    //--------------------------------------------------------------------------
-    int report_results()
-    {
-        if (g_failure_count == 0)
-        {
-            cout << format(escape_rendition_pattern, 34) << format("OK: {} cases", g_case_count) << escape_reset_string << endl;
-            return 0;
-        }
-
-        cout << format(escape_rendition_pattern, 196) << format("Error: {} of {} cases failed", g_failure_count, g_case_count) << escape_reset_string << endl;
-        return 1;
-    }
-
-    //--------------------------------------------------------------------------
-    // A zone as the tool writes it, header and grid
     string zone_text(const catagen::Parameters& parameters, const string& name = {})
     {
         catagen::Zone zone = catagen::generate(name, parameters);
 
         ostringstream os;
         catagen::write_zone(os, zone, parameters);
-
         return os.str();
     }
 
     //--------------------------------------------------------------------------
-    void write_file(const string& filepath, const string& s)
+    void write_file(const filesystem::path& filepath, const string& s)
     {
         ofstream os(filepath, ios_base::binary);
         os << s;
@@ -126,7 +74,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    string read_file(const string& filepath)
+    string read_file(const filesystem::path& filepath)
     {
         ifstream is(filepath, ios_base::binary);
         string s;
@@ -139,6 +87,28 @@ namespace
         }
 
         return s;
+    }
+
+    //--------------------------------------------------------------------------
+    // Returns nothing if the two zone files are equivalent as parsed JSON, or the JSON patch from the reference to the file written
+    optional<string> compare_equivalent(const filesystem::path& out_filepath, const filesystem::path& reference_filepath)
+    {
+        try
+        {
+            map_type map = map_type::parse(read_file(out_filepath));
+            map_type map_expected = map_type::parse(read_file(reference_filepath));
+
+            if (map == map_expected)
+            {
+                return nullopt;
+            }
+
+            return map_type::diff(map_expected, map).dump();
+        }
+        catch (const map_type::parse_error& e)
+        {
+            return e.what();
+        }
     }
 
     //--------------------------------------------------------------------------
@@ -302,133 +272,12 @@ namespace
         wide.scale = {2, 5};
         wide.seed = 4294967295u;
         v.push_back({"wide_seed", "", wide});
-
         return v;
     }
 
     //--------------------------------------------------------------------------
-    // Zone files written now against those checked in, which must be equivalent
-    void test_reference_zones()
-    {
-        report_group("reference zones");
-
-        filesystem::create_directories("out");
-
-        for (const Scenario& scenario : scenarios())
-        {
-            string zone = zone_text(scenario.parameters, scenario.zone_name);
-            write_file(format("out/{}.zone", scenario.name), zone);
-
-            string reference = read_file(format("reference/{}.zone", scenario.name));
-            if (reference.empty())
-            {
-                report_case(format("{} is equivalent to its reference", scenario.name), false, "no reference is checked in");
-                continue;
-            }
-
-            try
-            {
-                map_type map = map_type::parse(zone);
-                map_type map_expected = map_type::parse(reference);
-                report_case(format("{} is equivalent to its reference", scenario.name), map == map_expected, map_type::diff(map_expected, map).dump());
-            }
-            catch (const map_type::parse_error& e)
-            {
-                report_case(format("{} is equivalent to its reference", scenario.name), false, e.what());
-            }
-        }
-
-        return;
-    }
-
-    //--------------------------------------------------------------------------
-    // A zone file has every parameter of its run, so it can be reproduced from the file alone
-    void test_parameters_reproduce()
-    {
-        report_group("parameters reproduce their zone");
-
-        for (const Scenario& scenario : scenarios())
-        {
-            string reference = read_file(format("reference/{}.zone", scenario.name));
-            report_case(format("{} is checked in", scenario.name), !reference.empty());
-
-            if (reference.empty())
-            {
-                continue;
-            }
-
-            try
-            {
-                // The name is the zone's, not a parameter of its run, so it is copied as the file wrote it
-                stratum_format::Document document = document_of(reference);
-                string name = document.components.is_object() ? document.components.value("name", string()) : string();
-
-                catagen::Parameters parameters = parameters_of(document.generator);
-                report_case(format("{} regenerates from its own parameters", scenario.name),
-                    map_type::parse(zone_text(parameters, name)) == map_type::parse(reference));
-            }
-            catch (const exception& e)
-            {
-                report_case(format("{} regenerates from its own parameters", scenario.name), false, e.what());
-            }
-        }
-
-        stratum_format::raw_values_type generator = document_of(zone_text(scenarios().front().parameters)).generator;
-        generator["parameters"]["unread"] = "1";
-
-        bool rejected = false;
-        try
-        {
-            parameters_of(generator);
-        }
-        catch (const invalid_argument&)
-        {
-            rejected = true;
-        }
-
-        report_case("a parameter this does not read is rejected", rejected);
-
-        // A level, when given, is written into the layout and the parameters both
-        catagen::Parameters leveled = scenarios().front().parameters;
-        leveled.level = 1;
-        stratum_format::Document leveled_document = document_of(zone_text(leveled));
-
-        report_case("a zone given a level has it in its layout", leveled_document.level == 1);
-        report_case("and in its parameters, from which it regenerates",
-            parameters_of(leveled_document.generator).level == 1 && document_of(zone_text(scenarios().front().parameters)).level == nullopt);
-
-        return;
-    }
-
-    //--------------------------------------------------------------------------
-    void test_zones_read()
-    {
-        report_group("zones the reader accepts");
-
-        for (const Scenario& scenario : scenarios())
-        {
-            try
-            {
-                string text = zone_text(scenario.parameters, scenario.zone_name);
-                stratum_format::Document document = document_of(text);
-                report_case(format("{} is a zone the reader accepts", scenario.name), true);
-
-                ostringstream os;
-                stratum_format::write(os, document);
-                report_case(format("{} reads back as the document built in memory", scenario.name), os.str() == text);
-            }
-            catch (const runtime_error& e)
-            {
-                report_case(format("{} is a zone the reader accepts", scenario.name), false, e.what());
-            }
-        }
-
-        return;
-    }
-
-    //--------------------------------------------------------------------------
     // Read from the written zone alone: one door entity per door glyph, its door facings on the walls of that doorway
-    // in the order door_walls returns them, and no door facing anywhere else
+    // in the order door_walls returns them
     bool doors_have_entities(const string& zone, string& detail)
     {
         stratum_format::Document document;
@@ -488,167 +337,6 @@ namespace
         }
 
         return true;
-    }
-
-    //--------------------------------------------------------------------------
-    void test_doors()
-    {
-        report_group("doors");
-
-        constexpr catagen::Parameters::seed_type seed_count = 64;
-
-        for (const Scenario& scenario : scenarios())
-        {
-            string detail;
-            report_case(format("{} writes a door entity at each door", scenario.name), doors_have_entities(zone_text(scenario.parameters), detail),
-                detail);
-        }
-
-        for (const Scenario& scenario : scenarios())
-        {
-            string detail;
-            size_t failures = 0;
-
-            for (catagen::Parameters::seed_type seed = 1; seed <= seed_count; ++seed)
-            {
-                catagen::Parameters parameters = scenario.parameters;
-                parameters.seed = seed;
-
-                string seed_detail;
-                string zone;
-
-                try
-                {
-                    zone = zone_text(parameters);
-                }
-                catch (const exception& e)
-                {
-                    seed_detail = e.what();
-                }
-
-                if (zone.empty() || !doors_have_entities(zone, seed_detail))
-                {
-                    if (failures == 0)
-                    {
-                        detail = format("seed {}, {}", seed, seed_detail);
-                    }
-
-                    ++failures;
-                }
-            }
-
-            report_case(format("{} writes a door entity at each door over {} seeds", scenario.name, seed_count), failures == 0,
-                format("{} seeds failed, first at {}", failures, detail));
-        }
-
-        return;
-    }
-
-    //--------------------------------------------------------------------------
-    void test_determinism()
-    {
-        report_group("determinism");
-
-        catagen::Parameters parameters;
-        parameters.extent = {16, 12};
-        parameters.seed = 7u;
-
-        report_case("one seed produces one zone", zone_text(parameters) == zone_text(parameters));
-
-        catagen::Parameters other = parameters;
-        other.seed = 8u;
-        report_case("and another seed produces another", zone_text(other) != zone_text(parameters));
-
-        stratum_format::Document named = document_of(zone_text(parameters, "Catacombs Level 1"));
-        stratum_format::Document unnamed = document_of(zone_text(parameters));
-        report_case("a Zone's name is written as the layout's name",
-            named.components.is_object() && named.components.value("name", string()) == "Catacombs Level 1");
-        report_case("an empty name is not written", !unnamed.components.is_object() || !unnamed.components.contains("name"));
-        report_case("and the name does not affect the grid", named.cells.rows == unnamed.cells.rows);
-
-        // Drawn from entropy
-        report_case("a random seed is not the same one every time",
-            catagen::random_seed() != catagen::random_seed());
-
-        return;
-    }
-
-    //--------------------------------------------------------------------------
-    void test_validate()
-    {
-        report_group("parameter validation");
-
-        auto rejected = [](const catagen::Parameters& parameters)
-        {
-            try
-            {
-                catagen::validate(parameters);
-            }
-            catch (const invalid_argument&)
-            {
-                return true;
-            }
-
-            return false;
-        };
-
-        catagen::Parameters parameters;
-        parameters.extent = {16, 12};
-        parameters.seed = 1u;
-        report_case("a sound set of parameters passes", !rejected(parameters));
-
-        catagen::Parameters seedless = parameters;
-        seedless.seed.reset();
-        report_case("no seed is rejected rather than quietly fixed", rejected(seedless));
-
-        catagen::Parameters inverted = parameters;
-        inverted.scale = {8, 4};
-        report_case("a scale range that runs backwards is rejected", rejected(inverted));
-
-        catagen::Parameters empty = parameters;
-        empty.extent = {0, 0};
-        report_case("an empty extent is rejected", rejected(empty));
-
-        return;
-    }
-
-    //--------------------------------------------------------------------------
-    // The grid alone, as write_grid emits it
-    void test_grid_shape()
-    {
-        report_group("grid shape");
-
-        catagen::Parameters parameters;
-        parameters.extent = {8, 6};
-        parameters.seed = 3u;
-
-        catagen::Zone zone = catagen::generate({}, parameters);
-
-        ostringstream os;
-        catagen::write_grid(os, zone);
-
-        vector<string> rows;
-        string row;
-        istringstream is(os.str());
-        while (getline(is, row))
-        {
-            rows.push_back(row);
-        }
-
-        // Walls fall between the cells, so the grid is two characters across per cell plus one
-        report_case_equal("a row per lattice position", rows.size(), 2 * 6 + 1);
-        report_case("and a column per lattice position",
-            !rows.empty() && rows.front().size() == 2 * 8 + 1);
-
-        bool ragged = false;
-        for (const string& r : rows)
-        {
-            ragged = ragged || r.size() != rows.front().size();
-        }
-
-        report_case("with no row trimmed", !ragged);
-
-        return;
     }
 
     //--------------------------------------------------------------------------
@@ -863,132 +551,380 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    void test_staircases()
+    catagen::Parameters sound_parameters()
     {
-        report_group("staircases");
+        catagen::Parameters parameters;
+        parameters.extent = {16, 12};
+        parameters.seed = 1u;
+        return parameters;
+    }
 
-        constexpr catagen::Parameters::seed_type seed_count = 64;
+    //--------------------------------------------------------------------------
+    // The grid alone, as write_grid emits it
+    vector<string> grid_rows()
+    {
+        catagen::Parameters parameters;
+        parameters.extent = {8, 6};
+        parameters.seed = 3u;
 
-        for (const Scenario& scenario : scenarios())
+        catagen::Zone zone = catagen::generate({}, parameters);
+
+        ostringstream os;
+        catagen::write_grid(os, zone);
+
+        vector<string> rows;
+        string row;
+        istringstream is(os.str());
+        while (getline(is, row))
         {
-            string detail;
-            report_case(format("{} places and faces its staircases", scenario.name),
-                staircases_placed_and_faced(zone_text(scenario.parameters), scenario.parameters, detail), detail);
+            rows.push_back(row);
         }
 
-        for (const Scenario& scenario : scenarios())
-        {
-            string detail;
-            size_t failures = 0;
-
-            for (catagen::Parameters::seed_type seed = 1; seed <= seed_count; ++seed)
-            {
-                catagen::Parameters parameters = scenario.parameters;
-                parameters.seed = seed;
-                parameters.staircase_down_count = {0, 2};
-                parameters.staircase_up_count = {1, 3};
-
-                string seed_detail;
-                string zone;
-
-                try
-                {
-                    zone = zone_text(parameters);
-                }
-                catch (const exception& e)
-                {
-                    seed_detail = e.what();
-                }
-
-                if (zone.empty() || !staircases_placed_and_faced(zone, parameters, seed_detail))
-                {
-                    if (failures == 0)
-                    {
-                        detail = format("seed {}, {}", seed, seed_detail);
-                    }
-
-                    ++failures;
-                }
-            }
-
-            report_case(format("{} places and faces ranges of staircases over {} seeds", scenario.name, seed_count), failures == 0,
-                format("{} seeds failed, first at {}", failures, detail));
-        }
-
-        catagen::Parameters reversed;
-        reversed.seed = 1u;
-        reversed.staircase_up_count = {2, 1};
-
-        bool rejected = false;
-        try
-        {
-            catagen::validate(reversed);
-        }
-        catch (const invalid_argument&)
-        {
-            rejected = true;
-        }
-
-        report_case("a staircase count whose maximum is below its minimum is rejected", rejected);
-
-        catagen::Parameters entryless;
-        entryless.seed = 1u;
-        entryless.staircase_down_count = {0, 1};
-        entryless.staircase_up_count = {0, 1};
-
-        rejected = false;
-        try
-        {
-            catagen::validate(entryless);
-        }
-        catch (const invalid_argument&)
-        {
-            rejected = true;
-        }
-
-        report_case("staircase counts that may both be zero, leaving no entry, are rejected", rejected);
-
-        catagen::Parameters down_only;
-        down_only.seed = 1u;
-        down_only.staircase_down_count = {1, 1};
-        down_only.staircase_up_count = {0, 0};
-
-        rejected = false;
-        try
-        {
-            catagen::validate(down_only);
-        }
-        catch (const invalid_argument&)
-        {
-            rejected = true;
-        }
-
-        report_case("a staircase down alone is rejected, a dungeon zone needing one leading up", rejected);
-
-        return;
+        return rows;
     }
 
 } // namespace
 
 //------------------------------------------------------------------------------
-int main()
+// Zone files written now against those checked in, which must be equivalent
+TEST_SUITE("reference zones")
 {
-    try
+    TEST_CASE("each scenario's zone is equivalent to its reference")
     {
-        test_reference_zones();
-        test_parameters_reproduce();
-        test_zones_read();
-        test_determinism();
-        test_validate();
-        test_grid_shape();
-        test_doors();
-        test_staircases();
+        filesystem::create_directories(testing::out_directory);
+
+        for (const Scenario& scenario : scenarios())
+        {
+            SUBCASE(format("{} is equivalent to its reference", scenario.name))
+            {
+                const string filename = scenario.name + ".zone";
+                write_file(testing::out_directory / filename, zone_text(scenario.parameters, scenario.zone_name));
+                testing::check_reference(filename, compare_equivalent);
+            }
+        }
+
+        return;
     }
-    catch (const exception& e)
+}
+
+//------------------------------------------------------------------------------
+// A zone file has every parameter of its run, so it can be reproduced from the file alone
+TEST_SUITE("parameters reproduce their zone")
+{
+    TEST_CASE("each scenario regenerates from its own parameters")
     {
-        cout << format(escape_rendition_pattern, 196) << "Error: " << escape_reset_string << e.what() << endl;
-        return 1;
+        for (const Scenario& scenario : scenarios())
+        {
+            SUBCASE(format("{} regenerates from its own parameters", scenario.name))
+            {
+                string reference = read_file(testing::reference_directory / (scenario.name + ".zone"));
+                REQUIRE_MESSAGE(!reference.empty(), format("{} is checked in", scenario.name));
+
+                // The name is the zone's, not a parameter of its run, so it is copied as the file wrote it
+                stratum_format::Document document = document_of(reference);
+                string name = document.components.is_object() ? document.components.value("name", string()) : string();
+
+                map_type difference = map_type::diff(map_type::parse(reference), map_type::parse(zone_text(parameters_of(document.generator), name)));
+                CHECK_MESSAGE(difference.empty(), difference.dump());
+            }
+        }
+
+        return;
     }
 
-    return report_results();
+    TEST_CASE("a parameter this does not read is rejected")
+    {
+        stratum_format::raw_values_type generator = document_of(zone_text(scenarios().front().parameters)).generator;
+        generator["parameters"]["unread"] = "1";
+
+        CHECK_THROWS_AS(parameters_of(generator), invalid_argument);
+        return;
+    }
+
+    TEST_CASE("a zone given a level has it in its layout and its parameters, from which it regenerates")
+    {
+        catagen::Parameters leveled = scenarios().front().parameters;
+        leveled.level = 1;
+        stratum_format::Document leveled_document = document_of(zone_text(leveled));
+
+        CHECK_MESSAGE((leveled_document.level == 1), "a zone given a level has it in its layout");
+        CHECK_MESSAGE((parameters_of(leveled_document.generator).level == 1), "and in its parameters, from which it regenerates");
+        CHECK_MESSAGE(!document_of(zone_text(scenarios().front().parameters)).level.has_value(), "a zone given no level has none");
+        return;
+    }
+}
+
+//------------------------------------------------------------------------------
+TEST_SUITE("zones the reader accepts")
+{
+    TEST_CASE("each scenario's zone is accepted and reads back as the document built in memory")
+    {
+        for (const Scenario& scenario : scenarios())
+        {
+            SUBCASE(format("{} is a zone the reader accepts", scenario.name))
+            {
+                string text = zone_text(scenario.parameters, scenario.zone_name);
+                stratum_format::Document document;
+                REQUIRE_NOTHROW(document = document_of(text));
+
+                ostringstream os;
+                stratum_format::write(os, document);
+                CHECK_MESSAGE(os.str() == text, format("{} reads back as the document built in memory", scenario.name));
+            }
+        }
+
+        return;
+    }
+}
+
+//------------------------------------------------------------------------------
+TEST_SUITE("determinism")
+{
+    TEST_CASE("one seed produces one zone")
+    {
+        catagen::Parameters parameters = sound_parameters();
+        parameters.seed = 7u;
+
+        CHECK(zone_text(parameters) == zone_text(parameters));
+        return;
+    }
+
+    TEST_CASE("another seed produces another zone")
+    {
+        catagen::Parameters parameters = sound_parameters();
+        parameters.seed = 7u;
+        catagen::Parameters other = parameters;
+        other.seed = 8u;
+
+        CHECK(zone_text(other) != zone_text(parameters));
+        return;
+    }
+
+    TEST_CASE("a Zone's name is written as the layout's name")
+    {
+        stratum_format::Document named = document_of(zone_text(sound_parameters(), "Catacombs Level 1"));
+
+        CHECK(named.components.is_object());
+        CHECK(named.components.value("name", string()) == "Catacombs Level 1");
+        return;
+    }
+
+    TEST_CASE("an empty name is not written")
+    {
+        stratum_format::Document unnamed = document_of(zone_text(sound_parameters()));
+
+        CHECK((!unnamed.components.is_object() || !unnamed.components.contains("name")));
+        return;
+    }
+
+    TEST_CASE("the name does not affect the grid")
+    {
+        stratum_format::Document named = document_of(zone_text(sound_parameters(), "Catacombs Level 1"));
+        stratum_format::Document unnamed = document_of(zone_text(sound_parameters()));
+
+        CHECK(named.cells.rows == unnamed.cells.rows);
+        return;
+    }
+
+    // Drawn from entropy
+    TEST_CASE("a random seed is not the same one every time")
+    {
+        CHECK(catagen::random_seed() != catagen::random_seed());
+        return;
+    }
+}
+
+//------------------------------------------------------------------------------
+TEST_SUITE("parameter validation")
+{
+    TEST_CASE("a sound set of parameters passes")
+    {
+        CHECK_NOTHROW(catagen::validate(sound_parameters()));
+        return;
+    }
+
+    TEST_CASE("no seed is rejected rather than quietly fixed")
+    {
+        catagen::Parameters seedless = sound_parameters();
+        seedless.seed.reset();
+
+        CHECK_THROWS_AS(catagen::validate(seedless), invalid_argument);
+        return;
+    }
+
+    TEST_CASE("a scale range that runs backwards is rejected")
+    {
+        catagen::Parameters inverted = sound_parameters();
+        inverted.scale = {8, 4};
+
+        CHECK_THROWS_AS(catagen::validate(inverted), invalid_argument);
+        return;
+    }
+
+    TEST_CASE("an empty extent is rejected")
+    {
+        catagen::Parameters empty = sound_parameters();
+        empty.extent = {0, 0};
+
+        CHECK_THROWS_AS(catagen::validate(empty), invalid_argument);
+        return;
+    }
+}
+
+//------------------------------------------------------------------------------
+// Walls fall between the cells, so the grid is two characters across per cell plus one
+TEST_SUITE("grid dimensions")
+{
+    TEST_CASE("the grid has a row per lattice position")
+    {
+        CHECK(grid_rows().size() == size_t(2 * 6 + 1));
+        return;
+    }
+
+    TEST_CASE("the grid has a column per lattice position")
+    {
+        vector<string> rows = grid_rows();
+
+        REQUIRE(!rows.empty());
+        CHECK(rows.front().size() == size_t(2 * 8 + 1));
+        return;
+    }
+
+    TEST_CASE("no row of the grid is trimmed")
+    {
+        vector<string> rows = grid_rows();
+
+        CHECK(all_of(rows.begin(), rows.end(), [&rows](const string& row) { return row.size() == rows.front().size(); }));
+        return;
+    }
+}
+
+//------------------------------------------------------------------------------
+TEST_SUITE("doors")
+{
+    TEST_CASE("each scenario writes a door entity at each door")
+    {
+        for (const Scenario& scenario : scenarios())
+        {
+            SUBCASE(format("{} writes a door entity at each door", scenario.name))
+            {
+                string detail;
+                bool written = doors_have_entities(zone_text(scenario.parameters), detail);
+                CHECK_MESSAGE(written, detail);
+            }
+        }
+
+        return;
+    }
+
+    TEST_CASE("each scenario writes a door entity at each door over a sweep of seeds")
+    {
+        for (const Scenario& scenario : scenarios())
+        {
+            SUBCASE(format("{} writes a door entity at each door over {} seeds", scenario.name, seed_count))
+            {
+                for (catagen::Parameters::seed_type seed = 1; seed <= seed_count; ++seed)
+                {
+                    CAPTURE(seed);
+                    catagen::Parameters parameters = scenario.parameters;
+                    parameters.seed = seed;
+
+                    string zone;
+                    CHECK_NOTHROW(zone = zone_text(parameters));
+                    if (zone.empty())
+                    {
+                        continue;
+                    }
+
+                    string detail;
+                    bool written = doors_have_entities(zone, detail);
+                    CHECK_MESSAGE(written, detail);
+                }
+            }
+        }
+
+        return;
+    }
+}
+
+//------------------------------------------------------------------------------
+TEST_SUITE("staircases")
+{
+    TEST_CASE("each scenario places and faces its staircases")
+    {
+        for (const Scenario& scenario : scenarios())
+        {
+            SUBCASE(format("{} places and faces its staircases", scenario.name))
+            {
+                string detail;
+                bool placed = staircases_placed_and_faced(zone_text(scenario.parameters), scenario.parameters, detail);
+                CHECK_MESSAGE(placed, detail);
+            }
+        }
+
+        return;
+    }
+
+    TEST_CASE("each scenario places and faces ranges of staircases over a sweep of seeds")
+    {
+        for (const Scenario& scenario : scenarios())
+        {
+            SUBCASE(format("{} places and faces ranges of staircases over {} seeds", scenario.name, seed_count))
+            {
+                for (catagen::Parameters::seed_type seed = 1; seed <= seed_count; ++seed)
+                {
+                    CAPTURE(seed);
+                    catagen::Parameters parameters = scenario.parameters;
+                    parameters.seed = seed;
+                    parameters.staircase_down_count = {0, 2};
+                    parameters.staircase_up_count = {1, 3};
+
+                    string zone;
+                    CHECK_NOTHROW(zone = zone_text(parameters));
+                    if (zone.empty())
+                    {
+                        continue;
+                    }
+
+                    string detail;
+                    bool placed = staircases_placed_and_faced(zone, parameters, detail);
+                    CHECK_MESSAGE(placed, detail);
+                }
+            }
+        }
+
+        return;
+    }
+
+    TEST_CASE("a staircase count whose maximum is below its minimum is rejected")
+    {
+        catagen::Parameters reversed;
+        reversed.seed = 1u;
+        reversed.staircase_up_count = {2, 1};
+
+        CHECK_THROWS_AS(catagen::validate(reversed), invalid_argument);
+        return;
+    }
+
+    TEST_CASE("staircase counts that may both be zero, leaving no entry, are rejected")
+    {
+        catagen::Parameters entryless;
+        entryless.seed = 1u;
+        entryless.staircase_down_count = {0, 1};
+        entryless.staircase_up_count = {0, 1};
+
+        CHECK_THROWS_AS(catagen::validate(entryless), invalid_argument);
+        return;
+    }
+
+    TEST_CASE("a staircase down alone is rejected, a dungeon zone needing one leading up")
+    {
+        catagen::Parameters down_only;
+        down_only.seed = 1u;
+        down_only.staircase_down_count = {1, 1};
+        down_only.staircase_up_count = {0, 0};
+
+        CHECK_THROWS_AS(catagen::validate(down_only), invalid_argument);
+        return;
+    }
 }

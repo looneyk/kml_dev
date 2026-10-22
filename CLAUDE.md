@@ -49,6 +49,16 @@ repository root:
 byte, and the generator test executables that level files are equivalent to theirs, so an unintended change shows
 up as a mismatch rather than a failed assertion.
 
+Every test executable is written in doctest (`doc/testing_plan.md`) and registered with CTest, which runs each test case
+from the test executable's directory. The labels are `stratum`, `mesh_operations` and `quetzal`:
+
+    ctest --test-dir build -C Debug -j 8
+    ctest --test-dir build -C Debug -L stratum -j 8
+    ctest --test-dir build -C Debug -R "^catagen_test:"
+
+Run directly, a test executable takes doctest's filters, such as `-ts="loading"` for a test suite and `-tc="*seed*"` for
+test cases, and `--update-references` copies each file it writes to `out/` over its reference.
+
 ## Conventions
 
 - **Braces on their own line** (Allman), 4-space indentation, pointers aligned to type (`int* ptr`).

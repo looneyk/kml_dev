@@ -97,6 +97,7 @@ inline void quetzal::math::Xoshiro256StarStar::seed(result_type seed)
     {
         word = detail::splitmix64(seed);
     }
+    return;
 }
 
 //------------------------------------------------------------------------------
