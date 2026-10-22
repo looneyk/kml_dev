@@ -68,7 +68,7 @@ zone file, and **`write_grid`** writes only its rows.
 
 ## The algorithm
 
-One `math::Random<>` is seeded from `Parameters::seed`, and every pass draws from it in a fixed order, so the run is
+One `math::Random` over the portable random engine is seeded from `Parameters::seed`, and every pass draws from it in a fixed order, so the run is
 determined by its parameters.
 
 **1. Partition.** The extent is split recursively along its longer side while a side exceeds the scale maximum and

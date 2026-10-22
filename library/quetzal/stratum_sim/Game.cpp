@@ -172,8 +172,8 @@ void quetzal::stratum_sim::Game::create(const RegionSpec& region_spec, const Cha
     clear();
 
     m_counting_id_allocator = CountingIdAllocator(PersistentId {});
-    m_seed = std::random_device {}();
-    m_random.engine().seed(m_seed);
+    m_seed = math::random_seed();
+    m_random.seed(m_seed);
 
     clear_working_directory(m_config);
     std::filesystem::path game_directory = create_game_directory(m_config, character_spec.name);
@@ -259,8 +259,8 @@ void quetzal::stratum_sim::Game::restore_game_state(const std::filesystem::path&
 
     if (settings::store().value<bool>(reseed_on_open_key))
     {
-        m_seed = std::random_device {}();
-        m_random.engine().seed(m_seed);
+        m_seed = math::random_seed();
+        m_random.seed(m_seed);
         return;
     }
 

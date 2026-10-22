@@ -9,14 +9,13 @@ open items are in `work_plan.md` (`### Random engine`).
 
 ## Where it is now
 
-- **`Game` owns the gameplay random engine,** a `math::Random<>` seeded from `std::random_device`, and `World` takes it
-  by reference in its constructor, though nothing draws from it yet. The seed is neither passed in nor logged.
-- **dungen and catagen each seed one `math::Random<>` per run** from `Parameters::seed`, and pass it by reference from
+- **`Game` owns the gameplay random engine,** a `math::Random` seeded from `math::random_seed`, and `World` takes it by
+  reference in its constructor, though nothing draws from it yet. The seed is neither passed in nor logged.
+- **dungen and catagen each seed one `math::Random` per run** from `Parameters::seed`, and pass it by reference from
   one function to the next.
 - **A region's generator is given the level of the zone it makes,** as `ZoneLevel`, and no seed.
-- **`math::Random<>` uses `std::default_random_engine`,** which is implementation-defined: MSVC's is `mt19937` and
-  libstdc++'s is `minstd_rand0`. The standard distributions are implementation-defined too, so one seed makes different
-  zones with different standard libraries.
+- **The random engine type is chosen** (`## The random engine type`): xoshiro256**, with `math::Random`'s own
+  distributions and shuffle, so one seed makes the same zones with every standard library.
 - **The other documents state goals and no mechanism.** `game_system_principles.md` (Phase 5) calls for hierarchical
   seeding, `sim_zone_model.md` counts RNG streams as world state, and `placement_plan.md` passes placement a random engine
   without stating which one.
@@ -132,8 +131,9 @@ engine type`), and a seed stored with the version of the generators that made it
 - **The random engine is named explicitly** in place of `std::default_random_engine`, so one seed makes one sequence
   on every standard library. One alias in `quetzal/math`, `portable_random_engine_type`, is the chosen random engine,
   and stratum's `random_type`, dungen's and catagen's are each `math::Random<math::portable_random_engine_type>`, so
-  changing the random engine changes that alias alone. `math::Random`'s own default, which other projects use, is
-  unchanged. Changing the random engine changes the generators' output, so their reference files are regenerated.
+  changing the random engine changes that alias alone. It is also `math::Random`'s default, since its distributions
+  require a 64-bit random engine that uses its whole range. Changing the random engine changes the generators' output,
+  so their reference files are regenerated.
 - **An expectation written into a test from one seed's outcome changes with the random engine,** such as
   `stratum_sim_test`'s "At this seed the door is in the top row of the shared wall", and is rewritten by hand, unlike a
   reference file. A check of a property that holds for any seed, or a reference file, needs no rewriting.
@@ -153,7 +153,7 @@ engine type`), and a seed stored with the version of the generators that made it
 | PCG (pcg64, or pcg32 with 8 bytes of state) | 16 bytes | Seeded directly; the saved state is two numbers | The header-only pcg-cpp library, or a short implementation of its own; Godot and DCSS use PCG |
 | Jenkins small fast (jsf64) | 4 words, 32 bytes | Seeded directly; the saved state is four numbers | About 15 lines of public-domain code; Brogue uses it |
 
-- **xoshiro256** is recommended.** A generation run seeds a new random engine, and a retry another, so seeding cost and
+- **xoshiro256** is the random engine.** A generation run seeds a new random engine, and a retry another, so seeding cost and
   state size count, and each of the game's random engines has its state saved with every save. `std::mt19937_64` is
   the heaviest at both. The three small random engines are close; xoshiro256** needs no library, and its reference
   implementation fixes its output on every platform. Each of them meets the standard's uniform random bit generator

@@ -146,8 +146,7 @@ namespace
 //------------------------------------------------------------------------------
 quetzal::dungen::Parameters::seed_type quetzal::dungen::random_seed()
 {
-    random_device rd;
-    return static_cast<Parameters::seed_type>(rd());
+    return math::random_seed();
 }
 
 //------------------------------------------------------------------------------

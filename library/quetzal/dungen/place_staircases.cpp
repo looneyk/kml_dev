@@ -24,7 +24,7 @@ namespace
     // A range of one value draws nothing, so a fixed count leaves every later draw unchanged
     size_t draw_count(const quetzal::math::Interval<size_t>& count, random_type& random)
     {
-        return count.lower() == count.upper() ? count.lower() : random.random(count.lower(), count.upper());
+        return count.lower() == count.upper() ? count.lower() : random.random_closed(count.lower(), count.upper());
     }
 
     //--------------------------------------------------------------------------

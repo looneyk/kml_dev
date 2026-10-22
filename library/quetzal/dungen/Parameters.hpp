@@ -8,8 +8,8 @@
 #include "Algorithm.hpp"
 #include "types.hpp"
 #include "quetzal/math/Interval.hpp"
+#include "quetzal/math/Random.hpp"
 #include <optional>
-#include <random>
 #include <cstddef>
 
 namespace quetzal::dungen
@@ -70,7 +70,7 @@ namespace quetzal::dungen
     // algorithm's group is read
     struct Parameters
     {
-        using seed_type = std::default_random_engine::result_type;
+        using seed_type = math::portable_random_engine_type::result_type;
 
         Algorithm algorithm = Algorithm::Maze1;
         vector_type extent {32, 32};

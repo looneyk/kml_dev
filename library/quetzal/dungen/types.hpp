@@ -22,7 +22,7 @@ namespace quetzal::dungen
     using vector_type = point_type::vector_type;
     using box_type = geometry::DiscreteBox<coord_type, 2>;
     using directed_point_type = geometry::DiscreteDirectedPoint<coord_type, 2>;
-    using random_type = math::Random<>;
+    using random_type = math::Random<math::portable_random_engine_type>;
 
     // A zone's position relative to the surface: 0 at the surface, negative going down and positive going up
     using level_type = std::int32_t;

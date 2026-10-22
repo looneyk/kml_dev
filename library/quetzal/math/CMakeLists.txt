@@ -16,6 +16,7 @@ add_library(quetzal_math STATIC
     spherical_harmonics.hpp
     Vector.hpp
     vector_util.hpp
+    Xoshiro256StarStar.hpp
 )
 
 set_property(TARGET quetzal_math PROPERTY FOLDER "library")

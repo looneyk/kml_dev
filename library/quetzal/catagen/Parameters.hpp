@@ -7,8 +7,8 @@
 
 #include "types.hpp"
 #include "quetzal/math/Interval.hpp"
+#include "quetzal/math/Random.hpp"
 #include <optional>
-#include <random>
 #include <cstddef>
 
 namespace quetzal::catagen
@@ -18,7 +18,7 @@ namespace quetzal::catagen
     // The generation parameters of one run, written into the zone file so the zone can be reproduced
     struct Parameters
     {
-        using seed_type = std::default_random_engine::result_type;
+        using seed_type = math::portable_random_engine_type::result_type;
 
         vector_type extent {48, 32}; // The size of the zone, in cells
 

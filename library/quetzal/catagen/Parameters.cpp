@@ -12,8 +12,7 @@ using namespace std;
 //------------------------------------------------------------------------------
 quetzal::catagen::Parameters::seed_type quetzal::catagen::random_seed()
 {
-    random_device rd;
-    return static_cast<Parameters::seed_type>(rd());
+    return math::random_seed();
 }
 
 //------------------------------------------------------------------------------

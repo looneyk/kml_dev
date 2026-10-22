@@ -5,10 +5,13 @@
 // Random.hpp
 //------------------------------------------------------------------------------
 
+#include "Xoshiro256StarStar.hpp"
 #include <algorithm>
-#include <array>
 #include <cassert>
 #include <charconv>
+#include <cmath>
+#include <concepts>
+#include <cstdint>
 #include <format>
 #include <iterator>
 #include <limits>
@@ -21,33 +24,53 @@
 namespace quetzal::math
 {
 
+    using portable_random_engine_type = Xoshiro256StarStar;
+
     //--------------------------------------------------------------------------
-    template<typename E = std::default_random_engine>
+    template<typename E = portable_random_engine_type>
     class Random
     {
+        static_assert(E::min() == 0 && E::max() == std::numeric_limits<std::uint64_t>::max(), "Random draws 64 uniform bits from its random engine");
+
     public:
 
         Random();
         explicit Random(E::result_type seed);
         Random(const Random&) = delete;
+        Random(Random&&) = default;
         ~Random() = default;
 
         Random& operator=(const Random&) = delete;
+        Random& operator=(Random&&) = default;
+
+        void seed(E::result_type value);
 
         // Uniform distributions
         double random(); // [0, 1)
 
-        template<typename T> requires std::is_integral_v<T>
+        template<std::integral T>
         T random(T n); // [0, n)
 
-        template<typename T> requires std::is_floating_point_v<T>
+        template<std::floating_point T>
         T random(T n); // [0, n)
 
-        template<typename T> requires std::is_integral_v<T>
-        T random(T first, T last); // [first, last]
-
-        template<typename T> requires std::is_floating_point_v<T>
+        template<std::integral T>
         T random(T first, T last); // [first, last)
+
+        template<std::floating_point T>
+        T random(T first, T last); // [first, last)
+
+        template<std::integral T>
+        T random_closed(T n); // [0, n]
+
+        template<std::floating_point T>
+        T random_closed(T n); // [0, n]
+
+        template<std::integral T>
+        T random_closed(T first, T last); // [first, last]
+
+        template<std::floating_point T>
+        T random_closed(T first, T last); // [first, last]
 
         // Normal distribution
         double gaussian(double mean, double sd);
@@ -68,92 +91,192 @@ namespace quetzal::math
 
     private:
 
-        std::random_device m_rd;
+        std::uint64_t bounded(std::uint64_t range); // [0, range)
+
+        template<std::floating_point T>
+        T unit(); // [0, 1)
+
+        template<std::floating_point T>
+        T unit_closed(); // [0, 1]
+
         E m_engine;
     };
 
     //--------------------------------------------------------------------------
-    template<typename E = std::default_random_engine>
+    template<typename E = portable_random_engine_type>
     E::result_type to_seed(const std::string& s);
+
+    //--------------------------------------------------------------------------
+    // A seed drawn from the platform's entropy source
+    template<typename E = portable_random_engine_type>
+    E::result_type random_seed();
+
+    namespace detail
+    {
+
+        // Returns the high 64 bits of the 128-bit product, and sets low to its low 64 bits
+        std::uint64_t multiply_wide(std::uint64_t a, std::uint64_t b, std::uint64_t& low);
+
+    } // namespace detail
 
 } // namespace quetzal::math
 
 //------------------------------------------------------------------------------
 template<typename E>
 quetzal::math::Random<E>::Random() :
-    m_rd(),
-    m_engine(m_rd())
+    m_engine(random_seed<E>())
 {
 }
 
 //------------------------------------------------------------------------------
 template<typename E>
 quetzal::math::Random<E>::Random(E::result_type seed) :
-    m_rd(),
     m_engine(seed)
 {
 }
 
 //------------------------------------------------------------------------------
 template<typename E>
+void quetzal::math::Random<E>::seed(E::result_type value)
+{
+    m_engine.seed(value);
+}
+
+//------------------------------------------------------------------------------
+template<typename E>
 double quetzal::math::Random<E>::random()
 {
-    std::uniform_real_distribution<double> distribution(0.0, 1.0);
-    return distribution(m_engine);
+    return unit<double>();
 }
 
 //------------------------------------------------------------------------------
 template<typename E>
-template<typename T> requires std::is_integral_v<T>
+template<std::integral T>
 T quetzal::math::Random<E>::random(T n)
 {
-    std::uniform_int_distribution<T> distribution(T(0), T(n - 1));
-    return distribution(m_engine);
+    assert(n > T(0));
+    return static_cast<T>(bounded(static_cast<std::uint64_t>(n)));
 }
 
 //------------------------------------------------------------------------------
 template<typename E>
-template<typename T> requires std::is_floating_point_v<T>
+template<std::floating_point T>
 T quetzal::math::Random<E>::random(T n)
 {
-    std::uniform_real_distribution<T> distribution(T(0), n);
-    return distribution(m_engine);
+    assert(n > T(0));
+
+    T value = n;
+    while (value >= n)
+    {
+        value = n * unit<T>();
+    }
+
+    return value;
 }
 
 //------------------------------------------------------------------------------
 template<typename E>
-template<typename T> requires std::is_integral_v<T>
+template<std::integral T>
 T quetzal::math::Random<E>::random(T first, T last)
 {
-    std::uniform_int_distribution<T> distribution(first, last);
-    return distribution(m_engine);
+    assert(first < last);
+
+    using unsigned_type = std::make_unsigned_t<T>;
+    const std::uint64_t span = static_cast<unsigned_type>(static_cast<unsigned_type>(last) - static_cast<unsigned_type>(first));
+    return static_cast<T>(static_cast<unsigned_type>(static_cast<unsigned_type>(first) + static_cast<unsigned_type>(bounded(span))));
 }
 
 //------------------------------------------------------------------------------
 template<typename E>
-template<typename T> requires std::is_floating_point_v<T>
+template<std::floating_point T>
 T quetzal::math::Random<E>::random(T first, T last)
 {
-    std::uniform_real_distribution<T> distribution(first, last);
-    return distribution(m_engine);
+    assert(first < last);
+    assert(std::isfinite(last - first));
+
+    T value = last;
+    while (value >= last)
+    {
+        value = first + (last - first) * unit<T>();
+    }
+
+    return value;
+}
+
+//------------------------------------------------------------------------------
+template<typename E>
+template<std::integral T>
+T quetzal::math::Random<E>::random_closed(T n)
+{
+    assert(n >= T(0));
+    return random_closed(T(0), n);
+}
+
+//------------------------------------------------------------------------------
+template<typename E>
+template<std::floating_point T>
+T quetzal::math::Random<E>::random_closed(T n)
+{
+    assert(n >= T(0));
+    return n * unit_closed<T>();
+}
+
+//------------------------------------------------------------------------------
+template<typename E>
+template<std::integral T>
+T quetzal::math::Random<E>::random_closed(T first, T last)
+{
+    assert(first <= last);
+
+    using unsigned_type = std::make_unsigned_t<T>;
+    const std::uint64_t span = static_cast<unsigned_type>(static_cast<unsigned_type>(last) - static_cast<unsigned_type>(first));
+    const std::uint64_t offset = span == std::numeric_limits<std::uint64_t>::max() ? m_engine() : bounded(span + 1);
+    return static_cast<T>(static_cast<unsigned_type>(static_cast<unsigned_type>(first) + static_cast<unsigned_type>(offset)));
+}
+
+//------------------------------------------------------------------------------
+template<typename E>
+template<std::floating_point T>
+T quetzal::math::Random<E>::random_closed(T first, T last)
+{
+    assert(first <= last);
+    assert(std::isfinite(last - first));
+
+    return std::min(first + (last - first) * unit_closed<T>(), last);
 }
 
 //------------------------------------------------------------------------------
 template<typename E>
 double quetzal::math::Random<E>::gaussian(double mean, double sd)
 {
-    std::normal_distribution<double> distribution(mean, sd);
-    return distribution(m_engine);
+    // Marsaglia's polar method
+    double u = 0.0;
+    double v = 0.0;
+    double s = 0.0;
+
+    do
+    {
+        u = 2.0 * random() - 1.0;
+        v = 2.0 * random() - 1.0;
+        s = u * u + v * v;
+    }
+    while (s >= 1.0 || s == 0.0);
+
+    return mean + sd * u * std::sqrt(-2.0 * std::log(s) / s);
 }
 
 //------------------------------------------------------------------------------
 template<typename E>
 double quetzal::math::Random<E>::triangular(double mode, double halfwidth)
 {
-    std::array<double, 3> bounds {mode - halfwidth, mode, mode + halfwidth};
-    std::array<double, 3> weights {0.0, 1.0, 0.0};
-    std::piecewise_linear_distribution<double> distribution (bounds.begin(), bounds.end(), weights.begin());
-    return distribution(m_engine);
+    const double u = random();
+
+    if (u < 0.5)
+    {
+        return mode - halfwidth + halfwidth * std::sqrt(2.0 * u);
+    }
+
+    return mode + halfwidth - halfwidth * std::sqrt(2.0 * (1.0 - u));
 }
 
 //------------------------------------------------------------------------------
@@ -178,7 +301,13 @@ template<typename E>
 template<std::random_access_iterator I, std::sentinel_for<I> S>
 void quetzal::math::Random<E>::shuffle(I first, S last)
 {
-    std::shuffle(first, std::ranges::next(first, last), m_engine);
+    // Fisher-Yates
+    const I end = std::ranges::next(first, last);
+
+    for (auto i = end - first - 1; i > 0; --i)
+    {
+        std::ranges::iter_swap(first + i, first + random(i + 1));
+    }
 }
 
 //------------------------------------------------------------------------------
@@ -186,6 +315,46 @@ template<typename E>
 E& quetzal::math::Random<E>::engine()
 {
     return m_engine;
+}
+
+//------------------------------------------------------------------------------
+template<typename E>
+std::uint64_t quetzal::math::Random<E>::bounded(std::uint64_t range)
+{
+    // Lemire's method, which rejects only the draws that would bias the result
+    std::uint64_t low = 0;
+    std::uint64_t high = detail::multiply_wide(m_engine(), range, low);
+
+    if (low < range)
+    {
+        const std::uint64_t threshold = (std::uint64_t(0) - range) % range;
+
+        while (low < threshold)
+        {
+            high = detail::multiply_wide(m_engine(), range, low);
+        }
+    }
+
+    return high;
+}
+
+//------------------------------------------------------------------------------
+template<typename E>
+template<std::floating_point T>
+T quetzal::math::Random<E>::unit()
+{
+    constexpr int digits = std::numeric_limits<T>::digits < 64 ? std::numeric_limits<T>::digits : 64;
+    return static_cast<T>(m_engine() >> (64 - digits)) * std::ldexp(T(1), -digits);
+}
+
+//------------------------------------------------------------------------------
+template<typename E>
+template<std::floating_point T>
+T quetzal::math::Random<E>::unit_closed()
+{
+    // 2^digits + 1 values, so the count fits in 64 bits only below 64 digits
+    constexpr int digits = std::numeric_limits<T>::digits < 63 ? std::numeric_limits<T>::digits : 63;
+    return static_cast<T>(bounded((std::uint64_t(1) << digits) + 1)) * std::ldexp(T(1), -digits);
 }
 
 //------------------------------------------------------------------------------
@@ -211,6 +380,39 @@ E::result_type quetzal::math::to_seed(const std::string& s)
     }
 
     return static_cast<typename E::result_type>(value);
+}
+
+//------------------------------------------------------------------------------
+template<typename E>
+E::result_type quetzal::math::random_seed()
+{
+    std::random_device device;
+
+    if constexpr (std::numeric_limits<typename E::result_type>::digits > std::numeric_limits<std::random_device::result_type>::digits)
+    {
+        return (static_cast<typename E::result_type>(device()) << std::numeric_limits<std::random_device::result_type>::digits) | device();
+    }
+    else
+    {
+        return static_cast<typename E::result_type>(device());
+    }
+}
+
+//------------------------------------------------------------------------------
+inline std::uint64_t quetzal::math::detail::multiply_wide(std::uint64_t a, std::uint64_t b, std::uint64_t& low)
+{
+    const std::uint64_t a_low = a & 0xffffffff;
+    const std::uint64_t a_high = a >> 32;
+    const std::uint64_t b_low = b & 0xffffffff;
+    const std::uint64_t b_high = b >> 32;
+
+    const std::uint64_t low_low = a_low * b_low;
+    const std::uint64_t high_low = a_high * b_low;
+    const std::uint64_t low_high = a_low * b_high;
+    const std::uint64_t middle = (low_low >> 32) + (high_low & 0xffffffff) + low_high;
+
+    low = (middle << 32) | (low_low & 0xffffffff);
+    return a_high * b_high + (high_low >> 32) + (middle >> 32);
 }
 
 #endif // QUETZAL_MATH_RANDOM_HPP

@@ -72,9 +72,11 @@ boxes are removed at the start of the next piece of work, since the reference do
 - [ ] **The gameplay random engine process-wide** (`random_engine.md`, `## Ownership`): the gameplay random engine
       reached through a function in place of `Game`'s member and `World`'s reference, and thread-safe, locking its
       mutex for each draw; a host or a test passing the seed, and the host logging it.
-- [ ] **The random engine chosen** (`random_engine.md`, `## The random engine type`), as the one alias that
-      `stratum_sim`, dungen and catagen use, with `math::Random`'s distributions and shuffle of the project's own, and
-      the reference files regenerated.
+- [x] **xoshiro256** and the portable alias:** `math::Xoshiro256StarStar`, `math::portable_random_engine_type`, and
+      `random_test`.
+- [x] **The random engine chosen** (`random_engine.md`, `## The random engine type`): `math::Random`'s default the
+      portable random engine, used by `stratum_sim`, dungen and catagen, with 64-bit seeds and distributions and a
+      shuffle of the project's own, `gaussian` and `triangular` among them, and the reference files regenerated.
 - [ ] **The generation random engine and zone seeds** (`random_engine.md`, `## Streams`, `## Generation`): the
       process-wide, thread-safe generation random engine, and `create_zone(region, zone_spec)` adding the zone's seed,
       drawn from it, to the `ZoneSpec` under `seed_key`, from which the host's `make_zone_request` passes it to the
@@ -362,8 +364,6 @@ These are the open questions.
 
 ### Random engine
 
-- **Which random engine** (`random_engine.md`, `## The random engine type`): `std::mt19937_64`, xoshiro256**, PCG, or jsf64.
-  xoshiro256** is recommended.
 - **Whether players get reproducible games from a shared seed.** It needs each zone's seed derived from the world seed
   and the zone's place instead of drawn, so that a world seed builds the same world however it is explored.
 

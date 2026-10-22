@@ -71,7 +71,7 @@ namespace
         std::optional<quetzal::stratum_gen::seed_type> seed = zone_spec.value<quetzal::stratum_gen::seed_type>(sim::seed_key);
 
         return quetzal::stratum_gen::ZoneRequest {zone_spec.value_or(sim::name_key, std::string()),
-            zone_spec.value<quetzal::stratum_gen::level_type>(sim::level_key), seed ? *seed : std::random_device {}(),
+            zone_spec.value<quetzal::stratum_gen::level_type>(sim::level_key), seed ? *seed : quetzal::math::random_seed(),
             sim::select_prefixed(zone_spec, sim::parameters_prefix)};
     }
 

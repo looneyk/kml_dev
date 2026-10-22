@@ -6,12 +6,12 @@
 //------------------------------------------------------------------------------
 
 #include "quetzal/common/KeyValueStore.hpp"
+#include "quetzal/math/Random.hpp"
 #include "quetzal/stratum_format/Document.hpp"
 #include <cstdint>
 #include <functional>
 #include <map>
 #include <optional>
-#include <random>
 #include <string>
 #include <string_view>
 
@@ -19,7 +19,7 @@ namespace quetzal::stratum_gen
 {
 
     using level_type = std::int32_t;
-    using seed_type = std::default_random_engine::result_type;
+    using seed_type = math::portable_random_engine_type::result_type;
 
     //--------------------------------------------------------------------------
     struct ZoneRequest

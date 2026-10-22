@@ -110,7 +110,7 @@ namespace quetzal::stratum_sim
 
         // The game in progress's directory in the working directory, and the seed its random engine was seeded from
         std::optional<std::filesystem::path> m_game_directory;
-        std::random_device::result_type m_seed;
+        math::portable_random_engine_type::result_type m_seed;
     };
 
 } // namespace quetzal::stratum_sim

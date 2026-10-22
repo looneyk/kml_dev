@@ -40,7 +40,7 @@ namespace quetzal::stratum_sim
     // A zone's position relative to the surface: 0 at the surface, negative going down and positive going up
     using level_type = std::int32_t;
 
-    using random_type = math::Random<>;
+    using random_type = math::Random<math::portable_random_engine_type>;
 
     using math::CardinalDirection;
 

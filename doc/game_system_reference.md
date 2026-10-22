@@ -327,7 +327,10 @@ longer chooses either. The actor is relocated to the access point's zone, at its
 moves nothing.
 
 `World` takes the game's random engine by reference in its constructor, as it takes the id allocator: a `random_type`,
-`math::Random<>`, which `Game` owns.
+which `Game` owns. `random_type` is `math::Random<math::portable_random_engine_type>`, xoshiro256** seeded through
+splitmix64, with distributions and a shuffle of `math::Random`'s own, so one seed draws the same values with every
+standard library; `gaussian` uses the platform's `std::log`. dungen and catagen draw through the same type.
+`math::random_seed()` draws a 64-bit seed from `std::random_device`.
 
 `load_zone(region, filepath)` reads the file and builds the zone from its document, which it checks with `check_buildable` before making the zone. The zone has the file's persistent id if the file has
 a `zone` section, and a new one otherwise. `load_zone` then has `load_layout` fill the zone and populates it if its
@@ -702,7 +705,7 @@ relative to the user directory, an absolute location replacing either (`game_fil
 writes nothing. The terminal's build copies its development `config.json`, which sets `assets_directory` to
 `../../assets`, beside the executable in `bin/<Config>/`, and the Godot project has its own. It owns the structures that survive outside play: the config, a
 `CountingIdAllocator` counting from zero, a `random_type` seeded from
-`std::random_device`, the `Generation`, the `World` and the `Character`, and the `Session` that plays them, constructed in
+`math::random_seed()`, the `Generation`, the `World` and the `Character`, and the `Session` that plays them, constructed in
 that order, each referring to those before it. `generation()` returns the `Generation`, with which a host registers
 its generators, selectors and region specs. Only the `Generation` can be copied or moved. The constructor makes no
 character, region or zone; until a game is created, there is none.
@@ -740,7 +743,7 @@ calls `load_setting_definitions` once in `main`. A test executable that changes 
 their editable presets undefined, so a game created or opened starts from them.
 
 The working directory has only the game in progress. `Game::create(region_spec, character_spec)` clears, resets the id
-allocator to count from zero, and reseeds the random engine from `std::random_device`, keeping the seed, so nothing passes
+allocator to count from zero, and reseeds the random engine from `math::random_seed()`, keeping the seed, so nothing passes
 from one game to the next. It empties the working directory and creates the game directory there, named by the
 character, whose name the spec must have, with each character a directory name cannot have replaced by `_`. It has the
 character created from the `CharacterSpec`, and the world's starting region and its first zone from the `RegionSpec`
@@ -751,7 +754,7 @@ no game in progress.
 `Game::open(save_name)` clears, then empties the working directory and copies the save into it as the game directory,
 named by the character as `create` names it, read from the top of the save's `character.json`. It reads `game.json`: the id
 allocator counts on from `next_id`, the game's settings snapshot is restored, and the random engine's state is restored from the text `>>` reads, or the random engine is
-reseeded from `std::random_device` if the boolean setting `Game::reseed_on_open_key`, `gameplay.reseed_on_open`, is true;
+reseeded from `math::random_seed()` if the boolean setting `Game::reseed_on_open_key`, `gameplay.reseed_on_open`, is true;
 the random engine is the same either way. Restoring repeats the outcomes the save would have had; reseeding gives
 each opening its own. `World::open`
 then reads `world.json`, `Character::open` reads `character.json`, and the session starts in the character's zone,
@@ -821,7 +824,7 @@ directory. The log is at `info`.
 
 Each host registers each of `stratum_gen::generators()` as a `Generation::generator_type` that makes a `ZoneRequest`
 from the `ZoneSpec` and passes it on: the `name`, the `level`, the `seed`, and the keys after `parameters.`. Nothing
-writes a `seed` yet, so a `ZoneSpec` without one has a seed from `std::random_device`. It also registers a temporary generator selector named
+writes a `seed` yet, so a `ZoneSpec` without one has a seed from `math::random_seed()`. It also registers a temporary generator selector named
 `dungen`, until the generators are integrated. It creates the game from a temporary `RegionSpec`, whose
 `generator_selector` is `dungen`, whose `entry_access` is `staircase,1`, and whose `zone.level` is -1, and a
 temporary `CharacterSpec` with the name "Adventurer". The selector chooses the `dungen` generator for every zone, and names the zone

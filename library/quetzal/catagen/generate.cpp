@@ -22,7 +22,7 @@ using namespace quetzal::catagen;
 namespace
 {
 
-    using random_type = math::Random<>;
+    using random_type = math::Random<math::portable_random_engine_type>;
     using rectangles_type = vector<box_type>;
 
     // An area is floor that walls separate and doors join: a room, or one run of corridor
@@ -436,7 +436,7 @@ namespace
     // A range of one value draws nothing, so a fixed count leaves every later draw unchanged
     size_t draw_count(const quetzal::math::Interval<size_t>& count, random_type& random)
     {
-        return count.lower() == count.upper() ? count.lower() : random.random(count.lower(), count.upper());
+        return count.lower() == count.upper() ? count.lower() : random.random_closed(count.lower(), count.upper());
     }
 
     //--------------------------------------------------------------------------

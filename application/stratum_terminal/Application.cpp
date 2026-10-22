@@ -124,7 +124,7 @@ namespace
         std::optional<stratum_gen::seed_type> seed = zone_spec.value<stratum_gen::seed_type>(stratum_sim::seed_key);
 
         return stratum_gen::ZoneRequest {zone_spec.value_or(stratum_sim::name_key, std::string()),
-            zone_spec.value<stratum_gen::level_type>(stratum_sim::level_key), seed ? *seed : std::random_device {}(),
+            zone_spec.value<stratum_gen::level_type>(stratum_sim::level_key), seed ? *seed : math::random_seed(),
             stratum_sim::select_prefixed(zone_spec, stratum_sim::parameters_prefix)};
     }
 
