@@ -26,6 +26,7 @@ namespace quetzal::stratum_format
         std::optional<std::string> mods_directory;
         std::optional<std::string> user_settings_file;
         std::optional<std::size_t> zone_count_max;
+        std::optional<std::size_t> log_file_count_max;
     };
 
 } // namespace quetzal::stratum_format

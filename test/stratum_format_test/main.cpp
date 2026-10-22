@@ -1273,6 +1273,7 @@ namespace
         config.saves_directory = "saves";
         config.logs_directory = "D:/logs";
         config.zone_count_max = 8;
+        config.log_file_count_max = 5;
 
         ostringstream os;
         stratum_format::write(os, config);
@@ -1284,7 +1285,8 @@ namespace
             "  \"assets_directory\": \"../../assets\",\n"
             "  \"saves_directory\": \"saves\",\n"
             "  \"logs_directory\": \"D:/logs\",\n"
-            "  \"zone_count_max\": 8\n"
+            "  \"zone_count_max\": 8,\n"
+            "  \"log_file_count_max\": 5\n"
             "}\n";
         CHECK_CASE("a config file has each value that is set on a line of its own", config_text == config_text_expected,
             format("expected\n{}got\n{}", config_text_expected, config_text));
@@ -1293,12 +1295,12 @@ namespace
         stratum_format::ConfigDocument read_back = stratum_format::read_config(is, "config");
         CHECK_CASE("and reads back as the document written, with the values not set absent", read_back.assets_directory == "../../assets"
             && read_back.saves_directory == "saves" && read_back.logs_directory == "D:/logs" && read_back.zone_count_max == 8
-            && !read_back.user_directory && !read_back.working_directory && !read_back.cache_directory && !read_back.mods_directory
+            && read_back.log_file_count_max == 5 && !read_back.user_directory && !read_back.working_directory && !read_back.cache_directory && !read_back.mods_directory
             && !read_back.user_settings_file);
 
         istringstream header_only("{ \"format\": \"quetzal.stratum_config\", \"version\": \"0.1\" }");
         stratum_format::ConfigDocument empty = stratum_format::read_config(header_only, "config");
-        CHECK_CASE("a config file with only its header sets nothing", !empty.assets_directory && !empty.zone_count_max);
+        CHECK_CASE("a config file with only its header sets nothing", !empty.assets_directory && !empty.zone_count_max && !empty.log_file_count_max);
 
         auto rejected = [&config_text](const string& from, const string& to, const string& error_expected)
         {

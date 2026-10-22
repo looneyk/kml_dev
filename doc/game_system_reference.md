@@ -692,7 +692,8 @@ values of the scope's editable presets undefined, and `preset_values(scope)` ret
 `Config`, the program's configuration, which is the same for every game: `saves_directory`, the directory in which
 each save is a directory; `working_directory`, which has the game directory of the game in progress and nothing else;
 `zone_count_max`, the most zones the world keeps loaded at once; `assets_directory`, the program's own data, which it
-only reads; `user_directory`, in which it writes everything it creates; `logs_directory`; `cache_directory`, for data
+only reads; `user_directory`, in which it writes everything it creates; `logs_directory`; `log_file_count_max`, the
+most log files kept in the logs directory, the current run's included; `cache_directory`, for data
 the program can make again; `mods_directory`; and `user_settings_filepath`, the user settings file. `config()` returns
 it. The terminal passes `load_config(executable_directory())`, `executable_directory()` being `quetzal/common`'s
 `file_util`, which reads the executable's path with `GetModuleFileNameW` and throws `std::runtime_error` on other
@@ -700,7 +701,7 @@ platforms. The Godot host's executable is Godot's, so it passes its project's di
 `globalize_path("res://")`. `load_config(program_directory)` builds the defaults: `assets` in the program directory,
 `default_user_directory()`, which is `KML/Stratum` in `%LOCALAPPDATA%` on Windows, `~/Library/Application Support` on
 macOS, and `$XDG_DATA_HOME` or `~/.local/share` elsewhere, read from the environment, and `saves`, `working`, `logs`,
-`cache`, `mods` and `settings.json` in the user directory, and 8. If the program directory has a `config.json`, each
+`cache`, `mods` and `settings.json` in the user directory, 8 zones, and 10 log files. If the program directory has a `config.json`, each
 value it has overrides its default, the assets and user directories relative to the program directory and the rest
 relative to the user directory, an absolute location replacing either (`game_file_spec.md`, `## The config file`). It
 writes nothing. The terminal's build copies its development `config.json`, which sets `assets_directory` to
@@ -987,7 +988,7 @@ leading keys, `format` and `version`, and in the character file `name` after the
 writer emits it with `file_header_sections`.
 
 The config file is in the same library with a format of its own, `quetzal.stratum_config`, in `config_format.hpp` with
-its filename, `config.json`. `ConfigDocument` has each location as written and `zone_count_max`; `write`, in
+its filename, `config.json`. `ConfigDocument` has each location as written, `zone_count_max`, and `log_file_count_max`; `write`, in
 `write_config.hpp`, emits each key on a line of its own, and `read_config`, in `read_config.hpp`, requires the format,
 the version, and every key (`game_file_spec.md`, `## The config file`).
 

@@ -71,8 +71,10 @@ boxes are removed at the start of the next piece of work, since the reference do
 
 - [ ] **The gameplay random engine process-wide** (`random_engine.md`, `## Ownership`): the gameplay random engine
       reached through a function in place of `Game`'s member and `World`'s reference, a `stratum_sim::RandomStream`
-      whose locking is internal to it, and `math::Random`'s `state` and `set_state` in place of `engine()`; a host or a test
-      passing the seed, and the host logging it.
+      whose locking is internal to it, and `math::Random`'s `state` and `set_state` in place of `engine()`; `Game` drawing
+      the seed, or taking one that a test or a host passes, and writing it to the log as soon as it is drawn or passed.
+- [ ] **A log file for each run** (`log_plan.md`): each host writing a new log file in the logs directory, named with
+      the program and the run's start time, and removing its oldest files past the config's `log_file_count_max`.
 - [x] **xoshiro256** and the portable alias:** `math::Xoshiro256StarStar`, `math::portable_random_engine_type`, and
       `random_test`.
 - [x] **The random engine chosen** (`random_engine.md`, `## The random engine type`): `math::Random`'s default the
@@ -363,8 +365,6 @@ These are the open questions.
 
 - **Are entries written asynchronously, from a queue by a worker thread as spdlog's asynchronous mode does, or on the
   thread that logs?**
-- **What is the log file named, and how many are kept?** There may be a file for each run, named by the program and its
-  start time, with the oldest removed past a count, as Godot keeps them, or one file appended to.
 - **Are entries written before the first sink is installed kept and written to it, rather than dropped?**
 
 ### Random engine

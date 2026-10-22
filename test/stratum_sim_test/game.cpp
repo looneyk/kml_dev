@@ -626,7 +626,7 @@ namespace
             && config.saves_directory == user_directory / "saves" && config.working_directory == user_directory / "working"
             && config.logs_directory == user_directory / "logs" && config.cache_directory == user_directory / "cache"
             && config.mods_directory == user_directory / "mods" && config.user_settings_filepath == user_directory / "settings.json"
-            && config.zone_count_max == 8);
+            && config.zone_count_max == 8 && config.log_file_count_max == 10);
         CHECK_CASE("and nothing is written in the program directory", filesystem::is_empty(program_directory));
 
         const filesystem::path absolute_logs = filesystem::absolute("out/config_logs");
@@ -634,13 +634,13 @@ namespace
             ofstream os(program_directory / "config.json", ios_base::binary);
             os << "{ \"format\": \"quetzal.stratum_config\", \"version\": \"0.1\", \"assets_directory\": \"../../assets\", "
                 << "\"user_directory\": \"user\", \"saves_directory\": \"elsewhere/saves\", \"logs_directory\": \""
-                << absolute_logs.generic_string() << "\", \"zone_count_max\": 3 }";
+                << absolute_logs.generic_string() << "\", \"zone_count_max\": 3, \"log_file_count_max\": 4 }";
         }
 
         config = stratum_sim::load_config(program_directory);
         CHECK_CASE("a config file overrides the values it has, the assets and user directories relative to the program directory",
             config.assets_directory == program_directory / "../../assets" && config.user_directory == program_directory / "user"
-            && config.zone_count_max == 3);
+            && config.zone_count_max == 3 && config.log_file_count_max == 4);
         CHECK_CASE("and the other locations relative to the user directory, an absolute one kept",
             config.saves_directory == program_directory / "user/elsewhere/saves" && config.logs_directory == absolute_logs
             && config.working_directory == program_directory / "user/working");

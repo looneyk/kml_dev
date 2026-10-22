@@ -18,8 +18,9 @@ namespace
     using namespace quetzal::stratum_format;
     using namespace quetzal::stratum_format::detail;
 
-    constexpr std::array<std::string_view, 11> config_keys {"format", "version", "assets_directory", "user_directory", "saves_directory",
-        "working_directory", "logs_directory", "cache_directory", "mods_directory", "user_settings_file", "zone_count_max"};
+    constexpr std::array<std::string_view, 12> config_keys {"format", "version", "assets_directory", "user_directory", "saves_directory",
+        "working_directory", "logs_directory", "cache_directory", "mods_directory", "user_settings_file", "zone_count_max",
+        "log_file_count_max"};
 
     //--------------------------------------------------------------------------
     std::optional<std::string> optional_string(const raw_values_type& v, std::string_view key)
@@ -55,6 +56,11 @@ namespace
         if (const raw_values_type* p = member(v, "zone_count_max"); p != nullptr)
         {
             document.zone_count_max = count_value(*p, "zone_count_max");
+        }
+
+        if (const raw_values_type* p = member(v, "log_file_count_max"); p != nullptr)
+        {
+            document.log_file_count_max = count_value(*p, "log_file_count_max");
         }
 
         return document;

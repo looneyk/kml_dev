@@ -300,6 +300,7 @@ and the most zones the world keeps loaded. It is not a saved game's file, and ha
 | `mods_directory` | `mods` | The directory of the mods the user adds |
 | `user_settings_file` | `settings.json` | The user settings file, with the user's settings (`settings_plan.md`) |
 | `zone_count_max` | 8 | The most zones the world keeps loaded at once |
+| `log_file_count_max` | 10 | The most log files kept in the logs directory, the current run's included |
 
 Every key is optional, and a key the format does not have is an error. `assets_directory` and `user_directory` are
 relative to the program directory unless absolute, so a `user_directory` there makes a portable install; the other

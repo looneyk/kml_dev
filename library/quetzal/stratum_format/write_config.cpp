@@ -45,6 +45,11 @@ namespace
             sections.push_back(std::format("{}\"zone_count_max\": {}", indentation(section_indent), *document.zone_count_max));
         }
 
+        if (document.log_file_count_max)
+        {
+            sections.push_back(std::format("{}\"log_file_count_max\": {}", indentation(section_indent), *document.log_file_count_max));
+        }
+
         return top_level_object_text(sections);
     }
 
