@@ -17,6 +17,7 @@
 #include <numeric>
 #include <random>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <type_traits>
 #include <vector>
@@ -299,6 +300,30 @@ namespace
         CHECK_CASE("choose returns a reference to an element of the range", ranges::count(choices, 10) == 1);
 
         CHECK_CASE("random_seed draws from the platform's entropy source", math::random_seed() != math::random_seed());
+
+        random_type saved(7);
+        saved.random(100);
+        const string state = saved.state();
+        vector<int> after_saving;
+        for (int i = 0; i < 5; ++i)
+        {
+            after_saving.push_back(saved.random(100));
+        }
+        random_type restored(8);
+        restored.set_state(state);
+        vector<int> after_restoring;
+        for (int i = 0; i < 5; ++i)
+        {
+            after_restoring.push_back(restored.random(100));
+        }
+        CHECK_CASE("a random engine restored from a saved state draws what the saved one drew after saving", after_restoring == after_saving,
+            format("state \"{}\"", state));
+
+        random_type unchanged(9);
+        const string unchanged_state = unchanged.state();
+        CHECK_THROWS_AS(unchanged.set_state("1 2 three 4"), invalid_argument);
+        CHECK_THROWS_AS(unchanged.set_state("1 2 3 4 5"), invalid_argument);
+        CHECK_CASE("a state that is not the random engine's is rejected, and leaves its state unchanged", unchanged.state() == unchanged_state);
         return;
     }
 

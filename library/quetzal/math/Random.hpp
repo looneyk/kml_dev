@@ -17,8 +17,10 @@
 #include <limits>
 #include <random>
 #include <ranges>
+#include <sstream>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <type_traits>
 
 namespace quetzal::math
@@ -87,7 +89,11 @@ namespace quetzal::math
         template<std::random_access_iterator I, std::sentinel_for<I> S>
         void shuffle(I first, S last);
 
-        E& engine();
+        // The random engine's state as text
+        std::string state() const;
+
+        // Throws std::invalid_argument if the text is not a state of the random engine
+        void set_state(std::string_view text);
 
     private:
 
@@ -316,9 +322,28 @@ void quetzal::math::Random<E>::shuffle(I first, S last)
 
 //------------------------------------------------------------------------------
 template<typename E>
-E& quetzal::math::Random<E>::engine()
+std::string quetzal::math::Random<E>::state() const
 {
-    return m_engine;
+    std::ostringstream os;
+    os << m_engine;
+    return os.str();
+}
+
+//------------------------------------------------------------------------------
+template<typename E>
+void quetzal::math::Random<E>::set_state(std::string_view text)
+{
+    std::istringstream is {std::string(text)};
+    E engine;
+    char trailing = 0;
+
+    if (!(is >> engine) || is >> trailing)
+    {
+        throw std::invalid_argument(std::format("\"{}\" is not a state of the random engine", text));
+    }
+
+    m_engine = engine;
+    return;
 }
 
 //------------------------------------------------------------------------------

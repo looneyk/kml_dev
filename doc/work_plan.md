@@ -75,11 +75,6 @@ boxes are removed at the start of the next piece of work, since the reference do
       the seed, or taking one that a test or a host passes, and writing it to the log as soon as it is drawn or passed.
 - [ ] **A log file for each run** (`log_plan.md`): each host writing a new log file in the logs directory, named with
       the program and the run's start time, and removing its oldest files past the config's `log_file_count_max`.
-- [x] **xoshiro256** and the portable alias:** `math::Xoshiro256StarStar`, `math::portable_random_engine_type`, and
-      `random_test`.
-- [x] **The random engine chosen** (`random_engine.md`, `## The random engine type`): `math::Random`'s default the
-      portable random engine, used by `stratum_sim`, dungen and catagen, with 64-bit seeds and distributions and a
-      shuffle of the project's own, `gaussian` and `triangular` among them, and the reference files regenerated.
 - [ ] **The generation random engine and zone seeds** (`random_engine.md`, `## Streams`, `## Generation`): the
       process-wide, thread-safe generation random engine, and `create_zone(region, zone_spec)` adding the zone's seed,
       drawn from it, to the `ZoneSpec` under `seed_key`, from which the host's `make_zone_request` passes it to the
@@ -87,28 +82,6 @@ boxes are removed at the start of the next piece of work, since the reference do
 - [ ] **Generation runs as objects** (`random_engine.md`, `## Ownership`): dungen's and catagen's runs, each owning its
       random engine, seeded from the zone's seed, with the reference files regenerated. It comes with **the generators
       integrated**.
-
-## Testing
-
-These follow **The random engine chosen**, so the reference files are regenerated for the named random engine before
-the test executables are converted (`testing_plan.md`).
-
-- [x] **doctest and `quetzal_testing`, with `catagen_test` on them** (`testing_plan.md`, `## quetzal_testing`): doctest
-      vendored with `doctest.cmake`, `enable_testing()` in the root, the library with the `main` every test executable
-      links, `check_reference` and `--update-references`, and `catagen_test` converted and registered with CTest under
-      the label `stratum`.
-- [x] **`dungen_test` on doctest.**
-- [x] **`stratum_format_test` on doctest.**
-- [x] **`stratum_view_test` on doctest,** its frames checked by `check_reference` in place of `FileValidator`.
-- [x] **`stratum_sim_test` split by area and on doctest** (`testing_plan.md`, `## stratum_sim_test by area`): a test
-      suite for each area, the shared helpers in `test_support.hpp`, and `WorldFixture` starting each test case that
-      builds a world.
-- [x] **The settings, log, key-value store and flecs tests on doctest:** `settings_test`, `log_test`,
-      `keyvaluestore_test` and `flecs_test`.
-- [x] **The string, vector, expression and UTF-8 tests on doctest:** `string_util_test`, `vector_point_test`,
-      `expression_test` and `to_utf8_test`.
-- [x] **The geometry tests on doctest:** `geometry_test`, `mapping_test` and `projection_test`.
-- [x] **The mesh file tests on doctest:** `mesh_diff_test` and `wavefront_obj_test`.
 
 ## Regions
 

@@ -21,7 +21,6 @@
 #include <format>
 #include <functional>
 #include <random>
-#include <sstream>
 #include <stdexcept>
 #include <system_error>
 #include <thread>
@@ -270,12 +269,13 @@ void quetzal::stratum_sim::Game::restore_game_state(const std::filesystem::path&
         throw std::runtime_error(std::format("{}: game.random_engines: no {} random engine", filepath.string(), gameplay_random_engine_key));
     }
 
-    std::istringstream state(i->second);
-    state >> m_random.engine();
-
-    if (!state)
+    try
     {
-        throw std::runtime_error(std::format("{}: game.random_engines.{}: not the state of the random engine", filepath.string(), gameplay_random_engine_key));
+        m_random.set_state(i->second);
+    }
+    catch (const std::invalid_argument& e)
+    {
+        throw std::runtime_error(std::format("{}: game.random_engines.{}: {}", filepath.string(), gameplay_random_engine_key, e.what()));
     }
 
     return;
@@ -290,14 +290,11 @@ std::string quetzal::stratum_sim::Game::save(SaveType save_type)
     assert(display_name != nullptr && !display_name->name.empty());
     std::string character_name = replace_reserved_characters(display_name->name);
 
-    std::ostringstream random_engine_state;
-    random_engine_state << m_random.engine();
-
     stratum_format::GameDocument document;
     document.version = std::string(stratum_format::saved_game_format_version);
     document.next_id = m_counting_id_allocator.next().id;
     document.seed = std::to_string(m_seed);
-    document.random_engines[std::string(gameplay_random_engine_key)] = random_engine_state.str();
+    document.random_engines[std::string(gameplay_random_engine_key)] = m_random.state();
     document.settings_snapshot = settings::SettingsSnapshot::capture(settings::SettingScope::Game, settings::store());
 
     stratum_format::write(*m_game_directory / stratum_format::game_filename, document);
