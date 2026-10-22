@@ -3,7 +3,7 @@
 Date: 2026-09-22, revised 2026-10-17
 
 Every game built on the system is moddable, and custom content --- objects, geometry, visual effects and behavior ---
-is added as data and script without recompiling. What a mod may add cannot be predicted, so the system is built from
+is added as data and script without recompiling. Mod additions are unpredictable, so the system is built from
 definitions loaded at runtime, with C++ supplying the mechanisms and the inner loops. Principle 8 of
 `game_system_principles.md` states the goal, and `decision_rationale.md` ("Everything a game adds is data or script")
 argues for it.
@@ -11,7 +11,7 @@ argues for it.
 A room whose walls are fun-house mirrors is the test case: a mod adds it with a style asset, a mesh, a shader and at
 most a script, and nothing in C++ changes.
 
-## What a mod is
+## Mod contents
 
 A mod is a directory that the game loads beside its own data, containing its manifest and any of:
 
@@ -113,7 +113,7 @@ to the installation, and the user is told.
 JSON is used only as the file format. `stratum_format::Document` has component objects as parsed JSON, since it is
 the file as data structures, and nlohmann does not appear in any `stratum_sim` header. Nothing in the world is JSON.
 
-## What blocks it now
+## Current blockers
 
 - **`stratum_view::PlaceType` is a closed enum** --- none, solid, floor, wall and door. A modded type cannot have a
   place type or glyph of its own; the glyph sets load from a file, but the categories they map from are fixed in C++.

@@ -93,7 +93,11 @@ re:\bmodelling
 re:\bfavour
 re:\blicence
 
-# Clipped comment openings
-comment-re:^\s*What an?\b
-comment-re:^\s*Whether\b
-comment-re:^\s*On an? [^:]*:
+# Clipped openings, at the start of a sentence, a list item, a table cell or a comment, in documents as well as code.
+# Case-sensitive, so a sentence wrapped onto a new line partway through does not match
+re:(?-i:(?:^|[.!?]\s+)[\s>*|\-]*(?:\d+\.\s+)?(?:\*\*)?(?:What an?|Whether)\b)
+re:(?-i:(?:^|[.!?]\s+)[\s>*|\-]*(?:\d+\.\s+)?(?:\*\*)?On an? [^:.]*:)
+
+# A heading or a bold label that opens with a question word and is not a question; it is a noun phrase instead
+re:(?-i:^#+\s+(?:Part \d+:\s+)?(?:What|Whether|How|Where|Which|Why|Who)\b(?!.*\?\s*$))
+re:(?-i:\*\*(?:What|Whether|How|Where|Which|Why|Who)\b[^*?]*[^?*]\*\*)

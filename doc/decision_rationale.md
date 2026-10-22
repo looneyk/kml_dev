@@ -65,7 +65,7 @@ It depends on wall ids being stable. An id encodes the cell and the side, so it 
 what must not change is the grid it encodes against, or every link by wall id silently retargets. That constraint
 shaped the mining decision below.
 
-## Where an entity is and what its parent is are file components
+## An entity's site and parent are file components
 
 A zone file lists its entities once, and what an entity is in or on and its parent are its `site` and `parent` file
 components (`addressing.md`, `### Entities`, in parts 1 and 2).
@@ -89,7 +89,7 @@ mostly restated the parent link, and pushed toward names such as `fills`, which 
 its opening. Once the parent is a link of its own, what remains is whether an entity is inside what it is sited on or on
 its surface.
 
-**How the file is arranged costs nothing at run time.** A file is read once when its zone loads, and the same links
+**The file's arrangement costs nothing at run time.** A file is read once when its zone loads, and the same links
 and location maps are built however it is arranged. What is on a wall is a lookup because an entity is sited by
 address, which is the key to the zone's map of places, not because the file is grouped by place. Zone files are
 written by generators and tools, so grouping them by place for a reader would gain nothing either.
@@ -175,7 +175,7 @@ is, the index being rebuilt from it, and each type of layout indexes in its own 
 
 ## Passage is not a field on the wall
 
-A wall is there or it is not. Whether an actor may cross it is decided by what is sited on it: `crossable` checks
+A wall is there or it is not. The entities sited on it decide whether an actor may cross it: `crossable` checks
 whether the properties of an entity sited on it let the actor through, and has no special case for doors or concealment.
 Nothing on the wall or the cell marks it crossable, so no state is kept twice.
 
@@ -448,7 +448,7 @@ packed.
 
 ## Everything a game adds is data or script
 
-This is principle 8, detailed in `modding_plan.md`. What a mod adds cannot be predicted --- a room of fun-house mirrors is as
+This is principle 8, detailed in `modding_plan.md`. Mod additions are unpredictable --- a room of fun-house mirrors is as
 likely as a new monster --- so nothing is designed on the assumption that the vocabulary is known in advance.
 
 **Typed components with runtime schemas.** Decoding into typed components is what Bevy scenes, Godot scene files and
@@ -472,7 +472,7 @@ is what keeps generation reproducible.
 
 **The limit.** A new type of layout is a `Layout` subclass in C++. Every data-driven game places the engine line there.
 
-## Where an entity is, as components
+## Entity locations in other tools
 
 Tiled (a general 2D map editor, TMX or JSON) places objects by position in object layers and refers between them by
 integer object id, keeping the next id in the map. LDtk (a 2D level editor from the studio behind Dead Cells, JSON) has

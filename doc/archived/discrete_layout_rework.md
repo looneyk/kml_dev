@@ -93,7 +93,7 @@ and the layout is one component of it.
   through a relocator is `addressing_plan.md` step 8. Built.
 
 `crossable(zone, wall_id, actor)` finds the wall's entity by id and reads the list of entities sited on it, and the
-door functions go as `addressing_plan.md` (`### What the queries become`) lists. `World::load_zone` has `load_layout`
+door functions go as `addressing_plan.md` (`### Queries`) lists. `World::load_zone` has `load_layout`
 fill an empty zone, `World::create_zone(generator)` has `Generator::generate` fill one, and the suites load the same
 way.
 

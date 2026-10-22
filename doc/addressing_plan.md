@@ -12,7 +12,7 @@ Open items are listed in `work_plan.md`, and `game_system_reference.md` describe
 ## Decided
 
 - **There is one list of entities**, in a single `entities` section.
-- **How an entity relates to a location or another entity is a file component:** `site` for the object it is in or
+- **An entity's relation to a location or another entity is a file component:** `site` for the object it is in or
   on, and `parent` for the entity it is a child of.
 - **Children are derived.** A parent does not list its children. Loading gives each child a `flecs::Parent` from its
   `parent`, and Flecs keeps each parent's children, so no component of ours lists them (`## Flecs`).
@@ -199,12 +199,12 @@ Built (`game_system_reference.md`, `### Sites and doors`). `detection` returns `
 `Detection`, `access_entity` returns the entity whose `Access` applies, and `way_through` returns the entity on a wall
 that has access. A staircase has no `Access`; entering one is `session_plan.md`, `## Entering an access point`.
 
-### What the queries become
+### Queries
 
-- **The entities on a wall or flat cell:** the wall's or cell's entity, then its `AttachedEntities`.
-- **Where an entity is:** its `Site`, and its parent if the site has no address.
-- **The other side of a door:** the door facing's parent, then that parent's other child.
-- **The actors at a location:** the zone's placement index (`## Placement index`).
+- **The entities on a wall or flat cell** are found through the wall's or cell's entity, then its `AttachedEntities`.
+- **An entity's location** is read from its `Site`, and from its parent if the site has no address.
+- **The other side of a door** is the door facing's parent, then that parent's other child.
+- **The actors at a location** are found through the zone's placement index (`## Placement index`).
 
 `Door`, `DoorFacing`, `Openable`, `Crossable`, `Concealed`, `facing_on`, `door_of`, `other_facing`, `create_door`,
 `create_doors`, `door_walls_type`, and `load_layout`'s `door_type` are gone.
@@ -254,7 +254,7 @@ a wall or a flat cell, since those addresses belong to the old zone.
 - **Reflection** is registered member by member for every new component, as `sim_zone_model.md` requires, or a saved
   zone is written with names and no values.
 
-## What checks it
+## Tests
 
 - **`stratum_sim_test`:**
   - loading a template twice gives different persistent ids and the same structure;

@@ -7,12 +7,12 @@ project in the repository: a `Log` class, and one process-wide instance of it th
 passed it. The program installs the sinks the entries are written to. The library is thread-safe. The open items are in
 `work_plan.md` (`### Log`).
 
-## Where it is now
+## Current state
 
 - **The library is built and in use,** in `library/quetzal/log/`, with `log_test`, as `## The game's use` describes.
 - **catagen has no warnings,** and `stratum_sim` reports a failure by throwing or through its event queue.
 
-## What other projects do
+## Other projects
 
 - **spdlog** has a registry of named loggers and a default logger, which free functions such as `spdlog::info` and
   `spdlog::warn` write to with `fmt` formatting. Its levels, from least to most severe, are trace, debug, info, warn,

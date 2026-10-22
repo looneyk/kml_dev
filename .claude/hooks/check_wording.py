@@ -157,8 +157,9 @@ def main():
 
     if not findings:
         return 0
-    message = ("Wording check: the text just added has watch-list words. For each, keep it only if the word is used in its "
-               "ordinary sense; otherwise reword it to say literally what the code does.\n" + "\n".join(findings) + "\n")
+    message = ("Wording check: the text just added has watch-list words or clipped openings. Keep a word only if it is "
+               "used in its ordinary sense, otherwise reword it to say literally what the code does; rewrite a clipped "
+               "opening as a sentence with a subject and a verb.\n" + "\n".join(findings) + "\n")
     sys.stderr.buffer.write(message.encode("utf-8", errors="replace"))
     return 2
 

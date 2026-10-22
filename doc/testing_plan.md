@@ -2,8 +2,8 @@
 
 Date: 2026-10-21
 
-How the tests are written, registered and run: doctest in place of the hand-written harness, CTest to run every test
-executable or any subset of one, and reference files that one option updates. Stratum's five test executables ---
+This plan describes how the tests are written, registered and run: doctest in place of the hand-written harness, CTest
+to run every test executable or any subset of one, and reference files that one option updates. Stratum's five test executables ---
 `stratum_format_test`, `stratum_sim_test`, `stratum_view_test`, `dungen_test` and `catagen_test` --- come first, then
 the other test executables in the root `CMakeLists.txt`. `stratum_testing_review.md` is the review behind it, and the
 open items are in `work_plan.md` (`### Testing`).
@@ -29,6 +29,11 @@ doctest, vendored at `library3/doctest` with its `doctest.cmake`. Godot's unit t
 it, and LLVM, Chromium, Abseil and fmt use GoogleTest. Catch2 works as doctest does, and has been a compiled library
 since version 3. doctest is one header, compiles the fastest of the three, and has test suites and subcases, which match
 the harness's groups and cases.
+
+**Test cases live only in the test executables, never in production code.** doctest can compile test cases written
+beside the code they test and strip them with `DOCTEST_CONFIG_DISABLE`; that is not used. Every test case is in a test
+executable's own source files under `test/`, `doctest.h` is included only by those files and by `quetzal_testing`, and
+no library under `library/quetzal` other than `quetzal_testing` includes doctest or links to it.
 
 ## A test executable on doctest
 

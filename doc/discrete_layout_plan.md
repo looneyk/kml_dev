@@ -5,7 +5,7 @@ Date: 2026-09-11, revised 2026-09-26
 This plan describes the structures a zone file loads into, and the reader and writer on either side of them.
 `discrete_layout.md` is the format and is the authority on the file itself.
 
-## What the format specifies
+## Format contents
 
 The file states five things, and each goes somewhere different:
 
@@ -91,7 +91,7 @@ There are two per zone, the floor and the ceiling, each storing the three levels
 A level states only what it overrides, so the maps are sparse: a zone with three sunken rooms has three entries, not
 one per cell. The layout resolves a height, not the flat, since the room that contains a cell is in the layout's cells.
 
-### What is not in the layout
+### Data outside the layout
 
 Components and entities are not. The layout has no world to build them in, so they pass through to a caller that
 does.
@@ -148,7 +148,7 @@ compression is the writer's choice per file, and a compressed file and a charact
 
 The reader uses nlohmann/json, vendored at `library3/json`.
 
-## What the format changes
+## Format changes
 
 - **Both generators write it**, with their parameter headers becoming `generator.parameters` with the same tokens.
 - **`load_layout` reads the notation from `cells.notation`**, without inspecting a header.

@@ -75,7 +75,7 @@ shops and temples.
 
 ### Persistence decides determination
 
-Whether a level survives being left tracks closely with whether room records are kept.
+The games whose levels survive being left are nearly always the games that keep room records.
 
 Angband keeps the least identity and is also the game that discards the level: leave and return and it is generated
 afresh, so nothing is lost by discarding what generation knew. NetHack and ADOM both persist levels and both keep room
@@ -97,7 +97,7 @@ Storing rooms at generation and reading them back, or flagging cells and recover
 in shipped games. Every game choosing the second keeps records anyway for the rooms that mean something, and the games
 choosing it are the ones whose levels do not have to survive being left.
 
-## Where stratum is
+## Stratum
 
 stratum keeps what generation knew. A zone file states each room, by perimeter or by a cell in it with barriers closing
 the fill (`discrete_layout.md`, `## rooms`), with components such as a name and a style, and loading sets `room_id` on

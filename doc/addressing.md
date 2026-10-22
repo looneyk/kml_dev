@@ -9,14 +9,14 @@ the appendix.
 
 The document has four parts:
 
-1. **What is addressed:** places and entities, and what each is.
-2. **In a file:** how a zone file writes them.
-3. **In a layout:** the ids a layout encodes places as.
-4. **In the world:** the data structures a loaded zone has, and how lookups work.
+1. **Places and entities** describes what is addressed, and what each is.
+2. **In a file** describes how a zone file writes them.
+3. **In a layout** describes the ids a layout encodes places as.
+4. **In the world** describes the data structures a loaded zone has, and how lookups work.
 
 Date: 2026-09-14, revised 2026-09-26
 
-## What is built
+## Implementation status
 
 | | |
 | --- | --- |
@@ -46,7 +46,7 @@ Date: 2026-09-14, revised 2026-09-26
 | An entity | its local id, or its persistent id in a saved zone | not stored | its persistent id, and its runtime entity while loaded |
 | A zone | its persistent id, in a saved zone only | not stored | its persistent id, and its runtime entity while loaded |
 
-## Part 1: What is addressed
+## Part 1: Places and entities
 
 ### Places
 
@@ -115,8 +115,8 @@ hierarchy of parents and children is sited on the geometry somewhere in it.
 
 **An entity can refer to another.** A lever refers to the door it controls, a summoned monster to its
 summoner, a quest to its object. A generator makes these references when it creates both entities: it
-places a lever beside a door and writes the door's id into the lever. What a reference does is up
-to script, such as a triggered script that opens the door a lever controls.
+places a lever beside a door and writes the door's id into the lever. Script decides what a reference
+does, such as a triggered script that opens the door a lever controls.
 
 **A link to something that does not exist yet uses a shared value, not a reference.** A key in one
 zone for a door in a zone not yet generated has no id to refer to. The key and the lock have the same
@@ -238,8 +238,7 @@ A saved zone is written in the same format, with the exception that the former l
 with persistent ids. That includes references, so a reference can point to an entity in another zone.
 The file also has the zone's own persistent id, which a template does not have.
 
-What a zone saves is its geometry, the file components of its places, and its entities with all of
-theirs. Each fact is saved once, in the place it comes from. That a chest lies on a flat cell is saved in
+A zone saves its geometry, the file components of its places, and its entities with all of theirs. Each fact is saved once, in the place it comes from. That a chest lies on a flat cell is saved in
 the chest's `site`, and a wall's style in the zone's `walls` section. Nothing derived is saved: not
 layout entities, not the lists of what is sited on something, not a parent's children, not the
 placement index. They are all rebuilt when the zone loads. The world separately saves its id allocator's
@@ -298,11 +297,11 @@ and slot to flat cell entity.
 
 **Lookups.**
 
-- **What is on this wall or flat cell:** look up the wall's or cell's entity in the zone's index, then
+- **What is on this wall or flat cell?** Look up the wall's or cell's entity in the zone's index, then
   read its list.
-- **What is in that chest:** read the chest's children, keeping those sited `in` it.
-- **Where an entity is:** read its `site`, and its parent if the site has no address.
-- **Whether a wall can be crossed:** check each entity on the wall's list for open access that is not
+- **What is in that chest?** Read the chest's children, keeping those sited `in` it.
+- **Where is an entity?** Read its `site`, and its parent if the site has no address.
+- **Can an actor cross a wall?** Check each entity on the wall's list for open access that is not
   concealed from the actor, reading each property from the entity or, if it has none, from its
   nearest ancestor that has one. An entity with no access at all, a torch or a lever, is no way through. `crossable` has
   no case for a door, a staircase or concealment.

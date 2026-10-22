@@ -48,7 +48,7 @@ hosts reach them as the sim does.
   them and saves their state. Each is thread-safe.
 - **A test sets each of them before a test case,** since every game in its process shares them.
 
-### What other games do with settings
+### Settings in other games
 
 - **NetHack** keeps its options in global structs that any code reads. `flags` holds the options that affect play and is
   written into the save file, so a game reopens with them; `iflags` holds the interface options, which are the
@@ -294,8 +294,8 @@ Character& Game::character();
   `open` takes, the character's name as the player entered it, the time of the save, and its save type, read from its
   name. The menu shows the character's name, the time, and the save type, "Autosave", "Quicksave" or nothing for an
   explicit save, and not the save's name.
-- **Whether opening a save repeats its outcomes is the player's setting,** `Settings::random_seeding_on_open`: restoring the
-  random engines' saved state repeats them, and reseeding lets a reload have outcomes of its own. The random engines
+- **The player's setting `Settings::random_seeding_on_open` decides whether opening a save repeats its outcomes.**
+  Restoring the random engines' saved state repeats them, and reseeding lets a reload have outcomes of its own. The random engines
   are the same either way.
 
 ### Quick saves and autosaves
@@ -337,8 +337,8 @@ Character& Game::character();
 - **No zone file names an entry point.** It is chosen from among the access points.
 - **An access point is an entity with a relocator, sited on a surface:** a wall, the floor or the ceiling. Its type is
   a registered entity --- staircase, door, portal, waypoint, or a type that a mod adds --- and its placement, the cell
-  and orientation at which an arriving actor is placed, is explicit in the file. Whether it goes up, down, or across
-  is in its relocator's target. The JSON is the source of truth; the stair glyphs are visual aids, and a discrepancy between them is a warning.
+  and orientation at which an arriving actor is placed, is explicit in the file. Its relocator's target determines
+  whether it goes up, down, or across. The JSON is the source of truth; the stair glyphs are visual aids, and a discrepancy between them is a warning.
 - **Each access point has an `order`,** given when it is created, counting from 0 within its type, so each type has its
   own 0.
 - **The entry point is the available access point with the lowest `order` among those of the desired type whose
@@ -394,8 +394,8 @@ This is a future feature. Only the controlled actor enters a relocator.
 
 Open:
 
-- **Which pursuers follow:** any active pursuer of the character, or only those within some distance or in sight of it
-  when it leaves.
-- **Where the queue is kept,** and what becomes of a queued pursuer whose destination zone unloads before it is placed.
-- **A queued pursuer is in no zone,** so it is unscheduled and in no zone's save; how it is saved with the game.
-- **How the delay is measured:** turns of the character, or the scheduler's units.
+- **Which pursuers follow?** Any active pursuer of the character might, or only those within some distance or in sight
+  of it when it leaves.
+- **Where is the queue kept, and what becomes of a queued pursuer whose destination zone unloads before it is placed?**
+- **How is a queued pursuer saved with the game?** It is in no zone, so it is unscheduled and in no zone's save.
+- **Is the delay measured in turns of the character or in the scheduler's units?**

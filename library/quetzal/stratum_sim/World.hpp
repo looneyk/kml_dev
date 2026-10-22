@@ -188,8 +188,8 @@ namespace quetzal::stratum_sim
         size_t zone_count_max() const;
         void set_zone_count_max(size_t zone_count_max);
 
-        // The layout's queries, run from the entity's zone and placement. Whether a wall is crossable depends on how the
-        // entity perceives what is on it. In move, every Blocking entity other than e blocks the way
+        // The layout's queries, run from the entity's zone and placement. A wall is crossable or not as the entity
+        // perceives what is on it. In move, every Blocking entity other than e blocks the way
         MoveResult move(flecs::entity e, const vector_type& direction, value_type distance) const;
         Layout::placements_type neighbors(flecs::entity e) const;
         bool visible(flecs::entity e, const placement_type& to) const;

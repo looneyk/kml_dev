@@ -7,7 +7,7 @@ what is saved. Gameplay comes first. The random engines are arranged for what a 
 reproducibility is a development tool for the tests, bug reports, and reference files, not a promise to players. The
 open items are in `work_plan.md` (`### Random engine`).
 
-## Where it is now
+## Current state
 
 - **`Game` owns the gameplay random engine,** a `math::Random` seeded from `math::random_seed`, and `World` takes it by
   reference in its constructor, though nothing draws from it yet. The seed is neither passed in nor logged.
@@ -20,7 +20,7 @@ open items are in `work_plan.md` (`### Random engine`).
   seeding, `sim_zone_model.md` counts RNG streams as world state, and `placement_plan.md` passes placement a random engine
   without stating which one.
 
-## What other games do
+## Other games
 
 - **Dungeon Crawl Stone Soup** keeps one generator for each purpose in its `rng` namespace: gameplay, level generation,
   and the UI among them. The draw functions, such as `random2(n)`, draw from whichever generator is current. A scope
@@ -93,6 +93,23 @@ engine type`), and a seed stored with the version of the generators that made it
   distribution included, so threads that draw at the same time never corrupt its state. The values each thread draws
   then depend on the order in which the threads draw, so the draws that must be reproducible from a seed are made on
   one thread.
+- **Its thread safety is internal to it.** A process-wide random engine is a `stratum_sim::RandomStream`, which
+  has `math::Random`'s members for seeding and drawing --- `seed`, `random`, `random_closed`, `gaussian`,
+  `triangular`, `choose` and `shuffle` --- and its state as text, `state` and `set_state`, for saving. Its mutex and
+  its `math::Random` are private, and no member returns either, so locking each draw can change to a debug check of the
+  owning thread, or to anything else, without changing a caller. Code moving between a run's own `math::Random` and a
+  process-wide random engine changes only the object it draws from. `quetzal::math` has no locking.
+
+  ```cpp
+  namespace quetzal::stratum_sim
+  {
+      RandomStream& gameplay_random();
+      RandomStream& generation_random();
+  }
+  ```
+
+- **`math::Random` keeps its state as text too.** `state` and `set_state` replace `engine()`, through which `Game` now
+  writes and reads the random engine's state, so no caller reaches the random engine itself.
 - **`Game` seeds the process-wide random engines** from a seed that a host or a test passes, or from
   `std::random_device` if none is passed, and the host logs the seed. A test seeds them explicitly before each test
   case.

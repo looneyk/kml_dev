@@ -298,7 +298,7 @@ GeneratorSelection common(const World& world, flecs::entity region, const ZoneSp
 }
 ```
 
-- **A weighted table is the mechanism that placement draws from** (`placement_plan.md`, `## What one run takes`), so
+- **A weighted table is the mechanism that placement draws from** (`placement_plan.md`, `## A run's roles`), so
   the selector and placement share it.
 - **A selector of its own is script,** once scripting is chosen (`modding_plan.md`), for a region whose rules the
   common selector's parameters cannot express. Until then each is C++ that a host registers.
@@ -387,7 +387,7 @@ World            entry_point(zone 31, staircase, +1)
 World          the two staircases bound to each other
 ```
 
-## What this replaces
+## Replacements
 
 - **`Generator` and the `std::shared_ptr<const Generator>` component** are replaced by the registries, and
   `create_zone(region, const Generator&)` and `create_zone(region, level)` by `create_zone(region, zone_spec)`.

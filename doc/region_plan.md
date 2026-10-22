@@ -9,7 +9,7 @@ it requires each zone to have its region and level. So regions come before reloc
 `sim_zone_model.md` (`## World, Zones, and Levels`) states the model, `world_generation_plan.md` how regions and their
 zones are generated, and the open items are in `work_plan.md` (`### Regions`).
 
-## What a region is
+## Region model
 
 - **A region is data.** It is an entity with its properties as components: a name, and for a dungeon the overall or
   starting difficulty and the other properties a whole dungeon has. It acts on nothing directly, apart from what a

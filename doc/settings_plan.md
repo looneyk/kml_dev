@@ -34,7 +34,7 @@ separate theirs. Godot's `ProjectSettings` and Qt's `QSettings` use `/`, .NET's 
 `Config` is not a setting. It is the program's fixed configuration, such as its directories, which the player does not
 choose.
 
-## What the settings are
+## Overview
 
 - **Each subsystem has settings of its own.** Play and generation have the difficulty multipliers, the notation and
   how a save is opened; the views have video settings; the hosts have audio and controls. The sim must not depend on
@@ -71,7 +71,7 @@ There are two ways to hold them.
   such as `gameplay.difficulty.denizen_count_multiplier` or `video.fullscreen`. Each setting has one definition, and each layer reads
   only its own settings.
 
-### What other games do
+### Other games
 
 - **NetHack** has typed global structures, `flags` and `iflags`, and a table that maps each option's name to its field
   and type, through which the options file is read and the options menu is drawn.
@@ -299,7 +299,7 @@ namespace quetzal::settings
 } // namespace quetzal::settings
 ```
 
-**How it is used:**
+**Usage:**
 
 - **At startup, in each host's `main`,** the config is loaded, any C++ enumeration a subsystem's settings have is
   registered with `settings::store().register_type<T>(name, values)`, and the loader reads the definitions, the game's
@@ -320,7 +320,7 @@ namespace quetzal::settings
 - **A game cleared** returns the game scope's settings to their defaults with `reset(SettingScope::Game)`, which
   selects each group's default preset and leaves the values of its editable presets undefined.
 
-**What the store decides:**
+**The store's decisions:**
 
 - **A value is kept as text, in the store and in a file, and converted on each read,** as ini files, Source's
   `config.cfg`, Minecraft's `options.txt` and Qt's `QSettings` keep theirs. The store needs no `std::variant` or
@@ -439,7 +439,7 @@ one store, one key space and one change notification, for settings and groups al
   then setting the member. Only an explicit selection of the editable preset restores its own values. In a group with no editable preset, setting a member is an error, and nothing is set. The menu edits a
   member only while the editable preset is selected; a script or the console may set one at any time.
 - **A game that does not allow customization defines no editable preset.**
-- **What is saved follows from the table.** A selection is the group's value in `settings`, and an editable preset's
+- **The table determines what is saved.** A selection is the group's value in `settings`, and an editable preset's
   defined values are in `presets`, whichever preset is selected. A member is a setting like any other, but has no value
   of its own to save.
 - **Only the menu and the save list read the selected preset.** Other code reads the members: permadeath is read from its

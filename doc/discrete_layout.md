@@ -10,7 +10,7 @@ components. `sim_zone_model.md` describes the model that this format serializes,
 `discrete_layout_plan.md` describes the structures a file loads into and the reader and writer on either
 side of it.
 
-## What a file is
+## File structure
 
 A file is one JSON object. `format`, `version` and `cells` are required; the other keys are omitted if a
 zone has none.
@@ -117,8 +117,7 @@ A wall address is `{ "cell_position": [i, j], "normal": [ni, nj] }`, the cell th
 the normal pointing out of the wall's surface into that cell. A flat cell address is the flat's role and
 a cell position, `"flat": "floor"` and `"cell_position": [i, j]`. The file never refers to a wall by id.
 
-What an edge, a wall, an address and every other identifier are, and the rules each follows, are
-specified in `addressing.md`.
+`addressing.md` specifies edges, walls, addresses and every other identifier, and the rules each follows.
 
 ### Components
 
@@ -608,7 +607,7 @@ interpreting a file component.
 An object with an `entity` key and anything beside it is not a reference. In a template every reference
 is an entity's id in the same file; in a saved zone one may point into another zone, and is not checked.
 
-### What the grid and the entities each specify
+### Grid and entities
 
 The grid specifies where and an entity specifies what. A door glyph creates the walls and marks the
 crossing; the door entity on those walls sets its material, lock and trap. A stair glyph marks a
@@ -677,10 +676,10 @@ The reader decodes a relocator: its `target`, required, a string that matches th
 and the writer writes a target back as the same string. A bound target is a reference, and the reader rejects one in
 a template.
 
-## What a reader must do with it
+## Reader requirements
 
-Load and validate the geometry, and return everything else as the file wrote it. What was read,
-written back, is equivalent to the file and complete, if not identical to it.
+A reader loads and validates the geometry, and returns everything else as the file wrote it. The document it
+reads, written back, is equivalent to the file and complete, if not identical to it.
 A reader has no world to build entities in, so where the file puts a door it reports the door rather
 than placing one, and the same applies to every component object and every entity.
 

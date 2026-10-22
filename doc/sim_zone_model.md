@@ -118,7 +118,7 @@ session it is the entity's persistent id, which includes no zone (`addressing.md
 **A denizen's home is data, not ownership.** Origin `Zone` and leash point are fields on the entity, so it can belong to
 the crypt while standing in the corridor outside.
 
-What is global is therefore world state rather than entities: quest flags, game time, faction standing, RNG streams.
+The global state is therefore world state rather than entities: quest flags, game time, faction standing, RNG streams.
 
 ### Residency, simulation, and persistence
 
@@ -277,8 +277,8 @@ A `Flat` has:
 
 - **A height field, not a single plane** --- sloped floors, arched ceilings, steps. It is a constant until something is
   sampled into it, so the ordinary case costs one value.
-- **Where the surface is absent.** A pit, a shaft, and a hole dug through the floor are where the surface is absent
-  rather than low, so a sample is an optional height. The sampling may be finer than the cells.
+- **Places where the surface is absent.** A pit, a shaft, and a hole dug through the floor are where the surface is
+  absent rather than low, so a sample is an optional height. The sampling may be finer than the cells.
 - **Its role,** floor or ceiling, explicit rather than inferred from the normal, so no steepness threshold is in the
   simulation. The normal stays available to the view.
 - **`height`,** the height field itself. A wall's height is determined by the floor and ceiling it spans.
@@ -466,5 +466,5 @@ states it that way now that `ContinuousLayout` is declared.
 
 ## Open questions
 
-- **How a height field is stored and sampled,** a constant one being the ordinary case, which must cost nothing.
+- **How is a height field stored and sampled?** A constant one is the ordinary case, and must cost nothing.
 - The scripting language, above, and earlier than the phased plan assumes.

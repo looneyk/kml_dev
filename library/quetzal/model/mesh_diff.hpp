@@ -343,7 +343,7 @@ namespace detail
     template<typename M>
     std::optional<VertexLoop<M>> merge_triangles(const M& model, id_type face_id0, id_type face_id1, const Options& options);
 
-    // Whether two triangles of a merged pair lie in one plane, in which case the diagonal between them
+    // Returns true if two triangles of a merged pair lie in one plane, in which case the diagonal between them
     // is arbitrary and the two triangulations describe the same surface
     template<typename M>
     bool coplanar_triangles(const M& model, id_type face_id0, id_type face_id1, const Options& options);

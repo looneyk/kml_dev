@@ -6,7 +6,7 @@ This plan describes the game's difficulty modes: what each sets, and how a mode 
 region's difficulty. It is a first draft, and the values in it are placeholders until the research behind them is
 done. The open items are in `work_plan.md` (`### Difficulty`).
 
-## What a mode is
+## Modes as presets
 
 - **A difficulty mode is a named preset of individual settings,** chosen when a game is created and saved in
   `game.json`'s `settings` (`game_file_spec.md`, `## settings`). Permadeath, the save rules, and each multiplier are a
@@ -90,7 +90,7 @@ The game's setting definitions in `assets/data` define the group, its members an
   denizen is given its `Speed`, and the detection range where its `Detection` is set. They are used in separate places,
   so no one structure has them all.
 
-## What the settings replace
+## Replaced settings
 
 - **`gameplay.reseed_on_open`** becomes the mode's setting for opening a save.
 - **Permadeath** (`session_plan.md`, `### Permadeath`) becomes Hardcore's death and save settings: `quit` saves the

@@ -10,7 +10,7 @@ whether `procgen` is one library or several.
 candidate location that a run chooses among: a wall id, a cell, or a room. The replacement term is tracked in
 `work_plan.md`.
 
-## Where a zone comes from
+## Zone construction
 
 A zone is constructed whole, geometry and contents, from parameters and a seed when it is encountered; a zone file is a
 snapshot of part of that construction. `World::create_zone` and `load_zone` are the entries, and `World::populate`
@@ -19,7 +19,7 @@ places a zone's denizens (`game_system_reference.md`, World).
 **Placement is part of generation, not a step after it.** A generator builds geometry and places contents in it, and a
 file, if one is written, preserves the result. Anything a file leaves out is filled in as though it were generated.
 
-## What placement is
+## Purpose
 
 Placement puts contents in a zone whose geometry is built: doors on the walls a loader reported, items in rooms,
 denizens on floor cells, a torch on a wall, or a trap on a doorway. One algorithm handles all of them; only the type of
@@ -32,7 +32,7 @@ callback that builds into it; placement sees a range of sites, a table of candid
 site range is the interface between them, so the same placement can run against a `catagen::Zone` before a layout
 exists, or against something that is not a zone.
 
-## What one run takes
+## A run's roles
 
 A run has five roles, each independent of the rest:
 
@@ -53,7 +53,7 @@ Selection and distribution are kept apart, so "rare items, one per room" is the 
 Placement is seeded, so the sites must arrive in a stable order. flecs iteration is deterministic but not ordered
 (`sim_zone_model.md`), so the caller that gathers a site range from a query sorts it, as the interface states.
 
-## What it does not cover
+## Exclusions
 
 **Dependent placement.** A key reachable before the door it opens, a lever before the gate, and a boss behind both need
 a constraint solver over reachability, which is beyond this form.

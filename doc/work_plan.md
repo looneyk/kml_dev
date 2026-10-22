@@ -70,8 +70,9 @@ boxes are removed at the start of the next piece of work, since the reference do
 ## Random engine
 
 - [ ] **The gameplay random engine process-wide** (`random_engine.md`, `## Ownership`): the gameplay random engine
-      reached through a function in place of `Game`'s member and `World`'s reference, and thread-safe, locking its
-      mutex for each draw; a host or a test passing the seed, and the host logging it.
+      reached through a function in place of `Game`'s member and `World`'s reference, a `stratum_sim::RandomStream`
+      whose locking is internal to it, and `math::Random`'s `state` and `set_state` in place of `engine()`; a host or a test
+      passing the seed, and the host logging it.
 - [x] **xoshiro256** and the portable alias:** `math::Xoshiro256StarStar`, `math::portable_random_engine_type`, and
       `random_test`.
 - [x] **The random engine chosen** (`random_engine.md`, `## The random engine type`): `math::Random`'s default the
@@ -141,7 +142,7 @@ the test executables are converted (`testing_plan.md`).
 
 ## Modding
 
-- [ ] **Place types from data** (`modding_plan.md`, `## What blocks it now`). A reduction maps an entity's type to a
+- [ ] **Place types from data** (`modding_plan.md`, `## Current blockers`). A reduction maps an entity's type to a
       place type that the presentation table names, instead of to an enum value, so a modded type has a glyph of its
       own.
 
@@ -211,25 +212,25 @@ These are the open questions.
   what hit the door and what it is made of: an axe and a charge differ as much on one door as an oak door and a
   portcullis differ under one axe. `sim_zone_model.md` settles that a script determines it, over an engine default, so
   the structure only has to let the script reach both the door's material and the damage.
-- **Where damage accrues.** An axe is applied to a door facing, and a blast is centered in space, reaching many walls
-  and everything on them. That argues that damage accrues per door facing --- the side that was chopped is the side
-  that shows it --- and that the shared state changes only when the door as a whole gives way.
-- **Whether a wall side without a door is worth an entity.** A wall's surface treatment is per side. If every wall side
+- **Where does damage accrue?** An axe is applied to a door facing, and a blast is centered in space, reaching many
+  walls and everything on them. That argues that damage accrues per door facing --- the side that was chopped is the
+  side that shows it --- and that the shared state changes only when the door as a whole gives way.
+- **Does a wall side without a door merit an entity?** A wall's surface treatment is per side. If every wall side
   becomes an entity, the count argument that kept walls out of the entity store applies again, so surface treatment
   probably stays in layout data and only sides with something on them become entities.
-- **Where a trap belongs:** on the door, or per door facing, since the side it is triggered from and the side it fires
-  into need not be the same.
-- **Whether concealment blocks sight as well as movement.** A secret door is drawn as wall, and `visible` binds the same
-  `crossable` as `move`, so a closed or concealed way through stops a sight line. Whether a sight line should follow a
-  predicate of its own, with a window open to sight and closed to movement, is open.
+- **Does a trap belong on the door, or on each door facing?** The side it is triggered from and the side it fires into
+  need not be the same.
+- **Does concealment block sight as well as movement?** A secret door is drawn as wall, and `visible` binds the same
+  `crossable` as `move`, so a closed or concealed way through stops a sight line. A sight line could instead follow a
+  predicate of its own, with a window open to sight and closed to movement.
 - **A way through's visual state,** such as off its hinges or a pile of rubble, is set by script and interpreted by the
   view. The component that has it is not designed.
-- **What a swinging door needs, if anything.** A door facing has no direction of its own, since the wall determines its
-  orientation, so the space a door opens into is either not modeled or one more field on the door.
-- **Whether a door can shut behind an actor.** With one door on a doorway block, an actor inside the block is never
-  between two doors. A trap that shuts an actor in needs a door that closes while occupied, and a block whose sides
-  stop being free to pass. This is far future, and nothing depends on it.
-- **How an actor selects the adjacent door it means.** In a corridor past an open door, a move turns toward the way it
+- **What, if anything, does a swinging door need?** A door facing has no direction of its own, since the wall
+  determines its orientation, so the space a door opens into is either not modeled or one more field on the door.
+- **Can a door shut behind an actor?** With one door on a doorway block, an actor inside the block is never between two
+  doors. A trap that shuts an actor in needs a door that closes while occupied, and a block whose sides stop being free
+  to pass. This is far future, and nothing depends on it.
+- **How does an actor select the adjacent door it means?** In a corridor past an open door, a move turns toward the way it
   goes, so turning toward the door is moving into the doorway, and from inside a block there is nothing to shut.
   Acting on any adjacent door fails in a corridor with an open door on each side, since both are adjacent. The
   interaction needs a way to select a side that is neither the facing direction nor adjacency. The problem arises
@@ -244,17 +245,18 @@ These are the open questions.
 
 - **The scripting language.** Lua is what the genre uses; Luau adds sandboxing and gradual typing. It is chosen before
   Phase 4.
-- **Load order and patch rules:** how mods are ordered, what a patch may add, replace or remove, and how two mods that
-  patch one type combine.
-- **What the sandbox exposes** to a mod script: which world queries and which assets, and nothing of the file system.
-- **How a style names its meshes,** and which surfaces a kit piece may replace: a wall side, a flat cell, or a corner.
-- **Which components inherit** along the chain, and therefore which have fields that may be left unset.
-- **How a place type is defined in data** --- as a name the presentation table maps, or as a field on the type --- and
-  how `cells` and `lattice` reduce an entity of a modded type.
-- **A different version:** what opening a game does when a mod's version differs from the one the game recorded.
-- **Entities of a missing mod:** whether a zone keeps the entities of a missing mod's types, so they return with the
-  mod as its settings do, or loses them when it is saved.
-- **Dependencies:** whether a mod's manifest lists the mods it requires.
+- **What are the load order and the patch rules?** They decide how mods are ordered, what a patch may add, replace or
+  remove, and how two mods that patch one type combine.
+- **Which world queries and assets does the sandbox expose to a mod script?** It exposes nothing of the file system.
+- **How does a style refer to its meshes, and which surfaces may a kit piece replace?** The candidates are a wall side,
+  a flat cell and a corner.
+- **Which components inherit along the chain?** Those are the components with fields that may be left unset.
+- **How is a place type defined in data, and how do `cells` and `lattice` reduce an entity of a modded type?** A place
+  type could be a name that the presentation table maps, or a field on the type.
+- **What does opening a game do when a mod's version differs from the version the game was saved with?**
+- **Does a zone keep the entities of a missing mod's types, or lose them when it is saved?** Keeping them returns them
+  with the mod, as its settings return.
+- **Does a mod's manifest list the mods it requires?**
 
 ### Sites
 
@@ -265,25 +267,25 @@ These are the open questions.
 
 ### Placement
 
-- **Where it lives.** `procgen` is a name reserved in the module layout rather than a library, and placement may not belong beside the zone generators
-  at all, since its dependencies are tables and prototypes, not grids.
-- **What the roles are called.** `distribution` in particular collides with `std::uniform_int_distribution` and the
+- **Where does placement live?** `procgen` is a name reserved in the module layout rather than a library, and placement
+  may not belong beside the zone generators at all, since its dependencies are tables and prototypes, not grids.
+- **What are the roles called?** `distribution` in particular collides with `std::uniform_int_distribution` and the
   rest, in code that uses them.
-- **Whether a site is a value or an id.** A wall is an `id_type`, a cell a cell position, and a room a record.
-  Templating over the site type handles all three; whether a run needs them mixed is not known.
-- **Where the boundary with `content` falls.** Weighted draws over prototypes may belong to `content`, leaving
+- **Is a site a value or an id?** A wall is an `id_type`, a cell a cell position, and a room a record. Templating over
+  the site type handles all three; it is not yet known whether a run needs them mixed.
+- **Where does the boundary with `content` fall?** Weighted draws over prototypes may belong to `content`, leaving
   placement only the spatial half.
 
 ### Layout
 
-- **Whether a continuous layout has `Flat` at all.** Its zone is ordinary 3D models, where a
+- **Does a continuous layout have `Flat` at all?** Its zone is ordinary 3D models, where a
   floor is geometry like any other rather than a bounding surface with a role. `Flat` may be a
   discrete convenience that does not cross, or the record both use with the sampled fields filled
   in. Nothing forces the choice until the skeleton has something behind it.
 - **`cardinal_directions`, `discrete_point_type`, `grid_step` and `discrete_vector_type` are in `types.hpp`,** which
   every layout includes, so the discrete vocabulary is in the neutral header. Moving it under `DiscreteLayout.hpp`
   touches every file in the library, and is worth doing alongside other work.
-- **Whether rooms rise to `Layout`.** A room is `room_id` on a `DiscreteLayout`'s cells and an entity with its
+- **Do rooms rise to `Layout`?** A room is `room_id` on a `DiscreteLayout`'s cells and an entity with its
   components. The entity is neutral and the cells are not, so rooms stay on `DiscreteLayout` until something
   continuous needs one.
 - **`DiscreteLayout::field_of_view` is declared and not defined.** A shadowcasting sweep computes every cell around one
@@ -296,28 +298,30 @@ These are the open questions.
   floor/door cell on either side satisfies it. A perimeter whose walls all face outward, around a pillar or solid
   ground, passes while enclosing no floor/door cell. The reader already determines which side of each edge is inside;
   a check of the enclosed area is needed to reject these.
-- **Where access point types are registered from data,** including a mod's, instead of in `World`'s constructor
-  (`modding_plan.md`).
-- **The scale of the probability of a staircase leading down,** which is inversely proportional to how far below the
-  surface the zone's level is and proportional to `difficulty`, and is 1 for now; and what bounds it, since a region
-  has no lowest level.
-- **Whether the layout interface returns a wall id.** An address encodes into one, so it can. Whether a handle to a
-  wall belongs on an interface that mentions neither cells nor walls is an older question.
+- **Where are access point types registered from data, a mod's among them, instead of in `World`'s constructor?**
+  `modding_plan.md` has the goal.
+- **What scale does the probability of a staircase leading down take, and what bounds it?** It is inversely
+  proportional to how far below the surface the zone's level is and proportional to `difficulty`, and is 1 for now. A
+  region has no lowest level to bound it.
+- **Does the layout interface return a wall id?** An address encodes into one, so it can. An older question is
+  whether a handle to a wall belongs on an interface that mentions neither cells nor walls.
 
 ### Game file
 
-- **The format's identifier,** `quetzal.stratum_game`, and the file names, `game.json` and the rest, for now.
-- **The character's components:** its description, attributes, and skills.
-- **What triggers an autosave.** Entering any zone, for now. Entering a town may be the trigger as well or instead,
-  which depends on the generator selector's town zones (`## Generators`).
-- **The quickload key,** F8 or F9, and which save it opens.
+- **Are the format's identifier and the file names final?** They are `quetzal.stratum_game`, and `game.json` and the
+  rest, for now.
+- **What are the character's components?** Its description, attributes, and skills are not designed.
+- **What triggers an autosave?** Entering any zone does, for now. Entering a town may be the trigger as well or
+  instead, which depends on the generator selector's town zones (`## Generators`).
+- **Is the quickload key F8 or F9, and which save does it open?**
 
 ### Difficulty
 
-- **What each mode sets,** and the values: the draft table in `difficulty_plan.md` (`## The modes`) is a placeholder.
-- **What death does in the easy modes:** revival at the zone's entry point in Story, and reloading from Novice up, or
-  something else.
-- **How luck is applied** as a hidden stat of the character: what it changes, and by how much.
+- **What does each mode set, and to which values?** The draft table in `difficulty_plan.md` (`## The modes`) is a
+  placeholder.
+- **What does death do in the easy modes?** It might revive the character at the zone's entry point in Story and
+  reload a save from Novice up, or do something else.
+- **How is luck applied as a hidden stat of the character?** Neither what it changes nor by how much is decided.
 
 ### Intent
 
@@ -327,19 +331,19 @@ These are the open questions.
 
 ### Regions
 
-- **The properties each type of region has.** A surface area's and a dungeon's overlap but differ, and difficulty goes
-  from the starting value across a dungeon's zones in a way not yet decided.
-- **Distance or level difference** as the measure within the character's region, and whether it differs by type of
-  region.
-- **The contents of a region file:** only the region's metadata and generation settings, or those followed by its
-  zones; and how it relates to the zone file format.
-- **How two bound doors keep their `Access` equal** (`region_plan.md`, `## Doors between zones`). With both zones
-  loaded, changing one door sets its partner too. With the partner's zone unloaded, only this side changes, and the
+- **What properties does each type of region have?** A surface area's and a dungeon's overlap but differ, and
+  difficulty goes from the starting value across a dungeon's zones in a way not yet decided.
+- **Is the measure within the character's region distance or level difference, and does it differ by type of region?**
+- **What does a region file contain, and how does it relate to the zone file format?** It may have only the region's
+  metadata and generation settings, or those followed by its zones.
+- **How do two bound doors keep their `Access` equal?** `region_plan.md` (`## Doors between zones`) has the design.
+  With both zones loaded, changing one door sets its partner too. With the partner's zone unloaded, only this side changes, and the
   two are reconciled when an actor crosses or when the partner's zone loads; which change is newer needs deciding,
   such as by the simulation time of the last change stored with `Access`.
-- **How a relocator between surface zones states where it leads.** It leads neither up nor down, so a level offset of 0
-  may be enough, or it may need a horizontal distance or direction instead.
-- **What the pregenerated content index file contains** (`region_plan.md`, `## Pregenerated content`).
+- **How does a relocator between surface zones state where it leads?** It leads neither up nor down, so a level offset
+  of 0 may be enough, or it may need a horizontal distance or direction instead.
+- **What does the pregenerated content index file contain?** `region_plan.md` (`## Pregenerated content`) describes
+  the index.
 
 ### Generation
 
@@ -348,74 +352,75 @@ These are the open questions.
   the second entrance to refer to the region the first created, such as by persistent id once the region exists. A
   region nearing its zone limit has the same need: each exit that leads out of it creates a new region, where they could
   lead into a region that already follows it, which the selector would then refer to.
-- **How the probability of a new region rises** with a region's zone count, from 0 to 1 at its limit: the curve, where
-  it starts, and whether it is a parameter of the `RegionSpec`.
-- **The region in a relocator target:** the name of a region spec, from which a new region is created, or a tag in the
-  pregenerated content index (`region_plan.md`, `## Pregenerated content`); how the two are distinguished.
-- **Which `RegionSpec` metadata becomes components** on the region, and which only the selector reads.
+- **How does the probability of a new region rise with a region's zone count, from 0 to 1 at its limit?** The curve
+  and where it starts are undecided, and so is whether it is a parameter of the `RegionSpec`.
+- **Which of its two forms is the region in a relocator target, and how are they told apart?** It is the name of a
+  region spec, from which a new region is created, or a tag in the pregenerated content index (`region_plan.md`,
+  `## Pregenerated content`).
+- **Which `RegionSpec` metadata becomes components on the region, and which does only the selector read?**
 
 ### Log
 
-- **Whether entries are written asynchronously,** from a queue by a worker thread as spdlog's asynchronous mode does, or
-  on the thread that logs.
-- **The log file's name and how many are kept:** a file for each run, named by the program and its start time, with
-  the oldest removed past a count, as Godot keeps them, or one file appended to.
-- **Whether entries written before the first sink is installed are kept** and written to it, rather than dropped.
+- **Are entries written asynchronously, from a queue by a worker thread as spdlog's asynchronous mode does, or on the
+  thread that logs?**
+- **What is the log file named, and how many are kept?** There may be a file for each run, named by the program and its
+  start time, with the oldest removed past a count, as Godot keeps them, or one file appended to.
+- **Are entries written before the first sink is installed kept and written to it, rather than dropped?**
 
 ### Random engine
 
-- **Whether players get reproducible games from a shared seed.** It needs each zone's seed derived from the world seed
+- **Do players get reproducible games from a shared seed?** It needs each zone's seed derived from the world seed
   and the zone's place instead of drawn, so that a world seed builds the same world however it is explored.
 
 ### Testing
 
-- **Obsolete reference files,** whose test case no longer exists: whether `--update-references` removes them, which a
-  filtered run must not do, or a run reports them, as Jest reports an obsolete snapshot.
-- **The labels of the test executables outside stratum.**
-- **Which record of each test case's result is kept:** CTest's `LastTest.log`, a JUnit XML file from each run, or
-  doctest's output with `--success`.
+- **What happens to a reference file whose test case no longer exists?** `--update-references` could remove it, which a
+  filtered run must not do, or a run could report it, as Jest reports an obsolete snapshot.
+- **What labels do the test executables outside stratum get?**
+- **Which record of each test case's result is kept?** The candidates are CTest's `LastTest.log`, a JUnit XML file from
+  each run, and doctest's output with `--success`.
 
 ### Session
 
-- **The population strategy from the zone's source,** the template loaded or the generation guidance, which replaces
-  `World::populate`'s placeholder (`session_plan.md`, `## World`).
-- **The time a zone was entered:** simulation time or real time.
-- **The saves directory's default on Windows:** `%USERPROFILE%\Saved Games\KML\Stratum`, the known folder
-  `FOLDERID_SavedGames`, which Microsoft's GDK guidance recommends for a game that manages its own saves, and which
-  Cyberpunk 2077 and The Outer Worlds 2 use, in place of the user directory's `saves`.
-- **Whether the driver belongs to the game or to a zone.**
+- **What population strategy does a zone's source supply?** The source is the template loaded or the generation
+  guidance, and the strategy replaces `World::populate`'s placeholder (`session_plan.md`, `## World`).
+- **Is the time a zone was entered simulation time or real time?**
+- **Should the saves directory default to `%USERPROFILE%\Saved Games\KML\Stratum` on Windows, in place of the user
+  directory's `saves`?** That is the known folder `FOLDERID_SavedGames`, which Microsoft's GDK guidance recommends for a
+  game that manages its own saves, and which Cyberpunk 2077 and The Outer Worlds 2 use.
+- **Does the driver belong to the game or to a zone?**
 - **Actors.** The character and the denizens are both actors, and differ in what controls them; the actor structure is
   not designed, and neither is what kills an actor and marks it `Dead`.
-- **Resident zones the character has left:** whether they are simulated or frozen, which thresholds apply --- memory
-  usage among them --- and their values.
+- **Are resident zones the character has left simulated or frozen, and which thresholds apply, with what values?**
+  Memory usage is one of the thresholds.
 - **Zones made and never entered.** They are not candidates for unloading.
-- **Where the unload order's data is kept** --- `ZoneEntryIndex`'s map from entry count to zone id, or a component on
-  each zone with a flecs query ordered by it --- once regions set the criteria: other regions' zones by the time they
-  were entered, and the character's region's zones by distance or level difference (`## Regions`).
+- **Where is the unload order's data kept, once regions set the criteria?** It may be `ZoneEntryIndex`'s map from entry
+  count to zone id, or a component on each zone with a flecs query ordered by it. The criteria are other regions' zones
+  by the time they were entered, and the character's region's zones by distance or level difference (`## Regions`).
 
 ### Settings
 
-- **The thread a change notification is called on** once a thread other than the host's main thread can change a
-  setting. It is now called on the thread that changed it.
-- **Whether a preset must set every member.** It must, for now; a preset that leaves members out would need a fallback
-  for them.
-- **Whether a mod may add a preset to another's group,** named `mod.<id>.<name>` as `modding_plan.md` (`## A mod's
-  identity`) has it, or change a preset's values. A mod cannot change a group's members.
-- **Nested groups,** a preset selecting another group's preset, as an overall video quality would.
+- **Which thread is a change notification called on, once a thread other than the host's main thread can change a
+  setting?** It is now called on the thread that changed it.
+- **Must a preset set every member?** It must, for now; a preset that leaves members out would need a fallback for
+  them.
+- **May a mod add a preset to another's group, named `mod.<id>.<name>` as `modding_plan.md` (`## A mod's identity`) has
+  it, or change a preset's values?** A mod cannot change a group's members.
+- **Can a preset select another group's preset, as an overall video quality would?**
 
 ### View
 
-- **How a glyph set or tile set marks `concealed`,** a way through that the viewer has found and actors in general
-  have not, whether outlined or otherwise; the built-in sets draw it like any door.
-- **Whether the Godot tile view draws the lattice.** A wall between two open cells is as invisible in the tile view,
-  which draws `cells`, as in the terminal's cell view.
-- **Whether `cells` needs state.** Its consumers draw one glyph per cell and have no edges, so it may need only the
-  type, though having the two reductions produce different forms has its own cost.
-- **What a tile set produces,** which decides whether the glyph table is templated on what it maps to, or characters
+- **How does a glyph set or tile set mark `concealed`?** A way through is concealed when the viewer has found it and
+  actors in general have not. It could be outlined or drawn otherwise; the built-in sets draw it like any door.
+- **Does the Godot tile view draw the lattice?** A wall between two open cells is as invisible in the tile view, which
+  draws `cells`, as in the terminal's cell view.
+- **Does `cells` need state?** Its consumers draw one glyph per cell and have no edges, so it may need only the type,
+  though having the two reductions produce different forms has its own cost.
+- **What does a tile set produce?** That decides whether the glyph table is templated on what it maps to, or characters
   and tile indices are two tables.
-- **Loading a glyph set from a file in a host.** The hosts use the built-in sets; a file is how a set that is not built
-  in arrives.
-- **What a corner is made into, per view.** The reduction marks a joint there; the terminal draws a box-drawing
+- **How does a host load a glyph set from a file?** The hosts use the built-in sets; a file is how a set that is not
+  built in arrives.
+- **What does each view make of a corner?** The reduction marks a joint there; the terminal draws a box-drawing
   character and a 3D view a column. Neither is decided, and the 3D view is why the corner is in the reduction.
 
 ## Revisit later
