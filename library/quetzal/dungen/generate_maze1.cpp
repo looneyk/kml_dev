@@ -92,8 +92,8 @@ namespace
         coord_type dy = dimensionalizer() | 1;
         vector_type size = {dx, dy};
 
-        coord_type x = random.gen(nx - dx) | 1;
-        coord_type y = random.gen(ny - dy) | 1;
+        coord_type x = random.random(nx - dx) | 1;
+        coord_type y = random.random(ny - dy) | 1;
         point_type position = {x, y};
 
         return {position, size};
@@ -267,14 +267,14 @@ namespace
         size_t sy = (dy - 1) / 2 + 1;
         size_t sz = static_cast<size_t>(sqrt(sx * sy));
 
-        return sz + random.gen(sz);
+        return sz + random.random(sz);
     }
 
     //--------------------------------------------------------------------------
     void place_doors(Zone& zone, Room& room, connections_type& connections, random_type& random)
     {
         auto [candidates, n_existing] = door_candidates(zone, room);
-        shuffle(candidates.begin(), candidates.end(), random.engine());
+        random.shuffle(candidates);
 
         size_t n_doors = door_placements(room, random);
         if (n_doors >= n_existing)
@@ -344,11 +344,11 @@ namespace
     void excavate_cell(Zone& zone, point_type position_from, directions_type directions, double corridor_straightness, random_type& random)
     {
         auto first = directions.begin();
-        if (random.gen() < corridor_straightness)
+        if (random.random() < corridor_straightness)
         {
             ++first;
         }
-        shuffle(first, directions.end(), random.engine());
+        random.shuffle(first, directions.end());
 
         for (auto direction : directions)
         {
@@ -382,7 +382,7 @@ namespace
             2 * cardinal_direction(CardinalDirection::West),
             2 * cardinal_direction(CardinalDirection::South),
         }};
-        shuffle(directions.begin(), directions.end(), random.engine());
+        random.shuffle(directions);
 
         auto [nx, ny] = zone.extent();
         for (coord_type y = 1; y < ny; y += 2)
@@ -453,7 +453,7 @@ namespace
                 bool again = true;
                 while (again && contains(zone, position) && zone.cell(position).type() == CellType::Corridor)
                 {
-                    if (random.gen() >= probability)
+                    if (random.random() >= probability)
                     {
                         break;
                     }
@@ -488,7 +488,7 @@ namespace
                 bool again = true;
                 while (again && contains(zone, position) && zone.cell(position).type() == CellType::Solid)
                 {
-                    if (random.gen() < probability)
+                    if (random.random() < probability)
                     {
                         break;
                     }
@@ -520,7 +520,7 @@ quetzal::dungen::Zone quetzal::dungen::generate_maze1(id_type id, const string& 
     // Linear probability density; a variation of zero draws nothing
     auto room_dimensionalizer = [&random, room_dimension_base, room_dimension_variation]() -> coord_type
     {
-        return room_dimension_base + (room_dimension_variation > 0 ? random.gen(room_dimension_variation) : 0);
+        return room_dimension_base + (room_dimension_variation > 0 ? random.random(room_dimension_variation) : 0);
     };
 
     // Both dimensions rounded down to odd, the rooms and the maze running along the odd cells

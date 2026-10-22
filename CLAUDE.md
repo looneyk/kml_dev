@@ -38,7 +38,7 @@ Use dashed switches (`-p:`, `-m`), not slashes, and call MSBuild directly rather
 
 ## Running tests
 
-Several suites read data by relative path, so they must run from their own directory, not the
+Several test executables read data by relative path, so they must run from their own directory, not the
 repository root:
 
     cd test/stratum_sim_test && ../../bin/Debug/stratum_sim_test.exe
@@ -46,7 +46,7 @@ repository root:
     cd model/mesh_operations && ../../bin/Debug/mesh_operations.exe
 
 `stratum_view_test` checks that rendered frames are identical to checked-in reference files, byte for
-byte, and the generator suites that level files are equivalent to theirs, so an unintended change shows
+byte, and the generator test executables that level files are equivalent to theirs, so an unintended change shows
 up as a mismatch rather than a failed assertion.
 
 ## Conventions

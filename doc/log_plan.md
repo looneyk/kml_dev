@@ -136,8 +136,8 @@ namespace quetzal::log
   call writes it out, `log::logger().warning(...)`, so a line that logs is plain to see. Free functions that forward to it,
   as spdlog's `spdlog::warn` does, can be added later without changing a call written this way.
 - **The program installs the sinks.** The process-wide log has none until then, and an entry written before a sink is
-  installed is dropped. A suite or a tool that needs the entries installs a sink first.
-- **A sink is a function,** given each entry, so a file, a stream, Godot's output, or a suite's collection are all the
+  installed is dropped. A test or a tool that needs the entries installs a sink first.
+- **A sink is a function,** given each entry, so a file, a stream, Godot's output, or a test's collection are all the
   same type. `FileLogSink` and `StreamLogSink` are function objects that own their stream; a file is opened in binary
   mode and each line ends with `\n`.
 - **The log is thread-safe.** The message is formatted on the thread that logs, outside the lock. Writing the entry to
@@ -151,7 +151,7 @@ namespace quetzal::log
 - **The program sets the levels at startup,** where it installs the sinks. The game's levels, the log's and any
   category's or sink's, are process-wide settings, which the host applies when it starts and again whenever a setting
   changes, as Unreal's `log` console command changes a category's level while the game runs. The tools take a
-  `--log-level` option, and a suite sets the levels its cases check against.
+  `--log-level` option, and a test sets the levels it checks against.
 
 ### Levels
 
@@ -203,7 +203,7 @@ log::logger().add_sink(log::FileLogSink(logs_directory / "stratum_godot.log"));
 log::logger().warning("dungen", "{} of {} staircases placed", placed_count, drawn_count);
 ```
 
-A suite collects the entries that the code it tests writes to the process-wide log, and clears the sinks after:
+A test collects the entries that the code it tests writes to the process-wide log, and clears the sinks after:
 
 ```cpp
 std::vector<log::LogEntry> entries;
@@ -228,7 +228,7 @@ log::logger().clear_sinks();
 - **dungen writes its warnings to the process-wide log** under the category `dungen`, and takes no warning function.
 - **`stratum_format::read_zone` writes its warnings to the process-wide log** under the category `stratum_format`,
   and takes no warning function.
-- **A suite that checks warnings** adds a sink collecting them to the process-wide log, and clears the sinks after.
+- **A test that checks warnings** adds a sink collecting them to the process-wide log, and clears the sinks after.
 - **A host logs the gameplay seed** (`random_engine.md`, `## Ownership`).
 
 ## Open

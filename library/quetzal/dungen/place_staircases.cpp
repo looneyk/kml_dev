@@ -24,7 +24,7 @@ namespace
     // A range of one value draws nothing, so a fixed count leaves every later draw unchanged
     size_t draw_count(const quetzal::math::Interval<size_t>& count, random_type& random)
     {
-        return count.lower() == count.upper() ? count.lower() : random.gen(count.lower(), count.upper());
+        return count.lower() == count.upper() ? count.lower() : random.random(count.lower(), count.upper());
     }
 
     //--------------------------------------------------------------------------
@@ -205,7 +205,7 @@ namespace
             return std::nullopt;
         }
 
-        return directed_point_type(cell_position, open_sides[random.gen(open_sides.size())]);
+        return directed_point_type(cell_position, random.choose(open_sides));
     }
 
 } // namespace
@@ -224,7 +224,7 @@ void quetzal::dungen::place_staircases(Zone& zone, vector<point_type> candidates
         throw runtime_error("the zone has no place for a staircase");
     }
 
-    shuffle(candidates.begin(), candidates.end(), random.engine());
+    random.shuffle(candidates);
 
     auto rise = up_count > 0 ? Rise::Up : Rise::Down;
     // 0 requested means automatic success

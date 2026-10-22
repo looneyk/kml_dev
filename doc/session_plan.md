@@ -46,7 +46,7 @@ hosts reach them as the sim does.
   place of taking a warning function. It is thread-safe.
 - **The random engines** are the gameplay and generation streams of `random_engine.md` (`## Ownership`). `Game` seeds
   them and saves their state. Each is thread-safe.
-- **A suite sets each of them before a case,** since every game in its process shares them.
+- **A test sets each of them before a test case,** since every game in its process shares them.
 
 ### What other games do with settings
 
@@ -264,11 +264,11 @@ Character& Game::character();
   appended for those types. A game whose character is dead cannot be saved.
 - **`quit`** is called by the host when the player chooses to quit. It clears the game and returns, and the host
   continues with its termination.
-- **A suite plays a game, clears it, and creates another,** and checks that the world then contains only the new game's
+- **A test plays a game, clears it, and creates another,** and checks that the world then contains only the new game's
   regions, zones, entities and ids, so that nothing a clear misses survives into the next game.
 - **The config is the program's:** the assets directory, the user directory, the saves, working, logs, cache and mods
   directories, the user settings file (`settings.json`), and the zone count maximum, defaults that an optional
-  `config.json` overrides (`game_file_spec.md`, `## The config file`). A suite passes a config of its own.
+  `config.json` overrides (`game_file_spec.md`, `## The config file`). A test passes a config of its own.
 - **The program directory is the one location in code,** the executable's directory, which SDL calls the base path. The
   program only reads it: its assets are there, and the optional config file. Everything it creates is in the user
   directory, `%LOCALAPPDATA%/KML/Stratum` on Windows by default, which SDL calls the pref path (`game_file_spec.md`,

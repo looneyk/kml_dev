@@ -109,7 +109,7 @@ ids spread across a whole game's history would allocate pages for ids that no lo
 
 **A template has local ids rather than persistent ones.** A template is made into one zone or several: the same file
 made twice gives two sets of entities, which need different ids, so making a zone allocates them either way. Local ids
-keep a generated file the same for the same parameters, which is what the generator suites compare.
+keep a generated file the same for the same parameters, which is what the generator tests compare.
 
 ## Persistent ids are a 64-bit count, not UUIDs
 
@@ -410,7 +410,7 @@ running the same simulation in place of A.
 
 ## The ASCII view is permanent
 
-The terminal application is the only view that can be regression tested, and the test suite renders through it, which
+The terminal application is the only view that can be regression tested, and the tests render through it, which
 keeps it compiling. It keeps "the core builds standalone" enforced by the build rather than by discipline, which would
 lapse once Godot became the only consumer. It keeps two different views in hand, so a later change for views has to
 suit one with no camera, no pixels and no frame loop. And because a terminal redraws from full state, it exercises the

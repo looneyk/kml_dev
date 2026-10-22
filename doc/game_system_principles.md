@@ -91,7 +91,7 @@ mesh_operations reference files.
 debug overlay, an accessibility mode. It arrives with Phase 3 or later, once there is a presentation table for it to
 read.
 
-Every new event type needs an ASCII rendering, which the test suite checks.
+Every new event type needs an ASCII rendering, which the tests check.
 
 ## Module layout
 

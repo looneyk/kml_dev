@@ -352,7 +352,7 @@ passes its config's `zone_count_max`.
 
 A world has the game directory, the game's directory in the config's working directory, from
 `create(region_spec, game_directory)` or `open(game_directory)` until `clear`. It has none while no game is in progress,
-and a world that is part of no game, as a suite's is, has none at all, so it saves nothing. `save_zone(zone)` writes the
+and a world that is part of no game, as a test's is, has none at all, so it saves nothing. `save_zone(zone)` writes the
 zone's `make_document` to `zones/<persistent id>.zone` in the game directory, creating `zones` if it is absent; it
 requires a game directory and a zone built from a document. Leaving a
 zone does not save it, and neither does `unload_zone` nor `unload_region`, which discard what they unload, as clearing a
@@ -412,7 +412,7 @@ type reads each component that inherits --- one with optional fields --- from th
 `register_file_component` registers such a component with flecs' `(OnInstantiate, Inherit)` through
 `register_inheritance`. Flecs copies any other component onto the entity when it becomes an instance, so each door has
 its own `Access`. `register_game_types(world)`, declared beside `Game`, which calls it, registers the game's
-types until they load from data: `door`, with a closed `Access`. The suites call it too.
+types until they load from data: `door`, with a closed `Access`. The tests call it too.
 
 A layout entity is the entity of a room, a wall, a flat, a flat's override for a room, or a flat cell. Its address is
 its component, and it is found by that address: a `RoomAddress`, `WallAddress`, `FlatAddress`, `FlatRoomAddress` or
@@ -730,7 +730,7 @@ the file's directory if needed.
 Each host calls `load_setting_definitions` once when it starts, then loads a `PersistentSettings` of the user settings
 file and `SettingScope::User` (`game_file_spec.md`, `## The user settings file`), and calls its `save_if_changed` when
 it closes: the terminal in `Application`'s destructor, and Godot in `uninitialize_stratum_module`. `stratum_sim_test`
-calls `load_setting_definitions` once in `main`. A suite that changes a setting sets it back after its cases.
+calls `load_setting_definitions` once in `main`. A test executable that changes a setting sets it back after its cases.
 
 `Game` has the menu and lifecycle operations a host calls: `menu_open`, `menu_close`, `clear`, `create`, `open`,
 `save`, `quit` and `saved_games`. They call `clear`, `create`, `open` and `save` on `World` and `Character`, and
@@ -1234,16 +1234,16 @@ maximum, and a count leading up may fall short of its minimum only if no stairca
 reachable from every other with the stair blocks in place, except in maze1, which can leave corridor that no door
 reaches. No staircase may block a doorway if a cell beside it would not. Every staircase must be sited on exactly one
 of the walls around its block, with the target `-1` or `+1` as its glyph indicates, and must open onto a side with floor
-beyond, or a door if there is none. `access_points` must refer to every staircase. The suites take what the written
+beyond, or a door if there is none. `access_points` must refer to every staircase. Both take what the written
 zone does not record about a stair cell --- its surroundings in dungen, and which of its sides were open in catagen ---
 from the zone generated again. `catagen_test` also checks that every edge between a stair cell and floor is written as
 a wall. Validation rejects a staircase up count whose minimum is zero, including when only staircases down are asked
-for. Each suite also reads a reference zone's generator parameters back and regenerates from them, since a zone file
-has every parameter of its run. A parameter that the writer emits and the suite does not read fails, as does one that
-the suite reads and the file lacks.
+for. Each also reads a reference zone's generator parameters back and regenerates from them, since a zone file
+has every parameter of its run. A parameter that the writer emits and the test does not read fails, as does one that
+the test reads and the file lacks.
 
 `tool/dungen` and `tool/catagen` build the drivers `dungen` and `catagen`; the library targets have the `quetzal_`
-prefix and the suites the `_test` suffix.
+prefix and the test executables the `_test` suffix.
 
 `stratum_format_test` reads zone files and checks what they decode to, and rejects every error the reader raises from a
 valid file with one change made to it. It checks that references are found and translated wherever they are written,

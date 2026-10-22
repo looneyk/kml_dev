@@ -143,7 +143,7 @@ where.
 
 ## Writing a file
 
-`stratum_format` writes the form that the format specifies; the generators and the test suites write through it. Run
+`stratum_format` writes the form that the format specifies; the generators and the tests write through it. Run
 compression is the writer's choice per file, and a compressed file and a character one read back the same.
 
 The reader uses nlohmann/json, vendored at `library3/json`.
@@ -156,7 +156,7 @@ The reader uses nlohmann/json, vendored at `library3/json`.
   reference frames in `stratum_view_test`, `dungen_test` and `catagen_test`.
 - **The byte-exact round trip is of the rows.** `stratum_view_test` compares its lattice against `cells.rows` rather
   than against the whole file.
-- **Zone files are checked for equivalence.** A suite parses a file and its reference and compares them, objects by
+- **Zone files are checked for equivalence.** A test parses a file and its reference and compares them, objects by
   key, instead of requiring the two to be identical.
 - **dungen's room and corridor glyphs are floor**, since rooms have a section of their own. There is no `0`, which
   leaves every digit free to be a run count. catagen states rooms.

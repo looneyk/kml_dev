@@ -67,7 +67,7 @@ namespace
         {
             for (coord_type x = 1; x < nx - 1; ++x)
             {
-                grid[slot(size, x, y)] = random.gen() < fill;
+                grid[slot(size, x, y)] = random.random() < fill;
             }
         }
 

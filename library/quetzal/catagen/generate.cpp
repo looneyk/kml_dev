@@ -111,7 +111,7 @@ namespace
         coord_type spacing = parameters.spacing.lower();
         if (parameters.spacing.proper())
         {
-            spacing += random.gen(parameters.spacing.length() + 1);
+            spacing += random.random(parameters.spacing.length() + 1);
         }
 
         coord_type span = 2 * parameters.scale.lower() + spacing; // The shortest side that can be cut
@@ -125,17 +125,17 @@ namespace
             return;
         }
 
-        bool vertical = split_x && (!split_y || nx > ny || (nx == ny && random.gen(2) == 0));
+        bool vertical = split_x && (!split_y || nx > ny || (nx == ny && random.random(2) == 0));
 
         if (vertical)
         {
-            coord_type cut = parameters.scale.lower() + random.gen(nx - spacing - 2 * parameters.scale.lower() + 1);
+            coord_type cut = parameters.scale.lower() + random.random(nx - spacing - 2 * parameters.scale.lower() + 1);
             partition({rectangle.position(), vector_type {cut, ny}}, parameters, random, rectangles);
             partition({point_type {rectangle.position().i() + cut + spacing, rectangle.position().j()}, vector_type {nx - cut - spacing, ny}}, parameters, random, rectangles);
         }
         else
         {
-            coord_type cut = parameters.scale.lower() + random.gen(ny - spacing - 2 * parameters.scale.lower() + 1);
+            coord_type cut = parameters.scale.lower() + random.random(ny - spacing - 2 * parameters.scale.lower() + 1);
             partition({rectangle.position(), vector_type {nx, cut}}, parameters, random, rectangles);
             partition({point_type {rectangle.position().i(), rectangle.position().j() + cut + spacing}, vector_type {nx, ny - cut - spacing}}, parameters, random, rectangles);
         }
@@ -162,7 +162,7 @@ namespace
 
         vector<size_t> order(rectangles.size());
         iota(order.begin(), order.end(), size_t(0));
-        shuffle(order.begin(), order.end(), random.engine());
+        random.shuffle(order);
 
         rectangles_type rooms;
         coord_type kept_cell_count = 0;
@@ -340,7 +340,7 @@ namespace
                 return; // Every room reaches every other
             }
 
-            carve(extent, path_cells(center(rooms[room_a]), center(rooms[room_b]), random.gen(2) == 0),
+            carve(extent, path_cells(center(rooms[room_a]), center(rooms[room_b]), random.random(2) == 0),
                 areas, area_count);
         }
 
@@ -384,7 +384,7 @@ namespace
     //--------------------------------------------------------------------------
     void punch(Zone& zone, const vector<site_type>& sites, random_type& random)
     {
-        const site_type& site = sites[random.gen(sites.size())];
+        const site_type& site = random.choose(sites);
         zone.set_wall(site.first, site.second, WallType::Door);
         return;
     }
@@ -404,7 +404,7 @@ namespace
             keys.push_back(key);
         }
 
-        shuffle(keys.begin(), keys.end(), random.engine());
+        random.shuffle(keys);
 
         Components components(area_count);
         vector<area_pair_type> spare;
@@ -423,7 +423,7 @@ namespace
 
         for (const area_pair_type& key : spare)
         {
-            if (random.gen() < loop)
+            if (random.random() < loop)
             {
                 punch(zone, sites[key], random);
             }
@@ -436,7 +436,7 @@ namespace
     // A range of one value draws nothing, so a fixed count leaves every later draw unchanged
     size_t draw_count(const quetzal::math::Interval<size_t>& count, random_type& random)
     {
-        return count.lower() == count.upper() ? count.lower() : random.gen(count.lower(), count.upper());
+        return count.lower() == count.upper() ? count.lower() : random.random(count.lower(), count.upper());
     }
 
     //--------------------------------------------------------------------------
@@ -553,7 +553,7 @@ namespace
 
         while (placed < down_count + up_count && !available.empty())
         {
-            size_t slot = random.gen(available.size());
+            size_t slot = random.random(available.size());
             point_type cell = center(rooms[available[slot]]);
             available.erase(available.begin() + static_cast<ptrdiff_t>(slot));
 
@@ -647,7 +647,7 @@ namespace
                 continue;
             }
 
-            point_type destination = available[random.gen(available.size())];
+            point_type destination = random.choose(available);
             zone.set_cell(destination, type);
         }
 
@@ -682,7 +682,7 @@ namespace
             const vector<CardinalDirection>& sides = open.empty() ? doors : open;
             if (!sides.empty())
             {
-                zone.set_staircase_facing(cell, sides[random.gen(sides.size())]);
+                zone.set_staircase_facing(cell, random.choose(sides));
             }
         }
 

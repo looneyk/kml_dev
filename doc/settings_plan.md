@@ -117,7 +117,7 @@ are defined only in data.
 
 The typed structures check at compile time, but each setting is C++ in three places, mods cannot add any, and a name
 table has to be built beside them anyway, for the file and the menu. The keyed store makes a setting data, which is
-the design goal (`modding_plan.md`). A misspelled key or a wrong type asserts at the read, so a suite that runs the
+the design goal (`modding_plan.md`). A misspelled key or a wrong type asserts at the read, so a test that runs the
 operation finds it.
 
 ### Recommendation

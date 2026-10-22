@@ -24,13 +24,13 @@ quetzal::math::Vector<Traits> quetzal::geometry::random_vector(typename Traits::
 
     if constexpr (Traits::dimension == 2)
     {
-        T phi = math::PiTwo<T> * random.gen();
+        T phi = math::PiTwo<T> * random.random();
         return {length * cos(phi), length * sin(phi)};
     }
     else if constexpr (Traits::dimension == 3)
     {
-        T phi = math::PiTwo<T> * random.gen();
-        T theta = math::Pi<T> * (random.gen() - T(0.5));
+        T phi = math::PiTwo<T> * random.random();
+        T theta = math::Pi<T> * (random.random() - T(0.5));
         T r = length * cos(theta);
         return {r * cos(phi), r * sin(phi), length * sin(theta)};
     }

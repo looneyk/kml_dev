@@ -4,14 +4,13 @@ Date: 2026-09-27, revised 2026-10-05
 
 Where random numbers come from in the game and in the generators: who owns each random engine, how it is seeded, and
 what is saved. Gameplay comes first. The random engines are arranged for what a player experiences, and
-reproducibility is a development tool for the suites, bug reports, and reference files, not a promise to players. The
+reproducibility is a development tool for the tests, bug reports, and reference files, not a promise to players. The
 open items are in `work_plan.md` (`### Random engine`).
 
 ## Where it is now
 
 - **`Game` owns the gameplay random engine,** a `math::Random<>` seeded from `std::random_device`, and `World` takes it
-  by reference in its constructor; `World::resolve_relocator_target` draws from it. The seed is neither passed in nor
-  logged.
+  by reference in its constructor, though nothing draws from it yet. The seed is neither passed in nor logged.
 - **dungen and catagen each seed one `math::Random<>` per run** from `Parameters::seed`, and pass it by reference from
   one function to the next.
 - **A region's generator is given the level of the zone it makes,** as `ZoneLevel`, and no seed.
@@ -81,7 +80,7 @@ engine type`), and a seed stored with the version of the generators that made it
 
 1. **Gameplay.** Variety from game to game, fast draws, and no accidental coupling: an animation must never shift a
    monster's attack.
-2. **Development.** Any run can be reproduced from its seed. The suites seed explicitly, the tools already write the seed
+2. **Development.** Any run can be reproduced from its seed. The tests seed explicitly, the tools already write the seed
    into each file, and a host logs its seed and accepts one.
 3. **Reproducibility for players,** such as a seeded game shared between players, is not a goal. Nothing is designed
    against it, and whether to offer it is open.
@@ -95,8 +94,9 @@ engine type`), and a seed stored with the version of the generators that made it
   distribution included, so threads that draw at the same time never corrupt its state. The values each thread draws
   then depend on the order in which the threads draw, so the draws that must be reproducible from a seed are made on
   one thread.
-- **`Game` seeds the process-wide random engines** from a seed that a host or a suite passes, or from
-  `std::random_device` if none is passed, and the host logs the seed. A suite seeds them explicitly before each case.
+- **`Game` seeds the process-wide random engines** from a seed that a host or a test passes, or from
+  `std::random_device` if none is passed, and the host logs the seed. A test seeds them explicitly before each test
+  case.
 - **A generation run owns its own random engine,** seeded from the zone's seed (`## Generation`). In dungen and
   catagen, a run becomes an object with its parameters, its random engine, and the state it builds, and the functions
   that now take a `random_type&` become its members. The generators' functions then no longer pass a random engine to one another, and the change comes with their
@@ -130,11 +130,18 @@ engine type`), and a seed stored with the version of the generators that made it
 ## The random engine type
 
 - **The random engine is named explicitly** in place of `std::default_random_engine`, so one seed makes one sequence
-  on every standard library. stratum's `random_type` and the generators' become `math::Random<E>` with the chosen
-  random engine; `math::Random`'s own default, which other projects use, is unchanged. Changing the generators' random
-  engine changes their output, so their reference files are regenerated.
-- **The values drawn through the standard distributions can still differ** between standard libraries, since their
-  algorithms are implementation-defined (`## Open`).
+  on every standard library. One alias in `quetzal/math`, `portable_random_engine_type`, is the chosen random engine,
+  and stratum's `random_type`, dungen's and catagen's are each `math::Random<math::portable_random_engine_type>`, so
+  changing the random engine changes that alias alone. `math::Random`'s own default, which other projects use, is
+  unchanged. Changing the random engine changes the generators' output, so their reference files are regenerated.
+- **An expectation written into a test from one seed's outcome changes with the random engine,** such as
+  `stratum_sim_test`'s "At this seed the door is in the top row of the shared wall", and is rewritten by hand, unlike a
+  reference file. A check of a property that holds for any seed, or a reference file, needs no rewriting.
+- **The distributions and the shuffle are the project's own,** in `math::Random`: a bounded integer by Lemire's method,
+  a real from the top 53 bits of a 64-bit value, and a Fisher-Yates shuffle in place of `std::shuffle`. The standard
+  distributions and `std::shuffle` are implementation-defined, and checked-in reference files must match across
+  standard libraries, so one seed makes one sequence of values on every platform. They come with the random engine, so
+  the reference files are regenerated once.
 - **Draw speed does not decide it.** Every candidate below draws in a few nanoseconds, and a turn-based game makes
   hundreds of draws a turn at most. What differs is the size of the state, which sets the cost of seeding a random
   engine and of saving one, and whether the output is specified exactly.
@@ -150,7 +157,7 @@ engine type`), and a seed stored with the version of the generators that made it
   state size count, and each of the game's random engines has its state saved with every save. `std::mt19937_64` is
   the heaviest at both. The three small random engines are close; xoshiro256** needs no library, and its reference
   implementation fixes its output on every platform. Each of them meets the standard's uniform random bit generator
-  requirements, so it works as `math::Random`'s random engine and through the standard distributions.
+  requirements, so it works as `math::Random`'s random engine.
 
 ## Saving
 

@@ -27,6 +27,8 @@ The design behind the items is in these documents, which the items refer to by s
 - `settings_plan.md` covers the settings: one keyed store or typed structures for each layer, and game and program
   settings.
 - `sim_zone_model.md` has the model beneath the code.
+- `testing_plan.md` covers how the tests are written, registered and run: doctest, CTest, and reference files that one
+  option updates.
 - `world_generation_plan.md` covers how a new game's regions and zones are generated: `RegionSpec` and `ZoneSpec`, the
   registries of generators, generator selectors and region specs, and the relocators that lead to new zones and
   regions.
@@ -36,7 +38,7 @@ The design behind the items is in these documents, which the items refer to by s
 ## Commit points
 
 Each box is one commit point. An item too large for one commit is split into boxes of its own before work on it
-starts. When a box's work is done and every suite passes, the box is ticked and that is the moment to commit. The ticked
+starts. When a box's work is done and every test passes, the box is ticked and that is the moment to commit. The ticked
 boxes are removed at the start of the next piece of work, since the reference documents then describe what they built.
 
 ## Generators
@@ -69,8 +71,10 @@ boxes are removed at the start of the next piece of work, since the reference do
 
 - [ ] **The gameplay random engine process-wide** (`random_engine.md`, `## Ownership`): the gameplay random engine
       reached through a function in place of `Game`'s member and `World`'s reference, and thread-safe, locking its
-      mutex for each draw; a host or a suite passing the seed, and the host logging it.
-- [ ] **The random engine chosen** (`random_engine.md`, `## The random engine type`).
+      mutex for each draw; a host or a test passing the seed, and the host logging it.
+- [ ] **The random engine chosen** (`random_engine.md`, `## The random engine type`), as the one alias that
+      `stratum_sim`, dungen and catagen use, with `math::Random`'s distributions and shuffle of the project's own, and
+      the reference files regenerated.
 - [ ] **The generation random engine and zone seeds** (`random_engine.md`, `## Streams`, `## Generation`): the
       process-wide, thread-safe generation random engine, and `create_zone(region, zone_spec)` adding the zone's seed,
       drawn from it, to the `ZoneSpec` under `seed_key`, from which the host's `make_zone_request` passes it to the
@@ -78,6 +82,28 @@ boxes are removed at the start of the next piece of work, since the reference do
 - [ ] **Generation runs as objects** (`random_engine.md`, `## Ownership`): dungen's and catagen's runs, each owning its
       random engine, seeded from the zone's seed, with the reference files regenerated. It comes with **the generators
       integrated**.
+
+## Testing
+
+These follow **The random engine chosen**, so the reference files are regenerated for the named random engine before
+the test executables are converted (`testing_plan.md`).
+
+- [ ] **doctest and `quetzal_testing`, with `catagen_test` on them** (`testing_plan.md`, `## quetzal_testing`): doctest
+      vendored with `doctest.cmake`, `enable_testing()` in the root, the library with the `main` every test executable
+      links, `check_reference` and `--update-references`, and `catagen_test` converted and registered with CTest under
+      the label `stratum`.
+- [ ] **`dungen_test` on doctest.**
+- [ ] **`stratum_format_test` on doctest.**
+- [ ] **`stratum_view_test` on doctest,** its frames checked by `check_reference` in place of `FileValidator`.
+- [ ] **`stratum_sim_test` split by area** (`testing_plan.md`, `## stratum_sim_test by area`), on the current harness,
+      which moves to `test_support.hpp`.
+- [ ] **`stratum_sim_test` on doctest,** with a fixture seeding each test case.
+- [ ] **The settings, log, key-value store and flecs tests on doctest:** `settings_test`, `log_test`,
+      `keyvaluestore_test` and `flecs_test`.
+- [ ] **The string, vector, expression and UTF-8 tests on doctest:** `string_util_test`, `vector_point_test`,
+      `expression_test` and `to_utf8_test`.
+- [ ] **The geometry tests on doctest:** `geometry_test`, `mapping_test` and `projection_test`.
+- [ ] **The mesh file tests on doctest:** `mesh_diff_test` and `wavefront_obj_test`.
 
 ## Regions
 
@@ -340,8 +366,14 @@ These are the open questions.
   xoshiro256** is recommended.
 - **Whether players get reproducible games from a shared seed.** It needs each zone's seed derived from the world seed
   and the zone's place instead of drawn, so that a world seed builds the same world however it is explored.
-- **Whether checked-in reference files must match across standard libraries.** The standard distributions are
-  implementation-defined, so matching needs integer and real distributions of the project's own.
+
+### Testing
+
+- **Obsolete reference files,** whose test case no longer exists: whether `--update-references` removes them, which a
+  filtered run must not do, or a run reports them, as Jest reports an obsolete snapshot.
+- **The labels of the test executables outside stratum.**
+- **Which record of each test case's result is kept:** CTest's `LastTest.log`, a JUnit XML file from each run, or
+  doctest's output with `--success`.
 
 ### Session
 
@@ -396,7 +428,7 @@ These are set aside on purpose.
   generators and the reader do with one.
 - **maze1's unreachable corridor.** Excavation can leave corridor that no door reaches, which dead-end pruning removes
   only by chance, and a staircase placed at its end stops the pruning, so the staircase is unreachable too (`up_only`
-  seeds 1 and 40 in `dungen_test`). The suite's check that every floor cell is reachable skips maze1 until this is
+  seeds 1 and 40 in `dungen_test`). `dungen_test`'s check that every floor cell is reachable skips maze1 until this is
   done.
 - **Naming a wall address's `normal` `facing`,** once the format settles, to match door facings; the value also being
   the surface normal a texture uses argues against it.

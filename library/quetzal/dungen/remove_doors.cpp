@@ -19,7 +19,7 @@ void quetzal::dungen::remove_doors(Zone& zone, double door_probability, random_t
     {
         assert(zone.cell(door.position()).type() == CellType::Door);
 
-        if (random.gen() < door_probability)
+        if (random.random() < door_probability)
         {
             zone.create_door(door.position());
         }

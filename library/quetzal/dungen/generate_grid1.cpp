@@ -116,12 +116,12 @@ namespace
         Sector sector;
         sector.room = room;
         sector.rectangle.set_extent(room
-            ? vector_type {random.gen(grid1.room_dimension_min, span.x()), random.gen(grid1.room_dimension_min, span.y())}
+            ? vector_type {random.random(grid1.room_dimension_min, span.x()), random.random(grid1.room_dimension_min, span.y())}
             : vector_type {1, 1});
         sector.rectangle.set_position(
         {
-            origin.x() + random.gen(span.x() - sector.rectangle.extent().x() + 1),
-            origin.y() + random.gen(span.y() - sector.rectangle.extent().y() + 1)
+            origin.x() + random.random(span.x() - sector.rectangle.extent().x() + 1),
+            origin.y() + random.random(span.y() - sector.rectangle.extent().y() + 1)
         });
 
         return sector;
@@ -175,14 +175,14 @@ namespace
     // A random spanning tree over the sectors, plus each remaining adjacency with probability loop
     vector<Adjacency> sector_connections(vector<Adjacency> adjacencies, size_t n_sectors, double loop, random_type& random)
     {
-        shuffle(adjacencies.begin(), adjacencies.end(), random.engine());
+        random.shuffle(adjacencies);
 
         Components components(n_sectors);
         vector<Adjacency> connections;
 
         for (const Adjacency& adjacency : adjacencies)
         {
-            if (components.join(adjacency.slot_a, adjacency.slot_b) || random.gen() < loop)
+            if (components.join(adjacency.slot_a, adjacency.slot_b) || random.random() < loop)
             {
                 connections.push_back(adjacency);
             }
@@ -270,8 +270,8 @@ namespace
             return false;
         }
 
-        coord_type x = from.rectangle.position().x() + random.gen(from.rectangle.extent().x());
-        coord_type ym = random.gen(y0, y1);
+        coord_type x = from.rectangle.position().x() + random.random(from.rectangle.extent().x());
+        coord_type ym = random.random(y0, y1);
 
         carve(zone, {x, y}, {x, ym});
         carve(zone, {x, ym}, {to_wall_x, ym});
@@ -295,8 +295,8 @@ namespace
             return false;
         }
 
-        coord_type y = from.rectangle.position().y() + random.gen(from.rectangle.extent().y());
-        coord_type xm = random.gen(x0, x1);
+        coord_type y = from.rectangle.position().y() + random.random(from.rectangle.extent().y());
+        coord_type xm = random.random(x0, x1);
 
         carve(zone, {x, y}, {xm, y});
         carve(zone, {xm, y}, {xm, to_wall_y});
@@ -377,9 +377,9 @@ namespace
 
             if (xb - xa >= 2)
             {
-                coord_type ya = a.rectangle.position().y() + random.gen(a.rectangle.extent().y());
-                coord_type yb = b.rectangle.position().y() + random.gen(b.rectangle.extent().y());
-                coord_type xm = random.gen(xa + 1, xb - 1); // Where it turns
+                coord_type ya = a.rectangle.position().y() + random.random(a.rectangle.extent().y());
+                coord_type yb = b.rectangle.position().y() + random.random(b.rectangle.extent().y());
+                coord_type xm = random.random(xa + 1, xb - 1); // Where it turns
 
                 carve(zone, {xa, ya}, {xm, ya});
                 carve(zone, {xm, ya}, {xm, yb});
@@ -395,7 +395,7 @@ namespace
 
             if (y0 <= y1)
             {
-                coord_type y = random.gen(y0, y1);
+                coord_type y = random.random(y0, y1);
 
                 carve(zone, {xa, y}, {xb, y});
 
@@ -410,8 +410,8 @@ namespace
             }
 
             // The turn falls on a wall line here, making that end a corner, so it goes on the side without a room
-            coord_type ya = a.rectangle.position().y() + random.gen(a.rectangle.extent().y());
-            coord_type yb = b.rectangle.position().y() + random.gen(b.rectangle.extent().y());
+            coord_type ya = a.rectangle.position().y() + random.random(a.rectangle.extent().y());
+            coord_type yb = b.rectangle.position().y() + random.random(b.rectangle.extent().y());
 
             if (a.room)
             {
@@ -434,9 +434,9 @@ namespace
 
             if (yb - ya >= 2)
             {
-                coord_type xa = a.rectangle.position().x() + random.gen(a.rectangle.extent().x());
-                coord_type xb = b.rectangle.position().x() + random.gen(b.rectangle.extent().x());
-                coord_type ym = random.gen(ya + 1, yb - 1); // Where it turns
+                coord_type xa = a.rectangle.position().x() + random.random(a.rectangle.extent().x());
+                coord_type xb = b.rectangle.position().x() + random.random(b.rectangle.extent().x());
+                coord_type ym = random.random(ya + 1, yb - 1); // Where it turns
 
                 carve(zone, {xa, ya}, {xa, ym});
                 carve(zone, {xa, ym}, {xb, ym});
@@ -452,7 +452,7 @@ namespace
 
             if (x0 <= x1)
             {
-                coord_type x = random.gen(x0, x1);
+                coord_type x = random.random(x0, x1);
 
                 carve(zone, {x, ya}, {x, yb});
 
@@ -467,8 +467,8 @@ namespace
             }
 
             // The turn falls on a wall line here, making that end a corner, so it goes on the side without a room
-            coord_type xa = a.rectangle.position().x() + random.gen(a.rectangle.extent().x());
-            coord_type xb = b.rectangle.position().x() + random.gen(b.rectangle.extent().x());
+            coord_type xa = a.rectangle.position().x() + random.random(a.rectangle.extent().x());
+            coord_type xb = b.rectangle.position().x() + random.random(b.rectangle.extent().x());
 
             if (a.room)
             {
@@ -535,7 +535,7 @@ quetzal::dungen::Zone quetzal::dungen::generate_grid1(id_type id, const string& 
     // left empty
     vector<size_t> slots(n_sectors);
     iota(slots.begin(), slots.end(), size_t(0));
-    shuffle(slots.begin(), slots.end(), random.engine());
+    random.shuffle(slots);
 
     size_t n_rooms = static_cast<size_t>(grid1.room_density * n_sectors + 0.5);
 

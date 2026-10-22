@@ -5,12 +5,18 @@
 // Random.hpp
 //------------------------------------------------------------------------------
 
+#include <algorithm>
+#include <array>
+#include <cassert>
 #include <charconv>
 #include <format>
+#include <iterator>
 #include <limits>
 #include <random>
+#include <ranges>
 #include <stdexcept>
 #include <string>
+#include <type_traits>
 
 namespace quetzal::math
 {
@@ -28,20 +34,35 @@ namespace quetzal::math
 
         Random& operator=(const Random&) = delete;
 
-        // uniform distribution
-        double gen(); // [0, 1)
+        // Uniform distributions
+        double random(); // [0, 1)
 
-        template<typename T>
-        T gen(T n); // [0, n)
+        template<typename T> requires std::is_integral_v<T>
+        T random(T n); // [0, n)
 
-        template<typename T>
-        T gen(T first, T last); // [first, last] for integral, [first, last) for floating point
+        template<typename T> requires std::is_floating_point_v<T>
+        T random(T n); // [0, n)
 
-        // normal distribution
-        double genn(double mean, double stddev);
+        template<typename T> requires std::is_integral_v<T>
+        T random(T first, T last); // [first, last]
 
-        // trianglar distribution
-        double gent(double mode, double halfwidth);
+        template<typename T> requires std::is_floating_point_v<T>
+        T random(T first, T last); // [first, last)
+
+        // Normal distribution
+        double gaussian(double mean, double sd);
+
+        // Triangular distribution
+        double triangular(double mode, double halfwidth);
+
+        template<std::ranges::random_access_range R> requires std::ranges::sized_range<R> && std::ranges::borrowed_range<R>
+        std::ranges::range_reference_t<R> choose(R&& range);
+
+        template<std::ranges::random_access_range R>
+        void shuffle(R&& range);
+
+        template<std::random_access_iterator I, std::sentinel_for<I> S>
+        void shuffle(I first, S last);
 
         E& engine();
 
@@ -75,7 +96,7 @@ quetzal::math::Random<E>::Random(E::result_type seed) :
 
 //------------------------------------------------------------------------------
 template<typename E>
-double quetzal::math::Random<E>::gen()
+double quetzal::math::Random<E>::random()
 {
     std::uniform_real_distribution<double> distribution(0.0, 1.0);
     return distribution(m_engine);
@@ -83,54 +104,81 @@ double quetzal::math::Random<E>::gen()
 
 //------------------------------------------------------------------------------
 template<typename E>
-template<typename T>
-T quetzal::math::Random<E>::gen(T n)
+template<typename T> requires std::is_integral_v<T>
+T quetzal::math::Random<E>::random(T n)
 {
-    if constexpr (std::is_integral_v<T>)
-    {
-        std::uniform_int_distribution<T> distribution(T(0), T(n - 1));
-        return distribution(m_engine);
-    }
-    else if constexpr (std::is_floating_point_v<T>)
-    {
-        std::uniform_real_distribution<T> distribution(T(0), n);
-        return distribution(m_engine);
-    }
-}
-
-//------------------------------------------------------------------------------
-template<typename E>
-template<typename T>
-T quetzal::math::Random<E>::gen(T first, T last)
-{
-    if constexpr (std::is_integral_v<T>)
-    {
-        std::uniform_int_distribution<T> distribution(first, last);
-        return distribution(m_engine);
-    }
-    else if constexpr (std::is_floating_point_v<T>)
-    {
-        std::uniform_real_distribution<T> distribution(first, last);
-        return distribution(m_engine);
-    }
-}
-
-//------------------------------------------------------------------------------
-template<typename E>
-double quetzal::math::Random<E>::genn(double mean, double stddev)
-{
-    std::normal_distribution<double> distribution(mean, stddev);
+    std::uniform_int_distribution<T> distribution(T(0), T(n - 1));
     return distribution(m_engine);
 }
 
 //------------------------------------------------------------------------------
 template<typename E>
-double quetzal::math::Random<E>::gent(double mode, double halfwidth)
+template<typename T> requires std::is_floating_point_v<T>
+T quetzal::math::Random<E>::random(T n)
+{
+    std::uniform_real_distribution<T> distribution(T(0), n);
+    return distribution(m_engine);
+}
+
+//------------------------------------------------------------------------------
+template<typename E>
+template<typename T> requires std::is_integral_v<T>
+T quetzal::math::Random<E>::random(T first, T last)
+{
+    std::uniform_int_distribution<T> distribution(first, last);
+    return distribution(m_engine);
+}
+
+//------------------------------------------------------------------------------
+template<typename E>
+template<typename T> requires std::is_floating_point_v<T>
+T quetzal::math::Random<E>::random(T first, T last)
+{
+    std::uniform_real_distribution<T> distribution(first, last);
+    return distribution(m_engine);
+}
+
+//------------------------------------------------------------------------------
+template<typename E>
+double quetzal::math::Random<E>::gaussian(double mean, double sd)
+{
+    std::normal_distribution<double> distribution(mean, sd);
+    return distribution(m_engine);
+}
+
+//------------------------------------------------------------------------------
+template<typename E>
+double quetzal::math::Random<E>::triangular(double mode, double halfwidth)
 {
     std::array<double, 3> bounds {mode - halfwidth, mode, mode + halfwidth};
     std::array<double, 3> weights {0.0, 1.0, 0.0};
     std::piecewise_linear_distribution<double> distribution (bounds.begin(), bounds.end(), weights.begin());
     return distribution(m_engine);
+}
+
+//------------------------------------------------------------------------------
+template<typename E>
+template<std::ranges::random_access_range R> requires std::ranges::sized_range<R> && std::ranges::borrowed_range<R>
+std::ranges::range_reference_t<R> quetzal::math::Random<E>::choose(R&& range)
+{
+    assert(!std::ranges::empty(range));
+    return std::ranges::begin(range)[static_cast<std::ranges::range_difference_t<R>>(random(std::ranges::size(range)))];
+}
+
+//------------------------------------------------------------------------------
+template<typename E>
+template<std::ranges::random_access_range R>
+void quetzal::math::Random<E>::shuffle(R&& range)
+{
+    shuffle(std::ranges::begin(range), std::ranges::end(range));
+}
+
+//------------------------------------------------------------------------------
+template<typename E>
+template<std::random_access_iterator I, std::sentinel_for<I> S>
+void quetzal::math::Random<E>::shuffle(I first, S last)
+{
+    std::shuffle(first, std::ranges::next(first, last), m_engine);
 }
 
 //------------------------------------------------------------------------------
