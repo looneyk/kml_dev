@@ -54,13 +54,13 @@ namespace quetzal::math
     template<typename T>
     T pow(T x, int n);
 
-    template<typename T> requires std::integral<T>
+    template<std::integral T>
     bool even(T t);
 
-    template<typename T> requires std::integral<T>
+    template<std::integral T>
     bool odd(T t);
 
-    template<typename T> requires std::integral<T>
+    template<std::integral T>
     T sext(T t, int nSignificantBits);
 
     template<typename T>
@@ -206,21 +206,21 @@ T quetzal::math::pow(T x, int n)
 }
 
 //------------------------------------------------------------------------------
-template<typename T> requires std::integral<T>
+template<std::integral T>
 bool quetzal::math::even(T t)
 {
     return (t & 1) == 0;
 }
 
 //------------------------------------------------------------------------------
-template<typename T> requires std::integral<T>
+template<std::integral T>
 bool quetzal::math::odd(T t)
 {
     return (t & 1) == 1;
 }
 
 //------------------------------------------------------------------------------
-template<typename T> requires std::integral<T>
+template<std::integral T>
 T quetzal::math::sext(T t, int nSignificantBits)
 {
     if (t & (0x01 << (nSignificantBits - 1)))

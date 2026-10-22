@@ -44,7 +44,7 @@ namespace quetzal::math
         template<size_t K>
         static constexpr bool accepts = (K == N || K == N + 1);
 
-        template<typename U> requires std::convertible_to<U, value_type>
+        template<std::convertible_to<value_type> U>
         static value_type val(const U& u)
         {
             return static_cast<value_type>(u);

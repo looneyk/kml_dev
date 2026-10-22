@@ -37,7 +37,7 @@ namespace quetzal::wavefront_obj
         using type = void;
     };
 
-    template<typename T> requires HasTexcoordType<T>
+    template<HasTexcoordType T>
     struct t_type<T>
     {
         using type = T::texcoord_type;

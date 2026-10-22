@@ -20,199 +20,199 @@ namespace quetzal::math
     constexpr int tolerance_default = 64;
 
     // Three-way comparison
-    template<typename T> requires std::floating_point<T>
+    template<std::floating_point T>
     std::partial_ordering float_compare(T lhs, T rhs, int tolerance = tolerance_default);
 
-    template<typename T> requires std::floating_point<T>
+    template<std::floating_point T>
     bool float_eq(T lhs, T rhs, int tolerance = tolerance_default);
 
-    template<typename T> requires std::floating_point<T>
+    template<std::floating_point T>
     bool float_ne(T lhs, T rhs, int tolerance = tolerance_default);
 
-    template<typename T> requires std::floating_point<T>
+    template<std::floating_point T>
     bool float_lt(T lhs, T rhs, int tolerance = tolerance_default);
 
-    template<typename T> requires std::floating_point<T>
+    template<std::floating_point T>
     bool float_le(T lhs, T rhs, int tolerance = tolerance_default);
 
-    template<typename T> requires std::floating_point<T>
+    template<std::floating_point T>
     bool float_gt(T lhs, T rhs, int tolerance = tolerance_default);
 
-    template<typename T> requires std::floating_point<T>
+    template<std::floating_point T>
     bool float_ge(T lhs, T rhs, int tolerance = tolerance_default);
 
     // Three-way comparison
-    template<typename T> requires std::floating_point<T>
+    template<std::floating_point T>
     std::partial_ordering float_compare0(T t, int tolerance = tolerance_default);
 
-    template<typename T> requires std::floating_point<T>
+    template<std::floating_point T>
     bool float_eq0(T t, int tolerance = tolerance_default);
 
     // t judged against the magnitude it came from, for t a difference of larger quantities, whose cancellation noise is
     // proportional to them. A scale below one is treated as one, so this is never tighter than the form above
-    template<typename T> requires std::floating_point<T>
+    template<std::floating_point T>
     bool float_eq0(T t, T scale, int tolerance = tolerance_default);
 
-    template<typename T> requires std::floating_point<T>
+    template<std::floating_point T>
     bool float_ne0(T t, int tolerance = tolerance_default);
 
-    template<typename T> requires std::floating_point<T>
+    template<std::floating_point T>
     bool float_lt0(T t, int tolerance = tolerance_default);
 
-    template<typename T> requires std::floating_point<T>
+    template<std::floating_point T>
     bool float_le0(T t, int tolerance = tolerance_default);
 
-    template<typename T> requires std::floating_point<T>
+    template<std::floating_point T>
     bool float_gt0(T t, int tolerance = tolerance_default);
 
-    template<typename T> requires std::floating_point<T>
+    template<std::floating_point T>
     bool float_ge0(T t, int tolerance = tolerance_default);
 
-    template<typename T> requires std::floating_point<T>
+    template<std::floating_point T>
     bool float_clamped(T t, T tMin, T tMax, int tolerance = tolerance_default);
 
-    template<typename T> requires std::floating_point<T>
+    template<std::floating_point T>
     bool float_clamped01(T t, int tolerance = tolerance_default);
 
-    template<typename T> requires std::floating_point<T>
+    template<std::floating_point T>
     int float_sign(T t, int tolerance = tolerance_default);
 
     // The two values are not approximately exact; they are either exactly equal, or if unequal, then by more than the float equality threshold
-    template<typename T> requires std::floating_point<T>
+    template<std::floating_point T>
     bool ne_or_exact(T lhs, T rhs, int tolerance = tolerance_default);
 
-    template<typename T> requires std::floating_point<T>
+    template<std::floating_point T>
     T denoise0(T t, int tolerance = tolerance_default);
 
-    template<typename T> requires std::floating_point<T>
+    template<std::floating_point T>
     T denoise01(T t, int tolerance = tolerance_default);
 
-    template<typename T> requires std::floating_point<T>
+    template<std::floating_point T>
     T denoise011(T t, int tolerance = tolerance_default);
 
 } // namespace quetzal::math
 
 //------------------------------------------------------------------------------
-template<typename T> requires std::floating_point<T>
+template<std::floating_point T>
 std::partial_ordering quetzal::math::float_compare(T lhs, T rhs, int tolerance)
 {
     return float_eq(lhs, rhs, tolerance) ? 0 : (lhs < rhs ? -1 : 1);
 }
 
 //------------------------------------------------------------------------------
-template<typename T> requires std::floating_point<T>
+template<std::floating_point T>
 bool quetzal::math::float_eq(T lhs, T rhs, int tolerance)
 {
     return float_eq0(lhs - rhs, std::max(std::abs(lhs), std::abs(rhs)), tolerance);
 }
 
 //------------------------------------------------------------------------------
-template<typename T> requires std::floating_point<T>
+template<std::floating_point T>
 bool quetzal::math::float_ne(T lhs, T rhs, int tolerance)
 {
     return !float_eq(lhs, rhs, tolerance);
 }
 
 //------------------------------------------------------------------------------
-template<typename T> requires std::floating_point<T>
+template<std::floating_point T>
 bool quetzal::math::float_lt(T lhs, T rhs, int tolerance)
 {
     return lhs <= rhs && !float_eq(lhs, rhs, tolerance);
 }
 
 //------------------------------------------------------------------------------
-template<typename T> requires std::floating_point<T>
+template<std::floating_point T>
 bool quetzal::math::float_le(T lhs, T rhs, int tolerance)
 {
     return lhs <= rhs || float_eq(lhs, rhs, tolerance);
 }
 
 //------------------------------------------------------------------------------
-template<typename T> requires std::floating_point<T>
+template<std::floating_point T>
 bool quetzal::math::float_gt(T lhs, T rhs, int tolerance)
 {
     return lhs > rhs && !float_eq(lhs, rhs, tolerance);
 }
 
 //------------------------------------------------------------------------------
-template<typename T> requires std::floating_point<T>
+template<std::floating_point T>
 bool quetzal::math::float_ge(T lhs, T rhs, int tolerance)
 {
     return lhs >= rhs || float_eq(lhs, rhs, tolerance);
 }
 
 //------------------------------------------------------------------------------
-template<typename T> requires std::floating_point<T>
+template<std::floating_point T>
 std::partial_ordering quetzal::math::float_compare0(T t, int tolerance)
 {
     return float_eq0(t, tolerance) ? std::partial_ordering::equivalent : (t < T(0) ? std::partial_ordering::less : std::partial_ordering::greater);
 }
 
 //------------------------------------------------------------------------------
-template<typename T> requires std::floating_point<T>
+template<std::floating_point T>
 bool quetzal::math::float_eq0(T t, int tolerance)
 {
     return float_eq0(t, T(0), tolerance);
 }
 
 //------------------------------------------------------------------------------
-template<typename T> requires std::floating_point<T>
+template<std::floating_point T>
 bool quetzal::math::float_eq0(T t, T scale, int tolerance)
 {
     return std::abs(t) <= std::max(std::abs(scale), T(1)) * std::numeric_limits<T>::epsilon() * tolerance;
 }
 
 //------------------------------------------------------------------------------
-template<typename T> requires std::floating_point<T>
+template<std::floating_point T>
 bool quetzal::math::float_ne0(T t, int tolerance)
 {
     return !float_eq0(t, tolerance);
 }
 
 //------------------------------------------------------------------------------
-template<typename T> requires std::floating_point<T>
+template<std::floating_point T>
 bool quetzal::math::float_lt0(T t, int tolerance)
 {
     return t < T(0) && !float_eq0(t, tolerance);
 }
 
 //------------------------------------------------------------------------------
-template<typename T> requires std::floating_point<T>
+template<std::floating_point T>
 bool quetzal::math::float_le0(T t, int tolerance)
 {
     return t <= T(0) || float_eq0(t, tolerance);
 }
 
 //------------------------------------------------------------------------------
-template<typename T> requires std::floating_point<T>
+template<std::floating_point T>
 bool quetzal::math::float_gt0(T t, int tolerance)
 {
     return t > T(0) && !float_eq0(t, tolerance);
 }
 
 //------------------------------------------------------------------------------
-template<typename T> requires std::floating_point<T>
+template<std::floating_point T>
 bool quetzal::math::float_ge0(T t, int tolerance)
 {
     return t >= T(0) || float_eq0(t, tolerance);
 }
 
 //------------------------------------------------------------------------------
-template<typename T> requires std::floating_point<T>
+template<std::floating_point T>
 bool quetzal::math::float_clamped(T t, T tMin, T tMax, int tolerance)
 {
     return float_ge(t, tMin, tolerance) && float_le(t, tMax, tolerance);
 }
 
 //------------------------------------------------------------------------------
-template<typename T> requires std::floating_point<T>
+template<std::floating_point T>
 bool quetzal::math::float_clamped01(T t, int tolerance)
 {
     return float_ge0(t, tolerance) && float_le(t, T(1), tolerance);
 }
 
 //------------------------------------------------------------------------------
-template<typename T> requires std::floating_point<T>
+template<std::floating_point T>
 int quetzal::math::float_sign(T t, int tolerance)
 {
     if (float_eq0(t, tolerance))
@@ -224,21 +224,21 @@ int quetzal::math::float_sign(T t, int tolerance)
 }
 
 //------------------------------------------------------------------------------
-template<typename T> requires std::floating_point<T>
+template<std::floating_point T>
 bool quetzal::math::ne_or_exact(T a, T b, int tolerance)
 {
     return float_ne(a, b, tolerance) || a == b;
 }
 
 //------------------------------------------------------------------------------
-template<typename T> requires std::floating_point<T>
+template<std::floating_point T>
 T quetzal::math::denoise0(T t, int tolerance)
 {
     return float_eq0(t, tolerance) ? T(0) : t;
 }
 
 //------------------------------------------------------------------------------
-template<typename T> requires std::floating_point<T>
+template<std::floating_point T>
 T quetzal::math::denoise01(T t, int tolerance)
 {
     if (float_eq0(t, tolerance)) return T(0);
@@ -247,7 +247,7 @@ T quetzal::math::denoise01(T t, int tolerance)
 }
 
 //------------------------------------------------------------------------------
-template<typename T> requires std::floating_point<T>
+template<std::floating_point T>
 T quetzal::math::denoise011(T t, int tolerance)
 {
     if (float_eq0(t, tolerance)) return T(0);

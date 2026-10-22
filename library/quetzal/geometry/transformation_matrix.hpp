@@ -46,7 +46,7 @@ namespace quetzal::geometry
     template<TransformationMatrix M>
     M direction_matrix(M matrix);
 
-    template<typename Traits> requires (math::Homogeneous<Traits>)
+    template<math::Homogeneous Traits>
     transformation_matrix_type<Traits> translation(const math::Vector<Traits>& v);
 
     template<typename T>
@@ -156,19 +156,19 @@ namespace quetzal::geometry
     template<typename V> requires (math::Homogeneous<typename V::traits_type>)
     transformation_matrix_type<typename V::traits_type> alignment2(const V& from_direction, const V& from_right, const V& to_direction, const V& to_right);
 
-    template<typename Traits> requires (math::Homogeneous<Traits>)
+    template<math::Homogeneous Traits>
     transformation_matrix_type<Traits> alignment(const Orientation<Traits>& from, const Orientation<Traits>& to);
 
-    template<typename Traits> requires (math::Homogeneous<Traits>)
+    template<math::Homogeneous Traits>
     transformation_matrix_type<Traits> alignment(const OrientedPoint<Traits>& from, const OrientedPoint<Traits>& to);
 
     // Transformation matrix for perspective
     // projective divide will collapse to the xy-plane at z = 1
-    template<typename Traits> requires (math::Homogeneous<Traits>)
+    template<math::Homogeneous Traits>
     transformation_matrix_type<Traits> perspective(const OrientedPoint<Traits>& viewpoint, typename Traits::value_type fov);
 
     // Transformation matrix for perspective scaled to frustrum
-    template<typename Traits> requires (math::Homogeneous<Traits>)
+    template<math::Homogeneous Traits>
     transformation_matrix_type<Traits> perspective(const OrientedPoint<Traits>& viewpoint, typename Traits::value_type fov, typename Traits::value_type aspect_ratio, typename Traits::value_type z_near, typename Traits::value_type z_far);
 
     // Transformation matrix for a viewpoint at the origin and directed down the negative z-axis
@@ -228,7 +228,7 @@ M quetzal::geometry::direction_matrix(M matrix)
 }
 
 //------------------------------------------------------------------------------
-template<typename Traits> requires (quetzal::math::Homogeneous<Traits>)
+template<quetzal::math::Homogeneous Traits>
 quetzal::geometry::transformation_matrix_type<Traits> quetzal::geometry::translation(const math::Vector<Traits>& v)
 {
     transformation_matrix_type<Traits> matrix(1);
@@ -720,21 +720,21 @@ quetzal::geometry::transformation_matrix_type<typename V::traits_type> quetzal::
 }
 
 //------------------------------------------------------------------------------
-template<typename Traits> requires (quetzal::math::Homogeneous<Traits>)
+template<quetzal::math::Homogeneous Traits>
 quetzal::geometry::transformation_matrix_type<Traits> quetzal::geometry::alignment(const Orientation<Traits>& from, const Orientation<Traits>& to)
 {
     return alignment(from.direction(), from.right(), to.direction(), to.right());
 }
 
 //------------------------------------------------------------------------------
-template<typename Traits> requires (quetzal::math::Homogeneous<Traits>)
+template<quetzal::math::Homogeneous Traits>
 quetzal::geometry::transformation_matrix_type<Traits> quetzal::geometry::alignment(const OrientedPoint<Traits>& from, const OrientedPoint<Traits>& to)
 {
     return translation(-from.position().vector()) * alignment(from.orientation(), to.orientation()) * translation(to.position().vector());
 }
 
 //------------------------------------------------------------------------------
-template<typename Traits> requires (quetzal::math::Homogeneous<Traits>)
+template<quetzal::math::Homogeneous Traits>
 quetzal::geometry::transformation_matrix_type<Traits> quetzal::geometry::perspective(const OrientedPoint<Traits>& viewpoint, typename Traits::value_type fov)
 {
     using vector_type = math::Vector<Traits>;
@@ -743,7 +743,7 @@ quetzal::geometry::transformation_matrix_type<Traits> quetzal::geometry::perspec
 }
 
 //------------------------------------------------------------------------------
-template<typename Traits> requires (quetzal::math::Homogeneous<Traits>)
+template<quetzal::math::Homogeneous Traits>
 quetzal::geometry::transformation_matrix_type<Traits> quetzal::geometry::perspective(const OrientedPoint<Traits>& viewpoint, typename Traits::value_type fov, typename Traits::value_type aspect_ratio, typename Traits::value_type z_near, typename Traits::value_type z_far)
 {
     using vector_type = math::Vector<Traits>;
