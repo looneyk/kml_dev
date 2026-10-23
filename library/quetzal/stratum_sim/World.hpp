@@ -85,7 +85,7 @@ namespace quetzal::stratum_sim
 
         using entities_type = std::vector<flecs::entity>;
 
-        World(IdAllocator& id_allocator, random_type& random, Generation& generation, size_t zone_count_max);
+        World(IdAllocator& id_allocator, Generation& generation, size_t zone_count_max);
         World(const World&) = delete;
         World(World&&) = delete;
         ~World() = default;
@@ -256,7 +256,6 @@ namespace quetzal::stratum_sim
         bool deleting_with(flecs::entity zone) const;
 
         IdAllocator& m_id_allocator;
-        random_type& m_random;
         Generation& m_generation;
 
         // All entities in the world with a PersistentId

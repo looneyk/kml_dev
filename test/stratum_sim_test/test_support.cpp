@@ -18,8 +18,6 @@ using namespace quetzal;
 namespace
 {
 
-    constexpr math::portable_random_engine_type::result_type test_random_seed = 1;
-
     //--------------------------------------------------------------------------
     // Returns a generator that reads the zone file, at the requested level if there is one, and without the unpopulated
     // flag, which a generator does not set
@@ -48,8 +46,6 @@ namespace
 
 const stratum_sim::Config stratum_sim_test::g_test_config {"out/saves", "out/working", test_zone_count_max};
 
-stratum_sim::random_type stratum_sim_test::g_test_random(test_random_seed);
-
 stratum_sim::Generation stratum_sim_test::g_test_generation = test_generation();
 
 //------------------------------------------------------------------------------
@@ -64,7 +60,7 @@ stratum_sim_test::WorldFixture::WorldFixture()
 
     settings::store().reset(settings::SettingScope::User);
     settings::store().reset(settings::SettingScope::Game);
-    g_test_random.seed(test_random_seed);
+    stratum_sim::gameplay_random().seed(test_random_seed);
 }
 
 //------------------------------------------------------------------------------
@@ -101,7 +97,7 @@ stratum_sim::ZoneSpec stratum_sim_test::test_zone_spec(stratum_sim::level_type l
 
 //------------------------------------------------------------------------------
 stratum_sim_test::TestWorld::TestWorld(stratum_sim::IdAllocator& id_allocator, size_t zone_count_max) :
-    World(id_allocator, g_test_random, g_test_generation, zone_count_max),
+    World(id_allocator, g_test_generation, zone_count_max),
     region(create_region(test_region_spec("staircase")))
 {
     stratum_sim::register_game_types(*this);

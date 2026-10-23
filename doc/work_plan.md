@@ -69,7 +69,7 @@ boxes are removed at the start of the next piece of work, since the reference do
 
 ## Random engine
 
-- [ ] **The gameplay random engine process-wide** (`random_engine.md`, `## Ownership`): the gameplay random engine
+- [x] **The gameplay random engine process-wide** (`random_engine.md`, `## Ownership`): the gameplay random engine
       reached through a function in place of `Game`'s member and `World`'s reference, a `stratum_sim::RandomStream`
       whose locking is internal to it, and `math::Random`'s `state` and `set_state` in place of `engine()`; `Game` drawing
       the seed, or taking one that a test or a host passes, and writing it to the log as soon as it is drawn or passed.

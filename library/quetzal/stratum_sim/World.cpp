@@ -367,9 +367,8 @@ flecs::entity quetzal::stratum_sim::entity_type(const flecs::world& entities, st
 }
 
 //------------------------------------------------------------------------------
-quetzal::stratum_sim::World::World(IdAllocator& id_allocator, random_type& random, Generation& generation, size_t zone_count_max) :
+quetzal::stratum_sim::World::World(IdAllocator& id_allocator, Generation& generation, size_t zone_count_max) :
     m_id_allocator(id_allocator),
-    m_random(random),
     m_generation(generation),
     m_loaded_entities(),
     m_entity_zones(),

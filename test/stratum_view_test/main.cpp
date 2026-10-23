@@ -34,23 +34,20 @@ using namespace quetzal;
 namespace
 {
 
-    static constexpr size_t suite_zone_count_max = 8;
+    static constexpr size_t test_zone_count_max = 8;
 
     // Draws concealed entities as actors in general perceive them, since there is no player
     const flecs::entity no_viewer;
 
-    // Seeded, so a random choice is the same on every run
-    stratum_sim::random_type g_suite_random(1);
-
     // No zone is generated, so nothing is registered
-    stratum_sim::Generation g_suite_generation;
+    stratum_sim::Generation g_test_generation;
 
     //--------------------------------------------------------------------------
-    // A world with the game's entity types, as Game's has, and a region for the suite's zones
-    struct SuiteWorld : stratum_sim::World
+    // A world with the game's entity types, as Game's has, and a region for the test cases' zones
+    struct TestWorld : stratum_sim::World
     {
-        explicit SuiteWorld(stratum_sim::IdAllocator& id_allocator) :
-            World(id_allocator, g_suite_random, g_suite_generation, suite_zone_count_max),
+        explicit TestWorld(stratum_sim::IdAllocator& id_allocator) :
+            World(id_allocator, g_test_generation, test_zone_count_max),
             region(create_region(stratum_sim::RegionSpec {}))
         {
             stratum_sim::register_game_types(*this);
@@ -151,7 +148,7 @@ namespace
 
     //--------------------------------------------------------------------------
     // Loads a zone from a file with its doors and without denizens, unlike World::load_zone
-    flecs::entity load_zone_unpopulated(SuiteWorld& world, const string& filepath)
+    flecs::entity load_zone_unpopulated(TestWorld& world, const string& filepath)
     {
         flecs::entity zone = world.create_zone(world.region, world.next_id());
         stratum_sim::load_layout(zone, stratum_format::read_zone(filepath));
@@ -164,7 +161,7 @@ namespace
     TEST_CASE("cells")
     {
         stratum_sim::CountingIdAllocator id_allocator(stratum_sim::PersistentId {});
-        SuiteWorld world(id_allocator);
+        TestWorld world(id_allocator);
         flecs::entity zone = load_zone_unpopulated(world,"data/corridor.zone");
 
         stratum_view::Cells cells = stratum_view::cells(world, zone, no_viewer);
@@ -297,7 +294,7 @@ namespace
     {
         // Two rooms of two by three cells sharing one wall, with a door in the middle of it
         stratum_sim::CountingIdAllocator id_allocator(stratum_sim::PersistentId {});
-        SuiteWorld world(id_allocator);
+        TestWorld world(id_allocator);
         flecs::entity zone = load_zone_unpopulated(world,"data/walls.zone");
 
         stratum_view::Lattice lattice = stratum_view::lattice(world, zone, no_viewer);
@@ -340,12 +337,12 @@ namespace
         finder.destruct();
 
         // Every corner inside these rooms meets a stair's walls, so the corner with nothing at it is one in the vault
-        SuiteWorld open_world(id_allocator);
+        TestWorld open_world(id_allocator);
         flecs::entity vault = load_zone_unpopulated(open_world,"data/vault.zone");
         CHECK_CASE("a corner inside a room is not", stratum_view::lattice(open_world, vault, no_viewer).at({10, 4}).type == stratum_view::PlaceType::None);
 
         // The block notation reduces onto the same lattice, its walls only against solid
-        SuiteWorld block(id_allocator);
+        TestWorld block(id_allocator);
         flecs::entity corridor = load_zone_unpopulated(block,"data/corridor.zone");
 
         stratum_view::Lattice cells = stratum_view::lattice(block, corridor, no_viewer);
@@ -378,7 +375,7 @@ namespace
     TEST_CASE("ascii render")
     {
         stratum_sim::CountingIdAllocator id_allocator(stratum_sim::PersistentId {});
-        SuiteWorld world(id_allocator);
+        TestWorld world(id_allocator);
         flecs::entity zone = load_zone_unpopulated(world,"data/corridor.zone");
 
         stratum_view::Console console = stratum_view::render(world, zone, no_viewer);
@@ -418,7 +415,7 @@ namespace
     TEST_CASE("wall render")
     {
         stratum_sim::CountingIdAllocator id_allocator(stratum_sim::PersistentId {});
-        SuiteWorld world(id_allocator);
+        TestWorld world(id_allocator);
         flecs::entity zone = load_zone_unpopulated(world,"data/corridor.zone");
 
         stratum_view::Console console = stratum_view::render_lattice(world, zone, no_viewer);
@@ -456,7 +453,7 @@ namespace
             string filepath = format("data/{}.zone", name);
 
             stratum_sim::CountingIdAllocator id_allocator(stratum_sim::PersistentId {});
-            SuiteWorld world(id_allocator);
+            TestWorld world(id_allocator);
             flecs::entity zone = load_zone_unpopulated(world, filepath);
 
             string s = stratum_view::render(world, zone, no_viewer).to_string();
@@ -471,7 +468,7 @@ namespace
             string filepath = "data/walls.zone";
 
             stratum_sim::CountingIdAllocator id_allocator(stratum_sim::PersistentId {});
-            SuiteWorld world(id_allocator);
+            TestWorld world(id_allocator);
             flecs::entity zone = load_zone_unpopulated(world, filepath);
 
             string s = stratum_view::render_lattice(world, zone, no_viewer).to_string();
@@ -516,7 +513,7 @@ namespace
         string source = rows_of("data/dungeon.zone");
 
         stratum_sim::CountingIdAllocator id_allocator(stratum_sim::PersistentId {});
-        SuiteWorld world(id_allocator);
+        TestWorld world(id_allocator);
         flecs::entity zone = load_zone_unpopulated(world,"data/dungeon.zone");
 
         stratum_view::Console console = stratum_view::render(world, zone, no_viewer);
@@ -669,7 +666,7 @@ namespace
     string play(const string& filepath, const stratum_sim::discrete_point_type& start, const string& script, View view)
     {
         stratum_sim::CountingIdAllocator id_allocator(stratum_sim::PersistentId {});
-        SuiteWorld world(id_allocator);
+        TestWorld world(id_allocator);
         flecs::entity zone = load_zone_unpopulated(world, filepath);
 
         const stratum_sim::DiscreteLayout& layout = stratum_sim::layout_as<stratum_sim::DiscreteLayout>(world.layout(zone));

@@ -11,6 +11,7 @@
 #include "quetzal/stratum_sim/Generation.hpp"
 #include "quetzal/stratum_sim/IdAllocator.hpp"
 #include "quetzal/stratum_sim/Layout.hpp"
+#include "quetzal/stratum_sim/RandomStream.hpp"
 #include "quetzal/stratum_sim/Session.hpp"
 #include "quetzal/stratum_sim/World.hpp"
 #include "quetzal/stratum_sim/types.hpp"
@@ -26,13 +27,13 @@ namespace stratum_sim_test
     // A game's saves are in the test executable's own output directory
     extern const quetzal::stratum_sim::Config g_test_config;
 
-    // Seeded, so a random choice is the same on every run
-    extern quetzal::stratum_sim::random_type g_test_random;
-
     extern quetzal::stratum_sim::Generation g_test_generation;
 
+    // The seed WorldFixture seeds the gameplay random engine with, so a random choice is the same on every run
+    inline constexpr quetzal::stratum_sim::RandomStream::seed_type test_random_seed = 1;
+
     // The state a test case that builds a world starts from: the setting definitions loaded, every setting at its default, and
-    // g_test_random at its seed. The definitions are loaded once in the process
+    // the gameplay random engine seeded with test_random_seed. The definitions are loaded once in the process
     struct WorldFixture
     {
         WorldFixture();

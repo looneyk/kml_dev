@@ -9,12 +9,12 @@
 #include "Character.hpp"
 #include "Config.hpp"
 #include "Generation.hpp"
+#include "RandomStream.hpp"
 #include "SavedGameDetails.hpp"
 #include "Session.hpp"
 #include "World.hpp"
 #include <filesystem>
 #include <optional>
-#include <random>
 #include <string>
 #include <string_view>
 
@@ -49,9 +49,11 @@ namespace quetzal::stratum_sim
         void menu_close();
         void clear();
         // Clears, empties the working directory, and creates a game there, its game directory named by the character, then
-        // starts play at its first zone's entry point. Requires a named character. Passes on what creating the world throws,
-        // leaving no game in progress
-        void create(const RegionSpec& region_spec, const CharacterSpec& character_spec); // starting specs, maybe read from settings instead ...
+        // starts play at its first zone's entry point. Seeds the gameplay random engine with the seed, or with one drawn from
+        // std::random_device if none is passed, and logs it. Requires a named character. Passes on what creating the world
+        // throws, leaving no game in progress
+        void create(const RegionSpec& region_spec, const CharacterSpec& character_spec,
+            std::optional<RandomStream::seed_type> seed = std::nullopt); // starting specs, maybe read from settings instead ...
 
         // Clears, empties the working directory, and copies the save there as the game directory, named by the character,
         // then reads it: the id allocator's count, the random engine's state, restored or reseeded as the settings choose,
@@ -97,20 +99,22 @@ namespace quetzal::stratum_sim
         // Reads game.json: the id allocator's count, the seed, and the random engine's state, restored or reseeded as the settings dictate
         void restore_game_state(const std::filesystem::path& filepath);
 
+        // Seeds the gameplay random engine, keeps the seed for saving, and logs it
+        void seed_gameplay_random(RandomStream::seed_type seed);
+
         // Some of these properties, especially Config, are only of importance to the host ...
         Config m_config; // Immutable properties like file locations, physical hardware configuration, ...
 
         // In construction order, each referring to those above it
         CountingIdAllocator m_counting_id_allocator;
-        random_type m_random; // Seeded from std::random_device
         Generation m_generation;
         World m_world;
         Character m_character;
         Session m_session;
 
-        // The game in progress's directory in the working directory, and the seed its random engine was seeded from
+        // The game in progress's directory in the working directory, and the seed the gameplay random engine was seeded from
         std::optional<std::filesystem::path> m_game_directory;
-        math::portable_random_engine_type::result_type m_seed;
+        RandomStream::seed_type m_seed;
     };
 
 } // namespace quetzal::stratum_sim

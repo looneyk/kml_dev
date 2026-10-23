@@ -327,11 +327,16 @@ becoming an `EntityReference` to the other, so going back arrives at the relocat
 longer chooses either. The actor is relocated to the access point's zone, at its `placement`. Whatever it throws, it
 moves nothing.
 
-`World` takes the game's random engine by reference in its constructor, as it takes the id allocator: a `random_type`,
-which `Game` owns. `random_type` is `math::Random<math::portable_random_engine_type>`, xoshiro256** seeded through
-splitmix64, with distributions and a shuffle of `math::Random`'s own, so one seed draws the same values with every
-standard library; `gaussian` uses the platform's `std::log`. dungen and catagen draw through the same type.
-`math::random_seed()` draws a 64-bit seed from `std::random_device`.
+`random_type` is `math::Random<math::portable_random_engine_type>`, xoshiro256** seeded through splitmix64, with
+distributions and a shuffle of `math::Random`'s own, so one seed draws the same values with every standard library;
+`gaussian` uses the platform's `std::log`. dungen and catagen draw through the same type. `state()` returns the random
+engine's state as text, and `set_state(text)` restores it, throwing `std::invalid_argument` if the text is not a state
+of the random engine. `math::random_seed()` draws a 64-bit seed from `std::random_device`.
+
+The gameplay random engine is process-wide, and is passed to no function or constructor. `gameplay_random()`, in
+`RandomStream.hpp`, returns it: a `RandomStream`, which has `math::Random`'s members for seeding, drawing and saving,
+and locks its mutex for the whole of each one, so threads drawing at once never corrupt its state. Its mutex and its
+`random_type` are private, and no member returns either.
 
 `load_zone(region, filepath)` reads the file and builds the zone from its document, which it checks with `check_buildable` before making the zone. The zone has the file's persistent id if the file has
 a `zone` section, and a new one otherwise. `load_zone` then has `load_layout` fill the zone and populates it if its
@@ -706,8 +711,7 @@ value it has overrides its default, the assets and user directories relative to 
 relative to the user directory, an absolute location replacing either (`game_file_spec.md`, `## The config file`). It
 writes nothing. The terminal's build copies its development `config.json`, which sets `assets_directory` to
 `../../assets`, beside the executable in `bin/<Config>/`, and the Godot project has its own. It owns the structures that survive outside play: the config, a
-`CountingIdAllocator` counting from zero, a `random_type` seeded from
-`math::random_seed()`, the `Generation`, the `World` and the `Character`, and the `Session` that plays them, constructed in
+`CountingIdAllocator` counting from zero, the `Generation`, the `World` and the `Character`, and the `Session` that plays them, constructed in
 that order, each referring to those before it. `generation()` returns the `Generation`, with which a host registers
 its generators, selectors and region specs. Only the `Generation` can be copied or moved. The constructor makes no
 character, region or zone; until a game is created, there is none.
@@ -745,9 +749,10 @@ default before each test case that starts from it.
 `Game::clear` returns the game scope's settings to their defaults, which selects its groups' default presets and leaves
 their editable presets undefined, so a game created or opened starts from them.
 
-The working directory has only the game in progress. `Game::create(region_spec, character_spec)` clears, resets the id
-allocator to count from zero, and reseeds the random engine from `math::random_seed()`, keeping the seed, so nothing passes
-from one game to the next. It empties the working directory and creates the game directory there, named by the
+The working directory has only the game in progress. `Game::create(region_spec, character_spec, seed)` clears, resets
+the id allocator to count from zero, and seeds the gameplay random engine with the seed, or with one from
+`math::random_seed()` if none is passed, keeping the seed and writing it to the log, so nothing passes from one game to
+the next. It empties the working directory and creates the game directory there, named by the
 character, whose name the spec must have, with each character a directory name cannot have replaced by `_`. It has the
 character created from the `CharacterSpec`, and the world's starting region and its first zone from the `RegionSpec`
 with `World::create(region_spec, game_directory)`, and starts the session at the entry point `World::create` returns.
@@ -756,9 +761,9 @@ no game in progress.
 
 `Game::open(save_name)` clears, then empties the working directory and copies the save into it as the game directory,
 named by the character as `create` names it, read from the top of the save's `character.json`. It reads `game.json`: the id
-allocator counts on from `next_id`, the game's settings snapshot is restored, and the random engine's state is restored from the text `>>` reads, or the random engine is
-reseeded from `math::random_seed()` if the boolean setting `Game::reseed_on_open_key`, `gameplay.reseed_on_open`, is true;
-the random engine is the same either way. Restoring repeats the outcomes the save would have had; reseeding gives
+allocator counts on from `next_id`, the game's settings snapshot is restored, and the gameplay random engine's state is restored with `set_state`, or the
+random engine is reseeded from `math::random_seed()`, the seed written to the log, if the boolean setting
+`Game::reseed_on_open_key`, `gameplay.reseed_on_open`, is true; the random engine is the same either way. Restoring repeats the outcomes the save would have had; reseeding gives
 each opening its own. `World::open`
 then reads `world.json`, `Character::open` reads `character.json`, and the session starts in the character's zone,
 which `load_saved_zone` reads, at its cell and orientation. It throws `std::runtime_error` if there is no such save or
@@ -771,7 +776,7 @@ description; the time `game.json` was written; and its `SaveType`, from the suff
 read or has no name.
 
 `Game::save(save_type)` writes `game.json` into the game directory, with the id allocator's next id, the seed, and the gameplay
-random engine's state as the text `<<` writes, under `random_engines`, and the game scope's settings snapshot
+random engine's state as `state()` returns it, under `random_engines`, and the game scope's settings snapshot
 under `settings` and `presets`; has the character write `character.json` there, through
 `make_character_document`, and the world save; and then copies the game directory to a new directory in the saves
 directory, `<character name>_<save time>`, the name the character's `DisplayName` and the time local and in ISO 8601
@@ -1277,7 +1282,7 @@ parsed JSON. With `--update-references`, it copies the file over the reference i
 what they share: `TestWorld`, a world with the game's entity types and a region made from the test registries of
 `test_generation`, and the helpers that load and enter zone files. A test case that builds a world or a game starts from
 `WorldFixture`, which loads the setting definitions once in the process, returns every setting to its default, and
-reseeds `g_test_random`, so it runs the same alone or in the full run.
+seeds the gameplay random engine with `test_random_seed`, so it runs the same alone or in the full run.
 
 `doctest_discover_tests` registers each test case with CTest, named for the test executable, a colon and the test case,
 and run from the test executable's directory. Stratum's test executables have the label `stratum`, the geometry and mesh
@@ -1291,7 +1296,7 @@ back, and the Godot host by its two headless invocations.
 
 The build is CMake, with the solution at `build/kml_dev.slnx`. `/std:c++latest /bigobj /W4` is used throughout, with
 third-party sources at `/W1` and flecs and godot-cpp included as SYSTEM. `quetzal_stratum_sim` links `quetzal_common`,
-`quetzal_settings`, `quetzal_stratum_format` and `flecs_static`; `quetzal_stratum_view` links `quetzal_stratum_sim`; `quetzal_settings`
+`quetzal_settings`, `quetzal_stratum_format` and `flecs_static`, and privately `quetzal_log`; `quetzal_stratum_view` links `quetzal_stratum_sim`; `quetzal_settings`
 links `quetzal_common`;
 `quetzal_stratum_gen` links `quetzal_common`, `quetzal_dungen` and `quetzal_stratum_format`; both hosts link `quetzal_log`,
 `quetzal_stratum_gen` and `quetzal_stratum_view`. `quetzal_dungen` links `quetzal_log`. `quetzal_stratum_format`

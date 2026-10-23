@@ -18,6 +18,7 @@
 #include "quetzal/stratum_sim/commands.hpp"
 #include "quetzal/stratum_sim/Clock.hpp"
 #include "quetzal/stratum_sim/Config.hpp"
+#include "quetzal/stratum_sim/RandomStream.hpp"
 #include "quetzal/stratum_sim/Scheduler.hpp"
 #include "quetzal/stratum_sim/Session.hpp"
 #include "quetzal/stratum_sim/Game.hpp"
@@ -36,8 +37,10 @@
 #include <format>
 #include <fstream>
 #include <set>
+#include <stdexcept>
 #include <string>
 #include <string_view>
+#include <thread>
 #include <type_traits>
 #include <vector>
 
@@ -220,7 +223,8 @@ namespace
         saving.generation() = test_generation();
         stratum_sim::CharacterSpec ailis;
         ailis.name = "Ailis";
-        saving.create(region_spec, ailis);
+        constexpr stratum_sim::RandomStream::seed_type saving_seed = 20261022;
+        saving.create(region_spec, ailis, saving_seed);
 
         stratum_sim::World& saving_world = saving.world();
         flecs::entity saving_first = saving.session().zone();
@@ -308,9 +312,9 @@ namespace
         stratum_format::raw_values_type game_json = read_json(save_directory / "game.json");
         stratum_sim::PersistentId largest_id = max({saving_character.get<stratum_sim::PersistentId>(), saving_first_id, saving_second_id,
             saving_region.get<stratum_sim::PersistentId>()});
-        CHECK_CASE("game.json has the next id, past every id in the game, the seed, and the gameplay random engine's state",
+        CHECK_CASE("game.json has the next id, past every id in the game, the seed the game was created with, and the gameplay random engine's state",
             !game_json.is_discarded() && game_json["format"] == "quetzal.stratum_game" && game_json["game"]["next_id"].get<uint64_t>() > largest_id.id
-            && !game_json["game"]["seed"].get<string>().empty() && !game_json["game"]["random_engines"]["gameplay"].get<string>().empty());
+            && game_json["game"]["seed"] == to_string(saving_seed) && !game_json["game"]["random_engines"]["gameplay"].get<string>().empty());
 
         stratum_format::raw_values_type character_json = read_json(save_directory / "character.json");
         const stratum_sim::placement_type& character_placement = stratum_sim::placement_of(saving_character);
@@ -665,6 +669,60 @@ namespace
             user_directory.generic_string().ends_with("KML/Stratum"));
         CHECK_CASE("the executable's directory has the test executable", filesystem::exists(executable_directory() / "stratum_sim_test.exe"));
 
+        return;
+    }
+
+    //--------------------------------------------------------------------------
+    TEST_CASE("random stream")
+    {
+        constexpr int draw_count = 1000;
+
+        stratum_sim::RandomStream a;
+        stratum_sim::RandomStream b;
+        a.seed(20261022);
+        b.seed(20261022);
+        bool alike = true;
+        for (int i = 0; i < draw_count; ++i)
+        {
+            alike = alike && a.random(1000) == b.random(1000);
+        }
+        CHECK_CASE("two random streams seeded alike draw alike", alike);
+
+        const string state = a.state();
+        const double drawn = a.random();
+        b.set_state(state);
+        CHECK_CASE("a random stream restored from a saved state draws what the saved one drew after saving", b.random() == drawn);
+
+        const string unchanged_state = b.state();
+        CHECK_THROWS_AS(b.set_state("not a state"), invalid_argument);
+        CHECK_CASE("a state that is not the random engine's is rejected, and leaves its state unchanged", b.state() == unchanged_state);
+
+        constexpr int thread_count = 8;
+        stratum_sim::RandomStream shared;
+        stratum_sim::RandomStream sequential;
+        shared.seed(7);
+        sequential.seed(7);
+        {
+            vector<jthread> threads;
+            for (int t = 0; t < thread_count; ++t)
+            {
+                threads.emplace_back([&shared]
+                {
+                    for (int i = 0; i < draw_count; ++i)
+                    {
+                        shared.random();
+                    }
+                    return;
+                });
+            }
+        }
+        for (int i = 0; i < thread_count * draw_count; ++i)
+        {
+            sequential.random();
+        }
+        CHECK_CASE("threads drawing at once leave the state that drawing as often on one thread leaves", shared.state() == sequential.state());
+
+        CHECK_CASE("gameplay_random returns the one process-wide random stream", &stratum_sim::gameplay_random() == &stratum_sim::gameplay_random());
         return;
     }
 

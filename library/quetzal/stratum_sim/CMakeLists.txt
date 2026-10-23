@@ -21,6 +21,7 @@ add_library(quetzal_stratum_sim STATIC
     load_layout.cpp
     make_document.cpp
     properties.cpp
+    RandomStream.cpp
     SavedGameDetails.cpp
     Scheduler.cpp
     Session.cpp
@@ -63,6 +64,7 @@ add_library(quetzal_stratum_sim STATIC
     PersistentId.hpp
     PlacementIndex.hpp
     properties.hpp
+    RandomStream.hpp
     SavedGameDetails.hpp
     Scheduler.hpp
     Session.hpp
@@ -84,3 +86,4 @@ target_include_directories(quetzal_stratum_sim PUBLIC
 
 # Not flecs::flecs_static, as library3 is added after library/ and a namespaced target must already exist
 target_link_libraries(quetzal_stratum_sim PUBLIC quetzal_common quetzal_settings quetzal_stratum_format flecs_static)
+target_link_libraries(quetzal_stratum_sim PRIVATE quetzal_log)

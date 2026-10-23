@@ -9,8 +9,8 @@ open items are in `work_plan.md` (`### Random engine`).
 
 ## Current state
 
-- **`Game` owns the gameplay random engine,** a `math::Random` seeded from `math::random_seed`, and `World` takes it by
-  reference in its constructor, though nothing draws from it yet. The seed is neither passed in nor logged.
+- **The gameplay random engine is process-wide,** a `RandomStream` that `gameplay_random()` returns, though nothing
+  draws from it yet. `Game` seeds it with a seed it is passed or draws, and writes the seed to the log.
 - **dungen and catagen each seed one `math::Random` per run** from `Parameters::seed`, and pass it by reference from
   one function to the next.
 - **A region's generator is given the level of the zone it makes,** as `ZoneLevel`, and no seed.

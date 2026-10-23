@@ -237,7 +237,7 @@ namespace
     {
         vector<Scenario> v;
 
-        // The shipped zone's parameters, so the suite checks the run that produced the asset
+        // The shipped zone's parameters, so the test case checks the run that produced the asset
         catagen::Parameters shipped;
         shipped.extent = {20, 10};
         shipped.scale = {2, 5};
