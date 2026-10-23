@@ -6,6 +6,7 @@
 #include "attachments.hpp"
 #include "DiscreteLayout.hpp"
 #include "layout_entities.hpp"
+#include "positions.hpp"
 #include "World.hpp"
 #include <algorithm>
 #include <format>
@@ -72,9 +73,9 @@ bool quetzal::stratum_sim::targets_relocator_level(flecs::entity e, level_type o
     }
 
     const auto* absolute = std::get_if<stratum_format::AbsoluteZone>(&target->zone);
-    const auto* zone_level = absolute != nullptr ? zone_of(e).try_get<ZoneLevel>() : nullptr;
+    const auto* zone_position = absolute != nullptr ? zone_of(e).try_get<ZonePosition>() : nullptr;
 
-    return zone_level != nullptr && absolute->level == zone_level->level + offset;
+    return zone_position != nullptr && absolute->level == zone_level(*zone_position) + offset;
 }
 
 //------------------------------------------------------------------------------

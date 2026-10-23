@@ -20,6 +20,7 @@ add_library(quetzal_stratum_sim STATIC
     load_character.cpp
     load_layout.cpp
     make_document.cpp
+    positions.cpp
     properties.cpp
     RandomStream.cpp
     SavedGameDetails.cpp
@@ -63,6 +64,7 @@ add_library(quetzal_stratum_sim STATIC
     make_document.hpp
     PersistentId.hpp
     PlacementIndex.hpp
+    positions.hpp
     properties.hpp
     RandomStream.hpp
     SavedGameDetails.hpp

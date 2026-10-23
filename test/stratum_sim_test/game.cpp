@@ -26,6 +26,7 @@
 #include "quetzal/stratum_sim/PersistentSettings.hpp"
 #include "quetzal/stratum_sim/setting_definitions.hpp"
 #include "quetzal/stratum_sim/attachments.hpp"
+#include "quetzal/stratum_sim/positions.hpp"
 #include "quetzal/stratum_sim/file_components.hpp"
 #include "quetzal/stratum_sim/World.hpp"
 #include "quetzal/stratum_format/Document.hpp"
@@ -100,7 +101,7 @@ namespace
         flecs::entity staircase_type = stratum_sim::access_type(sequence_world.entities(), "staircase");
 
         const stratum_sim::RegionSpec region_spec {{string(stratum_sim::generator_selector_key), "staircase"},
-            {string(stratum_sim::entry_access_key), "staircase,1"}, {format("{}{}", stratum_sim::zone_prefix, stratum_sim::level_key), "-1"}};
+            {string(stratum_sim::entry_access_key), "staircase,1"}, {format("{}{}", stratum_sim::zone_prefix, stratum_sim::position_z_key), "-1"}};
 
         auto persistent_id_of = [](flecs::entity e) { return e.get<stratum_sim::PersistentId>().id; };
         auto name_of = [](flecs::entity e) { return e.has<stratum_sim::DisplayName>() ? e.get<stratum_sim::DisplayName>().name : string(); };
@@ -115,7 +116,7 @@ namespace
         CHECK_CASE("and the character, with the spec's name and the first id", persistent_id_of(first_character) == 0
             && name_of(first_character) == "Ailis");
         CHECK_CASE("and starts play in the first zone of a region made from the spec, at the entry point it states",
-            sequence_session.loaded() && first_zone.get<stratum_sim::ZoneLevel>().level == -1
+            sequence_session.loaded() && stratum_sim::zone_level(first_zone.get<stratum_sim::ZonePosition>()) == -1
             && first_region.get<stratum_sim::Region>().region_spec.value(stratum_sim::generator_selector_key) == "staircase"
             && stratum_sim::placement_of(first_character).position()
                 == stratum_sim::entry_point(first_zone, staircase_type, 1).get<stratum_sim::AccessPoint>().placement.position());

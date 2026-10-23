@@ -46,9 +46,10 @@ namespace stratum_sim_test
     quetzal::stratum_sim::Generation test_generation();
 
     quetzal::stratum_sim::RegionSpec test_region_spec(const std::string& generator_selector_name);
+    // Returns a ZoneSpec whose position is (0, 0, level)
     quetzal::stratum_sim::ZoneSpec test_zone_spec(quetzal::stratum_sim::level_type level);
 
-    // A world with the game's entity types, as Game's has, and a region for the test executable's zones
+    // A world with the game's entity types and a region for the test executable's zones
     struct TestWorld : quetzal::stratum_sim::World
     {
         explicit TestWorld(quetzal::stratum_sim::IdAllocator& id_allocator, size_t zone_count_max = test_zone_count_max);

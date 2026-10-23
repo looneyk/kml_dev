@@ -20,6 +20,7 @@
 #include "quetzal/stratum_sim/Game.hpp"
 #include "quetzal/stratum_sim/ai.hpp"
 #include "quetzal/stratum_sim/attachments.hpp"
+#include "quetzal/stratum_sim/positions.hpp"
 #include "quetzal/stratum_sim/World.hpp"
 #include "quetzal/stratum_format/Document.hpp"
 #include "quetzal/stratum_format/read_zone.hpp"
@@ -234,7 +235,7 @@ namespace
         CHECK_CASE("a selection of a new region makes the zone the first of a region created from the region spec",
             begun_region != leaving && begun_region_data.region_spec.value(stratum_sim::generator_selector_key) == "staircase"
             && begun_region_data.zone_ids.size() == 1 && leaving.get<stratum_sim::Region>().zone_ids.empty()
-            && begun.get<stratum_sim::ZoneLevel>().level == -1);
+            && stratum_sim::zone_level(begun.get<stratum_sim::ZonePosition>()) == -1);
 
         auto throws_runtime_error = [](auto f)
         {

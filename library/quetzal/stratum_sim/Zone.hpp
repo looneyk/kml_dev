@@ -75,10 +75,20 @@ namespace quetzal::stratum_sim
     };
 
     //--------------------------------------------------------------------------
-    // The zone's level, a label used when making connections between zones; nothing is looked up by it
-    struct ZoneLevel
+    // A zone's position in its region, each coordinate signed, the region's first zone at the origin
+    struct ZonePosition
     {
-        level_type level = 0;
+        coord_type x = 0;
+        coord_type y = 0;
+        coord_type z = 0;
+    };
+
+    //--------------------------------------------------------------------------
+    // A region's position in the world, each coordinate signed, the starting region at the origin
+    struct RegionPosition
+    {
+        coord_type x = 0;
+        coord_type y = 0;
     };
 
     //--------------------------------------------------------------------------

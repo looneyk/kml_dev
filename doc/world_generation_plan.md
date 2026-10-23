@@ -88,7 +88,7 @@ The entities:
 // Zone entity, a child of its region
 //     Zone tag
 //     PersistentId
-//     ZoneLevel            from the ZoneSpec
+//     ZonePosition         from the ZoneSpec
 //     ZoneLayout, ZoneNotation, and its layout entities and entities, built from the Document
 ```
 
@@ -205,7 +205,7 @@ flecs::entity World::create_zone(flecs::entity region, const ZoneSpec& zone_spec
 
     // check the document with check_buildable before creating anything
 
-    flecs::entity zone = create the zone in the region, with a new PersistentId and the ZoneLevel of zone_spec;
+    flecs::entity zone = create the zone in the region, with a new PersistentId and the ZonePosition of zone_spec;
     add the zone's id to the region's zone ids;
     load_layout(zone, document);
     populate(zone);
@@ -226,8 +226,8 @@ The values a zone is created from come from three places:
 - **The selector reads the world; the generator does not.** The selector reads the region and its zone count, and its
   random draws use a random engine seeded from the zone's seed. Anything from the region that a generator needs, such as difficulty, the
   selector copies into the zone's parameters.
-- **The level comes from the request.** `World` sets `ZoneLevel` from the `ZoneSpec`, and the generator writes the same
-  level into the `Document`.
+- **The position comes from the request.** `World` sets `ZonePosition` from the `ZoneSpec`, and the generator writes
+  the level of that position into the `Document`.
 - **The zone is built only from its `Document`,** through `load_layout`, whether a generator returned it or a pre-built
   zone supplied it, so every zone is created whole in the same way.
 
@@ -271,7 +271,7 @@ starting_area
     rare: {hermit_glade 0.02, ruined_shrine 0.01}    // generators or pre-built zones, each drawn with its probability
     zone_count_max: 12
     next_region: {wild_hills 2, deep_forest 1}       // the weighted table of region specs that may follow this one
-    zone.level: 0
+    zone.position.z: 0
     entry_access: waypoint,0                         // the access point the first zone's generator places
     zone.parameters.denizens: few
 
@@ -323,7 +323,7 @@ flecs::entity World::resolve_relocator_target(flecs::entity relocator)
     if (target has a region)
     {
         const RegionSpec& region_spec = m_region_specs.at(target.region);
-        flecs::entity zone = create_region_zone(region_spec, ZoneSpec {level: L + k});
+        flecs::entity zone = create_region_zone(region_spec, ZoneSpec {position: new_zone_position(world, region, L + k)});
         return entry_point(zone, arrival type, -k);
     }
 
@@ -334,7 +334,7 @@ flecs::entity World::resolve_relocator_target(flecs::entity relocator)
         return it;
     }
 
-    flecs::entity zone = create_zone(region, ZoneSpec {level: L + k});
+    flecs::entity zone = create_zone(region, ZoneSpec {position: new_zone_position(world, region, L + k)});
     return entry_point(zone, arrival type, -k);
 }
 ```

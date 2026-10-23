@@ -10,6 +10,7 @@
 #include "quetzal/stratum_sim/attachments.hpp"
 #include "quetzal/stratum_sim/load_layout.hpp"
 #include "quetzal/stratum_sim/PersistentId.hpp"
+#include "quetzal/stratum_sim/positions.hpp"
 #include "quetzal/stratum_sim/setting_definitions.hpp"
 
 using namespace std;
@@ -19,14 +20,14 @@ namespace
 {
 
     //--------------------------------------------------------------------------
-    // Returns a generator that reads the zone file, at the requested level if there is one, and without the unpopulated
+    // Returns a generator that reads the zone file, at the level of the requested position, and without the unpopulated
     // flag, which a generator does not set
     stratum_sim::Generation::generator_type file_generator(const string& filepath)
     {
         return [filepath](const stratum_sim::ZoneSpec& zone_spec)
         {
             stratum_format::Document document = stratum_format::read_zone(filepath);
-            document.level = zone_spec.value<stratum_sim::level_type>(stratum_sim::level_key);
+            document.level = stratum_sim::zone_level(stratum_sim::zone_position(zone_spec));
             document.is_unpopulated = false;
             return document;
         };
@@ -92,7 +93,9 @@ stratum_sim::RegionSpec stratum_sim_test::test_region_spec(const string& generat
 //------------------------------------------------------------------------------
 stratum_sim::ZoneSpec stratum_sim_test::test_zone_spec(stratum_sim::level_type level)
 {
-    return stratum_sim::ZoneSpec {{string(stratum_sim::level_key), to_string(level)}};
+    stratum_sim::ZoneSpec zone_spec;
+    stratum_sim::set_zone_position(zone_spec, stratum_sim::ZonePosition {0, 0, level});
+    return zone_spec;
 }
 
 //------------------------------------------------------------------------------

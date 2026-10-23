@@ -69,11 +69,6 @@ boxes are removed at the start of the next piece of work, since the reference do
 
 ## Random engine
 
-- [x] **Game settings initialized and fixed** (`settings_plan.md`, `### A new game's settings`): a game setting
-      definition's `initializer`, referring to a user setting, and `modifiable`, read by `stratum_format`;
-      the initializers applied when a game is created, and a change to a game setting that is not `modifiable` rejected
-      during the game; the difficulty settings `modifiable`; and the world-size and region-size settings, game and user, in
-      `setting_definitions.json`.
 - [ ] **Derived seeds** (`random_engine.md`, `## Generation`): each region and zone with its coordinates, the starting
       region and zone at the origin; a region's seed derived from the world seed and its coordinates, and a zone's from
       its region's seed and its coordinates, through `std::seed_seq`, unless its spec has a seed;

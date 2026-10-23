@@ -246,8 +246,18 @@ its subtree, in persistent id order, as its inventory, each encoded as an `Entit
 
 `Generation` has the registries that `World` creates regions and zones from (`world_generation_plan.md`), each a map
 from a name: `m_generator_selectors`, `m_generators` and `m_region_specs`. `RegionSpec` and `ZoneSpec` are both
-`KeyValueStore`. A `RegionSpec`'s `generator_selector` is the name of the region's selector, and a `ZoneSpec`'s `level` is the
-zone's level; `generator_selector_key` and `level_key` are the two keys.
+`KeyValueStore`. A `RegionSpec`'s `generator_selector`, `generator_selector_key`, is the name of the region's selector. A
+`ZoneSpec`'s `position.x`, `position.y` and `position.z`, `position_x_key`, `position_y_key` and `position_z_key`, are
+the zone's position in its region, and a `RegionSpec`'s `position.x` and `position.y` the region's position in the
+world.
+
+`positions.hpp` has `ZonePosition` and `RegionPosition`'s functions. `zone_position(zone_spec)` and
+`region_position(region_spec)` return a spec's position, each coordinate it does not have 0, and throw
+`std::runtime_error` for one that is not an integer; `set_zone_position` and `set_region_position` write one. Three are
+placeholders until the world's layout is designed: `new_zone_position(world, region, level)` returns `(0, 0, level)`,
+`new_region_position(world)` returns the x one past the largest of the world's regions, or 0 with none, and y 0, and
+`zone_level(position)` returns z, and `zone_position_at_level(level)` returns `(0, 0, level)`, which
+`new_zone_position` returns.
 
 `specs.hpp` has two functions over a spec. `find_unknown_keys(spec, known_keys)` returns the spec's keys that are not
 among the known keys, in key order, so a consumer reports a key it does not read. `select_prefixed(spec, prefix)` returns
@@ -274,7 +284,8 @@ entity with a `Region` component and a `PersistentId`, and it is the parent of i
 were created, loaded or not, so its size is the region's zone count. A zone is listed when it is generated, loaded from
 a template, or created with a layout. A saved zone read back was listed when it was created, so it is not listed again,
 and it is how `World` finds the region to read an unloaded zone back into. `create_region(region_spec)` makes one
-with the spec. `create_region_zone(region_spec, zone_spec)` makes a region, then its
+with the spec, writing `new_region_position` into a copy of the spec if it has neither position key, and sets the
+region's `RegionPosition` from the spec, so the position is saved with the spec in `world.json`. `create_region_zone(region_spec, zone_spec)` makes a region, then its
 first zone with `create_zone`, and returns the zone.
 `region_of(zone)` returns a zone's region, its parent. `zone_of` is unchanged by the regions above a zone: it returns a
  null entity for a zone itself. `unload_region(region)` unloads every zone of the region, then deletes the region, which deletes all their zones; each zone's unload
@@ -290,15 +301,18 @@ discards a zone, its contents and its layout.
 zone_spec)` creates a zone in a region that has a spec, as the region's generator selector chooses. The selector, named
 by the spec's `generator_selector`, is given the world, the region and the `ZoneSpec`, and returns a
 `GeneratorSelection`. For a generator, `create_zone` calls it with the selection's `ZoneSpec`, sets the `Document` it
-returns unpopulated, and builds the zone from it as `load_zone` builds one from a file; it then sets the zone's `ZoneLevel` from the spec's
-`level`, if it has one. For a region spec, it returns `create_region_zone` with that spec and the `ZoneSpec` it was
+returns unpopulated, and builds the zone from it as `load_zone` builds one from a file; it then sets the zone's `ZonePosition` from the
+selection's `ZoneSpec`. `ZonePosition` is the file component `zone_position`, so a saved zone keeps it among the
+zone's components. For a region spec, it returns `create_region_zone` with that spec and the `ZoneSpec` it was
 given, so the zone is the first of a new region. A zone template is not built: it throws `std::runtime_error`. So does a
 selector, generator or region spec name that is not registered, and a spec with no `generator_selector`, before anything
 is created; what a generator throws passes on, with nothing created.
 
-A zone's level is its `ZoneLevel`, a `level_type` (`std::int32_t`): 0 at the surface, negative going down and positive
-going up. It is a label, used when making connections between zones, and nothing is looked up by it. The loader sets it
-from the file's `level`, and a zone whose file has none has no `ZoneLevel`.
+A zone's level, a `level_type` (`std::int32_t`), is `zone_level` of its `ZonePosition`. Relocator targets in the zone
+data state levels, and `resolve_relocator_target` matches zones by them. The loader sets a zone's position from the
+file's `level` with `zone_position_at_level`, unless the zone already has a `ZonePosition` from its components, and a
+zone whose file has neither has no `ZonePosition`. `make_document` writes `zone_level` of the position as the file's
+`level`.
 
 `resolve_relocator_target(relocator)` returns the access point at which an actor arrives through a relocator whose
 unbound target is a level with no position: relative, `+`*k* or `-`*k*, or absolute, `=`*n*. The relocator's zone must
@@ -306,13 +320,13 @@ have a level, *L*. A target with a named zone or a position throws `std::runtime
 or *n*, which is *k* levels from *L*.
 
 A target with a region creates a new region with `create_region_zone`, from the region spec of that name and a
-`ZoneSpec` of the target level, without searching the loaded zones. A region spec that is not registered throws `std::runtime_error`.
+`ZoneSpec` whose position is `new_zone_position` for the target level, without searching the loaded zones. A region spec that is not registered throws `std::runtime_error`.
 
 With the region omitted, it looks in the loaded zones of the relocator's region at the target level, other than the
 relocator's zone, for an unbound access point of the type at which the relocator's type arrives that leads back: one
 whose relocator targets level *L*, -*k* levels from its own zone (`targets_relocator_level`). Of several, it returns the
 one in the zone with the lowest persistent id, and then with the lowest order. If none is found, it makes a zone in the
-relocator's region with `create_zone(region, zone_spec)`, with a `ZoneSpec` of the target level.
+relocator's region with `create_zone(region, zone_spec)`, with a `ZoneSpec` whose position is `new_zone_position` for the target level.
 
 It returns the new zone's `entry_point` for the arrival type and the offset -*k*, the access point that leads back. If
 the new zone has no such access point, it discards the zone, and the new region if one was created for it, and throws
@@ -858,10 +872,11 @@ for the purpose, and clears them when it uninitializes: a sink writing errors an
 warnings with `push_warning`, and the rest with `print`, and its run log file. The log is at `info`.
 
 Each host registers each of `stratum_gen::generators()` as a `Generation::generator_type` that makes a `ZoneRequest`
-from the `ZoneSpec` and passes it on: the `name`, the `level`, the `seed`, and the keys after `parameters.`. Nothing
+from the `ZoneSpec` and passes it on: the `name`, `zone_level` of the spec's position as the level, the `seed`, and the
+keys after `parameters.`. Nothing
 writes a `seed` yet, so a `ZoneSpec` without one has a seed from `math::random_seed()`. It also registers a temporary generator selector named
 `dungen`, until the generators are integrated. It creates the game from a temporary `RegionSpec`, whose
-`generator_selector` is `dungen`, whose `entry_access` is `staircase,1`, and whose `zone.level` is -1, and a
+`generator_selector` is `dungen`, whose `entry_access` is `staircase,1`, and whose `zone.position.z` is -1, and a
 temporary `CharacterSpec` with the name "Adventurer". The selector chooses the `dungen` generator for every zone, and names the zone
 "Dungeon Level N", where N is the absolute value of the level. So the character begins at the staircase leading up on
 the first level down, and a staircase leads to a new zone the first time it is taken, and back through the bound
@@ -873,7 +888,7 @@ section has. `generator_function_type` takes a `ZoneRequest` and returns a `stra
 `stratum_gen::generators()` returns a map from each generator's name to its function. `generate_dungen`, under
 `dungen`, runs dungen with its default parameters at the request's level, with its name and seed, and returns the
 document `dungen::make_document` builds in memory; it reads no `parameters` yet. dungen writes its warnings to the
-process-wide log. The `ZoneSpec` keys are `stratum_sim::name_key`, `level_key`, `seed_key` and
+process-wide log. The `ZoneSpec` keys are `stratum_sim::name_key`, the position keys, `seed_key` and
 `parameters_prefix`.
 
 `start(zone, placement)` relocates the character to the placement in the zone, and `start(access_point)` to the access

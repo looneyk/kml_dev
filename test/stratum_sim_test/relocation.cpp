@@ -21,6 +21,7 @@
 #include "quetzal/stratum_sim/Session.hpp"
 #include "quetzal/stratum_sim/Game.hpp"
 #include "quetzal/stratum_sim/attachments.hpp"
+#include "quetzal/stratum_sim/positions.hpp"
 #include "quetzal/stratum_sim/specs.hpp"
 #include "quetzal/stratum_sim/World.hpp"
 #include "quetzal/stratum_format/Document.hpp"
@@ -31,6 +32,7 @@
 #include <algorithm>
 #include <memory>
 #include <set>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <variant>
@@ -116,9 +118,9 @@ namespace
         flecs::entity leveled = world.create_zone(world.region, world.next_id());
         stratum_sim::load_layout(leveled, leveled_document);
 
-        CHECK_CASE("a zone has the level its file states", leveled.try_get<stratum_sim::ZoneLevel>() != nullptr
-            && leveled.get<stratum_sim::ZoneLevel>().level == -3);
-        CHECK_CASE("and none where its file states none", field.try_get<stratum_sim::ZoneLevel>() == nullptr);
+        CHECK_CASE("a zone has a position at the level its file states", leveled.try_get<stratum_sim::ZonePosition>() != nullptr
+            && stratum_sim::zone_level(leveled.get<stratum_sim::ZonePosition>()) == -3);
+        CHECK_CASE("and none where its file states none", field.try_get<stratum_sim::ZonePosition>() == nullptr);
 
         stratum_format::Document named_document = stratum_format::read_zone("data/door.zone");
         named_document.components["name"] = "The Narrow Door";
@@ -133,8 +135,49 @@ namespace
         flecs::entity made = world.create_zone(dungeon, test_zone_spec(-1));
 
         CHECK_CASE("a region makes a zone at a level with the generator its selector chooses", stratum_sim::region_of(made) == dungeon
-            && made.get<stratum_sim::ZoneLevel>().level == -1 && made.has<stratum_sim::ZoneLayout>());
+            && stratum_sim::zone_level(made.get<stratum_sim::ZonePosition>()) == -1 && made.has<stratum_sim::ZoneLayout>());
 
+        return;
+    }
+
+    //--------------------------------------------------------------------------
+    // Reads from data/, so stratum_sim_test runs from its own directory
+    TEST_CASE_FIXTURE(WorldFixture, "positions")
+    {
+        stratum_sim::CountingIdAllocator id_allocator(stratum_sim::PersistentId {});
+        TestWorld world(id_allocator);
+
+        flecs::entity second = world.create_region(test_region_spec("door"));
+        flecs::entity third = world.create_region(test_region_spec("door"));
+        stratum_sim::RegionSpec placed_spec = test_region_spec("door");
+        stratum_sim::set_region_position(placed_spec, stratum_sim::RegionPosition {-4, 7});
+        flecs::entity placed = world.create_region(placed_spec);
+        flecs::entity fourth = world.create_region(test_region_spec("door"));
+
+        auto region_at = [](flecs::entity region, stratum_sim::coord_type x, stratum_sim::coord_type y)
+        {
+            const stratum_sim::RegionPosition& position = region.get<stratum_sim::RegionPosition>();
+            return position.x == x && position.y == y && stratum_sim::region_position(region.get<stratum_sim::Region>().region_spec).x == x;
+        };
+
+        CHECK_CASE("the first region is at the origin, and each new one one past the largest x, at y 0", region_at(world.region, 0, 0)
+            && region_at(second, 1, 0) && region_at(third, 2, 0));
+        CHECK_CASE("a region whose spec has a position is there, and its spec keeps it", region_at(placed, -4, 7) && region_at(fourth, 3, 0));
+
+        flecs::entity made = world.create_zone(second, test_zone_spec(-3));
+        const stratum_sim::ZonePosition& made_position = made.get<stratum_sim::ZonePosition>();
+        CHECK_CASE("a zone is at the position its spec has, and its level is z", made_position.x == 0 && made_position.y == 0
+            && made_position.z == -3 && stratum_sim::zone_level(made_position) == -3);
+
+        const stratum_format::Document made_document = stratum_sim::make_document(made);
+        CHECK_CASE("and a saved zone keeps its position among the zone's components", made_document.components.contains("zone_position")
+            && made_document.components["zone_position"]["z"] == -3);
+
+        CHECK_CASE("a coordinate a spec does not have is 0", stratum_sim::zone_position(stratum_sim::ZoneSpec {
+            {string(stratum_sim::position_z_key), "5"}}).x == 0 && stratum_sim::zone_position(stratum_sim::ZoneSpec {}).z == 0);
+        CHECK_THROWS_AS(stratum_sim::zone_position(stratum_sim::ZoneSpec {{string(stratum_sim::position_x_key), "east"}}), runtime_error);
+        CHECK_CASE("the placeholder places a new zone at x 0 and y 0, at its level", stratum_sim::new_zone_position(world, second, -2).z == -2
+            && stratum_sim::new_zone_position(world, second, -2).x == 0 && stratum_sim::zone_level(stratum_sim::ZonePosition {0, 0, 4}) == 4);
         return;
     }
 
@@ -200,7 +243,7 @@ namespace
         CHECK_CASE("a target with a region makes a zone in a new region created from the region spec of that name, though a zone at the level has a staircase that leads back", made
             && made != field && region_made != dungeon && region_made != world.region
             && region_made.get<stratum_sim::Region>().region_spec.value(stratum_sim::generator_selector_key) == "staircase"
-            && region_made.get<stratum_sim::Region>().zone_ids.size() == 1 && made.get<stratum_sim::ZoneLevel>().level == 0
+            && region_made.get<stratum_sim::Region>().zone_ids.size() == 1 && stratum_sim::zone_level(made.get<stratum_sim::ZonePosition>()) == 0
             && arrival == down_of(made));
 
         retarget(first_up, "unregistered/+1");
@@ -221,12 +264,12 @@ namespace
         arrival = world.resolve_relocator_target(down_of(second));
         made = zone_arrived_in(arrival);
         CHECK_CASE("finding none, it makes a zone at the level in its own region and arrives at its entry point", made
-            && stratum_sim::region_of(made) == dungeon && made.get<stratum_sim::ZoneLevel>().level == -3 && arrival == up_of(made));
+            && stratum_sim::region_of(made) == dungeon && stratum_sim::zone_level(made.get<stratum_sim::ZonePosition>()) == -3 && arrival == up_of(made));
 
         arrival = world.resolve_relocator_target(first_up);
         made = zone_arrived_in(arrival);
         CHECK_CASE("moving up looks only in its own region, so a zone at level 0 in another is not found and one is made", made
-            && made != field && stratum_sim::region_of(made) == dungeon && made.get<stratum_sim::ZoneLevel>().level == 0
+            && made != field && stratum_sim::region_of(made) == dungeon && stratum_sim::zone_level(made.get<stratum_sim::ZonePosition>()) == 0
             && arrival == down_of(made));
         bind(arrival);
 
@@ -235,7 +278,7 @@ namespace
         world.unload_zone(second);
         made = zone_arrived_in(world.resolve_relocator_target(first_down));
         CHECK_CASE("an unloaded zone and a zone in an unrelated region are not searched", made
-            && stratum_sim::region_of(made) == dungeon && made.get<stratum_sim::ZoneLevel>().level == -2);
+            && stratum_sim::region_of(made) == dungeon && stratum_sim::zone_level(made.get<stratum_sim::ZonePosition>()) == -2);
 
         // A zone made from data/door.zone above a staircase leading up has no staircase leading back down
         auto throws = [&](flecs::entity relocator)
@@ -312,7 +355,7 @@ namespace
         // An absolute target's offset is the difference between its level and the zone's
         up_2.set<stratum_sim::Relocator>(stratum_sim::Relocator {stratum_format::RelocatorTarget {nullopt, stratum_format::AbsoluteZone {-1}, nullopt}});
         bool unleveled = !stratum_sim::targets_relocator_level(up_2, 1);
-        zone.set<stratum_sim::ZoneLevel>(stratum_sim::ZoneLevel {-2});
+        zone.set<stratum_sim::ZonePosition>(stratum_sim::zone_position_at_level(-2));
         CHECK_CASE("an absolute target's offset is its difference from the zone's level, and a zone with no level has none",
             unleveled && stratum_sim::targets_relocator_level(up_2, 1) && !stratum_sim::targets_relocator_level(up_2, -1));
 
@@ -436,7 +479,7 @@ namespace
         arrival = world.relocate_through(actor, second_down);
         flecs::entity made = arrival ? stratum_sim::zone_of(arrival) : flecs::entity();
         CHECK_CASE("finding none, it goes to a zone made at the target level and binds its entry point", made
-            && made.get<stratum_sim::ZoneLevel>().level == -3 && stratum_sim::zone_of(actor) == made && refers_to(second_down, arrival)
+            && stratum_sim::zone_level(made.get<stratum_sim::ZonePosition>()) == -3 && stratum_sim::zone_of(actor) == made && refers_to(second_down, arrival)
             && refers_to(arrival, second_down));
 
         auto throws = [&](flecs::entity relocator)
@@ -478,7 +521,7 @@ namespace
         enter_zone_file(game, "data/walls.zone");
         flecs::entity character = session.character().entity();
         flecs::entity first = session.zone();
-        first.set<stratum_sim::ZoneLevel>(stratum_sim::ZoneLevel {-1});
+        first.set<stratum_sim::ZonePosition>(stratum_sim::zone_position_at_level(-1));
 
         flecs::entity staircase_type = stratum_sim::access_type(world.entities(), "staircase");
         flecs::entity first_down = stratum_sim::entry_point(first, staircase_type, -1);
@@ -520,7 +563,7 @@ namespace
         interact(down_events);
         flecs::entity second = session.zone();
         CHECK_CASE("interacting with a relocator on the wall ahead enters the relocator", relocated(down_events) && second != first
-            && stratum_sim::zone_of(character) == second && second.get<stratum_sim::ZoneLevel>().level == -2);
+            && stratum_sim::zone_of(character) == second && stratum_sim::zone_level(second.get<stratum_sim::ZonePosition>()) == -2);
         CHECK_CASE("and the session plays the zone arrived in, with the character in its turn order", session.scheduler().contains(character.id()));
 
         stratum_sim::EventQueue up_events;
@@ -564,7 +607,7 @@ namespace
 
         // data/walls.zone: the character enters on cell (2, 1), facing the staircase leading down to the east
         enter_zone_file(game, "data/walls.zone");
-        session.zone().set<stratum_sim::ZoneLevel>(stratum_sim::ZoneLevel {-1});
+        session.zone().set<stratum_sim::ZonePosition>(stratum_sim::zone_position_at_level(-1));
         flecs::entity staircase = stratum_sim::entry_point(session.zone(), stratum_sim::access_type(game.world().entities(), "staircase"), -1);
 
         game.generation() = test_generation();
@@ -580,7 +623,7 @@ namespace
         stratum_sim::Game failing(g_test_config);
         stratum_sim::Session& failing_session = failing.session();
         enter_zone_file(failing, "data/walls.zone");
-        failing_session.zone().set<stratum_sim::ZoneLevel>(stratum_sim::ZoneLevel {-1});
+        failing_session.zone().set<stratum_sim::ZonePosition>(stratum_sim::zone_position_at_level(-1));
         flecs::entity named = stratum_sim::entry_point(failing_session.zone(), stratum_sim::access_type(failing.world().entities(), "staircase"), -1);
         named.set<stratum_sim::Relocator>(stratum_sim::Relocator {*stratum_format::parse_relocator_target("town/market")});
 

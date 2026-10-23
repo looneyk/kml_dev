@@ -13,7 +13,8 @@ open items are in `work_plan.md` (`### Random engine`).
   draws from it yet. `Game` seeds it with a seed it is passed or draws, and writes the seed to the log.
 - **dungen and catagen each seed one `math::Random` per run** from `Parameters::seed`, and pass it by reference from
   one function to the next.
-- **A region's generator is given the level of the zone it makes,** as `ZoneLevel`, and no seed.
+- **A region's generator is given the position of the zone it makes,** as `ZonePosition`, and the level of that
+  position, and no seed.
 - **The random engine type is chosen** (`## The random engine type`): xoshiro256**, with the distributions and
   shuffle implemented in `math::Random`, so one seed makes the same zones with every standard library.
 - **The other documents state goals and no mechanism.** `game_system_principles.md` (Phase 5) calls for hierarchical

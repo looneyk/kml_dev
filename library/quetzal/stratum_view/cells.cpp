@@ -6,6 +6,7 @@
 #include "cells.hpp"
 #include "quetzal/stratum_sim/attachments.hpp"
 #include "quetzal/stratum_sim/DiscreteLayout.hpp"
+#include "quetzal/stratum_sim/positions.hpp"
 #include "quetzal/stratum_sim/Site.hpp"
 #include <variant>
 #include <cassert>
@@ -110,7 +111,7 @@ namespace
     bool leads_down(flecs::entity e)
     {
         const sim::Relocator& relocator = e.get<sim::Relocator>();
-        const auto* zone_level = sim::zone_of(e).try_get<sim::ZoneLevel>();
+        const auto* zone_position = sim::zone_of(e).try_get<sim::ZonePosition>();
 
         if (const auto* target = std::get_if<quetzal::stratum_format::RelocatorTarget>(&relocator.target))
         {
@@ -120,13 +121,13 @@ namespace
             }
 
             const auto* absolute = std::get_if<quetzal::stratum_format::AbsoluteZone>(&target->zone);
-            return absolute != nullptr && zone_level != nullptr && absolute->level < zone_level->level;
+            return absolute != nullptr && zone_position != nullptr && absolute->level < sim::zone_level(*zone_position);
         }
 
         flecs::entity bound = std::get<sim::EntityReference>(relocator.target).entity;
-        const auto* bound_level = bound && bound.is_alive() ? sim::zone_of(bound).try_get<sim::ZoneLevel>() : nullptr;
+        const auto* bound_position = bound && bound.is_alive() ? sim::zone_of(bound).try_get<sim::ZonePosition>() : nullptr;
 
-        return bound_level != nullptr && zone_level != nullptr && bound_level->level < zone_level->level;
+        return bound_position != nullptr && zone_position != nullptr && sim::zone_level(*bound_position) < sim::zone_level(*zone_position);
     }
 
     //--------------------------------------------------------------------------

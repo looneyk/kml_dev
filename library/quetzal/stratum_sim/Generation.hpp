@@ -38,8 +38,12 @@ namespace quetzal::stratum_sim
 
     // ZoneSpec keys
     inline constexpr std::string_view name_key = "name";
-    inline constexpr std::string_view level_key = "level";
     inline constexpr std::string_view seed_key = "seed";
+
+    // The ZoneSpec and RegionSpec keys of a position's coordinates. A region's position has no z
+    inline constexpr std::string_view position_x_key = "position.x";
+    inline constexpr std::string_view position_y_key = "position.y";
+    inline constexpr std::string_view position_z_key = "position.z";
     inline constexpr std::string_view parameters_prefix = "parameters.";
 
     //--------------------------------------------------------------------------
