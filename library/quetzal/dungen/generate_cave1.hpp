@@ -16,7 +16,7 @@ namespace quetzal::dungen
     // over the eight neighbors of a cell, then every area but the largest filled back in
     // No rooms and no doors: open floor is corridor, and the border is left solid
     // Reads parameters.cave1; parameters.algorithm is expected to be Algorithm::Cave1
-    // Throws std::invalid_argument by way of validate, and as place_staircases does
+    // Throws std::invalid_argument by way of validate, and std::runtime_error if a staircase count above zero has none placed
     Zone generate_cave1(id_type id, const std::string& name, const Parameters& parameters);
 
 } // namespace quetzal::dungen

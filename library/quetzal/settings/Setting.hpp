@@ -20,7 +20,7 @@ namespace quetzal::settings
 {
 
     //--------------------------------------------------------------------------
-    // Where a setting's value is saved: the user settings file, or the game file of the game in progress
+    // The scope of a setting, which the client saves and loads apart from the other scope
     enum class SettingScope
     {
         User,
@@ -64,6 +64,8 @@ namespace quetzal::settings
         std::string default_value;
         SettingScope scope = SettingScope::User;
         bool restart_required = false;
+        bool modifiable = false; // True if set_values may change it; initialize_values and reset change it either way
+        std::optional<std::string> initializer_setting; // The setting of another scope whose value apply_initializers copies into it
         std::string display_name;
         std::string description;
         std::string category; // The menu page that shows it

@@ -48,10 +48,11 @@ namespace quetzal::stratum_sim
         void menu_open();
         void menu_close();
         void clear();
-        // Clears, empties the working directory, and creates a game there, its game directory named by the character, then
-        // starts play at its first zone's entry point. Seeds the gameplay random engine with the seed, or with one drawn from
-        // std::random_device if none is passed, and logs it. Requires a named character. Passes on what creating the world
-        // throws, leaving no game in progress
+        // Clears, which resets the game settings, applies their initializers, empties the working directory, and creates a
+        // game there, its game directory named by the character, then starts play at its first zone's entry point. Seeds the
+        // gameplay random engine with the seed, or with one drawn from std::random_device if none is passed, and logs it.
+        // Requires a named character. Passes on what applying the initializers or creating the world throws, leaving no game
+        // in progress
         void create(const RegionSpec& region_spec, const CharacterSpec& character_spec,
             std::optional<RandomStream::seed_type> seed = std::nullopt); // starting specs, maybe read from settings instead ...
 

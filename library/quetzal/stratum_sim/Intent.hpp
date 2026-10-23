@@ -12,7 +12,7 @@ namespace quetzal::stratum_sim
 
     //--------------------------------------------------------------------------
     // The movement and facing direction an actor is trying to take, which persist until changed. Directions are absolute,
-    // in world space, and the layout snaps them to its own
+    // in world space, and the layout snaps them to the directions it supports
     struct Intent
     {
         vector_type direction; // Zero for no movement

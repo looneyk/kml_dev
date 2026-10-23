@@ -60,7 +60,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Returns true if a door occupies the cell beyond, as a doorway block does, rather than lying on the edge between the two. A
+    // Returns true if a door occupies the cell beyond rather than lying on the edge between the two. A
     // door in a cell has a wall on one side only
     bool door_in_cell(const sim::DiscreteLayout& layout, const sim::discrete_point_type& beyond,
         const sim::discrete_vector_type& direction)

@@ -45,7 +45,7 @@ no library under `library/quetzal` other than `quetzal_testing` includes doctest
 - **A test suite is a set of related test cases,** such as a source file of `stratum_sim_test`.
 - **A sweep over seeds or files is a loop in one test case,** with `CAPTURE` of the seed or the file, so a failure
   reports which one failed.
-- **A case repeated for each scenario is a test case with a subcase for each scenario,** named as the case was, such as
+- **A case repeated for each scenario is a test case with a subcase for each scenario,** with the harness case's name, such as
   "shipped is equivalent to its reference". doctest registers no test case at run time, and its subcases are how it
   repeats a test case over values, as GoogleTest's value-parameterized tests and Catch2's `GENERATE` do. `-sc` selects
   a subcase. CTest runs the subcases of one test case in one process.

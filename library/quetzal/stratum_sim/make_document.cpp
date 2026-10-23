@@ -79,7 +79,7 @@ namespace
 
     //--------------------------------------------------------------------------
     // The entity's own file components, by name. A tag is an empty object, and a component it reads from its type through
-    // inheritance is the type's, not its own
+    // inheritance is left out
     stratum_format::raw_values_type encoded_components(flecs::entity e, const file_components_type& file_components)
     {
         flecs::world world = e.world();

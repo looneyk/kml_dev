@@ -22,7 +22,7 @@ namespace quetzal::stratum_format
     };
 
     //--------------------------------------------------------------------------
-    // A region as the world file has it: spec is the region spec it was created from
+    // A region in the world file: spec is the region spec it was created from
     struct WorldRegion
     {
         stored_entity_id_type id = 0;

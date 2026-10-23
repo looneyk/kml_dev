@@ -146,7 +146,7 @@ to the loader, closed like solid, and a catagen zone loads with no rooms.
 
 ## Properties
 
-- **`>` is down and `<` is up**, as in dungen, so both notations share the cell glyphs.
+- **`>` is down and `<` is up** in both notations, which share the cell glyphs.
 - **Loop adds doors, never corridors**: a loop is a second way between two rooms that are already adjacent.
 - **A scale range narrower than twice its minimum yields rooms above the maximum**, since no cut would leave both
   halves large enough. A scale maximum at or above `2 * scale_min - 1` avoids it.

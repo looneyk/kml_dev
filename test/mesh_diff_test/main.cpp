@@ -38,7 +38,7 @@ namespace
     using faces_type = vector<face_type>;
 
     //--------------------------------------------------------------------------
-    // A directory of the test case's own, so test cases running at once write no file in each other's
+    // A directory for one test case, so test cases running at once never write to the same directory
     filesystem::path scratch_directory(const string& name)
     {
         filesystem::path dir = filesystem::temp_directory_path() / "mesh_diff_test" / name;

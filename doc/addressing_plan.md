@@ -37,9 +37,9 @@ Open items are listed in `work_plan.md`, and `game_system_reference.md` describe
   a door, a staircase or concealment, and nothing on the wall or the cell marks it crossable (`## Crossing a wall`).
 - **Each zone has a placement index,** derived from the placements of the actors and of anything else in a cell of the
   zone, which finds the entities at a location without a search (`## Placement index`).
-- **The character is in a zone, and is owned by the game.** It is in its zone's placement index like any actor, but unloading
+- **The character is in a zone, and is owned by the game.** It is in its zone's placement index, but unloading
   or saving the zone leaves it out (`## Migration`).
-- **A dropped object is indexed in its zone,** as every sited entity is, and is accessible while the actor is in that
+- **A dropped object is indexed in its zone,** and is accessible while the actor is in that
   zone, not from another zone the actor moves to.
 - **The world index has only the entities that something refers to.** A reference uses it to find the zone its entity
   is in.
@@ -226,7 +226,7 @@ moves its entry in the world index with it if it has one. Its children move with
 **The character is owned by the game.** `Game` owns the `Character`, which exists before any zone. The character has no
 parent: an exclusive `(InZone, zone)` relationship refers to the zone it is in, which relocating changes, `zone_of`
 reads, and flecs removes when that zone is deleted. An entity with no parent is owned by the game, and relocating it
-keeps it that way. The character is in its zone's placement index like any actor, and every query for the entities in a zone
+keeps it that way. The character is in its zone's placement index, and every query for the entities in a zone
 matches it, but it is not in the zone's subtree, so unloading or saving the zone leaves it out. The objects the character
 carries are its children, sited `on` it, and are owned by the game too; both are saved with the game.
 

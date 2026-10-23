@@ -24,7 +24,7 @@ namespace
     constexpr auto format_version = "0.1";
 
     //--------------------------------------------------------------------------
-    // Names as written in a file, the same as in the code
+    // Names as written in a file
     struct Named
     {
         const char* name;
@@ -61,7 +61,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // The character a line draws, in single quotes so that a space is a glyph like any other
+    // The character a line draws, in single quotes so that a space can be a glyph
     char read_character(const std::string& token, const std::string& name, size_t row)
     {
         if (token.size() < 3 || token.front() != '\'' || token.back() != '\'')

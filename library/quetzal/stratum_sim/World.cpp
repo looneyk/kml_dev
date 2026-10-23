@@ -806,7 +806,7 @@ void quetzal::stratum_sim::World::unload_region(flecs::entity region)
 {
     assert(region && region.has<Region>());
 
-    // Each zone's unload finishes in the PersistentId observer, as unload_zone's does
+    // Each zone's unload finishes in the PersistentId observer
     region.children([&](flecs::entity child)
     {
         if (child.has<Zone>())

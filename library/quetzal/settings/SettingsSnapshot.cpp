@@ -65,7 +65,7 @@ void quetzal::settings::SettingsSnapshot::restore(SettingScope scope, Settings& 
         }
     }
 
-    [[maybe_unused]] const bool set = store.set_values(settings, presets);
+    [[maybe_unused]] const bool set = store.initialize_values(settings, presets);
     assert(set);
     return;
 }

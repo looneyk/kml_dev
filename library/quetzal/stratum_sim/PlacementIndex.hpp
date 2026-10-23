@@ -13,7 +13,7 @@ namespace quetzal::stratum_sim
 {
 
     //--------------------------------------------------------------------------
-    // The entities placed in one zone, by location. Each layout supplies its own
+    // The entities placed in one zone, by location. Each layout type supplies an implementation
     class PlacementIndex
     {
     public:

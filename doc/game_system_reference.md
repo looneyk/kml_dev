@@ -154,7 +154,7 @@ snapped to a cardinal direction, or `nullid` if there is none.
 placement or moves it there, `remove` takes out an entity that is in the index, and `contains` and `entity_count` report
 on it. `entities_at(placement)` returns the entities at the same location as a placement, and
 `entities_within(placement, range)` those whose positions are within the range of its position in 3D, both in ascending
-id order. It refers to entities by `id_type`, as `MoveResult` does, so `Layout.hpp` includes no flecs.
+id order. It refers to entities by `id_type`, so `Layout.hpp` includes no flecs.
 `Layout::create_placement_index()` returns an empty index of the layout's own type, which must not outlive the layout.
 Each zone owns one (`### World`).
 
@@ -181,7 +181,7 @@ It sets the zone's `ZoneLayout` to the `DiscreteLayout`, since both notations ar
 entities and with its `unpopulated` flag cleared, whose geometry a saved zone is written with. It then
 builds every entity in the file in two passes, in the
 file's order. The first pass creates each entity in the zone, `IsA` its type, so that each has its persistent id ---
-the file's own in a saved zone --- before anything refers to it. A type that is not loaded is made with no
+the file's persistent id in a saved zone --- before anything refers to it. A type that is not loaded is made with no
 components, so the entity keeps its type. The second sets each entity's parent; its site, with the address resolved to
 layout ids and the position and orientation to a placement, and a site in a cell of the zone made a placement at that
 cell with no address; and its `Relocator`. A door is the file's `door` entity, and its door facings are the `door_facing` children sited on the
@@ -210,7 +210,8 @@ making anything. `load_layout` asserts the conditions that `check_buildable` che
 `load_character(character, document)` fills the character's entity from a `CharacterDocument`: its persistent id and
 its component objects, and each entity of its inventory, with its persistent id, its type, its parent, its site on that
 parent, and its component objects. Every reference keeps its persistent id and is resolved when it is first followed.
-The `check_buildable` overload for a `CharacterDocument` checks its component objects as the zone's are checked.
+The `check_buildable` overload for a `CharacterDocument` checks that each component object of the character and of its
+inventory's entities has a component registered under its name, and fits it.
 
 `register_file_component(entities, name, component)`, or `register_file_component<T>(entities, name)`, registers a
 component, with its reflection as a struct or an opaque type, as the one that a component object of that name decodes
@@ -239,7 +240,7 @@ no `ZoneDocument`, is a skeleton with an empty body.
 
 `make_character_document(character)` returns the character as a character file's `CharacterDocument`: its persistent id,
 its own file components, its zone's persistent id, the cell its placement is in and its orientation, and every entity in
-its subtree, in persistent id order, as its inventory, each encoded as a zone's entity is, with its parent.
+its subtree, in persistent id order, as its inventory, each encoded as an `Entity`, with its parent.
 
 ### Generation
 
@@ -277,7 +278,7 @@ with the spec. `create_region_zone(region_spec, zone_spec)` makes a region, then
 first zone with `create_zone`, and returns the zone.
 `region_of(zone)` returns a zone's region, its parent. `zone_of` is unchanged by the regions above a zone: it returns a
  null entity for a zone itself. `unload_region(region)` unloads every zone of the region, then deletes the region, which deletes all their zones; each zone's unload
-completes as `unload_zone`'s does.
+completes in the `PersistentId` observer.
 
 Every zone is made in a region. `create_zone(region, zone_id)` makes an empty zone in the region, with the `Zone` tag
 and that `PersistentId`, for a generator or the loader to fill. `create_zone(region, layout)` makes one with a new id,
@@ -308,7 +309,7 @@ A target with a region creates a new region with `create_region_zone`, from the 
 `ZoneSpec` of the target level, without searching the loaded zones. A region spec that is not registered throws `std::runtime_error`.
 
 With the region omitted, it looks in the loaded zones of the relocator's region at the target level, other than the
-relocator's own, for an unbound access point of the type at which the relocator's type arrives that leads back: one
+relocator's zone, for an unbound access point of the type at which the relocator's type arrives that leads back: one
 whose relocator targets level *L*, -*k* levels from its own zone (`targets_relocator_level`). Of several, it returns the
 one in the zone with the lowest persistent id, and then with the lowest order. If none is found, it makes a zone in the
 relocator's region with `create_zone(region, zone_spec)`, with a `ZoneSpec` of the target level.
@@ -328,7 +329,7 @@ longer chooses either. The actor is relocated to the access point's zone, at its
 moves nothing.
 
 `random_type` is `math::Random<math::portable_random_engine_type>`, xoshiro256** seeded through splitmix64, with
-distributions and a shuffle of `math::Random`'s own, so one seed draws the same values with every standard library;
+distributions and a shuffle implemented in `math::Random`, so one seed draws the same values with every standard library;
 `gaussian` uses the platform's `std::log`. dungen and catagen draw through the same type. `state()` returns the random
 engine's state as text, and `set_state(text)` restores it, throwing `std::invalid_argument` if the text is not a state
 of the random engine. `math::random_seed()` draws a 64-bit seed from `std::random_device`.
@@ -361,7 +362,7 @@ passes its config's `zone_count_max`.
 
 A world has the game directory, the game's directory in the config's working directory, from
 `create(region_spec, game_directory)` or `open(game_directory)` until `clear`. It has none while no game is in progress,
-and a world that is part of no game, as a test's is, has none at all, so it saves nothing. `save_zone(zone)` writes the
+and a world that is part of no game has none at all, so it saves nothing. `save_zone(zone)` writes the
 zone's `make_document` to `zones/<persistent id>.zone` in the game directory, creating `zones` if it is absent; it
 requires a game directory and a zone built from a document. Leaving a
 zone does not save it, and neither does `unload_zone` nor `unload_region`, which discard what they unload, as clearing a
@@ -446,8 +447,8 @@ has no components of its own. Deleting a layout entity removes the sites of the 
 the site before changing the parent, so an entity leaves what it was sited on while it is still in that zone. Deleting
 a zone or the world unlinks nothing.
 
-`property<T>(e)` resolves a component along a chain: the entity's own, its type's and its type's type's through
-`IsA`, that of the room that contains it, and last the layout's, on the zone entity. The first level that has the
+`property<T>(e)` resolves a component along a chain: the entity, its type and its type's type through `IsA`, the
+room that contains it, and last the layout, on the zone entity. The first level that has the
 component supplies it, and each later level fills the `std::optional` fields that are still unset, a struct member
 field by field; a field that is not optional comes from the first level. The result is empty if no level has the
 component. The room is the one that contains the cell the entity is placed in, or the cell of the wall or flat cell it
@@ -538,8 +539,7 @@ to the type at which an actor arrives through a relocator of this type. `World` 
 down, or across is in its relocator's target. A mod registers more types with `create_access_type`. `access_type(entities, name)` finds one by name, returning a null
 entity if there is none.
 
-`set_access_point(e, type, order, placement)` makes an entity sited on a surface an access point, as the loader does
-with the file's access points, and `create_access_point(zone, type, site, order, placement)` creates one.
+`set_access_point(e, type, order, placement)` makes an entity sited on a surface an access point, and `create_access_point(zone, type, site, order, placement)` creates one.
 `targets_relocator_level(e, offset)` returns true if the entity's relocator is unbound and its target is the level
 `offset` levels from the entity's zone: a relative target with that offset, or an absolute target at the zone's level
 plus the offset, which only a zone with a level matches. `entry_point(zone, type, offset)` returns the zone's
@@ -622,7 +622,7 @@ at a time, as often as the real time earns. Movement within a cell needs a conti
 `Intent` is a component with the movement and facing direction that an actor is trying to take, and it persists until
 changed. `direction` is the movement asked for and `facing` the facing direction asked for, each zero if none is asked
 for, and `distance` is how far to move. Both directions are absolute, in world space, and a discrete layout snaps them
-to its own. `Intent` registers no reflection, so it is not serialized.
+to the directions it supports. `Intent` registers no reflection, so it is not serialized.
 
 ### ai
 
@@ -669,7 +669,7 @@ their keys. Each add returns a `Settings::listener_id_type`, which `remove_liste
 listener.
 
 A setting group is itself a setting, whose value is the name of its selected preset. `insert_group(key, scope,
-default_preset_name, member_keys, presets, display_name, category)` registers a type under the group's key, an
+modifiable, default_preset_name, member_keys, presets, display_name, category)` registers a type under the group's key, an
 enumeration of the presets' names in order whose `SettingType::group` is true, and inserts the group's setting of that
 type, whose default is the default preset. It requires the members to be inserted already, and throws
 `std::runtime_error` for a key that is empty or a setting's or a type's already; no members or a member given twice;
@@ -690,6 +690,22 @@ error. `set_values` selects groups' presets before it sets members, and its over
 those values first, each set required to set each of the group's members. Either changes nothing if any value is
 invalid, and notifies once, with the group's key and each member whose value changed. `reset(scope)` also leaves the
 values of the scope's modifiable presets undefined, and `preset_values(scope)` returns those that are defined.
+
+A setting can be changed by `set_value`, `set_text` and `set_values` only if its `Setting::modifiable` is true, and a
+group's selection only if the `modifiable` that `insert_group` takes is. They throw `std::runtime_error`, changing
+nothing, for a setting that is not modifiable; for a group member unless the member, the group, and its modifiable
+preset all are; and for a group's preset values unless the group and each member are. `initialize_values(values,
+preset_values)` sets values in one operation whether or not they are modifiable, and `SettingsSnapshot::restore` uses
+it, so opening a game or loading a settings file sets settings that are not modifiable. `Setting::initializer_setting`
+refers to a setting of another scope: `apply_initializers(scope)` sets each setting of the scope that has one to that
+setting's value, skipping an initializer setting that is not defined, and throws, changing nothing, for one of the same
+scope or whose value is invalid or out of range for the setting it initializes. Modifiability and initializers work the
+same in either scope; the settings library has no rule of a client's.
+
+`insert_definitions` applies stratum's rules: every user setting and group is modifiable, a game setting or group only
+if its definition has `modifiable` true, and only a game setting has an initializer. It throws `std::runtime_error` for a
+user setting or group whose definition has `modifiable`, or a user setting with an `initializer`. `Game::create` calls
+`apply_initializers(SettingScope::Game)`.
 
 ### Game and Character
 
@@ -749,8 +765,8 @@ default before each test case that starts from it.
 `Game::clear` returns the game scope's settings to their defaults, which selects its groups' default presets and leaves
 their modifiable presets undefined, so a game created or opened starts from them.
 
-The working directory has only the game in progress. `Game::create(region_spec, character_spec, seed)` clears, resets
-the id allocator to count from zero, and seeds the gameplay random engine with the seed, or with one from
+The working directory has only the game in progress. `Game::create(region_spec, character_spec, seed)` clears, applies
+the game settings' initializers with `apply_initializers(SettingScope::Game)`, resets the id allocator to count from zero, and seeds the gameplay random engine with the seed, or with one from
 `math::random_seed()` if none is passed, keeping the seed and writing it to the log, so nothing passes from one game to
 the next. It empties the working directory and creates the game directory there, named by the
 character, whose name the spec must have, with each character a directory name cannot have replaced by `_`. It has the
@@ -764,7 +780,7 @@ named by the character as `create` names it, read from the top of the save's `ch
 allocator counts on from `next_id`, the game's settings snapshot is restored, and the gameplay random engine's state is restored with `set_state`, or the
 random engine is reseeded from `math::random_seed()`, the seed written to the log, if the boolean setting
 `Game::reseed_on_open_key`, `gameplay.reseed_on_open`, is true; the random engine is the same either way. Restoring repeats the outcomes the save would have had; reseeding gives
-each opening its own. `World::open`
+each opening different outcomes. `World::open`
 then reads `world.json`, `Character::open` reads `character.json`, and the session starts in the character's zone,
 which `load_saved_zone` reads, at its cell and orientation. It throws `std::runtime_error` if there is no such save or
 a file in it cannot be read, and clears and removes the game directory first, so a failure leaves no game in progress.
@@ -852,7 +868,7 @@ the first level down, and a staircase leads to a new zone the first time it is t
 staircase after that.
 
 `stratum_gen` links no part of `stratum_sim`. A `ZoneRequest` is what one zone is generated from: its `name`, empty for
-none, an optional `level`, a `seed`, and `parameters`, the generator's own, as the tokens its zone file's `generator`
+none, an optional `level`, a `seed`, and `parameters`, which the generator reads, as the tokens its zone file's `generator`
 section has. `generator_function_type` takes a `ZoneRequest` and returns a `stratum_format::Document`, and
 `stratum_gen::generators()` returns a map from each generator's name to its function. `generate_dungen`, under
 `dungen`, runs dungen with its default parameters at the request's level, with its name and seed, and returns the
@@ -906,7 +922,7 @@ cell, in a discrete layout. They produce `Moved`, `Blocked`, `Turned`, `Interact
 
 The controlled actor enters a relocator on the wall ahead with `Interact`, and one on the floor of its cell with
 `Enter`, through `World::relocate_through`; any other actor does not enter a relocator. A `Step` into a wall with a
-relocator on it is `Blocked`, like a step into any wall, so a held movement key never takes the stairs. Entering by
+relocator on it is `Blocked`, so a held movement key never takes the stairs. Entering by
 moving into the wall is kept in `commands.cpp` behind `enter_relocator_by_moving`, which is off. A relocator on the
 floor does not impede movement. `Relocated` has the actor, the relocator, and the access point arrived at.
 
@@ -985,7 +1001,7 @@ run of three glyphs or more. A document that `read_zone` produces is written bac
 The game, character and world files that `game_file_spec.md` specifies, format `quetzal.stratum_game`, version `0.1`
 (`saved_game_format.hpp`), are each a data structure in a header of its own: `GameDocument`, with the game's next id, seed, each random engine's state by stream in `random_engines`, and its
 settings; `CharacterDocument`, with the character's id, components, zone, placement, and inventory, whose entities are
-`Entity`s as a zone's are; and `WorldDocument`, whose regions are each a `WorldRegion` with its id, components, the
+`Entity`s; and `WorldDocument`, whose regions are each a `WorldRegion` with its id, components, the
 spec it was created from, and a `ZoneReference`, an id and a file, for each zone, and whose `entity_zones` is the world
 index. A `write` overload for each, in `write_game.hpp`, `write_character.hpp` and `write_world.hpp`, emits its
 written form, with an absent object written as an empty one. These writers and the zone's, `write_zone`, share the text
@@ -993,7 +1009,7 @@ of the written form through `json_util.hpp`, internal to the library in `stratum
 
 `read_game`, `read_character` and `read_world`, in `read_game.hpp`, `read_character.hpp` and `read_world.hpp`, read and
 validate the game files, from a file or from a stream with a name for messages, and throw `std::runtime_error` with the
-path within the document and what was wrong there, as `read_zone` does for a zone. Each requires the format and version,
+path within the document and what was wrong there. Each requires the format and version,
 and the keys and value types that `game_file_spec.md` specifies. `read_character` also requires that the file's `name`,
 a copy of the character's name, equals the `name` component, and that every entity of the inventory has a unique id
 and a parent, the character or another entity of the inventory, with no cycle, and that it
@@ -1012,10 +1028,14 @@ A setting definition file has the format `quetzal.stratum_setting_definitions` (
 file`). `SettingDefinitionsDocument`, in `SettingDefinitionsDocument.hpp`, has the format's name and version and the file's path, `data/setting_definitions.json` relative to the assets directory or
 a mod's directory, and the file's `enumerations`, `settings` and `groups`, each in the file's order, with every value as
 text and a scope as `Scope::User` or `Scope::Game`. A setting's `default` is required, and so are a group's `members` and
-`presets`. `read_setting_definitions` requires the format and the version,
-allows each section to be absent, and throws `std::runtime_error` for a key the format does not have, a required key
-that is absent, a value that is not text, or a scope that is not `user` or `game`. The game's file is
-`assets/data/setting_definitions.json`, with the difficulty multipliers and the `gameplay.difficulty` group.
+`presets`. A setting and a group have `modifiable`, false if absent, and a setting may have an `initializer`, an object
+whose one form, `{ "setting": key }`, is read into `initializer_setting`. `read_setting_definitions` requires the format
+and the version, allows each section to be absent, and throws `std::runtime_error` for a key the format does not have, a
+required key that is absent, a value that is not text, or a scope that is not `user` or `game`. The game's file is
+`assets/data/setting_definitions.json`, with the difficulty multipliers and the `gameplay.difficulty` group, all
+modifiable, and the world's dimensions: the game settings `world.world_size.x` and `.y`, 1000000 by default, and
+`world.region_size.x`, `.y` and `.z`, 1000 by default, each fixed and initialized from the user setting with `_default`
+after `world_size` or `region_size`, which has the same default.
 
 A settings file, such as the user settings file, has the format `quetzal.stratum_settings` (`game_file_spec.md`, `## The
 user settings file`). `SettingsDocument`, in `SettingsDocument.hpp`, has one scope's `settings::SettingsSnapshot`, as
@@ -1053,7 +1073,7 @@ Both reductions draw the zone as a viewer perceives it, and the hosts pass the c
 finds concealed is drawn as though there were none, as a wall. A null viewer gets the general state.
 
 `cells(world, zone, viewer)` returns one `Place` per grid cell: `Solid`, `Floor`, or `Door` for a door that occupies a
-cell, as a doorway does in the block notation. A wall or door on the edge between two cells has no position there, so
+cell. A wall or door on the edge between two cells has no position there, so
 it reduces to `Floor` on both sides.
 
 In both reductions, stairs are drawn on a floor cell with a relocator on it, and on the closed cell beyond a wall with a
@@ -1068,7 +1088,7 @@ and `stairs_down`.
 the positions that are even in both. It emits cells, `Wall` or `Door` on edges, and `Wall` at a corner if any of its
 four edges has a wall or a door.
 
-A door occupies the cell beyond it if that cell is open and has no wall back toward it, as in a doorway block, and is
+A door occupies the cell beyond it if that cell is open and has no wall back toward it, and is
 then placed once in that cell; otherwise it is on the edge. Each wall is visited from the open cell it faces, which
 reaches every wall.
 
@@ -1082,8 +1102,8 @@ floor, so no wall is at a solid position, which the reduction asserts.
 
 Both reductions set the actor flags last, from `each_actor_cell`.
 
-`Buffer<T>` is the grid, with `extent`, `contains`, `at`, `set` and `fill`, and row 0 lowest as in the simulation. Its
-position and extent are `stratum_view`'s discrete point and vector types, the same as the simulation's grid. A private
+`Buffer<T>` is the grid, with `extent`, `contains`, `at`, `set` and `fill`, and row 0 lowest. Its
+position and extent are `stratum_view`'s discrete point and vector types. A private
 `offset` converts a position to a subscript and asserts the bounds. `Console` is `Buffer<char>`, and `Cells` and
 `Lattice` are both `Buffer<Place>`. `to_string`, for characters only, writes the highest row first.
 
@@ -1176,7 +1196,7 @@ interface: `create_game`, `has_game`, `game_over`, `menu_open`, `menu_close`, `q
 facing direction, and advances through the turn-based driver; `interact` submits `Interact` and `enter` submits
 `Enter`, and each advances. `message` returns what the last of them did that the map does not show, such as a door
 opening, a staircase before the character, or the level arrived on, and the tile view shows it in its status line. A step ends with the next turn already granted,
-so `turn` is the turn awaiting input. `create_game` creates a new game as the terminal host does, `has_game` returns true
+so `turn` is the turn awaiting input. `create_game` creates a new game, `has_game` returns true
 while one is in progress, `game_over` returns true once the character is dead, and `message` then reports the death,
 `menu_open` and `menu_close` pause and resume play, `quit_game` ends the game in progress, `save_game` saves it
 explicitly and returns the save's name, `saved_games` returns the saves, newest first, each a `Dictionary` of its
@@ -1201,7 +1221,7 @@ downward in Godot, so the view inverts j when it paints.
 
 The tile view starts at its menu, a dark screen over the view with the same choices and keys as the terminal host's:
 `N` for a new game, `C` or Escape to continue the game in progress, `S` to save it, which shows "Game saved" on the
-menu, `O` for the saves page, which lists, selects, opens and deletes saves as the terminal host's does, with Y to
+menu, `O` for the saves page, which lists, selects, opens and deletes saves, with Y to
 confirm a deletion, and `Q` to quit the game and
 Godot. During play,
 Escape opens the menu, and no other key quits. When `game_over` returns true, the status line asks for a key, which
@@ -1212,7 +1232,7 @@ error list. `-- --new-game` on Godot's command line starts a new game without sh
 names the library as Godot expects and writes it into the project rather than a per-configuration subdirectory.
 
 The root forces `CMAKE_MSVC_RUNTIME_LIBRARY` into the cache, because godot-cpp caches the static release CRT even for
-a debug build, and quetzal's static libraries then do not link. godot-cpp's headers are SYSTEM includes, as flecs' are,
+a debug build, and quetzal's static libraries then do not link. godot-cpp's headers are SYSTEM includes,
 so they do not report `/W4` warnings in the extension's sources. `KML_DEV_GODOT` governs all of it; when it is
 configured off, godot-cpp is not processed and neither the library nor the host exists.
 

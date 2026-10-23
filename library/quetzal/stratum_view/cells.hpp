@@ -67,15 +67,14 @@ namespace quetzal::stratum_view
     using Cells = Buffer<Place>;
     using Lattice = Buffer<Place>;
 
-    // The zone reduced to one Place per grid cell: Solid, Floor, a Door that occupies a cell, as a doorway does in the
-    // block notation, or stairs. A wall or door on the edge between two cells has no position here
+    // The zone reduced to one Place per grid cell: Solid, Floor, a Door that occupies a cell, or stairs. A wall or door on the edge between two cells has no position here
     // The zone is as the viewer perceives it: a door the viewer finds concealed is drawn as though there were none
     Cells cells(const stratum_sim::World& world, flecs::entity zone, flecs::entity viewer);
 
     // The zone reduced onto the lattice of the wall notation: (2W+1) by (2H+1) for a W by H grid, with cell (i, j) at
     // (2i+1, 2j+1), the wall west of it at (2i, 2j+1), the wall south of it at (2i+1, 2j), and the corners at the even
     // positions in both
-    // A corner is Wall if any of its four edges has a wall or a door. The viewer is used as in cells
+    // A corner is Wall if any of its four edges has a wall or a door. The zone is as the viewer perceives it
     Lattice lattice(const stratum_sim::World& world, flecs::entity zone, flecs::entity viewer);
 
     //--------------------------------------------------------------------------

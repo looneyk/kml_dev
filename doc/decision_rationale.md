@@ -196,7 +196,7 @@ consistent with the walls around it.
 **Its direction is its wall's.** The normal of the wall on the open side is the direction of travel from the staircase
 into the room, so there is no orientation to write, choose or check.
 
-**Each side is a wall.** The sides the staircase does not open onto are walls like any other, so each can look
+**Each side is a wall.** The sides the staircase does not open onto are walls, so each can look
 different.
 
 **Passage is a door's.** An actor goes through the open side as through an open door, so moving into a staircase needs
@@ -283,7 +283,7 @@ instead of a property of the type.
 
 A zone is constructed whole when it is encountered, geometry and contents, so `World::create_zone` from a generator
 is the general entry, and a zone file is a snapshot of part of the same construction, loaded by the narrower
-`load_zone`. A generator returns a `Document`, as reading a file does, and both build the zone from it through one
+`load_zone`. A generator and the zone file reader each return a `Document`, and both build the zone from it through one
 function, which checks the document, makes the zone, has the loader fill it, and populates it, so neither route drifts
 from the other.
 
@@ -439,7 +439,7 @@ read-only on-demand parser, suited to a hot path rather than to a reader that re
 specifies, and that form is what makes a zone file diff.
 
 **JSON stops at loading.** A `Document`'s component objects are `ordered_json`, the file being content the format does
-not interpret, arbitrarily nested and in written order. A value type of `stratum_format`'s own, as tinygltf's `Value`
+not interpret, arbitrarily nested and in written order. A value type defined in `stratum_format`, as tinygltf's `Value`
 is for glTF extras, would hide the library but remain a JSON tree under another name, with no gain in typing, so the
 `Document` keeps nlohmann's and nothing outside the file layer includes it. Keeping the tree on entities instead would
 cost a string lookup on every property read, defer every error to the first read, and allocate a node per value in a
@@ -454,7 +454,7 @@ likely as a new monster --- so nothing is designed on the assumption that the vo
 **Typed components with runtime schemas.** Decoding into typed components is what Bevy scenes, Godot scene files and
 Cataclysm DDA do, and flecs already requires reflection registered for every component so that saving works. flecs
 builds a component from a reflection description at runtime as readily as from a C++ type, so a mod's schema produces
-a component that is stored, decoded, saved and scripted like the game's own. Registering in C++ alone would make every
+a component that is stored, decoded, saved and scripted like the game. Registering in C++ alone would make every
 mod a rebuild. An unknown name failing the load catches misspelled names, as Cataclysm DDA's rejection of unvisited
 members does; a component a missing mod declares is skipped, as RimWorld's `MayRequire` skips content.
 

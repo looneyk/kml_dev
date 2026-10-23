@@ -169,6 +169,7 @@ void quetzal::stratum_sim::Game::create(const RegionSpec& region_spec, const Cha
     assert(!character_spec.name.empty());
 
     clear();
+    settings::store().apply_initializers(settings::SettingScope::Game);
 
     m_counting_id_allocator = CountingIdAllocator(PersistentId {});
     seed_gameplay_random(seed ? *seed : math::random_seed());

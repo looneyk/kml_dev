@@ -450,6 +450,19 @@ namespace
         CHECK_CASE("and opened with them has them again", settings::store().text("gameplay.difficulty") == "custom"
             && settings::store().value<double>(detection_key) == 2 && settings::store().value<double>("gameplay.difficulty.denizen_count_multiplier") == 1.5);
 
+        const string world_width_key = "world.world_size.x";
+        CHECK_CASE("a game's world width is the user's default when the game was created, saved with the game",
+            settings::store().value<int64_t>(world_width_key) == 1000000 && settings_game_json["settings"][world_width_key] == "1000000");
+        CHECK_THROWS_AS(settings::store().set_value<int64_t>(world_width_key, 5), runtime_error);
+        CHECK_CASE("and fixed during the game", settings::store().value<int64_t>(world_width_key) == 1000000);
+
+        settings::store().set_value<int64_t>("world.world_size_default.x", 64);
+        saving.open(settings_save_name);
+        const bool opened_world_width = settings::store().value<int64_t>(world_width_key) == 1000000;
+        saving.create(region_spec, ailis, saving_seed);
+        CHECK_CASE("a game opened keeps the world width it was created with, and a game created takes the user's default as it is then",
+            opened_world_width && settings::store().value<int64_t>(world_width_key) == 64);
+
         saving.open(replaced_save_name);
         CHECK_CASE("a save whose character's name cannot name a directory opens into one with the characters replaced", opened.loaded()
             && filesystem::is_directory(saving_config.working_directory / "Ailis_ of the _Downs__")
@@ -612,6 +625,27 @@ namespace
         stratum_sim::insert_definitions(member_document, test_settings);
         CHECK_CASE("a member keeps its own default, and has its value in the default preset",
             test_settings.setting("gameplay.size").default_value == "2" && test_settings.value<int64_t>("gameplay.size") == 1);
+
+        CHECK_CASE("every user setting is modifiable, and a game setting only if its definition is",
+            test_settings.setting("mod.torches.style").modifiable && !test_settings.setting("gameplay.size").modifiable
+            && !test_settings.setting("gameplay.scale").modifiable && test_settings.setting("gameplay.difficulty").modifiable);
+
+        document_type user_modifiable;
+        user_modifiable.settings.push_back({.key = "mod.torches.size", .type_name = "integer", .default_value = "1",
+            .scope = document_type::Scope::User, .modifiable = true});
+        document_type user_initializer;
+        user_initializer.settings.push_back({.key = "mod.torches.size", .type_name = "integer", .default_value = "1",
+            .scope = document_type::Scope::User, .initializer_setting = "mod.torches.style"});
+        document_type user_group_modifiable;
+        user_group_modifiable.settings.push_back({.key = "mod.torches.count", .type_name = "integer", .default_value = "1",
+            .scope = document_type::Scope::User});
+        user_group_modifiable.groups.push_back({.key = "mod.torches.amount", .scope = document_type::Scope::User, .modifiable = true,
+            .default_preset_name = "one", .member_keys = {"mod.torches.count"}, .presets = {{.name = "one", .values = {{"mod.torches.count", "1"}}}}});
+        CHECK_THROWS_AS(stratum_sim::insert_definitions(user_modifiable, test_settings), runtime_error);
+        CHECK_THROWS_AS(stratum_sim::insert_definitions(user_initializer, test_settings), runtime_error);
+        CHECK_THROWS_AS(stratum_sim::insert_definitions(user_group_modifiable, test_settings), runtime_error);
+        CHECK_CASE("a user setting or group whose definition has modifiable, or a user setting with an initializer, is an error",
+            !test_settings.contains("mod.torches.size") && !test_settings.contains("mod.torches.amount"));
         return;
     }
 

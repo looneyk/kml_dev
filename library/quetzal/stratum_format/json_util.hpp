@@ -33,7 +33,7 @@ namespace quetzal::stratum_format::detail
     template<std::floating_point T>
     std::string number_text(T value);
 
-    // Arrays of objects are spaced inside their brackets, as objects are inside their braces; arrays of anything else are not
+    // Arrays of objects are spaced inside their brackets; arrays of anything else are not
     std::string inline_text(const raw_values_type& v);
 
     // Joins the members of an object or the elements of an array with separators

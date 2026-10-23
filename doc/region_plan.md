@@ -20,7 +20,7 @@ zones are generated, and the open items are in `work_plan.md` (`### Regions`).
 - **A region is its zones' parent.** A zone's flecs parent is its region. `zone_of` still stops at the first ancestor
   that is a zone, and a zone's region is its parent. Unloading a zone leaves its region; deleting a region deletes its
   zones.
-- **A region has a persistent id,** given when it is created, as a zone's is.
+- **A region has a persistent id,** given when it is created.
 - **A region has its `RegionSpec`,** from which its generator selector creates each of its zones at the level a
   relocator or the region spec's `zone.` keys state (`world_generation_plan.md`).
 

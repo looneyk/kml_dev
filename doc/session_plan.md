@@ -30,8 +30,8 @@ in `work_plan.md` (`### Session`).
 ## Settings, the log, and the random engines
 
 The settings, the log, and the gameplay random engine are process-wide, each reached through a function
-from any code that uses them. They are independent of flecs and of `World`, so the views and the
-hosts reach them as the sim does.
+from any code that uses them. They are independent of flecs and of `World`, so the sim, the views and
+the hosts all reach them.
 
 - **The settings** apply to any subsystem: play, generation, the views, audio, and controls, and `settings()`
   returns the store of them. There may be a hundred or more, so each is a value under a key with one declaration,
@@ -239,8 +239,8 @@ Character& Game::character();
 ### Lifetime
 
 - **Each host owns one `Game` for as long as it runs,** and `Game` owns its members by value, none of them replaced. A
-  host keeps a reference to the session, as it does now, and `Session::loaded()` returns false while no game is being
-  played, as while the menu is shown before the first game.
+  host keeps a reference to the session, and `Session::loaded()` returns false while no game is being played, such as
+  while the menu is shown before the first game.
 - **The host's menu calls `Game` for each operation.** `menu_open` pauses play and `menu_close` resumes it; `create`,
   `open`, `save` and `quit` act on the whole game; and `saved_games` lists the games that `open` can open.
 - **`clear` clears the session, the character and the world, in that order, in place.** `create` and `open` clear
@@ -260,7 +260,7 @@ Character& Game::character();
 - **`save(save_type)`** is the menu's save of the whole game, and a quick save or an auto save is the same, with its
   `SaveType`. It writes `game.json`, with the game's state, into the game directory, has the character and the world
   save theirs there, the world saving every loaded zone, and then copies the game directory to a new save directory in
-  the saves directory, `<character name>_<save time>`, the name the character's own, with `_autosave` or `_quicksave`
+  the saves directory, `<character name>_<save time>`, with `_autosave` or `_quicksave`
   appended for those types. A game whose character is dead cannot be saved.
 - **`quit`** is called by the host when the player chooses to quit. It clears the game and returns, and the host
   continues with its termination.
@@ -359,13 +359,13 @@ Character& Game::character();
 
 ## Entering an access point
 
-- **An access point on a wall is entered by interacting with the wall,** as a door is opened. Moving into the wall is
+- **An access point on a wall is entered by interacting with the wall.** Moving into the wall is
   blocked, so a held movement key never takes the stairs. Its orientation is the wall's normal.
 - **An access point on the floor does not impede movement.** Its orientation, which is its site's, is used only for
   drawing, and a keystroke by an actor on its cell enters it.
 - **Entering an access point relocates the actor through its relocator,** to the zone that its target resolves to, at
   that zone's entry point of the type at which the relocator's type arrives that leads back.
-- **In the wall notation every staircase is sited on a wall,** as a door is; a staircase on the floor belongs to the
+- **In the wall notation every staircase is sited on a wall;** a staircase on the floor belongs to the
   block notation.
 - **A staircase in a flat length of wall in the wall notation is the equivalent of one in a 1x1 alcove in the block
   notation.** This guides generating zones in either notation, without ruling out a block staircase in the open space

@@ -62,8 +62,7 @@ namespace quetzal::stratum_sim
         // Any other actor with no Intent waits
         id_type run(EventQueue& events, id_type actor_controlled);
 
-        // Grants time as the driver does and runs the actors that became ready, returning the controlled actor when it
-        // needs a command
+        // Grants time and runs the actors that became ready, returning the controlled actor when it needs a command
         // Turn-based skips ahead to the next ready actor and repeats, returning only when the controlled actor needs a
         // command, no actor will ever act, or the controlled actor is dead. Real time grants the units elapsed has earned and returns whether or not an actor
         // became ready. Turn-based ignores elapsed

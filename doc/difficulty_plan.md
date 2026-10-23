@@ -60,10 +60,10 @@ and `Speed` and `Detection` are components it gives them. Damage, luck and the r
 - **Normal is the default preset,** the one a new game has. Each multiplier's own default is what resetting it in
   Custom's editor sets.
 - **Custom is a modifiable preset.** Its values are undefined in a new game; the first time it is selected, they are
-  the mode selected before it, and from then on they are the game's own, kept when another mode is selected and
-  restored when Custom is selected again. The menu opens an editor of the multipliers while Custom is selected, and
+  the mode selected before it, and from then on they are kept when another mode is selected and restored when Custom
+  is selected again. The menu opens an editor of the multipliers while Custom is selected, and
   edits a multiplier only there. A script or the console setting one under another mode switches the mode to Custom
-  with that mode's values, replacing Custom's own, and then sets the multiplier. A game built on the same framework that
+  with that mode's values, replacing Custom's values, and then sets the multiplier. A game built on the same framework that
   does not allow customization defines no modifiable preset.
 - **The menu may show each preset's values** beside it, from the preset itself.
 

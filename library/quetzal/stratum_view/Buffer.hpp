@@ -16,7 +16,7 @@ namespace quetzal::stratum_view
 {
 
     //--------------------------------------------------------------------------
-    // A grid of cells to be drawn. Row 0 is the lowest, as in the simulation
+    // A grid of cells to be drawn. Row 0 is the lowest
     template<typename T>
     class Buffer
     {

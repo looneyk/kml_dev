@@ -26,7 +26,7 @@ namespace quetzal::stratum_sim
     };
 
     //--------------------------------------------------------------------------
-    // An absolute facing direction, which the layout snaps to one of its own
+    // An absolute facing direction, which the layout snaps to one of the directions it supports
     struct TurnTo
     {
         vector_type direction;

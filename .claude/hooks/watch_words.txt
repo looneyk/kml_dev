@@ -75,6 +75,13 @@ carried over
 nothing else
 no other
 
+# Describing a function by another function instead of saying what it does
+re:\bdoes what [\w:.()]+ does\b
+comment-re:\bas (?!(?:they|it|we|you|he|she|this|that|these|those|there|one|each|all)\b)[\w:.()']+(?: [\w:.()']+)? (?:does|do|did)\b(?! not\b)
+
+# A possessive "own" with no noun after it: "the game's own", "the layout snaps them to its own"
+re:(?<!of )\b(?:[\w`]+'s?|its|their) own(?=\s*(?:[,.;:)]|$))
+
 # UK spellings
 re:\bneighbour
 re:\bbehaviour

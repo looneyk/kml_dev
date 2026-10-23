@@ -36,7 +36,7 @@ directory; SDL calls the two the base path and the pref path.
 - **The config file is optional.** Without one, these locations are the program's defaults; with one, each value it
   has overrides its default (`## The config file`). In development the executables are in `bin/<Config>/`, so the
   build copies a development `config.json` beside each, whose `assets_directory` is the source tree's `../../assets`,
-  and the Godot project has its own.
+  and the Godot project has its own `config.json`.
 
 `settings.json` is the user settings file, which has the user's settings: video, audio, controls, and the rest that are
 the same in every game (`settings_plan.md`). A game's settings are in its `game.json`. `cache/` has data the program
@@ -256,7 +256,7 @@ A zone reference is the zone's persistent id and its file, relative to the direc
 
 A zone's file is a saved zone in the zone file format, with its `zone` section. The zone's region is the region whose
 `zones` refers to it, and its level is its `layout.components.level`. Unloading a zone writes its file into the game
-directory, which frees its resources, so a zone that is not loaded is in the game only as its file has it.
+directory, which frees its resources, so a zone that is not loaded is in the game only in its file.
 
 ## Templates
 
@@ -310,7 +310,7 @@ locations are relative to the user directory unless absolute.
 
 `settings.json`, in the user directory unless the config file puts it elsewhere, has the user's settings: those that
 are the same in every game. It is not a saved game's file, and has a format of its own, `quetzal.stratum_settings`,
-version `0.1`. It has `settings` and `presets` as `game.json` has them (`## settings and presets`), for the user
+version `0.1`. It has `settings` and `presets` in the form `## settings and presets` specifies, for the user
 settings and the user setting groups:
 
 ```json

@@ -67,7 +67,7 @@ side of an edge. Everything is per wall: surface treatment, what is sited on it,
 A wall exists only where open space meets something. The side of an edge toward a solid cell has no
 wall.
 
-**Stair cells.** A stair cell is a block, and like a solid cell it has no wall of its own: each open neighbor
+**Stair cells.** A stair cell is a block with no wall of its own: each open neighbor
 presents a wall to it. The staircase is sited on the wall on its open side, the side toward the room
 it opens into. Its other sides are ordinary walls, each with its own surface treatment.
 
@@ -344,8 +344,8 @@ finds entities by cell.
 
 ### The character
 
-The character is in a zone, and is owned by the game. It is in its zone's placement index like any actor, and
-moves between zones as any actor does, but it is not in the zone's subtree, so unloading or saving the
+The character is in a zone, and is owned by the game. It is in its zone's placement index and
+moves between zones, but it is not in the zone's subtree, so unloading or saving the
 zone leaves it out. What the character carries is a child of it, sited `on` it, and is owned by the
 game too. Both are saved with the game.
 

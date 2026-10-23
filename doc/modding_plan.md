@@ -62,7 +62,7 @@ to the installation, and the user is told.
   `Document` as it builds the zone (`game_system_reference.md`, `### load_layout`).
 - **Schemas come from C++ or from data.** The game registers its components in C++. A mod declares its components and
   their fields in a schema file, which becomes a flecs runtime component with reflection that is stored, decoded,
-  saved, and accessed from script like any other.
+  saved, and accessed from script.
 - **An unknown name is an error,** except for a component declared by a mod that is not loaded, which is skipped with
   a warning.
 - **Saving writes components through the same reflection,** so mod data persists with the zone.

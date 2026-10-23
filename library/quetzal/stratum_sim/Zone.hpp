@@ -110,7 +110,7 @@ namespace quetzal::stratum_sim
     };
 
     //--------------------------------------------------------------------------
-    // The address of a flat's override for one room, as a flat cell address is the flat's override for one cell
+    // The address of a flat's override for one room
     struct FlatRoomAddress
     {
         id_type flat_id = nullid;

@@ -129,8 +129,8 @@ namespace quetzal::log
 } // namespace quetzal::log
 ```
 
-- **`Log` is reusable.** A program can make one of its own, as `log_test` does to test the class. The process-wide
-  instance is a `Log` like any other.
+- **`Log` is reusable.** A program can make one of its own, and the process-wide instance is a
+  `Log`.
 - **`logger()` returns the process-wide log,** a function-local static, which C++ constructs once, on first use,
   safely across threads, as Rust's `log::logger()` returns its global one. No code passes a log to another. Every
   call writes it out, `log::logger().warning(...)`, so a line that logs is plain to see. Free functions that forward to it,
@@ -154,7 +154,7 @@ namespace quetzal::log
   own. Adding and clearing sinks, and reading and setting the levels, take the same mutex.
 - **Each entry has a category,** the library or part of the program that wrote it, as an Unreal category does, so a
   log can be read or filtered by its source.
-- **The log does not end the program.** A `Critical` entry is written like any other, as in spdlog; a failure is an
+- **The log does not end the program.** A `Critical` entry is written and the program continues, as in spdlog; a failure is an
   assert or a thrown exception, which the code that fails raises after logging.
 - **A `Log` starts at `Info`,** spdlog's default level, and `logger()` constructs the process-wide log at it.
 - **The program sets the levels at startup,** where it installs the sinks. The game's levels, the log's and any
@@ -199,7 +199,7 @@ using namespace quetzal;
 log::logger().set_level(log::LogLevel::Info);
 log::logger().set_category_level("dungen", log::LogLevel::Debug);
 
-// A sink of the caller's own, here Godot's output, writing only warnings and above
+// A sink the caller supplies, here Godot's output, writing only warnings and above
 log::logger().add_sink([](const log::LogEntry& entry)
 {
     godot::UtilityFunctions::print(log::format_entry(entry).c_str());

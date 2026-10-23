@@ -23,7 +23,7 @@ namespace quetzal::log
     };
 
     // Returns the base path with the time inserted before its extension, in ISO 8601 basic format in UTC to the millisecond:
-    // logs/stratum_terminal.log at 2026-10-22 22:30:05.123 becomes logs/stratum_terminal_20261022T223005.123Z.log, so the
+    // logs/program.log at 2026-10-22 22:30:05.123 becomes logs/program_20261022T223005.123Z.log, so the
     // files of one base path sort by time
     std::filesystem::path timestamped_filepath(const std::filesystem::path& base_filepath, std::chrono::system_clock::time_point time);
 

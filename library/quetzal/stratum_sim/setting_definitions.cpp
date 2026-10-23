@@ -4,6 +4,8 @@
 //------------------------------------------------------------------------------
 
 #include "setting_definitions.hpp"
+#include <format>
+#include <stdexcept>
 #include <string>
 #include <utility>
 #include <vector>
@@ -31,13 +33,29 @@ void quetzal::stratum_sim::insert_definitions(const stratum_format::SettingDefin
 
     for (const auto& definition : document.settings)
     {
+        const bool user_setting = definition.scope == document_type::Scope::User;
+        if (user_setting && (definition.modifiable || definition.initializer_setting.has_value()))
+        {
+            throw std::runtime_error(std::format("the user setting '{}' has modifiable or an initializer, which only a game setting may have",
+                definition.key));
+        }
+
         store.insert(definition.key, {.type_name = definition.type_name, .default_value = definition.default_value,
-            .scope = setting_scope(definition.scope), .restart_required = definition.restart_required, .display_name = definition.display_name,
-            .description = definition.description, .category = definition.category, .minimum = definition.minimum, .maximum = definition.maximum});
+            .scope = setting_scope(definition.scope), .restart_required = definition.restart_required,
+            .modifiable = user_setting || definition.modifiable, .initializer_setting = definition.initializer_setting,
+            .display_name = definition.display_name, .description = definition.description, .category = definition.category,
+            .minimum = definition.minimum, .maximum = definition.maximum});
     }
 
     for (const auto& definition : document.groups)
     {
+        const bool user_group = definition.scope == document_type::Scope::User;
+        if (user_group && definition.modifiable)
+        {
+            throw std::runtime_error(std::format("the user setting group '{}' has modifiable, which only a game setting group may have",
+                definition.key));
+        }
+
         std::vector<std::pair<std::string, settings::Preset>> presets;
         for (const auto& preset_definition : definition.presets)
         {
@@ -45,8 +63,8 @@ void quetzal::stratum_sim::insert_definitions(const stratum_format::SettingDefin
                 preset_definition.values});
         }
 
-        store.insert_group(definition.key, setting_scope(definition.scope), definition.default_preset_name, definition.member_keys,
-            std::move(presets), definition.display_name, definition.category);
+        store.insert_group(definition.key, setting_scope(definition.scope), user_group || definition.modifiable, definition.default_preset_name,
+            definition.member_keys, std::move(presets), definition.display_name, definition.category);
     }
 
     return;

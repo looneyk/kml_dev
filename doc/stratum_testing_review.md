@@ -38,9 +38,9 @@ their own libraries:
 - an update to MSVC's standard library is free to change the distributions, with the same result on Windows.
 
 `random_engine.md` (`## The random engine type`) specifies the random engine type explicitly, which fixes the sequence of raw
-values, and makes the distributions and the shuffle the project's own, since reference files must match across standard
+values, and implements the distributions and the shuffle in the project, since reference files must match across standard
 libraries. A CI job on a second platform and a seed quoted in a bug report both depend on it, and the
-distributions of the project's own are short: a bounded integer by Lemire's method, a real from the top 53 bits of a
+distributions implemented in the project are short: a bounded integer by Lemire's method, a real from the top 53 bits of a
 64-bit value. Building them with the generation runs as objects (`random_engine.md`, `## Ownership`) regenerates the reference files once rather than twice, and
 each file checked in before then is one more to regenerate.
 
@@ -57,7 +57,7 @@ sets it only under the debugger. Registering each test executable with
 
 `.github/` contains only `copilot-instructions.md`. The root `CMakeLists.txt` calls `find_package(Vulkan REQUIRED)`
 unconditionally, and `KML_DEV_GODOT` defaults to ON, so configuring the build for the stratum tests needs the Vulkan
-SDK and godot-cpp, neither of which they use. An option for the Vulkan projects, as `KML_DEV_GODOT` is for Godot, lets a
+SDK and godot-cpp, neither of which they use. An option for the Vulkan projects lets a
 plain runner configure and build them.
 
 A Windows job with MSVC is the first step. A Linux job with GCC or Clang is the one that catches finding 1 and any
@@ -126,7 +126,7 @@ a case, and `git bisect` ends at a commit too large to find it in.
 
 ## Suggested order
 
-1. A named random engine and distributions of the project's own, with the reference files regenerated once (finding 1).
+1. A named random engine and distributions implemented in the project, with the reference files regenerated once (finding 1).
 2. CTest registration and an option for the Vulkan projects (findings 2 and 3).
 3. The process-wide random engines seeded before each case, and a seed that `Game` can be given (finding 4).
 4. doctest or a shared harness, and `stratum_sim_test` split by area (findings 5 and 6).

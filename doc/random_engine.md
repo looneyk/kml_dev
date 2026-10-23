@@ -14,8 +14,8 @@ open items are in `work_plan.md` (`### Random engine`).
 - **dungen and catagen each seed one `math::Random` per run** from `Parameters::seed`, and pass it by reference from
   one function to the next.
 - **A region's generator is given the level of the zone it makes,** as `ZoneLevel`, and no seed.
-- **The random engine type is chosen** (`## The random engine type`): xoshiro256**, with `math::Random`'s own
-  distributions and shuffle, so one seed makes the same zones with every standard library.
+- **The random engine type is chosen** (`## The random engine type`): xoshiro256**, with the distributions and
+  shuffle implemented in `math::Random`, so one seed makes the same zones with every standard library.
 - **The other documents state goals and no mechanism.** `game_system_principles.md` (Phase 5) calls for hierarchical
   seeding, `sim_zone_model.md` counts RNG streams as world state, and `placement_plan.md` passes placement a random engine
   without stating which one.
@@ -132,7 +132,7 @@ type`), and a seed stored with the version of the generators that made it.
 
 - **Seeds are derived from the world seed and coordinates, hierarchically.** A region's seed derives from the world
   seed and the region's coordinates in the world, `(x, y)`, and a zone's from its region's seed and the zone's
-  coordinates in the region, `(x, y, z)`, its level being `z`. The coordinates are signed, with the starting region and
+  coordinates in the region, `(x, y, z)`. The coordinates are signed, with the starting region and
   zone at the origin, within the world's and region's sizes (`settings_plan.md`, `### A new game's settings`). A seed
   is derived through `std::seed_seq` over the seed and the coordinates as 32-bit words, since the standard specifies its
   output and a zone's position in the world, about 10^21 places, does not fit one 64-bit number. How coordinates are
@@ -143,7 +143,7 @@ type`), and a seed stored with the version of the generators that made it.
   `ZoneSpec`, under `seed_key`, before the generator runs (`world_generation_plan.md`). The generator is passed the
   level and the seed.
 - **A generator selector's draws use a random engine seeded from the zone's seed,** since they decide what the zone is.
-- **A zone file stores its seed** in `generator.parameters`, as the tools' files do now, so a zone reproduces from its
+- **A zone file stores its seed** in `generator.parameters`, so a zone reproduces from its
   file alone.
 - **A retry draws a fresh sub-seed** from the run's random engine, for Phase 5's reject-and-retry.
 - **Placement draws from the run's random engine** when it is part of generation (`placement_plan.md`), and from the
@@ -162,7 +162,7 @@ type`), and a seed stored with the version of the generators that made it.
 - **An expectation written into a test from one seed's outcome changes with the random engine,** such as
   `stratum_sim_test`'s "At this seed the door is in the top row of the shared wall", and is rewritten by hand, unlike a
   reference file. A check of a property that holds for any seed, or a reference file, needs no rewriting.
-- **The distributions and the shuffle are the project's own,** in `math::Random`: a bounded integer by Lemire's method,
+- **The distributions and the shuffle are implemented in `math::Random`:** a bounded integer by Lemire's method,
   a real from the top 53 bits of a 64-bit value, and a Fisher-Yates shuffle in place of `std::shuffle`. The standard
   distributions and `std::shuffle` are implementation-defined, and checked-in reference files must match across
   standard libraries, so one seed makes one sequence of values on every platform. They come with the random engine, so

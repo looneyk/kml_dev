@@ -10,7 +10,7 @@
 namespace quetzal::stratum_format
 {
 
-    // The format of a saved game's game, character and world files; a zone file has the zone file format's own
+    // The format of a saved game's game, character and world files; a zone file has its own format
     constexpr std::string_view saved_game_format_name = "quetzal.stratum_game";
     constexpr std::string_view saved_game_format_version = "0.1";
 

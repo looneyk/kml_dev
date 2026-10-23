@@ -100,11 +100,11 @@ The entities:
 - **The ids are `flecs::entity` in memory and `PersistentId` when stored.** A region needs no spec id, since its spec
   is a component on it, and a zone finds its region with `region_of(zone)`.
 - **A zone keeps no `ZoneSpec`.** The generator writes the parameters it ran with into the `Document`'s `generator`
-  section, as dungen and catagen do now, so a zone's file has every parameter of its generation.
+  section, so a zone's file has every parameter of its generation.
 
 ## Registries
 
-- **`Game` owns the three maps,** which last as long as the program, as the other registrations do. `World` takes them by
+- **`Game` owns the three maps,** which last as long as the program. `World` takes them by
   reference in its constructor, as it takes the id allocator, and `World::clear` keeps them.
 - **The generators are in `quetzal/stratum_gen`,** which returns a map from each generator's name to its function, each
   taking a `ZoneRequest`: the name, the level, the seed, and the generator's own parameters. Each host registers them as
@@ -112,7 +112,7 @@ The entities:
   libraries. `stratum_sim` depends on no generator, and `stratum_gen` on no part of `stratum_sim`.
 - **The generator selectors and the region specs are the game's content.** They become data or script (`modding_plan.md`);
   until then each host registers temporary ones.
-- **A name that is not registered is an error** that reaches the host, as an unregistered access point type is.
+- **A name that is not registered is an error** that reaches the host.
 
 ## Creating a game
 
@@ -141,21 +141,21 @@ void Session::start(flecs::entity access_point)
 }
 ```
 
-- **A spec's parts are separated by key prefixes.** A key with no prefix is the spec's own, and
+- **A spec's parts are separated by key prefixes.** A key with no prefix is read by the spec's consumer, and
   `select_prefixed(spec, prefix)` returns the entries under a prefix with it removed, so `zone.` yields an ordinary
   `ZoneSpec`. Each consumer checks the keys it reads with `find_unknown_keys(spec, known_keys)`. Both are stratum's
-  (`specs.hpp`), not `KeyValueStore`'s: `World::create` the region's own, and the generator selector and
-  generator their prefixes.
+  (`specs.hpp`), not `KeyValueStore`'s: `World::create` reads the region spec's keys with no prefix, and the
+  generator selector and generator their prefixes.
 - **The region's `zone.` keys are the zone spec of every zone in it,** which the caller and the selector modify, as
   with the level a relocator states. The first zone of the starting region is created from them as they are.
 - **The starting region's spec states the entry** in its `entry_access` key: the name of a registered access point
-  type and the level offset of the target at which the character enters, separated by a comma, as a value is one
-  string that its consumer parses. Only `World::create` reads it, so no later zone is affected. The library has no
+  type and the level offset of the target at which the character enters, separated by a comma, in one string
+  that its consumer parses. Only `World::create` reads it, so no later zone is affected. The library has no
   default, and the generator must place a matching access point. `World::create` returns `entry_point(zone, type,
   offset)` and throws, before the session starts, if the zone has none.
 - **A region that is not a dungeon states its own entry.** A tower entered from below states `door,0`, and a dungeon
   level states `staircase,1`.
-- **`Session::start` enters the access point's zone,** as `enter` does. `Game::open` starts the session in the zone the
+- **`Session::start` enters the access point's zone.** `Game::open` starts the session in the zone the
   character is in instead.
 
 ## Creating a region and its first zone
@@ -237,7 +237,7 @@ A region's selector decides, for each zone requested in the region, one of three
 
 - **A generator and its parameters,** which is the usual outcome.
 - **A pre-built zone,** a zone template from the pregenerated content index, for a rare special zone. It is read into a
-  `Document` and built as a generated zone is; no generator reads a file.
+  `Document`, and the zone is built from it; no generator reads a file.
 - **A new region,** with a probability that rises to 1 as the region's zone count approaches its limit. The zone
   requested becomes the first zone of a region created from the region spec the selector chooses, so the relocator that
   requested it leads into the new region.

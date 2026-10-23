@@ -134,19 +134,19 @@ relocator's target and whatever content later adds pass through to the caller th
 Some components are inherited: stated at one level, they apply to the levels below it until one of
 those overrides them.
 
-    layout            layout.components, and each flat's own
+    layout            layout.components, and each flat's components
       room            the room's components, and each flat's components for that room
         wall, flat cell   the wall's components, and each flat's components for that cell
 
 A wall or a flat cell inherits from the room containing it, and from the layout where no room does. A
-flat states its own at every level of this hierarchy rather than having a second: a floor spans the
-whole zone, so its own components belong at the layout's level, and those it specifies for a room at
+flat states its components at every level of this hierarchy rather than having a second: a floor spans the
+whole zone, so its components belong at the layout's level, and those it specifies for a room at
 the room's. Where both are specified at one level the flat's wins. `height` descends the same chain.
 
 The nearest level wins, component by component, and a component whose value is an object merges
 property by property the same way, so a level overrides part of one by stating only that part.
-Merging takes no notice of what a property is. Which components inherit is the consumer's vocabulary,
-as every component name is. The reader resolves no chain, and returns each component object at
+Merging takes no notice of what a property is. Which components inherit is the consumer's vocabulary.
+The reader resolves no chain, and returns each component object at
 the level it was written.
 
 `style` is one: a theme and how it is built. Its value is a name, an object of properties, or an
@@ -191,7 +191,7 @@ entity in another zone, so the reader does not check that it resolves.
 
 ## generator
 
-The generator that produced the file and the parameters of the run, so that the file reproduces its own
+The generator that produced the file and the parameters of the run, so that the file reproduces its
 zone:
 
 ```json
@@ -212,7 +212,7 @@ The name and properties of the layout as a whole. It is a component object.
 "layout": { "components": { "name": "The Flooded Cistern", "type": "dungeon", "difficulty": 3, "style": "cistern" } }
 ```
 
-`name`, `type`, `difficulty` and `style` are components like any other. They are the zone metadata
+`name`, `type`, `difficulty` and `style` are components. They are the zone metadata
 `sim_zone_model.md` describes, so depth, recipe, encounter and loot tables belong here too.
 
 `level` is optional: a whole number, the zone's position relative to the surface --- 0 at the surface,
@@ -249,8 +249,7 @@ wall's normal (`### Staircases and access points`).
 
 The JSON defines a zone's access points; the stair glyphs `<` and `>` are visual aids. The reader warns
 if they disagree --- a stair cell with no relocator on the walls around it, or a second one, or
-an access point on a wall that is neither a stair cell's open side nor a door's wall --- and reads the file as the JSON has
-it. Warnings are written to the process-wide log.
+an access point on a wall that is neither a stair cell's open side nor a door's wall --- and reads the file as written. Warnings are written to the process-wide log.
 
 A door facing may be an access point, with a relocator of its own, and then leads to another zone. A door between
 two zones is two doors, one in each, their relocators bound to each other.
@@ -258,8 +257,8 @@ two zones is two doors, one in each, their relocators bound to each other.
 Each access point's relocator states three things:
 
 - **`type`,** what the access point is, a name the world registers: `staircase`, `door`, `portal`, `waypoint`, or one
-  a mod adds; whether it goes up, down, or across is the relocator's `target`. The type is normally the entity's own
-  `type`, or for a door facing its door's, and the reader warns if it is neither.
+  a mod adds; whether it goes up, down, or across is the relocator's `target`. The type is normally the entity's
+  `type`, or for a door facing its door's `type`, and the reader warns if it is neither.
 - **`order`,** a whole, non-negative number given when it is created. The access points of each type
   are ordered from 0, without a gap, so a zone's staircases share one sequence, up and down alike.
 - **`placement`,** where an arriving actor is placed: a `cell_position` in the access point's own zone that an actor
@@ -273,7 +272,7 @@ The reader rejects an access point with no `type`, no `order`, an order repeated
 its type, or no `placement`, or a placement on a cell an actor cannot stand in.
 
 Which access point an arriving actor is placed at depends on where it comes from, so the list does not
-choose. Each type is registered with the type it arrives at, its own, and of the access points of that type, the actor
+choose. Each type is registered with the type it arrives at, usually itself, and of the access points of that type, the actor
 arrives at one that leads back to the level it left: through a `-1`, at a staircase whose relocator's target is `+1`.
 Of those, it is the available one with the lowest order; an access point already bound to a relocator elsewhere is
 unavailable. A generator lists every staircase it places. Once a layout is read,
@@ -388,7 +387,7 @@ is floor. The glyphs are visual aids. A zone's staircases are its entities, each
 - **On the floor.** Sited on a floor cell, the staircase does not impede movement. Its site's
   `orientation` is required and is used only for drawing. A keystroke by an actor on its cell enters it.
 
-In the wall notation every staircase is sited on a wall, as a door is, including a block staircase in the
+In the wall notation every staircase is sited on a wall, including a block staircase in the
 open space of a room; a staircase on the floor belongs to the block notation.
 
 A staircase in a flat length of wall in the wall notation is the equivalent of a staircase in a 1x1
@@ -506,7 +505,7 @@ what it specifies:
         cell
 
 A cell takes its height from the properties specified for it, otherwise from those specified for the
-room that contains it, and otherwise from the flat's own. Inherited components resolve the same way,
+room that contains it, and otherwise from those specified for the flat. Inherited components resolve the same way,
 these being three levels of the hierarchy Inheritance sets out. A sunken room costs one entry.
 
 A flat is sampled at cell scale and has no grid of its own: a height belongs to a cell of the grid
@@ -554,7 +553,7 @@ The object the entity is in or on, and where on it.
 | `relation` | `in` or `on`. Required |
 | `wall` | A wall address, if the entity is sited on a wall |
 | `flat`, `cell_position` | A flat cell: the flat by role, and a cell position of the cell grid, if the entity is sited on a floor or ceiling |
-| `cell_position` alone | A cell of the zone, if the entity is in the zone at that cell, as an actor is |
+| `cell_position` alone | A cell of the zone, if the entity is in the zone at that cell |
 | `position` | Where on it: along and up on a wall, xy within the cell on a flat, or in the parent's frame if there is no address. Centered if absent |
 | `orientation` | A direction, one of the four a cell's sides define |
 

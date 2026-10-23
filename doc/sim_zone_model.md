@@ -68,7 +68,7 @@ in `work_plan.md` (`### Regions`).
   their access points, within a region and between regions.
 - **A region is its zones' parent.** A zone's flecs parent is its region. `zone_of` still stops at the first ancestor that is a zone, and an entity's region is its zone's parent.
   Unloading a zone leaves its region; deleting a region deletes its zones. A region, having no zone above it, is given
-  its persistent id when it is created, as a zone is.
+  its persistent id when it is created.
 - **A region decides which zones unload first.** The zones of other regions than the one the character is in go first,
   left longest ago first; then the zones of the character's region, farthest first, by distance or by the difference in
   level.
@@ -319,8 +319,8 @@ resolved using the surface's geometry. A basin stays on its wall whatever angle 
 any number of attachments --- a wall's position is along-and-up, a flat's is xy.
 
 **Extent** is a separate component: how much space the attachment occupies. A pressure plate has one, as do a boulder
-and a monster. An entity spanning more than one cell is therefore no separate type: a trigger noticing an actor half on
-it works as collision does.
+and a monster. An entity spanning more than one cell is therefore no separate type: a trigger notices an actor half on it
+when their extents overlap.
 
 ## The Layout interface
 

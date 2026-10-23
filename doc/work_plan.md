@@ -69,8 +69,8 @@ boxes are removed at the start of the next piece of work, since the reference do
 
 ## Random engine
 
-- [ ] **Game settings initialized and fixed** (`settings_plan.md`, `### A new game's settings`): a game setting
-      definition's `initializer`, referring to a user setting, and `modifiable`, read and written by `stratum_format`;
+- [x] **Game settings initialized and fixed** (`settings_plan.md`, `### A new game's settings`): a game setting
+      definition's `initializer`, referring to a user setting, and `modifiable`, read by `stratum_format`;
       the initializers applied when a game is created, and a change to a game setting that is not `modifiable` rejected
       during the game; the difficulty settings `modifiable`; and the world-size and region-size settings, game and user, in
       `setting_definitions.json`.
@@ -95,7 +95,7 @@ boxes are removed at the start of the next piece of work, since the reference do
       First pass: Zones should be created with natural or constructed barriers that surround them so this problem can be deferred.
 
 - [ ] **Unloading by region.** Criteria for `World::trim_zones` that choose the zones of other regions first, those
-      left longest ago first, as `ZoneEntryIndex` does, and then those of the character's region, farthest first.
+      left longest ago first, and then those of the character's region, farthest first.
 - [ ] **Region files.**
 - [ ] **The pregenerated content index** (`region_plan.md`, `## Pregenerated content`): built at game start by scanning
       `assets/zones`, or read from an index file built in the background, listing each zone or region tag, with
@@ -255,7 +255,7 @@ These are the open questions.
 ### Layout
 
 - **Does a continuous layout have `Flat` at all?** Its zone is ordinary 3D models, where a
-  floor is geometry like any other rather than a bounding surface with a role. `Flat` may be a
+  floor is geometry rather than a bounding surface with a role. `Flat` may be a
   discrete convenience that does not cross, or the record both use with the sampled fields filled
   in. Nothing forces the choice until the skeleton has something behind it.
 - **`cardinal_directions`, `discrete_point_type`, `grid_step` and `discrete_vector_type` are in `types.hpp`,** which
@@ -384,9 +384,9 @@ These are the open questions.
 ### View
 
 - **How does a glyph set or tile set mark `concealed`?** A way through is concealed when the viewer has found it and
-  actors in general have not. It could be outlined or drawn otherwise; the built-in sets draw it like any door.
-- **Does the Godot tile view draw the lattice?** A wall between two open cells is as invisible in the tile view, which
-  draws `cells`, as in the terminal's cell view.
+  actors in general have not. It could be outlined or drawn otherwise; the built-in sets draw it as a door.
+- **Does the Godot tile view draw the lattice?** A wall between two open cells is invisible in the tile view, which
+  draws `cells`, and in the terminal's cell view.
 - **Does `cells` need state?** Its consumers draw one glyph per cell and have no edges, so it may need only the type,
   though having the two reductions produce different forms has its own cost.
 - **What does a tile set produce?** That decides whether the glyph table is templated on what it maps to, or characters

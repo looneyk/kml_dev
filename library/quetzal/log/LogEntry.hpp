@@ -18,7 +18,7 @@ namespace quetzal::log
     {
         std::chrono::system_clock::time_point time;
         LogLevel level = LogLevel::Info;
-        std::string category; // The library or part of the program that wrote the entry: "dungen", "stratum_sim"
+        std::string category; // The library or part of the program that wrote the entry
         std::string message;
         std::thread::id thread_id;
     };

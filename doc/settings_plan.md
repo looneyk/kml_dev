@@ -65,7 +65,7 @@ choose.
 There are two ways to hold them.
 
 - **Typed structures for each layer.** Each library has a class of its own settings as typed members, with a getter
-  and a setter for each: `SimSettings` in `stratum_sim`, `ViewSettings` in `stratum_view`, and the hosts' own. Each is
+  and a setter for each: `SimSettings` in `stratum_sim`, `ViewSettings` in `stratum_view`, and a structure for each host. Each is
   saved by code that names each member.
 - **Keyed values in one store.** One store, in a library below the sim, contains every setting's value under its key,
   such as `gameplay.difficulty.denizen_count_multiplier` or `video.fullscreen`. Each setting has one definition, and each layer reads
@@ -105,7 +105,7 @@ are defined only in data.
 | | Typed structures for each layer | Keyed values in one store |
 | --- | --- | --- |
 | **Adding a setting** | A member, a getter, a setter, and its entry in the code that saves it, in C++ | One definition, in data |
-| **A mod's settings** | Impossible without C++ | Defined in data like any other (`modding_plan.md`) |
+| **A mod's settings** | Impossible without C++ | Defined in data (`modding_plan.md`) |
 | **Saving and loading** | Code for each member, or a name table beside the members, as NetHack and DCSS keep | One loop over the store, by key |
 | **An options menu** | Written by hand, or drawn through the same name table | Drawn from the definitions, as Godot's and Unreal's editors draw theirs |
 | **Scripts** | Each setting exposed by hand | Read by key, as a value of the setting's base type |
@@ -214,8 +214,8 @@ namespace quetzal::settings
         std::string default_value;
         SettingScope scope;
         bool restart_required;
-        bool modifiable;                           // A game setting's: true if it can change after the game is created
-        std::optional<std::string> initializer_setting; // A game setting's: the user setting a new game takes its value from
+        bool modifiable;                           // True if set_values may change it
+        std::optional<std::string> initializer_setting; // The setting of another scope whose value apply_initializers copies
         std::string display_name;
         std::string description;
         std::string category;                      // The menu page that shows it
@@ -245,8 +245,9 @@ namespace quetzal::settings
 
         // Registers a group type under the key, whose values are the presets' names in order, and inserts the group's
         // setting of that type, whose default is the default preset. Requires the members to be inserted already
-        void insert_group(std::string_view key, SettingScope scope, std::string_view default_preset_name, std::vector<std::string> member_keys,
-            std::vector<std::pair<std::string, Preset>> presets, std::string_view display_name = {}, std::string_view category = {});
+        void insert_group(std::string_view key, SettingScope scope, bool modifiable, std::string_view default_preset_name,
+            std::vector<std::string> member_keys, std::vector<std::pair<std::string, Preset>> presets, std::string_view display_name = {},
+            std::string_view category = {});
         bool contains_group(std::string_view key) const;
         const SettingGroup& group(std::string_view key) const;
         std::optional<std::string> member_group_key(std::string_view key) const;                     // a member's group
@@ -260,9 +261,11 @@ namespace quetzal::settings
         bool set_text(std::string_view key, std::string_view text);
 
         KeyValueStore values(SettingScope scope) const;                                              // saving
-        bool set_values(const KeyValueStore& values);                                                // loading
+        bool set_values(const KeyValueStore& values);                                                // during play
         bool set_values(const KeyValueStore& values, const preset_values_type& preset_values);       // modifiable presets' first
+        bool initialize_values(const KeyValueStore& values, const preset_values_type& preset_values); // loading, fixed settings too
         void reset(SettingScope scope);                                                              // a game cleared
+        void apply_initializers(SettingScope scope);                                                 // a game created
 
         // The defined values of each modifiable preset of the scope's groups
         preset_values_type preset_values(SettingScope scope) const;
@@ -279,7 +282,7 @@ namespace quetzal::settings
 } // namespace quetzal::settings
 ```
 
-`SettingGroup` and `Preset` are in `SettingGroup.hpp`, and `SettingsSnapshot`, one scope's values as a file has them,
+`SettingGroup` and `Preset` are in `SettingGroup.hpp`, and `SettingsSnapshot`, one scope's values in the form they are saved,
 in `SettingsSnapshot.hpp`:
 
 ```cpp
@@ -352,7 +355,7 @@ namespace quetzal::settings
 
 ### The definition file
 
-Each mod has one definition file, and the game's own is the first: `assets/data/setting_definitions.json` in the
+Each mod has one definition file, and the game's file is the first: `assets/data/setting_definitions.json` in the
 program directory, and `data/setting_definitions.json` in each mod's directory. It defines settings of both scopes.
 
 ```json
@@ -384,7 +387,7 @@ program directory, and `data/setting_definitions.json` in each mod's directory. 
   menu shows entries in the file's order.
 - **The sections are inserted in order:** enumerations, then settings, then groups, each of which may refer to those
   before it. The files are inserted in mod order, the game's first.
-- **Every value is text,** as in the store and the saved files.
+- **Every value is text.**
 - **A setting's entry has what `Setting` has:** `type`, `default`, `scope`, `restart_required`, which is false if
   absent, and the menu fields `display_name`, `description`, `category`, `minimum` and `maximum`. Every setting has a
   `default`, a group's member included.
@@ -394,8 +397,9 @@ program directory, and `data/setting_definitions.json` in each mod's directory. 
   setting is not defined, takes its own default.
 - **A game setting's entry may have `modifiable`,** true if the setting can change after the game is created, as the
   difficulty settings can, and false if absent, so a game setting without it is fixed for the game's life.
-- **A group's entry has what `insert_group` takes:** `key`, `scope`, `default_preset`, `members`, `presets`,
-  `display_name` and `category`. A preset's entry has `name`, `display_name`, `modifiable`, which is false if absent, and
+- **A group's entry has what `insert_group` takes:** `key`, `scope`, `modifiable`, `default_preset`, `members`,
+  `presets`, `display_name` and `category`. A game group is fixed for the game's life unless it is `modifiable`, and a
+  member can change only if the member, its group, and the group's modifiable preset all are. A preset's entry has `name`, `display_name`, `modifiable`, which is false if absent, and
   `values`, which a modifiable preset does not have.
 - **`stratum_format` reads the file** into a `SettingDefinitionsDocument`, and `stratum_sim`'s `insert_definitions`
   inserts it into a store, so the settings library has no JSON.
@@ -437,7 +441,7 @@ one store, one key space and one change notification, for settings and groups al
 
 - **A group has a key, a scope, its members, and its presets, one of which is its default.** Its `SettingGroup` has the
   key and the member keys; everything else a group has is its setting's, its type's and its presets'. Its selection
-  is saved under its key in a file's `settings`, like any setting's value: `"gameplay.difficulty": "hard"`.
+  is saved under its key in a file's `settings`: `"gameplay.difficulty": "hard"`.
 - **The presets are one table,** from a group key and a preset name to the `Preset`, which only a member's lookup and a
   selection consult. The group's type lists the preset names in order, for the menu.
 - **A member's value is the selected preset's value for it.** A member never has a value of its own, so reading a
@@ -449,7 +453,7 @@ one store, one key space and one change notification, for settings and groups al
   in at most one scalability group, **and a member is not a group.** `insert_group` checks each. Nested groups, such as
   an overall video quality that selects the shadow and texture qualities, are not supported; the member lookup and
   `insert_group`'s check are where they would be added.
-- **A group has at most one modifiable preset, such as Custom.** Its values are kept in the table like any preset's, and
+- **A group has at most one modifiable preset, such as Custom.** Its values are kept in the table, and
   last as long as the scope's values: they are saved, and restored when the file is loaded. For a new game, and once
   the scope is reset, they are undefined.
 - **Selecting a preset** sets the group's value, and notifies the group's key and each member whose value changed, in
@@ -463,7 +467,7 @@ one store, one key space and one change notification, for settings and groups al
   member only while the modifiable preset is selected; a script or the console may set one at any time.
 - **A game that does not allow customization defines no modifiable preset.**
 - **The table determines what is saved.** A selection is the group's value in `settings`, and a modifiable preset's
-  defined values are in `presets`, whichever preset is selected. A member is a setting like any other, but has no value
+  defined values are in `presets`, whichever preset is selected. A member is a setting, but has no value
   of its own to save.
 - **Only the menu and the save list read the selected preset.** Other code reads the members: permadeath is read from its
   own setting, not from the mode.
