@@ -7,6 +7,7 @@
 #include "quetzal/common/file_util.hpp"
 #include "quetzal/log/FileLogSink.hpp"
 #include "quetzal/log/Log.hpp"
+#include "quetzal/log/timestamped_files.hpp"
 #include "quetzal/settings/Settings.hpp"
 #include "quetzal/stratum_gen/generators.hpp"
 #include "quetzal/stratum_sim/attachments.hpp"
@@ -159,8 +160,16 @@ stratum_terminal::Application::Application(View view, const std::string& script,
     m_running(true)
 {
     // A file, since anything written to the console would write over the terminal's frame
-    log::logger().add_sink(log::FileLogSink(m_game.config().logs_directory / "stratum_terminal.log"));
-    stratum_sim::load_setting_definitions(m_game.config().assets_directory, settings::store());
+    const stratum_sim::Config& config = m_game.config();
+    const std::filesystem::path log_base_filepath = config.logs_directory / "stratum_terminal.log";
+    log::logger().add_sink(log::FileLogSink(log::timestamped_filepath(log_base_filepath, std::chrono::system_clock::now())));
+    for (const auto& unremoved_file : log::remove_oldest_timestamped_files(log_base_filepath, config.log_file_count_max))
+    {
+        log::logger().warning("log", "The old log file {} was not removed: {}", unremoved_file.filepath.generic_string(),
+            unremoved_file.error.message());
+    }
+
+    stratum_sim::load_setting_definitions(config.assets_directory, settings::store());
     m_user_settings.load();
 
     for (const auto& [name, generate] : stratum_gen::generators())

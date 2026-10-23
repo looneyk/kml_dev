@@ -4,11 +4,13 @@ add_library(quetzal_log STATIC
     LogEntry.cpp
     LogLevel.cpp
     StreamLogSink.cpp
+    timestamped_files.cpp
     FileLogSink.hpp
     Log.hpp
     LogEntry.hpp
     LogLevel.hpp
     StreamLogSink.hpp
+    timestamped_files.hpp
 )
 
 set_property(TARGET quetzal_log PROPERTY FOLDER "library")

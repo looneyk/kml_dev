@@ -141,12 +141,14 @@ namespace quetzal::log
   same type. `FileLogSink` and `StreamLogSink` are function objects that own their stream; a file is opened in binary
   mode and each line ends with `\n`.
 - **A host writes a log file for each run,** which may span several games, so no entry is split from the run it
-  belongs to. The file is in the config's `logs_directory`, named with the program and the run's start time, in ISO 8601
-  basic format in UTC with milliseconds: `stratum_terminal_20261022T223005.123Z.log`. The file names sort in the order the runs
-  started, and runs started in the same second write separate files. When the host starts, it removes the oldest files
-  of its own program past the config's `log_file_count_max`, 10 by default, its new file included, as Godot keeps its
-  last `max_log_files`. A function in `quetzal/log` builds the file's path from the directory, the program name and the
-  start time, and `FileLogSink` is unchanged.
+  belongs to. The file is in the config's `logs_directory`, its base path's name with the run's start time inserted, in
+  ISO 8601 basic format in UTC with milliseconds: `stratum_terminal_20261022T223005.123Z.log`. The file names sort in
+  the order the runs started, and runs started in the same second write separate files. When the host starts, it
+  removes its oldest files past the config's `log_file_count_max`, 10 by default and 0 for no limit, its new file
+  included, as Godot keeps its last `max_log_files`. A file it cannot remove takes no newer file's place. `quetzal/log` has the general part, as spdlog's daily file sink and logback's rolling file
+  appender do: a timestamped path made from a base path and a time, and the removal of a base path's oldest
+  timestamped files past a count, which returns the files it could not remove for the caller to report. Programs and
+  runs are the host's, and `FileLogSink` is unchanged.
 - **The log is thread-safe.** The message is formatted on the thread that logs, outside the lock. Writing the entry to
   every sink happens under the log's mutex, so lines from two threads never interleave, and a sink needs no lock of its
   own. Adding and clearing sinks, and reading and setting the levels, take the same mutex.

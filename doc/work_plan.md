@@ -69,11 +69,7 @@ boxes are removed at the start of the next piece of work, since the reference do
 
 ## Random engine
 
-- [x] **The gameplay random engine process-wide** (`random_engine.md`, `## Ownership`): the gameplay random engine
-      reached through a function in place of `Game`'s member and `World`'s reference, a `stratum_sim::RandomStream`
-      whose locking is internal to it, and `math::Random`'s `state` and `set_state` in place of `engine()`; `Game` drawing
-      the seed, or taking one that a test or a host passes, and writing it to the log as soon as it is drawn or passed.
-- [ ] **A log file for each run** (`log_plan.md`): each host writing a new log file in the logs directory, named with
+- [x] **A log file for each run** (`log_plan.md`): each host writing a new log file in the logs directory, named with
       the program and the run's start time, and removing its oldest files past the config's `log_file_count_max`.
 - [ ] **The generation random engine and zone seeds** (`random_engine.md`, `## Streams`, `## Generation`): the
       process-wide, thread-safe generation random engine, and `create_zone(region, zone_spec)` adding the zone's seed,

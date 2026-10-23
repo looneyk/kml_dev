@@ -8,6 +8,7 @@
 #include "quetzal/log/LogEntry.hpp"
 #include "quetzal/log/LogLevel.hpp"
 #include "quetzal/log/StreamLogSink.hpp"
+#include "quetzal/log/timestamped_files.hpp"
 #include "quetzal/testing/named_checks.hpp"
 #include <doctest/doctest.h>
 #include <algorithm>
@@ -297,6 +298,75 @@ namespace
         }
 
         CHECK_CASE("a file sink throws std::runtime_error if its file cannot be opened", thrown);
+        return;
+    }
+
+    //--------------------------------------------------------------------------
+    TEST_CASE("timestamped files")
+    {
+        const filesystem::path directory = out_directory / "timestamped";
+        const filesystem::path base_filepath = directory / "stratum_terminal.log";
+        filesystem::remove_all(directory);
+
+        const chrono::system_clock::time_point time = chrono::sys_days {chrono::year {2026} / 10 / 22} + chrono::hours {22}
+            + chrono::minutes {30} + chrono::seconds {5} + chrono::milliseconds {123};
+        CHECK_CASE_EQUAL("a timestamped file has the time inserted before its extension, in UTC to the millisecond",
+            timestamped_filepath(base_filepath, time).generic_string(), (directory / "stratum_terminal_20261022T223005.123Z.log").generic_string());
+
+        filesystem::create_directories(directory);
+        vector<filesystem::path> timestamped_filepaths;
+        for (int i = 0; i < 5; ++i)
+        {
+            timestamped_filepaths.push_back(timestamped_filepath(base_filepath, time + chrono::hours {i}));
+            ofstream(timestamped_filepaths.back(), ios::binary) << "file " << i << "\n";
+        }
+
+        const vector<filesystem::path> other_filepaths {timestamped_filepath(directory / "stratum_godot.log", time),
+            timestamped_filepath(directory / "stratum_terminal.txt", time), base_filepath, directory / "stratum_terminal_notes.log"};
+        for (const auto& filepath : other_filepaths)
+        {
+            ofstream(filepath, ios::binary) << "other\n";
+        }
+
+        remove_oldest_timestamped_files(base_filepath, 5);
+        CHECK_CASE("no file is removed while the base path's timestamped files are within the maximum",
+            ranges::all_of(timestamped_filepaths, [](const auto& filepath) { return filesystem::exists(filepath); }));
+
+        remove_oldest_timestamped_files(base_filepath, 0);
+        CHECK_CASE("a maximum of 0 removes nothing",
+            ranges::all_of(timestamped_filepaths, [](const auto& filepath) { return filesystem::exists(filepath); }));
+
+        const vector<UnremovedFile> unremoved_files = remove_oldest_timestamped_files(base_filepath, 3);
+        CHECK_CASE("past the maximum, the oldest are removed and the newest kept", unremoved_files.empty()
+            && !filesystem::exists(timestamped_filepaths[0]) && !filesystem::exists(timestamped_filepaths[1])
+            && filesystem::exists(timestamped_filepaths[2]) && filesystem::exists(timestamped_filepaths[3]) && filesystem::exists(timestamped_filepaths[4]));
+        CHECK_CASE("another base path's timestamped files and files of another form are left", ranges::all_of(other_filepaths, [](const auto& filepath)
+        {
+            return filesystem::exists(filepath);
+        }));
+        CHECK_CASE("a directory that does not exist has nothing to remove", remove_oldest_timestamped_files(directory / "absent" / "x.log", 1).empty());
+
+        for (int i = 5; i < 8; ++i)
+        {
+            timestamped_filepaths.push_back(timestamped_filepath(base_filepath, time + chrono::hours {i}));
+            ofstream(timestamped_filepaths.back(), ios::binary) << "file " << i << "\n";
+        }
+
+        vector<UnremovedFile> held_unremoved_files;
+        {
+            ofstream held_2(timestamped_filepaths[2], ios::binary | ios::app);
+            ofstream held_3(timestamped_filepaths[3], ios::binary | ios::app);
+            held_unremoved_files = remove_oldest_timestamped_files(base_filepath, 3);
+        }
+
+        CHECK_CASE("a file that cannot be removed, such as one held open, takes no newer file's place",
+            filesystem::exists(timestamped_filepaths[5]) && filesystem::exists(timestamped_filepaths[6]) && filesystem::exists(timestamped_filepaths[7])
+            && !filesystem::exists(timestamped_filepaths[4]));
+        CHECK_CASE("and each file not removed is returned, and is still there", ranges::all_of(held_unremoved_files, [&](const UnremovedFile& file)
+        {
+            return (file.filepath == timestamped_filepaths[2] || file.filepath == timestamped_filepaths[3]) && filesystem::exists(file.filepath)
+                && file.error;
+        }), format("{} files not removed", held_unremoved_files.size()));
         return;
     }
 

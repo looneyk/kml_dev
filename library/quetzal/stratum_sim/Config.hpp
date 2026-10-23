@@ -22,7 +22,7 @@ namespace quetzal::stratum_sim
         std::filesystem::path assets_directory;  // The program's own data, which it only reads
         std::filesystem::path user_directory;    // Everything the program creates while it runs
         std::filesystem::path logs_directory;
-        std::size_t log_file_count_max = 0;      // The most log files kept in the logs directory, the current run's included
+        std::size_t log_file_count_max = 0;      // The most log files kept in the logs directory, the current run's included; 0 for no limit
         std::filesystem::path cache_directory;   // Data the program can make again, which may be deleted
         std::filesystem::path mods_directory;
         std::filesystem::path user_settings_filepath; // The user settings file

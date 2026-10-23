@@ -698,7 +698,7 @@ values of the scope's editable presets undefined, and `preset_values(scope)` ret
 each save is a directory; `working_directory`, which has the game directory of the game in progress and nothing else;
 `zone_count_max`, the most zones the world keeps loaded at once; `assets_directory`, the program's own data, which it
 only reads; `user_directory`, in which it writes everything it creates; `logs_directory`; `log_file_count_max`, the
-most log files kept in the logs directory, the current run's included; `cache_directory`, for data
+most log files kept in the logs directory, the current run's included, or 0 for no limit; `cache_directory`, for data
 the program can make again; `mods_directory`; and `user_settings_filepath`, the user settings file. `config()` returns
 it. The terminal passes `load_config(executable_directory())`, `executable_directory()` being `quetzal/common`'s
 `file_util`, which reads the executable's path with `GetModuleFileNameW` and throws `std::runtime_error` on other
@@ -823,12 +823,23 @@ zone. A host supplies input mapping and drawing.
 `Session` makes no zone. Each host creates a game with `Game::create`, which starts the session in the generated first
 zone. The library has no default entry type or offset.
 
-Each host installs its sinks on the process-wide log (`log_plan.md`). The terminal installs a `FileLogSink`
-writing to `stratum_terminal.log` in the config's `logs_directory`, since anything written to the console would write
-over its frame. Godot installs them when its extension initializes at the scene level, reading the config for the
-purpose, and clears them when it uninitializes: a sink writing errors and critical entries with `push_error`, warnings
-with `push_warning`, and the rest with `print`, and a `FileLogSink` writing to `stratum_godot.log` in the logs
-directory. The log is at `info`.
+Each host installs its sinks on the process-wide log (`log_plan.md`). Each writes a log file for each run, which may
+span several games, in the config's `logs_directory`. Its base path is `stratum_terminal.log` or `stratum_godot.log`
+there, and when it starts it installs a `FileLogSink` writing to the path `log::timestamped_filepath` returns for the
+base path and the time, such as `stratum_terminal_20261022T223005.123Z.log`. Then
+`log::remove_oldest_timestamped_files` removes its oldest files of that form until at most the config's
+`log_file_count_max` remain, the new one included, and the host logs a warning for each file it returns as not removed.
+
+In `quetzal/log/timestamped_files.hpp`, `timestamped_filepath(base_filepath, time)` inserts the time before the base
+path's extension, after `_`, in ISO 8601 basic format in UTC to the millisecond, so the files of one base path sort by
+time. `remove_oldest_timestamped_files(base_filepath, file_count_max)` keeps the newest `file_count_max` files of that
+form for the base path, removes each older one, and returns each it could not remove as an `UnremovedFile` with its
+`std::error_code`. A file it could not remove takes no newer file's place, and a `file_count_max` of 0 removes nothing.
+
+The terminal's file is its only sink, since anything written to the console would
+write over its frame. Godot installs its sinks when its extension initializes at the scene level, reading the config
+for the purpose, and clears them when it uninitializes: a sink writing errors and critical entries with `push_error`,
+warnings with `push_warning`, and the rest with `print`, and its run log file. The log is at `info`.
 
 Each host registers each of `stratum_gen::generators()` as a `Generation::generator_type` that makes a `ZoneRequest`
 from the `ZoneSpec` and passes it on: the `name`, the `level`, the `seed`, and the keys after `parameters.`. Nothing

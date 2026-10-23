@@ -7,6 +7,7 @@
 #include "StratumWorld.hpp"
 #include "quetzal/log/FileLogSink.hpp"
 #include "quetzal/log/Log.hpp"
+#include "quetzal/log/timestamped_files.hpp"
 #include "quetzal/settings/Settings.hpp"
 #include "quetzal/stratum_sim/Config.hpp"
 #include "quetzal/stratum_sim/PersistentSettings.hpp"
@@ -16,7 +17,9 @@
 #include <godot_cpp/core/defs.hpp>
 #include <godot_cpp/godot.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
+#include <chrono>
 #include <exception>
+#include <filesystem>
 #include <optional>
 
 namespace
@@ -59,7 +62,14 @@ void initialize_stratum_module(godot::ModuleInitializationLevel level)
 
     quetzal::log::logger().add_sink(write_to_godot_output);
     const quetzal::stratum_sim::Config config = quetzal::stratum_sim::load_config(project_directory());
-    quetzal::log::logger().add_sink(quetzal::log::FileLogSink(config.logs_directory / "stratum_godot.log"));
+    const std::filesystem::path log_base_filepath = config.logs_directory / "stratum_godot.log";
+    quetzal::log::logger().add_sink(quetzal::log::FileLogSink(quetzal::log::timestamped_filepath(log_base_filepath, std::chrono::system_clock::now())));
+    for (const auto& unremoved_file : quetzal::log::remove_oldest_timestamped_files(log_base_filepath, config.log_file_count_max))
+    {
+        quetzal::log::logger().warning("log", "The old log file {} was not removed: {}", unremoved_file.filepath.generic_string(),
+            unremoved_file.error.message());
+    }
+
     quetzal::stratum_sim::load_setting_definitions(config.assets_directory, quetzal::settings::store());
     g_user_settings.emplace(config.user_settings_filepath, quetzal::settings::SettingScope::User, quetzal::settings::store());
     g_user_settings->load();
