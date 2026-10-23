@@ -22,7 +22,7 @@
           "gameplay.difficulty.denizen_speed_multiplier": "1", "gameplay.difficulty.detection_range_multiplier": "1" } },
         { "name": "hard", "display_name": "Hard", "values": { "gameplay.difficulty.denizen_count_multiplier": "1.5",
           "gameplay.difficulty.denizen_speed_multiplier": "1.25", "gameplay.difficulty.detection_range_multiplier": "1.25" } },
-        { "name": "custom", "display_name": "Custom", "editable": true }
+        { "name": "custom", "display_name": "Custom", "modifiable": true }
       ] }
   ]
 }

@@ -29,7 +29,7 @@ in `work_plan.md` (`### Session`).
 
 ## Settings, the log, and the random engines
 
-The settings, the log, and the gameplay and generation random engines are process-wide, each reached through a function
+The settings, the log, and the gameplay random engine are process-wide, each reached through a function
 from any code that uses them. They are independent of flecs and of `World`, so the views and the
 hosts reach them as the sim does.
 
@@ -44,8 +44,8 @@ hosts reach them as the sim does.
 - **The log** is the process-wide instance of the log library's class (`log_plan.md`), with sinks that the host
   installs: a file in the terminal, and Godot's output and a file in Godot. A library writes its warnings to it in
   place of taking a warning function. It is thread-safe.
-- **The random engines** are the gameplay and generation streams of `random_engine.md` (`## Ownership`). `Game` seeds
-  them and saves their state. Each is thread-safe.
+- **The gameplay random engine** is the one of `random_engine.md` (`## Ownership`). `Game` seeds it from the world seed
+  and saves its state. It is thread-safe.
 - **A test sets each of them before a test case,** since every game in its process shares them.
 
 ### Settings in other games

@@ -68,7 +68,7 @@ character of the name that cannot be in a directory name is replaced by `_`.
 
 | File | |
 | --- | --- |
-| `game.json` | The game's own state --- the random engines' state, the seeds, and the next persistent id --- its settings' values, its setting groups' selected presets among them, and its editable presets' values |
+| `game.json` | The game's own state --- the random engines' state, the seeds, and the next persistent id --- its settings' values, its setting groups' selected presets among them, and its modifiable presets' values |
 | `character.json` | The player's character: its description, its skills and other properties, its inventory, and where it is |
 | `world.json` | The regions, and a reference to the file of each of their zones |
 | `zones/<persistent id>.zone` | One zone, in the zone file format |
@@ -100,7 +100,7 @@ character named Ailis in it carrying a torch, would have the following structure
 {
   "format": "quetzal.stratum_game",
   "version": "0.1",
-  "game": { "next_id": 21, "seed": "20260928", "random_engines": { "gameplay": "...", "generation": "..." } },
+  "game": { "next_id": 21, "seed": "20260928", "random_engines": { "gameplay": "..." } },
   "settings": { "gameplay.difficulty": "custom" },
   "presets": { "gameplay.difficulty": { "custom": { "gameplay.difficulty.denizen_count_multiplier": "1", "gameplay.difficulty.denizen_speed_multiplier": "1", "gameplay.difficulty.detection_range_multiplier": "2" } } }
 }
@@ -173,7 +173,7 @@ The state the game needs to continue from where it was saved, which belongs to n
 | Key | |
 | --- | --- |
 | `next_id` | The persistent id the game's id allocator returns next |
-| `seed` | The world seed the random engines were seeded from |
+| `seed` | The world seed, which the gameplay random engine is seeded from and every region's and zone's seed derives from |
 | `random_engines` | The state of each random engine, by the random engine's stream: `gameplay` and `generation` (`random_engine.md`, `## Streams`) |
 
 A random engine's state is written as the text that the random engine writes and reads (`random_engine.md`, `## Saving`).
@@ -183,14 +183,14 @@ A random engine's state is written as the text that the random engine writes and
 `settings` has the value of each game setting that is set, by its key, as text. A setting group is a setting whose
 value is its selected preset's name, so its selection is in `settings` too. A group's member has no value of its own,
 so a writer never puts it in `settings`; a member's value that `settings` has is set as setting the member sets it, in
-its group's editable preset. `presets` has the values of each game setting group's editable preset that are defined,
+its group's modifiable preset. `presets` has the values of each game setting group's modifiable preset that are defined,
 by the group's key and then the preset's name. Either is an empty object when it has none (`settings_plan.md`,
 `### Setting groups`).
 
 Opening a game first returns the game settings to their defaults, which selects each group's default preset and
-leaves its editable preset undefined, then sets the values in `presets`, then those in `settings`. A key that is not a
+leaves its modifiable preset undefined, then sets the values in `presets`, then those in `settings`. A key that is not a
 game setting's or a group's, a value that is not one of its setting's, a value out of its
-setting's range, a preset that is not one of its group's or is not editable, or an editable preset's values that do
+setting's range, a preset that is not one of its group's or is not modifiable, or a modifiable preset's values that do
 not set each of its group's members, is an error.
 
 ## character

@@ -24,8 +24,8 @@ namespace quetzal::settings
     struct Preset
     {
         std::string display_name;
-        bool editable = false;
-        KeyValueStore values; // <member key, value>; empty for an editable preset not yet defined
+        bool modifiable = false;
+        KeyValueStore values; // <member key, value>; empty for a modifiable preset not yet defined
     };
 
 } // namespace quetzal::settings

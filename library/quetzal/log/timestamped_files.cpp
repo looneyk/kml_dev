@@ -46,8 +46,7 @@ std::filesystem::path quetzal::log::timestamped_filepath(const std::filesystem::
 }
 
 //------------------------------------------------------------------------------
-std::vector<quetzal::log::UnremovedFile> quetzal::log::remove_oldest_timestamped_files(const std::filesystem::path& base_filepath,
-    std::size_t file_count_max)
+std::vector<quetzal::log::UnremovedFile> quetzal::log::remove_oldest_timestamped_files(const std::filesystem::path& base_filepath, std::size_t file_count_max)
 {
     std::vector<UnremovedFile> unremoved_files;
 

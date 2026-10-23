@@ -1415,7 +1415,7 @@ namespace
             "    { \"key\": \"gameplay.difficulty\", \"scope\": \"game\", \"default_preset\": \"normal\", \"display_name\": \"Difficulty\",\n"
             "      \"members\": [\"gameplay.count\"],\n"
             "      \"presets\": [ { \"name\": \"normal\", \"display_name\": \"Normal\", \"values\": { \"gameplay.count\": \"1\" } },\n"
-            "        { \"name\": \"custom\", \"editable\": true } ] }\n"
+            "        { \"name\": \"custom\", \"modifiable\": true } ] }\n"
             "  ]\n"
             "}\n";
 
@@ -1437,7 +1437,7 @@ namespace
         CHECK_CASE("a group has its fields, members and presets", difficulty.key == "gameplay.difficulty"
             && difficulty.scope == document_type::Scope::Game && difficulty.member_keys == vector<string> {"gameplay.count"}
             && difficulty.default_preset_name == "normal" && difficulty.display_name == "Difficulty" && difficulty.presets[0].name == "normal"
-            && difficulty.presets[0].values.value("gameplay.count") == "1" && !difficulty.presets[0].editable && difficulty.presets[1].editable
+            && difficulty.presets[0].values.value("gameplay.count") == "1" && !difficulty.presets[0].modifiable && difficulty.presets[1].modifiable
             && difficulty.presets[1].values.empty());
 
         istringstream header_only("{ \"format\": \"quetzal.stratum_setting_definitions\", \"version\": \"0.1\" }");

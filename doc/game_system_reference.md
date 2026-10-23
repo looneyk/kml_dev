@@ -674,22 +674,22 @@ enumeration of the presets' names in order whose `SettingType::group` is true, a
 type, whose default is the default preset. It requires the members to be inserted already, and throws
 `std::runtime_error` for a key that is empty or a setting's or a type's already; no members or a member given twice;
 a member that is not a setting, is of another scope, is another group's member, or is a group; a default preset that
-is missing or editable; a preset name that is empty or used; a second editable preset or one with values; and a
-preset that is not editable and has no values, does not set each of the members, sets a key that is not one, or sets
+is missing or modifiable; a preset name that is empty or used; a second modifiable preset or one with values; and a
+preset that is not modifiable and has no values, does not set each of the members, sets a key that is not one, or sets
 a value that is not one of its member's type or is out of its range. It inserts nothing if it throws.
 `contains_group(key)`, `group(key)`, a `SettingGroup` of the group's key and member keys, `member_group_key(key)`, and
 `preset(group_key, preset_name)` read them. A `Preset`, in `SettingGroup.hpp`, has its display name, whether it is
-editable, and its values by member key, which are empty for an editable preset until they are defined.
+modifiable, and its values by member key, which are empty for a modifiable preset until they are defined.
 
 A member's value is the selected preset's value for it, and a member never has a value of its own. Setting a group's
-value selects a preset; an editable preset whose values are undefined first takes the values of the preset selected
-before it. Setting a member writes it into the group's editable preset; if another preset is selected, the editable
-preset first takes that preset's values and is selected. A group with no editable preset makes setting a member an
+value selects a preset; a modifiable preset whose values are undefined first takes the values of the preset selected
+before it. Setting a member writes it into the group's modifiable preset; if another preset is selected, the modifiable
+preset first takes that preset's values and is selected. A group with no modifiable preset makes setting a member an
 error. `set_values` selects groups' presets before it sets members, and its overload with a
-`Settings::preset_values_type`, a map from a group key and an editable preset's name to the preset's values, sets
+`Settings::preset_values_type`, a map from a group key and a modifiable preset's name to the preset's values, sets
 those values first, each set required to set each of the group's members. Either changes nothing if any value is
 invalid, and notifies once, with the group's key and each member whose value changed. `reset(scope)` also leaves the
-values of the scope's editable presets undefined, and `preset_values(scope)` returns those that are defined.
+values of the scope's modifiable presets undefined, and `preset_values(scope)` returns those that are defined.
 
 ### Game and Character
 
@@ -719,14 +719,14 @@ character, region or zone; until a game is created, there is none.
 The game's settings are in the process-wide `settings::store()`.
 
 In the settings library, `SettingsSnapshot`, in `SettingsSnapshot.hpp`, is one scope's values as they are saved and
-restored: each setting that is set, groups' selections among them, and the defined values of each editable preset, as
+restored: each setting that is set, groups' selections among them, and the defined values of each modifiable preset, as
 text. `SettingsSnapshot::capture(scope, store)` takes one, and `restore(scope, store)` checks every key, preset and
 value, then sets the presets' values and then the settings, with one `set_values`, so a member's value among the
 settings is set as `set_values` sets one. It throws `std::runtime_error`, changing nothing, for a key that is not a
 setting's or a group's of the scope, a preset or value that is invalid, or a value out of range, naming the key.
 
 In `stratum_sim`, `setting_definitions.hpp` has `insert_definitions(document, store)`, which registers a definition
-document's enumerations, then inserts its settings, then its groups, an editable preset with no values in the file
+document's enumerations, then inserts its settings, then its groups, a modifiable preset with no values in the file
 being undefined, and throws as they do for a definition that is invalid, and `load_setting_definitions(assets_directory,
 store)`, which reads the game's definition file and inserts it.
 
@@ -747,7 +747,7 @@ default before each test case that starts from it.
 `clear`, `start`, `pause` and `resume` on `Session`.
 
 `Game::clear` returns the game scope's settings to their defaults, which selects its groups' default presets and leaves
-their editable presets undefined, so a game created or opened starts from them.
+their modifiable presets undefined, so a game created or opened starts from them.
 
 The working directory has only the game in progress. `Game::create(region_spec, character_spec, seed)` clears, resets
 the id allocator to count from zero, and seeds the gameplay random engine with the seed, or with one from

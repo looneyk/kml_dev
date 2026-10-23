@@ -360,23 +360,23 @@ namespace
             && notifications.size() == 1 && sorted(notifications.back()) == vector<string> {"difficulty", "difficulty.count", "difficulty.speed"});
 
         SettingsSnapshot hard = SettingsSnapshot::capture(SettingScope::Game, test_settings);
-        CHECK_CASE("a preset that is not editable is saved as the group's value alone", hard.settings.value("difficulty") == "hard"
+        CHECK_CASE("a preset that is not modifiable is saved as the group's value alone", hard.settings.value("difficulty") == "hard"
             && hard.settings.value("difficulty.count") == nullopt && hard.presets.empty());
 
         test_settings.set_value<double>("difficulty.speed", 2);
-        CHECK_CASE("setting a member selects the editable preset with the selected preset's values, and sets the member there",
+        CHECK_CASE("setting a member selects the modifiable preset with the selected preset's values, and sets the member there",
             test_settings.text("difficulty") == "custom" && test_settings.value<double>("difficulty.count") == 1.5
             && test_settings.value<double>("difficulty.speed") == 2 && notifications.size() == 2
             && sorted(notifications.back()) == vector<string> {"difficulty", "difficulty.speed"});
 
         const Settings::preset_key_type custom_key {"difficulty", "custom"};
         SettingsSnapshot custom = SettingsSnapshot::capture(SettingScope::Game, test_settings);
-        CHECK_CASE("an editable preset is saved with its values", custom.settings.value("difficulty") == "custom"
+        CHECK_CASE("a modifiable preset is saved with its values", custom.settings.value("difficulty") == "custom"
             && custom.presets.at(custom_key).value("difficulty.count") == "1.5" && custom.presets.at(custom_key).value("difficulty.speed") == "2");
 
         test_settings.set_text("difficulty", "easy");
         test_settings.set_text("difficulty", "custom");
-        CHECK_CASE("selecting another preset and then the editable preset again restores its values",
+        CHECK_CASE("selecting another preset and then the modifiable preset again restores its values",
             test_settings.value<double>("difficulty.count") == 1.5 && test_settings.value<double>("difficulty.speed") == 2);
 
         test_settings.set_text("difficulty", "hard");
@@ -387,7 +387,7 @@ namespace
 
         test_settings.set_text("difficulty", "normal");
         SettingsSnapshot normal = SettingsSnapshot::capture(SettingScope::Game, test_settings);
-        CHECK_CASE("the editable preset's values are kept and saved while another preset is selected",
+        CHECK_CASE("the modifiable preset's values are kept and saved while another preset is selected",
             test_settings.value<double>("difficulty.count") == 1.2 && normal.settings.value("difficulty") == "normal"
             && normal.presets.at(custom_key).value("difficulty.count") == "3");
 
@@ -397,12 +397,12 @@ namespace
             && test_settings.preset_values(SettingScope::Game).empty();
         test_settings.set_text("difficulty", "hard");
         test_settings.set_text("difficulty", "custom");
-        CHECK_CASE("resetting a scope selects its groups' default presets, and leaves editable presets undefined until selected",
+        CHECK_CASE("resetting a scope selects its groups' default presets, and leaves modifiable presets undefined until selected",
             reset_to_default && test_settings.value<double>("difficulty.count") == 1.5 && test_settings.value<double>("difficulty.speed") == 1.25);
 
         test_settings.reset(SettingScope::Game);
         custom.restore(SettingScope::Game, test_settings);
-        CHECK_CASE("restoring the values saved restores the selection and the editable preset's values",
+        CHECK_CASE("restoring the values saved restores the selection and the modifiable preset's values",
             test_settings.text("difficulty") == "custom" && test_settings.value<double>("difficulty.count") == 1.5
             && test_settings.value<double>("difficulty.speed") == 2);
 
@@ -417,13 +417,13 @@ namespace
             && test_settings.text("difficulty") == "custom" && test_settings.value<double>("difficulty.count") == 1.5);
 
         SettingsSnapshot incomplete {.presets = {{custom_key, quetzal::KeyValueStore {{"difficulty.count", "2"}}}}};
-        SettingsSnapshot not_editable {.presets = {{{"difficulty", "hard"}, quetzal::KeyValueStore {{"difficulty.count", "2"},
+        SettingsSnapshot not_modifiable {.presets = {{{"difficulty", "hard"}, quetzal::KeyValueStore {{"difficulty.count", "2"},
             {"difficulty.speed", "1"}}}}};
-        CHECK_CASE("and an editable preset's values that leave out a member, or values of a preset that is not editable",
+        CHECK_CASE("and a modifiable preset's values that leave out a member, or values of a preset that is not modifiable",
             throws_with([&] { incomplete.restore(SettingScope::Game, test_settings); },
             "the preset 'custom' of the setting group 'difficulty' does not set its member 'difficulty.speed'")
-            && throws_with([&] { not_editable.restore(SettingScope::Game, test_settings); },
-            "the preset 'hard' of the setting group 'difficulty' is not editable"));
+            && throws_with([&] { not_modifiable.restore(SettingScope::Game, test_settings); },
+            "the preset 'hard' of the setting group 'difficulty' is not modifiable"));
 
         SettingsSnapshot member_value {.settings = {{"difficulty", "hard"}, {"difficulty.count", "2"}}};
         member_value.restore(SettingScope::Game, test_settings);
@@ -444,7 +444,7 @@ namespace
 
         CHECK_CASE("a group whose key is a setting's is an error", throws([&] { test_settings.insert_group("difficulty", SettingScope::Game, "a",
             {"other.count"}, {{"a", other_a}}); }));
-        CHECK_CASE("and so is a group with no members or a member twice, or a default preset that is missing or editable",
+        CHECK_CASE("and so is a group with no members or a member twice, or a default preset that is missing or modifiable",
             throws([&] { insert_other({}, {{"a", other_a}}); })
             && throws([&] { insert_other({"other.count", "other.count"}, {{"a", other_a}}); })
             && throws([&] { insert_other({"other.count"}, {{"a", other_a}}, "b"); })
@@ -460,7 +460,7 @@ namespace
             && throws([&] { insert_other({"other.count"}, {{"a", {"A", false, quetzal::KeyValueStore {{"other.count", "2"}, {"video.width", "800"}}}}}); })
             && throws([&] { insert_other({"other.count"}, {{"a", {"A", false, quetzal::KeyValueStore {{"other.count", "fast"}}}}}); })
             && throws([&] { insert_other({"other.count"}, {{"a", {"A", false, quetzal::KeyValueStore {{"other.count", "5"}}}}}); }));
-        CHECK_CASE("and a preset named twice or with no name, a second editable preset, an editable preset with values, or one that is not and has none",
+        CHECK_CASE("and a preset named twice or with no name, a second modifiable preset, a modifiable preset with values, or one that is not and has none",
             throws([&] { insert_other({"other.count"}, {{"a", other_a}, {"a", other_a}}); })
             && throws([&] { insert_other({"other.count"}, {{"a", other_a}, {"", other_a}}); })
             && throws([&] { insert_other({"other.count"}, {{"a", other_a}, {"b", {"B", true}}, {"c", {"C", true}}}); })
@@ -470,7 +470,7 @@ namespace
             && !test_settings.registered_type("other") && !test_settings.member_group_key("other.count").has_value());
 
         insert_other({"other.count"}, {{"a", other_a}});
-        CHECK_CASE("setting a member of a group with no editable preset is an error", throws([&] { test_settings.set_value<double>("other.count", 3); })
+        CHECK_CASE("setting a member of a group with no modifiable preset is an error", throws([&] { test_settings.set_value<double>("other.count", 3); })
             && test_settings.value<double>("other.count") == 2);
         return;
     }

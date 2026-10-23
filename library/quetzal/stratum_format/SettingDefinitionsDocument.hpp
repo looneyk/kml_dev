@@ -55,7 +55,7 @@ namespace quetzal::stratum_format
         {
             std::string name;
             std::string display_name;
-            bool editable = false;
+            bool modifiable = false;
             KeyValueStore values;
         };
 

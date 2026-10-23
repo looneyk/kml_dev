@@ -68,7 +68,7 @@ namespace quetzal::settings
         // Inserts a group type setting and its presets with values for its members
         // Requires the members to be inserted already, with no value
         // Throws std::runtime_error if the key is empty or used, a member is not a setting of the group's scope or is
-        // another group's member or a group, the default preset is missing or editable, or a preset is invalid
+        // another group's member or a group, the default preset is missing or modifiable, or a preset is invalid
         void insert_group(std::string_view key, SettingScope scope, std::string_view default_preset_name, std::vector<std::string> member_keys,
             std::vector<std::pair<std::string, Preset>> presets, std::string_view display_name = {}, std::string_view category = {});
 
@@ -96,22 +96,22 @@ namespace quetzal::settings
 
         // Sets several settings in one operation, with one change notification. The values are each setting's new value as
         // text, by its key, in the form values(scope) returns: a group's value selects one of its presets, and a member's value
-        // is set in its group's editable preset. Groups are selected before members are set; a member set while another
-        // preset is selected first copies that preset's values into the editable preset and selects it. Changes nothing if
+        // is set in its group's modifiable preset. Groups are selected before members are set; a member set while another
+        // preset is selected first copies that preset's values into the modifiable preset and selects it. Changes nothing if
         // any value is invalid: throws std::runtime_error for a key or value that is invalid or a member of a group with no
-        // editable preset, and returns false if a value is out of range
+        // modifiable preset, and returns false if a value is out of range
         bool set_values(const KeyValueStore& values);
 
-        // Sets the values of editable presets, then the settings, in one operation, as loading a file does. The preset values
-        // are each editable preset's values, by its group's key and its name, in the form preset_values(scope) returns, with
+        // Sets the values of modifiable presets, then the settings, in one operation, as loading a file does. The preset values
+        // are each modifiable preset's values, by its group's key and its name, in the form preset_values(scope) returns, with
         // a value for each member of the group. The values are those of the overload above
         bool set_values(const KeyValueStore& values, const preset_values_type& preset_values);
 
         // Sets each setting in the scope to its default, which selects each group's default preset, and leaves the values of the
-        // groups' editable presets undefined
+        // groups' modifiable presets undefined
         void reset(SettingScope scope);
 
-        // Returns the defined values of the editable presets of the scope's groups
+        // Returns the defined values of the modifiable presets of the scope's groups
         preset_values_type preset_values(SettingScope scope) const;
 
         // The listener is called once for each set_value, set_text, set_values or reset that changes any setting, after
@@ -141,14 +141,14 @@ namespace quetzal::settings
         bool bounded_inclusive(const Setting& setting, std::string_view text) const;
 
         const Preset& selected_preset(std::string_view group_key) const;
-        std::optional<std::string> editable_preset_name(std::string_view group_key) const;
+        std::optional<std::string> modifiable_preset_name(std::string_view group_key) const;
 
         // Throws std::runtime_error unless the values set each of the members and are values of their types
         void check_preset_members(std::string_view group_key, std::string_view preset_name, const std::vector<std::string>& member_keys,
             const KeyValueStore& values) const;
 
-        // Throws std::runtime_error unless the preset is an editable preset of a group and the values are valid for it
-        void check_editable_preset_values(const preset_key_type& key, const KeyValueStore& values) const;
+        // Throws std::runtime_error unless the preset is a modifiable preset of a group and the values are valid for it
+        void check_modifiable_preset_values(const preset_key_type& key, const KeyValueStore& values) const;
 
         // Each throws std::runtime_error for a value that is invalid, and returns false if a value is out of range
         bool check_values(const KeyValueStore& values) const;
@@ -158,7 +158,7 @@ namespace quetzal::settings
         void assign_presets(const preset_values_type& preset_values);
         void assign_values(const KeyValueStore& values);
 
-        // An editable preset with undefined values takes the values of the preset selected before it
+        // A modifiable preset with undefined values takes the values of the preset selected before it
         void select(std::string_view group_key, std::string_view preset_name);
         void set_member(std::string_view key, std::string_view value);
 

@@ -71,9 +71,9 @@ They are used for daily challenges, races, and tournaments.
 - **Spelunky and Spelunky 2** --- a daily challenge with one seed for everyone, and seeded runs in Spelunky 2.
 - **Noita** and **Balatro** --- seeds that a player sets or shares.
 
-Offering either here needs three things: each zone's seed derived from the world seed and the zone's place rather than
-drawn (`## Generation`), a random engine and distributions whose output is the same on every platform (`## The random
-engine type`), and a seed stored with the version of the generators that made it.
+Offering either requires each zone's seed derived from the world seed and the zone's place rather than drawn
+(`## Generation`), a random engine and distributions whose output is the same on every platform (`## The random engine
+type`), and a seed stored with the version of the generators that made it.
 
 ## Priorities
 
@@ -81,14 +81,15 @@ engine type`), and a seed stored with the version of the generators that made it
    monster's attack.
 2. **Development.** Any run can be reproduced from its seed. The tests seed explicitly, the tools already write the seed
    into each file, and a host logs its seed and accepts one.
-3. **Reproducibility for players,** such as a seeded game shared between players, is not a goal. Nothing is designed
-   against it, and whether to offer it is open.
+3. **Replayability.** A world seed, passed or drawn, rebuilds the same world however it is explored, so players can share
+   one, and a seed passed for a region or a zone rebuilds that region or zone alone. A new game with no seed passed is
+   as random as before, from a world seed drawn and logged.
 
 ## Ownership
 
-- **The gameplay and generation random engines are process-wide,** each reached through a function for its stream, as
-  in DCSS, Brogue and NetHack, and passed to no function or constructor (`session_plan.md`, `## Settings, the log, and
-  the random engines`). `World` does not take them, and `resolve_relocator_target` loses its parameter.
+- **The gameplay random engine is process-wide,** reached through a function, as in DCSS, Brogue and NetHack, and passed
+  to no function or constructor (`session_plan.md`, `## Settings, the log, and the random engines`). `World` does not
+  take it. Generation draws from random engines seeded from derived seeds (`## Generation`).
 - **Each process-wide random engine is thread-safe.** A draw locks the random engine's mutex for the whole draw, the
   distribution included, so threads that draw at the same time never corrupt its state. The values each thread draws
   then depend on the order in which the threads draw, so the draws that must be reproducible from a seed are made on
@@ -104,15 +105,14 @@ engine type`), and a seed stored with the version of the generators that made it
   namespace quetzal::stratum_sim
   {
       RandomStream& gameplay_random();
-      RandomStream& generation_random();
   }
   ```
 
 - **`math::Random` keeps its state as text too.** `state` and `set_state` replace `engine()`, through which `Game` now
   writes and reads the random engine's state, so no caller reaches the random engine itself.
-- **`Game` seeds the process-wide random engines** from a seed that a host or a test passes, or from
-  `std::random_device` if none is passed, and the host logs the seed. A test seeds them explicitly before each test
-  case.
+- **`Game` has the world seed,** which a host or a test passes, or which `Game` draws from `std::random_device` if none
+  is passed, and logs. The gameplay random engine is seeded from it, and every region's and zone's seed derives from it.
+  A test seeds the gameplay random engine explicitly before each test case.
 - **A generation run owns its own random engine,** seeded from the zone's seed (`## Generation`). In dungen and
   catagen, a run becomes an object with its parameters, its random engine, and the state it builds, and the functions
   that now take a `random_type&` become its members. The generators' functions then no longer pass a random engine to one another, and the change comes with their
@@ -123,25 +123,33 @@ engine type`), and a seed stored with the version of the generators that made it
 
 ## Streams
 
-- **Gameplay and generation are separate random engines,** both seeded by `Game` from the one world seed through
-  `std::seed_seq`. Combat, AI, and every other draw during play use the gameplay random engine. Each zone's seed is
-  drawn from the generation random engine. It costs one random engine, and a bug in generation is then reproduced from
-  the zone's seed without replaying the play that led to it.
+- **Gameplay and generation draw from separate random engines.** Combat, AI, and every other draw during play use the
+  gameplay random engine, seeded from the world seed. Generation never draws from it: each zone is generated from its
+  own derived seed, so play never changes the world, and a bug in generation is reproduced from the zone's seed without
+  replaying the play that led to it.
 
 ## Generation
 
-- **A zone's seed is one of its generation parameters,** which `World::create_zone(region, zone_spec)` draws from the
-  generation random engine and adds to the `ZoneSpec`, under `seed_key`, before the generator runs (`world_generation_plan.md`). The
-  generator is passed the level and the seed.
-- **A generator selector's draws use the generation random engine,** since they decide what a zone is.
+- **Seeds are derived from the world seed and coordinates, hierarchically.** A region's seed derives from the world
+  seed and the region's coordinates in the world, `(x, y)`, and a zone's from its region's seed and the zone's
+  coordinates in the region, `(x, y, z)`, its level being `z`. The coordinates are signed, with the starting region and
+  zone at the origin, within the world's and region's sizes (`settings_plan.md`, `### A new game's settings`). A seed
+  is derived through `std::seed_seq` over the seed and the coordinates as 32-bit words, since the standard specifies its
+  output and a zone's position in the world, about 10^21 places, does not fit one 64-bit number. How coordinates are
+  assigned to new regions and zones is a matter for generation, apart from the derivation.
+- **A seed passed takes precedence.** A `RegionSpec` or `ZoneSpec` with a seed under `seed_key` uses it in place of the
+  derived one, so a region or a zone can be rebuilt alone, such as from a zone file's `generator.parameters`.
+- **A zone's seed is one of its generation parameters,** which `World::create_zone(region, zone_spec)` adds to the
+  `ZoneSpec`, under `seed_key`, before the generator runs (`world_generation_plan.md`). The generator is passed the
+  level and the seed.
+- **A generator selector's draws use a random engine seeded from the zone's seed,** since they decide what the zone is.
 - **A zone file stores its seed** in `generator.parameters`, as the tools' files do now, so a zone reproduces from its
   file alone.
 - **A retry draws a fresh sub-seed** from the run's random engine, for Phase 5's reject-and-retry.
 - **Placement draws from the run's random engine** when it is part of generation (`placement_plan.md`), and from the
   gameplay random engine when it happens during play, such as a denizen appearing over time.
-- **A zone's seed is drawn, not derived.** It depends on the order in which zones are made, not only on the world seed.
-  Deriving it from the world seed and the zone's place, as DCSS and Brogue do, builds the same world however it is
-  explored, which matters only for reproducibility for players.
+- **A zone's seed is derived, not drawn,** as DCSS's level seeds are, so it does not depend on the order in which zones
+  are made, and the world is the same however it is explored.
 
 ## The random engine type
 

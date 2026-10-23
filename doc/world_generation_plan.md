@@ -182,7 +182,10 @@ by `World::create`, and every other region by a relocator that leads into a new 
 flecs::entity World::create_zone(flecs::entity region, const ZoneSpec& zone_spec)
 {
     const RegionSpec& region_spec = region.get<RegionSpec>();
-    GeneratorSelection selection = m_generator_selectors.at(region_spec.generator_selector)(*this, region, zone_spec);
+
+    // the ZoneSpec's seed, or one derived from the region's seed and the zone's coordinates
+    ZoneSpec seeded_zone_spec = zone_spec with its seed under seed_key;
+    GeneratorSelection selection = m_generator_selectors.at(region_spec.generator_selector)(*this, region, seeded_zone_spec);
 
     if (selection.region_spec_name)
     {
@@ -197,7 +200,6 @@ flecs::entity World::create_zone(flecs::entity region, const ZoneSpec& zone_spec
     }
     else
     {
-        // add the zone's seed to selection.zone_spec, drawn from the generation random engine
         document = m_generators.at(*selection.generator_name)(selection.zone_spec);
     }
 
@@ -217,10 +219,12 @@ The values a zone is created from come from three places:
 | --- | --- |
 | The level, and anything else that depends on where the zone is reached from | The caller: the region's `zone.` keys, or the relocator gone through |
 | The generator and its parameters, a pre-built zone, or a new region | The region's generator selector, from the region's spec, the region's zone count, and the level |
-| The seed | `World`, from the generation random engine |
+| The seed | `World`, derived from the region's seed and the zone's coordinates, unless the `ZoneSpec` has one (`random_engine.md`, `## Generation`) |
 
+- **The seed is added first.** `World` adds the zone's seed to the `ZoneSpec` under `seed_key` before calling the
+  selector, so the selector and the generator both have it.
 - **The selector reads the world; the generator does not.** The selector reads the region and its zone count, and its
-  random draws use the generation random engine. Anything from the region that a generator needs, such as difficulty, the
+  random draws use a random engine seeded from the zone's seed. Anything from the region that a generator needs, such as difficulty, the
   selector copies into the zone's parameters.
 - **The level comes from the request.** `World` sets `ZoneLevel` from the `ZoneSpec`, and the generator writes the same
   level into the `Document`.
@@ -284,7 +288,7 @@ GeneratorSelection common(const World& world, flecs::entity region, const ZoneSp
     // Rises with zone_count, and is 1 at zone_count_max
     double new_region_probability = new_region_probability(zone_count, region_spec.zone_count_max);
 
-    if (the generation random engine draws below new_region_probability)
+    if (a draw from the zone seed's random engine is below new_region_probability)
     {
         return {region_spec_name: draw from region_spec.next_region, zone_spec};
     }

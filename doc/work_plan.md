@@ -69,12 +69,17 @@ boxes are removed at the start of the next piece of work, since the reference do
 
 ## Random engine
 
-- [x] **A log file for each run** (`log_plan.md`): each host writing a new log file in the logs directory, named with
-      the program and the run's start time, and removing its oldest files past the config's `log_file_count_max`.
-- [ ] **The generation random engine and zone seeds** (`random_engine.md`, `## Streams`, `## Generation`): the
-      process-wide, thread-safe generation random engine, and `create_zone(region, zone_spec)` adding the zone's seed,
-      drawn from it, to the `ZoneSpec` under `seed_key`, from which the host's `make_zone_request` passes it to the
-      generator; the hosts' fallback to `std::random_device` for a `ZoneSpec` without a seed is removed.
+- [ ] **Game settings initialized and fixed** (`settings_plan.md`, `### A new game's settings`): a game setting
+      definition's `initializer`, referring to a user setting, and `modifiable`, read and written by `stratum_format`;
+      the initializers applied when a game is created, and a change to a game setting that is not `modifiable` rejected
+      during the game; the difficulty settings `modifiable`; and the world-size and region-size settings, game and user, in
+      `setting_definitions.json`.
+- [ ] **Derived seeds** (`random_engine.md`, `## Generation`): each region and zone with its coordinates, the starting
+      region and zone at the origin; a region's seed derived from the world seed and its coordinates, and a zone's from
+      its region's seed and its coordinates, through `std::seed_seq`, unless its spec has a seed;
+      `create_zone(region, zone_spec)` adding the zone's seed to the `ZoneSpec` under `seed_key` before the selector
+      runs, from which the host's `make_zone_request` passes it to the generator; the hosts' fallback to
+      `std::random_device` for a `ZoneSpec` without a seed removed.
 - [ ] **Generation runs as objects** (`random_engine.md`, `## Ownership`): dungen's and catagen's runs, each owning its
       random engine, seeded from the zone's seed, with the reference files regenerated. It comes with **the generators
       integrated**.
@@ -394,6 +399,11 @@ These are the open questions.
 ## Revisit later
 
 These are set aside on purpose.
+
+- **Restarting a game with the last game's settings,** kept in memory for the program's run, possibly on the same world
+  seed, and **templates** that a new game's settings are initialized from, which would let settings outlast the program.
+- **Scripted initializers,** such as an `on_new_game` script computing game settings when a game is created, beyond an
+  `initializer` that refers to a user setting. They may overlap with templates.
 
 - **Pursuers following the character through a relocator** (`session_plan.md`, `### Following through a relocator`).
   Only the controlled actor enters a relocator.

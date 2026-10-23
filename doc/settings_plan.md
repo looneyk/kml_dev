@@ -19,7 +19,7 @@ game. The open items are in `work_plan.md` (`### Settings`), and the work that r
 | **base type** | The built-in type a registered type is based on: `text` for every enumeration. A script reads a setting as a value of its base type | the *base* of an XML Schema restriction, `<xs:restriction base="xs:string">` |
 | **default** | The value a setting has until something sets it, from the setting's definition | *default* everywhere |
 | **setting group** | A setting whose value is the name of one of its presets, and whose members are the settings those presets assign. A member's value is the selected preset's value for it | a *scalability group* in Unreal, `sg.ShadowQuality`, which is itself a console variable |
-| **preset** | A value for each of a setting group's members, defined in data. A group's default preset is the one selected for a new game. An editable preset, such as Custom, has values the player sets, which the store keeps | a *level* of an Unreal scalability group, `[ShadowQuality@2]`; a *preset* in an options menu, "graphics preset: High" |
+| **preset** | A value for each of a setting group's members, defined in data. A group's default preset is the one selected for a new game. A modifiable preset, such as Custom, has values the player sets, which the store keeps | a *level* of an Unreal scalability group, `[ShadowQuality@2]`; a *preset* in an options menu, "graphics preset: High" |
 | **apply** | Putting a change into effect where the next read is not soon enough, such as switching the video mode | *apply* in Unreal's `ApplySettings`; a `ConVar`'s *change callback* in Source does it for one setting |
 | **change notification** | The store calling each change listener once after an operation that changed one or more settings, with the keys it changed | *change callback* in Source (`FnChangeCallback_t`); the `onDidChangeConfiguration` event of VS Code's settings; the `settings_changed` signal of Godot's `ProjectSettings` |
 | **restart required** | A setting that takes effect only when the program starts again | `restart_if_changed` in Godot; `ConfigRestartRequired` in Unreal; *requires restart* in options menus |
@@ -203,8 +203,8 @@ namespace quetzal::settings
     struct Preset
     {
         std::string display_name;
-        bool editable = false;
-        KeyValueStore values;                      // <member key, value>; empty for an editable preset not yet defined
+        bool modifiable = false;
+        KeyValueStore values;                      // <member key, value>; empty for a modifiable preset not yet defined
     };
 
     // What the store keeps for every setting
@@ -214,6 +214,8 @@ namespace quetzal::settings
         std::string default_value;
         SettingScope scope;
         bool restart_required;
+        bool modifiable;                           // A game setting's: true if it can change after the game is created
+        std::optional<std::string> initializer_setting; // A game setting's: the user setting a new game takes its value from
         std::string display_name;
         std::string description;
         std::string category;                      // The menu page that shows it
@@ -259,10 +261,10 @@ namespace quetzal::settings
 
         KeyValueStore values(SettingScope scope) const;                                              // saving
         bool set_values(const KeyValueStore& values);                                                // loading
-        bool set_values(const KeyValueStore& values, const preset_values_type& preset_values);       // editable presets' first
+        bool set_values(const KeyValueStore& values, const preset_values_type& preset_values);       // modifiable presets' first
         void reset(SettingScope scope);                                                              // a game cleared
 
-        // The defined values of each editable preset of the scope's groups
+        // The defined values of each modifiable preset of the scope's groups
         preset_values_type preset_values(SettingScope scope) const;
 
         listener_id_type add_change_listener(std::function<void(const std::vector<std::string>& keys_changed)> listener);
@@ -314,11 +316,11 @@ namespace quetzal::settings
   keys is among the keys changed.
 - **Saving writes the values set in each scope,** `values(SettingScope::Game)` into `game.json`, and
   `values(SettingScope::User)` into the user settings file, each value as text, in the file's `settings`, and the
-  defined values of the scope's editable presets, `preset_values`, in its `presets`. A setting never set is not
+  defined values of the scope's modifiable presets, `preset_values`, in its `presets`. A setting never set is not
   written, so it keeps its default, even if the default changes. A member never has a value of its own, so saving
   writes none for it in `settings`; a member's value that a file's `settings` has is set as setting the member sets it.
 - **A game cleared** returns the game scope's settings to their defaults with `reset(SettingScope::Game)`, which
-  selects each group's default preset and leaves the values of its editable presets undefined.
+  selects each group's default preset and leaves the values of its modifiable presets undefined.
 
 **The store's decisions:**
 
@@ -372,7 +374,7 @@ program directory, and `data/setting_definitions.json` in each mod's directory. 
       "presets": [
         { "name": "easy", "display_name": "Easy", "values": { "gameplay.difficulty.denizen_count_multiplier": "0.5" } },
         { "name": "normal", "display_name": "Normal", "values": { "gameplay.difficulty.denizen_count_multiplier": "1" } },
-        { "name": "custom", "display_name": "Custom", "editable": true }
+        { "name": "custom", "display_name": "Custom", "modifiable": true }
       ] }
   ]
 }
@@ -386,15 +388,21 @@ program directory, and `data/setting_definitions.json` in each mod's directory. 
 - **A setting's entry has what `Setting` has:** `type`, `default`, `scope`, `restart_required`, which is false if
   absent, and the menu fields `display_name`, `description`, `category`, `minimum` and `maximum`. Every setting has a
   `default`, a group's member included.
+- **A game setting's entry may have an `initializer`,** which sets its value when a game is created. The first form
+  refers to a user setting, `"initializer": { "setting": "world.world_size_default.x" }`, whose value the game setting
+  takes; a script is a later form (`work_plan.md`, `## Revisit later`). A game setting without one, or whose user
+  setting is not defined, takes its own default.
+- **A game setting's entry may have `modifiable`,** true if the setting can change after the game is created, as the
+  difficulty settings can, and false if absent, so a game setting without it is fixed for the game's life.
 - **A group's entry has what `insert_group` takes:** `key`, `scope`, `default_preset`, `members`, `presets`,
-  `display_name` and `category`. A preset's entry has `name`, `display_name`, `editable`, which is false if absent, and
-  `values`, which an editable preset does not have.
+  `display_name` and `category`. A preset's entry has `name`, `display_name`, `modifiable`, which is false if absent, and
+  `values`, which a modifiable preset does not have.
 - **`stratum_format` reads the file** into a `SettingDefinitionsDocument`, and `stratum_sim`'s `insert_definitions`
   inserts it into a store, so the settings library has no JSON.
 
 The values are saved apart from the definitions: the user's in the user settings file, `settings.json` in the user
 directory, and a game's in its `game.json`. Each file has the settings' values in `settings`, groups' selections
-among them, and the defined values of its editable presets in `presets`, by group key and preset name. The values of a
+among them, and the defined values of its modifiable presets in `presets`, by group key and preset name. The values of a
 mod's settings and presets are under that mod's entry in each file's `mods`, so the loader can keep them while the mod
 is not loaded:
 
@@ -404,6 +412,21 @@ is not loaded:
   "presets": { "video.quality": { "custom": { "video.shadow_resolution": "2048", "video.texture_resolution": "4096" } } },
   "mods": [ { "id": "torches", "settings": { "mod.torches.flicker": "false" }, "presets": { } } ] }
 ```
+
+### A new game's settings
+
+Lookups name no scope: a game reads every setting from the one store by its key, and a setting's scope decides only
+where its value is saved. When a game is created, each game setting is reset to its default and then set by its
+`initializer`, if it has one. An opened game sets its game settings from its `game.json` alone. During the game, a
+game setting changes only if it is `modifiable`; the store rejects a change to one that is not, and the menu shows it as
+read-only.
+
+The world's dimensions are game settings initialized this way, so each world keeps the dimensions it was created with:
+`world.world_size.x` and `.y`, the number of regions the world has room for in each direction, 1000000 by default, and
+`world.region_size.x`, `.y` and `.z`, the number of zones a region has room for in each direction, 1000 by default.
+Each is an `integer` of at least 1, not `modifiable`, whose `initializer` refers to the user setting of the same key with
+`_default` after `world_size` or `region_size`. A region's or zone's coordinate along a size `s` is signed, from `-(s / 2)` to `s - s / 2 - 1`, so the
+starting region is at the origin of the world and the starting zone at the origin of its region.
 
 ### Setting groups
 
@@ -419,27 +442,27 @@ one store, one key space and one change notification, for settings and groups al
   selection consult. The group's type lists the preset names in order, for the menu.
 - **A member's value is the selected preset's value for it.** A member never has a value of its own, so reading a
   member reads the selected preset's row of the table, and a rebalanced preset reaches every game that selected it.
-- **Every preset that is not editable sets each of its group's members.** Setting them is the preset's purpose, so a
-  member's value always comes from a preset. The default preset is not editable. A member's own default, in its
-  definition, is independent of the presets: it is the value that resetting the member in the editable preset sets.
+- **Every preset that is not modifiable sets each of its group's members.** Setting them is the preset's purpose, so a
+  member's value always comes from a preset. The default preset is not modifiable. A member's own default, in its
+  definition, is independent of the presets: it is the value that resetting the member in the modifiable preset sets.
 - **Each member has the group's scope, a setting is a member of at most one group,** as each Unreal console variable is
   in at most one scalability group, **and a member is not a group.** `insert_group` checks each. Nested groups, such as
   an overall video quality that selects the shadow and texture qualities, are not supported; the member lookup and
   `insert_group`'s check are where they would be added.
-- **A group has at most one editable preset, such as Custom.** Its values are kept in the table like any preset's, and
+- **A group has at most one modifiable preset, such as Custom.** Its values are kept in the table like any preset's, and
   last as long as the scope's values: they are saved, and restored when the file is loaded. For a new game, and once
   the scope is reset, they are undefined.
 - **Selecting a preset** sets the group's value, and notifies the group's key and each member whose value changed, in
-  one notification. Selecting the editable preset while its values are undefined defines them from the preset
+  one notification. Selecting the modifiable preset while its values are undefined defines them from the preset
   selected before it, so Custom starts from that mode; once defined, selecting it again restores them, so switching
   from Custom to Hard and back keeps the player's values.
-- **Setting a member writes it into the editable preset,** which is selected if it is not. If a preset that is not
-  editable was selected, the editable preset's values are first set to that preset's, replacing any it had, so the
+- **Setting a member writes it into the modifiable preset,** which is selected if it is not. If a preset that is not
+  modifiable was selected, the modifiable preset's values are first set to that preset's, replacing any it had, so the
   change is that preset with one value changed: setting a member under Hard is selecting Custom with Hard's values,
-  then setting the member. Only an explicit selection of the editable preset restores its own values. In a group with no editable preset, setting a member is an error, and nothing is set. The menu edits a
-  member only while the editable preset is selected; a script or the console may set one at any time.
-- **A game that does not allow customization defines no editable preset.**
-- **The table determines what is saved.** A selection is the group's value in `settings`, and an editable preset's
+  then setting the member. Only an explicit selection of the modifiable preset restores its own values. In a group with no modifiable preset, setting a member is an error, and nothing is set. The menu edits a
+  member only while the modifiable preset is selected; a script or the console may set one at any time.
+- **A game that does not allow customization defines no modifiable preset.**
+- **The table determines what is saved.** A selection is the group's value in `settings`, and a modifiable preset's
   defined values are in `presets`, whichever preset is selected. A member is a setting like any other, but has no value
   of its own to save.
 - **Only the menu and the save list read the selected preset.** Other code reads the members: permadeath is read from its
@@ -456,7 +479,7 @@ one store, one key space and one change notification, for settings and groups al
 - **A patch addressed to a mod that is not loaded is skipped with a warning.**
 - **The saved values of a mod that is not loaded are kept by the loader,** not the store. `game.json` keeps each mod's
   values under its entry in the game's mods, so the loader sets only those of loaded mods, keeps the others as text,
-  and writes them back on save. A mod's group selections and editable preset values are kept the same way
+  and writes them back on save. A mod's group selections and modifiable preset values are kept the same way
   (`modding_plan.md`, `## A missing mod`).
 
 ## Open

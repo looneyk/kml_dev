@@ -25,7 +25,7 @@ namespace
     constexpr std::array<std::string_view, 10> setting_keys {"key", "type", "default", "scope", "restart_required", "display_name", "description",
         "category", "minimum", "maximum"};
     constexpr std::array<std::string_view, 7> group_keys {"key", "scope", "default_preset", "display_name", "category", "members", "presets"};
-    constexpr std::array<std::string_view, 4> preset_keys {"name", "display_name", "editable", "values"};
+    constexpr std::array<std::string_view, 4> preset_keys {"name", "display_name", "modifiable", "values"};
 
     //--------------------------------------------------------------------------
     void check_definition_keys(const raw_values_type& v, const std::string& path, std::span<const std::string_view> keys)
@@ -147,7 +147,7 @@ namespace
         document_type::Preset preset;
         preset.name = required_string(v, path, "name");
         preset.display_name = optional_string(v, path, "display_name").value_or("");
-        preset.editable = optional_boolean(v, path, "editable");
+        preset.modifiable = optional_boolean(v, path, "modifiable");
 
         if (const raw_values_type* p = member(v, "values"); p != nullptr)
         {

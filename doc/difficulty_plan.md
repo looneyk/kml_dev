@@ -59,12 +59,12 @@ and `Speed` and `Detection` are components it gives them. Damage, luck and the r
   `### Setting groups`). Selecting a mode sets the group's value, and the multipliers are then the mode's.
 - **Normal is the default preset,** the one a new game has. Each multiplier's own default is what resetting it in
   Custom's editor sets.
-- **Custom is an editable preset.** Its values are undefined in a new game; the first time it is selected, they are
+- **Custom is a modifiable preset.** Its values are undefined in a new game; the first time it is selected, they are
   the mode selected before it, and from then on they are the game's own, kept when another mode is selected and
   restored when Custom is selected again. The menu opens an editor of the multipliers while Custom is selected, and
   edits a multiplier only there. A script or the console setting one under another mode switches the mode to Custom
   with that mode's values, replacing Custom's own, and then sets the multiplier. A game built on the same framework that
-  does not allow customization defines no editable preset.
+  does not allow customization defines no modifiable preset.
 - **The menu may show each preset's values** beside it, from the preset itself.
 
 ## The modes' presets
@@ -80,7 +80,7 @@ The game's setting definitions in `assets/data` define the group, its members an
       { "name": "easy", "display_name": "Easy", "values": { "gameplay.difficulty.denizen_count_multiplier": "0.5", "gameplay.difficulty.denizen_speed_multiplier": "0.75", "gameplay.difficulty.detection_range_multiplier": "0.75" } },
       { "name": "normal", "display_name": "Normal", "values": { "gameplay.difficulty.denizen_count_multiplier": "1", "gameplay.difficulty.denizen_speed_multiplier": "1", "gameplay.difficulty.detection_range_multiplier": "1" } },
       { "name": "hard", "display_name": "Hard", "values": { "gameplay.difficulty.denizen_count_multiplier": "1.5", "gameplay.difficulty.denizen_speed_multiplier": "1.25", "gameplay.difficulty.detection_range_multiplier": "1.25" } },
-      { "name": "custom", "display_name": "Custom", "editable": true }
+      { "name": "custom", "display_name": "Custom", "modifiable": true }
     ]
   }
 ]

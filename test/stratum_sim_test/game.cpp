@@ -438,7 +438,7 @@ namespace
         settings::store().set_value<double>(detection_key, 2);
         string settings_save_name = saving.save(stratum_sim::SaveType::Explicit);
         stratum_format::raw_values_type settings_game_json = read_json(saving_config.saves_directory / settings_save_name / "game.json");
-        CHECK_CASE("a game saves its group's selected preset and its editable preset's values", settings_game_json["settings"]["gameplay.difficulty"]
+        CHECK_CASE("a game saves its group's selected preset and its modifiable preset's values", settings_game_json["settings"]["gameplay.difficulty"]
             == "custom" && settings_game_json["presets"]["gameplay.difficulty"]["custom"][detection_key] == "2"
             && !settings_game_json["settings"].contains(detection_key) && !settings_game_json["settings"].contains("gameplay.reseed_on_open"));
 
@@ -579,7 +579,7 @@ namespace
         test_settings.set_text("gameplay.difficulty", "hard");
         CHECK_CASE("whose presets set its members", test_settings.value<double>(count_key) == 1.5
             && test_settings.value<double>("gameplay.difficulty.denizen_speed_multiplier") == 1.25);
-        CHECK_CASE("and whose editable preset has no values until it is selected",
+        CHECK_CASE("and whose modifiable preset has no values until it is selected",
             test_settings.preset("gameplay.difficulty", "custom").values.empty());
 
         stratum_format::SettingDefinitionsDocument document;

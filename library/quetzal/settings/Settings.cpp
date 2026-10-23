@@ -197,7 +197,7 @@ void quetzal::settings::Settings::insert_group(std::string_view key, SettingScop
     }
 
     std::vector<std::string> preset_names;
-    bool editable_found = false;
+    bool modifiable_found = false;
     for (const auto& [preset_name, key_preset] : presets)
     {
         if (preset_name.empty())
@@ -210,19 +210,19 @@ void quetzal::settings::Settings::insert_group(std::string_view key, SettingScop
             throw std::runtime_error(std::format("the setting group '{}' has the preset '{}' twice", key, preset_name));
         }
 
-        if (key_preset.editable)
+        if (key_preset.modifiable)
         {
-            if (editable_found)
+            if (modifiable_found)
             {
-                throw std::runtime_error(std::format("the setting group '{}' has more than one editable preset", key));
+                throw std::runtime_error(std::format("the setting group '{}' has more than one modifiable preset", key));
             }
 
             if (!key_preset.values.empty())
             {
-                throw std::runtime_error(std::format("the editable preset '{}' of the setting group '{}' has values", preset_name, key));
+                throw std::runtime_error(std::format("the modifiable preset '{}' of the setting group '{}' has values", preset_name, key));
             }
 
-            editable_found = true;
+            modifiable_found = true;
         }
         else
         {
@@ -246,9 +246,9 @@ void quetzal::settings::Settings::insert_group(std::string_view key, SettingScop
         throw std::runtime_error(std::format("the setting group '{}' has no default preset '{}'", key, default_preset_name));
     }
 
-    if (default_preset->second.editable)
+    if (default_preset->second.modifiable)
     {
-        throw std::runtime_error(std::format("the default preset '{}' of the setting group '{}' is editable", default_preset_name, key));
+        throw std::runtime_error(std::format("the default preset '{}' of the setting group '{}' is modifiable", default_preset_name, key));
     }
 
     const std::string group_key(key);
@@ -383,7 +383,7 @@ void quetzal::settings::Settings::reset(SettingScope scope)
 
     for (auto& [key, key_preset] : m_presets)
     {
-        if (key_preset.editable && setting(key.first).scope == scope)
+        if (key_preset.modifiable && setting(key.first).scope == scope)
         {
             key_preset.values.clear();
         }
@@ -399,7 +399,7 @@ quetzal::settings::Settings::preset_values_type quetzal::settings::Settings::pre
     preset_values_type scope_values;
     for (const auto& [key, key_preset] : m_presets)
     {
-        if (key_preset.editable && !key_preset.values.empty() && setting(key.first).scope == scope)
+        if (key_preset.modifiable && !key_preset.values.empty() && setting(key.first).scope == scope)
         {
             scope_values.emplace(key, key_preset.values);
         }
@@ -488,11 +488,11 @@ const quetzal::settings::Preset& quetzal::settings::Settings::selected_preset(st
 }
 
 //------------------------------------------------------------------------------
-std::optional<std::string> quetzal::settings::Settings::editable_preset_name(std::string_view group_key) const
+std::optional<std::string> quetzal::settings::Settings::modifiable_preset_name(std::string_view group_key) const
 {
     for (const auto& preset_name : type(setting(group_key).type_name).values)
     {
-        if (preset(group_key, preset_name).editable)
+        if (preset(group_key, preset_name).modifiable)
         {
             return preset_name;
         }
@@ -533,7 +533,7 @@ void quetzal::settings::Settings::check_preset_members(std::string_view group_ke
 }
 
 //------------------------------------------------------------------------------
-void quetzal::settings::Settings::check_editable_preset_values(const preset_key_type& key, const KeyValueStore& values) const
+void quetzal::settings::Settings::check_modifiable_preset_values(const preset_key_type& key, const KeyValueStore& values) const
 {
     const auto& [group_key, preset_name] = key;
     if (!contains_group(group_key))
@@ -547,9 +547,9 @@ void quetzal::settings::Settings::check_editable_preset_values(const preset_key_
         throw std::runtime_error(std::format("'{}' is not a preset of the setting group '{}'", preset_name, group_key));
     }
 
-    if (!i->second.editable)
+    if (!i->second.modifiable)
     {
-        throw std::runtime_error(std::format("the preset '{}' of the setting group '{}' is not editable", preset_name, group_key));
+        throw std::runtime_error(std::format("the preset '{}' of the setting group '{}' is not modifiable", preset_name, group_key));
     }
 
     check_preset_members(group_key, preset_name, group(group_key).member_keys, values);
@@ -572,9 +572,9 @@ bool quetzal::settings::Settings::check_values(const KeyValueStore& values) cons
         }
 
         std::optional<std::string> group_key = member_group_key(key);
-        if (group_key.has_value() && !editable_preset_name(*group_key).has_value())
+        if (group_key.has_value() && !modifiable_preset_name(*group_key).has_value())
         {
-            throw std::runtime_error(std::format("the setting '{}' is a member of the setting group '{}', which has no editable preset", key, *group_key));
+            throw std::runtime_error(std::format("the setting '{}' is a member of the setting group '{}', which has no modifiable preset", key, *group_key));
         }
     }
 
@@ -587,7 +587,7 @@ bool quetzal::settings::Settings::check_presets(const preset_values_type& preset
 {
     for (const auto& [key, key_values] : preset_values)
     {
-        check_editable_preset_values(key, key_values);
+        check_modifiable_preset_values(key, key_values);
     }
 
     return std::ranges::all_of(preset_values, [this](const auto& preset_key_values)
@@ -638,7 +638,7 @@ void quetzal::settings::Settings::assign_values(const KeyValueStore& values)
 void quetzal::settings::Settings::select(std::string_view group_key, std::string_view preset_name)
 {
     Preset& selection = m_presets.find(preset_key(group_key, preset_name))->second;
-    if (selection.editable && selection.values.empty())
+    if (selection.modifiable && selection.values.empty())
     {
         selection.values = selected_preset(group_key).values;
     }
@@ -651,16 +651,16 @@ void quetzal::settings::Settings::select(std::string_view group_key, std::string
 void quetzal::settings::Settings::set_member(std::string_view key, std::string_view value)
 {
     const std::string group_key = *member_group_key(key);
-    const std::string editable_name = *editable_preset_name(group_key);
-    Preset& editable = m_presets.find(preset_key(group_key, editable_name))->second;
+    const std::string modifiable_name = *modifiable_preset_name(group_key);
+    Preset& modifiable = m_presets.find(preset_key(group_key, modifiable_name))->second;
 
-    if (current_value(group_key) != editable_name)
+    if (current_value(group_key) != modifiable_name)
     {
-        editable.values = selected_preset(group_key).values;
-        m_settings.find(group_key)->second.value = editable_name;
+        modifiable.values = selected_preset(group_key).values;
+        m_settings.find(group_key)->second.value = modifiable_name;
     }
 
-    editable.values.insert(std::string(key), std::string(value));
+    modifiable.values.insert(std::string(key), std::string(value));
     return;
 }
 
