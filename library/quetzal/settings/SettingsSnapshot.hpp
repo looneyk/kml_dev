@@ -20,12 +20,12 @@ namespace quetzal::settings
         KeyValueStore settings; // <key, value>
         Settings::preset_values_type presets; // <{group key, preset name}, values>
 
-        static SettingsSnapshot capture(SettingScope scope, const Settings& store);
+        static SettingsSnapshot capture(std::string_view scope, const Settings& store);
 
         // Sets the presets' values first, then the settings, so a selected modifiable preset has its own values. Checks every
-        // key, preset and value before changing any. Throws std::runtime_error if a key is not a setting's or a group's of the
+        // key, preset, and value before changing any. Throws std::runtime_error if a key is not a setting's or a group's in the
         // scope, or a preset or value is invalid or out of range
-        void restore(SettingScope scope, Settings& store) const;
+        void restore(std::string_view scope, Settings& store) const;
     };
 
 } // namespace quetzal::settings

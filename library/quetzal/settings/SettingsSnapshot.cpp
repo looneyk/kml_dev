@@ -9,32 +9,21 @@
 #include <stdexcept>
 #include <string_view>
 
-namespace
-{
-
-    //--------------------------------------------------------------------------
-    std::string_view scope_name(quetzal::settings::SettingScope scope)
-    {
-        return scope == quetzal::settings::SettingScope::Game ? "game" : "user";
-    }
-
-} // namespace
-
 //------------------------------------------------------------------------------
-quetzal::settings::SettingsSnapshot quetzal::settings::SettingsSnapshot::capture(SettingScope scope, const Settings& store)
+quetzal::settings::SettingsSnapshot quetzal::settings::SettingsSnapshot::capture(std::string_view scope, const Settings& store)
 {
     return {store.values(scope), store.preset_values(scope)};
 }
 
 //------------------------------------------------------------------------------
-void quetzal::settings::SettingsSnapshot::restore(SettingScope scope, Settings& store) const
+void quetzal::settings::SettingsSnapshot::restore(std::string_view scope, Settings& store) const
 {
     for (const auto& [key, key_values] : presets)
     {
         const auto& [group_key, preset_name] = key;
         if (!store.contains_group(group_key) || store.setting(group_key).scope != scope)
         {
-            throw std::runtime_error(std::format("'{}' is not a {} setting group", group_key, scope_name(scope)));
+            throw std::runtime_error(std::format("'{}' is not a setting group of the scope '{}'", group_key, scope));
         }
 
         for (const auto& [member_key, value] : key_values)
@@ -51,7 +40,7 @@ void quetzal::settings::SettingsSnapshot::restore(SettingScope scope, Settings& 
     {
         if (!store.contains(key) || store.setting(key).scope != scope)
         {
-            throw std::runtime_error(std::format("'{}' is not a {} setting", key, scope_name(scope)));
+            throw std::runtime_error(std::format("'{}' is not a setting of the scope '{}'", key, scope));
         }
 
         if (!store.type(store.setting(key).type_name).accepts(value))

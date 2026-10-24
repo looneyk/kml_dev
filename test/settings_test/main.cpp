@@ -116,16 +116,23 @@ namespace
         return keys;
     }
 
+    // The scopes these tests use; the store has no scope of its own
+    const std::string user_scope = "user";
+    const std::string game_scope = "game";
+
     //--------------------------------------------------------------------------
     void insert_all(Settings& test_settings)
     {
         test_settings.register_type<Mode>("mode", {"restore", "reseed"});
-        test_settings.insert("gameplay.mode", {.type_name = "mode", .default_value = "restore", .modifiable = true});
-        test_settings.insert("gameplay.difficulty", {.type_name = "text", .default_value = "adventure", .scope = SettingScope::Game,
+        test_settings.insert("gameplay.mode", {.type_name = "mode", .default_value = "restore", .scope = user_scope, .modifiable = true});
+        test_settings.insert("gameplay.difficulty", {.type_name = "text", .default_value = "adventure", .scope = game_scope,
             .modifiable = true});
-        test_settings.insert("video.fullscreen", {.type_name = "boolean", .default_value = "false", .restart_required = true, .modifiable = true});
-        test_settings.insert("video.width", {.type_name = "integer", .default_value = "1280", .modifiable = true, .minimum = "640", .maximum = "7680"});
-        test_settings.insert("audio.volume", {.type_name = "real", .default_value = "0.8", .modifiable = true, .minimum = "0", .maximum = "1"});
+        test_settings.insert("video.fullscreen", {.type_name = "boolean", .default_value = "false", .scope = user_scope, .restart_required = true,
+            .modifiable = true});
+        test_settings.insert("video.width", {.type_name = "integer", .default_value = "1280", .scope = user_scope, .modifiable = true,
+            .minimum = "640", .maximum = "7680"});
+        test_settings.insert("audio.volume", {.type_name = "real", .default_value = "0.8", .scope = user_scope, .modifiable = true,
+            .minimum = "0", .maximum = "1"});
         return;
     }
 
@@ -142,7 +149,7 @@ namespace
         CHECK_CASE("an enumeration's value is the text its formatter writes and its from_chars reads", quetzal::to_string(Mode::Reseed) == "reseed"
             && quetzal::try_type<Mode>("restore") == Mode::Restore && !quetzal::try_type<Mode>("Reseed") && !quetzal::try_type<Mode>("reseeded"));
         CHECK_CASE("the types a setting may have are those that format and parse", SettingValue<bool> && SettingValue<int> && SettingValue<double>
-            && SettingValue<std::string> && SettingValue<Mode> && !SettingValue<SettingScope>);
+            && SettingValue<std::string> && SettingValue<Mode> && !SettingValue<std::type_index>);
         return;
     }
 
@@ -157,7 +164,7 @@ namespace
             && !test_settings.value<bool>("video.fullscreen"));
         CHECK_CASE("and has its type name, default text, scope and whether a restart is required",
             test_settings.setting("video.fullscreen").type_name == "boolean" && test_settings.setting("video.fullscreen").default_value == "false"
-            && test_settings.setting("video.fullscreen").scope == SettingScope::User && test_settings.setting("video.fullscreen").restart_required);
+            && test_settings.setting("video.fullscreen").scope == user_scope && test_settings.setting("video.fullscreen").restart_required);
 
         test_settings.set_value<Mode>("gameplay.mode", Mode::Reseed);
         test_settings.set_value<int64_t>("video.width", 1920);
@@ -202,7 +209,7 @@ namespace
             && test_settings.value<bool>("torches.flicker") && test_settings.text("torches.flicker") == "true");
 
         test_settings.register_type<Mode>("mode", {"restore", "reseed"});
-        test_settings.insert("torches.mode", {.type_name = "mode", .default_value = "reseed", .scope = SettingScope::Game, .modifiable = true});
+        test_settings.insert("torches.mode", {.type_name = "mode", .default_value = "reseed", .scope = game_scope, .modifiable = true});
         CHECK_CASE("a type a library registers, an enumeration among them, may be a setting's type",
             test_settings.type("mode").cpp_type == type_index(typeid(Mode)) && test_settings.value<Mode>("torches.mode") == Mode::Reseed
             && throws([&] { test_settings.set_text("torches.mode", "sometimes"); }));
@@ -240,13 +247,13 @@ namespace
         test_settings.set_value<std::string>("gameplay.difficulty", "hardcore");
         test_settings.set_value<bool>("video.fullscreen", true);
 
-        quetzal::KeyValueStore user_values = test_settings.values(SettingScope::User);
-        quetzal::KeyValueStore game_values = test_settings.values(SettingScope::Game);
+        quetzal::KeyValueStore user_values = test_settings.values(user_scope);
+        quetzal::KeyValueStore game_values = test_settings.values(game_scope);
         CHECK_CASE("the values of a scope are those set in it, as text", user_values.value("video.fullscreen") == "true"
             && !user_values.contains("gameplay.difficulty") && !user_values.contains("video.width") && game_values.value("gameplay.difficulty") == "hardcore");
 
-        test_settings.reset(SettingScope::Game);
-        quetzal::KeyValueStore game_values_reset = test_settings.values(SettingScope::Game);
+        test_settings.reset(game_scope);
+        quetzal::KeyValueStore game_values_reset = test_settings.values(game_scope);
         CHECK_CASE("resetting a scope returns its settings to their defaults, and leaves the other's",
             test_settings.value<std::string>("gameplay.difficulty") == "adventure" && test_settings.value<bool>("video.fullscreen")
             && game_values_reset.empty());
@@ -257,6 +264,12 @@ namespace
         quetzal::KeyValueStore partly_wrong {{"video.width", "1600"}, {"video.height", "900"}};
         CHECK_CASE("values with a key that is not a setting's are an error, and none of them is set",
             throws([&] { test_settings.set_values(partly_wrong); }) && test_settings.value<int64_t>("video.width") == 1280);
+
+        test_settings.insert("torches.flicker", {.type_name = "boolean", .default_value = "true", .scope = "mod.torches", .modifiable = true});
+        test_settings.set_text("torches.flicker", "false");
+        CHECK_CASE("a scope is any name the client chooses, and a store has a scope for each name its settings have",
+            test_settings.values("mod.torches").value("torches.flicker") == "false" && !test_settings.values(user_scope).contains("torches.flicker")
+            && !test_settings.values(game_scope).contains("torches.flicker"));
         return;
     }
 
@@ -280,7 +293,7 @@ namespace
         CHECK_CASE("setting values calls each listener once, with every key changed", notifications.size() == 2
             && sorted(notifications.back()) == keys_set);
 
-        test_settings.reset(SettingScope::User);
+        test_settings.reset(user_scope);
         CHECK_CASE("and so does resetting a scope", notifications.size() == 3 && sorted(notifications.back()) == keys_set);
 
         test_settings.insert("flicker", {.type_name = "boolean", .default_value = "true", .modifiable = true});
@@ -326,10 +339,10 @@ namespace
     //--------------------------------------------------------------------------
     void insert_difficulty(Settings& test_settings)
     {
-        test_settings.insert("difficulty.count", {.type_name = "real", .default_value = "1", .scope = SettingScope::Game, .modifiable = true,
+        test_settings.insert("difficulty.count", {.type_name = "real", .default_value = "1", .scope = game_scope, .modifiable = true,
             .maximum = "4"});
-        test_settings.insert("difficulty.speed", {.type_name = "real", .default_value = "1", .scope = SettingScope::Game, .modifiable = true});
-        test_settings.insert_group("difficulty", SettingScope::Game, true, "normal", {"difficulty.count", "difficulty.speed"}, {
+        test_settings.insert("difficulty.speed", {.type_name = "real", .default_value = "1", .scope = game_scope, .modifiable = true});
+        test_settings.insert_group("difficulty", game_scope, true, "normal", {"difficulty.count", "difficulty.speed"}, {
             {"easy", {"Easy", false, quetzal::KeyValueStore {{"difficulty.count", "0.5"}, {"difficulty.speed", "0.75"}}}},
             {"normal", {"Normal", false, quetzal::KeyValueStore {{"difficulty.count", "1.2"}, {"difficulty.speed", "1"}}}},
             {"hard", {"Hard", false, quetzal::KeyValueStore {{"difficulty.count", "1.5"}, {"difficulty.speed", "1.25"}}}},
@@ -362,7 +375,7 @@ namespace
             test_settings.value<double>("difficulty.count") == 1.5 && test_settings.value<double>("difficulty.speed") == 1.25
             && notifications.size() == 1 && sorted(notifications.back()) == vector<string> {"difficulty", "difficulty.count", "difficulty.speed"});
 
-        SettingsSnapshot hard = SettingsSnapshot::capture(SettingScope::Game, test_settings);
+        SettingsSnapshot hard = SettingsSnapshot::capture(game_scope, test_settings);
         CHECK_CASE("a preset that is not modifiable is saved as the group's value alone", hard.settings.value("difficulty") == "hard"
             && hard.settings.value("difficulty.count") == nullopt && hard.presets.empty());
 
@@ -373,7 +386,7 @@ namespace
             && sorted(notifications.back()) == vector<string> {"difficulty", "difficulty.speed"});
 
         const Settings::preset_key_type custom_key {"difficulty", "custom"};
-        SettingsSnapshot custom = SettingsSnapshot::capture(SettingScope::Game, test_settings);
+        SettingsSnapshot custom = SettingsSnapshot::capture(game_scope, test_settings);
         CHECK_CASE("a modifiable preset is saved with its values", custom.settings.value("difficulty") == "custom"
             && custom.presets.at(custom_key).value("difficulty.count") == "1.5" && custom.presets.at(custom_key).value("difficulty.speed") == "2");
 
@@ -389,47 +402,47 @@ namespace
             && test_settings.value<double>("difficulty.speed") == 1.25);
 
         test_settings.set_text("difficulty", "normal");
-        SettingsSnapshot normal = SettingsSnapshot::capture(SettingScope::Game, test_settings);
+        SettingsSnapshot normal = SettingsSnapshot::capture(game_scope, test_settings);
         CHECK_CASE("the modifiable preset's values are kept and saved while another preset is selected",
             test_settings.value<double>("difficulty.count") == 1.2 && normal.settings.value("difficulty") == "normal"
             && normal.presets.at(custom_key).value("difficulty.count") == "3");
 
-        test_settings.reset(SettingScope::Game);
-        const quetzal::KeyValueStore game_values_reset = test_settings.values(SettingScope::Game);
+        test_settings.reset(game_scope);
+        const quetzal::KeyValueStore game_values_reset = test_settings.values(game_scope);
         const bool reset_to_default = test_settings.text("difficulty") == "normal" && game_values_reset.empty()
-            && test_settings.preset_values(SettingScope::Game).empty();
+            && test_settings.preset_values(game_scope).empty();
         test_settings.set_text("difficulty", "hard");
         test_settings.set_text("difficulty", "custom");
         CHECK_CASE("resetting a scope selects its groups' default presets, and leaves modifiable presets undefined until selected",
             reset_to_default && test_settings.value<double>("difficulty.count") == 1.5 && test_settings.value<double>("difficulty.speed") == 1.25);
 
-        test_settings.reset(SettingScope::Game);
-        custom.restore(SettingScope::Game, test_settings);
+        test_settings.reset(game_scope);
+        custom.restore(game_scope, test_settings);
         CHECK_CASE("restoring the values saved restores the selection and the modifiable preset's values",
             test_settings.text("difficulty") == "custom" && test_settings.value<double>("difficulty.count") == 1.5
             && test_settings.value<double>("difficulty.speed") == 2);
 
         CHECK_CASE("restoring values saved in another scope is an error",
-            throws_with([&] { custom.restore(SettingScope::User, test_settings); }, "'difficulty' is not a user setting group")
-            && throws_with([&] { SettingsSnapshot {.settings = {{"difficulty", "hard"}}}.restore(SettingScope::User, test_settings); },
-            "'difficulty' is not a user setting"));
+            throws_with([&] { custom.restore(user_scope, test_settings); }, "'difficulty' is not a setting group of the scope 'user'")
+            && throws_with([&] { SettingsSnapshot {.settings = {{"difficulty", "hard"}}}.restore(user_scope, test_settings); },
+            "'difficulty' is not a setting of the scope 'user'"));
         SettingsSnapshot out_of_range {.settings = {{"difficulty", "hard"}},
             .presets = {{custom_key, quetzal::KeyValueStore {{"difficulty.count", "5"}, {"difficulty.speed", "1"}}}}};
         CHECK_CASE("and a preset's value out of its range, which names the setting, and selects and sets nothing",
-            throws_with([&] { out_of_range.restore(SettingScope::Game, test_settings); }, "'5' is out of the range of the setting 'difficulty.count'")
+            throws_with([&] { out_of_range.restore(game_scope, test_settings); }, "'5' is out of the range of the setting 'difficulty.count'")
             && test_settings.text("difficulty") == "custom" && test_settings.value<double>("difficulty.count") == 1.5);
 
         SettingsSnapshot incomplete {.presets = {{custom_key, quetzal::KeyValueStore {{"difficulty.count", "2"}}}}};
         SettingsSnapshot not_modifiable {.presets = {{{"difficulty", "hard"}, quetzal::KeyValueStore {{"difficulty.count", "2"},
             {"difficulty.speed", "1"}}}}};
         CHECK_CASE("and a modifiable preset's values that leave out a member, or values of a preset that is not modifiable",
-            throws_with([&] { incomplete.restore(SettingScope::Game, test_settings); },
+            throws_with([&] { incomplete.restore(game_scope, test_settings); },
             "the preset 'custom' of the setting group 'difficulty' does not set its member 'difficulty.speed'")
-            && throws_with([&] { not_modifiable.restore(SettingScope::Game, test_settings); },
+            && throws_with([&] { not_modifiable.restore(game_scope, test_settings); },
             "the preset 'hard' of the setting group 'difficulty' is not modifiable"));
 
         SettingsSnapshot member_value {.settings = {{"difficulty", "hard"}, {"difficulty.count", "2"}}};
-        member_value.restore(SettingScope::Game, test_settings);
+        member_value.restore(game_scope, test_settings);
         CHECK_CASE("a member's value restored is set as setting the member sets it, after the group's selection",
             test_settings.text("difficulty") == "custom" && test_settings.value<double>("difficulty.count") == 2
             && test_settings.value<double>("difficulty.speed") == 1.25);
@@ -438,15 +451,15 @@ namespace
             "'nightmare' is not a valid value of the setting 'difficulty'"));
 
         test_settings.insert("video.width", {.type_name = "integer", .default_value = "1280"});
-        test_settings.insert("other.count", {.type_name = "real", .default_value = "2", .scope = SettingScope::Game, .modifiable = true,
+        test_settings.insert("other.count", {.type_name = "real", .default_value = "2", .scope = game_scope, .modifiable = true,
             .maximum = "4"});
         const Preset other_a {"A", false, quetzal::KeyValueStore {{"other.count", "2"}}};
         auto insert_other = [&test_settings](const vector<string>& member_keys, const presets_type& presets, string_view default_preset_name = "a")
         {
-            test_settings.insert_group("other", SettingScope::Game, true, default_preset_name, member_keys, presets);
+            test_settings.insert_group("other", game_scope, true, default_preset_name, member_keys, presets);
         };
 
-        CHECK_CASE("a group whose key is a setting's is an error", throws([&] { test_settings.insert_group("difficulty", SettingScope::Game, true, "a",
+        CHECK_CASE("a group whose key is a setting's is an error", throws([&] { test_settings.insert_group("difficulty", game_scope, true, "a",
             {"other.count"}, {{"a", other_a}}); }));
         CHECK_CASE("and so is a group with no members or a member twice, or a default preset that is missing or modifiable",
             throws([&] { insert_other({}, {{"a", other_a}}); })
@@ -483,7 +496,7 @@ namespace
     TEST_CASE("modifiable settings")
     {
         Settings test_settings;
-        test_settings.insert("world.seed", {.type_name = "integer", .default_value = "1", .scope = SettingScope::Game});
+        test_settings.insert("world.seed", {.type_name = "integer", .default_value = "1", .scope = game_scope});
         test_settings.insert("video.width", {.type_name = "integer", .default_value = "1280"});
         test_settings.insert("video.height", {.type_name = "integer", .default_value = "720", .modifiable = true});
 
@@ -496,9 +509,9 @@ namespace
             test_settings.initialize_values({{"world.seed", "2"}, {"video.width", "1920"}}, {}) && test_settings.text("world.seed") == "2"
             && test_settings.text("video.width") == "1920");
 
-        test_settings.insert("rules.count", {.type_name = "real", .default_value = "1", .scope = SettingScope::Game, .modifiable = true});
-        test_settings.insert("rules.speed", {.type_name = "real", .default_value = "1", .scope = SettingScope::Game});
-        test_settings.insert_group("rules", SettingScope::Game, false, "normal", {"rules.count", "rules.speed"}, {
+        test_settings.insert("rules.count", {.type_name = "real", .default_value = "1", .scope = game_scope, .modifiable = true});
+        test_settings.insert("rules.speed", {.type_name = "real", .default_value = "1", .scope = game_scope});
+        test_settings.insert_group("rules", game_scope, false, "normal", {"rules.count", "rules.speed"}, {
             {"normal", {"Normal", false, quetzal::KeyValueStore {{"rules.count", "1"}, {"rules.speed", "1"}}}},
             {"hard", {"Hard", false, quetzal::KeyValueStore {{"rules.count", "2"}, {"rules.speed", "2"}}}},
             {"custom", {"Custom", true}}});
@@ -507,19 +520,19 @@ namespace
             throws_with([&] { test_settings.set_text("rules", "hard"); }, "the setting 'rules' is not modifiable")
             && throws_with([&] { test_settings.set_values({}, {{custom_key, quetzal::KeyValueStore {{"rules.count", "3"}, {"rules.speed", "1"}}}}); },
             "the setting group 'rules' is not modifiable"));
-        CHECK_CASE("and its members fixed, a modifiable one included",
-            throws([&] { test_settings.set_text("rules.count", "3"); }) && test_settings.text("rules") == "normal");
+        CHECK_CASE("and its members fixed, a modifiable one included", throws_with([&] { test_settings.set_text("rules.count", "3"); },
+            "the setting 'rules.count' is not modifiable since its setting group 'rules' is not modifiable") && test_settings.text("rules") == "normal");
 
-        test_settings.insert("modes.count", {.type_name = "real", .default_value = "1", .scope = SettingScope::Game, .modifiable = true});
-        test_settings.insert("modes.speed", {.type_name = "real", .default_value = "1", .scope = SettingScope::Game});
-        test_settings.insert_group("modes", SettingScope::Game, true, "normal", {"modes.count", "modes.speed"}, {
+        test_settings.insert("modes.count", {.type_name = "real", .default_value = "1", .scope = game_scope, .modifiable = true});
+        test_settings.insert("modes.speed", {.type_name = "real", .default_value = "1", .scope = game_scope});
+        test_settings.insert_group("modes", game_scope, true, "normal", {"modes.count", "modes.speed"}, {
             {"normal", {"Normal", false, quetzal::KeyValueStore {{"modes.count", "1"}, {"modes.speed", "1"}}}},
             {"custom", {"Custom", true}}});
         test_settings.set_text("modes.count", "3");
         CHECK_CASE("in a modifiable group with a modifiable preset, a modifiable member can be set, and one that is not cannot",
             test_settings.text("modes") == "custom" && test_settings.text("modes.count") == "3"
-            && throws_with([&] { test_settings.set_text("modes.speed", "3"); }, "the setting 'modes.speed' is not modifiable, which requires "
-            "it, its setting group 'modes', and the group's modifiable preset") && test_settings.text("modes.speed") == "1");
+            && throws_with([&] { test_settings.set_text("modes.speed", "3"); }, "the setting 'modes.speed' is not modifiable")
+            && test_settings.text("modes.speed") == "1");
         return;
     }
 
@@ -528,30 +541,30 @@ namespace
     {
         Settings test_settings;
         test_settings.insert("world.size_default", {.type_name = "integer", .default_value = "1000", .modifiable = true});
-        test_settings.insert("world.size", {.type_name = "integer", .default_value = "5", .scope = SettingScope::Game,
+        test_settings.insert("world.size", {.type_name = "integer", .default_value = "5", .scope = game_scope,
             .initializer_setting = "world.size_default", .minimum = "1"});
-        test_settings.insert("world.depth", {.type_name = "integer", .default_value = "3", .scope = SettingScope::Game,
+        test_settings.insert("world.depth", {.type_name = "integer", .default_value = "3", .scope = game_scope,
             .initializer_setting = "world.depth_default"});
 
-        test_settings.apply_initializers(SettingScope::Game);
+        test_settings.apply_initializers(game_scope);
         CHECK_CASE("a setting takes its initializer setting's value, or keeps its own default if that setting is not defined",
             test_settings.text("world.size") == "1000" && test_settings.text("world.depth") == "3");
 
         test_settings.set_text("world.size_default", "7");
-        test_settings.apply_initializers(SettingScope::Game);
+        test_settings.apply_initializers(game_scope);
         CHECK_CASE("and takes the initializer setting's value as it is then", test_settings.text("world.size") == "7");
 
         test_settings.set_text("world.size_default", "0");
         CHECK_CASE("an initializer setting's value out of the range of the setting it initializes is an error, which changes nothing",
-            throws_with([&] { test_settings.apply_initializers(SettingScope::Game); },
+            throws_with([&] { test_settings.apply_initializers(game_scope); },
             "the initializer setting 'world.size_default' of the setting 'world.size' has the value '0', which is not a valid value of it")
             && test_settings.text("world.size") == "7");
 
         test_settings.set_text("world.size_default", "7");
-        test_settings.insert("world.width", {.type_name = "integer", .default_value = "5", .scope = SettingScope::Game,
+        test_settings.insert("world.width", {.type_name = "integer", .default_value = "5", .scope = game_scope,
             .initializer_setting = "world.size"});
-        CHECK_CASE("and so is an initializer setting of the scope being initialized", throws_with([&] { test_settings.apply_initializers(SettingScope::Game); },
-            "the initializer setting 'world.size' of the setting 'world.width' is of the same scope"));
+        test_settings.apply_initializers(game_scope);
+        CHECK_CASE("an initializer setting may be of the scope it initializes", test_settings.text("world.width") == "7");
         return;
     }
 

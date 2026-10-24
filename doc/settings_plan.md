@@ -23,7 +23,7 @@ game. The open items are in `work_plan.md` (`### Settings`), and the work that r
 | **apply** | Putting a change into effect where the next read is not soon enough, such as switching the video mode | *apply* in Unreal's `ApplySettings`; a `ConVar`'s *change callback* in Source does it for one setting |
 | **change notification** | The store calling each change listener once after an operation that changed one or more settings, with the keys it changed | *change callback* in Source (`FnChangeCallback_t`); the `onDidChangeConfiguration` event of VS Code's settings; the `settings_changed` signal of Godot's `ProjectSettings` |
 | **restart required** | A setting that takes effect only when the program starts again | `restart_if_changed` in Godot; `ConfigRestartRequired` in Unreal; *requires restart* in options menus |
-| **scope** | Whether a setting is a game's, saved in `game.json`, or the user's, saved in the user settings file: `SettingScope::Game` or `SettingScope::User` | NetHack's `flags` and `iflags`; Source's `FCVAR_ARCHIVE` flag; Godot's project settings and editor settings; the *layers* of Unreal's config: engine, project, platform and user |
+| **scope** | Whether a setting is a game's, saved in `game.json`, or the user's, saved in the user settings file: a name the client chooses, `game_setting_scope` or `user_setting_scope` in stratum | NetHack's `flags` and `iflags`; Source's `FCVAR_ARCHIVE` flag; Godot's project settings and editor settings; the *layers* of Unreal's config: engine, project, platform and user |
 | **user settings file** | `settings.json` in the user directory, unless the config file puts it elsewhere (`game_file_spec.md`): the file the user settings are saved in | *config.cfg* in Source; *GameUserSettings.ini* in Unreal; a `ConfigFile` in `user://` in Godot; the *options file* or *rc file*, `.nethackrc` and `init.txt`, in the roguelikes |
 
 By convention, a key's sections are separated by `.`, as the `RegionSpec` and `ZoneSpec` keys already are (`zone.level`,
@@ -176,7 +176,6 @@ The library is `library/quetzal/settings/`, the target `quetzal_settings` in the
 namespace quetzal::settings
 {
 
-    enum class SettingScope { User, Game };
     enum class SettingBaseType { Boolean, Integer, Real, Text };
 
     // A C++ type a setting may have: one that std::format writes, and that quetzal::try_type reads back through
@@ -212,7 +211,7 @@ namespace quetzal::settings
     {
         std::string type_name;
         std::string default_value;
-        SettingScope scope;
+        std::string scope;                         // A name the client chooses
         bool restart_required;
         bool modifiable;                           // True if set_values may change it
         std::optional<std::string> initializer_setting; // The setting of another scope whose value apply_initializers copies
@@ -245,7 +244,7 @@ namespace quetzal::settings
 
         // Registers a group type under the key, whose values are the presets' names in order, and inserts the group's
         // setting of that type, whose default is the default preset. Requires the members to be inserted already
-        void insert_group(std::string_view key, SettingScope scope, bool modifiable, std::string_view default_preset_name,
+        void insert_group(std::string_view key, std::string_view scope, bool modifiable, std::string_view default_preset_name,
             std::vector<std::string> member_keys, std::vector<std::pair<std::string, Preset>> presets, std::string_view display_name = {},
             std::string_view category = {});
         bool contains_group(std::string_view key) const;
@@ -260,15 +259,15 @@ namespace quetzal::settings
         std::string text(std::string_view key) const;                                                // by key, as text
         bool set_text(std::string_view key, std::string_view text);
 
-        KeyValueStore values(SettingScope scope) const;                                              // saving
+        KeyValueStore values(std::string_view scope) const;                                              // saving
         bool set_values(const KeyValueStore& values);                                                // during play
         bool set_values(const KeyValueStore& values, const preset_values_type& preset_values);       // modifiable presets' first
         bool initialize_values(const KeyValueStore& values, const preset_values_type& preset_values); // loading, fixed settings too
-        void reset(SettingScope scope);                                                              // a game cleared
-        void apply_initializers(SettingScope scope);                                                 // a game created
+        void reset(std::string_view scope);                                                              // a game cleared
+        void apply_initializers(std::string_view scope);                                                 // a game created
 
         // The defined values of each modifiable preset of the scope's groups
-        preset_values_type preset_values(SettingScope scope) const;
+        preset_values_type preset_values(std::string_view scope) const;
 
         listener_id_type add_change_listener(std::function<void(const std::vector<std::string>& keys_changed)> listener);
         void remove_listener(listener_id_type listener_id);
@@ -294,11 +293,11 @@ namespace quetzal::settings
         KeyValueStore settings;                                       // <key, value>, groups' selections included
         Settings::preset_values_type presets;                         // <{group key, preset name}, values>
 
-        static SettingsSnapshot capture(SettingScope scope, const Settings& store);
+        static SettingsSnapshot capture(std::string_view scope, const Settings& store);
 
         // Checks every key, preset and value before changing any. Sets the presets' values first, then the settings, with one
         // set_values, so loading a file notifies once
-        void restore(SettingScope scope, Settings& store) const;
+        void restore(std::string_view scope, Settings& store) const;
     };
 
 } // namespace quetzal::settings
@@ -317,12 +316,12 @@ namespace quetzal::settings
 - **An operation reads its settings** with `value<T>(key)`, when it begins or as it needs them. A subsystem that has to
   act on a change at once, such as the view switching the video mode, adds a change listener that acts when any of its
   keys is among the keys changed.
-- **Saving writes the values set in each scope,** `values(SettingScope::Game)` into `game.json`, and
-  `values(SettingScope::User)` into the user settings file, each value as text, in the file's `settings`, and the
+- **Saving writes the values set in each scope,** `values(game_setting_scope)` into `game.json`, and
+  `values(user_setting_scope)` into the user settings file, each value as text, in the file's `settings`, and the
   defined values of the scope's modifiable presets, `preset_values`, in its `presets`. A setting never set is not
   written, so it keeps its default, even if the default changes. A member never has a value of its own, so saving
   writes none for it in `settings`; a member's value that a file's `settings` has is set as setting the member sets it.
-- **A game cleared** returns the game scope's settings to their defaults with `reset(SettingScope::Game)`, which
+- **A game cleared** returns the game scope's settings to their defaults with `reset(game_setting_scope)`, which
   selects each group's default preset and leaves the values of its modifiable presets undefined.
 
 **The store's decisions:**

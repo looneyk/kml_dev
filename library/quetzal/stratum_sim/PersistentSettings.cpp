@@ -13,7 +13,7 @@
 #include <vector>
 
 //------------------------------------------------------------------------------
-quetzal::stratum_sim::PersistentSettings::PersistentSettings(const std::filesystem::path& filepath, settings::SettingScope scope,
+quetzal::stratum_sim::PersistentSettings::PersistentSettings(const std::filesystem::path& filepath, std::string_view scope,
     settings::Settings& store) :
     m_filepath(filepath),
     m_scope(scope),

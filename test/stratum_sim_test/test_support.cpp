@@ -60,8 +60,8 @@ stratum_sim_test::WorldFixture::WorldFixture()
         definitions_loaded = true;
     }
 
-    settings::store().reset(settings::SettingScope::User);
-    settings::store().reset(settings::SettingScope::Game);
+    settings::store().reset(stratum_sim::user_setting_scope);
+    settings::store().reset(stratum_sim::game_setting_scope);
     stratum_sim::gameplay_random().seed(test_random_seed);
 }
 

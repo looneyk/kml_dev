@@ -147,7 +147,7 @@ namespace
 stratum_terminal::Application::Application(View view, const std::string& script, bool incremental) :
     m_game(stratum_sim::load_config(executable_directory())),
     m_session(m_game.session()),
-    m_user_settings(m_game.config().user_settings_filepath, settings::SettingScope::User, settings::store()),
+    m_user_settings(m_game.config().user_settings_filepath, stratum_sim::user_setting_scope, settings::store()),
     m_view_requested(view),
     m_view(view),
     m_view_glyphs(),

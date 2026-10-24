@@ -70,14 +70,14 @@ namespace quetzal::settings
         // Requires the members to be inserted already, with no value
         // Throws std::runtime_error if the key is empty or used, a member is not a setting of the group's scope or is
         // another group's member or a group, the default preset is missing or modifiable, or a preset is invalid
-        void insert_group(std::string_view key, SettingScope scope, bool modifiable, std::string_view default_preset_name,
+        void insert_group(std::string_view key, std::string_view scope, bool modifiable, std::string_view default_preset_name,
             std::vector<std::string> member_keys, std::vector<std::pair<std::string, Preset>> presets, std::string_view display_name = {},
             std::string_view category = {});
 
         bool contains_group(std::string_view key) const;
         const SettingGroup& group(std::string_view key) const;
 
-        // Returns the key of the member's parent group, nullopt if the key is not a member
+        // Returns the key of the member's parent group setting, nullopt if the key is not a member
         std::optional<std::string> member_group_key(std::string_view key) const;
 
         const Preset& preset(std::string_view group_key, std::string_view preset_name) const;
@@ -94,49 +94,34 @@ namespace quetzal::settings
         bool set_text(std::string_view key, std::string_view value);
 
         // Returns each setting in the scope
-        KeyValueStore values(SettingScope scope) const;
+        KeyValueStore values(std::string_view scope) const;
 
-        // Sets several settings in one operation, with one change notification. The values are each setting's new value as
-        // text, by its key, in the form values(scope) returns: a group's value selects one of its presets, and a member's value
-        // is set in its group's modifiable preset. Groups are selected before members are set; a member set while another
-        // preset is selected first copies that preset's values into the modifiable preset and selects it. Changes nothing if
-        // any value is invalid: throws std::runtime_error for a key or value that is invalid, a member of a group with no
-        // modifiable preset, or a setting that is not modifiable, and returns false if a value is out of range. A group's
-        // selection is modifiable if the group is, and a member if the member, its group, and the group's modifiable preset
-        // all are
+        // Sets the values of multiple settings in one operation with a single change notification
         bool set_values(const KeyValueStore& values);
 
-        // Sets the values of modifiable presets, then the settings, in one operation. The preset values are each modifiable
-        // preset's values, by its group's key and its name, in the form preset_values(scope) returns, with a value for each
-        // member of the group. A group's preset values are modifiable if the group and each of its members are. The values
-        // are those of the overload above
+        // Sets the values of presets and then settings in one operation with a single change notification
+        // These settings, including presets, must be modifiable
         bool set_values(const KeyValueStore& values, const preset_values_type& preset_values);
 
-        // Sets the values of modifiable presets, then the settings, in one operation, whether or not they are modifiable, so
-        // a scope's values can be loaded or set for the first time. Changes nothing if any value is invalid: throws
-        // std::runtime_error for a key or value that is invalid or a member of a group with no modifiable preset, and returns
-        // false if a value is out of range
+        // Sets the values of presets and then settings in one operation
+        // These settings, including presets, need not be modifiable, so this can be used for initialization
         bool initialize_values(const KeyValueStore& values, const preset_values_type& preset_values);
 
-        // Sets each setting in the scope to its default, which selects each group's default preset, and leaves the values of the
-        // groups' modifiable presets undefined
-        void reset(SettingScope scope);
+        // Sets the value of each setting in the scope to its default
+        void reset(std::string_view scope);
 
-        // Sets each setting in the scope that has an initializer setting to that setting's value, unless the initializer
-        // setting is not defined. Throws std::runtime_error, changing nothing, if an initializer setting is of the same scope,
-        // or its value is invalid or out of range for the setting it initializes
-        void apply_initializers(SettingScope scope);
+        // Sets the value of each setting in the scope to the value of its setting's initializer_setting
+        void apply_initializers(std::string_view scope);
 
         // Returns the defined values of the modifiable presets of the scope's groups
-        preset_values_type preset_values(SettingScope scope) const;
+        preset_values_type preset_values(std::string_view scope) const;
 
-        // The listener is called once for each set_value, set_text, set_values or reset that changes any setting, after
-        // every setting it changes has changed, with their keys
+        // Called once for each function that changes setting values after the values have been changed
         listener_id_type add_change_listener(std::function<void(const std::vector<std::string>& keys_changed)> listener);
 
         void remove_listener(listener_id_type listener_id);
 
-        // Retains only built-in registered types, and every listener
+        // Retains only built-in registered types and listeners
         void clear();
 
     private:
@@ -170,14 +155,15 @@ namespace quetzal::settings
         bool check_values(const KeyValueStore& values) const;
         bool check_presets(const preset_values_type& preset_values) const;
 
-        // Throws std::runtime_error for a setting, group or preset that is not modifiable. Keys that are not settings or
-        // groups are left to check_values and check_presets
+        // Throws std::runtime_error if a value is for a setting that is not modifiable, or for a member of a group that is not
+        // modifiable or has no modifiable preset, or if preset values are for a group that is not modifiable or set a member
+        // that is not. Skips keys that are not found in the store
         void check_modifiable(const KeyValueStore& values, const preset_values_type& preset_values) const;
 
         // Checks the values and the presets' values, assigns them, and notifies the listeners of the keys changed
         bool change_values(const KeyValueStore& values, const preset_values_type& preset_values);
 
-        // Each changes the store without notifying, after the values are checked
+        // Each assigns values that are already checked, without notifying the listeners
         void assign_presets(const preset_values_type& preset_values);
         void assign_values(const KeyValueStore& values);
 
@@ -185,12 +171,18 @@ namespace quetzal::settings
         void select(std::string_view group_key, std::string_view preset_name);
         void set_member(std::string_view key, std::string_view value);
 
-        // The keys of the values and of the presets' groups, and the members of each of those groups
+        // Returns the keys whose values a change to the values and preset values can affect, in key order. These are the key of
+        // each value, and the key and member keys of each group involved. A group is involved if a value is for the group or
+        // one of its members, or the preset values are for one of its presets
         std::vector<std::string> extract_keys(const KeyValueStore& values, const preset_values_type& preset_values) const;
+
+        // Returns the current value of each key as text, in the order of the keys
         std::vector<std::string> current_values(const std::vector<std::string>& keys) const;
+
+        // Returns the keys whose current values differ from the original values, in the order of the keys
         std::vector<std::string> changed_keys(const std::vector<std::string>& keys, const std::vector<std::string>& original_values) const;
 
-        // Calls each change listener, unless no key changed
+        // Calls each change listener
         void notify(const std::vector<std::string>& keys_changed);
 
         std::map<std::string, SettingType, std::less<>> m_registered_types; // <type name, type>

@@ -8,6 +8,8 @@
 #include "quetzal/settings/Setting.hpp"
 #include "quetzal/settings/Settings.hpp"
 #include <filesystem>
+#include <string>
+#include <string_view>
 
 namespace quetzal::stratum_sim
 {
@@ -20,7 +22,7 @@ namespace quetzal::stratum_sim
     public:
 
         // Adds a change listener to the store, which must outlive it, and removes it when destroyed
-        PersistentSettings(const std::filesystem::path& filepath, settings::SettingScope scope, settings::Settings& store);
+        PersistentSettings(const std::filesystem::path& filepath, std::string_view scope, settings::Settings& store);
         PersistentSettings(const PersistentSettings&) = delete;
         PersistentSettings(PersistentSettings&&) = delete;
         ~PersistentSettings();
@@ -42,7 +44,7 @@ namespace quetzal::stratum_sim
     private:
 
         std::filesystem::path m_filepath;
-        settings::SettingScope m_scope;
+        std::string m_scope;
         settings::Settings& m_settings;
         settings::Settings::listener_id_type m_change_listener_id;
         bool m_changed = false;

@@ -8,9 +8,15 @@
 #include "quetzal/settings/Settings.hpp"
 #include "quetzal/stratum_format/SettingDefinitionsDocument.hpp"
 #include <filesystem>
+#include <string_view>
 
 namespace quetzal::stratum_sim
 {
+
+    // The names of the two setting scopes: the user's settings, saved in the user settings file, and a game's, saved in
+    // its game.json
+    inline constexpr std::string_view user_setting_scope = "user";
+    inline constexpr std::string_view game_setting_scope = "game";
 
     // Registers the document's enumerations, then inserts its settings, then its groups, so each may refer to those before it.
     // Every user setting and group is modifiable, and only a game setting may have an initializer

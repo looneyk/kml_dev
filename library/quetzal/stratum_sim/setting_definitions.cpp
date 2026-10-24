@@ -16,9 +16,9 @@ namespace
     using document_type = quetzal::stratum_format::SettingDefinitionsDocument;
 
     //--------------------------------------------------------------------------
-    quetzal::settings::SettingScope setting_scope(document_type::Scope scope)
+    std::string setting_scope(document_type::Scope scope)
     {
-        return scope == document_type::Scope::Game ? quetzal::settings::SettingScope::Game : quetzal::settings::SettingScope::User;
+        return std::string(scope == document_type::Scope::Game ? quetzal::stratum_sim::game_setting_scope : quetzal::stratum_sim::user_setting_scope);
     }
 
 } // namespace

@@ -13,7 +13,7 @@ namespace quetzal::settings
 {
 
     //--------------------------------------------------------------------------
-    // A setting whose value is the name of its selected preset, and the settings its presets assign
+    // The keys of the settings that make up the group identified by key
     struct SettingGroup
     {
         std::string key;
@@ -25,7 +25,7 @@ namespace quetzal::settings
     {
         std::string display_name;
         bool modifiable = false;
-        KeyValueStore values; // <member key, value>; empty for a modifiable preset not yet defined
+        KeyValueStore values; // <member_key, value>
     };
 
 } // namespace quetzal::settings

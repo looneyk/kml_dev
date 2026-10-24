@@ -446,7 +446,7 @@ namespace
 
         saving.open(save_name);
         CHECK_CASE("and a game opened without them has the game settings' defaults", settings::store().text("gameplay.difficulty") == "normal"
-            && settings::store().value<double>(detection_key) == 1 && settings::store().preset_values(settings::SettingScope::Game).empty());
+            && settings::store().value<double>(detection_key) == 1 && settings::store().preset_values(stratum_sim::game_setting_scope).empty());
 
         saving.open(settings_save_name);
         CHECK_CASE("and opened with them has them again", settings::store().text("gameplay.difficulty") == "custom"
@@ -529,7 +529,7 @@ namespace
         settings::Settings test_settings;
         stratum_sim::load_setting_definitions("../../assets", test_settings);
 
-        stratum_sim::PersistentSettings user_settings(filepath, settings::SettingScope::User, test_settings);
+        stratum_sim::PersistentSettings user_settings(filepath, stratum_sim::user_setting_scope, test_settings);
         user_settings.load();
         CHECK_CASE("with no settings file, the settings have their defaults, and nothing has changed",
             !test_settings.value<bool>(stratum_sim::Game::reseed_on_open_key) && !user_settings.changed());
@@ -548,7 +548,7 @@ namespace
 
         settings::Settings opened_settings;
         stratum_sim::load_setting_definitions("../../assets", opened_settings);
-        stratum_sim::PersistentSettings opened_user_settings(filepath, settings::SettingScope::User, opened_settings);
+        stratum_sim::PersistentSettings opened_user_settings(filepath, stratum_sim::user_setting_scope, opened_settings);
         opened_user_settings.load();
         CHECK_CASE("and loading it sets them again, which is no change", opened_settings.value<bool>(stratum_sim::Game::reseed_on_open_key)
             && opened_settings.text("gameplay.difficulty") == "normal" && !opened_user_settings.changed());
@@ -571,7 +571,7 @@ namespace
         }
 
         CHECK_CASE("a game setting in the user settings file is an error, which names the file and the setting",
-            game_setting_error == "out/user/settings.json: 'gameplay.difficulty.denizen_count_multiplier' is not a user setting"
+            game_setting_error == "out/user/settings.json: 'gameplay.difficulty.denizen_count_multiplier' is not a setting of the scope 'user'"
             && opened_settings.value<double>("gameplay.difficulty.denizen_count_multiplier") == 1);
         return;
     }
@@ -585,7 +585,7 @@ namespace
 
         const string count_key = "gameplay.difficulty.denizen_count_multiplier";
         CHECK_CASE("the game's definitions insert its settings, with their menu fields and ranges", test_settings.contains(count_key)
-            && test_settings.setting(count_key).scope == settings::SettingScope::Game && test_settings.setting(count_key).category == "difficulty"
+            && test_settings.setting(count_key).scope == stratum_sim::game_setting_scope && test_settings.setting(count_key).category == "difficulty"
             && test_settings.setting(count_key).minimum == "0.25" && !test_settings.bounded_inclusive(count_key, "5"));
         CHECK_CASE("and its difficulty group, on its default preset", test_settings.contains_group("gameplay.difficulty")
             && test_settings.text("gameplay.difficulty") == "normal" && test_settings.setting("gameplay.difficulty").display_name == "Difficulty"
@@ -604,7 +604,7 @@ namespace
         stratum_sim::insert_definitions(document, test_settings);
         CHECK_CASE("an enumeration is registered before the settings that have it", test_settings.registered_type("mod.torches.style")
             && test_settings.text("mod.torches.style") == "flicker" && test_settings.setting("mod.torches.style").restart_required
-            && test_settings.setting("mod.torches.style").scope == settings::SettingScope::User);
+            && test_settings.setting("mod.torches.style").scope == stratum_sim::user_setting_scope);
 
         bool inserted_twice_throws = false;
         try

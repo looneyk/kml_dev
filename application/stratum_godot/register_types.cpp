@@ -71,7 +71,7 @@ void initialize_stratum_module(godot::ModuleInitializationLevel level)
     }
 
     quetzal::stratum_sim::load_setting_definitions(config.assets_directory, quetzal::settings::store());
-    g_user_settings.emplace(config.user_settings_filepath, quetzal::settings::SettingScope::User, quetzal::settings::store());
+    g_user_settings.emplace(config.user_settings_filepath, quetzal::stratum_sim::user_setting_scope, quetzal::settings::store());
     g_user_settings->load();
 
     GDREGISTER_CLASS(StratumWorld);

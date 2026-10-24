@@ -655,8 +655,9 @@ stopped by an occupied cell in `World::move`.
 under its key. A key is compared only as a whole string. `insert(key, setting)` adds a `Setting` that has no value,
 and throws `std::runtime_error` if the key is empty or is a setting's already, the type name is not registered, the
 default is not a value of the type or is out of range, or a minimum or maximum is not a value of the type or is given
-for a type that is not an integer or a real. A `Setting` has its type name, its default, its `SettingScope`, `User` or
-`Game`, whether a restart is required, its display name, description and category, the menu page that shows it, an
+for a type that is not an integer or a real. A `Setting` has its type name, its default, its scope, a name the client
+chooses, whose values the client saves and loads apart from the other scopes' and which every function over a scope
+takes as a `std::string_view`, whether a restart is required, its display name, description and category, the menu page that shows it, an
 optional minimum and maximum, and its value as text, which is empty while the setting has its default.
 
 `register_type<T>(type_name, values)` registers a type for any `T` that `std::format` writes and `from_chars` reads,
@@ -708,15 +709,16 @@ nothing, for a setting that is not modifiable; for a group member unless the mem
 preset all are; and for a group's preset values unless the group and each member are. `initialize_values(values,
 preset_values)` sets values in one operation whether or not they are modifiable, and `SettingsSnapshot::restore` uses
 it, so opening a game or loading a settings file sets settings that are not modifiable. `Setting::initializer_setting`
-refers to a setting of another scope: `apply_initializers(scope)` sets each setting of the scope that has one to that
-setting's value, skipping an initializer setting that is not defined, and throws, changing nothing, for one of the same
-scope or whose value is invalid or out of range for the setting it initializes. Modifiability and initializers work the
-same in either scope; the settings library has no rule of a client's.
+refers to another setting: `apply_initializers(scope)` sets each setting of the scope that has one to that setting's
+value, skipping an initializer setting that is not defined, and throws, changing nothing, for one whose value is invalid
+or out of range for the setting it initializes. Which settings may initialize which is the client's to decide.
+Modifiability and initializers work the same in every scope; the settings library has no rule of a client's.
 
 `insert_definitions` applies stratum's rules: every user setting and group is modifiable, a game setting or group only
 if its definition has `modifiable` true, and only a game setting has an initializer. It throws `std::runtime_error` for a
 user setting or group whose definition has `modifiable`, or a user setting with an `initializer`. `Game::create` calls
-`apply_initializers(SettingScope::Game)`.
+`apply_initializers(game_setting_scope)`. `setting_definitions.hpp` has stratum's two scope names, `user_setting_scope`,
+`"user"`, and `game_setting_scope`, `"game"`, to which `insert_definitions` maps a definition file's `user` and `game`.
 
 ### Game and Character
 
@@ -764,7 +766,7 @@ changed since the settings were loaded or saved; and `save` and `save_if_changed
 the file's directory if needed.
 
 Each host calls `load_setting_definitions` once when it starts, then loads a `PersistentSettings` of the user settings
-file and `SettingScope::User` (`game_file_spec.md`, `## The user settings file`), and calls its `save_if_changed` when
+file and `user_setting_scope` (`game_file_spec.md`, `## The user settings file`), and calls its `save_if_changed` when
 it closes: the terminal in `Application`'s destructor, and Godot in `uninitialize_stratum_module`. In
 `stratum_sim_test`, `WorldFixture` calls `load_setting_definitions` once in the process, and returns every setting to its
 default before each test case that starts from it.
@@ -777,7 +779,7 @@ default before each test case that starts from it.
 their modifiable presets undefined, so a game created or opened starts from them.
 
 The working directory has only the game in progress. `Game::create(region_spec, character_spec, seed)` clears, applies
-the game settings' initializers with `apply_initializers(SettingScope::Game)`, resets the id allocator to count from zero, and seeds the gameplay random engine with the seed, or with one from
+the game settings' initializers with `apply_initializers(game_setting_scope)`, resets the id allocator to count from zero, and seeds the gameplay random engine with the seed, or with one from
 `math::random_seed()` if none is passed, keeping the seed and writing it to the log, so nothing passes from one game to
 the next. It empties the working directory and creates the game directory there, named by the
 character, whose name the spec must have, with each character a directory name cannot have replaced by `_`. It has the
