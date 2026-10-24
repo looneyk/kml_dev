@@ -55,7 +55,7 @@ namespace
     sim::Generation::GeneratorSelection select_dungen(const sim::World&, flecs::entity, const sim::ZoneSpec& zone_spec)
     {
         sim::ZoneSpec named_zone_spec = zone_spec;
-        const sim::level_type level = sim::zone_level(sim::zone_position(zone_spec));
+        const sim::level_type level = sim::zone_position(zone_spec).z;
         named_zone_spec.insert(std::string(sim::name_key), std::format("Dungeon Level {}", std::abs(level)));
 
         return sim::Generation::GeneratorSelection {std::string(quetzal::stratum_gen::dungen_generator_name), {}, {}, named_zone_spec};
@@ -67,9 +67,10 @@ namespace
     quetzal::stratum_gen::ZoneRequest make_zone_request(const sim::ZoneSpec& zone_spec)
     {
         std::optional<quetzal::stratum_gen::seed_type> seed = zone_spec.value<quetzal::stratum_gen::seed_type>(sim::seed_key);
+        const sim::ZonePosition position = sim::zone_position(zone_spec);
 
         return quetzal::stratum_gen::ZoneRequest {zone_spec.value_or(sim::name_key, std::string()),
-            sim::zone_level(sim::zone_position(zone_spec)), seed ? *seed : quetzal::math::random_seed(),
+            quetzal::stratum_gen::zone_position_type {position.x, position.y, position.z}, seed ? *seed : quetzal::math::random_seed(),
             sim::select_prefixed(zone_spec, sim::parameters_prefix)};
     }
 
@@ -475,7 +476,7 @@ void StratumWorld::advance()
         else if (event.is<sim::Relocated>())
         {
             // A level is shown as its distance from the surface
-            m_message = std::format("You arrive on level {}.", std::abs(sim::zone_level(m_session.zone().get<sim::ZonePosition>())));
+            m_message = std::format("You arrive on level {}.", std::abs(m_session.zone().get<sim::ZonePosition>().z));
         }
         else if (event.is<sim::Died>())
         {

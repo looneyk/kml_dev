@@ -20,14 +20,15 @@ namespace
 {
 
     //--------------------------------------------------------------------------
-    // Returns a generator that reads the zone file, at the level of the requested position, and without the unpopulated
-    // flag, which a generator does not set
+    // Returns a generator that reads the zone file, at the requested position, and without the unpopulated flag, which a
+    // generator does not set
     stratum_sim::Generation::generator_type file_generator(const string& filepath)
     {
         return [filepath](const stratum_sim::ZoneSpec& zone_spec)
         {
             stratum_format::Document document = stratum_format::read_zone(filepath);
-            document.level = stratum_sim::zone_level(stratum_sim::zone_position(zone_spec));
+            const stratum_sim::ZonePosition position = stratum_sim::zone_position(zone_spec);
+            document.position = stratum_format::zone_position_type {position.x, position.y, position.z};
             document.is_unpopulated = false;
             return document;
         };
@@ -96,6 +97,25 @@ stratum_sim::ZoneSpec stratum_sim_test::test_zone_spec(stratum_sim::level_type l
     stratum_sim::ZoneSpec zone_spec;
     stratum_sim::set_zone_position(zone_spec, stratum_sim::ZonePosition {0, 0, level});
     return zone_spec;
+}
+
+//------------------------------------------------------------------------------
+stratum_sim::ZonePosition stratum_sim_test::zone_position_at_level(stratum_sim::level_type level)
+{
+    return {0, 0, level};
+}
+
+//------------------------------------------------------------------------------
+stratum_format::zone_position_type stratum_sim_test::document_position_at_level(stratum_sim::level_type level)
+{
+    const stratum_sim::ZonePosition position = zone_position_at_level(level);
+    return {position.x, position.y, position.z};
+}
+
+//------------------------------------------------------------------------------
+stratum_sim::level_type stratum_sim_test::level_of(flecs::entity zone)
+{
+    return zone.get<stratum_sim::ZonePosition>().z;
 }
 
 //------------------------------------------------------------------------------

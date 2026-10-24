@@ -9,14 +9,14 @@
 #include "quetzal/dungen/write_zone.hpp"
 #include <type_traits>
 
-static_assert(std::is_same_v<quetzal::stratum_gen::level_type, quetzal::dungen::level_type>);
+static_assert(std::is_same_v<quetzal::stratum_gen::zone_position_type, quetzal::dungen::zone_position_type>);
 static_assert(std::is_same_v<quetzal::stratum_gen::seed_type, quetzal::dungen::Parameters::seed_type>);
 
 //------------------------------------------------------------------------------
 quetzal::stratum_format::Document quetzal::stratum_gen::generate_dungen(const ZoneRequest& request)
 {
     dungen::Parameters parameters;
-    parameters.level = request.level;
+    parameters.position = request.position;
     parameters.seed = request.seed;
 
     return dungen::make_document(dungen::generate(0, request.name, parameters), parameters);

@@ -210,9 +210,12 @@ namespace
 
         parameters.seed = math::to_seed(take("seed"));
 
-        if (values.contains("level"))
+        if (values.contains("position"))
         {
-            parameters.level = to_integer(take("level"));
+            string position = take("position");
+            catagen::zone_position_type::vector_type v;
+            math::from_chars(position.data(), position.data() + position.size(), v, ",");
+            parameters.position = catagen::zone_position_type(v);
         }
 
         if (!values.empty())
@@ -641,15 +644,16 @@ TEST_SUITE("parameters reproduce their zone")
         return;
     }
 
-    TEST_CASE("a zone given a level has it in its layout and its parameters, from which it regenerates")
+    TEST_CASE("a zone given a position has it in its layout and its parameters, from which it regenerates")
     {
-        catagen::Parameters leveled = scenarios().front().parameters;
-        leveled.level = 1;
-        stratum_format::Document leveled_document = document_of(zone_text(leveled));
+        catagen::Parameters positioned = scenarios().front().parameters;
+        positioned.position = catagen::zone_position_type {-1, 2, 1};
+        stratum_format::Document positioned_document = document_of(zone_text(positioned));
 
-        CHECK_MESSAGE((leveled_document.level == 1), "a zone given a level has it in its layout");
-        CHECK_MESSAGE((parameters_of(leveled_document.generator).level == 1), "and in its parameters, from which it regenerates");
-        CHECK_MESSAGE(!document_of(zone_text(scenarios().front().parameters)).level.has_value(), "a zone given no level has none");
+        CHECK_MESSAGE((positioned_document.position == positioned.position), "a zone given a position has it in its layout");
+        CHECK_MESSAGE((parameters_of(positioned_document.generator).position == positioned.position),
+            "and in its parameters, from which it regenerates");
+        CHECK_MESSAGE(!document_of(zone_text(scenarios().front().parameters)).position.has_value(), "a zone given no position has none");
         return;
     }
 }

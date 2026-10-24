@@ -75,7 +75,7 @@ bool quetzal::stratum_sim::targets_relocator_level(flecs::entity e, level_type o
     const auto* absolute = std::get_if<stratum_format::AbsoluteZone>(&target->zone);
     const auto* zone_position = absolute != nullptr ? zone_of(e).try_get<ZonePosition>() : nullptr;
 
-    return zone_position != nullptr && absolute->level == zone_level(*zone_position) + offset;
+    return zone_position != nullptr && absolute->level == zone_position->z + offset;
 }
 
 //------------------------------------------------------------------------------

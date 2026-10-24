@@ -31,6 +31,9 @@ namespace quetzal::stratum_format
     using discrete_point_type = geometry::DiscretePoint<coord_type, 2>;
     using discrete_directed_point_type = geometry::DiscreteDirectedPoint<coord_type, 2>;
 
+    // A zone's position in its region
+    using zone_position_type = geometry::DiscretePoint<coord_type, 3>;
+
     // An entity id in a zone file: a local id in a zone template, a persistent id in a saved zone
     using stored_entity_id_type = std::uint64_t;
 

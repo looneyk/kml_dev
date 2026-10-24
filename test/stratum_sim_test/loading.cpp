@@ -570,7 +570,7 @@ namespace
             && stratum_sim::entry_point(zone, stratum_sim::access_type(entities, "staircase"), 1) == staircase);
 
         // The same zone saved: every id in the file is persistent
-        string saved_text = R"({ "format": "quetzal.discrete_layout", "version": "0.4", "zone": { "id": 900 },
+        string saved_text = R"({ "format": "quetzal.discrete_layout", "version": "0.5", "zone": { "id": 900 },
             "layout": { "components": { "access_points": [ { "entity": 904 } ] } },
             "cells": { "notation": "block", "extent": [5, 3], "origin": [0.0, 0.0, 0.0], "scale": 1.0, "rows": [ "#<###", "#.+.#", "#####" ] },
             "entities": [
@@ -607,7 +607,7 @@ namespace
         auto door_level = [](const string& layout_components, const string& door_components, const string& staircase_components,
             const string& layout_sections = "")
         {
-            string text = format(R"({{ "format": "quetzal.discrete_layout", "version": "0.4",
+            string text = format(R"({{ "format": "quetzal.discrete_layout", "version": "0.5",
                 "layout": {{ "components": {{ "access_points": [ {{ "entity": 4 }} ]{} }} }},
                 "cells": {{ "notation": "block", "extent": [5, 3], "origin": [0.0, 0.0, 0.0], "scale": 1.0, "rows": [ "#<###", "#.+.#", "#####" ] }},
                 {}

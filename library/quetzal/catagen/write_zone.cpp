@@ -160,9 +160,9 @@ quetzal::stratum_format::Document quetzal::catagen::make_document(const Zone& zo
     values["stairs_down"] = interval_token(parameters.staircase_down_count);
     values["stairs_up"] = interval_token(parameters.staircase_up_count);
 
-    if (parameters.level.has_value())
+    if (parameters.position.has_value())
     {
-        values["level"] = token(*parameters.level);
+        values["position"] = token(*parameters.position);
     }
 
     values["seed"] = token(parameters.seed.value());
@@ -176,7 +176,7 @@ quetzal::stratum_format::Document quetzal::catagen::make_document(const Zone& zo
         document.components["name"] = zone.name();
     }
 
-    document.level = parameters.level;
+    document.position = parameters.position;
     document.cells.notation = stratum_format::Notation::Wall;
     document.cells.extent = zone.extent();
     document.cells.rows = rows(zone);

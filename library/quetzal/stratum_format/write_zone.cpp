@@ -261,9 +261,9 @@ namespace
         }
 
         std::vector<std::string> components {std::format("\"access_points\": [ {} ]", joined(access_points))};
-        if (document.level.has_value())
+        if (document.position.has_value())
         {
-            components.push_back(std::format("\"level\": {}", *document.level));
+            components.push_back(std::format("\"position\": [{}, {}, {}]", document.position->x(), document.position->y(), document.position->z()));
         }
 
         if (document.is_unpopulated)

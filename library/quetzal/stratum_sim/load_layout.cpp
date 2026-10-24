@@ -12,7 +12,6 @@
 #include "layout_entities.hpp"
 #include "properties.hpp"
 #include "World.hpp"
-#include "positions.hpp"
 #include "Zone.hpp"
 #include "quetzal/stratum_format/Document.hpp"
 #include "quetzal/stratum_format/grid.hpp"
@@ -281,9 +280,9 @@ std::vector<flecs::entity> quetzal::stratum_sim::load_layout(flecs::entity zone,
     zone_document->is_unpopulated = false;
     zone.set<ZoneDocument>(ZoneDocument {std::move(zone_document)});
 
-    if (document.level.has_value() && !zone.has<ZonePosition>())
+    if (document.position.has_value())
     {
-        zone.set<ZonePosition>(zone_position_at_level(*document.level));
+        zone.set<ZonePosition>(ZonePosition {document.position->x(), document.position->y(), document.position->z()});
     }
 
     flecs::world world = zone.world();

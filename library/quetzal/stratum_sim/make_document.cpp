@@ -12,7 +12,6 @@
 #include "PersistentId.hpp"
 #include "properties.hpp"
 #include "Site.hpp"
-#include "positions.hpp"
 #include "Zone.hpp"
 #include "quetzal/stratum_format/Document.hpp"
 #include "quetzal/stratum_format/CharacterDocument.hpp"
@@ -317,7 +316,10 @@ quetzal::stratum_format::Document quetzal::stratum_sim::make_document(flecs::ent
     stratum_format::Document document = *zone.get<ZoneDocument>().document;
     document.version = std::string(stratum_format::format_version);
     document.zone_id = zone.get<PersistentId>().id;
-    document.level = zone.has<ZonePosition>() ? std::optional<level_type>(zone_level(zone.get<ZonePosition>())) : std::nullopt;
+    if (const auto* position = zone.try_get<ZonePosition>())
+    {
+        document.position = stratum_format::zone_position_type {position->x, position->y, position->z};
+    }
     document.components = encoded_components(zone, file_components);
 
     for (size_t room_id = 0; room_id < document.rooms.size(); ++room_id)

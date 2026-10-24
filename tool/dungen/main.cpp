@@ -84,6 +84,20 @@ namespace
     }
 
     //--------------------------------------------------------------------------
+    dungen::zone_position_type to_zone_position(const string& s)
+    {
+        dungen::zone_position_type::vector_type v;
+        auto result = math::from_chars(s.data(), s.data() + s.size(), v, ",");
+
+        if (result.ec != errc {} || result.ptr != s.data() + s.size())
+        {
+            throw invalid_argument(format("\"{}\" is not three integers separated by ','", s));
+        }
+
+        return dungen::zone_position_type(v);
+    }
+
+    //--------------------------------------------------------------------------
     // A closed range of counts, written low to high with a hyphen between
     math::Interval<size_t> to_count_interval(const string& s)
     {
@@ -113,7 +127,7 @@ namespace
     void usage(ostream& os)
     {
         os << "Usage: dungen [zone] [--algorithm maze1|grid1|cave1] [--extent nx,ny] [--name text]"
-            << " [--stairs-down min-max] [--stairs-up min-max] [--room-density d] [--door-probability p] [--level n] [--seed n]"
+            << " [--stairs-down min-max] [--stairs-up min-max] [--room-density d] [--door-probability p] [--position x,y,z] [--seed n]"
             << " [--log-level trace|debug|info|warning|error|critical|off]" << endl;
         os << "  maze1: [--room-dimension-base n] [--room-dimension-variation n] [--room-merge]"
             << " [--corridor-straightness s] [--probability-dead-end-removal p]"
@@ -228,9 +242,9 @@ int main(int argc, char* argv[])
             {
                 parameters.cave1.survival_threshold = to_count(argv[++i]);
             }
-            else if (arg == "--level" && i + 1 < argc)
+            else if (arg == "--position" && i + 1 < argc)
             {
-                parameters.level = to_integer(argv[++i]);
+                parameters.position = to_zone_position(argv[++i]);
             }
             else if (arg == "--seed" && i + 1 < argc)
             {

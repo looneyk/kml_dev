@@ -1,6 +1,6 @@
 {
   "format": "quetzal.discrete_layout",
-  "version": "0.4",
+  "version": "0.5",
   "layout": {
     "components": { "access_points": [ { "entity": 91 }, { "entity": 92 }, { "entity": 93 } ], "unpopulated": true }
   },

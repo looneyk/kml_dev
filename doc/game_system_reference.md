@@ -255,9 +255,9 @@ world.
 `region_position(region_spec)` return a spec's position, each coordinate it does not have 0, and throw
 `std::runtime_error` for one that is not an integer; `set_zone_position` and `set_region_position` write one. Three are
 placeholders until the world's layout is designed: `new_zone_position(world, region, level)` returns `(0, 0, level)`,
-`new_region_position(world)` returns the x one past the largest of the world's regions, or 0 with none, and y 0, and
-`zone_level(position)` returns z, and `zone_position_at_level(level)` returns `(0, 0, level)`, which
-`new_zone_position` returns.
+and `new_region_position(world)`
+returns the x one past the largest of the world's regions, or 0 with none, and y 0. The zone file, the generators'
+parameters and `ZoneRequest` state a position.
 
 `specs.hpp` has two functions over a spec. `find_unknown_keys(spec, known_keys)` returns the spec's keys that are not
 among the known keys, in key order, so a consumer reports a key it does not read. `select_prefixed(spec, prefix)` returns
@@ -302,17 +302,14 @@ zone_spec)` creates a zone in a region that has a spec, as the region's generato
 by the spec's `generator_selector`, is given the world, the region and the `ZoneSpec`, and returns a
 `GeneratorSelection`. For a generator, `create_zone` calls it with the selection's `ZoneSpec`, sets the `Document` it
 returns unpopulated, and builds the zone from it as `load_zone` builds one from a file; it then sets the zone's `ZonePosition` from the
-selection's `ZoneSpec`. `ZonePosition` is the file component `zone_position`, so a saved zone keeps it among the
-zone's components. For a region spec, it returns `create_region_zone` with that spec and the `ZoneSpec` it was
+selection's `ZoneSpec`. For a region spec, it returns `create_region_zone` with that spec and the `ZoneSpec` it was
 given, so the zone is the first of a new region. A zone template is not built: it throws `std::runtime_error`. So does a
 selector, generator or region spec name that is not registered, and a spec with no `generator_selector`, before anything
 is created; what a generator throws passes on, with nothing created.
 
-A zone's level, a `level_type` (`std::int32_t`), is `zone_level` of its `ZonePosition`. Relocator targets in the zone
-data state levels, and `resolve_relocator_target` matches zones by them. The loader sets a zone's position from the
-file's `level` with `zone_position_at_level`, unless the zone already has a `ZonePosition` from its components, and a
-zone whose file has neither has no `ZonePosition`. `make_document` writes `zone_level` of the position as the file's
-`level`.
+A zone's level, a `level_type` (`std::int32_t`), is the z of its `ZonePosition`. Relocator targets in the zone
+data state levels, and `resolve_relocator_target` matches zones by them. The loader sets a zone's `ZonePosition` from the
+file's `position`, and a zone whose file has none has no `ZonePosition`; `make_document` writes the position back.
 
 `resolve_relocator_target(relocator)` returns the access point at which an actor arrives through a relocator whose
 unbound target is a level with no position: relative, `+`*k* or `-`*k*, or absolute, `=`*n*. The relocator's zone must
@@ -872,7 +869,7 @@ for the purpose, and clears them when it uninitializes: a sink writing errors an
 warnings with `push_warning`, and the rest with `print`, and its run log file. The log is at `info`.
 
 Each host registers each of `stratum_gen::generators()` as a `Generation::generator_type` that makes a `ZoneRequest`
-from the `ZoneSpec` and passes it on: the `name`, `zone_level` of the spec's position as the level, the `seed`, and the
+from the `ZoneSpec` and passes it on: the `name`, the spec's position, the `seed`, and the
 keys after `parameters.`. Nothing
 writes a `seed` yet, so a `ZoneSpec` without one has a seed from `math::random_seed()`. It also registers a temporary generator selector named
 `dungen`, until the generators are integrated. It creates the game from a temporary `RegionSpec`, whose
@@ -883,7 +880,7 @@ the first level down, and a staircase leads to a new zone the first time it is t
 staircase after that.
 
 `stratum_gen` links no part of `stratum_sim`. A `ZoneRequest` is what one zone is generated from: its `name`, empty for
-none, an optional `level`, a `seed`, and `parameters`, which the generator reads, as the tokens its zone file's `generator`
+none, an optional `position`, a `seed`, and `parameters`, which the generator reads, as the tokens its zone file's `generator`
 section has. `generator_function_type` takes a `ZoneRequest` and returns a `stratum_format::Document`, and
 `stratum_gen::generators()` returns a map from each generator's name to its function. `generate_dungen`, under
 `dungen`, runs dungen with its default parameters at the request's level, with its name and seed, and returns the
@@ -953,7 +950,7 @@ through a relocator costs one action, and an `Enter` with nothing to enter costs
 
 ## Zone file format
 
-`quetzal::stratum_format` reads and writes the JSON zone file that `discrete_layout.md` specifies, version `0.4`. It
+`quetzal::stratum_format` reads and writes the JSON zone file that `discrete_layout.md` specifies, version `0.5`. It
 depends on `quetzal_common` and nlohmann/json. `load_layout` fills a zone from what `read_zone` returns, and both generators
 write through it.
 
@@ -972,7 +969,8 @@ relation `in` and an orientation required. A `Relocator` has its target,
 which is a `RelocatorTarget` or the id of the relocator it is bound to, and, for an access point, its type, order and
 placement. The placement is a `discrete_directed_point_type` (`geometry::DiscreteDirectedPoint`): the cell position and
 orientation given to an arriving actor. The layout's `access_points` are `Document::access_points`, a list of entity
-ids, its optional `level` is `Document::level`, and its `unpopulated` flag is `Document::is_unpopulated`, false if
+ids, its optional `position` is `Document::position`, a `zone_position_type` (`geometry::DiscretePoint` of three
+coordinates), and its `unpopulated` flag is `Document::is_unpopulated`, false if
 absent. The generator and every other file component are `raw_values_type`, nlohmann's `ordered_json`, as the file wrote
 them. A room is kept as the file identified it.
 

@@ -72,6 +72,20 @@ namespace
     }
 
     //--------------------------------------------------------------------------
+    catagen::zone_position_type to_zone_position(const string& s)
+    {
+        catagen::zone_position_type::vector_type v;
+        auto result = math::from_chars(s.data(), s.data() + s.size(), v, ",");
+
+        if (result.ec != errc {} || result.ptr != s.data() + s.size())
+        {
+            throw invalid_argument(format("\"{}\" is not three integers separated by ','", s));
+        }
+
+        return catagen::zone_position_type(v);
+    }
+
+    //--------------------------------------------------------------------------
     // A closed range, written low to high with the separator between
     math::Interval<catagen::coord_type> to_interval(const string& s, char separator)
     {
@@ -115,7 +129,7 @@ namespace
     void usage(ostream& os)
     {
         os << "Usage: catagen [zone] [--extent nx,ny] [--name text] [--scale min-max] [--spacing min-max]"
-            << " [--density d] [--loop l] [--stairs-down min-max] [--stairs-up min-max] [--level n] [--seed n] [--quiet]"
+            << " [--density d] [--loop l] [--stairs-down min-max] [--stairs-up min-max] [--position x,y,z] [--seed n] [--quiet]"
             << " [--log-level trace|debug|info|warning|error|critical|off]" << endl;
         return;
     }
@@ -169,9 +183,9 @@ int main(int argc, char* argv[])
             {
                 parameters.staircase_up_count = to_count_interval(argv[++i]);
             }
-            else if (arg == "--level" && i + 1 < argc)
+            else if (arg == "--position" && i + 1 < argc)
             {
-                parameters.level = to_integer(argv[++i]);
+                parameters.position = to_zone_position(argv[++i]);
             }
             else if (arg == "--seed" && i + 1 < argc)
             {

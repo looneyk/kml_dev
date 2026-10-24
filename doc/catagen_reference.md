@@ -15,9 +15,9 @@ beside it. The two share no code.
 
 The generator builds a discrete layout document in the wall notation, which `stratum_format` writes as a file;
 `discrete_layout.md` is the format. `generator.parameters` has the parameters of the run as the tokens their options take --- `extent`,
-`scale`, `spacing`, `density`, `loop`, `stairs_down`, `stairs_up`, `level` if one was given, and `seed` --- so a file
-reproduces its own zone and its parameters read as a command line. A level given is also written as the layout's
-`level`, and the zone's name, if it has one, as the layout's `name` component. The name is not a parameter: it does not
+`scale`, `spacing`, `density`, `loop`, `stairs_down`, `stairs_up`, `position` if one was given, and `seed` --- so a file
+reproduces its zone and its parameters read as a command line. A position given is also written as the layout's
+`position`, and the zone's name, if it has one, as the layout's `name` component. The name is not a parameter: it does not
 affect the grid.
 
 The rows are `(2W+1)` by `(2H+1)` characters. Cell `(i, j)` is at `(2i+1, 2j+1)`, the edge west of it at `(2i, 2j+1)`,
@@ -56,7 +56,7 @@ stored by the line they lie on, which includes the outermost lines: `wall_vertic
 wall of `(i + 1, j)` are the same wall. A new `Zone` has no cell open and every wall solid.
 
 **`Parameters`** --- `extent`; `scale` and `spacing`, closed ranges of cells; `density`; `loop`;
-`staircase_down_count` and `staircase_up_count`, closed ranges of counts defaulting to 1-1; an optional `level`; and
+`staircase_down_count` and `staircase_up_count`, closed ranges of counts defaulting to 1-1; an optional `position`; and
 `seed`, a
 `std::optional` that is empty until assigned. `validate` throws `std::invalid_argument` identifying the parameter at
 fault, including an unassigned seed, a count range whose maximum is below its minimum, and a staircase up count whose
@@ -120,7 +120,7 @@ nothing before them changes.
 
 ```
 catagen [zone] [--extent nx,ny] [--name text] [--scale min-max] [--spacing min-max] [--density d]
-             [--loop l] [--stairs-down min-max] [--stairs-up min-max] [--level n] [--seed n] [--quiet]
+             [--loop l] [--stairs-down min-max] [--stairs-up min-max] [--position x,y,z] [--seed n] [--quiet]
              [--log-level trace|debug|info|warning|error|critical|off]
 ```
 

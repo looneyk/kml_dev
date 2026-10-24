@@ -1,6 +1,6 @@
 {
   "format": "quetzal.discrete_layout",
-  "version": "0.4",
+  "version": "0.5",
   "generator": {
     "name": "catagen",
     "parameters": { "extent": "12,12", "scale": "2-5", "spacing": "0-0", "density": "1", "loop": "0.1", "stairs_down": "1-1", "stairs_up": "1-1", "seed": "4294967295" }

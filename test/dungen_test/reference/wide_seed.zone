@@ -1,6 +1,6 @@
 {
   "format": "quetzal.discrete_layout",
-  "version": "0.4",
+  "version": "0.5",
   "generator": {
     "name": "dungen",
     "parameters": { "algorithm": "grid1", "extent": "25,19", "stairs_down": "1-1", "stairs_up": "1-1", "divisions": "3,3", "room_density": "1", "room_dimension_min": "3", "room_margin": "1", "loop": "0.15", "door_probability": "1", "seed": "4294967295" }

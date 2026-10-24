@@ -273,7 +273,8 @@ namespace
         m["generator"] = content_map(document.generator);
         m["layout"] = components_map(document.components);
         m["access_points"] = document.access_points;
-        m["level"] = document.level.has_value() ? map_type(*document.level) : map_type();
+        m["position"] = document.position.has_value() ? map_type {document.position->x(), document.position->y(), document.position->z()}
+            : map_type();
         m["unpopulated"] = document.is_unpopulated;
 
         m["cells"] =
@@ -439,7 +440,8 @@ namespace
             document.generator["parameters"].begin().key() == "extent" && next(document.generator["parameters"].begin()).key() == "scale");
         CHECK_CASE("layout components are kept as written", document.components["difficulty"] == 3 && document.components["style"] == "cistern");
         CHECK_CASE("the access points are decoded out of them", !document.access_points.empty() && !document.components.contains("access_points"));
-        CHECK_CASE("and so is the level", document.level == -2 && !document.components.contains("level"));
+        CHECK_CASE("and so is the position", document.position == stratum_format::zone_position_type {0, 0, -2}
+            && !document.components.contains("position"));
         CHECK_CASE("and so is the unpopulated flag", document.is_unpopulated && !document.components.contains("unpopulated"));
 
         stratum_format::raw_values_type unflagged = load_values(data_directory / "cistern.json");
@@ -708,8 +710,10 @@ namespace
                 }, "", "entities[7]: a second entity with a relocator on the walls around the stair cell at [3, 2]"},
             {"no access points", [](auto& v) { v["layout"]["components"].erase("access_points"); },
                 "layout.components.access_points: required and absent"},
-            {"a level that is not a whole number", [](auto& v) { v["layout"]["components"]["level"] = -1.5; },
-                "layout.components.level: a whole number was expected"},
+            {"a position coordinate that is not a whole number", [](auto& v) { v["layout"]["components"]["position"][2] = -1.5; },
+                "layout.components.position[2]: a whole number was expected"},
+            {"a position that is not three coordinates", [](auto& v) { v["layout"]["components"]["position"] = {0, -2}; },
+                "layout.components.position"},
             {"an unpopulated flag that is not true or false", [](auto& v) { v["layout"]["components"]["unpopulated"] = 1; },
                 "layout.components.unpopulated: true or false was expected"},
             {"an unpopulated flag in a zone with a zone id", [](auto& v) { v["zone"] = parse_values(R"({ "id": 7713 })"); },

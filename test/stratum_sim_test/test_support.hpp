@@ -15,6 +15,7 @@
 #include "quetzal/stratum_sim/Session.hpp"
 #include "quetzal/stratum_sim/World.hpp"
 #include "quetzal/stratum_sim/types.hpp"
+#include "quetzal/stratum_format/types.hpp"
 #include <cstddef>
 #include <memory>
 #include <string>
@@ -49,6 +50,15 @@ namespace stratum_sim_test
     // Returns a ZoneSpec whose position is (0, 0, level)
     quetzal::stratum_sim::ZoneSpec test_zone_spec(quetzal::stratum_sim::level_type level);
 
+    // Returns the position of a zone at the level, (0, 0, level)
+    quetzal::stratum_sim::ZonePosition zone_position_at_level(quetzal::stratum_sim::level_type level);
+
+    // Returns zone_position_at_level(level)
+    quetzal::stratum_format::zone_position_type document_position_at_level(quetzal::stratum_sim::level_type level);
+
+    // Returns the zone's level, the z of its position
+    quetzal::stratum_sim::level_type level_of(flecs::entity zone);
+
     // A world with the game's entity types and a region for the test executable's zones
     struct TestWorld : quetzal::stratum_sim::World
     {
@@ -66,8 +76,7 @@ namespace stratum_sim_test
 
     WallCounts wall_counts(const quetzal::stratum_sim::DiscreteLayout& layout);
 
-    // Reads a zone from a file into a world of its own, with a predicate that crosses its door walls as though every door were
-    // open
+    // Reads a zone from a file into a world of its own, with a predicate that crosses its door walls as though every door were open
     struct OpenZone
     {
         explicit OpenZone(const std::string& filepath);

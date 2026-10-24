@@ -47,7 +47,7 @@ blocks, a staircase down above it and the entrance, a staircase up, below it.
 ```json
 {
   "format": "quetzal.discrete_layout",
-  "version": "0.4",
+  "version": "0.5",
   "generator": {
     "name": "catagen",
     "parameters": { "extent": "4,3", "scale": "3-7", "spacing": "2", "density": "1.0", "loop": "0.1", "seed": "20260829" }
@@ -173,7 +173,7 @@ A reader accepts any valid JSON. A writer emits this form, so a zone file diffs 
 
 ## version
 
-The version is a label that a reader matches, not a number it compares. It is `0.4`, and the leading
+The version is a label that a reader matches, not a number it compares. It is `0.5`, and the leading
 zero marks it as pre-release: no older file is kept readable, and every checked-in zone file regenerates when the format
 moves. A reader given a version it does not know rejects the file.
 
@@ -215,17 +215,14 @@ The name and properties of the layout as a whole. It is a component object.
 `name`, `type`, `difficulty` and `style` are components. They are the zone metadata
 `sim_zone_model.md` describes, so depth, recipe, encounter and loot tables belong here too.
 
-`level` is optional: a whole number, the zone's position relative to the surface --- 0 at the surface,
--1, -2, ... going down, and 1, 2, ... going up (`region_plan.md`, `## Level`). It is a label, used when
-making connections between zones. The reader decodes it out of the layout's components, as it does
-`access_points`.
+`position` is optional: the zone's position in its region, `[x, y, z]`, three whole numbers. The reader decodes it out
+of the layout's components.
 
 ```json
-"layout": { "components": { "access_points": [ { "entity": 4 } ], "level": -2 } }
+"layout": { "components": { "access_points": [ { "entity": 4 } ], "position": [0, 0, -2] } }
 ```
 
-`unpopulated` is an optional boolean, false if absent, which the reader decodes out of the layout's components as it
-does `level`. It marks a zone whose denizens are not placed yet: loading it places them, and the zone is then no longer
+`unpopulated` is an optional boolean, false if absent, which the reader decodes out of the layout's components. It marks a zone whose denizens are not placed yet: loading it places them, and the zone is then no longer
 unpopulated, so a saved zone never is. A file whose denizens are already placed is not unpopulated. `unpopulated` in a
 file with a `zone` section is a warning.
 

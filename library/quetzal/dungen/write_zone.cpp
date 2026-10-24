@@ -112,9 +112,9 @@ namespace
                 assert(false);
         }
 
-        if (parameters.level.has_value())
+        if (parameters.position.has_value())
         {
-            values["level"] = token(*parameters.level);
+            values["position"] = token(*parameters.position);
         }
 
         values["seed"] = token(parameters.seed.value());
@@ -168,7 +168,7 @@ quetzal::stratum_format::Document quetzal::dungen::make_document(const Zone& zon
         document.components["name"] = zone.name();
     }
 
-    document.level = parameters.level;
+    document.position = parameters.position;
     document.cells.notation = stratum_format::Notation::Block;
     document.cells.extent = zone.extent();
 

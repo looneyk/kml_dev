@@ -234,9 +234,12 @@ namespace
         parameters.staircase_up_count = to_count_interval(take("stairs_up"));
         parameters.seed = math::to_seed(take("seed"));
 
-        if (values.contains("level"))
+        if (values.contains("position"))
         {
-            parameters.level = to_integer(take("level"));
+            string position = take("position");
+            dungen::zone_position_type::vector_type v;
+            math::from_chars(position.data(), position.data() + position.size(), v, ",");
+            parameters.position = dungen::zone_position_type(v);
         }
 
         string extent = take("extent");
@@ -409,14 +412,14 @@ namespace
 
         CHECK_CASE("a parameter this does not read is rejected", rejected);
 
-        // A level, when given, is written into the layout and the parameters both
-        dungen::Parameters leveled = scenarios().front().parameters;
-        leveled.level = -2;
-        stratum_format::Document leveled_document = document_of(zone_text(leveled));
+        // A position, when given, is written into the layout and the parameters both
+        dungen::Parameters positioned = scenarios().front().parameters;
+        positioned.position = dungen::zone_position_type {3, -4, -2};
+        stratum_format::Document positioned_document = document_of(zone_text(positioned));
 
-        CHECK_CASE("a zone given a level has it in its layout", leveled_document.level == -2);
-        CHECK_CASE("and in its parameters, from which it regenerates",
-            parameters_of(leveled_document.generator).level == -2 && document_of(zone_text(scenarios().front().parameters)).level == nullopt);
+        CHECK_CASE("a zone given a position has it in its layout", positioned_document.position == positioned.position);
+        CHECK_CASE("and in its parameters, from which it regenerates", parameters_of(positioned_document.generator).position
+            == positioned.position && !document_of(zone_text(scenarios().front().parameters)).position.has_value());
 
         return;
     }

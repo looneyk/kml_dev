@@ -116,7 +116,7 @@ namespace
         CHECK_CASE("and the character, with the spec's name and the first id", persistent_id_of(first_character) == 0
             && name_of(first_character) == "Ailis");
         CHECK_CASE("and starts play in the first zone of a region made from the spec, at the entry point it states",
-            sequence_session.loaded() && stratum_sim::zone_level(first_zone.get<stratum_sim::ZonePosition>()) == -1
+            sequence_session.loaded() && level_of(first_zone) == -1
             && first_region.get<stratum_sim::Region>().region_spec.value(stratum_sim::generator_selector_key) == "staircase"
             && stratum_sim::placement_of(first_character).position()
                 == stratum_sim::entry_point(first_zone, staircase_type, 1).get<stratum_sim::AccessPoint>().placement.position());
@@ -255,7 +255,8 @@ namespace
         if (filesystem::exists(zone_file(saving_first_id)))
         {
             stratum_format::Document saved_document = stratum_format::read_zone(zone_file(saving_first_id));
-            saved_back = saved_document.zone_id == saving_first_id.id && saved_document.level == -1;
+            saved_back = saved_document.zone_id == saving_first_id.id
+                && saved_document.position == stratum_format::zone_position_type {0, 0, -1};
         }
 
         CHECK_CASE("a zone the world unloads is saved first, as a saved zone in the game directory's zones",

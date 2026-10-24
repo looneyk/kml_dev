@@ -776,11 +776,19 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Returns the level if the layout's components have one
-    std::optional<level_type> read_level(const raw_values_type& components)
+    // Returns the zone's position if the layout's components have one
+    std::optional<zone_position_type> read_zone_position(const raw_values_type& components)
     {
-        const raw_values_type* p = components.is_object() ? member(components, "level") : nullptr;
-        return p != nullptr ? std::optional<level_type>(coord_value(*p, "layout.components.level")) : std::nullopt;
+        const raw_values_type* p = components.is_object() ? member(components, "position") : nullptr;
+        if (p == nullptr)
+        {
+            return std::nullopt;
+        }
+
+        const std::string path = "layout.components.position";
+        const raw_values_type& a = fixed_array(*p, path, 3);
+        return zone_position_type {coord_value(a[0], element_path(path, 0)), coord_value(a[1], element_path(path, 1)),
+            coord_value(a[2], element_path(path, 2))};
     }
 
     //--------------------------------------------------------------------------
@@ -1438,12 +1446,12 @@ namespace
         }
 
         document.access_points = read_access_points(document.components);
-        document.level = read_level(document.components);
+        document.position = read_zone_position(document.components);
         document.is_unpopulated = read_unpopulated(document.components);
         if (document.components.is_object())
         {
             document.components.erase("access_points");
-            document.components.erase("level");
+            document.components.erase("position");
             document.components.erase("unpopulated");
         }
 

@@ -14,8 +14,8 @@ property of the edge between two cells. The two share no code.
 
 The generator builds a discrete layout document in the block notation, which `stratum_format` writes as a file;
 `discrete_layout.md` is the format. `generator.parameters` has the parameters of the run as the tokens their options take: the ones every
-algorithm shares, then the chosen algorithm's group, then the level if one was given, then the seed, so the file
-reproduces the zone exactly. A level given is also written as the layout's `level`, and the zone's name, if it has one,
+algorithm shares, then the chosen algorithm's group, then the position if one was given, then the seed, so the file
+reproduces the zone exactly. A position given is also written as the layout's `position`, and the zone's name, if it has one,
 as the layout's `name` component. The name is not a parameter: it does not affect the grid.
 
 There is one glyph per cell:
@@ -64,7 +64,7 @@ Generation:
 
 - `Algorithm` --- `Maze1`, `Grid1` and `Cave1`, with `to_string` and `to_algorithm` for the command line and the zone
   file's parameters.
-- `Parameters` --- `algorithm`, `extent`, `staircase_down_count`, `staircase_up_count`, an optional `level`, and `seed`
+- `Parameters` --- `algorithm`, `extent`, `staircase_down_count`, `staircase_up_count`, an optional `position`, and `seed`
   in common, then one
   group per algorithm: `Maze1Parameters`, `Grid1Parameters` and `Cave1Parameters`. `validate` checks the shared fields
   and the chosen algorithm's group, and `random_seed` draws a seed from the platform. The staircase counts are closed
@@ -152,7 +152,7 @@ has eight solid neighbors --- generate a zone that is solid throughout.
 
 ```
 dungen [zone] [--algorithm maze1|grid1|cave1] [--extent nx,ny] [--name text]
-            [--stairs-down min-max] [--stairs-up min-max] [--room-density d] [--door-probability p] [--level n] [--seed n]
+            [--stairs-down min-max] [--stairs-up min-max] [--room-density d] [--door-probability p] [--position x,y,z] [--seed n]
             [--log-level trace|debug|info|warning|error|critical|off]
   maze1: [--room-dimension-base n] [--room-dimension-variation n] [--room-merge]
          [--corridor-straightness s] [--probability-dead-end-removal p]

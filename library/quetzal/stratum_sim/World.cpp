@@ -605,7 +605,6 @@ quetzal::stratum_sim::World::World(IdAllocator& id_allocator, Generation& genera
         .member(&Pursue::position_last_seen, "position_last_seen")
         .member(&Pursue::seen, "seen");
 
-    register_file_component<ZonePosition>(m_entities, "zone_position");
     register_file_component<Access>(m_entities, "access");
     register_file_component<Detection>(m_entities, "detection");
     register_file_component<Speed>(m_entities, "speed");
@@ -1035,7 +1034,7 @@ flecs::entity quetzal::stratum_sim::World::resolve_relocator_target(flecs::entit
     flecs::entity zone_from = stratum_sim::zone_of(relocator);
     assert(zone_from.has<ZonePosition>());
 
-    level_type level_from = zone_level(zone_from.get<ZonePosition>());
+    level_type level_from = zone_from.get<ZonePosition>().z;
     const auto* relative = std::get_if<stratum_format::RelativeZone>(&target.zone);
     level_type level = relative != nullptr ? level_from + relative->offset : std::get<stratum_format::AbsoluteZone>(target.zone).level;
     level_type offset = level - level_from;
@@ -1063,7 +1062,7 @@ flecs::entity quetzal::stratum_sim::World::resolve_relocator_target(flecs::entit
             flecs::entity zone = stratum_sim::zone_of(e);
 
             if (zone == zone_from || m_zones_unloading.contains(zone.get<PersistentId>()) || !zone.has<ZonePosition>()
-                || zone_level(zone.get<ZonePosition>()) != level || region_of(zone) != region || !targets_relocator_level(e, -offset))
+                || zone.get<ZonePosition>().z != level || region_of(zone) != region || !targets_relocator_level(e, -offset))
             {
                 return;
             }

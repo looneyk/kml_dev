@@ -18,14 +18,14 @@
 namespace quetzal::stratum_gen
 {
 
-    using level_type = std::int32_t;
+    using zone_position_type = stratum_format::zone_position_type;
     using seed_type = math::portable_random_engine_type::result_type;
 
     //--------------------------------------------------------------------------
     struct ZoneRequest
     {
         std::string name; // Display name, empty for none
-        std::optional<level_type> level;
+        std::optional<zone_position_type> position; // The zone's position in its region
         seed_type seed = 0;
         KeyValueStore parameters; // Generator specific
     };
