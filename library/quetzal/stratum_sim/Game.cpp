@@ -173,7 +173,7 @@ void quetzal::stratum_sim::Game::create(const RegionSpec& region_spec, const Cha
     settings::store().apply_initializers(game_setting_scope);
 
     m_counting_id_allocator = CountingIdAllocator(PersistentId {});
-    seed_gameplay_random(seed ? *seed : math::random_seed());
+    seed_world(seed ? *seed : math::random_seed());
 
     clear_working_directory(m_config);
     std::filesystem::path game_directory = create_game_directory(m_config, character_spec.name);
@@ -248,6 +248,8 @@ void quetzal::stratum_sim::Game::restore_game_state(const std::filesystem::path&
         throw std::runtime_error(std::format("{}: game.seed: '{}' is not a seed", filepath.string(), document.seed));
     }
 
+    m_world.set_world_seed(m_seed);
+
     try
     {
         document.settings_snapshot.restore(game_setting_scope, settings::store());
@@ -259,7 +261,9 @@ void quetzal::stratum_sim::Game::restore_game_state(const std::filesystem::path&
 
     if (settings::store().value<bool>(reseed_on_open_key))
     {
-        seed_gameplay_random(math::random_seed());
+        const RandomStream::seed_type gameplay_seed = math::random_seed();
+        gameplay_random().seed(gameplay_seed);
+        log::logger().info("stratum_sim", "The gameplay random engine is reseeded with {}", gameplay_seed);
         return;
     }
 
@@ -282,11 +286,12 @@ void quetzal::stratum_sim::Game::restore_game_state(const std::filesystem::path&
 }
 
 //------------------------------------------------------------------------------
-void quetzal::stratum_sim::Game::seed_gameplay_random(RandomStream::seed_type seed)
+void quetzal::stratum_sim::Game::seed_world(RandomStream::seed_type seed)
 {
     m_seed = seed;
+    m_world.set_world_seed(seed);
     gameplay_random().seed(seed);
-    log::logger().info("stratum_sim", "The gameplay random engine is seeded with {}", seed);
+    log::logger().info("stratum_sim", "The world seed is {}", seed);
     return;
 }
 

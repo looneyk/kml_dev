@@ -24,6 +24,7 @@ add_library(quetzal_stratum_sim STATIC
     properties.cpp
     RandomStream.cpp
     SavedGameDetails.cpp
+    seeds.cpp
     Scheduler.cpp
     Session.cpp
     PersistentSettings.cpp
@@ -68,6 +69,7 @@ add_library(quetzal_stratum_sim STATIC
     properties.hpp
     RandomStream.hpp
     SavedGameDetails.hpp
+    seeds.hpp
     Scheduler.hpp
     Session.hpp
     PersistentSettings.hpp

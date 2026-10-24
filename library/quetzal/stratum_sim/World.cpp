@@ -15,6 +15,7 @@
 #include "make_document.hpp"
 #include "positions.hpp"
 #include "properties.hpp"
+#include "seeds.hpp"
 #include "Site.hpp"
 #include "specs.hpp"
 #include "quetzal/stratum_format/Document.hpp"
@@ -376,6 +377,7 @@ quetzal::stratum_sim::World::World(IdAllocator& id_allocator, Generation& genera
     m_zones_unloading(),
     m_zone_entry_index(zone_count_max),
     m_game_directory(),
+    m_world_seed(0),
     m_entities()
 {
     // Registered before the observers, whose callbacks must not register a component mid-operation
@@ -639,6 +641,19 @@ void quetzal::stratum_sim::World::clear()
 }
 
 //------------------------------------------------------------------------------
+quetzal::stratum_sim::RandomStream::seed_type quetzal::stratum_sim::World::world_seed() const
+{
+    return m_world_seed;
+}
+
+//------------------------------------------------------------------------------
+void quetzal::stratum_sim::World::set_world_seed(RandomStream::seed_type seed)
+{
+    m_world_seed = seed;
+    return;
+}
+
+//------------------------------------------------------------------------------
 flecs::entity quetzal::stratum_sim::World::create(const RegionSpec& region_spec, const std::filesystem::path& game_directory)
 {
     m_game_directory = game_directory;
@@ -860,8 +875,11 @@ flecs::entity quetzal::stratum_sim::World::create_zone(flecs::entity region, con
         throw std::runtime_error(std::format("region {} has no {}", region.get<PersistentId>().id, generator_selector_key));
     }
 
+    ZoneSpec seeded_zone_spec = zone_spec;
+    seeded_zone_spec.insert(std::string(seed_key), std::to_string(zone_seed(region_seed(m_world_seed, region_spec), zone_spec)));
+
     const Generation::generator_selector_type& selector = registered(m_generation.m_generator_selectors, "generator selector", *selector_name);
-    Generation::GeneratorSelection selection = selector(*this, region, zone_spec);
+    Generation::GeneratorSelection selection = selector(*this, region, seeded_zone_spec);
 
     assert(selection.generator_name.has_value() + selection.zone_template.has_value() + selection.region_spec_name.has_value() == 1);
 

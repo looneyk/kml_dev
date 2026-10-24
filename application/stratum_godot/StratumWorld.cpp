@@ -21,7 +21,6 @@
 #include <filesystem>
 #include <format>
 #include <optional>
-#include <random>
 #include <string>
 #include <cassert>
 
@@ -62,15 +61,14 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Temporary, until the generation random engine supplies each zone's seed: a ZoneSpec with no seed has one from the
-    // platform's entropy source
     quetzal::stratum_gen::ZoneRequest make_zone_request(const sim::ZoneSpec& zone_spec)
     {
         std::optional<quetzal::stratum_gen::seed_type> seed = zone_spec.value<quetzal::stratum_gen::seed_type>(sim::seed_key);
+        assert(seed.has_value());
         const sim::ZonePosition position = sim::zone_position(zone_spec);
 
         return quetzal::stratum_gen::ZoneRequest {zone_spec.value_or(sim::name_key, std::string()),
-            quetzal::stratum_gen::zone_position_type {position.x, position.y, position.z}, seed ? *seed : quetzal::math::random_seed(),
+            quetzal::stratum_gen::zone_position_type {position.x, position.y, position.z}, *seed,
             sim::select_prefixed(zone_spec, sim::parameters_prefix)};
     }
 

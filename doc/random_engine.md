@@ -10,11 +10,13 @@ open items are in `work_plan.md` (`### Random engine`).
 ## Current state
 
 - **The gameplay random engine is process-wide,** a `RandomStream` that `gameplay_random()` returns, though nothing
-  draws from it yet. `Game` seeds it with a seed it is passed or draws, and writes the seed to the log.
+  draws from it yet. `Game` seeds it with the world seed, which `Game` is passed or draws, and writes the seed to the
+  log. Reseeding on open draws a new seed for the gameplay random engine and keeps the world seed.
+- **Region and zone seeds are derived** (`## Generation`). `World::create_zone(region, zone_spec)` adds the zone's
+  seed to the `ZoneSpec` under `seed_key` before the selector runs, and the host passes it to the generator in the
+  `ZoneRequest`, with the zone's position.
 - **dungen and catagen each seed one `math::Random` per run** from `Parameters::seed`, and pass it by reference from
   one function to the next.
-- **A region's generator is given the position of the zone it makes,** as `ZonePosition`, and the level of that
-  position, and no seed.
 - **The random engine type is chosen** (`## The random engine type`): xoshiro256**, with the distributions and
   shuffle implemented in `math::Random`, so one seed makes the same zones with every standard library.
 - **The other documents state goals and no mechanism.** `game_system_principles.md` (Phase 5) calls for hierarchical

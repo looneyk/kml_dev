@@ -25,7 +25,6 @@
 #include <format>
 #include <iostream>
 #include <optional>
-#include <random>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -116,15 +115,14 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Temporary, until the generation random engine supplies each zone's seed: a ZoneSpec with no seed has one from the
-    // platform's entropy source
     stratum_gen::ZoneRequest make_zone_request(const stratum_sim::ZoneSpec& zone_spec)
     {
         std::optional<stratum_gen::seed_type> seed = zone_spec.value<stratum_gen::seed_type>(stratum_sim::seed_key);
+        assert(seed.has_value());
         const stratum_sim::ZonePosition position = stratum_sim::zone_position(zone_spec);
 
         return stratum_gen::ZoneRequest {zone_spec.value_or(stratum_sim::name_key, std::string()),
-            stratum_gen::zone_position_type {position.x, position.y, position.z}, seed ? *seed : math::random_seed(),
+            stratum_gen::zone_position_type {position.x, position.y, position.z}, *seed,
             stratum_sim::select_prefixed(zone_spec, stratum_sim::parameters_prefix)};
     }
 

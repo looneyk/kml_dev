@@ -259,6 +259,13 @@ and `new_region_position(world)`
 returns the x one past the largest of the world's regions, or 0 with none, and y 0. The zone file, the generators'
 parameters and `ZoneRequest` state a position.
 
+`seeds.hpp` derives region and zone seeds. `derived_seed(seed, coordinates)` returns a 64-bit seed that
+`std::seed_seq` generates from the seed's low and high 32-bit words followed by each coordinate, so a derived seed is the
+same on every platform. `region_seed(world_seed, region_spec)` returns the spec's `seed` if it has one, and otherwise
+the seed derived from the world seed and the region's x and y. `zone_seed(region_seed, zone_spec)` returns the spec's
+`seed` if it has one, and otherwise the seed derived from the region's seed and the zone's x, y and z. Both throw
+`std::runtime_error` for a seed or a coordinate that is not an integer.
+
 `specs.hpp` has two functions over a spec. `find_unknown_keys(spec, known_keys)` returns the spec's keys that are not
 among the known keys, in key order, so a consumer reports a key it does not read. `select_prefixed(spec, prefix)` returns
 the entries whose keys begin with the prefix, with the prefix removed, so one part of a spec, such as its `zone.` keys,
@@ -297,10 +304,11 @@ that layout and nothing else, and asserts that it is given a layout. A zone may 
 `layout` returning the interface; `create_entity`, `move` and `relocate` operate on their contents; and `unload_zone`
 discards a zone, its contents and its layout.
 
-`World` takes the game's `Generation` by reference in its constructor (`### Generation`). `create_zone(region,
+`World` takes the game's `Generation` by reference in its constructor (`### Generation`). `world_seed()` and
+`set_world_seed(seed)` access the world seed, which is 0 until it is set. `create_zone(region,
 zone_spec)` creates a zone in a region that has a spec, as the region's generator selector chooses. The selector, named
-by the spec's `generator_selector`, is given the world, the region and the `ZoneSpec`, and returns a
-`GeneratorSelection`. For a generator, `create_zone` calls it with the selection's `ZoneSpec`, sets the `Document` it
+by the spec's `generator_selector`, is given the world, the region and a copy of the `ZoneSpec` whose `seed` is
+`zone_seed(region_seed(world_seed, region_spec), zone_spec)`, and returns a `GeneratorSelection`. For a generator, `create_zone` calls it with the selection's `ZoneSpec`, sets the `Document` it
 returns unpopulated, and builds the zone from it as `load_zone` builds one from a file; it then sets the zone's `ZonePosition` from the
 selection's `ZoneSpec`. For a region spec, it returns `create_region_zone` with that spec and the `ZoneSpec` it was
 given, so the zone is the first of a new region. A zone template is not built: it throws `std::runtime_error`. So does a
@@ -779,9 +787,9 @@ default before each test case that starts from it.
 their modifiable presets undefined, so a game created or opened starts from them.
 
 The working directory has only the game in progress. `Game::create(region_spec, character_spec, seed)` clears, applies
-the game settings' initializers with `apply_initializers(game_setting_scope)`, resets the id allocator to count from zero, and seeds the gameplay random engine with the seed, or with one from
-`math::random_seed()` if none is passed, keeping the seed and writing it to the log, so nothing passes from one game to
-the next. It empties the working directory and creates the game directory there, named by the
+the game settings' initializers with `apply_initializers(game_setting_scope)`, resets the id allocator to count from zero, and sets the world seed to the seed, or to one from `math::random_seed()`
+if none is passed, with `World::set_world_seed`. It seeds the gameplay random engine with the world seed, keeps it, and
+writes it to the log, so nothing passes from one game to the next. It empties the working directory and creates the game directory there, named by the
 character, whose name the spec must have, with each character a directory name cannot have replaced by `_`. It has the
 character created from the `CharacterSpec`, and the world's starting region and its first zone from the `RegionSpec`
 with `World::create(region_spec, game_directory)`, and starts the session at the entry point `World::create` returns.
@@ -790,9 +798,9 @@ no game in progress.
 
 `Game::open(save_name)` clears, then empties the working directory and copies the save into it as the game directory,
 named by the character as `create` names it, read from the top of the save's `character.json`. It reads `game.json`: the id
-allocator counts on from `next_id`, the game's settings snapshot is restored, and the gameplay random engine's state is restored with `set_state`, or the
+allocator counts on from `next_id`, the game's settings snapshot is restored, the world seed is set from `seed`, and the gameplay random engine's state is restored with `set_state`, or the
 random engine is reseeded from `math::random_seed()`, the seed written to the log, if the boolean setting
-`Game::reseed_on_open_key`, `gameplay.reseed_on_open`, is true; the random engine is the same either way. Restoring repeats the outcomes the save would have had; reseeding gives
+`Game::reseed_on_open_key`, `gameplay.reseed_on_open`, is true; the random engine and the world seed are the same either way. Restoring repeats the outcomes the save would have had; reseeding gives
 each opening different outcomes. `World::open`
 then reads `world.json`, `Character::open` reads `character.json`, and the session starts in the character's zone,
 which `load_saved_zone` reads, at its cell and orientation. It throws `std::runtime_error` if there is no such save or
@@ -804,7 +812,7 @@ without parsing the character; an empty
 description; the time `game.json` was written; and its `SaveType`, from the suffix that ends the save's name. It throws `std::runtime_error` if a save's character file cannot be
 read or has no name.
 
-`Game::save(save_type)` writes `game.json` into the game directory, with the id allocator's next id, the seed, and the gameplay
+`Game::save(save_type)` writes `game.json` into the game directory, with the id allocator's next id, the world seed, and the gameplay
 random engine's state as `state()` returns it, under `random_engines`, and the game scope's settings snapshot
 under `settings` and `presets`; has the character write `character.json` there, through
 `make_character_document`, and the world save; and then copies the game directory to a new directory in the saves
@@ -871,9 +879,8 @@ for the purpose, and clears them when it uninitializes: a sink writing errors an
 warnings with `push_warning`, and the rest with `print`, and its run log file. The log is at `info`.
 
 Each host registers each of `stratum_gen::generators()` as a `Generation::generator_type` that makes a `ZoneRequest`
-from the `ZoneSpec` and passes it on: the `name`, the spec's position, the `seed`, and the
-keys after `parameters.`. Nothing
-writes a `seed` yet, so a `ZoneSpec` without one has a seed from `math::random_seed()`. It also registers a temporary generator selector named
+from the `ZoneSpec` and passes it on: the `name`, the spec's position, the `seed`, which `create_zone` adds to every
+`ZoneSpec` it passes, and the keys after `parameters.`. It also registers a temporary generator selector named
 `dungen`, until the generators are integrated. It creates the game from a temporary `RegionSpec`, whose
 `generator_selector` is `dungen`, whose `entry_access` is `staircase,1`, and whose `zone.position.z` is -1, and a
 temporary `CharacterSpec` with the name "Adventurer". The selector chooses the `dungen` generator for every zone, and names the zone
@@ -1014,7 +1021,7 @@ An entity's `parent` and `site` are written into its `components` ahead of the r
 run of three glyphs or more. A document that `read_zone` produces is written back equivalent to it.
 
 The game, character and world files that `game_file_spec.md` specifies, format `quetzal.stratum_game`, version `0.1`
-(`saved_game_format.hpp`), are each a data structure in a header of its own: `GameDocument`, with the game's next id, seed, each random engine's state by stream in `random_engines`, and its
+(`saved_game_format.hpp`), are each a data structure in a header of its own: `GameDocument`, with the game's next id, world seed, each random engine's state by stream in `random_engines`, and its
 settings; `CharacterDocument`, with the character's id, components, zone, placement, and inventory, whose entities are
 `Entity`s; and `WorldDocument`, whose regions are each a `WorldRegion` with its id, components, the
 spec it was created from, and a `ZoneReference`, an id and a file, for each zone, and whose `entity_zones` is the world

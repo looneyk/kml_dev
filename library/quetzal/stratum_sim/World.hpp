@@ -10,6 +10,7 @@
 #include "Layout.hpp"
 #include "PersistentId.hpp"
 #include "properties.hpp"
+#include "RandomStream.hpp"
 #include "Site.hpp"
 #include "Zone.hpp"
 #include "ZoneEntryIndex.hpp"
@@ -96,6 +97,10 @@ namespace quetzal::stratum_sim
         // World management
 
         void clear();
+
+        // The seed region and zone seeds derive from
+        RandomStream::seed_type world_seed() const;
+        void set_world_seed(RandomStream::seed_type seed);
 
         // Creates a new game's starting region from the spec, and its first zone from the spec's zone keys, and returns the
         // zone's entry point for the spec's entry_access. The game directory is the one zones are saved into until clear.
@@ -269,6 +274,7 @@ namespace quetzal::stratum_sim
 
         ZoneEntryIndex m_zone_entry_index;
         std::optional<std::filesystem::path> m_game_directory;
+        RandomStream::seed_type m_world_seed;
 
         flecs::world m_entities; // Last, as its teardown runs the observers that update the members above
     };

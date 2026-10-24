@@ -48,29 +48,18 @@ namespace quetzal::stratum_sim
         void menu_open();
         void menu_close();
         void clear();
-        // Clears, which resets the game settings, applies their initializers, empties the working directory, and creates a
-        // game there, its game directory named by the character, then starts play at its first zone's entry point. Seeds the
-        // gameplay random engine with the seed, or with one drawn from std::random_device if none is passed, and logs it.
-        // Requires a named character. Passes on what applying the initializers or creating the world throws, leaving no game
-        // in progress
+
+        // Clears the old game and creates a new one with a region/zone and character created from the specs.
         void create(const RegionSpec& region_spec, const CharacterSpec& character_spec,
             std::optional<RandomStream::seed_type> seed = std::nullopt); // starting specs, maybe read from settings instead ...
 
-        // Clears, empties the working directory, and copies the save there as the game directory, named by the character,
-        // then reads it: the id allocator's count, the random engine's state, restored or reseeded as the settings choose,
-        // the world, and the character, and starts play in the character's zone at its placement. Throws
-        // std::runtime_error if there is no such save or a file in it cannot be read, leaving no game in progress
+        // Clears the old game and starts a new one initialized from the saved game identified by save_name
         void open(std::string_view save_name);
 
-        // Writes game.json, the character's and the world's files, and every loaded zone into the game directory, then copies
-        // it to a new save directory, <character name>_<save time>, with _autosave or _quicksave appended for those save
-        // types, waiting for the next second if one of that name exists. A character in the name that cannot be in a
-        // directory name is replaced by '_'. Returns the save's name. Requires a game in progress whose character is alive
-        // and named. Throws std::runtime_error if a file cannot be written
+        // Saves the game running in the current session
         std::string save(SaveType save_type);
 
-        // Deletes the save, by the name saved_games returns, from the saves directory. Throws std::runtime_error, deleting nothing,
-        // unless the name is of a directory directly in the saves directory that has a character file
+        // Deletes a saved game
         void remove(std::string_view save_name);
 
         void quit();
@@ -97,11 +86,12 @@ namespace quetzal::stratum_sim
 
     private:
 
-        // Reads game.json: the id allocator's count, the seed, and the random engine's state, restored or reseeded as the settings dictate
+        // Reads game.json: the id allocator's count, the world seed, and the gameplay random engine's state, restored, or
+        // reseeded as the settings choose, the world seed kept either way
         void restore_game_state(const std::filesystem::path& filepath);
 
-        // Seeds the gameplay random engine, keeps the seed for saving, and logs it
-        void seed_gameplay_random(RandomStream::seed_type seed);
+        // Sets the world seed, keeps it for saving, seeds the gameplay random engine with it, and logs it
+        void seed_world(RandomStream::seed_type seed);
 
         // Some of these properties, especially Config, are only of importance to the host ...
         Config m_config; // Immutable properties like file locations, physical hardware configuration, ...
@@ -113,7 +103,7 @@ namespace quetzal::stratum_sim
         Character m_character;
         Session m_session;
 
-        // The game in progress's directory in the working directory, and the seed the gameplay random engine was seeded from
+        // The game in progress's directory in the working directory, and the world seed
         std::optional<std::filesystem::path> m_game_directory;
         RandomStream::seed_type m_seed;
     };

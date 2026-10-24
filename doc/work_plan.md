@@ -69,12 +69,6 @@ boxes are removed at the start of the next piece of work, since the reference do
 
 ## Random engine
 
-- [ ] **Derived seeds** (`random_engine.md`, `## Generation`): each region and zone with its coordinates, the starting
-      region and zone at the origin; a region's seed derived from the world seed and its coordinates, and a zone's from
-      its region's seed and its coordinates, through `std::seed_seq`, unless its spec has a seed;
-      `create_zone(region, zone_spec)` adding the zone's seed to the `ZoneSpec` under `seed_key` before the selector
-      runs, from which the host's `make_zone_request` passes it to the generator; the hosts' fallback to
-      `std::random_device` for a `ZoneSpec` without a seed removed.
 - [ ] **Generation runs as objects** (`random_engine.md`, `## Ownership`): dungen's and catagen's runs, each owning its
       random engine, seeded from the zone's seed, with the reference files regenerated. It comes with **the generators
       integrated**.
@@ -338,8 +332,8 @@ These are the open questions.
 
 ### Random engine
 
-- **Do players get reproducible games from a shared seed?** It needs each zone's seed derived from the world seed
-  and the zone's place instead of drawn, so that a world seed builds the same world however it is explored.
+- **Do players get reproducible games from a shared seed?** Each zone's seed is derived from the world seed and the
+  zone's position, so a world seed builds the same zones however the world is explored.
 
 ### Testing
 

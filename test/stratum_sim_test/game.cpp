@@ -431,8 +431,9 @@ namespace
         saving.open(save_name);
         string reseeded_save_name = saving.save(stratum_sim::SaveType::Explicit);
         stratum_format::raw_values_type reseeded_game_json = read_json(saving_config.saves_directory / reseeded_save_name / "game.json");
-        CHECK_CASE("or reseeded, as the settings choose", reseeded_game_json["game"]["random_engines"]["gameplay"] != saved_random_engine_state
-            && reseeded_game_json["game"]["seed"] != game_json["game"]["seed"]);
+        CHECK_CASE("or reseeded, as the settings choose, keeping the world seed",
+            reseeded_game_json["game"]["random_engines"]["gameplay"] != saved_random_engine_state
+            && reseeded_game_json["game"]["seed"] == game_json["game"]["seed"]);
         settings::store().set_value<bool>(stratum_sim::Game::reseed_on_open_key, false);
 
         const string detection_key = "gameplay.difficulty.detection_range_multiplier";

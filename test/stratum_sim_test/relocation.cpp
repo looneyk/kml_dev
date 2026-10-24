@@ -22,6 +22,7 @@
 #include "quetzal/stratum_sim/Game.hpp"
 #include "quetzal/stratum_sim/attachments.hpp"
 #include "quetzal/stratum_sim/positions.hpp"
+#include "quetzal/stratum_sim/seeds.hpp"
 #include "quetzal/stratum_sim/specs.hpp"
 #include "quetzal/stratum_sim/World.hpp"
 #include "quetzal/stratum_format/Document.hpp"
@@ -30,6 +31,7 @@
 #include "quetzal/testing/named_checks.hpp"
 #include <doctest/doctest.h>
 #include <algorithm>
+#include <array>
 #include <memory>
 #include <set>
 #include <stdexcept>
@@ -177,6 +179,67 @@ namespace
         CHECK_THROWS_AS(stratum_sim::zone_position(stratum_sim::ZoneSpec {{string(stratum_sim::position_x_key), "east"}}), runtime_error);
         CHECK_CASE("the placeholder places a new zone at x 0 and y 0, at its level", stratum_sim::new_zone_position(world, second, -2).z == -2
             && stratum_sim::new_zone_position(world, second, -2).x == 0);
+        return;
+    }
+
+    //--------------------------------------------------------------------------
+    // Reads from data/, so stratum_sim_test runs from its own directory
+    TEST_CASE_FIXTURE(WorldFixture, "seeds")
+    {
+        const array<stratum_sim::coord_type, 3> coordinates {1, -2, 3};
+        const stratum_sim::RandomStream::seed_type derived = stratum_sim::derived_seed(7, coordinates);
+        CHECK_CASE("a derived seed is the same for the same seed and coordinates", stratum_sim::derived_seed(7, coordinates) == derived);
+        CHECK_CASE("and differs by seed, by coordinate, and by coordinate order", stratum_sim::derived_seed(8, coordinates) != derived
+            && stratum_sim::derived_seed(7, array<stratum_sim::coord_type, 3> {1, -2, 4}) != derived
+            && stratum_sim::derived_seed(7, array<stratum_sim::coord_type, 3> {-2, 1, 3}) != derived);
+
+        stratum_sim::RegionSpec region_spec = test_region_spec("door");
+        stratum_sim::set_region_position(region_spec, stratum_sim::RegionPosition {4, -5});
+        CHECK_CASE("a region's seed derives from the world seed and the region's position",
+            stratum_sim::region_seed(7, region_spec) == stratum_sim::derived_seed(7, array<stratum_sim::coord_type, 2> {4, -5}));
+        stratum_sim::ZoneSpec zone_spec = test_zone_spec(-3);
+        CHECK_CASE("a zone's seed derives from the region's seed and the zone's position",
+            stratum_sim::zone_seed(7, zone_spec) == stratum_sim::derived_seed(7, array<stratum_sim::coord_type, 3> {0, 0, -3}));
+
+        stratum_sim::RegionSpec seeded_region_spec = region_spec;
+        seeded_region_spec.insert(string(stratum_sim::seed_key), "11");
+        stratum_sim::ZoneSpec seeded_zone_spec = zone_spec;
+        seeded_zone_spec.insert(string(stratum_sim::seed_key), "12");
+        CHECK_CASE("a spec's seed takes precedence", stratum_sim::region_seed(7, seeded_region_spec) == 11
+            && stratum_sim::zone_seed(7, seeded_zone_spec) == 12);
+
+        vector<stratum_sim::RandomStream::seed_type> generated_seeds;
+        stratum_sim::Generation generation = test_generation();
+        generation.m_generators["door"] = [&generated_seeds](const stratum_sim::ZoneSpec& requested_zone_spec)
+        {
+            generated_seeds.push_back(*requested_zone_spec.value<stratum_sim::RandomStream::seed_type>(stratum_sim::seed_key));
+            stratum_format::Document document = stratum_format::read_zone("data/door.zone");
+            const stratum_sim::ZonePosition position = stratum_sim::zone_position(requested_zone_spec);
+            document.position = stratum_format::zone_position_type {position.x, position.y, position.z};
+            document.is_unpopulated = false;
+            return document;
+        };
+
+        auto generate_zone = [&generation, &region_spec](stratum_sim::RandomStream::seed_type world_seed, const stratum_sim::ZoneSpec& requested_zone_spec)
+        {
+            stratum_sim::CountingIdAllocator id_allocator(stratum_sim::PersistentId {});
+            stratum_sim::World world(id_allocator, generation, test_zone_count_max);
+            stratum_sim::register_game_types(world);
+            world.set_world_seed(world_seed);
+            flecs::entity region = world.create_region(region_spec);
+            world.create_zone(region, requested_zone_spec);
+            return;
+        };
+
+        generate_zone(7, zone_spec);
+        generate_zone(7, zone_spec);
+        generate_zone(8, zone_spec);
+        generate_zone(7, seeded_zone_spec);
+        CHECK_CASE("a world's zone has the seed derived from the world seed through its region's",
+            generated_seeds.size() == 4 && generated_seeds[0] == stratum_sim::zone_seed(stratum_sim::region_seed(7, region_spec), zone_spec));
+        CHECK_CASE("the same for the same world seed, and differing for another", generated_seeds.size() == 4
+            && generated_seeds[1] == generated_seeds[0] && generated_seeds[2] != generated_seeds[0]);
+        CHECK_CASE("and the seed its spec has, if it has one", generated_seeds.size() == 4 && generated_seeds[3] == 12);
         return;
     }
 
