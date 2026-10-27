@@ -11,7 +11,10 @@
 #include "quetzal/math/floating_point.hpp"
 #include "quetzal/math/math_util.hpp"
 #include <algorithm>
+#include <array>
+#include <charconv>
 #include <format>
+#include <istream>
 #include <optional>
 #include <ostream>
 #include <sstream>
@@ -89,6 +92,15 @@ namespace quetzal::geometry
 
     template<typename Traits>
     std::ostream& operator<<(std::ostream& os, Segment<Traits> segment);
+
+    template<typename Traits>
+    std::istream& operator>>(std::istream& is, Segment<Traits>& segment);
+
+    template<typename Traits>
+    std::from_chars_result from_chars(const char* first, const char* last, Segment<Traits>& segment, const FormatSpec& spec = {});
+
+    template<typename Traits>
+    std::to_chars_result to_chars(char* first, char* last, const Segment<Traits>& segment, const FormatSpec& spec = {});
 
 } // namespace quetzal::geometry
 
@@ -278,32 +290,54 @@ quetzal::geometry::Segment<Traits> quetzal::geometry::reverse(Segment<Traits> se
 template<typename Traits>
 std::ostream& quetzal::geometry::operator<<(std::ostream& os, Segment<Traits> segment)
 {
-    os << to_string(segment, os);
+    os << quetzal::to_string(segment, os);
     return os;
 }
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-struct std::formatter<quetzal::geometry::Segment<Traits>>
+std::istream& quetzal::geometry::operator>>(std::istream& is, Segment<Traits>& segment)
 {
-    // Parses the whole format spec, and formats both endpoints
-    std::formatter<quetzal::geometry::Point<Traits>> m_point_formatter;
-
-    constexpr auto parse(std::format_parse_context& ctx)
+    std::array<Point<Traits>, 2> endpoints;
+    if (quetzal::read_series(is, endpoints))
     {
-        return m_point_formatter.parse(ctx);
+        segment.set_endpoints(endpoints[0], endpoints[1]);
     }
 
+    return is;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+std::from_chars_result quetzal::geometry::from_chars(const char* first, const char* last, Segment<Traits>& segment, const FormatSpec& spec)
+{
+    std::array<Point<Traits>, 2> endpoints;
+    auto result = quetzal::series_from_chars(first, last, endpoints, spec);
+    if (result.ec == std::errc {})
+    {
+        segment.set_endpoints(endpoints[0], endpoints[1]);
+    }
+
+    return result;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+std::to_chars_result quetzal::geometry::to_chars(char* first, char* last, const Segment<Traits>& segment, const FormatSpec& spec)
+{
+    const std::array<Point<Traits>, 2> endpoints {segment.endpoint(0), segment.endpoint(1)};
+    return quetzal::series_to_chars(first, last, endpoints, spec);
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+struct std::formatter<quetzal::geometry::Segment<Traits>> : quetzal::series_formatter<quetzal::geometry::Point<Traits>>
+{
     template<typename FormatContext>
     auto format(const quetzal::geometry::Segment<Traits>& segment, FormatContext& ctx) const
     {
-        auto out = m_point_formatter.format(segment.endpoint(0), ctx);
-        ctx.advance_to(out);
-        *out++ = ',';
-        *out++ = ' ';
-        ctx.advance_to(out);
-
-        return m_point_formatter.format(segment.endpoint(1), ctx);
+        const std::array<quetzal::geometry::Point<Traits>, 2> endpoints {segment.endpoint(0), segment.endpoint(1)};
+        return this->format_series(endpoints, ctx);
     }
 };
 

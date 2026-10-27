@@ -7,8 +7,11 @@
 
 #include "DiscretePoint.hpp"
 #include "quetzal/common/string_util.hpp"
+#include <charconv>
 #include <format>
 #include <iostream>
+#include <string_view>
+#include <system_error>
 
 namespace quetzal::geometry
 {
@@ -46,6 +49,15 @@ namespace quetzal::geometry
 
     template<std::signed_integral T, size_t N> requires (N > 0)
     std::ostream& operator<<(std::ostream& os, DiscreteDirectedPoint<T, N> directed_point);
+
+    template<std::signed_integral T, size_t N> requires (N > 0)
+    std::istream& operator>>(std::istream& is, DiscreteDirectedPoint<T, N>& directed_point);
+
+    template<std::signed_integral T, size_t N> requires (N > 0)
+    std::from_chars_result from_chars(const char* first, const char* last, DiscreteDirectedPoint<T, N>& directed_point, const FormatSpec& spec = {});
+
+    template<std::signed_integral T, size_t N> requires (N > 0)
+    std::to_chars_result to_chars(char* first, char* last, const DiscreteDirectedPoint<T, N>& directed_point, const FormatSpec& spec = {});
 
 } // namespace quetzal::geometry
 
@@ -105,37 +117,58 @@ void quetzal::geometry::DiscreteDirectedPoint<T, N>::set_direction(const directi
 template<std::signed_integral T, size_t N> requires (N > 0)
 std::ostream& quetzal::geometry::operator<<(std::ostream& os, DiscreteDirectedPoint<T, N> directed_point)
 {
-    os << to_string(directed_point, os);
+    os << quetzal::to_string(directed_point, os);
     return os;
 }
 
 //------------------------------------------------------------------------------
 template<std::signed_integral T, size_t N> requires (N > 0)
-struct std::formatter<quetzal::geometry::DiscreteDirectedPoint<T, N>>
+std::istream& quetzal::geometry::operator>>(std::istream& is, DiscreteDirectedPoint<T, N>& directed_point)
 {
-    // Parses the whole format spec, which the nested formatters share
-    std::formatter<quetzal::geometry::DiscretePoint<T, N>> m_point_formatter;
-
-    constexpr auto parse(std::format_parse_context& ctx)
+    typename DiscreteDirectedPoint<T, N>::point_type position;
+    typename DiscreteDirectedPoint<T, N>::direction_type direction;
+    if (quetzal::read_components(is,position, direction))
     {
-        return m_point_formatter.parse(ctx);
+        directed_point = DiscreteDirectedPoint<T, N>(position, direction);
     }
 
+    return is;
+}
+
+//------------------------------------------------------------------------------
+template<std::signed_integral T, size_t N> requires (N > 0)
+std::from_chars_result quetzal::geometry::from_chars(const char* first, const char* last, DiscreteDirectedPoint<T, N>& directed_point, const FormatSpec& spec)
+{
+    typename DiscreteDirectedPoint<T, N>::point_type position;
+    typename DiscreteDirectedPoint<T, N>::direction_type direction;
+    auto result = quetzal::components_from_chars(first, last, spec,position, direction);
+    if (result.ec == std::errc {})
+    {
+        directed_point = DiscreteDirectedPoint<T, N>(position, direction);
+    }
+
+    return result;
+}
+
+//------------------------------------------------------------------------------
+template<std::signed_integral T, size_t N> requires (N > 0)
+std::to_chars_result quetzal::geometry::to_chars(char* first, char* last, const DiscreteDirectedPoint<T, N>& directed_point, const FormatSpec& spec)
+{
+    return quetzal::components_to_chars(first, last, spec,directed_point.position(), directed_point.direction());
+}
+
+//------------------------------------------------------------------------------
+template<std::signed_integral T, size_t N> requires (N > 0)
+struct std::formatter<quetzal::geometry::DiscreteDirectedPoint<T, N>> : quetzal::series_formatter<quetzal::geometry::DiscretePoint<T, N>>
+{
     template<typename FormatContext>
     auto format(const quetzal::geometry::DiscreteDirectedPoint<T, N>& directed_point, FormatContext& ctx) const
     {
-        std::formatter<typename quetzal::geometry::DiscretePoint<T, N>::vector_type> vector_formatter;
-        vector_formatter.m_object_delimiters = m_point_formatter.m_object_delimiters;
-        vector_formatter.m_element_delimiter = m_point_formatter.m_element_delimiter;
-        vector_formatter.m_element_formatter = m_point_formatter.m_element_formatter;
+        using direction_type = typename quetzal::geometry::DiscretePoint<T, N>::vector_type;
 
-        auto out = m_point_formatter.format(directed_point.position(), ctx);
-        ctx.advance_to(out);
-        *out++ = ',';
-        *out++ = ' ';
-        ctx.advance_to(out);
-
-        return vector_formatter.format(directed_point.direction(), ctx);
+        ctx.advance_to(this->m_element_formatter.format(directed_point.position(), ctx));
+        this->format_series_delimiter(ctx);
+        return quetzal::matching_formatter<direction_type>(this->m_element_formatter).format(directed_point.direction(), ctx);
     }
 };
 

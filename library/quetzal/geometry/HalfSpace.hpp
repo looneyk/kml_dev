@@ -11,8 +11,12 @@
 #include "PointRelation.hpp"
 #include "quetzal/common/string_util.hpp"
 #include "quetzal/math/floating_point.hpp"
+#include <charconv>
 #include <format>
+#include <istream>
 #include <ostream>
+#include <string_view>
+#include <system_error>
 #include <cassert>
 
 namespace quetzal::geometry
@@ -25,6 +29,7 @@ namespace quetzal::geometry
     public:
 
         using traits_type = Traits;
+        using value_type = Traits::value_type;
         using point_type = Point<Traits>;
         using vector_type = point_type::vector_type;
         using separator_type = std::conditional<Traits::dimension >= 3, Plane<Traits>, std::conditional<Traits::dimension == 2, Line<Traits>, point_type>>::type;
@@ -55,6 +60,15 @@ namespace quetzal::geometry
 
     template<typename Traits>
     std::ostream& operator<<(std::ostream& os, HalfSpace<Traits> halfspace);
+
+    template<typename Traits>
+    std::istream& operator>>(std::istream& is, HalfSpace<Traits>& halfspace);
+
+    template<typename Traits>
+    std::from_chars_result from_chars(const char* first, const char* last, HalfSpace<Traits>& halfspace, const FormatSpec& spec = {});
+
+    template<typename Traits>
+    std::to_chars_result to_chars(char* first, char* last, const HalfSpace<Traits>& halfspace, const FormatSpec& spec = {});
 
 } // namespace quetzal::geometry
 
@@ -121,53 +135,67 @@ std::partial_ordering quetzal::geometry::HalfSpace<Traits>::compare(const point_
 template<typename Traits>
 std::ostream& quetzal::geometry::operator<<(std::ostream& os, HalfSpace<Traits> halfspace)
 {
-    os << to_string(halfspace, os);
+    os << quetzal::to_string(halfspace, os);
     return os;
 }
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-struct std::formatter<quetzal::geometry::HalfSpace<Traits>>
+std::istream& quetzal::geometry::operator>>(std::istream& is, HalfSpace<Traits>& halfspace)
 {
-    // Parses the whole format spec, which the separator's formatter shares
-    std::formatter<quetzal::geometry::Point<Traits>> m_point_formatter;
-
-    constexpr auto parse(std::format_parse_context& ctx)
+    typename HalfSpace<Traits>::separator_type separator;
+    typename HalfSpace<Traits>::vector_type exterior_direction;
+    if (quetzal::read_components(is,separator, exterior_direction))
     {
-        return m_point_formatter.parse(ctx);
+        halfspace = HalfSpace<Traits>(separator, exterior_direction);
     }
 
+    return is;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+std::from_chars_result quetzal::geometry::from_chars(const char* first, const char* last, HalfSpace<Traits>& halfspace, const FormatSpec& spec)
+{
+    typename HalfSpace<Traits>::separator_type halfspace_separator;
+    typename HalfSpace<Traits>::vector_type exterior_direction;
+    auto result = quetzal::components_from_chars(first, last, spec,halfspace_separator, exterior_direction);
+    if (result.ec == std::errc {})
+    {
+        halfspace = HalfSpace<Traits>(halfspace_separator, exterior_direction);
+    }
+
+    return result;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+std::to_chars_result quetzal::geometry::to_chars(char* first, char* last, const HalfSpace<Traits>& halfspace, const FormatSpec& spec)
+{
+    return quetzal::components_to_chars(first, last, spec,halfspace.separator(), halfspace.exterior_direction());
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+struct std::formatter<quetzal::geometry::HalfSpace<Traits>> : quetzal::series_formatter<quetzal::geometry::Point<Traits>>
+{
     template<typename FormatContext>
     auto format(const quetzal::geometry::HalfSpace<Traits>& halfspace, FormatContext& ctx) const
     {
-        std::formatter<quetzal::math::Vector<Traits>> vector_formatter;
-        vector_formatter.m_object_delimiters = m_point_formatter.m_object_delimiters;
-        vector_formatter.m_element_delimiter = m_point_formatter.m_element_delimiter;
-        vector_formatter.m_element_formatter = m_point_formatter.m_element_formatter;
-
-        auto out = ctx.out();
-        if constexpr (Traits::dimension >= 3)
+        if constexpr (Traits::dimension >= 2)
         {
-            std::formatter<quetzal::geometry::Plane<Traits>> separator_formatter;
-            separator_formatter.m_point_formatter = m_point_formatter;
-            out = separator_formatter.format(halfspace.separator(), ctx);
-        }
-        else if constexpr (Traits::dimension == 2)
-        {
-            std::formatter<quetzal::geometry::Line<Traits>> separator_formatter;
-            separator_formatter.m_point_formatter = m_point_formatter;
-            out = separator_formatter.format(halfspace.separator(), ctx);
+            std::formatter<typename quetzal::geometry::HalfSpace<Traits>::separator_type> separator_formatter;
+            separator_formatter.m_element_formatter = this->m_element_formatter;
+            separator_formatter.set_format_spec(this->m_format_spec);
+            ctx.advance_to(separator_formatter.format(halfspace.separator(), ctx));
         }
         else
         {
-            out = m_point_formatter.format(halfspace.separator(), ctx);
+            ctx.advance_to(this->m_element_formatter.format(halfspace.separator(), ctx));
         }
 
-        ctx.advance_to(out);
-        *out++ = ' ';
-        ctx.advance_to(out);
-
-        return vector_formatter.format(halfspace.exterior_direction(), ctx);
+        this->format_series_delimiter(ctx);
+        return quetzal::matching_formatter<quetzal::math::Vector<Traits>>(this->m_element_formatter).format(halfspace.exterior_direction(), ctx);
     }
 };
 

@@ -56,7 +56,7 @@ namespace
 
         if (site.position.has_value())
         {
-            members.push_back(std::format("\"position\": [{}, {}]", number_text(site.position->x()), number_text(site.position->y())));
+            members.push_back(std::format("\"position\": {:/s, /b[]}", *site.position));
         }
 
         if (site.orientation.has_value())
@@ -153,7 +153,7 @@ std::string quetzal::stratum_format::detail::inline_text(const raw_values_type& 
 
     if (v.is_number_float())
     {
-        return number_text(v.get<double>());
+        return std::format("{}", v.get<double>());
     }
 
     return v.dump();
@@ -192,13 +192,13 @@ std::string quetzal::stratum_format::detail::text_values_text(const KeyValueStor
 //------------------------------------------------------------------------------
 std::string quetzal::stratum_format::detail::cell_position_text(const discrete_point_type& cell_position)
 {
-    return std::format("[{}, {}]", cell_position.i(), cell_position.j());
+    return std::format("{:/s, /b[]}", cell_position);
 }
 
 //------------------------------------------------------------------------------
 std::string quetzal::stratum_format::detail::direction_text(const discrete_vector_type& direction)
 {
-    return std::format("[{}, {}]", direction.x(), direction.y());
+    return std::format("{:/s, /b[]}", direction);
 }
 
 //------------------------------------------------------------------------------

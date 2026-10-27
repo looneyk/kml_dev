@@ -10,8 +10,12 @@
 #include "quetzal/common/string_util.hpp"
 #include "quetzal/math/floating_point.hpp"
 #include <array>
+#include <charconv>
 #include <format>
+#include <istream>
 #include <ostream>
+#include <string_view>
+#include <system_error>
 #include <cassert>
 
 namespace quetzal::geometry
@@ -70,6 +74,15 @@ namespace quetzal::geometry
 
     template<typename Traits>
     std::ostream& operator<<(std::ostream& os, Line<Traits> line);
+
+    template<typename Traits>
+    std::istream& operator>>(std::istream& is, Line<Traits>& line);
+
+    template<typename Traits>
+    std::from_chars_result from_chars(const char* first, const char* last, Line<Traits>& line, const FormatSpec& spec = {});
+
+    template<typename Traits>
+    std::to_chars_result to_chars(char* first, char* last, const Line<Traits>& line, const FormatSpec& spec = {});
 
 } // namespace quetzal::geometry
 
@@ -228,37 +241,56 @@ std::array<typename P::value_type, 2> quetzal::geometry::closest_point_parameter
 template<typename Traits>
 std::ostream& quetzal::geometry::operator<<(std::ostream& os, Line<Traits> line)
 {
-    os << to_string(line, os);
+    os << quetzal::to_string(line, os);
     return os;
 }
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-struct std::formatter<quetzal::geometry::Line<Traits>>
+std::istream& quetzal::geometry::operator>>(std::istream& is, Line<Traits>& line)
 {
-    // Parses the whole format spec, which the direction's Vector formatter shares
-    std::formatter<quetzal::geometry::Point<Traits>> m_point_formatter;
-
-    constexpr auto parse(std::format_parse_context& ctx)
+    typename Line<Traits>::point_type point;
+    typename Line<Traits>::vector_type direction;
+    if (quetzal::read_components(is,point, direction))
     {
-        return m_point_formatter.parse(ctx);
+        line = Line<Traits>(point, direction);
     }
 
+    return is;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+std::from_chars_result quetzal::geometry::from_chars(const char* first, const char* last, Line<Traits>& line, const FormatSpec& spec)
+{
+    typename Line<Traits>::point_type point;
+    typename Line<Traits>::vector_type direction;
+    auto result = quetzal::components_from_chars(first, last, spec,point, direction);
+    if (result.ec == std::errc {})
+    {
+        line = Line<Traits>(point, direction);
+    }
+
+    return result;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+std::to_chars_result quetzal::geometry::to_chars(char* first, char* last, const Line<Traits>& line, const FormatSpec& spec)
+{
+    return quetzal::components_to_chars(first, last, spec,line.point(), line.direction());
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+struct std::formatter<quetzal::geometry::Line<Traits>> : quetzal::series_formatter<quetzal::geometry::Point<Traits>>
+{
     template<typename FormatContext>
     auto format(const quetzal::geometry::Line<Traits>& line, FormatContext& ctx) const
     {
-        std::formatter<quetzal::math::Vector<Traits>> vector_formatter;
-        vector_formatter.m_object_delimiters = m_point_formatter.m_object_delimiters;
-        vector_formatter.m_element_delimiter = m_point_formatter.m_element_delimiter;
-        vector_formatter.m_element_formatter = m_point_formatter.m_element_formatter;
-
-        auto out = m_point_formatter.format(line.point(), ctx);
-        ctx.advance_to(out);
-        *out++ = ',';
-        *out++ = ' ';
-        ctx.advance_to(out);
-
-        return vector_formatter.format(line.direction(), ctx);
+        ctx.advance_to(this->m_element_formatter.format(line.point(), ctx));
+        this->format_series_delimiter(ctx);
+        return quetzal::matching_formatter<quetzal::math::Vector<Traits>>(this->m_element_formatter).format(line.direction(), ctx);
     }
 };
 

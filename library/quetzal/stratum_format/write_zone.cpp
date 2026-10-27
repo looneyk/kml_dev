@@ -126,9 +126,9 @@ namespace
         std::vector<std::string> members
         {
             std::format("\"notation\": {}", string_text(name(cells.notation))),
-            std::format("\"extent\": [{}, {}]", cells.extent.x(), cells.extent.y()),
-            std::format("\"origin\": [{}, {}, {}]", number_text(cells.origin[0]), number_text(cells.origin[1]), number_text(cells.origin[2])),
-            std::format("\"scale\": {}", number_text(cells.scale))
+            std::format("\"extent\": {:/s, /b[]}", cells.extent),
+            std::format("\"origin\": {:/s, /b[]}", cells.origin),
+            std::format("\"scale\": {}", cells.scale)
         };
 
         if (cells.encoding != Encoding::Characters)
@@ -190,7 +190,7 @@ namespace
     {
         if (properties.height.has_value())
         {
-            entry.push_back({"height", number_text(*properties.height)});
+            entry.push_back({"height", std::format("{}", *properties.height)});
         }
 
         add_components(entry, properties.components);
@@ -263,7 +263,7 @@ namespace
         std::vector<std::string> components {std::format("\"access_points\": [ {} ]", joined(access_points))};
         if (document.position.has_value())
         {
-            components.push_back(std::format("\"position\": [{}, {}, {}]", document.position->x(), document.position->y(), document.position->z()));
+            components.push_back(std::format("\"position\": {:/s, /b[]}", *document.position));
         }
 
         if (document.is_unpopulated)

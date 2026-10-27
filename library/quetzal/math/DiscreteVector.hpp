@@ -151,10 +151,10 @@ namespace quetzal::math
     std::ostream& operator<<(std::ostream& os, const DiscreteVector<T, N>& v);
 
     template<std::signed_integral T, size_t N> requires (N > 0)
-    std::from_chars_result from_chars(const char* first, const char* last, DiscreteVector<T, N>& v, const std::string& element_delimiter = " ");
+    std::from_chars_result from_chars(const char* first, const char* last, DiscreteVector<T, N>& v, const FormatSpec& spec = {});
 
     template<std::signed_integral T, size_t N> requires (N > 0)
-    std::to_chars_result to_chars(char* first, char* last, const DiscreteVector<T, N>& v, const std::string& element_delimiter = " ");
+    std::to_chars_result to_chars(char* first, char* last, const DiscreteVector<T, N>& v, const FormatSpec& spec = {});
 
     template<std::signed_integral T, size_t N> requires (N > 0)
     DiscreteVector<T, N> direction(const DiscreteVector<T, N>& v);
@@ -686,19 +686,7 @@ std::strong_ordering quetzal::math::operator<=>(const DiscreteVector<T, N>& lhs,
 template<std::signed_integral T, size_t N> requires (N > 0)
 std::istream& quetzal::math::operator>>(std::istream& is, DiscreteVector<T, N>& v)
 {
-    std::string element_delimiter = array_element_delimiter(is);
-
-    for (size_t i = 0; i < N; ++i)
-    {
-        if (i > 0 && !skip_element_delimiter(is, element_delimiter))
-        {
-            return is;
-        }
-
-        is >> v[i];
-    }
-
-    return is;
+    return read_array(is, v);
 }
 
 //------------------------------------------------------------------------------
@@ -711,16 +699,16 @@ std::ostream& quetzal::math::operator<<(std::ostream& os, const DiscreteVector<T
 
 //------------------------------------------------------------------------------
 template<std::signed_integral T, size_t N> requires (N > 0)
-std::from_chars_result quetzal::math::from_chars(const char* first, const char* last, DiscreteVector<T, N>& v, const std::string& element_delimiter)
+std::from_chars_result quetzal::math::from_chars(const char* first, const char* last, DiscreteVector<T, N>& v, const FormatSpec& spec)
 {
-    return array_from_chars(first, last, v, element_delimiter);
+    return array_from_chars(first, last, v, spec);
 }
 
 //------------------------------------------------------------------------------
 template<std::signed_integral T, size_t N> requires (N > 0)
-std::to_chars_result quetzal::math::to_chars(char* first, char* last, const DiscreteVector<T, N>& v, const std::string& element_delimiter)
+std::to_chars_result quetzal::math::to_chars(char* first, char* last, const DiscreteVector<T, N>& v, const FormatSpec& spec)
 {
-    return array_to_chars(first, last, v, element_delimiter);
+    return array_to_chars(first, last, v, spec);
 }
 
 //------------------------------------------------------------------------------

@@ -9,8 +9,11 @@
 #include "Point.hpp"
 #include "quetzal/common/string_util.hpp"
 #include "quetzal/math/floating_point.hpp"
+#include <charconv>
 #include <format>
 #include <iostream>
+#include <string_view>
+#include <system_error>
 
 namespace quetzal::geometry
 {
@@ -50,6 +53,15 @@ namespace quetzal::geometry
 
     template<typename Traits>
     std::ostream& operator<<(std::ostream& os, const Sphere<Traits>& sphere);
+
+    template<typename Traits>
+    std::istream& operator>>(std::istream& is, Sphere<Traits>& sphere);
+
+    template<typename Traits>
+    std::from_chars_result from_chars(const char* first, const char* last, Sphere<Traits>& sphere, const FormatSpec& spec = {});
+
+    template<typename Traits>
+    std::to_chars_result to_chars(char* first, char* last, const Sphere<Traits>& sphere, const FormatSpec& spec = {});
 
 } // namespace quetzal::geometry
 
@@ -119,32 +131,56 @@ std::partial_ordering quetzal::geometry::Sphere<Traits>::compare(const point_typ
 template<typename Traits>
 std::ostream& quetzal::geometry::operator<<(std::ostream& os, const Sphere<Traits>& sphere)
 {
-    os << to_string(sphere, os);
+    os << quetzal::to_string(sphere, os);
     return os;
 }
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-struct std::formatter<quetzal::geometry::Sphere<Traits>>
+std::istream& quetzal::geometry::operator>>(std::istream& is, Sphere<Traits>& sphere)
 {
-    // Parses the whole format spec, and formats the center; its element formatter formats the radius
-    std::formatter<quetzal::geometry::Point<Traits>> m_point_formatter;
-
-    constexpr auto parse(std::format_parse_context& ctx)
+    typename Sphere<Traits>::point_type center;
+    typename Sphere<Traits>::value_type radius {};
+    if (quetzal::read_components(is,center, radius))
     {
-        return m_point_formatter.parse(ctx);
+        sphere = Sphere<Traits>(center, radius);
     }
 
+    return is;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+std::from_chars_result quetzal::geometry::from_chars(const char* first, const char* last, Sphere<Traits>& sphere, const FormatSpec& spec)
+{
+    typename Sphere<Traits>::point_type center;
+    typename Sphere<Traits>::value_type radius {};
+    auto result = quetzal::components_from_chars(first, last, spec,center, radius);
+    if (result.ec == std::errc {})
+    {
+        sphere = Sphere<Traits>(center, radius);
+    }
+
+    return result;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+std::to_chars_result quetzal::geometry::to_chars(char* first, char* last, const Sphere<Traits>& sphere, const FormatSpec& spec)
+{
+    return quetzal::components_to_chars(first, last, spec,sphere.center(), sphere.radius());
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+struct std::formatter<quetzal::geometry::Sphere<Traits>> : quetzal::series_formatter<quetzal::geometry::Point<Traits>>
+{
     template<typename FormatContext>
     auto format(const quetzal::geometry::Sphere<Traits>& sphere, FormatContext& ctx) const
     {
-        auto out = m_point_formatter.format(sphere.center(), ctx);
-        ctx.advance_to(out);
-        *out++ = ',';
-        *out++ = ' ';
-        ctx.advance_to(out);
-
-        return m_point_formatter.m_element_formatter.format(sphere.radius(), ctx);
+        ctx.advance_to(this->m_element_formatter.format(sphere.center(), ctx));
+        this->format_series_delimiter(ctx);
+        return this->m_element_formatter.m_element_formatter.format(sphere.radius(), ctx);
     }
 };
 

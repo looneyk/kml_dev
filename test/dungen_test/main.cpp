@@ -238,7 +238,7 @@ namespace
         {
             string position = take("position");
             dungen::zone_position_type::vector_type v;
-            math::from_chars(position.data(), position.data() + position.size(), v, ",");
+            math::from_chars(position.data(), position.data() + position.size(), v, {.separator = ","});
             parameters.position = dungen::zone_position_type(v);
         }
 

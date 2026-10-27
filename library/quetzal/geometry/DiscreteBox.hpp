@@ -6,13 +6,18 @@
 //------------------------------------------------------------------------------
 
 #include "DiscretePoint.hpp"
+#include "quetzal/common/string_util.hpp"
 #include "quetzal/math/DiscreteVector.hpp"
 #include <algorithm>
+#include <array>
 #include <charconv>
 #include <concepts>
+#include <format>
 #include <iosfwd>
 #include <istream>
 #include <ostream>
+#include <string_view>
+#include <system_error>
 #include <cassert>
 
 namespace quetzal::geometry
@@ -108,10 +113,10 @@ namespace quetzal::geometry
     std::ostream& operator<<(std::ostream& os, const DiscreteBox<T, N>& box);
 
     template<std::signed_integral T, size_t N> requires (N > 0)
-    std::from_chars_result from_chars(const char* first, const char* last, DiscreteBox<T, N>& box, const std::string& element_delimiter = " ");
+    std::from_chars_result from_chars(const char* first, const char* last, DiscreteBox<T, N>& box, const FormatSpec& spec = {});
 
     template<std::signed_integral T, size_t N> requires (N > 0)
-    std::to_chars_result to_chars(char* first, char* last, const DiscreteBox<T, N>& box, const std::string& element_delimiter = " ");
+    std::to_chars_result to_chars(char* first, char* last, const DiscreteBox<T, N>& box, const FormatSpec& spec = {});
 
 } // namespace quetzal::geometry
 
@@ -451,11 +456,10 @@ quetzal::geometry::DiscreteBox<T, N> quetzal::geometry::op_intersection(const Di
 template<std::signed_integral T, size_t N> requires (N > 0)
 std::istream& quetzal::geometry::operator>>(std::istream& is, DiscreteBox<T, N>& box)
 {
-    is >> box.position();
-
-    if (quetzal::skip_element_delimiter(is, quetzal::array_element_delimiter(is)))
+    std::array<typename DiscreteBox<T, N>::point_type, 2> points;
+    if (quetzal::read_series(is, points, quetzal::bounds_delimiter_default))
     {
-        is >> box.extent();
+        box.set_bounds(points[0], points[1]);
     }
 
     return is;
@@ -465,69 +469,46 @@ std::istream& quetzal::geometry::operator>>(std::istream& is, DiscreteBox<T, N>&
 template<std::signed_integral T, size_t N> requires (N > 0)
 std::ostream& quetzal::geometry::operator<<(std::ostream& os, const DiscreteBox<T, N>& box)
 {
-    os << box.position() << " " << box.extent();
+    os << quetzal::to_string(box, os);
     return os;
 }
 
 //------------------------------------------------------------------------------
 template<std::signed_integral T, size_t N> requires (N > 0)
-std::from_chars_result quetzal::geometry::from_chars(const char* first, const char* last, DiscreteBox<T, N>& box, const std::string& element_delimiter)
+std::from_chars_result quetzal::geometry::from_chars(const char* first, const char* last, DiscreteBox<T, N>& box, const FormatSpec& spec)
 {
-    auto result = from_chars(first, last, box.position(), element_delimiter);
-    if (result.ec != std::errc {})
+    std::array<typename DiscreteBox<T, N>::point_type, 2> points;
+    auto result = quetzal::series_from_chars(first, last, points, spec, quetzal::bounds_delimiter_default);
+    if (result.ec == std::errc {})
     {
-        return result;
+        box.set_bounds(points[0], points[1]);
     }
 
-    const char* position = quetzal::skip_element_delimiter(result.ptr, last, element_delimiter);
-    if (position == nullptr)
-    {
-        return {result.ptr, std::errc::invalid_argument};
-    }
-
-    return math::from_chars(position, last, box.extent(), element_delimiter);
+    return result;
 }
 
 //------------------------------------------------------------------------------
 template<std::signed_integral T, size_t N> requires (N > 0)
-std::to_chars_result quetzal::geometry::to_chars(char* first, char* last, const DiscreteBox<T, N>& box, const std::string& element_delimiter)
+std::to_chars_result quetzal::geometry::to_chars(char* first, char* last, const DiscreteBox<T, N>& box, const FormatSpec& spec)
 {
-    auto result = to_chars(first, last, box.position(), element_delimiter);
-    if (result.ec != std::errc {})
-    {
-        return result;
-    }
-
-    if (static_cast<size_t>(last - result.ptr) < element_delimiter.size())
-    {
-        return {result.ptr, std::errc::value_too_large};
-    }
-
-    for (char c : element_delimiter)
-    {
-        *result.ptr++ = c;
-    }
-
-    return math::to_chars(result.ptr, last, box.extent(), element_delimiter);
+    const std::array<typename DiscreteBox<T, N>::point_type, 2> points {box.lower(), box.upper()};
+    return quetzal::series_to_chars(first, last, points, spec, quetzal::bounds_delimiter_default);
 }
 
 //------------------------------------------------------------------------------
 template<std::signed_integral T, size_t N> requires (N > 0)
-struct std::formatter<quetzal::geometry::DiscreteBox<T, N>> : quetzal::array_formatter<T>
+struct std::formatter<quetzal::geometry::DiscreteBox<T, N>> : quetzal::series_formatter<quetzal::geometry::DiscretePoint<T, N>>
 {
+    constexpr formatter() :
+        quetzal::series_formatter<quetzal::geometry::DiscretePoint<T, N>>({.series_delimiter = std::string(quetzal::bounds_delimiter_default)})
+    {
+    }
+
     template<typename FormatContext>
     auto format(const quetzal::geometry::DiscreteBox<T, N>& box, FormatContext& ctx) const
     {
-        auto out = this->format_elements(box.position(), ctx);
-        ctx.advance_to(out);
-
-        for (char c : this->m_element_delimiter)
-        {
-            *out++ = c;
-        }
-
-        ctx.advance_to(out);
-        return this->format_elements(box.extent(), ctx);
+        const std::array<quetzal::geometry::DiscretePoint<T, N>, 2> points {box.lower(), box.upper()};
+        return this->format_series(points, ctx);
     }
 };
 

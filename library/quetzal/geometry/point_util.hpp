@@ -45,6 +45,7 @@ quetzal::geometry::Point<quetzal::geometry::cartesian_traits<Traits>> quetzal::g
         //assert(p[Traits::dimension] == Traits::value_type(1));
 //            assert(math::float_eq(p[Traits::dimension], Traits::value_type(1)));
 
+        // This could be a metaprogrammed Traits operation. Should provide it for vector as well ...
         Point<cartesian_traits<Traits>> c;
         for (size_t i = 0; i < Traits::dimension; ++i)
         {

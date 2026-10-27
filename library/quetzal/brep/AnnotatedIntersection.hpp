@@ -132,7 +132,7 @@ struct std::formatter<quetzal::brep::AnnotatedIntersection<Traits>>
 
         assert(ai.m_locus == Locus::Segment);
         std::formatter<quetzal::brep::AnnotatedSegment<Traits>> segment_formatter;
-        segment_formatter.m_segment_formatter.m_point_formatter = m_point_formatter.m_point_formatter;
+        segment_formatter.m_segment_formatter.m_element_formatter = m_point_formatter.m_point_formatter;
         return segment_formatter.format(ai.m_segment, ctx);
     }
 };

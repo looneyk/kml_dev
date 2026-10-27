@@ -60,7 +60,7 @@ namespace
     catagen::vector_type to_vector(const string& s, const string& separator)
     {
         catagen::vector_type v;
-        auto result = math::from_chars(s.data(), s.data() + s.size(), v, separator);
+        auto result = math::from_chars(s.data(), s.data() + s.size(), v, {.separator = separator});
 
         if (result.ec != errc {} || result.ptr != s.data() + s.size())
         {
@@ -75,7 +75,7 @@ namespace
     catagen::zone_position_type to_zone_position(const string& s)
     {
         catagen::zone_position_type::vector_type v;
-        auto result = math::from_chars(s.data(), s.data() + s.size(), v, ",");
+        auto result = math::from_chars(s.data(), s.data() + s.size(), v, {.separator = ","});
 
         if (result.ec != errc {} || result.ptr != s.data() + s.size())
         {

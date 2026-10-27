@@ -9,8 +9,11 @@
 #include "Point.hpp"
 #include "quetzal/common/string_util.hpp"
 #include "quetzal/math/floating_point.hpp"
+#include <charconv>
 #include <format>
 #include <iostream>
+#include <string_view>
+#include <system_error>
 
 namespace quetzal::geometry
 {
@@ -52,6 +55,15 @@ namespace quetzal::geometry
 
     template<typename Traits>
     std::ostream& operator<<(std::ostream& os, const Circle<Traits>& circle);
+
+    template<typename Traits>
+    std::istream& operator>>(std::istream& is, Circle<Traits>& circle);
+
+    template<typename Traits>
+    std::from_chars_result from_chars(const char* first, const char* last, Circle<Traits>& circle, const FormatSpec& spec = {});
+
+    template<typename Traits>
+    std::to_chars_result to_chars(char* first, char* last, const Circle<Traits>& circle, const FormatSpec& spec = {});
 
 } // namespace quetzal::geometry
 
@@ -131,32 +143,56 @@ std::partial_ordering quetzal::geometry::Circle<Traits>::compare(const point_typ
 template<typename Traits>
 std::ostream& quetzal::geometry::operator<<(std::ostream& os, const Circle<Traits>& circle)
 {
-    os << to_string(circle, os);
+    os << quetzal::to_string(circle, os);
     return os;
 }
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-struct std::formatter<quetzal::geometry::Circle<Traits>>
+std::istream& quetzal::geometry::operator>>(std::istream& is, Circle<Traits>& circle)
 {
-    // Parses the whole format spec, and formats the center; its element formatter formats the radius
-    std::formatter<quetzal::geometry::Point<Traits>> m_point_formatter;
-
-    constexpr auto parse(std::format_parse_context& ctx)
+    typename Circle<Traits>::point_type center;
+    typename Circle<Traits>::value_type radius {};
+    if (quetzal::read_components(is,center, radius))
     {
-        return m_point_formatter.parse(ctx);
+        circle = Circle<Traits>(center, radius);
     }
 
+    return is;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+std::from_chars_result quetzal::geometry::from_chars(const char* first, const char* last, Circle<Traits>& circle, const FormatSpec& spec)
+{
+    typename Circle<Traits>::point_type center;
+    typename Circle<Traits>::value_type radius {};
+    auto result = quetzal::components_from_chars(first, last, spec,center, radius);
+    if (result.ec == std::errc {})
+    {
+        circle = Circle<Traits>(center, radius);
+    }
+
+    return result;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+std::to_chars_result quetzal::geometry::to_chars(char* first, char* last, const Circle<Traits>& circle, const FormatSpec& spec)
+{
+    return quetzal::components_to_chars(first, last, spec,circle.center(), circle.radius());
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+struct std::formatter<quetzal::geometry::Circle<Traits>> : quetzal::series_formatter<quetzal::geometry::Point<Traits>>
+{
     template<typename FormatContext>
     auto format(const quetzal::geometry::Circle<Traits>& circle, FormatContext& ctx) const
     {
-        auto out = m_point_formatter.format(circle.center(), ctx);
-        ctx.advance_to(out);
-        *out++ = ',';
-        *out++ = ' ';
-        ctx.advance_to(out);
-
-        return m_point_formatter.m_element_formatter.format(circle.radius(), ctx);
+        ctx.advance_to(this->m_element_formatter.format(circle.center(), ctx));
+        this->format_series_delimiter(ctx);
+        return this->m_element_formatter.m_element_formatter.format(circle.radius(), ctx);
     }
 };
 

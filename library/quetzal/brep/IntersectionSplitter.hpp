@@ -1691,7 +1691,7 @@ std::cout << std::format("align_segment_positions: {} segments, {} distinct posi
     {
         if (!math::even(position_group.second.m_count))
         {
-std::cout << std::format("align_segment_positions: position {:[, }: odd position count {}", position_group.second.m_position, position_group.second.m_count) << std::endl;
+std::cout << std::format("align_segment_positions: position {:/s, /b[]}: odd position count {}", position_group.second.m_position, position_group.second.m_count) << std::endl;
         }
         assert(math::even(position_group.second.m_count));
     }
@@ -1765,7 +1765,7 @@ void quetzal::brep::IntersectionSplitter<M>::validate_segments(const TraceSegmen
     {
         if (!math::even(count))
         {
-std::cout << std::format("validate_segments: position {:[, }: odd position count {}", position, count) << std::endl;
+std::cout << std::format("validate_segments: position {:/s, /b[]}: odd position count {}", position, count) << std::endl;
         }
         assert(math::even(count));
     }

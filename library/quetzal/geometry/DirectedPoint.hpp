@@ -8,8 +8,11 @@
 #include "Point.hpp"
 #include "quetzal/common/string_util.hpp"
 #include "quetzal/math/Vector.hpp"
+#include <charconv>
 #include <format>
 #include <iostream>
+#include <string_view>
+#include <system_error>
 
 namespace quetzal::geometry
 {
@@ -47,6 +50,15 @@ namespace quetzal::geometry
 
     template<typename Traits>
     std::ostream& operator<<(std::ostream& os, DirectedPoint<Traits> directed_point);
+
+    template<typename Traits>
+    std::istream& operator>>(std::istream& is, DirectedPoint<Traits>& directed_point);
+
+    template<typename Traits>
+    std::from_chars_result from_chars(const char* first, const char* last, DirectedPoint<Traits>& directed_point, const FormatSpec& spec = {});
+
+    template<typename Traits>
+    std::to_chars_result to_chars(char* first, char* last, const DirectedPoint<Traits>& directed_point, const FormatSpec& spec = {});
 
 } // namespace quetzal::geometry
 
@@ -106,37 +118,56 @@ void quetzal::geometry::DirectedPoint<Traits>::set_direction(const direction_typ
 template<typename Traits>
 std::ostream& quetzal::geometry::operator<<(std::ostream& os, DirectedPoint<Traits> directed_point)
 {
-    os << to_string(directed_point, os);
+    os << quetzal::to_string(directed_point, os);
     return os;
 }
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-struct std::formatter<quetzal::geometry::DirectedPoint<Traits>>
+std::istream& quetzal::geometry::operator>>(std::istream& is, DirectedPoint<Traits>& directed_point)
 {
-    // Parses the whole format spec, which the nested formatters share
-    std::formatter<quetzal::geometry::Point<Traits>> m_point_formatter;
-
-    constexpr auto parse(std::format_parse_context& ctx)
+    typename DirectedPoint<Traits>::point_type position;
+    typename DirectedPoint<Traits>::direction_type direction;
+    if (quetzal::read_components(is,position, direction))
     {
-        return m_point_formatter.parse(ctx);
+        directed_point = DirectedPoint<Traits>(position, direction);
     }
 
+    return is;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+std::from_chars_result quetzal::geometry::from_chars(const char* first, const char* last, DirectedPoint<Traits>& directed_point, const FormatSpec& spec)
+{
+    typename DirectedPoint<Traits>::point_type position;
+    typename DirectedPoint<Traits>::direction_type direction;
+    auto result = quetzal::components_from_chars(first, last, spec,position, direction);
+    if (result.ec == std::errc {})
+    {
+        directed_point = DirectedPoint<Traits>(position, direction);
+    }
+
+    return result;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+std::to_chars_result quetzal::geometry::to_chars(char* first, char* last, const DirectedPoint<Traits>& directed_point, const FormatSpec& spec)
+{
+    return quetzal::components_to_chars(first, last, spec,directed_point.position(), directed_point.direction());
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+struct std::formatter<quetzal::geometry::DirectedPoint<Traits>> : quetzal::series_formatter<quetzal::geometry::Point<Traits>>
+{
     template<typename FormatContext>
     auto format(const quetzal::geometry::DirectedPoint<Traits>& directed_point, FormatContext& ctx) const
     {
-        std::formatter<quetzal::math::Vector<Traits>> vector_formatter;
-        vector_formatter.m_object_delimiters = m_point_formatter.m_object_delimiters;
-        vector_formatter.m_element_delimiter = m_point_formatter.m_element_delimiter;
-        vector_formatter.m_element_formatter = m_point_formatter.m_element_formatter;
-
-        auto out = m_point_formatter.format(directed_point.position(), ctx);
-        ctx.advance_to(out);
-        *out++ = ',';
-        *out++ = ' ';
-        ctx.advance_to(out);
-
-        return vector_formatter.format(directed_point.direction(), ctx);
+        ctx.advance_to(this->m_element_formatter.format(directed_point.position(), ctx));
+        this->format_series_delimiter(ctx);
+        return quetzal::matching_formatter<quetzal::math::Vector<Traits>>(this->m_element_formatter).format(directed_point.direction(), ctx);
     }
 };
 

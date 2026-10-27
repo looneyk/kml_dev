@@ -1014,8 +1014,7 @@ type nor its parent's, the parent being a door facing's door, and so is `unpopul
 (`log_plan.md`). Keys the format does not define are not tracked.
 
 `write` emits the written form: two-space indentation, a grid row per line, an entry per line with each of a flat's
-per-room and per-cell entries on a line of its own, and floats as the shortest digits that read back as the same
-value, without an exponent. Top-level sections follow the format's key table. Within an entry, its address or
+per-room and per-cell entries on a line of its own. Top-level sections follow the format's key table. Within an entry, its address or
 identification comes first, then the rest in its section's table order, and file components stay in the order read.
 An entity's `parent` and `site` are written into its `components` ahead of the rest. In runs, a count is written for a
 run of three glyphs or more. A document that `read_zone` produces is written back equivalent to it.

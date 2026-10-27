@@ -31,7 +31,7 @@ namespace
     string token(const T& value)
     {
         ostringstream os;
-        os << quetzal::element_delim(",") << value;
+        os << quetzal::separator_delim(",") << value;
         return os.str();
     }
 

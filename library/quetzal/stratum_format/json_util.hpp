@@ -7,17 +7,11 @@
 
 #include "Document.hpp"
 #include "quetzal/common/KeyValueStore.hpp"
-#include <array>
-#include <charconv>
-#include <concepts>
 #include <cstddef>
 #include <filesystem>
 #include <string>
 #include <string_view>
-#include <system_error>
 #include <vector>
-#include <cassert>
-#include <cmath>
 
 // The text of the written form that the zone file and the game files share, for their writers
 namespace quetzal::stratum_format::detail
@@ -28,10 +22,6 @@ namespace quetzal::stratum_format::detail
 
     std::string indentation(size_t indent);
     std::string string_text(std::string_view s);
-
-    // The shortest digits that read back as the same value, in fixed notation, and with a fraction always shown
-    template<std::floating_point T>
-    std::string number_text(T value);
 
     // Arrays of objects are spaced inside their brackets; arrays of anything else are not
     std::string inline_text(const raw_values_type& v);
@@ -82,24 +72,5 @@ namespace quetzal::stratum_format::detail
     void write_file(const std::filesystem::path& filepath, const std::string& text);
 
 } // namespace quetzal::stratum_format::detail
-
-//------------------------------------------------------------------------------
-template<std::floating_point T>
-std::string quetzal::stratum_format::detail::number_text(T value)
-{
-    assert(std::isfinite(value));
-
-    std::array<char, 512> buffer;
-    auto [end, ec] = std::to_chars(buffer.data(), buffer.data() + buffer.size(), value, std::chars_format::fixed);
-    assert(ec == std::errc());
-
-    std::string text(buffer.data(), end);
-    if (text.find('.') == std::string::npos)
-    {
-        text += ".0";
-    }
-
-    return text;
-}
 
 #endif // QUETZAL_STRATUM_FORMAT_JSON_UTIL_HPP

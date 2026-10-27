@@ -189,7 +189,7 @@ namespace
         catagen::Parameters parameters;
 
         string extent = take("extent");
-        math::from_chars(extent.data(), extent.data() + extent.size(), parameters.extent, ",");
+        math::from_chars(extent.data(), extent.data() + extent.size(), parameters.extent, {.separator = ","});
 
         parameters.scale = interval_of(take("scale"), '-');
         parameters.spacing = interval_of(take("spacing"), '-');
@@ -214,7 +214,7 @@ namespace
         {
             string position = take("position");
             catagen::zone_position_type::vector_type v;
-            math::from_chars(position.data(), position.data() + position.size(), v, ",");
+            math::from_chars(position.data(), position.data() + position.size(), v, {.separator = ","});
             parameters.position = catagen::zone_position_type(v);
         }
 

@@ -157,10 +157,10 @@ namespace quetzal::geometry
     std::ostream& operator<<(std::ostream& os, const DiscretePoint<T, N>& v);
 
     template<std::signed_integral T, size_t N> requires (N > 0)
-    std::from_chars_result from_chars(const char* first, const char* last, DiscretePoint<T, N>& point, const std::string& element_delimiter = " ");
+    std::from_chars_result from_chars(const char* first, const char* last, DiscretePoint<T, N>& point, const FormatSpec& spec = {});
 
     template<std::signed_integral T, size_t N> requires (N > 0)
-    std::to_chars_result to_chars(char* first, char* last, const DiscretePoint<T, N>& point, const std::string& element_delimiter = " ");
+    std::to_chars_result to_chars(char* first, char* last, const DiscretePoint<T, N>& point, const FormatSpec& spec = {});
 
 } // namespace quetzal::geometry
 
@@ -643,19 +643,7 @@ bool quetzal::geometry::operator==(const DiscretePoint<T, N>& lhs, const Discret
 template<std::signed_integral T, size_t N> requires (N > 0)
 std::istream& quetzal::geometry::operator>>(std::istream& is, DiscretePoint<T, N>& v)
 {
-    std::string element_delimiter = quetzal::array_element_delimiter(is);
-
-    for (size_t i = 0; i < N; ++i)
-    {
-        if (i > 0 && !quetzal::skip_element_delimiter(is, element_delimiter))
-        {
-            return is;
-        }
-
-        is >> v[i];
-    }
-
-    return is;
+    return quetzal::read_array(is, v);
 }
 
 //------------------------------------------------------------------------------
@@ -668,16 +656,16 @@ std::ostream& quetzal::geometry::operator<<(std::ostream& os, const DiscretePoin
 
 //------------------------------------------------------------------------------
 template<std::signed_integral T, size_t N> requires (N > 0)
-std::from_chars_result quetzal::geometry::from_chars(const char* first, const char* last, DiscretePoint<T, N>& point, const std::string& element_delimiter)
+std::from_chars_result quetzal::geometry::from_chars(const char* first, const char* last, DiscretePoint<T, N>& point, const FormatSpec& spec)
 {
-    return array_from_chars(first, last, point, element_delimiter);
+    return array_from_chars(first, last, point, spec);
 }
 
 //------------------------------------------------------------------------------
 template<std::signed_integral T, size_t N> requires (N > 0)
-std::to_chars_result quetzal::geometry::to_chars(char* first, char* last, const DiscretePoint<T, N>& point, const std::string& element_delimiter)
+std::to_chars_result quetzal::geometry::to_chars(char* first, char* last, const DiscretePoint<T, N>& point, const FormatSpec& spec)
 {
-    return array_to_chars(first, last, point, element_delimiter);
+    return array_to_chars(first, last, point, spec);
 }
 
 // Structured bindings

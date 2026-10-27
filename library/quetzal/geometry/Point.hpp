@@ -134,7 +134,6 @@ namespace quetzal::geometry
         const rep_type& rep() const;
         rep_type& rep();
 
-        // reduce, projective_reduce, ...
         Point& projective_divide() requires (Traits::size == Traits::dimension + 1);
 
     private:
@@ -237,8 +236,6 @@ namespace quetzal::geometry
     template<typename Traits>
     bool float_priority_less(const Point<Traits>& lhs, const Point<Traits>& rhs, int tolerance = math::tolerance_default);
 
-    // These two operators are not symmetrical. extract parses numeric values separated by whitespace, and insert outputs a formatted point
-
     template<typename Traits>
     std::istream& operator>>(std::istream& is, Point<Traits>& point);
 
@@ -246,10 +243,10 @@ namespace quetzal::geometry
     std::ostream& operator<<(std::ostream& os, const Point<Traits>& point);
 
     template<typename Traits>
-    std::from_chars_result from_chars(const char* first, const char* last, Point<Traits>& point, const std::string& element_delimiter = " ");
+    std::from_chars_result from_chars(const char* first, const char* last, Point<Traits>& point, const FormatSpec& spec = {});
 
     template<typename Traits>
-    std::to_chars_result to_chars(char* first, char* last, Point<Traits> point, const std::string& element_delimiter = " ");
+    std::to_chars_result to_chars(char* first, char* last, Point<Traits> point, const FormatSpec& spec = {});
 
     // Matrix operations
 
@@ -967,23 +964,28 @@ bool quetzal::geometry::float_priority_less(const Point<Traits>& lhs, const Poin
 template<typename Traits>
 std::istream& quetzal::geometry::operator>>(std::istream& is, Point<Traits>& point)
 {
-    return Traits::extract(is, point.rep(), quetzal::array_element_delimiter(is));
+    if (quetzal::read_array(is, point) && !quetzal::resolved_homogeneous(quetzal::stream_format_spec(is)))
+    {
+        Traits::template conclude<Traits::dimension>(point.rep(), typename Traits::value_type(1));
+    }
+
+    return is;
 }
 
 //------------------------------------------------------------------------------
 template<typename Traits>
 std::ostream& quetzal::geometry::operator<<(std::ostream& os, const Point<Traits>& point)
 {
-    os << to_string(point, os);
+    os << quetzal::to_string(point, os);
     return os;
 }
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-std::from_chars_result quetzal::geometry::from_chars(const char* first, const char* last, Point<Traits>& point, const std::string& element_delimiter)
+std::from_chars_result quetzal::geometry::from_chars(const char* first, const char* last, Point<Traits>& point, const FormatSpec& spec)
 {
-    auto result = array_from_chars(first, last, point, element_delimiter);
-    if (result.ec == std::errc{}) // if (result) ...
+    auto result = array_from_chars(first, last, point, spec);
+    if (result.ec == std::errc{} && !resolved_homogeneous(spec)) // if (result) ...
     {
         Traits::conclude<Traits::dimension>(point.rep(), typename Traits::value_type(1));
     }
@@ -993,10 +995,14 @@ std::from_chars_result quetzal::geometry::from_chars(const char* first, const ch
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-std::to_chars_result quetzal::geometry::to_chars(char* first, char* last, Point<Traits> point, const std::string& element_delimiter)
+std::to_chars_result quetzal::geometry::to_chars(char* first, char* last, Point<Traits> point, const FormatSpec& spec)
 {
-    Traits::prepare(point.rep());
-    return array_to_chars(first, last, point, element_delimiter);
+    if (!resolved_homogeneous(spec))
+    {
+        Traits::prepare(point.rep());
+    }
+
+    return array_to_chars(first, last, point, spec);
 }
 
 //------------------------------------------------------------------------------
@@ -1070,7 +1076,11 @@ struct std::formatter<quetzal::geometry::Point<Traits>> : quetzal::array_formatt
     template<typename FormatContext>
     auto format(quetzal::geometry::Point<Traits> point, FormatContext& ctx) const
     {
-        Traits::prepare(point.rep());
+        if (!quetzal::resolved_homogeneous(this->m_format_spec))
+        {
+            Traits::prepare(point.rep());
+        }
+
         return this->format_elements(point, ctx);
     }
 };

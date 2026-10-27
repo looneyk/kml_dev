@@ -7,8 +7,12 @@
 
 #include "quetzal/common/string_util.hpp"
 #include "quetzal/math/Vector.hpp"
+#include <array>
+#include <charconv>
 #include <format>
 #include <iostream>
+#include <string_view>
+#include <system_error>
 
 namespace quetzal::geometry
 {
@@ -63,6 +67,15 @@ namespace quetzal::geometry
 
     template<typename Traits>
     std::ostream& operator<<(std::ostream& os, Orientation<Traits> orientation);
+
+    template<typename Traits>
+    std::istream& operator>>(std::istream& is, Orientation<Traits>& orientation);
+
+    template<typename Traits>
+    std::from_chars_result from_chars(const char* first, const char* last, Orientation<Traits>& orientation, const FormatSpec& spec = {});
+
+    template<typename Traits>
+    std::to_chars_result to_chars(char* first, char* last, const Orientation<Traits>& orientation, const FormatSpec& spec = {});
 
 } // namespace quetzal::geometry
 
@@ -157,32 +170,55 @@ void quetzal::geometry::Orientation<Traits>::clear()
 template<typename Traits>
 std::ostream& quetzal::geometry::operator<<(std::ostream& os, Orientation<Traits> orientation)
 {
-    os << to_string(orientation, os);
+    os << quetzal::to_string(orientation, os);
     return os;
 }
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-struct std::formatter<quetzal::geometry::Orientation<Traits>>
+std::istream& quetzal::geometry::operator>>(std::istream& is, Orientation<Traits>& orientation)
 {
-    // Parses the whole format spec, and formats direction and right
-    std::formatter<quetzal::math::Vector<Traits>> m_vector_formatter;
-
-    constexpr auto parse(std::format_parse_context& ctx)
+    typename Orientation<Traits>::vector_type direction;
+    typename Orientation<Traits>::vector_type right;
+    if (quetzal::read_components(is,direction, right))
     {
-        return m_vector_formatter.parse(ctx);
+        orientation = Orientation<Traits>(direction, right);
     }
 
+    return is;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+std::from_chars_result quetzal::geometry::from_chars(const char* first, const char* last, Orientation<Traits>& orientation, const FormatSpec& spec)
+{
+    typename Orientation<Traits>::vector_type direction;
+    typename Orientation<Traits>::vector_type right;
+    auto result = quetzal::components_from_chars(first, last, spec,direction, right);
+    if (result.ec == std::errc {})
+    {
+        orientation = Orientation<Traits>(direction, right);
+    }
+
+    return result;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+std::to_chars_result quetzal::geometry::to_chars(char* first, char* last, const Orientation<Traits>& orientation, const FormatSpec& spec)
+{
+    return quetzal::components_to_chars(first, last, spec,orientation.direction(), orientation.right());
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+struct std::formatter<quetzal::geometry::Orientation<Traits>> : quetzal::series_formatter<quetzal::math::Vector<Traits>>
+{
     template<typename FormatContext>
     auto format(const quetzal::geometry::Orientation<Traits>& orientation, FormatContext& ctx) const
     {
-        auto out = m_vector_formatter.format(orientation.direction(), ctx);
-        ctx.advance_to(out);
-        *out++ = ',';
-        *out++ = ' ';
-        ctx.advance_to(out);
-
-        return m_vector_formatter.format(orientation.right(), ctx);
+        const std::array<quetzal::math::Vector<Traits>, 2> vectors {orientation.direction(), orientation.right()};
+        return this->format_series(vectors, ctx);
     }
 };
 

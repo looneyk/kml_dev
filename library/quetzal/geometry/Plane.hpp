@@ -8,9 +8,13 @@
 #include "PointRelation.hpp"
 #include "Point.hpp"
 #include "quetzal/common/string_util.hpp"
+#include <charconv>
 #include <format>
+#include <istream>
 #include <ostream>
 #include <sstream>
+#include <string_view>
+#include <system_error>
 #include <cassert>
 
 namespace quetzal::geometry
@@ -25,6 +29,7 @@ namespace quetzal::geometry
     public:
 
         using traits_type = Traits;
+        using value_type = Traits::value_type;
         using point_type = Point<Traits>;
         using vector_type = point_type::vector_type;
 
@@ -56,6 +61,15 @@ namespace quetzal::geometry
 
     template<typename Traits>
     std::ostream& operator<<(std::ostream& os, Plane<Traits> plane);
+
+    template<typename Traits>
+    std::istream& operator>>(std::istream& is, Plane<Traits>& plane);
+
+    template<typename Traits>
+    std::from_chars_result from_chars(const char* first, const char* last, Plane<Traits>& plane, const FormatSpec& spec = {});
+
+    template<typename Traits>
+    std::to_chars_result to_chars(char* first, char* last, const Plane<Traits>& plane, const FormatSpec& spec = {});
 
 } // namespace quetzal::geometry
 
@@ -136,37 +150,56 @@ std::partial_ordering quetzal::geometry::Plane<Traits>::compare(const point_type
 template<typename Traits>
 std::ostream& quetzal::geometry::operator<<(std::ostream& os, Plane<Traits> plane)
 {
-    os << to_string(plane, os);
+    os << quetzal::to_string(plane, os);
     return os;
 }
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-struct std::formatter<quetzal::geometry::Plane<Traits>>
+std::istream& quetzal::geometry::operator>>(std::istream& is, Plane<Traits>& plane)
 {
-    // Parses the whole format spec, which the normal's Vector formatter shares
-    std::formatter<quetzal::geometry::Point<Traits>> m_point_formatter;
-
-    constexpr auto parse(std::format_parse_context& ctx)
+    typename Plane<Traits>::point_type point;
+    typename Plane<Traits>::vector_type normal;
+    if (quetzal::read_components(is,point, normal))
     {
-        return m_point_formatter.parse(ctx);
+        plane = Plane<Traits>(point, normal);
     }
 
+    return is;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+std::from_chars_result quetzal::geometry::from_chars(const char* first, const char* last, Plane<Traits>& plane, const FormatSpec& spec)
+{
+    typename Plane<Traits>::point_type point;
+    typename Plane<Traits>::vector_type normal;
+    auto result = quetzal::components_from_chars(first, last, spec,point, normal);
+    if (result.ec == std::errc {})
+    {
+        plane = Plane<Traits>(point, normal);
+    }
+
+    return result;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+std::to_chars_result quetzal::geometry::to_chars(char* first, char* last, const Plane<Traits>& plane, const FormatSpec& spec)
+{
+    return quetzal::components_to_chars(first, last, spec,plane.point(), plane.normal());
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+struct std::formatter<quetzal::geometry::Plane<Traits>> : quetzal::series_formatter<quetzal::geometry::Point<Traits>>
+{
     template<typename FormatContext>
     auto format(const quetzal::geometry::Plane<Traits>& plane, FormatContext& ctx) const
     {
-        std::formatter<quetzal::math::Vector<Traits>> vector_formatter;
-        vector_formatter.m_object_delimiters = m_point_formatter.m_object_delimiters;
-        vector_formatter.m_element_delimiter = m_point_formatter.m_element_delimiter;
-        vector_formatter.m_element_formatter = m_point_formatter.m_element_formatter;
-
-        auto out = m_point_formatter.format(plane.point(), ctx);
-        ctx.advance_to(out);
-        *out++ = ',';
-        *out++ = ' ';
-        ctx.advance_to(out);
-
-        return vector_formatter.format(plane.normal(), ctx);
+        ctx.advance_to(this->m_element_formatter.format(plane.point(), ctx));
+        this->format_series_delimiter(ctx);
+        return quetzal::matching_formatter<quetzal::math::Vector<Traits>>(this->m_element_formatter).format(plane.normal(), ctx);
     }
 };
 

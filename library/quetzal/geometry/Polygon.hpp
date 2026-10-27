@@ -20,12 +20,17 @@
 #include "quetzal/math/Interval.hpp"
 #include "quetzal/math/floating_point.hpp"
 #include <algorithm>
+#include <charconv>
 #include <exception>
 #include <format>
+#include <istream>
 #include <iterator>
 #include <optional>
 #include <ostream>
 #include <span>
+#include <string>
+#include <string_view>
+#include <system_error>
 #include <vector>
 #include <cassert>
 
@@ -199,6 +204,17 @@ namespace quetzal::geometry
 
     template<typename Traits>
     std::ostream& operator<<(std::ostream& os, const Polygon<Traits>& polygon);
+
+    // Reads vertices while a series delimiter follows the last one read
+    template<typename Traits>
+    std::istream& operator>>(std::istream& is, Polygon<Traits>& polygon);
+
+    // Reads vertices while a series delimiter follows the last one read
+    template<typename Traits>
+    std::from_chars_result from_chars(const char* first, const char* last, Polygon<Traits>& polygon, const FormatSpec& spec = {});
+
+    template<typename Traits>
+    std::to_chars_result to_chars(char* first, char* last, const Polygon<Traits>& polygon, const FormatSpec& spec = {});
 
     //--------------------------------------------------------------------------
     template<typename Traits>
@@ -954,40 +970,105 @@ quetzal::geometry::Polygon<Traits> quetzal::geometry::regular_polygon_section(si
 template<typename Traits>
 std::ostream& quetzal::geometry::operator<<(std::ostream& os, const Polygon<Traits>& polygon)
 {
-    os << to_string(polygon, os);
+    os << quetzal::to_string(polygon, os);
     return os;
 }
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-struct std::formatter<quetzal::geometry::Polygon<Traits>>
+std::istream& quetzal::geometry::operator>>(std::istream& is, Polygon<Traits>& polygon)
 {
-    // Parses the whole format spec, and formats every vertex
-    std::formatter<quetzal::geometry::Point<Traits>> m_point_formatter;
+    const std::string series_delimiter(quetzal::resolved_series_delimiter(quetzal::stream_format_spec(is), quetzal::series_delimiter_default));
+    const std::string_view text = quetzal::trim_ws(series_delimiter);
 
-    constexpr auto parse(std::format_parse_context& ctx)
+    typename Polygon<Traits>::vertices_type vertices;
+    while (true)
     {
-        return m_point_formatter.parse(ctx);
+        typename Polygon<Traits>::point_type vertex;
+        if (!(is >> vertex))
+        {
+            return is;
+        }
+
+        vertices.push_back(vertex);
+
+        if (is.eof())
+        {
+            break;
+        }
+
+        if (text.empty())
+        {
+            if ((is >> std::ws).eof())
+            {
+                break;
+            }
+
+            continue;
+        }
+
+        if (series_delimiter.front() == ' ' || series_delimiter.front() == '\t')
+        {
+            is >> std::ws;
+        }
+
+        if (is.eof() || is.peek() != std::istream::traits_type::to_int_type(text.front()))
+        {
+            break;
+        }
+
+        quetzal::skip_delimiter(is, series_delimiter);
     }
 
+    polygon = Polygon<Traits>(std::span<typename Polygon<Traits>::point_type>(vertices));
+    return is;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+std::from_chars_result quetzal::geometry::from_chars(const char* first, const char* last, Polygon<Traits>& polygon, const FormatSpec& spec)
+{
+    const std::string_view series_delimiter = quetzal::resolved_series_delimiter(spec, quetzal::series_delimiter_default);
+
+    typename Polygon<Traits>::vertices_type vertices;
+    const char* position = first;
+    while (true)
+    {
+        typename Polygon<Traits>::point_type vertex;
+        auto result = from_chars(position, quetzal::find_delimiter(position, last, series_delimiter), vertex, spec);
+        if (result.ec != std::errc {})
+        {
+            return result;
+        }
+
+        vertices.push_back(vertex);
+
+        const char* next = quetzal::skip_delimiter(result.ptr, last, series_delimiter);
+        if (next == nullptr || next == last)
+        {
+            polygon = Polygon<Traits>(std::span<typename Polygon<Traits>::point_type>(vertices));
+            return result;
+        }
+
+        position = next;
+    }
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+std::to_chars_result quetzal::geometry::to_chars(char* first, char* last, const Polygon<Traits>& polygon, const FormatSpec& spec)
+{
+    return quetzal::series_to_chars(first, last, polygon.vertices(), spec);
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+struct std::formatter<quetzal::geometry::Polygon<Traits>> : quetzal::series_formatter<quetzal::geometry::Point<Traits>>
+{
     template<typename FormatContext>
     auto format(const quetzal::geometry::Polygon<Traits>& polygon, FormatContext& ctx) const
     {
-        auto out = ctx.out();
-        bool first = true;
-        for (const auto& vertex : polygon.vertices())
-        {
-            if (!first)
-            {
-                *out++ = ',';
-                *out++ = ' ';
-                ctx.advance_to(out);
-            }
-            first = false;
-            out = m_point_formatter.format(vertex, ctx);
-        }
-
-        return out;
+        return this->format_series(polygon.vertices(), ctx);
     }
 };
 

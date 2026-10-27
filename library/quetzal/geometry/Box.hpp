@@ -9,8 +9,14 @@
 #include "PointRelation.hpp"
 #include "quetzal/common/string_util.hpp"
 #include "quetzal/math/floating_point.hpp"
+#include <array>
+#include <charconv>
 #include <format>
 #include <iostream>
+#include <string>
+#include <string_view>
+#include <system_error>
+#include <type_traits>
 
 namespace quetzal::geometry
 {
@@ -21,6 +27,7 @@ namespace quetzal::geometry
     {
     public:
 
+        using value_type = Traits::value_type;
         using PointRelation<Traits>::point_type;
 
         Box() = default;
@@ -54,6 +61,15 @@ namespace quetzal::geometry
 
     template<typename Traits>
     std::ostream& operator<<(std::ostream& os, const Box<Traits>& box);
+
+    template<typename Traits>
+    std::istream& operator>>(std::istream& is, Box<Traits>& box);
+
+    template<typename Traits>
+    std::from_chars_result from_chars(const char* first, const char* last, Box<Traits>& box, const FormatSpec& spec = {});
+
+    template<typename Traits>
+    std::to_chars_result to_chars(char* first, char* last, const Box<Traits>& box, const FormatSpec& spec = {});
 
 } // namespace quetzal::geometry
 
@@ -133,21 +149,21 @@ std::partial_ordering quetzal::geometry::Box<Traits>::compare(const point_type& 
     {
         if constexpr (std::is_floating_point_v<Traits::value_type>)
         {
-            if (math::float_ne(point[i], m_lower[i], tolerance) || math::float_ne(point[i], m_upper[i], tolerance))
+            if (math::float_eq(point[i], m_lower[i], tolerance) || math::float_eq(point[i], m_upper[i], tolerance))
             {
-                return std::partial_ordering::less;
+                return std::partial_ordering::equivalent;
             }
         }
         else
         {
-            if (point[i] != m_lower[i] || point[i] != m_upper[i])
+            if (point[i] == m_lower[i] || point[i] == m_upper[i])
             {
-                return std::partial_ordering::less;
+                return std::partial_ordering::equivalent;
             }
         }
     }
 
-    return std::partial_ordering::equivalent;
+    return std::partial_ordering::less;
 }
 
 //------------------------------------------------------------------------------
@@ -184,34 +200,59 @@ void quetzal::geometry::Box<Traits>::order()
 template<typename Traits>
 std::ostream& quetzal::geometry::operator<<(std::ostream& os, const Box<Traits>& box)
 {
-    os << to_string(box, os);
+    os << quetzal::to_string(box, os);
     return os;
 }
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-struct std::formatter<quetzal::geometry::Box<Traits>>
+std::istream& quetzal::geometry::operator>>(std::istream& is, Box<Traits>& box)
 {
-    // Parses the whole format spec, and formats lower and upper
-    std::formatter<quetzal::geometry::Point<Traits>> m_point_formatter;
-
-    constexpr auto parse(std::format_parse_context& ctx)
+    std::array<Point<Traits>, 2> points;
+    if (quetzal::read_series(is, points, quetzal::bounds_delimiter_default))
     {
-        return m_point_formatter.parse(ctx);
+        box.set_bounds(points[0], points[1]);
+    }
+
+    return is;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+std::from_chars_result quetzal::geometry::from_chars(const char* first, const char* last, Box<Traits>& box, const FormatSpec& spec)
+{
+    std::array<Point<Traits>, 2> points;
+    auto result = quetzal::series_from_chars(first, last, points, spec, quetzal::bounds_delimiter_default);
+    if (result.ec == std::errc {})
+    {
+        box.set_bounds(points[0], points[1]);
+    }
+
+    return result;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+std::to_chars_result quetzal::geometry::to_chars(char* first, char* last, const Box<Traits>& box, const FormatSpec& spec)
+{
+    const std::array<Point<Traits>, 2> points {box.lower(), box.upper()};
+    return quetzal::series_to_chars(first, last, points, spec, quetzal::bounds_delimiter_default);
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+struct std::formatter<quetzal::geometry::Box<Traits>> : quetzal::series_formatter<quetzal::geometry::Point<Traits>>
+{
+    constexpr formatter() :
+        quetzal::series_formatter<quetzal::geometry::Point<Traits>>({.series_delimiter = std::string(quetzal::bounds_delimiter_default)})
+    {
     }
 
     template<typename FormatContext>
     auto format(const quetzal::geometry::Box<Traits>& box, FormatContext& ctx) const
     {
-        auto out = m_point_formatter.format(box.lower(), ctx);
-        ctx.advance_to(out);
-        *out++ = ' ';
-        *out++ = '.';
-        *out++ = '.';
-        *out++ = ' ';
-        ctx.advance_to(out);
-
-        return m_point_formatter.format(box.upper(), ctx);
+        const std::array<quetzal::geometry::Point<Traits>, 2> points {box.lower(), box.upper()};
+        return this->format_series(points, ctx);
     }
 };
 

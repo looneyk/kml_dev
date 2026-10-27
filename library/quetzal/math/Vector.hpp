@@ -233,8 +233,6 @@ namespace quetzal::math
     template<typename Traits>
     bool float_priority_less(const Vector<Traits>& lhs, const Vector<Traits>& rhs, int tolerance);
 
-    // These two operators are not symmetrical. extract parses numeric values separated by whitespace, and insert outputs a formatted point
-
     template<typename Traits>
     std::istream& operator>>(std::istream& is, Vector<Traits>& v);
 
@@ -242,10 +240,10 @@ namespace quetzal::math
     std::ostream& operator<<(std::ostream& os, const Vector<Traits>& v);
 
     template<typename Traits>
-    std::from_chars_result from_chars(const char* first, const char* last, Vector<Traits>& v, const std::string& element_delimiter = " ");
+    std::from_chars_result from_chars(const char* first, const char* last, Vector<Traits>& v, const FormatSpec& spec = {});
 
     template<typename Traits>
-    std::to_chars_result to_chars(char* first, char* last, const Vector<Traits>& v, const std::string& element_delimiter = " ");
+    std::to_chars_result to_chars(char* first, char* last, const Vector<Traits>& v, const FormatSpec& spec = {});
 
     // Matrix operations
 
@@ -1024,7 +1022,12 @@ bool quetzal::math::float_priority_less(const Vector<Traits>& lhs, const Vector<
 template<typename Traits>
 std::istream& quetzal::math::operator>>(std::istream& is, quetzal::math::Vector<Traits>& v)
 {
-    return Traits::extract(is, v.rep(), array_element_delimiter(is));
+    if (read_array(is, v) && !resolved_homogeneous(stream_format_spec(is)))
+    {
+        Traits::template conclude<Traits::dimension>(v.rep(), typename Traits::value_type(0));
+    }
+
+    return is;
 }
 
 //------------------------------------------------------------------------------
@@ -1037,10 +1040,10 @@ std::ostream& quetzal::math::operator<<(std::ostream& os, const quetzal::math::V
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-std::from_chars_result quetzal::math::from_chars(const char* first, const char* last, Vector<Traits>& v, const std::string& element_delimiter)
+std::from_chars_result quetzal::math::from_chars(const char* first, const char* last, Vector<Traits>& v, const FormatSpec& spec)
 {
-    auto result = array_from_chars(first, last, v, element_delimiter);
-    if (result.ec == std::errc{}) // if (result) ...
+    auto result = array_from_chars(first, last, v, spec);
+    if (result.ec == std::errc{} && !resolved_homogeneous(spec)) // if (result) ...
     {
         Traits::conclude<Traits::dimension>(v.rep(), typename Traits::value_type(0));
     }
@@ -1050,9 +1053,9 @@ std::from_chars_result quetzal::math::from_chars(const char* first, const char* 
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-std::to_chars_result quetzal::math::to_chars(char* first, char* last, const Vector<Traits>& v, const std::string& element_delimiter)
+std::to_chars_result quetzal::math::to_chars(char* first, char* last, const Vector<Traits>& v, const FormatSpec& spec)
 {
-    return array_to_chars(first, last, v, element_delimiter);
+    return array_to_chars(first, last, v, spec);
 }
 
 //------------------------------------------------------------------------------

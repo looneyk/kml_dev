@@ -176,18 +176,6 @@ namespace quetzal::math
         template<size_t I = N - 1> requires (I < N)
         static rep_type max(const rep_type& lhs, rep_type rhs);
 
-        // For now, just checks that the pattern appears between elements with preceding and succeeding whitespace ignored ...
-        // element_delimiter_pattern optional as well, and with object_delimiters should be inferred from parsing ...
-        // this should just have two vertsions, one with known delimiters, and one with none that infers format ...
-        // this should be (I < N), io should only read/write normalized values ...
-        template<size_t I = N> requires (I <= N)
-//        static std::istream& extract(std::istream& is, rep_type& rep, const std::string& element_delimiter_pattern = " *, *", const std::optional<std::pair<char, char>>& object_delimiters = std::make_optional(std::pair<char, char>{'(', ')'}));
-        static std::istream& extract(std::istream& is, rep_type& rep, const std::string& element_delimiter_pattern = " **", const std::optional<std::pair<char, char>>& object_delimiters = std::nullopt);
-
-        template<size_t I = N> requires (I <= N)
-//        static std::ostream& insert(std::ostream& os, const rep_type& rep, const std::string& element_delimiter = ", ", const std::optional<std::pair<char, char>>& object_delimiters = std::make_optional(std::pair<char, char>{'(', ')'}));
-        static std::ostream& insert(std::ostream& os, const rep_type& rep, const std::string& element_delimiter = " ", const std::optional<std::pair<char, char>>& object_delimiters = std::nullopt);
-
         static constexpr const T* data(const rep_type& rep) noexcept;
         static constexpr T* data(rep_type& rep) noexcept;
 
@@ -215,11 +203,6 @@ namespace quetzal::math
 
         static void reduce(rep_type& rep);
         static void reduce(const rep_type& lhs, rep_type& rhs);
-
-        // traits should not need to know anything about formatting, this should come in through parameters, not stored here ...
-        // and extract would need to know what to parse for too ...
-//        static constexpr std::string_view element_delimiters = " ,\t"; // regex for read, simple value for write, regex constructed? ...
-//        static constexpr std::vector<std::pair<char, char>> object_delimiter_pairs = {{'(', ')'}, {'[', ']'}, {'{', '}'}, {'<', '>'}};
     };
 
 } // namespace quetzal::math
@@ -719,77 +702,6 @@ typename quetzal::math::HomogeneousTraits<T, N>::rep_type quetzal::math::Homogen
         return max<I - 1>(lhs, rhs);
     }
 }
-
-//------------------------------------------------------------------------------
-template<typename T, size_t N>
-template<size_t I> requires (I <= N)
-std::istream& quetzal::math::HomogeneousTraits<T, N>::extract(std::istream& is, rep_type& rep, const std::string& element_delimiter_pattern, const std::optional<std::pair<char, char>>& object_delimiters)
-{
-    if constexpr (I == 0)
-    {
-        if (object_delimiters && !skip_object_delimiter(is, object_delimiters->first))
-        {
-            return is;
-        }
-
-        is >> get<0>(rep);
-        return is;
-    }
-    else
-    {
-        extract<I - 1>(is, rep, element_delimiter_pattern, object_delimiters);
-
-        if (skip_element_delimiter(is, element_delimiter_pattern))
-        {
-            is >> get<I>(rep);
-
-            if constexpr (I == N - 1)
-            {
-                if (object_delimiters) skip_object_delimiter(is, object_delimiters->second);
-            }
-        }
-
-        return is;
-    }
-}
-
-//------------------------------------------------------------------------------
-template<typename T, size_t N>
-template<size_t I> requires (I <= N)
-std::ostream& quetzal::math::HomogeneousTraits<T, N>::insert(std::ostream& os, const rep_type& rep, const std::string& element_delimiter, const std::optional<std::pair<char, char>>& object_delimiters)
-{
-    // Conditional expression ensures that -0 displays as 0
-
-    if constexpr (I == 0)
-    {
-        if (object_delimiters) os << object_delimiters->first;
-        os << (get<0>(rep) == T(0) ? T(0) : get<0>(rep));
-        return os;
-    }
-    else
-    {
-        std::ios state(nullptr);
-        if constexpr (I == N)
-        {
-            state.copyfmt(os);
-        }
-
-        insert<I - 1>(os, rep, element_delimiter, object_delimiters);
-        os << element_delimiter << (get<I>(rep) == T(0) ? T(0) : get<I>(rep));
-        if constexpr (I == N - 1)
-        {
-            if (object_delimiters) os << object_delimiters->second;
-        }
-
-        if constexpr (I == N)
-        {
-            os.copyfmt(state);
-        }
-
-        return os;
-    }
-}
-
 
 //------------------------------------------------------------------------------
 template<typename T, size_t N>

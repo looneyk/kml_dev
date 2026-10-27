@@ -169,7 +169,6 @@ A reader accepts any valid JSON. A writer emits this form, so a zone file diffs 
 - Content written as it was read, each component object inline on the line of the key it belongs to.
 - Coordinates, coordinate arrays and wall addresses inline: `{ "cell_position": [3, 1], "normal": [1, 0] }`
   on the line that uses it, never one number per line.
-- Numbers plainly, without an exponent.
 
 ## version
 

@@ -9,7 +9,16 @@
 
 #include "floating_point.hpp"
 #include "math_util.hpp"
+#include "quetzal/common/string_util.hpp"
+#include <array>
+#include <charconv>
 #include <concepts>
+#include <format>
+#include <istream>
+#include <ostream>
+#include <string>
+#include <string_view>
+#include <system_error>
 
 namespace quetzal::math
 {
@@ -23,8 +32,8 @@ namespace quetzal::math
         using value_type = T;
 
         constexpr Interval();
-        explicit constexpr Interval(const T& tLength);
-        constexpr Interval(const T& tLower, const T& tUpper);
+        explicit constexpr Interval(const T& length); // [0, length]
+        constexpr Interval(const T& lower, const T& upper);
         constexpr Interval(const Interval&) = default;
         constexpr Interval(Interval&&) = default;
         virtual ~Interval() = default;
@@ -38,7 +47,7 @@ namespace quetzal::math
         T upper() const;
         void set_upper(const T& t);
 
-        void set_bounds(const T& tLower, const T& tUpper);
+        void set_bounds(const T& lower, const T& upper);
 
         // strict functions are for standard dimensionless parametric intervals
         T length() const;
@@ -63,6 +72,18 @@ namespace quetzal::math
     template<typename T>
     Interval<T> shift(const Interval<T>& interval, T t);
 
+    template<typename T>
+    std::istream& operator>>(std::istream& is, Interval<T>& interval);
+
+    template<typename T>
+    std::ostream& operator<<(std::ostream& os, const Interval<T>& interval);
+
+    template<typename T>
+    std::from_chars_result from_chars(const char* first, const char* last, Interval<T>& interval, const FormatSpec& spec = {});
+
+    template<typename T>
+    std::to_chars_result to_chars(char* first, char* last, const Interval<T>& interval, const FormatSpec& spec = {});
+
 } // namespace quetzal::math
 
 //------------------------------------------------------------------------------
@@ -74,16 +95,16 @@ constexpr quetzal::math::Interval<T>::Interval() :
 
 //------------------------------------------------------------------------------
 template<typename T>
-constexpr quetzal::math::Interval<T>::Interval(const T& tLength) :
-    Interval(T(0), tLength)
+constexpr quetzal::math::Interval<T>::Interval(const T& length) :
+    Interval(T(0), length)
 {
 }
 
 //------------------------------------------------------------------------------
 template<typename T>
-constexpr quetzal::math::Interval<T>::Interval(const T& tLower, const T& tUpper) :
-    m_lower(tLower),
-    m_upper(tUpper)
+constexpr quetzal::math::Interval<T>::Interval(const T& lower, const T& upper) :
+    m_lower(lower),
+    m_upper(upper)
 {
 }
 
@@ -119,10 +140,10 @@ void quetzal::math::Interval<T>::set_upper(const T& t)
 
 //------------------------------------------------------------------------------
 template<typename T>
-void quetzal::math::Interval<T>::set_bounds(const T& tLower, const T & tUpper)
+void quetzal::math::Interval<T>::set_bounds(const T& lower, const T & upper)
 {
-    m_lower = tLower;
-    m_upper = tUpper;
+    m_lower = lower;
+    m_upper = upper;
     return;
 }
 
@@ -221,5 +242,66 @@ quetzal::math::Interval<T> quetzal::math::shift(const Interval<T>& interval, T t
 {
     return {interval.lower() + t, interval.upper() + t};
 }
+
+//------------------------------------------------------------------------------
+template<typename T>
+std::istream& quetzal::math::operator>>(std::istream& is, Interval<T>& interval)
+{
+    std::array<T, 2> bounds {};
+    if (quetzal::read_series(is, bounds, quetzal::bounds_delimiter_default))
+    {
+        interval.set_bounds(bounds[0], bounds[1]);
+    }
+
+    return is;
+}
+
+//------------------------------------------------------------------------------
+template<typename T>
+std::ostream& quetzal::math::operator<<(std::ostream& os, const Interval<T>& interval)
+{
+    os << quetzal::to_string(interval, os);
+    return os;
+}
+
+//------------------------------------------------------------------------------
+template<typename T>
+std::from_chars_result quetzal::math::from_chars(const char* first, const char* last, Interval<T>& interval, const FormatSpec& spec)
+{
+    std::array<T, 2> bounds {};
+    auto result = quetzal::series_from_chars(first, last, bounds, spec, quetzal::bounds_delimiter_default);
+    if (result.ec == std::errc {})
+    {
+        interval.set_bounds(bounds[0], bounds[1]);
+    }
+
+    return result;
+}
+
+//------------------------------------------------------------------------------
+template<typename T>
+std::to_chars_result quetzal::math::to_chars(char* first, char* last, const Interval<T>& interval, const FormatSpec& spec)
+{
+    const std::array<T, 2> bounds {interval.lower(), interval.upper()};
+    return quetzal::series_to_chars(first, last, bounds, spec, quetzal::bounds_delimiter_default);
+}
+
+//------------------------------------------------------------------------------
+template<typename T>
+struct std::formatter<quetzal::math::Interval<T>> : quetzal::series_formatter<T>
+{
+    constexpr formatter() :
+        quetzal::series_formatter<T>({.series_delimiter = std::string(quetzal::bounds_delimiter_default)})
+    {
+    }
+
+    template<typename FormatContext>
+    auto format(const quetzal::math::Interval<T>& interval, FormatContext& ctx) const
+    {
+        // The conditionals translate negative zero
+        const std::array<T, 2> bounds {interval.lower() == T(0) ? T(0) : interval.lower(), interval.upper() == T(0) ? T(0) : interval.upper()};
+        return this->format_series(bounds, ctx);
+    }
+};
 
 #endif // QUETZAL_MATH_INTERVAL_HPP

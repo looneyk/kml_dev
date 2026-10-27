@@ -10,9 +10,12 @@
 #include "quetzal/common/string_util.hpp"
 #include "quetzal/math/floating_point.hpp"
 #include "quetzal/math/math_util.hpp"
+#include <charconv>
 #include <format>
 #include <iostream>
 #include <sstream>
+#include <string_view>
+#include <system_error>
 #include <cassert>
 
 namespace quetzal::geometry
@@ -63,6 +66,15 @@ namespace quetzal::geometry
 
     template<typename Traits>
     std::ostream& operator<<(std::ostream& os, Ray<Traits> ray);
+
+    template<typename Traits>
+    std::istream& operator>>(std::istream& is, Ray<Traits>& ray);
+
+    template<typename Traits>
+    std::from_chars_result from_chars(const char* first, const char* last, Ray<Traits>& ray, const FormatSpec& spec = {});
+
+    template<typename Traits>
+    std::to_chars_result to_chars(char* first, char* last, const Ray<Traits>& ray, const FormatSpec& spec = {});
 
 } // namespace quetzal::geometry
 
@@ -154,37 +166,56 @@ typename quetzal::geometry::Ray<Traits>::value_type quetzal::geometry::Ray<Trait
 template<typename Traits>
 std::ostream& quetzal::geometry::operator<<(std::ostream& os, Ray<Traits> ray)
 {
-    os << to_string(ray, os);
+    os << quetzal::to_string(ray, os);
     return os;
 }
 
 //------------------------------------------------------------------------------
 template<typename Traits>
-struct std::formatter<quetzal::geometry::Ray<Traits>>
+std::istream& quetzal::geometry::operator>>(std::istream& is, Ray<Traits>& ray)
 {
-    // Parses the whole format spec, which the direction's Vector formatter shares
-    std::formatter<quetzal::geometry::Point<Traits>> m_point_formatter;
-
-    constexpr auto parse(std::format_parse_context& ctx)
+    typename Ray<Traits>::point_type endpoint;
+    typename Ray<Traits>::vector_type direction;
+    if (quetzal::read_components(is,endpoint, direction))
     {
-        return m_point_formatter.parse(ctx);
+        ray = Ray<Traits>(endpoint, direction);
     }
 
+    return is;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+std::from_chars_result quetzal::geometry::from_chars(const char* first, const char* last, Ray<Traits>& ray, const FormatSpec& spec)
+{
+    typename Ray<Traits>::point_type endpoint;
+    typename Ray<Traits>::vector_type direction;
+    auto result = quetzal::components_from_chars(first, last, spec,endpoint, direction);
+    if (result.ec == std::errc {})
+    {
+        ray = Ray<Traits>(endpoint, direction);
+    }
+
+    return result;
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+std::to_chars_result quetzal::geometry::to_chars(char* first, char* last, const Ray<Traits>& ray, const FormatSpec& spec)
+{
+    return quetzal::components_to_chars(first, last, spec,ray.endpoint(), ray.direction());
+}
+
+//------------------------------------------------------------------------------
+template<typename Traits>
+struct std::formatter<quetzal::geometry::Ray<Traits>> : quetzal::series_formatter<quetzal::geometry::Point<Traits>>
+{
     template<typename FormatContext>
     auto format(const quetzal::geometry::Ray<Traits>& ray, FormatContext& ctx) const
     {
-        std::formatter<quetzal::math::Vector<Traits>> vector_formatter;
-        vector_formatter.m_object_delimiters = m_point_formatter.m_object_delimiters;
-        vector_formatter.m_element_delimiter = m_point_formatter.m_element_delimiter;
-        vector_formatter.m_element_formatter = m_point_formatter.m_element_formatter;
-
-        auto out = m_point_formatter.format(ray.endpoint(), ctx);
-        ctx.advance_to(out);
-        *out++ = ',';
-        *out++ = ' ';
-        ctx.advance_to(out);
-
-        return vector_formatter.format(ray.direction(), ctx);
+        ctx.advance_to(this->m_element_formatter.format(ray.endpoint(), ctx));
+        this->format_series_delimiter(ctx);
+        return quetzal::matching_formatter<quetzal::math::Vector<Traits>>(this->m_element_formatter).format(ray.direction(), ctx);
     }
 };
 

@@ -317,24 +317,24 @@ TEST_CASE("formatting")
 {
     math::Vector<math::CartesianTraits<double, 3>> smoke_v(1.5, 2.25, 3.0);
     std::cout << std::format("default [{}]", smoke_v) << std::endl;
-    std::cout << std::format("brackets [{:[}]", smoke_v) << std::endl;
-    std::cout << std::format("parens [{:(}]", smoke_v) << std::endl;
-    std::cout << std::format("comma-space [{:[,_}]", smoke_v) << std::endl;
-    std::cout << std::format("space-colon-space [{:_:_}]", smoke_v) << std::endl;
-    std::cout << std::format("semicolon [{:;}]", smoke_v) << std::endl;
-    std::cout << std::format("combo [{:(,_.2f}]", smoke_v) << std::endl;
+    std::cout << std::format("brackets [{:/o[/c]}]", smoke_v) << std::endl;
+    std::cout << std::format("parens [{:/o(/c)}]", smoke_v) << std::endl;
+    std::cout << std::format("comma-space [{:/s, /o[/c]}]", smoke_v) << std::endl;
+    std::cout << std::format("space-colon-space [{:/s /: }]", smoke_v) << std::endl;
+    std::cout << std::format("semicolon [{:/s;}]", smoke_v) << std::endl;
+    std::cout << std::format("combo [{:/s, /o(/c):.2f}]", smoke_v) << std::endl;
 
     math::Vector<math::HomogeneousTraits<float, 3>> smoke_h(4.5f, 5.25f, 6.0f);
-    std::cout << std::format("homogeneous combo [{:[,_.1f}]", smoke_h) << std::endl;
+    std::cout << std::format("homogeneous combo [{:/s, /o[/c]:.1f}]", smoke_h) << std::endl;
 
     std::cout << "to_string " << to_string(smoke_v) << std::endl;
-    std::cout << "to_array_string " << to_array_string(smoke_v) << std::endl;
+    std::cout << std::format("bracketed [{:/s, /b[]}]", smoke_v) << std::endl;
 
     geometry::Point<math::CartesianTraits<double, 3>> smoke_p(1.5, 2.25, 3.0);
     std::cout << std::format("point default [{}]", smoke_p) << std::endl;
-    std::cout << std::format("point combo [{:(,_.2f}]", smoke_p) << std::endl;
+    std::cout << std::format("point combo [{:/s, /o(/c):.2f}]", smoke_p) << std::endl;
     std::cout << "point to_string " << to_string(smoke_p) << std::endl;
-    std::cout << "point to_array_string " << to_array_string(smoke_p) << std::endl;
+    std::cout << std::format("point bracketed [{:/s, /b[]}]", smoke_p) << std::endl;
 
     std::cout << "point operator<< default [" << smoke_p << "]" << std::endl;
     std::cout << "point operator<< fixed(2) [" << std::fixed << std::setprecision(2) << smoke_p << "]" << std::endl;
@@ -344,15 +344,15 @@ TEST_CASE("formatting")
 
     geometry::Segment<math::CartesianTraits<double, 3>> smoke_s(smoke_p, geometry::Point<math::CartesianTraits<double, 3>>(4.0, 5.0, 6.0));
     std::cout << std::format("segment default [{}]", smoke_s) << std::endl;
-    std::cout << std::format("segment combo [{:[,_.2f}]", smoke_s) << std::endl;
+    std::cout << std::format("segment combo [{:/s, /o[/c]:.2f}]", smoke_s) << std::endl;
 
     geometry::Line<math::CartesianTraits<double, 3>> smoke_l(smoke_p, math::Vector<math::CartesianTraits<double, 3>>::z_direction());
     std::cout << std::format("line default [{}]", smoke_l) << std::endl;
-    std::cout << std::format("line combo [{:[,_.2f}]", smoke_l) << std::endl;
+    std::cout << std::format("line combo [{:/s, /o[/c]:.2f}]", smoke_l) << std::endl;
 
     geometry::Plane<math::CartesianTraits<double, 3>> smoke_pl(smoke_p, math::Vector<math::CartesianTraits<double, 3>>::z_direction());
     std::cout << std::format("plane default [{}]", smoke_pl) << std::endl;
-    std::cout << std::format("plane combo [{:[,_.2f}]", smoke_pl) << std::endl;
+    std::cout << std::format("plane combo [{:/s, /o[/c]:.2f}]", smoke_pl) << std::endl;
 
     geometry::Polygon<math::HomogeneousTraits<double, 3>> smoke_poly
     {
@@ -361,47 +361,64 @@ TEST_CASE("formatting")
         geometry::Point<math::HomogeneousTraits<double, 3>>(1.0, 1.0, 0.0),
     };
     std::cout << std::format("polygon default [{}]", smoke_poly) << std::endl;
-    std::cout << std::format("polygon combo [{:[,_.1f}]", smoke_poly) << std::endl;
+    std::cout << std::format("polygon combo [{:/s, /o[/c]:.1f}]", smoke_poly) << std::endl;
 
     geometry::Intersection<math::HomogeneousTraits<double, 3>> smoke_ix(geometry::Point<math::HomogeneousTraits<double, 3>>(1.5, 2.25, 3.0));
     std::cout << std::format("intersection default [{}]", smoke_ix) << std::endl;
-    std::cout << std::format("intersection combo [{:[,_.2f}]", smoke_ix) << std::endl;
+    std::cout << std::format("intersection combo [{:/s, /o[/c]:.2f}]", smoke_ix) << std::endl;
 
     geometry::AxisAlignedBoundingBox<math::CartesianTraits<double, 3>> smoke_aabb(smoke_p, geometry::Point<math::CartesianTraits<double, 3>>(4.0, 5.0, 6.0));
     std::cout << std::format("aabb default [{}]", smoke_aabb) << std::endl;
-    std::cout << std::format("aabb combo [{:[,_.2f}]", smoke_aabb) << std::endl;
+    std::cout << std::format("aabb combo [{:/s, /o[/c]:.2f}]", smoke_aabb) << std::endl;
 
     geometry::BoundingSphere<math::CartesianTraits<double, 3>> smoke_bs(smoke_p, 2.5);
     std::cout << std::format("bounding sphere default [{}]", smoke_bs) << std::endl;
-    std::cout << std::format("bounding sphere combo [{:[,_.2f}]", smoke_bs) << std::endl;
+    std::cout << std::format("bounding sphere combo [{:/s, /o[/c]:.2f}]", smoke_bs) << std::endl;
 
     geometry::Orientation<math::CartesianTraits<double, 3>> smoke_or;
     std::cout << std::format("orientation default [{}]", smoke_or) << std::endl;
-    std::cout << std::format("orientation combo [{:[,_.2f}]", smoke_or) << std::endl;
+    std::cout << std::format("orientation combo [{:/s, /o[/c]:.2f}]", smoke_or) << std::endl;
 
     geometry::OrientedPoint<math::CartesianTraits<double, 3>> smoke_op(smoke_p, smoke_or);
     std::cout << std::format("oriented point default [{}]", smoke_op) << std::endl;
-    std::cout << std::format("oriented point combo [{:[,_.2f}]", smoke_op) << std::endl;
+    std::cout << std::format("oriented point combo [{:/s, /o[/c]:.2f}]", smoke_op) << std::endl;
 
     geometry::Box<math::CartesianTraits<double, 3>> smoke_box(smoke_p, geometry::Point<math::CartesianTraits<double, 3>>(4.0, 5.0, 6.0));
     std::cout << std::format("box default [{}]", smoke_box) << std::endl;
-    std::cout << std::format("box combo [{:[,_.2f}]", smoke_box) << std::endl;
+    std::cout << std::format("box combo [{:/s, /o[/c]:.2f}]", smoke_box) << std::endl;
 
     geometry::Circle<math::CartesianTraits<double, 3>> smoke_circle(smoke_p, 2.5);
     std::cout << std::format("circle default [{}]", smoke_circle) << std::endl;
-    std::cout << std::format("circle combo [{:[,_.2f}]", smoke_circle) << std::endl;
+    std::cout << std::format("circle combo [{:/s, /o[/c]:.2f}]", smoke_circle) << std::endl;
 
     geometry::Sphere<math::CartesianTraits<double, 3>> smoke_sphere(smoke_p, 2.5);
     std::cout << std::format("sphere default [{}]", smoke_sphere) << std::endl;
-    std::cout << std::format("sphere combo [{:[,_.2f}]", smoke_sphere) << std::endl;
+    std::cout << std::format("sphere combo [{:/s, /o[/c]:.2f}]", smoke_sphere) << std::endl;
 
     geometry::HalfSpace<math::CartesianTraits<double, 3>> smoke_hs(smoke_pl, math::Vector<math::CartesianTraits<double, 3>>::z_direction());
     std::cout << std::format("half space default [{}]", smoke_hs) << std::endl;
-    std::cout << std::format("half space combo [{:[,_.2f}]", smoke_hs) << std::endl;
+    std::cout << std::format("half space combo [{:/s, /o[/c]:.2f}]", smoke_hs) << std::endl;
 
     geometry::HalfPlane<math::CartesianTraits<double, 3>> smoke_hp(smoke_l, math::Vector<math::CartesianTraits<double, 3>>::x_direction());
     std::cout << std::format("half plane default [{}]", smoke_hp) << std::endl;
-    std::cout << std::format("half plane combo [{:[,_.2f}]", smoke_hp) << std::endl;
+    std::cout << std::format("half plane combo [{:/s, /o[/c]:.2f}]", smoke_hp) << std::endl;
+
+    return;
+}
+
+//------------------------------------------------------------------------------
+TEST_CASE("box compare")
+{
+    using traits3 = math::CartesianTraits<double, 3>;
+    using point3 = geometry::Point<traits3>;
+
+    const geometry::Box<traits3> box(point3(0.0, 0.0, 0.0), point3(2.0, 2.0, 2.0));
+
+    CHECK_CASE("a point inside is interior", box.compare(point3(1.0, 1.0, 1.0)) == std::partial_ordering::less);
+    CHECK_CASE("a point on a face is boundary", box.compare(point3(0.0, 1.0, 1.0)) == std::partial_ordering::equivalent
+        && box.compare(point3(1.0, 1.0, 2.0)) == std::partial_ordering::equivalent);
+    CHECK_CASE("a corner is boundary", box.compare(point3(2.0, 2.0, 2.0)) == std::partial_ordering::equivalent);
+    CHECK_CASE("a point beyond a face is exterior", box.compare(point3(1.0, 3.0, 1.0)) == std::partial_ordering::greater);
 
     return;
 }

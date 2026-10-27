@@ -5,6 +5,7 @@
 #include "string_util.hpp"
 #include "utf8.h"
 #include "utf8/cpp11.h"
+#include <algorithm>
 #include <format>
 #include <ios>
 #include <iterator>
@@ -18,14 +19,39 @@ namespace
 {
 
     //--------------------------------------------------------------------------
-    int array_object_delim_index()
+    // A stream's iword at this index is 0 until cartesian or homogeneous sets it
+    int coordinate_form_index()
+    {
+        static int index = ios_base::xalloc();
+        return index;
+    }
+
+    constexpr long cartesian_form = 1;
+    constexpr long homogeneous_form = 2;
+
+    //--------------------------------------------------------------------------
+    int separator_index()
     {
         static int index = ios_base::xalloc();
         return index;
     }
 
     //--------------------------------------------------------------------------
-    int array_element_delim_index()
+    int opening_bracket_index()
+    {
+        static int index = ios_base::xalloc();
+        return index;
+    }
+
+    //--------------------------------------------------------------------------
+    int closing_bracket_index()
+    {
+        static int index = ios_base::xalloc();
+        return index;
+    }
+
+    //--------------------------------------------------------------------------
+    int series_delimiter_index()
     {
         static int index = ios_base::xalloc();
         return index;
@@ -33,7 +59,7 @@ namespace
 
     //--------------------------------------------------------------------------
     // pword is a raw void*, so this callback copies it on copyfmt and deletes it on stream destruction
-    void array_element_delim_callback(ios_base::event event, ios_base& stream, int index)
+    void delim_text_callback(ios_base::event event, ios_base& stream, int index)
     {
         if (event == ios_base::erase_event)
         {
@@ -48,71 +74,141 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    void set_element_delim(ios_base& stream, const string& value)
+    void set_delim_text(ios_base& stream, int index, const string& value)
     {
-        if (value.empty()) // leave whatever element delimiter is already in effect unchanged
-        {
-            return;
-        }
-
-        int index = array_element_delim_index();
         if (stream.pword(index) == nullptr)
         {
-            stream.register_callback(array_element_delim_callback, index);
+            stream.register_callback(delim_text_callback, index);
         }
 
         delete static_cast<string*>(stream.pword(index));
         stream.pword(index) = new string(value);
     }
 
+    //--------------------------------------------------------------------------
+    optional<string> delim_text(ios_base& stream, int index)
+    {
+        void* p = stream.pword(index);
+        return p != nullptr ? make_optional(*static_cast<string*>(p)) : nullopt;
+    }
+
 } // namespace
 
 //------------------------------------------------------------------------------
-quetzal::object_delim_manip quetzal::object_delim(char c)
+ios_base& quetzal::cartesian(ios_base& stream)
 {
-    assert(c == '\0' || c == '[' || c == '(');
-    return {c};
+    stream.iword(coordinate_form_index()) = cartesian_form;
+    return stream;
 }
 
 //------------------------------------------------------------------------------
-ostream& quetzal::operator<<(ostream& os, object_delim_manip manip)
+ios_base& quetzal::homogeneous(ios_base& stream)
 {
-    os.iword(array_object_delim_index()) = manip.value;
+    stream.iword(coordinate_form_index()) = homogeneous_form;
+    return stream;
+}
+
+//------------------------------------------------------------------------------
+quetzal::separator_delim_manip quetzal::separator_delim(string separator)
+{
+    return {std::move(separator)};
+}
+
+//------------------------------------------------------------------------------
+ostream& quetzal::operator<<(ostream& os, const separator_delim_manip& manip)
+{
+    set_delim_text(os, separator_index(), manip.value);
     return os;
 }
 
 //------------------------------------------------------------------------------
-quetzal::element_delim_manip quetzal::element_delim(string s)
+istream& quetzal::operator>>(istream& is, const separator_delim_manip& manip)
 {
-    return {std::move(s)};
+    set_delim_text(is, separator_index(), manip.value);
+    return is;
 }
 
 //------------------------------------------------------------------------------
-ostream& quetzal::operator<<(ostream& os, const element_delim_manip& manip)
+quetzal::brackets_delim_manip quetzal::brackets_delim(string opening_bracket, string closing_bracket)
 {
-    set_element_delim(os, manip.value);
+    return {std::move(opening_bracket), std::move(closing_bracket)};
+}
+
+//------------------------------------------------------------------------------
+ostream& quetzal::operator<<(ostream& os, const brackets_delim_manip& manip)
+{
+    set_delim_text(os, opening_bracket_index(), manip.opening_bracket);
+    set_delim_text(os, closing_bracket_index(), manip.closing_bracket);
     return os;
 }
 
 //------------------------------------------------------------------------------
-istream& quetzal::operator>>(istream& is, object_delim_manip manip)
+istream& quetzal::operator>>(istream& is, const brackets_delim_manip& manip)
 {
-    is.iword(array_object_delim_index()) = manip.value;
+    set_delim_text(is, opening_bracket_index(), manip.opening_bracket);
+    set_delim_text(is, closing_bracket_index(), manip.closing_bracket);
     return is;
 }
 
 //------------------------------------------------------------------------------
-istream& quetzal::operator>>(istream& is, const element_delim_manip& manip)
+quetzal::series_delim_manip quetzal::series_delim(string series_delimiter)
 {
-    set_element_delim(is, manip.value);
+    return {std::move(series_delimiter)};
+}
+
+//------------------------------------------------------------------------------
+ostream& quetzal::operator<<(ostream& os, const series_delim_manip& manip)
+{
+    set_delim_text(os, series_delimiter_index(), manip.value);
+    return os;
+}
+
+//------------------------------------------------------------------------------
+istream& quetzal::operator>>(istream& is, const series_delim_manip& manip)
+{
+    set_delim_text(is, series_delimiter_index(), manip.value);
     return is;
 }
 
 //------------------------------------------------------------------------------
-string quetzal::array_element_delimiter(ios_base& stream, string_view default_delimiter)
+quetzal::FormatSpec quetzal::stream_format_spec(ios_base& stream)
 {
-    void* p = stream.pword(array_element_delim_index());
-    return p != nullptr ? *static_cast<string*>(p) : string(default_delimiter);
+    FormatSpec spec;
+
+    if (const long form = stream.iword(coordinate_form_index()); form != 0)
+    {
+        spec.homogeneous = form == homogeneous_form;
+    }
+
+    spec.separator = delim_text(stream, separator_index());
+    spec.brackets = {delim_text(stream, opening_bracket_index()), delim_text(stream, closing_bracket_index())};
+    spec.series_delimiter = delim_text(stream, series_delimiter_index());
+    return spec;
+}
+
+//------------------------------------------------------------------------------
+bool quetzal::resolved_homogeneous(const FormatSpec& spec, bool default_homogeneous)
+{
+    return spec.homogeneous.value_or(default_homogeneous);
+}
+
+//------------------------------------------------------------------------------
+string_view quetzal::resolved_separator(const FormatSpec& spec, string_view default_separator)
+{
+    return spec.separator ? string_view(*spec.separator) : default_separator;
+}
+
+//------------------------------------------------------------------------------
+quetzal::brackets_type quetzal::resolved_brackets(const FormatSpec& spec, const brackets_type& default_brackets)
+{
+    return {spec.brackets[0] ? string_view(*spec.brackets[0]) : default_brackets[0],
+        spec.brackets[1] ? string_view(*spec.brackets[1]) : default_brackets[1]};
+}
+
+//------------------------------------------------------------------------------
+string_view quetzal::resolved_series_delimiter(const FormatSpec& spec, string_view default_series_delimiter)
+{
+    return spec.series_delimiter ? string_view(*spec.series_delimiter) : default_series_delimiter;
 }
 
 //------------------------------------------------------------------------------
@@ -126,23 +222,7 @@ const char* quetzal::skip_whitespace(const char* first, const char* last)
 }
 
 //------------------------------------------------------------------------------
-istream& quetzal::skip_object_delimiter(istream& is, char delimiter)
-{
-    is >> ws;
-    istream::int_type c = is.peek();
-    if (c == istream::traits_type::to_int_type(delimiter))
-    {
-        is.ignore();
-    }
-    else
-    {
-        is.setstate(ios::failbit);
-    }
-    return is;
-}
-
-//------------------------------------------------------------------------------
-istream& quetzal::skip_element_delimiter(istream& is, string_view delimiter_pattern)
+istream& quetzal::skip_delimiter(istream& is, string_view delimiter_pattern)
 {
     for (char c : delimiter_pattern)
     {
@@ -165,7 +245,7 @@ istream& quetzal::skip_element_delimiter(istream& is, string_view delimiter_patt
 }
 
 //------------------------------------------------------------------------------
-const char* quetzal::skip_element_delimiter(const char* first, const char* last, string_view delimiter_pattern)
+const char* quetzal::skip_delimiter(const char* first, const char* last, string_view delimiter_pattern)
 {
     for (char c : delimiter_pattern)
     {
@@ -187,29 +267,71 @@ const char* quetzal::skip_element_delimiter(const char* first, const char* last,
 }
 
 //------------------------------------------------------------------------------
-string quetzal::array_format_spec(const ostream& os, char default_object_delim, string_view default_element_delim, bool precision)
+const char* quetzal::find_delimiter(const char* first, const char* last, string_view delimiter)
 {
-    auto& mutable_os = const_cast<ostream&>(os); // iword/pword aren't const, though this only reads
+    string_view text = trim_ws(delimiter);
+    if (text.empty())
+    {
+        return last;
+    }
 
-    long object_delim_value = mutable_os.iword(array_object_delim_index());
-    char object_delim_char = object_delim_value != 0 ? static_cast<char>(object_delim_value) : default_object_delim;
+    return search(first, last, text.begin(), text.end());
+}
 
-    string element_delim_value = array_element_delimiter(mutable_os, default_element_delim);
+//------------------------------------------------------------------------------
+string_view quetzal::trim_ws(string_view delimiter)
+{
+    size_t text_first = delimiter.find_first_not_of(" \t");
+    if (text_first == string_view::npos)
+    {
+        return {};
+    }
 
+    return delimiter.substr(text_first, delimiter.find_last_not_of(" \t") - text_first + 1);
+}
+
+//------------------------------------------------------------------------------
+string quetzal::read_until(istream& is, string_view text)
+{
+    string read;
+    char c = '\0';
+
+    while (is.get(c))
+    {
+        read += c;
+        if (read.ends_with(text))
+        {
+            read.resize(read.size() - text.size());
+            return read;
+        }
+    }
+
+    is.setstate(ios::failbit);
+    return read;
+}
+
+//------------------------------------------------------------------------------
+to_chars_result quetzal::write_delimiter(char* first, char* last, string_view delimiter)
+{
+    if (static_cast<size_t>(last - first) < delimiter.size())
+    {
+        return {first, errc::value_too_large};
+    }
+
+    return {copy(delimiter.begin(), delimiter.end(), first), errc {}};
+}
+
+//------------------------------------------------------------------------------
+string quetzal::numeric_format_string(const ostream& os, bool precision)
+{
     string spec;
-    if (object_delim_char != '\0')
+    if (!precision)
     {
-        spec += object_delim_char;
+        return spec;
     }
-    for (char c : element_delim_value)
-    {
-        spec += (c == ' ') ? '_' : c;
-    }
-    if (precision)
-    {
-        spec += '.';
-        spec += std::to_string(os.precision());
-    }
+
+    spec += '.';
+    spec += std::to_string(os.precision());
 
     if (os.flags() & ios::fixed)
     {
