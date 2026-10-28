@@ -148,28 +148,29 @@ has eight solid neighbors --- generate a zone that is solid throughout.
 
 `dungen` parses the command line, generates, and writes the zone to a file and to standard output, with its layout's
 `unpopulated` set. It installs a `StreamLogSink` writing the process-wide log to `std::clog`, at the level
-`--log-level` sets, `info` by default.
+`log_level` sets, `info` by default.
 
 ```
-dungen [zone] [--algorithm maze1|grid1|cave1] [--extent nx,ny] [--name text]
-            [--stairs-down min-max] [--stairs-up min-max] [--room-density d] [--door-probability p] [--position x,y,z] [--seed n]
-            [--log-level trace|debug|info|warning|error|critical|off]
-  maze1: [--room-dimension-base n] [--room-dimension-variation n] [--room-merge]
-         [--corridor-straightness s] [--probability-dead-end-removal p]
-         [--probability-loop-removal p]
-  grid1: [--divisions nx,ny] [--room-dimension-min n] [--room-margin n] [--loop l]
-  cave1: [--fill f] [--smoothing-passes n] [--birth-threshold n] [--survival-threshold n]
+dungen [zone] [algorithm=maze1|grid1|cave1] [extent=nx,ny] [name=text]
+            [stairs_down=min-max] [stairs_up=min-max] [room_density=d] [door_probability=p] [position=x,y,z] [seed=n]
+            [log_level=trace|debug|info|warning|error|critical|off]
+  maze1: [room_dimension_base=n] [room_dimension_variation=n] [room_merge=true|false]
+         [corridor_straightness=s] [probability_dead_end_removal=p]
+         [probability_loop_removal=p]
+  grid1: [divisions=nx,ny] [room_dimension_min=n] [room_margin=n] [loop=l]
+  cave1: [fill=f] [smoothing_passes=n] [birth_threshold=n] [survival_threshold=n]
 ```
 
-The zone path defaults to `dungen.zone`, and the name to none. A run given no `--seed` draws one, so the file has a seed either way and any
-zone can be reproduced. `--seed` is read by `math::to_seed`, as the seed's own unsigned type, which is wider than a
-`long` on Windows; `catagen` shares the helper.
+An argument with an `=` is a token, split at the first `=` into a key and a value; any other argument is the zone path,
+`dungen.zone` by default. The tool takes `name` and `log_level` for itself and passes the other tokens to
+`set_parameters`, the reader `stratum_gen` also uses. Its keys are those of the zone file's generator parameters, so a
+file's parameters, given as tokens, reproduce its zone. A key that is not a parameter, or a value that is not of the
+parameter's type, throws `std::invalid_argument`. A run given no `seed` draws one, so the file has a seed either way.
 
-Each option sets the group it belongs to, whichever algorithm was chosen, so an option may be given before the
-`--algorithm` it applies to. `--room-density` and `--door-probability` are shared by two groups and set both.
-`--stairs-down` and `--stairs-up` take a closed range of counts, written in the zone file's parameters as
-`stairs_down` and `stairs_up`; the options keep the shorter "stairs" for typing, where names in code and prose say
-"staircase".
+Each token sets the group it belongs to, whichever algorithm was chosen, so a token may be given before the `algorithm`
+it applies to. `room_density` and `door_probability` are shared by two groups and set both. `stairs_down` and
+`stairs_up` take a closed range of counts, with `-` between the bounds; the keys keep the shorter "stairs", where names
+in code and prose say "staircase".
 
 ## Reading it back
 
@@ -186,4 +187,4 @@ it.
   rooms, only the maze.
 - `Zone::expand_room` repaints cells into a room but leaves the `Room`'s position and size as created, so the record
   understates a merged room, and `maze1`'s `door_candidates`, walking the record's four sides, offers a merged room
-  doors only along its original rectangle. `--room-merge` is off by default.
+  doors only along its original rectangle. `room_merge` is off by default.

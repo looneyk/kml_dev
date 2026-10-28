@@ -5,14 +5,87 @@
 
 #include "Parameters.hpp"
 #include <format>
+#include <optional>
 #include <stdexcept>
+#include <string>
 
 using namespace std;
+
+namespace
+{
+
+    // A vector or position separates its values with ',', and a range its bounds with '-'
+    const quetzal::FormatSpec token_format_spec {.separator = ",", .series_delimiter = "-"};
+
+    //--------------------------------------------------------------------------
+    template<typename T>
+    T token_value(const string& key, const string& text)
+    {
+        optional<T> value = quetzal::try_type<T>(text, token_format_spec);
+        if (!value)
+        {
+            throw invalid_argument(format("\"{}\" is not a valid {}", text, key));
+        }
+
+        return *value;
+    }
+
+} // namespace
 
 //------------------------------------------------------------------------------
 quetzal::catagen::Parameters::seed_type quetzal::catagen::random_seed()
 {
     return math::random_seed();
+}
+
+//------------------------------------------------------------------------------
+void quetzal::catagen::set_parameters(Parameters& parameters, const KeyValueStore& tokens)
+{
+    for (const auto& [key, text] : tokens)
+    {
+        if (key == "extent")
+        {
+            parameters.extent = token_value<vector_type>(key, text);
+        }
+        else if (key == "scale")
+        {
+            parameters.scale = token_value<math::Interval<coord_type>>(key, text);
+        }
+        else if (key == "spacing")
+        {
+            parameters.spacing = token_value<math::Interval<coord_type>>(key, text);
+        }
+        else if (key == "density")
+        {
+            parameters.density = token_value<double>(key, text);
+        }
+        else if (key == "loop")
+        {
+            parameters.loop = token_value<double>(key, text);
+        }
+        else if (key == "stairs_down")
+        {
+            parameters.staircase_down_count = token_value<math::Interval<size_t>>(key, text);
+        }
+        else if (key == "stairs_up")
+        {
+            parameters.staircase_up_count = token_value<math::Interval<size_t>>(key, text);
+        }
+        else if (key == "position")
+        {
+            parameters.position = token_value<zone_position_type>(key, text);
+        }
+        else if (key == "seed")
+        {
+            parameters.seed = token_value<Parameters::seed_type>(key, text);
+        }
+        else
+        {
+            throw invalid_argument(format("{} is not a catagen parameter", key));
+        }
+    }
+
+    return;
 }
 
 //------------------------------------------------------------------------------

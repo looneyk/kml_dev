@@ -160,7 +160,7 @@ namespace quetzal::log
 - **The program sets the levels at startup,** where it installs the sinks. The game's levels, the log's and any
   category's or sink's, are process-wide settings, which the host applies when it starts and again whenever a setting
   changes, as Unreal's `log` console command changes a category's level while the game runs. The tools take a
-  `--log-level` option, and a test sets the levels it checks against.
+  `log_level` token, and a test sets the levels it checks against.
 
 ### Levels
 
@@ -233,7 +233,7 @@ log::logger().clear_sinks();
 - **Godot installs a sink that writes to Godot's output,** errors and critical entries through `push_error`, warnings
   through `push_warning` and the rest through `print`, and a file sink. It installs them when its extension initializes
   at the scene level, once for the process, and clears them when the extension uninitializes.
-- **The tools install a `std::clog` sink** and take `--log-level`.
+- **The tools install a `std::clog` sink** and take `log_level`.
 - **dungen writes its warnings to the process-wide log** under the category `dungen`, and takes no warning function.
 - **`stratum_format::read_zone` writes its warnings to the process-wide log** under the category `stratum_format`,
   and takes no warning function.

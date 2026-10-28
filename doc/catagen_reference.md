@@ -119,22 +119,24 @@ nothing before them changes.
 ## The tool
 
 ```
-catagen [zone] [--extent nx,ny] [--name text] [--scale min-max] [--spacing min-max] [--density d]
-             [--loop l] [--stairs-down min-max] [--stairs-up min-max] [--position x,y,z] [--seed n] [--quiet]
-             [--log-level trace|debug|info|warning|error|critical|off]
+catagen [zone] [extent=nx,ny] [name=text] [scale=min-max] [spacing=min-max] [density=d]
+             [loop=l] [stairs_down=min-max] [stairs_up=min-max] [position=x,y,z] [seed=n] [quiet=true|false]
+             [log_level=trace|debug|info|warning|error|critical|off]
 ```
 
 The tool installs a `StreamLogSink` writing the process-wide log (`log_plan.md`) to `std::clog`, at the level
-`--log-level` sets, `info` by default. catagen itself writes nothing to it.
+`log_level` sets, `info` by default. catagen itself writes nothing to it.
 
-The tool writes the zone to the named file, `catagen.zone` by default, and to standard output unless `--quiet` is
-given, with its layout's `unpopulated` set. A run given no `--seed` takes `random_seed()` before generating, so the file has a seed either way and any run
-can be reproduced from what it printed. The option names are the parameter names, so a file's parameters read back as a
-command line. `--stairs-down` and `--stairs-up` take a closed range of counts; the options keep the shorter "stairs" for
-typing, where names in code and prose say "staircase".
+An argument with an `=` is a token, split at the first `=` into a key and a value; any other argument is the zone path,
+`catagen.zone` by default. The tool takes `name`, `quiet`, and `log_level` for itself and passes the other tokens to
+`set_parameters`. Its keys are those of the zone file's generator parameters, so a file's parameters, given as tokens,
+reproduce its zone. A key that is not a parameter, or a value that is not of the parameter's type, throws
+`std::invalid_argument`.
 
-`--seed` is read by `math::to_seed`, as the seed's own unsigned type, which is wider than a `long` where a `long` is 32
-bits. `dungen` reads its seed the same way.
+The tool writes the zone to the file and to standard output unless `quiet` is true, with its layout's `unpopulated`
+set. A run given no `seed` takes `random_seed()` before generating, so the file has a seed either way.
+`scale`, `spacing`, `stairs_down`, and `stairs_up` take a closed range, with `-` between the bounds; the keys keep the
+shorter "stairs", where names in code and prose say "staircase".
 
 ## Reading it back
 

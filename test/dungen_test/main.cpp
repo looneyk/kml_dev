@@ -4,6 +4,7 @@
 //------------------------------------------------------------------------------
 
 #include "quetzal/common/file_util.hpp"
+#include "quetzal/common/KeyValueStore.hpp"
 #include "quetzal/dungen/generate.hpp"
 #include "quetzal/dungen/place_staircases.hpp"
 #include "quetzal/dungen/write_zone.hpp"
@@ -19,7 +20,6 @@
 #include <doctest/doctest.h>
 #include <nlohmann/json.hpp>
 #include <algorithm>
-#include <charconv>
 #include <filesystem>
 #include <format>
 #include <fstream>
@@ -132,63 +132,6 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // The whole string or nothing; trailing characters are an error
-    dungen::coord_type to_integer(const string& s)
-    {
-        dungen::coord_type value = 0;
-        auto result = from_chars(s.data(), s.data() + s.size(), value);
-
-        if (result.ec != errc {} || result.ptr != s.data() + s.size())
-        {
-            throw invalid_argument(format("\"{}\" is not a whole number", s));
-        }
-
-        return value;
-    }
-
-    //--------------------------------------------------------------------------
-    double to_real(const string& s)
-    {
-        double value = 0.0;
-        auto result = from_chars(s.data(), s.data() + s.size(), value);
-
-        if (result.ec != errc {} || result.ptr != s.data() + s.size())
-        {
-            throw invalid_argument(format("\"{}\" is not a number", s));
-        }
-
-        return value;
-    }
-
-    //--------------------------------------------------------------------------
-    // Rejects a negative count, as counts are size_t
-    size_t to_count(const string& s)
-    {
-        dungen::coord_type value = to_integer(s);
-
-        if (value < 0)
-        {
-            throw invalid_argument(format("\"{}\" is not a count", s));
-        }
-
-        return static_cast<size_t>(value);
-    }
-
-    //--------------------------------------------------------------------------
-    // A closed range of counts, written low to high with a hyphen between
-    math::Interval<size_t> to_count_interval(const string& s)
-    {
-        size_t n = s.find('-');
-
-        if (n == string::npos)
-        {
-            throw invalid_argument(format("\"{}\" is not two counts separated by '-'", s));
-        }
-
-        return {to_count(s.substr(0, n)), to_count(s.substr(n + 1))};
-    }
-
-    //--------------------------------------------------------------------------
     // Returns the zone as the reader decodes it. Throws std::runtime_error if the reader rejects it
     stratum_format::Document document_of(const string& zone)
     {
@@ -197,8 +140,8 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // The parameters in a zone file's generator section, where only the chosen algorithm's group is written
-    // Throws std::invalid_argument for a value this does not read, so a parameter added to the writer alone fails
+    // The parameters in a zone file's generator section, as set_parameters reads them
+    // Throws std::invalid_argument for a value set_parameters does not read, so a parameter added to the writer alone fails
     dungen::Parameters parameters_of(const stratum_format::raw_values_type& generator)
     {
         if (!generator.is_object() || generator.value("name", "") != "dungen")
@@ -206,86 +149,15 @@ namespace
             throw invalid_argument(format("\"{}\" is not a dungen generator", generator.dump()));
         }
 
-        map<string, string> values;
+        KeyValueStore tokens;
 
         for (const auto& [key, value] : generator.at("parameters").items())
         {
-            values[key] = value.get<string>();
+            tokens.insert(key, value.get<string>());
         }
-
-        // Each value read is removed, so the values left at the end are the ones this does not read
-        auto take = [&values](const string& key)
-        {
-            auto i = values.find(key);
-            if (i == values.end())
-            {
-                throw invalid_argument(format("the zone file specifies no {}", key));
-            }
-
-            string value = std::move(i->second);
-            values.erase(i);
-            return value;
-        };
 
         dungen::Parameters parameters;
-
-        parameters.algorithm = dungen::to_algorithm(take("algorithm"));
-        parameters.staircase_down_count = to_count_interval(take("stairs_down"));
-        parameters.staircase_up_count = to_count_interval(take("stairs_up"));
-        parameters.seed = math::to_seed(take("seed"));
-
-        if (values.contains("position"))
-        {
-            string position = take("position");
-            dungen::zone_position_type::vector_type v;
-            math::from_chars(position.data(), position.data() + position.size(), v, {.separator = ","});
-            parameters.position = dungen::zone_position_type(v);
-        }
-
-        string extent = take("extent");
-        size_t n = extent.find(',');
-        parameters.extent = {to_integer(extent.substr(0, n)), to_integer(extent.substr(n + 1))};
-
-        if (parameters.algorithm == dungen::Algorithm::Maze1)
-        {
-            dungen::Maze1Parameters& maze1 = parameters.maze1;
-            maze1.room_dimension_base = to_integer(take("room_dimension_base"));
-            maze1.room_dimension_variation = to_integer(take("room_dimension_variation"));
-            maze1.room_density = to_real(take("room_density"));
-            maze1.room_merge = take("room_merge") == "true";
-            maze1.corridor_straightness = to_real(take("corridor_straightness"));
-            maze1.probability_dead_end_removal = to_real(take("probability_dead_end_removal"));
-            maze1.probability_loop_removal = to_real(take("probability_loop_removal"));
-            maze1.door_probability = to_real(take("door_probability"));
-        }
-        else if (parameters.algorithm == dungen::Algorithm::Grid1)
-        {
-            dungen::Grid1Parameters& grid1 = parameters.grid1;
-
-            string divisions = take("divisions");
-            size_t d = divisions.find(',');
-            grid1.divisions = {to_integer(divisions.substr(0, d)), to_integer(divisions.substr(d + 1))};
-
-            grid1.room_density = to_real(take("room_density"));
-            grid1.room_dimension_min = to_integer(take("room_dimension_min"));
-            grid1.room_margin = to_integer(take("room_margin"));
-            grid1.loop = to_real(take("loop"));
-            grid1.door_probability = to_real(take("door_probability"));
-        }
-        else
-        {
-            dungen::Cave1Parameters& cave1 = parameters.cave1;
-            cave1.fill = to_real(take("fill"));
-            cave1.smoothing_passes = to_count(take("smoothing_passes"));
-            cave1.birth_threshold = to_count(take("birth_threshold"));
-            cave1.survival_threshold = to_count(take("survival_threshold"));
-        }
-
-        if (!values.empty())
-        {
-            throw invalid_argument(format("the zone file specifies {}, which this does not read", values.begin()->first));
-        }
-
+        dungen::set_parameters(parameters, tokens);
         return parameters;
     }
 

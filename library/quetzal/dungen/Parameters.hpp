@@ -7,6 +7,7 @@
 
 #include "Algorithm.hpp"
 #include "types.hpp"
+#include "quetzal/common/KeyValueStore.hpp"
 #include "quetzal/math/Interval.hpp"
 #include "quetzal/math/Random.hpp"
 #include <optional>
@@ -92,6 +93,11 @@ namespace quetzal::dungen
 
     // A seed drawn from the platform's entropy source
     Parameters::seed_type random_seed();
+
+    // Sets each parameter a token refers to, the keys being those of the zone file's generator parameters. room_density and
+    // door_probability set the value in both groups that have one
+    // Throws std::invalid_argument for a key that is not a parameter or a value that is not of the parameter's type
+    void set_parameters(Parameters& parameters, const KeyValueStore& tokens);
 
     // Validates the shared parameters and the chosen algorithm's group
     // Throws std::invalid_argument identifying the parameter at fault

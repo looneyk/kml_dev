@@ -6,6 +6,7 @@
 #include "quetzal/catagen/generate.hpp"
 #include "quetzal/catagen/write_zone.hpp"
 #include "quetzal/common/file_util.hpp"
+#include "quetzal/common/KeyValueStore.hpp"
 #include "quetzal/common/string_util.hpp"
 #include "quetzal/math/Interval.hpp"
 #include "quetzal/math/Random.hpp"
@@ -18,7 +19,6 @@
 #include <doctest/doctest.h>
 #include <nlohmann/json.hpp>
 #include <algorithm>
-#include <charconv>
 #include <filesystem>
 #include <format>
 #include <fstream>
@@ -112,35 +112,6 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // The whole string or nothing; trailing characters are an error
-    catagen::coord_type to_integer(const string& s)
-    {
-        catagen::coord_type value = 0;
-        auto result = from_chars(s.data(), s.data() + s.size(), value);
-
-        if (result.ec != errc {} || result.ptr != s.data() + s.size())
-        {
-            throw invalid_argument(format("\"{}\" is not a whole number", s));
-        }
-
-        return value;
-    }
-
-    //--------------------------------------------------------------------------
-    double to_real(const string& s)
-    {
-        double value = 0.0;
-        auto result = from_chars(s.data(), s.data() + s.size(), value);
-
-        if (result.ec != errc {} || result.ptr != s.data() + s.size())
-        {
-            throw invalid_argument(format("\"{}\" is not a number", s));
-        }
-
-        return value;
-    }
-
-    //--------------------------------------------------------------------------
     // Returns the zone as the reader decodes it. Throws std::runtime_error if the reader rejects it
     stratum_format::Document document_of(const string& zone)
     {
@@ -149,8 +120,8 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // The parameters in a zone file's generator section
-    // Throws std::invalid_argument for a value this does not read, so a parameter added to the writer alone fails
+    // The parameters in a zone file's generator section, as set_parameters reads them
+    // Throws std::invalid_argument for a value set_parameters does not read, so a parameter added to the writer alone fails
     catagen::Parameters parameters_of(const stratum_format::raw_values_type& generator)
     {
         if (!generator.is_object() || generator.value("name", "") != "catagen")
@@ -158,71 +129,15 @@ namespace
             throw invalid_argument(format("\"{}\" is not a catagen generator", generator.dump()));
         }
 
-        map<string, string> values;
+        KeyValueStore tokens;
 
         for (const auto& [key, value] : generator.at("parameters").items())
         {
-            values[key] = value.get<string>();
+            tokens.insert(key, value.get<string>());
         }
-
-        auto interval_of = [](const string& s, char separator)
-        {
-            size_t n = s.find(separator);
-            return math::Interval<catagen::coord_type> {
-                to_integer(s.substr(0, n)), to_integer(s.substr(n + 1))};
-        };
-
-        // Each value read is removed, so the values left at the end are the ones this does not read
-        auto take = [&values](const string& key)
-        {
-            auto i = values.find(key);
-            if (i == values.end())
-            {
-                throw invalid_argument(format("the zone file specifies no {}", key));
-            }
-
-            string value = std::move(i->second);
-            values.erase(i);
-            return value;
-        };
 
         catagen::Parameters parameters;
-
-        string extent = take("extent");
-        math::from_chars(extent.data(), extent.data() + extent.size(), parameters.extent, {.separator = ","});
-
-        parameters.scale = interval_of(take("scale"), '-');
-        parameters.spacing = interval_of(take("spacing"), '-');
-
-        parameters.density = to_real(take("density"));
-        parameters.loop = to_real(take("loop"));
-
-        for (auto [key, count] : {pair {"stairs_down", &parameters.staircase_down_count}, pair {"stairs_up", &parameters.staircase_up_count}})
-        {
-            math::Interval<catagen::coord_type> interval = interval_of(take(key), '-');
-            if (interval.lower() < 0 || interval.upper() < 0)
-            {
-                throw invalid_argument(format("{} is not two counts", key));
-            }
-
-            *count = {static_cast<size_t>(interval.lower()), static_cast<size_t>(interval.upper())};
-        }
-
-        parameters.seed = math::to_seed(take("seed"));
-
-        if (values.contains("position"))
-        {
-            string position = take("position");
-            catagen::zone_position_type::vector_type v;
-            math::from_chars(position.data(), position.data() + position.size(), v, {.separator = ","});
-            parameters.position = catagen::zone_position_type(v);
-        }
-
-        if (!values.empty())
-        {
-            throw invalid_argument(format("the zone file specifies {}, which this does not read", values.begin()->first));
-        }
-
+        catagen::set_parameters(parameters, tokens);
         return parameters;
     }
 

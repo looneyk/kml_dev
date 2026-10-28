@@ -56,10 +56,10 @@ namespace quetzal
         std::string value_or(std::string_view key, const std::string& default_value) const;
 
         template<typename T>
-        std::optional<T> value(std::string_view key) const;
+        std::optional<T> value(std::string_view key, const FormatSpec& spec = {}) const;
 
         template<typename T>
-        T value_or(std::string_view key, const T& default_value) const;
+        T value_or(std::string_view key, const T& default_value, const FormatSpec& spec = {}) const;
 
         // Overwriting insertion replaces any existing value
         void insert(const map_type::value_type& key_value);
@@ -87,12 +87,12 @@ namespace quetzal
 
 //------------------------------------------------------------------------------
 template<typename T>
-std::optional<T> quetzal::KeyValueStore::value(std::string_view key) const
+std::optional<T> quetzal::KeyValueStore::value(std::string_view key, const FormatSpec& spec) const
 {
     auto i = m_values.find(key);
     if (i != m_values.end())
     {
-        auto t = try_type<T>(i->second);
+        auto t = try_type<T>(i->second, spec);
         if (!t)
         {
             throw std::runtime_error{std::format("Type conversion error with key: {}, value: {}", i->first, i->second)};
@@ -104,9 +104,9 @@ std::optional<T> quetzal::KeyValueStore::value(std::string_view key) const
 
 //------------------------------------------------------------------------------
 template<typename T>
-T quetzal::KeyValueStore::value_or(std::string_view key, const T& default_value) const
+T quetzal::KeyValueStore::value_or(std::string_view key, const T& default_value, const FormatSpec& spec) const
 {
-    return value<T>(key).value_or(default_value);
+    return value<T>(key, spec).value_or(default_value);
 }
 
 #endif // QUETZAL_KEYVALUESTORE_HPP

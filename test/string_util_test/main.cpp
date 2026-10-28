@@ -34,6 +34,7 @@
 #include "quetzal/testing/named_checks.hpp"
 #include <doctest/doctest.h>
 #include <format>
+#include <iomanip>
 #include <optional>
 #include <sstream>
 #include <string>
@@ -130,19 +131,18 @@ namespace
         string empty;
         CHECK_CASE("an empty range is returned as it is", skip_whitespace(empty.data(), empty.data()) == empty.data());
 
-        // Only space and tab count, so a line break stops the skip
-        string newline = " \n ";
-        CHECK_CASE("a line break is not skipped", skip_whitespace(newline.data(), newline.data() + newline.size()) == newline.data() + 1);
+        string newline = " \n\r\t x";
+        CHECK_CASE("a line break is skipped", skip_whitespace(newline.data(), newline.data() + newline.size()) == newline.data() + newline.size() - 1);
 
         return;
     }
 
     //--------------------------------------------------------------------------
-    TEST_CASE("skip_delimiter")
+    TEST_CASE("skip_pattern")
     {
         {
             istringstream is("  (< rest");
-            skip_delimiter(is >> ws, "(<");
+            skip_pattern(is >> ws, "(<");
             string rest;
             is >> rest;
             CHECK_CASE("a bracket is consumed past leading whitespace", is.good() || is.eof());
@@ -151,13 +151,13 @@ namespace
 
         {
             istringstream is("(x");
-            skip_delimiter(is, "(<");
+            skip_pattern(is, "(<");
             CHECK_CASE("a bracket only partly present sets failbit", is.fail());
         }
 
         {
             istringstream is(", rest");
-            skip_delimiter(is, ",");
+            skip_pattern(is, ",");
             string rest;
             is >> rest;
             CHECK_CASE_EQUAL("the separator is consumed", rest, "rest");
@@ -165,7 +165,7 @@ namespace
 
         {
             istringstream is("rest");
-            skip_delimiter(is, "");
+            skip_pattern(is, "");
             string rest;
             is >> rest;
             CHECK_CASE("an empty pattern skips nothing and succeeds", !is.fail());
@@ -174,7 +174,7 @@ namespace
 
         {
             istringstream is("x");
-            skip_delimiter(is, ",");
+            skip_pattern(is, ",");
             CHECK_CASE("a missing separator sets failbit", is.fail());
         }
 
@@ -554,6 +554,60 @@ namespace
             ostringstream os;
             os << separator_delim("_") << vector_type(1.0, 2.0, 3.0);
             CHECK_CASE_EQUAL("an underscore is written as itself", os.str(), "1_2_3");
+        }
+
+        return;
+    }
+
+    //--------------------------------------------------------------------------
+    TEST_CASE("numeric manipulators")
+    {
+        {
+            ostringstream os;
+            os << fixed << setprecision(2) << vector_type(1.5, 2.25, 3.0);
+            CHECK_CASE_EQUAL("fixed precision applies to each number", os.str(), "1.50 2.25 3.00");
+        }
+
+        {
+            ostringstream os;
+            os << uppercase << scientific << setprecision(1) << vector_type(1500.0, 2.0, 3.0);
+            CHECK_CASE_EQUAL("uppercase scientific", os.str(), "1.5E+03 2.0E+00 3.0E+00");
+        }
+
+        {
+            ostringstream os;
+            os << setw(4) << vector_type(1.0, 2.0, 3.0) << 7;
+            CHECK_CASE_EQUAL("the width pads each number and is then reset", os.str(), "   1    2    37");
+        }
+
+        {
+            ostringstream os;
+            os << left << setfill('*') << setw(3) << discrete_vector_type(1L, 2L, 3L);
+            CHECK_CASE_EQUAL("left alignment with a fill", os.str(), "1** 2** 3**");
+        }
+
+        {
+            ostringstream os;
+            os << internal << setfill('0') << setw(4) << discrete_vector_type(-1L, 2L, 3L);
+            CHECK_CASE_EQUAL("internal alignment with a zero fill pads after the sign", os.str(), "-001 0002 0003");
+        }
+
+        {
+            ostringstream os;
+            os << showpos << discrete_vector_type(-1L, 2L, 3L);
+            CHECK_CASE_EQUAL("showpos", os.str(), "-1 +2 +3");
+        }
+
+        {
+            ostringstream os;
+            os << hex << uppercase << showbase << discrete_vector_type(255L, 16L, 1L);
+            CHECK_CASE_EQUAL("uppercase hex with its base", os.str(), "0XFF 0X10 0X1");
+        }
+
+        {
+            ostringstream os;
+            os << setw(3) << integer_interval_type(3, 7);
+            CHECK_CASE_EQUAL("the width pads each bound of a series", os.str(), "  3 ..   7");
         }
 
         return;

@@ -16,6 +16,7 @@ static_assert(std::is_same_v<quetzal::stratum_gen::seed_type, quetzal::dungen::P
 quetzal::stratum_format::Document quetzal::stratum_gen::generate_dungen(const ZoneRequest& request)
 {
     dungen::Parameters parameters;
+    dungen::set_parameters(parameters, request.parameters);
     parameters.position = request.position;
     parameters.seed = request.seed;
 

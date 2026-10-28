@@ -6,6 +6,7 @@
 #include "utf8.h"
 #include "utf8/cpp11.h"
 #include <algorithm>
+#include <cctype>
 #include <format>
 #include <ios>
 #include <iterator>
@@ -90,6 +91,12 @@ namespace
     {
         void* p = stream.pword(index);
         return p != nullptr ? make_optional(*static_cast<string*>(p)) : nullopt;
+    }
+
+    //--------------------------------------------------------------------------
+    bool whitespace(char c)
+    {
+        return isspace(static_cast<unsigned char>(c)) != 0;
     }
 
 } // namespace
@@ -212,21 +219,25 @@ string_view quetzal::resolved_series_delimiter(const FormatSpec& spec, string_vi
 }
 
 //------------------------------------------------------------------------------
-const char* quetzal::skip_whitespace(const char* first, const char* last)
+string_view quetzal::trim_whitespace(string_view str)
 {
-    while (first != last && (*first == ' ' || *first == '\t'))
-    {
-        ++first;
-    }
-    return first;
+    const auto text_first = find_if_not(str.begin(), str.end(), whitespace);
+    const auto text_last = find_if_not(str.rbegin(), str.rend(), whitespace).base();
+    return text_first < text_last ? string_view(text_first, text_last) : string_view {};
 }
 
 //------------------------------------------------------------------------------
-istream& quetzal::skip_delimiter(istream& is, string_view delimiter_pattern)
+const char* quetzal::skip_whitespace(const char* first, const char* last)
 {
-    for (char c : delimiter_pattern)
+    return find_if_not(first, last, whitespace);
+}
+
+//------------------------------------------------------------------------------
+istream& quetzal::skip_pattern(istream& is, string_view pattern)
+{
+    for (char c : pattern)
     {
-        if (c == ' ' || c == '\t')
+        if (whitespace(c))
         {
             is >> ws;
             continue;
@@ -245,11 +256,11 @@ istream& quetzal::skip_delimiter(istream& is, string_view delimiter_pattern)
 }
 
 //------------------------------------------------------------------------------
-const char* quetzal::skip_delimiter(const char* first, const char* last, string_view delimiter_pattern)
+const char* quetzal::skip_pattern(const char* first, const char* last, string_view pattern)
 {
-    for (char c : delimiter_pattern)
+    for (char c : pattern)
     {
-        if (c == ' ' || c == '\t')
+        if (whitespace(c))
         {
             first = skip_whitespace(first, last);
             continue;
@@ -267,27 +278,15 @@ const char* quetzal::skip_delimiter(const char* first, const char* last, string_
 }
 
 //------------------------------------------------------------------------------
-const char* quetzal::find_delimiter(const char* first, const char* last, string_view delimiter)
+const char* quetzal::find_pattern(const char* first, const char* last, string_view pattern)
 {
-    string_view text = trim_ws(delimiter);
+    string_view text = trim_whitespace(pattern);
     if (text.empty())
     {
         return last;
     }
 
     return search(first, last, text.begin(), text.end());
-}
-
-//------------------------------------------------------------------------------
-string_view quetzal::trim_ws(string_view delimiter)
-{
-    size_t text_first = delimiter.find_first_not_of(" \t");
-    if (text_first == string_view::npos)
-    {
-        return {};
-    }
-
-    return delimiter.substr(text_first, delimiter.find_last_not_of(" \t") - text_first + 1);
 }
 
 //------------------------------------------------------------------------------
@@ -311,38 +310,14 @@ string quetzal::read_until(istream& is, string_view text)
 }
 
 //------------------------------------------------------------------------------
-to_chars_result quetzal::write_delimiter(char* first, char* last, string_view delimiter)
+to_chars_result quetzal::write_pattern(char* first, char* last, string_view pattern)
 {
-    if (static_cast<size_t>(last - first) < delimiter.size())
+    if (static_cast<size_t>(last - first) < pattern.size())
     {
         return {first, errc::value_too_large};
     }
 
-    return {copy(delimiter.begin(), delimiter.end(), first), errc {}};
-}
-
-//------------------------------------------------------------------------------
-string quetzal::numeric_format_string(const ostream& os, bool precision)
-{
-    string spec;
-    if (!precision)
-    {
-        return spec;
-    }
-
-    spec += '.';
-    spec += std::to_string(os.precision());
-
-    if (os.flags() & ios::fixed)
-    {
-        spec += 'f';
-    }
-    else if (os.flags() & ios::scientific)
-    {
-        spec += 'e';
-    }
-
-    return spec;
+    return {copy(pattern.begin(), pattern.end(), first), errc {}};
 }
 
 //------------------------------------------------------------------------------
@@ -390,14 +365,14 @@ from_chars_result quetzal::from_chars(const char* first, const char* last, bool&
 
 //------------------------------------------------------------------------------
 template<>
-optional<string> quetzal::try_type<string>(string_view str)
+optional<string> quetzal::try_type<string>(string_view str, const FormatSpec&)
 {
     return string(str);
 }
 
 //------------------------------------------------------------------------------
 template<>
-optional<wstring> quetzal::try_type<wstring>(string_view str)
+optional<wstring> quetzal::try_type<wstring>(string_view str, const FormatSpec&)
 {
     try
     {

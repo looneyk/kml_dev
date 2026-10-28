@@ -267,7 +267,7 @@ std::istream& quetzal::geometry::operator>>(std::istream& is, Intersection<Trait
     const std::string series_delimiter(quetzal::resolved_series_delimiter(quetzal::stream_format_spec(is), quetzal::series_delimiter_default));
     auto read_value = [&]<typename V>(V value) -> std::istream&
     {
-        if (quetzal::skip_delimiter(is, series_delimiter) >> value)
+        if (quetzal::skip_pattern(is, series_delimiter) >> value)
         {
             ix = Intersection<Traits>(value);
         }
@@ -328,7 +328,7 @@ std::from_chars_result quetzal::geometry::from_chars(const char* first, const ch
 
     auto read_value = [&]<typename V>(V value) -> std::from_chars_result
     {
-        const char* position = quetzal::skip_delimiter(result.ptr, last, series_delimiter);
+        const char* position = quetzal::skip_pattern(result.ptr, last, series_delimiter);
         if (position == nullptr)
         {
             return {result.ptr, std::errc::invalid_argument};
@@ -393,7 +393,7 @@ std::to_chars_result quetzal::geometry::to_chars(char* first, char* last, const 
 
     auto write_value = [&](const auto& value)
     {
-        result = quetzal::write_delimiter(result.ptr, last, series_delimiter);
+        result = quetzal::write_pattern(result.ptr, last, series_delimiter);
         if (result.ec != std::errc {})
         {
             return result;

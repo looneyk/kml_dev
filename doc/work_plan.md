@@ -60,8 +60,7 @@ boxes are removed at the start of the next piece of work, since the reference do
       `GeneratorSelection` choosing a generator, a pre-built zone, or a new region; the selector reading its opening
       sequence, primary and rare weighted tables, zone limit, and weighted table of next regions from the `RegionSpec`,
       with the probability of a new region rising to 1 at the zone limit; and the starting
-      region's spec, with a field or forest, then a town, then fields, hills, forests and towns. It needs field, forest,
-      hills and town generators, and pre-built zones need **The pregenerated content index**.
+      region's spec, with a terrain-specific generators, and pre-built zones need **The pregenerated content index**.
 - [ ] **Pre-built zones selected** (`world_generation_plan.md`, `## Generator selection`): a selection's
       `zone_template` read from **The pregenerated content index** into a `Document`, and the zone built from it as a
       generated zone is.

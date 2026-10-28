@@ -20,6 +20,7 @@
 #include "quetzal/math/Interval.hpp"
 #include "quetzal/math/floating_point.hpp"
 #include <algorithm>
+#include <cctype>
 #include <charconv>
 #include <exception>
 #include <format>
@@ -979,7 +980,7 @@ template<typename Traits>
 std::istream& quetzal::geometry::operator>>(std::istream& is, Polygon<Traits>& polygon)
 {
     const std::string series_delimiter(quetzal::resolved_series_delimiter(quetzal::stream_format_spec(is), quetzal::series_delimiter_default));
-    const std::string_view text = quetzal::trim_ws(series_delimiter);
+    const std::string_view text = quetzal::trim_whitespace(series_delimiter);
 
     typename Polygon<Traits>::vertices_type vertices;
     while (true)
@@ -1007,7 +1008,7 @@ std::istream& quetzal::geometry::operator>>(std::istream& is, Polygon<Traits>& p
             continue;
         }
 
-        if (series_delimiter.front() == ' ' || series_delimiter.front() == '\t')
+        if (std::isspace(static_cast<unsigned char>(series_delimiter.front())))
         {
             is >> std::ws;
         }
@@ -1017,7 +1018,7 @@ std::istream& quetzal::geometry::operator>>(std::istream& is, Polygon<Traits>& p
             break;
         }
 
-        quetzal::skip_delimiter(is, series_delimiter);
+        quetzal::skip_pattern(is, series_delimiter);
     }
 
     polygon = Polygon<Traits>(std::span<typename Polygon<Traits>::point_type>(vertices));
@@ -1035,7 +1036,7 @@ std::from_chars_result quetzal::geometry::from_chars(const char* first, const ch
     while (true)
     {
         typename Polygon<Traits>::point_type vertex;
-        auto result = from_chars(position, quetzal::find_delimiter(position, last, series_delimiter), vertex, spec);
+        auto result = from_chars(position, quetzal::find_pattern(position, last, series_delimiter), vertex, spec);
         if (result.ec != std::errc {})
         {
             return result;
@@ -1043,7 +1044,7 @@ std::from_chars_result quetzal::geometry::from_chars(const char* first, const ch
 
         vertices.push_back(vertex);
 
-        const char* next = quetzal::skip_delimiter(result.ptr, last, series_delimiter);
+        const char* next = quetzal::skip_pattern(result.ptr, last, series_delimiter);
         if (next == nullptr || next == last)
         {
             polygon = Polygon<Traits>(std::span<typename Polygon<Traits>::point_type>(vertices));

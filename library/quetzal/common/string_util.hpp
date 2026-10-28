@@ -24,13 +24,15 @@
 namespace quetzal
 {
 
-    // array type here refer to objects such as vector and point types that have a sequence of values
-    // along with their higher level constructs and which supply dimension, value_type, and element addressing
+    // array type here refer to objects such as vector and point types that have a sequence of values and supply dimension, value_type, and element addressing
+    // group or composite types here refer to higher level constructs such as a series of a single array type or a combination of different array types and scalars
 
-    // Each manipulator sets the same state on an output and an input stream, so stream reads and writes are symmetrical
+    // Each manipulator sets the same state on an input and output streams, so stream reads and writes are symmetrical
 
     //--------------------------------------------------------------------------
-    // The coordinate form of a homogeneous type's text: its components divided by the weight, or every stored value
+    // With homogeneous, weight, if any, is treated as just another element
+    // No effect on cartesian array types
+    // With cartesian, homogeneous array types are parsed as the cartesian representation expanded on input and formatted normalized on output
     inline constexpr bool homogeneous_default = false;
 
     std::ios_base& cartesian(std::ios_base& stream);
@@ -49,7 +51,6 @@ namespace quetzal
     std::istream& operator>>(std::istream& is, const separator_delim_manip& manip);
 
     //--------------------------------------------------------------------------
-    // Opening and closing brackets
     using brackets_type = std::array<std::string_view, 2>;
 
     inline constexpr brackets_type brackets_default = {"", ""};
@@ -117,10 +118,10 @@ namespace quetzal
         }
     };
 
-    // Returns the settings the manipulators set on the stream
+    // Returns the settings set by manipulators on the stream
     FormatSpec stream_format_spec(std::ios_base& stream);
 
-    // Each returns the spec's setting, or the type's default if the spec has none
+    // Applies the default to components of the spec if they were not provided
     bool resolved_homogeneous(const FormatSpec& spec, bool default_homogeneous = homogeneous_default);
     std::string_view resolved_separator(const FormatSpec& spec, std::string_view default_separator = separator_default);
     brackets_type resolved_brackets(const FormatSpec& spec, const brackets_type& default_brackets = brackets_default);
@@ -128,39 +129,44 @@ namespace quetzal
 
     //--------------------------------------------------------------------------
 
+    std::string_view trim_whitespace(std::string_view str);
+
     const char* skip_whitespace(const char* first, const char* last);
 
-    std::istream& skip_delimiter(std::istream& is, std::string_view delimiter_pattern);
+    std::istream& skip_pattern(std::istream& is, std::string_view pattern);
 
-    // Matched exactly, except that whitespace in the pattern skips a run of it.
-    const char* skip_delimiter(const char* first, const char* last, std::string_view delimiter_pattern);
+    // Matched exactly, except for whitespace where a run is skipped
+    const char* skip_pattern(const char* first, const char* last, std::string_view pattern);
 
-    // Returns the first occurrence of the delimiter's text without its leading and trailing whitespace, or last if there is
-    // none or the delimiter is only whitespace. A value read up to it cannot consume the delimiter's first character, as
-    // a real number would the '.' of ".." in "2..5"
-    const char* find_delimiter(const char* first, const char* last, std::string_view delimiter);
-
-    // Delimiter with  whitespace trimmed
-    std::string_view trim_ws(std::string_view delimiter);
+    // Returns the first occurrence of the pattern's text without its leading and trailing whitespace, or last if there is none
+    const char* find_pattern(const char* first, const char* last, std::string_view pattern);
 
     // Reads characters from the stream through the first occurrence of the text, and returns those before it. Sets failbit
     // if the stream ends before the text occurs. A value read from what it returns cannot consume the text's first character
     std::string read_until(std::istream& is, std::string_view text);
 
-    // Copies the delimiter to the range. Returns std::errc::value_too_large if it does not fit
-    std::to_chars_result write_delimiter(char* first, char* last, std::string_view delimiter);
+    // Copies the pattern to the range. Returns std::errc::value_too_large if it does not fit
+    std::to_chars_result write_pattern(char* first, char* last, std::string_view pattern);
 
     //--------------------------------------------------------------------------
     // The letters that follow '/' in a format spec: homogeneous, separator, a pair of single-character brackets, opening and
     // closing bracket, series delimiter
     inline constexpr std::string_view format_spec_prefixes = "hsbocn";
 
-    // Parses quetzal's part of a format spec into the spec. The part begins with '/' and ends at the first unescaped ':', the
-    // end of the spec, or the end of the range. Each setting is a prefix, '/' and a letter of format_spec_prefixes; a
-    // delimiter's literal text follows its prefix, '/b' is followed by the opening and the closing bracket, and '/h' has no
-    // text. '/' followed by any other character is that character. Returns the position of the element type's spec, which is
-    // it if the spec does not begin with '/'. Throws std::format_error for an unknown prefix, a setting given twice, text
-    // after '/h', or text after '/b' that is not two characters
+    // Parses the settings that go into formatting array/group types that are prepended to any normal numeric formatting:
+    //   /h - explicitly parse/display the homogeneous weight component
+    //   /s - element separator
+    //   /b - a pair of single-character brackets
+    //   /o - opening bracket
+    //   /c - closing bracket
+    //   /n - series delimiter used to separate a series or composite grouping of array type elements
+    // Each setting begins with '/' and ends at the next unescaped ':'or '/' or at the end of the spec string
+    // A setting starts with a letter and is followed immediately by a string with the literal value of that setting
+    // with the exception of '/h' which has no text and '/b' which is two successive characters
+    // Any number of settings can appear in the spec string in any order
+    // Within a setting string, '/' followed by any character is that literal character.
+    // Returns the position of the end of the array/group spec which is the beginning of the standard numeric spec, if any
+    // Throws std::format_error for an unknown prefix, a setting given twice, text after '/h', or text after '/b' that is not two characters
     constexpr std::format_parse_context::iterator parse_format_spec(std::format_parse_context::iterator it,
         std::format_parse_context::iterator end, FormatSpec& spec)
     {
@@ -267,7 +273,7 @@ namespace quetzal
     struct series_formatter;
 
     //--------------------------------------------------------------------------
-    // A type whose text has a series delimiter of its own: a series type or a composite type
+    // An array/group type whose text supports a series delimiter
     template<typename C>
     concept series_convertible = requires { typename std::formatter<C>::element_type; }
         && std::derived_from<std::formatter<C>, series_formatter<typename std::formatter<C>::element_type>>;
@@ -320,14 +326,14 @@ namespace quetzal
         const std::string_view separator = resolved_separator(spec);
         const brackets_type brackets = resolved_brackets(spec);
 
-        if (!brackets[0].empty() && !skip_delimiter(is >> std::ws, brackets[0]))
+        if (!brackets[0].empty() && !skip_pattern(is >> std::ws, brackets[0]))
         {
             return is;
         }
 
         for (size_t i = 0; i < text_value_count<T>(resolved_homogeneous(spec)); ++i)
         {
-            if (i > 0 && !skip_delimiter(is, separator))
+            if (i > 0 && !skip_pattern(is, separator))
             {
                 return is;
             }
@@ -337,7 +343,7 @@ namespace quetzal
 
         if (!brackets[1].empty())
         {
-            skip_delimiter(is >> std::ws, brackets[1]);
+            skip_pattern(is >> std::ws, brackets[1]);
         }
 
         return is;
@@ -351,14 +357,14 @@ namespace quetzal
     std::istream& read_series(std::istream& is, R& elements, std::string_view default_series_delimiter = series_delimiter_default)
     {
         const std::string series_delimiter(resolved_series_delimiter(stream_format_spec(is), default_series_delimiter));
-        std::string_view text = trim_ws(series_delimiter);
+        std::string_view text = trim_whitespace(series_delimiter);
 
         for (size_t i = 0; i + 1 < elements.size(); ++i)
         {
             if (text.empty())
             {
                 is >> elements[i];
-                skip_delimiter(is, series_delimiter);
+                skip_pattern(is, series_delimiter);
                 continue;
             }
 
@@ -381,7 +387,7 @@ namespace quetzal
     std::istream& read_components(std::istream& is, C&... components)
     {
         const std::string series_delimiter(resolved_series_delimiter(stream_format_spec(is), series_delimiter_default));
-        const std::string_view text = trim_ws(series_delimiter);
+        const std::string_view text = trim_whitespace(series_delimiter);
 
         size_t i = 0;
         bool delimiter_read = false;
@@ -389,7 +395,7 @@ namespace quetzal
         {
             if (i > 0 && !delimiter_read)
             {
-                skip_delimiter(is, series_delimiter);
+                skip_pattern(is, series_delimiter);
             }
 
             delimiter_read = false;
@@ -426,7 +432,7 @@ namespace quetzal
     }
 
     //--------------------------------------------------------------------------
-    // Writes one component or element, as component_from_chars reads it
+    // Writes one component or element
     template<typename C>
     std::to_chars_result component_to_chars(char* first, char* last, const C& component, const FormatSpec& spec)
     {
@@ -442,8 +448,7 @@ namespace quetzal
     }
 
     //--------------------------------------------------------------------------
-    // Reads each element of a series with the series delimiter between them. Each element but the last is read from the text
-    // before the next delimiter
+    // Reads each element of a series with the series delimiter between them
     template<std::ranges::random_access_range R>
     std::from_chars_result series_from_chars(const char* first, const char* last, R& elements, const FormatSpec& spec,
         std::string_view default_series_delimiter = series_delimiter_default)
@@ -455,7 +460,7 @@ namespace quetzal
         {
             if (i > 0)
             {
-                const char* position = skip_delimiter(result.ptr, last, series_delimiter);
+                const char* position = skip_pattern(result.ptr, last, series_delimiter);
                 if (position == nullptr)
                 {
                     return {result.ptr, std::errc::invalid_argument};
@@ -464,7 +469,7 @@ namespace quetzal
                 result.ptr = position;
             }
 
-            const char* element_last = i + 1 < elements.size() ? find_delimiter(result.ptr, last, series_delimiter) : last;
+            const char* element_last = i + 1 < elements.size() ? find_pattern(result.ptr, last, series_delimiter) : last;
             result = component_from_chars(result.ptr, element_last, elements[i], spec);
             if (result.ec != std::errc {})
             {
@@ -488,7 +493,7 @@ namespace quetzal
         {
             if (i > 0)
             {
-                result = write_delimiter(result.ptr, last, series_delimiter);
+                result = write_pattern(result.ptr, last, series_delimiter);
                 if (result.ec != std::errc {})
                 {
                     return result;
@@ -519,7 +524,7 @@ namespace quetzal
         {
             if (i > 0)
             {
-                const char* position = skip_delimiter(result.ptr, last, series_delimiter);
+                const char* position = skip_pattern(result.ptr, last, series_delimiter);
                 if (position == nullptr)
                 {
                     result = {result.ptr, std::errc::invalid_argument};
@@ -530,7 +535,7 @@ namespace quetzal
             }
 
             const bool bounded = ++i < sizeof...(C) && !series_convertible<std::remove_cvref_t<decltype(component)>>;
-            const char* component_last = bounded ? find_delimiter(result.ptr, last, series_delimiter) : last;
+            const char* component_last = bounded ? find_pattern(result.ptr, last, series_delimiter) : last;
             result = component_from_chars(result.ptr, component_last, component, spec);
             return result.ec == std::errc {};
         };
@@ -552,7 +557,7 @@ namespace quetzal
         {
             if (i++ > 0)
             {
-                result = write_delimiter(result.ptr, last, series_delimiter);
+                result = write_pattern(result.ptr, last, series_delimiter);
                 if (result.ec != std::errc {})
                 {
                     return false;
@@ -577,7 +582,7 @@ namespace quetzal
 
         if (!brackets[0].empty())
         {
-            const char* position = skip_delimiter(result.ptr, last, brackets[0]);
+            const char* position = skip_pattern(result.ptr, last, brackets[0]);
             if (position == nullptr)
             {
                 return {result.ptr, std::errc::invalid_argument};
@@ -590,7 +595,7 @@ namespace quetzal
         {
             const char* position = i == 0
                 ? skip_whitespace(result.ptr, last)
-                : skip_delimiter(result.ptr, last, separator);
+                : skip_pattern(result.ptr, last, separator);
 
             if (position == nullptr)
             {
@@ -606,7 +611,7 @@ namespace quetzal
 
         if (!brackets[1].empty())
         {
-            const char* position = skip_delimiter(skip_whitespace(result.ptr, last), last, brackets[1]);
+            const char* position = skip_pattern(skip_whitespace(result.ptr, last), last, brackets[1]);
             if (position == nullptr)
             {
                 return {result.ptr, std::errc::invalid_argument};
@@ -627,7 +632,7 @@ namespace quetzal
         const std::string_view separator = resolved_separator(spec);
         const brackets_type brackets = resolved_brackets(spec);
 
-        std::to_chars_result result = write_delimiter(first, last, brackets[0]);
+        std::to_chars_result result = write_pattern(first, last, brackets[0]);
         if (result.ec != std::errc {})
         {
             return result;
@@ -637,7 +642,7 @@ namespace quetzal
         {
             if (i > 0)
             {
-                result = write_delimiter(result.ptr, last, separator);
+                result = write_pattern(result.ptr, last, separator);
                 if (result.ec != std::errc {})
                 {
                     return result;
@@ -653,7 +658,7 @@ namespace quetzal
             }
         }
 
-        return write_delimiter(result.ptr, last, brackets[1]);
+        return write_pattern(result.ptr, last, brackets[1]);
     }
 
     //--------------------------------------------------------------------------
@@ -844,9 +849,84 @@ namespace quetzal
     }
 
     //--------------------------------------------------------------------------
-    // The std::format spec fragment equivalent to an ostream's precision and fixed/scientific flags, for one number. The
-    // defaults match the empty spec, so operator<< and format({}) produce the same output
-    std::string numeric_format_string(const std::ostream& os, bool precision = true);
+    // Returns the std::format spec equivalent to the stream's numeric formatting state, for one value of type T
+    template<typename T>
+    std::string stream_numeric_format_spec(const std::ostream& os)
+    {
+        const std::ios_base::fmtflags flags = os.flags();
+        const std::ios_base::fmtflags adjustment = flags & std::ios_base::adjustfield;
+        const bool zero_padded = adjustment == std::ios_base::internal && os.fill() == '0';
+        std::string spec;
+
+        if (os.width() > 0 && !zero_padded)
+        {
+            spec += os.fill();
+            spec += adjustment == std::ios_base::left ? '<' : '>';
+        }
+
+        if (flags & std::ios_base::showpos)
+        {
+            spec += '+';
+        }
+
+        if (flags & (std::floating_point<T> ? std::ios_base::showpoint : std::ios_base::showbase))
+        {
+            spec += '#';
+        }
+
+        if (os.width() > 0)
+        {
+            if (zero_padded)
+            {
+                spec += '0';
+            }
+
+            spec += std::to_string(os.width());
+        }
+
+        const bool uppercase = (flags & std::ios_base::uppercase) != 0;
+        if constexpr (std::floating_point<T>)
+        {
+            const std::ios_base::fmtflags notation = flags & std::ios_base::floatfield;
+            const bool hexfloat = notation == (std::ios_base::fixed | std::ios_base::scientific);
+            if (!hexfloat)
+            {
+                spec += '.';
+                spec += std::to_string(os.precision());
+            }
+
+            if (hexfloat)
+            {
+                spec += uppercase ? 'A' : 'a';
+            }
+            else if (notation == std::ios_base::fixed)
+            {
+                spec += uppercase ? 'F' : 'f';
+            }
+            else if (notation == std::ios_base::scientific)
+            {
+                spec += uppercase ? 'E' : 'e';
+            }
+            else if (uppercase)
+            {
+                spec += 'G';
+            }
+        }
+        else if constexpr (std::integral<T>)
+        {
+            const std::ios_base::fmtflags base = flags & std::ios_base::basefield;
+            if (base == std::ios_base::hex)
+            {
+                spec += uppercase ? 'X' : 'x';
+            }
+            else if (base == std::ios_base::oct)
+            {
+                spec += 'o';
+            }
+        }
+
+        return spec;
+    }
 
     //--------------------------------------------------------------------------
     // A value and the formatter, already parsed and given its format spec, that writes it
@@ -858,13 +938,13 @@ namespace quetzal
     };
 
     //--------------------------------------------------------------------------
-    // to_string following the stream's format spec and floating point manipulators. The format spec is set on the formatter
-    // directly, so any delimiter can be written, including one that a std::format spec cannot represent
+    // to_string following the stream's format spec and numeric manipulators, with the stream's width applied to each number.
+    // The format spec is set on the formatter directly, so any delimiter can be written, including one that a std::format spec
+    // cannot represent
     template<typename T>
     std::string to_string(const T& t, const std::ostream& os)
     {
-        constexpr bool precision = !std::is_integral_v<typename T::value_type>;
-        const std::string spec = numeric_format_string(os, precision);
+        const std::string spec = stream_numeric_format_spec<typename T::value_type>(os);
 
         std::formatter<T> formatter;
         std::format_parse_context parse_context(spec);
@@ -894,27 +974,35 @@ namespace quetzal
 
     //--------------------------------------------------------------------------
     template<typename T>
-    std::optional<T> try_type(std::string_view str)
+    std::optional<T> try_type(std::string_view str, const FormatSpec& spec = {})
     {
         T t{};
         const char* end = str.data() + str.size();
-        auto result = from_chars(str.data(), end, t);
+        std::from_chars_result result;
+        if constexpr (requires { from_chars(str.data(), end, t, spec); })
+        {
+            result = from_chars(str.data(), end, t, spec);
+        }
+        else
+        {
+            result = from_chars(str.data(), end, t);
+        }
         return result.ec == std::errc{} && result.ptr == end ? std::make_optional(t) : std::nullopt; // result && ...
     }
 
     template<>
-    std::optional<std::string> try_type<std::string>(std::string_view str);
+    std::optional<std::string> try_type<std::string>(std::string_view str, const FormatSpec& spec);
 
     // Returns std::nullopt if the string is not valid UTF-8
     template<>
-    std::optional<std::wstring> try_type<std::wstring>(std::string_view str);
+    std::optional<std::wstring> try_type<std::wstring>(std::string_view str, const FormatSpec& spec);
 
     //--------------------------------------------------------------------------
-    // Throws std::runtime_error if the whole string is not a value of the type
+    // Throws std::runtime_error if the whole string is not a valid value of T
     template<typename T>
-    T to_type(std::string_view str)
+    T to_type(std::string_view str, const FormatSpec& spec = {})
     {
-        std::optional<T> t = try_type<T>(str);
+        std::optional<T> t = try_type<T>(str, spec);
         if (!t)
         {
             throw std::runtime_error(std::format("Invalid value for the type: \"{}\"", str));

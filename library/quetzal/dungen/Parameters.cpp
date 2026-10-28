@@ -5,7 +5,9 @@
 
 #include "Parameters.hpp"
 #include <format>
+#include <optional>
 #include <stdexcept>
+#include <string>
 #include <cassert>
 
 using namespace std;
@@ -15,6 +17,22 @@ namespace
 
     using quetzal::dungen::coord_type;
     using quetzal::dungen::Parameters;
+
+    // A vector or position separates its values with ',', and a range its bounds with '-'
+    const quetzal::FormatSpec token_format_spec {.separator = ",", .series_delimiter = "-"};
+
+    //--------------------------------------------------------------------------
+    template<typename T>
+    T token_value(const string& key, const string& text)
+    {
+        optional<T> value = quetzal::try_type<T>(text, token_format_spec);
+        if (!value)
+        {
+            throw invalid_argument(format("\"{}\" is not a valid {}", text, key));
+        }
+
+        return *value;
+    }
 
     //--------------------------------------------------------------------------
     void validate_probability(double value, const char* name)
@@ -147,6 +165,112 @@ namespace
 quetzal::dungen::Parameters::seed_type quetzal::dungen::random_seed()
 {
     return math::random_seed();
+}
+
+//------------------------------------------------------------------------------
+void quetzal::dungen::set_parameters(Parameters& parameters, const KeyValueStore& tokens)
+{
+    for (const auto& [key, text] : tokens)
+    {
+        if (key == "algorithm")
+        {
+            parameters.algorithm = to_algorithm(text);
+        }
+        else if (key == "extent")
+        {
+            parameters.extent = token_value<vector_type>(key, text);
+        }
+        else if (key == "stairs_down")
+        {
+            parameters.staircase_down_count = token_value<math::Interval<size_t>>(key, text);
+        }
+        else if (key == "stairs_up")
+        {
+            parameters.staircase_up_count = token_value<math::Interval<size_t>>(key, text);
+        }
+        else if (key == "room_density")
+        {
+            double room_density = token_value<double>(key, text);
+            parameters.maze1.room_density = room_density;
+            parameters.grid1.room_density = room_density;
+        }
+        else if (key == "door_probability")
+        {
+            double door_probability = token_value<double>(key, text);
+            parameters.maze1.door_probability = door_probability;
+            parameters.grid1.door_probability = door_probability;
+        }
+        else if (key == "room_dimension_base")
+        {
+            parameters.maze1.room_dimension_base = token_value<coord_type>(key, text);
+        }
+        else if (key == "room_dimension_variation")
+        {
+            parameters.maze1.room_dimension_variation = token_value<coord_type>(key, text);
+        }
+        else if (key == "room_merge")
+        {
+            parameters.maze1.room_merge = token_value<bool>(key, text);
+        }
+        else if (key == "corridor_straightness")
+        {
+            parameters.maze1.corridor_straightness = token_value<double>(key, text);
+        }
+        else if (key == "probability_dead_end_removal")
+        {
+            parameters.maze1.probability_dead_end_removal = token_value<double>(key, text);
+        }
+        else if (key == "probability_loop_removal")
+        {
+            parameters.maze1.probability_loop_removal = token_value<double>(key, text);
+        }
+        else if (key == "divisions")
+        {
+            parameters.grid1.divisions = token_value<vector_type>(key, text);
+        }
+        else if (key == "room_dimension_min")
+        {
+            parameters.grid1.room_dimension_min = token_value<coord_type>(key, text);
+        }
+        else if (key == "room_margin")
+        {
+            parameters.grid1.room_margin = token_value<coord_type>(key, text);
+        }
+        else if (key == "loop")
+        {
+            parameters.grid1.loop = token_value<double>(key, text);
+        }
+        else if (key == "fill")
+        {
+            parameters.cave1.fill = token_value<double>(key, text);
+        }
+        else if (key == "smoothing_passes")
+        {
+            parameters.cave1.smoothing_passes = token_value<size_t>(key, text);
+        }
+        else if (key == "birth_threshold")
+        {
+            parameters.cave1.birth_threshold = token_value<size_t>(key, text);
+        }
+        else if (key == "survival_threshold")
+        {
+            parameters.cave1.survival_threshold = token_value<size_t>(key, text);
+        }
+        else if (key == "position")
+        {
+            parameters.position = token_value<zone_position_type>(key, text);
+        }
+        else if (key == "seed")
+        {
+            parameters.seed = token_value<Parameters::seed_type>(key, text);
+        }
+        else
+        {
+            throw invalid_argument(format("{} is not a dungen parameter", key));
+        }
+    }
+
+    return;
 }
 
 //------------------------------------------------------------------------------
