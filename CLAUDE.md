@@ -6,7 +6,7 @@ searching, and stay inside it.
 
 | Project | What it is | Where |
 | --- | --- | --- |
-| **stratum** | A headless dungeon-crawler simulation, its ASCII and tile views, its level file format, and its level generators | `library/quetzal/stratum_sim`, `stratum_view`, `stratum_format`, `dungen`, `catagen`; `application/stratum_terminal`, `stratum_godot`; `tool/dungen`, `tool/catagen` |
+| **stratum** | A headless dungeon-crawler simulation, its ASCII and tile views, its level file format, and its level generators | `library/quetzal/stratum_sim`, `stratum_view`, `stratum_format`, `stratum_gen`, `dungen`, `catagen`, `godot`; `application/stratum_terminal`, `stratum_godot`; `tool/dungen`, `tool/catagen` |
 | **mesh_operations** | Boundary-representation solid modelling --- intersection, splitting, boolean operations --- and the model programs that exercise it | `library/quetzal/brep`, `geometry`, `math`; `model/*`; `utility/mesh_diff` |
 | **Vulkan applications** | Real-time 3D rendering | `library/quetzal/vulkan`, `scene_graph`, `game`; `application/lightmatrix`, `gallery`, `cubes`, `toot1` |
 

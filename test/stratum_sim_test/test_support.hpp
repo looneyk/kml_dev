@@ -28,6 +28,9 @@ namespace stratum_sim_test
     // A game's saves are in the test executable's own output directory
     extern const quetzal::stratum_sim::Config g_test_config;
 
+    // The block notation, with the cell view only
+    extern const quetzal::stratum_format::GameManifestDocument g_test_manifest;
+
     extern quetzal::stratum_sim::Generation g_test_generation;
 
     // The seed WorldFixture seeds the gameplay random engine with, so a random choice is the same on every run

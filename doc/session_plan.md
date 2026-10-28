@@ -38,7 +38,7 @@ the hosts all reach them.
   rather than a getter and a setter of its own (`settings_plan.md`). The store is in a library below the sim, and
   each layer declares and reads only its own sections: the sim `gameplay`, the view `video`, and the hosts `audio` and
   `controls`.
-- **A setting's scope is a game or the program.** A game setting, such as the difficulty mode or the notation, is saved
+- **A setting's scope is a game or the program.** A game setting, such as the difficulty mode, is saved
   in `game.json`, and `Game` sets it when the game is created or opened. A user setting, such as video, audio or
   controls, is the player's, the same in every game, and saved in the user settings file, `settings.json`.
 - **The log** is the process-wide instance of the log library's class (`log_plan.md`), with sinks that the host

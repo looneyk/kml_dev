@@ -634,8 +634,8 @@ namespace
     // Which view a scenario's frames are drawn with
     enum class View
     {
-        Cells,
-        Walls
+        Cell,
+        Lattice
     };
 
     //--------------------------------------------------------------------------
@@ -647,7 +647,7 @@ namespace
         stratum_sim::discrete_point_type cell_position = layout.cell_position_at(placement.position());
 
         string s = format("-- {}\n", label);
-        s += view == View::Walls ? stratum_view::render_lattice(world, zone, no_viewer).to_string()
+        s += view == View::Lattice ? stratum_view::render_lattice(world, zone, no_viewer).to_string()
             : stratum_view::render(world, zone, no_viewer).to_string();
         s += format("   cell ({}, {})  facing {}\n", cell_position.i(), cell_position.j(), name_of(placement.direction()));
 
@@ -706,15 +706,15 @@ namespace
             View view;
         };
 
-        // The last two use the wall view. A door in the wall notation is drawn on the edge between two cells; in the block
+        // The last two use the lattice view. A door in the wall notation is drawn on the edge between two cells; in the block
         // notation it is drawn in its cell
         const Scenario scenarios[]
         {
-            {"corridor_walk", "corridor", {1, 1}, "lllllhh", View::Cells},
-            {"vault_tour", "vault", {1, 1}, "llkk<h >j ", View::Cells},
-            {"dungeon_walk", "dungeon", {1, 1}, "llllll< kkk< j", View::Cells},
-            {"walls_door", "walls", {0, 2}, "ll l lh<<h ", View::Walls},
-            {"door_cell", "door", {1, 1}, " l l ", View::Walls}
+            {"corridor_walk", "corridor", {1, 1}, "lllllhh", View::Cell},
+            {"vault_tour", "vault", {1, 1}, "llkk<h >j ", View::Cell},
+            {"dungeon_walk", "dungeon", {1, 1}, "llllll< kkk< j", View::Cell},
+            {"walls_door", "walls", {0, 2}, "ll l lh<<h ", View::Lattice},
+            {"door_cell", "door", {1, 1}, " l l ", View::Lattice}
         };
 
         filesystem::create_directories(testing::out_directory);

@@ -41,14 +41,23 @@ Each box is one commit point. An item too large for one commit is split into box
 starts. When a box's work is done and every test passes, the box is ticked and that is the moment to commit. The ticked
 boxes are removed at the start of the next piece of work, since the reference documents then describe what they built.
 
+## Game manifest
+
+- [x] **The game manifest.** A JSON file that `stratum_sim` reads, given to both hosts as a `manifest=` token, since
+      nothing about the game is hardcoded yet. A game is based on one notation, and the manifest states it with the
+      views the game offers, `view_menu`, and `default_view`. With `view_menu` true the host shows a startup menu of the
+      views, initialized to `default_view`; with it false, for testing, the host uses `default_view`. `game.json`
+      stores the notation for reference. The terminal's options become tokens: `manifest=`, `script=`, and
+      `incremental=`, and its wall view is renamed the lattice view. Godot reads `manifest=` from its user arguments,
+      with a view list of its own.
+
 ## Generators
 
-- [ ] **The generators integrated.** catagen's generator in `quetzal/stratum_gen` beside dungen's. The game's
-      notation, a setting chosen when the game is created, saved in `game.json`'s `settings` and set again by `Game`
-      when the game is opened, decides which of them generates every zone: dungen for the
-      block notation and catagen for the wall notation, with the zone's one seed. Each reads its parameters, or the
-      subset that applies, from the `ZoneRequest`'s `parameters` tokens, rather than running with a default-constructed
-      set.
+- [ ] **The generators integrated.** catagen's generator in `quetzal/stratum_gen` beside dungen's. The notation in
+      the game manifest decides which of them generates every zone: dungen for the block notation and catagen for the
+      wall notation, with the zone's one seed. Each reads its parameters, or the subset that applies, from the
+      `ZoneRequest`'s `parameters` tokens, rather than running with a default-constructed set, and skips the keys that
+      are not its parameters.
 - [ ] **The generators on `geometry::DiscreteDirectedPoint`.** dungen's `Staircase` has a `directed_point_type` and
       still has the separate `position` and `direction` accessors. catagen stores a staircase as a cell type and a map
       from cell position to facing direction, which a list of directed points would replace.
@@ -103,6 +112,14 @@ boxes are removed at the start of the next piece of work, since the reference do
 
 - [ ] **Floor access points drawn by their orientation.** The views draw one with the stair glyph and ignore its
       orientation.
+- [ ] **Dimetric, isometric, and first-person views,** each offered by a game whose assets support it. The Godot host
+      is likely to become the primary viewer.
+
+## Assets
+
+- [ ] **The asset types defined:** floor, wall, attachment or decoration, item, denizen, and player.
+- [ ] **A couple of simple asset sets.** The views a game offers then follow from the assets available, in place of
+      the game manifest's list.
 
 ## Modding
 

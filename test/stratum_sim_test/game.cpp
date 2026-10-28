@@ -58,14 +58,15 @@ namespace
     TEST_CASE_FIXTURE(WorldFixture, "game")
     {
         const stratum_sim::Config config {"out/elsewhere/saves", "out/elsewhere/working", 3};
-        stratum_sim::Game game(config);
+        stratum_sim::Game game(config, g_test_manifest);
 
         CHECK_CASE("a game keeps the config it was constructed with", game.config().saves_directory == config.saves_directory
             && game.config().zone_count_max == config.zone_count_max);
+        CHECK_CASE("and the manifest", game.manifest().notation == g_test_manifest.notation && game.manifest().views == g_test_manifest.views);
         CHECK_CASE("and its world keeps no more zones loaded than the config's maximum", game.world().zone_count_max() == 3);
 
         // A game played in two regions, with a character carrying something, then cleared
-        stratum_sim::Game played(g_test_config);
+        stratum_sim::Game played(g_test_config, g_test_manifest);
         stratum_sim::World& world = played.world();
         stratum_sim::Session& session = played.session();
         played.generation() = test_generation();
@@ -94,7 +95,7 @@ namespace
         // One game after another, each created from specs. The games' directories are made afresh on every run
         filesystem::remove_all(g_test_config.saves_directory);
         filesystem::remove_all(g_test_config.working_directory);
-        stratum_sim::Game sequence(g_test_config);
+        stratum_sim::Game sequence(g_test_config, g_test_manifest);
         stratum_sim::Session& sequence_session = sequence.session();
         stratum_sim::World& sequence_world = sequence.world();
         sequence.generation() = test_generation();
@@ -220,7 +221,7 @@ namespace
         // Saving zones, with a maximum of one zone loaded so that leaving a zone and trimming unloads it
         const stratum_sim::Config saving_config {"out/saving/saves", "out/saving/working", 1};
         filesystem::remove_all("out/saving");
-        stratum_sim::Game saving(saving_config);
+        stratum_sim::Game saving(saving_config, g_test_manifest);
         saving.generation() = test_generation();
         stratum_sim::CharacterSpec ailis;
         ailis.name = "Ailis";
@@ -317,6 +318,7 @@ namespace
         CHECK_CASE("game.json has the next id, past every id in the game, the seed the game was created with, and the gameplay random engine's state",
             !game_json.is_discarded() && game_json["format"] == "quetzal.stratum_game" && game_json["game"]["next_id"].get<uint64_t>() > largest_id.id
             && game_json["game"]["seed"] == to_string(saving_seed) && !game_json["game"]["random_engines"]["gameplay"].get<string>().empty());
+        CHECK_CASE("and the manifest's notation", !game_json.is_discarded() && game_json["game"]["notation"] == "block");
 
         stratum_format::raw_values_type character_json = read_json(save_directory / "character.json");
         const stratum_sim::placement_type& character_placement = stratum_sim::placement_of(saving_character);

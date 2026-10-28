@@ -13,6 +13,7 @@
 #include "SavedGameDetails.hpp"
 #include "Session.hpp"
 #include "World.hpp"
+#include "quetzal/stratum_format/GameManifestDocument.hpp"
 #include <filesystem>
 #include <optional>
 #include <string>
@@ -35,7 +36,7 @@ namespace quetzal::stratum_sim
         // We need a better general centralized settings configuration for game ...
         static constexpr std::string_view reseed_on_open_key = "gameplay.reseed_on_open";
 
-        explicit Game(const Config& config);
+        Game(const Config& config, const stratum_format::GameManifestDocument& manifest);
         Game(const Game&) = delete;
         Game(Game&&) = delete;
         ~Game() = default;
@@ -71,6 +72,7 @@ namespace quetzal::stratum_sim
         // Accessors
 
         const Config& config() const;
+        const stratum_format::GameManifestDocument& manifest() const;
 
         Generation& generation();
         const Generation& generation() const;
@@ -95,6 +97,7 @@ namespace quetzal::stratum_sim
 
         // Some of these properties, especially Config, are only of importance to the host ...
         Config m_config; // Immutable properties like file locations, physical hardware configuration, ...
+        stratum_format::GameManifestDocument m_manifest;
 
         // In construction order, each referring to those above it
         CountingIdAllocator m_counting_id_allocator;

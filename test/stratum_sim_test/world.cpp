@@ -464,7 +464,7 @@ namespace
         CHECK_CASE("and a denizen's tags, speed and behavior, its cell, and a reference in its behavior", pursuer_kept);
 
         // The character, which the game owns, is in the zone but in none of its subtree
-        stratum_sim::Game game(g_test_config);
+        stratum_sim::Game game(g_test_config, g_test_manifest);
         enter_zone_file(game, "data/corridor.zone");
         stratum_sim::PersistentId character_id = game.character().entity().get<stratum_sim::PersistentId>();
         stratum_format::Document with_character = stratum_sim::make_document(game.session().zone());
@@ -573,7 +573,7 @@ namespace
 
         // A zone generated rather than read
         {
-            stratum_sim::Game game_created(g_test_config);
+            stratum_sim::Game game_created(g_test_config, g_test_manifest);
             stratum_sim::Session& created = game_created.session();
             game_created.generation() = test_generation();
             game_created.character().create(stratum_sim::CharacterSpec {});
@@ -590,7 +590,7 @@ namespace
                     created.layout()).wall_toward(stratum_sim::discrete_point_type {1, 1}, cardinal_direction(CardinalDirection::East))).is_alive());
 
             // Reading the same geometry from a file produces the same zone
-            stratum_sim::Game game_loaded(g_test_config);
+            stratum_sim::Game game_loaded(g_test_config, g_test_manifest);
             stratum_sim::Session& loaded = game_loaded.session();
             enter_zone_file(game_loaded, "data/door.zone");
             CHECK_CASE("and a zone read whole agrees with it",
@@ -600,7 +600,7 @@ namespace
         }
 
         // Through a Session
-        stratum_sim::Game game(g_test_config);
+        stratum_sim::Game game(g_test_config, g_test_manifest);
         stratum_sim::Session& session = game.session();
         enter_zone_file(game, "data/corridor.zone");
 

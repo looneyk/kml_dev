@@ -481,11 +481,11 @@ namespace
             character.get<stratum_sim::Intent>().direction.x() == 0.0f);
 
         // A host calls advance the same way under either driver
-        stratum_sim::Game game_turn(g_test_config);
+        stratum_sim::Game game_turn(g_test_config, g_test_manifest);
         stratum_sim::Session& session_turn = game_turn.session();
         enter_zone_file(game_turn, "data/corridor.zone");
 
-        stratum_sim::Game game_real(g_test_config);
+        stratum_sim::Game game_real(g_test_config, g_test_manifest);
         stratum_sim::Session& session_real = game_real.session();
         session_real.set_driver(stratum_sim::Driver::RealTime);
         enter_zone_file(game_real, "data/corridor.zone");
@@ -497,7 +497,7 @@ namespace
             session_real.advance(session_events) == nullid);
 
         // The character acts through its own intent and commands, the door east of where it enters
-        stratum_sim::Game game_door(g_test_config);
+        stratum_sim::Game game_door(g_test_config, g_test_manifest);
         stratum_sim::Session& session_door = game_door.session();
         enter_zone_file(game_door, "data/door.zone");
         session_door.advance(session_events);

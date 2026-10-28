@@ -12,6 +12,7 @@ set_property(TARGET stratum_terminal PROPERTY FOLDER "application")
 
 set_target_properties(stratum_terminal PROPERTIES
     VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+    VS_DEBUGGER_COMMAND_ARGUMENTS "manifest=data/manifests/terminal_block.json"
 )
 
 target_link_libraries(stratum_terminal PRIVATE

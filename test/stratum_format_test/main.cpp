@@ -7,6 +7,7 @@
 #include "quetzal/stratum_format/read_character.hpp"
 #include "quetzal/stratum_format/read_config.hpp"
 #include "quetzal/stratum_format/read_game.hpp"
+#include "quetzal/stratum_format/GameManifestDocument.hpp"
 #include "quetzal/stratum_format/read_world.hpp"
 #include "quetzal/stratum_format/read_zone.hpp"
 #include "quetzal/stratum_format/references.hpp"
@@ -1045,6 +1046,7 @@ namespace
         };
 
         stratum_format::GameDocument game;
+        game.notation = stratum_format::Notation::Wall;
         game.next_id = 21;
         game.seed = "20260928";
         game.random_engines = {{"gameplay", "1 2 3"}, {"generation", "4 5 6"}};
@@ -1055,8 +1057,8 @@ namespace
         report_written("a game file has the game, the settings and the presets each on a line of its own", written(game),
             "{\n"
             "  \"format\": \"quetzal.stratum_game\",\n"
-            "  \"version\": \"0.1\",\n"
-            "  \"game\": { \"next_id\": 21, \"seed\": \"20260928\", \"random_engines\": { \"gameplay\": \"1 2 3\", \"generation\": \"4 5 6\" } },\n"
+            "  \"version\": \"0.2\",\n"
+            "  \"game\": { \"notation\": \"wall\", \"next_id\": 21, \"seed\": \"20260928\", \"random_engines\": { \"gameplay\": \"1 2 3\", \"generation\": \"4 5 6\" } },\n"
             "  \"settings\": { \"gameplay.difficulty\": \"custom\" },\n"
             "  \"presets\": { \"gameplay.difficulty\": { \"custom\": { \"gameplay.difficulty.denizen_count_multiplier\": \"2\" } } }\n"
             "}\n");
@@ -1082,7 +1084,7 @@ namespace
         report_written("a character file has its name third, and with no inventory has an empty one", written(character),
             "{\n"
             "  \"format\": \"quetzal.stratum_game\",\n"
-            "  \"version\": \"0.1\",\n"
+            "  \"version\": \"0.2\",\n"
             "  \"name\": \"Ailis\",\n"
             "  \"character\": {\n"
             "    \"id\": 1,\n"
@@ -1103,7 +1105,7 @@ namespace
         report_written("a character file has each entity of its inventory on a line of its own", written(character),
             "{\n"
             "  \"format\": \"quetzal.stratum_game\",\n"
-            "  \"version\": \"0.1\",\n"
+            "  \"version\": \"0.2\",\n"
             "  \"name\": \"Ailis\",\n"
             "  \"character\": {\n"
             "    \"id\": 1,\n"
@@ -1138,7 +1140,7 @@ namespace
             "entry of the world index", written(world),
             "{\n"
             "  \"format\": \"quetzal.stratum_game\",\n"
-            "  \"version\": \"0.1\",\n"
+            "  \"version\": \"0.2\",\n"
             "  \"world\": {\n"
             "    \"regions\": [\n"
             "      { \"id\": 2, \"components\": { \"name\": \"The Barrow Downs\" },\n"
@@ -1222,8 +1224,10 @@ namespace
 
         CHECK_CASE("a game file of another format is rejected", rejected(read_game, changed(game_text, "quetzal.stratum_game",
             "quetzal.discrete_layout"), "format: 'quetzal.discrete_layout' is not this format"));
-        CHECK_CASE("and one of another version", rejected(read_game, changed(game_text, "\"0.1\"", "\"0.2\""),
-            "version: '0.2' is not a version this reads"));
+        CHECK_CASE("and one of another version", rejected(read_game, changed(game_text, "\"0.2\"", "\"0.3\""),
+            "version: '0.3' is not a version this reads"));
+        CHECK_CASE("a game file whose notation is not a notation is rejected", rejected(read_game, changed(game_text, "\"wall\"", "\"hex\""),
+            "game.notation: 'hex' is not a notation"));
         CHECK_CASE("a game file with no next id is rejected", rejected(read_game, changed(game_text, "\"next_id\": 21, ", ""),
             "game.next_id: required and absent"));
         CHECK_CASE("and one with a random engine state that is not text", rejected(read_game, changed(game_text, "\"1 2 3\"", "123"),
@@ -1332,6 +1336,51 @@ namespace
             "save_directory: not a key of the config file"));
         CHECK_CASE("and one whose zone count maximum is not a count", rejected("\"zone_count_max\": 8", "\"zone_count_max\": -1",
             "zone_count_max"));
+
+        return;
+    }
+
+    //--------------------------------------------------------------------------
+    TEST_CASE("game manifest file")
+    {
+        const string manifest_text = "{ \"format\": \"quetzal.stratum_game_manifest\", \"version\": \"0.1\", \"notation\": \"wall\", "
+            "\"views\": [\"cell\", \"lattice\"], \"view_menu\": true, \"default_view\": \"lattice\" }";
+
+        istringstream is(manifest_text);
+        stratum_format::GameManifestDocument manifest = stratum_format::read_game_manifest(is, "manifest");
+        CHECK_CASE("a game manifest file has the notation, the views in order, the view menu, and the default view",
+            manifest.notation == stratum_format::Notation::Wall && manifest.views == vector<string> {"cell", "lattice"} && manifest.view_menu
+            && manifest.default_view == "lattice");
+
+        auto rejected = [&manifest_text](const string& from, const string& to, const string& error_expected)
+        {
+            string text = manifest_text;
+            size_t at = text.find(from);
+            assert(at != string::npos);
+            text.replace(at, from.size(), to);
+
+            try
+            {
+                istringstream in(text);
+                stratum_format::read_game_manifest(in, "manifest");
+            }
+            catch (const runtime_error& e)
+            {
+                return string(e.what()).find(error_expected) != string::npos;
+            }
+
+            return false;
+        };
+
+        CHECK_CASE("a game manifest file whose notation is not a notation is rejected", rejected("\"wall\"", "\"hex\"",
+            "notation: 'hex' is not a notation"));
+        CHECK_CASE("and one with a key the format does not have", rejected("\"view_menu\"", "\"menu\"", "menu: not a key of the game manifest file"));
+        CHECK_CASE("and one that lists no view", rejected("[\"cell\", \"lattice\"]", "[]", "views: lists no view"));
+        CHECK_CASE("and one that lists a view twice", rejected("[\"cell\", \"lattice\"]", "[\"cell\", \"cell\"]",
+            "views[1]: 'cell' is listed more than once"));
+        CHECK_CASE("and one whose default view is not one of its views", rejected("\"default_view\": \"lattice\"", "\"default_view\": \"tile\"",
+            "default_view: 'tile' is not one of the views"));
+        CHECK_CASE("and one with no view menu", rejected("\"view_menu\": true, ", "", "view_menu: required and absent"));
 
         return;
     }

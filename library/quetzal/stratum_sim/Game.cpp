@@ -126,8 +126,9 @@ void quetzal::stratum_sim::register_game_types(World& world)
 }
 
 //------------------------------------------------------------------------------
-quetzal::stratum_sim::Game::Game(const Config& config) :
+quetzal::stratum_sim::Game::Game(const Config& config, const stratum_format::GameManifestDocument& manifest) :
     m_config(config),
+    m_manifest(manifest),
     m_counting_id_allocator(PersistentId {}),
     m_generation(),
     m_world(m_counting_id_allocator, m_generation, m_config.zone_count_max),
@@ -306,6 +307,7 @@ std::string quetzal::stratum_sim::Game::save(SaveType save_type)
 
     stratum_format::GameDocument document;
     document.version = std::string(stratum_format::saved_game_format_version);
+    document.notation = m_manifest.notation;
     document.next_id = m_counting_id_allocator.next().id;
     document.seed = std::to_string(m_seed);
     document.random_engines[std::string(gameplay_random_engine_key)] = gameplay_random().state();
@@ -389,6 +391,12 @@ std::vector<quetzal::stratum_sim::SavedGameDetails> quetzal::stratum_sim::Game::
 const quetzal::stratum_sim::Config& quetzal::stratum_sim::Game::config() const
 {
     return m_config;
+}
+
+//------------------------------------------------------------------------------
+const quetzal::stratum_format::GameManifestDocument& quetzal::stratum_sim::Game::manifest() const
+{
+    return m_manifest;
 }
 
 //------------------------------------------------------------------------------

@@ -19,4 +19,4 @@ target_link_libraries(stratum_godot PRIVATE
 )
 
 include(${DEV_ROOT}/library/quetzal/godot/gdextension.cmake)
-quetzal_configure_gdextension(stratum_godot "${CMAKE_CURRENT_SOURCE_DIR}/project")
+quetzal_configure_gdextension(stratum_godot "${CMAKE_CURRENT_SOURCE_DIR}/project" "manifest=data/manifests/godot_block.json")

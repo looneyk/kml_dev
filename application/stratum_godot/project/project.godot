@@ -18,3 +18,7 @@ config/features=PackedStringArray("4.7")
 
 window/size/viewport_width=1024
 window/size/viewport_height=1024
+
+[editor]
+
+run/main_run_args="-- manifest=data/manifests/godot_block.json"

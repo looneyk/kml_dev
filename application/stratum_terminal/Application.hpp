@@ -7,6 +7,8 @@
 
 #include "key_input.hpp"
 #include "Terminal.hpp"
+#include "quetzal/stratum_format/GameManifestDocument.hpp"
+#include "quetzal/stratum_sim/Config.hpp"
 #include "quetzal/stratum_sim/EventQueue.hpp"
 #include "quetzal/stratum_sim/Game.hpp"
 #include "quetzal/stratum_sim/SavedGameDetails.hpp"
@@ -20,18 +22,18 @@ namespace stratum_terminal
 
     //--------------------------------------------------------------------------
     // Which reduction the host draws: a glyph per cell, or the lattice, which also draws the walls and doors on edges
-    // between cells. Null lets the zone's notation decide
+    // between cells
     enum class View
     {
-        Null,
         Cell,
-        Wall
+        Lattice
     };
 
     //--------------------------------------------------------------------------
-    // The page the menu shows: its choices, or the saves to open
+    // The page the menu shows: the views to choose from at startup, its choices, or the saves to open
     enum class MenuPage
     {
+        Views,
         Main,
         Saves
     };
@@ -42,8 +44,10 @@ namespace stratum_terminal
     {
     public:
 
-        // A non empty script replaces the keyboard, one character per turn, and the run ends when it is exhausted
-        explicit Application(View view = View::Null, const std::string& script = {}, bool incremental = true);
+        // A non empty script replaces the keyboard, one character per turn, and the run ends when it is exhausted.
+        // Throws std::runtime_error if the manifest lists a view the terminal does not have
+        Application(const quetzal::stratum_sim::Config& config, const quetzal::stratum_format::GameManifestDocument& manifest,
+            const std::string& script, bool incremental);
         Application(const Application&) = delete;
 
         ~Application();
@@ -63,8 +67,12 @@ namespace stratum_terminal
         // progress, listing the saves, and quitting; the saves page selects a save, opens it or the save of a digit, and
         // deletes the selected save once confirmed
         void run_menu();
+        void run_views_page(const KeyPress& key_press);
         void run_main_page(const KeyPress& key_press);
         void run_saves_page(const KeyPress& key_press);
+
+        // Draws with the manifest's view at the slot from now on
+        void choose_view(size_t view_slot);
 
         void draw_menu();
 
@@ -84,7 +92,7 @@ namespace stratum_terminal
         // Opens the save and closes the menu, or returns to the main page with the reason it could not be opened
         void open_game(const std::string& save_name);
 
-        // Chooses the view for the game just created or opened, and closes the menu
+        // Closes the menu on the game just created or opened
         void start_play();
 
         // Saves the game in progress, and reports that it saved, or the reason it did not, on the menu
@@ -105,8 +113,9 @@ namespace stratum_terminal
         quetzal::stratum_sim::Session& m_session;
         quetzal::stratum_sim::PersistentSettings m_user_settings;
 
-        View m_view_requested = View::Null;
-        View m_view = View::Null; // Never Null once a game is created
+        std::vector<View> m_views; // The manifest's, in its order
+        size_t m_view_selected = 0;
+        View m_view = View::Cell;
 
         quetzal::stratum_view::Glyphs m_view_glyphs;
         Terminal m_terminal;

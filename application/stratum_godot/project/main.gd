@@ -1,5 +1,5 @@
 # Headless check that the extension loads and the simulation runs inside Godot:
-#   godot --headless --path project --script main.gd
+#   godot --headless --path project --script main.gd -- manifest=data/manifests/godot_block.json
 
 extends SceneTree
 

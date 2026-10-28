@@ -4,6 +4,7 @@
 //------------------------------------------------------------------------------
 
 #include "StratumWorld.hpp"
+#include "register_types.hpp"
 #include "quetzal/stratum_gen/generators.hpp"
 #include "quetzal/stratum_sim/attachments.hpp"
 #include "quetzal/stratum_sim/DiscreteLayout.hpp"
@@ -101,7 +102,7 @@ std::filesystem::path project_directory()
 
 //------------------------------------------------------------------------------
 StratumWorld::StratumWorld() :
-    m_game(sim::load_config(project_directory())),
+    m_game(sim::load_config(project_directory()), game_manifest()),
     m_session(m_game.session()),
     m_message()
 {

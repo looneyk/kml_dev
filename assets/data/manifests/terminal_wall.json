@@ -1,0 +1,8 @@
+{
+  "format": "quetzal.stratum_game_manifest",
+  "version": "0.1",
+  "notation": "wall",
+  "views": ["lattice", "cell"],
+  "view_menu": true,
+  "default_view": "lattice"
+}

@@ -19,6 +19,7 @@ directory; SDL calls the two the base path and the pref path.
   stratum_terminal.exe
   config.json                   optional, the config file
   assets/                       the program's own data, read only
+    data/manifests/             the game manifest files
 
 %LOCALAPPDATA%/KML/Stratum/     the user directory, everything the program creates while it runs
   settings.json                 the user settings file
@@ -99,8 +100,8 @@ character named Ailis in it carrying a torch, would have the following structure
 ```json
 {
   "format": "quetzal.stratum_game",
-  "version": "0.1",
-  "game": { "next_id": 21, "seed": "20260928", "random_engines": { "gameplay": "..." } },
+  "version": "0.2",
+  "game": { "notation": "block", "next_id": 21, "seed": "20260928", "random_engines": { "gameplay": "..." } },
   "settings": { "gameplay.difficulty": "custom" },
   "presets": { "gameplay.difficulty": { "custom": { "gameplay.difficulty.denizen_count_multiplier": "1", "gameplay.difficulty.denizen_speed_multiplier": "1", "gameplay.difficulty.detection_range_multiplier": "2" } } }
 }
@@ -111,7 +112,7 @@ character named Ailis in it carrying a torch, would have the following structure
 ```json
 {
   "format": "quetzal.stratum_game",
-  "version": "0.1",
+  "version": "0.2",
   "name": "Ailis",
   "character": {
     "id": 1,
@@ -130,7 +131,7 @@ character named Ailis in it carrying a torch, would have the following structure
 ```json
 {
   "format": "quetzal.stratum_game",
-  "version": "0.1",
+  "version": "0.2",
   "world": {
     "regions": [
       { "id": 2, "components": { "name": "The Barrow Downs", "type": "surface" },
@@ -163,7 +164,7 @@ A file's header is its leading keys, which a reader can take without parsing the
 the character file `name` after them.
 
 `format` is `"quetzal.stratum_game"`. The version is a label that a reader matches, not a number it compares. It is
-`0.1`, and the leading zero marks it as pre-release: no older file is kept readable. A reader given a version it does
+`0.2`, and the leading zero marks it as pre-release: no older file is kept readable. A reader given a version it does
 not know rejects the file. A zone file has the zone file format's own `format` and `version`.
 
 ## game
@@ -172,6 +173,7 @@ The state the game needs to continue from where it was saved, which belongs to n
 
 | Key | |
 | --- | --- |
+| `notation` | The game manifest's notation, `block` or `wall`, written for a reader of the file; opening the game does not use it |
 | `next_id` | The persistent id the game's id allocator returns next |
 | `seed` | The world seed, which the gameplay random engine is seeded from and every region's and zone's seed derives from |
 | `random_engines` | The state of each random engine, by the random engine's stream: `gameplay` and `generation` (`random_engine.md`, `## Streams`) |
@@ -305,6 +307,34 @@ and the most zones the world keeps loaded. It is not a saved game's file, and ha
 Every key is optional, and a key the format does not have is an error. `assets_directory` and `user_directory` are
 relative to the program directory unless absolute, so a `user_directory` there makes a portable install; the other
 locations are relative to the user directory unless absolute.
+
+## The game manifest file
+
+A game manifest file defines the game the program plays, and a host is given one as its `manifest=` argument, relative
+to the assets directory. It is not a saved game's file, and has a format of its own, `quetzal.stratum_game_manifest`,
+version `0.1`. The program never writes it. `assets/data/manifests/` has one for each host and notation; the
+terminal's block notation manifest is:
+
+```json
+{
+  "format": "quetzal.stratum_game_manifest",
+  "version": "0.1",
+  "notation": "block",
+  "views": ["cell", "lattice"],
+  "view_menu": true,
+  "default_view": "cell"
+}
+```
+
+| Key | |
+| --- | --- |
+| `notation` | The notation of every zone of the game, `block` or `wall` |
+| `views` | The names of the views the host offers, in the order its menu lists them, each a view the host has |
+| `view_menu` | True if the host offers the views in a menu at startup, false if it uses the default view, as a test does |
+| `default_view` | One of the views: the one the menu starts on, or the one used without a menu |
+
+Every key is required, and a key the format does not have is an error, as are a notation that is not one, an empty
+list of views, a view listed twice, and a default view that is not one of the views.
 
 ## The user settings file
 

@@ -1,0 +1,8 @@
+{
+  "format": "quetzal.stratum_game_manifest",
+  "version": "0.1",
+  "notation": "block",
+  "views": ["tile"],
+  "view_menu": false,
+  "default_view": "tile"
+}

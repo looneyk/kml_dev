@@ -444,7 +444,7 @@ namespace
         CHECK_CASE("a wall id decodes to its cell and its direction", decoded);
 
         // Entering places the character in front of up staircase 0, facing away from it
-        stratum_sim::Game game(g_test_config);
+        stratum_sim::Game game(g_test_config, g_test_manifest);
         stratum_sim::Session& session = game.session();
         enter_zone_file(game, "data/corridor.zone");
 
@@ -574,7 +574,7 @@ namespace
     // Reads from data/, so stratum_sim_test runs from its own directory
     TEST_CASE_FIXTURE(WorldFixture, "entering an access point")
     {
-        stratum_sim::Game game(g_test_config);
+        stratum_sim::Game game(g_test_config, g_test_manifest);
         stratum_sim::Session& session = game.session();
         stratum_sim::World& world = game.world();
         game.generation() = test_generation();
@@ -664,7 +664,7 @@ namespace
     // Reads from data/, so stratum_sim_test runs from its own directory
     TEST_CASE_FIXTURE(WorldFixture, "interacting with a relocator")
     {
-        stratum_sim::Game game(g_test_config);
+        stratum_sim::Game game(g_test_config, g_test_manifest);
         stratum_sim::Session& session = game.session();
 
         // data/walls.zone: the character enters on cell (2, 1), facing the staircase leading down to the east
@@ -682,7 +682,7 @@ namespace
             && ranges::any_of(enter_events.events(), [](const stratum_sim::Event& event) { return event.is<stratum_sim::Relocated>(); }));
 
         // A named zone is not resolved. A game whose advance throws is quit, so this game is used only for this case
-        stratum_sim::Game failing(g_test_config);
+        stratum_sim::Game failing(g_test_config, g_test_manifest);
         stratum_sim::Session& failing_session = failing.session();
         enter_zone_file(failing, "data/walls.zone");
         failing_session.zone().set<stratum_sim::ZonePosition>(zone_position_at_level(-1));

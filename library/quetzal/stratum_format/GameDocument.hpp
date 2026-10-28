@@ -5,6 +5,7 @@
 // GameDocument.hpp
 //------------------------------------------------------------------------------
 
+#include "Notation.hpp"
 #include "types.hpp"
 #include "quetzal/settings/SettingsSnapshot.hpp"
 #include <map>
@@ -18,6 +19,7 @@ namespace quetzal::stratum_format
     struct GameDocument
     {
         std::string version;
+        Notation notation = Notation::Block; // The game manifest's, for reference
         stored_entity_id_type next_id = 0;
         std::string seed;
         std::map<std::string, std::string> random_engines; // <stream, state>

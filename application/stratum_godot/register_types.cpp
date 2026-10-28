@@ -13,20 +13,66 @@
 #include "quetzal/stratum_sim/PersistentSettings.hpp"
 #include "quetzal/stratum_sim/setting_definitions.hpp"
 #include <gdextension_interface.h>
+#include <godot_cpp/classes/engine.hpp>
+#include <godot_cpp/classes/os.hpp>
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/core/defs.hpp>
 #include <godot_cpp/godot.hpp>
+#include <godot_cpp/variant/packed_string_array.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
 #include <chrono>
+#include <cstdint>
+#include <cstdlib>
 #include <exception>
 #include <filesystem>
+#include <format>
 #include <optional>
+#include <stdexcept>
+#include <string>
+#include <string_view>
+#include <cassert>
 
 namespace
 {
 
     // From the module's initialization to its uninitialization
     std::optional<quetzal::stratum_sim::PersistentSettings> g_user_settings;
+    std::optional<quetzal::stratum_format::GameManifestDocument> g_game_manifest;
+
+    constexpr std::string_view manifest_argument_prefix = "manifest=";
+
+    //--------------------------------------------------------------------------
+    // Reads the manifest that the manifest= argument after -- on Godot's command line refers to, relative to the assets
+    // directory. Throws std::runtime_error if there is no such argument, or the manifest lists a view other than the tile view
+    quetzal::stratum_format::GameManifestDocument load_game_manifest_argument(const std::filesystem::path& assets_directory)
+    {
+        const godot::PackedStringArray user_args = godot::OS::get_singleton()->get_cmdline_user_args();
+        for (int64_t i = 0; i < user_args.size(); ++i)
+        {
+            const godot::CharString utf8 = user_args[i].utf8();
+            const std::string_view arg(utf8.get_data(), static_cast<size_t>(utf8.length()));
+            if (!arg.starts_with(manifest_argument_prefix))
+            {
+                continue;
+            }
+
+            const std::u8string manifest_file(reinterpret_cast<const char8_t*>(arg.data() + manifest_argument_prefix.size()),
+                arg.size() - manifest_argument_prefix.size());
+            quetzal::stratum_format::GameManifestDocument manifest = quetzal::stratum_format::read_game_manifest(assets_directory / manifest_file);
+
+            for (const std::string& view_name : manifest.views)
+            {
+                if (view_name != "tile")
+                {
+                    throw std::runtime_error(std::format("the Godot host has no view named '{}'", view_name));
+                }
+            }
+
+            return manifest;
+        }
+
+        throw std::runtime_error("no manifest= argument follows -- on Godot's command line");
+    }
 
     //--------------------------------------------------------------------------
     // Errors and warnings as Godot's, so the editor marks them, and the rest as printed lines
@@ -74,6 +120,21 @@ void initialize_stratum_module(godot::ModuleInitializationLevel level)
     g_user_settings.emplace(config.user_settings_filepath, quetzal::stratum_sim::user_setting_scope, quetzal::settings::store());
     g_user_settings->load();
 
+    // An exception that escapes into Godot ends the process without its message, and a module's initialization cannot fail.
+    // quick_exit, since destroying the module's statics while Godot is initializing crashes
+    if (!godot::Engine::get_singleton()->is_editor_hint())
+    {
+        try
+        {
+            g_game_manifest = load_game_manifest_argument(config.assets_directory);
+        }
+        catch (const std::exception& e)
+        {
+            quetzal::log::logger().error("stratum_godot", "The game manifest was not loaded: {}", e.what());
+            std::quick_exit(EXIT_FAILURE);
+        }
+    }
+
     GDREGISTER_CLASS(StratumWorld);
 
     return;
@@ -97,9 +158,17 @@ void uninitialize_stratum_module(godot::ModuleInitializationLevel level)
     }
 
     g_user_settings.reset();
+    g_game_manifest.reset();
     quetzal::log::logger().clear_sinks();
 
     return;
+}
+
+//------------------------------------------------------------------------------
+const quetzal::stratum_format::GameManifestDocument& game_manifest()
+{
+    assert(g_game_manifest.has_value());
+    return *g_game_manifest;
 }
 
 extern "C"

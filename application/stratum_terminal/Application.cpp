@@ -41,6 +41,8 @@ namespace
 
     static constexpr auto saves_help_string = "up/down or j/k select, Enter or a digit opens, Del deletes, Esc goes back, ^L redraws";
 
+    static constexpr auto views_help_string = "up/down or j/k select, Enter or a digit chooses, ^L redraws";
+
     static constexpr auto end_help_string = "press any key to return to the menu";
 
     static constexpr char key_redraw = '\x0c'; // Ctrl-L, as curses and the roguelikes bind it
@@ -127,6 +129,23 @@ namespace
     }
 
     //--------------------------------------------------------------------------
+    // Throws std::runtime_error if the terminal has no view of the name
+    stratum_terminal::View to_view(std::string_view view_name)
+    {
+        if (view_name == "cell")
+        {
+            return stratum_terminal::View::Cell;
+        }
+
+        if (view_name == "lattice")
+        {
+            return stratum_terminal::View::Lattice;
+        }
+
+        throw std::runtime_error(std::format("the terminal has no view named '{}'", view_name));
+    }
+
+    //--------------------------------------------------------------------------
     std::string name_of(const stratum_sim::vector_type& direction)
     {
         auto [dx, dy, dz] = direction.rep();
@@ -142,22 +161,31 @@ namespace
 } // namespace
 
 //------------------------------------------------------------------------------
-stratum_terminal::Application::Application(View view, const std::string& script, bool incremental) :
-    m_game(stratum_sim::load_config(executable_directory())),
+stratum_terminal::Application::Application(const stratum_sim::Config& config, const stratum_format::GameManifestDocument& manifest,
+    const std::string& script, bool incremental) :
+    m_game(config, manifest),
     m_session(m_game.session()),
     m_user_settings(m_game.config().user_settings_filepath, stratum_sim::user_setting_scope, settings::store()),
-    m_view_requested(view),
-    m_view(view),
+    m_views(),
+    m_view_selected(0),
+    m_view(View::Cell),
     m_view_glyphs(),
     m_terminal(incremental),
     m_message(),
     m_script(script),
     m_script_slot(0),
     m_menu_open(true),
+    m_menu_page(manifest.view_menu ? MenuPage::Views : MenuPage::Main),
     m_running(true)
 {
+    for (const std::string& view_name : manifest.views)
+    {
+        m_views.push_back(to_view(view_name));
+    }
+
+    choose_view(static_cast<size_t>(std::ranges::find(manifest.views, manifest.default_view) - manifest.views.begin()));
+
     // A file, since anything written to the console would write over the terminal's frame
-    const stratum_sim::Config& config = m_game.config();
     const std::filesystem::path log_base_filepath = config.logs_directory / "stratum_terminal.log";
     log::logger().add_sink(log::FileLogSink(log::timestamped_filepath(log_base_filepath, std::chrono::system_clock::now())));
     for (const auto& unremoved_file : log::remove_oldest_timestamped_files(log_base_filepath, config.log_file_count_max))
@@ -311,6 +339,10 @@ void stratum_terminal::Application::run_menu()
     {
         m_terminal.redraw();
     }
+    else if (m_menu_page == MenuPage::Views)
+    {
+        run_views_page(key_press);
+    }
     else if (m_menu_page == MenuPage::Saves)
     {
         run_saves_page(key_press);
@@ -320,6 +352,41 @@ void stratum_terminal::Application::run_menu()
         run_main_page(key_press);
     }
 
+    return;
+}
+
+//------------------------------------------------------------------------------
+void stratum_terminal::Application::run_views_page(const KeyPress& key_press)
+{
+    if ((key_press.key == Key::Up || key_press.c == 'k') && m_view_selected > 0)
+    {
+        choose_view(m_view_selected - 1);
+    }
+    else if ((key_press.key == Key::Down || key_press.c == 'j') && m_view_selected + 1 < m_views.size())
+    {
+        choose_view(m_view_selected + 1);
+    }
+    else if (key_press.key == Key::Enter)
+    {
+        m_menu_page = MenuPage::Main;
+    }
+    else if (key_press.c >= '1' && static_cast<size_t>(key_press.c - '1') < m_views.size())
+    {
+        choose_view(static_cast<size_t>(key_press.c - '1'));
+        m_menu_page = MenuPage::Main;
+    }
+
+    return;
+}
+
+//------------------------------------------------------------------------------
+void stratum_terminal::Application::choose_view(size_t view_slot)
+{
+    assert(view_slot < m_views.size());
+
+    m_view_selected = view_slot;
+    m_view = m_views[view_slot];
+    m_view_glyphs = m_view == View::Cell ? stratum_view::cell_glyphs() : stratum_view::lattice_glyphs();
     return;
 }
 
@@ -415,6 +482,20 @@ void stratum_terminal::Application::run_main_page(const KeyPress& key_press)
 //------------------------------------------------------------------------------
 void stratum_terminal::Application::draw_menu()
 {
+    if (m_menu_page == MenuPage::Views)
+    {
+        std::vector<std::string> lines {"VIEW", ""};
+        const std::vector<std::string>& view_names = m_game.manifest().views;
+
+        for (size_t i = 0; i < view_names.size(); ++i)
+        {
+            lines.push_back(std::format("{} {}  {}", i == m_view_selected ? '>' : ' ', i + 1, view_names[i]));
+        }
+
+        draw_menu_lines(lines, views_help_string);
+        return;
+    }
+
     if (m_menu_page == MenuPage::Saves)
     {
         std::vector<std::string> lines {"OPEN", ""};
@@ -568,9 +649,6 @@ void stratum_terminal::Application::open_game(const std::string& save_name)
 //------------------------------------------------------------------------------
 void stratum_terminal::Application::start_play()
 {
-    m_view = m_view_requested != View::Null ? m_view_requested
-        : m_session.notation() == stratum_format::Notation::Wall ? View::Wall : View::Cell;
-    m_view_glyphs = m_view == View::Cell ? stratum_view::cell_glyphs() : stratum_view::lattice_glyphs();
     m_message.clear();
     m_menu_page = MenuPage::Main;
     m_menu_open = false;

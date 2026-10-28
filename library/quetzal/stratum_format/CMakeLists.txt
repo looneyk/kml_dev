@@ -1,6 +1,7 @@
 add_library(quetzal_stratum_format STATIC
     checked_values.cpp
     Document.cpp
+    GameManifestDocument.cpp
     grid.cpp
     json_util.cpp
     read_character.cpp
@@ -23,6 +24,7 @@ add_library(quetzal_stratum_format STATIC
     ConfigDocument.hpp
     Document.hpp
     GameDocument.hpp
+    GameManifestDocument.hpp
     Notation.hpp
     WorldDocument.hpp
     grid.hpp

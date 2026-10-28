@@ -747,7 +747,17 @@ macOS, and `$XDG_DATA_HOME` or `~/.local/share` elsewhere, read from the environ
 value it has overrides its default, the assets and user directories relative to the program directory and the rest
 relative to the user directory, an absolute location replacing either (`game_file_spec.md`, `## The config file`). It
 writes nothing. The terminal's build copies its development `config.json`, which sets `assets_directory` to
-`../../assets`, beside the executable in `bin/<Config>/`, and the Godot project has its own. It owns the structures that survive outside play: the config, a
+`../../assets`, beside the executable in `bin/<Config>/`, and the Godot project has its own.
+
+`Game` is also constructed with a `stratum_format::GameManifestDocument`, in `GameManifestDocument.hpp`, which defines
+the game the program plays and lasts as long as the host: its `notation`, the notation of every zone; its `views`,
+names that only the host interprets; `view_menu`, true if the host offers the views in a menu at startup; and
+`default_view`, one of the views. `manifest()` returns it. `read_game_manifest(filepath)` reads a game manifest file,
+and throws `std::runtime_error` for a key the format does not have, a notation that is not one, no views, a view
+listed twice, or a default view that is not one of the views (`game_file_spec.md`, `## The game manifest file`). Each host loads the file that its `manifest=` argument refers to, relative to the assets
+directory.
+
+`Game` owns the structures that survive outside play: the config, the manifest, a
 `CountingIdAllocator` counting from zero, the `Generation`, the `World` and the `Character`, and the `Session` that plays them, constructed in
 that order, each referring to those before it. `generation()` returns the `Generation`, with which a host registers
 its generators, selectors and region specs. Only the `Generation` can be copied or moved. The constructor makes no
@@ -812,7 +822,8 @@ without parsing the character; an empty
 description; the time `game.json` was written; and its `SaveType`, from the suffix that ends the save's name. It throws `std::runtime_error` if a save's character file cannot be
 read or has no name.
 
-`Game::save(save_type)` writes `game.json` into the game directory, with the id allocator's next id, the world seed, and the gameplay
+`Game::save(save_type)` writes `game.json` into the game directory, with the manifest's notation, which opening does not
+use, the id allocator's next id, the world seed, and the gameplay
 random engine's state as `state()` returns it, under `random_engines`, and the game scope's settings snapshot
 under `settings` and `presets`; has the character write `character.json` there, through
 `make_character_document`, and the world save; and then copies the game directory to a new directory in the saves
@@ -1174,7 +1185,12 @@ the xterm extension XTWINOPS to resize.
 `read_key` returns one key without waiting for a newline: `_getch` on Windows, termios raw mode elsewhere. Arrow keys
 become `Key::Up`, `Down`, `Left` or `Right`.
 
-The host starts at its menu, drawn in place of the map, with `n` for a new game, `c` to continue the game in progress
+With the manifest's `view_menu` true, the host starts at the views page, which lists the manifest's views, numbered, with
+the selected view marked `>`, starting on the default view. Up and Down, or `k` and `j`, move the selection, and Enter
+chooses the selected view and a digit the view of that number, and shows the main page. With `view_menu` false, the
+host uses the default view and starts at the main page.
+
+The main page of the menu is drawn in place of the map, with `n` for a new game, `c` to continue the game in progress
 and `s` to save it, each offered only while there is one, `o` to open a save, and `q` to quit, which clears the game
 and ends the run. Escape on the menu also continues. A new game is created from the host's temporary specs, its
 character named "Adventurer". A failure to create one is shown on the menu's status line, and so is "Game saved.",
@@ -1193,22 +1209,35 @@ with the reason on its status line.
 The loop advances the session to the actor it is waiting on, draws, reads a key, and submits it: movement and facing
 direction as the actor's intent, and a one-shot action as a command. Arrows or `hjkl` move, space interacts, `.`
 waits, and `^L` redraws. The view does not show the facing direction, so a move also turns toward the way it goes. The
-host charges a wait. `--script` plays a key sequence instead of the keyboard, beginning at the menu, so a script that
-plays starts with `n`; an ESC character in it is the Escape key, a newline the Enter key, and a DEL character the
-Delete key, and the run quits once the script is exhausted. `read_key` returns `Key::Enter` and `Key::Delete` as it
-returns the arrows.
-`--incremental` uses the cursor-addressed output within a scripted run.
+host charges a wait. `read_key` returns `Key::Enter` and `Key::Delete` as it returns the arrows.
 
-`--cell` and `--wall` choose the reduction drawn: a glyph per cell, or the lattice, which also draws walls and doors on
-edges. Each uses its own glyph set. With neither, each new game chooses by its first zone's notation: the cell view for
-the block notation and the wall view for the wall notation; `Session::notation` returns the notation. The host takes no
-zone file.
+The host's arguments are `key=value` tokens: `manifest=file`, which is required, `script=keys`, and
+`incremental=true|false`. `main` reads the config and the manifest and constructs `Application` with them; a missing
+manifest, an argument that is not a token, or a token the host does not take prints the usage line and exits with 1.
+`script=` plays a key sequence instead of the keyboard, beginning at the menu, so a script that plays starts with `n`,
+after a view's digit if the manifest has a view menu; an ESC character in it is the Escape key, a newline the Enter
+key, and a DEL character the Delete key, and the run quits once the script is exhausted. `incremental=true` uses the
+cursor-addressed output, and `false` writes every frame in full, one after another; without the token, a run is
+incremental unless it has a script. Visual Studio runs the host with the block notation manifest.
+
+The terminal's views are `cell` and `lattice`, the two reductions drawn: a glyph per cell, or the lattice, which also
+draws walls and doors on edges. Each uses its own glyph set. A manifest that lists any other view is an error, which
+`Application`'s constructor throws. The host takes no zone file.
 
 ## Godot host
 
 Godot provides `main()` and the frame loop, and loads the simulation as a shared library. `stratum_godot` builds that
 library, a GDExtension, and `application/stratum_godot/project/` is the Godot project that loads it, through
 `stratum.gdextension`, which refers to `res://bin/`, where the build writes it.
+
+Outside the editor, `initialize_stratum_module` loads the game manifest that a `manifest=file` argument after `--` on
+Godot's command line refers to, relative to the assets directory, and `game_manifest()` returns it to each
+`StratumWorld`'s `Game`. The host's one view is `tile`, and a manifest that lists another is an error; with one view it
+shows no view menu. A missing argument or a manifest that cannot be loaded is written to the log and ends Godot with
+1, through `quick_exit`, since a module's initialization cannot fail and an exception that escapes into Godot ends the
+process without its message. The editor loads no manifest. The project's `editor/run/main_run_args` and Visual
+Studio's debugger arguments, which `quetzal_configure_gdextension` takes after the project directory, pass the block
+notation manifest.
 
 `StratumWorld` is the one registered class, a `RefCounted` that owns a `Game`, with only Godot types in its
 interface: `create_game`, `has_game`, `game_over`, `menu_open`, `menu_close`, `quit_game`, `save_game`, `saved_games`, `open_game`, `remove_game`, `extent`, `cell`, `render`, `cells`,
@@ -1247,7 +1276,7 @@ confirm a deletion, and `Q` to quit the game and
 Godot. During play,
 Escape opens the menu, and no other key quits. When `game_over` returns true, the status line asks for a key, which
 quits the game and shows the menu. A game quit because it failed shows the menu with a message referring to Godot's
-error list. `-- --new-game` on Godot's command line starts a new game without showing the menu.
+error list. `--new-game` after `--` on Godot's command line starts a new game without showing the menu.
 
 `quetzal_godot` provides what any Godot host needs: `gdextension.cmake` and its `quetzal_configure_gdextension`, which
 names the library as Godot expects and writes it into the project rather than a per-configuration subdirectory.
@@ -1257,10 +1286,10 @@ a debug build, and quetzal's static libraries then do not link. godot-cpp's head
 so they do not report `/W4` warnings in the extension's sources. `KML_DEV_GODOT` governs all of it; when it is
 configured off, godot-cpp is not processed and neither the library nor the host exists.
 
-Two headless checks need no display: `--path project --script main.gd` exercises the extension directly, through a
-save, the opening of that save, and its deletion, and
-`--path project --quit-after 5 -- --new-game` runs the tile scene in a new game, which reports the cells it painted;
-without `-- --new-game` it reports that the menu is shown. A project has to be imported
+Two headless checks need no display: `--path project --script main.gd -- manifest=data/manifests/godot_block.json`
+exercises the extension directly, through a save, the opening of that save, and its deletion, and
+`--path project --quit-after 5 -- manifest=data/manifests/godot_block.json --new-game` runs the tile scene in a new
+game, which reports the cells it painted; without `--new-game` it reports that the menu is shown. A project has to be imported
 once (`--headless --path project --import`) before Godot sees the extension; otherwise the class is undeclared, with
 no indication why.
 
@@ -1280,7 +1309,7 @@ facing anywhere else.
 reductions, both renderings and both round trips, and the reference frames. The reference frames are fixed command
 sequences rendered to text and compared byte for byte by `check_reference` against `test/stratum_view_test/reference/`.
 The sequences are played against the two libraries, not through a host. Three scenarios are block notation zones drawn
-through the cell view. Two use the wall view: `walls_door`, a wall notation zone, moves through a door, back, and into
+through the cell view. Two use the lattice view: `walls_door`, a wall notation zone, moves through a door, back, and into
 the wall two rooms share, which blocks, then interacts with it; `door_cell`, a block notation zone, moves into a
 doorway, where the door is drawn in its cell, and out the far side.
 

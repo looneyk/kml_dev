@@ -28,6 +28,7 @@ namespace
 
         std::vector<std::string> game
         {
+            std::format("\"notation\": {}", string_text(name(document.notation))),
             std::format("\"next_id\": {}", document.next_id),
             std::format("\"seed\": {}", string_text(document.seed)),
             std::format("\"random_engines\": {}", object_text(random_engines))

@@ -18,7 +18,8 @@ find_program(KML_DEV_GODOT_EXECUTABLE
 # Names the target as Godot expects and writes it into the project's bin directory, which the
 # .gdextension file refers to, then sets Visual Studio's debugger to launch Godot, since the target
 # is a DLL
-# project_dir is the directory holding project.godot
+# project_dir is the directory holding project.godot, and any further arguments are the user arguments that follow -- on
+# the command line that the debugger launches Godot with
 function(quetzal_configure_gdextension target project_dir)
 
     get_target_property(suffix godot-cpp GODOTCPP_SUFFIX)
@@ -50,10 +51,16 @@ function(quetzal_configure_gdextension target project_dir)
         return()
     endif()
 
+    set(debugger_arguments "--path \"${project_dir}\"")
+    if(ARGN)
+        list(JOIN ARGN " " user_arguments)
+        string(APPEND debugger_arguments " -- ${user_arguments}")
+    endif()
+
     # Runs the project's main scene, so F5 starts the game with breakpoints active in the extension
     set_target_properties(${target} PROPERTIES
         VS_DEBUGGER_COMMAND "${KML_DEV_GODOT_EXECUTABLE}"
-        VS_DEBUGGER_COMMAND_ARGUMENTS "--path \"${project_dir}\""
+        VS_DEBUGGER_COMMAND_ARGUMENTS "${debugger_arguments}"
         VS_DEBUGGER_WORKING_DIRECTORY "${project_dir}"
     )
 
