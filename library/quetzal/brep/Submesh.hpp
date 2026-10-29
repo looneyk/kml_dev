@@ -691,7 +691,7 @@ typename quetzal::brep::Submesh<Traits, M>::faces_type::terminal_function_type q
 
 //------------------------------------------------------------------------------
 template<typename Traits, typename M>
-typename quetzal::brep::Submesh<Traits, M>::faces_type::iterate_function_type quetzal::brep::Submesh<Traits, M>::m_faces_forward = [](const mesh_type& mesh, id_type id, std::set<id_type>::iterator i) -> std::set<id_type>::iterator
+typename quetzal::brep::Submesh<Traits, M>::faces_type::iterate_function_type quetzal::brep::Submesh<Traits, M>::m_faces_forward = []([[maybe_unused]] const mesh_type& mesh, [[maybe_unused]] id_type id, std::set<id_type>::iterator i) -> std::set<id_type>::iterator
 {
     assert(i != m_faces_end(mesh, id));
     return std::next(i);
@@ -699,7 +699,7 @@ typename quetzal::brep::Submesh<Traits, M>::faces_type::iterate_function_type qu
 
 //------------------------------------------------------------------------------
 template<typename Traits, typename M>
-typename quetzal::brep::Submesh<Traits, M>::faces_type::iterate_function_type quetzal::brep::Submesh<Traits, M>::m_faces_reverse = [](const mesh_type& mesh, id_type id, std::set<id_type>::iterator i) -> std::set<id_type>::iterator
+typename quetzal::brep::Submesh<Traits, M>::faces_type::iterate_function_type quetzal::brep::Submesh<Traits, M>::m_faces_reverse = []([[maybe_unused]] const mesh_type& mesh, [[maybe_unused]] id_type id, std::set<id_type>::iterator i) -> std::set<id_type>::iterator
 {
     assert(i != m_faces_first(mesh, id));
     return std::prev(i);
@@ -707,7 +707,7 @@ typename quetzal::brep::Submesh<Traits, M>::faces_type::iterate_function_type qu
 
 //------------------------------------------------------------------------------
 template<typename Traits, typename M>
-typename quetzal::brep::Submesh<Traits, M>::faces_type::element_function_type quetzal::brep::Submesh<Traits, M>::m_faces_element = [](mesh_type& mesh, id_type id, std::set<id_type>::iterator i) -> quetzal::brep::Submesh<Traits, M>::face_type&
+typename quetzal::brep::Submesh<Traits, M>::faces_type::element_function_type quetzal::brep::Submesh<Traits, M>::m_faces_element = [](mesh_type& mesh, [[maybe_unused]] id_type id, std::set<id_type>::iterator i) -> quetzal::brep::Submesh<Traits, M>::face_type&
 {
     assert(i != m_faces_end(mesh, id));
     return mesh.face(*i);
@@ -715,7 +715,7 @@ typename quetzal::brep::Submesh<Traits, M>::faces_type::element_function_type qu
 
 //------------------------------------------------------------------------------
 template<typename Traits, typename M>
-typename quetzal::brep::Submesh<Traits, M>::faces_type::const_element_function_type quetzal::brep::Submesh<Traits, M>::m_faces_const_element = [](const mesh_type& mesh, id_type id, std::set<id_type>::iterator i) -> const quetzal::brep::Submesh<Traits, M>::face_type&
+typename quetzal::brep::Submesh<Traits, M>::faces_type::const_element_function_type quetzal::brep::Submesh<Traits, M>::m_faces_const_element = [](const mesh_type& mesh, [[maybe_unused]] id_type id, std::set<id_type>::iterator i) -> const quetzal::brep::Submesh<Traits, M>::face_type&
 {
     assert(i != m_faces_end(mesh, id));
     return mesh.face(*i);
@@ -752,7 +752,7 @@ typename quetzal::brep::Submesh<Traits, M>::surfaces_type::terminal_function_typ
 
 //------------------------------------------------------------------------------
 template<typename Traits, typename M>
-typename quetzal::brep::Submesh<Traits, M>::surfaces_type::iterate_function_type quetzal::brep::Submesh<Traits, M>::m_surfaces_forward = [](const mesh_type& mesh, id_type id, std::set<id_type>::iterator i) -> std::set<id_type>::iterator
+typename quetzal::brep::Submesh<Traits, M>::surfaces_type::iterate_function_type quetzal::brep::Submesh<Traits, M>::m_surfaces_forward = []([[maybe_unused]] const mesh_type& mesh, [[maybe_unused]] id_type id, std::set<id_type>::iterator i) -> std::set<id_type>::iterator
 {
     assert(i != m_surfaces_end(mesh, id));
     return std::next(i);
@@ -760,7 +760,7 @@ typename quetzal::brep::Submesh<Traits, M>::surfaces_type::iterate_function_type
 
 //------------------------------------------------------------------------------
 template<typename Traits, typename M>
-typename quetzal::brep::Submesh<Traits, M>::surfaces_type::iterate_function_type quetzal::brep::Submesh<Traits, M>::m_surfaces_reverse = [](const mesh_type& mesh, id_type id, std::set<id_type>::iterator i) -> std::set<id_type>::iterator
+typename quetzal::brep::Submesh<Traits, M>::surfaces_type::iterate_function_type quetzal::brep::Submesh<Traits, M>::m_surfaces_reverse = []([[maybe_unused]] const mesh_type& mesh, [[maybe_unused]] id_type id, std::set<id_type>::iterator i) -> std::set<id_type>::iterator
 {
     assert(i != m_surfaces_first(mesh, id));
     return std::prev(i);
@@ -768,7 +768,7 @@ typename quetzal::brep::Submesh<Traits, M>::surfaces_type::iterate_function_type
 
 //------------------------------------------------------------------------------
 template<typename Traits, typename M>
-typename quetzal::brep::Submesh<Traits, M>::surfaces_type::element_function_type quetzal::brep::Submesh<Traits, M>::m_surfaces_element = [](mesh_type& mesh, id_type id, std::set<id_type>::iterator i) -> quetzal::brep::Submesh<Traits, M>::surface_type&
+typename quetzal::brep::Submesh<Traits, M>::surfaces_type::element_function_type quetzal::brep::Submesh<Traits, M>::m_surfaces_element = [](mesh_type& mesh, [[maybe_unused]] id_type id, std::set<id_type>::iterator i) -> quetzal::brep::Submesh<Traits, M>::surface_type&
 {
     assert(i != m_surfaces_end(mesh, id));
     return mesh.surface(*i);
@@ -776,7 +776,7 @@ typename quetzal::brep::Submesh<Traits, M>::surfaces_type::element_function_type
 
 //------------------------------------------------------------------------------
 template<typename Traits, typename M>
-typename quetzal::brep::Submesh<Traits, M>::surfaces_type::const_element_function_type quetzal::brep::Submesh<Traits, M>::m_surfaces_const_element = [](const mesh_type& mesh, id_type id, std::set<id_type>::iterator i) -> const quetzal::brep::Submesh<Traits, M>::surface_type&
+typename quetzal::brep::Submesh<Traits, M>::surfaces_type::const_element_function_type quetzal::brep::Submesh<Traits, M>::m_surfaces_const_element = [](const mesh_type& mesh, [[maybe_unused]] id_type id, std::set<id_type>::iterator i) -> const quetzal::brep::Submesh<Traits, M>::surface_type&
 {
     assert(i != m_surfaces_end(mesh, id));
     return mesh.surface(*i);

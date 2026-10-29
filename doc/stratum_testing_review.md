@@ -53,12 +53,11 @@ sets it only under the debugger. Registering each test executable with
 `add_test(NAME ... COMMAND ... WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})` and a `stratum` label lets
 `ctest --test-dir build -C Debug -L stratum -j` run all five, from the right directories, in parallel.
 
-### 3. No CI, and the headless tests need Vulkan and Godot to configure
+### 3. No CI, and the headless tests need godot-cpp to configure
 
-`.github/` contains only `copilot-instructions.md`. The root `CMakeLists.txt` calls `find_package(Vulkan REQUIRED)`
-unconditionally, and `KML_DEV_GODOT` defaults to ON, so configuring the build for the stratum tests needs the Vulkan
-SDK and godot-cpp, neither of which they use. An option for the Vulkan projects lets a
-plain runner configure and build them.
+`.github/` contains only `copilot-instructions.md`. `KML_DEV_VULKAN` defaults on only where the Vulkan SDK is found,
+but `KML_DEV_GODOT` defaults to ON, so configuring the build for the stratum tests needs godot-cpp, which they do not
+use. A runner configures with `-DKML_DEV_GODOT=OFF` to build them without it.
 
 A Windows job with MSVC is the first step. A Linux job with GCC or Clang is the one that catches finding 1 and any
 MSVC-only code, and it follows once finding 1 is resolved.

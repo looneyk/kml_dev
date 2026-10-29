@@ -166,7 +166,7 @@ namespace
 
     //--------------------------------------------------------------------------
     template<typename V>
-    void test_ccw_order(const V& ref, const V& a, const V& b, const V& normal)
+    void test_ccw_order([[maybe_unused]] const V& ref, [[maybe_unused]] const V& a, [[maybe_unused]] const V& b, [[maybe_unused]] const V& normal)
     {
         assert(quetzal::geometry::ccw_order(ref, a, b, normal));
         assert(quetzal::geometry::ccw_order(ref, b, a, -normal));

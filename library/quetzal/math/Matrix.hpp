@@ -159,7 +159,7 @@ constexpr quetzal::math::Matrix<T, M, N>::Matrix() :
 
 //------------------------------------------------------------------------------
 template<typename T, size_t M, size_t N>
-constexpr quetzal::math::Matrix<T, M, N>::Matrix(size_t I) requires Matrix<T, M, N>::square :
+constexpr quetzal::math::Matrix<T, M, N>::Matrix([[maybe_unused]] size_t I) requires Matrix<T, M, N>::square :
     m_rep{}
 {
     assert(I == 1);

@@ -1455,7 +1455,7 @@ quetzal::geometry::Intersection<Traits> quetzal::geometry::intersection(const Pl
 
     // point comes from a cross product and a 2x2 linear solve, so its distance from either plane accumulates more rounding
     // error than the default tolerance allows
-    constexpr int intersection_tolerance = 4096;
+    [[maybe_unused]] constexpr int intersection_tolerance = 4096;
     assert(plane_a.contains(point, intersection_tolerance));
     assert(plane_b.contains(point, intersection_tolerance));
 

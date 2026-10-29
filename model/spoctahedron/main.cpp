@@ -124,7 +124,7 @@ namespace
             return position;
         });
 
-        auto zz = zTop - zBottom;
+        [[maybe_unused]] auto zz = zTop - zBottom;
         zBottom = base.surface("body0").faces().front().halfedge().vertex_attributes().position().z();
         assert(zz == base.surface("body6").faces().front().halfedge().vertex_attributes().position().z() - zBottom);
         model::transform(base, geometry::translation(0.0f, 0.0f, -zBottom));

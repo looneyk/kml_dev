@@ -10,12 +10,16 @@ is set up.
 | Visual Studio 2022 or later, with the Desktop development with C++ workload | MSVC, which compiles the tree at `/std:c++latest` |
 | CMake 3.25 or later | The root `CMakeLists.txt` requires it; the one Visual Studio installs is enough |
 | Git for Windows | Cloning, and the `bash` that the Claude hooks run under |
-| The Vulkan SDK | The root calls `find_package(Vulkan REQUIRED)`, so no target configures without it, the stratum ones included |
+| The Vulkan SDK | The Vulkan applications and their libraries require it; the rest of the tree configures and builds without it |
 | Godot 4.7.2-stable, the win64 console executable, in `%LOCALAPPDATA%/Programs/Godot` | The Godot host runs in it, and Visual Studio launches it to debug the extension. godot-cpp is built against the 4.7 API |
 | Python 3 on the `PATH` | The Claude wording hook, `.claude/hooks/check_wording.py` |
 
 Without Godot, the build configures with `-DKML_DEV_GODOT=OFF`, which leaves out godot-cpp, `quetzal_godot` and
 `stratum_godot`.
+
+`KML_DEV_VULKAN` defaults on only where CMake finds the Vulkan SDK. Off, it leaves out `quetzal_vulkan`,
+`quetzal_scene_graph`, `quetzal_game`, `lightmatrix`, `gallery`, `cubes` and `toot1`, and glfw, fastgltf and
+KTX-Software in `library3/`, which only they use.
 
 ## Third-party repositories
 

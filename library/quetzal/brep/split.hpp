@@ -11,6 +11,7 @@
 #include "quetzal/geometry/HalfSpace.hpp"
 #include "quetzal/geometry/Line.hpp"
 #include "quetzal/geometry/intersect.hpp"
+#include <algorithm>
 #include <string>
 #include <queue>
 
@@ -192,10 +193,7 @@ void quetzal::brep::split(M& mesh, const geometry::HalfSpace<typename M::vector_
     {
         if (face.marked())
         {
-            for (auto& halfedge : face.halfedges())
-            {
-                assert(halfedge.vertex().marked());
-            }
+            assert(std::ranges::all_of(face.halfedges(), [](const auto& halfedge) { return halfedge.vertex().marked(); }));
 
             continue;
         }
@@ -405,10 +403,7 @@ void quetzal::brep::split(Submesh<Traits>& submesh, const geometry::HalfSpace<ty
 
         if (face.marked())
         {
-            for (auto& halfedge : face.halfedges())
-            {
-                assert(halfedge.vertex().marked());
-            }
+            assert(std::ranges::all_of(face.halfedges(), [](const auto& halfedge) { return halfedge.vertex().marked(); }));
 
             continue;
         }

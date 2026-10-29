@@ -1577,7 +1577,7 @@ quetzal::id_type quetzal::brep::IntersectionSplitter<M>::exterior_halfedge(const
 
 //------------------------------------------------------------------------------
 template<typename M>
-quetzal::id_type quetzal::brep::IntersectionSplitter<M>::interior_partner(const id_type halfedge_id_exterior, const vector_type& exterior_direction) const
+quetzal::id_type quetzal::brep::IntersectionSplitter<M>::interior_partner(const id_type halfedge_id_exterior, [[maybe_unused]] const vector_type& exterior_direction) const
 {
     id_type halfedge_id_interior = m_mesh.halfedge(halfedge_id_exterior).partner_id();
 auto ve = vertex_position(m_mesh.halfedge(halfedge_id_exterior));
@@ -1822,17 +1822,14 @@ void quetzal::brep::IntersectionSplitter<M>::validate_connections(const connecti
     // One fragment -> multiple borders
     // At this stage, borders should be traversable using next_border_halfedge_id and prev_border_halfedge_id except where the border intersects with itself at a vertex
 
-    for (const auto& connection : m_connections)
+    assert(std::ranges::all_of(m_connections | std::views::join | std::views::join, [this](id_type halfedge_id)
     {
-        for (const auto& halfedge_ids : connection)
-        {
-            for (id_type halfedge_id : halfedge_ids)
-            {
-                assert(m_connection_halfedge_ids.contains(halfedge_id));
-                assert(m_connection_positions.contains(vertex_position(m_mesh.halfedge(halfedge_id))));
-            }
-        }
-    }
+        return m_connection_halfedge_ids.contains(halfedge_id);
+    }));
+    assert(std::ranges::all_of(m_connections | std::views::join | std::views::join, [this](id_type halfedge_id)
+    {
+        return m_connection_positions.contains(vertex_position(m_mesh.halfedge(halfedge_id)));
+    }));
 
     // The connection traces are disjoint sets of border halfedges, so each halfedge belongs to a single trace and single border
     static const std::array<const char*, 4> border_slot_names = {"a exterior", "a interior", "b exterior", "b interior"};

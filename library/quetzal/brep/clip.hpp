@@ -11,6 +11,7 @@
 #include "quetzal/geometry/HalfSpace.hpp"
 #include "quetzal/geometry/Line.hpp"
 #include "quetzal/geometry/intersect.hpp"
+#include <algorithm>
 #include <string>
 
 namespace quetzal::brep
@@ -185,10 +186,7 @@ void quetzal::brep::clip(M& mesh, const geometry::HalfSpace<typename M::vector_t
     {
         if (face.marked() == interior)
         {
-            for (auto& halfedge : face.halfedges())
-            {
-                assert(halfedge.vertex().marked());
-            }
+            assert(std::ranges::all_of(face.halfedges(), [](const auto& halfedge) { return halfedge.vertex().marked(); }));
 
             mesh.delete_face(face.id());
             continue;
@@ -377,10 +375,7 @@ void quetzal::brep::clip(Submesh<Traits>& submesh, const geometry::HalfSpace<typ
 
         if (face.marked() == interior)
         {
-            for (auto& halfedge : face.halfedges())
-            {
-                assert(halfedge.vertex().marked());
-            }
+            assert(std::ranges::all_of(face.halfedges(), [](const auto& halfedge) { return halfedge.vertex().marked(); }));
 
             mesh.delete_face(face.id());
             continue;

@@ -169,7 +169,7 @@ void quetzal::brep::attach(M& mesh, const std::string& surface_name_a, const std
 template<typename M>
 void quetzal::brep::attach(M& mesh, id_type face_id_a, id_type face_id_b, bool smooth)
 {
-    id_type halfedge_id_a = mesh.face(face_id_a).halfedge_id();
+    [[maybe_unused]] id_type halfedge_id_a = mesh.face(face_id_a).halfedge_id();
     id_type halfedge_id_b = mesh.face(face_id_b).halfedge_id();
     assert(mesh.valid_halfedge_id(halfedge_id_a));
     assert(mesh.valid_halfedge_id(halfedge_id_b));

@@ -1385,7 +1385,8 @@ links `quetzal_common`, `quetzal_log`, `quetzal_settings` and `nlohmann_json`, v
 `library3/json` with its headers SYSTEM.
 
 `KML_DEV_GODOT` governs the Godot targets and defaults on. When it is configured off, godot-cpp is not processed and
-neither `quetzal_godot` nor `stratum_godot` exists.
+neither `quetzal_godot` nor `stratum_godot` exists. `KML_DEV_VULKAN` governs the Vulkan applications and their
+libraries, and defaults on only where the Vulkan SDK is found, so the stratum targets configure without it.
 
 `KML_DEV_ASSETS_ROOT` is a per-target compile definition that defines the shared data root, so no source file has an
 absolute path and no program depends on where it was started from. `KML_DEV_GODOT_VERSION` is the Godot release the

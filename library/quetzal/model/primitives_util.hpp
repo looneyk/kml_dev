@@ -2349,7 +2349,7 @@ void quetzal::model::connect_side_center(M& mesh, size_t na, size_t nb, bool cus
 
 //------------------------------------------------------------------------------
 template<typename M>
-void quetzal::model::close_side_flat(M& mesh, size_t na, size_t nb, bool cusped_lower, bool cusped_upper, id_type surface_id, bool bPlanar)
+void quetzal::model::close_side_flat(M& mesh, size_t na, size_t nb, bool cusped_lower, bool cusped_upper, id_type surface_id, [[maybe_unused]] bool bPlanar)
 {
     assert(bPlanar);
 
@@ -2361,7 +2361,7 @@ void quetzal::model::close_side_flat(M& mesh, size_t na, size_t nb, bool cusped_
     id_type idPartnerLower0 = cusped_lower ? 2 * na : 3 * na;
     id_type idPartnerLower1 = cusped_lower ? na - 1 : 2 * na - 1;
     id_type idPartnerUpper0 = nh - na;
-    id_type idPartnerUpper1 = cusped_upper ? nh - na - 1 : nh - 2 * na - 1;
+    [[maybe_unused]] id_type idPartnerUpper1 = cusped_upper ? nh - na - 1 : nh - 2 * na - 1;
 
     id_type idUpper = nullid;
 
@@ -2462,7 +2462,7 @@ void quetzal::model::close_side_flat(M& mesh, size_t na, size_t nb, bool cusped_
 
 //------------------------------------------------------------------------------
 template<typename M>
-void quetzal::model::close_side_center(M& mesh, size_t na, size_t nb, bool cusped_lower, bool cusped_upper, id_type surface_id0, id_type surface_id1, std::function<typename M::point_type(const typename M::point_type&)> center_position, bool bPlanar)
+void quetzal::model::close_side_center(M& mesh, size_t na, size_t nb, bool cusped_lower, bool cusped_upper, id_type surface_id0, id_type surface_id1, std::function<typename M::point_type(const typename M::point_type&)> center_position, [[maybe_unused]] bool bPlanar)
 {
     assert(bPlanar);
 
@@ -2473,7 +2473,7 @@ void quetzal::model::close_side_center(M& mesh, size_t na, size_t nb, bool cuspe
     id_type idPartnerLower0 = cusped_lower ? 2 * na : 3 * na;
     id_type idPartnerLower1 = cusped_lower ? na - 1 : 2 * na - 1;
     id_type idPartnerUpper0 = nh - na;
-    id_type idPartnerUpper1 = cusped_upper ? nh - na - 1 : nh - 2 * na - 1;
+    [[maybe_unused]] id_type idPartnerUpper1 = cusped_upper ? nh - na - 1 : nh - 2 * na - 1;
 
     id_type idMid0 = idPartnerLower0;
     id_type idMid1 = idPartnerLower1;
@@ -3165,7 +3165,7 @@ void quetzal::model::calculate_upper_surface_vertex_normals_sequential(M& mesh, 
     // j0..j3 are the virtual halfedge positions in each of the four faces that share this vertex
 
     auto& halfedge0 = mesh.halfedge(id0).next();
-    id_type surface_id = halfedge0.surface_id();
+    [[maybe_unused]] id_type surface_id = halfedge0.surface_id();
 
     auto normal = surface_normal(halfedge0.vertex());
     auto normal_prev_z = halfedge0.next().vertex_attributes().normal();

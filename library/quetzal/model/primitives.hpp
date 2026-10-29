@@ -742,7 +742,7 @@ quetzal::id_type quetzal::model::hex_partner_id(M& mesh, size_t i, size_t j, siz
 
 //------------------------------------------------------------------------------
 template<typename M>
-quetzal::id_type quetzal::model::create_disk(M& mesh, const std::string& name, size_t nAzimuth, size_t nRadial, data_value_type<M> radius, const azimuth_interval_type<M>& intervalAzimuth)
+quetzal::id_type quetzal::model::create_disk(M& mesh, const std::string& name, size_t nAzimuth, size_t nRadial, data_value_type<M> radius, [[maybe_unused]] const azimuth_interval_type<M>& intervalAzimuth)
 {
     using T = M::value_type;
 
