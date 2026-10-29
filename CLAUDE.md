@@ -7,7 +7,7 @@ searching, and stay inside it.
 | Project | What it is | Where |
 | --- | --- | --- |
 | **stratum** | A headless dungeon-crawler simulation, its ASCII and tile views, its level file format, and its level generators | `library/quetzal/stratum_sim`, `stratum_view`, `stratum_format`, `stratum_gen`, `dungen`, `catagen`, `godot`; `application/stratum_terminal`, `stratum_godot`; `tool/dungen`, `tool/catagen` |
-| **mesh_operations** | Boundary-representation solid modelling --- intersection, splitting, boolean operations --- and the model programs that exercise it | `library/quetzal/brep`, `geometry`, `math`; `model/*`; `utility/mesh_diff` |
+| **Model suite** | Procedurally generated 3D models: the model programs, and the boundary-representation solid modeling and supporting libraries they are built with. `model/mesh_operations` tests the CSG feature: intersection, splitting, and the boolean operations | `library/quetzal/brep`, `model`, `geometry`, `math`, `triangulation`, `wavefront_obj`, `svg`, `xml`, `pdf`; `model/*`; `utility/mesh_diff`, `verify_model_output`, `dump_obj`, `compare_precision_obj` |
 | **Vulkan applications** | Real-time 3D rendering | `library/quetzal/vulkan`, `scene_graph`, `game`; `application/lightmatrix`, `gallery`, `cubes`, `toot1` |
 
 `doc/vulkan.md` covers the rendering engine in its own right.
@@ -112,7 +112,8 @@ test cases, and `--update-references` copies each file it writes to `out/` over 
 - **Write comments and documents in plain sentences, with a subject and a verb.** Short means saying
   less, never dropping grammar: cut a clause that adds nothing, not the words that make the rest
   readable. Name the thing and say what it is or does. Starting with "What a", "Whether" or "On a
-  ...:" is a warning sign, and so is an elliptical clause such as "null where none".
+  ...:" is a warning sign, and so is an elliptical clause such as "null where none". End a sentence at the
+  first point where it is true and complete. An urge to add to a finished sentence is the signal to stop.
 
   | Clipped | Plain |
   | --- | --- |
