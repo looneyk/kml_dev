@@ -8,6 +8,7 @@
 #include "quetzal/common/KeyValueStore.hpp"
 #include "quetzal/math/Random.hpp"
 #include "quetzal/stratum_format/Document.hpp"
+#include "quetzal/stratum_format/Notation.hpp"
 #include <cstdint>
 #include <functional>
 #include <map>
@@ -35,11 +36,20 @@ namespace quetzal::stratum_gen
     // The name the dungen generator is registered under
     inline constexpr std::string_view dungen_generator_name = "dungen";
 
+    // The name the catagen generator is registered under
+    inline constexpr std::string_view catagen_generator_name = "catagen";
+
     // Returns the document of a zone that dungen generates
     stratum_format::Document generate_dungen(const ZoneRequest& request);
 
+    // Returns the document of a zone that catagen generates
+    stratum_format::Document generate_catagen(const ZoneRequest& request);
+
     // <generator name, function>
     std::map<std::string, generator_function_type, std::less<>> generators();
+
+    // Returns the name of the generator whose zones are in the notation
+    std::string_view generator_name(stratum_format::Notation notation);
 
 } // namespace quetzal::stratum_gen
 

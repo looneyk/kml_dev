@@ -4,5 +4,6 @@
   "notation": "block",
   "views": ["cell", "lattice"],
   "view_menu": true,
-  "default_view": "cell"
+  "default_view": "cell",
+  "settings": { "world.zone_size.x": "40", "world.zone_size.y": "20" }
 }

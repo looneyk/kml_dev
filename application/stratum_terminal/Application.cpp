@@ -37,11 +37,9 @@ namespace
 
     static constexpr auto help_string = "arrows or hjkl move, space acts, < or > enters, . waits, ^L redraws, Esc for the menu";
 
-    static constexpr auto menu_help_string = "n starts a new game, c or Esc continues, s saves, o opens a save, q quits, ^L redraws";
+    static constexpr auto menu_help_string = "a letter chooses its line, Esc quits, ^L redraws";
 
     static constexpr auto saves_help_string = "up/down or j/k select, Enter or a digit opens, Del deletes, Esc goes back, ^L redraws";
-
-    static constexpr auto views_help_string = "up/down or j/k select, Enter or a digit chooses, ^L redraws";
 
     static constexpr auto end_help_string = "press any key to return to the menu";
 
@@ -54,6 +52,8 @@ namespace
 
     // A digit opens a save, so the saves page lists no more than nine
     static constexpr size_t saved_games_listed_max = 9;
+
+    static constexpr std::string_view notation_generator_selector_name = "notation_generator";
 
     //--------------------------------------------------------------------------
     // Empty for an explicit save
@@ -91,7 +91,7 @@ namespace
     // staircase leading up
     stratum_sim::RegionSpec temporary_region_spec()
     {
-        return stratum_sim::RegionSpec {{std::string(stratum_sim::generator_selector_key), "dungen"},
+        return stratum_sim::RegionSpec {{std::string(stratum_sim::generator_selector_key), std::string(notation_generator_selector_name)},
             {std::string(stratum_sim::entry_access_key), "staircase,1"}, {std::format("{}{}", stratum_sim::zone_prefix, stratum_sim::position_z_key), "-1"}};
     }
 
@@ -105,15 +105,23 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Temporary, until the generators are integrated: every zone of the starting region is made with dungen, named
-    // "Dungeon Level N" for its level
-    stratum_sim::Generation::GeneratorSelection select_dungen(const stratum_sim::World&, flecs::entity, const stratum_sim::ZoneSpec& zone_spec)
+    // Temporary, until the common generator selector: every zone of the starting region is made by the generator of the
+    // game's notation, named "Dungeon Level N" for its level, and of the game's zone size unless the spec has an extent
+    stratum_sim::Generation::GeneratorSelection select_notation_generator(stratum_format::Notation notation,
+        const stratum_sim::ZoneSpec& zone_spec)
     {
         stratum_sim::ZoneSpec named_zone_spec = zone_spec;
         const stratum_sim::level_type level = stratum_sim::zone_position(zone_spec).z;
         named_zone_spec.insert(std::string(stratum_sim::name_key), std::format("Dungeon Level {}", std::abs(level)));
 
-        return stratum_sim::Generation::GeneratorSelection {std::string(stratum_gen::dungen_generator_name), {}, {}, named_zone_spec};
+        const std::string extent_key = std::format("{}extent", stratum_sim::parameters_prefix);
+        if (!named_zone_spec.contains(extent_key))
+        {
+            named_zone_spec.insert(extent_key, std::format("{},{}", settings::store().value<int64_t>("world.zone_size.x"),
+                settings::store().value<int64_t>("world.zone_size.y")));
+        }
+
+        return stratum_sim::Generation::GeneratorSelection {std::string(stratum_gen::generator_name(notation)), {}, {}, named_zone_spec};
     }
 
     //--------------------------------------------------------------------------
@@ -170,12 +178,13 @@ stratum_terminal::Application::Application(const stratum_sim::Config& config, co
     m_view_selected(0),
     m_view(View::Cell),
     m_view_glyphs(),
+    m_notation(manifest.notation),
     m_terminal(incremental),
     m_message(),
     m_script(script),
     m_script_slot(0),
     m_menu_open(true),
-    m_menu_page(manifest.view_menu ? MenuPage::Views : MenuPage::Main),
+    m_menu_page(MenuPage::Main),
     m_running(true)
 {
     for (const std::string& view_name : manifest.views)
@@ -205,7 +214,11 @@ stratum_terminal::Application::Application(const stratum_sim::Config& config, co
         };
     }
 
-    m_game.generation().m_generator_selectors["dungen"] = select_dungen;
+    m_game.generation().m_generator_selectors[std::string(notation_generator_selector_name)] =
+        [this](const stratum_sim::World&, flecs::entity, const stratum_sim::ZoneSpec& zone_spec)
+    {
+        return select_notation_generator(m_game.notation(), zone_spec);
+    };
 }
 
 //------------------------------------------------------------------------------
@@ -339,10 +352,6 @@ void stratum_terminal::Application::run_menu()
     {
         m_terminal.redraw();
     }
-    else if (m_menu_page == MenuPage::Views)
-    {
-        run_views_page(key_press);
-    }
     else if (m_menu_page == MenuPage::Saves)
     {
         run_saves_page(key_press);
@@ -350,30 +359,6 @@ void stratum_terminal::Application::run_menu()
     else
     {
         run_main_page(key_press);
-    }
-
-    return;
-}
-
-//------------------------------------------------------------------------------
-void stratum_terminal::Application::run_views_page(const KeyPress& key_press)
-{
-    if ((key_press.key == Key::Up || key_press.c == 'k') && m_view_selected > 0)
-    {
-        choose_view(m_view_selected - 1);
-    }
-    else if ((key_press.key == Key::Down || key_press.c == 'j') && m_view_selected + 1 < m_views.size())
-    {
-        choose_view(m_view_selected + 1);
-    }
-    else if (key_press.key == Key::Enter)
-    {
-        m_menu_page = MenuPage::Main;
-    }
-    else if (key_press.c >= '1' && static_cast<size_t>(key_press.c - '1') < m_views.size())
-    {
-        choose_view(static_cast<size_t>(key_press.c - '1'));
-        m_menu_page = MenuPage::Main;
     }
 
     return;
@@ -460,7 +445,7 @@ void stratum_terminal::Application::run_main_page(const KeyPress& key_press)
         m_saved_game_selected = 0;
         list_saved_games();
     }
-    else if ((key_press.key == Key::Escape || key_press.c == 'c' || key_press.c == 'C') && m_session.loaded())
+    else if ((key_press.c == 'c' || key_press.c == 'C') && m_session.loaded())
     {
         m_game.menu_close();
         m_message.clear();
@@ -470,7 +455,15 @@ void stratum_terminal::Application::run_main_page(const KeyPress& key_press)
     {
         save_game();
     }
-    else if (key_press.c == 'q' || key_press.c == 'Q')
+    else if ((key_press.c == 'v' || key_press.c == 'V') && m_game.manifest().view_menu)
+    {
+        choose_view((m_view_selected + 1) % m_views.size());
+    }
+    else if ((key_press.c == 't' || key_press.c == 'T') && m_game.manifest().view_menu)
+    {
+        m_notation = m_notation == stratum_format::Notation::Block ? stratum_format::Notation::Wall : stratum_format::Notation::Block;
+    }
+    else if (key_press.key == Key::Escape || key_press.c == 'q' || key_press.c == 'Q')
     {
         m_game.quit();
         m_running = false;
@@ -482,20 +475,6 @@ void stratum_terminal::Application::run_main_page(const KeyPress& key_press)
 //------------------------------------------------------------------------------
 void stratum_terminal::Application::draw_menu()
 {
-    if (m_menu_page == MenuPage::Views)
-    {
-        std::vector<std::string> lines {"VIEW", ""};
-        const std::vector<std::string>& view_names = m_game.manifest().views;
-
-        for (size_t i = 0; i < view_names.size(); ++i)
-        {
-            lines.push_back(std::format("{} {}  {}", i == m_view_selected ? '>' : ' ', i + 1, view_names[i]));
-        }
-
-        draw_menu_lines(lines, views_help_string);
-        return;
-    }
-
     if (m_menu_page == MenuPage::Saves)
     {
         std::vector<std::string> lines {"OPEN", ""};
@@ -529,6 +508,12 @@ void stratum_terminal::Application::draw_menu()
     }
 
     lines.push_back("o  Open");
+    if (m_game.manifest().view_menu)
+    {
+        lines.push_back(std::format("t  Notation  {}", stratum_format::name(m_notation)));
+        lines.push_back(std::format("v  View      {}", m_game.manifest().views[m_view_selected]));
+    }
+
     lines.push_back("q  Quit");
 
     draw_menu_lines(lines, menu_help_string);
@@ -567,7 +552,7 @@ void stratum_terminal::Application::create_game()
 {
     try
     {
-        m_game.create(temporary_region_spec(), temporary_character_spec());
+        m_game.create(temporary_region_spec(), temporary_character_spec(), m_notation);
     }
     catch (const std::exception& e)
     {
@@ -642,6 +627,7 @@ void stratum_terminal::Application::open_game(const std::string& save_name)
         return;
     }
 
+    m_notation = m_game.notation();
     start_play();
     return;
 }

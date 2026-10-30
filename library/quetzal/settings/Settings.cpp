@@ -385,33 +385,6 @@ void quetzal::settings::Settings::reset(std::string_view scope)
 }
 
 //------------------------------------------------------------------------------
-void quetzal::settings::Settings::apply_initializers(std::string_view scope)
-{
-    KeyValueStore initial_values;
-    for (const auto& [key, key_setting] : m_settings)
-    {
-        if (key_setting.scope != scope || !key_setting.initializer_setting.has_value() || !contains(*key_setting.initializer_setting))
-        {
-            continue;
-        }
-
-        const std::string& initializer_key = *key_setting.initializer_setting;
-        const std::string value = current_value(initializer_key);
-        if (!type(key_setting.type_name).accepts(value) || !bounded_inclusive(key_setting, value))
-        {
-            throw std::runtime_error(std::format("the initializer setting '{}' of the setting '{}' has the value '{}', which is not a valid value of it",
-                initializer_key, key, value));
-        }
-
-        initial_values.insert(key, value);
-    }
-
-    [[maybe_unused]] const bool initialized = initialize_values(initial_values, {});
-    assert(initialized);
-    return;
-}
-
-//------------------------------------------------------------------------------
 quetzal::settings::Settings::preset_values_type quetzal::settings::Settings::preset_values(std::string_view scope) const
 {
     preset_values_type scope_values;

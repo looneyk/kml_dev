@@ -30,10 +30,9 @@ namespace stratum_terminal
     };
 
     //--------------------------------------------------------------------------
-    // The page the menu shows: the views to choose from at startup, its choices, or the saves to open
+    // The page the menu shows: its choices, or the saves to open
     enum class MenuPage
     {
-        Views,
         Main,
         Saves
     };
@@ -64,10 +63,9 @@ namespace stratum_terminal
         bool script_exhausted() const;
 
         // Draws the menu's page, reads a key, and acts on it. The main page has a new game, continuing or saving the game in
-        // progress, listing the saves, and quitting; the saves page selects a save, opens it or the save of a digit, and
+        // progress, listing the saves, changing the view or the notation, and quitting; the saves page selects a save, opens it or the save of a digit, and
         // deletes the selected save once confirmed
         void run_menu();
-        void run_views_page(const KeyPress& key_press);
         void run_main_page(const KeyPress& key_press);
         void run_saves_page(const KeyPress& key_press);
 
@@ -118,6 +116,7 @@ namespace stratum_terminal
         View m_view = View::Cell;
 
         quetzal::stratum_view::Glyphs m_view_glyphs;
+        quetzal::stratum_format::Notation m_notation; // The notation a new game is created in, the last game's once one is opened
         Terminal m_terminal;
         std::string m_message;
         std::string m_script;

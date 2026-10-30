@@ -45,7 +45,6 @@ namespace quetzal::stratum_format
             Scope scope = Scope::User;
             bool restart_required = false;
             bool modifiable = false;
-            std::optional<std::string> initializer_setting; // The user setting of "initializer": { "setting": key }
             std::string display_name;
             std::string description;
             std::string category;

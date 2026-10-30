@@ -34,16 +34,14 @@ void quetzal::stratum_sim::insert_definitions(const stratum_format::SettingDefin
     for (const auto& definition : document.settings)
     {
         const bool user_setting = definition.scope == document_type::Scope::User;
-        if (user_setting && (definition.modifiable || definition.initializer_setting.has_value()))
+        if (user_setting && definition.modifiable)
         {
-            throw std::runtime_error(std::format("the user setting '{}' has modifiable or an initializer, which only a game setting may have",
-                definition.key));
+            throw std::runtime_error(std::format("the user setting '{}' has modifiable, which only a game setting may have", definition.key));
         }
 
         store.insert(definition.key, {.type_name = definition.type_name, .default_value = definition.default_value,
             .scope = setting_scope(definition.scope), .restart_required = definition.restart_required,
-            .modifiable = user_setting || definition.modifiable, .initializer_setting = definition.initializer_setting,
-            .display_name = definition.display_name, .description = definition.description, .category = definition.category,
+            .modifiable = user_setting || definition.modifiable, .display_name = definition.display_name, .description = definition.description, .category = definition.category,
             .minimum = definition.minimum, .maximum = definition.maximum});
     }
 

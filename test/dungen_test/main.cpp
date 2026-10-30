@@ -284,6 +284,10 @@ namespace
 
         CHECK_CASE("a parameter this does not read is rejected", rejected);
 
+        dungen::Parameters parameters;
+        CHECK_CASE("set_parameter sets a parameter", dungen::set_parameter(parameters, "loop", "0.25") && parameters.grid1.loop == 0.25);
+        CHECK_CASE("and returns false for a key that is not one", !dungen::set_parameter(parameters, "scale", "4-8"));
+
         // A position, when given, is written into the layout and the parameters both
         dungen::Parameters positioned = scenarios().front().parameters;
         positioned.position = dungen::zone_position_type {3, -4, -2};

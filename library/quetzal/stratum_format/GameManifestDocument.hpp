@@ -6,6 +6,7 @@
 //------------------------------------------------------------------------------
 
 #include "Notation.hpp"
+#include "quetzal/common/KeyValueStore.hpp"
 #include <filesystem>
 #include <iosfwd>
 #include <string>
@@ -16,18 +17,17 @@ namespace quetzal::stratum_format
 {
 
     //--------------------------------------------------------------------------
-    // The data structure analog of a game manifest file, which defines the game the program plays. Only the host
-    // interprets the views
     struct GameManifestDocument
     {
         static constexpr std::string_view format_name = "quetzal.stratum_game_manifest";
         static constexpr std::string_view format_version = "0.1";
 
         std::string version;
-        Notation notation = Notation::Block; // The notation of every zone
+        Notation notation = Notation::Block;
         std::vector<std::string> views;
-        bool view_menu = false; // True if the host offers the views in a menu at startup, false if it uses the default view
-        std::string default_view; // One of the views
+        bool view_menu = false; // notation/view added to main menu, development option
+        std::string default_view;
+        KeyValueStore settings; // game settings for this particular configuration
     };
 
     // Throws std::runtime_error on error or an unsupported key, stream_name used in error messages

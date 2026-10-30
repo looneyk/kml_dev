@@ -1344,13 +1344,18 @@ namespace
     TEST_CASE("game manifest file")
     {
         const string manifest_text = "{ \"format\": \"quetzal.stratum_game_manifest\", \"version\": \"0.1\", \"notation\": \"wall\", "
-            "\"views\": [\"cell\", \"lattice\"], \"view_menu\": true, \"default_view\": \"lattice\" }";
+            "\"views\": [\"cell\", \"lattice\"], \"view_menu\": true, \"default_view\": \"lattice\", "
+            "\"settings\": { \"world.zone_size.x\": \"32\", \"world.zone_size.y\": \"12\" } }";
 
         istringstream is(manifest_text);
         stratum_format::GameManifestDocument manifest = stratum_format::read_game_manifest(is, "manifest");
-        CHECK_CASE("a game manifest file has the notation, the views in order, the view menu, and the default view",
+        CHECK_CASE("a game manifest file has the notation, the views in order, the view menu, the default view, and the settings",
             manifest.notation == stratum_format::Notation::Wall && manifest.views == vector<string> {"cell", "lattice"} && manifest.view_menu
-            && manifest.default_view == "lattice");
+            && manifest.default_view == "lattice" && manifest.settings.value("world.zone_size.x") == "32"
+            && manifest.settings.value("world.zone_size.y") == "12");
+
+        istringstream without_settings_is(manifest_text.substr(0, manifest_text.find(", \"settings\"")) + " }");
+        CHECK_CASE("and the settings may be absent", stratum_format::read_game_manifest(without_settings_is, "manifest").settings.empty());
 
         auto rejected = [&manifest_text](const string& from, const string& to, const string& error_expected)
         {
@@ -1381,6 +1386,7 @@ namespace
         CHECK_CASE("and one whose default view is not one of its views", rejected("\"default_view\": \"lattice\"", "\"default_view\": \"tile\"",
             "default_view: 'tile' is not one of the views"));
         CHECK_CASE("and one with no view menu", rejected("\"view_menu\": true, ", "", "view_menu: required and absent"));
+        CHECK_CASE("and one with a setting value that is not text", rejected("\"32\"", "32", "settings.world.zone_size.x"));
 
         return;
     }
@@ -1462,7 +1468,7 @@ namespace
             "    { \"key\": \"video.fullscreen\", \"type\": \"boolean\", \"default\": \"false\", \"scope\": \"user\", \"restart_required\": true,\n"
             "      \"display_name\": \"Fullscreen\", \"category\": \"video\" },\n"
             "    { \"key\": \"gameplay.count\", \"type\": \"real\", \"default\": \"1\", \"scope\": \"game\", \"minimum\": \"0.5\", \"maximum\": \"2\",\n"
-            "      \"modifiable\": true, \"initializer\": { \"setting\": \"gameplay.count_default\" }, \"description\": \"How many\" }\n"
+            "      \"modifiable\": true, \"description\": \"How many\" }\n"
             "  ],\n"
             "  \"groups\": [\n"
             "    { \"key\": \"gameplay.difficulty\", \"scope\": \"game\", \"modifiable\": true, \"default_preset\": \"normal\", \"display_name\": \"Difficulty\",\n"
@@ -1485,8 +1491,7 @@ namespace
             && fullscreen.scope == document_type::Scope::User && fullscreen.restart_required && fullscreen.display_name == "Fullscreen"
             && fullscreen.category == "video" && fullscreen.description.empty() && !fullscreen.minimum && count.scope == document_type::Scope::Game
             && count.default_value == "1" && !count.restart_required && count.minimum == "0.5" && count.maximum == "2" && count.description == "How many");
-        CHECK_CASE("and a game setting may be modifiable, and have an initializer that refers to a setting", count.modifiable
-            && count.initializer_setting == "gameplay.count_default" && !fullscreen.modifiable && !fullscreen.initializer_setting.has_value());
+        CHECK_CASE("and a game setting may be modifiable", count.modifiable && !fullscreen.modifiable);
 
         const document_type::Group& difficulty = document.groups[0];
         CHECK_CASE("a group has its fields, members and presets", difficulty.key == "gameplay.difficulty"
@@ -1532,8 +1537,6 @@ namespace
         CHECK_CASE("and one with a group that has no members", rejected("      \"members\": [\"gameplay.count\"],\n", "",
             "groups[0].members: required and absent"));
         CHECK_CASE("and one with a member that is not text", rejected("[\"gameplay.count\"]", "[1]", "groups[0].members[0]: a string was expected"));
-        CHECK_CASE("and one with an initializer of a form the format does not have", rejected("{ \"setting\": \"gameplay.count_default\" }",
-            "{ \"script\": \"count.lua\" }", "settings[1].initializer.script: not a key of the setting definition file"));
 
         document_type game = stratum_format::read_setting_definitions(filesystem::path("../../assets") / document_type::filepath);
         CHECK_CASE("the game's setting definition file reads", !game.settings.empty() && game.groups.size() == 1

@@ -57,7 +57,6 @@ namespace quetzal::settings
         std::string scope; // Client domain
         bool restart_required = false;
         bool modifiable = false; // True if set_values may change it; initialize_values and reset change it either way
-        std::optional<std::string> initializer_setting; // The source setting value used by apply_initializers
         std::string display_name;
         std::string description;
         std::string category; // Client domain

@@ -10,6 +10,7 @@
 #include "quetzal/math/Interval.hpp"
 #include "quetzal/math/Random.hpp"
 #include <optional>
+#include <string>
 #include <cstddef>
 
 namespace quetzal::catagen
@@ -48,6 +49,10 @@ namespace quetzal::catagen
 
     // A seed drawn from the platform's entropy source
     Parameters::seed_type random_seed();
+
+    // Sets the parameter the key refers to, and returns false if the key is not a parameter
+    // Throws std::invalid_argument for a value that is not of the parameter's type
+    bool set_parameter(Parameters& parameters, const std::string& key, const std::string& text);
 
     // Sets each parameter a token refers to, the keys being those of the zone file's generator parameters
     // Throws std::invalid_argument for a key that is not a parameter or a value that is not of the parameter's type

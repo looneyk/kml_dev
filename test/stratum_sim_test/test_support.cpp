@@ -49,7 +49,7 @@ namespace
 const stratum_sim::Config stratum_sim_test::g_test_config {"out/saves", "out/working", test_zone_count_max};
 
 const stratum_format::GameManifestDocument stratum_sim_test::g_test_manifest {.notation = stratum_format::Notation::Block, .views = {"cell"},
-    .view_menu = false, .default_view = "cell"};
+    .view_menu = false, .default_view = "cell", .settings = {{"world.region_size.x", "7"}}};
 
 stratum_sim::Generation stratum_sim_test::g_test_generation = test_generation();
 

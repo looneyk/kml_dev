@@ -217,7 +217,7 @@ void stratum_terminal::Terminal::draw(const stratum_view::Console& console, cons
     {
         std::cout << escape_clear_string
             << std::format("This terminal is {} rows by {} columns.\n", size.y(), size.x())
-            << std::format("The zone needs {} by {}.\n\n", rows_wanted, columns_wanted)
+            << std::format("The frame needs {} rows by {} columns.\n\n", rows_wanted, columns_wanted)
             << "Resize the window, then press a key." << std::flush;
 
         redraw();

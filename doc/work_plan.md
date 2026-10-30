@@ -50,10 +50,16 @@ boxes are removed at the start of the next piece of work, since the reference do
       stores the notation for reference. The terminal's options become tokens: `manifest=`, `script=`, and
       `incremental=`, and its wall view is renamed the lattice view. Godot reads `manifest=` from its user arguments,
       with a view list of its own.
+- [x] **Notation and view on the menu.** Each host's new and open menu shows the notation and the view, the manifest's
+      at first and the last game's after one is opened, and changes them, so that each combination can be tried. A
+      game has its own notation, which `Game::create` is given and `game.json` stores and opening restores.
+- [x] **A new game's settings from the manifest.** The manifest's `settings` set a new game's game settings in place of
+      their defaults, so each manifest has its own zone size. The setting definitions have no initializers, and the
+      user settings they referred to are gone.
 
 ## Generators
 
-- [ ] **The generators integrated.** catagen's generator in `quetzal/stratum_gen` beside dungen's. The notation in
+- [x] **The generators integrated.** catagen's generator in `quetzal/stratum_gen` beside dungen's. The notation in
       the game manifest decides which of them generates every zone: dungen for the block notation and catagen for the
       wall notation, with the zone's one seed. Each reads its parameters, or the subset that applies, from the
       `ZoneRequest`'s `parameters` tokens, rather than running with a default-constructed set, and skips the keys that
@@ -112,8 +118,16 @@ boxes are removed at the start of the next piece of work, since the reference do
 
 - [ ] **Floor access points drawn by their orientation.** The views draw one with the stair glyph and ignore its
       orientation.
+- [ ] **A lattice view in the Godot host,** drawn from `lattice` with the walls and doors on cell edges, so that it
+      draws either notation, and listed in the Godot manifests as `lattice`. The tile view stays drawn from `cells`.
 - [ ] **Dimetric, isometric, and first-person views,** each offered by a game whose assets support it. The Godot host
-      is likely to become the primary viewer.
+      is likely to become the primary viewer. The views are top-down for now, so these are undecided. Dimetric might
+      need little more than another tile set, and isometric not much more, but neither has been examined.
+
+A wall notation zone in a view that draws one place per cell, the cell view or the tile view, remains allowed, but only
+a wall notation zone that a block notation zone could have been converted to is supported there. A wall or door on a
+cell edge, such as two rooms back to back sharing a wall, cannot be drawn reliably in such a view, and no time is spent
+on those cases. Even the supported cases are the lowest priority configuration.
 
 ## Assets
 
@@ -390,8 +404,6 @@ These are the open questions.
 
 - **How does a glyph set or tile set mark `concealed`?** A way through is concealed when the viewer has found it and
   actors in general have not. It could be outlined or drawn otherwise; the built-in sets draw it as a door.
-- **Does the Godot tile view draw the lattice?** A wall between two open cells is invisible in the tile view, which
-  draws `cells`, and in the terminal's cell view.
 - **Does `cells` need state?** Its consumers draw one glyph per cell and have no edges, so it may need only the type,
   though having the two reductions produce different forms has its own cost.
 - **What does a tile set produce?** That decides whether the glyph table is templated on what it maps to, or characters
@@ -406,9 +418,9 @@ These are the open questions.
 These are set aside on purpose.
 
 - **Restarting a game with the last game's settings,** kept in memory for the program's run, possibly on the same world
-  seed, and **templates** that a new game's settings are initialized from, which would let settings outlast the program.
-- **Scripted initializers,** such as an `on_new_game` script computing game settings when a game is created, beyond an
-  `initializer` that refers to a user setting. They may overlap with templates.
+  seed.
+- **Scripted new game settings,** such as an `on_new_game` script computing game settings when a game is created,
+  beyond the values in the game manifest's `settings`.
 
 - **Pursuers following the character through a relocator** (`session_plan.md`, `### Following through a relocator`).
   Only the controlled actor enters a relocator.

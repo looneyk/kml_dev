@@ -113,6 +113,29 @@ namespace
         return quetzal::stratum_format::read_character_name(save_directory / quetzal::stratum_format::character_filename);
     }
 
+    //--------------------------------------------------------------------------
+    // Sets each game setting that the manifest has a value for
+    // Throws std::runtime_error if a key is not a game setting or a value is not a valid value of its setting
+    void apply_manifest_settings(const quetzal::KeyValueStore& manifest_settings)
+    {
+        quetzal::settings::Settings& store = quetzal::settings::store();
+
+        for (const auto& [key, value] : manifest_settings)
+        {
+            if (!store.contains(key) || store.setting(key).scope != quetzal::stratum_sim::game_setting_scope)
+            {
+                throw std::runtime_error(std::format("the manifest's setting '{}' is not a game setting", key));
+            }
+        }
+
+        if (!store.initialize_values(manifest_settings, {}))
+        {
+            throw std::runtime_error("a value of the manifest's settings is outside its setting's range");
+        }
+
+        return;
+    }
+
 } // namespace
 
 //------------------------------------------------------------------------------
@@ -135,7 +158,8 @@ quetzal::stratum_sim::Game::Game(const Config& config, const stratum_format::Gam
     m_character(m_world),
     m_session(m_world, m_character),
     m_game_directory(),
-    m_seed(0)
+    m_seed(0),
+    m_notation(manifest.notation)
 {
     register_game_types(m_world);
 }
@@ -166,12 +190,14 @@ void quetzal::stratum_sim::Game::clear()
 }
 
 //------------------------------------------------------------------------------
-void quetzal::stratum_sim::Game::create(const RegionSpec& region_spec, const CharacterSpec& character_spec, std::optional<RandomStream::seed_type> seed)
+void quetzal::stratum_sim::Game::create(const RegionSpec& region_spec, const CharacterSpec& character_spec, stratum_format::Notation notation,
+    std::optional<RandomStream::seed_type> seed)
 {
     assert(!character_spec.name.empty());
 
     clear();
-    settings::store().apply_initializers(game_setting_scope);
+    apply_manifest_settings(m_manifest.settings);
+    m_notation = notation;
 
     m_counting_id_allocator = CountingIdAllocator(PersistentId {});
     seed_world(seed ? *seed : math::random_seed());
@@ -241,6 +267,7 @@ void quetzal::stratum_sim::Game::open(std::string_view save_name)
 void quetzal::stratum_sim::Game::restore_game_state(const std::filesystem::path& filepath)
 {
     stratum_format::GameDocument document = stratum_format::read_game(filepath);
+    m_notation = document.notation;
     m_counting_id_allocator = CountingIdAllocator(PersistentId {document.next_id});
 
     const char* seed_end = document.seed.data() + document.seed.size();
@@ -307,7 +334,7 @@ std::string quetzal::stratum_sim::Game::save(SaveType save_type)
 
     stratum_format::GameDocument document;
     document.version = std::string(stratum_format::saved_game_format_version);
-    document.notation = m_manifest.notation;
+    document.notation = m_notation;
     document.next_id = m_counting_id_allocator.next().id;
     document.seed = std::to_string(m_seed);
     document.random_engines[std::string(gameplay_random_engine_key)] = gameplay_random().state();
@@ -397,6 +424,12 @@ const quetzal::stratum_sim::Config& quetzal::stratum_sim::Game::config() const
 const quetzal::stratum_format::GameManifestDocument& quetzal::stratum_sim::Game::manifest() const
 {
     return m_manifest;
+}
+
+//------------------------------------------------------------------------------
+quetzal::stratum_format::Notation quetzal::stratum_sim::Game::notation() const
+{
+    return m_notation;
 }
 
 //------------------------------------------------------------------------------

@@ -214,7 +214,6 @@ namespace quetzal::settings
         std::string scope;                         // A name the client chooses
         bool restart_required;
         bool modifiable;                           // True if set_values may change it
-        std::optional<std::string> initializer_setting; // The setting of another scope whose value apply_initializers copies
         std::string display_name;
         std::string description;
         std::string category;                      // The menu page that shows it
@@ -264,7 +263,6 @@ namespace quetzal::settings
         bool set_values(const KeyValueStore& values, const preset_values_type& preset_values);       // modifiable presets' first
         bool initialize_values(const KeyValueStore& values, const preset_values_type& preset_values); // loading, fixed settings too
         void reset(std::string_view scope);                                                              // a game cleared
-        void apply_initializers(std::string_view scope);                                                 // a game created
 
         // The defined values of each modifiable preset of the scope's groups
         preset_values_type preset_values(std::string_view scope) const;
@@ -390,10 +388,6 @@ program directory, and `data/setting_definitions.json` in each mod's directory. 
 - **A setting's entry has what `Setting` has:** `type`, `default`, `scope`, `restart_required`, which is false if
   absent, and the menu fields `display_name`, `description`, `category`, `minimum` and `maximum`. Every setting has a
   `default`, a group's member included.
-- **A game setting's entry may have an `initializer`,** which sets its value when a game is created. The first form
-  refers to a user setting, `"initializer": { "setting": "world.world_size_default.x" }`, whose value the game setting
-  takes; a script is a later form (`work_plan.md`, `## Revisit later`). A game setting without one, or whose user
-  setting is not defined, takes its own default.
 - **A game setting's entry may have `modifiable`,** true if the setting can change after the game is created, as the
   difficulty settings can, and false if absent, so a game setting without it is fixed for the game's life.
 - **A group's entry has what `insert_group` takes:** `key`, `scope`, `modifiable`, `default_preset`, `members`,
@@ -419,16 +413,16 @@ is not loaded:
 ### A new game's settings
 
 Lookups name no scope: a game reads every setting from the one store by its key, and a setting's scope decides only
-where its value is saved. When a game is created, each game setting is reset to its default and then set by its
-`initializer`, if it has one. An opened game sets its game settings from its `game.json` alone. During the game, a
+where its value is saved. When a game is created, each game setting is reset to its default and then set from the game
+manifest's `settings`, if the manifest has a value for it. An opened game sets its game settings from its `game.json` alone. During the game, a
 game setting changes only if it is `modifiable`; the store rejects a change to one that is not, and the menu shows it as
 read-only.
 
-The world's dimensions are game settings initialized this way, so each world keeps the dimensions it was created with:
-`world.world_size.x` and `.y`, the number of regions the world has room for in each direction, 1000000 by default, and
-`world.region_size.x`, `.y` and `.z`, the number of zones a region has room for in each direction, 1000 by default.
-Each is an `integer` of at least 1, not `modifiable`, whose `initializer` refers to the user setting of the same key with
-`_default` after `world_size` or `region_size`. A region's or zone's coordinate along a size `s` is signed, from `-(s / 2)` to `s - s / 2 - 1`, so the
+The world's dimensions are game settings set this way, so each world keeps the dimensions it was created with:
+`world.world_size.x` and `.y`, the number of regions the world has room for in each direction, 1000000 by default,
+`world.region_size.x`, `.y` and `.z`, the number of zones a region has room for in each direction, 1000 by default, and
+`world.zone_size.x` and `.y`, the number of cells a zone has in each direction. Each is an `integer` of at least 1, not
+`modifiable`. A region's or zone's coordinate along a size `s` is signed, from `-(s / 2)` to `s - s / 2 - 1`, so the
 starting region is at the origin of the world and the starting zone at the origin of its region.
 
 ### Setting groups

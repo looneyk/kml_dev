@@ -19,8 +19,8 @@ namespace quetzal::stratum_sim
     inline constexpr std::string_view game_setting_scope = "game";
 
     // Registers the document's enumerations, then inserts its settings, then its groups, so each may refer to those before it.
-    // Every user setting and group is modifiable, and only a game setting may have an initializer
-    // Throws std::runtime_error if a definition is invalid, or a user setting or group has modifiable or an initializer
+    // Every user setting and group is modifiable
+    // Throws std::runtime_error if a definition is invalid, or a user setting or group has modifiable
     void insert_definitions(const stratum_format::SettingDefinitionsDocument& document, settings::Settings& store);
 
     // Inserts the game's setting definition file from the assets directory. Called once, when the program starts

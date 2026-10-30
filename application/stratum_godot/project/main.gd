@@ -39,12 +39,16 @@ func _initialize() -> void:
 	print("save   -> ", save_name)
 
 	var saved_cell := world.cell()
+	var saved_notation := world.notation()
+	world.cycle_notation()
+	var cycled_notation := world.notation()
 	if not world.open_game(save_name):
 		push_error("open_game failed")
 		quit(1)
 		return
 
 	print("open   -> ", world.cell(), " (saved at ", saved_cell, ")")
+	print("notation -> ", world.notation(), " (saved in ", saved_notation, ", cycled to ", cycled_notation, ")")
 
 	if not world.remove_game(save_name):
 		push_error("remove_game failed")

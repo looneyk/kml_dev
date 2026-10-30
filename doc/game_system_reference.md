@@ -716,16 +716,14 @@ group's selection only if the `modifiable` that `insert_group` takes is. They th
 nothing, for a setting that is not modifiable; for a group member unless the member, the group, and its modifiable
 preset all are; and for a group's preset values unless the group and each member are. `initialize_values(values,
 preset_values)` sets values in one operation whether or not they are modifiable, and `SettingsSnapshot::restore` uses
-it, so opening a game or loading a settings file sets settings that are not modifiable. `Setting::initializer_setting`
-refers to another setting: `apply_initializers(scope)` sets each setting of the scope that has one to that setting's
-value, skipping an initializer setting that is not defined, and throws, changing nothing, for one whose value is invalid
-or out of range for the setting it initializes. Which settings may initialize which is the client's to decide.
-Modifiability and initializers work the same in every scope; the settings library has no rule of a client's.
+it, so opening a game or loading a settings file sets settings that are not modifiable. Modifiability works the same in
+every scope; the settings library has no rule of a client's.
 
-`insert_definitions` applies stratum's rules: every user setting and group is modifiable, a game setting or group only
-if its definition has `modifiable` true, and only a game setting has an initializer. It throws `std::runtime_error` for a
-user setting or group whose definition has `modifiable`, or a user setting with an `initializer`. `Game::create` calls
-`apply_initializers(game_setting_scope)`. `setting_definitions.hpp` has stratum's two scope names, `user_setting_scope`,
+`insert_definitions` applies stratum's rules: every user setting and group is modifiable, and a game setting or group
+only if its definition has `modifiable` true. It throws `std::runtime_error` for a user setting or group whose
+definition has `modifiable`. `Game::create` sets the game settings in the manifest's `settings` with
+`initialize_values`, and throws `std::runtime_error` for a key that is not a game setting or a value outside its
+setting's range. `setting_definitions.hpp` has stratum's two scope names, `user_setting_scope`,
 `"user"`, and `game_setting_scope`, `"game"`, to which `insert_definitions` maps a definition file's `user` and `game`.
 
 ### Game and Character
@@ -750,9 +748,11 @@ writes nothing. The terminal's build copies its development `config.json`, which
 `../../assets`, beside the executable in `bin/<Config>/`, and the Godot project has its own.
 
 `Game` is also constructed with a `stratum_format::GameManifestDocument`, in `GameManifestDocument.hpp`, which defines
-the game the program plays and lasts as long as the host: its `notation`, the notation of every zone; its `views`,
-names that only the host interprets; `view_menu`, true if the host offers the views in a menu at startup; and
-`default_view`, one of the views. `manifest()` returns it. `read_game_manifest(filepath)` reads a game manifest file,
+the game the program plays and lasts as long as the host: its `notation`, the default notation of a new game; its
+`views`, names that only the host interprets; `view_menu`, true if the host's menu offers the view and the notation;
+`default_view`, one of the views; and `settings`, the values a new game's game settings take in place of their
+defaults. `manifest()` returns it. A game has one notation, the notation of every zone, which
+`create` is given and `open` reads from `game.json`; `notation()` returns it, or the manifest's before any game. `read_game_manifest(filepath)` reads a game manifest file,
 and throws `std::runtime_error` for a key the format does not have, a notation that is not one, no views, a view
 listed twice, or a default view that is not one of the views (`game_file_spec.md`, `## The game manifest file`). Each host loads the file that its `manifest=` argument refers to, relative to the assets
 directory.
@@ -796,8 +796,8 @@ default before each test case that starts from it.
 `Game::clear` returns the game scope's settings to their defaults, which selects its groups' default presets and leaves
 their modifiable presets undefined, so a game created or opened starts from them.
 
-The working directory has only the game in progress. `Game::create(region_spec, character_spec, seed)` clears, applies
-the game settings' initializers with `apply_initializers(game_setting_scope)`, resets the id allocator to count from zero, and sets the world seed to the seed, or to one from `math::random_seed()`
+The working directory has only the game in progress. `Game::create(region_spec, character_spec, notation, seed)` clears, applies
+the manifest's game settings, sets the game's notation, resets the id allocator to count from zero, and sets the world seed to the seed, or to one from `math::random_seed()`
 if none is passed, with `World::set_world_seed`. It seeds the gameplay random engine with the world seed, keeps it, and
 writes it to the log, so nothing passes from one game to the next. It empties the working directory and creates the game directory there, named by the
 character, whose name the spec must have, with each character a directory name cannot have replaced by `_`. It has the
@@ -807,8 +807,8 @@ If either throws, it clears again and removes the game directory before passing 
 no game in progress.
 
 `Game::open(save_name)` clears, then empties the working directory and copies the save into it as the game directory,
-named by the character as `create` names it, read from the top of the save's `character.json`. It reads `game.json`: the id
-allocator counts on from `next_id`, the game's settings snapshot is restored, the world seed is set from `seed`, and the gameplay random engine's state is restored with `set_state`, or the
+named by the character as `create` names it, read from the top of the save's `character.json`. It reads `game.json`: the
+game's notation is set from `notation`, the id allocator counts on from `next_id`, the game's settings snapshot is restored, the world seed is set from `seed`, and the gameplay random engine's state is restored with `set_state`, or the
 random engine is reseeded from `math::random_seed()`, the seed written to the log, if the boolean setting
 `Game::reseed_on_open_key`, `gameplay.reseed_on_open`, is true; the random engine and the world seed are the same either way. Restoring repeats the outcomes the save would have had; reseeding gives
 each opening different outcomes. `World::open`
@@ -822,8 +822,7 @@ without parsing the character; an empty
 description; the time `game.json` was written; and its `SaveType`, from the suffix that ends the save's name. It throws `std::runtime_error` if a save's character file cannot be
 read or has no name.
 
-`Game::save(save_type)` writes `game.json` into the game directory, with the manifest's notation, which opening does not
-use, the id allocator's next id, the world seed, and the gameplay
+`Game::save(save_type)` writes `game.json` into the game directory, with the game's notation, the id allocator's next id, the world seed, and the gameplay
 random engine's state as `state()` returns it, under `random_engines`, and the game scope's settings snapshot
 under `settings` and `presets`; has the character write `character.json` there, through
 `make_character_document`, and the world save; and then copies the game directory to a new directory in the saves
@@ -892,10 +891,12 @@ warnings with `push_warning`, and the rest with `print`, and its run log file. T
 Each host registers each of `stratum_gen::generators()` as a `Generation::generator_type` that makes a `ZoneRequest`
 from the `ZoneSpec` and passes it on: the `name`, the spec's position, the `seed`, which `create_zone` adds to every
 `ZoneSpec` it passes, and the keys after `parameters.`. It also registers a temporary generator selector named
-`dungen`, until the generators are integrated. It creates the game from a temporary `RegionSpec`, whose
-`generator_selector` is `dungen`, whose `entry_access` is `staircase,1`, and whose `zone.position.z` is -1, and a
-temporary `CharacterSpec` with the name "Adventurer". The selector chooses the `dungen` generator for every zone, and names the zone
-"Dungeon Level N", where N is the absolute value of the level. So the character begins at the staircase leading up on
+`notation_generator`, until the common generator selector. It creates the game from a temporary `RegionSpec`, whose
+`generator_selector` is `notation_generator`, whose `entry_access` is `staircase,1`, and whose `zone.position.z` is
+-1, and a temporary `CharacterSpec` with the name "Adventurer". The selector chooses the generator that
+`stratum_gen::generator_name` returns for `Game::notation()` for every zone, `dungen` for the block notation and
+`catagen` for the wall notation, and names the zone "Dungeon Level N", where N is the absolute value of the level. Unless
+the spec has a `parameters.extent`, it adds one from the game settings `world.zone_size.x` and `.y`. So the character begins at the staircase leading up on
 the first level down, and a staircase leads to a new zone the first time it is taken, and back through the bound
 staircase after that.
 
@@ -903,8 +904,10 @@ staircase after that.
 none, an optional `position`, a `seed`, and `parameters`, which the generator reads, as the tokens its zone file's `generator`
 section has. `generator_function_type` takes a `ZoneRequest` and returns a `stratum_format::Document`, and
 `stratum_gen::generators()` returns a map from each generator's name to its function. `generate_dungen`, under
-`dungen`, runs dungen with its default parameters at the request's level, with its name and seed, and returns the
-document `dungen::make_document` builds in memory; it reads no `parameters` yet. dungen writes its warnings to the
+`dungen`, and `generate_catagen`, under `catagen`, each set the parameters the request's `parameters` refer to with
+their library's `set_parameter` and skip the keys that are not its parameters, since every generator is given the same
+tokens. The request's position and seed replace any the tokens set, and each returns the document its library's
+`make_document` builds in memory. dungen writes its warnings to the
 process-wide log. The `ZoneSpec` keys are `stratum_sim::name_key`, the position keys, `seed_key` and
 `parameters_prefix`.
 
@@ -1060,14 +1063,14 @@ A setting definition file has the format `quetzal.stratum_setting_definitions` (
 file`). `SettingDefinitionsDocument`, in `SettingDefinitionsDocument.hpp`, has the format's name and version and the file's path, `data/setting_definitions.json` relative to the assets directory or
 a mod's directory, and the file's `enumerations`, `settings` and `groups`, each in the file's order, with every value as
 text and a scope as `Scope::User` or `Scope::Game`. A setting's `default` is required, and so are a group's `members` and
-`presets`. A setting and a group have `modifiable`, false if absent, and a setting may have an `initializer`, an object
-whose one form, `{ "setting": key }`, is read into `initializer_setting`. `read_setting_definitions` requires the format
+`presets`. A setting and a group have `modifiable`, false if absent. `read_setting_definitions` requires the format
 and the version, allows each section to be absent, and throws `std::runtime_error` for a key the format does not have, a
 required key that is absent, a value that is not text, or a scope that is not `user` or `game`. The game's file is
 `assets/data/setting_definitions.json`, with the difficulty multipliers and the `gameplay.difficulty` group, all
 modifiable, and the world's dimensions: the game settings `world.world_size.x` and `.y`, 1000000 by default, and
-`world.region_size.x`, `.y` and `.z`, 1000 by default, each fixed and initialized from the user setting with `_default`
-after `world_size` or `region_size`, which has the same default.
+`world.region_size.x`, `.y` and `.z`, 1000 by default, and `world.zone_size.x` and `.y`, the size of a zone in cells, 40
+and 20 by default, each fixed for the game. The terminal's manifests set the zone size: 40 by 20 in the block notation
+and 32 by 12 in the wall notation, whose lattice view is about twice as large.
 
 A settings file, such as the user settings file, has the format `quetzal.stratum_settings` (`game_file_spec.md`, `## The
 user settings file`). `SettingsDocument`, in `SettingsDocument.hpp`, has one scope's `settings::SettingsSnapshot`, as
@@ -1185,14 +1188,12 @@ the xterm extension XTWINOPS to resize.
 `read_key` returns one key without waiting for a newline: `_getch` on Windows, termios raw mode elsewhere. Arrow keys
 become `Key::Up`, `Down`, `Left` or `Right`.
 
-With the manifest's `view_menu` true, the host starts at the views page, which lists the manifest's views, numbered, with
-the selected view marked `>`, starting on the default view. Up and Down, or `k` and `j`, move the selection, and Enter
-chooses the selected view and a digit the view of that number, and shows the main page. With `view_menu` false, the
-host uses the default view and starts at the main page.
-
-The main page of the menu is drawn in place of the map, with `n` for a new game, `c` to continue the game in progress
-and `s` to save it, each offered only while there is one, `o` to open a save, and `q` to quit, which clears the game
-and ends the run. Escape on the menu also continues. A new game is created from the host's temporary specs, its
+The host starts at the main page of the menu, drawn in place of the map, with `n` for a new game, `c` to continue the
+game in progress and `s` to save it, each offered only while there is one, `o` to open a save, and `q` to quit, which
+clears the game and ends the run. With the manifest's `view_menu` true, the page also shows the view, starting on the
+default view, with `v` to change it to the next of the manifest's views, and the notation, with `t` to change it to
+the other one; with `view_menu` false, the host uses the default view and the manifest's notation. The view applies at once; the notation is the one a new game is
+created in, the manifest's at first and the opened game's after a save is opened. Escape on the main page also quits, so Escape twice during play ends the run. A new game is created from the host's temporary specs, its
 character named "Adventurer". A failure to create one is shown on the menu's status line, and so is "Game saved.",
 after `Game::save` with `SaveType::Explicit`, or the reason it failed. `o` shows the saves page: the nine newest saves
 from `Game::saved_games`, numbered, each as its character's name, the local time of the save to the minute, and its
@@ -1214,8 +1215,8 @@ host charges a wait. `read_key` returns `Key::Enter` and `Key::Delete` as it ret
 The host's arguments are `key=value` tokens: `manifest=file`, which is required, `script=keys`, and
 `incremental=true|false`. `main` reads the config and the manifest and constructs `Application` with them; a missing
 manifest, an argument that is not a token, or a token the host does not take prints the usage line and exits with 1.
-`script=` plays a key sequence instead of the keyboard, beginning at the menu, so a script that plays starts with `n`,
-after a view's digit if the manifest has a view menu; an ESC character in it is the Escape key, a newline the Enter
+`script=` plays a key sequence instead of the keyboard, beginning at the menu, so a script that plays starts with `n`;
+an ESC character in it is the Escape key, a newline the Enter
 key, and a DEL character the Delete key, and the run quits once the script is exhausted. `incremental=true` uses the
 cursor-addressed output, and `false` writes every frame in full, one after another; without the token, a run is
 incremental unless it has a script. Visual Studio runs the host with the block notation manifest.
@@ -1240,7 +1241,8 @@ Studio's debugger arguments, which `quetzal_configure_gdextension` takes after t
 notation manifest.
 
 `StratumWorld` is the one registered class, a `RefCounted` that owns a `Game`, with only Godot types in its
-interface: `create_game`, `has_game`, `game_over`, `menu_open`, `menu_close`, `quit_game`, `save_game`, `saved_games`, `open_game`, `remove_game`, `extent`, `cell`, `render`, `cells`,
+interface: `create_game`, `has_game`, `game_over`, `menu_open`, `menu_close`, `quit_game`, `save_game`, `saved_games`, `open_game`, `remove_game`,
+`view`, `cycle_view`, `notation`, `cycle_notation`, `extent`, `cell`, `render`, `cells`,
 `actors`, `step`, `interact`,
 `enter`, `turn`, and `message`. `step` sets the character's intent, turning toward the direction moved as the view does not show the
 facing direction, and advances through the turn-based driver; `interact` submits `Interact` and `enter` submits
@@ -1252,7 +1254,10 @@ while one is in progress, `game_over` returns true once the character is dead, a
 explicitly and returns the save's name, `saved_games` returns the saves, newest first, each a `Dictionary` of its
 `save_name`, its `character_name`, its local `time` to the minute, and its `save_type`, shown in the tile view's saves
 page as the terminal host shows it, `open_game(save_name)` opens one and starts
-play, and `remove_game(save_name)` deletes one. Exceptions do not cross into Godot: a failed creation, opening or
+play, and `remove_game(save_name)` deletes one. `view` returns the view, the manifest's default view at first, and `cycle_view`
+changes it to the next of the manifest's views. `notation` returns the
+notation a new game is created in, the manifest's at first and the opened game's after `open_game`, and
+`cycle_notation` changes it to the other one. Exceptions do not cross into Godot: a failed creation, opening or
 deletion pushes the reason to Godot's error list and returns false, and a failed creation or opening leaves no game in
 progress; a failed save pushes the reason and returns an empty name, and a failed
 listing an empty array; and a game whose `advance` throws during `step`, `interact` or `enter` pushes the reason and
@@ -1266,14 +1271,15 @@ is quit, as it cannot continue.
 `hjkl` keys, with space calling `interact` and `<` or `>` calling `enter`. A held movement key repeats, and any other
 key acts once per press. Its tileset is built at run time from flat colors: stairs in two blues, an open door lighter than a closed one, the
 character in yellow, and any other actor in red. It repaints from the new extent when the character enters a zone of another
-size. Row zero is the lowest in the simulation and y grows
+size, and sizes the window to the zone below a 32 pixel status line, centered on the screen, with each tile drawn at
+twice its 16 pixels, or smaller for a zone too large for the screen. Row zero is the lowest in the simulation and y grows
 downward in Godot, so the view inverts j when it paints.
 
 The tile view starts at its menu, a dark screen over the view with the same choices and keys as the terminal host's:
-`N` for a new game, `C` or Escape to continue the game in progress, `S` to save it, which shows "Game saved" on the
+`N` for a new game, `C` to continue the game in progress, `S` to save it, which shows "Game saved" on the
 menu, `O` for the saves page, which lists, selects, opens and deletes saves, with Y to
-confirm a deletion, and `Q` to quit the game and
-Godot. During play,
+confirm a deletion, `T` to change the notation, `V` to change the view, and `Q` or Escape to quit the game and
+Godot. The menu shows the view and the notation. During play,
 Escape opens the menu, and no other key quits. When `game_over` returns true, the status line asks for a key, which
 quits the game and shows the menu. A game quit because it failed shows the menu with a message referring to Godot's
 error list. `--new-game` after `--` on Godot's command line starts a new game without showing the menu.
@@ -1282,14 +1288,17 @@ error list. `--new-game` after `--` on Godot's command line starts a new game wi
 names the library as Godot expects and writes it into the project rather than a per-configuration subdirectory.
 
 The root forces `CMAKE_MSVC_RUNTIME_LIBRARY` into the cache, because godot-cpp caches the static release CRT even for
-a debug build, and quetzal's static libraries then do not link. godot-cpp's headers are SYSTEM includes,
+a debug build, and quetzal's static libraries then do not link. `library3` turns `GODOTCPP_DISABLE_EXCEPTIONS` off,
+since the extension catches the exceptions of the quetzal libraries, and MSVC's `std::exception` has another layout
+with exceptions disabled. godot-cpp's headers are SYSTEM includes,
 so they do not report `/W4` warnings in the extension's sources. `KML_DEV_GODOT` governs all of it; when it is
 configured off, godot-cpp is not processed and neither the library nor the host exists.
 
 Two headless checks need no display: `--path project --script main.gd -- manifest=data/manifests/godot_block.json`
-exercises the extension directly, through a save, the opening of that save, and its deletion, and
+exercises the extension directly, through a save, the opening of that save, which restores the notation changed
+before it, and its deletion, and
 `--path project --quit-after 5 -- manifest=data/manifests/godot_block.json --new-game` runs the tile scene in a new
-game, which reports the cells it painted; without `--new-game` it reports that the menu is shown. A project has to be imported
+game, which reports the cells it painted and the window's size; without `--new-game` it reports that the menu is shown. A project has to be imported
 once (`--headless --path project --import`) before Godot sees the extension; otherwise the class is undeclared, with
 no indication why.
 
@@ -1379,7 +1388,7 @@ The build is CMake, with the solution at `build/kml_dev.slnx`. `/std:c++latest /
 third-party sources at `/W1` and flecs and godot-cpp included as SYSTEM. `quetzal_stratum_sim` links `quetzal_common`,
 `quetzal_settings`, `quetzal_stratum_format` and `flecs_static`, and privately `quetzal_log`; `quetzal_stratum_view` links `quetzal_stratum_sim`; `quetzal_settings`
 links `quetzal_common`;
-`quetzal_stratum_gen` links `quetzal_common`, `quetzal_dungen` and `quetzal_stratum_format`; both hosts link `quetzal_log`,
+`quetzal_stratum_gen` links `quetzal_catagen`, `quetzal_common`, `quetzal_dungen` and `quetzal_stratum_format`; both hosts link `quetzal_log`,
 `quetzal_stratum_gen` and `quetzal_stratum_view`. `quetzal_dungen` links `quetzal_log`. `quetzal_stratum_format`
 links `quetzal_common`, `quetzal_log`, `quetzal_settings` and `nlohmann_json`, vendored at
 `library3/json` with its headers SYSTEM.

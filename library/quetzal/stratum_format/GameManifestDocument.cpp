@@ -18,7 +18,7 @@ namespace
     using namespace quetzal::stratum_format;
     using namespace quetzal::stratum_format::detail;
 
-    constexpr std::array<std::string_view, 6> file_keys {"format", "version", "notation", "views", "view_menu", "default_view"};
+    constexpr std::array<std::string_view, 7> file_keys {"format", "version", "notation", "views", "view_menu", "default_view", "settings"};
 
     //--------------------------------------------------------------------------
     GameManifestDocument read_game_manifest_document(const raw_values_type& v)
@@ -62,6 +62,11 @@ namespace
         if (std::ranges::find(document.views, document.default_view) == document.views.end())
         {
             fail("default_view", std::format("'{}' is not one of the views", document.default_view));
+        }
+
+        if (const raw_values_type* settings = member(v, "settings"); settings != nullptr)
+        {
+            document.settings = text_values(*settings, "settings");
         }
 
         return document;

@@ -173,7 +173,7 @@ The state the game needs to continue from where it was saved, which belongs to n
 
 | Key | |
 | --- | --- |
-| `notation` | The game manifest's notation, `block` or `wall`, written for a reader of the file; opening the game does not use it |
+| `notation` | The game's notation, `block` or `wall`, the notation of every zone; opening the game restores it |
 | `next_id` | The persistent id the game's id allocator returns next |
 | `seed` | The world seed, which the gameplay random engine is seeded from and every region's and zone's seed derives from |
 | `random_engines` | The state of each random engine, by the random engine's stream: `gameplay` and `generation` (`random_engine.md`, `## Streams`) |
@@ -322,19 +322,23 @@ terminal's block notation manifest is:
   "notation": "block",
   "views": ["cell", "lattice"],
   "view_menu": true,
-  "default_view": "cell"
+  "default_view": "cell",
+  "settings": { "world.zone_size.x": "40", "world.zone_size.y": "20" }
 }
 ```
 
 | Key | |
 | --- | --- |
-| `notation` | The notation of every zone of the game, `block` or `wall` |
+| `notation` | The notation a new game is created in, `block` or `wall`, unless a host's menu changes it |
 | `views` | The names of the views the host offers, in the order its menu lists them, each a view the host has |
-| `view_menu` | True if the host offers the views in a menu at startup, false if it uses the default view, as a test does |
+| `view_menu` | True if the host's menu offers the view and the notation, false if it uses the default view and the manifest's notation, as a test does |
 | `default_view` | One of the views: the one the menu starts on, or the one used without a menu |
+| `settings` | Optional. Game settings by key, each value as text, that a new game uses instead of the settings' defaults |
 
-Every key is required, and a key the format does not have is an error, as are a notation that is not one, an empty
-list of views, a view listed twice, and a default view that is not one of the views.
+Every key but `settings` is required, and a key the format does not have is an error, as are a notation that is not
+one, an empty list of views, a view listed twice, a default view that is not one of the views, and a setting value that
+is not text. Creating a game with a setting that is not a game setting, or a value outside its setting's range, is an
+error.
 
 ## The user settings file
 

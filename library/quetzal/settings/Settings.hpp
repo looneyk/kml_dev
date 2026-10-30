@@ -110,9 +110,6 @@ namespace quetzal::settings
         // Sets the value of each setting in the scope to its default
         void reset(std::string_view scope);
 
-        // Sets the value of each setting in the scope to the value of its setting's initializer_setting
-        void apply_initializers(std::string_view scope);
-
         // Returns the defined values of the modifiable presets of the scope's groups
         preset_values_type preset_values(std::string_view scope) const;
 

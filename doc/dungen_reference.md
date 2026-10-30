@@ -163,9 +163,10 @@ dungen [zone] [algorithm=maze1|grid1|cave1] [extent=nx,ny] [name=text]
 
 An argument with an `=` is a token, split at the first `=` into a key and a value; any other argument is the zone path,
 `dungen.zone` by default. The tool takes `name` and `log_level` for itself and passes the other tokens to
-`set_parameters`, the reader `stratum_gen` also uses. Its keys are those of the zone file's generator parameters, so a
-file's parameters, given as tokens, reproduce its zone. A key that is not a parameter, or a value that is not of the
-parameter's type, throws `std::invalid_argument`. A run given no `seed` draws one, so the file has a seed either way.
+`set_parameters`. Its keys are those of the zone file's generator parameters, so a file's parameters, given as tokens,
+reproduce its zone. A key that is not a parameter, or a value that is not of the parameter's type, throws
+`std::invalid_argument`. `set_parameters` calls `set_parameter` for each token, which returns false for a key that is
+not a parameter, and `stratum_gen` calls `set_parameter` directly so that it skips such keys. A run given no `seed` draws one, so the file has a seed either way.
 
 Each token sets the group it belongs to, whichever algorithm was chosen, so a token may be given before the `algorithm`
 it applies to. `room_density` and `door_probability` are shared by two groups and set both. `stairs_down` and

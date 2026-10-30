@@ -62,6 +62,9 @@ endif()
 
 if(KML_DEV_GODOT)
     set(GODOTCPP_API_VERSION "4.7" CACHE STRING "Godot API version the bindings target")
+    # The extension catches the exceptions the quetzal libraries throw, and with exceptions disabled MSVC's std::exception
+    # has another layout, which keeps a pointer to the message rather than a copy
+    set(GODOTCPP_DISABLE_EXCEPTIONS OFF CACHE BOOL "" FORCE)
     add_subdirectory(godot-cpp)
 
     # Same treatment as flecs above and for the same reason: these headers compile as part of

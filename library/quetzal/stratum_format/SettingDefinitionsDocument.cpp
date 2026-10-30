@@ -22,9 +22,8 @@ namespace
 
     constexpr std::array<std::string_view, 5> file_keys {"format", "version", "enumerations", "settings", "groups"};
     constexpr std::array<std::string_view, 2> enumeration_keys {"name", "values"};
-    constexpr std::array<std::string_view, 12> setting_keys {"key", "type", "default", "scope", "restart_required", "modifiable", "initializer",
+    constexpr std::array<std::string_view, 11> setting_keys {"key", "type", "default", "scope", "restart_required", "modifiable",
         "display_name", "description", "category", "minimum", "maximum"};
-    constexpr std::array<std::string_view, 1> initializer_keys {"setting"};
     constexpr std::array<std::string_view, 8> group_keys {"key", "scope", "modifiable", "default_preset", "display_name", "category", "members",
         "presets"};
     constexpr std::array<std::string_view, 4> preset_keys {"name", "display_name", "modifiable", "values"};
@@ -134,15 +133,6 @@ namespace
         setting.scope = read_scope(v, path);
         setting.restart_required = optional_boolean(v, path, "restart_required");
         setting.modifiable = optional_boolean(v, path, "modifiable");
-
-        if (const raw_values_type* p = member(v, "initializer"); p != nullptr)
-        {
-            const std::string initializer_path = member_path(path, "initializer");
-            const raw_values_type& initializer = object(*p, initializer_path);
-            check_definition_keys(initializer, initializer_path, initializer_keys);
-            setting.initializer_setting = required_string(initializer, initializer_path, "setting");
-        }
-
         setting.display_name = optional_string(v, path, "display_name").value_or("");
         setting.description = optional_string(v, path, "description").value_or("");
         setting.category = optional_string(v, path, "category").value_or("");

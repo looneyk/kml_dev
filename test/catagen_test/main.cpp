@@ -559,6 +559,16 @@ TEST_SUITE("parameters reproduce their zone")
         return;
     }
 
+    TEST_CASE("set_parameter sets a parameter, and returns false for a key that is not one")
+    {
+        catagen::Parameters parameters;
+
+        CHECK(catagen::set_parameter(parameters, "density", "0.5"));
+        CHECK(parameters.density == 0.5);
+        CHECK_FALSE(catagen::set_parameter(parameters, "room_merge", "true"));
+        return;
+    }
+
     TEST_CASE("a zone given a position has it in its layout and its parameters, from which it regenerates")
     {
         catagen::Parameters positioned = scenarios().front().parameters;

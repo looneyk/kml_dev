@@ -4,6 +4,15 @@ extends Node2D
 
 const TILE_SIZE := 16
 
+# The most screen pixels a tile's side is drawn at; a zone too large for the screen is drawn smaller
+const TILE_SCALE_MAX := 2.0
+
+# The status line's height in the window, above the zone
+const STATUS_HEIGHT := 32
+
+# The window's title bar and border, which its size does not include, are kept within the usable screen
+const WINDOW_FRAME_SIZE := Vector2i(16, 48)
+
 # Flat color tiles, indexed by StratumWorld.PlaceType, with an entry for every value
 const PLACE_COLORS: Array[Color] = [
 	Color(0.00, 0.00, 0.00, 0.0),  # none, not emitted
@@ -71,14 +80,14 @@ func _ready() -> void:
 	_build_menu(ui)
 
 	_camera = Camera2D.new()
-	_camera.zoom = Vector2(2.0, 2.0)
+	_camera.zoom = Vector2(TILE_SCALE_MAX, TILE_SCALE_MAX)
 	add_child(_camera)
 	_camera.make_current()
 
 	if NEW_GAME_ARGUMENT in OS.get_cmdline_user_args():
 		_new_game()
 		print("tile view: ", _extent, " cells, ", _layer.get_used_cells().size(), " painted from ",
-			_layer.tile_set.get_source(0).get_tiles_count(), " tiles")
+			_layer.tile_set.get_source(0).get_tiles_count(), " tiles, in a window of ", get_window().size)
 	else:
 		_show_menu("")
 		print("tile view: menu shown")
@@ -129,6 +138,8 @@ func _show_menu(message: String) -> void:
 		lines.append("S   Save")
 
 	lines.append("O   Open")
+	lines.append("T   Notation  " + _world.notation())
+	lines.append("V   View      " + _world.view())
 	lines.append("Q   Quit")
 
 	if not message.is_empty():
@@ -203,7 +214,7 @@ func _refresh() -> void:
 		_extent = extent
 		_layer.clear()
 		_actor_layer.clear()
-		_camera.position = Vector2(_extent.x, _extent.y) * TILE_SIZE * 0.5
+		_fit_window()
 
 	var cells := _world.cells()
 	var actors := _world.actors()
@@ -226,6 +237,22 @@ func _refresh() -> void:
 
 	if _world.game_over():
 		_status.text += "   Press any key."
+
+
+# Sizes the window to the zone below the status line, and centers it on the screen
+func _fit_window() -> void:
+	var zone_size := Vector2(_extent.x, _extent.y) * TILE_SIZE
+	var tile_scale := TILE_SCALE_MAX
+
+	# A headless run has no screen
+	var usable := DisplayServer.screen_get_usable_rect().size - WINDOW_FRAME_SIZE
+	if usable.x > 0 and usable.y > STATUS_HEIGHT:
+		tile_scale = minf(tile_scale, minf(usable.x / zone_size.x, (usable.y - STATUS_HEIGHT) / zone_size.y))
+
+	_camera.zoom = Vector2(tile_scale, tile_scale)
+	_camera.position = zone_size * 0.5 - Vector2(0, STATUS_HEIGHT * 0.5 / tile_scale)
+	get_window().size = Vector2i(zone_size * tile_scale) + Vector2i(0, STATUS_HEIGHT)
+	get_window().move_to_center()
 
 
 func _unhandled_key_input(event: InputEvent) -> void:
@@ -256,7 +283,7 @@ func _menu_key(event: InputEventKey) -> void:
 	match event.keycode:
 		KEY_N:
 			_new_game()
-		KEY_C, KEY_ESCAPE:
+		KEY_C:
 			if _world.has_game():
 				_world.menu_close()
 				_menu.visible = false
@@ -267,7 +294,13 @@ func _menu_key(event: InputEventKey) -> void:
 		KEY_O:
 			_save_selected = 0
 			_show_saves("")
-		KEY_Q:
+		KEY_T:
+			_world.cycle_notation()
+			_show_menu("")
+		KEY_V:
+			_world.cycle_view()
+			_show_menu("")
+		KEY_Q, KEY_ESCAPE:
 			_world.quit_game()
 			get_tree().quit()
 

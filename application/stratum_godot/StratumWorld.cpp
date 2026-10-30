@@ -5,6 +5,7 @@
 
 #include "StratumWorld.hpp"
 #include "register_types.hpp"
+#include "quetzal/settings/Settings.hpp"
 #include "quetzal/stratum_gen/generators.hpp"
 #include "quetzal/stratum_sim/attachments.hpp"
 #include "quetzal/stratum_sim/DiscreteLayout.hpp"
@@ -16,6 +17,7 @@
 #include "quetzal/stratum_view/cells.hpp"
 #include <godot_cpp/classes/project_settings.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
+#include <algorithm>
 #include <chrono>
 #include <cstdlib>
 #include <exception>
@@ -31,12 +33,14 @@ namespace view = quetzal::stratum_view;
 namespace
 {
 
+    constexpr std::string_view notation_generator_selector_name = "notation_generator";
+
     //--------------------------------------------------------------------------
     // Temporary, until a new game chooses its region: a dungeon whose first zone is the first level down, entered at its
     // staircase leading up
     sim::RegionSpec temporary_region_spec()
     {
-        return sim::RegionSpec {{std::string(sim::generator_selector_key), "dungen"}, {std::string(sim::entry_access_key), "staircase,1"},
+        return sim::RegionSpec {{std::string(sim::generator_selector_key), std::string(notation_generator_selector_name)}, {std::string(sim::entry_access_key), "staircase,1"},
             {std::format("{}{}", sim::zone_prefix, sim::position_z_key), "-1"}};
     }
 
@@ -50,15 +54,22 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Temporary, until the generators are integrated: every zone of the starting region is made with dungen, named
-    // "Dungeon Level N" for its level
-    sim::Generation::GeneratorSelection select_dungen(const sim::World&, flecs::entity, const sim::ZoneSpec& zone_spec)
+    // Temporary, until the common generator selector: every zone of the starting region is made by the generator of the
+    // game's notation, named "Dungeon Level N" for its level, and of the game's zone size unless the spec has an extent
+    sim::Generation::GeneratorSelection select_notation_generator(quetzal::stratum_format::Notation notation, const sim::ZoneSpec& zone_spec)
     {
         sim::ZoneSpec named_zone_spec = zone_spec;
         const sim::level_type level = sim::zone_position(zone_spec).z;
         named_zone_spec.insert(std::string(sim::name_key), std::format("Dungeon Level {}", std::abs(level)));
 
-        return sim::Generation::GeneratorSelection {std::string(quetzal::stratum_gen::dungen_generator_name), {}, {}, named_zone_spec};
+        const std::string extent_key = std::format("{}extent", sim::parameters_prefix);
+        if (!named_zone_spec.contains(extent_key))
+        {
+            named_zone_spec.insert(extent_key, std::format("{},{}", quetzal::settings::store().value<int64_t>("world.zone_size.x"),
+                quetzal::settings::store().value<int64_t>("world.zone_size.y")));
+        }
+
+        return sim::Generation::GeneratorSelection {std::string(quetzal::stratum_gen::generator_name(notation)), {}, {}, named_zone_spec};
     }
 
     //--------------------------------------------------------------------------
@@ -104,7 +115,9 @@ std::filesystem::path project_directory()
 StratumWorld::StratumWorld() :
     m_game(sim::load_config(project_directory()), game_manifest()),
     m_session(m_game.session()),
-    m_message()
+    m_message(),
+    m_view_slot(static_cast<size_t>(std::ranges::find(m_game.manifest().views, m_game.manifest().default_view) - m_game.manifest().views.begin())),
+    m_notation(m_game.manifest().notation)
 {
     for (const auto& [name, generate] : quetzal::stratum_gen::generators())
     {
@@ -114,7 +127,11 @@ StratumWorld::StratumWorld() :
         };
     }
 
-    m_game.generation().m_generator_selectors["dungen"] = select_dungen;
+    m_game.generation().m_generator_selectors[std::string(notation_generator_selector_name)] =
+        [this](const sim::World&, flecs::entity, const sim::ZoneSpec& zone_spec)
+    {
+        return select_notation_generator(m_game.notation(), zone_spec);
+    };
 }
 
 //------------------------------------------------------------------------------
@@ -152,6 +169,10 @@ void StratumWorld::_bind_methods()
     godot::ClassDB::bind_method(godot::D_METHOD("saved_games"), &StratumWorld::saved_games);
     godot::ClassDB::bind_method(godot::D_METHOD("open_game", "save_name"), &StratumWorld::open_game);
     godot::ClassDB::bind_method(godot::D_METHOD("remove_game", "save_name"), &StratumWorld::remove_game);
+    godot::ClassDB::bind_method(godot::D_METHOD("view"), &StratumWorld::view);
+    godot::ClassDB::bind_method(godot::D_METHOD("cycle_view"), &StratumWorld::cycle_view);
+    godot::ClassDB::bind_method(godot::D_METHOD("notation"), &StratumWorld::notation);
+    godot::ClassDB::bind_method(godot::D_METHOD("cycle_notation"), &StratumWorld::cycle_notation);
 
     return;
 }
@@ -162,7 +183,7 @@ bool StratumWorld::create_game()
     // Exceptions must not cross into Godot. A failed creation leaves no game in progress
     try
     {
-        m_game.create(temporary_region_spec(), temporary_character_spec());
+        m_game.create(temporary_region_spec(), temporary_character_spec(), m_notation);
     }
     catch (const std::exception& e)
     {
@@ -267,6 +288,7 @@ bool StratumWorld::open_game(const godot::String& save_name)
     }
 
     m_message.clear();
+    m_notation = m_game.notation();
     return true;
 }
 
@@ -285,6 +307,34 @@ bool StratumWorld::remove_game(const godot::String& save_name)
     }
 
     return true;
+}
+
+//------------------------------------------------------------------------------
+godot::String StratumWorld::view() const
+{
+    return godot::String::utf8(m_game.manifest().views[m_view_slot].c_str());
+}
+
+//------------------------------------------------------------------------------
+void StratumWorld::cycle_view()
+{
+    m_view_slot = (m_view_slot + 1) % m_game.manifest().views.size();
+    return;
+}
+
+//------------------------------------------------------------------------------
+godot::String StratumWorld::notation() const
+{
+    const std::string_view name = quetzal::stratum_format::name(m_notation);
+    return godot::String::utf8(name.data(), static_cast<int64_t>(name.size()));
+}
+
+//------------------------------------------------------------------------------
+void StratumWorld::cycle_notation()
+{
+    m_notation = m_notation == quetzal::stratum_format::Notation::Block ? quetzal::stratum_format::Notation::Wall
+        : quetzal::stratum_format::Notation::Block;
+    return;
 }
 
 //------------------------------------------------------------------------------

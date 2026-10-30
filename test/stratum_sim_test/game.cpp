@@ -107,7 +107,7 @@ namespace
         auto persistent_id_of = [](flecs::entity e) { return e.get<stratum_sim::PersistentId>().id; };
         auto name_of = [](flecs::entity e) { return e.has<stratum_sim::DisplayName>() ? e.get<stratum_sim::DisplayName>().name : string(); };
 
-        sequence.create(region_spec, stratum_sim::CharacterSpec {.name = "Ailis"});
+        sequence.create(region_spec, stratum_sim::CharacterSpec {.name = "Ailis"}, g_test_manifest.notation);
         flecs::entity first_character = sequence_session.character().entity();
         flecs::entity first_zone = sequence_session.zone();
         flecs::entity first_region = stratum_sim::region_of(first_zone);
@@ -126,7 +126,7 @@ namespace
             stratum_sim::entry_point(first_zone, staircase_type, -1)));
         CHECK_CASE("the first game is played into a second zone", second_zone && second_zone != first_zone && sequence_world.zone_count() == 2);
 
-        sequence.create(region_spec, stratum_sim::CharacterSpec {.name = "Bran"});
+        sequence.create(region_spec, stratum_sim::CharacterSpec {.name = "Bran"}, g_test_manifest.notation);
         flecs::entity second_character = sequence_session.character().entity();
 
         CHECK_CASE("creating another game leaves none of the first game's regions, zones or character", !first_region.is_alive()
@@ -149,14 +149,14 @@ namespace
         sequence.menu_open();
         CHECK_CASE("opening the menu with no game in progress pauses nothing", !sequence_session.paused());
 
-        sequence.create(region_spec, stratum_sim::CharacterSpec {.name = "Cai"});
+        sequence.create(region_spec, stratum_sim::CharacterSpec {.name = "Cai"}, g_test_manifest.notation);
         sequence.menu_open();
         bool paused_on_open = sequence_session.paused();
         sequence.menu_close();
         CHECK_CASE("opening the menu pauses play, and closing it resumes play", paused_on_open && !sequence_session.paused());
 
         sequence.menu_open();
-        sequence.create(region_spec, stratum_sim::CharacterSpec {.name = "Cai"});
+        sequence.create(region_spec, stratum_sim::CharacterSpec {.name = "Cai"}, g_test_manifest.notation);
         CHECK_CASE("a new game chosen from the menu is not paused", sequence_session.loaded() && !sequence_session.paused());
 
         // The game's end
@@ -194,7 +194,7 @@ namespace
         sequence.quit();
         CHECK_CASE("a game quit is not over", !sequence_session.over());
 
-        sequence.create(region_spec, stratum_sim::CharacterSpec {.name = "Cai"});
+        sequence.create(region_spec, stratum_sim::CharacterSpec {.name = "Cai"}, g_test_manifest.notation);
         CHECK_CASE("and a game created after it is not over", !sequence_session.over());
 
         sequence.quit();
@@ -207,7 +207,7 @@ namespace
 
         try
         {
-            sequence.create(unregistered_entry, stratum_sim::CharacterSpec {.name = "Dai"});
+            sequence.create(unregistered_entry, stratum_sim::CharacterSpec {.name = "Dai"}, g_test_manifest.notation);
         }
         catch (const runtime_error&)
         {
@@ -218,6 +218,24 @@ namespace
             unregistered_thrown && !sequence_session.loaded() && sequence_world.entities().count<stratum_sim::Region>() == 0
             && !filesystem::exists(g_test_config.working_directory / "Dai"));
 
+        stratum_format::GameManifestDocument user_setting_manifest = g_test_manifest;
+        user_setting_manifest.settings = KeyValueStore {{"gameplay.reseed_on_open", "true"}};
+        stratum_sim::Game user_setting_game(g_test_config, user_setting_manifest);
+        user_setting_game.generation() = test_generation();
+        bool user_setting_thrown = false;
+
+        try
+        {
+            user_setting_game.create(region_spec, stratum_sim::CharacterSpec {.name = "Dai"}, g_test_manifest.notation);
+        }
+        catch (const runtime_error&)
+        {
+            user_setting_thrown = true;
+        }
+
+        CHECK_CASE("a manifest setting that is not a game setting is an error, which leaves no game and no directory",
+            user_setting_thrown && !user_setting_game.session().loaded() && !filesystem::exists(g_test_config.working_directory / "Dai"));
+
         // Saving zones, with a maximum of one zone loaded so that leaving a zone and trimming unloads it
         const stratum_sim::Config saving_config {"out/saving/saves", "out/saving/working", 1};
         filesystem::remove_all("out/saving");
@@ -226,7 +244,7 @@ namespace
         stratum_sim::CharacterSpec ailis;
         ailis.name = "Ailis";
         constexpr stratum_sim::RandomStream::seed_type saving_seed = 20261022;
-        saving.create(region_spec, ailis, saving_seed);
+        saving.create(region_spec, ailis, stratum_format::Notation::Wall, saving_seed);
 
         stratum_sim::World& saving_world = saving.world();
         flecs::entity saving_first = saving.session().zone();
@@ -318,7 +336,7 @@ namespace
         CHECK_CASE("game.json has the next id, past every id in the game, the seed the game was created with, and the gameplay random engine's state",
             !game_json.is_discarded() && game_json["format"] == "quetzal.stratum_game" && game_json["game"]["next_id"].get<uint64_t>() > largest_id.id
             && game_json["game"]["seed"] == to_string(saving_seed) && !game_json["game"]["random_engines"]["gameplay"].get<string>().empty());
-        CHECK_CASE("and the manifest's notation", !game_json.is_discarded() && game_json["game"]["notation"] == "block");
+        CHECK_CASE("and the notation the game was created in", !game_json.is_discarded() && game_json["game"]["notation"] == "wall");
 
         stratum_format::raw_values_type character_json = read_json(save_directory / "character.json");
         const stratum_sim::placement_type& character_placement = stratum_sim::placement_of(saving_character);
@@ -456,22 +474,22 @@ namespace
             && settings::store().value<double>(detection_key) == 2 && settings::store().value<double>("gameplay.difficulty.denizen_count_multiplier") == 1.5);
 
         const string world_width_key = "world.world_size.x";
-        CHECK_CASE("a game's world width is the user's default when the game was created, saved with the game",
-            settings::store().value<int64_t>(world_width_key) == 1000000 && settings_game_json["settings"][world_width_key] == "1000000");
+        const string region_width_key = "world.region_size.x";
+        CHECK_CASE("a game's world width is the setting's default, which is not saved, and its region width the manifest's value, which is",
+            settings::store().value<int64_t>(world_width_key) == 1000000 && !settings_game_json["settings"].contains(world_width_key)
+            && settings::store().value<int64_t>(region_width_key) == 7 && settings_game_json["settings"][region_width_key] == "7");
         CHECK_THROWS_AS(settings::store().set_value<int64_t>(world_width_key, 5), runtime_error);
         CHECK_CASE("and fixed during the game", settings::store().value<int64_t>(world_width_key) == 1000000);
 
-        settings::store().set_value<int64_t>("world.world_size_default.x", 64);
-        saving.open(settings_save_name);
-        const bool opened_world_width = settings::store().value<int64_t>(world_width_key) == 1000000;
-        saving.create(region_spec, ailis, saving_seed);
-        CHECK_CASE("a game opened keeps the world width it was created with, and a game created takes the user's default as it is then",
-            opened_world_width && settings::store().value<int64_t>(world_width_key) == 64);
+        saving.create(region_spec, ailis, stratum_format::Notation::Block, saving_seed);
 
+        const stratum_format::Notation created_notation = saving.notation();
         saving.open(replaced_save_name);
         CHECK_CASE("a save whose character's name cannot name a directory opens into one with the characters replaced", opened.loaded()
             && filesystem::is_directory(saving_config.working_directory / "Ailis_ of the _Downs__")
             && !filesystem::exists(game_directory));
+        CHECK_CASE("a game created has the notation it is given, and a game opened the notation of its game.json",
+            created_notation == stratum_format::Notation::Block && saving.notation() == stratum_format::Notation::Wall);
 
         bool absent_thrown = false;
 
@@ -638,18 +656,14 @@ namespace
         document_type user_modifiable;
         user_modifiable.settings.push_back({.key = "mod.torches.size", .type_name = "integer", .default_value = "1",
             .scope = document_type::Scope::User, .modifiable = true});
-        document_type user_initializer;
-        user_initializer.settings.push_back({.key = "mod.torches.size", .type_name = "integer", .default_value = "1",
-            .scope = document_type::Scope::User, .initializer_setting = "mod.torches.style"});
         document_type user_group_modifiable;
         user_group_modifiable.settings.push_back({.key = "mod.torches.count", .type_name = "integer", .default_value = "1",
             .scope = document_type::Scope::User});
         user_group_modifiable.groups.push_back({.key = "mod.torches.amount", .scope = document_type::Scope::User, .modifiable = true,
             .default_preset_name = "one", .member_keys = {"mod.torches.count"}, .presets = {{.name = "one", .values = {{"mod.torches.count", "1"}}}}});
         CHECK_THROWS_AS(stratum_sim::insert_definitions(user_modifiable, test_settings), runtime_error);
-        CHECK_THROWS_AS(stratum_sim::insert_definitions(user_initializer, test_settings), runtime_error);
         CHECK_THROWS_AS(stratum_sim::insert_definitions(user_group_modifiable, test_settings), runtime_error);
-        CHECK_CASE("a user setting or group whose definition has modifiable, or a user setting with an initializer, is an error",
+        CHECK_CASE("a user setting or group whose definition has modifiable is an error",
             !test_settings.contains("mod.torches.size") && !test_settings.contains("mod.torches.amount"));
         return;
     }

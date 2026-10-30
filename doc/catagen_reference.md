@@ -131,7 +131,8 @@ An argument with an `=` is a token, split at the first `=` into a key and a valu
 `catagen.zone` by default. The tool takes `name`, `quiet`, and `log_level` for itself and passes the other tokens to
 `set_parameters`. Its keys are those of the zone file's generator parameters, so a file's parameters, given as tokens,
 reproduce its zone. A key that is not a parameter, or a value that is not of the parameter's type, throws
-`std::invalid_argument`.
+`std::invalid_argument`. `set_parameters` calls `set_parameter` for each token, which returns false for a key that is
+not a parameter, and `stratum_gen` calls `set_parameter` directly so that it skips such keys.
 
 The tool writes the zone to the file and to standard output unless `quiet` is true, with its layout's `unpopulated`
 set. A run given no `seed` takes `random_seed()` before generating, so the file has a seed either way.

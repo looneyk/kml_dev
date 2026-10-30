@@ -537,38 +537,6 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    TEST_CASE("initializers")
-    {
-        Settings test_settings;
-        test_settings.insert("world.size_default", {.type_name = "integer", .default_value = "1000", .modifiable = true});
-        test_settings.insert("world.size", {.type_name = "integer", .default_value = "5", .scope = game_scope,
-            .initializer_setting = "world.size_default", .minimum = "1"});
-        test_settings.insert("world.depth", {.type_name = "integer", .default_value = "3", .scope = game_scope,
-            .initializer_setting = "world.depth_default"});
-
-        test_settings.apply_initializers(game_scope);
-        CHECK_CASE("a setting takes its initializer setting's value, or keeps its own default if that setting is not defined",
-            test_settings.text("world.size") == "1000" && test_settings.text("world.depth") == "3");
-
-        test_settings.set_text("world.size_default", "7");
-        test_settings.apply_initializers(game_scope);
-        CHECK_CASE("and takes the initializer setting's value as it is then", test_settings.text("world.size") == "7");
-
-        test_settings.set_text("world.size_default", "0");
-        CHECK_CASE("an initializer setting's value out of the range of the setting it initializes is an error, which changes nothing",
-            throws_with([&] { test_settings.apply_initializers(game_scope); },
-            "the initializer setting 'world.size_default' of the setting 'world.size' has the value '0', which is not a valid value of it")
-            && test_settings.text("world.size") == "7");
-
-        test_settings.set_text("world.size_default", "7");
-        test_settings.insert("world.width", {.type_name = "integer", .default_value = "5", .scope = game_scope,
-            .initializer_setting = "world.size"});
-        test_settings.apply_initializers(game_scope);
-        CHECK_CASE("an initializer setting may be of the scope it initializes", test_settings.text("world.width") == "7");
-        return;
-    }
-
-    //--------------------------------------------------------------------------
     TEST_CASE("the process-wide store")
     {
         CHECK_CASE("is one store", &store() == &store());

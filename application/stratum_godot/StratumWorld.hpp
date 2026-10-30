@@ -14,6 +14,7 @@
 #include <godot_cpp/variant/packed_byte_array.hpp>
 #include <godot_cpp/variant/string.hpp>
 #include <godot_cpp/variant/vector2i.hpp>
+#include <cstddef>
 #include <filesystem>
 #include <string>
 
@@ -66,6 +67,18 @@ public:
 
     // Deletes the save. False, with the reason pushed to Godot's error list, when it is not deleted
     bool remove_game(const godot::String& save_name);
+
+    // The view the host draws: the manifest's default view at first
+    godot::String view() const;
+
+    // Changes the view to the next of the manifest's views
+    void cycle_view();
+
+    // The notation a new game is created in: the manifest's at first, and the last game's once one is opened
+    godot::String notation() const;
+
+    // Changes the notation a new game is created in to the other one
+    void cycle_notation();
 
     godot::Vector2i extent() const;
     godot::Vector2i cell() const;
@@ -125,6 +138,8 @@ private:
     quetzal::stratum_sim::Game m_game;
     quetzal::stratum_sim::Session& m_session;
     std::string m_message;
+    size_t m_view_slot; // The slot of the view in the manifest's views
+    quetzal::stratum_format::Notation m_notation;
 };
 
 VARIANT_ENUM_CAST(StratumWorld::PlaceType);
