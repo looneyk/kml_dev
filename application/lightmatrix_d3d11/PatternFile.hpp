@@ -2,7 +2,6 @@
 #define QUETZAL_LIGHTMATRIX_PATTERN_HPP
 //------------------------------------------------------------------------------
 // Light Matrix Simulation
-// Copyright (c) 2010 Keith Michael Looney. All Rights Reserved.
 // Pattern.hpp
 //------------------------------------------------------------------------------
 

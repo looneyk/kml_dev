@@ -2,7 +2,6 @@
 #define QUETZAL_TEXTURE_TEST_APPLICATION_HPP
 //------------------------------------------------------------------------------
 // texture_test
-// Copyright (c) 2013 Keith Michael Looney. All Rights Reserved.
 // Application.hpp
 //------------------------------------------------------------------------------
 

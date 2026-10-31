@@ -1,16 +1,10 @@
 #if !defined(QUETZAL_COM_UTIL_HPP)
 #define QUETZAL_COM_UTIL_HPP
-
 //------------------------------------------------------------------------------
-//
-// Copyright (c) 2010 Keith Michael Looney. All Rights Reserved.
-//
-//------------------------------------------------------------------------------
-//
+// quetzal common
 // com_util.hpp
 //
 // add com exception
-//
 //------------------------------------------------------------------------------
 
 #include <objbase.h>

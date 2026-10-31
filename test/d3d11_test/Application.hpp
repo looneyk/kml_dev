@@ -1,8 +1,7 @@
 #if !defined(QUETZAL_CUBES_APPLICATION_HPP)
 #define QUETZAL_CUBES_APPLICATION_HPP
 //------------------------------------------------------------------------------
-// Cubes
-// Copyright (c) 2013 Keith Michael Looney. All Rights Reserved.
+// d3d11_test
 // Application.hpp
 //------------------------------------------------------------------------------
 
