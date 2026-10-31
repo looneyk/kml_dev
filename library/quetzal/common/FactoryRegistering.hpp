@@ -5,7 +5,9 @@
 // Policy class for factory self-registration
 //------------------------------------------------------------------------------
 
+#include <concepts>
 #include <memory>
+#include <utility>
 #include "Factory.hpp"
 #include "Singleton.hpp"
 
@@ -26,7 +28,7 @@ namespace quetzal
 
     protected:
 
-        FactoryRegistering();
+        FactoryRegistering() = default;
         FactoryRegistering(const FactoryRegistering& other) = delete;
         virtual ~FactoryRegistering();
 
@@ -34,36 +36,32 @@ namespace quetzal
 
     private:
 
-        static const volatile bool s_registered;
-
         typedef SingletonHolder<Factory<IdType, BaseType, Args...>> factory_singleton_type;
+
+        static const bool s_registered;
     };
-    
-    //--------------------------------------------------------------------------
-    template<typename IdType, typename BaseType, typename ConcreteType, typename... Args>
-    FactoryRegistering<IdType, BaseType, ConcreteType, Args...>::FactoryRegistering()
-    {
-    }
-    
-    //--------------------------------------------------------------------------
-    template<typename IdType, typename BaseType, typename ConcreteType, typename... Args>
-    FactoryRegistering<IdType, BaseType, ConcreteType, Args...>::~FactoryRegistering()
-    {
-        &s_registered;
-    }
 
     //--------------------------------------------------------------------------
     template<typename IdType, typename BaseType, typename ConcreteType, typename... Args>
     std::shared_ptr<BaseType> FactoryRegistering<IdType, BaseType, ConcreteType, Args...>::create(Args... args)
     {
-        static_assert(is_base_of<base_type, concrete_type>::value && !is_same<base_type, concrete_type>::value, "not base and derived classes");
+        static_assert(std::derived_from<concrete_type, base_type>);
 
-        return std::shared_ptr<BaseType>(new concrete_type(args...));
+        return std::make_shared<concrete_type>(std::forward<Args>(args)...);
     }
 
+    //--------------------------------------------------------------------------
     template<typename IdType, typename BaseType, typename ConcreteType, typename... Args>
-    const volatile bool FactoryRegistering<IdType, BaseType, ConcreteType, Args...>::s_registered =
-        factory_singleton_type::instance().register_creator(ConcreteType::factory_id(), FactoryRegistering<IdType, BaseType, ConcreteType, Args...>::create);
+    FactoryRegistering<IdType, BaseType, ConcreteType, Args...>::~FactoryRegistering()
+    {
+        // Odr-using s_registered instantiates it, and its initialization registers the creator.
+        static_cast<void>(s_registered);
+    }
+
+    //--------------------------------------------------------------------------
+    template<typename IdType, typename BaseType, typename ConcreteType, typename... Args>
+    const bool FactoryRegistering<IdType, BaseType, ConcreteType, Args...>::s_registered =
+        factory_singleton_type::instance().register_creator(ConcreteType::factory_id(), create);
 
 } // namespace quetzal
 
