@@ -106,6 +106,7 @@
 !**/CMakePresets.json
 !**/*.ps1
 !**/*.sh
+**/*.aps
 **/*.cso
 **/*.suo
 **/*.user

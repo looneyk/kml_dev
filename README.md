@@ -3,6 +3,7 @@
 A set of several largely independent projects that share the libraries in
 [`library/quetzal/`](library/quetzal/). The libraries are heavily template-based, written in C++26, and built with CMake and
 MSVC. It is released under the [MIT License](LICENSE), and the project documents are in [`doc/`](doc/).
+The third-party works it includes are listed with their licenses in [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
 
 All of it is work in progress, and its interfaces change without notice.
 

@@ -11,9 +11,9 @@ modify anything under `reference/`.
 
 ## Build
 
-Use forward slashes and dashed MSBuild switches. Do not wrap in `cmd /c`.
+Use forward slashes and dashed MSBuild switches. Do not wrap in `cmd /c`. Paths are relative to the repository root.
 
-    MSBuild C:/Users/Keith/Documents/kml/dev/build/model/mesh_operations/mesh_operations.vcxproj -p:Configuration=Debug -p:Platform=x64 -m
+    MSBuild build/model/mesh_operations/mesh_operations.vcxproj -p:Configuration=Debug -p:Platform=x64 -m
 
 If the build fails, stop. Report the first real compiler error with its file and
 line and do not continue to the run step.
@@ -23,7 +23,7 @@ line and do not continue to the run step.
 The executable resolves `out/` and `reference/` relative to the current
 directory, so it must be run from `model/mesh_operations`:
 
-    cd C:/Users/Keith/Documents/kml/dev/model/mesh_operations && ../../bin/Debug/mesh_operations.exe
+    cd model/mesh_operations && ../../bin/Debug/mesh_operations.exe
 
 The run writes one `.obj` per case into `out/` and prints each file name as it
 goes. It ends with a single aggregate line from `FileValidator::report_results`,
@@ -40,7 +40,7 @@ differ, so deriving the per-case list is your job.
 After the run, compare the two directories yourself to find which cases actually
 differ:
 
-    cd C:/Users/Keith/Documents/kml/dev/model/mesh_operations && diff -rq reference out
+    cd model/mesh_operations && diff -rq reference out
 
 Each name follows the pattern `<model>_<operation>.obj`, for example
 `box_box_vertex_face_identity_ab.obj` or `cube_octahedron_inclusion_difference_ba.obj`.
