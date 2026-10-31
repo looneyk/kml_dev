@@ -5,7 +5,9 @@
 // types.hpp
 //------------------------------------------------------------------------------
 
+#include "quetzal/common/id.hpp"
 #include "quetzal/geometry/DiscreteBox.hpp"
+#include "quetzal/geometry/DiscreteDirectedPoint.hpp"
 #include "quetzal/geometry/DiscretePoint.hpp"
 #include "quetzal/math/DiscreteVector.hpp"
 #include <compare>
@@ -18,6 +20,7 @@ namespace quetzal::catagen
     using vector_type = math::DiscreteVector<coord_type, 2>;
     using point_type = geometry::DiscretePoint<coord_type, 2>;
     using box_type = geometry::DiscreteBox<coord_type, 2>;
+    using directed_point_type = geometry::DiscreteDirectedPoint<coord_type, 2>;
 
     // A zone's position in its region
     using zone_position_type = geometry::DiscretePoint<coord_type, 3>;
@@ -36,8 +39,7 @@ namespace quetzal::catagen
     {
         Solid,
         Open,
-        StairsDown,
-        StairsUp
+        Staircase
     };
 
     //--------------------------------------------------------------------------

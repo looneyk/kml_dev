@@ -47,8 +47,7 @@ namespace
         {
             case CellType::Solid: return ' ';
             case CellType::Open: return '.';
-            case CellType::StairsDown: return '>';
-            case CellType::StairsUp: return '<';
+            case CellType::Staircase: return '>';
         }
 
         assert(false);
@@ -78,8 +77,7 @@ namespace
             return false;
         }
 
-        CellType type = zone.cell(cell);
-        return type == CellType::StairsDown || type == CellType::StairsUp;
+        return zone.cell(cell) == CellType::Staircase;
     }
 
     //--------------------------------------------------------------------------
@@ -143,6 +141,15 @@ namespace
             result.push_back(std::move(row));
         }
 
+        for (const auto& staircase : zone.staircases())
+        {
+            if (staircase.rise() == Rise::Up)
+            {
+                point_type position = staircase.placement().position();
+                result[static_cast<size_t>(height - 2 - 2 * position.j())][static_cast<size_t>(2 * position.i() + 1)] = '<';
+            }
+        }
+
         return result;
     }
 
@@ -199,31 +206,21 @@ quetzal::stratum_format::Document quetzal::catagen::make_document(const Zone& zo
 
     size_t staircase_count = 0;
 
-    for (coord_type j = 0; j < zone.extent().j(); ++j)
+    for (const auto& staircase : zone.staircases())
     {
-        for (coord_type i = 0; i < zone.extent().i(); ++i)
-        {
-            CellType type = zone.cell({i, j});
-            if (type != CellType::StairsDown && type != CellType::StairsUp)
-            {
-                continue;
-            }
+        // The staircase's cell is a block, and it is sited on the wall its open neighbor presents to that block
+        const directed_point_type placement = staircase.placement();
+        const vector_type open_side = placement.direction();
+        stratum_format::WallAddress address {placement.position() + open_side, open_side};
 
-            // The staircase's cell is a block, and it is sited on the wall its open neighbor presents to that block
-            optional<CardinalDirection> open_side = zone.staircase_facing({i, j});
-            assert(open_side.has_value());
-            const vector_type& direction = cardinal_direction(*open_side);
-            stratum_format::WallAddress address {point_type {i, j} + direction, direction};
+        // An arriving actor is placed on the floor it opens onto, facing away from it
+        stratum_format::RelocatorTarget target {std::nullopt, stratum_format::RelativeZone {staircase.rise() == Rise::Down ? -1 : 1}, std::nullopt};
+        stratum_format::Relocator relocator {target, "staircase", staircase_count++,
+            stratum_format::discrete_directed_point_type(address.cell_position, open_side)};
 
-            // An arriving actor is placed on the floor it opens onto, facing away from it
-            stratum_format::RelocatorTarget target {std::nullopt, stratum_format::RelativeZone {type == CellType::StairsDown ? -1 : 1}, std::nullopt};
-            stratum_format::Relocator relocator {target, "staircase", staircase_count++,
-                stratum_format::discrete_directed_point_type(address.cell_position, direction)};
-
-            document.access_points.push_back(++id);
-            document.entities.push_back({id, "staircase", stratum_format::Site {stratum_format::Relation::On, address, nullopt, nullopt}, nullopt,
-                std::move(relocator), {}});
-        }
+        document.access_points.push_back(++id);
+        document.entities.push_back({id, "staircase", stratum_format::Site {stratum_format::Relation::On, address, nullopt, nullopt}, nullopt,
+            std::move(relocator), {}});
     }
 
     return document;

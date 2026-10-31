@@ -192,13 +192,13 @@ quetzal::dungen::Staircase& quetzal::dungen::Zone::staircase(id_type id)
 }
 
 //------------------------------------------------------------------------------
-void quetzal::dungen::Zone::create_staircase(const std::string& name, const directed_point_type& directed_position, Rise rise)
+void quetzal::dungen::Zone::create_staircase(const std::string& name, const directed_point_type& placement, Rise rise)
 {
-    Cell& c = cell(directed_position.position());
+    Cell& c = cell(placement.position());
     c.set_type(CellType::Staircase);
 
     id_type staircase_id = m_staircases.size();
-    m_staircases.emplace_back(staircase_id, name, directed_position, rise);
+    m_staircases.emplace_back(staircase_id, name, placement, rise);
 
     return;
 }

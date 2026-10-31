@@ -5,9 +5,8 @@
 // Zone.hpp
 //------------------------------------------------------------------------------
 
+#include "Staircase.hpp"
 #include "types.hpp"
-#include <map>
-#include <optional>
 #include <string>
 #include <vector>
 
@@ -17,10 +16,11 @@ namespace quetzal::catagen
     //--------------------------------------------------------------------------
     // A rectangle of cells and the walls between them. A wall belongs to the edge two cells share, so the grid has one more
     // line of walls than cells in each direction
-    // Rooms, doors and staircases are stored as cell and wall state, with each staircase's facing direction
     class Zone
     {
     public:
+
+        using staircases_type = std::vector<Staircase>;
 
         Zone() = default;
         Zone(const std::string& name, const vector_type& extent); // Solid layout, no open areas
@@ -54,9 +54,8 @@ namespace quetzal::catagen
         WallType wall(const point_type& cell, CardinalDirection direction) const;
         void set_wall(const point_type& cell, CardinalDirection direction, WallType type);
 
-        // The side of a staircase cell it opens onto
-        std::optional<CardinalDirection> staircase_facing(const point_type& cell) const;
-        void set_staircase_facing(const point_type& cell, CardinalDirection facing);
+        const staircases_type& staircases() const;
+        void create_staircase(const std::string& name, const directed_point_type& placement, Rise rise);
 
         void clear();
 
@@ -71,7 +70,7 @@ namespace quetzal::catagen
         std::vector<CellType> m_cells;
         std::vector<WallType> m_walls_vertical; // (nx + 1) by ny
         std::vector<WallType> m_walls_horizontal; // nx by (ny + 1)
-        std::map<point_type, CardinalDirection> m_staircase_facings;
+        staircases_type m_staircases;
     };
 
     point_type neighbor(const point_type& cell, CardinalDirection direction);

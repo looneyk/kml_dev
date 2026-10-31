@@ -15,10 +15,10 @@ std::string quetzal::dungen::to_string(Rise rise)
 }
 
 //------------------------------------------------------------------------------
-quetzal::dungen::Staircase::Staircase(id_type id, const string& name, directed_point_type directed_position, Rise rise) :
+quetzal::dungen::Staircase::Staircase(id_type id, const string& name, directed_point_type placement, Rise rise) :
     m_id(id),
     m_name(name),
-    m_directed_position(directed_position),
+    m_placement(placement),
     m_rise(rise)
 {
 }
@@ -36,35 +36,9 @@ string quetzal::dungen::Staircase::name() const
 }
 
 //------------------------------------------------------------------------------
-void quetzal::dungen::Staircase::set_name(const string& name)
+quetzal::dungen::directed_point_type quetzal::dungen::Staircase::placement() const
 {
-    m_name = name;
-    return;
-}
-
-//------------------------------------------------------------------------------
-quetzal::dungen::directed_point_type quetzal::dungen::Staircase::directed_position() const
-{
-    return m_directed_position;
-}
-
-//------------------------------------------------------------------------------
-void quetzal::dungen::Staircase::set_directed_position(directed_point_type directed_position)
-{
-    m_directed_position = directed_position;
-    return;
-}
-
-//------------------------------------------------------------------------------
-quetzal::dungen::point_type quetzal::dungen::Staircase::position() const
-{
-    return m_directed_position.position();
-}
-
-//------------------------------------------------------------------------------
-quetzal::dungen::vector_type quetzal::dungen::Staircase::direction() const
-{
-    return m_directed_position.direction();
+    return m_placement;
 }
 
 //------------------------------------------------------------------------------
@@ -77,7 +51,7 @@ quetzal::dungen::Rise quetzal::dungen::Staircase::rise() const
 void quetzal::dungen::Staircase::print(ostream& os) const
 {
     os << "Staircase " << m_id << "\t" << m_name << "\t" << to_string(m_rise)
-        << "\tdirected_position (" << m_directed_position << ")" << endl;
+        << "\tplacement (" << m_placement << ")" << endl;
     return;
 }
 

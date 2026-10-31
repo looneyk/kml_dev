@@ -12,10 +12,10 @@
 namespace quetzal::dungen
 {
 
-    // Builds the layout with the algorithm that parameters.algorithm selects; id and name are stored in the Zone
+    // Builds the layout with the selected algorithm
     // Deterministic in its parameters, the seed included
-    // Throws std::invalid_argument by way of validate, and std::runtime_error if a staircase count above zero has none
-    // placed (place_staircases). Placing fewer staircases than were drawn is a warning, written to the process-wide log
+    // Throws std::invalid_argument by way of validate, and std::runtime_error if no staircase can be placed
+    // Placing fewer staircases than were drawn is a warning condition
     Zone generate(id_type id, const std::string& name, const Parameters& parameters);
 
 } // namespace quetzal::dungen

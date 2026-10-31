@@ -71,7 +71,7 @@ namespace quetzal::dungen
         const Staircase& staircase(id_type id) const;
         Staircase& staircase(id_type id);
 
-        void create_staircase(const std::string& name, const directed_point_type& directed_position, Rise rise);
+        void create_staircase(const std::string& name, const directed_point_type& placement, Rise rise);
 
         void render(std::ostream& os) const;
         void print(std::ostream& os) const;

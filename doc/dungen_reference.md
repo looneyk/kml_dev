@@ -53,7 +53,7 @@ These structures are the same whichever algorithm fills them:
 - `Zone` --- an id, a name, the cells and their `extent`, the `Room`, `Door` and `Staircase` records over them, and a
   renderer for printing.
   `create_room`, `create_door` and `create_staircase` each set the cell type and add the record. A `Staircase` has its
-  `directed_point_type`, the cell position and the direction it opens onto, and its `Rise`, down or up.
+  `placement`, a `directed_point_type` of the cell position and the direction it opens onto, and its `Rise`, down or up.
 - `Pattern` --- a `Cells` with an origin and a shift, matched and replaced over a `Zone` by `match` and
   `match_replace`. `maze1` prunes with these.
 - `types.hpp` --- `coord_type`, `point_type`, `vector_type`, `directed_point_type`, `random_type` (the random number

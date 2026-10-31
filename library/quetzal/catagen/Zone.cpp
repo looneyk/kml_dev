@@ -107,17 +107,19 @@ void quetzal::catagen::Zone::set_wall(const point_type& position, CardinalDirect
 }
 
 //------------------------------------------------------------------------------
-optional<quetzal::math::CardinalDirection> quetzal::catagen::Zone::staircase_facing(const point_type& position) const
+const quetzal::catagen::Zone::staircases_type& quetzal::catagen::Zone::staircases() const
 {
-    auto i = m_staircase_facings.find(position);
-    return i == m_staircase_facings.end() ? optional<CardinalDirection>() : optional<CardinalDirection>(i->second);
+    return m_staircases;
 }
 
 //------------------------------------------------------------------------------
-void quetzal::catagen::Zone::set_staircase_facing(const point_type& position, CardinalDirection facing)
+void quetzal::catagen::Zone::create_staircase(const string& name, const directed_point_type& placement, Rise rise)
 {
-    assert(cell(position) == CellType::StairsDown || cell(position) == CellType::StairsUp);
-    m_staircase_facings[position] = facing;
+    set_cell(placement.position(), CellType::Staircase);
+
+    id_type staircase_id = m_staircases.size();
+    m_staircases.emplace_back(staircase_id, name, placement, rise);
+
     return;
 }
 
@@ -129,7 +131,7 @@ void quetzal::catagen::Zone::clear()
     m_cells.clear();
     m_walls_vertical.clear();
     m_walls_horizontal.clear();
-    m_staircase_facings.clear();
+    m_staircases.clear();
     return;
 }
 

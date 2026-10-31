@@ -64,9 +64,10 @@ boxes are removed at the start of the next piece of work, since the reference do
       wall notation, with the zone's one seed. Each reads its parameters, or the subset that applies, from the
       `ZoneRequest`'s `parameters` tokens, rather than running with a default-constructed set, and skips the keys that
       are not its parameters.
-- [ ] **The generators on `geometry::DiscreteDirectedPoint`.** dungen's `Staircase` has a `directed_point_type` and
-      still has the separate `position` and `direction` accessors. catagen stores a staircase as a cell type and a map
-      from cell position to facing direction, which a list of directed points would replace.
+- [x] **The generators on `geometry::DiscreteDirectedPoint`.** Each generator's `Staircase` has a `placement`, a
+      `directed_point_type`, and its `Rise`. catagen keeps its staircases in a list of its own copy of dungen's
+      `Staircase`, with one `Staircase` cell type. Both create each staircase with its placement as it is placed, and
+      write them in that order.
 - [ ] **Staircases in every form** (`session_plan.md`, `## Entering an access point`). The generators can place a
       staircase in a flat length of wall or in a 1x1 alcove, the two being equivalent across the notations, as well as
       a block staircase on floor cells in the open space of a room. In the wall notation every staircase is sited on a

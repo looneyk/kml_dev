@@ -188,7 +188,7 @@ quetzal::stratum_format::Document quetzal::dungen::make_document(const Zone& zon
     {
         if (staircase.rise() == Rise::Up)
         {
-            point_type position = staircase.position();
+            point_type position = staircase.placement().position();
             document.cells.rows[static_cast<size_t>(ny - 1 - position.y())][static_cast<size_t>(position.x())] = '<';
         }
     }
@@ -252,8 +252,9 @@ quetzal::stratum_format::Document quetzal::dungen::make_document(const Zone& zon
     for (const auto& staircase : zone.staircases())
     {
         // The staircase's cell is a block, and it is sited on the wall its open neighbor presents to that block
-        const vector_type& open_side = staircase.direction();
-        stratum_format::WallAddress address {staircase.position() + open_side, open_side};
+        const directed_point_type placement = staircase.placement();
+        const vector_type open_side = placement.direction();
+        stratum_format::WallAddress address {placement.position() + open_side, open_side};
 
         // An arriving actor is placed on the floor it opens onto, facing away from it
         stratum_format::RelocatorTarget target {std::nullopt, stratum_format::RelativeZone {staircase.rise() == Rise::Down ? -1 : 1}, std::nullopt};

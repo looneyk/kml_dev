@@ -180,7 +180,8 @@ namespace
 
         auto faced = any_of(zone.staircases().begin(), zone.staircases().end(), [&](const Staircase& staircase)
         {
-            return staircase.position() + staircase.direction() == cell_position;
+            const directed_point_type placement = staircase.placement();
+            return placement.position() + placement.direction() == cell_position;
         });
 
         if (!floor(cell_position) || faced || doorway(zone, cell_position) || blocks_doorway(zone, cell_position)
@@ -240,13 +241,13 @@ void quetzal::dungen::place_staircases(Zone& zone, vector<point_type> candidates
 
     for (size_t i = 0; i < candidates.size(); ++i)
     {
-        auto directed_position = staircase_placement(zone, candidates[i], random);
-        if (!directed_position)
+        auto placement = staircase_placement(zone, candidates[i], random);
+        if (!placement)
         {
             continue;
         }
 
-        zone.create_staircase(to_string(rise), *directed_position, rise);
+        zone.create_staircase(to_string(rise), *placement, rise);
         auto [placed, count, count_other, rise_other] = counters.at(rise);
         assert(count > 0);
         --count;

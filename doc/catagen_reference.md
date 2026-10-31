@@ -39,17 +39,19 @@ glyph: the two sides of its edge. Each staircase is a `staircase` entity sited o
 --- floor or a door --- has toward its block. Its `relocator` has the `type` `staircase`; a `target` of `-1` or
 `+1`; an `order` that counts from 0 among all the staircases, in the order they are written; and a `placement`, which
 is the floor its open side faces, facing away from it. `layout.components.access_points` refers to every staircase. Local
-ids are assigned in the order the entities are written --- each door, then its door facings, and the staircases last
---- so the same parameters give the same ids.
+ids are assigned in the order the entities are written --- each door, then its door facings, and the staircases last,
+in the order they were placed --- so the same parameters give the same ids.
 
 ## The library
 
-**`types.hpp`** --- `coord_type` is `std::int32_t`; `point_type`, `vector_type` and `box_type` are the discrete point,
-vector and half-open box over it. `CellType` is `Solid`, `Open`, `StairsDown` or `StairsUp`; `WallType` is `Open`,
-`Solid` or `Door`, where `Open` is the absence of a wall. Directions are `CardinalDirection`.
+**`types.hpp`** --- `coord_type` is `std::int32_t`; `point_type`, `vector_type`, `box_type` and `directed_point_type`
+are the discrete point, vector, half-open box and directed point over it. `CellType` is `Solid`, `Open` or `Staircase`;
+`WallType` is `Open`, `Solid` or `Door`, where `Open` is the absence of a wall. Directions are `CardinalDirection`.
 
-**`Zone`** --- a name, and a rectangle of cells and the walls between them. Rooms, doors and staircases are cell and wall state,
-and each staircase's facing direction is stored by `set_staircase_facing` and read by `staircase_facing`. Walls are
+**`Zone`** --- a name, a rectangle of cells and the walls between them, and a list of `Staircase`s. Rooms and doors are
+cell and wall state. `create_staircase` sets a cell's type to `Staircase` and adds a `Staircase`, which has its
+`placement`, a `directed_point_type` of the cell position and the direction it opens onto, and its `Rise`, down or up.
+`staircases()` returns them in the order they were created. Walls are
 stored by the line they lie on, which includes the outermost lines: `wall_vertical(i, j)` lies between cells
 `(i - 1, j)` and `(i, j)`, so `i` runs to `nx` inclusive, and `wall_horizontal(i, j)` lies between `(i, j - 1)` and
 `(i, j)`, so `j` runs to `ny` inclusive. `wall(cell, direction)` reads either; the east wall of `(i, j)` and the west
@@ -103,18 +105,14 @@ remaining pair gets a door with probability `loop`.
 **6. Staircases.** A count leading down is drawn from `staircase_down_count` and a count leading up from
 `staircase_up_count`, with a range of one value drawing nothing. Each staircase is placed at the center of a room
 chosen at random from those without one, those leading up first. A room is passed over if a block at its center would
-cut a passage, with the cells across its passable sides no longer reaching one another around it, or would leave it or
-a staircase beside it no passable side to face; a door counts as passable. Running out of rooms places fewer
-staircases, with those leading down falling short first. A zone with no room for a staircase throws
-`std::runtime_error`.
-
-**7. Staircases off doorways.** A staircase with a door on a side of its cell moves one cell in a random direction,
-across an open wall, onto floor with no door on any side where step 6 allows a block. A staircase with no such
-direction stays where it is. An open wall joins two cells of one area, so the staircase stays in its own area.
-
-**8. Facing direction.** Each staircase's facing direction is drawn from the sides of its cell that have an open wall
-and floor beyond, or, if there are none, from those with a door. These last three passes draw after every other, so
-nothing before them changes.
+cut a passage, with the cells across its passable sides no longer reaching one another around it, would have no
+passable side to face, or would be on the floor another staircase faces; a door counts as passable. A staircase with a
+door on a side of its cell moves one cell in a random direction, across an open wall, onto floor with no door on any
+side where its block is allowed. A staircase with no such direction stays where it is. An open wall joins two cells of
+one area, so the staircase stays in its own area. Its facing direction is then drawn from the sides of its cell that
+have an open wall and floor beyond, or, if there are none, from those with a door, before the next staircase is placed.
+Running out of rooms places fewer staircases, with those leading down falling short first. A zone with no room for a
+staircase throws `std::runtime_error`. This pass draws after every other, so nothing before it changes.
 
 ## The tool
 

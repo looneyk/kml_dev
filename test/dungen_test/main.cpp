@@ -1087,7 +1087,7 @@ namespace
 
             CHECK_CASE("a staircase is placed on a candidate", placing(zone, {{1, 1}}, {1, 1}, {0, 0}, warnings).empty()
                 && zone.staircases().size() == 1 && zone.cell({1, 1}).type() == dungen::CellType::Staircase);
-            CHECK_CASE("facing the floor beside it", !zone.staircases().empty() && zone.staircases()[0].direction() == dungen::vector_type {1, 0});
+            CHECK_CASE("facing the floor beside it", !zone.staircases().empty() && zone.staircases()[0].placement().direction() == dungen::vector_type {1, 0});
             CHECK_CASE("the floor a staircase faces gets no second staircase", placing(zone, {{2, 1}}, {1, 1}, {0, 0}, warnings) == unplaced_rise_error);
         }
 
