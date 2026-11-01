@@ -137,6 +137,7 @@ add_subdirectory(test/stratum_view_test)
 add_subdirectory(test/string_util_test)
 add_subdirectory(test/vector_point_test)
 add_subdirectory(test/to_utf8_test)
+add_subdirectory(test/triangulation_test)
 add_subdirectory(test/wavefront_obj_test)
 
 add_subdirectory(tool/catagen)

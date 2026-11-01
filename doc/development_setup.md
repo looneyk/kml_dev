@@ -23,7 +23,7 @@ KTX-Software in `library3/`, which only they use.
 
 ## Third-party repositories
 
-The build uses thirteen repositories cloned into `library3/`, which the root repository does not track.
+The build uses fourteen repositories cloned into `library3/`, which the root repository does not track.
 `script/library3_repositories.psd1` lists each one's URL, branch and the commit the tree is built against.
 
 - **`script/clone_library3.ps1`** clones each that is not cloned yet, on its branch and reset to its commit. A clone that

@@ -16,7 +16,11 @@
 #include "quetzal/geometry/Projection.hpp"
 #include "quetzal/math/floating_point.hpp"
 #include "quetzal/triangulation/triangulation.hpp"
+#include <format>
 #include <ranges>
+#include <stdexcept>
+#include <string>
+#include <vector>
 #include <cassert>
 
 namespace quetzal::brep
@@ -317,30 +321,44 @@ void quetzal::brep::triangulate_face_cdt(M& mesh, id_type face_id)
 
     geometry::Projection<typename M::vector_traits> projection(normal);
 
-    auto to_p2t_polygon = [&projection]<typename T>(const T& t)
+    triangulation::Region region;
+    std::vector<id_type> point_halfedge_ids;
+
+    auto add_boundary = [&]<typename T>(const T& t)
     {
-        std::vector<p2t::Point> polygon;
+        auto& boundary = region.boundaries.emplace_back();
         for (const auto& halfedge : t.halfedges())
         {
             const auto position = projection(halfedge.vertex_attributes().position());
-            polygon.emplace_back(halfedge.id(), position.x(), position.y());
+            boundary.push_back({position.x(), position.y()});
+            point_halfedge_ids.push_back(halfedge.id());
         }
-        return polygon;
+        return;
     };
 
-    auto polygon = to_p2t_polygon(face);
-    p2t::CDT cdt(polygon);
-
+    add_boundary(face);
     for (const auto& hole : face.holes())
     {
-        polygon = std::move(to_p2t_polygon(hole));
-        cdt.AddHole(polygon);
+        add_boundary(hole);
     }
 
-    cdt.Triangulate();
+    triangulation::Triangulation face_triangulation;
+    try
+    {
+        face_triangulation = triangulation::triangulate(region);
+    }
+    catch (const triangulation::Error& error)
+    {
+        std::string halfedge_ids_text;
+        for (size_t point_slot : error.point_slots())
+        {
+            halfedge_ids_text += (halfedge_ids_text.empty() ? "" : ", ") + std::to_string(point_halfedge_ids[point_slot]);
+        }
+        throw std::runtime_error(std::format("Triangulating face {}: {}; the points are halfedges {}", face_id, error.what(), halfedge_ids_text));
+    }
 
-    std::vector<p2t::Triangle> triangles = cdt.GetTriangles();
-    assert(!triangles.empty());
+    assert(face_triangulation.added_points.empty());
+    assert(!face_triangulation.triangles.empty());
 
     // Delete original face leaving its halfedges, vertices, and surface
 
@@ -364,10 +382,8 @@ void quetzal::brep::triangulate_face_cdt(M& mesh, id_type face_id)
     // Store first halfedge of each new pair for partner lookup
     std::map<std::array<id_type, 2>, id_type> edges; // ...
 
-    for (size_t i = 0; i < triangles.size(); ++i)
+    for (const auto& triangle : face_triangulation.triangles)
     {
-        p2t::Triangle& triangle = triangles[i];
-
         id_type halfedge_ids_orig[3];
         id_type halfedge_ids_face[3];
 
@@ -375,8 +391,8 @@ void quetzal::brep::triangulate_face_cdt(M& mesh, id_type face_id)
         {
             size_t j_next = (j + 1) % 3;
 
-            id_type halfedge_id = triangle.GetPoint(j)->m_id;
-            id_type halfedge_id_next = triangle.GetPoint(j_next)->m_id;
+            id_type halfedge_id = point_halfedge_ids[triangle[j]];
+            id_type halfedge_id_next = point_halfedge_ids[triangle[j_next]];
 
             halfedge_ids_orig[j] = halfedge_id;
 

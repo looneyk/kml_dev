@@ -98,7 +98,7 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <PreprocessorDefinitions>WIN32;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\..;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..;..\..\..\library3\CDT\CDT\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
     </ClCompile>
@@ -115,7 +115,7 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <PreprocessorDefinitions>_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\..;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..;..\..\..\library3\CDT\CDT\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
     </ClCompile>
@@ -134,7 +134,7 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <PreprocessorDefinitions>WIN32;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\..;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..;..\..\..\library3\CDT\CDT\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
     </ClCompile>
@@ -155,7 +155,7 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <PreprocessorDefinitions>NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\..;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..;..\..\..\library3\CDT\CDT\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
     </ClCompile>
@@ -167,19 +167,10 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="cdt\AdvancingFront.hpp" />
-    <ClInclude Include="cdt\cdt.hpp" />
-    <ClInclude Include="cdt\shapes.hpp" />
-    <ClInclude Include="cdt\Sweep.hpp" />
-    <ClInclude Include="cdt\SweepContext.hpp" />
     <ClInclude Include="triangulation.hpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="cdt\AdvancingFront.cpp" />
-    <ClCompile Include="cdt\cdt.cpp" />
-    <ClCompile Include="cdt\shapes.cpp" />
-    <ClCompile Include="cdt\Sweep.cpp" />
-    <ClCompile Include="cdt\SweepContext.cpp" />
+    <ClCompile Include="triangulation.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

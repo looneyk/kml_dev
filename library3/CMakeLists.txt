@@ -35,6 +35,12 @@ add_subdirectory(flecs)
 get_target_property(flecs_include_directories flecs_static INTERFACE_INCLUDE_DIRECTORIES)
 set_target_properties(flecs_static PROPERTIES INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${flecs_include_directories}")
 
+add_subdirectory(CDT/CDT)
+
+# Same treatment as flecs above: CDT is header-only, so its headers compile as part of quetzal_triangulation at /W4
+get_target_property(cdt_include_directories CDT INTERFACE_INCLUDE_DIRECTORIES)
+set_target_properties(CDT PROPERTIES INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${cdt_include_directories}")
+
 set(DOCTEST_WITH_MAIN_IN_STATIC_LIB OFF CACHE BOOL "" FORCE)
 set(DOCTEST_NO_INSTALL ON CACHE BOOL "" FORCE)
 add_subdirectory(doctest)
