@@ -9,6 +9,8 @@ goal that every item is held to: everything a game adds is data or script.
 
 The design behind the items is in these documents, which the items refer to by section:
 
+- `access_point_plan.md` merges `Relocator` into one `AccessPoint` component with an optional target, and derives the
+  arrival placement from the site of the access point's entity.
 - `addressing.md` specifies ids and addressing, and `addressing_plan.md` is the design of saved zones, the zone actor
   index, and the links and migration they build on.
 - `difficulty_plan.md` covers the difficulty modes: the settings each is a preset of, permadeath among them.
@@ -29,6 +31,8 @@ The design behind the items is in these documents, which the items refer to by s
 - `sim_zone_model.md` has the model beneath the code.
 - `testing_plan.md` covers how the tests are written, registered and run: doctest, CTest, and reference files that one
   option updates.
+- `zone_identity_plan.md` describes how zones and regions are identified --- persistent ids, names, region specs, and
+  levels --- with the discrepancies among the documents and the code, as the basis for a definition.
 - `world_generation_plan.md` covers how a new game's regions and zones are generated: `RegionSpec` and `ZoneSpec`, the
   registries of generators, generator selectors and region specs, and the relocators that lead to new zones and
   regions.
@@ -106,6 +110,19 @@ boxes are removed at the start of the next piece of work, since the reference do
       `layout.components.name` as a zone's tag, and its zone data file.
 - [ ] **Relocator names:** a `name` in the `relocator` component, read, written, and listed in the index.
 - [ ] **Named relocator targets resolved** through the index: a named zone, a named region, and a position.
+
+## Access points
+
+`access_point_plan.md` has the design.
+
+- [ ] **The arrival placement from the site.** stratum_sim's `AccessPoint` has no placement, and an arriving actor is
+      placed from the site of the access point's entity. The zone file is unchanged.
+- [ ] **One `AccessPoint` component in stratum_sim,** with an optional target, `Relocator` merged into it, and the
+      identifiers that refer to the component renamed (`access_point_plan.md`, `## Renames`).
+- [ ] **The `access_point` file component,** format 0.6, with no placement, every zone file in the tree rewritten,
+      and the reference files regenerated.
+- [ ] **One-way access points resolved:** an unbound target arriving at an access point type whose access points have
+      no target.
 
 ## Attachments
 
@@ -201,6 +218,23 @@ float is not an argument against it: the view narrows at the boundary, where mag
 ## Open
 
 These are the open questions.
+
+### Access points
+
+`access_point_plan.md` (`## Open questions`) has the detail.
+
+- **Is `layout.components.access_points` still needed** once every entity in it has an `access_point` component?
+- **Is the arrival placement computed by a `Layout` virtual function or by a function of `DiscreteLayout`?**
+
+### Zone and region identity
+
+`zone_identity_plan.md` (`## Open questions`) has the detail. **Named relocator targets resolved** and **Relocator
+names** wait on these.
+
+- **Is a zone identified by its persistent id, its name, or both,** and is a zone name unique across the game?
+- **Is a region identified by its persistent id, its name, or its region spec's name?**
+- **How is a level offset resolved** once a level is metadata only?
+- **Does a region have one zone per level, or several?**
 
 ### Attachments and doors
 

@@ -55,6 +55,8 @@ zones are generated, and the open items are in `work_plan.md` (`### Regions`).
 
 ## Relocator targets
 
+`zone_identity_plan.md` has the open issues in how zones and regions are identified, which a target refers to.
+
 An unbound relocator's target is a string, `[region/]zone[@position]`: the region, which is optional, the zone, and a
 position in the zone, which is optional. A bound target stays a reference to the relocator it is bound to.
 

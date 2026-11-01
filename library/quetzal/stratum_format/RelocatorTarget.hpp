@@ -36,6 +36,7 @@ namespace quetzal::stratum_format
     };
 
     //--------------------------------------------------------------------------
+    // Deprecated: a target type not yet designed is to replace it.
     // An unbound relocator's target, written [region/]zone[@position]. The region, a zone name, and the position are kept
     // as written
     struct RelocatorTarget
