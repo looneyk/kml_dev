@@ -68,35 +68,18 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    std::string relocator_text(const Relocator& relocator)
+    std::string access_point_text(const AccessPoint& access_point)
     {
-        std::vector<std::string> members;
+        std::vector<std::string> members {std::format("\"type\": {}", string_text(access_point.type))};
 
-        if (relocator.type.has_value())
+        if (access_point.target.has_value())
         {
-            members.push_back(std::format("\"type\": {}", string_text(*relocator.type)));
+            const auto* unbound = std::get_if<RelocatorTarget>(&*access_point.target);
+            members.push_back(std::format("\"target\": {}", unbound != nullptr ? string_text(format_relocator_target(*unbound))
+                : reference_text(std::get<stored_entity_id_type>(*access_point.target))));
         }
 
-        if (const auto* target = std::get_if<RelocatorTarget>(&relocator.target))
-        {
-            members.push_back(std::format("\"target\": {}", string_text(format_relocator_target(*target))));
-        }
-        else
-        {
-            members.push_back(std::format("\"target\": {}", reference_text(std::get<stored_entity_id_type>(relocator.target))));
-        }
-
-        if (relocator.order.has_value())
-        {
-            members.push_back(std::format("\"order\": {}", *relocator.order));
-        }
-
-        if (relocator.placement.has_value())
-        {
-            members.push_back(std::format("\"placement\": {}", object_text({std::format("\"cell_position\": {}",
-                cell_position_text(relocator.placement->position())), std::format("\"orientation\": {}", direction_text(relocator.placement->direction()))})));
-        }
-
+        members.push_back(std::format("\"order\": {}", access_point.order));
         return object_text(members);
     }
 
@@ -296,9 +279,9 @@ quetzal::stratum_format::detail::entry_type quetzal::stratum_format::detail::ent
         components.push_back(std::format("\"site\": {}", site_text(*entity.site)));
     }
 
-    if (entity.relocator.has_value())
+    if (entity.access_point.has_value())
     {
-        components.push_back(std::format("\"relocator\": {}", relocator_text(*entity.relocator)));
+        components.push_back(std::format("\"access_point\": {}", access_point_text(*entity.access_point)));
     }
 
     if (entity.components.is_object())

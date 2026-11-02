@@ -138,7 +138,7 @@ file defines it, so no file lists another's test cases. Each file is a test suit
 | `occupancy.cpp` | placement index, zone placement index, occupancy, world move |
 | `loading.cpp` | load layout, load walls, doors, door entities, loaded entities, decoded components, properties, layout entities |
 | `world.cpp` | world, persistent ids, residency, saved zone documents, ai |
-| `relocation.cpp` | specs, regions, level targets, access points, relocating through, entering access points, interacting with relocators |
+| `relocation.cpp` | specs, regions, level targets, access points, relocating through, entering access points, interacting with access points |
 | `game.cpp` | game, persistent settings, insert definitions, config |
 
 ## Outside this plan

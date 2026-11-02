@@ -400,10 +400,10 @@ namespace
 
                 for (const stratum_format::Entity& entity : document.entities)
                 {
-                    // Whatever its type, the staircase's entity is the one with a relocator on a wall that a neighbor presents to
-                    // this cell
+                    // Whatever its type, the staircase's entity is the access point on a wall that a neighbor presents to this
+                    // cell
                     const auto* address = wall_address(entity);
-                    if (address == nullptr || !entity.relocator.has_value() || address->cell_position - address->normal != cell_position)
+                    if (address == nullptr || !entity.access_point.has_value() || address->cell_position - address->normal != cell_position)
                     {
                         continue;
                     }
@@ -411,7 +411,9 @@ namespace
                     open_sides.push_back(address->normal);
 
                     stratum_format::RelocatorTarget target {nullopt, stratum_format::RelativeZone {cell_glyph(cell_position) == '>' ? -1 : 1}, nullopt};
-                    if (const auto* unbound = get_if<stratum_format::RelocatorTarget>(&entity.relocator->target); unbound == nullptr || *unbound != target)
+                    const auto& access_point_target = entity.access_point->target;
+                    if (const auto* unbound = access_point_target.has_value() ? get_if<stratum_format::RelocatorTarget>(&*access_point_target) : nullptr;
+                        unbound == nullptr || *unbound != target)
                     {
                         detail = format("staircase at {}, {} does not have the target {}", i, j, stratum_format::format_relocator_target(target));
                         return false;

@@ -1,6 +1,6 @@
 {
   "format": "quetzal.discrete_layout",
-  "version": "0.5",
+  "version": "0.6",
   "generator": {
     "name": "dungen",
     "parameters": { "algorithm": "cave1", "extent": "40,30", "stairs_down": "1-1", "stairs_up": "1-1", "fill": "0.45", "smoothing_passes": "4", "birth_threshold": "5", "survival_threshold": "4", "seed": "12345" }
@@ -47,7 +47,7 @@
     ]
   },
   "entities": [
-    { "id": 1, "type": "staircase", "components": { "site": { "relation": "on", "wall": { "cell_position": [20, 18], "normal": [0, -1] } }, "relocator": { "type": "staircase", "target": "+1", "order": 0, "placement": { "cell_position": [20, 18], "orientation": [0, -1] } } } },
-    { "id": 2, "type": "staircase", "components": { "site": { "relation": "on", "wall": { "cell_position": [33, 21], "normal": [0, -1] } }, "relocator": { "type": "staircase", "target": "-1", "order": 1, "placement": { "cell_position": [33, 21], "orientation": [0, -1] } } } }
+    { "id": 1, "type": "staircase", "components": { "site": { "relation": "on", "wall": { "cell_position": [20, 18], "normal": [0, -1] } }, "access_point": { "type": "staircase", "target": "+1", "order": 0 } } },
+    { "id": 2, "type": "staircase", "components": { "site": { "relation": "on", "wall": { "cell_position": [33, 21], "normal": [0, -1] } }, "access_point": { "type": "staircase", "target": "-1", "order": 1 } } }
   ]
 }

@@ -255,7 +255,7 @@ namespace
         auto down_of = [&](flecs::entity zone) { return stratum_sim::entry_point(zone, staircase_type, -1); };
         auto retarget = [](flecs::entity e, string_view text)
         {
-            e.set<stratum_sim::Relocator>(stratum_sim::Relocator {*stratum_format::parse_relocator_target(text)});
+            e.get_mut<stratum_sim::AccessPoint>().target = *stratum_format::parse_relocator_target(text);
         };
 
         // data/walls.zone has one staircase leading up and one leading down
@@ -284,22 +284,22 @@ namespace
         {
             if (arrival)
             {
-                arrival.set<stratum_sim::Relocator>(stratum_sim::Relocator {world.make_reference(first_up)});
+                arrival.get_mut<stratum_sim::AccessPoint>().target = world.make_reference(first_up);
             }
         };
 
         CHECK_CASE("moving down finds the unbound staircase that leads back, in its region's zone at the level below",
-            world.resolve_relocator_target(first_down) == second_up);
+            world.resolve_target(first_down) == second_up);
 
         retarget(first_down, "=-2");
-        CHECK_CASE("an absolute target finds a zone at its level", world.resolve_relocator_target(first_down) == second_up);
+        CHECK_CASE("an absolute target finds a zone at its level", world.resolve_target(first_down) == second_up);
         retarget(first_down, "-1");
         retarget(second_up, "=-1");
-        CHECK_CASE("a staircase that leads back with an absolute target is found", world.resolve_relocator_target(first_down) == second_up);
+        CHECK_CASE("a staircase that leads back with an absolute target is found", world.resolve_target(first_down) == second_up);
         retarget(second_up, "+1");
 
         retarget(first_up, "staircase/+1");
-        flecs::entity arrival = world.resolve_relocator_target(first_up);
+        flecs::entity arrival = world.resolve_target(first_up);
         flecs::entity made = zone_arrived_in(arrival);
         flecs::entity region_made = made ? stratum_sim::region_of(made) : flecs::entity();
         CHECK_CASE("a target with a region makes a zone in a new region created from the region spec of that name, though a zone at the level has a staircase that leads back", made
@@ -313,7 +313,7 @@ namespace
 
         try
         {
-            world.resolve_relocator_target(first_up);
+            world.resolve_target(first_up);
         }
         catch (const runtime_error&)
         {
@@ -323,12 +323,12 @@ namespace
         CHECK_CASE("a region spec that is not registered is an error", region_spec_unregistered);
         retarget(first_up, "+1");
 
-        arrival = world.resolve_relocator_target(down_of(second));
+        arrival = world.resolve_target(down_of(second));
         made = zone_arrived_in(arrival);
         CHECK_CASE("finding none, it makes a zone at the level in its own region and arrives at its entry point", made
             && stratum_sim::region_of(made) == dungeon && level_of(made) == -3 && arrival == up_of(made));
 
-        arrival = world.resolve_relocator_target(first_up);
+        arrival = world.resolve_target(first_up);
         made = zone_arrived_in(arrival);
         CHECK_CASE("moving up looks only in its own region, so a zone at level 0 in another is not found and one is made", made
             && made != field && stratum_sim::region_of(made) == dungeon && level_of(made) == 0
@@ -338,16 +338,16 @@ namespace
         flecs::entity elsewhere = world.create_region(test_region_spec("staircase"));
         load_at_level(elsewhere, -2);
         world.unload_zone(second);
-        made = zone_arrived_in(world.resolve_relocator_target(first_down));
+        made = zone_arrived_in(world.resolve_target(first_down));
         CHECK_CASE("an unloaded zone and a zone in an unrelated region are not searched", made
             && stratum_sim::region_of(made) == dungeon && level_of(made) == -2);
 
         // A zone made from data/door.zone above a staircase leading up has no staircase leading back down
-        auto throws = [&](flecs::entity relocator)
+        auto throws = [&](flecs::entity access_point)
         {
             try
             {
-                world.resolve_relocator_target(relocator);
+                world.resolve_target(access_point);
             }
             catch (const runtime_error&)
             {
@@ -399,35 +399,36 @@ namespace
         CHECK_CASE("the loader builds each access point of the file, of its type", up && down && up != down);
         CHECK_CASE("each sited on the wall the file sites it on", stratum_sim::wall_id_of(up.get<stratum_sim::Site>())
             == layout.wall_toward(stratum_sim::discrete_point_type {2, 1}, cardinal_direction(CardinalDirection::West)));
-        CHECK_CASE("with the order and the placement the file states", up.get<stratum_sim::AccessPoint>().order == 0
-            && down.get<stratum_sim::AccessPoint>().order == 1
-            && layout.cell_position_at(up.get<stratum_sim::AccessPoint>().placement.position()) == stratum_sim::discrete_point_type {2, 1}
-            && up.get<stratum_sim::AccessPoint>().placement.direction().x() > 0.0f);
-        CHECK_CASE("an entry point's relocator targets the level at the offset", !stratum_sim::entry_point(zone, staircase_type, -2)
-            && stratum_sim::targets_relocator_level(up, 1) && !stratum_sim::targets_relocator_level(up, -1));
+        CHECK_CASE("with the order the file states", up.get<stratum_sim::AccessPoint>().order == 0
+            && down.get<stratum_sim::AccessPoint>().order == 1);
+        CHECK_CASE("an actor arrives in the cell of the access point's wall, facing away from the wall",
+            layout.cell_position_at(stratum_sim::arrival_placement(up).position()) == stratum_sim::discrete_point_type {2, 1}
+            && stratum_sim::arrival_placement(up).direction().x() > 0.0f);
+        CHECK_CASE("an entry point's target is the level at the offset", !stratum_sim::entry_point(zone, staircase_type, -2)
+            && stratum_sim::targets_level(up, 1) && !stratum_sim::targets_level(up, -1));
 
-        // Of the access points whose relocators target the offset, the lowest-ordered is the entry point
+        // Of the access points whose targets are the offset, the lowest-ordered is the entry point
         stratum_format::RelocatorTarget up_target {nullopt, stratum_format::RelativeZone {1}, nullopt};
-        flecs::entity up_2 = stratum_sim::create_access_point(zone, staircase_type, up.get<stratum_sim::Site>(), 2,
-            up.get<stratum_sim::AccessPoint>().placement);
-        up_2.set<stratum_sim::Relocator>(stratum_sim::Relocator {up_target});
+        flecs::entity up_2 = stratum_sim::create_access_point(zone, staircase_type, up.get<stratum_sim::Site>(), 2, up_target);
         CHECK_CASE("the entry point is the access point of the type with the lowest order", stratum_sim::entry_point(zone, staircase_type, 1) == up
             && up_2.is_alive());
 
         // An absolute target's offset is the difference between its level and the zone's
-        up_2.set<stratum_sim::Relocator>(stratum_sim::Relocator {stratum_format::RelocatorTarget {nullopt, stratum_format::AbsoluteZone {-1}, nullopt}});
-        bool unleveled = !stratum_sim::targets_relocator_level(up_2, 1);
+        up_2.get_mut<stratum_sim::AccessPoint>().target = stratum_format::RelocatorTarget {nullopt, stratum_format::AbsoluteZone {-1}, nullopt};
+        bool unleveled = !stratum_sim::targets_level(up_2, 1);
         zone.set<stratum_sim::ZonePosition>(zone_position_at_level(-2));
         CHECK_CASE("an absolute target's offset is its difference from the zone's level, and a zone with no level has none",
-            unleveled && stratum_sim::targets_relocator_level(up_2, 1) && !stratum_sim::targets_relocator_level(up_2, -1));
+            unleveled && stratum_sim::targets_level(up_2, 1) && !stratum_sim::targets_level(up_2, -1));
 
         // A portal on the floor, in the middle of a room
-        stratum_sim::placement_type portal_placement(layout.position(stratum_sim::discrete_point_type {0, 1}), stratum_sim::vector_type(0.0f, 1.0f, 0.0f));
+        stratum_sim::placement_type north(stratum_sim::point_type(0.0f, 0.0f, 0.0f), stratum_sim::vector_type(0.0f, 1.0f, 0.0f));
         flecs::entity portal = stratum_sim::create_access_point(zone, portal_type,
-            stratum_sim::Site {stratum_sim::Relation::On, stratum_sim::FlatCellAddress {layout.floor_id(), stratum_sim::discrete_point_type {0, 1}}, {}},
-            0, portal_placement);
-        portal.set<stratum_sim::Relocator>(stratum_sim::Relocator {stratum_format::RelocatorTarget {nullopt, stratum_format::RelativeZone {0}, nullopt}});
+            stratum_sim::Site {stratum_sim::Relation::On, stratum_sim::FlatCellAddress {layout.floor_id(), stratum_sim::discrete_point_type {0, 1}}, north},
+            0, stratum_format::RelocatorTarget {nullopt, stratum_format::RelativeZone {0}, nullopt});
         CHECK_CASE("an access point of any type, on any surface, is an entry point", stratum_sim::entry_point(zone, portal_type, 0) == portal);
+        CHECK_CASE("an actor arrives on the floor of the access point's flat cell, facing in the site's orientation",
+            stratum_sim::arrival_placement(portal).position() == layout.position(stratum_sim::discrete_point_type {0, 1})
+            && stratum_sim::arrival_placement(portal).direction().y() > 0.0f);
 
         // A wall id decodes back to the cell it is on and the direction it faces, for all four
         bool decoded = true;
@@ -462,9 +463,9 @@ namespace
 
         flecs::entity game_portal_type = stratum_sim::access_type(game.world().entities(), "portal");
         stratum_sim::create_access_point(portal_only, game_portal_type,
-            stratum_sim::Site {stratum_sim::Relation::On, stratum_sim::FlatCellAddress {portal_only_layout.floor_id(), stratum_sim::discrete_point_type {0, 0}}, {}},
-            0, stratum_sim::placement_type(portal_only_layout.position(stratum_sim::discrete_point_type {0, 0}), stratum_sim::vector_type(1.0f, 0.0f, 0.0f)))
-            .set<stratum_sim::Relocator>(stratum_sim::Relocator {stratum_format::RelocatorTarget {nullopt, stratum_format::RelativeZone {0}, nullopt}});
+            stratum_sim::Site {stratum_sim::Relation::On, stratum_sim::FlatCellAddress {portal_only_layout.floor_id(), stratum_sim::discrete_point_type {0, 0}},
+            stratum_sim::placement_type(stratum_sim::point_type(0.0f, 0.0f, 0.0f), stratum_sim::vector_type(1.0f, 0.0f, 0.0f))}, 0,
+            stratum_format::RelocatorTarget {nullopt, stratum_format::RelativeZone {0}, nullopt});
 
         bool thrown = false;
 
@@ -488,7 +489,7 @@ namespace
 
     //--------------------------------------------------------------------------
     // Reads from data/, so stratum_sim_test runs from its own directory
-    TEST_CASE_FIXTURE(WorldFixture, "relocating through a relocator")
+    TEST_CASE_FIXTURE(WorldFixture, "relocating through an access point")
     {
         stratum_sim::CountingIdAllocator id_allocator(stratum_sim::PersistentId {});
         TestWorld world(id_allocator);
@@ -496,10 +497,10 @@ namespace
         flecs::entity staircase_type = stratum_sim::access_type(world.entities(), "staircase");
         auto up_of = [&](flecs::entity zone) { return stratum_sim::entry_point(zone, staircase_type, 1); };
         auto down_of = [&](flecs::entity zone) { return stratum_sim::entry_point(zone, staircase_type, -1); };
-        auto target_of = [](flecs::entity e) { return e.get<stratum_sim::Relocator>().target; };
+        auto target_of = [](flecs::entity e) { return *e.get<stratum_sim::AccessPoint>().target; };
         auto refers_to = [&](flecs::entity e, flecs::entity to)
         {
-            const auto* reference = get_if<stratum_sim::EntityReference>(&e.get<stratum_sim::Relocator>().target);
+            const auto* reference = get_if<stratum_sim::EntityReference>(&*e.get<stratum_sim::AccessPoint>().target);
             return reference != nullptr && reference->persistent_id == to.get<stratum_sim::PersistentId>();
         };
 
@@ -519,21 +520,21 @@ namespace
         flecs::entity second = load_at_level(dungeon, -2);
         flecs::entity first_down = down_of(first);
         flecs::entity second_up = up_of(second);
-        stratum_sim::placement_type second_up_placement = second_up.get<stratum_sim::AccessPoint>().placement;
+        stratum_sim::placement_type second_up_placement = stratum_sim::arrival_placement(second_up);
 
-        flecs::entity actor = world.create_entity(first, first_down.get<stratum_sim::AccessPoint>().placement);
+        flecs::entity actor = world.create_entity(first, stratum_sim::arrival_placement(first_down));
 
         flecs::entity arrival = world.relocate_through(actor, first_down);
-        CHECK_CASE("an actor goes through an unbound relocator to the access point that leads back", arrival == second_up
+        CHECK_CASE("an actor goes through an unbound access point to the access point that leads back", arrival == second_up
             && stratum_sim::zone_of(actor) == second);
-        CHECK_CASE("and is placed at its placement", stratum_sim::placement_of(actor).position() == second_up_placement.position()
+        CHECK_CASE("and is placed at its arrival placement", stratum_sim::placement_of(actor).position() == second_up_placement.position()
             && stratum_sim::placement_of(actor).direction() == second_up_placement.direction());
         CHECK_CASE("both ends are bound to each other", refers_to(first_down, second_up) && refers_to(second_up, first_down));
         CHECK_CASE("and a bound access point is no longer an entry point", !up_of(second));
 
         size_t zone_count = world.zone_count();
         arrival = world.relocate_through(actor, second_up);
-        CHECK_CASE("going back through the bound access point arrives at the relocator", arrival == first_down
+        CHECK_CASE("going back through the bound access point arrives at the access point gone through", arrival == first_down
             && stratum_sim::zone_of(actor) == first && world.zone_count() == zone_count);
 
         arrival = world.relocate_through(actor, first_down);
@@ -544,11 +545,11 @@ namespace
             && level_of(made) == -3 && stratum_sim::zone_of(actor) == made && refers_to(second_down, arrival)
             && refers_to(arrival, second_down));
 
-        auto throws = [&](flecs::entity relocator)
+        auto throws = [&](flecs::entity access_point)
         {
             try
             {
-                world.relocate_through(actor, relocator);
+                world.relocate_through(actor, access_point);
             }
             catch (const runtime_error&)
             {
@@ -558,7 +559,7 @@ namespace
         };
 
         flecs::entity named = up_of(first);
-        named.set<stratum_sim::Relocator>(stratum_sim::Relocator {*stratum_format::parse_relocator_target("town/market@fountain")});
+        named.get_mut<stratum_sim::AccessPoint>().target = *stratum_format::parse_relocator_target("town/market@fountain");
         stratum_format::RelocatorTarget named_target = get<stratum_format::RelocatorTarget>(target_of(named));
         CHECK_CASE("a named zone is not resolved, which is an error, and nothing moves or binds", throws(named)
             && stratum_sim::zone_of(actor) == made && get<stratum_format::RelocatorTarget>(target_of(named)) == named_target);
@@ -566,6 +567,61 @@ namespace
         world.unload_zone(first);
         CHECK_CASE("a bound target whose zone has unloaded, in a world with no game directory to read it back from, is an error, and nothing moves",
             throws(second_up) && stratum_sim::zone_of(actor) == made);
+
+        return;
+    }
+
+    //--------------------------------------------------------------------------
+    // Reads from data/, so stratum_sim_test runs from its own directory
+    TEST_CASE_FIXTURE(WorldFixture, "one-way access points")
+    {
+        stratum_sim::CountingIdAllocator id_allocator(stratum_sim::PersistentId {});
+        TestWorld world(id_allocator);
+
+        // A chute leads down to a landing, which is arrival only
+        flecs::entity chute_type = stratum_sim::create_access_type(world.entities(), "chute");
+        flecs::entity landing_type = stratum_sim::create_access_type(world.entities(), "landing");
+        chute_type.set<stratum_sim::Arrival>(stratum_sim::Arrival {landing_type});
+        landing_type.set<stratum_sim::Arrival>(stratum_sim::Arrival {landing_type});
+
+        auto load_at_level = [&](flecs::entity region, stratum_sim::level_type level)
+        {
+            stratum_format::Document document = stratum_format::read_zone("data/walls.zone");
+            document.position = document_position_at_level(level);
+            flecs::entity zone = world.create_zone(region, world.next_id());
+            stratum_sim::load_layout(zone, document);
+            return zone;
+        };
+
+        auto on_floor = [&](flecs::entity zone, stratum_sim::discrete_point_type cell_position)
+        {
+            const stratum_sim::DiscreteLayout& layout = zone_layout(world, zone);
+            return stratum_sim::Site {stratum_sim::Relation::On, stratum_sim::FlatCellAddress {layout.floor_id(), cell_position},
+                stratum_sim::placement_type(stratum_sim::point_type(0.0f, 0.0f, 0.0f), stratum_sim::vector_type(1.0f, 0.0f, 0.0f))};
+        };
+
+        flecs::entity dungeon = world.create_region(test_region_spec("staircase"));
+        flecs::entity first = load_at_level(dungeon, -1);
+        flecs::entity second = load_at_level(dungeon, -2);
+
+        flecs::entity chute = stratum_sim::create_access_point(first, chute_type, on_floor(first, {2, 1}), 0,
+            *stratum_format::parse_relocator_target("-1"));
+        flecs::entity landing = stratum_sim::create_access_point(second, landing_type, on_floor(second, {2, 1}), 0);
+        stratum_sim::create_access_point(second, landing_type, on_floor(second, {0, 1}), 1);
+
+        flecs::entity actor = world.create_entity(first, stratum_sim::arrival_placement(chute));
+        flecs::entity arrival = world.relocate_through(actor, chute);
+        const auto* chute_reference = get_if<stratum_sim::EntityReference>(&*chute.get<stratum_sim::AccessPoint>().target);
+
+        CHECK_CASE("an actor goes through an access point to the lowest-ordered arrival-only access point of the arrival type",
+            arrival == landing && stratum_sim::zone_of(actor) == second);
+        CHECK_CASE("which binds only the access point gone through", chute_reference != nullptr
+            && chute_reference->persistent_id == landing.get<stratum_sim::PersistentId>() && !landing.get<stratum_sim::AccessPoint>().target.has_value());
+        CHECK_CASE("and cannot be entered", !stratum_sim::can_enter(landing, actor));
+
+        flecs::entity another = world.create_entity(first, stratum_sim::arrival_placement(chute));
+        CHECK_CASE("the same arrival-only access point receives every actor that comes through", world.relocate_through(another, chute) == landing
+            && stratum_sim::zone_of(another) == second);
 
         return;
     }
@@ -610,21 +666,21 @@ namespace
 
         stratum_sim::EventQueue moved_events;
         step(east, moved_events);
-        CHECK_CASE("moving into a wall with a relocator on it is blocked", !relocated(moved_events) && session.zone() == first
+        CHECK_CASE("moving into a wall with an access point on it is blocked", !relocated(moved_events) && session.zone() == first
             && ranges::any_of(moved_events.events(), [](const stratum_sim::Event& event) { return event.is<stratum_sim::Blocked>(); }));
 
-        // A closed relocator is not entered
+        // A closed access point is not entered
         first_down.set<stratum_sim::Access>(stratum_sim::Access {stratum_sim::AccessState::Closed});
         stratum_sim::EventQueue closed_events;
         interact(closed_events);
-        CHECK_CASE("interacting with a closed relocator opens it rather than entering it", !relocated(closed_events)
+        CHECK_CASE("interacting with a closed access point opens it rather than entering it", !relocated(closed_events)
             && session.zone() == first && stratum_sim::access(first_down) == stratum_sim::AccessState::Open);
         first_down.remove<stratum_sim::Access>();
 
         stratum_sim::EventQueue down_events;
         interact(down_events);
         flecs::entity second = session.zone();
-        CHECK_CASE("interacting with a relocator on the wall ahead enters the relocator", relocated(down_events) && second != first
+        CHECK_CASE("interacting with an access point on the wall ahead enters the access point", relocated(down_events) && second != first
             && stratum_sim::zone_of(character) == second && level_of(second) == -2);
         CHECK_CASE("and the session plays the zone arrived in, with the character in its turn order", session.scheduler().contains(character.id()));
 
@@ -635,26 +691,32 @@ namespace
             && zone_layout(world, first).cell_position_at(stratum_sim::placement_of(character).position()) == stratum_sim::discrete_point_type {2, 1}
             && stratum_sim::placement_of(character).direction().x() < 0.0f);
 
-        // A relocator on the floor of the character's cell, bound to the staircase leading down in the second zone
+        // An access point on the floor of the character's cell, arrival only at first, then bound to the staircase leading down
+        // in the second zone
         stratum_sim::DiscreteLayout& layout = zone_layout(world, first);
-        flecs::entity hatch = world.entities().entity();
-        stratum_sim::reparent(hatch, first, stratum_sim::Site {stratum_sim::Relation::On,
-            stratum_sim::FlatCellAddress {layout.floor_id(), stratum_sim::discrete_point_type {2, 1}}, {}});
+        flecs::entity hatch = stratum_sim::create_access_point(first, stratum_sim::access_type(world.entities(), "portal"),
+            stratum_sim::Site {stratum_sim::Relation::On, stratum_sim::FlatCellAddress {layout.floor_id(), stratum_sim::discrete_point_type {2, 1}}, {}}, 0);
+
+        session.character().submit(stratum_sim::Enter {});
+        stratum_sim::EventQueue arrival_only_events;
+        session.advance(arrival_only_events);
+        CHECK_CASE("an access point with no target is not entered", !relocated(arrival_only_events) && session.zone() == first);
+
         flecs::entity second_down = stratum_sim::entry_point(second, staircase_type, -1);
-        hatch.set<stratum_sim::Relocator>(stratum_sim::Relocator {world.make_reference(second_down)});
+        hatch.get_mut<stratum_sim::AccessPoint>().target = world.make_reference(second_down);
 
         session.character().submit(stratum_sim::Enter {});
         stratum_sim::EventQueue enter_events;
         session.advance(enter_events);
-        CHECK_CASE("entering the relocator on the floor of the character's cell relocates the character", relocated(enter_events)
+        CHECK_CASE("entering the access point on the floor of the character's cell relocates the character", relocated(enter_events)
             && session.zone() == second && zone_layout(world, second).cell_position_at(stratum_sim::placement_of(character).position())
-                == zone_layout(world, second).cell_position_at(second_down.get<stratum_sim::AccessPoint>().placement.position()));
+                == zone_layout(world, second).cell_position_at(stratum_sim::arrival_placement(second_down).position()));
 
         // A denizen facing the staircase leading down, in the zone the character left
-        flecs::entity denizen = world.create_entity(first, first_down.get<stratum_sim::AccessPoint>().placement);
+        flecs::entity denizen = world.create_entity(first, stratum_sim::arrival_placement(first_down));
         stratum_sim::EventQueue denizen_events;
         stratum_sim::apply(world, stratum_sim::Command(static_cast<id_type>(denizen.id()), stratum_sim::Interact {}), denizen_events);
-        CHECK_CASE("an actor other than the controlled actor does not enter a relocator", !relocated(denizen_events)
+        CHECK_CASE("an actor other than the controlled actor does not enter an access point", !relocated(denizen_events)
             && stratum_sim::zone_of(denizen) == first);
 
         return;
@@ -662,7 +724,7 @@ namespace
 
     //--------------------------------------------------------------------------
     // Reads from data/, so stratum_sim_test runs from its own directory
-    TEST_CASE_FIXTURE(WorldFixture, "interacting with a relocator")
+    TEST_CASE_FIXTURE(WorldFixture, "interacting with an access point")
     {
         stratum_sim::Game game(g_test_config, g_test_manifest);
         stratum_sim::Session& session = game.session();
@@ -677,7 +739,7 @@ namespace
         session.character().submit(stratum_sim::Interact {});
         stratum_sim::EventQueue enter_events;
         session.advance(enter_events);
-        CHECK_CASE("interacting with a relocator goes through it", stratum_sim::access_type_name(staircase) == "staircase"
+        CHECK_CASE("interacting with an access point goes through it", stratum_sim::access_type_name(staircase) == "staircase"
             && session.zone() != first
             && ranges::any_of(enter_events.events(), [](const stratum_sim::Event& event) { return event.is<stratum_sim::Relocated>(); }));
 
@@ -687,7 +749,7 @@ namespace
         enter_zone_file(failing, "data/walls.zone");
         failing_session.zone().set<stratum_sim::ZonePosition>(zone_position_at_level(-1));
         flecs::entity named = stratum_sim::entry_point(failing_session.zone(), stratum_sim::access_type(failing.world().entities(), "staircase"), -1);
-        named.set<stratum_sim::Relocator>(stratum_sim::Relocator {*stratum_format::parse_relocator_target("town/market")});
+        named.get_mut<stratum_sim::AccessPoint>().target = *stratum_format::parse_relocator_target("town/market");
 
         flecs::entity unmoved = failing_session.zone();
         failing_session.character().submit(stratum_sim::Interact {});
@@ -703,7 +765,7 @@ namespace
             threw = true;
         }
 
-        CHECK_CASE("interacting with a relocator whose target is not resolved is an error that passes out of advance, and nothing moves",
+        CHECK_CASE("interacting with an access point whose target is not resolved is an error that passes out of advance, and nothing moves",
             threw && stratum_sim::zone_of(failing_session.character().entity()) == unmoved);
 
         return;

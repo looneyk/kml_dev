@@ -10,6 +10,7 @@
 #include <cmath>
 #include <limits>
 #include <optional>
+#include <variant>
 
 namespace
 {
@@ -250,6 +251,21 @@ const quetzal::stratum_sim::discrete_vector_type& quetzal::stratum_sim::Discrete
 {
     assert(wall_id != nullid);
     return cardinal_directions[wall_id % cardinal_directions.size()];
+}
+
+//------------------------------------------------------------------------------
+quetzal::stratum_sim::placement_type quetzal::stratum_sim::DiscreteLayout::arrival_placement(const Site& site) const
+{
+    assert(site.relation == Relation::On && site.address.has_value());
+
+    if (const auto* wall = std::get_if<WallAddress>(&*site.address))
+    {
+        const discrete_vector_type& toward_wall = wall_direction(wall->wall_id);
+        return placement_type(position(wall_cell_position(wall->wall_id)),
+            vector_type(static_cast<value_type>(-toward_wall.x()), static_cast<value_type>(-toward_wall.y()), value_type(0)));
+    }
+
+    return placement_type(position(std::get<FlatCellAddress>(*site.address).cell_position), site.placement.direction());
 }
 
 //------------------------------------------------------------------------------

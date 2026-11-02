@@ -125,6 +125,10 @@ none; it is a bit test. The id encodes the cell's slot and the direction, which 
 and otherwise returns the result of `is_wall_crossable` for the wall. Both read only the one cell, so a cell on the
 boundary returns the wall that closes the layout.
 
+`arrival_placement(site)` returns the placement of an actor arriving at an access point with that site. On a wall, the
+actor is in the wall's cell, facing away from the wall. On a floor or ceiling cell, the actor is on the floor of that
+cell, facing in the site's orientation.
+
 `set_flats(height_floor, height_ceiling)` creates the two flats, once; `floor_id` and `ceiling_id` identify them.
 `height(flat_id, cell_position)` returns the cell's own height if it has one, otherwise its room's, and otherwise the
 flat's. `position(cell_position)` returns the cell center with z at the floor height there, or on the grid's plane
@@ -184,9 +188,9 @@ file's order. The first pass creates each entity in the zone, `IsA` its type, so
 the file's persistent id in a saved zone --- before anything refers to it. A type that is not loaded is made with no
 components, so the entity keeps its type. The second sets each entity's parent; its site, with the address resolved to
 layout ids and the position and orientation to a placement, and a site in a cell of the zone made a placement at that
-cell with no address; and its `Relocator`. A door is the file's `door` entity, and its door facings are the `door_facing` children sited on the
+cell with no address. A door is the file's `door` entity, and its door facings are the `door_facing` children sited on the
 walls of its doorway. Each entity that `layout.components.access_points` refers to is made an access point, with the
-registered access point type that its relocator names, its `order`, and its `placement`.
+registered access point type of its `access_point`'s `type`, its `order`, and its `target`.
 
 Last, it decodes each component object --- of the layout, of each room, wall, flat and flat override, and of each
 entity --- into the component registered under its name (`register_file_component`), and sets it on the zone's
@@ -234,8 +238,8 @@ its subtree but the layout entities, in persistent id order. The character, whic
 subtree. An entity's file components are those it owns, so one it reads from its type through inheritance is the type's.
 Each value is encoded through flecs reflection: an unset optional field is left out, an `EntityReference` is written as a
 reference to its persistent id, and a struct field by field. A site with no address on an entity in the zone is written
-in a cell of the zone, at the cell its placement is in. A bound relocator's target is the persistent id of the relocator
-it is bound to. `rebuild_document(zone)`, which would rebuild the geometry from the layout as well, for a zone that has
+in a cell of the zone, at the cell its placement is in. An access point is written as its `access_point`, and a bound
+target as the persistent id of the access point it is bound to. `rebuild_document(zone)`, which would rebuild the geometry from the layout as well, for a zone that has
 no `ZoneDocument`, is a skeleton with an empty body.
 
 `make_character_document(character)` returns the character as a character file's `CharacterDocument`: its persistent id,
@@ -315,36 +319,38 @@ given, so the zone is the first of a new region. A zone template is not built: i
 selector, generator or region spec name that is not registered, and a spec with no `generator_selector`, before anything
 is created; what a generator throws passes on, with nothing created.
 
-A zone's level, a `level_type` (`std::int32_t`), is the z of its `ZonePosition`. Relocator targets in the zone
-data state levels, and `resolve_relocator_target` matches zones by them. The loader sets a zone's `ZonePosition` from the
+A zone's level, a `level_type` (`std::int32_t`), is the z of its `ZonePosition`. Access point targets in the zone
+data state levels, and `resolve_target` matches zones by them. The loader sets a zone's `ZonePosition` from the
 file's `position`, and a zone whose file has none has no `ZonePosition`; `make_document` writes the position back.
 
-`resolve_relocator_target(relocator)` returns the access point at which an actor arrives through a relocator whose
-unbound target is a level with no position: relative, `+`*k* or `-`*k*, or absolute, `=`*n*. The relocator's zone must
-have a level, *L*. A target with a named zone or a position throws `std::runtime_error`. The target level is *L* + *k*,
+`resolve_target(access_point)` returns the access point at which an actor arrives through an access point whose
+unbound target is a level with no position: relative, `+`*k* or `-`*k*, or absolute, `=`*n*. The access point's zone
+must have a level, *L*. A target with a named zone or a position throws `std::runtime_error`. The target level is *L* + *k*,
 or *n*, which is *k* levels from *L*.
 
 A target with a region creates a new region with `create_region_zone`, from the region spec of that name and a
 `ZoneSpec` whose position is `new_zone_position` for the target level, without searching the loaded zones. A region spec that is not registered throws `std::runtime_error`.
 
-With the region omitted, it looks in the loaded zones of the relocator's region at the target level, other than the
-relocator's zone, for an unbound access point of the type at which the relocator's type arrives that leads back: one
-whose relocator targets level *L*, -*k* levels from its own zone (`targets_relocator_level`). Of several, it returns the
-one in the zone with the lowest persistent id, and then with the lowest order. If none is found, it makes a zone in the
-relocator's region with `create_zone(region, zone_spec)`, with a `ZoneSpec` whose position is `new_zone_position` for the target level.
+With the region omitted, it looks in the loaded zones of the access point's region at the target level, other than the
+access point's zone, for an access point of the type at which the access point's type arrives that accepts the arrival
+(`accepts_arrival`): one with no target, which is arrival only, or an unbound one that leads back, whose target is
+level *L*, -*k* levels from its own zone (`targets_level`). Of several, it returns the one in the
+zone with the lowest persistent id, and then with the lowest order. If none is found, it makes a zone in the access
+point's region with `create_zone(region, zone_spec)`, with a `ZoneSpec` whose position is `new_zone_position` for the target level.
 
 It returns the new zone's `entry_point` for the arrival type and the offset -*k*, the access point that leads back. If
 the new zone has no such access point, it discards the zone, and the new region if one was created for it, and throws
 `std::runtime_error`; a discarded zone is no longer listed in its region, and the world index no longer has its
 entities. It binds nothing.
 
-`relocate_through(actor, relocator)` moves the actor through the relocator and returns the access point it arrives at.
-A bound target is resolved to the relocator it refers to; if that relocator's zone has unloaded, the zone is read back
-first with `load_saved_zone`, the world index having the zone of every entity something refers to. A world with no game
-directory cannot read it back and throws `std::runtime_error`. An unbound target is resolved by
-`resolve_relocator_target`, and the relocator and the access point arrived at are then bound to each other, each target
-becoming an `EntityReference` to the other, so going back arrives at the relocator gone through, and `entry_point` no
-longer chooses either. The actor is relocated to the access point's zone, at its `placement`. Whatever it throws, it
+`relocate_through(actor, access_point)` moves the actor through the access point and returns the access point it
+arrives at. A bound target is resolved to the access point it refers to; if that access point's zone has unloaded, the
+zone is read back first with `load_saved_zone`, the world index having the zone of every entity something refers to. A
+world with no game directory cannot read it back and throws `std::runtime_error`. An unbound target is resolved by
+`resolve_target`, and the access point gone through and the access point arrived at are then bound to each other, each
+target becoming an `EntityReference` to the other, so going back arrives at the access point gone through, and
+`entry_point` no longer chooses either. An arrival-only access point arrived at keeps no target, so it is never bound
+and receives every actor that comes through the access points bound to it. The actor is relocated to the access point's zone, at its `arrival_placement`. Whatever it throws, it
 moves nothing.
 
 `random_type` is `math::Random<math::portable_random_engine_type>`, xoshiro256** seeded through splitmix64, with
@@ -547,28 +553,29 @@ actor whose own state differs.
 has one and the general state otherwise. A null actor gets the general state, and an entity with no `Detection` in its
 chain is visible. One side of a secret door is concealed by a `Detection` on that door facing.
 
-An access point is an entity at which a zone is entered, sited `On` a surface --- a wall, or a floor or ceiling cell ---
-with an `AccessPoint`. The `AccessPoint` has its `order` among the zone's access points of its type, counting from 0,
-and its `placement`, the placement given to an arriving actor. Its type is a relationship, `(AccessType, <type>)`, so
-the access points of one type are found by a query.
+An access point is an entity at which a zone is entered or left, sited `On` a surface --- a wall, or a floor or ceiling
+cell --- with an `AccessPoint`. The `AccessPoint` has its `order` among the zone's access points of its type, counting
+from 0, and an optional `target`, to which going through it moves an actor: a `stratum_format::RelocatorTarget`,
+unbound, or an `EntityReference` to the access point it is bound to. An access point with no target is arrival only.
+Its type is a relationship, `(AccessType, <type>)`, so the access points of one type are found by a query.
+`arrival_placement(access_point)` returns the placement given to an arriving actor, computed by the zone's
+`DiscreteLayout` from the access point's site.
 
 An access point type is an entity registered once in the world, under `access_types`, with an `Arrival` that refers
-to the type at which an actor arrives through a relocator of this type. `World` registers `staircase`, `door`,
+to the type at which an actor arrives through an access point of this type. `World` registers `staircase`, `door`,
 `portal`, and `waypoint`, each arriving at its own type. The type is what the access point is; whether it goes up,
-down, or across is in its relocator's target. A mod registers more types with `create_access_type`. `access_type(entities, name)` finds one by name, returning a null
+down, or across is in its target. A mod registers more types with `create_access_type`. `access_type(entities, name)` finds one by name, returning a null
 entity if there is none.
 
-`set_access_point(e, type, order, placement)` makes an entity sited on a surface an access point, and `create_access_point(zone, type, site, order, placement)` creates one.
-`targets_relocator_level(e, offset)` returns true if the entity's relocator is unbound and its target is the level
+`set_access_point(e, type, order, target)` makes an entity sited on a surface an access point, and
+`create_access_point(zone, type, site, order, target)` creates one; the target is optional.
+`targets_level(e, offset)` returns true if the entity's access point target is unbound and is the level
 `offset` levels from the entity's zone: a relative target with that offset, or an absolute target at the zone's level
-plus the offset, which only a zone with a level matches. `entry_point(zone, type, offset)` returns the zone's
-lowest-ordered access point of the type whose relocator targets the level `offset` levels away, or a null entity if the
-zone has none. A staircase leading up is `entry_point(zone, staircase, 1)`, and an actor arriving from another level
-passes the offset that leads back.
-
-A `Relocator` has the target to which an entity moves an actor that enters it: a `stratum_format::RelocatorTarget`,
-unbound, or an `EntityReference` to the relocator it is bound to. A door facing may have a relocator and be an access
-point.
+plus the offset, which only a zone with a level matches. `accepts_arrival(e, offset)` returns true if an actor coming
+from the level `offset` levels away can arrive at the entity's access point: it has no target, or `targets_level(e,
+offset)`. `entry_point(zone, type, offset)` returns the zone's lowest-ordered access point of the type that accepts an
+arrival from the level `offset` levels away, or a null entity if the zone has none. A staircase leading up is `entry_point(zone, staircase, 1)`, and an actor arriving from another level
+passes the offset that leads back. A door facing may be an access point.
 
 `way_through(zone, wall_id)` returns an entity sited on the wall that has access, found through the wall's entity and
 its attached entities, or a null entity if there is none. `crossable(zone, wall_id, actor)` returns true if the actor
@@ -577,16 +584,16 @@ no such entity is solid. `World::move`, `neighbors` and `visible` bind it to the
 actor crosses a wall as it perceives the entities on it.
 
 `Interact` opens the access of the way through on the wall ahead if it is closed, or closes it if it is open, and
-reports `Interaction::Opened`, `Closed` or `Nothing`. A locked way through stays locked. If the wall ahead has a
-relocator on it that the controlled actor `can_enter`, `Interact` goes through it instead. `Interacted` has the entity acted
+reports `Interaction::Opened`, `Closed` or `Nothing`. A locked way through stays locked. If the wall ahead has an
+access point on it that the controlled actor `can_enter`, `Interact` goes through it instead. `Interacted` has the entity acted
 on, the way through, and `access_type_name(e)` returns the name of an access point's type, such as
 `staircase`, for the hosts' messages.
 
-`find_relocator(zone, address)` returns an entity with a `Relocator` sited on a wall or a flat cell, found through
-the layout entity's attached entities, or a null entity if there is none. `can_enter(e, actor)` returns true if the
-actor can go through the entity's relocator: the entity's access, if it has any, is open, and the actor does not find
-it concealed. A staircase has no `Access`, so it can always be entered, and a door with a relocator only while it is
-open.
+`find_access_point(zone, address)` returns an access point sited on a wall or a flat cell, found through the layout
+entity's attached entities, or a null entity if there is none. `can_enter(access_point, actor)` returns true if the
+actor can go through the access point: it has a target, its access, if it has any, is open, and the actor does not find
+it concealed. A staircase has no `Access`, so it can always be entered, and a door facing that is an access point only
+while the door is open.
 
 A wall is solid unless something sited on it makes it crossable, and a query given no predicate treats every wall as
 solid. Every boundary between floor and solid, and every cell side on the border of the grid, has a wall, so where
@@ -912,7 +919,7 @@ process-wide log. The `ZoneSpec` keys are `stratum_sim::name_key`, the position 
 `parameters_prefix`.
 
 `start(zone, placement)` relocates the character to the placement in the zone, and `start(access_point)` to the access
-point's placement in its zone; each then has the world `trim_zones` with the zone entered, so no zone the character is in can unload. It makes the zone the one being played,
+point's arrival placement in its zone; each then has the world `trim_zones` with the zone entered, so no zone the character is in can unload. It makes the zone the one being played,
 removes the character's pending command, and rebuilds the turn order from each entity in the zone that has a `Speed`,
 the character included. `enter(zone, type, offset)` starts at the zone's `entry_point(zone, type, offset)`; if the zone
 has no such entry point, it throws `std::runtime_error`, and the character stays where it was. `notation()` returns the entered zone's `ZoneNotation`.
@@ -930,7 +937,7 @@ the elapsed time it next passes from the resume, so the time the menu was open e
 
 `advance(events, elapsed)` calls `think`, then advances the clock, returning the controlled entity when it needs a
 command, or `nullid` if no actor will ever be ready. `elapsed` is the real time since the last call; a turn-based host
-omits it. If the character went through a relocator into another zone, it then makes that zone the one being played, as
+omits it. If the character went through an access point into another zone, it then makes that zone the one being played, as
 `enter` does once it has placed the character: the world trims its zones, the character's pending command is dropped, and
 the turn order is rebuilt from the new zone. The actors of the zone left finish the advance in which the character left.
 
@@ -941,8 +948,8 @@ returns `nullid`. Each host shows the death with the game's last state until a k
 `Game::quit` and returns to its menu.
 
 Each host maps `<` and `>` to `Enter`. The hosts report a `Relocated` event with the level arrived on, shown as its
-distance from the surface, and a step `Blocked` by a wall with a relocator on it as "There is a staircase before you",
-naming the relocator's access point type.
+distance from the surface, and a step `Blocked` by a wall with an access point on it as "There is a staircase before
+you", with the access point's type.
 
 ### Commands and events
 
@@ -951,15 +958,16 @@ it acts for. `CommandQueue` and `EventQueue` are deques in submission and occurr
 
 The commands are `Step`, `TurnTo`, `Interact`, and `Enter`. `Step` has a direction, zero for the actor's facing
 direction; a distance; and `face`, which turns toward the direction within the same action. `TurnTo` has an absolute
-facing direction, and `Interact` acts on the wall `ahead`. `Enter` enters the relocator on the floor of the actor's
+facing direction, and `Interact` acts on the wall `ahead`. `Enter` enters the access point on the floor of the actor's
 cell, in a discrete layout. They produce `Moved`, `Blocked`, `Turned`, `Interacted`, and `Relocated` events, and `Session::advance` produces
 `Died`.
 
-The controlled actor enters a relocator on the wall ahead with `Interact`, and one on the floor of its cell with
-`Enter`, through `World::relocate_through`; any other actor does not enter a relocator. A `Step` into a wall with a
-relocator on it is `Blocked`, so a held movement key never takes the stairs. Entering by
-moving into the wall is kept in `commands.cpp` behind `enter_relocator_by_moving`, which is off. A relocator on the
-floor does not impede movement. `Relocated` has the actor, the relocator, and the access point arrived at.
+The controlled actor enters an access point on the wall ahead with `Interact`, and one on the floor of its cell with
+`Enter`, through `World::relocate_through`; any other actor does not enter an access point. A `Step` into a wall with
+an access point on it is `Blocked`, so a held movement key never takes the stairs. Entering by
+moving into the wall is kept in `commands.cpp` behind `enter_access_point_by_moving`, which is off. An access point on
+the floor does not impede movement. `Relocated` has the actor, the departure access point, and the arrival access
+point.
 
 The clock builds `Step` and `TurnTo` from an actor's `Intent`. A one-shot command, such as `Interact`, waits on the
 actor as a `PendingCommand` component, which the clock applies before the actor's `Intent` the next time the actor is
@@ -969,11 +977,11 @@ ready; a host submits one through `Character::submit`.
 drains the queue. A move costs in proportion to the distance traveled against `step_distance`, so a move stopped short
 is charged for the distance reached and a fraction of a cell costs a fraction of an action. A turn and an interaction
 cost one action; a `TurnTo` to the current facing direction and an `Interact` with no wall ahead cost nothing. Going
-through a relocator costs one action, and an `Enter` with nothing to enter costs nothing.
+through an access point costs one action, and an `Enter` with nothing to enter costs nothing.
 
 ## Zone file format
 
-`quetzal::stratum_format` reads and writes the JSON zone file that `discrete_layout.md` specifies, version `0.5`. It
+`quetzal::stratum_format` reads and writes the JSON zone file that `discrete_layout.md` specifies, version `0.6`. It
 depends on `quetzal_common` and nlohmann/json. `load_layout` fills a zone from what `read_zone` returns, and both generators
 write through it.
 
@@ -986,12 +994,10 @@ components in the order written, and `translate_references` replaces each with t
 
 `Document` is the file as data structures. The geometry is decoded into types: the grid and its rows, expanded from
 runs; the barriers; each room's perimeter or `RoomLocator`; wall addresses; and each flat's heights. So are each
-entity's `site`, `parent` and `relocator` file components, which the reader validates. A `Site`'s address is a
+entity's `site`, `parent` and `access_point` file components, which the reader validates. A `Site`'s address is a
 `WallAddress`, a `FlatCell`, or a `ZoneCell`, a cell of the zone that an entity such as an actor is in, with the
-relation `in` and an orientation required. A `Relocator` has its target,
-which is a `RelocatorTarget` or the id of the relocator it is bound to, and, for an access point, its type, order and
-placement. The placement is a `discrete_directed_point_type` (`geometry::DiscreteDirectedPoint`): the cell position and
-orientation given to an arriving actor. The layout's `access_points` are `Document::access_points`, a list of entity
+relation `in` and an orientation required. A `stratum_format::AccessPoint` has its type, its order, and an optional
+target, which is a `RelocatorTarget` or the id of the access point it is bound to. The layout's `access_points` are `Document::access_points`, a list of entity
 ids, its optional `position` is `Document::position`, a `zone_position_type` (`geometry::DiscretePoint` of three
 coordinates), and its `unpopulated` flag is `Document::is_unpopulated`, false if
 absent. The generator and every other file component are `raw_values_type`, nlohmann's `ordered_json`, as the file wrote
@@ -1017,20 +1023,20 @@ a child, or be a parent, with an entity sited on the geometry in every hierarchy
 one, and no `parent` may lead back to its own entity. In a template, every reference must be an entity's id; a saved
 zone's references may refer to another zone and are not checked. Each door glyph requires one entity with a child
 sited on each wall of its doorway and on no other wall. `layout.components.access_points` must refer to at least one
-entity with a `relocator` sited on a surface, one on the floor or the ceiling with its site's `orientation`, and each
-relocator must have a `type`, an `order` counting from 0 among the access points of its type, and a `placement` on a
-cell an actor can stand in. Each relocator's target must be a
-reference or a string that matches `[region/]zone[@position]`. The stair glyphs are visual aids, so a stair glyph with
-no `relocator` on the walls around it, or with a second one, and an access point on a wall that is neither a stair
-cell's open side nor a door's wall, are warnings. So is an access point whose relocator type is neither its entity's
-type nor its parent's, the parent being a door facing's door, and so is `unpopulated` in a file with a `zone` section.
+entity with an `access_point` sited on a surface, one on the floor or the ceiling with its site's `orientation`, and
+each access point must have a `type` and an `order` counting from 0 among the access points of its type, and place an
+arriving actor in a cell an actor can stand in: the wall's cell, or the flat cell. Every entity with an `access_point`
+must be listed in `access_points`. An access point's target is optional, and must be a reference or a string that
+matches `[region/]zone[@position]`. The stair glyphs are visual aids, so a stair glyph with no access point on the
+walls around it, or with a second one, and an access point on a wall that is neither a stair cell's open side nor a
+door's wall, are warnings. So is an access point whose type is neither its entity's type nor its parent's, the parent being a door facing's door, and so is `unpopulated` in a file with a `zone` section.
 `read_zone` writes them to the process-wide log as warnings in the category `stratum_format`
 (`log_plan.md`). Keys the format does not define are not tracked.
 
 `write` emits the written form: two-space indentation, a grid row per line, an entry per line with each of a flat's
 per-room and per-cell entries on a line of its own. Top-level sections follow the format's key table. Within an entry, its address or
 identification comes first, then the rest in its section's table order, and file components stay in the order read.
-An entity's `parent` and `site` are written into its `components` ahead of the rest. In runs, a count is written for a
+An entity's `parent`, `site` and `access_point` are written into its `components` ahead of the rest. In runs, a count is written for a
 run of three glyphs or more. A document that `read_zone` produces is written back equivalent to it.
 
 The game, character and world files that `game_file_spec.md` specifies, format `quetzal.stratum_game`, version `0.1`
@@ -1048,7 +1054,7 @@ path within the document and what was wrong there. Each requires the format and 
 and the keys and value types that `game_file_spec.md` specifies. `read_character` also requires that the file's `name`,
 a copy of the character's name, equals the `name` component, and that every entity of the inventory has a unique id
 and a parent, the character or another entity of the inventory, with no cycle, and that it
-is sited on its parent if sited at all, with no address and no relocator. `read_world` requires unique region ids, zone
+is sited on its parent if sited at all, with no address and no access point. `read_world` requires unique region ids, zone
 ids unique across the world, and every entry of the world index in a zone that a region lists, once. The readers share
 the checked reading of values through `checked_values.hpp`, in `stratum_format::detail`. Each file's header is its
 leading keys, `format` and `version`, and in the character file `name` after them; `check_file_header` checks it, and a
@@ -1111,10 +1117,10 @@ finds concealed is drawn as though there were none, as a wall. A null viewer get
 cell. A wall or door on the edge between two cells has no position there, so
 it reduces to `Floor` on both sides.
 
-In both reductions, stairs are drawn on a floor cell with a relocator on it, and on the closed cell beyond a wall with a
-relocator on it, which is a stair block. They are `StairsDown` if the relocator's target is known to be below the zone,
-and `StairsUp` otherwise: an unbound relative target below zero or absolute target below the zone's level, or
-a bound target whose relocator is loaded in a zone at a lower level. The site's orientation is not drawn. The glyph
+In both reductions, stairs are drawn on a floor cell with an access point on it, and on the closed cell beyond a wall
+with an access point on it, which is a stair block. They are `StairsDown` if the access point's target is known to be
+below the zone, and `StairsUp` otherwise: an unbound relative target below zero or absolute target below the zone's
+level, or a bound target whose access point is loaded in a zone at a lower level. The site's orientation is not drawn. The glyph
 sets draw `StairsUp` as `<`, the entrance glyph, and `StairsDown` as `>`, and `read_glyphs` names them `stairs_up`
 and `stairs_down`.
 

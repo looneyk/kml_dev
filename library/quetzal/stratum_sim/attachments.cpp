@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <format>
 #include <string>
+#include <utility>
 #include <variant>
 #include <cassert>
 
@@ -26,7 +27,7 @@ namespace
 
     //--------------------------------------------------------------------------
     template<typename Address>
-    flecs::entity find_attached_relocator(flecs::entity zone, const Address& address)
+    flecs::entity find_attached_access_point(flecs::entity zone, const Address& address)
     {
         flecs::entity sited_on = quetzal::stratum_sim::layout_entity(zone, address);
         const auto* attached = sited_on ? sited_on.try_get<quetzal::stratum_sim::AttachedEntities>() : nullptr;
@@ -37,7 +38,7 @@ namespace
         }
 
         auto i = std::find_if(attached->entities.begin(), attached->entities.end(),
-            [](flecs::entity e) { return e.has<quetzal::stratum_sim::Relocator>(); });
+            [](flecs::entity e) { return e.has<quetzal::stratum_sim::AccessPoint>(); });
         return i != attached->entities.end() ? *i : flecs::entity();
     }
 
@@ -57,10 +58,11 @@ flecs::entity quetzal::stratum_sim::access_type(const flecs::world& entities, st
 }
 
 //------------------------------------------------------------------------------
-bool quetzal::stratum_sim::targets_relocator_level(flecs::entity e, level_type offset)
+bool quetzal::stratum_sim::targets_level(flecs::entity e, level_type offset)
 {
-    const auto* relocator = e.try_get<Relocator>();
-    const auto* target = relocator != nullptr ? std::get_if<stratum_format::RelocatorTarget>(&relocator->target) : nullptr;
+    const auto* access_point = e.try_get<AccessPoint>();
+    const auto* target = access_point != nullptr && access_point->target.has_value()
+        ? std::get_if<stratum_format::RelocatorTarget>(&*access_point->target) : nullptr;
 
     if (target == nullptr)
     {
@@ -79,6 +81,13 @@ bool quetzal::stratum_sim::targets_relocator_level(flecs::entity e, level_type o
 }
 
 //------------------------------------------------------------------------------
+bool quetzal::stratum_sim::accepts_arrival(flecs::entity e, level_type offset)
+{
+    const auto* access_point = e.try_get<AccessPoint>();
+    return access_point != nullptr && (!access_point->target.has_value() || targets_level(e, offset));
+}
+
+//------------------------------------------------------------------------------
 std::string quetzal::stratum_sim::access_type_name(flecs::entity e)
 {
     flecs::entity type = e.target<AccessType>();
@@ -86,26 +95,34 @@ std::string quetzal::stratum_sim::access_type_name(flecs::entity e)
 }
 
 //------------------------------------------------------------------------------
-void quetzal::stratum_sim::set_access_point(flecs::entity e, flecs::entity access_type, std::uint64_t order, const placement_type& placement)
+void quetzal::stratum_sim::set_access_point(flecs::entity e, flecs::entity access_type, std::uint64_t order,
+    std::optional<AccessPoint::target_type> target)
 {
     assert(access_type);
     assert(e.has<Site>() && e.get<Site>().relation == Relation::On && e.get<Site>().address.has_value());
 
-    e.add<AccessType>(access_type).set<AccessPoint>(AccessPoint {order, placement});
+    e.add<AccessType>(access_type).set<AccessPoint>(AccessPoint {order, std::move(target)});
     return;
 }
 
 //------------------------------------------------------------------------------
-flecs::entity quetzal::stratum_sim::create_access_point(flecs::entity zone, flecs::entity access_type, const Site& site,
-    std::uint64_t order, const placement_type& placement)
+flecs::entity quetzal::stratum_sim::create_access_point(flecs::entity zone, flecs::entity access_type, const Site& site, std::uint64_t order,
+    std::optional<AccessPoint::target_type> target)
 {
     assert(zone && zone.has<Zone>());
 
     flecs::entity e = zone.world().entity();
     reparent(e, zone, site);
-    set_access_point(e, access_type, order, placement);
+    set_access_point(e, access_type, order, std::move(target));
 
     return e;
+}
+
+//------------------------------------------------------------------------------
+quetzal::stratum_sim::placement_type quetzal::stratum_sim::arrival_placement(flecs::entity access_point)
+{
+    assert(access_point.has<AccessPoint>());
+    return layout_as<DiscreteLayout>(*zone_of(access_point).get<ZoneLayout>().layout).arrival_placement(access_point.get<Site>());
 }
 
 //------------------------------------------------------------------------------
@@ -123,7 +140,7 @@ flecs::entity quetzal::stratum_sim::entry_point(flecs::entity zone, flecs::entit
         .build()
         .each([&](flecs::entity e, const AccessPoint& access_point)
         {
-            if (targets_relocator_level(e, offset) && (!found || access_point.order < order_found))
+            if (accepts_arrival(e, offset) && (!found || access_point.order < order_found))
             {
                 found = e;
                 order_found = access_point.order;
@@ -178,22 +195,23 @@ quetzal::stratum_sim::DetectionState quetzal::stratum_sim::detection(flecs::enti
 }
 
 //------------------------------------------------------------------------------
-flecs::entity quetzal::stratum_sim::find_relocator(flecs::entity zone, const WallAddress& address)
+flecs::entity quetzal::stratum_sim::find_access_point(flecs::entity zone, const WallAddress& address)
 {
-    return find_attached_relocator(zone, address);
+    return find_attached_access_point(zone, address);
 }
 
 //------------------------------------------------------------------------------
-flecs::entity quetzal::stratum_sim::find_relocator(flecs::entity zone, const FlatCellAddress& address)
+flecs::entity quetzal::stratum_sim::find_access_point(flecs::entity zone, const FlatCellAddress& address)
 {
-    return find_attached_relocator(zone, address);
+    return find_attached_access_point(zone, address);
 }
 
 //------------------------------------------------------------------------------
-bool quetzal::stratum_sim::can_enter(flecs::entity e, flecs::entity actor)
+bool quetzal::stratum_sim::can_enter(flecs::entity access_point, flecs::entity actor)
 {
-    std::optional<AccessState> state = access(e);
-    return (!state.has_value() || *state == AccessState::Open) && detection(e, actor) != DetectionState::Concealed;
+    std::optional<AccessState> state = access(access_point);
+    return access_point.get<AccessPoint>().target.has_value() && (!state.has_value() || *state == AccessState::Open)
+        && detection(access_point, actor) != DetectionState::Concealed;
 }
 
 //------------------------------------------------------------------------------

@@ -256,13 +256,12 @@ quetzal::stratum_format::Document quetzal::dungen::make_document(const Zone& zon
         const vector_type open_side = placement.direction();
         stratum_format::WallAddress address {placement.position() + open_side, open_side};
 
-        // An arriving actor is placed on the floor it opens onto, facing away from it
         stratum_format::RelocatorTarget target {std::nullopt, stratum_format::RelativeZone {staircase.rise() == Rise::Down ? -1 : 1}, std::nullopt};
-        stratum_format::Relocator relocator {target, "staircase", staircase_count++,
-            stratum_format::discrete_directed_point_type(address.cell_position, open_side)};
+        stratum_format::AccessPoint access_point {"staircase", staircase_count++, target};
 
         document.access_points.push_back(++id);
-        document.entities.push_back({id, "staircase", stratum_format::Site {stratum_format::Relation::On, address, nullopt, nullopt}, nullopt, std::move(relocator), {}});
+        document.entities.push_back({id, "staircase", stratum_format::Site {stratum_format::Relation::On, address, nullopt, nullopt}, nullopt,
+            std::move(access_point), {}});
     }
 
     return document;

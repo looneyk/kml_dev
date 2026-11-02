@@ -940,7 +940,7 @@ std::filesystem::path quetzal::stratum_sim::World::saved_zone_path(PersistentId 
 }
 
 //------------------------------------------------------------------------------
-flecs::entity quetzal::stratum_sim::World::require_entry_point(flecs::entity relocator, flecs::entity zone, flecs::entity arrival_type,
+flecs::entity quetzal::stratum_sim::World::require_entry_point(flecs::entity access_point, flecs::entity zone, flecs::entity arrival_type,
     level_type offset)
 {
     flecs::entity entry = entry_point(zone, arrival_type, offset);
@@ -948,23 +948,23 @@ flecs::entity quetzal::stratum_sim::World::require_entry_point(flecs::entity rel
     if (!entry)
     {
         PersistentId zone_id = zone.get<PersistentId>();
-        discard_made_zone(relocator, zone);
-        throw std::runtime_error(std::format("zone {}, made for relocator {}, has no access point of the type '{}' whose target is {:+}",
-            zone_id.id, relocator.get<PersistentId>().id, arrival_type.name().c_str(), offset));
+        discard_made_zone(access_point, zone);
+        throw std::runtime_error(std::format("zone {}, made for access point {}, has no access point of the type '{}' whose target is {:+}",
+            zone_id.id, access_point.get<PersistentId>().id, arrival_type.name().c_str(), offset));
     }
 
     return entry;
 }
 
 //------------------------------------------------------------------------------
-void quetzal::stratum_sim::World::discard_made_zone(flecs::entity relocator, flecs::entity zone)
+void quetzal::stratum_sim::World::discard_made_zone(flecs::entity access_point, flecs::entity zone)
 {
     assert(zone && zone.has<Zone>());
 
     PersistentId zone_id = zone.get<PersistentId>();
     flecs::entity region = region_of(zone);
 
-    if (region != region_of(stratum_sim::zone_of(relocator)))
+    if (region != region_of(stratum_sim::zone_of(access_point)))
     {
         unload_region(region);
     }
@@ -1036,20 +1036,20 @@ void quetzal::stratum_sim::World::relocate(flecs::entity e, flecs::entity zone, 
 }
 
 //------------------------------------------------------------------------------
-flecs::entity quetzal::stratum_sim::World::resolve_relocator_target(flecs::entity relocator)
+flecs::entity quetzal::stratum_sim::World::resolve_target(flecs::entity access_point)
 {
-    assert(relocator.has<Relocator>() && std::holds_alternative<stratum_format::RelocatorTarget>(relocator.get<Relocator>().target));
-    assert(relocator.has<AccessType>(flecs::Wildcard));
+    assert(access_point.has<AccessPoint>() && access_point.get<AccessPoint>().target.has_value()
+        && std::holds_alternative<stratum_format::RelocatorTarget>(*access_point.get<AccessPoint>().target));
 
-    const auto& target = std::get<stratum_format::RelocatorTarget>(relocator.get<Relocator>().target);
+    const auto& target = std::get<stratum_format::RelocatorTarget>(*access_point.get<AccessPoint>().target);
 
     if (std::holds_alternative<std::string>(target.zone) || target.position.has_value())
     {
-        throw std::runtime_error(std::format("relocator {} has a target with a named zone or a position, which is not resolved",
-            relocator.get<PersistentId>().id));
+        throw std::runtime_error(std::format("access point {} has a target with a named zone or a position, which is not resolved",
+            access_point.get<PersistentId>().id));
     }
 
-    flecs::entity zone_from = stratum_sim::zone_of(relocator);
+    flecs::entity zone_from = stratum_sim::zone_of(access_point);
     assert(zone_from.has<ZonePosition>());
 
     level_type level_from = zone_from.get<ZonePosition>().z;
@@ -1057,7 +1057,7 @@ flecs::entity quetzal::stratum_sim::World::resolve_relocator_target(flecs::entit
     level_type level = relative != nullptr ? level_from + relative->offset : std::get<stratum_format::AbsoluteZone>(target.zone).level;
     level_type offset = level - level_from;
 
-    flecs::entity arrival_type = relocator.target<AccessType>().get<Arrival>().access_type;
+    flecs::entity arrival_type = access_point.target<AccessType>().get<Arrival>().access_type;
     flecs::entity region = region_of(zone_from);
     ZoneSpec zone_spec;
     set_zone_position(zone_spec, new_zone_position(*this, region, level));
@@ -1065,7 +1065,7 @@ flecs::entity quetzal::stratum_sim::World::resolve_relocator_target(flecs::entit
     // A target with a region always creates a new region, so no loaded zone is searched
     if (target.region.has_value())
     {
-        return require_entry_point(relocator, create_region_zone(registered(m_generation.m_region_specs, "region spec", *target.region),
+        return require_entry_point(access_point, create_region_zone(registered(m_generation.m_region_specs, "region spec", *target.region),
             zone_spec), arrival_type, -offset);
     }
 
@@ -1075,17 +1075,17 @@ flecs::entity quetzal::stratum_sim::World::resolve_relocator_target(flecs::entit
     m_entities.query_builder<const AccessPoint>()
         .with<AccessType>(arrival_type)
         .build()
-        .each([&](flecs::entity e, const AccessPoint& access_point)
+        .each([&](flecs::entity e, const AccessPoint& candidate)
         {
             flecs::entity zone = stratum_sim::zone_of(e);
 
             if (zone == zone_from || m_zones_unloading.contains(zone.get<PersistentId>()) || !zone.has<ZonePosition>()
-                || zone.get<ZonePosition>().z != level || region_of(zone) != region || !targets_relocator_level(e, -offset))
+                || zone.get<ZonePosition>().z != level || region_of(zone) != region || !accepts_arrival(e, -offset))
             {
                 return;
             }
 
-            std::pair zone_id_and_order {zone.get<PersistentId>(), access_point.order};
+            std::pair zone_id_and_order {zone.get<PersistentId>(), candidate.order};
 
             if (!found || zone_id_and_order < found_zone_id_and_order)
             {
@@ -1099,44 +1099,48 @@ flecs::entity quetzal::stratum_sim::World::resolve_relocator_target(flecs::entit
         return found;
     }
 
-    return require_entry_point(relocator, create_zone(region, zone_spec), arrival_type, -offset);
+    return require_entry_point(access_point, create_zone(region, zone_spec), arrival_type, -offset);
 }
 
 //------------------------------------------------------------------------------
-flecs::entity quetzal::stratum_sim::World::relocate_through(flecs::entity actor, flecs::entity relocator)
+flecs::entity quetzal::stratum_sim::World::relocate_through(flecs::entity actor, flecs::entity access_point)
 {
-    assert(relocator.has<Relocator>());
+    assert(access_point.has<AccessPoint>() && access_point.get<AccessPoint>().target.has_value());
 
     flecs::entity arrival;
 
-    if (auto* reference = std::get_if<EntityReference>(&relocator.get_mut<Relocator>().target))
+    if (auto* reference = std::get_if<EntityReference>(&*access_point.get_mut<AccessPoint>().target))
     {
         arrival = resolve(*reference);
 
-        // The relocator it is bound to is in a zone that has unloaded, which is read back. Loading can move the relocator's
-        // component, so the reference is found again
+        // The access point it is bound to is in a zone that has unloaded, which is read back. Loading can move the access
+        // point's component, so the reference is found again
         if (!arrival)
         {
             if (!m_game_directory.has_value())
             {
-                throw std::runtime_error(std::format("relocator {} is bound to relocator {}, whose zone is not loaded and cannot be read "
-                    "back without a game directory", relocator.get<PersistentId>().id, reference->persistent_id.id));
+                throw std::runtime_error(std::format("access point {} is bound to access point {}, whose zone is not loaded and cannot be "
+                    "read back without a game directory", access_point.get<PersistentId>().id, reference->persistent_id.id));
             }
 
             load_saved_zone(zone_of(reference->persistent_id));
-            arrival = resolve(std::get<EntityReference>(relocator.get_mut<Relocator>().target));
+            arrival = resolve(std::get<EntityReference>(*access_point.get_mut<AccessPoint>().target));
             assert(arrival);
         }
     }
     else
     {
-        arrival = resolve_relocator_target(relocator);
-        relocator.set<Relocator>(Relocator {make_reference(arrival)});
-        arrival.set<Relocator>(Relocator {make_reference(relocator)});
+        arrival = resolve_target(access_point);
+        access_point.get_mut<AccessPoint>().target = make_reference(arrival);
+
+        if (arrival.get<AccessPoint>().target.has_value())
+        {
+            arrival.get_mut<AccessPoint>().target = make_reference(access_point);
+        }
     }
 
     assert(arrival.has<AccessPoint>());
-    relocate(actor, stratum_sim::zone_of(arrival), arrival.get<AccessPoint>().placement);
+    relocate(actor, stratum_sim::zone_of(arrival), arrival_placement(arrival));
 
     return arrival;
 }

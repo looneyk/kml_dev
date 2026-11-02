@@ -172,27 +172,23 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // The entity's relocator as a zone file writes it: a bound target is the persistent id of the relocator it is bound to,
-    // and an access point's relocator has its type, order and placement
-    stratum_format::Relocator encoded_relocator(flecs::entity e, const Relocator& relocator, const DiscreteLayout& layout)
+    // The access point as a zone file writes it: a bound target is the persistent id of the access point it is bound to
+    stratum_format::AccessPoint encoded_access_point(flecs::entity e, const AccessPoint& access_point)
     {
-        stratum_format::Relocator result;
+        stratum_format::AccessPoint result {access_type_name(e), access_point.order, std::nullopt};
 
-        if (const auto* unbound = std::get_if<stratum_format::RelocatorTarget>(&relocator.target))
+        if (!access_point.target.has_value())
+        {
+            return result;
+        }
+
+        if (const auto* unbound = std::get_if<stratum_format::RelocatorTarget>(&*access_point.target))
         {
             result.target = *unbound;
         }
         else
         {
-            result.target = std::get<EntityReference>(relocator.target).persistent_id.id;
-        }
-
-        if (const AccessPoint* access_point = e.try_get<AccessPoint>())
-        {
-            result.type = access_type_name(e);
-            result.order = access_point->order;
-            result.placement = stratum_format::discrete_directed_point_type(layout.cell_position_at(access_point->placement.position()),
-                grid_step(access_point->placement.direction()));
+            result.target = std::get<EntityReference>(*access_point.target).persistent_id.id;
         }
 
         return result;
@@ -251,9 +247,9 @@ namespace
             entity.site = encoded_site(*site, layout, parent == zone);
         }
 
-        if (const Relocator* relocator = e.try_get<Relocator>())
+        if (const AccessPoint* access_point = e.try_get<AccessPoint>())
         {
-            entity.relocator = encoded_relocator(e, *relocator, layout);
+            entity.access_point = encoded_access_point(e, *access_point);
         }
 
         entity.components = encoded_components(e, file_components);

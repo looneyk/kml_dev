@@ -28,7 +28,7 @@ Date: 2026-09-14, revised 2026-09-26
 | Persistent ids, the id allocator and the world index | Built |
 | Links in both directions between an entity and the place it is sited on; location maps | Built |
 | References between entities | Built |
-| Relocator targets bound to relocators | Built |
+| Access point targets bound to access points | Built |
 | Saved zones | Built |
 | A placement index for each zone | Built |
 
@@ -211,26 +211,25 @@ file component.
   { "id": 5, "type": "lever", "components": { "site": { "relation": "on", "wall": { "cell_position": [1, 2], "normal": [0, -1] }, "position": [0.5, 1.2] }, "controls": { "entity": 1 } } },
   { "id": 6, "type": "chest", "components": { "site": { "relation": "on", "flat": "floor", "cell_position": [0, 2] } } },
   { "id": 7, "type": "key", "components": { "parent": { "entity": 6 }, "site": { "relation": "in" }, "lock": "vault" } },
-  { "id": 8, "type": "staircase", "components": { "site": { "relation": "on", "wall": { "cell_position": [3, 1], "normal": [0, -1] } }, "relocator": { "target": "-1" } } }
+  { "id": 8, "type": "staircase", "components": { "site": { "relation": "on", "wall": { "cell_position": [3, 1], "normal": [0, -1] } }, "access_point": { "type": "staircase", "target": "-1", "order": 0 } } }
 ]
 ```
 
 `discrete_layout.md` (`## entities`) has the full set of keys, the rules the reader checks, and what door and stair
 glyphs require.
 
-### Relocators and access points
+### Access points
 
-A relocator is the component of an entity, such as a staircase, a portal or a waypoint, that moves an
-actor (`discrete_layout.md`, `### A relocator's target`). Its target is unbound or bound:
+An access point is the component of an entity, such as a staircase, a portal or a waypoint, at which a zone is
+entered or left (`discrete_layout.md`, `### An access point's target`). Its optional target is unbound or bound:
 
 - **Unbound:** a string, `[region/]zone[@position]`, such as `-1` for the next level down, `=0` for level 0, or
-  `town/market@fountain` for a place in pregenerated content. Every relocator in a template is unbound.
-- **Bound:** a reference to the relocator it arrives at. A relocator becomes bound when it is first gone
-  through, and both relocators are then bound to each other. Bound targets appear only in saved zones.
+  `town/market@fountain` for a place in pregenerated content. Every target in a template is unbound.
+- **Bound:** a reference to the access point it arrives at. An access point becomes bound when it is first gone
+  through, and both access points are then bound to each other. Bound targets appear only in saved zones.
 
-A zone's **access points** are the relocators an arriving actor can be placed at; a zone has at least
-one. `layout.components.access_points` is a list of references to them. Each is an entity with a
-relocator, sited on the open side of a cell written `<` or `>`.
+A zone has at least one access point. `layout.components.access_points` is a list of references to them. A
+staircase's is sited on the open side of a cell written `<` or `>`.
 
 ### A saved zone
 
@@ -329,7 +328,7 @@ sited on a place is, and is accessible while the actor is in that zone, but not 
 the actor moves to. A reference also caches the runtime entity it last resolved to, and resolves
 again once that runtime entity is gone.
 
-**Bound relocator targets** are references, so arriving through one finds the target relocator and its
+**Bound access point targets** are references, so arriving through one finds the access point arrived at and its
 zone through the index.
 
 ### Actors

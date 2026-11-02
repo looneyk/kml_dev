@@ -563,14 +563,14 @@ namespace
         flecs::entity staircase_type = stratum_sim::entity_type(world.entities(), "staircase");
         CHECK_CASE("an entity whose type is not loaded is an instance of a type of that name, made without the components a type sets",
             staircase && staircase_type && staircase.has(flecs::IsA, staircase_type) && !staircase_type.has<stratum_sim::Access>());
-        CHECK_CASE("its relocator has its target", staircase && staircase.has<stratum_sim::Relocator>()
-            && get<stratum_format::RelocatorTarget>(staircase.get<stratum_sim::Relocator>().target)
-                == stratum_format::RelocatorTarget {nullopt, stratum_format::RelativeZone {1}, nullopt});
-        CHECK_CASE("and it is the access point, as the file lists it", staircase && staircase.has<stratum_sim::AccessPoint>()
+        CHECK_CASE("it is the access point, as the file lists it", staircase && staircase.has<stratum_sim::AccessPoint>()
             && stratum_sim::entry_point(zone, stratum_sim::access_type(entities, "staircase"), 1) == staircase);
+        CHECK_CASE("with its target", staircase && staircase.get<stratum_sim::AccessPoint>().target.has_value()
+            && get<stratum_format::RelocatorTarget>(*staircase.get<stratum_sim::AccessPoint>().target)
+                == stratum_format::RelocatorTarget {nullopt, stratum_format::RelativeZone {1}, nullopt});
 
         // The same zone saved: every id in the file is persistent
-        string saved_text = R"({ "format": "quetzal.discrete_layout", "version": "0.5", "zone": { "id": 900 },
+        string saved_text = R"({ "format": "quetzal.discrete_layout", "version": "0.6", "zone": { "id": 900 },
             "layout": { "components": { "access_points": [ { "entity": 904 } ] } },
             "cells": { "notation": "block", "extent": [5, 3], "origin": [0.0, 0.0, 0.0], "scale": 1.0, "rows": [ "#<###", "#.+.#", "#####" ] },
             "entities": [
@@ -578,7 +578,7 @@ namespace
               { "id": 902, "type": "door_facing", "components": { "parent": { "entity": 901 }, "site": { "relation": "on", "wall": { "cell_position": [3, 1], "normal": [1, 0] } } } },
               { "id": 903, "type": "door_facing", "components": { "parent": { "entity": 901 }, "site": { "relation": "on", "wall": { "cell_position": [1, 1], "normal": [-1, 0] } } } },
               { "id": 904, "type": "staircase", "components": { "site": { "relation": "on", "wall": { "cell_position": [1, 1], "normal": [0, -1] } },
-                "relocator": { "type": "staircase", "target": { "entity": 7713 }, "order": 0, "placement": { "cell_position": [1, 1], "orientation": [0, -1] } } } } ] })";
+                "access_point": { "type": "staircase", "target": { "entity": 7713 }, "order": 0 } } } ] })";
         istringstream saved_stream(saved_text);
         flecs::entity saved = loaded(stratum_format::read_zone(saved_stream, "saved"));
 
@@ -587,8 +587,8 @@ namespace
             && world.entity(stratum_sim::PersistentId {902}).parent() == world.entity(stratum_sim::PersistentId {901}));
 
         flecs::entity bound = world.entity(stratum_sim::PersistentId {904});
-        const auto* target = bound ? get_if<stratum_sim::EntityReference>(&bound.get<stratum_sim::Relocator>().target) : nullptr;
-        CHECK_CASE("a bound target refers to a relocator in a zone not loaded", target != nullptr
+        const auto* target = bound ? get_if<stratum_sim::EntityReference>(&*bound.get<stratum_sim::AccessPoint>().target) : nullptr;
+        CHECK_CASE("a bound target refers to an access point in a zone not loaded", target != nullptr
             && target->persistent_id == stratum_sim::PersistentId {7713} && !target->entity);
 
         return;
@@ -607,7 +607,7 @@ namespace
         auto door_level = [](const string& layout_components, const string& door_components, const string& staircase_components,
             const string& layout_sections = "")
         {
-            string text = format(R"({{ "format": "quetzal.discrete_layout", "version": "0.5",
+            string text = format(R"({{ "format": "quetzal.discrete_layout", "version": "0.6",
                 "layout": {{ "components": {{ "access_points": [ {{ "entity": 4 }} ]{} }} }},
                 "cells": {{ "notation": "block", "extent": [5, 3], "origin": [0.0, 0.0, 0.0], "scale": 1.0, "rows": [ "#<###", "#.+.#", "#####" ] }},
                 {}
@@ -616,7 +616,7 @@ namespace
                   {{ "id": 2, "type": "door_facing", "components": {{ "parent": {{ "entity": 1 }}, "site": {{ "relation": "on", "wall": {{ "cell_position": [3, 1], "normal": [1, 0] }} }} }} }},
                   {{ "id": 3, "type": "door_facing", "components": {{ "parent": {{ "entity": 1 }}, "site": {{ "relation": "on", "wall": {{ "cell_position": [1, 1], "normal": [-1, 0] }} }} }} }},
                   {{ "id": 4, "type": "staircase", "components": {{ "site": {{ "relation": "on", "wall": {{ "cell_position": [1, 1], "normal": [0, -1] }} }},
-                    "relocator": {{ "type": "staircase", "target": "+1", "order": 0, "placement": {{ "cell_position": [1, 1], "orientation": [0, -1] }} }}{} }} }} ] }})",
+                    "access_point": {{ "type": "staircase", "target": "+1", "order": 0 }}{} }} }} ] }})",
                 layout_components.empty() ? "" : ", " + layout_components,
                 layout_sections.empty() ? "" : layout_sections + ",",
                 door_components.empty() ? "" : R"(, "components": { )" + door_components + " }",

@@ -34,7 +34,8 @@ with the site:
 - **An access point on a ceiling flat cell** puts the actor on the floor of that cell, facing in the site's orientation.
 
 A floor or ceiling site already requires an orientation. The reader's check that an actor can stand in the placement's
-cell becomes a check on the cell the site determines.
+cell becomes a check on the cell the site determines. `DiscreteLayout::arrival_placement` computes the placement,
+reached through `layout_as`, so `ContinuousLayout` is unchanged.
 
 ## The file
 
@@ -75,9 +76,3 @@ same commit as the code: `addressing.md`, `discrete_layout.md`, `game_system_ref
    every zone file in the tree, and the reference files regenerated.
 4. **One-way access points resolved.** An unbound target whose arrival type's access points have no target resolves to
    one of them by order, without requiring that it leads back, and binding sets only the departure's target.
-
-## Open questions
-
-- **Where is the arrival placement computed?** A `Layout` virtual function keeps `World` free of the concrete layout,
-  but adds a declaration to `ContinuousLayout`. A function of `DiscreteLayout`, reached through `layout_as`, leaves
-  `ContinuousLayout` untouched.

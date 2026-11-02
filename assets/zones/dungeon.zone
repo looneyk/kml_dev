@@ -1,6 +1,6 @@
 {
   "format": "quetzal.discrete_layout",
-  "version": "0.5",
+  "version": "0.6",
   "layout": {
     "components": { "access_points": [ { "entity": 91 }, { "entity": 92 }, { "entity": 93 } ], "unpopulated": true }
   },
@@ -144,8 +144,8 @@
     { "id": 88, "type": "door" },
     { "id": 89, "type": "door_facing", "components": { "parent": { "entity": 88 }, "site": { "relation": "on", "wall": { "cell_position": [7, 29], "normal": [1, 0] } } } },
     { "id": 90, "type": "door_facing", "components": { "parent": { "entity": 88 }, "site": { "relation": "on", "wall": { "cell_position": [5, 29], "normal": [-1, 0] } } } },
-    { "id": 91, "type": "staircase", "components": { "site": { "relation": "on", "wall": { "cell_position": [2, 29], "normal": [1, 0] } }, "relocator": { "type": "staircase", "target": "+1", "order": 0, "placement": { "cell_position": [2, 29], "orientation": [1, 0] } } } },
-    { "id": 92, "type": "staircase", "components": { "site": { "relation": "on", "wall": { "cell_position": [1, 6], "normal": [0, 1] } }, "relocator": { "type": "staircase", "target": "-1", "order": 1, "placement": { "cell_position": [1, 6], "orientation": [0, 1] } } } },
-    { "id": 93, "type": "staircase", "components": { "site": { "relation": "on", "wall": { "cell_position": [14, 3], "normal": [1, 0] } }, "relocator": { "type": "staircase", "target": "-1", "order": 2, "placement": { "cell_position": [14, 3], "orientation": [1, 0] } } } }
+    { "id": 91, "type": "staircase", "components": { "site": { "relation": "on", "wall": { "cell_position": [2, 29], "normal": [1, 0] } }, "access_point": { "type": "staircase", "target": "+1", "order": 0 } } },
+    { "id": 92, "type": "staircase", "components": { "site": { "relation": "on", "wall": { "cell_position": [1, 6], "normal": [0, 1] } }, "access_point": { "type": "staircase", "target": "-1", "order": 1 } } },
+    { "id": 93, "type": "staircase", "components": { "site": { "relation": "on", "wall": { "cell_position": [14, 3], "normal": [1, 0] } }, "access_point": { "type": "staircase", "target": "-1", "order": 2 } } }
   ]
 }

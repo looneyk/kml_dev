@@ -510,11 +510,11 @@ void StratumWorld::advance()
     {
         if (const sim::Blocked* pblocked = event.try_get<sim::Blocked>())
         {
-            flecs::entity relocator = pblocked->blocking_wall_id != quetzal::nullid
-                ? sim::find_relocator(m_session.zone(), sim::WallAddress {pblocked->blocking_wall_id}) : flecs::entity();
-            std::string name = relocator ? sim::access_type_name(relocator) : std::string();
+            flecs::entity access_point = pblocked->blocking_wall_id != quetzal::nullid
+                ? sim::find_access_point(m_session.zone(), sim::WallAddress {pblocked->blocking_wall_id}) : flecs::entity();
+            std::string name = access_point ? sim::access_type_name(access_point) : std::string();
 
-            m_message = relocator ? std::format("There is a {} before you.", name.empty() ? "way" : name) : std::string();
+            m_message = access_point ? std::format("There is a {} before you.", name.empty() ? "way" : name) : std::string();
         }
         else if (const sim::Interacted* pinteracted = event.try_get<sim::Interacted>())
         {

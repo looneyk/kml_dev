@@ -38,9 +38,8 @@ notation without anything written, and it is part of no room.
 
 Each door is a `door` entity with a `door_facing` child on each wall that `stratum_format::door_walls` finds for its
 glyph. Each staircase is a `staircase` entity sited on the wall that the cell it opens onto has toward its block. Its
-`relocator` has the `type` `staircase`; a `target` of `-1` or `+1`; an `order` that counts from 0 among all the
-staircases, in the order they are written; and a `placement`, which is the floor its open side faces, facing away from
-it.
+`access_point` has the `type` `staircase`; a `target` of `-1` or `+1`; and an `order` that counts from 0 among all the
+staircases, in the order they are written.
 `layout.components.access_points` refers to every staircase. Local ids are assigned in the order the entities are
 written --- each door, then its door facings, and the staircases last --- so the same parameters give the same ids.
 

@@ -120,7 +120,7 @@ namespace
             sequence_session.loaded() && level_of(first_zone) == -1
             && first_region.get<stratum_sim::Region>().region_spec.value(stratum_sim::generator_selector_key) == "staircase"
             && stratum_sim::placement_of(first_character).position()
-                == stratum_sim::entry_point(first_zone, staircase_type, 1).get<stratum_sim::AccessPoint>().placement.position());
+                == stratum_sim::arrival_placement(stratum_sim::entry_point(first_zone, staircase_type, 1)).position());
 
         flecs::entity second_zone = stratum_sim::zone_of(sequence_world.relocate_through(first_character,
             stratum_sim::entry_point(first_zone, staircase_type, -1)));
@@ -287,7 +287,7 @@ namespace
         flecs::entity first_again = back_up ? stratum_sim::zone_of(back_up) : flecs::entity();
         flecs::entity saving_region = first_again ? stratum_sim::region_of(first_again) : flecs::entity();
 
-        CHECK_CASE("going through a relocator bound to one in a zone that has unloaded reads the zone back and arrives there",
+        CHECK_CASE("going through an access point bound to one in a zone that has unloaded reads the zone back and arrives there",
             first_again && first_again.get<stratum_sim::PersistentId>() == saving_first_id && back_up.get<stratum_sim::PersistentId>() == first_down_id
             && stratum_sim::zone_of(saving_character) == first_again);
         CHECK_CASE("a zone read back keeps its denizens and is not populated again, and its region lists it once", first_again

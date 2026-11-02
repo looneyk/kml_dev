@@ -33,13 +33,13 @@ namespace quetzal::stratum_sim
     };
 
     //--------------------------------------------------------------------------
-    // Acts on whatever the actor faces: a door, a lever, a basin. The controlled actor goes through a relocator it faces
+    // Acts on whatever the actor faces: a door, a lever, a basin. The controlled actor goes through an access point it faces
     struct Interact
     {
     };
 
     //--------------------------------------------------------------------------
-    // Enters the relocator on the floor of the actor's cell. A relocator on a wall is entered by Interact
+    // Enters the access point on the floor of the actor's cell. An access point on a wall is entered by Interact
     struct Enter
     {
     };
@@ -89,11 +89,11 @@ namespace quetzal::stratum_sim
     };
 
     //--------------------------------------------------------------------------
-    // The actor went through the relocator and arrived at the access point, which may be in another zone
+    // The actor went through the departure access point and arrived at the arrival access point, which may be in another zone
     struct Relocated
     {
         id_type entity_id = nullid;
-        id_type relocator_id = nullid;
+        id_type departure_id = nullid;
         id_type arrival_id = nullid;
     };
 

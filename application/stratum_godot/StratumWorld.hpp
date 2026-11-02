@@ -120,7 +120,7 @@ public:
     // Acts on what the player faces, such as opening or closing a door
     void interact();
 
-    // Enters the relocator on the floor of the player's cell. The cell arrived at, unchanged when there is none or it was
+    // Enters the access point on the floor of the player's cell. The cell arrived at, unchanged when there is none or it was
     // not the player's turn
     godot::Vector2i enter();
 

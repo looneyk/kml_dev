@@ -215,9 +215,9 @@ namespace
             entity.site = read_inventory_site(*p, member_path(components_path, "site"));
         }
 
-        if (member(entity.components, "relocator") != nullptr)
+        if (member(entity.components, "access_point") != nullptr)
         {
-            fail(member_path(components_path, "relocator"), "an entity of the inventory has no relocator");
+            fail(member_path(components_path, "access_point"), "an entity of the inventory is not an access point");
         }
 
         entity.components.erase("site");

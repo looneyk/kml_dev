@@ -242,7 +242,7 @@ A region groups contiguous zones: a surface area, a dungeon, a crypt, a tower, o
 | `spec` | The `RegionSpec` it was created from, from which its later zones are created (`world_generation_plan.md`) |
 | `zones` | A reference to each of its zones |
 
-A region's zones are every zone the world has made in it. Regions refer to no other region; the bound relocators in
+A region's zones are every zone the world has made in it. Regions refer to no other region; the bound access points in
 their zones connect them.
 
 A region's list of zone ids, whose number is the zone count its generator selector reads (`world_generation_plan.md`), is

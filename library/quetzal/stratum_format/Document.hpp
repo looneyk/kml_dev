@@ -21,7 +21,7 @@ namespace quetzal::stratum_format
 {
 
     constexpr std::string_view format_name = "quetzal.discrete_layout";
-    constexpr std::string_view format_version = "0.5";
+    constexpr std::string_view format_version = "0.6";
 
     //--------------------------------------------------------------------------
     // How the grid rows are written. Rows are stored expanded either way, so this affects only what
@@ -154,27 +154,27 @@ namespace quetzal::stratum_format
     };
 
     //--------------------------------------------------------------------------
-    // The relocator file component. The target is unbound, or in a saved zone the id of the relocator it is bound to. An
-    // access point's relocator also has its type, order, and placement, which is the cell position and orientation given
-    // to an arriving actor
-    struct Relocator
+    // The access_point file component. The target is unbound, or in a saved zone the id of the access point it is bound to.
+    // An access point with no target is arrival only
+    struct AccessPoint
     {
-        std::variant<RelocatorTarget, stored_entity_id_type> target;
-        std::optional<std::string> type;
-        std::optional<std::uint64_t> order;
-        std::optional<discrete_directed_point_type> placement;
+        using target_type = std::variant<RelocatorTarget, stored_entity_id_type>;
+
+        std::string type;
+        std::uint64_t order = 0;
+        std::optional<target_type> target;
     };
 
     //--------------------------------------------------------------------------
-    // One of the zone's entities. The site, parent and relocator file components are decoded into fields, which the reader
-    // validates; components contains the rest as written
+    // One of the zone's entities. The site, parent and access_point file components are decoded into fields, which the
+    // reader validates; components contains the rest as written
     struct Entity
     {
         stored_entity_id_type id = 0;
         std::string type;
         std::optional<Site> site;
         std::optional<stored_entity_id_type> parent_id;
-        std::optional<Relocator> relocator;
+        std::optional<AccessPoint> access_point;
         raw_values_type components;
     };
 

@@ -13,19 +13,19 @@
 namespace
 {
 
-    // True if the controlled actor enters a relocator on a wall by moving into the wall, as well as by Interact. Off, so
-    // that a held movement key never takes the stairs by accident
-    constexpr bool enter_relocator_by_moving = false;
+    // True if the controlled actor enters an access point on a wall by moving into the wall, as well as by Interact. Off,
+    // so that a held movement key never takes the stairs by accident
+    constexpr bool enter_access_point_by_moving = false;
 
     //--------------------------------------------------------------------------
-    int enter_relocator(quetzal::stratum_sim::World& world, flecs::entity actor, flecs::entity relocator,
+    int enter_access_point(quetzal::stratum_sim::World& world, flecs::entity actor, flecs::entity access_point,
         quetzal::stratum_sim::EventQueue& events)
     {
         using namespace quetzal::stratum_sim;
 
-        flecs::entity arrival = world.relocate_through(actor, relocator);
+        flecs::entity arrival = world.relocate_through(actor, access_point);
 
-        events.push(Relocated {static_cast<quetzal::id_type>(actor.id()), static_cast<quetzal::id_type>(relocator.id()),
+        events.push(Relocated {static_cast<quetzal::id_type>(actor.id()), static_cast<quetzal::id_type>(access_point.id()),
             static_cast<quetzal::id_type>(arrival.id())});
 
         return Scheduler::action_cost;
@@ -78,14 +78,14 @@ int quetzal::stratum_sim::apply(World& world, const Command& command, EventQueue
             events.push(Moved {command.entity_id(), result.placement});
         }
 
-        if constexpr (enter_relocator_by_moving)
+        if constexpr (enter_access_point_by_moving)
         {
-            flecs::entity relocator = result.blocking_wall_id != nullid && e.has<ControlledActor>()
-                ? find_relocator(zone, WallAddress {result.blocking_wall_id}) : flecs::entity();
+            flecs::entity access_point = result.blocking_wall_id != nullid && e.has<ControlledActor>()
+                ? find_access_point(zone, WallAddress {result.blocking_wall_id}) : flecs::entity();
 
-            if (relocator && can_enter(relocator, e))
+            if (access_point && can_enter(access_point, e))
             {
-                return enter_relocator(world, e, relocator, events);
+                return enter_access_point(world, e, access_point, events);
             }
         }
 
@@ -129,10 +129,10 @@ int quetzal::stratum_sim::apply(World& world, const Command& command, EventQueue
             return 0;
         }
 
-        flecs::entity relocator = e.has<ControlledActor>() ? find_relocator(zone, WallAddress {wall_id}) : flecs::entity();
-        if (relocator && can_enter(relocator, e))
+        flecs::entity access_point = e.has<ControlledActor>() ? find_access_point(zone, WallAddress {wall_id}) : flecs::entity();
+        if (access_point && can_enter(access_point, e))
         {
-            return enter_relocator(world, e, relocator, events);
+            return enter_access_point(world, e, access_point, events);
         }
 
         Interaction interaction = Interaction::Nothing;
@@ -154,10 +154,10 @@ int quetzal::stratum_sim::apply(World& world, const Command& command, EventQueue
     {
         // Only a discrete layout has flat cells
         const auto* discrete_layout = dynamic_cast<const DiscreteLayout*>(&layout);
-        flecs::entity relocator = discrete_layout != nullptr && e.has<ControlledActor>() ? find_relocator(zone, FlatCellAddress {discrete_layout->floor_id(),
+        flecs::entity access_point = discrete_layout != nullptr && e.has<ControlledActor>() ? find_access_point(zone, FlatCellAddress {discrete_layout->floor_id(),
             discrete_layout->cell_position_at(placement.position())}) : flecs::entity();
 
-        return relocator && can_enter(relocator, e) ? enter_relocator(world, e, relocator, events) : 0;
+        return access_point && can_enter(access_point, e) ? enter_access_point(world, e, access_point, events) : 0;
     }
 
     return 0;

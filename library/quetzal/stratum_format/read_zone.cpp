@@ -800,63 +800,50 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // The type, order, and placement that an access point's relocator requires are checked with the access points
-    Relocator read_relocator(const raw_values_type& v, const std::string& path, const Cells& cells)
+    // The access point's order and site are checked with the zone's access points
+    AccessPoint read_access_point(const raw_values_type& v, const std::string& path)
     {
         object(v, path);
 
-        Relocator relocator;
+        AccessPoint access_point;
+        access_point.type = string_value(required_member(v, path, "type"), member_path(path, "type"));
+
+        std::string order_path = member_path(path, "order");
+        const raw_values_type& order = required_member(v, path, "order");
+        if (!order.is_number_unsigned())
+        {
+            fail(order_path, "a whole, non-negative number was expected");
+        }
+
+        access_point.order = order.get<std::uint64_t>();
+
+        const raw_values_type* target = member(v, "target");
+        if (target == nullptr)
+        {
+            return access_point;
+        }
 
         std::string target_path = member_path(path, "target");
-        const raw_values_type& target = required_member(v, path, "target");
-        if (target.is_string())
+        if (target->is_string())
         {
-            std::optional<RelocatorTarget> parsed = parse_relocator_target(target.get<std::string>());
+            std::optional<RelocatorTarget> parsed = parse_relocator_target(target->get<std::string>());
             if (!parsed.has_value())
             {
                 fail(target_path, "not a target written [region/]zone[@position]");
             }
 
-            relocator.target = *parsed;
+            access_point.target = *parsed;
         }
-        else if (std::optional<stored_entity_id_type> id = reference_id(target); id.has_value())
+        else if (std::optional<stored_entity_id_type> id = reference_id(*target); id.has_value())
         {
-            relocator.target = *id;
+            access_point.target = *id;
         }
         else
         {
             fail(target_path, "neither a target nor a reference to an entity");
         }
 
-        if (const raw_values_type* p = member(v, "type"); p != nullptr)
-        {
-            relocator.type = string_value(*p, member_path(path, "type"));
-        }
-
-        if (const raw_values_type* p = member(v, "order"); p != nullptr)
-        {
-            if (!p->is_number_unsigned())
-            {
-                fail(member_path(path, "order"), "a whole, non-negative number was expected");
-            }
-
-            relocator.order = p->get<std::uint64_t>();
-        }
-
-        if (const raw_values_type* p = member(v, "placement"); p != nullptr)
-        {
-            std::string placement_path = member_path(path, "placement");
-            object(*p, placement_path);
-
-            std::string cell_path = member_path(placement_path, "cell_position");
-            discrete_point_type cell_position = read_cell_position(required_member(*p, placement_path, "cell_position"), cell_path);
-            check_on_grid(cells, cell_position, cell_path);
-
-            relocator.placement = discrete_directed_point_type(cell_position,
-                read_direction(required_member(*p, placement_path, "orientation"), member_path(placement_path, "orientation")));
-        }
-
-        return relocator;
+        return access_point;
     }
 
     //--------------------------------------------------------------------------
@@ -892,14 +879,14 @@ namespace
             entity.parent_id = *parent_id;
         }
 
-        if (const raw_values_type* p = member(entity.components, "relocator"); p != nullptr)
+        if (const raw_values_type* p = member(entity.components, "access_point"); p != nullptr)
         {
-            entity.relocator = read_relocator(*p, member_path(components_path, "relocator"), cells);
+            entity.access_point = read_access_point(*p, member_path(components_path, "access_point"));
         }
 
         entity.components.erase("site");
         entity.components.erase("parent");
-        entity.components.erase("relocator");
+        entity.components.erase("access_point");
         return entity;
     }
 
@@ -1141,10 +1128,11 @@ namespace
                 check(*entity.parent_id, member_path(member_path(path, "components"), "parent"));
             }
 
-            if (entity.relocator.has_value() && std::holds_alternative<stored_entity_id_type>(entity.relocator->target))
+            if (entity.access_point.has_value() && entity.access_point->target.has_value()
+                && std::holds_alternative<stored_entity_id_type>(*entity.access_point->target))
             {
-                fail(member_path(member_path(member_path(path, "components"), "relocator"), "target"),
-                    "bound, which a relocator is only in a saved zone");
+                fail(member_path(member_path(member_path(path, "components"), "access_point"), "target"),
+                    "bound, which an access point is only in a saved zone");
             }
         }
 
@@ -1257,14 +1245,14 @@ namespace
     using warn_type = std::function<void(const std::string& path, std::string_view what)>;
 
     //--------------------------------------------------------------------------
-    // Each stair glyph is one entity with a relocator, sited on the wall on its open side. The glyphs are visual aids, so a
+    // Each stair glyph is one access point, sited on the wall on its open side. The glyphs are visual aids, so a
     // discrepancy is a warning
     void check_stair_glyphs(const Document& document, const EntityIndex& index,
         const std::map<discrete_point_type, std::vector<WallAddress>>& stair_walls, const warn_type& warn)
     {
         for (const auto& [cell_position, walls] : stair_walls)
         {
-            std::vector<size_t> relocators;
+            std::vector<size_t> access_points;
 
             for (const WallAddress& address : walls)
             {
@@ -1276,22 +1264,22 @@ namespace
 
                 for (size_t slot : i->second)
                 {
-                    if (document.entities[slot].relocator.has_value())
+                    if (document.entities[slot].access_point.has_value())
                     {
-                        relocators.push_back(slot);
+                        access_points.push_back(slot);
                     }
                 }
             }
 
-            if (relocators.empty())
+            if (access_points.empty())
             {
-                warn("entities", std::format("the stair cell at [{}, {}] has no entity with a relocator sited on a wall its open neighbors present to it",
+                warn("entities", std::format("the stair cell at [{}, {}] has no access point sited on a wall its open neighbors present to it",
                     cell_position.i(), cell_position.j()));
             }
 
-            if (relocators.size() > 1)
+            if (access_points.size() > 1)
             {
-                warn(element_path("entities", relocators[1]), std::format("a second entity with a relocator on the walls around the stair cell at [{}, {}]",
+                warn(element_path("entities", access_points[1]), std::format("a second access point on the walls around the stair cell at [{}, {}]",
                     cell_position.i(), cell_position.j()));
             }
         }
@@ -1300,11 +1288,23 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // A zone has at least one access point. Each is an entity with a relocator, sited on a wall, or on the floor or the
-    // ceiling with an orientation. The relocator has a type; an order, counting from 0 without gaps among the access points of that type; and a
-    // placement, the cell and orientation at which an arriving actor is placed. An access point on a wall that is not the open side of
-    // a cell written '<' or '>' is a warning, since the glyphs are visual aids, and so is a relocator type that is neither the
-    // entity's type nor its parent's
+    // The cell in which an actor arriving at an access point with the site is placed: the wall's cell, or the flat cell
+    discrete_point_type arrival_cell_position(const Site& site)
+    {
+        if (const auto* wall = std::get_if<WallAddress>(&*site.address))
+        {
+            return wall->cell_position;
+        }
+
+        return std::get<FlatCell>(*site.address).cell_position;
+    }
+
+    //--------------------------------------------------------------------------
+    // A zone has at least one access point. Each is an entity with an access_point, sited on a wall, or on the floor or
+    // the ceiling with an orientation, whose order counts from 0 without gaps among the access points of its type. An
+    // actor arriving at it is placed in the cell its site determines, which must be one an actor can stand in. An access
+    // point on a wall that is not the open side of a cell written '<' or '>' is a warning, since the glyphs are visual
+    // aids, and so is an access point type that is neither the entity's type nor its parent's
     void check_access_points(const Document& document, const EntityIndex& index,
         const std::map<discrete_point_type, std::vector<WallAddress>>& stair_walls, const warn_type& warn)
     {
@@ -1343,12 +1343,13 @@ namespace
             }
 
             const Entity& entity = document.entities[slot->second];
-            if (!entity.relocator.has_value())
+            if (!entity.access_point.has_value())
             {
-                fail(point_path, "an entity with no relocator");
+                fail(point_path, "an entity with no access_point");
             }
 
-            const Relocator& relocator = *entity.relocator;
+            const AccessPoint& access_point = *entity.access_point;
+            std::string components_path = member_path(element_path("entities", slot->second), "components");
 
             if (!entity.site.has_value() || entity.site->relation != Relation::On || !entity.site->address.has_value())
             {
@@ -1358,8 +1359,7 @@ namespace
             const WallAddress* address = wall_address(entity);
             if (address == nullptr && !entity.site->orientation.has_value())
             {
-                fail(member_path(member_path(element_path("entities", slot->second), "components"), "site"),
-                    "an access point on the floor or the ceiling with no orientation");
+                fail(member_path(components_path, "site"), "an access point on the floor or the ceiling with no orientation");
             }
 
             if (address != nullptr && !open_sides.contains(wall_key(*address)) && !door_sides.contains(wall_key(*address)))
@@ -1367,42 +1367,26 @@ namespace
                 warn(point_path, "an entity sited on a wall that is neither the open side of a cell written '<' or '>' nor a door's wall");
             }
 
-            std::string relocator_path = member_path(member_path(element_path("entities", slot->second), "components"), "relocator");
-
-            if (!relocator.type.has_value())
+            if (!floor_door_cell(document.cells, arrival_cell_position(*entity.site)))
             {
-                fail(member_path(relocator_path, "type"), "required and absent");
+                fail(member_path(components_path, "site"), "an access point at which an arriving actor is placed in a cell it cannot stand in");
             }
 
-            // A door's access point is one of its door facings, so the relocator's type may be the parent's
+            std::string access_point_path = member_path(components_path, "access_point");
+
+            // A door's access point is one of its door facings, so the access point's type may be the parent's
             auto parent_slot = entity.parent_id.has_value() ? index.slots_by_id.find(*entity.parent_id) : index.slots_by_id.end();
-            bool parent_type_matches = parent_slot != index.slots_by_id.end() && document.entities[parent_slot->second].type == *relocator.type;
-            if (*relocator.type != entity.type && !parent_type_matches)
+            bool parent_type_matches = parent_slot != index.slots_by_id.end() && document.entities[parent_slot->second].type == access_point.type;
+            if (access_point.type != entity.type && !parent_type_matches)
             {
-                warn(member_path(relocator_path, "type"), std::format("the type '{}' is neither its entity's type '{}' nor its parent's",
-                    *relocator.type, entity.type));
+                warn(member_path(access_point_path, "type"), std::format("the type '{}' is neither its entity's type '{}' nor its parent's",
+                    access_point.type, entity.type));
             }
 
-            std::string order_path = member_path(relocator_path, "order");
-            if (!relocator.order.has_value())
+            if (!orders[access_point.type].emplace(access_point.order, i).second)
             {
-                fail(order_path, "required and absent");
-            }
-
-            std::string placement_path = member_path(relocator_path, "placement");
-            if (!relocator.placement.has_value())
-            {
-                fail(placement_path, "required and absent");
-            }
-
-            if (!floor_door_cell(document.cells, relocator.placement->position()))
-            {
-                fail(member_path(placement_path, "cell_position"), "a cell an actor cannot stand in");
-            }
-
-            if (!orders[*relocator.type].emplace(*relocator.order, i).second)
-            {
-                fail(order_path, std::format("order {} is another access point's of the type '{}'", *relocator.order, *relocator.type));
+                fail(member_path(access_point_path, "order"), std::format("order {} is another access point's of the type '{}'",
+                    access_point.order, access_point.type));
             }
         }
 
@@ -1413,6 +1397,17 @@ namespace
             {
                 fail(element_path(path, last->second), std::format("order {} is past a gap among the access points of the type '{}'",
                     last->first, type));
+            }
+        }
+
+        std::set<stored_entity_id_type> listed(document.access_points.begin(), document.access_points.end());
+
+        for (size_t i = 0; i < document.entities.size(); ++i)
+        {
+            if (document.entities[i].access_point.has_value() && !listed.contains(document.entities[i].id))
+            {
+                fail(member_path(member_path(element_path("entities", i), "components"), "access_point"),
+                    std::format("on an entity that {} does not list", path));
             }
         }
 

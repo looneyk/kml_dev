@@ -1,6 +1,6 @@
 {
   "format": "quetzal.discrete_layout",
-  "version": "0.5",
+  "version": "0.6",
   "generator": {
     "name": "dungen",
     "parameters": { "algorithm": "maze1", "extent": "31,21", "stairs_down": "1-1", "stairs_up": "1-1", "room_dimension_base": "3", "room_dimension_variation": "8", "room_density": "0.25", "room_merge": "false", "corridor_straightness": "0.5", "probability_dead_end_removal": "0.5", "probability_loop_removal": "1", "door_probability": "1", "seed": "1" }
@@ -95,7 +95,7 @@
     { "id": 49, "type": "door" },
     { "id": 50, "type": "door_facing", "components": { "parent": { "entity": 49 }, "site": { "relation": "on", "wall": { "cell_position": [21, 19], "normal": [1, 0] } } } },
     { "id": 51, "type": "door_facing", "components": { "parent": { "entity": 49 }, "site": { "relation": "on", "wall": { "cell_position": [19, 19], "normal": [-1, 0] } } } },
-    { "id": 52, "type": "staircase", "components": { "site": { "relation": "on", "wall": { "cell_position": [12, 1], "normal": [1, 0] } }, "relocator": { "type": "staircase", "target": "+1", "order": 0, "placement": { "cell_position": [12, 1], "orientation": [1, 0] } } } },
-    { "id": 53, "type": "staircase", "components": { "site": { "relation": "on", "wall": { "cell_position": [2, 1], "normal": [1, 0] } }, "relocator": { "type": "staircase", "target": "-1", "order": 1, "placement": { "cell_position": [2, 1], "orientation": [1, 0] } } } }
+    { "id": 52, "type": "staircase", "components": { "site": { "relation": "on", "wall": { "cell_position": [12, 1], "normal": [1, 0] } }, "access_point": { "type": "staircase", "target": "+1", "order": 0 } } },
+    { "id": 53, "type": "staircase", "components": { "site": { "relation": "on", "wall": { "cell_position": [2, 1], "normal": [1, 0] } }, "access_point": { "type": "staircase", "target": "-1", "order": 1 } } }
   ]
 }

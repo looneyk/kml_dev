@@ -56,7 +56,7 @@ namespace quetzal::stratum_format::detail
     // the brace
     void write_entry(std::string& text, const entry_type& entry, size_t indent, std::string_view suffix);
 
-    // site, parent and relocator are written into components, ahead of the rest
+    // site, parent and access_point are written into components, ahead of the rest
     entry_type entity_entry(const Entity& entity);
 
     // An absent object is written as an empty one

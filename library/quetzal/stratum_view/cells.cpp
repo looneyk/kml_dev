@@ -106,14 +106,19 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Returns true if the entity's relocator is known to lead below its zone. Stairs whose direction is not known are drawn
-    // leading up, the entrance glyph
+    // Returns true if the entity's access point is known to lead below its zone. Stairs whose direction is not known are
+    // drawn leading up, the entrance glyph
     bool leads_down(flecs::entity e)
     {
-        const sim::Relocator& relocator = e.get<sim::Relocator>();
+        const sim::AccessPoint& access_point = e.get<sim::AccessPoint>();
         const auto* zone_position = sim::zone_of(e).try_get<sim::ZonePosition>();
 
-        if (const auto* target = std::get_if<quetzal::stratum_format::RelocatorTarget>(&relocator.target))
+        if (!access_point.target.has_value())
+        {
+            return false;
+        }
+
+        if (const auto* target = std::get_if<quetzal::stratum_format::RelocatorTarget>(&*access_point.target))
         {
             if (const auto* relative = std::get_if<quetzal::stratum_format::RelativeZone>(&target->zone))
             {
@@ -124,20 +129,20 @@ namespace
             return absolute != nullptr && zone_position != nullptr && absolute->level < zone_position->z;
         }
 
-        flecs::entity bound = std::get<sim::EntityReference>(relocator.target).entity;
+        flecs::entity bound = std::get<sim::EntityReference>(*access_point.target).entity;
         const auto* bound_position = bound && bound.is_alive() ? sim::zone_of(bound).try_get<sim::ZonePosition>() : nullptr;
 
         return bound_position != nullptr && zone_position != nullptr && bound_position->z < zone_position->z;
     }
 
     //--------------------------------------------------------------------------
-    // Calls f for every cell drawn as stairs, with the place type that draws it: the cell of a relocator on the floor, and
-    // the closed cell beyond a relocator on a wall, which is a stair block
+    // Calls f for every cell drawn as stairs, with the place type that draws it: the cell of an access point on the floor,
+    // and the closed cell beyond an access point on a wall, which is a stair block
     template<typename F>
     void each_stairs_cell(const sim::DiscreteLayout& layout, flecs::entity zone, F f)
     {
         sim::with_in_zone(zone.world().query_builder<const sim::Site>(), zone)
-            .with<sim::Relocator>()
+            .with<sim::AccessPoint>()
             .build()
             .each([&](flecs::entity e, const sim::Site& site)
             {

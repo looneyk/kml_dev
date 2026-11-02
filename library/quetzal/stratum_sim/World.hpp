@@ -168,22 +168,22 @@ namespace quetzal::stratum_sim
         // and stays that way, located in the zone through InZone. Any other entity becomes a child of the zone
         void relocate(flecs::entity e, flecs::entity zone, const placement_type& placement);
 
-        // Returns the access point at which an actor arrives through the relocator, whose unbound target is a relative or
-        // absolute level with no position. With the region omitted, it is an unbound access point of the arrival type that
-        // leads back, in another loaded zone of the relocator's region at the target level, or else the entry point of a
-        // zone made there. With a region, it is the entry point of the first zone of a new region created from the region
+        // Returns the access point at which an actor arrives through the access point, whose unbound target is a relative or
+        // absolute level with no position. With the region omitted, it is an access point of the arrival type that accepts
+        // the arrival, arrival only or unbound and leading back, in another loaded zone of the access point's region at the
+        // target level, or else the entry point of a zone made there. With a region, it is the entry point of the first zone of a new region created from the region
         // spec of that name, without searching the loaded zones. Throws std::runtime_error if the target has a named zone or a position, if
         // that region spec is not registered, or, after discarding the zone made, if it has no access point of the arrival
         // type that leads back
-        flecs::entity resolve_relocator_target(flecs::entity relocator);
+        flecs::entity resolve_target(flecs::entity access_point);
 
-        // Moves the actor through the relocator to the placement of the access point its target refers to, and returns that
-        // access point. An unbound target is resolved by resolve_relocator_target, and the relocator and the access point
-        // are then bound to each other, so going back through the access point arrives at the relocator. A bound target's
-        // relocator in a zone that has unloaded is read back with its zone. Throws std::runtime_error, and moves nothing, if
-        // that zone cannot be read back because the world has no game directory, or as resolve_relocator_target and
-        // load_saved_zone do
-        flecs::entity relocate_through(flecs::entity actor, flecs::entity relocator);
+        // Moves the actor through the access point to the arrival placement of the access point its target refers to, and
+        // returns that access point. An unbound target is resolved by resolve_target, and the access point gone through is
+        // then bound to the one arrived at, which is bound back to it unless it is arrival only, so going back arrives at
+        // the access point gone through. A bound target's access point in a
+        // zone that has unloaded is read back with its zone. Throws std::runtime_error, and moves nothing, if that zone
+        // cannot be read back because the world has no game directory, or as resolve_target and load_saved_zone do
+        flecs::entity relocate_through(flecs::entity actor, flecs::entity access_point);
 
         // Marks zone_entered as the most recently entered zone, then unloads the zones entered longest ago until the world
         // has no more than zone_count_max, saving each first if the world has a game directory. Never unloads
@@ -246,13 +246,13 @@ namespace quetzal::stratum_sim
 
         flecs::entity create_region(const RegionSpec& region_spec, PersistentId region_id);
 
-        // Returns the entry point of the zone made for the relocator, of the arrival type and leading back offset levels.
+        // Returns the entry point of the zone made for the access point, of the arrival type and leading back offset levels.
         // Throws std::runtime_error, after discarding the zone, if it has none
-        flecs::entity require_entry_point(flecs::entity relocator, flecs::entity zone, flecs::entity arrival_type, level_type offset);
+        flecs::entity require_entry_point(flecs::entity access_point, flecs::entity zone, flecs::entity arrival_type, level_type offset);
 
-        // Discards the zone made for the relocator, which has never been entered, with its region if that was made for it
-        // too. Otherwise the relocator's region no longer lists it. The world index no longer has its entities
-        void discard_made_zone(flecs::entity relocator, flecs::entity zone);
+        // Discards the zone made for the access point, which has never been entered, with its region if that was made for it
+        // too. Otherwise the access point's region no longer lists it. The world index no longer has its entities
+        void discard_made_zone(flecs::entity access_point, flecs::entity zone);
 
         // The entities that property reads, nearest first
         entities_type property_chain(flecs::entity e) const;

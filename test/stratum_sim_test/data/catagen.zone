@@ -1,6 +1,6 @@
 {
   "format": "quetzal.discrete_layout",
-  "version": "0.5",
+  "version": "0.6",
   "generator": {
     "name": "catagen",
     "parameters": { "extent": "24,14", "scale": "3-6", "spacing": "0-0", "density": "0.45", "loop": "0.1", "seed": "7" }
@@ -73,7 +73,7 @@
     { "id": 25, "type": "door" },
     { "id": 26, "type": "door_facing", "components": { "parent": { "entity": 25 }, "site": { "relation": "on", "wall": { "cell_position": [3, 13], "normal": [-1, 0] } } } },
     { "id": 27, "type": "door_facing", "components": { "parent": { "entity": 25 }, "site": { "relation": "on", "wall": { "cell_position": [4, 13], "normal": [1, 0] } } } },
-    { "id": 28, "type": "staircase", "components": { "site": { "relation": "on", "wall": { "cell_position": [22, 11], "normal": [1, 0] } }, "relocator": { "type": "staircase", "target": "+1", "order": 0, "placement": { "cell_position": [22, 11], "orientation": [1, 0] } } } },
-    { "id": 29, "type": "staircase", "components": { "site": { "relation": "on", "wall": { "cell_position": [22, 7], "normal": [1, 0] } }, "relocator": { "type": "staircase", "target": "-1", "order": 1, "placement": { "cell_position": [22, 7], "orientation": [1, 0] } } } }
+    { "id": 28, "type": "staircase", "components": { "site": { "relation": "on", "wall": { "cell_position": [22, 11], "normal": [1, 0] } }, "access_point": { "type": "staircase", "target": "+1", "order": 0 } } },
+    { "id": 29, "type": "staircase", "components": { "site": { "relation": "on", "wall": { "cell_position": [22, 7], "normal": [1, 0] } }, "access_point": { "type": "staircase", "target": "-1", "order": 1 } } }
   ]
 }

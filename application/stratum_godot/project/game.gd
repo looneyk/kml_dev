@@ -361,7 +361,7 @@ func _play_key(event: InputEventKey) -> void:
 	if event.is_echo():
 		return
 
-	# < or > enters the relocator on the floor of the player's cell. A key with no character has the code point 0
+	# < or > enters the access point on the floor of the player's cell. A key with no character has the code point 0
 	if event.unicode in ["<".unicode_at(0), ">".unicode_at(0)]:
 		_world.enter()
 		_refresh()

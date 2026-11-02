@@ -38,7 +38,7 @@ void quetzal::stratum_sim::Session::start(flecs::entity access_point)
 {
     assert(access_point && access_point.has<AccessPoint>());
 
-    start(zone_of(access_point), access_point.get<AccessPoint>().placement);
+    start(zone_of(access_point), arrival_placement(access_point));
     return;
 }
 
@@ -192,7 +192,7 @@ quetzal::id_type quetzal::stratum_sim::Session::advance(EventQueue& events, Cloc
 
         actor_id = m_clock.advance(events, actor_controlled, elapsed);
 
-        // The character went through a relocator into another zone
+        // The character went through an access point into another zone
         if (flecs::entity zone = zone_of(m_character.entity()); zone != m_zone)
         {
             play(zone);

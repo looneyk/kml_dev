@@ -44,33 +44,8 @@ Each box is one commit point. An item too large for one commit is split into box
 starts. When a box's work is done and every test passes, the box is ticked and that is the moment to commit. The ticked
 boxes are removed at the start of the next piece of work, since the reference documents then describe what they built.
 
-## Game manifest
-
-- [x] **The game manifest.** A JSON file that `stratum_sim` reads, given to both hosts as a `manifest=` token, since
-      nothing about the game is hardcoded yet. A game is based on one notation, and the manifest states it with the
-      views the game offers, `view_menu`, and `default_view`. With `view_menu` true the host shows a startup menu of the
-      views, initialized to `default_view`; with it false, for testing, the host uses `default_view`. `game.json`
-      stores the notation for reference. The terminal's options become tokens: `manifest=`, `script=`, and
-      `incremental=`, and its wall view is renamed the lattice view. Godot reads `manifest=` from its user arguments,
-      with a view list of its own.
-- [x] **Notation and view on the menu.** Each host's new and open menu shows the notation and the view, the manifest's
-      at first and the last game's after one is opened, and changes them, so that each combination can be tried. A
-      game has its own notation, which `Game::create` is given and `game.json` stores and opening restores.
-- [x] **A new game's settings from the manifest.** The manifest's `settings` set a new game's game settings in place of
-      their defaults, so each manifest has its own zone size. The setting definitions have no initializers, and the
-      user settings they referred to are gone.
-
 ## Generators
 
-- [x] **The generators integrated.** catagen's generator in `quetzal/stratum_gen` beside dungen's. The notation in
-      the game manifest decides which of them generates every zone: dungen for the block notation and catagen for the
-      wall notation, with the zone's one seed. Each reads its parameters, or the subset that applies, from the
-      `ZoneRequest`'s `parameters` tokens, rather than running with a default-constructed set, and skips the keys that
-      are not its parameters.
-- [x] **The generators on `geometry::DiscreteDirectedPoint`.** Each generator's `Staircase` has a `placement`, a
-      `directed_point_type`, and its `Rise`. catagen keeps its staircases in a list of its own copy of dungen's
-      `Staircase`, with one `Staircase` cell type. Both create each staircase with its placement as it is placed, and
-      write them in that order.
 - [ ] **Staircases in every form** (`session_plan.md`, `## Entering an access point`). The generators can place a
       staircase in a flat length of wall or in a 1x1 alcove, the two being equivalent across the notations, as well as
       a block staircase on floor cells in the open space of a room. In the wall notation every staircase is sited on a
@@ -135,13 +110,13 @@ boxes are removed at the start of the next piece of work, since the reference do
 
 `access_point_plan.md` has the design.
 
-- [ ] **The arrival placement from the site.** stratum_sim's `AccessPoint` has no placement, and an arriving actor is
+- [x] **The arrival placement from the site.** stratum_sim's `AccessPoint` has no placement, and an arriving actor is
       placed from the site of the access point's entity. The zone file is unchanged.
-- [ ] **One `AccessPoint` component in stratum_sim,** with an optional target, `Relocator` merged into it, and the
+- [x] **One `AccessPoint` component in stratum_sim,** with an optional target, `Relocator` merged into it, and the
       identifiers that refer to the component renamed (`access_point_plan.md`, `## Renames`).
-- [ ] **The `access_point` file component,** format 0.6, with no placement, every zone file in the tree rewritten,
+- [x] **The `access_point` file component,** format 0.6, with no placement, every zone file in the tree rewritten,
       and the reference files regenerated.
-- [ ] **One-way access points resolved:** an unbound target arriving at an access point type whose access points have
+- [x] **One-way access points resolved:** an unbound target arriving at an access point type whose access points have
       no target.
 
 ## Attachments
@@ -238,12 +213,6 @@ float is not an argument against it: the view narrows at the boundary, where mag
 ## Open
 
 These are the open questions.
-
-### Access points
-
-`access_point_plan.md` (`## Open questions`) has the detail.
-
-- **Is the arrival placement computed by a `Layout` virtual function or by a function of `DiscreteLayout`?**
 
 ### Zones and regions
 

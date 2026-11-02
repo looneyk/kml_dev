@@ -33,8 +33,7 @@ namespace
 {
 
     //--------------------------------------------------------------------------
-    // Returns the access point's entity. The reader has checked that it is sited on a surface and has a relocator with a
-    // type, order, and placement
+    // Returns the access point's entity. The reader has checked that it is sited on a surface and has an access_point
     const quetzal::stratum_format::Entity& access_point_entity(const quetzal::stratum_format::Document& document,
         quetzal::stratum_format::stored_entity_id_type id)
     {
@@ -88,19 +87,24 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // A bound target, which only a saved zone has, is the persistent id of a relocator in this zone or another
-    std::variant<quetzal::stratum_format::RelocatorTarget, quetzal::stratum_sim::EntityReference> relocator_target(
-        const std::variant<quetzal::stratum_format::RelocatorTarget, quetzal::stratum_format::stored_entity_id_type>& target,
+    // A bound target, which only a saved zone has, is the persistent id of an access point in this zone or another
+    std::optional<quetzal::stratum_sim::AccessPoint::target_type> access_point_target(
+        const std::optional<quetzal::stratum_format::AccessPoint::target_type>& target,
         const std::unordered_map<quetzal::stratum_format::stored_entity_id_type, flecs::entity>& entities)
     {
         using namespace quetzal::stratum_sim;
 
-        if (const auto* unbound = std::get_if<quetzal::stratum_format::RelocatorTarget>(&target))
+        if (!target.has_value())
+        {
+            return std::nullopt;
+        }
+
+        if (const auto* unbound = std::get_if<quetzal::stratum_format::RelocatorTarget>(&*target))
         {
             return *unbound;
         }
 
-        quetzal::stratum_format::stored_entity_id_type id = std::get<quetzal::stratum_format::stored_entity_id_type>(target);
+        quetzal::stratum_format::stored_entity_id_type id = std::get<quetzal::stratum_format::stored_entity_id_type>(*target);
 
         auto i = entities.find(id);
         return EntityReference {PersistentId {id}, i != entities.end() ? i->second : flecs::entity()};
@@ -162,7 +166,7 @@ std::optional<std::string> quetzal::stratum_sim::check_buildable(const flecs::wo
 {
     for (stratum_format::stored_entity_id_type id : document.access_points)
     {
-        const std::string& type_name = *access_point_entity(document, id).relocator->type;
+        const std::string& type_name = access_point_entity(document, id).access_point->type;
         if (!access_type(world, type_name))
         {
             return std::format("access point type '{}' is not registered", type_name);
@@ -322,22 +326,15 @@ std::vector<flecs::entity> quetzal::stratum_sim::load_layout(flecs::entity zone,
         {
             e.set<Site>(site_of(*entity.site, zone_layout));
         }
-
-        if (entity.relocator.has_value())
-        {
-            e.set<Relocator>(Relocator {relocator_target(entity.relocator->target, entities)});
-        }
     }
 
     for (stratum_format::stored_entity_id_type id : document.access_points)
     {
         const stratum_format::Entity& entity = access_point_entity(document, id);
-        const stratum_format::Relocator& relocator = *entity.relocator;
-        const stratum_format::discrete_directed_point_type& placement = *relocator.placement;
+        const stratum_format::AccessPoint& access_point = *entity.access_point;
 
-        vector_type orientation(static_cast<value_type>(placement.direction().x()), static_cast<value_type>(placement.direction().y()), value_type(0));
-        set_access_point(entities.at(entity.id), access_type(world, *relocator.type), *relocator.order,
-            placement_type(zone_layout.position(placement.position()), orientation));
+        set_access_point(entities.at(entity.id), access_type(world, access_point.type), access_point.order,
+            access_point_target(access_point.target, entities));
     }
 
     // A template's references are to its own entities, and a saved zone's references are already persistent ids

@@ -17,8 +17,8 @@ namespace quetzal::stratum_view
     //--------------------------------------------------------------------------
     // The fixed structure at a place, whatever its state
     // None is an edge with no wall or a corner no wall line reaches. Solid is a closed cell, or a lattice position whose
-    // cells are all closed. StairsUp and StairsDown are a floor cell with a relocator on it, or a stair block: the closed cell
-    // beyond a wall with a relocator on it
+    // cells are all closed. StairsUp and StairsDown are a floor cell with an access point on it, or a stair block: the closed
+    // cell beyond a wall with an access point on it
     enum class PlaceType : uint8_t
     {
         None,

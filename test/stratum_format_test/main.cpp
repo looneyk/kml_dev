@@ -237,16 +237,19 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    map_type relocator_map(const stratum_format::Relocator& relocator)
+    map_type access_point_map(const stratum_format::AccessPoint& access_point)
     {
         map_type m;
-        const auto* target = get_if<stratum_format::RelocatorTarget>(&relocator.target);
-        m["target"] = target != nullptr ? map_type(stratum_format::format_relocator_target(*target))
-            : map_type {{"entity", get<stratum_format::stored_entity_id_type>(relocator.target)}};
-        m["type"] = relocator.type.has_value() ? map_type(*relocator.type) : map_type();
-        m["order"] = relocator.order.has_value() ? map_type(*relocator.order) : map_type();
-        m["placement"] = relocator.placement.has_value() ? map_type {{"cell_position", cell_position_map(relocator.placement->position())},
-            {"orientation", direction_map(relocator.placement->direction())}} : map_type();
+        m["type"] = access_point.type;
+        m["order"] = access_point.order;
+
+        if (access_point.target.has_value())
+        {
+            const auto* target = get_if<stratum_format::RelocatorTarget>(&*access_point.target);
+            m["target"] = target != nullptr ? map_type(stratum_format::format_relocator_target(*target))
+                : map_type {{"entity", get<stratum_format::stored_entity_id_type>(*access_point.target)}};
+        }
+
         return m;
     }
 
@@ -258,7 +261,7 @@ namespace
         m["type"] = entity.type;
         m["site"] = entity.site.has_value() ? site_map(*entity.site) : map_type();
         m["parent"] = entity.parent_id.has_value() ? map_type(*entity.parent_id) : map_type();
-        m["relocator"] = entity.relocator.has_value() ? relocator_map(*entity.relocator) : map_type();
+        m["access_point"] = entity.access_point.has_value() ? access_point_map(*entity.access_point) : map_type();
         return m;
     }
 
@@ -414,11 +417,11 @@ namespace
         const auto* stair_wall = wall_address(document.entities[3]);
         CHECK_CASE("a staircase is sited on the wall on its open side",
             stair_wall != nullptr && *stair_wall == stratum_format::WallAddress {{3, 1}, {0, -1}});
-        const auto& stair_relocator = document.entities[3].relocator;
-        CHECK_CASE("a relocator is decoded out of components", stair_relocator.has_value()
-            && holds_alternative<stratum_format::RelocatorTarget>(stair_relocator->target)
-            && get<stratum_format::RelocatorTarget>(stair_relocator->target) == stratum_format::RelocatorTarget {nullopt, stratum_format::RelativeZone {-1}, nullopt}
-            && !document.entities[3].components.contains("relocator"));
+        const auto& stair_access_point = document.entities[3].access_point;
+        CHECK_CASE("an access point is decoded out of components", stair_access_point.has_value()
+            && stair_access_point->type == "staircase" && stair_access_point->order == 0 && stair_access_point->target.has_value()
+            && get<stratum_format::RelocatorTarget>(*stair_access_point->target) == stratum_format::RelocatorTarget {nullopt, stratum_format::RelativeZone {-1}, nullopt}
+            && !document.entities[3].components.contains("access_point"));
 
         const auto& chest_site = document.entities[5].site;
         const auto* flat_cell = chest_site.has_value() && chest_site->address.has_value()
@@ -694,21 +697,22 @@ namespace
                         R"({ "id": 8, "type": "door_facing", "components": { "parent": { "entity": 1 },)"
                         R"( "site": { "relation": "on", "wall": { "cell_position": [0, 1], "normal": [1, 0] } } } })"));
                 }, "entities[7]: sited on a wall that is not one of the walls of its door's doorway"},
-            {"a stair cell with no relocator on the walls around it, the access point on it sited on the floor instead", [](auto& v)
+            {"a stair cell with no access point on the walls around it, the access point on it sited on the floor instead", [](auto& v)
                 {
                     v["entities"][3]["components"]["site"] = parse_values(
                         R"({ "relation": "on", "flat": "floor", "cell_position": [2, 1], "orientation": [0, -1] })");
-                }, "", "entities: the stair cell at [3, 2] has no entity with a relocator sited on a wall its open neighbors present to it"},
+                }, "", "entities: the stair cell at [3, 2] has no access point sited on a wall its open neighbors present to it"},
             {"an access point on the floor with no orientation", [](auto& v)
                 {
                     v["entities"][3]["components"]["site"] = parse_values(R"({ "relation": "on", "flat": "floor", "cell_position": [2, 1] })");
                 }, "entities[3].components.site: an access point on the floor or the ceiling with no orientation"},
-            {"a stair cell with a second relocator on the walls around it", [](auto& v)
+            {"a stair cell with a second access point on the walls around it", [](auto& v)
                 {
                     v["entities"].push_back(parse_values(
                         R"({ "id": 8, "type": "portal", "components": { "site": { "relation": "on",)"
-                        R"( "wall": { "cell_position": [3, 1], "normal": [0, -1] } }, "relocator": { "target": "elsewhere" } } })"));
-                }, "", "entities[7]: a second entity with a relocator on the walls around the stair cell at [3, 2]"},
+                        R"( "wall": { "cell_position": [3, 1], "normal": [0, -1] } }, "access_point": { "type": "portal", "target": "elsewhere", "order": 0 } } })"));
+                    v["layout"]["components"]["access_points"].push_back(parse_values(R"({ "entity": 8 })"));
+                }, "", "entities[7]: a second access point on the walls around the stair cell at [3, 2]"},
             {"no access points", [](auto& v) { v["layout"]["components"].erase("access_points"); },
                 "layout.components.access_points: required and absent"},
             {"a position coordinate that is not a whole number", [](auto& v) { v["layout"]["components"]["position"][2] = -1.5; },
@@ -733,70 +737,74 @@ namespace
                     v["zone"] = parse_values(R"({ "id": 7713 })");
                     v["layout"]["components"]["access_points"][0] = parse_values(R"({ "entity": 90412 })");
                 }, "layout.components.access_points[0]: refers to 90412, which is no entity's id"},
-            {"an access point on an entity with no relocator", [](auto& v) { v["layout"]["components"]["access_points"][0] = parse_values(R"({ "entity": 1 })"); },
-                "layout.components.access_points[0]: an entity with no relocator"},
+            {"an access point on an entity with no access_point", [](auto& v) { v["layout"]["components"]["access_points"][0] = parse_values(R"({ "entity": 1 })"); },
+                "layout.components.access_points[0]: an entity with no access_point"},
             {"a portal as an access point on a wall that is neither a stair cell's open side nor a door's", [](auto& v)
                 {
                     v["entities"].push_back(parse_values(
                         R"({ "id": 8, "type": "portal", "components": { "site": { "relation": "on",)"
-                        R"( "wall": { "cell_position": [0, 0], "normal": [1, 0] } }, "relocator": { "type": "portal", "target": "elsewhere",)"
-                        R"( "order": 0, "placement": { "cell_position": [0, 0], "orientation": [1, 0] } } } })"));
+                        R"( "wall": { "cell_position": [0, 0], "normal": [1, 0] } }, "access_point": { "type": "portal", "target": "elsewhere", "order": 0 } } })"));
                     v["layout"]["components"]["access_points"].push_back(parse_values(R"({ "entity": 8 })"));
                 }, "", "layout.components.access_points[2]: an entity sited on a wall that is neither the open side of a cell written '<' or '>' nor a door's wall"},
             {"an access point that is not sited on a surface", [](auto& v)
                 {
                     v["entities"].push_back(parse_values(
-                        R"({ "id": 9, "type": "portal", "components": { "parent": { "entity": 6 }, "relocator": { "type": "portal",)"
-                        R"( "target": "elsewhere", "order": 0, "placement": { "cell_position": [1, 1], "orientation": [1, 0] } } } })"));
+                        R"({ "id": 9, "type": "portal", "components": { "parent": { "entity": 6 }, "access_point": { "type": "portal",)"
+                        R"( "target": "elsewhere", "order": 0 } } })"));
                     v["layout"]["components"]["access_points"][0] = parse_values(R"({ "entity": 9 })");
                 }, "layout.components.access_points[0]: an entity that is not sited on a surface: a wall, the floor or the ceiling"},
             {"a staircase leading down alone as the access point, as a tower entered from below has", [](auto& v)
-                { v["layout"]["components"]["access_points"] = parse_values(R"([{ "entity": 4 }])"); }, ""},
-            {"an access point whose relocator has no type", [](auto& v) { v["entities"][3]["components"]["relocator"].erase("type"); },
-                "entities[3].components.relocator.type: required and absent"},
-            {"an access point whose relocator type is neither its entity's type nor its parent's", [](auto& v)
+                {
+                    v["entities"][4]["components"].erase("access_point");
+                    v["layout"]["components"]["access_points"] = parse_values(R"([{ "entity": 4 }])");
+                }, ""},
+            {"an access_point on an entity that the access points do not list", [](auto& v)
+                { v["layout"]["components"]["access_points"] = parse_values(R"([{ "entity": 4 }])"); },
+                "entities[4].components.access_point: on an entity that layout.components.access_points does not list"},
+            {"an access point with no type", [](auto& v) { v["entities"][3]["components"]["access_point"].erase("type"); },
+                "entities[3].components.access_point.type: required and absent"},
+            {"an access point whose type is neither its entity's type nor its parent's", [](auto& v)
                 { v["entities"][3]["type"] = "hatch"; },
-                "", "entities[3].components.relocator.type: the type 'staircase' is neither its entity's type 'hatch' nor its parent's"},
-            {"an access point whose relocator has no order", [](auto& v) { v["entities"][3]["components"]["relocator"].erase("order"); },
-                "entities[3].components.relocator.order: required and absent"},
-            {"an access point whose order is negative", [](auto& v) { v["entities"][3]["components"]["relocator"]["order"] = -1; },
-                "entities[3].components.relocator.order: a whole, non-negative number was expected"},
-            {"an access point whose order is past a gap", [](auto& v) { v["entities"][4]["components"]["relocator"]["order"] = 2; },
+                "", "entities[3].components.access_point.type: the type 'staircase' is neither its entity's type 'hatch' nor its parent's"},
+            {"an access point with no order", [](auto& v) { v["entities"][3]["components"]["access_point"].erase("order"); },
+                "entities[3].components.access_point.order: required and absent"},
+            {"an access point whose order is negative", [](auto& v) { v["entities"][3]["components"]["access_point"]["order"] = -1; },
+                "entities[3].components.access_point.order: a whole, non-negative number was expected"},
+            {"an access point whose order is past a gap", [](auto& v) { v["entities"][4]["components"]["access_point"]["order"] = 2; },
                 "layout.components.access_points[1]: order 2 is past a gap among the access points of the type 'staircase'"},
             {"an access point whose order repeats another's of its type", [](auto& v)
-                { v["entities"][4]["components"]["relocator"]["order"] = 0; },
-                "entities[4].components.relocator.order: order 0 is another access point's of the type 'staircase'"},
-            {"an access point whose relocator has no placement", [](auto& v) { v["entities"][3]["components"]["relocator"].erase("placement"); },
-                "entities[3].components.relocator.placement: required and absent"},
-            {"an access point whose placement is a cell an actor cannot stand in", [](auto& v)
-                { v["entities"][3]["components"]["relocator"]["placement"]["cell_position"] = parse_values("[3, 2]"); },
-                "entities[3].components.relocator.placement.cell_position: a cell an actor cannot stand in"},
-            {"a relocator with no target", [](auto& v) { v["entities"][3]["components"]["relocator"].erase("target"); },
-                "entities[3].components.relocator.target: required and absent"},
-            {"a relocator whose target is neither a string nor a reference", [](auto& v)
-                { v["entities"][3]["components"]["relocator"]["target"] = -1; },
-                "entities[3].components.relocator.target: neither a target nor a reference to an entity"},
-            {"a relocator whose target is a level offset of more than one level", [](auto& v)
-                { v["entities"][3]["components"]["relocator"]["target"] = "-2"; }, ""},
-            {"a relocator whose target is an absolute level in a named region, at a position", [](auto& v)
-                { v["entities"][3]["components"]["relocator"]["target"] = "sewers/=-3@grate"; }, ""},
-            {"a relocator whose target does not match the grammar", [](auto& v)
-                { v["entities"][3]["components"]["relocator"]["target"] = "1"; },
-                "entities[3].components.relocator.target: not a target written [region/]zone[@position]"},
-            {"a template's relocator bound", [](auto& v)
-                { v["entities"][3]["components"]["relocator"]["target"] = parse_values(R"({ "entity": 5 })"); },
-                "entities[3].components.relocator.target: bound, which a relocator is only in a saved zone"},
-            {"a saved zone's relocator bound to a relocator in another zone", [](auto& v)
+                { v["entities"][4]["components"]["access_point"]["order"] = 0; },
+                "entities[4].components.access_point.order: order 0 is another access point's of the type 'staircase'"},
+            {"an access point at which an arriving actor is placed in a cell it cannot stand in", [](auto& v)
+                {
+                    v["entities"][3]["components"]["site"] = parse_values(
+                        R"({ "relation": "on", "flat": "floor", "cell_position": [3, 2], "orientation": [0, -1] })");
+                }, "entities[3].components.site: an access point at which an arriving actor is placed in a cell it cannot stand in"},
+            {"an access point with no target, which is arrival only", [](auto& v) { v["entities"][3]["components"]["access_point"].erase("target"); },
+                ""},
+            {"an access point whose target is neither a string nor a reference", [](auto& v)
+                { v["entities"][3]["components"]["access_point"]["target"] = -1; },
+                "entities[3].components.access_point.target: neither a target nor a reference to an entity"},
+            {"an access point whose target is a level offset of more than one level", [](auto& v)
+                { v["entities"][3]["components"]["access_point"]["target"] = "-2"; }, ""},
+            {"an access point whose target is an absolute level in a named region, at a position", [](auto& v)
+                { v["entities"][3]["components"]["access_point"]["target"] = "sewers/=-3@grate"; }, ""},
+            {"an access point whose target does not match the grammar", [](auto& v)
+                { v["entities"][3]["components"]["access_point"]["target"] = "1"; },
+                "entities[3].components.access_point.target: not a target written [region/]zone[@position]"},
+            {"a template's access point bound", [](auto& v)
+                { v["entities"][3]["components"]["access_point"]["target"] = parse_values(R"({ "entity": 5 })"); },
+                "entities[3].components.access_point.target: bound, which an access point is only in a saved zone"},
+            {"a saved zone's access point bound to an access point in another zone", [](auto& v)
                 {
                     v["zone"] = parse_values(R"({ "id": 7713 })");
-                    v["entities"][3]["components"]["relocator"]["target"] = parse_values(R"({ "entity": 90412 })");
+                    v["entities"][3]["components"]["access_point"]["target"] = parse_values(R"({ "entity": 90412 })");
                 }, ""}
         });
 
-        // A door facing with a relocator as an access point, as a door into another region has, raises no warning
+        // A door facing as an access point, as a door into another region has, raises no warning
         stratum_format::raw_values_type door_access = load_values(data_directory / "cistern.json");
-        door_access["entities"][1]["components"]["relocator"] = parse_values(
-            R"({ "type": "door", "target": "+0", "order": 0, "placement": { "cell_position": [1, 1], "orientation": [1, 0] } })");
+        door_access["entities"][1]["components"]["access_point"] = parse_values(R"({ "type": "door", "target": "+0", "order": 0 })");
         door_access["layout"]["components"]["access_points"].push_back(parse_values(R"({ "entity": 2 })"));
 
         vector<string> warnings;

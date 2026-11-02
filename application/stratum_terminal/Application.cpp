@@ -739,12 +739,12 @@ void stratum_terminal::Application::report(const quetzal::stratum_sim::EventQueu
         }
         else if (const stratum_sim::Blocked* pblocked = event.try_get<stratum_sim::Blocked>())
         {
-            flecs::entity relocator = pblocked->blocking_wall_id != nullid
-                ? stratum_sim::find_relocator(m_session.zone(), stratum_sim::WallAddress {pblocked->blocking_wall_id}) : flecs::entity();
+            flecs::entity access_point = pblocked->blocking_wall_id != nullid
+                ? stratum_sim::find_access_point(m_session.zone(), stratum_sim::WallAddress {pblocked->blocking_wall_id}) : flecs::entity();
 
-            if (relocator)
+            if (access_point)
             {
-                std::string name = stratum_sim::access_type_name(relocator);
+                std::string name = stratum_sim::access_type_name(access_point);
                 m_message = std::format("There is a {} before you.", name.empty() ? "way" : name);
                 continue;
             }
