@@ -310,7 +310,7 @@ Character& Game::character();
   advance in which it entered, after the session has made the new zone the one being played, so the save is of a
   finished advance.
 - **`Game` gives `Session` the function that autosaves** when it constructs it, as it gives it the `World` and the
-  `Character`. `Session::advance` calls it when the character went through a relocator into another zone during that
+  `Character`. `Session::advance` calls it when the character went through an access point into another zone during that
   advance. The hosts call `Session::advance` as they do now, and only `Game`'s function decides what triggers an
   autosave. `start`, from `create` or `open`, does not call it.
 - **A failed autosave does not end the game.** `Game`'s function catches the error and reports it in an event of the
@@ -335,15 +335,15 @@ Character& Game::character();
 ## Entry point
 
 - **No zone file names an entry point.** It is chosen from among the access points.
-- **An access point is an entity with a relocator, sited on a surface:** a wall, the floor or the ceiling. Its type is
-  a registered entity --- staircase, door, portal, waypoint, or a type that a mod adds --- and its placement, the cell
-  and orientation at which an arriving actor is placed, is explicit in the file. Its relocator's target determines
-  whether it goes up, down, or across. The JSON is the source of truth; the stair glyphs are visual aids, and a discrepancy between them is a warning.
+- **An access point is a component of an entity sited on a surface:** a wall, the floor or the ceiling. Its type is
+  a registered entity --- staircase, door, portal, waypoint, or a type that a mod adds --- and the cell and orientation
+  at which an arriving actor is placed are derived from the entity's site (`access_point_plan.md`). Its target
+  determines where it leads. The JSON is the source of truth; the stair glyphs are visual aids, and a discrepancy between them is a warning.
 - **Each access point has an `order`,** given when it is created, counting from 0 within its type, so each type has its
   own 0.
 - **The entry point is the available access point with the lowest `order` among those of the desired type whose
-  relocators target the desired level offset,** and any type is allowed. An actor arriving from another level needs the
-  offset that leads back. Available means not already bound to a relocator elsewhere. With
+  targets have the desired offset,** and any type is allowed. An actor arriving from another zone needs the target
+  that leads back. Available means not already bound to an access point elsewhere. With
   two staircases leading up, where the lower-ordered one was bound to the level above by an earlier arrival, an actor
   arriving from a different staircase leading down above enters at the other.
 - **The library has no default type or offset.** A new game's region spec states them in its `entry_access` key
@@ -352,8 +352,8 @@ Character& Game::character();
   error.
 - **A dungeon level has at least one staircase leading up,** its way out, so a generator's minimum count of staircases
   leading up is 1. A staircase leading down is optional: its probability is inversely proportional to how far below
-  the surface the zone's level is and proportional to its `difficulty`, and is 1 for now (`region_plan.md`,
-  `## Level`).
+  the surface the zone's level is and proportional to its `difficulty`, and is 1 for now (`zone_plan.md`,
+  `### Positions and levels`).
 - **`type`, `order` and `placement` are in the zone file format** within the current version (`discrete_layout.md`,
   `## layout`).
 
@@ -363,8 +363,8 @@ Character& Game::character();
   blocked, so a held movement key never takes the stairs. Its orientation is the wall's normal.
 - **An access point on the floor does not impede movement.** Its orientation, which is its site's, is used only for
   drawing, and a keystroke by an actor on its cell enters it.
-- **Entering an access point relocates the actor through its relocator,** to the zone that its target resolves to, at
-  that zone's entry point of the type at which the relocator's type arrives that leads back.
+- **Entering an access point relocates the actor** to the zone that its target resolves to, at that zone's entry
+  point of the type at which the access point's type arrives that leads back.
 - **In the wall notation every staircase is sited on a wall;** a staircase on the floor belongs to the
   block notation.
 - **A staircase in a flat length of wall in the wall notation is the equivalent of one in a 1x1 alcove in the block
@@ -378,18 +378,18 @@ Character& Game::character();
 - **An actor has a speed,** which is a component, and entering a zone schedules every entity in it that has one. The
   actor structure is not designed; this is the least that lets the turn order be rebuilt from the zone.
 
-### Following through a relocator
+### Following through an access point
 
-This is a future feature. Only the controlled actor enters a relocator.
+This is a future feature. Only the controlled actor enters an access point.
 
-- **An active pursuer can follow the character through a relocator** if it has the `InterzonePursuitCapability`
+- **An active pursuer can follow the character through an access point** if it has the `InterzonePursuitCapability`
   component. The component is set when the pursuer is created, from its type, or given to it by script.
-- **When the character leaves through a relocator,** such a pursuer is removed from its zone and queued for placement in
+- **When the character leaves through an access point,** such a pursuer is removed from its zone and queued for placement in
   the zone the character arrived in.
 - **A queued pursuer is placed when the conditions allow,** for timing and for space. At least one turn passes first,
   and it is placed only at the placement of the access point the character arrived at, so the character has to move off
   that cell before the pursuer can arrive.
-- **The character's use of a relocator may be restricted while hostiles are nearby,** which, where it applies, leaves
+- **The character's use of an access point may be restricted while hostiles are nearby,** which, where it applies, leaves
   no pursuer close enough to follow.
 
 Open:

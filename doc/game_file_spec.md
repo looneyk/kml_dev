@@ -233,7 +233,7 @@ is, and its zone changes as the entity moves. Each zone in it is one that a regi
 
 ### Regions
 
-A region groups contiguous zones: a surface area, a dungeon, a crypt, a tower, or a house (`region_plan.md`).
+A region groups contiguous zones: a surface area, a dungeon, a crypt, a tower, or a house.
 
 | Key | |
 | --- | --- |

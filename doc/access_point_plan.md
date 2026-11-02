@@ -40,7 +40,7 @@ cell becomes a check on the cell the site determines.
 
 The `relocator` file component becomes `access_point`, with `type`, `order`, and an optional `target`, and no
 `placement`. `stratum_format::Relocator` becomes `stratum_format::AccessPoint`. An entity with an `access_point`
-component is listed in `layout.components.access_points`, and the format version becomes 0.6, with the changes in an
+component is listed in `layout.components.access_points`, the zone's list of its access points (`zone_plan.md`), and the format version becomes 0.6, with the changes in an
 appendix to `discrete_layout.md`. dungen and catagen write the component without a placement; `Staircase::placement()`
 remains the stair block's cell and open direction, from which each generator computes the site.
 
@@ -57,13 +57,12 @@ The verb *relocate* remains, since relocation is what going through an access po
 | `World::resolve_relocator_target(relocator)` | `World::resolve_target(access_point)` |
 | `targets_relocator_level(e, offset)` | `targets_level(e, offset)` |
 
-`RelocatorTarget` keeps its name. It is deprecated, and a target type not yet designed is to replace it in a later
-plan, once zone and region identity is defined (`zone_identity_plan.md`).
+`RelocatorTarget` keeps its name. It is deprecated, and the first pass's `{zone, position}` target is to replace it
+(`zone_plan.md`, `## Implementation`).
 
-`can_enter` also requires a target. The documents that use *relocator* for the component are swept in the same commit
-as the code: `addressing.md`, `discrete_layout.md`, `game_system_reference.md`, `region_plan.md`, `session_plan.md`,
-`sim_zone_model.md`, `world_generation_plan.md`, `difficulty_plan.md`, `tree.md`, `catagen_reference.md`,
-`dungen_reference.md`, and `work_plan.md`.
+`can_enter` also requires a target. The reference documents that use *relocator* for the component are swept in the
+same commit as the code: `addressing.md`, `discrete_layout.md`, `game_system_reference.md`, `game_file_spec.md`,
+`testing_plan.md`, `catagen_reference.md`, and `dungen_reference.md`.
 
 ## Order
 
@@ -79,9 +78,6 @@ as the code: `addressing.md`, `discrete_layout.md`, `game_system_reference.md`, 
 
 ## Open questions
 
-- **Is `layout.components.access_points` still needed?** Every entity with an `access_point` component is listed in
-  it, so the list repeats what the entities state. Without it, the reader requires at least one entity with the
-  component.
 - **Where is the arrival placement computed?** A `Layout` virtual function keeps `World` free of the concrete layout,
   but adds a declaration to `ContinuousLayout`. A function of `DiscreteLayout`, reached through `layout_as`, leaves
   `ContinuousLayout` untouched.

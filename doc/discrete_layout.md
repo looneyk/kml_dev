@@ -647,20 +647,21 @@ position = one or more characters other than "/" and "@"
 | `+0` | Another zone at the same level |
 | `=0` | Level 0 |
 | `=-3` | Level -3 |
-| `sewers/=-1` | Level -1 of the region `sewers` |
+| `sewers/=-1` | Level -1 of a new region created from the region spec `sewers` |
 | `town/market@fountain` | The zone `market` in the region `town`, at the position `fountain` |
 
 A relative zone is a number of levels from the relocator's zone (`## layout`), and always has its sign. An absolute
 zone is a level, marked with `=`. A named zone is a zone of pregenerated content, and the position a place in it.
 An omitted region is the relocator's own region, from which the
-caller's rules for moving down, up, and across apply, and a written region is the only one searched. Region names,
-zone names, and positions are the caller's vocabulary.
+caller's rules for moving down, up, and across apply, and a written region is a region spec, from which a new region is
+created. Region names, zone names, and positions are the caller's vocabulary, and the caller resolves neither a named
+zone nor a position.
 
 Resolving one finds a zone or makes one. Traversal passes the target to whatever manages the zones, which
 returns a zone it has or generates one, and chooses the cell an arriving actor is placed in. What it
 resolves to is written back as a bound target, so leaving and returning arrive at the same place.
 
-A level resolves to a zone at that level (`region_plan.md`), so it is a real target as soon as that zone is generated
+A level resolves to a zone at that level, so it is a real target as soon as that zone is generated
 or loaded. An actor arriving through a relocator that is not yet bound is placed at one of that zone's unbound access
 points that leads back --- through a `-1`, at one whose relocator's target is `+1`, or `=`*L* for the level *L* left
 --- and going through binds both ends: the relocator gone through is bound to that access point, and the access

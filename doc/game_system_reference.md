@@ -285,7 +285,7 @@ id. A zone is an entity with the `Zone` tag, a `ZoneLayout` component that owns 
 `std::unique_ptr<Layout>`, a `ZonePlacementIndex`, and a `ZoneNotation`. Deleting the entity deletes the layout. There is one `World` in a
 game, owned by `Game`, and it cannot be copied or moved.
 
-A region groups contiguous zones: a surface area, a dungeon, a crypt, a tower or a house (`region_plan.md`). It is an
+A region groups contiguous zones: a surface area, a dungeon, a crypt, a tower or a house. It is an
 entity with a `Region` component and a `PersistentId`, and it is the parent of its zones. It has no parent of its own.
 `Region` has the region's `RegionSpec` and `zone_ids`, the persistent id of each zone created in it, in the order they
 were created, loaded or not, so its size is the region's zone count. A zone is listed when it is generated, loaded from

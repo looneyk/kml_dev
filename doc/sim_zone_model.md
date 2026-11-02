@@ -16,7 +16,7 @@ Every section is marked **Settled**, **Leaning**, or **Open**, and what is defer
 **Settled.**
 
 ```
-World      the set of Zones, and the relocators between them
+World      the worldspaces, regions and Zones, and the access points between Zones
 Zone       one coordinate space: its Layout, and the entities in it
 Layout     geometry and topology, and the queries over them   has positions, exposes none
 entities   ids and composed components                        have placements, not coordinates
@@ -31,7 +31,8 @@ entities that block an actor. See The Layout interface.
 
 ## World, Zones, and Levels
 
-**Settled.** `World` is the set of `Zone`s --- dungeons and outdoor areas alike --- and the relocators between them. A
+**Settled.** `World` is the set of `Zone`s --- dungeons and outdoor areas alike --- in their worldspaces and regions,
+and the access points between them (`zone_plan.md`). A
 `Zone` is loaded on entry, and residency is a bounded working set rather than everything ever visited, so unloading is
 routine.
 
@@ -42,57 +43,38 @@ in place. The `Session` is the game being played, and refers to the `World` rath
 
 **A zone's population are its denizens,** not all of them monsters.
 
-**A `Zone` is one coordinate space, and it is 3D.** `Zone`s share no coordinate system and have no spatial relationship
-to one another. Surface to dungeon is always a teleport: the scale difference precludes any vertical correspondence
-between them.
+**A `Zone` is one coordinate space, and it is 3D.** A zone has a position in its worldspace, and the zones of a grid
+worldspace, such as the surface, are adjacent edge to edge by their positions. Zones in different worldspaces have no
+spatial relationship. Surface to dungeon is always through an access point: the scale difference precludes any
+vertical correspondence between them.
 
 **A `Zone` is one slab,** bounded by its two `Flat`s above and below. The levels of a dungeon are separate zones, and a
-staircase between them is an entity with a relocator.
+staircase between them is an entity with an access point.
 
 Within a `Zone` there is one coordinate system, so what lies above or below a point is a geometric
-question. Across `Zone`s there are relocators with explicit targets. **No partner ever crosses a `Zone`
-boundary**, so a partner is always resolvable once its own `Zone` is loaded.
+question. Between `Zone`s that are not adjacent there are access points with explicit targets. **No partner ever
+crosses a `Zone` boundary**, so a partner is always resolvable once its own `Zone` is loaded.
 
-**Future: a `Zone` spanning several levels.** One coordinate space over stacked levels, with a stairway as ordinary
-geometry rather than a relocator. A pair of height fields cannot bound it, so it needs more than a `Flat` above and
-below. Not designed.
+**Future: a `Zone` spanning several levels.** One coordinate space over stacked levels, with a staircase as ordinary
+geometry rather than an access point. A pair of height fields cannot bound it, so it needs more than a `Flat` above
+and below. Not designed.
 
-**Next: `Region`, a grouping of contiguous `Zone`s.** A surface area, a dungeon, a crypt, a tower and a house are all
-regions, with sets of properties that overlap but differ. `region_plan.md` has the design, and the open questions are
-in `work_plan.md` (`### Regions`).
+**Worldspaces and regions.** A worldspace defines the coordinate system of its zones and is their flecs parent, and a
+region is a named, hierarchical subdivision of a worldspace's zones with no part in movement. `zone_plan.md` has the
+design, and the open items are in `work_plan.md` (`## Zones and regions`).
 
-- **A region is data.** Its properties are components on its entity: a name, and for a dungeon the overall or starting
-  difficulty and the other properties a whole dungeon has. It acts on nothing directly, apart from what a generator
-  reads from it.
-- **Regions have no hierarchy.** A crypt in a surface area is a region of its own, and zones connect only through
-  their access points, within a region and between regions.
-- **A region is its zones' parent.** A zone's flecs parent is its region. `zone_of` still stops at the first ancestor that is a zone, and an entity's region is its zone's parent.
-  Unloading a zone leaves its region; deleting a region deletes its zones. A region, having no zone above it, is given
-  its persistent id when it is created.
-- **A region decides which zones unload first.** The zones of other regions than the one the character is in go first,
-  left longest ago first; then the zones of the character's region, farthest first, by distance or by the difference in
-  level.
-
-**Future: region files.** A region's metadata and generation settings, and possibly then its zones, one after another.
-
-**Relocators are the only cross-`Zone` link, and they are components of entities rather than structure.** A relocator
-is what a staircase, a portal or a waypoint has: it refers to a target, a destination not yet bound or the relocator
-arrived at by its persistent id (`addressing.md`, `### Relocators and access points`), and its traversal behavior,
-whether walking, falling, levitating, or blinking, is script over an engine default. Being on entities they are
-enumerable, which is how `World` determines which `Zone`s are reachable from where.
+**Access points and adjacency are the only cross-`Zone` links, and access points are components of entities rather
+than structure.** An access point is what a staircase, a portal or a waypoint has: it refers to a target, a zone not
+yet bound or the access point arrived at by its persistent id (`zone_plan.md`, `### Targets`), and its traversal
+behavior, whether walking, falling, levitating, or blinking, is script over an engine default. Being on entities they
+are enumerable, which is how `World` determines which `Zone`s are reachable from where.
 
 ### Level
 
-**Settled.** A zone's level is its position relative to the surface, the same scale in every region: 0 at the
-surface, -1, -2, ... going down, and 1, 2, ... going up. Players are shown its absolute value, since whether they are
-descending or ascending is obvious from context. It is a label, a component on the zone, and never an object or entity;
-nothing is keyed or looked up by it, and a region may have many zones at one level. It is used when making connections
-between zones (`region_plan.md`).
-
-It is a property rather than derived from a height band, so a spiral ramp, a mezzanine, or a shortcut vault can be
-assigned deliberately. Depth is separate metadata, which may or may not be a count, and is not used.
-
-Nothing structural consults a level. Movement never does. Making connections, generation, the automap, and the UI do.
+**Settled.** A zone's level is metadata, a component on the zone, and never an object or entity (`zone_plan.md`,
+`### Positions and levels`). It is a property rather than derived from a height band, so a spiral ramp, a mezzanine,
+or a shortcut vault can be assigned deliberately. Nothing structural consults a level. Movement never does.
+Generation, the automap, and the UI may.
 
 ### Entity ownership and migration
 
@@ -105,7 +87,7 @@ facing whose parent is its door, belongs to the `Zone` through that parent, so a
 what is placed directly in it --- as occupancy and the view need --- while anything over the whole `Zone` walks the
 subtree. Deletion reaches all of it (`addressing.md`, `### Children`).
 
-**Ownership follows current location, not origin.** A monster that chases the character through a relocator migrates into
+**Ownership follows current location, not origin.** A monster that chases the character through an access point migrates into
 the destination, so the `Zone` it came from can unload without it. The character is the exception: always in a resident
 `Zone`, but owned by the game rather than by that `Zone`, so unloading or saving the `Zone` leaves it out
 (`addressing.md`, `### The character`).
@@ -139,8 +121,9 @@ loaded, the resident set is checked against a threshold --- a maximum `Zone` cou
 `Zone`s are unloaded only when it is exceeded. The world's `ZoneEntryIndex` keeps the order in which the zones were
 entered, and the zone entered longest ago is unloaded first, more than one if a memory threshold requires it.
 
-With more than one `Zone` resident, "near the character" can only mean relocator-graph distance, `Zone`s having no spatial
-relation, and the relocator graph is enumerable because relocators are on entities.
+With more than one `Zone` resident, "near the character" means the distance between positions within a worldspace,
+and access-point-graph distance between worldspaces, which have no spatial relation; the access point graph is
+enumerable because access points are on entities.
 
 **Elapsed-time advance on re-entry.** Effects expressible as a function of elapsed time are advanced when a frozen
 `Zone` loads: corpses age, growth continues, stores restock. This is per component: a component that can state itself
@@ -154,6 +137,7 @@ schedules advance; anything needing pathfinding or combat resolution stays froze
 - **`Zone`** is an independently loadable area --- a dungeon, a town, a moor.
 - **`Layout`** is how a `Zone` is arranged, and the queries over it.
 - **`World`** is the set of `Zone`s, one `flecs::world` with each `Zone` an entity in it.
+- **Worldspace** is a coordinate space of `Zone`s, and **region** a named subdivision of a worldspace's `Zone`s.
 - **`Flat`** is a horizontal surface, floor or ceiling.
 - **`Scheduler`** orders actors in abstract units, the driver deciding what advances them.
 - **`Level`** is metadata describing a `Zone`, not geometry.

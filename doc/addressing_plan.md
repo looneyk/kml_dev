@@ -22,7 +22,7 @@ Open items are listed in `work_plan.md`, and `game_system_reference.md` describe
   The reader requires an entity on every door glyph's walls and on every stair glyph's open side, as it requires the
   access points.
 - **A door has a door facing on each wall of its doorway,** which is a child of the door sited on that wall.
-- **A staircase is a block with a wall on each side,** and is sited on the wall on its open side, with its relocator
+- **A staircase is a block with a wall on each side,** and is sited on the wall on its open side, with its access point
   and target. That wall's normal is the direction of travel from the staircase into the room, so a staircase has no
   orientation of its own. Its other sides are ordinary walls, each with file components of its own. Where a stair block
   may go is the generators' concern: it must not cut a passage in two, and at a dead end its open side faces the one
@@ -48,8 +48,7 @@ Open items are listed in `work_plan.md`, and `game_system_reference.md` describe
   persistent.
 - **Format 0.4 and persistent ids are built before loading a zone,** so loading is written once, against them.
 - **A direction that an entity has is its orientation.**
-- **The relocators at which an arriving actor can be placed are the zone's access points,** listed in
-  `layout.components.access_points`.
+- **An arriving actor is placed at one of the zone's access points,** listed in `layout.components.access_points`.
 - **Zone files are written by generators, tools and saves,** not by hand; being readable as text is enough.
 - **A cell position is `cell_position`,** as every format key and every code name for one.
 - **A wall id is encoded from the normal,** by `encode_wall_id` (`### Wall ids from the normal`).

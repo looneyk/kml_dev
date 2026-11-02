@@ -74,7 +74,7 @@ They are used for daily challenges, races, and tournaments.
 - **Spelunky and Spelunky 2** --- a daily challenge with one seed for everyone, and seeded runs in Spelunky 2.
 - **Noita** and **Balatro** --- seeds that a player sets or shares.
 
-Offering either requires each zone's seed derived from the world seed and the zone's place rather than drawn
+Offering either requires each zone's seed drawn from the world seed before play, rather than as the world is explored
 (`## Generation`), a random engine and distributions whose output is the same on every platform (`## The random engine
 type`), and a seed stored with the version of the generators that made it.
 
@@ -133,13 +133,12 @@ type`), and a seed stored with the version of the generators that made it.
 
 ## Generation
 
-- **Seeds are derived from the world seed and coordinates, hierarchically.** A region's seed derives from the world
-  seed and the region's coordinates in the world, `(x, y)`, and a zone's from its region's seed and the zone's
-  coordinates in the region, `(x, y, z)`. The coordinates are signed, with the starting region and
-  zone at the origin, within the world's and region's sizes (`settings_plan.md`, `### A new game's settings`). A seed
-  is derived through `std::seed_seq` over the seed and the coordinates as 32-bit words, since the standard specifies its
-  output and a zone's position in the world, about 10^21 places, does not fit one 64-bit number. How coordinates are
-  assigned to new regions and zones is a matter for generation, apart from the derivation.
+- **Seeds are drawn hierarchically, and created with the world's structure** before play starts (`zone_plan.md`,
+  `### The world`). A random engine seeded from the world seed draws each top-level region's seed, in the order the
+  regions are created. Each region's own random engine, seeded from its seed, draws the seeds of its zones and then of
+  its subregions, in the order they are created. The structure is created in the same order every time, so a world
+  seed makes the same seeds, and a change to a region spec changes the seeds only within that region and in its later
+  siblings.
 - **A seed passed takes precedence.** A `RegionSpec` or `ZoneSpec` with a seed under `seed_key` uses it in place of the
   derived one, so a region or a zone can be rebuilt alone, such as from a zone file's `generator.parameters`.
 - **A zone's seed is one of its generation parameters,** which `World::create_zone(region, zone_spec)` adds to the
@@ -151,8 +150,8 @@ type`), and a seed stored with the version of the generators that made it.
 - **A retry draws a fresh sub-seed** from the run's random engine, for Phase 5's reject-and-retry.
 - **Placement draws from the run's random engine** when it is part of generation (`placement_plan.md`), and from the
   gameplay random engine when it happens during play, such as a denizen appearing over time.
-- **A zone's seed is derived, not drawn,** as DCSS's level seeds are, so it does not depend on the order in which zones
-  are made, and the world is the same however it is explored.
+- **Every seed is drawn before play starts,** as Brogue draws every level's seed when a game starts, so the world is
+  the same however it is explored.
 
 ## The random engine type
 

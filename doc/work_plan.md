@@ -21,7 +21,6 @@ The design behind the items is in these documents, which the items refer to by s
 - `modding_plan.md` covers mods and data-driven design.
 - `placement_plan.md` is the form placement takes: what fills a zone.
 - `random_engine.md` covers the random engines, their seeds, and saving their state.
-- `region_plan.md` covers regions, relocator targets, and pregenerated content.
 - `session_plan.md` covers how `Game`, `Session`, `World` and `Character` divide the work of making and playing zones, and
   the game's lifecycle and the menu operations behind it: `Game` is the game in its entirety, lasting as long as the
   host, and owns the `World`, the `Character` and the `Session` by value, clearing them in place for each game created
@@ -31,11 +30,11 @@ The design behind the items is in these documents, which the items refer to by s
 - `sim_zone_model.md` has the model beneath the code.
 - `testing_plan.md` covers how the tests are written, registered and run: doctest, CTest, and reference files that one
   option updates.
-- `zone_identity_plan.md` describes how zones and regions are identified --- persistent ids, names, region specs, and
-  levels --- with the discrepancies among the documents and the code, as the basis for a definition.
-- `world_generation_plan.md` covers how a new game's regions and zones are generated: `RegionSpec` and `ZoneSpec`, the
-  registries of generators, generator selectors and region specs, and the relocators that lead to new zones and
-  regions.
+- `world_generation_plan.md` covers how a new game's world is generated: its structure of worldspaces, regions and
+  zones created whole from `RegionSpec`s before play, the registries of generators, generator selectors and region
+  specs, and each zone's content generated when it is needed.
+- `zone_plan.md` defines the world's structure: worldspaces, zones, and hierarchical regions, their names, extended
+  names and persistent ids, positions and levels, access points and their targets, and pregenerated content.
 
 `archived/` has the plans whose work is built.
 
@@ -76,10 +75,9 @@ boxes are removed at the start of the next piece of work, since the reference do
       staircase in a flat length of wall or in a 1x1 alcove, the two being equivalent across the notations, as well as
       a block staircase on floor cells in the open space of a room. In the wall notation every staircase is sited on a
       wall.
-- [ ] **The common generator selector** (`world_generation_plan.md`, `## Generator selection`): a region's zone count;
-      `GeneratorSelection` choosing a generator, a pre-built zone, or a new region; the selector reading its opening
-      sequence, primary and rare weighted tables, zone limit, and weighted table of next regions from the `RegionSpec`,
-      with the probability of a new region rising to 1 at the zone limit; and the starting
+- [ ] **The common generator selector** (`world_generation_plan.md`, `## Generator selection`): `GeneratorSelection`
+      choosing a generator or a pre-built zone; the selector reading its opening sequence and its primary and rare
+      weighted tables from the `RegionSpec`; and the starting
       region's spec, with a terrain-specific generators, and pre-built zones need **The pregenerated content index**.
 - [ ] **Pre-built zones selected** (`world_generation_plan.md`, `## Generator selection`): a selection's
       `zone_template` read from **The pregenerated content index** into a `Document`, and the zone built from it as a
@@ -92,24 +90,46 @@ boxes are removed at the start of the next piece of work, since the reference do
       random engine, seeded from the zone's seed, with the reference files regenerated. It comes with **the generators
       integrated**.
 
-## Regions
+## Zones and regions
 
+`zone_plan.md` has the design.
+
+- [ ] **Worldspaces** (`zone_plan.md`, `### Worldspaces`): a worldspace entity with its name and `PersistentId`, the
+      flecs parent of its zones, with its coordinate system from its top-level region's spec, and each zone's
+      `ZonePosition` in its worldspace, unique there. `RegionPosition` goes.
+- [ ] **Top-level regions** (`zone_plan.md`, `### Regions`): one region for each worldspace, created from its region
+      spec, with the worldspace's extent, and a zone referring to its region by persistent id.
+- [ ] **Extended names** (`zone_plan.md`, `### Identity`): a name and an extended name for every worldspace, zone and
+      region, unique across the game, the generated names `<basename>_<counter>` with one counter for the whole game
+      (`zone_plan.md`, `## Implementation`), and a zone's `DisplayName` separate from both.
+- [ ] **The world's structure created whole** (`world_generation_plan.md`, `## Creating the structure`): every
+      worldspace, region and zone created by `World::create` with its spec, its name, its position and its seed, the
+      seeds drawn hierarchically (`random_engine.md`, `## Generation`), and a zone's content generated the first time it
+      is entered or loaded.
+- [ ] **Targets resolved by extended name and by position** (`zone_plan.md`, `### Targets`): the `{zone, position}`
+      target in place of `RelocatorTarget` (`zone_plan.md`, `## Implementation`), and an unbound target resolved to the
+      zone of an extended name or a persistent id, or at a position relative to the access point's zone or absolute in a
+      worldspace, with the zone's content generated if it has none.
 - [ ] **A region's properties** as components: a name and, for a dungeon, the overall or starting difficulty and the
       other properties a whole dungeon has.
-- [ ] **Transparent zone and region boundaries.** Contiguous zones joined edge to edge, so an actor walks from one zone
-      into the next, across region boundaries too. Until then, zones connect only through relocators: waypoints, and
-      dungeons with more than one entrance. Where zones can be traversed across adjacent edges, or through doorway access points,
-      the zone on the other side is visible and must be rendered.
+- [ ] **Adjacent zones** (`zone_plan.md`, `### Worldspaces`): the zones of a grid worldspace adjacent edge to edge by
+      their positions, so an actor walks from one zone into the next. Where zones can be traversed across adjacent edges,
+      or through doorway access points, the zone on the other side is visible and must be rendered, and an adjacent zone
+      is loaded with the zone the character is in.
       First pass: Zones should be created with natural or constructed barriers that surround them so this problem can be deferred.
-
-- [ ] **Unloading by region.** Criteria for `World::trim_zones` that choose the zones of other regions first, those
-      left longest ago first, and then those of the character's region, farthest first.
 - [ ] **Region files.**
-- [ ] **The pregenerated content index** (`region_plan.md`, `## Pregenerated content`): built at game start by scanning
-      `assets/zones`, or read from an index file built in the background, listing each zone or region tag, with
-      `layout.components.name` as a zone's tag, and its zone data file.
-- [ ] **Relocator names:** a `name` in the `relocator` component, read, written, and listed in the index.
-- [ ] **Named relocator targets resolved** through the index: a named zone, a named region, and a position.
+- [ ] **The pregenerated content index** (`zone_plan.md`, `### Pregenerated content`): built at game start by scanning
+      `assets/zones`, or read from an index file built in the background, listing each zone's and region's extended
+      name with its zone data file and the names of the access points in it.
+- [ ] **Access point names:** a `name` on an access point, read, written, and listed in the index, for a target that
+      arrives at a named access point.
+- [ ] **Subregions** (`zone_plan.md`, `### Regions`): a region's parent region, a `RegionSpec`'s subregion specs, and
+      each subregion's extent, in the syntax that the open question on the extent's key names decides
+      (`world_generation_plan.md`, `### Extents`).
+- [ ] **Naming patterns** (`zone_plan.md`, `### Identity`): a region spec's naming patterns, one for its regions and one
+      for their zones, in place of `<basename>_<counter>`, with extended names unique at every level of the region
+      hierarchy.
+- [ ] **The target's notation** in place of `{zone, position}`, once the open question on it is answered.
 
 ## Access points
 
@@ -223,18 +243,22 @@ These are the open questions.
 
 `access_point_plan.md` (`## Open questions`) has the detail.
 
-- **Is `layout.components.access_points` still needed** once every entity in it has an `access_point` component?
 - **Is the arrival placement computed by a `Layout` virtual function or by a function of `DiscreteLayout`?**
 
-### Zone and region identity
+### Zones and regions
 
-`zone_identity_plan.md` (`## Open questions`) has the detail. **Named relocator targets resolved** and **Relocator
-names** wait on these.
-
-- **Is a zone identified by its persistent id, its name, or both,** and is a zone name unique across the game?
-- **Is a region identified by its persistent id, its name, or its region spec's name?**
-- **How is a level offset resolved** once a level is metadata only?
-- **Does a region have one zone per level, or several?**
+- **What is the target's notation?** `RelocatorTarget` is deprecated until it is designed (`zone_plan.md`,
+  `### Targets`).
+- **What properties does each type of region have?** A surface area's and a dungeon's overlap but differ, and
+  difficulty goes from the starting value across a dungeon's zones in a way not yet decided.
+- **What does a region file contain, and how does it relate to the zone file format?** It may have only the region's
+  metadata and generation settings, or those followed by its zones.
+- **How do two bound doors keep their `Access` equal?** `zone_plan.md` (`### Doors between zones`) has the design.
+  With both zones loaded, changing one door sets its partner too. With the partner's zone unloaded, only this side changes, and the
+  two are reconciled when an actor crosses or when the partner's zone loads; which change is newer needs deciding,
+  such as by the simulation time of the last change stored with `Access`.
+- **What does the pregenerated content index file contain?** `zone_plan.md` (`### Pregenerated content`) describes
+  the index.
 
 ### Attachments and doors
 
@@ -359,34 +383,10 @@ names** wait on these.
   facing direction, which is a design question.
 - **Do actions get durations** --- wind-up, active and recovery? If so, `Intent` is where they go.
 
-### Regions
-
-- **What properties does each type of region have?** A surface area's and a dungeon's overlap but differ, and
-  difficulty goes from the starting value across a dungeon's zones in a way not yet decided.
-- **Is the measure within the character's region distance or level difference, and does it differ by type of region?**
-- **What does a region file contain, and how does it relate to the zone file format?** It may have only the region's
-  metadata and generation settings, or those followed by its zones.
-- **How do two bound doors keep their `Access` equal?** `region_plan.md` (`## Doors between zones`) has the design.
-  With both zones loaded, changing one door sets its partner too. With the partner's zone unloaded, only this side changes, and the
-  two are reconciled when an actor crosses or when the partner's zone loads; which change is newer needs deciding,
-  such as by the simulation time of the last change stored with `Access`.
-- **How does a relocator between surface zones state where it leads?** It leads neither up nor down, so a level offset
-  of 0 may be enough, or it may need a horizontal distance or direction instead.
-- **What does the pregenerated content index file contain?** `region_plan.md` (`## Pregenerated content`) describes
-  the index.
-
 ### Generation
 
-- **A second entrance into a region that exists.** A target with a region always creates a new region, and an existing
-  region is reached only through relocators bound to it. A dungeon with two entrances in different surface zones needs
-  the second entrance to refer to the region the first created, such as by persistent id once the region exists. A
-  region nearing its zone limit has the same need: each exit that leads out of it creates a new region, where they could
-  lead into a region that already follows it, which the selector would then refer to.
-- **How does the probability of a new region rise with a region's zone count, from 0 to 1 at its limit?** The curve
-  and where it starts are undecided, and so is whether it is a parameter of the `RegionSpec`.
-- **Which of its two forms is the region in a relocator target, and how are they told apart?** It is the name of a
-  region spec, from which a new region is created, or a tag in the pregenerated content index (`region_plan.md`,
-  `## Pregenerated content`).
+- **What are the extent's key names and syntax,** and what forms does it take besides boxes? A diagonal boundary takes
+  one box for each row (`world_generation_plan.md`, `### Extents`).
 - **Which `RegionSpec` metadata becomes components on the region, and which does only the selector read?**
 
 ### Log
@@ -397,8 +397,8 @@ names** wait on these.
 
 ### Random engine
 
-- **Do players get reproducible games from a shared seed?** Each zone's seed is derived from the world seed and the
-  zone's position, so a world seed builds the same zones however the world is explored.
+- **Do players get reproducible games from a shared seed?** Each zone's seed is drawn from the world seed before play,
+  so a world seed builds the same zones however the world is explored.
 
 ### Testing
 
@@ -421,9 +421,6 @@ names** wait on these.
 - **Are resident zones the character has left simulated or frozen, and which thresholds apply, with what values?**
   Memory usage is one of the thresholds.
 - **Zones made and never entered.** They are not candidates for unloading.
-- **Where is the unload order's data kept, once regions set the criteria?** It may be `ZoneEntryIndex`'s map from entry
-  count to zone id, or a component on each zone with a flecs query ordered by it. The criteria are other regions' zones
-  by the time they were entered, and the character's region's zones by distance or level difference (`## Regions`).
 
 ### Settings
 
@@ -457,8 +454,8 @@ These are set aside on purpose.
 - **Scripted new game settings,** such as an `on_new_game` script computing game settings when a game is created,
   beyond the values in the game manifest's `settings`.
 
-- **Pursuers following the character through a relocator** (`session_plan.md`, `### Following through a relocator`).
-  Only the controlled actor enters a relocator.
+- **Pursuers following the character through an access point** (`session_plan.md`, `### Following through an access
+  point`). Only the controlled actor enters an access point.
 - **A doorway into a dead end,** which has a wall on one side only: what a door glyph there requires, and what the
   generators and the reader do with one.
 - **maze1's unreachable corridor.** Excavation can leave corridor that no door reaches, which dead-end pruning removes

@@ -34,7 +34,7 @@ done. The open items are in `work_plan.md` (`### Difficulty`).
 | **Denizen level** | -2 | -1 | 0 | +1 | +2 |
 | **Denizen count** | x0.5 | x0.75 | x1 | x1.25 | x1.5 |
 | **Luck** | High | Raised | Neutral | Lowered | Low |
-| **Pursuit:** how long a pursuer hunts after losing sight | Short | Short | Normal | Long | Long, and pursuers follow through relocators |
+| **Pursuit:** how long a pursuer hunts after losing sight | Short | Short | Normal | Long | Long, and pursuers follow through access points |
 | **Denizen tactics:** groups, flanking, items | None | Basic | Normal | Full | Full, with reinforcements |
 | **Aids:** concealed doors hinted, items identified | All | Most | Some | None | None |
 | **Rest and healing** | Free | Easy | Normal | Limited | Scarce |
@@ -97,7 +97,7 @@ The game's setting definitions in `assets/data` define the group, its members an
   game while the character lives, and deletes the save once it is dead.
 - **The quick save and autosave counts** (`session_plan.md`, `### Quick saves and autosaves`), and whether quick saves,
   quickloads and autosaves exist at all, are the mode's save settings.
-- **`InterzonePursuitCapability`** (`session_plan.md`, `### Following through a relocator`) is given to pursuers by
+- **`InterzonePursuitCapability`** (`session_plan.md`, `### Following through an access point`) is given to pursuers by
   the mode's pursuit setting, as well as by a denizen's type or by script.
 
 ## Open
