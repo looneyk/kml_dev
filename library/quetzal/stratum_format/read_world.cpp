@@ -6,7 +6,10 @@
 #include "read_world.hpp"
 #include "checked_values.hpp"
 #include "saved_game_format.hpp"
+#include "quetzal/log/Log.hpp"
+#include <array>
 #include <set>
+#include <utility>
 
 namespace
 {
@@ -15,21 +18,37 @@ namespace
     using namespace quetzal::stratum_format::detail;
 
     //--------------------------------------------------------------------------
-    // Adds each of the region's zone ids to zone_ids, which has those of the regions read before it
-    WorldRegion read_region(const raw_values_type& v, const std::string& path, std::set<stored_entity_id_type>& zone_ids)
+    // Adds id to entity_ids, and an id already there is an error
+    void add_entity_id(std::set<stored_entity_id_type>& entity_ids, stored_entity_id_type id, const std::string& path)
+    {
+        if (!entity_ids.insert(id).second)
+        {
+            const std::string what = std::format("a second entity with the id {}", id);
+            quetzal::log::logger().error(log_category, "{}: {}", path, what);
+            fail(path, what);
+        }
+
+        return;
+    }
+
+    //--------------------------------------------------------------------------
+    // Reads a region and its list of zones. entity_ids has the id of every worldspace, region and zone read so far in the
+    // file, zone_ids the id of every zone, and zone_positions the position of every zone read so far in this worldspace.
+    // The region and its zones are added to them, and a zone with an existing position or name is an error
+    WorldDocument::Region read_region(const raw_values_type& v, const std::string& path, std::set<stored_entity_id_type>& entity_ids,
+        std::set<stored_entity_id_type>& zone_ids, std::set<std::array<coord_type, 3>>& zone_positions)
     {
         object(v, path);
 
-        WorldRegion region;
+        WorldDocument::Region region;
         region.id = id_value(required_member(v, path, "id"), member_path(path, "id"));
+        add_entity_id(entity_ids, region.id, member_path(path, "id"));
+        region.name = string_value(required_member(v, path, "name"), member_path(path, "name"));
+        region.name_counter = count_value(required_member(v, path, "name_counter"), member_path(path, "name_counter"));
         region.components = read_components(v, path);
+        std::set<std::string> zone_names;
 
-        std::string spec_path = member_path(path, "spec");
-        region.spec = object(required_member(v, path, "spec"), spec_path);
-        for (const auto& [key, value] : region.spec.items())
-        {
-            string_value(value, member_path(spec_path, key));
-        }
+        region.spec = text_values(required_member(v, path, "spec"), member_path(path, "spec"));
 
         std::string zones_path = member_path(path, "zones");
         const raw_values_type& zones = array(required_member(v, path, "zones"), zones_path);
@@ -39,18 +58,65 @@ namespace
             std::string zone_path = element_path(zones_path, i);
             object(zones[i], zone_path);
 
-            ZoneReference zone {id_value(required_member(zones[i], zone_path, "id"), member_path(zone_path, "id")),
+            WorldDocument::Zone zone {id_value(required_member(zones[i], zone_path, "id"), member_path(zone_path, "id")),
                 string_value(required_member(zones[i], zone_path, "file"), member_path(zone_path, "file"))};
 
-            if (!zone_ids.insert(zone.id).second)
+            add_entity_id(entity_ids, zone.id, member_path(zone_path, "id"));
+            zone_ids.insert(zone.id);
+
+            if (const raw_values_type* p = member(zones[i], "position"); p != nullptr)
             {
-                fail(member_path(zone_path, "id"), std::format("a second zone with the id {}", zone.id));
+                std::string position_path = member_path(zone_path, "position");
+                const raw_values_type& a = fixed_array(*p, position_path, 3);
+                const std::array<coord_type, 3> position {coord_value(a[0], element_path(position_path, 0)),
+                    coord_value(a[1], element_path(position_path, 1)), coord_value(a[2], element_path(position_path, 2))};
+
+                if (!zone_positions.insert(position).second)
+                {
+                    const std::string what = std::format("a second zone of the worldspace at ({}, {}, {})", position[0], position[1], position[2]);
+                    quetzal::log::logger().error(log_category, "{}: {}", position_path, what);
+                    fail(position_path, what);
+                }
+
+                zone.position = zone_position_type {position[0], position[1], position[2]};
+            }
+
+            if (const raw_values_type* p = member(zones[i], "name"); p != nullptr)
+            {
+                std::string name_path = member_path(zone_path, "name");
+                zone.name = string_value(*p, name_path);
+
+                if (!zone_names.insert(*zone.name).second)
+                {
+                    const std::string what = std::format("a second zone of the region named {}", *zone.name);
+                    quetzal::log::logger().error(log_category, "{}: {}", name_path, what);
+                    fail(name_path, what);
+                }
             }
 
             region.zones.push_back(std::move(zone));
         }
 
         return region;
+    }
+
+    //--------------------------------------------------------------------------
+    // Reads a worldspace and its region. entity_ids has the id of every worldspace, region and zone read so far in the file,
+    // and zone_ids the id of every zone. The worldspace, its region and its zones are added to them
+    WorldDocument::Worldspace read_worldspace(const raw_values_type& v, const std::string& path, std::set<stored_entity_id_type>& entity_ids,
+        std::set<stored_entity_id_type>& zone_ids)
+    {
+        object(v, path);
+
+        WorldDocument::Worldspace worldspace;
+        worldspace.id = id_value(required_member(v, path, "id"), member_path(path, "id"));
+        add_entity_id(entity_ids, worldspace.id, member_path(path, "id"));
+        worldspace.name = string_value(required_member(v, path, "name"), member_path(path, "name"));
+
+        std::set<std::array<coord_type, 3>> zone_positions;
+        worldspace.region = read_region(required_member(v, path, "region"), member_path(path, "region"), entity_ids, zone_ids, zone_positions);
+
+        return worldspace;
     }
 
     //--------------------------------------------------------------------------
@@ -62,22 +128,15 @@ namespace
         document.version = std::string(saved_game_format_version);
 
         const raw_values_type& world = object(required_member(v, "", "world"), "world");
+        document.name_counter = count_value(required_member(world, "world", "name_counter"), "world.name_counter");
 
-        const raw_values_type& regions = array(required_member(world, "world", "regions"), "world.regions");
-        std::set<stored_entity_id_type> region_ids;
+        const raw_values_type& worldspaces = array(required_member(world, "world", "worldspaces"), "world.worldspaces");
+        std::set<stored_entity_id_type> entity_ids;
         std::set<stored_entity_id_type> zone_ids;
 
-        for (size_t i = 0; i < regions.size(); ++i)
+        for (size_t i = 0; i < worldspaces.size(); ++i)
         {
-            std::string region_path = element_path("world.regions", i);
-            WorldRegion region = read_region(regions[i], region_path, zone_ids);
-
-            if (!region_ids.insert(region.id).second)
-            {
-                fail(member_path(region_path, "id"), std::format("a second region with the id {}", region.id));
-            }
-
-            document.regions.push_back(std::move(region));
+            document.worldspaces.push_back(read_worldspace(worldspaces[i], element_path("world.worldspaces", i), entity_ids, zone_ids));
         }
 
         const raw_values_type& entity_zones = array(required_member(world, "world", "entity_zones"), "world.entity_zones");

@@ -50,8 +50,9 @@ namespace quetzal::stratum_sim
         void menu_close();
         void clear();
 
-        // Clears the old game and creates a new one with a region/zone and character created from the specs.
-        void create(const RegionSpec& region_spec, const CharacterSpec& character_spec, stratum_format::Notation notation,
+        // Clears the old game and creates a new one with its starting worldspace created from the registered region spec of
+        // that name, and its character from the character spec
+        void create(std::string_view region_spec_name, const CharacterSpec& character_spec, stratum_format::Notation notation,
             std::optional<RandomStream::seed_type> seed = std::nullopt); // starting specs, maybe read from settings instead ...
 
         // Clears the old game and starts a new one initialized from the saved game identified by save_name, in the notation

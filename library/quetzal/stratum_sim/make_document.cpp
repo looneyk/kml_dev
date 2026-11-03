@@ -6,7 +6,7 @@
 #include "make_document.hpp"
 #include "attachments.hpp"
 #include "DiscreteLayout.hpp"
-#include "DisplayName.hpp"
+#include "Name.hpp"
 #include "file_components.hpp"
 #include "layout_entities.hpp"
 #include "PersistentId.hpp"
@@ -384,7 +384,7 @@ quetzal::stratum_format::Document quetzal::stratum_sim::make_document(flecs::ent
 quetzal::stratum_format::CharacterDocument quetzal::stratum_sim::make_character_document(flecs::entity character)
 {
     flecs::entity zone = zone_of(character);
-    assert(zone && zone.has<ZoneLayout>() && character.has<DisplayName>());
+    assert(zone && zone.has<ZoneLayout>() && character.has<Name>());
 
     flecs::world world = character.world();
     const DiscreteLayout& layout = layout_as<DiscreteLayout>(*zone.get<ZoneLayout>().layout);
@@ -393,7 +393,7 @@ quetzal::stratum_format::CharacterDocument quetzal::stratum_sim::make_character_
 
     stratum_format::CharacterDocument document;
     document.version = std::string(stratum_format::saved_game_format_version);
-    document.name = character.get<DisplayName>().name;
+    document.name = character.get<Name>().name;
     document.id = character.get<PersistentId>().id;
     document.components = encoded_components(character, file_components);
     document.zone_id = zone.get<PersistentId>().id;

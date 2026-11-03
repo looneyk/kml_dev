@@ -9,6 +9,7 @@
 #include "RelocatorTarget.hpp"
 #include "types.hpp"
 #include "quetzal/common/id.hpp"
+#include "quetzal/common/KeyValueStore.hpp"
 #include <cstdint>
 #include <map>
 #include <optional>
@@ -179,11 +180,19 @@ namespace quetzal::stratum_format
     };
 
     //--------------------------------------------------------------------------
+    // The generator that produced a zone, and the parameters of its run as the tokens its options take
+    struct Generator
+    {
+        std::string name;
+        KeyValueStore parameters;
+    };
+
+    //--------------------------------------------------------------------------
     // The data structure analog of a layout file
     struct Document
     {
         std::string version;
-        raw_values_type generator;
+        std::optional<Generator> generator;
         std::vector<stored_entity_id_type> access_points; // The layout's access_points file component, decoded
         std::optional<zone_position_type> position; // The layout's position file component, decoded
         bool is_unpopulated = false; // The layout's unpopulated file component, decoded

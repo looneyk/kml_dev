@@ -16,10 +16,12 @@
 #include "ZoneEntryIndex.hpp"
 #include "types.hpp"
 #include <flecs.h>
+#include <cstddef>
 #include <cstdint>
 #include <filesystem>
 #include <memory>
 #include <optional>
+#include <string>
 #include <string_view>
 #include <unordered_map>
 #include <unordered_set>
@@ -57,8 +59,17 @@ namespace quetzal::stratum_sim
     // Returns the zone that the entity is in, directly or through its ancestors, or null
     flecs::entity zone_of(flecs::entity e);
 
+    // Returns the worldspace that the zone is in
+    flecs::entity worldspace_of(flecs::entity zone);
+
     // Returns the region that the zone is in
     flecs::entity region_of(flecs::entity zone);
+
+    flecs::entity top_level_region(flecs::entity worldspace);
+
+    // Returns the extended name of a worldspace, a region or a zone, joined by '/': a worldspace's name, the name of each
+    // region from the top-level region down to a region, and a zone's worldspace name followed by the zone's name
+    std::string extended_name(flecs::entity e);
 
     // Sets the zone's layout, and the empty placement index the layout creates
     void set_layout(flecs::entity zone, std::unique_ptr<Layout> layout);
@@ -102,19 +113,20 @@ namespace quetzal::stratum_sim
         RandomStream::seed_type world_seed() const;
         void set_world_seed(RandomStream::seed_type seed);
 
-        // Creates a new game's starting region from the spec, and its first zone from the spec's zone keys, and returns the
-        // zone's entry point for the spec's entry_access. The game directory is the one zones are saved into until clear.
-        // Throws std::runtime_error if entry_access is not a registered access point type and a level offset, or the zone
-        // has no such entry point
-        flecs::entity create(const RegionSpec& region_spec, const std::filesystem::path& game_directory);
+        // Creates a new game's starting worldspace from the registered region spec of that name, and its first zone from the
+        // spec's zone keys, and returns the zone's entry point for the spec's entry_access. The game directory is the one
+        // zones are saved into until clear. Throws std::runtime_error if the region spec is not registered, entry_access
+        // is not a registered access point type and a level offset, or the zone has no such entry point
+        flecs::entity create(std::string_view region_spec_name, const std::filesystem::path& game_directory);
 
-        // Reads world.json from the game directory, which zones are saved into until clear: each region, with its
-        // persistent id, its region spec and its zone ids, and the world index. Loads no zone. Requires a cleared world.
-        // Throws std::runtime_error if the file cannot be read
+        // Reads world.json from the game directory, which zones are saved into until clear: each worldspace, with its
+        // persistent id, its name and its top-level region, each region with its persistent id, its region spec and its
+        // zones, and the world index. Loads no zone. Requires a cleared world. Throws std::runtime_error if the file cannot
+        // be read
         void open(const std::filesystem::path& game_directory);
 
-        // Writes every loaded zone as a saved zone, then world.json, with each region and its zones and the world index, into
-        // the game directory. Requires a game directory
+        // Writes every loaded zone as a saved zone, then world.json, with each worldspace, its region and their zones and
+        // the world index, into the game directory. Requires a game directory
         void save();
 
         // Writes the zone as a saved zone into the game directory's zones, named by its persistent id. Requires a game
@@ -128,24 +140,29 @@ namespace quetzal::stratum_sim
         entities_type zones() const;
         size_t zone_count() const;
 
-        // Creates a region and returns it
-        flecs::entity create_region(const RegionSpec& region_spec);
+        // Creates a worldspace, with the coordinate system that the region spec's worldspace keys state, and its top-level
+        // region from the spec, and returns the worldspace. The worldspace and its region have the name, with a suffix if
+        // another worldspace has it. Throws std::runtime_error if the worldspace keys are not valid
+        flecs::entity create_worldspace(std::string_view name, const RegionSpec& region_spec);
 
-        // Creates a region and its first zone, returns the zone
-        flecs::entity create_region_zone(const RegionSpec& region_spec, const ZoneSpec& zone_spec);
+        // Creates a worldspace and the first zone of its top-level region, returns the zone
+        flecs::entity create_worldspace_zone(std::string_view name, const RegionSpec& region_spec, const ZoneSpec& zone_spec);
 
-        // Unloads the region and its child zones, discarding them without saving
-        void unload_region(flecs::entity region);
+        // Unloads the worldspace, its region and its zones, discarding them without saving
+        void unload_worldspace(flecs::entity worldspace);
 
-        // Creates an empty zone in the region for a generator or the loader to fill
+        // Creates an empty zone in the region, a child of the region's worldspace, for a generator or the loader to fill. A
+        // zone given a ZonePosition is listed in its worldspace at that position
         flecs::entity create_zone(flecs::entity region, PersistentId zone_id);
 
         // Creates a zone in the region that has the layout
         flecs::entity create_zone(flecs::entity region, std::unique_ptr<Layout> layout);
 
-        // Creates a zone in the region as the region's generator selector chooses: built from the Document a generator returns,
-        // and populated if the document is marked unpopulated, or the first zone of a new region. Throws std::runtime_error, before anything is built, if a name the
-        // selection depends on is not registered, or the document cannot be built, and passes on what the generator throws
+        // Creates a zone in the region as the region's generator selector chooses, at the spec's position: built from the
+        // Document a generator returns, and populated if the document is marked unpopulated, or the first zone of a new
+        // worldspace. The zone's name is the selection's ZoneSpec's name pattern, or else the region spec's zone.name, or
+        // else the region's default, with the zone's coordinates. Throws std::runtime_error, before anything is built, if a name the selection depends on is not
+        // registered, or the document cannot be built, and passes on what the generator throws
         flecs::entity create_zone(flecs::entity region, const ZoneSpec& zone_spec);
 
         // Reads a zone into the region from a file, and populates it if the file is marked unpopulated. The zone is given the persistent
@@ -154,7 +171,7 @@ namespace quetzal::stratum_sim
         flecs::entity load_zone(flecs::entity region, const std::filesystem::path& filepath);
 
         // Reads a zone of the game that has unloaded back from the game directory, into the region that lists it, as load_zone
-        // does. Requires a game directory. Throws std::runtime_error if no region lists the zone, or as load_zone
+        // does. Throws std::runtime_error if the world has no game directory, no region lists the zone, or as load_zone
         // does
         flecs::entity load_saved_zone(PersistentId zone_id);
 
@@ -169,12 +186,12 @@ namespace quetzal::stratum_sim
         void relocate(flecs::entity e, flecs::entity zone, const placement_type& placement);
 
         // Returns the access point at which an actor arrives through the access point, whose unbound target is a relative or
-        // absolute level with no position. With the region omitted, it is an access point of the arrival type that accepts
-        // the arrival, arrival only or unbound and leading back, in another loaded zone of the access point's region at the
-        // target level, or else the entry point of a zone made there. With a region, it is the entry point of the first zone of a new region created from the region
-        // spec of that name, without searching the loaded zones. Throws std::runtime_error if the target has a named zone or a position, if
-        // that region spec is not registered, or, after discarding the zone made, if it has no access point of the arrival
-        // type that leads back
+        // absolute level with no position. With the region omitted, it is the entry point of the arrival type that leads
+        // back, in the zone of the access point's worldspace at the target level's position, read back if it has unloaded,
+        // or else in a zone made there. With a region, it is the entry point of the first zone of a new worldspace created
+        // from the region spec of that name. Throws std::runtime_error if the target has a named zone or a position, if that
+        // region spec is not registered, if the zone at the position has no such entry point or cannot be read back, or,
+        // after discarding the zone made, if it has no such entry point
         flecs::entity resolve_target(flecs::entity access_point);
 
         // Moves the actor through the access point to the arrival placement of the access point its target refers to, and
@@ -237,21 +254,28 @@ namespace quetzal::stratum_sim
     private:
 
         // Creates a zone in the region from the document, and populates it if the document is marked unpopulated. The zone is given the
-        // document's persistent id if it has one. Throws std::runtime_error, reporting the source, before anything is built,
-        // if check_buildable finds a reason the world cannot build it, or it is a saved zone that is already loaded
+        // document's persistent id if it has one, and is named by name_zone. Throws std::runtime_error, reporting the source, before anything is built,
+        // if check_buildable finds a reason the world cannot build it, it is a saved zone that is already loaded, or its
+        // position is outside its worldspace's extent or is another zone's position in its worldspace
         flecs::entity build_zone(flecs::entity region, const stratum_format::Document& document, std::string_view source);
 
         // The file of a saved zone in the game directory
         std::filesystem::path saved_zone_path(PersistentId zone_id) const;
 
-        flecs::entity create_region(const RegionSpec& region_spec, PersistentId region_id);
+        flecs::entity create_worldspace(std::string_view name, const RegionSpec& region_spec, PersistentId worldspace_id, PersistentId region_id);
+
+        // Sets the zone's Name to one unique in its region, and lists it in its region by that name. The name is the zone's
+        // Name, or else the region's default with the zone's coordinates, or else the region's name, with a suffix from
+        // the region's counter if another zone of the region has it
+        void name_zone(flecs::entity zone);
 
         // Returns the entry point of the zone made for the access point, of the arrival type and leading back offset levels.
         // Throws std::runtime_error, after discarding the zone, if it has none
         flecs::entity require_entry_point(flecs::entity access_point, flecs::entity zone, flecs::entity arrival_type, level_type offset);
 
-        // Discards the zone made for the access point, which has never been entered, with its region if that was made for it
-        // too. Otherwise the access point's region no longer lists it. The world index no longer has its entities
+        // Discards the zone made for the access point, which has never been entered, with its worldspace if that was made for
+        // it too. Otherwise the access point's region and worldspace no longer list it. The world index no longer has its
+        // entities
         void discard_made_zone(flecs::entity access_point, flecs::entity zone);
 
         // The entities that property reads, nearest first
@@ -266,8 +290,8 @@ namespace quetzal::stratum_sim
         // All entities in the world with a PersistentId
         std::unordered_map<PersistentId, flecs::entity> m_loaded_entities;
 
-        // <entity_id, zone_id>
-        std::unordered_map<PersistentId, PersistentId> m_entity_zones;
+        // The zone that contains an entity
+        std::unordered_map<PersistentId, PersistentId> m_entity_zones; // <entity_id, zone_id>
 
         // Zones that are being unloaded, whose entities remain in m_entity_zones
         std::unordered_set<PersistentId> m_zones_unloading;
@@ -275,6 +299,7 @@ namespace quetzal::stratum_sim
         ZoneEntryIndex m_zone_entry_index;
         std::optional<std::filesystem::path> m_game_directory;
         RandomStream::seed_type m_world_seed;
+        std::size_t m_worldspace_name_counter; // The last suffix given to a worldspace's name that was taken
 
         flecs::world m_entities; // Last, as its teardown runs the observers that update the members above
     };

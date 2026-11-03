@@ -78,7 +78,8 @@ Worldspaces, zones, and regions are identified in two contexts, by a name in des
   `/`, as a brep surface has a name and an extended name.
 - **Every worldspace, zone, and region has a name and an extended name.** A worldspace's extended name is its name. A
   zone's is its worldspace's name and its own, `worldspace_name/zone_name`. A region's is the names of the regions
-  above it and its own, such as `province/town/district`.
+  above it and its own, such as `surface/town/district`. A top-level region's name is its worldspace's, so every
+  region's extended name begins with its worldspace's name.
 - **Every extended name is unique across the game,** at every level of the hierarchy. A content designer
   refers to a zone or a region by its extended name, as in a target in a pregenerated zone.
 - **A zone's display name,** shown to players, may differ from its extended name and from its name.
@@ -174,8 +175,11 @@ Worldspaces, zones, and regions are identified in two contexts, by a name in des
 
 The first pass puts the structures in place with these simplified forms, each to be refined later:
 
-- **A generated name is `<basename>_<counter>`,** with the basename from the spec and one counter for the whole game,
-  saved with it, so that every generated name is unique. Naming patterns replace it.
+- **A name is the one its spec states, with a numeric suffix, `<name>_<counter>`, only if that name is taken.** A
+  worldspace and its top-level region have the region spec's name. The game has a counter for top-level regions, saved
+  with the game, and each region has a counter for its subregions and its zones, saved with the region. A worldspace's
+  name is unique in the game, and a subregion's or a zone's in its region, so every extended name is unique. Random
+  names replace the suffix: a name that is taken is then generated again.
 - **Each worldspace has only its top-level region,** whose extent is the worldspace's. Subregions and their extents
   come later.
 - **A target is `{zone, position}`.** The zone is an extended name or a persistent id, and the position is a string,

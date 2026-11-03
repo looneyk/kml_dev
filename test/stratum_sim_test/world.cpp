@@ -172,7 +172,7 @@ namespace
                 cardinal_direction(CardinalDirection::East)));
         };
 
-        flecs::entity generated = world.create_zone(world.create_region(test_region_spec("door")), stratum_sim::ZoneSpec {});
+        flecs::entity generated = world.create_zone(create_test_region(world, "door"), stratum_sim::ZoneSpec {});
         stratum_sim::World::entities_type generated_pursuers = pursuers_in(generated);
 
         CHECK_CASE("a generated zone has its doors", door_east_of_start(generated).is_alive());
@@ -205,13 +205,13 @@ namespace
             stratum_format::write(prepopulated_file, prepopulated_document);
         }
 
-        flecs::entity prepopulated = world.load_zone(world.create_region(test_region_spec("door")), "out/prepopulated.zone");
+        flecs::entity prepopulated = world.load_zone(create_test_region(world, "door"), "out/prepopulated.zone");
         CHECK_CASE("a zone whose file is not unpopulated is not populated", pursuers_in(prepopulated).empty()
             && door_east_of_start(prepopulated).is_alive());
-        world.unload_region(stratum_sim::region_of(prepopulated));
+        world.unload_worldspace(stratum_sim::worldspace_of(prepopulated));
 
         // Zones created through the registries
-        flecs::entity counted = world.create_region(test_region_spec("staircase"));
+        flecs::entity counted = create_test_region(world, "staircase");
         flecs::entity counted_generated = world.create_zone(counted, test_zone_spec(-1));
         flecs::entity counted_loaded = world.load_zone(counted, "data/door.zone");
         CHECK_CASE("a region lists the zones created in it, generated or loaded, in order", counted.get<stratum_sim::Region>().zone_ids
@@ -228,12 +228,13 @@ namespace
         CHECK_CASE("and is not populated", saved_unpopulated);
         world.unload_zone(saved_again);
 
-        flecs::entity leaving = world.create_region(test_region_spec("next_region"));
+        flecs::entity leaving = create_test_region(world, "next_region");
         flecs::entity begun = world.create_zone(leaving, test_zone_spec(-1));
         flecs::entity begun_region = stratum_sim::region_of(begun);
         const stratum_sim::Region& begun_region_data = begun_region.get<stratum_sim::Region>();
-        CHECK_CASE("a selection of a new region makes the zone the first of a region created from the region spec",
-            begun_region != leaving && begun_region_data.region_spec.value(stratum_sim::generator_selector_key) == "staircase"
+        CHECK_CASE("a selection of a new region makes the zone the first of a new worldspace created from the region spec",
+            begun_region != leaving && stratum_sim::worldspace_of(begun) != leaving.parent()
+            && begun_region_data.region_spec.value(stratum_sim::generator_selector_key) == "staircase"
             && begun_region_data.zone_ids.size() == 1 && leaving.get<stratum_sim::Region>().zone_ids.empty()
             && level_of(begun) == -1);
 
@@ -253,9 +254,9 @@ namespace
 
         size_t zone_count_before = world.zone_count();
         CHECK_CASE("a generator selector that is not registered is an error, and no zone is created", throws_runtime_error([&]
-            { world.create_zone(world.create_region(test_region_spec("unregistered")), stratum_sim::ZoneSpec {}); }) && world.zone_count() == zone_count_before);
+            { world.create_zone(create_test_region(world, "unregistered"), stratum_sim::ZoneSpec {}); }) && world.zone_count() == zone_count_before);
         CHECK_CASE("and so is a generator that is not registered", throws_runtime_error([&]
-            { world.create_zone(world.create_region(test_region_spec("unregistered_generator")), stratum_sim::ZoneSpec {}); })
+            { world.create_zone(create_test_region(world, "unregistered_generator"), stratum_sim::ZoneSpec {}); })
             && world.zone_count() == zone_count_before);
 
         return;
@@ -577,7 +578,7 @@ namespace
             stratum_sim::Session& created = game_created.session();
             game_created.generation() = test_generation();
             game_created.character().create(stratum_sim::CharacterSpec {});
-            created.enter(game_created.world().create_zone(game_created.world().create_region(test_region_spec("door")), stratum_sim::ZoneSpec {}),
+            created.enter(game_created.world().create_zone(create_test_region(game_created.world(), "door"), stratum_sim::ZoneSpec {}),
                 test_entry_type(created), test_entry_offset);
 
             CHECK_CASE("a constructed zone is loaded", created.loaded());

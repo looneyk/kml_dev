@@ -12,7 +12,7 @@
 #include "quetzal/stratum_sim/ContinuousLayout.hpp"
 #include "quetzal/stratum_sim/DiscreteLayout.hpp"
 #include "quetzal/stratum_sim/DiscretePlacementIndex.hpp"
-#include "quetzal/stratum_sim/DisplayName.hpp"
+#include "quetzal/stratum_sim/Name.hpp"
 #include "quetzal/stratum_sim/load_layout.hpp"
 #include "quetzal/stratum_sim/make_document.hpp"
 #include "quetzal/stratum_sim/commands.hpp"
@@ -37,6 +37,7 @@
 #include <filesystem>
 #include <format>
 #include <fstream>
+#include <map>
 #include <set>
 #include <stdexcept>
 #include <string>
@@ -77,7 +78,7 @@ namespace
         flecs::entity carried = world.entities().entity();
         stratum_sim::set_parent(carried, character);
 
-        flecs::entity elsewhere = world.create_zone(world.create_region(test_region_spec("door")), stratum_sim::ZoneSpec {});
+        flecs::entity elsewhere = world.create_zone(create_test_region(world, "door"), stratum_sim::ZoneSpec {});
         world.make_reference(world.create_entity(elsewhere, stratum_sim::placement_type()));
 
         played.clear();
@@ -85,7 +86,8 @@ namespace
         CHECK_CASE("clearing a game ends play", !session.loaded() && session.scheduler().count() == 0);
         CHECK_CASE("deletes the character and what it carries", !session.character().entity() && !character.is_alive()
             && !carried.is_alive() && !world.entity(character_id));
-        CHECK_CASE("and every region and zone", world.entities().count<stratum_sim::Region>() == 0
+        CHECK_CASE("and every worldspace, region and zone", world.entities().count<stratum_sim::Worldspace>() == 0
+            && world.entities().count<stratum_sim::Region>() == 0
             && world.entities().count<stratum_sim::Zone>() == 0 && world.zone_count() == 0);
         CHECK_CASE("leaving no entity with a persistent id", world.entities().count<stratum_sim::PersistentId>() == 0);
         CHECK_CASE("and keeps the registrations", stratum_sim::entity_type(world.entities(), "door")
@@ -101,24 +103,25 @@ namespace
         sequence.generation() = test_generation();
         flecs::entity staircase_type = stratum_sim::access_type(sequence_world.entities(), "staircase");
 
-        const stratum_sim::RegionSpec region_spec {{string(stratum_sim::generator_selector_key), "staircase"},
-            {string(stratum_sim::entry_access_key), "staircase,1"}, {format("{}{}", stratum_sim::zone_prefix, stratum_sim::position_z_key), "-1"}};
+        const string region_spec_name = "dungeon";
 
         auto persistent_id_of = [](flecs::entity e) { return e.get<stratum_sim::PersistentId>().id; };
-        auto name_of = [](flecs::entity e) { return e.has<stratum_sim::DisplayName>() ? e.get<stratum_sim::DisplayName>().name : string(); };
+        auto name_of = [](flecs::entity e) { return e.has<stratum_sim::Name>() ? e.get<stratum_sim::Name>().name : string(); };
 
-        sequence.create(region_spec, stratum_sim::CharacterSpec {.name = "Ailis"}, g_test_manifest.notation);
+        sequence.create(region_spec_name, stratum_sim::CharacterSpec {.name = "Ailis"}, g_test_manifest.notation);
         flecs::entity first_character = sequence_session.character().entity();
         flecs::entity first_zone = sequence_session.zone();
         flecs::entity first_region = stratum_sim::region_of(first_zone);
+        flecs::entity first_worldspace = stratum_sim::worldspace_of(first_zone);
 
         CHECK_CASE("creating a game makes its directory in the working directory, named by the character",
             filesystem::is_directory(g_test_config.working_directory / "Ailis"));
         CHECK_CASE("and the character, with the spec's name and the first id", persistent_id_of(first_character) == 0
             && name_of(first_character) == "Ailis");
-        CHECK_CASE("and starts play in the first zone of a region made from the spec, at the entry point it states",
+        CHECK_CASE("and starts play in the first zone of a worldspace made from the spec, named for it, at the entry point it states",
             sequence_session.loaded() && level_of(first_zone) == -1
             && first_region.get<stratum_sim::Region>().region_spec.value(stratum_sim::generator_selector_key) == "staircase"
+            && first_worldspace.get<stratum_sim::Worldspace>().name == region_spec_name
             && stratum_sim::placement_of(first_character).position()
                 == stratum_sim::arrival_placement(stratum_sim::entry_point(first_zone, staircase_type, 1)).position());
 
@@ -126,11 +129,12 @@ namespace
             stratum_sim::entry_point(first_zone, staircase_type, -1)));
         CHECK_CASE("the first game is played into a second zone", second_zone && second_zone != first_zone && sequence_world.zone_count() == 2);
 
-        sequence.create(region_spec, stratum_sim::CharacterSpec {.name = "Bran"}, g_test_manifest.notation);
+        sequence.create(region_spec_name, stratum_sim::CharacterSpec {.name = "Bran"}, g_test_manifest.notation);
         flecs::entity second_character = sequence_session.character().entity();
 
-        CHECK_CASE("creating another game leaves none of the first game's regions, zones or character", !first_region.is_alive()
-            && !first_zone.is_alive() && !second_zone.is_alive() && !first_character.is_alive()
+        CHECK_CASE("creating another game leaves none of the first game's worldspaces, regions, zones or character",
+            !first_worldspace.is_alive() && !first_region.is_alive() && !first_zone.is_alive() && !second_zone.is_alive()
+            && !first_character.is_alive() && sequence_world.entities().count<stratum_sim::Worldspace>() == 1
             && sequence_world.entities().count<stratum_sim::Region>() == 1 && sequence_world.zone_count() == 1);
         CHECK_CASE("nor its directory, as the working directory has only the game in progress",
             !filesystem::exists(g_test_config.working_directory / "Ailis") && filesystem::is_directory(g_test_config.working_directory / "Bran"));
@@ -149,14 +153,14 @@ namespace
         sequence.menu_open();
         CHECK_CASE("opening the menu with no game in progress pauses nothing", !sequence_session.paused());
 
-        sequence.create(region_spec, stratum_sim::CharacterSpec {.name = "Cai"}, g_test_manifest.notation);
+        sequence.create(region_spec_name, stratum_sim::CharacterSpec {.name = "Cai"}, g_test_manifest.notation);
         sequence.menu_open();
         bool paused_on_open = sequence_session.paused();
         sequence.menu_close();
         CHECK_CASE("opening the menu pauses play, and closing it resumes play", paused_on_open && !sequence_session.paused());
 
         sequence.menu_open();
-        sequence.create(region_spec, stratum_sim::CharacterSpec {.name = "Cai"}, g_test_manifest.notation);
+        sequence.create(region_spec_name, stratum_sim::CharacterSpec {.name = "Cai"}, g_test_manifest.notation);
         CHECK_CASE("a new game chosen from the menu is not paused", sequence_session.loaded() && !sequence_session.paused());
 
         // The game's end
@@ -194,20 +198,21 @@ namespace
         sequence.quit();
         CHECK_CASE("a game quit is not over", !sequence_session.over());
 
-        sequence.create(region_spec, stratum_sim::CharacterSpec {.name = "Cai"}, g_test_manifest.notation);
+        sequence.create(region_spec_name, stratum_sim::CharacterSpec {.name = "Cai"}, g_test_manifest.notation);
         CHECK_CASE("and a game created after it is not over", !sequence_session.over());
 
         sequence.quit();
         CHECK_CASE("quitting leaves no game in progress", !sequence_session.loaded() && !sequence_session.character().entity()
-            && sequence_world.entities().count<stratum_sim::Region>() == 0);
+            && sequence_world.entities().count<stratum_sim::Worldspace>() == 0 && sequence_world.entities().count<stratum_sim::Region>() == 0);
 
-        stratum_sim::RegionSpec unregistered_entry = region_spec;
+        stratum_sim::RegionSpec unregistered_entry = sequence.generation().m_region_specs.at(region_spec_name);
         unregistered_entry.insert(string(stratum_sim::entry_access_key), "trapdoor,1");
+        sequence.generation().m_region_specs["unregistered_entry"] = unregistered_entry;
         bool unregistered_thrown = false;
 
         try
         {
-            sequence.create(unregistered_entry, stratum_sim::CharacterSpec {.name = "Dai"}, g_test_manifest.notation);
+            sequence.create("unregistered_entry", stratum_sim::CharacterSpec {.name = "Dai"}, g_test_manifest.notation);
         }
         catch (const runtime_error&)
         {
@@ -226,7 +231,7 @@ namespace
 
         try
         {
-            user_setting_game.create(region_spec, stratum_sim::CharacterSpec {.name = "Dai"}, g_test_manifest.notation);
+            user_setting_game.create(region_spec_name, stratum_sim::CharacterSpec {.name = "Dai"}, g_test_manifest.notation);
         }
         catch (const runtime_error&)
         {
@@ -244,7 +249,7 @@ namespace
         stratum_sim::CharacterSpec ailis;
         ailis.name = "Ailis";
         constexpr stratum_sim::RandomStream::seed_type saving_seed = 20261022;
-        saving.create(region_spec, ailis, stratum_format::Notation::Wall, saving_seed);
+        saving.create(region_spec_name, ailis, stratum_format::Notation::Wall, saving_seed);
 
         stratum_sim::World& saving_world = saving.world();
         flecs::entity saving_first = saving.session().zone();
@@ -349,12 +354,18 @@ namespace
             && character_json["character"]["inventory"].empty());
 
         stratum_format::raw_values_type world_json = read_json(save_directory / "world.json");
-        bool zones_listed = !world_json.is_discarded() && world_json["world"]["regions"].size() == 1;
+        flecs::entity saving_worldspace = saving_region.parent();
+        bool zones_listed = !world_json.is_discarded() && world_json["world"]["worldspaces"].size() == 1;
         if (zones_listed)
         {
-            const stratum_format::raw_values_type& region_json = world_json["world"]["regions"][0];
-            zones_listed = region_json["id"] == saving_region.get<stratum_sim::PersistentId>().id && region_json["zones"].size() == 2
-                && region_json["zones"][0]["id"] == saving_first_id.id && region_json["zones"][1]["id"] == saving_second_id.id
+            const stratum_format::raw_values_type& worldspace_json = world_json["world"]["worldspaces"][0];
+            const stratum_format::raw_values_type& region_json = worldspace_json["region"];
+            zones_listed = worldspace_json["id"] == saving_worldspace.get<stratum_sim::PersistentId>().id
+                && worldspace_json["name"] == region_spec_name && region_json["id"] == saving_region.get<stratum_sim::PersistentId>().id
+                && region_json["zones"].size() == 2 && region_json["zones"][0]["id"] == saving_first_id.id
+                && region_json["zones"][0]["position"] == stratum_format::raw_values_type {0, 0, -1}
+                && region_json["zones"][1]["id"] == saving_second_id.id
+                && region_json["zones"][1]["position"] == stratum_format::raw_values_type {0, 0, -2}
                 && region_json["spec"].contains(string(stratum_sim::generator_selector_key));
 
             for (const auto& zone_json : region_json["zones"])
@@ -363,7 +374,8 @@ namespace
             }
         }
 
-        CHECK_CASE("world.json lists the region and its zones, each with its file in the save, loaded or not", zones_listed);
+        CHECK_CASE("world.json lists the worldspace, its region and their zones, each with its file in the save and its position, loaded or not",
+            zones_listed);
 
         auto indexed_in = [&](stratum_sim::PersistentId entity_id, stratum_sim::PersistentId zone_id)
         {
@@ -387,7 +399,7 @@ namespace
             && filesystem::is_directory(saving_config.saves_directory / auto_save_name)
             && filesystem::is_directory(saving_config.saves_directory / quick_save_name));
 
-        saving_character.set<stratum_sim::DisplayName>(stratum_sim::DisplayName {"Ailis: of the \"Downs\"?"});
+        saving_character.set<stratum_sim::Name>(stratum_sim::Name {"Ailis: of the \"Downs\"?"});
         string replaced_save_name = saving.save(stratum_sim::SaveType::Explicit);
         CHECK_CASE("a character in the name that cannot be in a directory name is replaced in the save's", replaced_save_name.starts_with("Ailis_ of the _Downs__")
             && filesystem::is_directory(saving_config.saves_directory / replaced_save_name));
@@ -410,6 +422,7 @@ namespace
 
         stratum_sim::PersistentId saving_character_id = saving_character.get<stratum_sim::PersistentId>();
         stratum_sim::PersistentId region_id = saving_region.get<stratum_sim::PersistentId>();
+        stratum_sim::PersistentId worldspace_id = saving_worldspace.get<stratum_sim::PersistentId>();
         string saved_random_engine_state = game_json["game"]["random_engines"]["gameplay"].get<string>();
         stratum_sim::vector_type character_direction = character_placement.direction();
 
@@ -425,7 +438,7 @@ namespace
                 .cell_position_at(stratum_sim::placement_of(opened_character).position()) == character_cell
             && stratum_sim::placement_of(opened_character).direction() == character_direction);
         CHECK_CASE("with the character's id, name and components, controlled by the player",
-            opened_character.get<stratum_sim::PersistentId>() == saving_character_id && opened_character.get<stratum_sim::DisplayName>().name == "Ailis"
+            opened_character.get<stratum_sim::PersistentId>() == saving_character_id && opened_character.get<stratum_sim::Name>().name == "Ailis"
             && opened_character.has<stratum_sim::Speed>() && opened_character.has<stratum_sim::Blocking>()
             && opened_character.has<stratum_sim::ControlledActor>());
 
@@ -434,6 +447,15 @@ namespace
             && opened_region.get<stratum_sim::Region>().zone_ids == vector {saving_first_id, saving_second_id}
             && opened_region.get<stratum_sim::Region>().region_spec.value(stratum_sim::generator_selector_key) == "staircase"
             && !saving_world.entity(saving_first_id) && saving_world.zone_count() == 1);
+
+        flecs::entity opened_worldspace = saving_world.entity(worldspace_id);
+        CHECK_CASE("and the worldspace, with its name and its zones by position, loaded or not", opened_worldspace
+            && opened_region.parent() == opened_worldspace && opened_worldspace.get<stratum_sim::Worldspace>().name == region_spec_name
+            && opened_worldspace.get<stratum_sim::Worldspace>().zone_ids == map<stratum_sim::ZonePosition, stratum_sim::PersistentId> {
+                {stratum_sim::ZonePosition {0, 0, -1}, saving_first_id}, {stratum_sim::ZonePosition {0, 0, -2}, saving_second_id}});
+        CHECK_CASE("and the region's name and its zones by name, loaded or not", opened_region.get<stratum_sim::Region>().name == region_spec_name
+            && opened_region.get<stratum_sim::Region>().named_zone_ids == map<string, stratum_sim::PersistentId> {
+                {"dungeon_0_0_-1", saving_first_id}, {"dungeon_0_0_-2", saving_second_id}});
         CHECK_CASE("and ids continue past every id in the game", saving_world.next_id().id > largest_id.id);
 
         flecs::entity opened_second_up = saving_world.entity(second_up_id);
@@ -481,7 +503,7 @@ namespace
         CHECK_THROWS_AS(settings::store().set_value<int64_t>(world_width_key, 5), runtime_error);
         CHECK_CASE("and fixed during the game", settings::store().value<int64_t>(world_width_key) == 1000000);
 
-        saving.create(region_spec, ailis, stratum_format::Notation::Block, saving_seed);
+        saving.create(region_spec_name, ailis, stratum_format::Notation::Block, saving_seed);
 
         const stratum_format::Notation created_notation = saving.notation();
         saving.open(replaced_save_name);

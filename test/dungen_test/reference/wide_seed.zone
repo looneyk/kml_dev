@@ -3,7 +3,7 @@
   "version": "0.6",
   "generator": {
     "name": "dungen",
-    "parameters": { "algorithm": "grid1", "extent": "25,19", "stairs_down": "1-1", "stairs_up": "1-1", "divisions": "3,3", "room_density": "1", "room_dimension_min": "3", "room_margin": "1", "loop": "0.15", "door_probability": "1", "seed": "4294967295" }
+    "parameters": { "algorithm": "grid1", "divisions": "3,3", "door_probability": "1", "extent": "25,19", "loop": "0.15", "room_density": "1", "room_dimension_min": "3", "room_margin": "1", "seed": "4294967295", "stairs_down": "1-1", "stairs_up": "1-1" }
   },
   "layout": {
     "components": { "access_points": [ { "entity": 43 }, { "entity": 44 } ] }

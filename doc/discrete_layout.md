@@ -213,9 +213,12 @@ The name and properties of the layout as a whole. It is a component object.
 ```
 
 `name`, `type`, `difficulty` and `style` are components. They are the zone metadata
-`sim_zone_model.md` describes, so depth, recipe, encounter and loot tables belong here too.
+`sim_zone_model.md` describes, so depth, recipe, encounter and loot tables belong here too. `name` is the zone's name,
+unique in its region; a zone loaded with a name that another zone of its region has is given a numeric suffix
+(`zone_plan.md`, `## Implementation`). `display_name` is what the zone is called for a player to read, and dungen and
+catagen write it with the zone's name.
 
-`position` is optional: the zone's position in its region, `[x, y, z]`, three whole numbers. The reader decodes it out
+`position` is optional: the zone's position in its worldspace, `[x, y, z]`, three whole numbers. The reader decodes it out
 of the layout's components.
 
 ```json

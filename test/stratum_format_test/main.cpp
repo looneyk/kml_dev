@@ -108,6 +108,23 @@ namespace
     }
 
     //--------------------------------------------------------------------------
+    map_type generator_map(const optional<stratum_format::Generator>& generator)
+    {
+        if (!generator.has_value())
+        {
+            return map_type();
+        }
+
+        map_type parameters = map_type::object();
+        for (const auto& [key, token] : generator->parameters)
+        {
+            parameters[key] = token;
+        }
+
+        return {{"name", generator->name}, {"parameters", parameters}};
+    }
+
+    //--------------------------------------------------------------------------
     map_type cell_position_map(const stratum_format::discrete_point_type& cell_position)
     {
         return map_type::array({cell_position.i(), cell_position.j()});
@@ -274,7 +291,7 @@ namespace
         map_type m;
         m["version"] = document.version;
         m["zone"] = document.zone_id.has_value() ? map_type(*document.zone_id) : map_type();
-        m["generator"] = content_map(document.generator);
+        m["generator"] = generator_map(document.generator);
         m["layout"] = components_map(document.components);
         m["access_points"] = document.access_points;
         m["position"] = document.position.has_value() ? map_type {document.position->x(), document.position->y(), document.position->z()}
@@ -440,8 +457,8 @@ namespace
 
         CHECK_CASE("the document is a template, with no zone id of its own", !document.zone_id.has_value());
 
-        CHECK_CASE("the generator keeps its parameters in the order written",
-            document.generator["parameters"].begin().key() == "extent" && next(document.generator["parameters"].begin()).key() == "scale");
+        CHECK_CASE("the generator has its name and its parameters' tokens", document.generator.has_value() && document.generator->name == "catagen"
+            && document.generator->parameters.value("extent") == "4,3" && document.generator->parameters.value("scale") == "3-7");
         CHECK_CASE("layout components are kept as written", document.components["difficulty"] == 3 && document.components["style"] == "cistern");
         CHECK_CASE("the access points are decoded out of them", !document.access_points.empty() && !document.components.contains("access_points"));
         CHECK_CASE("and so is the position", document.position == stratum_format::zone_position_type {0, 0, -2}
@@ -574,6 +591,10 @@ namespace
             {"a flat role the format does not define", [](auto& v) { v["flats"][1]["role"] = "wall"; }, "flats[1].role: not a role the format defines"},
             {"components that are not an object", [](auto& v) { v["layout"]["components"] = parse_values("[1]"); }, "layout.components: an object was expected"},
             {"a generator that is not an object", [](auto& v) { v["generator"] = "catagen"; }, "generator: an object was expected"},
+            {"a generator with no name", [](auto& v) { v["generator"].erase("name"); }, "generator.name: required and absent"},
+            {"a generator with no parameters", [](auto& v) { v["generator"].erase("parameters"); }, "generator.parameters: required and absent"},
+            {"a parameter that is not a string", [](auto& v) { v["generator"]["parameters"]["seed"] = 20260829; },
+                "generator.parameters.seed: a string was expected"},
             {"a key the format does not define is not tracked", [](auto& v) { v["extra"] = 1; v["rooms"][0]["extra"] = 1; }, ""}
         });
 
@@ -1065,7 +1086,7 @@ namespace
         report_written("a game file has the game, the settings and the presets each on a line of its own", written(game),
             "{\n"
             "  \"format\": \"quetzal.stratum_game\",\n"
-            "  \"version\": \"0.2\",\n"
+            "  \"version\": \"0.3\",\n"
             "  \"game\": { \"notation\": \"wall\", \"next_id\": 21, \"seed\": \"20260928\", \"random_engines\": { \"gameplay\": \"1 2 3\", \"generation\": \"4 5 6\" } },\n"
             "  \"settings\": { \"gameplay.difficulty\": \"custom\" },\n"
             "  \"presets\": { \"gameplay.difficulty\": { \"custom\": { \"gameplay.difficulty.denizen_count_multiplier\": \"2\" } } }\n"
@@ -1092,7 +1113,7 @@ namespace
         report_written("a character file has its name third, and with no inventory has an empty one", written(character),
             "{\n"
             "  \"format\": \"quetzal.stratum_game\",\n"
-            "  \"version\": \"0.2\",\n"
+            "  \"version\": \"0.3\",\n"
             "  \"name\": \"Ailis\",\n"
             "  \"character\": {\n"
             "    \"id\": 1,\n"
@@ -1113,7 +1134,7 @@ namespace
         report_written("a character file has each entity of its inventory on a line of its own", written(character),
             "{\n"
             "  \"format\": \"quetzal.stratum_game\",\n"
-            "  \"version\": \"0.2\",\n"
+            "  \"version\": \"0.3\",\n"
             "  \"name\": \"Ailis\",\n"
             "  \"character\": {\n"
             "    \"id\": 1,\n"
@@ -1126,42 +1147,50 @@ namespace
             "  }\n"
             "}\n");
 
-        stratum_format::WorldRegion surface;
+        stratum_format::WorldDocument::Region surface;
         surface.id = 2;
+        surface.name = "surface";
         surface.components = stratum_format::raw_values_type::object();
-        surface.components["name"] = "The Barrow Downs";
-        surface.spec = stratum_format::raw_values_type::object();
-        surface.spec["generator_selector"] = "fields_and_hills";
-        surface.zones = {{5, "zones/5.zone"}};
+        surface.components["type"] = "surface";
+        surface.spec.insert("generator_selector", "fields_and_hills");
+        surface.zones = {{5, "zones/5.zone", stratum_format::zone_position_type {0, 0, 0}, "surface_0_0"}};
 
-        stratum_format::WorldRegion dungeon;
+        stratum_format::WorldDocument::Region dungeon;
         dungeon.id = 4;
-        dungeon.spec = stratum_format::raw_values_type::object();
-        dungeon.spec["generator_selector"] = "dungeon";
-        dungeon.zones = {{3, "zones/3.zone"}, {6, "zones/6.zone"}};
+        dungeon.name = "barrow";
+        dungeon.name_counter = 1;
+        dungeon.spec.insert("generator_selector", "dungeon");
+        dungeon.zones = {{3, "zones/3.zone", stratum_format::zone_position_type {0, 0, -1}, "Level -1"}, {6, "zones/6.zone", nullopt, "barrow"},
+            {8, "zones/8.zone", nullopt, "barrow_1"}};
 
         stratum_format::WorldDocument world;
-        world.regions = {surface, dungeon};
+        world.name_counter = 2;
+        world.worldspaces = {{1, "surface", surface}, {7, "barrow", dungeon}};
         world.entity_zones = {{10, 5}, {12, 3}};
 
-        report_written("a world file opens each region with its id and components, then its spec, then a line per zone, and has a line per "
-            "entry of the world index", written(world),
+        report_written("a world file has its name counter, then opens each worldspace with its id and name, then its region, which "
+            "opens with its id, name, name counter and components, then its spec, then a line per zone, and has a line per entry of the world index",
+            written(world),
             "{\n"
             "  \"format\": \"quetzal.stratum_game\",\n"
-            "  \"version\": \"0.2\",\n"
+            "  \"version\": \"0.3\",\n"
             "  \"world\": {\n"
-            "    \"regions\": [\n"
-            "      { \"id\": 2, \"components\": { \"name\": \"The Barrow Downs\" },\n"
-            "        \"spec\": { \"generator_selector\": \"fields_and_hills\" },\n"
-            "        \"zones\": [\n"
-            "          { \"id\": 5, \"file\": \"zones/5.zone\" }\n"
-            "        ] },\n"
-            "      { \"id\": 4,\n"
-            "        \"spec\": { \"generator_selector\": \"dungeon\" },\n"
-            "        \"zones\": [\n"
-            "          { \"id\": 3, \"file\": \"zones/3.zone\" },\n"
-            "          { \"id\": 6, \"file\": \"zones/6.zone\" }\n"
-            "        ] }\n"
+            "    \"name_counter\": 2,\n"
+            "    \"worldspaces\": [\n"
+            "      { \"id\": 1, \"name\": \"surface\",\n"
+            "        \"region\": { \"id\": 2, \"name\": \"surface\", \"name_counter\": 0, \"components\": { \"type\": \"surface\" },\n"
+            "          \"spec\": { \"generator_selector\": \"fields_and_hills\" },\n"
+            "          \"zones\": [\n"
+            "            { \"id\": 5, \"name\": \"surface_0_0\", \"file\": \"zones/5.zone\", \"position\": [0, 0, 0] }\n"
+            "          ] } },\n"
+            "      { \"id\": 7, \"name\": \"barrow\",\n"
+            "        \"region\": { \"id\": 4, \"name\": \"barrow\", \"name_counter\": 1,\n"
+            "          \"spec\": { \"generator_selector\": \"dungeon\" },\n"
+            "          \"zones\": [\n"
+            "            { \"id\": 3, \"name\": \"Level -1\", \"file\": \"zones/3.zone\", \"position\": [0, 0, -1] },\n"
+            "            { \"id\": 6, \"name\": \"barrow\", \"file\": \"zones/6.zone\" },\n"
+            "            { \"id\": 8, \"name\": \"barrow_1\", \"file\": \"zones/8.zone\" }\n"
+            "          ] } }\n"
             "    ],\n"
             "    \"entity_zones\": [\n"
             "      [10, 5],\n"
@@ -1232,8 +1261,8 @@ namespace
 
         CHECK_CASE("a game file of another format is rejected", rejected(read_game, changed(game_text, "quetzal.stratum_game",
             "quetzal.discrete_layout"), "format: 'quetzal.discrete_layout' is not this format"));
-        CHECK_CASE("and one of another version", rejected(read_game, changed(game_text, "\"0.2\"", "\"0.3\""),
-            "version: '0.3' is not a version this reads"));
+        CHECK_CASE("and one of another version", rejected(read_game, changed(game_text, "\"0.3\"", "\"0.2\""),
+            "version: '0.2' is not a version this reads"));
         CHECK_CASE("a game file whose notation is not a notation is rejected", rejected(read_game, changed(game_text, "\"wall\"", "\"hex\""),
             "game.notation: 'hex' is not a notation"));
         CHECK_CASE("a game file with no next id is rejected", rejected(read_game, changed(game_text, "\"next_id\": 21, ", ""),
@@ -1272,7 +1301,15 @@ namespace
         CHECK_CASE("a name read from a file of another format is rejected", rejected(read_name, changed(character_text, "quetzal.stratum_game",
             "quetzal.discrete_layout"), "format: 'quetzal.discrete_layout' is not what this reads"));
         CHECK_CASE("a world file with two zones of one id is rejected", rejected(read_world, changed(world_text, "\"id\": 6", "\"id\": 5"),
-            "a second zone with the id 5"));
+            "a second entity with the id 5"));
+        CHECK_CASE("and one with two zones of a worldspace at one position", rejected(read_world, changed(world_text,
+            "\"file\": \"zones/6.zone\"", "\"file\": \"zones/6.zone\", \"position\": [0, 0, -1]"), "a second zone of the worldspace at (0, 0, -1)"));
+        CHECK_CASE("and one whose worldspace and region have one id", rejected(read_world, changed(world_text, "\"id\": 7", "\"id\": 4"),
+            "a second entity with the id 4"));
+        CHECK_CASE("and one whose zone has its worldspace's id", rejected(read_world, changed(world_text, "\"id\": 8", "\"id\": 7"),
+            "a second entity with the id 7"));
+        CHECK_CASE("and one with two zones of a region of one name", rejected(read_world, changed(world_text, "\"barrow_1\"", "\"barrow\""),
+            "a second zone of the region named barrow"));
         CHECK_CASE("and one whose world index has an entity in a zone no region lists", rejected(read_world, changed(world_text, "[12, 3]",
             "[12, 4]"), "zone 4 is in no region"));
         CHECK_CASE("and one whose world index has an entity twice", rejected(read_world, changed(world_text, "[12, 3]", "[10, 3]"),

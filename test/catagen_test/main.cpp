@@ -122,22 +122,15 @@ namespace
     //--------------------------------------------------------------------------
     // The parameters in a zone file's generator section, as set_parameters reads them
     // Throws std::invalid_argument for a value set_parameters does not read, so a parameter added to the writer alone fails
-    catagen::Parameters parameters_of(const stratum_format::raw_values_type& generator)
+    catagen::Parameters parameters_of(const optional<stratum_format::Generator>& generator)
     {
-        if (!generator.is_object() || generator.value("name", "") != "catagen")
+        if (!generator.has_value() || generator->name != "catagen")
         {
-            throw invalid_argument(format("\"{}\" is not a catagen generator", generator.dump()));
-        }
-
-        KeyValueStore tokens;
-
-        for (const auto& [key, value] : generator.at("parameters").items())
-        {
-            tokens.insert(key, value.get<string>());
+            throw invalid_argument(format("\"{}\" is not a catagen generator", generator.has_value() ? generator->name : string()));
         }
 
         catagen::Parameters parameters;
-        catagen::set_parameters(parameters, tokens);
+        catagen::set_parameters(parameters, generator->parameters);
         return parameters;
     }
 
@@ -554,8 +547,8 @@ TEST_SUITE("parameters reproduce their zone")
 
     TEST_CASE("a parameter this does not read is rejected")
     {
-        stratum_format::raw_values_type generator = document_of(zone_text(scenarios().front().parameters)).generator;
-        generator["parameters"]["unread"] = "1";
+        optional<stratum_format::Generator> generator = document_of(zone_text(scenarios().front().parameters)).generator;
+        generator->parameters.insert("unread", "1");
 
         CHECK_THROWS_AS(parameters_of(generator), invalid_argument);
         return;

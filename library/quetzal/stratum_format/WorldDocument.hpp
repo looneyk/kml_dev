@@ -6,7 +6,10 @@
 //------------------------------------------------------------------------------
 
 #include "types.hpp"
+#include "quetzal/common/KeyValueStore.hpp"
+#include <cstddef>
 #include <map>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -14,30 +17,41 @@ namespace quetzal::stratum_format
 {
 
     //--------------------------------------------------------------------------
-    // A zone's persistent id and its file, relative to the directory of the world file
-    struct ZoneReference
-    {
-        stored_entity_id_type id = 0;
-        std::string file;
-    };
-
-    //--------------------------------------------------------------------------
-    // A region in the world file: spec is the region spec it was created from
-    struct WorldRegion
-    {
-        stored_entity_id_type id = 0;
-        raw_values_type components;
-        raw_values_type spec;
-        std::vector<ZoneReference> zones;
-    };
-
-    //--------------------------------------------------------------------------
-    // The data structure analog of a world file. entity_zones is the world index: the zone of each entity that something
-    // refers to
+    // The data structure analog of a world file. name_counter is the last suffix given to a worldspace's name that was
+    // taken, and entity_zones the world index: the zone of each entity that something refers to
     struct WorldDocument
     {
+
+        struct Zone
+        {
+            stored_entity_id_type id = 0;
+            std::string file;
+            std::optional<zone_position_type> position;
+            std::optional<std::string> name;
+        };
+
+        // spec is the region spec the region was created from, and name_counter the last suffix given to a name of its
+        // zones that was taken
+        struct Region
+        {
+            stored_entity_id_type id = 0;
+            std::string name;
+            std::size_t name_counter = 0;
+            raw_values_type components;
+            KeyValueStore spec;
+            std::vector<Zone> zones;
+        };
+
+        struct Worldspace
+        {
+            stored_entity_id_type id = 0;
+            std::string name;
+            Region region;
+        };
+
         std::string version;
-        std::vector<WorldRegion> regions;
+        std::size_t name_counter = 0;
+        std::vector<Worldspace> worldspaces;
         std::map<stored_entity_id_type, stored_entity_id_type> entity_zones; // <entity_id, zone_id>
     };
 

@@ -3,10 +3,10 @@
   "version": "0.6",
   "generator": {
     "name": "catagen",
-    "parameters": { "extent": "16,12", "scale": "3-7", "spacing": "0-0", "density": "1", "loop": "0", "stairs_down": "1-1", "stairs_up": "1-1", "seed": "1" }
+    "parameters": { "density": "1", "extent": "16,12", "loop": "0", "scale": "3-7", "seed": "1", "spacing": "0-0", "stairs_down": "1-1", "stairs_up": "1-1" }
   },
   "layout": {
-    "components": { "access_points": [ { "entity": 16 }, { "entity": 17 } ], "name": "Catacombs Level 1" }
+    "components": { "access_points": [ { "entity": 16 }, { "entity": 17 } ], "name": "Catacombs Level 1", "display_name": "Catacombs Level 1" }
   },
   "cells": {
     "notation": "wall",

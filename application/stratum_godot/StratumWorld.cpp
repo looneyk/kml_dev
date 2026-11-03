@@ -34,6 +34,7 @@ namespace
 {
 
     constexpr std::string_view notation_generator_selector_name = "notation_generator";
+    constexpr std::string_view temporary_region_spec_name = "dungeon";
 
     //--------------------------------------------------------------------------
     // Temporary, until a new game chooses its region: a dungeon whose first zone is the first level down, entered at its
@@ -132,6 +133,8 @@ StratumWorld::StratumWorld() :
     {
         return select_notation_generator(m_game.notation(), zone_spec);
     };
+
+    m_game.generation().m_region_specs[std::string(temporary_region_spec_name)] = temporary_region_spec();
 }
 
 //------------------------------------------------------------------------------
@@ -183,7 +186,7 @@ bool StratumWorld::create_game()
     // Exceptions must not cross into Godot. A failed creation leaves no game in progress
     try
     {
-        m_game.create(temporary_region_spec(), temporary_character_spec(), m_notation);
+        m_game.create(temporary_region_spec_name, temporary_character_spec(), m_notation);
     }
     catch (const std::exception& e)
     {

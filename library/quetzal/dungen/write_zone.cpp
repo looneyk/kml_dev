@@ -23,7 +23,6 @@ namespace
     using quetzal::id_type;
     using quetzal::nullid;
     using stored_entity_id_type = quetzal::stratum_format::stored_entity_id_type;
-    using raw_values_type = quetzal::stratum_format::raw_values_type;
 
     //--------------------------------------------------------------------------
     // Formats a parameter as the token its command line option takes
@@ -42,57 +41,57 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    void add_maze1(raw_values_type& values, const Parameters& parameters)
+    void add_maze1(quetzal::KeyValueStore& values, const Parameters& parameters)
     {
         const auto& maze1 = parameters.maze1;
 
-        values["room_dimension_base"] = token(maze1.room_dimension_base);
-        values["room_dimension_variation"] = token(maze1.room_dimension_variation);
-        values["room_density"] = token(maze1.room_density);
-        values["room_merge"] = maze1.room_merge ? "true" : "false";
-        values["corridor_straightness"] = token(maze1.corridor_straightness);
-        values["probability_dead_end_removal"] = token(maze1.probability_dead_end_removal);
-        values["probability_loop_removal"] = token(maze1.probability_loop_removal);
-        values["door_probability"] = token(maze1.door_probability);
+        values.insert("room_dimension_base", token(maze1.room_dimension_base));
+        values.insert("room_dimension_variation", token(maze1.room_dimension_variation));
+        values.insert("room_density", token(maze1.room_density));
+        values.insert("room_merge", maze1.room_merge ? "true" : "false");
+        values.insert("corridor_straightness", token(maze1.corridor_straightness));
+        values.insert("probability_dead_end_removal", token(maze1.probability_dead_end_removal));
+        values.insert("probability_loop_removal", token(maze1.probability_loop_removal));
+        values.insert("door_probability", token(maze1.door_probability));
         return;
     }
 
     //--------------------------------------------------------------------------
-    void add_grid1(raw_values_type& values, const Parameters& parameters)
+    void add_grid1(quetzal::KeyValueStore& values, const Parameters& parameters)
     {
         const auto& grid1 = parameters.grid1;
 
-        values["divisions"] = token(grid1.divisions);
-        values["room_density"] = token(grid1.room_density);
-        values["room_dimension_min"] = token(grid1.room_dimension_min);
-        values["room_margin"] = token(grid1.room_margin);
-        values["loop"] = token(grid1.loop);
-        values["door_probability"] = token(grid1.door_probability);
+        values.insert("divisions", token(grid1.divisions));
+        values.insert("room_density", token(grid1.room_density));
+        values.insert("room_dimension_min", token(grid1.room_dimension_min));
+        values.insert("room_margin", token(grid1.room_margin));
+        values.insert("loop", token(grid1.loop));
+        values.insert("door_probability", token(grid1.door_probability));
         return;
     }
 
     //--------------------------------------------------------------------------
-    void add_cave1(raw_values_type& values, const Parameters& parameters)
+    void add_cave1(quetzal::KeyValueStore& values, const Parameters& parameters)
     {
         const auto& cave1 = parameters.cave1;
 
-        values["fill"] = token(cave1.fill);
-        values["smoothing_passes"] = token(cave1.smoothing_passes);
-        values["birth_threshold"] = token(cave1.birth_threshold);
-        values["survival_threshold"] = token(cave1.survival_threshold);
+        values.insert("fill", token(cave1.fill));
+        values.insert("smoothing_passes", token(cave1.smoothing_passes));
+        values.insert("birth_threshold", token(cave1.birth_threshold));
+        values.insert("survival_threshold", token(cave1.survival_threshold));
         return;
     }
 
     //--------------------------------------------------------------------------
     // Writes the Zone's own extent rather than the requested one, since an algorithm may round the requested extent to one its
     // layout can use
-    raw_values_type generator(const Zone& zone, const Parameters& parameters)
+    quetzal::stratum_format::Generator generator(const Zone& zone, const Parameters& parameters)
     {
-        raw_values_type values = raw_values_type::object();
-        values["algorithm"] = token(parameters.algorithm);
-        values["extent"] = token(zone.extent());
-        values["stairs_down"] = interval_token(parameters.staircase_down_count);
-        values["stairs_up"] = interval_token(parameters.staircase_up_count);
+        quetzal::KeyValueStore values;
+        values.insert("algorithm", token(parameters.algorithm));
+        values.insert("extent", token(zone.extent()));
+        values.insert("stairs_down", interval_token(parameters.staircase_down_count));
+        values.insert("stairs_up", interval_token(parameters.staircase_up_count));
 
         switch (parameters.algorithm)
         {
@@ -114,11 +113,11 @@ namespace
 
         if (parameters.position.has_value())
         {
-            values["position"] = token(*parameters.position);
+            values.insert("position", token(*parameters.position));
         }
 
-        values["seed"] = token(parameters.seed.value());
-        return {{"name", "dungen"}, {"parameters", values}};
+        values.insert("seed", token(parameters.seed.value()));
+        return {"dungen", std::move(values)};
     }
 
     //--------------------------------------------------------------------------
@@ -166,6 +165,7 @@ quetzal::stratum_format::Document quetzal::dungen::make_document(const Zone& zon
     if (!zone.name().empty())
     {
         document.components["name"] = zone.name();
+        document.components["display_name"] = zone.name();
     }
 
     document.position = parameters.position;

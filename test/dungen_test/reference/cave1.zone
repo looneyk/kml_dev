@@ -3,10 +3,10 @@
   "version": "0.6",
   "generator": {
     "name": "dungen",
-    "parameters": { "algorithm": "cave1", "extent": "40,30", "stairs_down": "1-1", "stairs_up": "1-1", "fill": "0.45", "smoothing_passes": "4", "birth_threshold": "5", "survival_threshold": "4", "seed": "12345" }
+    "parameters": { "algorithm": "cave1", "birth_threshold": "5", "extent": "40,30", "fill": "0.45", "seed": "12345", "smoothing_passes": "4", "stairs_down": "1-1", "stairs_up": "1-1", "survival_threshold": "4" }
   },
   "layout": {
-    "components": { "access_points": [ { "entity": 1 }, { "entity": 2 } ], "name": "Caverns Level 3" }
+    "components": { "access_points": [ { "entity": 1 }, { "entity": 2 } ], "name": "Caverns Level 3", "display_name": "Caverns Level 3" }
   },
   "cells": {
     "notation": "block",

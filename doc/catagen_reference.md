@@ -14,10 +14,10 @@ beside it. The two share no code.
 ## The zone file
 
 The generator builds a discrete layout document in the wall notation, which `stratum_format` writes as a file;
-`discrete_layout.md` is the format. `generator.parameters` has the parameters of the run as the tokens their options take --- `extent`,
-`scale`, `spacing`, `density`, `loop`, `stairs_down`, `stairs_up`, `position` if one was given, and `seed` --- so a file
+`discrete_layout.md` is the format. `generator.parameters` has the parameters of the run as the tokens their options take, in key order ---
+`density`, `extent`, `loop`, `position` if one was given, `scale`, `seed`, `spacing`, `stairs_down`, and `stairs_up` --- so a file
 reproduces its zone and its parameters read as a command line. A position given is also written as the layout's
-`position`, and the zone's name, if it has one, as the layout's `name` component. The name is not a parameter: it does not
+`position`, and the zone's name, if it has one, as the layout's `name` and `display_name` components. The name is not a parameter: it does not
 affect the grid.
 
 The rows are `(2W+1)` by `(2H+1)` characters. Cell `(i, j)` is at `(2i+1, 2j+1)`, the edge west of it at `(2i, 2j+1)`,

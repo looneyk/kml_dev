@@ -6,7 +6,7 @@
 #include "Game.hpp"
 #include "attachments.hpp"
 #include "DiscreteLayout.hpp"
-#include "DisplayName.hpp"
+#include "Name.hpp"
 #include "quetzal/log/Log.hpp"
 #include "setting_definitions.hpp"
 #include "quetzal/settings/Settings.hpp"
@@ -190,7 +190,7 @@ void quetzal::stratum_sim::Game::clear()
 }
 
 //------------------------------------------------------------------------------
-void quetzal::stratum_sim::Game::create(const RegionSpec& region_spec, const CharacterSpec& character_spec, stratum_format::Notation notation,
+void quetzal::stratum_sim::Game::create(std::string_view region_spec_name, const CharacterSpec& character_spec, stratum_format::Notation notation,
     std::optional<RandomStream::seed_type> seed)
 {
     assert(!character_spec.name.empty());
@@ -208,7 +208,7 @@ void quetzal::stratum_sim::Game::create(const RegionSpec& region_spec, const Cha
     try
     {
         m_character.create(character_spec);
-        m_session.start(m_world.create(region_spec, game_directory));
+        m_session.start(m_world.create(region_spec_name, game_directory));
     }
     catch (...)
     {
@@ -328,9 +328,9 @@ std::string quetzal::stratum_sim::Game::save(SaveType save_type)
 {
     assert(m_game_directory.has_value() && m_session.loaded() && !m_session.over());
 
-    const auto* display_name = m_character.entity().try_get<DisplayName>();
-    assert(display_name != nullptr && !display_name->name.empty());
-    std::string character_name = replace_reserved_characters(display_name->name);
+    const auto* name = m_character.entity().try_get<Name>();
+    assert(name != nullptr && !name->name.empty());
+    std::string character_name = replace_reserved_characters(name->name);
 
     stratum_format::GameDocument document;
     document.version = std::string(stratum_format::saved_game_format_version);

@@ -46,10 +46,15 @@ namespace stratum_sim_test
     // Returns the test executable's registries. A region whose spec selects "door" makes zones from data/door.zone, and
     // "staircase" from data/walls.zone, which has one staircase leading up and one leading down. "next_region" chooses a new
     // region from the region spec "staircase" for every zone, and "unregistered_generator" a generator that is not
-    // registered. data/door.zone has one staircase, leading up
+    // registered. data/door.zone has one staircase, leading up. The region spec "dungeon" starts a game at level -1, at the
+    // staircase leading up, in a zone made from data/walls.zone
     quetzal::stratum_sim::Generation test_generation();
 
     quetzal::stratum_sim::RegionSpec test_region_spec(const std::string& generator_selector_name);
+
+    // Creates a worldspace from test_region_spec, named for the generator selector, and returns its top-level region
+    flecs::entity create_test_region(quetzal::stratum_sim::World& world, const std::string& generator_selector_name);
+
     // Returns a ZoneSpec whose position is (0, 0, level)
     quetzal::stratum_sim::ZoneSpec test_zone_spec(quetzal::stratum_sim::level_type level);
 
@@ -62,7 +67,7 @@ namespace stratum_sim_test
     // Returns the zone's level, the z of its position
     quetzal::stratum_sim::level_type level_of(flecs::entity zone);
 
-    // A world with the game's entity types and a region for the test executable's zones
+    // A world with the game's entity types and a worldspace's region for the test executable's zones
     struct TestWorld : quetzal::stratum_sim::World
     {
         explicit TestWorld(quetzal::stratum_sim::IdAllocator& id_allocator, size_t zone_count_max = test_zone_count_max);

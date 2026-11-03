@@ -12,6 +12,8 @@
 #include "quetzal/stratum_sim/PersistentId.hpp"
 #include "quetzal/stratum_sim/positions.hpp"
 #include "quetzal/stratum_sim/setting_definitions.hpp"
+#include "quetzal/stratum_sim/specs.hpp"
+#include <format>
 
 using namespace std;
 using namespace quetzal;
@@ -84,6 +86,8 @@ stratum_sim::Generation stratum_sim_test::test_generation()
     };
     generation.m_region_specs["staircase"] = stratum_sim::RegionSpec {{string(stratum_sim::generator_selector_key), "staircase"}};
     generation.m_region_specs["door"] = stratum_sim::RegionSpec {{string(stratum_sim::generator_selector_key), "door"}};
+    generation.m_region_specs["dungeon"] = stratum_sim::RegionSpec {{string(stratum_sim::generator_selector_key), "staircase"},
+        {string(stratum_sim::entry_access_key), "staircase,1"}, {format("{}{}", stratum_sim::zone_prefix, stratum_sim::position_z_key), "-1"}};
 
     return generation;
 }
@@ -92,6 +96,12 @@ stratum_sim::Generation stratum_sim_test::test_generation()
 stratum_sim::RegionSpec stratum_sim_test::test_region_spec(const string& generator_selector_name)
 {
     return stratum_sim::RegionSpec {{string(stratum_sim::generator_selector_key), generator_selector_name}};
+}
+
+//------------------------------------------------------------------------------
+flecs::entity stratum_sim_test::create_test_region(stratum_sim::World& world, const string& generator_selector_name)
+{
+    return stratum_sim::top_level_region(world.create_worldspace(generator_selector_name, test_region_spec(generator_selector_name)));
 }
 
 //------------------------------------------------------------------------------
@@ -124,7 +134,7 @@ stratum_sim::level_type stratum_sim_test::level_of(flecs::entity zone)
 //------------------------------------------------------------------------------
 stratum_sim_test::TestWorld::TestWorld(stratum_sim::IdAllocator& id_allocator, size_t zone_count_max) :
     World(id_allocator, g_test_generation, zone_count_max),
-    region(create_region(test_region_spec("staircase")))
+    region(create_test_region(*this, "staircase"))
 {
     stratum_sim::register_game_types(*this);
 }
@@ -203,7 +213,7 @@ void stratum_sim_test::enter_zone_file(stratum_sim::Game& game, const string& fi
         game.character().create(stratum_sim::CharacterSpec {});
     }
 
-    flecs::entity region = game.world().create_region(test_region_spec("staircase"));
+    flecs::entity region = create_test_region(game.world(), "staircase");
     stratum_sim::Session& session = game.session();
     session.enter(game.world().load_zone(region, filepath), test_entry_type(session), test_entry_offset);
 

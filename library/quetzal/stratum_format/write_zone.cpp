@@ -104,20 +104,10 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    std::string content_section(std::string_view key, const raw_values_type& values)
+    std::string generator_section(const Generator& generator)
     {
-        if (!values.is_object())
-        {
-            return std::format("{}{}: {}", indentation(section_indent), string_text(key), inline_text(values));
-        }
-
-        std::vector<std::string> members;
-        for (const auto& [member_key, value] : values.items())
-        {
-            members.push_back(std::format("{}: {}", string_text(member_key), inline_text(value)));
-        }
-
-        return object_section(key, members);
+        return object_section("generator", {std::format("\"name\": {}", string_text(generator.name)),
+            std::format("\"parameters\": {}", text_values_text(generator.parameters))});
     }
 
     //--------------------------------------------------------------------------
@@ -248,9 +238,9 @@ namespace
                 object_text({std::format("\"id\": {}", *document.zone_id)})));
         }
 
-        if (!document.generator.is_null())
+        if (document.generator.has_value())
         {
-            sections.push_back(content_section("generator", document.generator));
+            sections.push_back(generator_section(*document.generator));
         }
 
         // access_points is required, so the layout always has components

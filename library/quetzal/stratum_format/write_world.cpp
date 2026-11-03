@@ -17,17 +17,37 @@ namespace
     using namespace quetzal::stratum_format::detail;
 
     //--------------------------------------------------------------------------
-    std::string region_text(const WorldRegion& region, size_t indent)
+    std::string zone_text(const WorldDocument::Zone& zone)
     {
-        std::vector<std::string> opening {std::format("\"id\": {}", region.id)};
+        std::vector<std::string> members {std::format("\"id\": {}", zone.id)};
+        if (zone.name.has_value())
+        {
+            members.push_back(std::format("\"name\": {}", string_text(*zone.name)));
+        }
+
+        members.push_back(std::format("\"file\": {}", string_text(zone.file)));
+        if (zone.position.has_value())
+        {
+            members.push_back(std::format("\"position\": [{}, {}, {}]", zone.position->x(), zone.position->y(), zone.position->z()));
+        }
+
+        return object_text(members);
+    }
+
+    //--------------------------------------------------------------------------
+    // The first line has no indentation, as it follows the member name
+    std::string region_text(const WorldDocument::Region& region, size_t indent)
+    {
+        std::vector<std::string> opening {std::format("\"id\": {}", region.id), std::format("\"name\": {}", string_text(region.name)),
+            std::format("\"name_counter\": {}", region.name_counter)};
         if (!region.components.is_null())
         {
             opening.push_back(std::format("\"components\": {}", inline_text(region.components)));
         }
 
         size_t continuation_indent = indent + 2;
-        std::string text = std::format("{}{{ {},\n", indentation(indent), joined(opening));
-        text += std::format("{}\"spec\": {},\n", indentation(continuation_indent), object_or_empty_text(region.spec));
+        std::string text = std::format("{{ {},\n", joined(opening));
+        text += std::format("{}\"spec\": {},\n", indentation(continuation_indent), text_values_text(region.spec));
         text += std::format("{}\"zones\": [", indentation(continuation_indent));
 
         if (region.zones.empty())
@@ -39,33 +59,41 @@ namespace
 
         for (size_t i = 0; i < region.zones.size(); ++i)
         {
-            const ZoneReference& zone = region.zones[i];
-            text += std::format("{}{}{}\n", indentation(continuation_indent + 2), object_text({std::format("\"id\": {}", zone.id),
-                std::format("\"file\": {}", string_text(zone.file))}), i + 1 == region.zones.size() ? "" : ",");
+            text += std::format("{}{}{}\n", indentation(continuation_indent + 2), zone_text(region.zones[i]), i + 1 == region.zones.size() ? "" : ",");
         }
 
         return text + indentation(continuation_indent) + "] }";
     }
 
     //--------------------------------------------------------------------------
+    std::string worldspace_text(const WorldDocument::Worldspace& worldspace, size_t indent)
+    {
+        size_t continuation_indent = indent + 2;
+        std::string text = std::format("{}{{ \"id\": {}, \"name\": {},\n", indentation(indent), worldspace.id, string_text(worldspace.name));
+        text += std::format("{}\"region\": {} }}", indentation(continuation_indent), region_text(worldspace.region, continuation_indent));
+        return text;
+    }
+
+    //--------------------------------------------------------------------------
     std::string document_text(const WorldDocument& document)
     {
-        std::string regions = "\"regions\": [";
+        std::string worldspaces = "\"worldspaces\": [";
 
-        if (document.regions.empty())
+        if (document.worldspaces.empty())
         {
-            regions += "]";
+            worldspaces += "]";
         }
         else
         {
-            regions += "\n";
+            worldspaces += "\n";
 
-            for (size_t i = 0; i < document.regions.size(); ++i)
+            for (size_t i = 0; i < document.worldspaces.size(); ++i)
             {
-                regions += std::format("{}{}\n", region_text(document.regions[i], entry_indent + 2), i + 1 == document.regions.size() ? "" : ",");
+                worldspaces += std::format("{}{}\n", worldspace_text(document.worldspaces[i], entry_indent + 2),
+                    i + 1 == document.worldspaces.size() ? "" : ",");
             }
 
-            regions += indentation(entry_indent) + "]";
+            worldspaces += indentation(entry_indent) + "]";
         }
 
         std::string entity_zones = "\"entity_zones\": [";
@@ -88,7 +116,7 @@ namespace
         }
 
         std::vector<std::string> sections = file_header_sections();
-        sections.push_back(object_section("world", {regions, entity_zones}));
+        sections.push_back(object_section("world", {std::format("\"name_counter\": {}", document.name_counter), worldspaces, entity_zones}));
 
         return top_level_object_text(sections);
     }

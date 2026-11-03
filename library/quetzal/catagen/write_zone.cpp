@@ -21,7 +21,6 @@ namespace
 
     using namespace quetzal::catagen;
     using stored_entity_id_type = quetzal::stratum_format::stored_entity_id_type;
-    using raw_values_type = quetzal::stratum_format::raw_values_type;
 
     //--------------------------------------------------------------------------
     // Formats a parameter as the token its command line option takes
@@ -158,29 +157,30 @@ namespace
 //------------------------------------------------------------------------------
 quetzal::stratum_format::Document quetzal::catagen::make_document(const Zone& zone, const Parameters& parameters)
 {
-    raw_values_type values = raw_values_type::object();
-    values["extent"] = token(parameters.extent);
-    values["scale"] = interval_token(parameters.scale);
-    values["spacing"] = interval_token(parameters.spacing);
-    values["density"] = token(parameters.density);
-    values["loop"] = token(parameters.loop);
-    values["stairs_down"] = interval_token(parameters.staircase_down_count);
-    values["stairs_up"] = interval_token(parameters.staircase_up_count);
+    quetzal::KeyValueStore values;
+    values.insert("extent", token(parameters.extent));
+    values.insert("scale", interval_token(parameters.scale));
+    values.insert("spacing", interval_token(parameters.spacing));
+    values.insert("density", token(parameters.density));
+    values.insert("loop", token(parameters.loop));
+    values.insert("stairs_down", interval_token(parameters.staircase_down_count));
+    values.insert("stairs_up", interval_token(parameters.staircase_up_count));
 
     if (parameters.position.has_value())
     {
-        values["position"] = token(*parameters.position);
+        values.insert("position", token(*parameters.position));
     }
 
-    values["seed"] = token(parameters.seed.value());
+    values.insert("seed", token(parameters.seed.value()));
 
     stratum_format::Document document;
     document.version = stratum_format::format_version;
-    document.generator = {{"name", "catagen"}, {"parameters", values}};
+    document.generator = stratum_format::Generator {"catagen", std::move(values)};
 
     if (!zone.name().empty())
     {
         document.components["name"] = zone.name();
+        document.components["display_name"] = zone.name();
     }
 
     document.position = parameters.position;

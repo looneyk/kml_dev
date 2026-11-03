@@ -13,10 +13,10 @@ property of the edge between two cells. The two share no code.
 ## The zone file
 
 The generator builds a discrete layout document in the block notation, which `stratum_format` writes as a file;
-`discrete_layout.md` is the format. `generator.parameters` has the parameters of the run as the tokens their options take: the ones every
-algorithm shares, then the chosen algorithm's group, then the position if one was given, then the seed, so the file
+`discrete_layout.md` is the format. `generator.parameters` has the parameters of the run as the tokens their options take, in key order: the
+ones every algorithm shares, the chosen algorithm's group, the position if one was given, and the seed, so the file
 reproduces the zone exactly. A position given is also written as the layout's `position`, and the zone's name, if it has one,
-as the layout's `name` component. The name is not a parameter: it does not affect the grid.
+as the layout's `name` and `display_name` components. The name is not a parameter: it does not affect the grid.
 
 There is one glyph per cell:
 

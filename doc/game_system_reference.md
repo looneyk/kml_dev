@@ -224,9 +224,11 @@ into. A tag is registered too, and a file writes it as an empty object. The name
 returns every registered one with its name, in name order; and `is_tag` returns true for a component with no value.
 `register_vector<T>` reflects a `std::vector<T>` as a list, which a file writes as an array.
 
-`World` registers `name` as `DisplayName`, what an entity is called for a player to read, such as a zone's
-`layout.components.name`. It identifies nothing. `register_display_name` reflects it as a string, so the file's
-`"name": "..."` decodes into it. `World` also registers the state of an entity that a saved zone writes back: `access`
+`World` registers `name` as `Name`, an entity's name, such as a zone's `layout.components.name` or the character's
+name, and `display_name` as `DisplayName`, what an entity is called for a player to read. `register_names`, in
+`Name.hpp`, reflects both as strings, so the file's `"name": "..."` and `"display_name": "..."` decode into them, and
+registers an observer that, when an entity's `Name` is set and it has no `DisplayName`, sets a placeholder
+`DisplayName`: the name in capitals. `World` also registers the state of an entity that a saved zone writes back: `access`
 (`Access`), `detection` (`Detection`), `speed` (`Speed`), `pursue` (`Pursue`), and the tags `blocking` (`Blocking`)
 and `dead` (`Dead`).
 
@@ -248,20 +250,28 @@ its subtree, in persistent id order, as its inventory, each encoded as an `Entit
 
 ### Generation
 
-`Generation` has the registries that `World` creates regions and zones from (`world_generation_plan.md`), each a map
-from a name: `m_generator_selectors`, `m_generators` and `m_region_specs`. `RegionSpec` and `ZoneSpec` are both
-`KeyValueStore`. A `RegionSpec`'s `generator_selector`, `generator_selector_key`, is the name of the region's selector. A
-`ZoneSpec`'s `position.x`, `position.y` and `position.z`, `position_x_key`, `position_y_key` and `position_z_key`, are
-the zone's position in its region, and a `RegionSpec`'s `position.x` and `position.y` the region's position in the
-world.
+`Generation` has the registries that `World` creates worldspaces, regions and zones from (`world_generation_plan.md`),
+each a map from a name: `m_generator_selectors`, `m_generators` and `m_region_specs`. `RegionSpec` and `ZoneSpec` are
+both `KeyValueStore`. A `RegionSpec`'s `generator_selector`, `generator_selector_key`, is the name of the region's
+selector. A `ZoneSpec`'s `position.x`, `position.y` and `position.z`, `position_x_key`, `position_y_key` and
+`position_z_key`, are the zone's position in its worldspace, and a `RegionSpec`'s `position.x` and `position.y` the
+position the region's seed derives from.
 
-`positions.hpp` has `ZonePosition` and `RegionPosition`'s functions. `zone_position(zone_spec)` and
+A top-level `RegionSpec`'s `worldspace.` keys, `worldspace_prefix`, state its worldspace's coordinate system:
+`worldspace.extent.x`, `.y` and `.z`, each an interval of integers written as `-10 .. -1`, and `worldspace.zone_size.x`
+and `.y`, a grid worldspace's zone size. An axis with no extent is unbounded, and a worldspace with no zone size is not
+a grid.
+
+`positions.hpp` has the functions of positions and worldspaces. `zone_position(zone_spec)` and
 `region_position(region_spec)` return a spec's position, each coordinate it does not have 0, and throw
-`std::runtime_error` for one that is not an integer; `set_zone_position` and `set_region_position` write one. Three are
-placeholders until the world's layout is designed: `new_zone_position(world, region, level)` returns `(0, 0, level)`,
-and `new_region_position(world)`
-returns the x one past the largest of the world's regions, or 0 with none, and y 0. The zone file, the generators'
-parameters and `ZoneRequest` state a position.
+`std::runtime_error` for one that is not an integer; `set_zone_position` and `set_region_position` write one.
+`contains(box, position)` returns true if a `ZoneBox` contains a zone position, each of its intervals inclusive.
+`make_worldspace(name, region_spec)` returns the `Worldspace` that a region spec's `worldspace.` keys state, with no
+zones, and throws `std::runtime_error` for an extent that is not an interval of integers or whose lower bound is above
+its upper bound, and for a zone size with one coordinate. Two are placeholders: `new_zone_position(world, worldspace,
+level)` returns `(0, 0, level)` until the world's layout is designed, and `new_region_position(world)` returns the x one
+past the largest of the world's region specs, or 0 with none, and y 0, until seeds are drawn hierarchically. The zone
+file, the generators' parameters and `ZoneRequest` state a position.
 
 `seeds.hpp` derives region and zone seeds. `derived_seed(seed, coordinates)` returns a 64-bit seed that
 `std::seed_seq` generates from the seed's low and high 32-bit words followed by each coordinate, so a derived seed is the
@@ -289,22 +299,44 @@ id. A zone is an entity with the `Zone` tag, a `ZoneLayout` component that owns 
 `std::unique_ptr<Layout>`, a `ZonePlacementIndex`, and a `ZoneNotation`. Deleting the entity deletes the layout. There is one `World` in a
 game, owned by `Game`, and it cannot be copied or moved.
 
-A region groups contiguous zones: a surface area, a dungeon, a crypt, a tower or a house. It is an
-entity with a `Region` component and a `PersistentId`, and it is the parent of its zones. It has no parent of its own.
-`Region` has the region's `RegionSpec` and `zone_ids`, the persistent id of each zone created in it, in the order they
-were created, loaded or not, so its size is the region's zone count. A zone is listed when it is generated, loaded from
-a template, or created with a layout. A saved zone read back was listed when it was created, so it is not listed again,
-and it is how `World` finds the region to read an unloaded zone back into. `create_region(region_spec)` makes one
-with the spec, writing `new_region_position` into a copy of the spec if it has neither position key, and sets the
-region's `RegionPosition` from the spec, so the position is saved with the spec in `world.json`. `create_region_zone(region_spec, zone_spec)` makes a region, then its
-first zone with `create_zone`, and returns the zone.
-`region_of(zone)` returns a zone's region, its parent. `zone_of` is unchanged by the regions above a zone: it returns a
- null entity for a zone itself. `unload_region(region)` unloads every zone of the region, then deletes the region, which deletes all their zones; each zone's unload
-completes in the `PersistentId` observer.
+A worldspace is the coordinate system of its zones: the surface, a dungeon, a cave or a tower (`zone_plan.md`). It is an
+entity with a `Worldspace` component and a `PersistentId`, with no parent, and it is the parent of its zones and of its
+top-level region. `Worldspace` has the worldspace's name, its `extent`, a `ZoneBox` of three optional intervals, its
+`zone_size` if it is a grid, and `zone_ids`, the persistent id of each zone that has a position, by its position, loaded
+or not. An observer of `ZonePosition` lists a zone at its position when the position is set, so no two zones of a
+worldspace have one position; zones of different worldspaces may.
 
-Every zone is made in a region. `create_zone(region, zone_id)` makes an empty zone in the region, with the `Zone` tag
-and that `PersistentId`, for a generator or the loader to fill. `create_zone(region, layout)` makes one with a new id,
-that layout and nothing else, and asserts that it is given a layout. A zone may have a `DisplayName`, but each is identified by its persistent id. `zone_count` and `layout` access the zones, with
+A region groups zones of one worldspace: a dungeon, a crypt, a tower or a house. It is an entity with a `Region`
+component and a `PersistentId`, and a top-level region is a child of its worldspace. `Region` has the region's name,
+its `RegionSpec`, `zone_ids`, the persistent id of each zone created in it, in the order they were created, loaded or
+not, so its size is the region's zone count, `named_zone_ids`, the persistent id of each of its zones by its name, and
+`name_counter`, the last suffix given to a name of its zones that was taken. A zone is listed when it is generated,
+loaded from a template, or created with a layout. A saved zone read back was listed when it was created, so it is not
+listed again, and it is how `World` finds the region to read an unloaded zone back into. A zone refers to its region
+through the exclusive `InRegion` relationship.
+
+A name has a numeric suffix only if it is taken (`zone_plan.md`, `## Implementation`): `untaken_name(name, counter,
+taken)` returns the name, or else `<name>_<counter>` for the first counter after the given one whose name is not taken,
+and keeps that counter. `create_worldspace(name, region_spec)` makes a worldspace with the name, suffixed from the
+world's counter if another worldspace has it, and the coordinate system the spec states, and its top-level region with
+the same name and the spec, writing `new_region_position` into a copy of the spec if it has neither position key, so
+the seed's position is saved with the spec in `world.json`; it returns the worldspace. A zone that `World` builds or
+creates with a layout has a name unique in its region, suffixed from the region's counter if another zone of the
+region has it. A zone made from a spec has the name of its pattern: the selection's `ZoneSpec`'s `name`, or else the
+region spec's `zone.name`, or else the region's name followed by `_{x}_{y}` in a grid worldspace and `_{x}_{y}_{z}`
+otherwise. `zone_name(pattern, position)` replaces each `{x}`, `{y}` and `{z}` with that coordinate. A zone read from a
+file has the file's name, or else the default pattern's name if it has a position, or else the region's name.
+`extended_name(e)` returns a worldspace's name; for a region, the name of each region from the top-level region down to
+it, joined by `/`; and for a zone, its worldspace's name and the zone's name, such as `dungeon/Level -2`. `create_worldspace_zone(name,
+region_spec, zone_spec)` makes a worldspace, then the first zone of its region with `create_zone`, and returns the zone.
+`worldspace_of(zone)` returns a zone's worldspace, its parent; `region_of(zone)` returns its region; and
+`top_level_region(worldspace)` returns a worldspace's region. `zone_of` is unchanged by the worldspace above a zone: it
+returns a null entity for a zone itself. `unload_worldspace(worldspace)` unloads every zone of the worldspace, then deletes
+the worldspace, which deletes its region and all its zones; each zone's unload completes in the `PersistentId` observer.
+
+Every zone is made in a region. `create_zone(region, zone_id)` makes an empty zone in the region, a child of the region's
+worldspace with the `Zone` tag and that `PersistentId`, for a generator or the loader to fill. `create_zone(region, layout)` makes one with a new id,
+that layout and nothing else, and asserts that it is given a layout. Each zone is identified by its persistent id, and its name is unique in its region. `zone_count` and `layout` access the zones, with
 `layout` returning the interface; `create_entity`, `move` and `relocate` operate on their contents; and `unload_zone`
 discards a zone, its contents and its layout.
 
@@ -313,35 +345,39 @@ discards a zone, its contents and its layout.
 zone_spec)` creates a zone in a region that has a spec, as the region's generator selector chooses. The selector, named
 by the spec's `generator_selector`, is given the world, the region and a copy of the `ZoneSpec` whose `seed` is
 `zone_seed(region_seed(world_seed, region_spec), zone_spec)`, and returns a `GeneratorSelection`. For a generator, `create_zone` calls it with the selection's `ZoneSpec`, sets the `Document` it
-returns unpopulated, and builds the zone from it as `load_zone` builds one from a file; it then sets the zone's `ZonePosition` from the
-selection's `ZoneSpec`. For a region spec, it returns `create_region_zone` with that spec and the `ZoneSpec` it was
-given, so the zone is the first of a new region. A zone template is not built: it throws `std::runtime_error`. So does a
+returns unpopulated and its position to the selection's `ZoneSpec`'s, and builds the zone from it as `load_zone` builds
+one from a file. For a region spec, it returns `create_worldspace_zone` with that spec, its name and the `ZoneSpec` it
+was given, so the zone is the first of a new worldspace. A zone template is not built: it throws `std::runtime_error`. So does a
 selector, generator or region spec name that is not registered, and a spec with no `generator_selector`, before anything
 is created; what a generator throws passes on, with nothing created.
 
 A zone's level, a `level_type` (`std::int32_t`), is the z of its `ZonePosition`. Access point targets in the zone
 data state levels, and `resolve_target` matches zones by them. The loader sets a zone's `ZonePosition` from the
-file's `position`, and a zone whose file has none has no `ZonePosition`; `make_document` writes the position back.
+file's `position`, and a zone whose file has none has no `ZonePosition`; `make_document` writes the position back. A
+zone built from a document whose position is outside its worldspace's extent, or is another zone's position in its
+worldspace, throws `std::runtime_error` before anything is built.
 
 `resolve_target(access_point)` returns the access point at which an actor arrives through an access point whose
 unbound target is a level with no position: relative, `+`*k* or `-`*k*, or absolute, `=`*n*. The access point's zone
 must have a level, *L*. A target with a named zone or a position throws `std::runtime_error`. The target level is *L* + *k*,
 or *n*, which is *k* levels from *L*.
 
-A target with a region creates a new region with `create_region_zone`, from the region spec of that name and a
-`ZoneSpec` whose position is `new_zone_position` for the target level, without searching the loaded zones. A region spec that is not registered throws `std::runtime_error`.
+The target's position is `new_zone_position` for the target level. A target with a region creates a new worldspace with
+`create_worldspace_zone`, from the region spec of that name, and its first zone at the position. A region spec that is
+not registered throws `std::runtime_error`.
 
-With the region omitted, it looks in the loaded zones of the access point's region at the target level, other than the
-access point's zone, for an access point of the type at which the access point's type arrives that accepts the arrival
-(`accepts_arrival`): one with no target, which is arrival only, or an unbound one that leads back, whose target is
-level *L*, -*k* levels from its own zone (`targets_level`). Of several, it returns the one in the
-zone with the lowest persistent id, and then with the lowest order. If none is found, it makes a zone in the access
-point's region with `create_zone(region, zone_spec)`, with a `ZoneSpec` whose position is `new_zone_position` for the target level.
+With the region omitted, it looks up the zone at the position in the access point's worldspace, reading it back with
+`load_saved_zone` if it has unloaded, and returns its `entry_point` for the type at which the access point's type
+arrives and the offset -*k*: the lowest-ordered access point of the type that accepts the arrival (`accepts_arrival`),
+one with no target, which is arrival only, or an unbound one that leads back, whose target is level *L*, -*k* levels
+from its own zone (`targets_level`). A zone at the position with no such access point throws `std::runtime_error`. If
+the worldspace has no zone at the position, it makes one in the access point's region with `create_zone(region,
+zone_spec)`, with a `ZoneSpec` at the position.
 
-It returns the new zone's `entry_point` for the arrival type and the offset -*k*, the access point that leads back. If
-the new zone has no such access point, it discards the zone, and the new region if one was created for it, and throws
-`std::runtime_error`; a discarded zone is no longer listed in its region, and the world index no longer has its
-entities. It binds nothing.
+For a zone it makes, it returns the zone's `entry_point` for the arrival type and the offset -*k*. If the new zone has
+no such access point, it discards the zone, and
+the new worldspace if one was created for it, and throws `std::runtime_error`; a discarded zone is no longer listed in
+its region or its worldspace, and the world index no longer has its entities. It binds nothing.
 
 `relocate_through(actor, access_point)` moves the actor through the access point and returns the access point it
 arrives at. A bound target is resolved to the access point it refers to; if that access point's zone has unloaded, the
@@ -370,7 +406,7 @@ document is unpopulated. It throws `std::runtime_error`, having made nothing, if
 rejects the file, `check_buildable` finds a reason, or the file is a saved zone that is already loaded; a template makes a
 new zone each time it is loaded. `load_saved_zone(zone_id)` reads a zone of the game that has unloaded back from the
 game directory's `zones/<persistent id>.zone`, into the region whose `zone_ids` lists it, and throws
-`std::runtime_error` if no region lists it. `World` handles no doors itself, and neither function unloads anything.
+`std::runtime_error` if the world has no game directory or no region lists it. `World` handles no doors itself, and neither function unloads anything.
 
 `populate(zone)` places the zone's denizens: one pursuer at the last open cell in reverse row order, facing west,
 `Blocking`, with a `Speed` and a `Pursue` that has no target.
@@ -386,16 +422,19 @@ constructor argument, is the maximum number of zones the world trims to, and `se
 passes its config's `zone_count_max`.
 
 A world has the game directory, the game's directory in the config's working directory, from
-`create(region_spec, game_directory)` or `open(game_directory)` until `clear`. It has none while no game is in progress,
+`create(region_spec_name, game_directory)` or `open(game_directory)` until `clear`. It has none while no game is in progress,
 and a world that is part of no game has none at all, so it saves nothing. `save_zone(zone)` writes the
 zone's `make_document` to `zones/<persistent id>.zone` in the game directory, creating `zones` if it is absent; it
 requires a game directory and a zone built from a document. Leaving a
-zone does not save it, and neither does `unload_zone` nor `unload_region`, which discard what they unload, as clearing a
+zone does not save it, and neither does `unload_zone` nor `unload_worldspace`, which discard what they unload, as clearing a
 game does (`game_file_spec.md`, `## A saved game's files`). `save()` saves every loaded zone and then writes
-`world.json` into the game directory: each region in persistent id order, with its id, its region spec, and a reference
-to each zone its `zone_ids` lists, whose file is `zones/<persistent id>.zone`, whether or not the zone is loaded; and the
-world index. `open(game_directory)`, on a cleared world, reads `world.json` back: each region, made with its persistent
-id, its region spec and its zone ids, and the world index. It loads no zone; each loads when it is entered.
+`world.json` into the game directory: the worldspace name counter; each worldspace in persistent id order, with its id,
+its name and its top-level region, the region with its id, its name, its name counter, its region spec, and a reference
+to each zone its `zone_ids` lists, whose file is `zones/<persistent id>.zone`, with the zone's name and position if it
+has them, whether or not the zone is loaded; and the world index. `open(game_directory)`, on a cleared world, reads
+`world.json` back: the worldspace name counter; each worldspace, made with its persistent id, its name and its region,
+the region with its persistent id, its name, its name counter, its region spec and its zone ids, the worldspace listing
+each zone that has a position and the region each zone that has a name; and the world index. It loads no zone; each loads when it is entered.
 
 `unload_zone(zone)` begins an unload: it adds the zone's id to the zones unloading and deletes the entity. Flecs deletes
 a zone's subtree before the zone itself, and if it is deferring, it runs the whole deletion when the deferred
@@ -803,13 +842,14 @@ default before each test case that starts from it.
 `Game::clear` returns the game scope's settings to their defaults, which selects its groups' default presets and leaves
 their modifiable presets undefined, so a game created or opened starts from them.
 
-The working directory has only the game in progress. `Game::create(region_spec, character_spec, notation, seed)` clears, applies
+The working directory has only the game in progress. `Game::create(region_spec_name, character_spec, notation, seed)` clears, applies
 the manifest's game settings, sets the game's notation, resets the id allocator to count from zero, and sets the world seed to the seed, or to one from `math::random_seed()`
 if none is passed, with `World::set_world_seed`. It seeds the gameplay random engine with the world seed, keeps it, and
 writes it to the log, so nothing passes from one game to the next. It empties the working directory and creates the game directory there, named by the
 character, whose name the spec must have, with each character a directory name cannot have replaced by `_`. It has the
-character created from the `CharacterSpec`, and the world's starting region and its first zone from the `RegionSpec`
-with `World::create(region_spec, game_directory)`, and starts the session at the entry point `World::create` returns.
+character created from the `CharacterSpec`, and the world's starting worldspace and its first zone from the registered
+`RegionSpec` of that name with `World::create(region_spec_name, game_directory)`, and starts the session at the entry
+point `World::create` returns.
 If either throws, it clears again and removes the game directory before passing the exception on, so a failure leaves
 no game in progress.
 
@@ -833,22 +873,23 @@ read or has no name.
 random engine's state as `state()` returns it, under `random_engines`, and the game scope's settings snapshot
 under `settings` and `presets`; has the character write `character.json` there, through
 `make_character_document`, and the world save; and then copies the game directory to a new directory in the saves
-directory, `<character name>_<save time>`, the name the character's `DisplayName` and the time local and in ISO 8601
+directory, `<character name>_<save time>`, the name the character's `Name` and the time local and in ISO 8601
 basic format, which it returns. A `SaveType` of `Auto` or `Quick` appends `_autosave` or `_quicksave`, and `Explicit`
 nothing. A character of the name that Windows does not allow in a file name, or a control character, is replaced by
 `_`. If a save of that name exists, it waits for the next second. An earlier save is never
 replaced. It requires a game in progress whose character is alive and named.
 
-`World::create(region_spec)` reads the spec's `entry_access`: a registered access point type, a comma, and a level
-offset, such as `staircase,1`. It creates the starting region from the spec and its first zone from the spec's `zone.`
-keys, through `create_region_zone` and `select_prefixed`, and returns the zone's `entry_point` for that type and offset.
-It throws `std::runtime_error` if `entry_access` is not a type and an offset, or the zone has no such entry point.
+`World::create(region_spec_name)` reads the registered spec's `entry_access`: a registered access point type, a comma,
+and a level offset, such as `staircase,1`. It creates the starting worldspace, named for the spec, and its region from
+the spec, and its first zone from the spec's `zone.` keys, through `create_worldspace_zone` and `select_prefixed`, and
+returns the zone's `entry_point` for that type and offset. It throws `std::runtime_error` if the spec is not registered,
+`entry_access` is not a type and an offset, or the zone has no such entry point.
 `entry_access_key` and `zone_prefix` are the key and the prefix.
 
 `Game::clear` clears the session, the character and the world, in that order, in place. `Session::clear` ends play:
 no zone is played, and the turn order and the clock's fraction of a unit are emptied, while the driver remains.
 `Character::clear` deletes the character's entity, with what it carries and its pending command. `World::clear` unloads
-every region and empties the world index and the `ZoneEntryIndex`, and keeps the registrations: the entity types, the
+every worldspace, empties the world index and the `ZoneEntryIndex`, and resets the worldspace name counter, and keeps the registrations: the entity types, the
 access point types, the file components, and the `Generation` it was given. `menu_open` pauses the session and
 `menu_close` resumes it, and `quit` clears the game. `remove(save_name)` deletes a save, named as `saved_games`
 names it, after checking that the name is of a directory directly in the saves directory, with no separator and not
@@ -860,7 +901,7 @@ class, as `properties`.
 `session_plan.md` (`## Games`) has their design.
 
 `Character` is the entity a host controls. `create(character_spec)` makes it, with `Blocking`, the `ControlledActor`
-tag, a `Speed`, a new `PersistentId`, and the spec's `name` as its `DisplayName`, and it is in no zone until one is
+tag, a `Speed`, a new `PersistentId`, and the spec's `name` as its `Name`, and it is in no zone until one is
 entered. `save(game_directory)` writes its `make_character_document` to `character.json` there, and
 `open(game_directory)` makes the entity from `character.json` there, with the `ControlledActor` tag and what
 `load_character` fills, in no zone, and returns its `CharacterPlacement`: its zone's persistent id, and its cell and
@@ -898,9 +939,9 @@ warnings with `push_warning`, and the rest with `print`, and its run log file. T
 Each host registers each of `stratum_gen::generators()` as a `Generation::generator_type` that makes a `ZoneRequest`
 from the `ZoneSpec` and passes it on: the `name`, the spec's position, the `seed`, which `create_zone` adds to every
 `ZoneSpec` it passes, and the keys after `parameters.`. It also registers a temporary generator selector named
-`notation_generator`, until the common generator selector. It creates the game from a temporary `RegionSpec`, whose
-`generator_selector` is `notation_generator`, whose `entry_access` is `staircase,1`, and whose `zone.position.z` is
--1, and a temporary `CharacterSpec` with the name "Adventurer". The selector chooses the generator that
+`notation_generator`, until the common generator selector. It creates the game from a temporary `RegionSpec`,
+registered as `dungeon`, whose `generator_selector` is `notation_generator`, whose `entry_access` is `staircase,1`, and
+whose `zone.position.z` is -1, and a temporary `CharacterSpec` with the name "Adventurer". The selector chooses the generator that
 `stratum_gen::generator_name` returns for `Game::notation()` for every zone, `dungen` for the block notation and
 `catagen` for the wall notation, and names the zone "Dungeon Level N", where N is the absolute value of the level. Unless
 the spec has a `parameters.extent`, it adds one from the game settings `world.zone_size.x` and `.y`. So the character begins at the staircase leading up on
@@ -1000,8 +1041,9 @@ relation `in` and an orientation required. A `stratum_format::AccessPoint` has i
 target, which is a `RelocatorTarget` or the id of the access point it is bound to. The layout's `access_points` are `Document::access_points`, a list of entity
 ids, its optional `position` is `Document::position`, a `zone_position_type` (`geometry::DiscretePoint` of three
 coordinates), and its `unpopulated` flag is `Document::is_unpopulated`, false if
-absent. The generator and every other file component are `raw_values_type`, nlohmann's `ordered_json`, as the file wrote
-them. A room is kept as the file identified it.
+absent. The `generator` section is `Document::generator`, an optional `Generator` with its name and its parameters'
+tokens, a `KeyValueStore`. Every other file component is `raw_values_type`, nlohmann's `ordered_json`, as
+the file wrote it. A room is kept as the file identified it.
 
 A `RelocatorTarget` is an unbound target, `[region/]zone[@position]`: an optional region, a zone that is a
 `RelativeZone` (an offset), an `AbsoluteZone` (a level), or a name, and an optional position. The region, a zone name,
@@ -1039,12 +1081,13 @@ identification comes first, then the rest in its section's table order, and file
 An entity's `parent`, `site` and `access_point` are written into its `components` ahead of the rest. In runs, a count is written for a
 run of three glyphs or more. A document that `read_zone` produces is written back equivalent to it.
 
-The game, character and world files that `game_file_spec.md` specifies, format `quetzal.stratum_game`, version `0.1`
+The game, character and world files that `game_file_spec.md` specifies, format `quetzal.stratum_game`, version `0.3`
 (`saved_game_format.hpp`), are each a data structure in a header of its own: `GameDocument`, with the game's next id, world seed, each random engine's state by stream in `random_engines`, and its
 settings; `CharacterDocument`, with the character's id, components, zone, placement, and inventory, whose entities are
-`Entity`s; and `WorldDocument`, whose regions are each a `WorldRegion` with its id, components, the
-spec it was created from, and a `ZoneReference`, an id and a file, for each zone, and whose `entity_zones` is the world
-index. A `write` overload for each, in `write_game.hpp`, `write_character.hpp` and `write_world.hpp`, emits its
+`Entity`s; and `WorldDocument`, with the worldspace name counter, whose worldspaces are each a `WorldDocument::Worldspace` with
+its id, its name and its top-level region, a `WorldDocument::Region` with its id, name, name counter, components, the spec it was
+created from as a `KeyValueStore`, and a `WorldDocument::Zone`, an id, a file, an optional position and an optional name, for each zone, and whose
+`entity_zones` is the world index. A `write` overload for each, in `write_game.hpp`, `write_character.hpp` and `write_world.hpp`, emits its
 written form, with an absent object written as an empty one. These writers and the zone's, `write_zone`, share the text
 of the written form through `json_util.hpp`, internal to the library in `stratum_format::detail`.
 
@@ -1054,8 +1097,10 @@ path within the document and what was wrong there. Each requires the format and 
 and the keys and value types that `game_file_spec.md` specifies. `read_character` also requires that the file's `name`,
 a copy of the character's name, equals the `name` component, and that every entity of the inventory has a unique id
 and a parent, the character or another entity of the inventory, with no cycle, and that it
-is sited on its parent if sited at all, with no address and no access point. `read_world` requires unique region ids, zone
-ids unique across the world, and every entry of the world index in a zone that a region lists, once. The readers share
+is sited on its parent if sited at all, with no address and no access point. `read_world` requires worldspace, region and
+zone ids unique across the world, zone positions unique in each worldspace, zone names unique
+in each region, and every entry of
+the world index in a zone that a region lists, once. The readers share
 the checked reading of values through `checked_values.hpp`, in `stratum_format::detail`. Each file's header is its
 leading keys, `format` and `version`, and in the character file `name` after them; `check_file_header` checks it, and a
 writer emits it with `file_header_sections`.

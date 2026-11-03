@@ -43,12 +43,12 @@ namespace
     stratum_sim::Generation g_test_generation;
 
     //--------------------------------------------------------------------------
-    // A world with the game's entity types, as Game's has, and a region for the test cases' zones
+    // A world with the game's entity types, as Game's has, and a worldspace's region for the test cases' zones
     struct TestWorld : stratum_sim::World
     {
         explicit TestWorld(stratum_sim::IdAllocator& id_allocator) :
             World(id_allocator, g_test_generation, test_zone_count_max),
-            region(create_region(stratum_sim::RegionSpec {}))
+            region(stratum_sim::top_level_region(create_worldspace("view", stratum_sim::RegionSpec {})))
         {
             stratum_sim::register_game_types(*this);
         }

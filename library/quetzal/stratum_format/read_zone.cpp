@@ -1431,7 +1431,9 @@ namespace
 
         if (const raw_values_type* p = member(v, "generator"); p != nullptr)
         {
-            document.generator = object(*p, "generator");
+            object(*p, "generator");
+            document.generator = Generator {string_value(required_member(*p, "generator", "name"), "generator.name"),
+                text_values(required_member(*p, "generator", "parameters"), "generator.parameters")};
         }
 
         if (const raw_values_type* p = member(v, "layout"); p != nullptr)

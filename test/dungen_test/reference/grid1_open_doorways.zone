@@ -3,10 +3,10 @@
   "version": "0.6",
   "generator": {
     "name": "dungen",
-    "parameters": { "algorithm": "grid1", "extent": "33,25", "stairs_down": "1-1", "stairs_up": "1-1", "divisions": "3,3", "room_density": "1", "room_dimension_min": "3", "room_margin": "1", "loop": "0.15", "door_probability": "0.5", "seed": "42" }
+    "parameters": { "algorithm": "grid1", "divisions": "3,3", "door_probability": "0.5", "extent": "33,25", "loop": "0.15", "room_density": "1", "room_dimension_min": "3", "room_margin": "1", "seed": "42", "stairs_down": "1-1", "stairs_up": "1-1" }
   },
   "layout": {
-    "components": { "access_points": [ { "entity": 19 }, { "entity": 20 } ], "name": "Open Barracks" }
+    "components": { "access_points": [ { "entity": 19 }, { "entity": 20 } ], "name": "Open Barracks", "display_name": "Open Barracks" }
   },
   "cells": {
     "notation": "block",

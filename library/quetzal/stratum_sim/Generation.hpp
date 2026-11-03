@@ -46,6 +46,15 @@ namespace quetzal::stratum_sim
     inline constexpr std::string_view position_z_key = "position.z";
     inline constexpr std::string_view parameters_prefix = "parameters.";
 
+    // The prefix of a top-level RegionSpec's keys for its worldspace, and the keys under it: the extent on each axis, an
+    // interval written as "-10 .. -1", and a grid worldspace's zone size
+    inline constexpr std::string_view worldspace_prefix = "worldspace.";
+    inline constexpr std::string_view extent_x_key = "extent.x";
+    inline constexpr std::string_view extent_y_key = "extent.y";
+    inline constexpr std::string_view extent_z_key = "extent.z";
+    inline constexpr std::string_view zone_size_x_key = "zone_size.x";
+    inline constexpr std::string_view zone_size_y_key = "zone_size.y";
+
     //--------------------------------------------------------------------------
     // The registries that World creates regions and zones from
     struct Generation

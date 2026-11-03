@@ -142,22 +142,15 @@ namespace
     //--------------------------------------------------------------------------
     // The parameters in a zone file's generator section, as set_parameters reads them
     // Throws std::invalid_argument for a value set_parameters does not read, so a parameter added to the writer alone fails
-    dungen::Parameters parameters_of(const stratum_format::raw_values_type& generator)
+    dungen::Parameters parameters_of(const optional<stratum_format::Generator>& generator)
     {
-        if (!generator.is_object() || generator.value("name", "") != "dungen")
+        if (!generator.has_value() || generator->name != "dungen")
         {
-            throw invalid_argument(format("\"{}\" is not a dungen generator", generator.dump()));
-        }
-
-        KeyValueStore tokens;
-
-        for (const auto& [key, value] : generator.at("parameters").items())
-        {
-            tokens.insert(key, value.get<string>());
+            throw invalid_argument(format("\"{}\" is not a dungen generator", generator.has_value() ? generator->name : string()));
         }
 
         dungen::Parameters parameters;
-        dungen::set_parameters(parameters, tokens);
+        dungen::set_parameters(parameters, generator->parameters);
         return parameters;
     }
 
@@ -269,8 +262,8 @@ namespace
             }
         }
 
-        stratum_format::raw_values_type generator = document_of(zone_text(scenarios().front().parameters)).generator;
-        generator["parameters"]["unread"] = "1";
+        optional<stratum_format::Generator> generator = document_of(zone_text(scenarios().front().parameters)).generator;
+        generator->parameters.insert("unread", "1");
 
         bool rejected = false;
         try

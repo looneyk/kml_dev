@@ -9,7 +9,6 @@ add_library(quetzal_stratum_sim STATIC
     decode_components.cpp
     DiscreteLayout.cpp
     DiscretePlacementIndex.cpp
-    DisplayName.cpp
     EventQueue.cpp
     file_components.cpp
     layout_entities.cpp
@@ -20,6 +19,7 @@ add_library(quetzal_stratum_sim STATIC
     load_character.cpp
     load_layout.cpp
     make_document.cpp
+    Name.cpp
     positions.cpp
     properties.cpp
     RandomStream.cpp
@@ -47,7 +47,6 @@ add_library(quetzal_stratum_sim STATIC
     DirectionMask.hpp
     DiscreteLayout.hpp
     DiscretePlacementIndex.hpp
-    DisplayName.hpp
     Event.hpp
     EventQueue.hpp
     file_components.hpp
@@ -63,6 +62,7 @@ add_library(quetzal_stratum_sim STATIC
     load_character.hpp
     load_layout.hpp
     make_document.hpp
+    Name.hpp
     PersistentId.hpp
     PlacementIndex.hpp
     positions.hpp

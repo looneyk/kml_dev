@@ -4,7 +4,7 @@
 //------------------------------------------------------------------------------
 
 #include "Character.hpp"
-#include "DisplayName.hpp"
+#include "Name.hpp"
 #include "load_character.hpp"
 #include "make_document.hpp"
 #include "quetzal/stratum_format/CharacterDocument.hpp"
@@ -54,7 +54,7 @@ void quetzal::stratum_sim::Character::create(const CharacterSpec& character_spec
 
     if (!character_spec.name.empty())
     {
-        m_entity.set<DisplayName>(DisplayName {character_spec.name});
+        m_entity.set<Name>(Name {character_spec.name});
     }
 
     return;

@@ -69,22 +69,29 @@ boxes are removed at the start of the next piece of work, since the reference do
 
 `zone_plan.md` has the design.
 
-- [ ] **Worldspaces** (`zone_plan.md`, `### Worldspaces`): a worldspace entity with its name and `PersistentId`, the
+- [x] **Worldspaces** (`zone_plan.md`, `### Worldspaces`): a worldspace entity with its name and `PersistentId`, the
       flecs parent of its zones, with its coordinate system from its top-level region's spec, and each zone's
-      `ZonePosition` in its worldspace, unique there. `RegionPosition` goes.
-- [ ] **Top-level regions** (`zone_plan.md`, `### Regions`): one region for each worldspace, created from its region
+      `ZonePosition` in its worldspace, unique there.
+- [x] **Top-level regions** (`zone_plan.md`, `### Regions`): one region for each worldspace, created from its region
       spec, with the worldspace's extent, and a zone referring to its region by persistent id.
-- [ ] **Extended names** (`zone_plan.md`, `### Identity`): a name and an extended name for every worldspace, zone and
-      region, unique across the game, the generated names `<basename>_<counter>` with one counter for the whole game
-      (`zone_plan.md`, `## Implementation`), and a zone's `DisplayName` separate from both.
+- [x] **Extended names** (`zone_plan.md`, `### Identity`): a name and an extended name for every worldspace, zone and
+      region, unique across the game, a name that is taken given the suffix `_<counter>`, from the game's counter for
+      top-level regions or a region's counter for its subregions and zones (`zone_plan.md`, `## Implementation`), a
+      worldspace and its top-level region named for the region spec, and a zone's `DisplayName` separate from both.
 - [ ] **The world's structure created whole** (`world_generation_plan.md`, `## Creating the structure`): every
       worldspace, region and zone created by `World::create` with its spec, its name, its position and its seed, the
       seeds drawn hierarchically (`random_engine.md`, `## Generation`), and a zone's content generated the first time it
-      is entered or loaded.
+      is entered or loaded. `RegionPosition`, which a region's seed derives from, goes.
 - [ ] **Targets resolved by extended name and by position** (`zone_plan.md`, `### Targets`): the `{zone, position}`
       target in place of `RelocatorTarget` (`zone_plan.md`, `## Implementation`), and an unbound target resolved to the
       zone of an extended name or a persistent id, or at a position relative to the access point's zone or absolute in a
       worldspace, with the zone's content generated if it has none.
+- [ ] **A reference's zone in the reference:** an `EntityReference` to an entity that never changes zone, such as an
+      access point, stores that zone's persistent id, and the world index has no entry for it.
+- [ ] **The world index limited to references across zones:** an entry for an entity only while something outside its
+      zone refers to it --- another zone, or the character's inventory --- added when a relocation or a new reference
+      separates the two, and removed when the last such reference is gone or the two are in one zone again. An entry
+      no longer outlives its references.
 - [ ] **A region's properties** as components: a name and, for a dungeon, the overall or starting difficulty and the
       other properties a whole dungeon has.
 - [ ] **Adjacent zones** (`zone_plan.md`, `### Worldspaces`): the zones of a grid worldspace adjacent edge to edge by
@@ -190,6 +197,8 @@ research into what each mode sets; `difficulty_plan.md` has the draft.
       play.
 - [ ] **Permadeath,** Hardcore's death and save settings (`session_plan.md`, `### Permadeath`): one save, written on
       quit, and `quit` deleting it once the character is dead.
+- [ ] **A save that writes only what changed:** world.json's zone lists and world index in storage that is read and
+      updated by entry, such as SQLite or files split into fixed-size parts, in place of one JSON file rewritten whole on every save.
 
 ## Phase order
 
