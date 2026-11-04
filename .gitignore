@@ -11,6 +11,8 @@
 !/.claude/hooks/
 !/.claude/hooks/**
 /.claude/hooks/__pycache__/
+!/.claude/rules/
+!/.claude/rules/**
 !/.github/
 !/.github/copilot-instructions.md
 !/CLAUDE.md

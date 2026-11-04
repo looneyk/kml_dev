@@ -1,3 +1,5 @@
+# Builds Visual Studio's Startup Project, for binding to Ctrl+B as an External Tool. Setup and details are in
+# doc/development_setup.md, ## Building the startup project from Visual Studio.
 param(
     [Parameter(Mandatory = $true)]
     [string]$SolutionPath

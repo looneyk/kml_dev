@@ -27,6 +27,8 @@ The design behind the items is in these documents, which the items refer to by s
   or opened.
 - `settings_plan.md` covers the settings: one keyed store or typed structures for each layer, and game and program
   settings.
+- `region_spec_plan.md` defines the form of a `RegionSpec` and a `ZoneSpec`, patterns included, so that a designer can
+  write one by hand and the game can generate one.
 - `sim_zone_model.md` has the model beneath the code.
 - `testing_plan.md` covers how the tests are written, registered and run: doctest, CTest, and reference files that one
   option updates.
@@ -78,8 +80,17 @@ boxes are removed at the start of the next piece of work, since the reference do
       region, unique across the game, a name that is taken given the suffix `_<counter>`, from the game's counter for
       top-level regions or a region's counter for its subregions and zones (`zone_plan.md`, `## Implementation`), a
       worldspace and its top-level region named for the region spec, and a zone's `DisplayName` separate from both.
-- [ ] **The world's structure created whole** (`world_generation_plan.md`, `## Creating the structure`): every
-      worldspace, region and zone created by `World::create` with its spec, its name, its position and its seed, the
+- [ ] **Region specs defined** (`region_spec_plan.md`): the keys of a `RegionSpec` and a `ZoneSpec`, the form of their
+      patterns, and the open questions there answered, before the structure is created from them.
+- [ ] **Structured region specs** (`region_spec_plan.md`, `## Form`): `RegionSpec` a structured type read from the
+      game's JSON file of region specs, in place of a `KeyValueStore`, and written to `world.json` in the same form.
+- [ ] **The character's initial zone as a setting** (`region_spec_plan.md`, `## The game's region specs`): a game
+      setting with the position of the character's initial surface zone and the cell position in it where the
+      character starts, in place of `entry_access`.
+- [ ] **The world's structure created whole** (`world_generation_plan.md`, `## Creating the structure`;
+      `region_spec_plan.md`, `## Zones of a worldspace`): every worldspace, with its single region, created from the
+      game's JSON object of region specs, and a zone at every position of its extent, in the order the spec lists them or
+      in worldspace position order, each created by `World::create` with its spec, its name, its position and its seed, the
       seeds drawn hierarchically (`random_engine.md`, `## Generation`), and a zone's content generated the first time it
       is entered or loaded. `RegionPosition`, which a region's seed derives from, goes.
 - [ ] **Targets resolved by extended name and by position** (`zone_plan.md`, `### Targets`): the `{zone, position}`

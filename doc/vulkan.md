@@ -17,6 +17,10 @@ In `library3/`:
 - `KTX-Software/include` --- KTX texture format
 - The Vulkan SDK, through `%VULKAN_SDK%/Include`
 
+KTX-Software is built static by `library3/CMakeLists.txt`, with `BUILD_SHARED_LIBS` off, which also defines
+`KHRONOS_STATIC`, and its tests, tools, and documentation off. The root `project()` declares `C CXX`, so the C compiler
+is initialized before KTX's subdirectory.
+
 The quetzal library root (`library/`) is also on the include path, for `quetzal/common/Config.hpp` and
 `quetzal/game/types.hpp`.
 
@@ -77,3 +81,11 @@ Renderer            (implements IRenderer; owns everything below)
 `set_camera`, `set_lights`, `draw_geometry` and `end_frame` draw a frame. Drawing uses dynamic rendering
 (`vkCmdBeginRendering`), with the model matrix as a push constant and the camera and lights in a per-frame scene
 uniform buffer. The `scene_graph` library drives it.
+
+### Textures
+
+`vulkan::TextureData` (`TextureData.hpp`) is a format and a list of `MipLevel`s, each with its data, byte size, width,
+and height. `scene_graph`'s `TextureManager` loads a texture by its extension into a `TextureData`: `.ktx` and `.ktx2`
+through `KtxLoader.cpp` and libktx, `.dds` through `DdsLoader.cpp`, a standalone header parser, and any other file through
+stb_image as uncompressed RGBA. `Texture::create()` generates mipmaps for a single uncompressed level and uploads
+multiple or compressed levels as they are.

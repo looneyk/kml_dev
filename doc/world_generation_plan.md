@@ -209,48 +209,85 @@ flecs::entity World::create_zone(flecs::entity worldspace, flecs::entity region,
 
 ### Extents
 
-An extent is a list of boxes in the worldspace's coordinates, each with an inclusive range in `x`, `y`, and `z`. A
-range `0..0` contains only 0, and an axis left out of a box spans the parent's whole range in it. A region's zones are
-at the positions its extent covers and no subregion's does (`zone_plan.md`, `### Regions`). The key names below are
-not designed.
+An extent is a list of boxes in the worldspace's coordinates, and its positions are the union of the boxes. Each axis
+of a box is an inclusive range `[a, b]`, a single integer for one position, as `"x": 3` is `[3, 3]`, or left out, which
+spans the parent's whole range on that axis. A box can be any size, so an extent can have any form made of boxes, such
+as a ring.
 
-A dungeon with ten levels, one zone to each, at `(0, 0, -1)` through `(0, 0, -10)`, and a crypt at levels -4 to -6:
+- **A top-level region's extent is the worldspace's extent,** one box with every axis given.
+- **Boxes should not overlap.** An overlap, or a position listed twice, is logged as a warning, and the extent is the
+  union of the boxes.
+- **A region has a zone at each position of its extent that is in no subregion's extent** (`zone_plan.md`, `###
+  Regions`).
 
+The key names below are not designed.
+
+A surface of 4x3 zones with no subregions is one box, and the top-level region has a zone at each of its twelve
+positions, created in worldspace position order from `(0, 0, 0)` to `(3, 2, 0)`:
+
+```json
+"plains": {
+    "worldspace": {"extent": [{"x": [0, 3], "y": [0, 2], "z": 0}], "zone_size": [64, 64]},
+    "zone": {"name": "plains_{x}_{y}"}
+}
 ```
-barrow                                   // top-level region spec for the dungeon worldspace
-    worldspace.extent: x 0..0, y 0..0, z -10..-1
-    zone.*: ...                          // the barrow's own levels: -1 to -3 and -7 to -10
-    subregion.barrow_crypt: crypt
 
-crypt
-    extent: z -6..-4
-    zone.*: ...
+A dungeon with ten levels, one zone to each, at `(0, 0, -1)` through `(0, 0, -10)`, and a crypt at levels -4 to -6. The
+barrow's own levels are -1 to -3 and -7 to -10:
+
+```json
+"barrow": {
+    "worldspace": {"extent": [{"x": 0, "y": 0, "z": [-10, -1]}]},
+    "subregion": {"barrow_crypt": "crypt"}
+},
+"crypt": {
+    "extent": [{"z": [-6, -4]}]
+}
 ```
 
 A target of `-1` from `(0, 0, -6)` resolves to the zone at `(0, 0, -7)`, which is in the barrow: regions play no part
 in it. A second zone on a level, such as an east wing, is at another position, `(1, 0, -5)`, and the worldspace's
-extent spans `x 0..1`.
+extent spans `"x": [0, 1]`.
 
 An 8x8 surface at `z = 0`, split along its anti-diagonal: the moor is the triangle `x + y <= 7`, and the surface region
 itself the rest.
 
-```
-surface
-    worldspace.extent: x 0..7, y 0..7, z 0..0
-    worldspace.zone_size: 64, 64
-    zone.*: ...                          // the rest of the surface
-    subregion.west_moor: moor
+The moor's staircase edge needs a box for each step:
 
-moor                                     // one box for each row
-    extent: x 0..7, y 0..0
-            x 0..6, y 1..1
-            x 0..5, y 2..2
-            x 0..4, y 3..3
-            x 0..3, y 4..4
-            x 0..2, y 5..5
-            x 0..1, y 6..6
-            x 0..0, y 7..7
-    zone.*: ...
+```json
+"surface": {
+    "worldspace": {"extent": [{"x": [0, 7], "y": [0, 7], "z": 0}], "zone_size": [64, 64]},
+    "subregion": {"west_moor": "moor"}
+},
+"moor": {
+    "extent": [
+        {"x": [0, 7], "y": 0},
+        {"x": [0, 6], "y": 1},
+        {"x": [0, 5], "y": 2},
+        {"x": [0, 4], "y": 3},
+        {"x": [0, 3], "y": 4},
+        {"x": [0, 2], "y": 5},
+        {"x": [0, 1], "y": 6},
+        {"x": 0, "y": 7}
+    ]
+}
+```
+
+A shore around a lake in the middle of another 8x8 surface is a ring of four boxes, two rows and two columns, each larger
+than one zone in both dimensions. A single position is a box with an integer on each axis it includes:
+
+```json
+"shore": {
+    "extent": [
+        {"x": [1, 6], "y": [1, 2]},
+        {"x": [1, 6], "y": [5, 6]},
+        {"x": [1, 2], "y": [3, 4]},
+        {"x": [5, 6], "y": [3, 4]}
+    ]
+},
+"islands": {
+    "extent": [{"x": 3, "y": 3}, {"x": 4, "y": 4}]
+}
 ```
 
 ## Generating a zone's content

@@ -41,5 +41,23 @@ The build uses fourteen repositories cloned into `library3/`, which the root rep
    `Godot_v4.7.2-stable_win64_console.exe --headless --path application/stratum_godot/project --import`.
    Godot does not find the extension in a project that has not been imported.
 
+## Building the startup project from Visual Studio
+
+Visual Studio's Build.BuildSelection builds the project of the document with editor focus, not the Startup Project.
+`script/build_startup_project.ps1` builds the Startup Project instead: it finds the running Visual Studio through the
+running object table, reads `SolutionBuild.StartupProjects` through DTE automation, and runs MSBuild on that project.
+
+To bind it to Ctrl+B, add it under Tools > External Tools, with `pwsh.exe` as the command and
+`-File <repository>/script/build_startup_project.ps1 -SolutionPath "$(SolutionDir)$(SolutionFileName)"` as the
+arguments, and bind the external tool to Ctrl+B under Tools > Options > Keyboard. External Tools has no
+`$(SolutionPath)` macro; that name is only an MSBuild property.
+
+- **Solution folders are recognized by their `Project.Kind`,** `{66A26720-8FB5-11D2-AA7E-00C04F688DDE}` in the CMake-generated
+  `kml_dev.slnx`. The often-cited `{66A2671D-8FB5-11D2-AA7E-00C04F688DDE}` is the `Project.Kind` of Miscellaneous Files.
+- **The running object table is read in C#,** in the script's `Add-Type` block. `IRunningObjectTable`, `IEnumMoniker`,
+  `IMoniker`, and `IBindCtx` are vtable-only COM interfaces, and a PowerShell `[Type]` cast does not perform the
+  `QueryInterface` a compiled cast does, so only the `IDispatch` DTE object is returned to PowerShell.
+- **The script runs under PowerShell 7,** `pwsh.exe`.
+
 The user directory, `%LOCALAPPDATA%/KML/Stratum`, is created when a host first runs, and the build copies the terminal
 host's development `config.json` beside its executable, so neither needs setting up.
