@@ -4,6 +4,8 @@
 //------------------------------------------------------------------------------
 
 #include "ai.hpp"
+#include "file_components.hpp"
+#include "properties.hpp"
 #include "Site.hpp"
 #include <vector>
 
@@ -18,6 +20,22 @@ namespace
     }
 
 } // namespace
+
+//------------------------------------------------------------------------------
+void quetzal::stratum_sim::register_ai_components(flecs::world& entities)
+{
+    static_assert(sizeof(point_type) == 3 * sizeof(value_type));
+    entities.component<point_type>().array<value_type>(3);
+    register_optional<EntityReference>(entities);
+    entities.component<Pursue>()
+        .member(&Pursue::target, "target")
+        .member(&Pursue::position_last_seen, "position_last_seen")
+        .member(&Pursue::seen, "seen");
+
+    register_file_component<Pursue>(entities, "pursue");
+
+    return;
+}
 
 //------------------------------------------------------------------------------
 void quetzal::stratum_sim::think(World& world, id_type actor_controlled)

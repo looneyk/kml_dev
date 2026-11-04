@@ -4,6 +4,7 @@
 //------------------------------------------------------------------------------
 
 #include "World.hpp"
+#include "actors.hpp"
 #include "ai.hpp"
 #include "attachments.hpp"
 #include "DiscreteLayout.hpp"
@@ -293,141 +294,6 @@ namespace
 } // namespace
 
 //------------------------------------------------------------------------------
-flecs::entity quetzal::stratum_sim::zone_of(flecs::entity e)
-{
-    for (flecs::entity holder = e; holder; holder = holder.parent())
-    {
-        if (flecs::entity zone = holder.target<InZone>())
-        {
-            return zone;
-        }
-
-        if (flecs::entity parent = holder.parent(); parent && parent.has<Zone>())
-        {
-            return parent;
-        }
-    }
-
-    return flecs::entity();
-}
-
-//------------------------------------------------------------------------------
-flecs::entity quetzal::stratum_sim::worldspace_of(flecs::entity zone)
-{
-    assert(zone && zone.has<Zone>());
-    assert(zone.parent() && zone.parent().has<Worldspace>());
-
-    return zone.parent();
-}
-
-//------------------------------------------------------------------------------
-flecs::entity quetzal::stratum_sim::region_of(flecs::entity zone)
-{
-    assert(zone && zone.has<Zone>());
-
-    flecs::entity region = zone.target<InRegion>();
-    assert(region && region.has<Region>());
-
-    return region;
-}
-
-//------------------------------------------------------------------------------
-flecs::entity quetzal::stratum_sim::top_level_region(flecs::entity worldspace)
-{
-    assert(worldspace && worldspace.has<Worldspace>());
-
-    flecs::entity region;
-    worldspace.children([&](flecs::entity child)
-    {
-        if (child.has<Region>())
-        {
-            region = child;
-        }
-    });
-
-    assert(region);
-    return region;
-}
-
-//------------------------------------------------------------------------------
-std::string quetzal::stratum_sim::extended_name(flecs::entity e)
-{
-    if (e.has<Worldspace>())
-    {
-        return e.get<Worldspace>().name;
-    }
-
-    if (e.has<Region>())
-    {
-        flecs::entity parent = e.parent();
-        const std::string& name = e.get<Region>().name;
-        return parent.has<Region>() ? std::format("{}/{}", extended_name(parent), name) : name;
-    }
-
-    assert(e.has<Zone>() && e.has<Name>());
-    return std::format("{}/{}", extended_name(worldspace_of(e)), e.get<Name>().name);
-}
-
-//------------------------------------------------------------------------------
-void quetzal::stratum_sim::set_layout(flecs::entity zone, std::unique_ptr<Layout> layout)
-{
-    assert(zone && zone.has<Zone>() && layout != nullptr);
-
-    std::unique_ptr<PlacementIndex> placement_index = layout->create_placement_index();
-    zone.set<ZoneLayout>(ZoneLayout {std::move(layout)});
-    zone.set<ZonePlacementIndex>(ZonePlacementIndex {std::move(placement_index)});
-
-    return;
-}
-
-//------------------------------------------------------------------------------
-void quetzal::stratum_sim::reparent(flecs::entity e, flecs::entity parent, const Site& site)
-{
-    assert(e && parent && e != parent);
-
-    [[maybe_unused]] flecs::entity zone_from = zone_of(e);
-    [[maybe_unused]] flecs::entity zone_to = parent.has<Zone>() ? parent : zone_of(parent);
-    assert(!zone_from || zone_from == zone_to || !has_descendant_sited_on_layout(e));
-
-    e.remove<Site>(); // First, so it leaves what it was sited on while still in that zone
-    set_parent(e, parent);
-    e.set<Site>(site);
-
-    return;
-}
-
-//------------------------------------------------------------------------------
-void quetzal::stratum_sim::set_parent(flecs::entity e, flecs::entity parent)
-{
-    assert(e && parent && e != parent);
-
-    if (parent.has<Zone>())
-    {
-        e.child_of(parent); // Removes a Parent
-    }
-    else
-    {
-        e.remove(flecs::ChildOf, flecs::Wildcard);
-        e.set<flecs::Parent>(flecs::Parent {parent});
-    }
-
-    return;
-}
-
-//------------------------------------------------------------------------------
-flecs::entity quetzal::stratum_sim::create_entity_type(flecs::world& entities, std::string_view name)
-{
-    assert(!entity_type(entities, name));
-    return entities.prefab(type_path(name).c_str());
-}
-
-//------------------------------------------------------------------------------
-flecs::entity quetzal::stratum_sim::entity_type(const flecs::world& entities, std::string_view name)
-{
-    return entities.lookup(type_path(name).c_str());
-}
-
-//------------------------------------------------------------------------------
 quetzal::stratum_sim::World::World(IdAllocator& id_allocator, Generation& generation, size_t zone_count_max) :
     m_id_allocator(id_allocator),
     m_generation(generation),
@@ -665,29 +531,9 @@ quetzal::stratum_sim::World::World(IdAllocator& id_allocator, Generation& genera
     register_file_component<DisplayName>(m_entities, display_name_component);
 
     // The state of an entity that a saved zone writes back, which a zone file may also state
-    m_entities.component<AccessState>();
-    m_entities.component<Access>().member(&Access::state, "state");
-    m_entities.component<DetectionState>();
-    m_entities.component<ActorDetection>().member(&ActorDetection::actor, "actor").member(&ActorDetection::state, "state");
-    register_vector<ActorDetection>(m_entities);
-    m_entities.component<Detection>().member(&Detection::state, "state").member(&Detection::actor_states, "actor_states");
-    m_entities.component<Speed>().member(&Speed::value, "value");
-    m_entities.component<Blocking>();
-    m_entities.component<Dead>();
-    static_assert(sizeof(point_type) == 3 * sizeof(value_type));
-    m_entities.component<point_type>().array<value_type>(3);
-    register_optional<EntityReference>(m_entities);
-    m_entities.component<Pursue>()
-        .member(&Pursue::target, "target")
-        .member(&Pursue::position_last_seen, "position_last_seen")
-        .member(&Pursue::seen, "seen");
-
-    register_file_component<Access>(m_entities, "access");
-    register_file_component<Detection>(m_entities, "detection");
-    register_file_component<Speed>(m_entities, "speed");
-    register_file_component<Blocking>(m_entities, "blocking");
-    register_file_component<Dead>(m_entities, "dead");
-    register_file_component<Pursue>(m_entities, "pursue");
+    register_actor_components(m_entities);
+    register_attachment_components(m_entities);
+    register_ai_components(m_entities);
 
     // The default access point types, each arriving at its own type; a mod may register more
     for (std::string_view name : {"staircase", "door", "portal", "waypoint"})
@@ -1608,4 +1454,139 @@ flecs::entity quetzal::stratum_sim::World::resolve(EntityReference& reference) c
 quetzal::stratum_sim::PersistentId quetzal::stratum_sim::World::next_id()
 {
     return m_id_allocator.next();
+}
+
+//------------------------------------------------------------------------------
+flecs::entity quetzal::stratum_sim::zone_of(flecs::entity e)
+{
+    for (flecs::entity holder = e; holder; holder = holder.parent())
+    {
+        if (flecs::entity zone = holder.target<InZone>())
+        {
+            return zone;
+        }
+
+        if (flecs::entity parent = holder.parent(); parent && parent.has<Zone>())
+        {
+            return parent;
+        }
+    }
+
+    return flecs::entity();
+}
+
+//------------------------------------------------------------------------------
+flecs::entity quetzal::stratum_sim::worldspace_of(flecs::entity zone)
+{
+    assert(zone && zone.has<Zone>());
+    assert(zone.parent() && zone.parent().has<Worldspace>());
+
+    return zone.parent();
+}
+
+//------------------------------------------------------------------------------
+flecs::entity quetzal::stratum_sim::region_of(flecs::entity zone)
+{
+    assert(zone && zone.has<Zone>());
+
+    flecs::entity region = zone.target<InRegion>();
+    assert(region && region.has<Region>());
+
+    return region;
+}
+
+//------------------------------------------------------------------------------
+flecs::entity quetzal::stratum_sim::top_level_region(flecs::entity worldspace)
+{
+    assert(worldspace && worldspace.has<Worldspace>());
+
+    flecs::entity region;
+    worldspace.children([&](flecs::entity child)
+    {
+        if (child.has<Region>())
+        {
+            region = child;
+        }
+    });
+
+    assert(region);
+    return region;
+}
+
+//------------------------------------------------------------------------------
+std::string quetzal::stratum_sim::extended_name(flecs::entity e)
+{
+    if (e.has<Worldspace>())
+    {
+        return e.get<Worldspace>().name;
+    }
+
+    if (e.has<Region>())
+    {
+        flecs::entity parent = e.parent();
+        const std::string& name = e.get<Region>().name;
+        return parent.has<Region>() ? std::format("{}/{}", extended_name(parent), name) : name;
+    }
+
+    assert(e.has<Zone>() && e.has<Name>());
+    return std::format("{}/{}", extended_name(worldspace_of(e)), e.get<Name>().name);
+}
+
+//------------------------------------------------------------------------------
+void quetzal::stratum_sim::set_layout(flecs::entity zone, std::unique_ptr<Layout> layout)
+{
+    assert(zone && zone.has<Zone>() && layout != nullptr);
+
+    std::unique_ptr<PlacementIndex> placement_index = layout->create_placement_index();
+    zone.set<ZoneLayout>(ZoneLayout {std::move(layout)});
+    zone.set<ZonePlacementIndex>(ZonePlacementIndex {std::move(placement_index)});
+
+    return;
+}
+
+//------------------------------------------------------------------------------
+void quetzal::stratum_sim::reparent(flecs::entity e, flecs::entity parent, const Site& site)
+{
+    assert(e && parent && e != parent);
+
+    [[maybe_unused]] flecs::entity zone_from = zone_of(e);
+    [[maybe_unused]] flecs::entity zone_to = parent.has<Zone>() ? parent : zone_of(parent);
+    assert(!zone_from || zone_from == zone_to || !has_descendant_sited_on_layout(e));
+
+    e.remove<Site>(); // First, so it leaves what it was sited on while still in that zone
+    set_parent(e, parent);
+    e.set<Site>(site);
+
+    return;
+}
+
+//------------------------------------------------------------------------------
+void quetzal::stratum_sim::set_parent(flecs::entity e, flecs::entity parent)
+{
+    assert(e && parent && e != parent);
+
+    if (parent.has<Zone>())
+    {
+        e.child_of(parent); // Removes a Parent
+    }
+    else
+    {
+        e.remove(flecs::ChildOf, flecs::Wildcard);
+        e.set<flecs::Parent>(flecs::Parent {parent});
+    }
+
+    return;
+}
+
+//------------------------------------------------------------------------------
+flecs::entity quetzal::stratum_sim::create_entity_type(flecs::world& entities, std::string_view name)
+{
+    assert(!entity_type(entities, name));
+    return entities.prefab(type_path(name).c_str());
+}
+
+//------------------------------------------------------------------------------
+flecs::entity quetzal::stratum_sim::entity_type(const flecs::world& entities, std::string_view name)
+{
+    return entities.lookup(type_path(name).c_str());
 }

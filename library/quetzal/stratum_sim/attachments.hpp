@@ -66,6 +66,8 @@ namespace quetzal::stratum_sim
         std::vector<ActorDetection> actor_states;
     };
 
+    void register_attachment_components(flecs::world& entities);
+
     //--------------------------------------------------------------------------
     // Relationship from an access point to its type, which is an entity registered once in the world: staircase, door,
     // portal, waypoint, or a type that a mod adds

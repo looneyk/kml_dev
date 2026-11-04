@@ -31,65 +31,6 @@ namespace quetzal::stratum_sim
 {
 
     //--------------------------------------------------------------------------
-    // Tag for an entity that others cannot move into
-    struct Blocking
-    {
-    };
-
-    //--------------------------------------------------------------------------
-    // Tag for the actor that a host controls
-    struct ControlledActor
-    {
-    };
-
-    //--------------------------------------------------------------------------
-    // Tag for an actor that has died. Once the controlled actor has it, no actor runs and the game is over
-    struct Dead
-    {
-    };
-
-    //--------------------------------------------------------------------------
-    // The rate at which an actor gains energy in the turn order
-    struct Speed
-    {
-        int value = 0;
-    };
-
-    //--------------------------------------------------------------------------
-    // Returns the zone that the entity is in, directly or through its ancestors, or null
-    flecs::entity zone_of(flecs::entity e);
-
-    // Returns the worldspace that the zone is in
-    flecs::entity worldspace_of(flecs::entity zone);
-
-    // Returns the region that the zone is in
-    flecs::entity region_of(flecs::entity zone);
-
-    flecs::entity top_level_region(flecs::entity worldspace);
-
-    // Returns the extended name of a worldspace, a region or a zone, joined by '/': a worldspace's name, the name of each
-    // region from the top-level region down to a region, and a zone's worldspace name followed by the zone's name
-    std::string extended_name(flecs::entity e);
-
-    // Sets the zone's layout, and the empty placement index the layout creates
-    void set_layout(flecs::entity zone, std::unique_ptr<Layout> layout);
-
-    //--------------------------------------------------------------------------
-    // Sets an entity's parent and site together
-    void reparent(flecs::entity e, flecs::entity parent, const Site& site);
-
-    // Sets only the parent for an entity that has no site
-    void set_parent(flecs::entity e, flecs::entity parent);
-
-    //--------------------------------------------------------------------------
-    // Creates an entity type, which is a prefab. An entity IsA its type, and the type's components are the entity's defaults
-    // The caller sets the type's components
-    flecs::entity create_entity_type(flecs::world& entities, std::string_view name);
-
-    // Returns a null entity if no type with that name is loaded
-    flecs::entity entity_type(const flecs::world& entities, std::string_view name);
-
-    //--------------------------------------------------------------------------
     // The zones and everything in them. All entities are in one flecs world; a zone's contents are its children, and its layout is a component
     class World
     {
@@ -303,6 +244,40 @@ namespace quetzal::stratum_sim
 
         flecs::world m_entities; // Last, as its teardown runs the observers that update the members above
     };
+
+    //--------------------------------------------------------------------------
+    // Returns the zone that the entity is in, directly or through its ancestors, or null
+    flecs::entity zone_of(flecs::entity e);
+
+    // Returns the worldspace that the zone is in
+    flecs::entity worldspace_of(flecs::entity zone);
+
+    // Returns the region that the zone is in
+    flecs::entity region_of(flecs::entity zone);
+
+    flecs::entity top_level_region(flecs::entity worldspace);
+
+    // Returns the extended name of a worldspace, a region or a zone, joined by '/': a worldspace's name, the name of each
+    // region from the top-level region down to a region, and a zone's worldspace name followed by the zone's name
+    std::string extended_name(flecs::entity e);
+
+    // Sets the zone's layout, and the empty placement index the layout creates
+    void set_layout(flecs::entity zone, std::unique_ptr<Layout> layout);
+
+    //--------------------------------------------------------------------------
+    // Sets an entity's parent and site together
+    void reparent(flecs::entity e, flecs::entity parent, const Site& site);
+
+    // Sets only the parent for an entity that has no site
+    void set_parent(flecs::entity e, flecs::entity parent);
+
+    //--------------------------------------------------------------------------
+    // Creates an entity type, which is a prefab. An entity IsA its type, and the type's components are the entity's defaults
+    // The caller sets the type's components
+    flecs::entity create_entity_type(flecs::world& entities, std::string_view name);
+
+    // Returns a null entity if no type with that name is loaded
+    flecs::entity entity_type(const flecs::world& entities, std::string_view name);
 
 } // namespace quetzal::stratum_sim
 

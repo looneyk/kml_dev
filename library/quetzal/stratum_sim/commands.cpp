@@ -4,6 +4,7 @@
 //------------------------------------------------------------------------------
 
 #include "commands.hpp"
+#include "actors.hpp"
 #include "attachments.hpp"
 #include "DiscreteLayout.hpp"
 #include "Scheduler.hpp"

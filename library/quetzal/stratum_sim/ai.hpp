@@ -22,6 +22,8 @@ namespace quetzal::stratum_sim
         bool seen = false; // True if position_last_seen is set
     };
 
+    void register_ai_components(flecs::world& entities);
+
     // Sets an Intent for every actor with a behavior except the controlled one
     void think(World& world, id_type actor_controlled);
 

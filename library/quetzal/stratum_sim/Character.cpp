@@ -4,6 +4,7 @@
 //------------------------------------------------------------------------------
 
 #include "Character.hpp"
+#include "actors.hpp"
 #include "Name.hpp"
 #include "load_character.hpp"
 #include "make_document.hpp"

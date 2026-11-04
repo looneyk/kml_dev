@@ -18,6 +18,7 @@
 #include "quetzal/stratum_sim/Scheduler.hpp"
 #include "quetzal/stratum_sim/Session.hpp"
 #include "quetzal/stratum_sim/Game.hpp"
+#include "quetzal/stratum_sim/actors.hpp"
 #include "quetzal/stratum_sim/World.hpp"
 #include "quetzal/stratum_format/Document.hpp"
 #include "quetzal/testing/named_checks.hpp"

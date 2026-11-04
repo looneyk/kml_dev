@@ -228,9 +228,10 @@ returns every registered one with its name, in name order; and `is_tag` returns 
 name, and `display_name` as `DisplayName`, what an entity is called for a player to read. `register_names`, in
 `Name.hpp`, reflects both as strings, so the file's `"name": "..."` and `"display_name": "..."` decode into them, and
 registers an observer that, when an entity's `Name` is set and it has no `DisplayName`, sets a placeholder
-`DisplayName`: the name in capitals. `World` also registers the state of an entity that a saved zone writes back: `access`
-(`Access`), `detection` (`Detection`), `speed` (`Speed`), `pursue` (`Pursue`), and the tags `blocking` (`Blocking`)
-and `dead` (`Dead`).
+`DisplayName`: the name in capitals. `World` also registers the state of an entity that a saved zone writes back.
+`register_actor_components`, in `actors.hpp`, registers `speed` (`Speed`) and the tags `blocking` (`Blocking`) and `dead`
+(`Dead`), and the `ControlledActor` tag. `register_attachment_components`, in `attachments.hpp`, registers `access`
+(`Access`) and `detection` (`Detection`), and `register_ai_components`, in `ai.hpp`, registers `pursue` (`Pursue`).
 
 `make_document(zone)` returns a loaded zone as a saved zone's `Document`, the reverse of `load_layout`. The geometry is
 its `ZoneDocument`'s, which does not change during play, and the rest is the zone as it is now: its persistent id and

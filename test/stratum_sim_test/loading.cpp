@@ -19,6 +19,7 @@
 #include "quetzal/stratum_sim/Session.hpp"
 #include "quetzal/stratum_sim/Game.hpp"
 #include "quetzal/stratum_sim/PersistentSettings.hpp"
+#include "quetzal/stratum_sim/actors.hpp"
 #include "quetzal/stratum_sim/attachments.hpp"
 #include "quetzal/stratum_sim/file_components.hpp"
 #include "quetzal/stratum_sim/layout_entities.hpp"

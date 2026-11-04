@@ -5,8 +5,10 @@
 
 #include "attachments.hpp"
 #include "DiscreteLayout.hpp"
+#include "file_components.hpp"
 #include "layout_entities.hpp"
 #include "positions.hpp"
+#include "properties.hpp"
 #include "World.hpp"
 #include <algorithm>
 #include <format>
@@ -43,6 +45,22 @@ namespace
     }
 
 } // namespace
+
+//------------------------------------------------------------------------------
+void quetzal::stratum_sim::register_attachment_components(flecs::world& entities)
+{
+    entities.component<AccessState>();
+    entities.component<Access>().member(&Access::state, "state");
+    entities.component<DetectionState>();
+    entities.component<ActorDetection>().member(&ActorDetection::actor, "actor").member(&ActorDetection::state, "state");
+    register_vector<ActorDetection>(entities);
+    entities.component<Detection>().member(&Detection::state, "state").member(&Detection::actor_states, "actor_states");
+
+    register_file_component<Access>(entities, "access");
+    register_file_component<Detection>(entities, "detection");
+
+    return;
+}
 
 //------------------------------------------------------------------------------
 flecs::entity quetzal::stratum_sim::create_access_type(flecs::world& entities, std::string_view name)

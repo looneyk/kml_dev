@@ -1,4 +1,5 @@
 add_library(quetzal_stratum_sim STATIC
+    actors.cpp
     ai.cpp
     attachments.cpp
     Character.cpp
@@ -33,6 +34,7 @@ add_library(quetzal_stratum_sim STATIC
     specs.cpp
     World.cpp
     ZoneEntryIndex.cpp
+    actors.hpp
     ai.hpp
     attachments.hpp
     Cell.hpp

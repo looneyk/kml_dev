@@ -70,6 +70,8 @@ These rules apply to C++ throughout the repository, alongside the Conventions in
   out-of-line definitions in declaration order. `detail` may depend on public types and never the reverse. A type used
   as a by-value parameter default must be complete before its use, and a concept cannot be forward declared, so a
   concept constraining a public overload is public and precedes it.
+- **A class's free functions follow the class:** the free functions of its interface come after the class declaration
+  in the header and after the member definitions in the source file.
 - **Files:** a significant class, with behavior, invariants, or lifetime, has its own `.hpp` and `.cpp`, named for it.
   Simple structs and a small set of related free functions may share a file named for its content. A document's reader
   and writer go with the document, never in `read_x` and `write_x` files, and a small isolated feature is one pair: a

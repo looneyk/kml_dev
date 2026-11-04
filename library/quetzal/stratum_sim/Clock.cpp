@@ -4,6 +4,7 @@
 //------------------------------------------------------------------------------
 
 #include "Clock.hpp"
+#include "actors.hpp"
 #include "quetzal/math/floating_point.hpp"
 #include <cmath>
 #include <cassert>

@@ -4,6 +4,7 @@
 //------------------------------------------------------------------------------
 
 #include "Session.hpp"
+#include "actors.hpp"
 #include "ai.hpp"
 #include "attachments.hpp"
 #include "DiscreteLayout.hpp"
