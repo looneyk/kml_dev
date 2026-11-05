@@ -211,11 +211,15 @@ namespace quetzal::stratum_sim
 
     private:
 
-        // Creates a zone in the region from the document, and populates it if the document is marked unpopulated. The zone is given the
-        // document's persistent id if it has one, and is named by name_zone. Throws std::runtime_error, reporting the source, before anything is built,
-        // if check_buildable finds a reason the world cannot build it, it is a saved zone that is already loaded, or its
-        // position is outside its worldspace's extent or is another zone's position in its worldspace
-        flecs::entity build_zone(PersistentId region_id, const stratum_format::Document& document, std::string_view source);
+        // Creates a zone from the document and optionally populates it
+        // Throws std::runtime_error, reporting the source before anything is built, if check_buildable finds a reason the world
+        // cannot build it, it is a saved zone that is already loaded, or its position is outside its worldspace's extent or is
+        // another zone's position in its worldspace
+        flecs::entity build_zone(PersistentId region_id, PersistentId zone_id, const stratum_format::Document& document, std::string_view source);
+
+        // Builds the zone from the Document that a generator creates
+        // Throws std::runtime_error if a name the selection depends on is not registered, or the document cannot be built, and passes on what the  generator throws
+        flecs::entity generate_zone(PersistentId region_id, PersistentId zone_id, const ZoneSpec& zone_spec);
 
         // The file of a saved zone in the game directory
         std::filesystem::path saved_zone_path(PersistentId zone_id) const;

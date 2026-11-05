@@ -352,14 +352,15 @@ discards a zone, its contents and its layout.
 
 `World` takes the game's `Generation` by reference in its constructor (`### Generation`). `world_seed()` and
 `set_world_seed(seed)` access the world seed, which is 0 until it is set. `create_zone(region_id,
-zone_spec)` creates a zone in a region that has a spec, as the region's generator selector chooses. The selector, named
+zone_spec)` creates a zone in a region that has a spec, as the region's generator selector chooses, by calling
+`generate_zone(region_id, zone_id, zone_spec)` with a new zone id. The selector, named
 by the spec's `generator_selector`, is given the world, the region and a copy of the `ZoneSpec` whose `seed` is
 `zone_seed(region_seed(world_seed, region_spec), zone_spec)`, and returns a `GeneratorSelection`. For a generator, `create_zone` calls it with the selection's `ZoneSpec`, sets the `Document` it
 returns unpopulated and its position to the selection's `ZoneSpec`'s, and builds the zone from it as `load_zone` builds
 one from a file. For a region spec, it returns `create_worldspace_zone` with that spec, its name and the `ZoneSpec` it
 was given, so the zone is the first of a new worldspace. A zone template is not built: it throws `std::runtime_error`. So does a
-selector, generator or region spec name that is not registered, and a spec with no `generator_selector`, before anything
-is created; what a generator throws passes on, with nothing created.
+selector, generator or region spec name that is not registered, and a spec with no `generator_selector`, before any zone
+is built; what a generator throws passes on, with no zone built.
 
 A zone's level, a `level_type` (`std::int32_t`), is the z of its `ZonePosition`. Access point targets in the zone
 data state levels, and `resolve_target` matches zones by them. The loader sets a zone's `ZonePosition` from the
