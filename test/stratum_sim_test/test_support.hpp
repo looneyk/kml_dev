@@ -50,6 +50,7 @@ namespace stratum_sim_test
     // staircase leading up, in a zone made from data/walls.zone
     quetzal::stratum_sim::Generation test_generation();
 
+    // Returns a region spec with the generator selector and an extent of -10 .. 10 on each axis
     quetzal::stratum_sim::RegionSpec test_region_spec(const std::string& generator_selector_name);
 
     // Creates a worldspace from test_region_spec, named for the generator selector, and returns its top-level region's id

@@ -1393,7 +1393,7 @@ flecs::entity quetzal::stratum_sim::World::build_zone(PersistentId region_id, co
         const ZonePosition position {document.position->x(), document.position->y(), document.position->z()};
         const Worldspace& zone_worldspace = region_worldspace(region_id);
 
-        if (!zone_worldspace.extent.contains(position))
+        if (!zone_worldspace.contains(position))
         {
             const std::string message = std::format("{}: the zone's position ({}, {}, {}) is outside the extent of the worldspace {}", source,
                 position.x, position.y, position.z, zone_worldspace.name);

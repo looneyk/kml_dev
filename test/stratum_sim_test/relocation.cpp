@@ -296,9 +296,10 @@ namespace
         stratum_sim::PersistentId barrow_worldspace = world.create_worldspace("barrow", barrow_spec);
         const stratum_sim::Worldspace barrow = world.worldspace(barrow_worldspace);
 
-        CHECK_CASE("a worldspace has the extent and zone size its region spec states, and is unbounded on an axis it does not state",
-            !barrow.extent.x.has_value() && !barrow.extent.y.has_value() && barrow.extent.z.has_value() && barrow.extent.z->lower() == -10
-            && barrow.extent.z->upper() == -1 && barrow.zone_size == stratum_sim::discrete_vector_type(64, 32));
+        using extent_type = stratum_sim::Worldspace::extent_type;
+        CHECK_CASE("a worldspace has the extent and zone size in its region spec, each interval's upper bound included",
+            barrow.extent == extent_type(extent_type::point_type(-10, -10, -10), extent_type::point_type(11, 11, 0))
+            && barrow.zone_size == stratum_sim::discrete_vector_type(64, 32));
 
         auto creation_throws = [&](string_view key, string_view value)
         {
@@ -318,6 +319,9 @@ namespace
         CHECK_CASE("an extent that is not an interval of integers is an error", creation_throws("worldspace.extent.x", "east"));
         CHECK_CASE("and one whose lower bound is above its upper bound", creation_throws("worldspace.extent.x", "1 .. -1"));
         CHECK_CASE("and a zone size with one coordinate", creation_throws("worldspace.zone_size.x", "64"));
+        stratum_sim::RegionSpec unbounded_spec = test_region_spec("door");
+        unbounded_spec.keys.remove("worldspace.extent.y");
+        CHECK_THROWS_AS(world.create_worldspace("unbounded", unbounded_spec), runtime_error);
 
         stratum_sim::PersistentId barrow_region = top_level_region(world, barrow_worldspace);
         flecs::entity deep = world.create_zone(barrow_region, test_zone_spec(-4));

@@ -92,7 +92,8 @@ namespace
     stratum_sim::RegionSpec temporary_region_spec()
     {
         return stratum_sim::RegionSpec {quetzal::KeyValueStore {{std::string(stratum_sim::generator_selector_key), std::string(notation_generator_selector_name)},
-            {std::string(stratum_sim::entry_access_key), "staircase,1"}, {std::format("{}{}", stratum_sim::zone_prefix, stratum_sim::position_z_key), "-1"}}};
+            {std::string(stratum_sim::entry_access_key), "staircase,1"}, {std::format("{}{}", stratum_sim::zone_prefix, stratum_sim::position_z_key), "-1"},
+            {"worldspace.extent.x", "0 .. 0"}, {"worldspace.extent.y", "0 .. 0"}, {"worldspace.extent.z", "-100 .. 0"}}};
     }
 
     //--------------------------------------------------------------------------

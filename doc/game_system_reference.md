@@ -261,8 +261,7 @@ position the region's seed derives from.
 
 A top-level `RegionSpec`'s `worldspace.` keys, `worldspace_prefix`, state its worldspace's coordinate system:
 `worldspace.extent.x`, `.y` and `.z`, each an interval of integers written as `-10 .. -1`, and `worldspace.zone_size.x`
-and `.y`, a grid worldspace's zone size. An axis with no extent is unbounded, and a worldspace with no zone size is not
-a grid.
+and `.y`, a grid worldspace's zone size. Every axis has an extent, and a worldspace with no zone size is not a grid.
 
 `RegionSpec::position()` and `ZoneSpec::position()` return a spec's position, each coordinate it does not have 0, and
 throw `std::runtime_error` for one that is not an integer; `set_position` writes one. The zone file, the generators' parameters and
@@ -296,12 +295,13 @@ game, owned by `Game`, and it cannot be copied or moved.
 
 A worldspace is the coordinate system of its zones: the surface, a dungeon, a cave or a tower (`zone_plan.md`).
 `Worldspace` (`Worldspace.hpp`) is a value, not an entity: its `worldspace_id`, a `PersistentId`, its name, its `extent`,
-a `WorldspaceExtent` of three optional intervals, its `zone_size` if it is a grid, `zone_ids`, the persistent id of each
-zone that has a position, by its position, loaded or not, and `regions`, its `RegionTree`. `WorldspaceExtent::contains(position)`
-returns true if the extent contains a zone position, each of its intervals inclusive. `Worldspace::create(worldspace_id,
-name, region_spec, root_region)` returns a worldspace with the extent and zone size in a region spec's `worldspace.` keys,
-the top-level region, and no zones, and throws `std::runtime_error` for an extent that is not an interval of integers or
-whose lower bound is above its upper bound, and for a zone size with one coordinate. `World` has its worldspaces in a vector,
+an `extent_type`, a half-open `geometry::DiscreteBox<coord_type, 3>`, its `zone_size` if it is a grid, `zone_ids`, the
+persistent id of each zone that has a position, by its position, loaded or not, and `regions`, its `RegionTree`.
+`contains(position)` returns true if the extent contains a zone position. `Worldspace::create(worldspace_id, name,
+region_spec, root_region)` returns a worldspace with the extent and zone size in a region spec's `worldspace.` keys, each
+inclusive interval converted to the box's half-open range, the top-level region, and no zones. It throws
+`std::runtime_error` for an axis with no extent, an extent that is not an interval of integers or whose lower bound is
+above its upper bound, and a zone size with one coordinate. `World` has its worldspaces in a vector,
 `worldspaces()`, in the order they were created, which is id order. `worldspace(worldspace_id)` and `region(region_id)`
 return one, each a linear search, and a reference to either is valid until a worldspace is created or unloaded. An
 observer of `ZonePosition` lists a zone at its position when the position is set, so no two zones of a worldspace have

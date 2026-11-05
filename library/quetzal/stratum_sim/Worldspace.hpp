@@ -11,7 +11,7 @@
 #include "RegionTree.hpp"
 #include "Zone.hpp"
 #include "types.hpp"
-#include "quetzal/math/Interval.hpp"
+#include "quetzal/geometry/DiscreteBox.hpp"
 #include <map>
 #include <optional>
 #include <string>
@@ -21,28 +21,20 @@ namespace quetzal::stratum_sim
 {
 
     //--------------------------------------------------------------------------
-    // Inclusive interval extents, separately on each axis, may be unspecified to indicate no bounds on that axis
-    struct WorldspaceExtent
-    {
-        bool contains(const ZonePosition& position) const;
-
-        std::optional<math::Interval<coord_type>> x;
-        std::optional<math::Interval<coord_type>> y;
-        std::optional<math::Interval<coord_type>> z;
-    };
-
-    //--------------------------------------------------------------------------
     // The coordinate system of its zones, and the tree of regions rooted in it
     struct Worldspace
     {
-        // Returns a worldspace with the extent and zone size in a top-level region spec's worldspace keys, the top-level
-        // region, and no zones. Throws std::runtime_error if an extent is not an interval of integers, or the zone size has
-        // one coordinate without the other
+        using extent_type = geometry::DiscreteBox<coord_type, 3>;
+
+        // Returns a worldspace with the extent and zone size from a top-level region spec's worldspace keys, the top-level region, and no zones.
+        // Throws std::runtime_error on an invalid extent of interval format
         static Worldspace create(PersistentId worldspace_id, std::string_view name, const RegionSpec& region_spec, Region root_region);
+
+        bool contains(const ZonePosition& position) const;
 
         PersistentId worldspace_id;
         std::string name;
-        WorldspaceExtent extent;
+        extent_type extent;
         std::optional<discrete_vector_type> zone_size; // A grid worldspace's
         std::map<ZonePosition, PersistentId> zone_ids; // <position, zone_id>, loaded or saved
         RegionTree regions;

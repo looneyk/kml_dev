@@ -30,7 +30,13 @@ content is generated when it is needed. `zone_plan.md` defines the structure. Sa
 
 ```cpp
 // A request to create a region and its subregions, kept by the region it created
-using RegionSpec = KeyValueStore;
+struct RegionSpec
+{
+    RegionPosition position() const;
+    void set_position(const RegionPosition& position);
+
+    KeyValueStore keys;
+};
 // A key with no prefix is the region's: generator_selector, the name of the region's generator selector, its naming
 //     patterns, and its metadata: name, type (surface, dungeon, crypt, ...), competency level, difficulty, ...
 // worldspace.*: for a top-level region, its worldspace's coordinate system: its extent and, for a grid worldspace, its
@@ -44,7 +50,13 @@ using RegionSpec = KeyValueStore;
 // subregion.*: the names of the region specs of its subregions
 
 // A request to create a zone. The structure states the position; the selector adds the generator's parameters
-using ZoneSpec = KeyValueStore;
+struct ZoneSpec
+{
+    ZonePosition position() const;
+    void set_position(const ZonePosition& position);
+
+    KeyValueStore keys;
+};
 // name, position, ...
 // parameters.*: the zone's generation parameters, which its generator reads, the seed among them
 

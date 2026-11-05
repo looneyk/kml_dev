@@ -41,7 +41,8 @@ namespace
     sim::RegionSpec temporary_region_spec()
     {
         return sim::RegionSpec {quetzal::KeyValueStore {{std::string(sim::generator_selector_key), std::string(notation_generator_selector_name)},
-            {std::string(sim::entry_access_key), "staircase,1"}, {std::format("{}{}", sim::zone_prefix, sim::position_z_key), "-1"}}};
+            {std::string(sim::entry_access_key), "staircase,1"}, {std::format("{}{}", sim::zone_prefix, sim::position_z_key), "-1"},
+            {"worldspace.extent.x", "0 .. 0"}, {"worldspace.extent.y", "0 .. 0"}, {"worldspace.extent.z", "-100 .. 0"}}};
     }
 
     //--------------------------------------------------------------------------

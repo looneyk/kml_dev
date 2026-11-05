@@ -83,11 +83,12 @@ stratum_sim::Generation stratum_sim_test::test_generation()
     {
         return stratum_sim::Generation::GeneratorSelection {{}, {}, "staircase", zone_spec};
     };
-    generation.m_region_specs["staircase"] = stratum_sim::RegionSpec {quetzal::KeyValueStore {{string(stratum_sim::generator_selector_key),
-        "staircase"}}};
-    generation.m_region_specs["door"] = stratum_sim::RegionSpec {quetzal::KeyValueStore {{string(stratum_sim::generator_selector_key), "door"}}};
-    generation.m_region_specs["dungeon"] = stratum_sim::RegionSpec {quetzal::KeyValueStore {{string(stratum_sim::generator_selector_key), "staircase"},
-        {string(stratum_sim::entry_access_key), "staircase,1"}, {format("{}{}", stratum_sim::zone_prefix, stratum_sim::position_z_key), "-1"}}};
+    generation.m_region_specs["staircase"] = test_region_spec("staircase");
+    generation.m_region_specs["door"] = test_region_spec("door");
+    stratum_sim::RegionSpec dungeon_spec = test_region_spec("staircase");
+    dungeon_spec.keys.insert(string(stratum_sim::entry_access_key), "staircase,1");
+    dungeon_spec.keys.insert(format("{}{}", stratum_sim::zone_prefix, stratum_sim::position_z_key), "-1");
+    generation.m_region_specs["dungeon"] = dungeon_spec;
 
     return generation;
 }
@@ -95,7 +96,13 @@ stratum_sim::Generation stratum_sim_test::test_generation()
 //------------------------------------------------------------------------------
 stratum_sim::RegionSpec stratum_sim_test::test_region_spec(const string& generator_selector_name)
 {
-    return stratum_sim::RegionSpec {quetzal::KeyValueStore {{string(stratum_sim::generator_selector_key), generator_selector_name}}};
+    stratum_sim::RegionSpec region_spec {quetzal::KeyValueStore {{string(stratum_sim::generator_selector_key), generator_selector_name}}};
+    for (const auto& key : {stratum_sim::extent_x_key, stratum_sim::extent_y_key, stratum_sim::extent_z_key})
+    {
+        region_spec.keys.insert(format("{}{}", stratum_sim::worldspace_prefix, key), "-10 .. 10");
+    }
+
+    return region_spec;
 }
 
 //------------------------------------------------------------------------------
