@@ -518,7 +518,7 @@ namespace
         // data/door.zone: a door with a door facing on each wall of its doorway, and a staircase up on the wall above
         auto loaded = [&](const stratum_format::Document& document)
         {
-            flecs::entity zone = world.create_zone(world.region,
+            flecs::entity zone = world.create_zone(world.region_id,
                 document.zone_id.has_value() ? stratum_sim::PersistentId {*document.zone_id} : world.next_id());
             stratum_sim::load_layout(zone, document);
             return zone;
@@ -633,7 +633,7 @@ namespace
             R"("lever": { "opens": { "entity": 1 } })");
         CHECK_CASE("a document whose components are registered and fit is accepted", !stratum_sim::check_buildable(entities, document).has_value());
 
-        flecs::entity zone = world.create_zone(world.region, world.next_id());
+        flecs::entity zone = world.create_zone(world.region_id, world.next_id());
         vector<flecs::entity> referred_to = stratum_sim::load_layout(zone, document);
 
         flecs::entity door = stratum_sim::access_entity(stratum_sim::way_through(zone,
@@ -683,7 +683,7 @@ namespace
         CHECK_CASE("the components of rooms, walls, and flats that are registered and fit are accepted",
             !stratum_sim::check_buildable(entities, sectioned).has_value());
 
-        flecs::entity sectioned_zone = world.create_zone(world.region, world.next_id());
+        flecs::entity sectioned_zone = world.create_zone(world.region_id, world.next_id());
         stratum_sim::load_layout(sectioned_zone, sectioned);
         const stratum_sim::DiscreteLayout& layout = zone_layout(world, sectioned_zone);
 
@@ -748,7 +748,7 @@ namespace
         layout->set_cell_walls(stratum_sim::discrete_point_type {0, 0}, stratum_sim::direction_mask(CardinalDirection::North));
         id_type north_wall = layout->wall_toward(stratum_sim::discrete_point_type {0, 0}, cardinal_direction(CardinalDirection::North));
 
-        flecs::entity zone = world.create_zone(world.region, std::move(layout));
+        flecs::entity zone = world.create_zone(world.region_id, std::move(layout));
         auto placed_at = [&](stratum_sim::discrete_point_type cell_position)
         {
             return world.create_entity(zone, stratum_sim::placement_type(zone_layout(world, zone).position(cell_position),
@@ -825,7 +825,7 @@ namespace
         id_type north_wall = layout->wall_toward(stratum_sim::discrete_point_type {1, 1}, cardinal_direction(CardinalDirection::North));
         id_type floor_id = layout->floor_id();
 
-        flecs::entity zone = world.create_zone(world.region, std::move(layout));
+        flecs::entity zone = world.create_zone(world.region_id, std::move(layout));
 
         auto attached_to = [](flecs::entity layout_entity)
         {

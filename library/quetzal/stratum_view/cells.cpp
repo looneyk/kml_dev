@@ -6,7 +6,6 @@
 #include "cells.hpp"
 #include "quetzal/stratum_sim/attachments.hpp"
 #include "quetzal/stratum_sim/DiscreteLayout.hpp"
-#include "quetzal/stratum_sim/positions.hpp"
 #include "quetzal/stratum_sim/Site.hpp"
 #include <variant>
 #include <cassert>

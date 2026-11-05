@@ -252,8 +252,9 @@ its subtree, in persistent id order, as its inventory, each encoded as an `Entit
 ### Generation
 
 `Generation` has the registries that `World` creates worldspaces, regions and zones from (`world_generation_plan.md`),
-each a map from a name: `m_generator_selectors`, `m_generators` and `m_region_specs`. `RegionSpec` and `ZoneSpec` are
-both `KeyValueStore`. A `RegionSpec`'s `generator_selector`, `generator_selector_key`, is the name of the region's
+each a map from a name: `m_generator_selectors`, `m_generators` and `m_region_specs`. `RegionSpec` (`RegionSpec.hpp`)
+and `ZoneSpec` (`ZoneSpec.hpp`) are the types of a region spec and a zone spec, and the `keys` of each, a `KeyValueStore`,
+contain the spec's keys. A `RegionSpec`'s `generator_selector`, `generator_selector_key`, is the name of the region's
 selector. A `ZoneSpec`'s `position.x`, `position.y` and `position.z`, `position_x_key`, `position_y_key` and
 `position_z_key`, are the zone's position in its worldspace, and a `RegionSpec`'s `position.x` and `position.y` the
 position the region's seed derives from.
@@ -263,16 +264,9 @@ A top-level `RegionSpec`'s `worldspace.` keys, `worldspace_prefix`, state its wo
 and `.y`, a grid worldspace's zone size. An axis with no extent is unbounded, and a worldspace with no zone size is not
 a grid.
 
-`positions.hpp` has the functions of positions and worldspaces. `zone_position(zone_spec)` and
-`region_position(region_spec)` return a spec's position, each coordinate it does not have 0, and throw
-`std::runtime_error` for one that is not an integer; `set_zone_position` and `set_region_position` write one.
-`contains(box, position)` returns true if a `ZoneBox` contains a zone position, each of its intervals inclusive.
-`make_worldspace(name, region_spec)` returns the `Worldspace` that a region spec's `worldspace.` keys state, with no
-zones, and throws `std::runtime_error` for an extent that is not an interval of integers or whose lower bound is above
-its upper bound, and for a zone size with one coordinate. Two are placeholders: `new_zone_position(world, worldspace,
-level)` returns `(0, 0, level)` until the world's layout is designed, and `new_region_position(world)` returns the x one
-past the largest of the world's region specs, or 0 with none, and y 0, until seeds are drawn hierarchically. The zone
-file, the generators' parameters and `ZoneRequest` state a position.
+`RegionSpec::position()` and `ZoneSpec::position()` return a spec's position, each coordinate it does not have 0, and
+throw `std::runtime_error` for one that is not an integer; `set_position` writes one. The zone file, the generators' parameters and
+`ZoneRequest` state a position.
 
 `seeds.hpp` derives region and zone seeds. `derived_seed(seed, coordinates)` returns a 64-bit seed that
 `std::seed_seq` generates from the seed's low and high 32-bit words followed by each coordinate, so a derived seed is the
@@ -286,7 +280,7 @@ among the known keys, in key order, so a consumer reports a key it does not read
 the entries whose keys begin with the prefix, with the prefix removed, so one part of a spec, such as its `zone.` keys,
 becomes a spec of its own.
 
-A generator selector, `generator_selector_type`, is given the world, the region and the `ZoneSpec`, and returns a
+A generator selector, `generator_selector_type`, is given the world, the `Region` and the `ZoneSpec`, and returns a
 `GeneratorSelection`, which sets exactly one of a generator's name, a zone template's tag, and a region spec's name,
 with the `ZoneSpec` the zone is created from. A generator, `generator_type`, returns the `stratum_format::Document` a
 zone is built from, and reads nothing from the world. `Generation.hpp` declares `Document` without including its
@@ -300,49 +294,64 @@ id. A zone is an entity with the `Zone` tag, a `ZoneLayout` component that owns 
 `std::unique_ptr<Layout>`, a `ZonePlacementIndex`, and a `ZoneNotation`. Deleting the entity deletes the layout. There is one `World` in a
 game, owned by `Game`, and it cannot be copied or moved.
 
-A worldspace is the coordinate system of its zones: the surface, a dungeon, a cave or a tower (`zone_plan.md`). It is an
-entity with a `Worldspace` component and a `PersistentId`, with no parent, and it is the parent of its zones and of its
-top-level region. `Worldspace` has the worldspace's name, its `extent`, a `ZoneBox` of three optional intervals, its
-`zone_size` if it is a grid, and `zone_ids`, the persistent id of each zone that has a position, by its position, loaded
-or not. An observer of `ZonePosition` lists a zone at its position when the position is set, so no two zones of a
-worldspace have one position; zones of different worldspaces may.
+A worldspace is the coordinate system of its zones: the surface, a dungeon, a cave or a tower (`zone_plan.md`).
+`Worldspace` (`Worldspace.hpp`) is a value, not an entity: its `worldspace_id`, a `PersistentId`, its name, its `extent`,
+a `WorldspaceExtent` of three optional intervals, its `zone_size` if it is a grid, `zone_ids`, the persistent id of each
+zone that has a position, by its position, loaded or not, and `regions`, its `RegionTree`. `WorldspaceExtent::contains(position)`
+returns true if the extent contains a zone position, each of its intervals inclusive. `Worldspace::create(worldspace_id,
+name, region_spec, root_region)` returns a worldspace with the extent and zone size in a region spec's `worldspace.` keys,
+the top-level region, and no zones, and throws `std::runtime_error` for an extent that is not an interval of integers or
+whose lower bound is above its upper bound, and for a zone size with one coordinate. `World` has its worldspaces in a vector,
+`worldspaces()`, in the order they were created, which is id order. `worldspace(worldspace_id)` and `region(region_id)`
+return one, each a linear search, and a reference to either is valid until a worldspace is created or unloaded. An
+observer of `ZonePosition` lists a zone at its position when the position is set, so no two zones of a worldspace have
+one position; zones of different worldspaces may.
 
-A region groups zones of one worldspace: a dungeon, a crypt, a tower or a house. It is an entity with a `Region`
-component and a `PersistentId`, and a top-level region is a child of its worldspace. `Region` has the region's name,
-its `RegionSpec`, `zone_ids`, the persistent id of each zone created in it, in the order they were created, loaded or
-not, so its size is the region's zone count, `named_zone_ids`, the persistent id of each of its zones by its name, and
-`name_counter`, the last suffix given to a name of its zones that was taken. A zone is listed when it is generated,
-loaded from a template, or created with a layout. A saved zone read back was listed when it was created, so it is not
-listed again, and it is how `World` finds the region to read an unloaded zone back into. A zone refers to its region
-through the exclusive `InRegion` relationship.
+A region groups zones of one worldspace: a dungeon, a crypt, a tower or a house. `Region` (`Region.hpp`) is a value too:
+its `region_id`, its `parent_id` if it is a subregion, its `subregion_ids`, its name, its `RegionSpec`, `zone_ids`, the
+persistent id of each zone created in it, in the order they were created, loaded or not, so its size is the region's
+zone count, `named_zone_ids`, the persistent id of each of its zones by its name, and `name_counter`, the last suffix
+given to a name of its zones that was taken. A zone is listed when it is generated, loaded from a template, or created
+with a layout. A saved zone read back was listed when it was created, so it is not listed again, and it is how `World`
+finds the region to read an unloaded zone back into.
+
+`RegionTree` (`RegionTree.hpp`) contains a worldspace's regions, rooted in its top-level region, which it is constructed
+with. `regions()` has the top-level region first and each region before its subregions; `root()`,
+`region(region_id)` and `contains(region_id)` find one; `add_subregion(parent_id, subregion)` adds one, setting its
+parent and listing it in the parent's `subregion_ids`; and `extended_name(region_id)` returns the name of each region
+from the top-level region down to the region, joined by `/`. `World` creates only top-level regions, and `save` asserts
+that each worldspace has one region.
+
+A zone has no parent. Its `ZoneWorldspace` and `ZoneRegion` components have the ids of the worldspace and the region it
+is in, which `worldspace_of(zone)` and `region_of(zone)` return.
 
 A name has a numeric suffix only if it is taken (`zone_plan.md`, `## Implementation`): `untaken_name(name, counter,
 taken)` returns the name, or else `<name>_<counter>` for the first counter after the given one whose name is not taken,
 and keeps that counter. `create_worldspace(name, region_spec)` makes a worldspace with the name, suffixed from the
 world's counter if another worldspace has it, and the coordinate system the spec states, and its top-level region with
-the same name and the spec, writing `new_region_position` into a copy of the spec if it has neither position key, so
-the seed's position is saved with the spec in `world.json`; it returns the worldspace. A zone that `World` builds or
+the same name and the spec, writing `new_region_position()` into a copy of the spec if it has neither position key, so
+the seed's position is saved with the spec in `world.json`; it returns the worldspace's id. `new_region_position()` is a
+placeholder until seeds are drawn hierarchically, and returns the x one past the largest of the world's region specs,
+or 0 with none, and y 0. A zone that `World` builds or
 creates with a layout has a name unique in its region, suffixed from the region's counter if another zone of the
 region has it. A zone made from a spec has the name of its pattern: the selection's `ZoneSpec`'s `name`, or else the
 region spec's `zone.name`, or else the region's name followed by `_{x}_{y}` in a grid worldspace and `_{x}_{y}_{z}`
 otherwise. `zone_name(pattern, position)` replaces each `{x}`, `{y}` and `{z}` with that coordinate. A zone read from a
 file has the file's name, or else the default pattern's name if it has a position, or else the region's name.
-`extended_name(e)` returns a worldspace's name; for a region, the name of each region from the top-level region down to
-it, joined by `/`; and for a zone, its worldspace's name and the zone's name, such as `dungeon/Level -2`. `create_worldspace_zone(name,
-region_spec, zone_spec)` makes a worldspace, then the first zone of its region with `create_zone`, and returns the zone.
-`worldspace_of(zone)` returns a zone's worldspace, its parent; `region_of(zone)` returns its region; and
-`top_level_region(worldspace)` returns a worldspace's region. `zone_of` is unchanged by the worldspace above a zone: it
-returns a null entity for a zone itself. `unload_worldspace(worldspace)` unloads every zone of the worldspace, then deletes
-the worldspace, which deletes its region and all its zones; each zone's unload completes in the `PersistentId` observer.
+`World::extended_name(zone)` returns a zone's worldspace's name and the zone's name, joined by `/`, such as
+`dungeon/Level -2`. `create_worldspace_zone(name, region_spec, zone_spec)` makes a worldspace, then the first zone of its
+region with `create_zone`, and returns the zone. `zone_of` returns a null entity for a zone itself.
+`unload_worldspace(worldspace_id)` unloads every zone of the worldspace, each completing in the `PersistentId` observer,
+then removes the worldspace and its regions.
 
-Every zone is made in a region. `create_zone(region, zone_id)` makes an empty zone in the region, a child of the region's
-worldspace with the `Zone` tag and that `PersistentId`, for a generator or the loader to fill. `create_zone(region, layout)` makes one with a new id,
+Every zone is made in a region. `create_zone(region_id, zone_id)` makes an empty zone in the region, with the `Zone` tag,
+its `ZoneWorldspace` and `ZoneRegion`, and that `PersistentId`, for a generator or the loader to fill. `create_zone(region_id, layout)` makes one with a new id,
 that layout and nothing else, and asserts that it is given a layout. Each zone is identified by its persistent id, and its name is unique in its region. `zone_count` and `layout` access the zones, with
 `layout` returning the interface; `create_entity`, `move` and `relocate` operate on their contents; and `unload_zone`
 discards a zone, its contents and its layout.
 
 `World` takes the game's `Generation` by reference in its constructor (`### Generation`). `world_seed()` and
-`set_world_seed(seed)` access the world seed, which is 0 until it is set. `create_zone(region,
+`set_world_seed(seed)` access the world seed, which is 0 until it is set. `create_zone(region_id,
 zone_spec)` creates a zone in a region that has a spec, as the region's generator selector chooses. The selector, named
 by the spec's `generator_selector`, is given the world, the region and a copy of the `ZoneSpec` whose `seed` is
 `zone_seed(region_seed(world_seed, region_spec), zone_spec)`, and returns a `GeneratorSelection`. For a generator, `create_zone` calls it with the selection's `ZoneSpec`, sets the `Document` it
@@ -363,7 +372,8 @@ unbound target is a level with no position: relative, `+`*k* or `-`*k*, or absol
 must have a level, *L*. A target with a named zone or a position throws `std::runtime_error`. The target level is *L* + *k*,
 or *n*, which is *k* levels from *L*.
 
-The target's position is `new_zone_position` for the target level. A target with a region creates a new worldspace with
+The target's position is `new_zone_position(worldspace_id, level)` for the target level, a placeholder that returns
+`(0, 0, level)` until the world's layout is designed. A target with a region creates a new worldspace with
 `create_worldspace_zone`, from the region spec of that name, and its first zone at the position. A region spec that is
 not registered throws `std::runtime_error`.
 
@@ -372,7 +382,7 @@ With the region omitted, it looks up the zone at the position in the access poin
 arrives and the offset -*k*: the lowest-ordered access point of the type that accepts the arrival (`accepts_arrival`),
 one with no target, which is arrival only, or an unbound one that leads back, whose target is level *L*, -*k* levels
 from its own zone (`targets_level`). A zone at the position with no such access point throws `std::runtime_error`. If
-the worldspace has no zone at the position, it makes one in the access point's region with `create_zone(region,
+the worldspace has no zone at the position, it makes one in the access point's region with `create_zone(region_id,
 zone_spec)`, with a `ZoneSpec` at the position.
 
 For a zone it makes, it returns the zone's `entry_point` for the arrival type and the offset -*k*. If the new zone has
@@ -401,7 +411,7 @@ The gameplay random engine is process-wide, and is passed to no function or cons
 and locks its mutex for the whole of each one, so threads drawing at once never corrupt its state. Its mutex and its
 `random_type` are private, and no member returns either.
 
-`load_zone(region, filepath)` reads the file and builds the zone from its document, which it checks with `check_buildable` before making the zone. The zone has the file's persistent id if the file has
+`load_zone(region_id, filepath)` reads the file and builds the zone from its document, which it checks with `check_buildable` before making the zone. The zone has the file's persistent id if the file has
 a `zone` section, and a new one otherwise. `load_zone` then has `load_layout` fill the zone and populates it if its
 document is unpopulated. It throws `std::runtime_error`, having made nothing, if the reader
 rejects the file, `check_buildable` finds a reason, or the file is a saved zone that is already loaded; a template makes a
@@ -466,7 +476,7 @@ ascending id order, which the zone's placement index returns (`### PlacementInde
 placement or a cell position, through `DiscretePlacementIndex`. `placement_index(zone)` returns the index.
 
 A zone's `ZonePlacementIndex` owns its index. `set_layout(zone, layout)` sets the zone's `ZoneLayout` and the empty
-index the layout creates, and `create_zone(region, layout)` and `load_layout` set a zone's layout through it. Observers on
+index the layout creates, and `create_zone(region_id, layout)` and `load_layout` set a zone's layout through it. Observers on
 `Site` keep the index current. An entity that is a child of a zone, or is in it through `InZone`, is placed in the
 zone's index when its site is set with no address, and removed when its site gains an address or is removed. An entity
 in a zone through another entity, such as a coin in a chest, is not indexed. Every change of zone, through `reparent` or

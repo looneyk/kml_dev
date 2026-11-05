@@ -14,7 +14,6 @@
 #include "layout_entities.hpp"
 #include "load_layout.hpp"
 #include "make_document.hpp"
-#include "positions.hpp"
 #include "properties.hpp"
 #include "seeds.hpp"
 #include "Site.hpp"
@@ -63,11 +62,9 @@ namespace
     //--------------------------------------------------------------------------
     // The name pattern of a zone of the region when its specs state none: the region's name and the zone's coordinates,
     // x and y in a grid worldspace and all three otherwise
-    std::string default_zone_name_pattern(flecs::entity region)
+    std::string default_zone_name_pattern(const quetzal::stratum_sim::Worldspace& worldspace, const quetzal::stratum_sim::Region& region)
     {
-        using namespace quetzal::stratum_sim;
-        const bool grid = region.parent().get<Worldspace>().zone_size.has_value();
-        return region.get<Region>().name + (grid ? "_{x}_{y}" : "_{x}_{y}_{z}");
+        return region.name + (worldspace.zone_size.has_value() ? "_{x}_{y}" : "_{x}_{y}_{z}");
     }
 
     //--------------------------------------------------------------------------
@@ -308,13 +305,12 @@ quetzal::stratum_sim::World::World(IdAllocator& id_allocator, Generation& genera
 {
     // Registered before the observers, whose callbacks must not register a component mid-operation
     m_entities.component<Zone>();
-    m_entities.component<Region>();
-    m_entities.component<Worldspace>();
     m_entities.component<ZonePosition>().member(&ZonePosition::x, "x").member(&ZonePosition::y, "y").member(&ZonePosition::z, "z");
     m_entities.component<ZoneDocument>();
     m_entities.component<ZonePlacementIndex>();
     m_entities.component<InZone>().add(flecs::Exclusive);
-    m_entities.component<InRegion>().add(flecs::Exclusive);
+    m_entities.component<ZoneWorldspace>();
+    m_entities.component<ZoneRegion>();
     m_entities.component<PersistentId>().member(&PersistentId::id, "id");
     m_entities.component<EntityReference>()
         .member(&EntityReference::persistent_id, "persistent_id")
@@ -360,9 +356,9 @@ quetzal::stratum_sim::World::World(IdAllocator& id_allocator, Generation& genera
     // A zone with a position is listed in its worldspace at that position, and only there
     m_entities.observer<const ZonePosition>()
         .event(flecs::OnSet)
-        .each([](flecs::entity zone, const ZonePosition& position)
+        .each([this](flecs::entity zone, const ZonePosition& position)
         {
-            std::map<ZonePosition, PersistentId>& zone_ids = worldspace_of(zone).get_mut<Worldspace>().zone_ids;
+            std::map<ZonePosition, PersistentId>& zone_ids = worldspace(worldspace_of(zone)).zone_ids;
             const PersistentId zone_id = zone.get<PersistentId>();
 
             std::erase_if(zone_ids, [&](const auto& positioned_zone) { return positioned_zone.second == zone_id && positioned_zone.first != position; });
@@ -546,12 +542,9 @@ quetzal::stratum_sim::World::World(IdAllocator& id_allocator, Generation& genera
 //------------------------------------------------------------------------------
 void quetzal::stratum_sim::World::clear()
 {
-    entities_type worldspaces;
-    m_entities.query_builder<const Worldspace>().build().each([&](flecs::entity worldspace, const Worldspace&) { worldspaces.push_back(worldspace); });
-
-    for (flecs::entity worldspace : worldspaces)
+    while (!m_worldspaces.empty())
     {
-        unload_worldspace(worldspace);
+        unload_worldspace(m_worldspaces.back().worldspace_id);
     }
 
     m_entity_zones.clear();
@@ -581,7 +574,7 @@ flecs::entity quetzal::stratum_sim::World::create(std::string_view region_spec_n
     m_game_directory = game_directory;
 
     const RegionSpec& region_spec = registered(m_generation.m_region_specs, "region spec", std::string(region_spec_name));
-    std::string entry_access = region_spec.value_or(entry_access_key, std::string());
+    std::string entry_access = region_spec.keys.value_or(entry_access_key, std::string());
     size_t comma = entry_access.find(',');
     flecs::entity entry_type = comma != std::string::npos ? access_type(m_entities, entry_access.substr(0, comma)) : flecs::entity();
     std::optional<level_type> entry_offset = comma != std::string::npos ? try_type<level_type>(entry_access.substr(comma + 1)) : std::nullopt;
@@ -592,7 +585,7 @@ flecs::entity quetzal::stratum_sim::World::create(std::string_view region_spec_n
             entry_access_key, entry_access));
     }
 
-    flecs::entity zone = create_worldspace_zone(region_spec_name, region_spec, select_prefixed(region_spec, zone_prefix));
+    flecs::entity zone = create_worldspace_zone(region_spec_name, region_spec, ZoneSpec {select_prefixed(region_spec.keys, zone_prefix)});
     flecs::entity entry = entry_point(zone, entry_type, *entry_offset);
 
     if (!entry)
@@ -613,10 +606,10 @@ void quetzal::stratum_sim::World::open(const std::filesystem::path& game_directo
     for (const stratum_format::WorldDocument::Worldspace& document_worldspace : document.worldspaces)
     {
         const stratum_format::WorldDocument::Region& document_region = document_worldspace.region;
-        flecs::entity worldspace = create_worldspace(document_worldspace.name, document_region.spec, PersistentId {document_worldspace.id},
-            PersistentId {document_region.id});
-        std::map<ZonePosition, PersistentId>& positioned_zone_ids = worldspace.get_mut<Worldspace>().zone_ids;
-        Region& region = top_level_region(worldspace).get_mut<Region>();
+        Worldspace& worldspace = create_worldspace(document_worldspace.name, RegionSpec {document_region.spec},
+            PersistentId {document_worldspace.id}, PersistentId {document_region.id});
+        std::map<ZonePosition, PersistentId>& positioned_zone_ids = worldspace.zone_ids;
+        Region& region = worldspace.regions.root();
         region.name = document_region.name;
         region.name_counter = document_region.name_counter;
 
@@ -652,25 +645,22 @@ void quetzal::stratum_sim::World::save()
 {
     assert(m_game_directory.has_value());
 
-    entities_type worldspaces;
-    m_entities.query_builder<const Worldspace>().build().each([&](flecs::entity worldspace, const Worldspace&) { worldspaces.push_back(worldspace); });
-    std::ranges::sort(worldspaces, {}, [](flecs::entity worldspace) { return worldspace.get<PersistentId>(); });
-
     stratum_format::WorldDocument document;
     document.version = std::string(stratum_format::saved_game_format_version);
     document.name_counter = m_worldspace_name_counter;
 
-    for (flecs::entity worldspace : worldspaces)
+    // Worldspaces are created in id order
+    for (const Worldspace& worldspace : m_worldspaces)
     {
-        const Worldspace& worldspace_data = worldspace.get<Worldspace>();
+        assert(worldspace.regions.regions().size() == 1);
+
         std::map<PersistentId, ZonePosition> zone_positions; // <zone_id, position>
-        for (const auto& [position, zone_id] : worldspace_data.zone_ids)
+        for (const auto& [position, zone_id] : worldspace.zone_ids)
         {
             zone_positions.emplace(zone_id, position);
         }
 
-        flecs::entity region = top_level_region(worldspace);
-        const Region& region_data = region.get<Region>();
+        const Region& region_data = worldspace.regions.root();
         std::map<PersistentId, std::string> zone_names; // <zone_id, name>
         for (const auto& [name, zone_id] : region_data.named_zone_ids)
         {
@@ -678,10 +668,10 @@ void quetzal::stratum_sim::World::save()
         }
 
         stratum_format::WorldDocument::Region document_region;
-        document_region.id = region.get<PersistentId>().id;
+        document_region.id = region_data.region_id.id;
         document_region.name = region_data.name;
         document_region.name_counter = region_data.name_counter;
-        document_region.spec = region_data.region_spec;
+        document_region.spec = region_data.region_spec.keys;
 
         for (PersistentId zone_id : region_data.zone_ids)
         {
@@ -700,7 +690,7 @@ void quetzal::stratum_sim::World::save()
             document_region.zones.push_back(std::move(document_zone));
         }
 
-        document.worldspaces.push_back(stratum_format::WorldDocument::Worldspace {worldspace.get<PersistentId>().id, worldspace_data.name,
+        document.worldspaces.push_back(stratum_format::WorldDocument::Worldspace {worldspace.worldspace_id.id, worldspace.name,
             std::move(document_region)});
     }
 
@@ -759,43 +749,116 @@ size_t quetzal::stratum_sim::World::zone_count() const
 }
 
 //------------------------------------------------------------------------------
-flecs::entity quetzal::stratum_sim::World::create_worldspace(std::string_view name, const RegionSpec& region_spec)
+const quetzal::stratum_sim::World::worldspaces_type& quetzal::stratum_sim::World::worldspaces() const
+{
+    return m_worldspaces;
+}
+
+//------------------------------------------------------------------------------
+quetzal::stratum_sim::Worldspace& quetzal::stratum_sim::World::worldspace(PersistentId worldspace_id)
+{
+    auto i = std::ranges::find(m_worldspaces, worldspace_id, &Worldspace::worldspace_id);
+    assert(i != m_worldspaces.end());
+    return *i;
+}
+
+//------------------------------------------------------------------------------
+const quetzal::stratum_sim::Worldspace& quetzal::stratum_sim::World::worldspace(PersistentId worldspace_id) const
+{
+    auto i = std::ranges::find(m_worldspaces, worldspace_id, &Worldspace::worldspace_id);
+    assert(i != m_worldspaces.end());
+    return *i;
+}
+
+//------------------------------------------------------------------------------
+quetzal::stratum_sim::Region& quetzal::stratum_sim::World::region(PersistentId region_id)
+{
+    return region_worldspace(region_id).regions.region(region_id);
+}
+
+//------------------------------------------------------------------------------
+const quetzal::stratum_sim::Region& quetzal::stratum_sim::World::region(PersistentId region_id) const
+{
+    return region_worldspace(region_id).regions.region(region_id);
+}
+
+//------------------------------------------------------------------------------
+quetzal::stratum_sim::PersistentId quetzal::stratum_sim::World::create_worldspace(std::string_view name, const RegionSpec& region_spec)
 {
     RegionSpec positioned_spec = region_spec;
-    if (!region_spec.contains(position_x_key) && !region_spec.contains(position_y_key))
+    if (!region_spec.keys.contains(position_x_key) && !region_spec.keys.contains(position_y_key))
     {
-        set_region_position(positioned_spec, new_region_position(*this));
+        positioned_spec.set_position(new_region_position());
     }
 
     const std::string untaken = untaken_name(std::string(name), m_worldspace_name_counter, [this](const std::string& candidate)
     {
-        bool taken = false;
-        m_entities.each([&](flecs::entity, const Worldspace& worldspace) { taken = taken || worldspace.name == candidate; });
-        return taken;
+        return std::ranges::contains(m_worldspaces, candidate, &Worldspace::name);
     });
 
     const PersistentId worldspace_id = next_id();
     const PersistentId region_id = next_id();
-    return create_worldspace(untaken, positioned_spec, worldspace_id, region_id);
+    return create_worldspace(untaken, positioned_spec, worldspace_id, region_id).worldspace_id;
 }
 
 //------------------------------------------------------------------------------
-flecs::entity quetzal::stratum_sim::World::create_worldspace(std::string_view name, const RegionSpec& region_spec, PersistentId worldspace_id,
-    PersistentId region_id)
+quetzal::stratum_sim::Worldspace& quetzal::stratum_sim::World::create_worldspace(std::string_view name, const RegionSpec& region_spec,
+    PersistentId worldspace_id, PersistentId region_id)
 {
-    Worldspace worldspace_data = make_worldspace(name, region_spec);
-    flecs::entity worldspace = m_entities.entity().set<Worldspace>(std::move(worldspace_data)).set<PersistentId>(worldspace_id);
-    flecs::entity region = m_entities.entity().add<Region>().child_of(worldspace).set<PersistentId>(region_id);
-    Region& region_data = region.get_mut<Region>();
-    region_data.name = std::string(name);
-    region_data.region_spec = region_spec;
-    return worldspace;
+    Region root_region;
+    root_region.region_id = region_id;
+    root_region.name = std::string(name);
+    root_region.region_spec = region_spec;
+
+    m_worldspaces.push_back(Worldspace::create(worldspace_id, name, region_spec, std::move(root_region)));
+    return m_worldspaces.back();
+}
+
+//------------------------------------------------------------------------------
+quetzal::stratum_sim::Worldspace& quetzal::stratum_sim::World::region_worldspace(PersistentId region_id)
+{
+    auto i = std::ranges::find_if(m_worldspaces, [region_id](const Worldspace& candidate) { return candidate.regions.contains(region_id); });
+    assert(i != m_worldspaces.end());
+    return *i;
+}
+
+//------------------------------------------------------------------------------
+const quetzal::stratum_sim::Worldspace& quetzal::stratum_sim::World::region_worldspace(PersistentId region_id) const
+{
+    auto i = std::ranges::find_if(m_worldspaces, [region_id](const Worldspace& candidate) { return candidate.regions.contains(region_id); });
+    assert(i != m_worldspaces.end());
+    return *i;
+}
+
+//------------------------------------------------------------------------------
+quetzal::stratum_sim::RegionPosition quetzal::stratum_sim::World::new_region_position() const
+{
+    bool any_region = false;
+    coord_type x_max = 0;
+
+    for (const auto& worldspace : m_worldspaces)
+    {
+        for (const auto& region : worldspace.regions.regions())
+        {
+            const coord_type x = region.region_spec.position().x;
+            x_max = any_region ? std::max(x_max, x) : x;
+            any_region = true;
+        }
+    }
+
+    return {any_region ? x_max + 1 : 0, 0};
+}
+
+//------------------------------------------------------------------------------
+quetzal::stratum_sim::ZonePosition quetzal::stratum_sim::World::new_zone_position(PersistentId, level_type level) const
+{
+    return {0, 0, level};
 }
 
 //------------------------------------------------------------------------------
 void quetzal::stratum_sim::World::name_zone(flecs::entity zone)
 {
-    flecs::entity region = region_of(zone);
+    Region& region_data = region(region_of(zone));
     const PersistentId zone_id = zone.get<PersistentId>();
     std::string name;
 
@@ -805,14 +868,13 @@ void quetzal::stratum_sim::World::name_zone(flecs::entity zone)
     }
     else if (const auto* position = zone.try_get<ZonePosition>())
     {
-        name = zone_name(default_zone_name_pattern(region), *position);
+        name = zone_name(default_zone_name_pattern(worldspace(worldspace_of(zone)), region_data), *position);
     }
     else
     {
-        name = region.get<Region>().name;
+        name = region_data.name;
     }
 
-    Region& region_data = region.get_mut<Region>();
     std::string untaken = untaken_name(name, region_data.name_counter, [&](const std::string& candidate)
     {
         auto i = region_data.named_zone_ids.find(candidate);
@@ -828,66 +890,75 @@ void quetzal::stratum_sim::World::name_zone(flecs::entity zone)
 //------------------------------------------------------------------------------
 flecs::entity quetzal::stratum_sim::World::create_worldspace_zone(std::string_view name, const RegionSpec& region_spec, const ZoneSpec& zone_spec)
 {
-    return create_zone(top_level_region(create_worldspace(name, region_spec)), zone_spec);
+    return create_zone(worldspace(create_worldspace(name, region_spec)).regions.root().region_id, zone_spec);
 }
 
 //------------------------------------------------------------------------------
-void quetzal::stratum_sim::World::unload_worldspace(flecs::entity worldspace)
+void quetzal::stratum_sim::World::unload_worldspace(PersistentId worldspace_id)
 {
-    assert(worldspace && worldspace.has<Worldspace>());
-
-    // Each zone's unload finishes in the PersistentId observer
-    worldspace.children([&](flecs::entity child)
+    entities_type worldspace_zones;
+    m_entities.each([&](flecs::entity zone, const ZoneWorldspace& zone_worldspace)
     {
-        if (child.has<Zone>())
+        if (zone_worldspace.worldspace_id == worldspace_id && !m_zones_unloading.contains(zone.get<PersistentId>()))
         {
-            m_zones_unloading.insert(child.get<PersistentId>());
+            worldspace_zones.push_back(zone);
         }
     });
 
-    worldspace.destruct();
+    for (flecs::entity zone : worldspace_zones)
+    {
+        unload_zone(zone);
+    }
+
+    [[maybe_unused]] std::size_t erased_count = std::erase_if(m_worldspaces, [worldspace_id](const Worldspace& worldspace)
+    {
+        return worldspace.worldspace_id == worldspace_id;
+    });
+    assert(erased_count == 1);
 
     return;
 }
 
 //------------------------------------------------------------------------------
-flecs::entity quetzal::stratum_sim::World::create_zone(flecs::entity region, PersistentId zone_id)
+flecs::entity quetzal::stratum_sim::World::create_zone(PersistentId region_id, PersistentId zone_id)
 {
-    assert(region && region.has<Region>() && region.parent().has<Worldspace>());
-    return m_entities.entity().add<Zone>().child_of(region.parent()).add<InRegion>(region).set<PersistentId>(zone_id);
+    return m_entities.entity()
+        .add<Zone>()
+        .set<ZoneWorldspace>(ZoneWorldspace {region_worldspace(region_id).worldspace_id})
+        .set<ZoneRegion>(ZoneRegion {region_id})
+        .set<PersistentId>(zone_id);
 }
 
 //------------------------------------------------------------------------------
-flecs::entity quetzal::stratum_sim::World::create_zone(flecs::entity region, std::unique_ptr<Layout> layout)
+flecs::entity quetzal::stratum_sim::World::create_zone(PersistentId region_id, std::unique_ptr<Layout> layout)
 {
     assert(layout != nullptr);
 
-    flecs::entity zone = create_zone(region, next_id());
+    flecs::entity zone = create_zone(region_id, next_id());
     set_layout(zone, std::move(layout));
-    region.get_mut<Region>().zone_ids.push_back(zone.get<PersistentId>());
+    region(region_id).zone_ids.push_back(zone.get<PersistentId>());
     name_zone(zone);
 
     return zone;
 }
 
 //------------------------------------------------------------------------------
-flecs::entity quetzal::stratum_sim::World::create_zone(flecs::entity region, const ZoneSpec& zone_spec)
+flecs::entity quetzal::stratum_sim::World::create_zone(PersistentId region_id, const ZoneSpec& zone_spec)
 {
-    assert(region && region.has<Region>());
-
-    const RegionSpec& region_spec = region.get<Region>().region_spec;
-    std::optional<std::string> selector_name = region_spec.value(generator_selector_key);
+    const Region& region_data = region(region_id);
+    const RegionSpec& region_spec = region_data.region_spec;
+    std::optional<std::string> selector_name = region_spec.keys.value(generator_selector_key);
 
     if (!selector_name.has_value())
     {
-        throw std::runtime_error(std::format("region {} has no {}", region.get<PersistentId>().id, generator_selector_key));
+        throw std::runtime_error(std::format("region {} has no {}", region_id.id, generator_selector_key));
     }
 
     ZoneSpec seeded_zone_spec = zone_spec;
-    seeded_zone_spec.insert(std::string(seed_key), std::to_string(zone_seed(region_seed(m_world_seed, region_spec), zone_spec)));
+    seeded_zone_spec.keys.insert(std::string(seed_key), std::to_string(zone_seed(region_seed(m_world_seed, region_spec), zone_spec)));
 
     const Generation::generator_selector_type& selector = registered(m_generation.m_generator_selectors, "generator selector", *selector_name);
-    Generation::GeneratorSelection selection = selector(*this, region, seeded_zone_spec);
+    Generation::GeneratorSelection selection = selector(*this, region_data, seeded_zone_spec);
 
     assert(selection.generator_name.has_value() + selection.zone_template.has_value() + selection.region_spec_name.has_value() == 1);
 
@@ -906,24 +977,25 @@ flecs::entity quetzal::stratum_sim::World::create_zone(flecs::entity region, con
     const Generation::generator_type& generator = registered(m_generation.m_generators, "generator", *selection.generator_name);
     stratum_format::Document document = generator(selection.zone_spec);
     document.is_unpopulated = true;
-    const ZonePosition position = zone_position(selection.zone_spec);
+    const ZonePosition position = selection.zone_spec.position();
     document.position = stratum_format::zone_position_type {position.x, position.y, position.z};
 
-    std::optional<std::string> name_pattern = selection.zone_spec.value(name_key);
+    std::optional<std::string> name_pattern = selection.zone_spec.keys.value(name_key);
     if (!name_pattern.has_value())
     {
-        name_pattern = select_prefixed(region_spec, zone_prefix).value(name_key);
+        name_pattern = select_prefixed(region_spec.keys, zone_prefix).value(name_key);
     }
 
-    document.components[std::string(name_component)] = zone_name(name_pattern.value_or(default_zone_name_pattern(region)), position);
+    document.components[std::string(name_component)] = zone_name(name_pattern.value_or(default_zone_name_pattern(region_worldspace(region_id),
+        region_data)), position);
 
-    return build_zone(region, document, std::format("generator {}", *selection.generator_name));
+    return build_zone(region_id, document, std::format("generator {}", *selection.generator_name));
 }
 
 //------------------------------------------------------------------------------
-flecs::entity quetzal::stratum_sim::World::load_zone(flecs::entity region, const std::filesystem::path& filepath)
+flecs::entity quetzal::stratum_sim::World::load_zone(PersistentId region_id, const std::filesystem::path& filepath)
 {
-    return build_zone(region, stratum_format::read_zone(filepath), filepath.string());
+    return build_zone(region_id, stratum_format::read_zone(filepath), filepath.string());
 }
 
 //------------------------------------------------------------------------------
@@ -936,21 +1008,24 @@ flecs::entity quetzal::stratum_sim::World::load_saved_zone(PersistentId zone_id)
         throw std::runtime_error(message);
     }
 
-    flecs::entity region;
-    m_entities.each([&](flecs::entity candidate, const Region& data)
+    std::optional<PersistentId> region_id;
+    for (const Worldspace& worldspace : m_worldspaces)
     {
-        if (std::ranges::find(data.zone_ids, zone_id) != data.zone_ids.end())
+        for (const Region& candidate : worldspace.regions.regions())
         {
-            region = candidate;
+            if (std::ranges::contains(candidate.zone_ids, zone_id))
+            {
+                region_id = candidate.region_id;
+            }
         }
-    });
+    }
 
-    if (!region)
+    if (!region_id.has_value())
     {
         throw std::runtime_error(std::format("zone {} is in no region", zone_id.id));
     }
 
-    return load_zone(region, saved_zone_path(zone_id));
+    return load_zone(region_id.value(), saved_zone_path(zone_id));
 }
 
 //------------------------------------------------------------------------------
@@ -983,18 +1058,18 @@ void quetzal::stratum_sim::World::discard_made_zone(flecs::entity access_point, 
     assert(zone && zone.has<Zone>());
 
     PersistentId zone_id = zone.get<PersistentId>();
-    flecs::entity worldspace = worldspace_of(zone);
+    const PersistentId worldspace_id = worldspace_of(zone);
 
-    if (worldspace != worldspace_of(stratum_sim::zone_of(access_point)))
+    if (worldspace_id != worldspace_of(stratum_sim::zone_of(access_point)))
     {
-        unload_worldspace(worldspace);
+        unload_worldspace(worldspace_id);
     }
     else
     {
-        Region& region_data = region_of(zone).get_mut<Region>();
+        Region& region_data = region(region_of(zone));
         std::erase(region_data.zone_ids, zone_id);
         std::erase_if(region_data.named_zone_ids, [zone_id](const auto& named_zone) { return named_zone.second == zone_id; });
-        std::erase_if(worldspace.get_mut<Worldspace>().zone_ids, [zone_id](const auto& positioned_zone) { return positioned_zone.second == zone_id; });
+        std::erase_if(worldspace(worldspace_id).zone_ids, [zone_id](const auto& positioned_zone) { return positioned_zone.second == zone_id; });
         unload_zone(zone);
     }
 
@@ -1082,10 +1157,10 @@ flecs::entity quetzal::stratum_sim::World::resolve_target(flecs::entity access_p
     level_type offset = level - level_from;
 
     flecs::entity arrival_type = access_point.target<AccessType>().get<Arrival>().access_type;
-    flecs::entity worldspace = worldspace_of(zone_from);
-    const ZonePosition position = new_zone_position(*this, worldspace, level);
+    const PersistentId worldspace_id = worldspace_of(zone_from);
+    const ZonePosition position = new_zone_position(worldspace_id, level);
     ZoneSpec zone_spec;
-    set_zone_position(zone_spec, position);
+    zone_spec.set_position(position);
 
     if (target.region.has_value())
     {
@@ -1093,7 +1168,7 @@ flecs::entity quetzal::stratum_sim::World::resolve_target(flecs::entity access_p
             *target.region), zone_spec), arrival_type, -offset);
     }
 
-    const std::map<ZonePosition, PersistentId>& zone_ids = worldspace.get<Worldspace>().zone_ids;
+    const std::map<ZonePosition, PersistentId>& zone_ids = worldspace(worldspace_id).zone_ids;
     auto i = zone_ids.find(position);
 
     if (i == zone_ids.end())
@@ -1301,7 +1376,7 @@ flecs::entity quetzal::stratum_sim::World::create_entity(flecs::entity zone, con
 }
 
 //------------------------------------------------------------------------------
-flecs::entity quetzal::stratum_sim::World::build_zone(flecs::entity region, const stratum_format::Document& document, std::string_view source)
+flecs::entity quetzal::stratum_sim::World::build_zone(PersistentId region_id, const stratum_format::Document& document, std::string_view source)
 {
     if (std::optional<std::string> error = check_buildable(m_entities, document))
     {
@@ -1316,32 +1391,32 @@ flecs::entity quetzal::stratum_sim::World::build_zone(flecs::entity region, cons
     if (document.position.has_value())
     {
         const ZonePosition position {document.position->x(), document.position->y(), document.position->z()};
-        const Worldspace& worldspace = region.parent().get<Worldspace>();
+        const Worldspace& zone_worldspace = region_worldspace(region_id);
 
-        if (!contains(worldspace.extent, position))
+        if (!zone_worldspace.extent.contains(position))
         {
             const std::string message = std::format("{}: the zone's position ({}, {}, {}) is outside the extent of the worldspace {}", source,
-                position.x, position.y, position.z, worldspace.name);
+                position.x, position.y, position.z, zone_worldspace.name);
             log::logger().error("stratum_sim", "{}", message);
             throw std::runtime_error(message);
         }
 
-        auto i = worldspace.zone_ids.find(position);
-        if (i != worldspace.zone_ids.end() && (!document.zone_id.has_value() || i->second.id != *document.zone_id))
+        auto i = zone_worldspace.zone_ids.find(position);
+        if (i != zone_worldspace.zone_ids.end() && (!document.zone_id.has_value() || i->second.id != *document.zone_id))
         {
             const std::string message = std::format("{}: zone {} of the worldspace {} is at the zone's position ({}, {}, {})", source,
-                i->second.id, worldspace.name, position.x, position.y, position.z);
+                i->second.id, zone_worldspace.name, position.x, position.y, position.z);
             log::logger().error("stratum_sim", "{}", message);
             throw std::runtime_error(message);
         }
     }
 
-    flecs::entity zone = create_zone(region, document.zone_id.has_value() ? PersistentId {*document.zone_id} : next_id());
+    flecs::entity zone = create_zone(region_id, document.zone_id.has_value() ? PersistentId {*document.zone_id} : next_id());
 
     // A saved zone was listed when it was created
     if (!document.zone_id.has_value())
     {
-        region.get_mut<Region>().zone_ids.push_back(zone.get<PersistentId>());
+        region(region_id).zone_ids.push_back(zone.get<PersistentId>());
     }
 
     for (flecs::entity target : load_layout(zone, document))
@@ -1413,6 +1488,13 @@ quetzal::stratum_sim::World::entities_type quetzal::stratum_sim::World::property
 }
 
 //------------------------------------------------------------------------------
+std::string quetzal::stratum_sim::World::extended_name(flecs::entity zone) const
+{
+    assert(zone && zone.has<Zone>() && zone.has<Name>());
+    return std::format("{}/{}", worldspace(worldspace_of(zone)).name, zone.get<Name>().name);
+}
+
+//------------------------------------------------------------------------------
 flecs::entity quetzal::stratum_sim::World::entity(PersistentId persistent_id) const
 {
     auto i = m_loaded_entities.find(persistent_id);
@@ -1476,60 +1558,17 @@ flecs::entity quetzal::stratum_sim::zone_of(flecs::entity e)
 }
 
 //------------------------------------------------------------------------------
-flecs::entity quetzal::stratum_sim::worldspace_of(flecs::entity zone)
+quetzal::stratum_sim::PersistentId quetzal::stratum_sim::worldspace_of(flecs::entity zone)
 {
     assert(zone && zone.has<Zone>());
-    assert(zone.parent() && zone.parent().has<Worldspace>());
-
-    return zone.parent();
+    return zone.get<ZoneWorldspace>().worldspace_id;
 }
 
 //------------------------------------------------------------------------------
-flecs::entity quetzal::stratum_sim::region_of(flecs::entity zone)
+quetzal::stratum_sim::PersistentId quetzal::stratum_sim::region_of(flecs::entity zone)
 {
     assert(zone && zone.has<Zone>());
-
-    flecs::entity region = zone.target<InRegion>();
-    assert(region && region.has<Region>());
-
-    return region;
-}
-
-//------------------------------------------------------------------------------
-flecs::entity quetzal::stratum_sim::top_level_region(flecs::entity worldspace)
-{
-    assert(worldspace && worldspace.has<Worldspace>());
-
-    flecs::entity region;
-    worldspace.children([&](flecs::entity child)
-    {
-        if (child.has<Region>())
-        {
-            region = child;
-        }
-    });
-
-    assert(region);
-    return region;
-}
-
-//------------------------------------------------------------------------------
-std::string quetzal::stratum_sim::extended_name(flecs::entity e)
-{
-    if (e.has<Worldspace>())
-    {
-        return e.get<Worldspace>().name;
-    }
-
-    if (e.has<Region>())
-    {
-        flecs::entity parent = e.parent();
-        const std::string& name = e.get<Region>().name;
-        return parent.has<Region>() ? std::format("{}/{}", extended_name(parent), name) : name;
-    }
-
-    assert(e.has<Zone>() && e.has<Name>());
-    return std::format("{}/{}", extended_name(worldspace_of(e)), e.get<Name>().name);
+    return zone.get<ZoneRegion>().region_id;
 }
 
 //------------------------------------------------------------------------------

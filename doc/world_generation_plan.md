@@ -56,7 +56,7 @@ struct GeneratorSelection
     ZoneSpec zone_spec;                          // The request, completed with the generator's parameters
 };
 
-using generator_selector_type = std::function<GeneratorSelection(const World& world, flecs::entity region, const ZoneSpec& zone_spec)>;
+using generator_selector_type = std::function<GeneratorSelection(const World& world, const Region& region, const ZoneSpec& zone_spec)>;
 using generator_type = std::function<stratum_format::Document(const ZoneSpec& zone_spec)>;
 
 class Game
@@ -177,9 +177,10 @@ flecs::entity World::create_region(flecs::entity worldspace, flecs::entity paren
     // create_zone for each of its zones, then create_region for each of its subregions
 }
 
-flecs::entity World::create_zone(flecs::entity worldspace, flecs::entity region, const ZoneSpec& zone_spec)
+flecs::entity World::create_zone(PersistentId region_id, const ZoneSpec& zone_spec)
 {
-    const RegionSpec& region_spec = region.get<RegionSpec>();
+    const Region& region = this->region(region_id);
+    const RegionSpec& region_spec = region.region_spec;
 
     // the ZoneSpec's seed, or the next draw from the region's random engine
     ZoneSpec seeded_zone_spec = zone_spec with its seed under seed_key;
@@ -351,9 +352,9 @@ starting_area
     entry_access: waypoint,0                         // the access point the first zone's generator places
     zone.parameters.denizens: few
 
-GeneratorSelection common(const World& world, flecs::entity region, const ZoneSpec& zone_spec)
+GeneratorSelection common(const World& world, const Region& region, const ZoneSpec& zone_spec)
 {
-    const RegionSpec& region_spec = region.get<RegionSpec>();
+    const RegionSpec& region_spec = region.region_spec;
     size_t zone_index = the zone's index among the region's zones;
 
     if (zone_index < region_spec.opening.size())

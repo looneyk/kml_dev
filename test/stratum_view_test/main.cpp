@@ -48,12 +48,12 @@ namespace
     {
         explicit TestWorld(stratum_sim::IdAllocator& id_allocator) :
             World(id_allocator, g_test_generation, test_zone_count_max),
-            region(stratum_sim::top_level_region(create_worldspace("view", stratum_sim::RegionSpec {})))
+            region_id(worldspace(create_worldspace("view", stratum_sim::RegionSpec {})).regions.root().region_id)
         {
             stratum_sim::register_game_types(*this);
         }
 
-        flecs::entity region;
+        stratum_sim::PersistentId region_id;
     };
 
     //--------------------------------------------------------------------------
@@ -150,7 +150,7 @@ namespace
     // Loads a zone from a file with its doors and without denizens, unlike World::load_zone
     flecs::entity load_zone_unpopulated(TestWorld& world, const string& filepath)
     {
-        flecs::entity zone = world.create_zone(world.region, world.next_id());
+        flecs::entity zone = world.create_zone(world.region_id, world.next_id());
         stratum_sim::load_layout(zone, stratum_format::read_zone(filepath));
 
         return zone;

@@ -21,9 +21,10 @@ add_library(quetzal_stratum_sim STATIC
     load_layout.cpp
     make_document.cpp
     Name.cpp
-    positions.cpp
     properties.cpp
     RandomStream.cpp
+    RegionSpec.cpp
+    RegionTree.cpp
     SavedGameDetails.cpp
     seeds.cpp
     Scheduler.cpp
@@ -33,7 +34,9 @@ add_library(quetzal_stratum_sim STATIC
     Site.cpp
     specs.cpp
     World.cpp
+    Worldspace.cpp
     ZoneEntryIndex.cpp
+    ZoneSpec.cpp
     actors.hpp
     ai.hpp
     attachments.hpp
@@ -67,9 +70,11 @@ add_library(quetzal_stratum_sim STATIC
     Name.hpp
     PersistentId.hpp
     PlacementIndex.hpp
-    positions.hpp
     properties.hpp
     RandomStream.hpp
+    Region.hpp
+    RegionSpec.hpp
+    RegionTree.hpp
     SavedGameDetails.hpp
     seeds.hpp
     Scheduler.hpp
@@ -80,8 +85,10 @@ add_library(quetzal_stratum_sim STATIC
     specs.hpp
     types.hpp
     World.hpp
+    Worldspace.hpp
     Zone.hpp
     ZoneEntryIndex.hpp
+    ZoneSpec.hpp
 )
 
 set_property(TARGET quetzal_stratum_sim PROPERTY FOLDER "library")

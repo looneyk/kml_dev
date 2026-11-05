@@ -7,7 +7,6 @@
 #include "DiscreteLayout.hpp"
 #include "file_components.hpp"
 #include "layout_entities.hpp"
-#include "positions.hpp"
 #include "properties.hpp"
 #include "World.hpp"
 #include <algorithm>

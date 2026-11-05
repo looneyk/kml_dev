@@ -5,8 +5,10 @@
 // Generation.hpp
 //------------------------------------------------------------------------------
 
+#include "Region.hpp"
+#include "RegionSpec.hpp"
+#include "ZoneSpec.hpp"
 #include "quetzal/common/KeyValueStore.hpp"
-#include <flecs.h>
 #include <functional>
 #include <map>
 #include <optional>
@@ -22,9 +24,6 @@ namespace quetzal::stratum_sim
 {
 
     class World;
-
-    using RegionSpec = KeyValueStore; // type, terrain, competency level ...
-    using ZoneSpec = KeyValueStore;
 
     // The RegionSpec key of the region's generator selector
     inline constexpr std::string_view generator_selector_key = "generator_selector";
@@ -70,7 +69,7 @@ namespace quetzal::stratum_sim
             ZoneSpec zone_spec;                          // The request, completed with the generator's parameters
         };
 
-        using generator_selector_type = std::function<GeneratorSelection(const World& world, flecs::entity region, const ZoneSpec& zone_spec)>;
+        using generator_selector_type = std::function<GeneratorSelection(const World& world, const Region& region, const ZoneSpec& zone_spec)>;
         using generator_type = std::function<stratum_format::Document(const ZoneSpec& zone_spec)>;
 
         std::map<std::string, generator_selector_type> m_generator_selectors;

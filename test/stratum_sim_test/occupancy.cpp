@@ -250,7 +250,7 @@ namespace
             [&](const stratum_format::Entity& entity) { return entity.id == wanderer.get<stratum_sim::PersistentId>().id; });
         CHECK_CASE("and is left out of the zone's saved document", saved_without_wanderer);
 
-        flecs::entity loaded = world.load_zone(world.region, "data/door.zone");
+        flecs::entity loaded = world.load_zone(world.region_id, "data/door.zone");
         CHECK_CASE("a populated zone indexes its denizen and not its staircase", world.placement_index(loaded).entity_count() == 1
             && index_agrees(loaded));
 

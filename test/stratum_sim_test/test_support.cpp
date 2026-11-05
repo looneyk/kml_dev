@@ -10,7 +10,6 @@
 #include "quetzal/stratum_sim/attachments.hpp"
 #include "quetzal/stratum_sim/load_layout.hpp"
 #include "quetzal/stratum_sim/PersistentId.hpp"
-#include "quetzal/stratum_sim/positions.hpp"
 #include "quetzal/stratum_sim/setting_definitions.hpp"
 #include "quetzal/stratum_sim/specs.hpp"
 #include <format>
@@ -29,7 +28,7 @@ namespace
         return [filepath](const stratum_sim::ZoneSpec& zone_spec)
         {
             stratum_format::Document document = stratum_format::read_zone(filepath);
-            const stratum_sim::ZonePosition position = stratum_sim::zone_position(zone_spec);
+            const stratum_sim::ZonePosition position = zone_spec.position();
             document.position = stratum_format::zone_position_type {position.x, position.y, position.z};
             document.is_unpopulated = false;
             return document;
@@ -40,7 +39,7 @@ namespace
     // Returns a generator selector that chooses the one generator for every zone
     stratum_sim::Generation::generator_selector_type sole_generator_selector(const string& generator_name)
     {
-        return [generator_name](const stratum_sim::World&, flecs::entity, const stratum_sim::ZoneSpec& zone_spec)
+        return [generator_name](const stratum_sim::World&, const stratum_sim::Region&, const stratum_sim::ZoneSpec& zone_spec)
         {
             return stratum_sim::Generation::GeneratorSelection {generator_name, {}, {}, zone_spec};
         };
@@ -80,14 +79,15 @@ stratum_sim::Generation stratum_sim_test::test_generation()
     generation.m_generator_selectors["door"] = sole_generator_selector("door");
     generation.m_generator_selectors["staircase"] = sole_generator_selector("staircase");
     generation.m_generator_selectors["unregistered_generator"] = sole_generator_selector("unregistered");
-    generation.m_generator_selectors["next_region"] = [](const stratum_sim::World&, flecs::entity, const stratum_sim::ZoneSpec& zone_spec)
+    generation.m_generator_selectors["next_region"] = [](const stratum_sim::World&, const stratum_sim::Region&, const stratum_sim::ZoneSpec& zone_spec)
     {
         return stratum_sim::Generation::GeneratorSelection {{}, {}, "staircase", zone_spec};
     };
-    generation.m_region_specs["staircase"] = stratum_sim::RegionSpec {{string(stratum_sim::generator_selector_key), "staircase"}};
-    generation.m_region_specs["door"] = stratum_sim::RegionSpec {{string(stratum_sim::generator_selector_key), "door"}};
-    generation.m_region_specs["dungeon"] = stratum_sim::RegionSpec {{string(stratum_sim::generator_selector_key), "staircase"},
-        {string(stratum_sim::entry_access_key), "staircase,1"}, {format("{}{}", stratum_sim::zone_prefix, stratum_sim::position_z_key), "-1"}};
+    generation.m_region_specs["staircase"] = stratum_sim::RegionSpec {quetzal::KeyValueStore {{string(stratum_sim::generator_selector_key),
+        "staircase"}}};
+    generation.m_region_specs["door"] = stratum_sim::RegionSpec {quetzal::KeyValueStore {{string(stratum_sim::generator_selector_key), "door"}}};
+    generation.m_region_specs["dungeon"] = stratum_sim::RegionSpec {quetzal::KeyValueStore {{string(stratum_sim::generator_selector_key), "staircase"},
+        {string(stratum_sim::entry_access_key), "staircase,1"}, {format("{}{}", stratum_sim::zone_prefix, stratum_sim::position_z_key), "-1"}}};
 
     return generation;
 }
@@ -95,20 +95,26 @@ stratum_sim::Generation stratum_sim_test::test_generation()
 //------------------------------------------------------------------------------
 stratum_sim::RegionSpec stratum_sim_test::test_region_spec(const string& generator_selector_name)
 {
-    return stratum_sim::RegionSpec {{string(stratum_sim::generator_selector_key), generator_selector_name}};
+    return stratum_sim::RegionSpec {quetzal::KeyValueStore {{string(stratum_sim::generator_selector_key), generator_selector_name}}};
 }
 
 //------------------------------------------------------------------------------
-flecs::entity stratum_sim_test::create_test_region(stratum_sim::World& world, const string& generator_selector_name)
+stratum_sim::PersistentId stratum_sim_test::create_test_region(stratum_sim::World& world, const string& generator_selector_name)
 {
-    return stratum_sim::top_level_region(world.create_worldspace(generator_selector_name, test_region_spec(generator_selector_name)));
+    return top_level_region(world, world.create_worldspace(generator_selector_name, test_region_spec(generator_selector_name)));
+}
+
+//------------------------------------------------------------------------------
+stratum_sim::PersistentId stratum_sim_test::top_level_region(const stratum_sim::World& world, stratum_sim::PersistentId worldspace_id)
+{
+    return world.worldspace(worldspace_id).regions.root().region_id;
 }
 
 //------------------------------------------------------------------------------
 stratum_sim::ZoneSpec stratum_sim_test::test_zone_spec(stratum_sim::level_type level)
 {
     stratum_sim::ZoneSpec zone_spec;
-    stratum_sim::set_zone_position(zone_spec, stratum_sim::ZonePosition {0, 0, level});
+    zone_spec.set_position(stratum_sim::ZonePosition {0, 0, level});
     return zone_spec;
 }
 
@@ -134,7 +140,7 @@ stratum_sim::level_type stratum_sim_test::level_of(flecs::entity zone)
 //------------------------------------------------------------------------------
 stratum_sim_test::TestWorld::TestWorld(stratum_sim::IdAllocator& id_allocator, size_t zone_count_max) :
     World(id_allocator, g_test_generation, zone_count_max),
-    region(create_test_region(*this, "staircase"))
+    region_id(create_test_region(*this, "staircase"))
 {
     stratum_sim::register_game_types(*this);
 }
@@ -173,7 +179,7 @@ stratum_sim_test::WallCounts stratum_sim_test::wall_counts(const stratum_sim::Di
 stratum_sim_test::OpenZone::OpenZone(const string& filepath) :
     id_allocator(stratum_sim::PersistentId {}),
     world(id_allocator),
-    zone(world.create_zone(world.region, world.next_id()))
+    zone(world.create_zone(world.region_id, world.next_id()))
 {
     stratum_sim::load_layout(zone, stratum_format::read_zone(filepath));
     crossable = [open_zone = zone](id_type wall_id) { return static_cast<bool>(stratum_sim::way_through(open_zone, wall_id)); };
@@ -194,7 +200,7 @@ unique_ptr<stratum_sim_test::OpenZone> stratum_sim_test::load_open(const string&
 //------------------------------------------------------------------------------
 flecs::entity stratum_sim_test::load_zone_unpopulated(TestWorld& world, const string& filepath)
 {
-    flecs::entity zone = world.create_zone(world.region, world.next_id());
+    flecs::entity zone = world.create_zone(world.region_id, world.next_id());
     stratum_sim::load_layout(zone, stratum_format::read_zone(filepath));
     return zone;
 }
@@ -213,7 +219,7 @@ void stratum_sim_test::enter_zone_file(stratum_sim::Game& game, const string& fi
         game.character().create(stratum_sim::CharacterSpec {});
     }
 
-    flecs::entity region = create_test_region(game.world(), "staircase");
+    stratum_sim::PersistentId region = create_test_region(game.world(), "staircase");
     stratum_sim::Session& session = game.session();
     session.enter(game.world().load_zone(region, filepath), test_entry_type(session), test_entry_offset);
 

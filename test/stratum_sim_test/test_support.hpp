@@ -52,8 +52,11 @@ namespace stratum_sim_test
 
     quetzal::stratum_sim::RegionSpec test_region_spec(const std::string& generator_selector_name);
 
-    // Creates a worldspace from test_region_spec, named for the generator selector, and returns its top-level region
-    flecs::entity create_test_region(quetzal::stratum_sim::World& world, const std::string& generator_selector_name);
+    // Creates a worldspace from test_region_spec, named for the generator selector, and returns its top-level region's id
+    quetzal::stratum_sim::PersistentId create_test_region(quetzal::stratum_sim::World& world, const std::string& generator_selector_name);
+
+    // Returns the id of the worldspace's top-level region
+    quetzal::stratum_sim::PersistentId top_level_region(const quetzal::stratum_sim::World& world, quetzal::stratum_sim::PersistentId worldspace_id);
 
     // Returns a ZoneSpec whose position is (0, 0, level)
     quetzal::stratum_sim::ZoneSpec test_zone_spec(quetzal::stratum_sim::level_type level);
@@ -72,7 +75,7 @@ namespace stratum_sim_test
     {
         explicit TestWorld(quetzal::stratum_sim::IdAllocator& id_allocator, size_t zone_count_max = test_zone_count_max);
 
-        flecs::entity region;
+        quetzal::stratum_sim::PersistentId region_id;
     };
 
     // Counts the walled sides of every open cell, and how many of those edges are walled from the other side too

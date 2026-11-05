@@ -21,7 +21,6 @@
 #include "quetzal/stratum_sim/actors.hpp"
 #include "quetzal/stratum_sim/ai.hpp"
 #include "quetzal/stratum_sim/attachments.hpp"
-#include "quetzal/stratum_sim/positions.hpp"
 #include "quetzal/stratum_sim/World.hpp"
 #include "quetzal/stratum_format/Document.hpp"
 #include "quetzal/stratum_format/read_zone.hpp"
@@ -82,7 +81,7 @@ namespace
         CHECK_CASE_EQUAL("a new world has no zones", world.zone_count(), 0);
 
         flecs::entity crypt = load_zone_unpopulated(world, "data/room.zone");
-        flecs::entity moor = world.create_zone(world.region, make_unique<stratum_sim::DiscreteLayout>(stratum_sim::point_type(0.0f, 0.0f, 0.0f),
+        flecs::entity moor = world.create_zone(world.region_id, make_unique<stratum_sim::DiscreteLayout>(stratum_sim::point_type(0.0f, 0.0f, 0.0f),
             1.0f, stratum_sim::discrete_vector_type(4, 4)));
 
         CHECK_CASE_EQUAL("zones are created", world.zone_count(), 2);
@@ -183,7 +182,7 @@ namespace
             generated_pursuers.size() == 1 && generated_pursuers.front().has<stratum_sim::Speed>()
             && !generated_pursuers.front().get<stratum_sim::Pursue>().target.has_value());
 
-        flecs::entity loaded = world.load_zone(world.region, "data/door.zone");
+        flecs::entity loaded = world.load_zone(world.region_id, "data/door.zone");
 
         auto door_type_east_of_start = [&](flecs::entity zone)
         {
@@ -212,10 +211,10 @@ namespace
         world.unload_worldspace(stratum_sim::worldspace_of(prepopulated));
 
         // Zones created through the registries
-        flecs::entity counted = create_test_region(world, "staircase");
+        stratum_sim::PersistentId counted = create_test_region(world, "staircase");
         flecs::entity counted_generated = world.create_zone(counted, test_zone_spec(-1));
         flecs::entity counted_loaded = world.load_zone(counted, "data/door.zone");
-        CHECK_CASE("a region lists the zones created in it, generated or loaded, in order", counted.get<stratum_sim::Region>().zone_ids
+        CHECK_CASE("a region lists the zones created in it, generated or loaded, in order", world.region(counted).zone_ids
             == vector<stratum_sim::PersistentId> {counted_generated.get<stratum_sim::PersistentId>(), counted_loaded.get<stratum_sim::PersistentId>()});
 
         // data/saved.zone is a saved zone, listed when it was created
@@ -225,18 +224,18 @@ namespace
         bool saved_unpopulated = true;
         world.entities().each([&](flecs::entity e, const stratum_sim::Pursue&) { saved_unpopulated = saved_unpopulated && stratum_sim::zone_of(e) != saved_again; });
         CHECK_CASE("a saved zone read back is not listed again, however often it is loaded after unloading", saved_again.is_alive()
-            && saved_again.get<stratum_sim::PersistentId>() == stratum_sim::PersistentId {900} && counted.get<stratum_sim::Region>().zone_ids.size() == 2);
+            && saved_again.get<stratum_sim::PersistentId>() == stratum_sim::PersistentId {900} && world.region(counted).zone_ids.size() == 2);
         CHECK_CASE("and is not populated", saved_unpopulated);
         world.unload_zone(saved_again);
 
-        flecs::entity leaving = create_test_region(world, "next_region");
+        stratum_sim::PersistentId leaving = create_test_region(world, "next_region");
+        stratum_sim::PersistentId leaving_worldspace = world.worldspaces().back().worldspace_id;
         flecs::entity begun = world.create_zone(leaving, test_zone_spec(-1));
-        flecs::entity begun_region = stratum_sim::region_of(begun);
-        const stratum_sim::Region& begun_region_data = begun_region.get<stratum_sim::Region>();
+        const stratum_sim::Region& begun_region_data = world.region(stratum_sim::region_of(begun));
         CHECK_CASE("a selection of a new region makes the zone the first of a new worldspace created from the region spec",
-            begun_region != leaving && stratum_sim::worldspace_of(begun) != leaving.parent()
-            && begun_region_data.region_spec.value(stratum_sim::generator_selector_key) == "staircase"
-            && begun_region_data.zone_ids.size() == 1 && leaving.get<stratum_sim::Region>().zone_ids.empty()
+            stratum_sim::region_of(begun) != leaving && stratum_sim::worldspace_of(begun) != leaving_worldspace
+            && begun_region_data.region_spec.keys.value(stratum_sim::generator_selector_key) == "staircase"
+            && begun_region_data.zone_ids.size() == 1 && world.region(leaving).zone_ids.empty()
             && level_of(begun) == -1);
 
         auto throws_runtime_error = [](auto f)
@@ -409,7 +408,7 @@ namespace
 
             stratum_sim::CountingIdAllocator other_ids(stratum_sim::PersistentId {100000});
             TestWorld other(other_ids);
-            flecs::entity copy = other.create_zone(other.region, stratum_sim::PersistentId {*read_back.zone_id});
+            flecs::entity copy = other.create_zone(other.region_id, stratum_sim::PersistentId {*read_back.zone_id});
             stratum_sim::load_layout(copy, read_back);
             inspect(other, copy);
 
@@ -423,7 +422,7 @@ namespace
         {
             stratum_sim::CountingIdAllocator id_allocator(stratum_sim::PersistentId {});
             TestWorld world(id_allocator);
-            RoundTrip trip = round_trip(world.load_zone(world.region, filepath), [](TestWorld&, flecs::entity) {});
+            RoundTrip trip = round_trip(world.load_zone(world.region_id, filepath), [](TestWorld&, flecs::entity) {});
 
             CHECK_CASE(format("{} is written as a saved zone, read back with its geometry, and written again identically", filepath),
                 trip.same_geometry && !trip.written.empty() && trip.written == trip.rewritten);
@@ -432,7 +431,7 @@ namespace
         // data/door.zone: a door on the doorway east of cell (1, 1), and a pursuer that populating places
         stratum_sim::CountingIdAllocator id_allocator(stratum_sim::PersistentId {});
         TestWorld world(id_allocator);
-        flecs::entity zone = world.load_zone(world.region, "data/door.zone");
+        flecs::entity zone = world.load_zone(world.region_id, "data/door.zone");
 
         flecs::entity door = stratum_sim::access_entity(stratum_sim::way_through(zone,
             zone_layout(world, zone).wall_toward(stratum_sim::discrete_point_type {1, 1}, cardinal_direction(CardinalDirection::East))));
