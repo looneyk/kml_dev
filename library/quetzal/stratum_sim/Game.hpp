@@ -100,6 +100,10 @@ namespace quetzal::stratum_sim
         // Sets the world seed, keeps it for saving, seeds the gameplay random engine with it, and logs it
         void seed_world(RandomStream::seed_type seed);
 
+        // Set the game's notation and zone generator
+        // Throws std::runtime_error if the notation has no zone generator
+        void set_notation(stratum_format::Notation notation);
+
         // Some of these properties, especially Config, are only of importance to the host ...
         Config m_config; // Immutable properties like file locations, physical hardware configuration, ...
         stratum_format::GameManifestDocument m_manifest;

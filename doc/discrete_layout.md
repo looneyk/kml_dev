@@ -12,8 +12,8 @@ side of it.
 
 ## File structure
 
-A file is one JSON object. `format`, `version` and `cells` are required; the other keys are omitted if a
-zone has none.
+A file is one JSON object. `format` and `version` are required, and so is `cells` in every zone but an empty one; the
+other keys are omitted if a zone has none.
 
 | Key | |
 | --- | --- |
@@ -21,6 +21,7 @@ zone has none.
 | `version` | The version of this format the file was written to |
 | `zone` | The zone's own persistent id, only in a saved zone |
 | `generator` | The generator that produced it and the parameters of the run |
+| `zone_spec` | The keys of the spec that an empty zone is generated from |
 | `layout` | The name and properties of the layout as a whole |
 | `cells` | The grid: its notation, its extent, its origin and scale, and its rows |
 | `barriers` | Where a room's fill is closed off, for every room |
@@ -38,6 +39,9 @@ A file is either a template a zone is made from or a saved zone. A template does
 identity, a zone being an entity with a persistent id given when it is made (`addressing.md`); a saved
 zone writes that id in `zone` and every id in the file is then persistent. `layout.components.name` is
 what the zone is called for a player to read.
+
+An empty zone is a saved zone whose content has not been generated. It has `zone`, `zone_spec`, and the layout's
+components, and no `cells`, `barriers`, `rooms`, `walls`, `flats`, `entities`, or `layout.components.access_points`.
 
 ## An example
 
@@ -204,6 +208,16 @@ parameters object reads as a command line. The format's reader uses none of them
 
 A file that was authored rather than generated omits `generator`.
 
+## zone_spec
+
+The keys of the spec that an empty zone is generated from, as strings, its seed among them:
+
+```json
+"zone_spec": { "position.z": "-2", "seed": "20260829" }
+```
+
+The format's reader requires it in an empty zone and uses none of its keys.
+
 ## layout
 
 The name and properties of the layout as a whole. It is a component object.
@@ -233,8 +247,8 @@ file with a `zone` section is a warning.
 "layout": { "components": { "access_points": [ { "entity": 4 } ], "unpopulated": true } }
 ```
 
-`access_points` is required: a list of at least one reference to the zone's access points. Every zone is built with
-them.
+`access_points` is required in every zone but an empty one: a list of at least one reference to the zone's access
+points. Every zone is built with them.
 
 ```json
 "layout": { "components": { "access_points": [ { "entity": 8 }, { "entity": 9 } ] } }
@@ -708,7 +722,9 @@ every check has passed, so a rejected file leaves nothing behind.
 - `format` is absent or is not this format; `version` is one the reader does not read.
 - `zone.id` is not a whole, non-negative number.
 - `layout.components.level` is not a whole number.
-- `cells` is absent, its notation or its encoding is not one of the two it offers, its extent has no
+- An empty zone has no `zone` or no `zone_spec`, or has a section or `layout.components.access_points` that only a zone
+  with `cells` has.
+- `cells`' notation or its encoding is not one of the two it offers, its extent has no
   cells, its scale is not positive, it has the wrong number of rows, or a row is not the width its
   extent sets.
 - A run count of zero, or a count with no glyph after it.
@@ -767,3 +783,4 @@ section, are warnings, not errors.
 - An access point has no `placement`. An arriving actor is placed by the access point's site, and the reader checks
   that cell instead.
 - An `access_point` on an entity that `layout.components.access_points` does not list is an error.
+- An empty zone has no `cells` and has a `zone_spec`, the keys of the spec it is generated from.

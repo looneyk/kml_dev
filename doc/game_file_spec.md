@@ -137,13 +137,13 @@ character named Ailis in it carrying a torch, would have the following structure
     "worldspaces": [
       { "id": 6, "name": "surface",
         "region": { "id": 2, "name": "surface", "name_counter": 0, "components": { "type": "surface" },
-          "spec": { "type": "surface", "generator_selector": "fields_and_hills", "service_level": "basic", "worldspace.zone_size.x": "40", "worldspace.zone_size.y": "30" },
+          "spec": { "type": "surface", "service_level": "basic", "worldspace.zone_size.x": "40", "worldspace.zone_size.y": "30" },
           "zones": [
             { "id": 5, "name": "surface_0_0", "file": "zones/5.zone", "position": [0, 0, 0] }
           ] } },
       { "id": 7, "name": "cistern",
         "region": { "id": 4, "name": "cistern", "name_counter": 0, "components": { "type": "dungeon", "difficulty": 3 },
-          "spec": { "type": "dungeon", "generator_selector": "dungeon", "difficulty": "3", "worldspace.extent.z": "-10 .. -1", "zone.name": "Level {z}" },
+          "spec": { "type": "dungeon", "difficulty": "3", "worldspace.extent.z": "-10 .. -1", "zone.name": "Level {z}" },
           "zones": [
             { "id": 3, "name": "Level -1", "file": "zones/3.zone", "position": [0, 0, -1] }
           ] } }
@@ -264,7 +264,7 @@ A region groups zones of one worldspace: a surface area, a dungeon, a crypt, a t
 A region's zones are every zone the world has made in it. Regions refer to no other region; the bound access points in
 their zones connect them.
 
-A region's list of zone ids, whose number is the zone count its generator selector reads (`world_generation_plan.md`), is
+A region's list of zone ids, whose number is the zone count its zone pattern reads (`world_generation_plan.md`), is
 not written separately: it is its `zones`, and reading the world sets it from them.
 
 ### Zones

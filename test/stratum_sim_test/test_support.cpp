@@ -13,6 +13,8 @@
 #include "quetzal/stratum_sim/setting_definitions.hpp"
 #include "quetzal/stratum_sim/specs.hpp"
 #include <format>
+#include <map>
+#include <optional>
 
 using namespace std;
 using namespace quetzal;
@@ -21,28 +23,15 @@ namespace
 {
 
     //--------------------------------------------------------------------------
-    // Returns a generator that reads the zone file, at the requested position, and without the unpopulated flag, which a
-    // generator does not set
-    stratum_sim::Generation::generator_type file_generator(const string& filepath)
+    // Returns the Document of the spec's zone file, at the requested position, and without the unpopulated flag, which a
+    // zone generator does not set
+    stratum_format::Document generate_from_zone_file(const stratum_sim::ZoneSpec& zone_spec)
     {
-        return [filepath](const stratum_sim::ZoneSpec& zone_spec)
-        {
-            stratum_format::Document document = stratum_format::read_zone(filepath);
-            const stratum_sim::ZonePosition position = zone_spec.position();
-            document.position = stratum_format::zone_position_type {position.x, position.y, position.z};
-            document.is_unpopulated = false;
-            return document;
-        };
-    }
-
-    //--------------------------------------------------------------------------
-    // Returns a generator selector that chooses the one generator for every zone
-    stratum_sim::Generation::generator_selector_type sole_generator_selector(const string& generator_name)
-    {
-        return [generator_name](const stratum_sim::World&, const stratum_sim::Region&, const stratum_sim::ZoneSpec& zone_spec)
-        {
-            return stratum_sim::Generation::GeneratorSelection {generator_name, {}, {}, zone_spec};
-        };
+        stratum_format::Document document = stratum_format::read_zone(zone_spec.keys.value(stratum_sim_test::zone_file_key).value());
+        const stratum_sim::ZonePosition position = zone_spec.position();
+        document.position = stratum_format::zone_position_type {position.x, position.y, position.z};
+        document.is_unpopulated = false;
+        return document;
     }
 
 } // namespace
@@ -74,15 +63,9 @@ stratum_sim::Generation stratum_sim_test::test_generation()
 {
     stratum_sim::Generation generation;
 
-    generation.m_generators["door"] = file_generator("data/door.zone");
-    generation.m_generators["staircase"] = file_generator("data/walls.zone");
-    generation.m_generator_selectors["door"] = sole_generator_selector("door");
-    generation.m_generator_selectors["staircase"] = sole_generator_selector("staircase");
-    generation.m_generator_selectors["unregistered_generator"] = sole_generator_selector("unregistered");
-    generation.m_generator_selectors["next_region"] = [](const stratum_sim::World&, const stratum_sim::Region&, const stratum_sim::ZoneSpec& zone_spec)
-    {
-        return stratum_sim::Generation::GeneratorSelection {{}, {}, "staircase", zone_spec};
-    };
+    generation.m_zone_generators[stratum_format::Notation::Block] = generate_from_zone_file;
+    generation.m_zone_generators[stratum_format::Notation::Wall] = generate_from_zone_file;
+    generation.m_zone_generator = generate_from_zone_file;
     generation.m_region_specs["staircase"] = test_region_spec("staircase");
     generation.m_region_specs["door"] = test_region_spec("door");
     stratum_sim::RegionSpec dungeon_spec = test_region_spec("staircase");
@@ -94,9 +77,10 @@ stratum_sim::Generation stratum_sim_test::test_generation()
 }
 
 //------------------------------------------------------------------------------
-stratum_sim::RegionSpec stratum_sim_test::test_region_spec(const string& generator_selector_name)
+stratum_sim::RegionSpec stratum_sim_test::test_region_spec(const string& test_zone)
 {
-    stratum_sim::RegionSpec region_spec {quetzal::KeyValueStore {{string(stratum_sim::generator_selector_key), generator_selector_name}}};
+    static const map<string, string> zone_files {{"door", "data/door.zone"}, {"staircase", "data/walls.zone"}};
+    stratum_sim::RegionSpec region_spec {quetzal::KeyValueStore {{format("{}{}", stratum_sim::zone_prefix, zone_file_key), zone_files.at(test_zone)}}};
     for (const auto& key : {stratum_sim::extent_x_key, stratum_sim::extent_y_key, stratum_sim::extent_z_key})
     {
         region_spec.keys.insert(format("{}{}", stratum_sim::worldspace_prefix, key), "-10 .. 10");
@@ -106,9 +90,15 @@ stratum_sim::RegionSpec stratum_sim_test::test_region_spec(const string& generat
 }
 
 //------------------------------------------------------------------------------
-stratum_sim::PersistentId stratum_sim_test::create_test_region(stratum_sim::World& world, const string& generator_selector_name)
+stratum_sim::PersistentId stratum_sim_test::create_test_region(stratum_sim::World& world, const string& test_zone)
 {
-    return top_level_region(world, world.create_worldspace(generator_selector_name, test_region_spec(generator_selector_name)));
+    return top_level_region(world, world.create_worldspace(test_zone, test_region_spec(test_zone)));
+}
+
+//------------------------------------------------------------------------------
+optional<string> stratum_sim_test::zone_file_of(const stratum_sim::RegionSpec& region_spec)
+{
+    return region_spec.keys.value(format("{}{}", stratum_sim::zone_prefix, zone_file_key));
 }
 
 //------------------------------------------------------------------------------

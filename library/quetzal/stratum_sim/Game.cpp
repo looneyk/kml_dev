@@ -197,7 +197,7 @@ void quetzal::stratum_sim::Game::create(std::string_view region_spec_name, const
 
     clear();
     apply_manifest_settings(m_manifest.settings);
-    m_notation = notation;
+    set_notation(notation);
 
     m_counting_id_allocator = CountingIdAllocator(PersistentId {});
     seed_world(seed ? *seed : math::random_seed());
@@ -267,7 +267,7 @@ void quetzal::stratum_sim::Game::open(std::string_view save_name)
 void quetzal::stratum_sim::Game::restore_game_state(const std::filesystem::path& filepath)
 {
     stratum_format::GameDocument document = stratum_format::read_game(filepath);
-    m_notation = document.notation;
+    set_notation(document.notation);
     m_counting_id_allocator = CountingIdAllocator(PersistentId {document.next_id});
 
     const char* seed_end = document.seed.data() + document.seed.size();
@@ -320,6 +320,22 @@ void quetzal::stratum_sim::Game::seed_world(RandomStream::seed_type seed)
     m_world.set_world_seed(seed);
     gameplay_random().seed(seed);
     log::logger().info("stratum_sim", "The world seed is {}", seed);
+    return;
+}
+
+//------------------------------------------------------------------------------
+void quetzal::stratum_sim::Game::set_notation(stratum_format::Notation notation)
+{
+    auto i = m_generation.m_zone_generators.find(notation);
+    if (i == m_generation.m_zone_generators.end())
+    {
+        const std::string message = std::format("the {} notation has no zone generator", stratum_format::name(notation));
+        log::logger().error("stratum_sim", "{}", message);
+        throw std::runtime_error(message);
+    }
+
+    m_notation = notation;
+    m_generation.m_zone_generator = i->second;
     return;
 }
 

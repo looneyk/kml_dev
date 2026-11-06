@@ -5,7 +5,7 @@ Date: 2026-11-03
 `RegionSpec` contains the elements that go into the creation of a region, its subregions, and its zones. RegionSpecs are the drivers of worldspace and zone creation.
 A spec has the
 region's properties, its worldspace's coordinate system for top-level specs, its extent, patterns for or references to the `RegionSpec`s
-of its subregions and the `ZoneSpec`s of its zones, and its selector's parameters. Each worldspace is created all at once
+of its subregions and the `ZoneSpec`s of its zones. Each worldspace is created all at once
 in its entirety from a tree of `RegionSpec`s (`world_generation_plan.md`, `## Creating the structure`). `zone_plan.md`
 defines worldspaces, regions, and zones, and `world_generation_plan.md` describes how they are generated. The open
 items are in `work_plan.md` (`## Zones and regions`).
@@ -67,11 +67,10 @@ pattern for that zone. Every value can be an expression (`## Patterns`).
 | `name`, `display_name` | The zone's name and display name, in place of the `zone.` patterns |
 | `seed` | The zone's seed, in place of the one drawn from the region's random engine |
 | `parameters.*` | Generation parameters, merged over `zone.parameters.*` |
-| `generator` | The generator of the zone's content, in place of the selector's choice |
-| `zone_template` | The extended name of a pregenerated zone that the zone is built from, in place of a generator |
+| `template` | The template of the zone's content, in place of the pattern's draw |
 
-- **A listed zone with `generator` or `zone_template` is not passed to the selector,** so a designer can place a town
-  or a pre-built landmark at a fixed position in a generated region.
+- **A listed zone's `template` replaces the pattern's draw,** so a designer can place a town or a pre-built landmark
+  at a fixed position in a generated region.
 
 ## Form
 
@@ -88,11 +87,10 @@ pattern for that zone. Every value can be an expression (`## Patterns`).
 
 | Key | Value | Read by |
 | --- | --- | --- |
-| `generator_selector` | The name of the generator selector that chooses how each of the region's zones is generated | `World`, for each zone |
 | `seed` | The region's seed, which replaces the one drawn from its parent's random engine | `World` |
 | `position.x`, `.y` | The region's position, from which its seed is derived until seeds are drawn hierarchically (`## Seeds`) | `World` |
 | region name pattern | The pattern of the names of the regions created from the spec (`## Names`) | `World` |
-| metadata | The region's type (surface, dungeon, crypt, ...), terrain, competency level, difficulty, service level, and level count | The selector; some become components on the region |
+| metadata | The region's type (surface, dungeon, crypt, ...), terrain, competency level, difficulty, service level, and level count | The zone pattern; some become components on the region |
 
 ### `worldspace.`
 
@@ -128,7 +126,7 @@ subregion.
 ### `zone.`
 
 The `zone.` keys are the pattern of the `ZoneSpec` that each of the region's zones is created from. `World` resolves it
-for each zone (`## Patterns`), and the selector completes it.
+for each zone (`## Patterns`).
 
 | Key | Value |
 | --- | --- |
@@ -139,12 +137,12 @@ for each zone (`## Patterns`), and the selector completes it.
 
 ### `parameters.`
 
-The `parameters.` keys are the region's generation parameters, which its selector reads. The common selector's
-parameters are weighted tables (`world_generation_plan.md`, `### The common selector`):
+The `parameters.` keys are the region's generation parameters. The weighted tables that its zone pattern draws each
+zone's template from are among them (`world_generation_plan.md`, `### Weighted tables`):
 
 - **`opening`** is a weighted table for each of the region's first zones, in order.
 - **`primary`** is the weighted table for every zone after the opening.
-- **`rare`** lists generators or pre-built zones, each drawn with its probability.
+- **`rare`** lists templates, each drawn with its probability.
 
 A weighted table has one syntax, which placement uses as well (`placement_plan.md`).
 
@@ -154,7 +152,7 @@ A weighted table has one syntax, which placement uses as well (`placement_plan.m
   expression and makes a resolved spec, in which every value is a literal. A spec written by hand is a pattern with no
   expressions, so `World` reads both in the same way.
 - **A spec is resolved as the structure is created.** A region's spec is resolved when the region is created, and each
-  zone's `ZoneSpec` when the zone is created, before the region's generator selector runs for it.
+  zone's `ZoneSpec` when the zone is created.
 - **A region keeps its resolved spec, and a zone its resolved `ZoneSpec`.** The region and its zones are saved and
   regenerated from them, and a later change to the pattern leaves them unchanged.
 - **Resolution draws from a random engine of its own,** seeded from the region's or the zone's seed, which is separate
@@ -172,7 +170,7 @@ A weighted table has one syntax, which placement uses as well (`placement_plan.m
 | Placeholder | `zone.name: Level {z}` | The value of a variable from the context (`### Context`) |
 
 - **A leading `~` marks an expression,** because a literal can have the same form as one. `primary: {fields 4, forest
-  4}` is a weighted table that the common selector draws from for each zone, and `~{fields 4, forest 4}` is one draw
+  4}` is a weighted table that the zone pattern draws from for each zone, and `~{fields 4, forest 4}` is one draw
   made when the spec is resolved.
 - **A placeholder is replaced in literals and expressions alike.**
 - **Arithmetic in an expression would let a value depend on the context,** such as a difficulty that rises with depth:
@@ -206,16 +204,15 @@ A placeholder refers to a variable of the context that the spec is resolved in.
 ### Zones
 
 - **The `zone.` keys are the pattern of each zone's `ZoneSpec`,** resolved with the zone's position and index in the
-  context. The generator selector then completes the resolved `ZoneSpec`.
-- **The common selector's tables are a zone pattern.** `opening`, `primary`, and `rare` choose each zone's generator by
+  context.
+- **The weighted tables are part of the zone pattern.** `opening`, `primary`, and `rare` choose each zone's template by
   its index and a draw, which an expression on `{index}` could also express.
 
 ### Spec generators
 
-- **A spec generator is a registered function that makes a spec,** for a pattern that expressions cannot express, as a
-  selector of its own does for zones. It takes the parent's resolved spec, the context, and the resolution random
+- **A spec generator is a registered function that makes a spec,** for a pattern that expressions cannot express. It takes the parent's resolved spec, the context, and the resolution random
   engine, and returns a pattern.
-- **Spec generators become script** with the selectors (`modding_plan.md`), and until then each is C++ that a host
+- **Spec generators become script** (`modding_plan.md`), and until then each is C++ that a host
   registers.
 
 ## Names
@@ -241,7 +238,7 @@ A placeholder refers to a variable of the context that the spec is resolved in.
 ## Connections between worldspaces
 
 - **An entrance into another worldspace has a zone's extended name as its target,** such as a staircase in a surface
-  zone that leads to `barrow/Level -1`. The selector adds the target to the zone's parameters, and the generator writes
+  zone that leads to `barrow/Level -1`. The zone pattern adds the target to the zone's parameters, and the generator writes
   it to the access point.
 
 ## The structure World::create builds
@@ -252,7 +249,7 @@ For each of the game's top-level region specs, `World::create`:
    the `worldspace.` keys and its top-level region with the spec's name;
 2. creates a zone at each position of the region's extent that is in no subregion's extent, in the order of
    `## Zones of a worldspace`, with its position, its seed, its `ZoneSpec` resolved from the `zone.` keys, and its name
-   from the pattern, and runs the region's `generator_selector` for the zone;
+   from the pattern;
 3. creates each subregion in the same way, from its entry's resolved spec and extent;
 
 and then generates the character's initial zone and places the character at the cell position that the game setting
@@ -277,14 +274,14 @@ specifies.
 - **Are ranges written as `3 .. 6`, in dice notation, or in both?**
 - **Do expressions nest, and do they have arithmetic?**
 - **Which variables does the context have?**
-- **Do the common selector's tables become `zone.` expressions on `{index}`?**
+- **Do the weighted tables become `zone.` expressions on `{index}`?**
 - **What does a spec generator take and return?**
 - **Is a subregion's extent always smaller than its parent's, so that every recursive rule ends?**
 - **What are the key names and syntax of an extent and of an expression that places one, and can an extent take forms
   other than boxes?**
 - **Are a subregion entry's overrides and a type's patches (`modding_plan.md`) one mechanism?**
 - **What are the keys of the region name pattern and the metadata?**
-- **Which metadata becomes components on the region, and which does only the selector read?**
+- **Which metadata becomes components on the region, and which does only the zone pattern read?**
 - **What properties does each type of region have?** Surface areas and dungeons share some properties and differ in
   others.
 - **How does difficulty progress from its starting value across a dungeon's zones?**
@@ -292,8 +289,6 @@ specifies.
   beside `subregion.<name>.extent`?**
 - **Which spec defines where an entrance into one worldspace is placed in another?** It might be the surface's, the
   dungeon's, or the game's.
-- **Is `GeneratorSelection::region_spec_name`, a selection that creates a new region, still needed once every region is
-  created before play starts?**
 - **How is a display name made, and how are random names generated?**
 
 ## Contents of a region spec
@@ -303,7 +298,6 @@ or `zone_plan.md`, and proposed members are in this plan alone.
 
 | Member | Contents | State | First implementation |
 | --- | --- | --- | --- |
-| `generator_selector` | The name of the generator selector that chooses how each zone is generated | Built | Yes |
 | `seed` | The region's seed, in place of the drawn one | Built | Yes |
 | `position.x`, `.y` | The region's position, which its seed is derived from until seeds are drawn hierarchically | Built | No |
 | `worldspace.extent` | A top-level spec's worldspace extent, one box; built as interval strings on each axis | Built | Yes |
@@ -311,7 +305,7 @@ or `zone_plan.md`, and proposed members are in this plan alone.
 | `zone.name` | The pattern of each zone's name | Built | Yes |
 | `zone.display_name` | The pattern or rule for each zone's display name | Proposed | Yes |
 | `zone.parameters.*` | Generation parameters for every zone | Designed | Yes |
-| `parameters.opening`, `.primary`, `.rare` | The common selector's weighted tables | Designed | Yes |
+| `parameters.opening`, `.primary`, `.rare` | The zone pattern's weighted tables | Designed | Yes |
 | metadata | Type, terrain, competency level, difficulty, service level, and level count; key names open | Designed | Yes |
 | region name pattern | The pattern of the names of regions created from the spec; key name open | Designed | No |
 | `zones` | Listed zones, each a position with overrides of the `zone` pattern, a generator, or a pregenerated zone | Proposed | Yes |

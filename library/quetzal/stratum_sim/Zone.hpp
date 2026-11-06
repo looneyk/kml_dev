@@ -11,7 +11,6 @@
 #include "Site.hpp"
 #include "types.hpp"
 #include "quetzal/common/id.hpp"
-#include "quetzal/stratum_format/Notation.hpp"
 #include <flecs.h>
 #include <compare>
 #include <cstddef>
@@ -57,13 +56,6 @@ namespace quetzal::stratum_sim
     struct ZoneDocument
     {
         std::shared_ptr<const stratum_format::Document> document;
-    };
-
-    //--------------------------------------------------------------------------
-    // The notation the zone's layout is written in, which a host uses to choose a view
-    struct ZoneNotation
-    {
-        stratum_format::Notation notation = stratum_format::Notation::Block;
     };
 
     //--------------------------------------------------------------------------

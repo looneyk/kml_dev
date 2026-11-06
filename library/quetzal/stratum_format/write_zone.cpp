@@ -243,14 +243,23 @@ namespace
             sections.push_back(generator_section(*document.generator));
         }
 
-        // access_points is required, so the layout always has components
-        std::vector<std::string> access_points;
-        for (stored_entity_id_type id : document.access_points)
+        if (document.zone_spec.has_value())
         {
-            access_points.push_back(reference_text(id));
+            sections.push_back(std::format("{}\"zone_spec\": {}", indentation(section_indent), text_values_text(document.zone_spec.value())));
         }
 
-        std::vector<std::string> components {std::format("\"access_points\": [ {} ]", joined(access_points))};
+        // access_points is required in a zone with cells
+        std::vector<std::string> components;
+        if (document.cells.has_value())
+        {
+            std::vector<std::string> access_points;
+            for (stored_entity_id_type id : document.access_points)
+            {
+                access_points.push_back(reference_text(id));
+            }
+
+            components.push_back(std::format("\"access_points\": [ {} ]", joined(access_points)));
+        }
         if (document.position.has_value())
         {
             components.push_back(std::format("\"position\": {:/s, /b[]}", *document.position));
@@ -271,7 +280,10 @@ namespace
 
         sections.push_back(object_section("layout", {std::format("\"components\": {}", object_text(components))}));
 
-        sections.push_back(cells_section(document.cells));
+        if (document.cells.has_value())
+        {
+            sections.push_back(cells_section(document.cells.value()));
+        }
 
         if (!document.barriers.empty())
         {

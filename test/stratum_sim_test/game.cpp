@@ -91,7 +91,7 @@ namespace
         CHECK_CASE("leaving no entity with a persistent id", world.entities().count<stratum_sim::PersistentId>() == 0);
         CHECK_CASE("and keeps the registrations", stratum_sim::entity_type(world.entities(), "door")
             && stratum_sim::access_type(world.entities(), "staircase") && stratum_sim::file_component(world.entities(), "name") != 0
-            && played.generation().m_generator_selectors.contains("door"));
+            && played.generation().m_region_specs.contains("door"));
 
         // One game after another, each created from specs. The games' directories are made afresh on every run
         filesystem::remove_all(g_test_config.saves_directory);
@@ -100,6 +100,7 @@ namespace
         stratum_sim::Session& sequence_session = sequence.session();
         stratum_sim::World& sequence_world = sequence.world();
         sequence.generation() = test_generation();
+        sequence.generation().m_zone_generator = nullptr;
         flecs::entity staircase_type = stratum_sim::access_type(sequence_world.entities(), "staircase");
 
         const string region_spec_name = "dungeon";
@@ -119,9 +120,11 @@ namespace
             && name_of(first_character) == "Ailis");
         CHECK_CASE("and starts play in the first zone of a worldspace made from the spec, named for it, at the entry point it states",
             sequence_session.loaded() && level_of(first_zone) == -1
-            && first_region.region_spec.keys.value(stratum_sim::generator_selector_key) == "staircase" && first_worldspace.name == region_spec_name
+            && zone_file_of(first_region.region_spec) == "data/walls.zone" && first_worldspace.name == region_spec_name
             && stratum_sim::placement_of(first_character).position()
                 == stratum_sim::arrival_placement(stratum_sim::entry_point(first_zone, staircase_type, 1)).position());
+        CHECK_CASE("and sets the game's zone generator from its notation",
+            static_cast<bool>(sequence.generation().m_zone_generator) && sequence.notation() == g_test_manifest.notation);
 
         flecs::entity second_zone = stratum_sim::zone_of(sequence_world.relocate_through(first_character,
             stratum_sim::entry_point(first_zone, staircase_type, -1)));
@@ -374,7 +377,7 @@ namespace
                 && region_json["zones"][0]["position"] == stratum_format::raw_values_type {0, 0, -1}
                 && region_json["zones"][1]["id"] == saving_second_id.id
                 && region_json["zones"][1]["position"] == stratum_format::raw_values_type {0, 0, -2}
-                && region_json["spec"].contains(string(stratum_sim::generator_selector_key));
+                && region_json["spec"].contains(format("{}{}", stratum_sim::zone_prefix, zone_file_key));
 
             for (const auto& zone_json : region_json["zones"])
             {
@@ -453,7 +456,7 @@ namespace
         const bool region_opened = saving_world.worldspaces().size() == 1 && saving_world.worldspaces().front().regions.contains(region_id);
         CHECK_CASE("and the region, with its spec and its zone ids, the first zone not loaded", region_opened
             && saving_world.region(region_id).zone_ids == vector {saving_first_id, saving_second_id}
-            && saving_world.region(region_id).region_spec.keys.value(stratum_sim::generator_selector_key) == "staircase"
+            && zone_file_of(saving_world.region(region_id).region_spec) == "data/walls.zone"
             && !saving_world.entity(saving_first_id) && saving_world.zone_count() == 1);
 
         CHECK_CASE("and the worldspace, with its name and its zones by position, loaded or not", region_opened

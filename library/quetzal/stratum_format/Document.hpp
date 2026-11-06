@@ -193,12 +193,13 @@ namespace quetzal::stratum_format
     {
         std::string version;
         std::optional<Generator> generator;
-        std::vector<stored_entity_id_type> access_points; // The layout's access_points file component, decoded
-        std::optional<zone_position_type> position; // The layout's position file component, decoded
-        bool is_unpopulated = false; // The layout's unpopulated file component, decoded
-        raw_values_type components; // The layout's other components, excluding access_points, position and unpopulated
+        std::vector<stored_entity_id_type> access_points;
+        std::optional<zone_position_type> position;
+        bool is_unpopulated = false;
+        raw_values_type components; // Other components
         std::optional<stored_entity_id_type> zone_id; // Persistent id, empty in a zone template
-        Cells cells;
+        std::optional<KeyValueStore> zone_spec;
+        std::optional<Cells> cells;
         std::vector<Barrier> barriers;
         std::vector<Room> rooms;
         std::vector<Wall> walls;

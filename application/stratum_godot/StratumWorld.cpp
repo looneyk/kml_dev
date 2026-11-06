@@ -10,6 +10,7 @@
 #include "quetzal/stratum_sim/attachments.hpp"
 #include "quetzal/stratum_sim/DiscreteLayout.hpp"
 #include "quetzal/stratum_sim/commands.hpp"
+#include "quetzal/stratum_sim/Name.hpp"
 #include "quetzal/stratum_sim/Site.hpp"
 #include "quetzal/stratum_sim/specs.hpp"
 #include "quetzal/stratum_view/ascii.hpp"
@@ -32,7 +33,6 @@ namespace view = quetzal::stratum_view;
 namespace
 {
 
-    constexpr std::string_view notation_generator_selector_name = "notation_generator";
     constexpr std::string_view temporary_region_spec_name = "dungeon";
 
     //--------------------------------------------------------------------------
@@ -40,7 +40,7 @@ namespace
     // staircase leading up
     sim::RegionSpec temporary_region_spec()
     {
-        return sim::RegionSpec {quetzal::KeyValueStore {{std::string(sim::generator_selector_key), std::string(notation_generator_selector_name)},
+        return sim::RegionSpec {quetzal::KeyValueStore {{std::format("{}{}", sim::zone_prefix, sim::name_key), "Dungeon Level {z}"},
             {std::string(sim::entry_access_key), "staircase,1"}, {std::format("{}{}", sim::zone_prefix, sim::position_z_key), "-1"},
             {"worldspace.extent.x", "0 .. 0"}, {"worldspace.extent.y", "0 .. 0"}, {"worldspace.extent.z", "-100 .. 0"}}};
     }
@@ -55,34 +55,22 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Temporary, until the common generator selector: every zone of the starting region is made by the generator of the
-    // game's notation, named "Dungeon Level N" for its level, and of the game's zone size unless the spec has an extent
-    sim::Generation::GeneratorSelection select_notation_generator(quetzal::stratum_format::Notation notation, const sim::ZoneSpec& zone_spec)
-    {
-        sim::ZoneSpec named_zone_spec = zone_spec;
-        const sim::level_type level = zone_spec.position().z;
-        named_zone_spec.keys.insert(std::string(sim::name_key), std::format("Dungeon Level {}", std::abs(level)));
-
-        const std::string extent_key = std::format("{}extent", sim::parameters_prefix);
-        if (!named_zone_spec.keys.contains(extent_key))
-        {
-            named_zone_spec.keys.insert(extent_key, std::format("{},{}", quetzal::settings::store().value<int64_t>("world.zone_size.x"),
-                quetzal::settings::store().value<int64_t>("world.zone_size.y")));
-        }
-
-        return sim::Generation::GeneratorSelection {std::string(quetzal::stratum_gen::generator_name(notation)), {}, {}, named_zone_spec};
-    }
-
-    //--------------------------------------------------------------------------
+    // Temporary, until zone patterns set every zone's extent: a zone without one has the game's zone size
     quetzal::stratum_gen::ZoneRequest make_zone_request(const sim::ZoneSpec& zone_spec)
     {
         std::optional<quetzal::stratum_gen::seed_type> seed = zone_spec.keys.value<quetzal::stratum_gen::seed_type>(sim::seed_key);
         assert(seed.has_value());
         const sim::ZonePosition position = zone_spec.position();
 
-        return quetzal::stratum_gen::ZoneRequest {zone_spec.keys.value_or(sim::name_key, std::string()),
-            quetzal::stratum_gen::zone_position_type {position.x, position.y, position.z}, *seed,
-            sim::select_prefixed(zone_spec.keys, sim::parameters_prefix)};
+        quetzal::KeyValueStore parameters = sim::select_prefixed(zone_spec.keys, sim::parameters_prefix);
+        if (!parameters.contains("extent"))
+        {
+            parameters.insert("extent", std::format("{},{}", quetzal::settings::store().value<int64_t>("world.zone_size.x"),
+                quetzal::settings::store().value<int64_t>("world.zone_size.y")));
+        }
+
+        return quetzal::stratum_gen::ZoneRequest {sim::zone_name(zone_spec.keys.value_or(sim::name_key, std::string()), position),
+            quetzal::stratum_gen::zone_position_type {position.x, position.y, position.z}, *seed, parameters};
     }
 
     //--------------------------------------------------------------------------
@@ -120,19 +108,15 @@ StratumWorld::StratumWorld() :
     m_view_slot(static_cast<size_t>(std::ranges::find(m_game.manifest().views, m_game.manifest().default_view) - m_game.manifest().views.begin())),
     m_notation(m_game.manifest().notation)
 {
-    for (const auto& [name, generate] : quetzal::stratum_gen::generators())
+    const auto generators = quetzal::stratum_gen::generators();
+    for (const auto& notation : {quetzal::stratum_format::Notation::Block, quetzal::stratum_format::Notation::Wall})
     {
-        m_game.generation().m_generators[name] = [generate](const sim::ZoneSpec& zone_spec)
+        const quetzal::stratum_gen::generator_function_type& generate = generators.at(std::string(quetzal::stratum_gen::generator_name(notation)));
+        m_game.generation().m_zone_generators[notation] = [generate](const sim::ZoneSpec& zone_spec)
         {
             return generate(make_zone_request(zone_spec));
         };
     }
-
-    m_game.generation().m_generator_selectors[std::string(notation_generator_selector_name)] =
-        [this](const sim::World&, const sim::Region&, const sim::ZoneSpec& zone_spec)
-    {
-        return select_notation_generator(m_game.notation(), zone_spec);
-    };
 
     m_game.generation().m_region_specs[std::string(temporary_region_spec_name)] = temporary_region_spec();
 }

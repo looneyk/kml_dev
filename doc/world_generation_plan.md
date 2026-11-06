@@ -3,7 +3,7 @@
 Date: 2026-10-01, revised 2026-11-01
 
 This plan describes how a new game's world is generated: the world's structure of worldspaces, regions, and zones,
-created whole from specs before play starts, the registries of generators and generator selectors, and how each zone's
+created whole from specs before play starts, the registries of zone generators and region specs, and how each zone's
 content is generated when it is needed. `zone_plan.md` defines the structure. Saving and opening a game are in
 `session_plan.md` (`## Games`) and `game_file_spec.md`, and the open items are in `work_plan.md` (`### Generation`).
 
@@ -15,14 +15,14 @@ content is generated when it is needed. `zone_plan.md` defines the structure. Sa
 - **A zone's content is generated when it is needed,** the first time the zone is entered or loaded, from its
   `ZoneSpec` and its seed. A zone's content is created whole: the generator returns a `stratum_format::Document`, which
   `World` builds into the zone in one pass.
-- **A generator selector chooses how each zone of a region is generated.** It is the region's policy: it reads the
-  region and its zones, and chooses a generator and that generator's parameters or a pre-built zone. It runs when the
-  structure is created, so every zone's `ZoneSpec` is complete, and every pre-built zone's name is in the structure,
-  before play starts.
-- **Most regions share one data-driven selector,** configured by the parameters in their `RegionSpec`. A region with
-  unusual rules has a selector of its own.
-- **A generator creates one zone's content.** It is a function from a `ZoneSpec` to a `Document`, and reads nothing
-  from the world.
+- **A region spec's zone pattern defines each zone of the region.** The `zone.` keys, resolved with the zone's
+  position and index (`region_spec_plan.md`, `## Patterns`), are the zone's `ZoneSpec`, its template and the zone
+  generator's parameters among them; weighted tables in the pattern are drawn from as it is resolved. The specs are
+  resolved when the structure is created, so every zone's `ZoneSpec` is complete before play starts.
+- **A template is data,** such as fields, forest, cave1, grid1, or a landmark that is partly or wholly pre-built. The
+  zone generator applies the `ZoneSpec` to it as far as it makes sense, which is to be defined.
+- **A game has one zone generator,** chosen by the game's notation, since a zone generator writes one zone format. It
+  creates one zone's content, as a function from a `ZoneSpec` to a `Document`, and reads nothing from the world.
 - **The host only passes specs.** The host delegates game, world, and character creation to `Game`. It calls
   `Game::create` with the specs for each of these.
 
@@ -37,19 +37,16 @@ struct RegionSpec
 
     KeyValueStore keys;
 };
-// A key with no prefix is the region's: generator_selector, the name of the region's generator selector, its naming
-//     patterns, and its metadata: name, type (surface, dungeon, crypt, ...), competency level, difficulty, ...
+// A key with no prefix is the region's: its naming patterns, and its metadata: name, type (surface, dungeon, crypt, ...), competency level, difficulty, ...
 // worldspace.*: for a top-level region, its worldspace's coordinate system: its extent and, for a grid worldspace, its
 //     zone size
 // extent: for a subregion, the positions of its parent's extent that it covers, as boxes (### Extents)
 // entry_access: the access point type and offset at which the character enters a new game's first zone, such as
 //     "staircase,1"; read by World::create only, and by no region that is not a game's starting region
-// parameters.*: the region's generation parameters, which its selector reads
-// zone.*: the ZoneSpec that the region's zones are created from, with the prefix removed; the selector modifies it for
-//     each zone, as for its position
+// zone.*: the pattern of the ZoneSpec of each of the region's zones, with the prefix removed, resolved for each zone
 // subregion.*: the names of the region specs of its subregions
 
-// A request to create a zone. The structure states the position; the selector adds the generator's parameters
+// A request to create a zone. The structure sets the position, and the region spec's zone pattern the other keys
 struct ZoneSpec
 {
     ZonePosition position() const;
@@ -57,32 +54,20 @@ struct ZoneSpec
 
     KeyValueStore keys;
 };
-// name, position, ...
+// name, position, template, ...
 // parameters.*: the zone's generation parameters, which its generator reads, the seed among them
 
-// Exactly one of generator_name and zone_template is set
-struct GeneratorSelection
-{
-    std::optional<std::string> generator_name;   // A generator creates the zone's content
-    std::optional<std::string> zone_template;    // A pre-built zone, by its extended name in the pregenerated content index
-    ZoneSpec zone_spec;                          // The request, completed with the generator's parameters
-};
-
-using generator_selector_type = std::function<GeneratorSelection(const World& world, const Region& region, const ZoneSpec& zone_spec)>;
-using generator_type = std::function<stratum_format::Document(const ZoneSpec& zone_spec)>;
+using zone_generator_type = std::function<stratum_format::Document(const ZoneSpec& zone_spec)>;
 
 class Game
 {
-    // <generator selector name, generator selector>
-    std::map<std::string, generator_selector_type> m_generator_selectors;
-
-    // <generator name, generator>
-    std::map<std::string, generator_type> m_generators;
+    std::map<stratum_format::Notation, zone_generator_type> m_zone_generators;
+    zone_generator_type m_zone_generator; // The one for the game's notation
 
     // <region spec name, region spec>
     std::map<std::string, RegionSpec> m_region_specs;
 
-    World m_world; // Takes the three maps by reference
+    World m_world; // Takes the registries by reference
     ...
 };
 ```
@@ -109,7 +94,7 @@ The entities:
 //     its name and its region
 //     ZonePosition         its position in its worldspace
 //     ZoneSpec             complete, with its seed and its generator's parameters
-//     ZoneLayout, ZoneNotation, and its layout entities and entities, built from the Document once its content is
+//     ZoneLayout and its layout entities and entities, built from the Document once its content is
 //     generated
 ```
 
@@ -123,15 +108,14 @@ The entities:
 
 ## Registries
 
-- **`Game` owns the three maps,** which last as long as the program. `World` takes them by
+- **`Game` owns the registries,** which last as long as the program. `World` takes them by
   reference in its constructor, as it takes the id allocator, and `World::clear` keeps them.
 - **The generators are in `quetzal/stratum_gen`,** which returns a map from each generator's name to its function, each
-  taking a `ZoneRequest`: the name, the position, the seed, and the generator's parameters. Each host registers them as
-  `generator_type`, making the `ZoneRequest` from the settings and the `ZoneSpec`, since the hosts are what link both
+  taking a `ZoneRequest`: the name, the position, the seed, and the generator's parameters. Each host registers the one for each notation as
+  a `zone_generator_type`, making the `ZoneRequest` from the settings and the `ZoneSpec`, since the hosts are what link both
   libraries. `stratum_sim` depends on no generator, and `stratum_gen` on no part of `stratum_sim`.
-- **The generator selectors and the region specs are the game's content.** Region specs are design assets, or derive
-  their values from design assets, and the selectors become data or script (`modding_plan.md`); until then each host
-  registers temporary ones.
+- **The region specs and the templates are the game's content.** Both are design assets, or derive their values from
+  design assets (`modding_plan.md`); until then each host registers a temporary region spec.
 - **A name that is not registered is an error** that reaches the host.
 
 ## Creating a game
@@ -166,7 +150,7 @@ void Session::start(flecs::entity access_point)
   `select_prefixed(spec, prefix)` returns the entries under a prefix with it removed, so `zone.` yields an ordinary
   `ZoneSpec`. Each consumer checks the keys it reads with `find_unknown_keys(spec, known_keys)`. Both are stratum's
   (`specs.hpp`), not `KeyValueStore`'s: `World::create` reads the region spec's keys with no prefix, and the
-  generator selector and generator their prefixes.
+  zone generator the `parameters.` keys of the resolved `ZoneSpec`.
 - **The game's top-level region specs are its worldspaces.** Each creates a worldspace with the coordinate system its
   `worldspace.` keys state, and the region and its subregions, from the region specs its `subregion.` keys refer to.
 - **The starting region's spec states the entry** in its `entry_access` key: the name of a registered access point
@@ -194,12 +178,12 @@ flecs::entity World::create_zone(PersistentId region_id, const ZoneSpec& zone_sp
     const Region& region = this->region(region_id);
     const RegionSpec& region_spec = region.region_spec;
 
-    // the ZoneSpec's seed, or the next draw from the region's random engine
-    ZoneSpec seeded_zone_spec = zone_spec with its seed under seed_key;
-    GeneratorSelection selection = m_generator_selectors.at(region_spec.generator_selector)(*this, region, seeded_zone_spec);
+    // the region spec's zone pattern resolved for the zone, under the given keys, with the ZoneSpec's seed or the next
+    // draw from the region's random engine under seed_key
+    ZoneSpec resolved_zone_spec = resolve_zone_spec(region_spec, zone_spec);
 
-    flecs::entity zone = create the zone in the worldspace, with a new PersistentId, its name from the region's
-        naming pattern or the pre-built zone's, its region, the ZonePosition of zone_spec, and selection's ZoneSpec;
+    flecs::entity zone = create the zone in the worldspace, with a new PersistentId, its name from the resolved
+        naming pattern, its region, the ZonePosition of zone_spec, and resolved_zone_spec;
     add the zone's id to the region's zone ids;
     return zone;
 }
@@ -208,15 +192,14 @@ flecs::entity World::create_zone(PersistentId region_id, const ZoneSpec& zone_sp
 | Value | From |
 | --- | --- |
 | The position | The structure: the region spec and the worldspace's coordinate system |
-| The generator and its parameters, or a pre-built zone | The region's generator selector, from the region's spec and the zone's position |
+| The template and the generator's parameters | The region spec's zone pattern, resolved with the zone's position and index |
 | The seed | `World`, drawn from the region's random engine, unless the `ZoneSpec` has one (`random_engine.md`, `## Generation`) |
-| The name | The region spec's naming pattern, or the pre-built zone's name |
+| The name | The region spec's naming pattern |
 
-- **The seed is added first.** `World` adds the zone's seed to the `ZoneSpec` under `seed_key` before calling the
-  selector, so the selector and the generator both have it.
-- **The selector reads the world; the generator does not.** The selector reads the region and its zones, and its
-  random draws use a random engine seeded from the zone's seed. Anything from the region that a generator needs, such
-  as difficulty, the selector copies into the zone's parameters.
+- **The seed is added first,** so the pattern's draws and the generator both have it. The draws use a random engine
+  seeded from the zone's seed.
+- **The generator does not read the world.** Anything from the region that a generator needs, such as difficulty, is
+  in the zone pattern's parameters.
 - **The designer decides the positions and names of a region's zones,** through the region spec's extent and naming
   patterns.
 
@@ -309,16 +292,9 @@ than one zone in both dimensions. A single position is a box with an integer on 
 void World::generate(flecs::entity zone)
 {
     const ZoneSpec& zone_spec = zone.get<ZoneSpec>();
-    stratum_format::Document document;
 
-    if (zone_spec has a zone template)
-    {
-        document = the pre-built zone's Document, from the pregenerated content index;
-    }
-    else
-    {
-        document = m_generators.at(generator name of zone_spec)(zone_spec);
-    }
+    // the zone generator applies the spec to the spec's template, if it has one
+    stratum_format::Document document = m_zone_generator(zone_spec);
 
     // check the document with check_buildable before building anything
     load_layout(zone, document);
@@ -326,67 +302,45 @@ void World::generate(flecs::entity zone)
 }
 ```
 
-- **A zone's content is generated once,** the first time it is entered or loaded, whether a generator returned its
-  `Document` or a pre-built zone supplied it, so every zone is built in the same way.
+- **A zone's content is generated once,** the first time it is entered or loaded, so every zone is built in the same
+  way.
 - **The generator writes the zone's position into the `Document`.**
 
-## Generator selection
-
-A region's selector decides, for each zone of the region, one of two outcomes:
-
-- **A generator and its parameters,** which is the usual outcome.
-- **A pre-built zone,** a zone template from the pregenerated content index, for a rare special zone. It is read into a
-  `Document` when the zone's content is generated, and the zone is built from it; no generator reads a file.
+## Zone patterns
 
 ### The starting region
 
 The starting region is a surface region. Its first zone is a field or a forest with few denizens, if any, and a zone
 next to it is a town. Every other zone of the region is drawn at random from fields, hills, forests and towns.
 
-None of this is special code. The starting region is a `RegionSpec` whose parameters give the common selector an
-opening sequence; any region may have one.
+None of this is special code. The starting region is a `RegionSpec` whose zone pattern has an opening sequence; any
+region may have one.
 
-### The common selector
+### Weighted tables
 
-Most regions use one selector, configured by its `RegionSpec`'s parameters. Many have one primary generator and,
-optionally, rare generators or pre-built zones that are drawn occasionally.
+A region's zone pattern draws each zone's template from weighted tables: an opening sequence for its first zones, a
+primary table, and rare templates that are drawn occasionally.
 
 ```cpp
-// The starting region's spec, as the common selector reads it
+// The starting region's spec
 starting_area
     type: surface
-    generator_selector: common
     difficulty: 1
     service_level: basic
     opening: [{fields 1, forest 1}, {town 1}]        // weighted tables, one for each of the first zones, in order
     primary: {fields 4, forest 4, hills 2, town 1}   // the weighted table for every zone after the opening
-    rare: {hermit_glade 0.02, ruined_shrine 0.01}    // generators or pre-built zones, each drawn with its probability
+    rare: {hermit_glade 0.02, ruined_shrine 0.01}    // templates, each drawn with its probability
     entry_access: waypoint,0                         // the access point the first zone's generator places
     zone.parameters.denizens: few
 
-GeneratorSelection common(const World& world, const Region& region, const ZoneSpec& zone_spec)
-{
-    const RegionSpec& region_spec = region.region_spec;
-    size_t zone_index = the zone's index among the region's zones;
-
-    if (zone_index < region_spec.opening.size())
-    {
-        return {generator_name: draw from region_spec.opening[zone_index], zone_spec + the region's parameters};
-    }
-
-    if (a draw from region_spec.rare selects an entry)
-    {
-        return {generator_name or zone_template: that entry, zone_spec + the region's parameters};
-    }
-
-    return {generator_name: draw from region_spec.primary, zone_spec + the region's parameters};
-}
+// The zone's template, as the pattern resolves it for the zone at an index among the region's zones
+template = index < opening.size() ? draw from opening[index]
+         : a draw from rare selects an entry ? that entry
+         : draw from primary;
 ```
 
 - **A weighted table is the mechanism that placement draws from** (`placement_plan.md`, `## A run's roles`), so
-  the selector and placement share it.
-- **A selector of its own is script,** once scripting is chosen (`modding_plan.md`), for a region whose rules the
-  common selector's parameters cannot express. Until then each is C++ that a host registers.
+  the zone pattern and placement share it.
 - **A zone's denizens are among its parameters,** such as the starting zone's few, for the population strategy that
   replaces `World::populate`'s placeholder.
 
@@ -397,7 +351,7 @@ GeneratorSelection common(const World& world, const Region& region, const ZoneSp
 - **Going through an unbound target generates the zone's content if it has none,** places the arriving actor at the
   named access point or at an unbound access point of the arrival type whose target leads back, and binds both ends.
 - **An entrance into another worldspace,** such as a dungeon entrance in a fields zone, has the extended name of a zone
-  in that worldspace as its target: the selector puts it into the zone's parameters, and the generator writes it into
+  in that worldspace as its target: the zone pattern puts it into the zone's parameters, and the generator writes it into
   the access point's target.
 
 A new game, from the host's call through the structure, the first zone, and a descent into a dungeon:
@@ -408,17 +362,17 @@ Game           m_world.create({surface, barrow_dungeon})
 World            worldspace surface, its region starting_area and its subregions, every zone with its ZoneSpec
 World            worldspace barrow_dungeon, its region, every zone with its ZoneSpec
 World            generate(the starting region's first zone)
-World              generator "forest"                                -> Document, a staircase to barrow_dungeon/level_1
+World              the zone generator, template forest               -> Document, a staircase to barrow_dungeon/level_1
 World              load_layout, populate
 World          entry_point(the first zone, waypoint, 0)              -> access point
 Game           m_session.start(access point)
 
 character walks east into the adjacent zone
-World          generate(the adjacent zone)                           -> generator "town", as the opening states
+World          generate(the adjacent zone)                           -> template town, as the opening has it
 
 character goes down the staircase in the first zone
 World          resolve the target barrow_dungeon/level_1             -> the zone of that extended name
-World            generate(barrow_dungeon/level_1)                    -> generator "dungen", with a staircase +1 and one -1
+World            generate(barrow_dungeon/level_1)                    -> the zone generator, with a staircase +1 and one -1
 World          the two staircases bound to each other
 ```
 

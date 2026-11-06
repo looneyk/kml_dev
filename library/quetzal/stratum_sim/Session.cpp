@@ -116,13 +116,6 @@ bool quetzal::stratum_sim::Session::loaded() const
 }
 
 //------------------------------------------------------------------------------
-quetzal::stratum_format::Notation quetzal::stratum_sim::Session::notation() const
-{
-    assert(loaded());
-    return m_zone.get<ZoneNotation>().notation;
-}
-
-//------------------------------------------------------------------------------
 quetzal::stratum_sim::World& quetzal::stratum_sim::Session::world()
 {
     return m_world;

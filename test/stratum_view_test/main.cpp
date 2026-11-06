@@ -76,7 +76,8 @@ namespace
     string rows_of(const string& filepath)
     {
         string s;
-        for (const string& row : stratum_format::read_zone(filepath).cells.rows)
+        const stratum_format::Document document = stratum_format::read_zone(filepath);
+        for (const string& row : document.cells.value().rows)
         {
             s += row + '\n';
         }
@@ -739,7 +740,7 @@ namespace
     // One door entity per door glyph, its door facings on the walls of that doorway, and no door facing anywhere else
     bool doors_have_entities(const stratum_format::Document& document, string& detail)
     {
-        vector<vector<stratum_format::WallAddress>> doors = stratum_format::door_walls(document.cells);
+        vector<vector<stratum_format::WallAddress>> doors = stratum_format::door_walls(document.cells.value());
         map<stratum_format::stored_entity_id_type, vector<stratum_format::WallAddress>> walls_by_door;
         size_t door_count = 0;
 

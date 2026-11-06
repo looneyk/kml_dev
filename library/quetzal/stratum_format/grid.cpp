@@ -216,11 +216,11 @@ std::vector<std::set<quetzal::stratum_format::discrete_point_type>> quetzal::str
     {
         if (const Perimeter* perimeter = std::get_if<Perimeter>(&room.identification); perimeter != nullptr)
         {
-            result.push_back(enclosed(document.cells, *perimeter));
+            result.push_back(enclosed(document.cells.value(), *perimeter));
         }
         else
         {
-            result.push_back(fill(document.cells, std::get<RoomLocator>(room.identification), layout_barriers));
+            result.push_back(fill(document.cells.value(), std::get<RoomLocator>(room.identification), layout_barriers));
         }
     }
 

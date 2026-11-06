@@ -1150,7 +1150,7 @@ namespace
                 && std::ranges::any_of(i->second, [&](size_t slot) { return document.entities[slot].parent_id == parent; });
         };
 
-        for (const std::vector<WallAddress>& walls : door_walls(document.cells))
+        for (const std::vector<WallAddress>& walls : door_walls(document.cells.value()))
         {
             std::set<stored_entity_id_type> parents;
 
@@ -1320,7 +1320,7 @@ namespace
         }
 
         std::set<wall_key_type> door_sides;
-        for (const auto& walls : door_walls(document.cells))
+        for (const auto& walls : door_walls(document.cells.value()))
         {
             for (const WallAddress& address : walls)
             {
@@ -1367,7 +1367,7 @@ namespace
                 warn(point_path, "an entity sited on a wall that is neither the open side of a cell written '<' or '>' nor a door's wall");
             }
 
-            if (!floor_door_cell(document.cells, arrival_cell_position(*entity.site)))
+            if (!floor_door_cell(document.cells.value(), arrival_cell_position(*entity.site)))
             {
                 fail(member_path(components_path, "site"), "an access point at which an arriving actor is placed in a cell it cannot stand in");
             }
@@ -1436,13 +1436,44 @@ namespace
                 text_values(required_member(*p, "generator", "parameters"), "generator.parameters")};
         }
 
+        if (const raw_values_type* p = member(v, "zone_spec"); p != nullptr)
+        {
+            document.zone_spec = text_values(*p, "zone_spec");
+        }
+
         if (const raw_values_type* p = member(v, "layout"); p != nullptr)
         {
             object(*p, "layout");
             document.components = read_components(*p, "layout");
         }
 
-        document.access_points = read_access_points(document.components);
+        const raw_values_type* cells_value = member(v, "cells");
+
+        if (cells_value == nullptr)
+        {
+            for (std::string_view key : {"barriers", "rooms", "walls", "flats", "entities"})
+            {
+                if (member(v, key) != nullptr)
+                {
+                    fail(std::string(key), "in an empty zone, which has no cells");
+                }
+            }
+
+            if (document.components.is_object() && document.components.contains("access_points"))
+            {
+                fail("layout.components.access_points", "in an empty zone, which has no cells");
+            }
+
+            if (!document.zone_spec.has_value() || !document.zone_id.has_value())
+            {
+                fail(!document.zone_spec.has_value() ? "zone_spec" : "zone", "required in an empty zone, which has no cells");
+            }
+        }
+        else
+        {
+            document.access_points = read_access_points(document.components);
+        }
+
         document.position = read_zone_position(document.components);
         document.is_unpopulated = read_unpopulated(document.components);
         if (document.components.is_object())
@@ -1457,11 +1488,16 @@ namespace
             warn("layout.components.unpopulated", "set in a zone with a zone id");
         }
 
-        document.cells = read_cells(required_member(v, "", "cells"), "cells");
+        if (cells_value == nullptr)
+        {
+            return document;
+        }
+
+        const Cells& cells = document.cells.emplace(read_cells(*cells_value, "cells"));
 
         if (const raw_values_type* p = member(v, "barriers"); p != nullptr)
         {
-            document.barriers = read_barriers(*p, "barriers", document.cells);
+            document.barriers = read_barriers(*p, "barriers", cells);
         }
 
         if (const raw_values_type* p = member(v, "rooms"); p != nullptr)
@@ -1471,7 +1507,7 @@ namespace
 
             for (size_t i = 0; i < a.size(); ++i)
             {
-                document.rooms.push_back(read_room(a[i], element_path("rooms", i), document.cells));
+                document.rooms.push_back(read_room(a[i], element_path("rooms", i), cells));
             }
 
             check_rooms(document);
@@ -1486,7 +1522,7 @@ namespace
 
             for (size_t i = 0; i < a.size(); ++i)
             {
-                Wall wall = read_wall(a[i], element_path("walls", i), document.cells);
+                Wall wall = read_wall(a[i], element_path("walls", i), cells);
 
                 const WallAddress& address = wall.address;
                 if (!addresses.insert({address.cell_position.i(), address.cell_position.j(), address.normal.x(), address.normal.y()}).second)
@@ -1505,7 +1541,7 @@ namespace
 
             for (size_t i = 0; i < a.size(); ++i)
             {
-                Flat flat = read_flat(a[i], element_path("flats", i), document.cells, document.rooms.size());
+                Flat flat = read_flat(a[i], element_path("flats", i), cells, document.rooms.size());
 
                 for (const Flat& other : document.flats)
                 {
@@ -1529,7 +1565,7 @@ namespace
             for (size_t i = 0; i < a.size(); ++i)
             {
                 std::string entity_path = element_path("entities", i);
-                Entity entity = read_entity(a[i], entity_path, document.cells);
+                Entity entity = read_entity(a[i], entity_path, cells);
 
                 if (!ids.insert(entity.id).second)
                 {
@@ -1545,7 +1581,7 @@ namespace
         check_entities_acyclic(document.entities, index);
         check_references(document, index);
 
-        std::map<discrete_point_type, std::vector<WallAddress>> stair_walls = stair_cell_walls(document.cells);
+        std::map<discrete_point_type, std::vector<WallAddress>> stair_walls = stair_cell_walls(cells);
         check_door_glyphs(document, index);
         check_stair_glyphs(document, index, stair_walls, warn);
         check_access_points(document, index, stair_walls, warn);

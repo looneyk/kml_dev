@@ -13,7 +13,7 @@ open items are in `work_plan.md` (`### Random engine`).
   draws from it yet. `Game` seeds it with the world seed, which `Game` is passed or draws, and writes the seed to the
   log. Reseeding on open draws a new seed for the gameplay random engine and keeps the world seed.
 - **Region and zone seeds are derived** (`## Generation`). `World::create_zone(region, zone_spec)` adds the zone's
-  seed to the `ZoneSpec` under `seed_key` before the selector runs, and the host passes it to the generator in the
+  seed to the resolved `ZoneSpec` under `seed_key`, and the host passes it to the generator in the
   `ZoneRequest`, with the zone's position.
 - **dungen and catagen each seed one `math::Random` per run** from `Parameters::seed`, and pass it by reference from
   one function to the next.
@@ -144,7 +144,7 @@ type`), and a seed stored with the version of the generators that made it.
 - **A zone's seed is one of its generation parameters,** which `World::create_zone(region, zone_spec)` adds to the
   `ZoneSpec`, under `seed_key`, before the generator runs (`world_generation_plan.md`). The generator is passed the
   level and the seed.
-- **A generator selector's draws use a random engine seeded from the zone's seed,** since they decide what the zone is.
+- **A zone pattern's draws use a random engine seeded from the zone's seed,** since they decide what the zone is.
 - **A zone file stores its seed** in `generator.parameters`, so a zone reproduces from its
   file alone.
 - **A retry draws a fresh sub-seed** from the run's random engine, for Phase 5's reject-and-retry.

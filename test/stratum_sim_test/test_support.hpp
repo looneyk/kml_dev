@@ -18,7 +18,9 @@
 #include "quetzal/stratum_format/types.hpp"
 #include <cstddef>
 #include <memory>
+#include <optional>
 #include <string>
+#include <string_view>
 
 namespace stratum_sim_test
 {
@@ -43,18 +45,24 @@ namespace stratum_sim_test
         WorldFixture();
     };
 
-    // Returns the test executable's registries. A region whose spec selects "door" makes zones from data/door.zone, and
-    // "staircase" from data/walls.zone, which has one staircase leading up and one leading down. "next_region" chooses a new
-    // region from the region spec "staircase" for every zone, and "unregistered_generator" a generator that is not
-    // registered. data/door.zone has one staircase, leading up. The region spec "dungeon" starts a game at level -1, at the
-    // staircase leading up, in a zone made from data/walls.zone
+    // The ZoneSpec key of the zone file that the test executable's zone generator reads
+    inline constexpr std::string_view zone_file_key = "parameters.zone_file";
+
+    // Returns the test executable's registries. The game's zone generator reads the ZoneSpec's zone file: data/door.zone
+    // for the region spec "door", which has one staircase, leading up, and data/walls.zone for "staircase", which has one
+    // staircase leading up and one leading down. The region spec "dungeon" starts a game at level -1, at the staircase
+    // leading up, in a zone made from data/walls.zone
     quetzal::stratum_sim::Generation test_generation();
 
-    // Returns a region spec with the generator selector and an extent of -10 .. 10 on each axis
-    quetzal::stratum_sim::RegionSpec test_region_spec(const std::string& generator_selector_name);
+    // Returns a region spec whose zones are made from the test zone's file, "door" or "staircase", with an extent of
+    // -10 .. 10 on each axis
+    quetzal::stratum_sim::RegionSpec test_region_spec(const std::string& test_zone);
 
-    // Creates a worldspace from test_region_spec, named for the generator selector, and returns its top-level region's id
-    quetzal::stratum_sim::PersistentId create_test_region(quetzal::stratum_sim::World& world, const std::string& generator_selector_name);
+    // Creates a worldspace from test_region_spec, named for the test zone, and returns its top-level region's id
+    quetzal::stratum_sim::PersistentId create_test_region(quetzal::stratum_sim::World& world, const std::string& test_zone);
+
+    // Returns the zone file that the region spec's zones are made from
+    std::optional<std::string> zone_file_of(const quetzal::stratum_sim::RegionSpec& region_spec);
 
     // Returns the id of the worldspace's top-level region
     quetzal::stratum_sim::PersistentId top_level_region(const quetzal::stratum_sim::World& world, quetzal::stratum_sim::PersistentId worldspace_id);

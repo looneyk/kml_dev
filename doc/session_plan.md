@@ -22,7 +22,7 @@ in `work_plan.md` (`### Session`).
 
 | Part | Responsible for |
 | --- | --- |
-| `Game` | The game in its entirety, lasting as long as the host: the config, the id allocator, the `World`, the `Character` and the `Session`, all by value; setting and saving the settings, and seeding and saving the random engines; the registries of generators, generator selectors and region specs; the menu operations --- opening and closing the menu, creating, opening, saving and quitting games, and listing the saved games --- and the game's own file |
+| `Game` | The game in its entirety, lasting as long as the host: the config, the id allocator, the `World`, the `Character` and the `Session`, all by value; setting and saving the settings, and seeding and saving the random engines; the registries of zone generators and region specs; the menu operations --- opening and closing the menu, creating, opening, saving and quitting games, and listing the saved games --- and the game's own file |
 | `Session` | The game being played: starting, pausing, resuming and clearing play; the zone the character is in, entering a zone, the turn order, the clock and its driver, the character's intent and pending command, advancing, and whether the game is over |
 | `World` | Regions and zones: creating regions and zones from their specs; creating, loading, populating, saving, unloading and clearing zones, tracking which are loaded, and choosing which unload as zones are entered; the world's file; entities and persistent ids; the registrations that last as long as the program |
 | `Character` | The entity the host controls: creating it, opening and saving its file, and clearing it |
@@ -99,10 +99,10 @@ void World::trim_zones(flecs::entity zone_entered);
 - **`save_zone(zone)`** writes one zone's file into the game directory. The zone's unloading calls it, and so
   does every save of the game, explicit, quick or auto, for each loaded zone. Leaving a zone does not save it.
 - **`create_region_zone(region_spec, zone_spec)`** creates a region and its first zone, and returns the zone; it is how
-  every region is created. **`create_zone(region, zone_spec)`** creates a zone in the region: the region's generator
-  selector chooses a generator and its parameters, the generator returns the zone's `Document`, and `World` builds the
+  every region is created. **`create_zone(region, zone_spec)`** creates a zone in the region: the region spec's zone
+  pattern is resolved for the zone, the game's zone generator returns the zone's `Document`, and `World` builds the
   zone from it and populates it (`world_generation_plan.md`).
-- **The registries** of generators, generator selectors and region specs are `Game`'s, and `World` takes them by
+- **The registries** of zone generators and region specs are `Game`'s, and `World` takes them by
   reference in its constructor, as it takes the id allocator.
 - **`load_zone(region, filepath)`** makes an empty zone, has the loader fill it from the file, and populates it if the
   file's `unpopulated` flag is set. A file whose denizens are already placed is not unpopulated, and a saved zone never

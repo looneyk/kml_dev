@@ -54,13 +54,13 @@ namespace
     //--------------------------------------------------------------------------
     TEST_CASE("specs")
     {
-        const stratum_sim::RegionSpec spec {quetzal::KeyValueStore {{"generator_selector", "common"}, {"name", "The Downs"}, {"zone.position.z", "-1"},
+        const stratum_sim::RegionSpec spec {quetzal::KeyValueStore {{"type", "surface"}, {"name", "The Downs"}, {"zone.position.z", "-1"},
             {"zone.parameters.denizens", "few"}, {"zones", "3"}}};
 
         CHECK_CASE("no unknown keys when every key is known", stratum_sim::find_unknown_keys(spec.keys,
-            vector<string_view> {"generator_selector", "name", "zone.position.z", "zone.parameters.denizens", "zones", "difficulty"}).empty());
+            vector<string_view> {"type", "name", "zone.position.z", "zone.parameters.denizens", "zones", "difficulty"}).empty());
         CHECK_CASE("the unknown keys, in key order", stratum_sim::find_unknown_keys(spec.keys, vector<string_view> {"name"})
-            == vector<string> {"generator_selector", "zone.parameters.denizens", "zone.position.z", "zones"});
+            == vector<string> {"type", "zone.parameters.denizens", "zone.position.z", "zones"});
 
         const KeyValueStore zone_keys = stratum_sim::select_prefixed(spec.keys, "zone.");
         CHECK_CASE("the entries under a prefix, with the prefix removed, and not the key zones under zone.",
@@ -89,7 +89,7 @@ namespace
             && world.worldspaces()[1].worldspace_id == surface && world.worldspaces()[2].worldspace_id == crypt_worldspace);
         CHECK_CASE("a worldspace's region tree is rooted in its top-level region, with a persistent id and the region spec it was created from",
             world.worldspace(crypt_worldspace).regions.regions().size() == 1 && crypt != crypt_worldspace
-            && world.region(crypt).region_spec.keys.value(stratum_sim::generator_selector_key) == "staircase");
+            && zone_file_of(world.region(crypt).region_spec) == "data/walls.zone");
 
         flecs::entity field = load_zone_unpopulated(world, "data/room.zone");
         flecs::entity chapel = world.create_zone(crypt, world.next_id());
@@ -151,7 +151,7 @@ namespace
         stratum_sim::PersistentId dungeon = create_test_region(world, "door");
         flecs::entity made = world.create_zone(dungeon, test_zone_spec(-1));
 
-        CHECK_CASE("a region makes a zone at a level with the generator its selector chooses", stratum_sim::region_of(made) == dungeon
+        CHECK_CASE("a region makes a zone at a level from its region spec", stratum_sim::region_of(made) == dungeon
             && level_of(made) == -1 && made.has<stratum_sim::ZoneLayout>());
 
         return;
@@ -370,7 +370,7 @@ namespace
 
         vector<stratum_sim::RandomStream::seed_type> generated_seeds;
         stratum_sim::Generation generation = test_generation();
-        generation.m_generators["door"] = [&generated_seeds](const stratum_sim::ZoneSpec& requested_zone_spec)
+        generation.m_zone_generator = [&generated_seeds](const stratum_sim::ZoneSpec& requested_zone_spec)
         {
             generated_seeds.push_back(*requested_zone_spec.keys.value<stratum_sim::RandomStream::seed_type>(stratum_sim::seed_key));
             stratum_format::Document document = stratum_format::read_zone("data/door.zone");
@@ -463,7 +463,7 @@ namespace
         stratum_sim::PersistentId region_made = made ? stratum_sim::region_of(made) : stratum_sim::PersistentId {};
         CHECK_CASE("a target with a region makes a zone in a new worldspace created from the region spec of that name, and named for it, though a zone at the level has a staircase that leads back", made
             && made != field && region_made != dungeon && region_made != world.region_id
-            && world.region(region_made).region_spec.keys.value(stratum_sim::generator_selector_key) == "staircase"
+            && zone_file_of(world.region(region_made).region_spec) == "data/walls.zone"
             && world.region(region_made).zone_ids.size() == 1 && level_of(made) == 0
             && world.worldspace(stratum_sim::worldspace_of(made)).name == "staircase_2" && arrival == down_of(made));
 

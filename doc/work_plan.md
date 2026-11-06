@@ -33,7 +33,7 @@ The design behind the items is in these documents, which the items refer to by s
 - `testing_plan.md` covers how the tests are written, registered and run: doctest, CTest, and reference files that one
   option updates.
 - `world_generation_plan.md` covers how a new game's world is generated: its structure of worldspaces, regions and
-  zones created whole from `RegionSpec`s before play, the registries of generators, generator selectors and region
+  zones created whole from `RegionSpec`s before play, the registries of zone generators and region
   specs, and each zone's content generated when it is needed.
 - `zone_plan.md` defines the world's structure: worldspaces, zones, and hierarchical regions, their names, extended
   names and persistent ids, positions and levels, access points and their targets, and pregenerated content.
@@ -52,13 +52,11 @@ boxes are removed at the start of the next piece of work, since the reference do
       staircase in a flat length of wall or in a 1x1 alcove, the two being equivalent across the notations, as well as
       a block staircase on floor cells in the open space of a room. In the wall notation every staircase is sited on a
       wall.
-- [ ] **The common generator selector** (`world_generation_plan.md`, `## Generator selection`): `GeneratorSelection`
-      choosing a generator or a pre-built zone; the selector reading its opening sequence and its primary and rare
-      weighted tables from the `RegionSpec`; and the starting
-      region's spec, with a terrain-specific generators, and pre-built zones need **The pregenerated content index**.
-- [ ] **Pre-built zones selected** (`world_generation_plan.md`, `## Generator selection`): a selection's
-      `zone_template` read from **The pregenerated content index** into a `Document`, and the zone built from it as a
-      generated zone is.
+- [ ] **Zone pattern tables** (`world_generation_plan.md`, `## Zone patterns`): the zone pattern drawing each zone's
+      template from the opening sequence and the primary and rare weighted tables in the `RegionSpec`, and the
+      starting region's spec, with terrain templates, which need **Templates**.
+- [ ] **Templates** (`world_generation_plan.md`, `## Overview`): a `ZoneSpec`'s `template` read from **The pregenerated
+      content index**, and the zone generator applying the `ZoneSpec` to it.
 - [ ] **A second catagen algorithm,** and with it what the two generators have in common becoming `quetzal::procgen`.
 
 ## Random engine
@@ -354,7 +352,7 @@ These are the open questions.
   rest, for now.
 - **What are the character's components?** Its description, attributes, and skills are not designed.
 - **What triggers an autosave?** Entering any zone does, for now. Entering a town may be the trigger as well or
-  instead, which depends on the generator selector's town zones (`## Generators`).
+  instead, which depends on the zone patterns' town zones (`## Generators`).
 - **Is the quickload key F8 or F9, and which save does it open?**
 
 ### Difficulty
@@ -375,7 +373,7 @@ These are the open questions.
 
 - **What are the extent's key names and syntax,** and what forms does it take besides boxes? A diagonal boundary takes
   one box for each row (`world_generation_plan.md`, `### Extents`).
-- **Which `RegionSpec` metadata becomes components on the region, and which does only the selector read?**
+- **Which `RegionSpec` metadata becomes components on the region, and which does only the zone pattern read?**
 
 ### Log
 

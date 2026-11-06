@@ -199,7 +199,7 @@ std::vector<flecs::entity> quetzal::stratum_sim::load_layout(flecs::entity zone,
 {
     assert(zone && zone.has<Zone>() && !zone.has<ZoneLayout>());
 
-    const stratum_format::Cells& cells = document.cells;
+    const stratum_format::Cells& cells = document.cells.value();
 
     auto layout = std::make_unique<DiscreteLayout>(cells.origin, cells.scale, cells.extent);
 
@@ -277,7 +277,6 @@ std::vector<flecs::entity> quetzal::stratum_sim::load_layout(flecs::entity zone,
 
     const DiscreteLayout& zone_layout = *layout;
     set_layout(zone, std::move(layout));
-    zone.set<ZoneNotation>(ZoneNotation {cells.notation});
 
     auto zone_document = std::make_shared<stratum_format::Document>(document);
     zone_document->entities.clear();

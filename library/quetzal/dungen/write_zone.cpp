@@ -169,8 +169,9 @@ quetzal::stratum_format::Document quetzal::dungen::make_document(const Zone& zon
     }
 
     document.position = parameters.position;
-    document.cells.notation = stratum_format::Notation::Block;
-    document.cells.extent = zone.extent();
+    stratum_format::Cells& cells = document.cells.emplace();
+    cells.notation = stratum_format::Notation::Block;
+    cells.extent = zone.extent();
 
     for (coord_type y = ny - 1; y >= 0; --y)
     {
@@ -180,7 +181,7 @@ quetzal::stratum_format::Document quetzal::dungen::make_document(const Zone& zon
             row += glyph(zone.cell({x, y}).type());
         }
 
-        document.cells.rows.push_back(std::move(row));
+        cells.rows.push_back(std::move(row));
     }
 
     // A staircase cell's type does not encode which way it leads; the Staircase does
@@ -189,7 +190,7 @@ quetzal::stratum_format::Document quetzal::dungen::make_document(const Zone& zon
         if (staircase.rise() == Rise::Up)
         {
             point_type position = staircase.placement().position();
-            document.cells.rows[static_cast<size_t>(ny - 1 - position.y())][static_cast<size_t>(position.x())] = '<';
+            cells.rows[static_cast<size_t>(ny - 1 - position.y())][static_cast<size_t>(position.x())] = '<';
         }
     }
 
@@ -236,7 +237,7 @@ quetzal::stratum_format::Document quetzal::dungen::make_document(const Zone& zon
     // facings in the order the reader finds the walls for its glyph, and the staircases last
     stored_entity_id_type id = 0;
 
-    for (const auto& walls : stratum_format::door_walls(document.cells))
+    for (const auto& walls : stratum_format::door_walls(cells))
     {
         stored_entity_id_type door_id = ++id;
         document.entities.push_back({door_id, "door", nullopt, nullopt, {}});

@@ -320,7 +320,7 @@ namespace
         CHECK_CASE("a Zone's name is written as the layout's name",
             named.components.is_object() && named.components.value("name", string()) == "Cistern Level 1");
         CHECK_CASE("an empty name is not written", !unnamed.components.is_object() || !unnamed.components.contains("name"));
-        CHECK_CASE("and the name does not affect the grid", named.cells.rows == unnamed.cells.rows);
+        CHECK_CASE("and the name does not affect the grid", named.cells.value().rows == unnamed.cells.value().rows);
 
         CHECK_CASE("a random seed is not the same one every time",
             dungen::random_seed() != dungen::random_seed());
@@ -384,7 +384,7 @@ namespace
             {
                 string text = zone_text(scenario.parameters, scenario.zone_name);
                 stratum_format::Document document = document_of(text);
-                rows = document.cells.rows;
+                rows = document.cells.value().rows;
                 CHECK_CASE(format("{} is a zone the reader accepts", scenario.name), true);
 
                 ostringstream os;
@@ -415,7 +415,7 @@ namespace
 
         try
         {
-            rows = document_of(zone).cells.rows;
+            rows = document_of(zone).cells.value().rows;
         }
         catch (const runtime_error& e)
         {
@@ -476,7 +476,7 @@ namespace
             return false;
         }
 
-        vector<vector<stratum_format::WallAddress>> doors = stratum_format::door_walls(document.cells);
+        vector<vector<stratum_format::WallAddress>> doors = stratum_format::door_walls(document.cells.value());
         map<stratum_format::stored_entity_id_type, vector<stratum_format::WallAddress>> walls_by_door;
         size_t door_count = 0;
 
@@ -750,7 +750,7 @@ namespace
         doorless.seed = 42u;
         doorless.grid1.door_probability = 0.0;
 
-        const vector<string> rows = document_of(zone_text(doorless)).cells.rows;
+        const vector<string> rows = document_of(zone_text(doorless)).cells.value().rows;
         CHECK_CASE("a door probability of zero leaves no door",
             none_of(rows.begin(), rows.end(), [](const string& row) { return row.find('+') != string::npos; }));
 
@@ -781,7 +781,7 @@ namespace
             return false;
         }
 
-        const stratum_format::Cells& cells = document.cells;
+        const stratum_format::Cells& cells = document.cells.value();
         const auto& directions = math::cardinal_directions<coord_type, 2>;
 
         map<discrete_point_type, size_t> room_of;

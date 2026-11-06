@@ -12,7 +12,6 @@
 #include "Character.hpp"
 #include "Scheduler.hpp"
 #include "World.hpp"
-#include "quetzal/stratum_format/Notation.hpp"
 
 namespace quetzal::stratum_sim
 {
@@ -57,9 +56,6 @@ namespace quetzal::stratum_sim
 
         // True once the character of the game being played is dead
         bool over() const;
-
-        // Requires a loaded zone
-        stratum_format::Notation notation() const;
 
         World& world();
         const World& world() const;

@@ -176,8 +176,6 @@ namespace
         stratum_sim::World::entities_type generated_pursuers = pursuers_in(generated);
 
         CHECK_CASE("a generated zone has its doors", door_east_of_start(generated).is_alive());
-        CHECK_CASE("and the notation its generator named",
-            generated.get<stratum_sim::ZoneNotation>().notation == stratum_format::Notation::Block);
         CHECK_CASE("and is populated, its pursuer scheduled by speed and pursuing whoever is controlled",
             generated_pursuers.size() == 1 && generated_pursuers.front().has<stratum_sim::Speed>()
             && !generated_pursuers.front().get<stratum_sim::Pursue>().target.has_value());
@@ -191,8 +189,7 @@ namespace
 
         CHECK_CASE("its door is of the door type, as a loaded one is", door_type_east_of_start(generated));
         CHECK_CASE("a loaded zone agrees with it", same_geometry(zone_layout(world, loaded), zone_layout(world, generated))
-            && door_type_east_of_start(loaded) && pursuers_in(loaded).size() == 1
-            && loaded.get<stratum_sim::ZoneNotation>().notation == stratum_format::Notation::Block);
+            && door_type_east_of_start(loaded) && pursuers_in(loaded).size() == 1);
         CHECK_CASE_EQUAL("creating and loading unload nothing", world.zone_count(), 3);
 
         CHECK_CASE("a zone loaded unpopulated is written populated", !stratum_sim::make_document(loaded).is_unpopulated);
@@ -209,6 +206,20 @@ namespace
         CHECK_CASE("a zone whose file is not unpopulated is not populated", pursuers_in(prepopulated).empty()
             && door_east_of_start(prepopulated).is_alive());
         world.unload_worldspace(stratum_sim::worldspace_of(prepopulated));
+
+        stratum_format::Document empty_document;
+        empty_document.zone_id = 700;
+        empty_document.zone_spec = KeyValueStore {{string(stratum_sim::position_z_key), "-2"}};
+        {
+            ofstream empty_file("out/empty.zone", ios::binary);
+            stratum_format::write(empty_file, empty_document);
+        }
+
+        flecs::entity generated_empty = world.load_zone(create_test_region(world, "door"), "out/empty.zone");
+        CHECK_CASE("an empty zone's file is generated from its zone spec, with its id", generated_empty
+            && generated_empty.get<stratum_sim::PersistentId>() == stratum_sim::PersistentId {700} && level_of(generated_empty) == -2
+            && door_east_of_start(generated_empty).is_alive());
+        world.unload_worldspace(stratum_sim::worldspace_of(generated_empty));
 
         // Zones created through the registries
         stratum_sim::PersistentId counted = create_test_region(world, "staircase");
@@ -227,37 +238,6 @@ namespace
             && saved_again.get<stratum_sim::PersistentId>() == stratum_sim::PersistentId {900} && world.region(counted).zone_ids.size() == 2);
         CHECK_CASE("and is not populated", saved_unpopulated);
         world.unload_zone(saved_again);
-
-        stratum_sim::PersistentId leaving = create_test_region(world, "next_region");
-        stratum_sim::PersistentId leaving_worldspace = world.worldspaces().back().worldspace_id;
-        flecs::entity begun = world.create_zone(leaving, test_zone_spec(-1));
-        const stratum_sim::Region& begun_region_data = world.region(stratum_sim::region_of(begun));
-        CHECK_CASE("a selection of a new region makes the zone the first of a new worldspace created from the region spec",
-            stratum_sim::region_of(begun) != leaving && stratum_sim::worldspace_of(begun) != leaving_worldspace
-            && begun_region_data.region_spec.keys.value(stratum_sim::generator_selector_key) == "staircase"
-            && begun_region_data.zone_ids.size() == 1 && world.region(leaving).zone_ids.empty()
-            && level_of(begun) == -1);
-
-        auto throws_runtime_error = [](auto f)
-        {
-            try
-            {
-                f();
-            }
-            catch (const runtime_error&)
-            {
-                return true;
-            }
-
-            return false;
-        };
-
-        size_t zone_count_before = world.zone_count();
-        CHECK_CASE("a generator selector that is not registered is an error, and no zone is created", throws_runtime_error([&]
-            { world.create_zone(create_test_region(world, "unregistered"), stratum_sim::ZoneSpec {}); }) && world.zone_count() == zone_count_before);
-        CHECK_CASE("and so is a generator that is not registered", throws_runtime_error([&]
-            { world.create_zone(create_test_region(world, "unregistered_generator"), stratum_sim::ZoneSpec {}); })
-            && world.zone_count() == zone_count_before);
 
         return;
     }
@@ -582,8 +562,7 @@ namespace
                 test_entry_type(created), test_entry_offset);
 
             CHECK_CASE("a constructed zone is loaded", created.loaded());
-            CHECK_CASE("with the notation its generator named", created.notation() == stratum_format::Notation::Block);
-            CHECK_CASE("and a character in it", created.character().entity().is_alive());
+            CHECK_CASE("with a character in it", created.character().entity().is_alive());
 
             // A door on the doorway shows the reported walls were built
             CHECK_CASE("its doors are attached to the walls the generator reported",
@@ -595,8 +574,7 @@ namespace
             stratum_sim::Session& loaded = game_loaded.session();
             enter_zone_file(game_loaded, "data/door.zone");
             CHECK_CASE("and a zone read whole agrees with it",
-                loaded.notation() == created.notation()
-                && same_geometry(stratum_sim::layout_as<stratum_sim::DiscreteLayout>(loaded.layout()),
+                same_geometry(stratum_sim::layout_as<stratum_sim::DiscreteLayout>(loaded.layout()),
                     stratum_sim::layout_as<stratum_sim::DiscreteLayout>(created.layout())));
         }
 

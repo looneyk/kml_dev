@@ -203,7 +203,7 @@ namespace
             return false;
         }
 
-        vector<vector<stratum_format::WallAddress>> doors = stratum_format::door_walls(document.cells);
+        vector<vector<stratum_format::WallAddress>> doors = stratum_format::door_walls(document.cells.value());
         map<stratum_format::stored_entity_id_type, vector<stratum_format::WallAddress>> walls_by_door;
         size_t door_count = 0;
 
@@ -274,7 +274,7 @@ namespace
             return false;
         }
 
-        const stratum_format::Cells& cells = document.cells;
+        const stratum_format::Cells& cells = document.cells.value();
         const auto& directions = math::cardinal_directions<coord_type, 2>;
 
         // In the written grid, a cell is at its odd position and the edge on each side one position from it
@@ -646,7 +646,7 @@ TEST_SUITE("determinism")
         stratum_format::Document named = document_of(zone_text(sound_parameters(), "Catacombs Level 1"));
         stratum_format::Document unnamed = document_of(zone_text(sound_parameters()));
 
-        CHECK(named.cells.rows == unnamed.cells.rows);
+        CHECK(named.cells.value().rows == unnamed.cells.value().rows);
         return;
     }
 

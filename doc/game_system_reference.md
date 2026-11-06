@@ -180,8 +180,7 @@ side alone. Two areas therefore never share an edge in the block notation. In th
 a wall are walled from both sides, which the block notation cannot express, so a block layout is a subset of a wall
 layout.
 
-It sets the zone's `ZoneLayout` to the `DiscreteLayout`, since both notations are grids of cells, and its
-`ZoneNotation` to the notation the rows were written in, and its `ZoneDocument` to a copy of the document without its
+It sets the zone's `ZoneLayout` to the `DiscreteLayout`, since both notations are grids of cells, and its `ZoneDocument` to a copy of the document without its
 entities and with its `unpopulated` flag cleared, whose geometry a saved zone is written with. It then
 builds every entity in the file in two passes, in the
 file's order. The first pass creates each entity in the zone, `IsA` its type, so that each has its persistent id ---
@@ -251,11 +250,12 @@ its subtree, in persistent id order, as its inventory, each encoded as an `Entit
 
 ### Generation
 
-`Generation` has the registries that `World` creates worldspaces, regions and zones from (`world_generation_plan.md`),
-each a map from a name: `m_generator_selectors`, `m_generators` and `m_region_specs`. `RegionSpec` (`RegionSpec.hpp`)
+`Generation` has the registries that `World` creates worldspaces, regions and zones from (`world_generation_plan.md`):
+`m_region_specs`, a map from a name, and `m_zone_generators`, a zone generator for each notation. A game has one zone generator: when a game is created or opened, `Game` sets `m_zone_generator` to the
+one for the game's notation, so nothing after that reads the notation.
+`RegionSpec` (`RegionSpec.hpp`)
 and `ZoneSpec` (`ZoneSpec.hpp`) are the types of a region spec and a zone spec, and the `keys` of each, a `KeyValueStore`,
-contain the spec's keys. A `RegionSpec`'s `generator_selector`, `generator_selector_key`, is the name of the region's
-selector. A `ZoneSpec`'s `position.x`, `position.y` and `position.z`, `position_x_key`, `position_y_key` and
+contain the spec's keys. A `ZoneSpec`'s `position.x`, `position.y` and `position.z`, `position_x_key`, `position_y_key` and
 `position_z_key`, are the zone's position in its worldspace, and a `RegionSpec`'s `position.x` and `position.y` the
 position the region's seed derives from.
 
@@ -279,10 +279,8 @@ among the known keys, in key order, so a consumer reports a key it does not read
 the entries whose keys begin with the prefix, with the prefix removed, so one part of a spec, such as its `zone.` keys,
 becomes a spec of its own.
 
-A generator selector, `generator_selector_type`, is given the world, the `Region` and the `ZoneSpec`, and returns a
-`GeneratorSelection`, which sets exactly one of a generator's name, a zone template's tag, and a region spec's name,
-with the `ZoneSpec` the zone is created from. A generator, `generator_type`, returns the `stratum_format::Document` a
-zone is built from, and reads nothing from the world. `Generation.hpp` declares `Document` without including its
+A zone generator, `zone_generator_type`, returns the `stratum_format::Document` a zone is built from, given the zone's
+resolved `ZoneSpec`, and reads nothing from the world. `Generation.hpp` declares `Document` without including its
 header, so nlohmann reaches no file that includes `World.hpp`.
 
 ### World
@@ -290,7 +288,7 @@ header, so nlohmann reaches no file that includes `World.hpp`.
 `World` contains the zones and everything in them. One flecs world contains the entities, and a zone is an entity
 whose contents are its children, so migration and unloading are subtree operations, and migration keeps each entity's
 id. A zone is an entity with the `Zone` tag, a `ZoneLayout` component that owns its layout as a
-`std::unique_ptr<Layout>`, a `ZonePlacementIndex`, and a `ZoneNotation`. Deleting the entity deletes the layout. There is one `World` in a
+`std::unique_ptr<Layout>`, and a `ZonePlacementIndex`. Deleting the entity deletes the layout. There is one `World` in a
 game, owned by `Game`, and it cannot be copied or moved.
 
 A worldspace is the coordinate system of its zones: the surface, a dungeon, a cave or a tower (`zone_plan.md`).
@@ -352,15 +350,13 @@ discards a zone, its contents and its layout.
 
 `World` takes the game's `Generation` by reference in its constructor (`### Generation`). `world_seed()` and
 `set_world_seed(seed)` access the world seed, which is 0 until it is set. `create_zone(region_id,
-zone_spec)` creates a zone in a region that has a spec, as the region's generator selector chooses, by calling
-`generate_zone(region_id, zone_id, zone_spec)` with a new zone id. The selector, named
-by the spec's `generator_selector`, is given the world, the region and a copy of the `ZoneSpec` whose `seed` is
-`zone_seed(region_seed(world_seed, region_spec), zone_spec)`, and returns a `GeneratorSelection`. For a generator, `create_zone` calls it with the selection's `ZoneSpec`, sets the `Document` it
-returns unpopulated and its position to the selection's `ZoneSpec`'s, and builds the zone from it as `load_zone` builds
-one from a file. For a region spec, it returns `create_worldspace_zone` with that spec, its name and the `ZoneSpec` it
-was given, so the zone is the first of a new worldspace. A zone template is not built: it throws `std::runtime_error`. So does a
-selector, generator or region spec name that is not registered, and a spec with no `generator_selector`, before any zone
-is built; what a generator throws passes on, with no zone built.
+zone_spec)` creates a zone in a region that has a spec, from the resolved `ZoneSpec`.
+`resolve_zone_spec(region_id, zone_spec)` returns the region spec's `zone.` keys, replaced by the `ZoneSpec`'s keys where
+both have one, with the `seed` `zone_seed(region_seed(world_seed, region_spec), resolved_zone_spec)`.
+`generate_zone(region_id, zone_spec)` calls the game's zone generator with the resolved `ZoneSpec` and returns the
+`Document`, unpopulated, with the spec's position and the zone's name, from the spec's `name` pattern or else the region's
+default, and `create_zone` builds the zone from it with a new id, as `load_zone` builds one from a file. An exception
+from the zone generator passes on, with no zone built.
 
 A zone's level, a `level_type` (`std::int32_t`), is the z of its `ZonePosition`. Access point targets in the zone
 data state levels, and `resolve_target` matches zones by them. The loader sets a zone's `ZonePosition` from the
@@ -416,7 +412,8 @@ and locks its mutex for the whole of each one, so threads drawing at once never 
 a `zone` section, and a new one otherwise. `load_zone` then has `load_layout` fill the zone and populates it if its
 document is unpopulated. It throws `std::runtime_error`, having made nothing, if the reader
 rejects the file, `check_buildable` finds a reason, or the file is a saved zone that is already loaded; a template makes a
-new zone each time it is loaded. `load_saved_zone(zone_id)` reads a zone of the game that has unloaded back from the
+new zone each time it is loaded. An empty zone's file, which has no `cells`, is built instead with the
+file's id from the `Document` that `generate_zone` returns for the file's `zone_spec`. `load_saved_zone(zone_id)` reads a zone of the game that has unloaded back from the
 game directory's `zones/<persistent id>.zone`, into the region whose `zone_ids` lists it, and throws
 `std::runtime_error` if the world has no game directory or no region lists it. `World` handles no doors itself, and neither function unloads anything.
 
@@ -818,7 +815,7 @@ directory.
 `Game` owns the structures that survive outside play: the config, the manifest, a
 `CountingIdAllocator` counting from zero, the `Generation`, the `World` and the `Character`, and the `Session` that plays them, constructed in
 that order, each referring to those before it. `generation()` returns the `Generation`, with which a host registers
-its generators, selectors and region specs. Only the `Generation` can be copied or moved. The constructor makes no
+its zone generators and region specs. Only the `Generation` can be copied or moved. The constructor makes no
 character, region or zone; until a game is created, there is none.
 
 The game's settings are in the process-wide `settings::store()`.
@@ -948,15 +945,14 @@ write over its frame. Godot installs its sinks when its extension initializes at
 for the purpose, and clears them when it uninitializes: a sink writing errors and critical entries with `push_error`,
 warnings with `push_warning`, and the rest with `print`, and its run log file. The log is at `info`.
 
-Each host registers each of `stratum_gen::generators()` as a `Generation::generator_type` that makes a `ZoneRequest`
-from the `ZoneSpec` and passes it on: the `name`, the spec's position, the `seed`, which `create_zone` adds to every
-`ZoneSpec` it passes, and the keys after `parameters.`. It also registers a temporary generator selector named
-`notation_generator`, until the common generator selector. It creates the game from a temporary `RegionSpec`,
-registered as `dungeon`, whose `generator_selector` is `notation_generator`, whose `entry_access` is `staircase,1`, and
-whose `zone.position.z` is -1, and a temporary `CharacterSpec` with the name "Adventurer". The selector chooses the generator that
-`stratum_gen::generator_name` returns for `Game::notation()` for every zone, `dungen` for the block notation and
-`catagen` for the wall notation, and names the zone "Dungeon Level N", where N is the absolute value of the level. Unless
-the spec has a `parameters.extent`, it adds one from the game settings `world.zone_size.x` and `.y`. So the character begins at the staircase leading up on
+Each host registers, for each notation, the generator of `stratum_gen::generators()` that `stratum_gen::generator_name`
+returns, `dungen` for the block notation and `catagen` for the wall notation, in `m_zone_generators`, as a
+`Generation::zone_generator_type` that makes a `ZoneRequest` from the `ZoneSpec` and passes it on: the `name` pattern
+with the zone's coordinates, the spec's position, the `seed`, which `create_zone` adds to every `ZoneSpec` it passes, and
+the keys after `parameters.`, with a temporary `extent` from the game settings `world.zone_size.x` and `.y` if the spec
+has none. It creates the game from a temporary `RegionSpec`, registered as `dungeon`, whose `zone.name` is
+`Dungeon Level {z}`, whose `entry_access` is `staircase,1`, and whose `zone.position.z` is -1, and a temporary
+`CharacterSpec` with the name "Adventurer". So the character begins at the staircase leading up on
 the first level down, and a staircase leads to a new zone the first time it is taken, and back through the bound
 staircase after that.
 
@@ -975,7 +971,7 @@ process-wide log. The `ZoneSpec` keys are `stratum_sim::name_key`, the position 
 point's arrival placement in its zone; each then has the world `trim_zones` with the zone entered, so no zone the character is in can unload. It makes the zone the one being played,
 removes the character's pending command, and rebuilds the turn order from each entity in the zone that has a `Speed`,
 the character included. `enter(zone, type, offset)` starts at the zone's `entry_point(zone, type, offset)`; if the zone
-has no such entry point, it throws `std::runtime_error`, and the character stays where it was. `notation()` returns the entered zone's `ZoneNotation`.
+has no such entry point, it throws `std::runtime_error`, and the character stays where it was.
 
 `set_driver(driver, units_per_second)` sets the clock's driver, which lasts until it is set again; it is turn-based by
 default.

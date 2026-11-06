@@ -945,13 +945,22 @@ flecs::entity quetzal::stratum_sim::World::create_zone(PersistentId region_id, s
 //------------------------------------------------------------------------------
 flecs::entity quetzal::stratum_sim::World::create_zone(PersistentId region_id, const ZoneSpec& zone_spec)
 {
-    return generate_zone(region_id, next_id(), zone_spec);
+    const stratum_format::Document document = generate_zone(region_id, resolve_zone_spec(region_id, zone_spec));
+    return build_zone(region_id, next_id(), document, "the game's zone generator");
 }
 
 //------------------------------------------------------------------------------
 flecs::entity quetzal::stratum_sim::World::load_zone(PersistentId region_id, const std::filesystem::path& filepath)
 {
     const stratum_format::Document document = stratum_format::read_zone(filepath);
+
+    if (!document.cells.has_value())
+    {
+        return build_zone(region_id, PersistentId {document.zone_id.value()},
+            generate_zone(region_id, resolve_zone_spec(region_id, ZoneSpec {document.zone_spec.value()})),
+            std::format("{}, the game's zone generator", filepath.string()));
+    }
+
     return build_zone(region_id, document.zone_id.has_value() ? PersistentId {*document.zone_id} : next_id(), document, filepath.string());
 }
 
@@ -1362,7 +1371,7 @@ flecs::entity quetzal::stratum_sim::World::build_zone(PersistentId region_id, Pe
         }
 
         auto i = zone_worldspace.zone_ids.find(position);
-        if (i != zone_worldspace.zone_ids.end() && (!document.zone_id.has_value() || i->second.id != *document.zone_id))
+        if (i != zone_worldspace.zone_ids.end() && i->second != zone_id)
         {
             const std::string message = std::format("{}: zone {} of the worldspace {} is at the zone's position ({}, {}, {})", source,
                 i->second.id, zone_worldspace.name, position.x, position.y, position.z);
@@ -1395,54 +1404,28 @@ flecs::entity quetzal::stratum_sim::World::build_zone(PersistentId region_id, Pe
 }
 
 //------------------------------------------------------------------------------
-flecs::entity quetzal::stratum_sim::World::generate_zone(PersistentId region_id, PersistentId zone_id, const ZoneSpec& zone_spec)
+quetzal::stratum_sim::ZoneSpec quetzal::stratum_sim::World::resolve_zone_spec(PersistentId region_id, const ZoneSpec& zone_spec) const
 {
-    const Region& region_data = region(region_id);
-    const RegionSpec& region_spec = region_data.region_spec;
-    std::optional<std::string> selector_name = region_spec.keys.value(generator_selector_key);
+    const RegionSpec& region_spec = region(region_id).region_spec;
+    ZoneSpec resolved {select_prefixed(region_spec.keys, zone_prefix) | zone_spec.keys};
+    resolved.keys.insert(std::string(seed_key), std::to_string(zone_seed(region_seed(m_world_seed, region_spec), resolved)));
+    return resolved;
+}
 
-    if (!selector_name.has_value())
-    {
-        throw std::runtime_error(std::format("region {} has no {}", region_id.id, generator_selector_key));
-    }
-
-    ZoneSpec seeded_zone_spec = zone_spec;
-    seeded_zone_spec.keys.insert(std::string(seed_key), std::to_string(zone_seed(region_seed(m_world_seed, region_spec), zone_spec)));
-
-    const Generation::generator_selector_type& selector = registered(m_generation.m_generator_selectors, "generator selector", *selector_name);
-    Generation::GeneratorSelection selection = selector(*this, region_data, seeded_zone_spec);
-
-    assert(selection.generator_name.has_value() + selection.zone_template.has_value() + selection.region_spec_name.has_value() == 1);
-
-    if (selection.region_spec_name.has_value())
-    {
-        return create_worldspace_zone(*selection.region_spec_name,
-            registered(m_generation.m_region_specs, "region spec", *selection.region_spec_name), zone_spec);
-    }
-
-    if (selection.zone_template.has_value())
-    {
-        throw std::runtime_error(std::format("generator selector {} chose the zone template {}, and no zone is created from a template",
-            *selector_name, *selection.zone_template));
-    }
-
-    const Generation::generator_type& generator = registered(m_generation.m_generators, "generator", *selection.generator_name);
-    stratum_format::Document document = generator(selection.zone_spec);
+//------------------------------------------------------------------------------
+quetzal::stratum_format::Document quetzal::stratum_sim::World::generate_zone(PersistentId region_id, const ZoneSpec& zone_spec)
+{
+    assert(m_generation.m_zone_generator);
+    stratum_format::Document document = m_generation.m_zone_generator(zone_spec);
     assert(!document.zone_id.has_value());
     document.is_unpopulated = true;
-    const ZonePosition position = selection.zone_spec.position();
+    const ZonePosition position = zone_spec.position();
     document.position = stratum_format::zone_position_type {position.x, position.y, position.z};
 
-    std::optional<std::string> name_pattern = selection.zone_spec.keys.value(name_key);
-    if (!name_pattern.has_value())
-    {
-        name_pattern = select_prefixed(region_spec.keys, zone_prefix).value(name_key);
-    }
+    const std::string name_pattern = zone_spec.keys.value_or(name_key, default_zone_name_pattern(region_worldspace(region_id), region(region_id)));
+    document.components[std::string(name_component)] = zone_name(name_pattern, position);
 
-    document.components[std::string(name_component)] = zone_name(name_pattern.value_or(default_zone_name_pattern(region_worldspace(region_id),
-        region_data)), position);
-
-    return build_zone(region_id, zone_id, document, std::format("generator {}", *selection.generator_name));
+    return document;
 }
 
 //------------------------------------------------------------------------------

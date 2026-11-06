@@ -5,13 +5,12 @@
 // Generation.hpp
 //------------------------------------------------------------------------------
 
-#include "Region.hpp"
 #include "RegionSpec.hpp"
 #include "ZoneSpec.hpp"
 #include "quetzal/common/KeyValueStore.hpp"
+#include "quetzal/stratum_format/Notation.hpp"
 #include <functional>
 #include <map>
-#include <optional>
 #include <string>
 #include <string_view>
 
@@ -22,11 +21,6 @@ namespace quetzal::stratum_format
 
 namespace quetzal::stratum_sim
 {
-
-    class World;
-
-    // The RegionSpec key of the region's generator selector
-    inline constexpr std::string_view generator_selector_key = "generator_selector";
 
     // The RegionSpec key of the access point type and level offset at which a new game's character enters the starting
     // region's first zone, written as the type, a comma, and the offset: "staircase,1"
@@ -60,20 +54,10 @@ namespace quetzal::stratum_sim
     {
     public:
 
-        // Exactly one of generator_name, zone_template and region_spec_name is set
-        struct GeneratorSelection
-        {
-            std::optional<std::string> generator_name;   // A generator creates the zone
-            std::optional<std::string> zone_template;    // A pre-built zone, by its tag in the pregenerated content index
-            std::optional<std::string> region_spec_name; // The zone is the first of a new region, created from this region spec
-            ZoneSpec zone_spec;                          // The request, completed with the generator's parameters
-        };
+        using zone_generator_type = std::function<stratum_format::Document(const ZoneSpec& zone_spec)>;
 
-        using generator_selector_type = std::function<GeneratorSelection(const World& world, const Region& region, const ZoneSpec& zone_spec)>;
-        using generator_type = std::function<stratum_format::Document(const ZoneSpec& zone_spec)>;
-
-        std::map<std::string, generator_selector_type> m_generator_selectors;
-        std::map<std::string, generator_type> m_generators;
+        std::map<stratum_format::Notation, zone_generator_type> m_zone_generators;
+        zone_generator_type m_zone_generator;
         std::map<std::string, RegionSpec> m_region_specs;
     };
 

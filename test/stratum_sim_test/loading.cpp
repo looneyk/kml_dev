@@ -107,12 +107,6 @@ namespace
 
         CHECK_CASE_EQUAL("a zone defining no rooms has none", door.room_count(), 0);
 
-        // The loader puts the notation on the zone, the layout not storing it
-        CHECK_CASE("a block notation file's zone has it",
-            door_zone->zone.get<stratum_sim::ZoneNotation>().notation == stratum_format::Notation::Block);
-        CHECK_CASE("and a wall notation one's has that",
-            load_open("data/walls.zone")->zone.get<stratum_sim::ZoneNotation>().notation == stratum_format::Notation::Wall);
-
         // A real generated zone, for scale rather than for exact counts
         auto generated_zone = load_open("data/generated.zone");
         const stratum_sim::DiscreteLayout& generated = generated_zone->layout();
@@ -327,7 +321,7 @@ namespace
             layout.wall_toward(stratum_sim::discrete_point_type {2, 2}, cardinal_direction(CardinalDirection::West))};
         CHECK_CASE("on the two sides of one edge", wall_a != wall_b && edge_sides.contains(wall_a) && edge_sides.contains(wall_b));
         std::set<id_type> file_door_walls;
-        vector<vector<stratum_format::WallAddress>> file_doors = stratum_format::door_walls(stratum_format::read_zone("data/walls.zone").cells);
+        vector<vector<stratum_format::WallAddress>> file_doors = stratum_format::door_walls(stratum_format::read_zone("data/walls.zone").cells.value());
 
         for (const vector<stratum_format::WallAddress>& addresses : file_doors)
         {
@@ -402,7 +396,7 @@ namespace
     // One door entity per door glyph, its door facings on the walls of that doorway, and no door facing anywhere else
     bool doors_have_entities(const stratum_format::Document& document, string& detail)
     {
-        vector<vector<stratum_format::WallAddress>> doors = stratum_format::door_walls(document.cells);
+        vector<vector<stratum_format::WallAddress>> doors = stratum_format::door_walls(document.cells.value());
         map<stratum_format::stored_entity_id_type, vector<stratum_format::WallAddress>> walls_by_door;
         size_t door_count = 0;
 

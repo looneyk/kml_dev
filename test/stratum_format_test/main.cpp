@@ -286,7 +286,7 @@ namespace
     // The document as nested maps: walls keyed by address and flats by role, since neither has an order of its own
     map_type document_map(const stratum_format::Document& document)
     {
-        const stratum_format::Cells& cells = document.cells;
+        const stratum_format::Cells& cells = document.cells.value();
 
         map_type m;
         m["version"] = document.version;
@@ -392,11 +392,12 @@ namespace
 
         const stratum_format::Document& document = *read;
 
-        CHECK_CASE("the notation is wall", document.cells.notation == stratum_format::Notation::Wall);
-        CHECK_CASE("the encoding defaults to characters", document.cells.encoding == stratum_format::Encoding::Characters);
-        CHECK_CASE("the extent is 4 by 3", document.cells.extent.x() == 4 && document.cells.extent.y() == 3);
-        CHECK_CASE_EQUAL("the rows number 2 * 3 + 1", document.cells.rows.size(), 7);
-        CHECK_CASE("the first row written is the highest", document.cells.rows[1] == "|. .| |>|");
+        const stratum_format::Cells& cells = document.cells.value();
+        CHECK_CASE("the notation is wall", cells.notation == stratum_format::Notation::Wall);
+        CHECK_CASE("the encoding defaults to characters", cells.encoding == stratum_format::Encoding::Characters);
+        CHECK_CASE("the extent is 4 by 3", cells.extent.x() == 4 && cells.extent.y() == 3);
+        CHECK_CASE_EQUAL("the rows number 2 * 3 + 1", cells.rows.size(), 7);
+        CHECK_CASE("the first row written is the highest", cells.rows[1] == "|. .| |>|");
 
         CHECK_CASE_EQUAL("one barrier", document.barriers.size(), 1);
         CHECK_CASE("the barrier is an edge", document.barriers[0].normal == stratum_format::discrete_vector_type {1, 0});
@@ -484,9 +485,10 @@ namespace
 
         const stratum_format::Document& document = *read;
 
-        CHECK_CASE("the notation is block", document.cells.notation == stratum_format::Notation::Block);
-        CHECK_CASE_EQUAL("the rows number the extent", document.cells.rows.size(), 5);
-        CHECK_CASE("the scale", document.cells.scale == 2.0f);
+        const stratum_format::Cells& cells = document.cells.value();
+        CHECK_CASE("the notation is block", cells.notation == stratum_format::Notation::Block);
+        CHECK_CASE_EQUAL("the rows number the extent", cells.rows.size(), 5);
+        CHECK_CASE("the scale", cells.scale == 2.0f);
 
         const auto* locator = get_if<stratum_format::RoomLocator>(&document.rooms[0].identification);
         CHECK_CASE("a room identified by a cell in it has its own barrier", locator != nullptr && locator->barriers.size() == 1
@@ -516,8 +518,8 @@ namespace
             return;
         }
 
-        CHECK_CASE("the encoding is runs", runs->cells.encoding == stratum_format::Encoding::Runs);
-        CHECK_CASE("rows in runs read as the same rows in characters", runs->cells.rows == characters->cells.rows);
+        CHECK_CASE("the encoding is runs", runs->cells.value().encoding == stratum_format::Encoding::Runs);
+        CHECK_CASE("rows in runs read as the same rows in characters", runs->cells.value().rows == characters->cells.value().rows);
 
         return;
     }
@@ -564,7 +566,7 @@ namespace
         {
             {"a format other than this", [](auto& v) { v["format"] = "other"; }, "format: 'other' is not this format"},
             {"a version this does not read", [](auto& v) { v["version"] = "0.2"; }, "version: '0.2' is not a version this reads"},
-            {"no cells", [](auto& v) { v.erase("cells"); }, "cells: required and absent"},
+            {"no cells, with the rest of a layout", [](auto& v) { v.erase("cells"); }, "barriers: in an empty zone, which has no cells"},
             {"a notation the format does not define", [](auto& v) { v["cells"]["notation"] = "hex"; }, "cells.notation: not a notation the format defines"},
             {"an encoding the format does not define", [](auto& v) { v["cells"]["encoding"] = "zip"; }, "cells.encoding: not an encoding the format defines"},
             {"an extent of no cells", [](auto& v) { v["cells"]["extent"] = parse_values("[0, 3]"); }, "cells.extent: an extent of no cells"},
@@ -1059,6 +1061,49 @@ namespace
     }
 
     //--------------------------------------------------------------------------
+    TEST_CASE("empty zone")
+    {
+        stratum_format::Document document;
+        document.zone_id = 7;
+        document.position = stratum_format::zone_position_type {0, 0, -2};
+        document.zone_spec = KeyValueStore {{"seed", "12"}, {"parameters.denizens", "few"}};
+
+        ostringstream os;
+        stratum_format::write(os, document);
+        istringstream is(os.str());
+        const stratum_format::Document read = stratum_format::read_zone(is, "empty zone");
+        CHECK_CASE("an empty zone written reads back with its id, its position and its zone spec, and no cells", !read.cells.has_value()
+            && read.zone_id == 7 && read.position == stratum_format::zone_position_type {0, 0, -2} && read.access_points.empty()
+            && read.zone_spec.has_value() && read.zone_spec->value("seed") == "12" && read.zone_spec->value("parameters.denizens") == "few",
+            os.str());
+
+        auto rejected = [](const string& text, const string& error_expected)
+        {
+            try
+            {
+                istringstream is(text);
+                stratum_format::read_zone(is, "empty zone");
+            }
+            catch (const runtime_error& e)
+            {
+                return string(e.what()).find(error_expected) != string::npos;
+            }
+
+            return false;
+        };
+
+        const string header = format(R"("format": "{}", "version": "{}")", stratum_format::format_name, stratum_format::format_version);
+        CHECK_CASE("an empty zone without a zone spec is an error",
+            rejected(format(R"({{ {}, "zone": {{ "id": 7 }} }})", header), "zone_spec: required in an empty zone"));
+        CHECK_CASE("and one without a zone id",
+            rejected(format(R"({{ {}, "zone_spec": {{ "seed": "12" }} }})", header), "zone: required in an empty zone"));
+        CHECK_CASE("and one with entities", rejected(format(R"({{ {}, "zone": {{ "id": 7 }}, "zone_spec": {{ "seed": "12" }}, "entities": [] }})",
+            header), "entities: in an empty zone"));
+
+        return;
+    }
+
+    //--------------------------------------------------------------------------
     // Each game file document written to a stream is identical to its written form
     TEST_CASE("game files")
     {
@@ -1152,14 +1197,14 @@ namespace
         surface.name = "surface";
         surface.components = stratum_format::raw_values_type::object();
         surface.components["type"] = "surface";
-        surface.spec.insert("generator_selector", "fields_and_hills");
+        surface.spec.insert("type", "surface");
         surface.zones = {{5, "zones/5.zone", stratum_format::zone_position_type {0, 0, 0}, "surface_0_0"}};
 
         stratum_format::WorldDocument::Region dungeon;
         dungeon.id = 4;
         dungeon.name = "barrow";
         dungeon.name_counter = 1;
-        dungeon.spec.insert("generator_selector", "dungeon");
+        dungeon.spec.insert("type", "dungeon");
         dungeon.zones = {{3, "zones/3.zone", stratum_format::zone_position_type {0, 0, -1}, "Level -1"}, {6, "zones/6.zone", nullopt, "barrow"},
             {8, "zones/8.zone", nullopt, "barrow_1"}};
 
@@ -1179,13 +1224,13 @@ namespace
             "    \"worldspaces\": [\n"
             "      { \"id\": 1, \"name\": \"surface\",\n"
             "        \"region\": { \"id\": 2, \"name\": \"surface\", \"name_counter\": 0, \"components\": { \"type\": \"surface\" },\n"
-            "          \"spec\": { \"generator_selector\": \"fields_and_hills\" },\n"
+            "          \"spec\": { \"type\": \"surface\" },\n"
             "          \"zones\": [\n"
             "            { \"id\": 5, \"name\": \"surface_0_0\", \"file\": \"zones/5.zone\", \"position\": [0, 0, 0] }\n"
             "          ] } },\n"
             "      { \"id\": 7, \"name\": \"barrow\",\n"
             "        \"region\": { \"id\": 4, \"name\": \"barrow\", \"name_counter\": 1,\n"
-            "          \"spec\": { \"generator_selector\": \"dungeon\" },\n"
+            "          \"spec\": { \"type\": \"dungeon\" },\n"
             "          \"zones\": [\n"
             "            { \"id\": 3, \"name\": \"Level -1\", \"file\": \"zones/3.zone\", \"position\": [0, 0, -1] },\n"
             "            { \"id\": 6, \"name\": \"barrow\", \"file\": \"zones/6.zone\" },\n"

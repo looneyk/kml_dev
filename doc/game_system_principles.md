@@ -99,8 +99,8 @@ Every new event type needs an ASCII rendering, which the tests check.
 library/quetzal/
     stratum_sim/    entities, components, zones, layout, scheduling, commands, events
     content/        JSON loading, prototypes, component schemas, mods, registry, validation, hot reload
-    dungen/         the block notation generator
-    catagen/        the wall notation generator
+    dungen/         the zone generator for the block notation
+    catagen/        the zone generator for the wall notation
     procgen/        what the generators have in common, plus vaults and seeding
     stratum_view/   the Console character buffer, the reductions, the ASCII mapping and frame
                     differencing (engine-neutral); presentation tables to come

@@ -184,15 +184,16 @@ quetzal::stratum_format::Document quetzal::catagen::make_document(const Zone& zo
     }
 
     document.position = parameters.position;
-    document.cells.notation = stratum_format::Notation::Wall;
-    document.cells.extent = zone.extent();
-    document.cells.rows = rows(zone);
+    stratum_format::Cells& cells = document.cells.emplace();
+    cells.notation = stratum_format::Notation::Wall;
+    cells.extent = zone.extent();
+    cells.rows = rows(zone);
 
     // Local ids are assigned in the order written, so the same parameters give the same ids: each door, then its door
     // facings in the order the reader finds the walls for its glyph, and the staircases last
     stored_entity_id_type id = 0;
 
-    for (const auto& walls : stratum_format::door_walls(document.cells))
+    for (const auto& walls : stratum_format::door_walls(cells))
     {
         stored_entity_id_type door_id = ++id;
         document.entities.push_back({door_id, "door", nullopt, nullopt, {}});
