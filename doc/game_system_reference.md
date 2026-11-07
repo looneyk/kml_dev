@@ -173,8 +173,9 @@ keeps those within the range.
 An empty zone's document, which has no `cells`, sets only the zone's `ZoneDocument`, its position and its layout
 components, and leaves it with no layout. Otherwise it builds the layout through the same `stratum_format` functions that validated it. Each floor/door cell is open, with a wall on
 each side for which `has_wall` is true. Each room's cells, from `room_cells`, get its id, and `room_count` is the
-number of rooms. The flats get the file's heights, the floor defaulting to 0 and the ceiling to 1. A stair cell is a
-block, closed like solid, and the floor beside it is walled toward it.
+number of rooms. The flats get the file's heights, the floor defaulting to 0 and the ceiling to 1. A stair cell is
+floor in the block notation, with its staircase on its floor. In the wall notation it is a block, closed like solid,
+and the floor beside it is walled toward it.
 
 A doorway block is a cell an actor may stand in, walled toward solid on its own side and toward floor on the floor's
 side alone. Two areas therefore never share an edge in the block notation. In the wall notation, two rooms that share
@@ -252,7 +253,8 @@ its subtree, in persistent id order, as its inventory, each encoded as an `Entit
 ### Generation
 
 `Generation` has the registries that `World` creates worldspaces, regions and zones from (`world_generation_plan.md`):
-`m_region_specs`, a map from a name, and `m_zone_generators`, a zone generator for each notation. A game has one zone generator: when a game is created or opened, `Game` sets `m_zone_generator` to the
+`m_region_specs`, a map from a name, `m_initial_region_spec_name`, the name of the region spec a new game's starting
+worldspace is created from, and `m_zone_generators`, a zone generator for each notation. A game has one zone generator: when a game is created or opened, `Game` sets `m_zone_generator` to the
 one for the game's notation, so nothing after that reads the notation.
 `RegionSpec` (`RegionSpec.hpp`)
 and `ZoneSpec` (`ZoneSpec.hpp`) are the types of a region spec and a zone spec, and the `keys` of each, a `KeyValueStore`,
@@ -333,13 +335,17 @@ the seed's position is saved with the spec in `world.json`. It then creates an e
 of the worldspace's extent, in worldspace position order: `z`, then `y`, then `x`, each from lowest to highest. It
 returns the worldspace's id. `new_region_position()` is a
 placeholder until seeds are drawn hierarchically, and returns the x one past the largest of the world's region specs,
-or 0 with none, and y 0. Each of these empty zones is named for the top-level region and its count in worldspace
-position order, from 0, as in `dungeon_9`, and keeps that name when its content is generated or loaded from a template.
-`zone_name(pattern, position)` replaces each `{x}`, `{y}` and `{z}` with that coordinate. Any other zone that `World` builds or creates with a layout has a name unique in its region, suffixed from
+or 0 with none, and y 0. Each of these empty zones is named from the region spec's `zone_name_pattern`, such as
+`{region_name}_{x}_{y}`, with the top-level region's name and the zone's position, or else for the top-level region and
+its count in worldspace position order, from 0, as in `dungeon_9`. It keeps that name when its content is generated or
+loaded from a template. `zone_name(pattern, region_name, position)` replaces each `{...}` in the pattern: the identifier
+`region_name`, `x`, `y`, or `z` with its value, and any other expression, such as `abs(z)`, with its value as an integer,
+evaluated by `quetzal::expression` with the zone's coordinates. It throws `std::runtime_error` for a `{` with no `}`, a
+placeholder that is not an expression, or an identifier that is not one of the four. Any other zone that `World` builds or creates with a layout has a name unique in its region, suffixed from
 the region's counter if another zone of the region has it: the file's name, or else the default pattern's name if it
 has a position, or else the region's name.
 `World::extended_name(zone)` returns a zone's worldspace's name and the zone's name, joined by `/`, such as
-`dungeon/Level -2`. `zone_of` returns a null entity for a zone itself.
+`surface/surface_3_4`. `zone_of` returns a null entity for a zone itself.
 `unload_worldspace(worldspace_id)` unloads every zone of the worldspace, each completing in the `PersistentId` observer,
 then removes the worldspace and its regions.
 
@@ -348,7 +354,8 @@ Every zone is made in a region. `create_zone(region_id, zone_id)` makes a zone w
 empty zone is a zone whose content has not been generated or loaded: it has no layout, and its `ZoneDocument` is an
 empty zone's document, with the zone's position, its name and its resolved `ZoneSpec` as its `zone_spec`.
 `empty_zone(zone)` returns true for one, and it is saved, unloaded and read back as any other zone is.
-`create_zone(region_id, position, name)` creates an empty zone with that name and a new id, and throws
+`create_zone(region_id, position, name)` creates an empty zone with that name and a new id, the name also its spec's
+`name` for the zone generator, and throws
 `std::runtime_error` if the position is outside the worldspace's extent or is another zone's position. `create_zone(region_id, layout)` makes one with a new id,
 that layout and nothing else, and asserts that it is given a layout. Each zone is identified by its persistent id, and its name is unique in its region. `zone_count` and `layout` access the zones, with
 `layout` returning the interface; `create_entity`, `move` and `relocate` operate on their contents; and `unload_zone`
@@ -363,8 +370,9 @@ spec is resolved from a `ZoneSpec` with its position.
 `load_zone_at(worldspace_id, position)` returns the zone at the position in the worldspace, reading it back with
 `load_saved_zone` if it has unloaded. If the zone is empty, it fills it from the `Document` that `generate_zone(zone_spec)`
 returns for its `zone_spec`: the game's zone generator's, unpopulated. Filling a zone keeps its position and its name,
-checks the document with `check_buildable`, has `load_layout` fill the zone, and populates it if the document is
-unpopulated. A worldspace with no zone at the position throws `std::runtime_error`, and an exception from the zone
+checks the document with `check_buildable`, has `load_layout` fill the zone, creates the worldspace that each target of
+an access point with a `region_spec` refers to if the world has none of that name (`create_target_worldspaces`), and
+populates it if the document is unpopulated. A worldspace with no zone at the position throws `std::runtime_error`, and an exception from the zone
 generator passes on, with nothing filled. `load_template(worldspace_id, position, filepath, zone_spec)` fills the empty zone at
 the position from a zone template file in the same way, and throws `std::runtime_error` for a saved zone's file or a zone
 at the position that is not empty.
@@ -382,7 +390,9 @@ or *n*, which is *k* levels from *L*.
 
 The target's position is `new_zone_position(worldspace_id, level)` for the target level, a placeholder that returns
 `(0, 0, level)` until the world's layout is designed. A target with a region creates a new worldspace with
-`create_worldspace`, from the region spec of that name, and the zone is the one at the position there. With the region
+`create_worldspace`, from the region spec of that name, and the zone is the one at the position there. If the access
+point has a `region_spec`, the region is instead the name of a worldspace, created from that spec if the world has
+none, and the zone is the one at the position there. With the region
 omitted, the zone is the one at the position in the access point's worldspace. A region spec that is not registered
 throws `std::runtime_error`.
 
@@ -423,8 +433,8 @@ id, position, name and `zone_spec`. `load_saved_zone(zone_id)` reads a zone of t
 game directory's `zones/<persistent id>.zone`, into the region whose `zone_ids` lists it, and throws
 `std::runtime_error` if the world has no game directory or no region lists it. `World` handles no doors itself, and neither function unloads anything.
 
-`populate(zone)` places the zone's denizens: one pursuer at the last open cell in reverse row order, facing west,
-`Blocking`, with a `Speed` and a `Pursue` that has no target.
+`populate(zone)` places the zone's denizens: one denizen at the last open cell in reverse row order, facing west,
+`Blocking`, with a `Speed` and no behavior, so it does not move.
 
 `Speed` is the rate at which an actor gains energy in the turn order.
 
@@ -612,7 +622,7 @@ An access point is an entity at which a zone is entered or left, sited `On` a su
 cell --- with an `AccessPoint`. The `AccessPoint` has its `order` among the zone's access points of its type, counting
 from 0, and an optional `target`, to which going through it moves an actor: a `stratum_format::RelocatorTarget`,
 unbound, or an `EntityReference` to the access point it is bound to. An access point with no target is arrival only.
-Its type is a relationship, `(AccessType, <type>)`, so the access points of one type are found by a query.
+An optional `region_spec` is the region spec that the worldspace its target's region refers to is created from. Its type is a relationship, `(AccessType, <type>)`, so the access points of one type are found by a query.
 `arrival_placement(access_point)` returns the placement given to an arriving actor, computed by the zone's
 `DiscreteLayout` from the access point's site.
 
@@ -858,14 +868,15 @@ default before each test case that starts from it.
 `Game::clear` returns the game scope's settings to their defaults, which selects its groups' default presets and leaves
 their modifiable presets undefined, so a game created or opened starts from them.
 
-The working directory has only the game in progress. `Game::create(region_spec_name, character_spec, notation, seed)` clears, applies
+The working directory has only the game in progress. `Game::create(character_spec, notation, seed)` clears, applies
 the manifest's game settings, sets the game's notation, resets the id allocator to count from zero, and sets the world seed to the seed, or to one from `math::random_seed()`
 if none is passed, with `World::set_world_seed`. It seeds the gameplay random engine with the world seed, keeps it, and
 writes it to the log, so nothing passes from one game to the next. It empties the working directory and creates the game directory there, named by the
 character, whose name the spec must have, with each character a directory name cannot have replaced by `_`. It has the
 character created from the `CharacterSpec`, and the world's starting worldspace and its first zone from the registered
-`RegionSpec` of that name with `World::create(region_spec_name, game_directory)`, and starts the session at the entry
-point `World::create` returns.
+`RegionSpec` that `Generation::m_initial_region_spec_name` refers to, with `World::create` and the game setting
+`Game::start_zone_key`, `world.start_zone`, and starts the session in that zone at the `start_placement` for the game
+setting `Game::start_cell_key`, `world.start_cell`.
 If either throws, it clears again and removes the game directory before passing the exception on, so a failure leaves
 no game in progress.
 
@@ -895,12 +906,14 @@ nothing. A character of the name that Windows does not allow in a file name, or 
 `_`. If a save of that name exists, it waits for the next second. An earlier save is never
 replaced. It requires a game in progress whose character is alive and named.
 
-`World::create(region_spec_name)` reads the registered spec's `entry_access`: a registered access point type, a comma,
-and a level offset, such as `staircase,1`. It creates the starting worldspace, named for the spec, with its region and its
-empty zones, generates the zone at the position of the spec's `zone.` keys with `load_zone_at`, and returns the zone's
-`entry_point` for that type and offset. It throws `std::runtime_error` if the spec is not registered,
-`entry_access` is not a type and an offset, or the zone has no such entry point.
-`entry_access_key` and `zone_prefix` are the key and the prefix.
+`World::create(region_spec_name, start_zone, game_directory)` creates the starting worldspace, named for the spec, with
+its region and its empty zones, and returns the zone at `start_zone` from `load_zone_at`, generated: `center`
+(`center_start`), the zone at the centroid of the worldspace's extent with each coordinate rounded toward the lower bound,
+or a zone position written `x,y,z`. `start_placement(zone, start_cell)` returns the placement of an actor starting in the
+zone, facing -y: `center`, the cell nearest the center of the zone's layout that an actor can occupy, the first in row
+order of those as near, or a cell position written `i,j`. Each throws `std::runtime_error` for a value that is neither, a
+zone position with no zone in the worldspace, or a cell position an actor cannot occupy, and `World::create` for a
+region spec that is not registered.
 
 `Game::clear` clears the session, the character and the world, in that order, in place. `Session::clear` ends play:
 no zone is played, and the turn order and the clock's fraction of a unit are emptied, while the driver remains.
@@ -954,14 +967,15 @@ warnings with `push_warning`, and the rest with `print`, and its run log file. T
 
 Each host registers, for each notation, the generator of `stratum_gen::generators()` that `stratum_gen::generator_name`
 returns, `dungen` for the block notation and `catagen` for the wall notation, in `m_zone_generators`, as a
-`Generation::zone_generator_type` that makes a `ZoneRequest` from the `ZoneSpec` and passes it on: the `name` pattern
-with the zone's coordinates, the spec's position, the `seed`, which `resolve_zone_spec` adds to every `ZoneSpec`, and
+`Generation::zone_generator_type` that makes a `ZoneRequest` from the `ZoneSpec` and passes it on: the spec's `name`,
+the spec's position, the `seed`, which `resolve_zone_spec` adds to every `ZoneSpec`, and
 the keys after `parameters.`, with a temporary `extent` from the game settings `world.zone_size.x` and `.y` if the spec
-has none. It creates the game from a temporary `RegionSpec`, registered as `dungeon`, whose `zone.name` is
-`Dungeon Level {z}`, whose `entry_access` is `staircase,1`, and whose `zone.position.z` is -1, and a temporary
-`CharacterSpec` with the name "Adventurer". So the character begins at the staircase leading up on
-the first level down, and a staircase leads to a new zone the first time it is taken, and back through the bound
-staircase after that.
+has none. It registers the region specs that `load_region_specs` reads from the assets directory, sets
+`m_initial_region_spec_name` to the temporary `surface`, and adds to the surface spec the default zone size of the game
+settings as its temporary `worldspace.zone_size`. It creates the game with a temporary `CharacterSpec` with the name
+"Adventurer". So the character begins at the center of the surface zone at (4, 4, 0), which is `surface1`'s open
+ground, and each of its staircases leads down to the first level of a dungeon worldspace of its own, `dungeon_1` and
+on, created from the `dungeon` spec when the surface zone is generated.
 
 `stratum_gen` links no part of `stratum_sim`. A `ZoneRequest` is what one zone is generated from: its `name`, empty for
 none, an optional `position`, a `seed`, and `parameters`, which the generator reads, as the tokens its zone file's `generator`
@@ -1052,8 +1066,8 @@ components in the order written, and `translate_references` replaces each with t
 runs; the barriers; each room's perimeter or `RoomLocator`; wall addresses; and each flat's heights. So are each
 entity's `site`, `parent` and `access_point` file components, which the reader validates. A `Site`'s address is a
 `WallAddress`, a `FlatCell`, or a `ZoneCell`, a cell of the zone that an entity such as an actor is in, with the
-relation `in` and an orientation required. A `stratum_format::AccessPoint` has its type, its order, and an optional
-target, which is a `RelocatorTarget` or the id of the access point it is bound to. The layout's `access_points` are `Document::access_points`, a list of entity
+relation `in` and an orientation required. A `stratum_format::AccessPoint` has its type, its order, an optional
+target, which is a `RelocatorTarget` or the id of the access point it is bound to, and an optional `region_spec`. The layout's `access_points` are `Document::access_points`, a list of entity
 ids, its optional `position` is `Document::position`, a `zone_position_type` (`geometry::DiscretePoint` of three
 coordinates), and its `unpopulated` flag is `Document::is_unpopulated`, false if
 absent. The `generator` section is `Document::generator`, an optional `Generator` with its name and its parameters'
@@ -1084,8 +1098,8 @@ entity with an `access_point` sited on a surface, one on the floor or the ceilin
 each access point must have a `type` and an `order` counting from 0 among the access points of its type, and place an
 arriving actor in a cell an actor can stand in: the wall's cell, or the flat cell. Every entity with an `access_point`
 must be listed in `access_points`. An access point's target is optional, and must be a reference or a string that
-matches `[region/]zone[@position]`. The stair glyphs are visual aids, so a stair glyph with no access point on the
-walls around it, or with a second one, and an access point on a wall that is neither a stair cell's open side nor a
+matches `[region/]zone[@position]`. The stair glyphs are visual aids, so a stair glyph with no access point on its
+floor in the block notation or on the walls around it in the wall notation, or with a second one, and an access point on a wall that is neither a stair cell's open side nor a
 door's wall, are warnings. So is an access point whose type is neither its entity's type nor its parent's, the parent being a door facing's door, and so is `unpopulated` in a file with a `zone` section.
 `read_zone` writes them to the process-wide log as warnings in the category `stratum_format`
 (`log_plan.md`). Keys the format does not define are not tracked.
@@ -1136,7 +1150,19 @@ required key that is absent, a value that is not text, or a scope that is not `u
 modifiable, and the world's dimensions: the game settings `world.world_size.x` and `.y`, 1000000 by default, and
 `world.region_size.x`, `.y` and `.z`, 1000 by default, and `world.zone_size.x` and `.y`, the size of a zone in cells, 40
 and 20 by default, each fixed for the game. The terminal's manifests set the zone size: 40 by 20 in the block notation
-and 32 by 12 in the wall notation, whose lattice view is about twice as large.
+and 32 by 12 in the wall notation, whose lattice view is about twice as large. The text game settings `world.start_zone`
+and `world.start_cell`, `center` by default, are where a new game starts.
+
+A region spec file has the format `quetzal.stratum_region_specs`. `RegionSpecsDocument`, in `RegionSpecsDocument.hpp`,
+has the format's name and version, the file's path, `data/region_specs.json` relative to the assets directory or a
+mod's directory, and the file's `region_specs`, each region spec's keys by its name, with every key a dotted path such
+as `worldspace.extent.x` and every value as text. `read_region_specs` requires the format, the version, and
+`region_specs`, and throws `std::runtime_error` for a key the format does not have, a region spec that is not an object,
+or a value that is not text. `stratum_sim::load_region_specs(assets_directory)`, in `RegionSpec.hpp`, returns the
+`RegionSpec`s by name. The game's file is `assets/data/region_specs.json`, with two top-level region specs: `surface`,
+whose extent is x and y 0 to 9 and z 0, whose `zone_name_pattern` is `{region_name}_{x}_{y}`, and whose zones are
+generated by `surface1` with 2 to 4 staircases leading down, none leading up, and the `stairs_down_region_spec`
+`dungeon`; and `dungeon`, whose extent is z -100 to -1 and whose `zone_name_pattern` is `{region_name}_{abs(z)}`.
 
 A settings file, such as the user settings file, has the format `quetzal.stratum_settings` (`game_file_spec.md`, `## The
 user settings file`). `SettingsDocument`, in `SettingsDocument.hpp`, has one scope's `settings::SettingsSnapshot`, as
@@ -1376,7 +1402,7 @@ must not already have the project open, or the library is locked and the build f
 `stratum_sim_test` covers the layout hierarchy, layout structure, rooms, the grid, the placement index and each zone's,
 flats, blocking, the scheduler, the
 clock, movement, adjacency and sight, loading, doors, the world, persistent ids, access points, residency, commands,
-occupancy, and the game's setting definitions inserted into a store. It and `stratum_view_test` each check that every zone file in their `data/` has one `door` entity per door
+occupancy, zone names and their patterns, the game's region specs, and the game's setting definitions inserted into a store. It and `stratum_view_test` each check that every zone file in their `data/` has one `door` entity per door
 glyph, with a `door_facing` child on each wall that `stratum_format::door_walls` finds for that glyph and no door
 facing anywhere else.
 
@@ -1398,14 +1424,16 @@ an open doorway.
 
 Over another sweep with ranges of staircases each way, both check the written zone. Neither count may exceed its
 maximum, and a count leading up may fall short of its minimum only if no staircase leads down. Every floor cell must be
-reachable from every other with the stair blocks in place, except in maze1, which can leave corridor that no door
-reaches. No staircase may block a doorway if a cell beside it would not. Every staircase must be sited on exactly one
-of the walls around its block, with the target `-1` or `+1` as its glyph indicates, and must open onto a side with floor
-beyond, or a door if there is none. `access_points` must refer to every staircase. Both take what the written
-zone does not record about a stair cell --- its surroundings in dungen, and which of its sides were open in catagen ---
-from the zone generated again. `catagen_test` also checks that every edge between a stair cell and floor is written as
+reachable from every other, except in maze1, which can leave corridor that no door reaches, and every staircase must
+have the target `-1` or `+1` as its glyph indicates, or `<region spec>_<k>/-1` for a staircase down with a region
+spec. `access_points` must refer to every staircase. In `dungen_test`, every staircase must be on the floor of its cell,
+with an orientation in a cardinal direction, and neither on a doorway nor beside one. In `catagen_test`, with the stair blocks in place, no
+staircase may block a doorway if a cell beside it would not, and every staircase must be sited on exactly one of the
+walls around its block and open onto a side with floor beyond, or a door if there is none. Both take what the written
+zone does not record about a stair cell --- its room in dungen, and which of its sides were open in catagen --- from
+the zone generated again. `catagen_test` also checks that every edge between a stair cell and floor is written as
 a wall. Validation rejects a staircase up count whose minimum is zero, including when only staircases down are asked
-for. Each also reads a reference zone's generator parameters back and regenerates from them, since a zone file
+for, for every algorithm but surface1. Each also reads a reference zone's generator parameters back and regenerates from them, since a zone file
 has every parameter of its run. A parameter that the writer emits and the test does not read fails, as does one that
 the test reads and the file lacks.
 
@@ -1416,7 +1444,8 @@ prefix and the test executables the `_test` suffix.
 valid file with one change made to it. It checks that references are found and translated wherever they are written,
 and writes each file through both `write` overloads and reads it back, comparing the two documents as maps. It writes
 each game file document and compares it with its written form, text for text, reads each back and writes it again
-identically, and rejects each of a set of game files with one change made to it, with the error the change raises.
+identically, and rejects each of a set of game files with one change made to it, with the error the change raises. It
+reads the setting definition and region spec files, the game's included.
 
 `flecs_test` checks that the ECS supports zone partitioning, relationships, migration, unload, serialization and
 deterministic iteration.

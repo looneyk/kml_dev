@@ -16,9 +16,9 @@ namespace quetzal::dungen
 
     // Turns candidates into staircases, alternating between leading up and leading down while both have some left of the
     // counts drawn from up_count and down_count. The candidates are shuffled first, so they may be supplied in any order. A
-    // candidate that cannot take a staircase facing floor without blocking a doorway or cutting a passage in two is
-    // skipped. Running out of candidates places fewer staircases than were drawn, which is a warning, written to the
-    // process-wide log.
+    // staircase is on the floor of its cell, oriented toward a passable side, and a candidate that is not floor, is a
+    // doorway, or is beside one is skipped. Running out of candidates places fewer staircases than were drawn, which is a warning, written to
+    // the process-wide log.
     // Throws std::runtime_error if a rise with a count above zero has none placed, since every staircase is an access point
     void place_staircases(Zone& zone, std::vector<point_type> candidates, const math::Interval<size_t>& up_count,
         const math::Interval<size_t>& down_count, random_type& random);

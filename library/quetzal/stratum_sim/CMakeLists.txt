@@ -99,4 +99,4 @@ target_include_directories(quetzal_stratum_sim PUBLIC
 
 # Not flecs::flecs_static, as library3 is added after library/ and a namespaced target must already exist
 target_link_libraries(quetzal_stratum_sim PUBLIC quetzal_common quetzal_settings quetzal_stratum_format flecs_static)
-target_link_libraries(quetzal_stratum_sim PRIVATE quetzal_log)
+target_link_libraries(quetzal_stratum_sim PRIVATE quetzal_expression quetzal_log)

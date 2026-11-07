@@ -156,16 +156,16 @@ namespace
             && pouch.is_alive() && !stratum_sim::zone_of(wanderer) && !stratum_sim::zone_of(pouch));
 
         // Zones the world makes whole, with their doors and their denizens
-        auto pursuers_in = [&](flecs::entity zone)
+        auto denizens_in = [&](flecs::entity zone)
         {
-            stratum_sim::World::entities_type pursuers;
+            stratum_sim::World::entities_type denizens;
 
-            world.entities().query_builder<const stratum_sim::Pursue>()
+            world.entities().query_builder<const stratum_sim::Speed>()
                 .with(flecs::ChildOf, zone)
                 .build()
-                .each([&](flecs::entity e, const stratum_sim::Pursue&) { pursuers.push_back(e); });
+                .each([&](flecs::entity e, const stratum_sim::Speed&) { denizens.push_back(e); });
 
-            return pursuers;
+            return denizens;
         };
 
         auto door_east_of_start = [&](flecs::entity zone)
@@ -175,12 +175,12 @@ namespace
         };
 
         flecs::entity generated = world.load_zone_at(world.create_worldspace("door", test_region_spec("door")), stratum_sim::ZonePosition {});
-        stratum_sim::World::entities_type generated_pursuers = pursuers_in(generated);
+        stratum_sim::World::entities_type generated_denizens = denizens_in(generated);
 
         CHECK_CASE("a generated zone has its doors", door_east_of_start(generated).is_alive());
-        CHECK_CASE("and is populated, its pursuer scheduled by speed and pursuing whoever is controlled",
-            generated_pursuers.size() == 1 && generated_pursuers.front().has<stratum_sim::Speed>()
-            && !generated_pursuers.front().get<stratum_sim::Pursue>().target.has_value());
+        CHECK_CASE("and is populated, its denizen scheduled by speed, blocking, and pursuing no one",
+            generated_denizens.size() == 1 && generated_denizens.front().has<stratum_sim::Blocking>()
+            && !generated_denizens.front().has<stratum_sim::Pursue>());
 
         flecs::entity loaded = world.load_zone(world.region_id, "data/door.zone");
 
@@ -191,7 +191,7 @@ namespace
 
         CHECK_CASE("its door is of the door type, as a loaded one is", door_type_east_of_start(generated));
         CHECK_CASE("a loaded zone agrees with it", same_geometry(zone_layout(world, loaded), zone_layout(world, generated))
-            && door_type_east_of_start(loaded) && pursuers_in(loaded).size() == 1);
+            && door_type_east_of_start(loaded) && denizens_in(loaded).size() == 1);
         CHECK_CASE_EQUAL("creating and loading unload nothing", filled_zone_count(world), 3);
 
         CHECK_CASE("a zone loaded unpopulated is written populated", !stratum_sim::make_document(loaded).is_unpopulated);
@@ -205,7 +205,7 @@ namespace
         }
 
         flecs::entity prepopulated = world.load_zone(create_test_region(world, "door"), "out/prepopulated.zone");
-        CHECK_CASE("a zone whose file is not unpopulated is not populated", pursuers_in(prepopulated).empty()
+        CHECK_CASE("a zone whose file is not unpopulated is not populated", denizens_in(prepopulated).empty()
             && door_east_of_start(prepopulated).is_alive());
         world.unload_worldspace(stratum_sim::worldspace_of(prepopulated));
 
@@ -245,7 +245,7 @@ namespace
         world.unload_zone(saved);
         flecs::entity saved_again = world.load_zone(counted, "data/saved.zone");
         bool saved_unpopulated = true;
-        world.entities().each([&](flecs::entity e, const stratum_sim::Pursue&) { saved_unpopulated = saved_unpopulated && stratum_sim::zone_of(e) != saved_again; });
+        world.entities().each([&](flecs::entity e, const stratum_sim::Speed&) { saved_unpopulated = saved_unpopulated && stratum_sim::zone_of(e) != saved_again; });
         CHECK_CASE("a saved zone read back is not listed again, however often it is loaded after unloading", saved_again.is_alive()
             && saved_again.get<stratum_sim::PersistentId>() == stratum_sim::PersistentId {900}
             && world.region(counted).zone_ids.size() == test_extent_zone_count + 1);
@@ -428,7 +428,7 @@ namespace
                 trip.same_geometry && !trip.written.empty() && trip.written == trip.rewritten);
         }
 
-        // data/door.zone: a door on the doorway east of cell (1, 1), and a pursuer that populating places
+        // data/door.zone: a door on the doorway east of cell (1, 1), and a denizen that populating places, given a behavior
         stratum_sim::CountingIdAllocator id_allocator(stratum_sim::PersistentId {});
         TestWorld world(id_allocator);
         flecs::entity zone = world.load_zone(world.region_id, "data/door.zone");
@@ -439,7 +439,7 @@ namespace
         stratum_sim::PersistentId door_id = door.get<stratum_sim::PersistentId>();
 
         flecs::entity pursuer;
-        world.entities().each([&](flecs::entity e, const stratum_sim::Pursue&) { pursuer = e; });
+        world.entities().each([&](flecs::entity e, const stratum_sim::Speed&) { pursuer = e; });
         stratum_sim::PersistentId pursuer_id = pursuer.get<stratum_sim::PersistentId>();
         stratum_sim::discrete_point_type pursuer_cell = zone_layout(world, zone).cell_position_at(stratum_sim::placement_of(pursuer).position());
         pursuer.set<stratum_sim::Pursue>(stratum_sim::Pursue {world.make_reference(door), zone_layout(world, zone).position(stratum_sim::discrete_point_type {1, 1}), true});
@@ -604,11 +604,18 @@ namespace
         enter_zone_file(game, "data/corridor.zone");
 
         flecs::entity hunter;
-        session.world().entities().query_builder<const stratum_sim::Pursue>()
+        session.world().entities().query_builder<const stratum_sim::Speed>()
+            .with(flecs::ChildOf, session.zone())
             .build()
-            .each([&](flecs::entity e, const stratum_sim::Pursue&) { hunter = e; });
+            .each([&](flecs::entity e, const stratum_sim::Speed&) { hunter = e; });
 
-        CHECK_CASE("a session places something that decides for itself", hunter.is_alive());
+        CHECK_CASE("a session places a denizen", hunter.is_alive());
+        hunter.set<stratum_sim::Pursue>(stratum_sim::Pursue {});
+
+        // Off the staircase, into the denizen's sight along the corridor
+        game.world().relocate(session.character().entity(), session.zone(), stratum_sim::placement_type(
+            stratum_sim::layout_as<stratum_sim::DiscreteLayout>(session.layout()).position(stratum_sim::discrete_point_type {1, 1}),
+            stratum_sim::vector_type(1.0f, 0.0f, 0.0f)));
 
         stratum_sim::EventQueue session_events;
         stratum_sim::discrete_point_type before = stratum_sim::layout_as<stratum_sim::DiscreteLayout>(session.layout()).cell_position_at(stratum_sim::placement_of(hunter).position());
@@ -620,7 +627,7 @@ namespace
         }
 
         stratum_sim::discrete_point_type after = stratum_sim::layout_as<stratum_sim::DiscreteLayout>(session.layout()).cell_position_at(stratum_sim::placement_of(hunter).position());
-        CHECK_CASE("and it closes on the controlled entity while the host only waits", after.i() < before.i());
+        CHECK_CASE("and given a pursuit, it closes on the controlled entity while the host only waits", after.i() < before.i());
         CHECK_CASE("the character is the game's, in the zone without being its child",
             !session.character().entity().parent() && session.character().entity().target<stratum_sim::InZone>() == session.zone());
 

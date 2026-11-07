@@ -80,6 +80,12 @@ namespace
         }
 
         members.push_back(std::format("\"order\": {}", access_point.order));
+
+        if (access_point.region_spec.has_value())
+        {
+            members.push_back(std::format("\"region_spec\": {}", string_text(access_point.region_spec.value())));
+        }
+
         return object_text(members);
     }
 

@@ -33,6 +33,27 @@ namespace
 } // namespace
 
 //------------------------------------------------------------------------------
+std::string quetzal::catagen::to_string(Algorithm algorithm)
+{
+    return algorithm == Algorithm::Surface1 ? "surface1" : "partition1";
+}
+
+//------------------------------------------------------------------------------
+quetzal::catagen::Algorithm quetzal::catagen::to_algorithm(std::string_view s)
+{
+    if (s == "partition1")
+    {
+        return Algorithm::Partition1;
+    }
+    else if (s == "surface1")
+    {
+        return Algorithm::Surface1;
+    }
+
+    throw invalid_argument(format("\"{}\" is not partition1 or surface1", s));
+}
+
+//------------------------------------------------------------------------------
 quetzal::catagen::Parameters::seed_type quetzal::catagen::random_seed()
 {
     return math::random_seed();
@@ -41,7 +62,11 @@ quetzal::catagen::Parameters::seed_type quetzal::catagen::random_seed()
 //------------------------------------------------------------------------------
 bool quetzal::catagen::set_parameter(Parameters& parameters, const std::string& key, const std::string& text)
 {
-    if (key == "extent")
+    if (key == "algorithm")
+    {
+        parameters.algorithm = to_algorithm(text);
+    }
+    else if (key == "extent")
     {
         parameters.extent = token_value<vector_type>(key, text);
     }
@@ -68,6 +93,10 @@ bool quetzal::catagen::set_parameter(Parameters& parameters, const std::string& 
     else if (key == "stairs_up")
     {
         parameters.staircase_up_count = token_value<math::Interval<size_t>>(key, text);
+    }
+    else if (key == "stairs_down_region_spec")
+    {
+        parameters.staircase_down_region_spec = text;
     }
     else if (key == "position")
     {
@@ -150,9 +179,14 @@ void quetzal::catagen::validate(const Parameters& parameters)
     }
 
     // A dungeon zone is entered at, and left by, a staircase leading up
-    if (parameters.staircase_up_count.lower() == 0)
+    if (parameters.algorithm != Algorithm::Surface1 && parameters.staircase_up_count.lower() == 0)
     {
         throw invalid_argument("a staircase up count minimum of zero may leave the zone no staircase leading up");
+    }
+
+    if (parameters.staircase_down_region_spec.has_value() && parameters.staircase_down_region_spec->empty())
+    {
+        throw invalid_argument("the staircase down region spec is empty");
     }
 
     if (!parameters.seed)

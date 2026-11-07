@@ -75,8 +75,9 @@ namespace
         CHECK_CASE("the grid is the file's extent", loop.grid().extent == stratum_sim::discrete_vector_type(5, 5));
         CHECK_CASE_EQUAL("a layout has one floor and one ceiling", loop.flat_store_count(), 2);
 
-        // Twelve sides face the solid outside the ring and four the solid cell it encloses
-        CHECK_CASE_EQUAL("a wall on every side floor meets solid", wall_counts(loop).sides, 16);
+        // Eleven sides of the ring face the solid outside it and four the solid cell it encloses, and the staircase cell above
+        // the ring, which is floor, has three facing solid
+        CHECK_CASE_EQUAL("a wall on every side floor meets solid", wall_counts(loop).sides, 18);
         CHECK_CASE_EQUAL("and none walled from both sides, solid having no walls of its own", wall_counts(loop).both_sides, 0);
 
         CHECK_CASE("an open cell reads as open", loop.open(stratum_sim::discrete_point_type {1, 1}));
@@ -572,7 +573,7 @@ namespace
               { "id": 901, "type": "door" },
               { "id": 902, "type": "door_facing", "components": { "parent": { "entity": 901 }, "site": { "relation": "on", "wall": { "cell_position": [3, 1], "normal": [1, 0] } } } },
               { "id": 903, "type": "door_facing", "components": { "parent": { "entity": 901 }, "site": { "relation": "on", "wall": { "cell_position": [1, 1], "normal": [-1, 0] } } } },
-              { "id": 904, "type": "staircase", "components": { "site": { "relation": "on", "wall": { "cell_position": [1, 1], "normal": [0, -1] } },
+              { "id": 904, "type": "staircase", "components": { "site": { "relation": "on", "flat": "floor", "cell_position": [1, 2], "orientation": [0, -1] },
                 "access_point": { "type": "staircase", "target": { "entity": 7713 }, "order": 0 } } } ] })";
         istringstream saved_stream(saved_text);
         flecs::entity saved = loaded(stratum_format::read_zone(saved_stream, "saved"));
@@ -610,7 +611,7 @@ namespace
                   {{ "id": 1, "type": "door"{} }},
                   {{ "id": 2, "type": "door_facing", "components": {{ "parent": {{ "entity": 1 }}, "site": {{ "relation": "on", "wall": {{ "cell_position": [3, 1], "normal": [1, 0] }} }} }} }},
                   {{ "id": 3, "type": "door_facing", "components": {{ "parent": {{ "entity": 1 }}, "site": {{ "relation": "on", "wall": {{ "cell_position": [1, 1], "normal": [-1, 0] }} }} }} }},
-                  {{ "id": 4, "type": "staircase", "components": {{ "site": {{ "relation": "on", "wall": {{ "cell_position": [1, 1], "normal": [0, -1] }} }},
+                  {{ "id": 4, "type": "staircase", "components": {{ "site": {{ "relation": "on", "flat": "floor", "cell_position": [1, 2], "orientation": [0, -1] }},
                     "access_point": {{ "type": "staircase", "target": "+1", "order": 0 }}{} }} }} ] }})",
                 layout_components.empty() ? "" : ", " + layout_components,
                 layout_sections.empty() ? "" : layout_sections + ",",

@@ -175,7 +175,7 @@ namespace
     // The access point as a zone file writes it: a bound target is the persistent id of the access point it is bound to
     stratum_format::AccessPoint encoded_access_point(flecs::entity e, const AccessPoint& access_point)
     {
-        stratum_format::AccessPoint result {access_type_name(e), access_point.order, std::nullopt};
+        stratum_format::AccessPoint result {access_type_name(e), access_point.order, std::nullopt, access_point.region_spec};
 
         if (!access_point.target.has_value())
         {

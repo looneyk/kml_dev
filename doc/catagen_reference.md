@@ -15,8 +15,9 @@ beside it. The two share no code.
 
 The generator builds a discrete layout document in the wall notation, which `stratum_format` writes as a file;
 `discrete_layout.md` is the format. `generator.parameters` has the parameters of the run as the tokens their options take, in key order ---
-`density`, `extent`, `loop`, `position` if one was given, `scale`, `seed`, `spacing`, `stairs_down`, and `stairs_up` --- so a file
-reproduces its zone and its parameters read as a command line. A position given is also written as the layout's
+`algorithm`, `density`, `extent`, `loop`, `position` if one was given, `scale`, `seed`, `spacing`, `stairs_down`,
+`stairs_down_region_spec` if one was given, and `stairs_up`, with `density`, `loop`, `scale` and `spacing` only for
+`partition1` --- so a file reproduces its zone and its parameters read as a command line. A position given is also written as the layout's
 `position`, and the zone's name, if it has one, as the layout's `name` and `display_name` components. The name is not a parameter: it does not
 affect the grid.
 
@@ -37,7 +38,9 @@ and floor, even where the generated wall is open, and none on its other edges. c
 Each door is a `door` entity with a `door_facing` child on each wall that `stratum_format::door_walls` finds for its
 glyph: the two sides of its edge. Each staircase is a `staircase` entity sited on the wall that the cell it opens onto
 --- floor or a door --- has toward its block. Its `access_point` has the `type` `staircase`; a `target` of `-1` or
-`+1`; and an `order` that counts from 0 among all the staircases, in the order they are written.
+`+1`; and an `order` that counts from 0 among all the staircases, in the order they are written. With a
+`staircase_down_region_spec`, the *k*th staircase leading down, from 1, has the target `<region spec>_<k>/-1` and the
+`region_spec` itself, so it leads to level -1 of a worldspace of its own, which the world creates from that region spec.
 `layout.components.access_points` refers to every staircase. Local
 ids are assigned in the order the entities are written --- each door, then its door facings, and the staircases last,
 in the order they were placed --- so the same parameters give the same ids.
@@ -57,18 +60,19 @@ stored by the line they lie on, which includes the outermost lines: `wall_vertic
 `(i, j)`, so `j` runs to `ny` inclusive. `wall(cell, direction)` reads either; the east wall of `(i, j)` and the west
 wall of `(i + 1, j)` are the same wall. A new `Zone` has no cell open and every wall solid.
 
-**`Parameters`** --- `extent`; `scale` and `spacing`, closed ranges of cells; `density`; `loop`;
-`staircase_down_count` and `staircase_up_count`, closed ranges of counts defaulting to 1-1; an optional `position`; and
-`seed`, a
+**`Parameters`** --- `algorithm`, an `Algorithm`, `Partition1` by default or `Surface1`, with `to_string` and
+`to_algorithm` for the command line and the zone file's parameters; `extent`; `scale` and `spacing`, closed ranges of
+cells; `density`; `loop`; `staircase_down_count` and `staircase_up_count`, closed ranges of counts defaulting to 1-1; an
+optional `staircase_down_region_spec`; an optional `position`; and `seed`, a
 `std::optional` that is empty until assigned. `validate` throws `std::invalid_argument` identifying the parameter at
-fault, including an unassigned seed, a count range whose maximum is below its minimum, and a staircase up count whose
-minimum is zero, since a dungeon zone is entered and left by a staircase leading up. `random_seed()` draws a seed from
-`std::random_device`.
+fault, including an unassigned seed, a count range whose maximum is below its minimum, an empty
+`staircase_down_region_spec`, and, for `partition1`, a staircase up count whose minimum is zero, since a dungeon zone is
+entered and left by a staircase leading up. `random_seed()` draws a seed from `std::random_device`.
 
-**`generate`** runs the algorithm below over a `Zone` with the name it is given. **`make_document`** builds the zone's `stratum_format::Document` in memory, **`write_zone`** writes that document as the
+**`generate`** runs the chosen algorithm over a `Zone` with the name it is given: `partition1`, below, or `surface1`. **`make_document`** builds the zone's `stratum_format::Document` in memory, **`write_zone`** writes that document as the
 zone file, and **`write_grid`** writes only its rows.
 
-## The algorithm
+## partition1
 
 One `math::Random` over the portable random engine is seeded from `Parameters::seed`, and every pass draws from it in a fixed order, so the run is
 determined by its parameters.
@@ -114,11 +118,19 @@ have an open wall and floor beyond, or, if there are none, from those with a doo
 Running out of rooms places fewer staircases, with those leading down falling short first. A zone with no room for a
 staircase throws `std::runtime_error`. This pass draws after every other, so nothing before it changes.
 
+## surface1
+
+Every cell is one area, so every cell is floor and the only walls are on the zone's border. The counts are drawn as
+`partition1` draws them, and each staircase, those leading up first, is placed at an open cell taken in a random order,
+passed over by the same rules. A zone with none placed while a count is above zero throws `std::runtime_error`. It is
+the surface zone a game starts in, so a staircase up count whose minimum is zero is allowed.
+
 ## The tool
 
 ```
-catagen [zone] [extent=nx,ny] [name=text] [scale=min-max] [spacing=min-max] [density=d]
-             [loop=l] [stairs_down=min-max] [stairs_up=min-max] [position=x,y,z] [seed=n] [quiet=true|false]
+catagen [zone] [algorithm=partition1|surface1] [extent=nx,ny] [name=text] [scale=min-max] [spacing=min-max] [density=d]
+             [loop=l] [stairs_down=min-max] [stairs_up=min-max] [stairs_down_region_spec=name] [position=x,y,z] [seed=n]
+             [quiet=true|false]
              [log_level=trace|debug|info|warning|error|critical|off]
 ```
 

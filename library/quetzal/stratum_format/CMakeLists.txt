@@ -10,6 +10,7 @@ add_library(quetzal_stratum_format STATIC
     read_world.cpp
     read_zone.cpp
     references.cpp
+    RegionSpecsDocument.cpp
     RelocatorTarget.cpp
     SettingDefinitionsDocument.cpp
     SettingsDocument.cpp
@@ -35,6 +36,7 @@ add_library(quetzal_stratum_format STATIC
     read_world.hpp
     read_zone.hpp
     references.hpp
+    RegionSpecsDocument.hpp
     RelocatorTarget.hpp
     saved_game_format.hpp
     SettingDefinitionsDocument.hpp

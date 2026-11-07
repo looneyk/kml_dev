@@ -640,6 +640,81 @@ namespace
 
         return;
     }
+
+    //--------------------------------------------------------------------------
+    // Places staircases at open cells in a random order, those leading up first. A cell is passed over if a staircase there
+    // would cut a passage or have no side to face
+    void place_open_staircases(Zone& zone, const Parameters& parameters, random_type& random)
+    {
+        const size_t down_count = draw_count(parameters.staircase_down_count, random);
+        const size_t up_count = draw_count(parameters.staircase_up_count, random);
+        const vector_type& extent = zone.extent();
+
+        vector<point_type> candidates;
+        for (coord_type j = 0; j < extent.j(); ++j)
+        {
+            for (coord_type i = 0; i < extent.i(); ++i)
+            {
+                candidates.push_back({i, j});
+            }
+        }
+
+        random.shuffle(candidates);
+
+        for (size_t slot = 0; slot < candidates.size() && zone.staircases().size() < down_count + up_count; ++slot)
+        {
+            if (zone.cell(candidates[slot]) != CellType::Open)
+            {
+                continue;
+            }
+
+            optional<directed_point_type> placement = staircase_placement(zone, candidates[slot], random);
+            if (placement)
+            {
+                Rise rise = zone.staircases().size() < up_count ? Rise::Up : Rise::Down;
+                zone.create_staircase(to_string(rise), *placement, rise);
+            }
+        }
+
+        if (down_count + up_count > 0 && zone.staircases().empty())
+        {
+            throw runtime_error("the zone has no cell a staircase can take without closing off a passage");
+        }
+
+        return;
+    }
+
+    //--------------------------------------------------------------------------
+    Zone generate_partition1(const string& name, const Parameters& parameters, random_type& random)
+    {
+        rectangles_type rectangles;
+        partition({point_type {0, 0}, parameters.extent}, parameters, random, rectangles);
+
+        rectangles_type rooms = select(rectangles, parameters.density, random);
+        cell_areas_type areas = cell_areas(parameters.extent, rooms);
+        id_type area_count = rooms.size();
+
+        connect_components(parameters.extent, rooms, areas, area_count, random);
+
+        Zone zone(name, parameters.extent);
+        realize(zone, areas);
+        place_doors(zone, areas, area_count, parameters.loop, random);
+        place_staircases(zone, rooms, parameters, random);
+
+        return zone;
+    }
+
+    //--------------------------------------------------------------------------
+    // Every cell one area, so the zone is open floor walled only at its border
+    Zone generate_surface1(const string& name, const Parameters& parameters, random_type& random)
+    {
+        Zone zone(name, parameters.extent);
+        realize(zone, cell_areas_type(static_cast<size_t>(parameters.extent.i()) * parameters.extent.j(), 0));
+        place_open_staircases(zone, parameters, random);
+
+        return zone;
+    }
+
 } // namespace
 
 //------------------------------------------------------------------------------
@@ -649,19 +724,15 @@ quetzal::catagen::Zone quetzal::catagen::generate(const string& name, const Para
 
     random_type random(*parameters.seed); // validate checked it is set
 
-    rectangles_type rectangles;
-    partition({point_type {0, 0}, parameters.extent}, parameters, random, rectangles);
+    switch (parameters.algorithm)
+    {
+        case Algorithm::Partition1:
+            return generate_partition1(name, parameters, random);
 
-    rectangles_type rooms = select(rectangles, parameters.density, random);
-    cell_areas_type areas = cell_areas(parameters.extent, rooms);
-    id_type area_count = rooms.size();
+        case Algorithm::Surface1:
+            return generate_surface1(name, parameters, random);
+    }
 
-    connect_components(parameters.extent, rooms, areas, area_count, random);
-
-    Zone zone(name, parameters.extent);
-    realize(zone, areas);
-    place_doors(zone, areas, area_count, parameters.loop, random);
-    place_staircases(zone, rooms, parameters, random);
-
-    return zone;
+    assert(false);
+    return generate_partition1(name, parameters, random);
 }

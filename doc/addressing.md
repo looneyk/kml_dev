@@ -229,7 +229,8 @@ entered or left (`discrete_layout.md`, `### An access point's target`). Its opti
   through, and both access points are then bound to each other. Bound targets appear only in saved zones.
 
 A zone has at least one access point. `layout.components.access_points` is a list of references to them. A
-staircase's is sited on the open side of a cell written `<` or `>`.
+staircase's is sited on the floor of a cell written `<` or `>` in the block notation, and on the open side of one in the
+wall notation.
 
 ### A saved zone
 

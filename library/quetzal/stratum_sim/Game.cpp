@@ -190,7 +190,7 @@ void quetzal::stratum_sim::Game::clear()
 }
 
 //------------------------------------------------------------------------------
-void quetzal::stratum_sim::Game::create(std::string_view region_spec_name, const CharacterSpec& character_spec, stratum_format::Notation notation,
+void quetzal::stratum_sim::Game::create(const CharacterSpec& character_spec, stratum_format::Notation notation,
     std::optional<RandomStream::seed_type> seed)
 {
     assert(!character_spec.name.empty());
@@ -208,7 +208,9 @@ void quetzal::stratum_sim::Game::create(std::string_view region_spec_name, const
     try
     {
         m_character.create(character_spec);
-        m_session.start(m_world.create(region_spec_name, game_directory));
+        flecs::entity start_zone = m_world.create(m_generation.m_initial_region_spec_name, settings::store().value<std::string>(start_zone_key),
+            game_directory);
+        m_session.start(start_zone, start_placement(start_zone, settings::store().value<std::string>(start_cell_key)));
     }
     catch (...)
     {

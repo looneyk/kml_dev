@@ -38,8 +38,9 @@ namespace
     //--------------------------------------------------------------------------
     void usage(ostream& os)
     {
-        os << "Usage: dungen [zone] [algorithm=maze1|grid1|cave1] [extent=nx,ny] [name=text]"
-            << " [stairs_down=min-max] [stairs_up=min-max] [room_density=d] [door_probability=p] [position=x,y,z] [seed=n]"
+        os << "Usage: dungen [zone] [algorithm=maze1|grid1|cave1|surface1] [extent=nx,ny] [name=text]"
+            << " [stairs_down=min-max] [stairs_up=min-max] [stairs_down_region_spec=name] [room_density=d] [door_probability=p]"
+            << " [position=x,y,z] [seed=n]"
             << " [log_level=trace|debug|info|warning|error|critical|off]" << endl;
         os << "  maze1: [room_dimension_base=n] [room_dimension_variation=n] [room_merge=true|false]"
             << " [corridor_straightness=s] [probability_dead_end_removal=p]"

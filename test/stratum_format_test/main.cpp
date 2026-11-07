@@ -11,6 +11,7 @@
 #include "quetzal/stratum_format/read_world.hpp"
 #include "quetzal/stratum_format/read_zone.hpp"
 #include "quetzal/stratum_format/references.hpp"
+#include "quetzal/stratum_format/RegionSpecsDocument.hpp"
 #include "quetzal/stratum_format/RelocatorTarget.hpp"
 #include "quetzal/stratum_format/SettingDefinitionsDocument.hpp"
 #include "quetzal/stratum_format/SettingsDocument.hpp"
@@ -956,20 +957,21 @@ namespace
             {"a wall on a door cell's side toward floor",
                 [](auto& v) { v["walls"][1]["wall"] = parse_values(R"({ "cell_position": [3, 2], "normal": [1, 0] })"); },
                 "walls[1].wall: no wall in the grid at that address"},
-            {"a wall on a floor cell's side toward a stair cell",
-                [](auto& v) { v["walls"][0]["wall"] = parse_values(R"({ "cell_position": [4, 2], "normal": [-1, 0] })"); }, ""},
+            {"a wall on a floor cell's side toward a stair cell, which is floor in the block notation",
+                [](auto& v) { v["walls"][0]["wall"] = parse_values(R"({ "cell_position": [4, 2], "normal": [-1, 0] })"); },
+                "walls[0].wall: no wall in the grid at that address"},
             {"a room cell on a door cell", [](auto& v) { v["rooms"][0]["cell_position"] = parse_values("[3, 2]"); },
                 "rooms[0].cell_position: not a floor cell"},
             {"a room cell on a solid cell", [](auto& v) { v["rooms"][0]["cell_position"] = parse_values("[0, 0]"); },
                 "rooms[0].cell_position: not a floor cell"},
-            {"a room cell on a stair cell", [](auto& v) { v["rooms"][0]["cell_position"] = parse_values("[5, 2]"); },
-                "rooms[0].cell_position: not a floor cell"},
+            {"a room cell on a stair cell, which is floor in the block notation",
+                [](auto& v) { v["rooms"][1] = parse_values(R"({ "cell_position": [5, 2] })"); }, ""},
             {"a room cell closed off by its own barrier", [](auto& v) { v["rooms"][0]["barriers"] = parse_values(R"([{ "cell_position": [1, 1] }])"); },
                 "rooms[0].cell_position: a location closed off by a barrier"},
-            {"a perimeter leaving the door cell out", [](auto& v) { v["rooms"][1]["perimeter"] = parse_values("[[4, 1], [5, 1], [5, 3], [6, 3], [6, 4], [4, 4]]"); },
+            {"a perimeter leaving the door cell out", [](auto& v) { v["rooms"][1]["perimeter"] = parse_values("[[4, 1], [6, 1], [6, 4], [4, 4]]"); },
                 ""},
-            {"a perimeter edge between a stair cell and a solid cell", [](auto& v) { v["rooms"][1]["perimeter"] = parse_values("[[4, 1], [6, 1], [6, 4], [4, 4]]"); },
-                "rooms[1].perimeter[0]: the edge from this junction between cell [5, 1] inside and cell [5, 0] outside"},
+            {"a perimeter leaving the stair cells out, along a virtual wall",
+                [](auto& v) { v["rooms"][1]["perimeter"] = parse_values("[[4, 1], [5, 1], [5, 3], [6, 3], [6, 4], [4, 4]]"); }, ""},
             {"a perimeter edge between two solid cells", [](auto& v) { v["rooms"][1]["perimeter"] = parse_values("[[3, 1], [6, 1], [6, 4], [3, 4]]"); },
                 "rooms[1].perimeter[0]: the edge from this junction between cell [3, 1] inside and cell [3, 0] outside"},
             {"a perimeter covering a cell the fill covers", [](auto& v) { v["rooms"][1]["perimeter"] = parse_values("[[2, 2], [3, 2], [3, 3], [2, 3]]"); },
@@ -1631,6 +1633,57 @@ namespace
         document_type game = stratum_format::read_setting_definitions(filesystem::path("../../assets") / document_type::filepath);
         CHECK_CASE("the game's setting definition file reads", !game.settings.empty() && game.groups.size() == 1
             && game.groups[0].key == "gameplay.difficulty" && game.groups[0].modifiable);
+        return;
+    }
+
+    //--------------------------------------------------------------------------
+    TEST_CASE("region spec file")
+    {
+        using document_type = stratum_format::RegionSpecsDocument;
+
+        const string region_specs_text =
+            "{\n"
+            "  \"format\": \"quetzal.stratum_region_specs\",\n"
+            "  \"version\": \"0.1\",\n"
+            "  \"region_specs\": {\n"
+            "    \"surface\": { \"zone_name_pattern\": \"{region_name}_{x}_{y}\", \"worldspace.extent.x\": \"0 .. 9\" },\n"
+            "    \"crypt\": {}\n"
+            "  }\n"
+            "}\n";
+
+        istringstream is(region_specs_text);
+        document_type document = stratum_format::read_region_specs(is, "region specs");
+        CHECK_CASE("a region spec file reads each region spec's keys by its name", document.region_specs.size() == 2
+            && document.region_specs.at("surface").value("zone_name_pattern") == "{region_name}_{x}_{y}"
+            && document.region_specs.at("surface").value("worldspace.extent.x") == "0 .. 9" && document.region_specs.at("crypt").empty());
+
+        auto rejected = [&region_specs_text](const string& from, const string& to, const string& error_expected)
+        {
+            string text = region_specs_text;
+            size_t at = text.find(from);
+            assert(at != string::npos);
+            text.replace(at, from.size(), to);
+
+            try
+            {
+                istringstream in(text);
+                stratum_format::read_region_specs(in, "region specs");
+            }
+            catch (const runtime_error& e)
+            {
+                return string(e.what()).find(error_expected) != string::npos;
+            }
+
+            return false;
+        };
+
+        CHECK_CASE("a region spec file with a key the format does not have is rejected", rejected("\"region_specs\"", "\"regions\"",
+            "regions: not a key of the region spec file"));
+        CHECK_CASE("and one with a value that is not text", rejected("\"0 .. 9\"", "9", "region_specs.surface.worldspace.extent.x: a string was expected"));
+        CHECK_CASE("and one with a region spec that is not an object", rejected("{}", "[]", "region_specs.crypt: an object was expected"));
+
+        document_type game = stratum_format::read_region_specs(filesystem::path("../../assets") / document_type::filepath);
+        CHECK_CASE("the game's region spec file reads", game.region_specs.contains("surface") && game.region_specs.contains("dungeon"));
         return;
     }
 

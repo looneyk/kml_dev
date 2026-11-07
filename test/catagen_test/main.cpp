@@ -183,6 +183,16 @@ namespace
         wide.scale = {2, 5};
         wide.seed = 4294967295u;
         v.push_back({"wide_seed", "", wide});
+
+        // Open ground with staircases leading down only, each to a worldspace of its own
+        catagen::Parameters surface1;
+        surface1.algorithm = catagen::Algorithm::Surface1;
+        surface1.extent = {32, 12};
+        surface1.staircase_down_count = {2, 4};
+        surface1.staircase_up_count = {0, 0};
+        surface1.staircase_down_region_spec = "dungeon";
+        surface1.seed = 3u;
+        v.push_back({"surface1", "Surface", surface1});
         return v;
     }
 
@@ -403,11 +413,23 @@ namespace
 
                     open_sides.push_back(address->normal);
 
-                    stratum_format::RelocatorTarget target {nullopt, stratum_format::RelativeZone {cell_glyph(cell_position) == '>' ? -1 : 1}, nullopt};
+                    // A staircase leading down to a worldspace of a region spec has the region <region spec>_<k>
+                    const bool leads_down = cell_glyph(cell_position) == '>';
+                    const optional<string>& region_spec = leads_down ? parameters.staircase_down_region_spec : nullopt;
+                    stratum_format::RelocatorTarget target {nullopt, stratum_format::RelativeZone {leads_down ? -1 : 1}, nullopt};
                     const auto& access_point_target = entity.access_point->target;
-                    if (const auto* unbound = access_point_target.has_value() ? get_if<stratum_format::RelocatorTarget>(&*access_point_target) : nullptr;
-                        unbound == nullptr || *unbound != target)
+                    const auto* unbound = access_point_target.has_value() ? get_if<stratum_format::RelocatorTarget>(&*access_point_target) : nullptr;
+                    const bool region_expected = unbound != nullptr && entity.access_point->region_spec == region_spec
+                        && (region_spec.has_value() ? unbound->region.has_value() && unbound->region->starts_with(*region_spec + "_")
+                        : !unbound->region.has_value());
+
+                    if (!region_expected || unbound->zone != target.zone || unbound->position.has_value())
                     {
+                        if (region_spec.has_value())
+                        {
+                            target.region = *region_spec + "_<k>";
+                        }
+
                         detail = format("staircase at {}, {} does not have the target {}", i, j, stratum_format::format_relocator_target(target));
                         return false;
                     }
@@ -682,6 +704,44 @@ TEST_SUITE("parameter validation")
         inverted.scale = {8, 4};
 
         CHECK_THROWS_AS(catagen::validate(inverted), invalid_argument);
+        return;
+    }
+
+    TEST_CASE("surface1 may have no staircase leading up, and an empty staircase down region spec is rejected")
+    {
+        catagen::Parameters surface = sound_parameters();
+        surface.algorithm = catagen::Algorithm::Surface1;
+        surface.staircase_up_count = {0, 0};
+        CHECK_NOTHROW(catagen::validate(surface));
+
+        surface.staircase_down_region_spec = "";
+        CHECK_THROWS_AS(catagen::validate(surface), invalid_argument);
+        return;
+    }
+
+    TEST_CASE("each staircase leading down leads to level -1 of the worldspace <region spec>_<k>, created from the region spec")
+    {
+        const Scenario surface1 = scenarios().back();
+        REQUIRE(surface1.name == "surface1");
+        stratum_format::Document document = document_of(zone_text(surface1.parameters, surface1.zone_name));
+
+        vector<string> targets;
+        vector<string> expected;
+        for (const auto& entity : document.entities)
+        {
+            if (entity.access_point.has_value())
+            {
+                const auto* target = get_if<stratum_format::RelocatorTarget>(&*entity.access_point->target);
+                targets.push_back(target != nullptr ? stratum_format::format_relocator_target(*target) : string());
+                expected.push_back(format("dungeon_{}/-1", expected.size() + 1));
+                const bool region_spec_written = entity.access_point->region_spec == "dungeon";
+                CHECK_MESSAGE(region_spec_written, "each with the region spec its worldspace is created from");
+            }
+        }
+
+        const bool two_to_four = targets.size() >= 2 && targets.size() <= 4;
+        CHECK_MESSAGE(two_to_four, "surface1 places from two to four staircases");
+        CHECK_MESSAGE(targets == expected, "each to level -1 of dungeon_1, dungeon_2 and on, in order");
         return;
     }
 

@@ -159,6 +159,18 @@ namespace
         return;
     }
 
+    //--------------------------------------------------------------------------
+    void validate_surface1(const Parameters& parameters)
+    {
+        auto [nx, ny] = parameters.extent;
+        if (nx < 3 || ny < 3)
+        {
+            throw invalid_argument(format("extent {},{} leaves no cell off the solid border", nx, ny));
+        }
+
+        return;
+    }
+
 } // namespace
 
 //------------------------------------------------------------------------------
@@ -185,6 +197,10 @@ bool quetzal::dungen::set_parameter(Parameters& parameters, const std::string& k
     else if (key == "stairs_up")
     {
         parameters.staircase_up_count = token_value<math::Interval<size_t>>(key, text);
+    }
+    else if (key == "stairs_down_region_spec")
+    {
+        parameters.staircase_down_region_spec = text;
     }
     else if (key == "room_density")
     {
@@ -302,9 +318,14 @@ void quetzal::dungen::validate(const Parameters& parameters)
     validate_count(parameters.staircase_up_count, "staircase up count");
 
     // A dungeon zone is entered at, and left by, a staircase leading up
-    if (parameters.staircase_up_count.lower() == 0)
+    if (parameters.algorithm != Algorithm::Surface1 && parameters.staircase_up_count.lower() == 0)
     {
         throw invalid_argument("a staircase up count minimum of zero may leave the zone no staircase leading up");
+    }
+
+    if (parameters.staircase_down_region_spec.has_value() && parameters.staircase_down_region_spec->empty())
+    {
+        throw invalid_argument("the staircase down region spec is empty");
     }
 
     switch (parameters.algorithm)
@@ -319,6 +340,10 @@ void quetzal::dungen::validate(const Parameters& parameters)
 
         case Algorithm::Cave1:
             validate_cave1(parameters);
+            break;
+
+        case Algorithm::Surface1:
+            validate_surface1(parameters);
             break;
 
         default:

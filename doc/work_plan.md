@@ -83,9 +83,6 @@ boxes are removed at the start of the next piece of work, since the reference do
       patterns, and the open questions there answered, before the structure is created from them.
 - [ ] **Structured region specs** (`region_spec_plan.md`, `## Form`): `RegionSpec` a structured type read from the
       game's JSON file of region specs, in place of a `KeyValueStore`, and written to `world.json` in the same form.
-- [ ] **The character's initial zone as a setting** (`region_spec_plan.md`, `## The game's region specs`): a game
-      setting with the position of the character's initial surface zone and the cell position in it where the
-      character starts, in place of `entry_access`.
 - [ ] **The world's structure created whole** (`world_generation_plan.md`, `## Creating the structure`;
       `region_spec_plan.md`, `## Zones of a worldspace`): every worldspace, with its single region, created from the
       game's JSON object of region specs, and a zone at every position of its extent, in worldspace position order, each created by `World::create` with its spec, its name, its position and its seed, the

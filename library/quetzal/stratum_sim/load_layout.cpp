@@ -353,8 +353,9 @@ std::vector<flecs::entity> quetzal::stratum_sim::load_layout(flecs::entity zone,
         const stratum_format::Entity& entity = access_point_entity(document, id);
         const stratum_format::AccessPoint& access_point = *entity.access_point;
 
-        set_access_point(entities.at(entity.id), access_type(world, access_point.type), access_point.order,
-            access_point_target(access_point.target, entities));
+        flecs::entity e = entities.at(entity.id);
+        set_access_point(e, access_type(world, access_point.type), access_point.order, access_point_target(access_point.target, entities));
+        e.get_mut<AccessPoint>().region_spec = access_point.region_spec;
     }
 
     decode_components(zone, document.components, "layout", resolve);

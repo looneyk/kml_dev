@@ -11,6 +11,7 @@
 #include "quetzal/stratum_sim/DiscreteLayout.hpp"
 #include "quetzal/stratum_sim/commands.hpp"
 #include "quetzal/stratum_sim/Name.hpp"
+#include "quetzal/stratum_sim/RegionSpec.hpp"
 #include "quetzal/stratum_sim/Site.hpp"
 #include "quetzal/stratum_sim/specs.hpp"
 #include "quetzal/stratum_view/ascii.hpp"
@@ -33,16 +34,18 @@ namespace view = quetzal::stratum_view;
 namespace
 {
 
-    constexpr std::string_view temporary_region_spec_name = "dungeon";
+    // Temporary, until the world definition file has the starting region spec
+    constexpr std::string_view temporary_initial_region_spec_name = "surface";
 
     //--------------------------------------------------------------------------
-    // Temporary, until a new game chooses its region: a dungeon whose first zone is the first level down, entered at its
-    // staircase leading up
-    sim::RegionSpec temporary_region_spec()
+    // Temporary, until zone patterns set every zone's extent: the worldspace's zone size is the game's
+    void add_temporary_zone_size(sim::RegionSpec& region_spec)
     {
-        return sim::RegionSpec {quetzal::KeyValueStore {{std::format("{}{}", sim::zone_prefix, sim::name_key), "Dungeon Level {z}"},
-            {std::string(sim::entry_access_key), "staircase,1"}, {std::format("{}{}", sim::zone_prefix, sim::position_z_key), "-1"},
-            {"worldspace.extent.x", "0 .. 0"}, {"worldspace.extent.y", "0 .. 0"}, {"worldspace.extent.z", "-100 .. 0"}}};
+        region_spec.keys.insert(std::format("{}{}", sim::worldspace_prefix, sim::zone_size_x_key),
+            std::format("{}", quetzal::settings::store().value<int64_t>("world.zone_size.x")));
+        region_spec.keys.insert(std::format("{}{}", sim::worldspace_prefix, sim::zone_size_y_key),
+            std::format("{}", quetzal::settings::store().value<int64_t>("world.zone_size.y")));
+        return;
     }
 
     //--------------------------------------------------------------------------
@@ -69,7 +72,7 @@ namespace
                 quetzal::settings::store().value<int64_t>("world.zone_size.y")));
         }
 
-        return quetzal::stratum_gen::ZoneRequest {sim::zone_name(zone_spec.keys.value_or(sim::name_key, std::string()), position),
+        return quetzal::stratum_gen::ZoneRequest {zone_spec.keys.value_or(sim::name_key, std::string()),
             quetzal::stratum_gen::zone_position_type {position.x, position.y, position.z}, *seed, parameters};
     }
 
@@ -118,7 +121,9 @@ StratumWorld::StratumWorld() :
         };
     }
 
-    m_game.generation().m_region_specs[std::string(temporary_region_spec_name)] = temporary_region_spec();
+    m_game.generation().m_region_specs = sim::load_region_specs(m_game.config().assets_directory);
+    m_game.generation().m_initial_region_spec_name = temporary_initial_region_spec_name;
+    add_temporary_zone_size(m_game.generation().m_region_specs.at(m_game.generation().m_initial_region_spec_name));
 }
 
 //------------------------------------------------------------------------------
@@ -170,7 +175,7 @@ bool StratumWorld::create_game()
     // Exceptions must not cross into Godot. A failed creation leaves no game in progress
     try
     {
-        m_game.create(temporary_region_spec_name, temporary_character_spec(), m_notation);
+        m_game.create(temporary_character_spec(), m_notation);
     }
     catch (const std::exception& e)
     {

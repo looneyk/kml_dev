@@ -210,6 +210,16 @@ namespace
         maze1_open.maze1.door_probability = 0.5;
         v.push_back({"maze1_open_doorways", "", maze1_open});
 
+        // Open ground with staircases leading down only, each to a worldspace of its own
+        dungen::Parameters surface1;
+        surface1.algorithm = dungen::Algorithm::Surface1;
+        surface1.extent = {40, 20};
+        surface1.staircase_down_count = {2, 4};
+        surface1.staircase_up_count = {0, 0};
+        surface1.staircase_down_region_spec = "dungeon";
+        surface1.seed = 3u;
+        v.push_back({"surface1", "Surface", surface1});
+
         return v;
     }
 
@@ -369,6 +379,47 @@ namespace
         pinched.grid1.room_dimension_min = 1;
         CHECK_CASE("a room of a single cell is allowed", !rejected(pinched));
 
+        dungen::Parameters surface = parameters;
+        surface.algorithm = dungen::Algorithm::Surface1;
+        surface.staircase_up_count = {0, 0};
+        CHECK_CASE("surface1 may have no staircase leading up", !rejected(surface));
+
+        dungen::Parameters unnamed_region_spec = surface;
+        unnamed_region_spec.staircase_down_region_spec = "";
+        CHECK_CASE("an empty staircase down region spec is rejected", rejected(unnamed_region_spec));
+
+        return;
+    }
+
+    //--------------------------------------------------------------------------
+    // Each staircase leading down leads to level -1 of the worldspace <region spec>_<k>, created from the region spec
+    TEST_CASE("staircase down region spec")
+    {
+        const Scenario surface1 = scenarios().back();
+        REQUIRE(surface1.name == "surface1");
+        stratum_format::Document document = document_of(zone_text(surface1.parameters, surface1.zone_name));
+
+        vector<string> targets;
+        bool region_specs_written = true;
+        for (const auto& entity : document.entities)
+        {
+            if (entity.access_point.has_value())
+            {
+                const auto* target = get_if<stratum_format::RelocatorTarget>(&*entity.access_point->target);
+                targets.push_back(target != nullptr ? stratum_format::format_relocator_target(*target) : string());
+                region_specs_written = region_specs_written && entity.access_point->region_spec == "dungeon";
+            }
+        }
+
+        vector<string> expected;
+        for (size_t k = 1; k <= targets.size(); ++k)
+        {
+            expected.push_back(format("dungeon_{}/-1", k));
+        }
+
+        CHECK_CASE("surface1 places from two to four staircases, all leading down", targets.size() >= 2 && targets.size() <= 4);
+        CHECK_CASE("each to level -1 of dungeon_1, dungeon_2 and on, in order", targets == expected);
+        CHECK_CASE("and each with the region spec its worldspace is created from", region_specs_written);
         return;
     }
 
@@ -652,9 +703,9 @@ namespace
         {
             for (dungen::coord_type x = 0; x < nx; ++x)
             {
-                // A stair cell is a block, and in no room
+                // A stair cell in a room is floor of the room
                 const dungen::Cell& cell = zone.cell({x, y});
-                if (cell.type() == dungen::CellType::Room)
+                if (cell.type() == dungen::CellType::Room || cell.type() == dungen::CellType::Staircase)
                 {
                     if (cell.room_id() != nullid)
                     {
@@ -758,11 +809,10 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Checks the written zone, and checks each stair cell's surroundings, which the file does not record, in the zone
-    // generated again. There must be as many staircases each way as the counts allow, and no floor cut off by a stair
-    // block. No staircase may block a doorway if a cell beside it would not. Every staircase must be sited on the wall
-    // on an open side with floor beyond, or with a door if no side has floor beyond, and the access points must refer to
-    // every staircase
+    // Checks the written zone, and the room of each stair cell, which the file does not record, in the zone generated again.
+    // There must be as many staircases each way as the counts allow, and no floor cut off. No staircase may be on a
+    // doorway or beside one. Every staircase must be sited on the floor of its cell with an orientation, and the access points must refer
+    // to every staircase
     bool staircases_placed_and_faced(const string& zone, const dungen::Parameters& parameters, string& detail)
     {
         using stratum_format::coord_type;
@@ -817,6 +867,7 @@ namespace
             return i == room_of.end() ? optional<size_t>() : optional<size_t>(i->second);
         };
 
+        // A door cell, or a cell in no room beside a room's floor, is a doorway
         auto doorway = [&](const discrete_point_type& cell_position)
         {
             if (glyph(cell_position) == '+')
@@ -824,23 +875,26 @@ namespace
                 return true;
             }
 
-            if (glyph(cell_position) != '.' || space(cell_position).has_value())
-            {
-                return false;
-            }
-
-            return any_of(directions.begin(), directions.end(), [&](const discrete_vector_type& direction)
-                { return floor_stair(glyph(cell_position + direction)) && space(cell_position + direction).has_value(); });
+            return floor_stair(glyph(cell_position)) && !space(cell_position).has_value() && any_of(directions.begin(), directions.end(),
+                [&](const discrete_vector_type& direction) { return floor_stair(glyph(cell_position + direction)) && space(cell_position + direction).has_value(); });
         };
 
-        auto blocks_doorway = [&](const discrete_point_type& cell_position)
+        auto stair_doorway = [&](const discrete_point_type& cell_position)
         {
-            return any_of(directions.begin(), directions.end(), [&](const discrete_vector_type& direction) { return doorway(cell_position + direction); });
+            return doorway(cell_position) || any_of(directions.begin(), directions.end(),
+                [&](const discrete_vector_type& direction) { return doorway(cell_position + direction); });
         };
 
-        // With every stair block in place, each floor and doorway cell is reachable from every other, a door being
-        // passable once opened
-        auto passable = [&](const discrete_point_type& cell_position) { return glyph(cell_position) == '.' || glyph(cell_position) == '+'; };
+        // Returns the cell an entity is sited on the floor of, or nothing if it is sited elsewhere
+        auto floor_site = [](const stratum_format::Entity& entity)
+        {
+            const auto* flat_cell = entity.site.has_value() && entity.site->address.has_value()
+                ? get_if<stratum_format::FlatCell>(&*entity.site->address) : nullptr;
+            return flat_cell != nullptr && flat_cell->role == stratum_format::FlatRole::Floor ? optional(flat_cell->cell_position) : nullopt;
+        };
+
+        // Each floor, staircase and doorway cell is reachable from every other, a door being passable once opened
+        auto passable = [&](const discrete_point_type& cell_position) { return floor_stair(glyph(cell_position)) || glyph(cell_position) == '+'; };
         set<discrete_point_type> passable_cells;
 
         for (coord_type j = 0; j < cells.extent.y(); ++j)
@@ -904,53 +958,56 @@ namespace
                 ++(glyph(cell_position) == '>' ? down_count : up_count);
                 staircase_cells.insert(cell_position);
 
-                if (blocks_doorway(cell_position) && any_of(directions.begin(), directions.end(), [&](const discrete_vector_type& direction)
-                    {
-                        discrete_point_type neighbor = cell_position + direction;
-                        return glyph(neighbor) == '.' && space(neighbor) == space(cell_position) && !doorway(neighbor) && !blocks_doorway(neighbor);
-                    }))
+                if (stair_doorway(cell_position))
                 {
-                    detail = format("staircase at {}, {} blocks a doorway with a cell free beside it", i, j);
+                    detail = format("staircase at {}, {} is on a doorway or beside one", i, j);
                     return false;
                 }
 
-                vector<discrete_vector_type> open_sides;
+                size_t floor_access_point_count = 0;
 
                 for (const stratum_format::Entity& entity : document.entities)
                 {
-                    // Whatever its type, the staircase's entity is the access point on a wall that a neighbor presents to this
-                    // cell
-                    const auto* address = wall_address(entity);
-                    if (address == nullptr || !entity.access_point.has_value() || address->cell_position - address->normal != cell_position)
+                    // Whatever its type, the staircase's entity is the access point on the floor of this cell
+                    if (!entity.access_point.has_value() || floor_site(entity) != cell_position)
                     {
                         continue;
                     }
 
-                    open_sides.push_back(address->normal);
+                    ++floor_access_point_count;
 
-                    stratum_format::RelocatorTarget target {nullopt, stratum_format::RelativeZone {glyph(cell_position) == '>' ? -1 : 1}, nullopt};
-                    const auto& access_point_target = entity.access_point->target;
-                    if (const auto* unbound = access_point_target.has_value() ? get_if<stratum_format::RelocatorTarget>(&*access_point_target) : nullptr;
-                        unbound == nullptr || *unbound != target)
+                    const optional<discrete_vector_type>& orientation = entity.site->orientation;
+                    if (!orientation.has_value() || find(directions.begin(), directions.end(), *orientation) == directions.end())
                     {
+                        detail = format("staircase at {}, {} has no orientation in a cardinal direction", i, j);
+                        return false;
+                    }
+
+                    // A staircase leading down to a worldspace of a region spec has the region <region spec>_<k>
+                    const bool leads_down = glyph(cell_position) == '>';
+                    const optional<string>& region_spec = leads_down ? parameters.staircase_down_region_spec : nullopt;
+                    stratum_format::RelocatorTarget target {nullopt, stratum_format::RelativeZone {leads_down ? -1 : 1}, nullopt};
+                    const auto& access_point_target = entity.access_point->target;
+                    const auto* unbound = access_point_target.has_value() ? get_if<stratum_format::RelocatorTarget>(&*access_point_target) : nullptr;
+                    const bool region_expected = unbound != nullptr && entity.access_point->region_spec == region_spec
+                        && (region_spec.has_value() ? unbound->region.has_value() && unbound->region->starts_with(*region_spec + "_")
+                        : !unbound->region.has_value());
+
+                    if (!region_expected || unbound->zone != target.zone || unbound->position.has_value())
+                    {
+                        if (region_spec.has_value())
+                        {
+                            target.region = *region_spec + "_<k>";
+                        }
+
                         detail = format("staircase at {}, {} does not have the target {}", i, j, stratum_format::format_relocator_target(target));
                         return false;
                     }
                 }
 
-                if (open_sides.size() != 1)
+                if (floor_access_point_count != 1)
                 {
-                    detail = format("staircase at {}, {} is attached to {} of the walls around it", i, j, open_sides.size());
-                    return false;
-                }
-
-                const discrete_vector_type& open_side = open_sides.front();
-                bool floor_beside = any_of(directions.begin(), directions.end(), [&](const discrete_vector_type& direction) { return glyph(cell_position + direction) == '.'; });
-                char opened_onto = glyph(cell_position + open_side);
-
-                if (!(opened_onto == '.' || (opened_onto == '+' && !floor_beside)))
-                {
-                    detail = format("staircase at {}, {} opens onto {}, {}", i, j, open_side.x(), open_side.y());
+                    detail = format("staircase at {}, {} has {} access points on its floor", i, j, floor_access_point_count);
                     return false;
                 }
             }
@@ -972,11 +1029,11 @@ namespace
         for (stratum_format::stored_entity_id_type id : document.access_points)
         {
             auto entity = find_if(document.entities.begin(), document.entities.end(), [id](const stratum_format::Entity& e) { return e.id == id; });
-            const auto* address = entity != document.entities.end() ? wall_address(*entity) : nullptr;
+            const optional<discrete_point_type> cell_position = entity != document.entities.end() ? floor_site(*entity) : nullopt;
 
-            if (address != nullptr)
+            if (cell_position.has_value())
             {
-                access_point_cells.insert(address->cell_position - address->normal);
+                access_point_cells.insert(*cell_position);
             }
         }
 
@@ -1082,8 +1139,8 @@ namespace
 
             CHECK_CASE("a staircase is placed on a candidate", placing(zone, {{1, 1}}, {1, 1}, {0, 0}, warnings).empty()
                 && zone.staircases().size() == 1 && zone.cell({1, 1}).type() == dungen::CellType::Staircase);
-            CHECK_CASE("facing the floor beside it", !zone.staircases().empty() && zone.staircases()[0].placement().direction() == dungen::vector_type {1, 0});
-            CHECK_CASE("the floor a staircase faces gets no second staircase", placing(zone, {{2, 1}}, {1, 1}, {0, 0}, warnings) == unplaced_rise_error);
+            CHECK_CASE("oriented toward the floor beside it", !zone.staircases().empty() && zone.staircases()[0].placement().direction() == dungen::vector_type {1, 0});
+            CHECK_CASE("a staircase's cell gets no second staircase", placing(zone, {{1, 1}}, {1, 1}, {0, 0}, warnings) == unplaced_rise_error);
         }
 
         {
@@ -1097,7 +1154,8 @@ namespace
             dungen::Zone zone = corridor(3);
             vector<string> warnings;
 
-            CHECK_CASE("a candidate that would cut a passage in two is skipped", placing(zone, {{2, 1}}, {1, 1}, {0, 0}, warnings) == unplaced_rise_error);
+            CHECK_CASE("a staircase in the middle of a corridor is placed, since it blocks nothing",
+                placing(zone, {{2, 1}}, {1, 1}, {0, 0}, warnings).empty() && zone.staircases().size() == 1);
         }
 
         {
@@ -1105,7 +1163,8 @@ namespace
             zone.cell({3, 1}).set_type(dungen::CellType::Door);
             vector<string> warnings;
 
-            CHECK_CASE("a candidate beside a door is skipped", placing(zone, {{2, 1}}, {1, 1}, {0, 0}, warnings) == unplaced_rise_error);
+            CHECK_CASE("a candidate on a door is skipped", placing(zone, {{3, 1}}, {1, 1}, {0, 0}, warnings) == unplaced_rise_error);
+            CHECK_CASE("and so is one beside a door", placing(zone, {{2, 1}}, {1, 1}, {0, 0}, warnings) == unplaced_rise_error);
         }
 
         {

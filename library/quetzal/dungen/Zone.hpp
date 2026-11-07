@@ -55,6 +55,8 @@ namespace quetzal::dungen
         Room& room(id_type id);
 
         void create_room(const box_type& rectangle); // name? ...
+        // The room's rectangle is the bounding box of the cells
+        void create_room(const std::vector<point_type>& cell_positions);
         void expand_room(id_type room_id, const box_type& rectangle);
 
         const doors_type& doors() const;

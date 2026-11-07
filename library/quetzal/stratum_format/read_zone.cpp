@@ -817,6 +817,11 @@ namespace
 
         access_point.order = order.get<std::uint64_t>();
 
+        if (const raw_values_type* region_spec = member(v, "region_spec"); region_spec != nullptr)
+        {
+            access_point.region_spec = string_value(*region_spec, member_path(path, "region_spec"));
+        }
+
         const raw_values_type* target = member(v, "target");
         if (target == nullptr)
         {
@@ -1245,14 +1250,36 @@ namespace
     using warn_type = std::function<void(const std::string& path, std::string_view what)>;
 
     //--------------------------------------------------------------------------
-    // Each stair glyph is one access point, sited on the wall on its open side. The glyphs are visual aids, so a
-    // discrepancy is a warning
+    // Each stair glyph is one access point: in the block notation sited on the floor of its cell, and in the wall notation
+    // on the wall on its open side. The glyphs are visual aids, so a discrepancy is a warning
     void check_stair_glyphs(const Document& document, const EntityIndex& index,
         const std::map<discrete_point_type, std::vector<WallAddress>>& stair_walls, const warn_type& warn)
     {
+        const bool block_notation = document.cells.value().notation == Notation::Block;
+
+        // <cell position, slots of the access points sited on its floor>
+        std::map<discrete_point_type, std::vector<size_t>> floor_access_points;
+        for (size_t slot = 0; slot < document.entities.size(); ++slot)
+        {
+            const Entity& entity = document.entities[slot];
+            const auto* flat_cell = entity.site.has_value() && entity.site->address.has_value() ? std::get_if<FlatCell>(&*entity.site->address) : nullptr;
+            if (entity.access_point.has_value() && flat_cell != nullptr && flat_cell->role == FlatRole::Floor)
+            {
+                floor_access_points[flat_cell->cell_position].push_back(slot);
+            }
+        }
+
         for (const auto& [cell_position, walls] : stair_walls)
         {
             std::vector<size_t> access_points;
+
+            if (block_notation)
+            {
+                if (auto i = floor_access_points.find(cell_position); i != floor_access_points.end())
+                {
+                    access_points = i->second;
+                }
+            }
 
             for (const WallAddress& address : walls)
             {
@@ -1271,15 +1298,17 @@ namespace
                 }
             }
 
+            const std::string_view sited = block_notation ? "on its floor" : "on a wall its open neighbors present to it";
+
             if (access_points.empty())
             {
-                warn("entities", std::format("the stair cell at [{}, {}] has no access point sited on a wall its open neighbors present to it",
-                    cell_position.i(), cell_position.j()));
+                warn("entities", std::format("the stair cell at [{}, {}] has no access point sited {}", cell_position.i(), cell_position.j(), sited));
             }
 
             if (access_points.size() > 1)
             {
-                warn(element_path("entities", access_points[1]), std::format("a second access point on the walls around the stair cell at [{}, {}]",
+                const std::string_view second = block_notation ? "on the floor of" : "on the walls around";
+                warn(element_path("entities", access_points[1]), std::format("a second access point {} the stair cell at [{}, {}]", second,
                     cell_position.i(), cell_position.j()));
             }
         }

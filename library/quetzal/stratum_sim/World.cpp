@@ -30,7 +30,9 @@
 #include <filesystem>
 #include <format>
 #include <map>
+#include <numeric>
 #include <optional>
+#include <ranges>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -64,14 +66,35 @@ namespace
     //--------------------------------------------------------------------------
     // The name pattern of a zone of the region when its specs state none: the region's name and the zone's coordinates,
     // x and y in a grid worldspace and all three otherwise
-    std::string default_zone_name_pattern(const quetzal::stratum_sim::Worldspace& worldspace, const quetzal::stratum_sim::Region& region)
+    std::string default_zone_name_pattern(const quetzal::stratum_sim::Worldspace& worldspace)
     {
-        return region.name + (worldspace.zone_size.has_value() ? "_{x}_{y}" : "_{x}_{y}_{z}");
+        return worldspace.zone_size.has_value() ? "{region_name}_{x}_{y}" : "{region_name}_{x}_{y}_{z}";
+    }
+
+    //--------------------------------------------------------------------------
+    // Returns the integers written in the text, separated by commas, or nothing if the text is not count of them
+    std::optional<std::vector<quetzal::stratum_sim::coord_type>> coordinates(std::string_view text, size_t count)
+    {
+        std::vector<quetzal::stratum_sim::coord_type> values;
+
+        for (const auto& part : std::views::split(text, ','))
+        {
+            std::optional<quetzal::stratum_sim::coord_type> value = quetzal::try_type<quetzal::stratum_sim::coord_type>(std::string(part.begin(), part.end()));
+            if (!value.has_value())
+            {
+                return std::nullopt;
+            }
+
+            values.push_back(value.value());
+        }
+
+        return values.size() == count ? std::make_optional(values) : std::nullopt;
     }
 
     //--------------------------------------------------------------------------
     // Temporary placeholder placement function, real placement will not work like this ...
-    std::optional<quetzal::stratum_sim::discrete_point_type> last_open_cell(const quetzal::stratum_sim::DiscreteLayout& layout)
+    template<std::predicate<const quetzal::stratum_sim::discrete_point_type&> Free>
+    std::optional<quetzal::stratum_sim::discrete_point_type> last_open_cell(const quetzal::stratum_sim::DiscreteLayout& layout, Free free)
     {
         const quetzal::stratum_sim::GridMapping& grid = layout.grid();
 
@@ -79,7 +102,7 @@ namespace
         {
             for (quetzal::stratum_sim::coord_type i = grid.extent.x(); i-- > 0; )
             {
-                if (layout.open(quetzal::stratum_sim::discrete_point_type {i, j}))
+                if (layout.open(quetzal::stratum_sim::discrete_point_type {i, j}) && free(quetzal::stratum_sim::discrete_point_type {i, j}))
                 {
                     return quetzal::stratum_sim::discrete_point_type {i, j};
                 }
@@ -571,36 +594,33 @@ void quetzal::stratum_sim::World::set_world_seed(RandomStream::seed_type seed)
 }
 
 //------------------------------------------------------------------------------
-flecs::entity quetzal::stratum_sim::World::create(std::string_view region_spec_name, const std::filesystem::path& game_directory)
+flecs::entity quetzal::stratum_sim::World::create(std::string_view region_spec_name, std::string_view start_zone,
+    const std::filesystem::path& game_directory)
 {
     m_game_directory = game_directory;
 
     const RegionSpec& region_spec = registered(m_generation.m_region_specs, "region spec", std::string(region_spec_name));
-    std::string entry_access = region_spec.keys.value_or(entry_access_key, std::string());
-    size_t comma = entry_access.find(',');
-    flecs::entity entry_type = comma != std::string::npos ? access_type(m_entities, entry_access.substr(0, comma)) : flecs::entity();
-    std::optional<level_type> entry_offset = comma != std::string::npos ? try_type<level_type>(entry_access.substr(comma + 1)) : std::nullopt;
-
-    if (!entry_type || !entry_offset.has_value())
-    {
-        const std::string message = std::format("the starting region spec's {} is not a registered access point type, a comma, and a level offset: '{}'",
-            entry_access_key, entry_access);
-        log::logger().error("stratum_sim", "{}", message);
-        throw std::runtime_error(message);
-    }
-
     const PersistentId worldspace_id = create_worldspace(region_spec_name, region_spec);
-    flecs::entity zone = load_zone_at(worldspace_id, ZoneSpec {select_prefixed(region_spec.keys, zone_prefix)}.position());
-    flecs::entity entry = entry_point(zone, entry_type, *entry_offset);
 
-    if (!entry)
+    ZonePosition position;
+    if (start_zone == center_start)
     {
-        const std::string message = std::format("the starting zone has no access point for its region spec's {}: '{}'", entry_access_key, entry_access);
+        const Worldspace::extent_type& extent = worldspace(worldspace_id).extent;
+        position = {std::midpoint(extent.lower(0), extent.upper(0) - 1), std::midpoint(extent.lower(1), extent.upper(1) - 1),
+            std::midpoint(extent.lower(2), extent.upper(2) - 1)};
+    }
+    else if (std::optional<std::vector<coord_type>> written = coordinates(start_zone, 3); written.has_value())
+    {
+        position = {written->at(0), written->at(1), written->at(2)};
+    }
+    else
+    {
+        const std::string message = std::format("the start zone '{}' is not {} or a zone position x,y,z", start_zone, center_start);
         log::logger().error("stratum_sim", "{}", message);
         throw std::runtime_error(message);
     }
 
-    return entry;
+    return load_zone_at(worldspace_id, position);
 }
 
 //------------------------------------------------------------------------------
@@ -807,14 +827,19 @@ quetzal::stratum_sim::PersistentId quetzal::stratum_sim::World::create_worldspac
     const PersistentId region_id = next_id();
     const Worldspace::extent_type extent = create_worldspace(untaken, positioned_spec, worldspace_id, region_id).extent;
 
+    const std::optional<std::string> name_pattern = region_spec.keys.value(zone_name_pattern_key);
     std::size_t name_counter = 0;
+
     for (coord_type z = extent.lower(2); z < extent.upper(2); ++z)
     {
         for (coord_type y = extent.lower(1); y < extent.upper(1); ++y)
         {
             for (coord_type x = extent.lower(0); x < extent.upper(0); ++x)
             {
-                create_zone(region_id, ZonePosition {x, y, z}, std::format("{}_{}", untaken, name_counter++));
+                const ZonePosition position {x, y, z};
+                const std::string zone_name = name_pattern.has_value() ? stratum_sim::zone_name(name_pattern.value(), untaken, position)
+                    : std::format("{}_{}", untaken, name_counter++);
+                create_zone(region_id, position, zone_name);
             }
         }
     }
@@ -889,7 +914,7 @@ void quetzal::stratum_sim::World::name_zone(flecs::entity zone)
     }
     else if (const auto* position = zone.try_get<ZonePosition>())
     {
-        name = zone_name(default_zone_name_pattern(worldspace(worldspace_of(zone)), region_data), *position);
+        name = zone_name(default_zone_name_pattern(worldspace(worldspace_of(zone))), region_data.name, *position);
     }
     else
     {
@@ -1086,12 +1111,15 @@ void quetzal::stratum_sim::World::unload_zone(flecs::entity zone)
 }
 
 //------------------------------------------------------------------------------
-// One pursuer at the last open cell (temporary ...)
+// One denizen at the last open cell (temporary ...)
 void quetzal::stratum_sim::World::populate(flecs::entity zone)
 {
     const DiscreteLayout& zone_layout = layout_as<DiscreteLayout>(layout(zone));
 
-    std::optional<discrete_point_type> start = last_open_cell(zone_layout);
+    std::optional<discrete_point_type> start = last_open_cell(zone_layout, [&](const discrete_point_type& cell_position)
+    {
+        return !find_access_point(zone, FlatCellAddress {zone_layout.floor_id(), cell_position});
+    });
 
     if (!start)
     {
@@ -1100,8 +1128,7 @@ void quetzal::stratum_sim::World::populate(flecs::entity zone)
 
     create_entity(zone, placement_type(zone_layout.position(*start), vector_type(value_type(-1), value_type(0), value_type(0))))
         .add<Blocking>()
-        .set<Speed>(Speed {denizen_speed})
-        .set<Pursue>(Pursue {});
+        .set<Speed>(Speed {denizen_speed});
 
     return;
 }
@@ -1154,16 +1181,21 @@ flecs::entity quetzal::stratum_sim::World::resolve_target(flecs::entity access_p
     level_type offset = level - level_from;
 
     flecs::entity arrival_type = access_point.target<AccessType>().get<Arrival>().access_type;
-    const PersistentId worldspace_id = worldspace_of(zone_from);
-    const ZonePosition position = new_zone_position(worldspace_id, level);
+    const std::optional<std::string>& region_spec_name = access_point.get<AccessPoint>().region_spec;
+    PersistentId worldspace_id = worldspace_of(zone_from);
+
+    if (target.region.has_value() && !region_spec_name.has_value())
+    {
+        const PersistentId made = create_worldspace(*target.region, registered(m_generation.m_region_specs, "region spec", *target.region));
+        return require_entry_point(access_point, load_zone_at(made, new_zone_position(made, level)), arrival_type, -offset);
+    }
 
     if (target.region.has_value())
     {
-        const PersistentId made = create_worldspace(*target.region, registered(m_generation.m_region_specs, "region spec", *target.region));
-        return require_entry_point(access_point, load_zone_at(made, position), arrival_type, -offset);
+        worldspace_id = target_worldspace(*target.region, region_spec_name.value());
     }
 
-    flecs::entity zone = load_zone_at(worldspace_id, position);
+    flecs::entity zone = load_zone_at(worldspace_id, new_zone_position(worldspace_id, level));
     flecs::entity entry = entry_point(zone, arrival_type, -offset);
 
     if (!entry)
@@ -1446,6 +1478,7 @@ flecs::entity quetzal::stratum_sim::World::create_zone(PersistentId region_id, c
 {
     ZoneSpec zone_spec;
     zone_spec.set_position(position);
+    zone_spec.keys.insert(std::string(name_key), std::string(name));
 
     stratum_format::Document document;
     document.position = stratum_format::zone_position_type {position.x, position.y, position.z};
@@ -1496,12 +1529,68 @@ void quetzal::stratum_sim::World::fill_zone(flecs::entity zone, const stratum_fo
         make_reference(target);
     }
 
+    create_target_worldspaces(zone);
+
     if (zone_document.is_unpopulated)
     {
         populate(zone);
     }
 
     return;
+}
+
+//------------------------------------------------------------------------------
+void quetzal::stratum_sim::World::create_target_worldspaces(flecs::entity zone)
+{
+    // <worldspace name, region spec name>
+    std::vector<std::pair<std::string, std::string>> target_worldspaces;
+
+    m_entities.query_builder<const AccessPoint>()
+        .with(flecs::ChildOf, zone)
+        .build()
+        .each([&](flecs::entity e, const AccessPoint& access_point)
+        {
+            if (access_point.region_spec.has_value())
+            {
+                target_worldspaces.emplace_back(target_worldspace_name(e), access_point.region_spec.value());
+            }
+        });
+
+    for (const auto& [name, region_spec_name] : target_worldspaces)
+    {
+        target_worldspace(name, region_spec_name);
+    }
+
+    return;
+}
+
+//------------------------------------------------------------------------------
+std::string quetzal::stratum_sim::World::target_worldspace_name(flecs::entity access_point) const
+{
+    const AccessPoint& point = access_point.get<AccessPoint>();
+    const auto* unbound = point.target.has_value() ? std::get_if<stratum_format::RelocatorTarget>(&*point.target) : nullptr;
+
+    if (unbound == nullptr || !unbound->region.has_value())
+    {
+        const std::string message = std::format("access point {} has a region spec, and its target is not unbound with a region",
+            access_point.get<PersistentId>().id);
+        log::logger().error("stratum_sim", "{}", message);
+        throw std::runtime_error(message);
+    }
+
+    return unbound->region.value();
+}
+
+//------------------------------------------------------------------------------
+quetzal::stratum_sim::PersistentId quetzal::stratum_sim::World::target_worldspace(std::string_view name, std::string_view region_spec_name)
+{
+    auto named = std::ranges::find(m_worldspaces, name, &Worldspace::name);
+    if (named != m_worldspaces.end())
+    {
+        return named->worldspace_id;
+    }
+
+    return create_worldspace(name, registered(m_generation.m_region_specs, "region spec", std::string(region_spec_name)));
 }
 
 //------------------------------------------------------------------------------
@@ -1657,6 +1746,56 @@ bool quetzal::stratum_sim::empty_zone(flecs::entity zone)
 {
     assert(zone && zone.has<Zone>());
     return !zone.has<ZoneLayout>();
+}
+
+//------------------------------------------------------------------------------
+quetzal::stratum_sim::placement_type quetzal::stratum_sim::start_placement(flecs::entity zone, std::string_view start_cell)
+{
+    assert(zone && !empty_zone(zone));
+
+    const DiscreteLayout& zone_layout = layout_as<DiscreteLayout>(*zone.get<ZoneLayout>().layout);
+    const discrete_vector_type grid_extent = zone_layout.grid().extent;
+    std::optional<discrete_point_type> cell_position;
+
+    if (start_cell == center_start)
+    {
+        // Twice each coordinate, so the center of an even extent is between cells and the distances stay integers
+        const discrete_point_type doubled_center {grid_extent.x() - 1, grid_extent.y() - 1};
+        std::int64_t nearest = 0;
+
+        for (coord_type j = 0; j < grid_extent.y(); ++j)
+        {
+            for (coord_type i = 0; i < grid_extent.x(); ++i)
+            {
+                const std::int64_t dx = 2 * i - doubled_center.x();
+                const std::int64_t dy = 2 * j - doubled_center.y();
+                if (zone_layout.open({i, j}) && (!cell_position.has_value() || dx * dx + dy * dy < nearest))
+                {
+                    cell_position = discrete_point_type {i, j};
+                    nearest = dx * dx + dy * dy;
+                }
+            }
+        }
+    }
+    else if (std::optional<std::vector<coord_type>> written = coordinates(start_cell, 2); written.has_value())
+    {
+        const discrete_point_type position {written->at(0), written->at(1)};
+        if (position.x() >= 0 && position.y() >= 0 && position.x() < grid_extent.x() && position.y() < grid_extent.y() && zone_layout.open(position))
+        {
+            cell_position = position;
+        }
+    }
+
+    if (!cell_position.has_value())
+    {
+        const std::string message = std::format("the start cell '{}' is not {}, or a cell position i,j an actor can occupy in zone {}", start_cell,
+            center_start, zone.get<PersistentId>().id);
+        log::logger().error("stratum_sim", "{}", message);
+        throw std::runtime_error(message);
+    }
+
+    // cell_position was just checked
+    return placement_type(zone_layout.position(*cell_position), vector_type(value_type(0), value_type(-1), value_type(0)));
 }
 
 //------------------------------------------------------------------------------

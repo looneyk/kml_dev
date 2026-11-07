@@ -496,13 +496,16 @@ namespace
         CHECK_CASE("a real-time one does not, having been given none",
             session_real.advance(session_events) == nullid);
 
-        // The character acts through its own intent and commands, the door east of where it enters
+        // The character acts through its own intent and commands, the door east of the cell below the staircase it enters at
         stratum_sim::Game game_door(g_test_config, g_test_manifest);
         stratum_sim::Session& session_door = game_door.session();
         enter_zone_file(game_door, "data/door.zone");
         session_door.advance(session_events);
 
         stratum_sim::Character& character_door = session_door.character();
+        game_door.world().relocate(character_door.entity(), session_door.zone(), stratum_sim::placement_type(
+            stratum_sim::layout_as<stratum_sim::DiscreteLayout>(session_door.layout()).position(stratum_sim::discrete_point_type {1, 1}),
+            stratum_sim::vector_type(0.0f, -1.0f, 0.0f)));
         character_door.set_intent(stratum_sim::Intent {stratum_sim::vector_type(), 1.0f, stratum_sim::vector_type(1.0f, 0.0f, 0.0f)});
         session_door.advance(session_events);
         CHECK_CASE("the character takes the intent set on it", stratum_sim::placement_of(character_door.entity()).direction().x() == 1.0f);

@@ -38,8 +38,9 @@ namespace
     //--------------------------------------------------------------------------
     void usage(ostream& os)
     {
-        os << "Usage: catagen [zone] [extent=nx,ny] [name=text] [scale=min-max] [spacing=min-max]"
-            << " [density=d] [loop=l] [stairs_down=min-max] [stairs_up=min-max] [position=x,y,z] [seed=n] [quiet=true|false]"
+        os << "Usage: catagen [zone] [algorithm=partition1|surface1] [extent=nx,ny] [name=text] [scale=min-max] [spacing=min-max]"
+            << " [density=d] [loop=l] [stairs_down=min-max] [stairs_up=min-max] [stairs_down_region_spec=name] [position=x,y,z]"
+            << " [seed=n] [quiet=true|false]"
             << " [log_level=trace|debug|info|warning|error|critical|off]" << endl;
         return;
     }

@@ -5,6 +5,7 @@
 
 #include "Zone.hpp"
 #include "quetzal/common/string_util.hpp"
+#include <algorithm>
 #include <iostream>
 #include <cassert>
 
@@ -102,6 +103,33 @@ void quetzal::dungen::Zone::create_room(const box_type& rectangle)
     id_type room_id = m_rooms.size();
     m_rooms.emplace_back(room_id, std::to_string(room_id), rectangle);
     expand_room(room_id, rectangle);
+    return;
+}
+
+//------------------------------------------------------------------------------
+void quetzal::dungen::Zone::create_room(const std::vector<point_type>& cell_positions)
+{
+    assert(!cell_positions.empty());
+
+    point_type lower = cell_positions.front();
+    point_type upper = cell_positions.front();
+
+    for (const auto& position : cell_positions)
+    {
+        lower = {std::min(lower.x(), position.x()), std::min(lower.y(), position.y())};
+        upper = {std::max(upper.x(), position.x()), std::max(upper.y(), position.y())};
+    }
+
+    id_type room_id = m_rooms.size();
+    m_rooms.emplace_back(room_id, std::to_string(room_id), box_type(lower, upper + vector_type {1, 1}));
+
+    for (const auto& position : cell_positions)
+    {
+        Cell& c = cell(position);
+        c.set_type(CellType::Room);
+        c.set_room_id(room_id);
+    }
+
     return;
 }
 

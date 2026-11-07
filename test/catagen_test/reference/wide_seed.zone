@@ -3,7 +3,7 @@
   "version": "0.6",
   "generator": {
     "name": "catagen",
-    "parameters": { "density": "1", "extent": "12,12", "loop": "0.1", "scale": "2-5", "seed": "4294967295", "spacing": "0-0", "stairs_down": "1-1", "stairs_up": "1-1" }
+    "parameters": { "algorithm": "partition1", "density": "1", "extent": "12,12", "loop": "0.1", "scale": "2-5", "seed": "4294967295", "spacing": "0-0", "stairs_down": "1-1", "stairs_up": "1-1" }
   },
   "layout": {
     "components": { "access_points": [ { "entity": 52 }, { "entity": 53 } ] }

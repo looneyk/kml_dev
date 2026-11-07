@@ -12,8 +12,9 @@
 namespace quetzal::catagen
 {
 
-    // Partitions the extent into rooms, keeps as many of them as the density specifies,
-    // joins them with corridors, and adds doors so that all rooms are reachable
+    // partition1 partitions the extent into rooms, keeps as many of them as the density specifies,
+    // joins them with corridors, and adds doors so that all rooms are reachable. surface1 opens every cell, walled only at
+    // the zone's border, and places the staircases at open cells
     // Deterministic in its parameters, the seed included
     // Throws std::invalid_argument by way of validate, and std::runtime_error if no staircase can be placed
     Zone generate(const std::string& name, const Parameters& parameters);

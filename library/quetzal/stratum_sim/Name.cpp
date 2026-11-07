@@ -4,8 +4,12 @@
 //------------------------------------------------------------------------------
 
 #include "Name.hpp"
+#include "quetzal/expression/Parser.hpp"
+#include "quetzal/log/Log.hpp"
 #include <algorithm>
 #include <cctype>
+#include <optional>
+#include <stdexcept>
 #include <string>
 
 namespace
@@ -57,23 +61,58 @@ void quetzal::stratum_sim::register_names(flecs::world& entities)
 }
 
 //------------------------------------------------------------------------------
-std::string quetzal::stratum_sim::zone_name(std::string_view pattern, const ZonePosition& position)
+std::string quetzal::stratum_sim::zone_name(std::string_view pattern, std::string_view region_name, const ZonePosition& position)
 {
-    std::string name;
-
-    for (size_t i = 0; i < pattern.size(); ++i)
+    auto fail = [pattern](std::string_view reason)
     {
-        std::string_view rest = pattern.substr(i);
-        if (rest.starts_with("{x}") || rest.starts_with("{y}") || rest.starts_with("{z}"))
+        const std::string message = std::format("the zone name pattern '{}' {}", pattern, reason);
+        log::logger().error("stratum_sim", "{}", message);
+        throw std::runtime_error(message);
+    };
+
+    const expression::SymbolTable symbols {{"region_name", std::string(region_name)}, {"x", std::to_string(position.x)},
+        {"y", std::to_string(position.y)}, {"z", std::to_string(position.z)}};
+    expression::Parser parser;
+
+    std::string name;
+    size_t i = 0;
+
+    for (size_t open = pattern.find('{'); open != std::string_view::npos; open = pattern.find('{', i))
+    {
+        name += pattern.substr(i, open - i);
+
+        const size_t close = pattern.find('}', open);
+        if (close == std::string_view::npos)
         {
-            name += std::to_string(rest[1] == 'x' ? position.x : rest[1] == 'y' ? position.y : position.z);
-            i += 2;
+            fail("has a { with no }");
+        }
+
+        const std::string placeholder(pattern.substr(open + 1, close - open - 1));
+        const std::optional<expression::Expression> parsed = parser.parse(placeholder);
+        if (!parsed.has_value())
+        {
+            fail(std::format("has {{{}}}, which is not an expression", placeholder));
+        }
+
+        // parsed was just checked
+        if (parsed->node().kind == expression::NodeKind::Identifier)
+        {
+            auto symbol = symbols.find(placeholder);
+            if (symbol == symbols.end())
+            {
+                fail(std::format("has {{{}}}, which is not region_name, x, y, or z", placeholder));
+            }
+
+            name += symbol->second;
         }
         else
         {
-            name += pattern[i];
+            name += std::to_string(parsed->evaluate<coord_type>(symbols));
         }
+
+        i = close + 1;
     }
 
+    name += pattern.substr(i);
     return name;
 }

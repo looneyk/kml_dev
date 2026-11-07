@@ -52,7 +52,6 @@ starting_area
     opening: [{fields 1, forest 1}, {town 1}]        // weighted tables, one for each of the first zones, in order
     primary: {fields 4, forest 4, hills 2, town 1}   // the weighted table for every zone after the opening
     rare: {hermit_glade 0.02, ruined_shrine 0.01}    // templates, each drawn with its probability
-    entry_access: waypoint,0                         // the access point the first zone's generator places
     zone.parameters.denizens: few
 
 // The zone's template, as the pattern resolves it for the zone at an index among the region's zones

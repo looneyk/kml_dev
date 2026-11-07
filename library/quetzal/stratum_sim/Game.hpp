@@ -36,6 +36,10 @@ namespace quetzal::stratum_sim
         // We need a better general centralized settings configuration for game ...
         static constexpr std::string_view reseed_on_open_key = "gameplay.reseed_on_open";
 
+        // Text settings: the zone of the starting worldspace in which a new game starts, and the cell in it
+        static constexpr std::string_view start_zone_key = "world.start_zone";
+        static constexpr std::string_view start_cell_key = "world.start_cell";
+
         Game(const Config& config, const stratum_format::GameManifestDocument& manifest);
         Game(const Game&) = delete;
         Game(Game&&) = delete;
@@ -50,9 +54,9 @@ namespace quetzal::stratum_sim
         void menu_close();
         void clear();
 
-        // Clears the old game and creates a new one with its starting worldspace created from the registered region spec of
-        // that name, and its character from the character spec
-        void create(std::string_view region_spec_name, const CharacterSpec& character_spec, stratum_format::Notation notation,
+        // Clears the old game and creates a new one with its starting worldspace created from the generation's initial region
+        // spec, and its character from the character spec
+        void create(const CharacterSpec& character_spec, stratum_format::Notation notation,
             std::optional<RandomStream::seed_type> seed = std::nullopt); // starting specs, maybe read from settings instead ...
 
         // Clears the old game and starts a new one initialized from the saved game identified by save_name, in the notation

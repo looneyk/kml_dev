@@ -169,9 +169,9 @@ quetzal::dungen::Zone quetzal::dungen::generate_cave1(id_type id, const string& 
 
     // Only the largest area is kept, so every open cell is reachable from every other
     vector<point_type> area = largest_area(grid, parameters.extent);
-    for (point_type position : area)
+    if (!area.empty())
     {
-        zone.cell(position).set_type(CellType::Corridor);
+        zone.create_room(area);
     }
 
     place_staircases(zone, area, parameters.staircase_up_count, parameters.staircase_down_count, random);

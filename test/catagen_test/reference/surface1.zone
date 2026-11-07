@@ -1,0 +1,50 @@
+{
+  "format": "quetzal.discrete_layout",
+  "version": "0.6",
+  "generator": {
+    "name": "catagen",
+    "parameters": { "algorithm": "surface1", "extent": "32,12", "seed": "3", "stairs_down": "2-4", "stairs_down_region_spec": "dungeon", "stairs_up": "0-0" }
+  },
+  "layout": {
+    "components": { "access_points": [ { "entity": 1 }, { "entity": 2 }, { "entity": 3 }, { "entity": 4 } ], "name": "Surface", "display_name": "Surface" }
+  },
+  "cells": {
+    "notation": "wall",
+    "extent": [32, 12],
+    "origin": [0, 0, 0],
+    "scale": 1,
+    "rows": [
+      " - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - ",
+      "|. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .|",
+      "                       -                                         ",
+      "|. . . . . . . . . . .|>|. . . . . . . . . . . . . . . . . . . .|",
+      "                       -                                         ",
+      "|. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .|",
+      "                                                                 ",
+      "|. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .|",
+      "                                                                 ",
+      "|. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .|",
+      "                                                                 ",
+      "|. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .|",
+      "                                                                 ",
+      "|. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .|",
+      "                                                                 ",
+      "|. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .|",
+      "                                                                 ",
+      "|. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .|",
+      "                                                                 ",
+      "|. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .|",
+      "         -               -         -                             ",
+      "|. . . .|>|. . . . . . .|>|. . . .|>|. . . . . . . . . . . . . .|",
+      "         -               -         -                             ",
+      "|. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .|",
+      " - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - "
+    ]
+  },
+  "entities": [
+    { "id": 1, "type": "staircase", "components": { "site": { "relation": "on", "wall": { "cell_position": [17, 0], "normal": [0, -1] } }, "access_point": { "type": "staircase", "target": "dungeon_1/-1", "order": 0, "region_spec": "dungeon" } } },
+    { "id": 2, "type": "staircase", "components": { "site": { "relation": "on", "wall": { "cell_position": [11, 1], "normal": [-1, 0] } }, "access_point": { "type": "staircase", "target": "dungeon_2/-1", "order": 1, "region_spec": "dungeon" } } },
+    { "id": 3, "type": "staircase", "components": { "site": { "relation": "on", "wall": { "cell_position": [4, 2], "normal": [0, 1] } }, "access_point": { "type": "staircase", "target": "dungeon_3/-1", "order": 2, "region_spec": "dungeon" } } },
+    { "id": 4, "type": "staircase", "components": { "site": { "relation": "on", "wall": { "cell_position": [11, 9], "normal": [0, -1] } }, "access_point": { "type": "staircase", "target": "dungeon_4/-1", "order": 3, "region_spec": "dungeon" } } }
+  ]
+}

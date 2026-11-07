@@ -40,7 +40,7 @@ namespace
 const stratum_sim::Config stratum_sim_test::g_test_config {"out/saves", "out/working", test_zone_count_max};
 
 const stratum_format::GameManifestDocument stratum_sim_test::g_test_manifest {.notation = stratum_format::Notation::Block, .views = {"cell"},
-    .view_menu = false, .default_view = "cell", .settings = {{"world.region_size.x", "7"}}};
+    .view_menu = false, .default_view = "cell", .settings = {{"world.region_size.x", "7"}, {"world.start_zone", "0,0,-1"}}};
 
 stratum_sim::Generation stratum_sim_test::g_test_generation = test_generation();
 
@@ -69,10 +69,8 @@ stratum_sim::Generation stratum_sim_test::test_generation()
     generation.m_zone_generator = generate_from_zone_file;
     generation.m_region_specs["staircase"] = test_region_spec("staircase");
     generation.m_region_specs["door"] = test_region_spec("door");
-    stratum_sim::RegionSpec dungeon_spec = test_region_spec("staircase");
-    dungeon_spec.keys.insert(string(stratum_sim::entry_access_key), "staircase,1");
-    dungeon_spec.keys.insert(format("{}{}", stratum_sim::zone_prefix, stratum_sim::position_z_key), "-1");
-    generation.m_region_specs["dungeon"] = dungeon_spec;
+    generation.m_region_specs["dungeon"] = test_region_spec("staircase");
+    generation.m_initial_region_spec_name = "dungeon";
 
     return generation;
 }

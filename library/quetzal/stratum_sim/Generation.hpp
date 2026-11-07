@@ -22,9 +22,9 @@ namespace quetzal::stratum_format
 namespace quetzal::stratum_sim
 {
 
-    // The RegionSpec key of the access point type and level offset at which a new game's character enters the starting
-    // region's first zone, written as the type, a comma, and the offset: "staircase,1"
-    inline constexpr std::string_view entry_access_key = "entry_access";
+    // The RegionSpec key of the pattern of its zones' names, in which each {...} is replaced: {region_name} by the region's
+    // name, and any other by the value of an integer expression in the zone's coordinates x, y, and z, such as {abs(z)}
+    inline constexpr std::string_view zone_name_pattern_key = "zone_name_pattern";
 
     // The prefix of a RegionSpec's keys that are the ZoneSpec of each of its zones
     inline constexpr std::string_view zone_prefix = "zone.";
@@ -59,6 +59,9 @@ namespace quetzal::stratum_sim
         std::map<stratum_format::Notation, zone_generator_type> m_zone_generators;
         zone_generator_type m_zone_generator;
         std::map<std::string, RegionSpec> m_region_specs;
+
+        // The name of the registered region spec that a new game's starting worldspace is created from
+        std::string m_initial_region_spec_name;
     };
 
 } // namespace quetzal::stratum_sim

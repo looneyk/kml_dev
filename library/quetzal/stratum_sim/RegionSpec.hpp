@@ -7,6 +7,9 @@
 
 #include "types.hpp"
 #include "quetzal/common/KeyValueStore.hpp"
+#include <filesystem>
+#include <map>
+#include <string>
 
 namespace quetzal::stratum_sim
 {
@@ -31,6 +34,10 @@ namespace quetzal::stratum_sim
 
         KeyValueStore keys;
     };
+
+    // Returns the region specs by name from the region spec file in the assets directory
+    // Throws std::runtime_error if the file cannot be read or the reader rejects it
+    std::map<std::string, RegionSpec> load_region_specs(const std::filesystem::path& assets_directory);
 
 } // namespace quetzal::stratum_sim
 

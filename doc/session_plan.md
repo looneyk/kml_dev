@@ -85,8 +85,8 @@ void World::trim_zones(flecs::entity zone_entered);
 - **`clear()`** unloads every region, which deletes its zones, and empties the world index and the `ZoneEntryIndex`.
   The registrations remain: the file components, the entity types, the access point types, and the registries that
   `World` takes from `Game`, which are the program's and, later, its mods'.
-- **`create(region_spec, game_directory)`** creates a new game's starting region and its first zone from a
-  `RegionSpec`, and returns the zone's entry point for the spec's `entry_access`. Each game has its own starting region.
+- **`create(region_spec, start_zone, game_directory)`** creates a new game's starting region from a `RegionSpec`, and
+  returns its zone at `start_zone`, generated. Each game has its own starting region.
   The game directory is the game's directory in the working directory, which zones are saved into; `open` takes it too,
   and `clear` removes it.
 - **A `RegionSpec` is a request to create a region,** not the region, and a `ZoneSpec` a request to create a zone.
@@ -346,10 +346,8 @@ Character& Game::character();
   that leads back. Available means not already bound to an access point elsewhere. With
   two staircases leading up, where the lower-ordered one was bound to the level above by an earlier arrival, an actor
   arriving from a different staircase leading down above enters at the other.
-- **The library has no default type or offset.** A new game's region spec states them in its `entry_access` key
-  (`world_generation_plan.md`, `## Creating a game`); the hosts' temporary spec states `staircase`
-  and 1, so the character enters at the lowest-ordered staircase leading up. A zone with no such access point is an
-  error.
+- **A new game starts at the start settings,** `world.start_zone` and `world.start_cell`, not at an access point
+  (`world_generation_plan.md`, `## Creating a game`).
 - **A dungeon level has at least one staircase leading up,** its way out, so a generator's minimum count of staircases
   leading up is 1. A staircase leading down is optional: its probability is inversely proportional to how far below
   the surface the zone's level is and proportional to its `difficulty`, and is 1 for now (`zone_plan.md`,
@@ -365,11 +363,9 @@ Character& Game::character();
   drawing, and a keystroke by an actor on its cell enters it.
 - **Entering an access point relocates the actor** to the zone that its target resolves to, at that zone's entry
   point of the type at which the access point's type arrives that leads back.
-- **In the wall notation every staircase is sited on a wall;** a staircase on the floor belongs to the
-  block notation.
-- **A staircase in a flat length of wall in the wall notation is the equivalent of one in a 1x1 alcove in the block
-  notation.** This guides generating zones in either notation, without ruling out a block staircase in the open space
-  of a room (`discrete_layout.md`, `### Staircases and access points`).
+- **In the wall notation every staircase is sited on a wall,** for the 3D view, and **in the block notation every
+  staircase is on the floor of its cell,** entered from any side (`discrete_layout.md`, `### Staircases and access
+  points`).
 
 ## Actors
 

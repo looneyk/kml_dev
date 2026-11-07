@@ -25,6 +25,9 @@ string quetzal::dungen::to_string(Algorithm algorithm)
         case Algorithm::Cave1:
             return "cave1";
 
+        case Algorithm::Surface1:
+            return "surface1";
+
         default:
             assert(false);
     }
@@ -47,8 +50,12 @@ quetzal::dungen::Algorithm quetzal::dungen::to_algorithm(string_view s)
     {
         return Algorithm::Cave1;
     }
+    else if (s == "surface1")
+    {
+        return Algorithm::Surface1;
+    }
 
-    throw invalid_argument(format("\"{}\" is not maze1, grid1 or cave1", s));
+    throw invalid_argument(format("\"{}\" is not maze1, grid1, cave1 or surface1", s));
 }
 
 //------------------------------------------------------------------------------

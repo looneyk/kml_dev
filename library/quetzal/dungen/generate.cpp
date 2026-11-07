@@ -7,6 +7,7 @@
 #include "generate_cave1.hpp"
 #include "generate_grid1.hpp"
 #include "generate_maze1.hpp"
+#include "generate_surface1.hpp"
 #include <cassert>
 
 using namespace std;
@@ -24,6 +25,9 @@ quetzal::dungen::Zone quetzal::dungen::generate(id_type id, const string& name, 
 
         case Algorithm::Cave1:
             return generate_cave1(id, name, parameters);
+
+        case Algorithm::Surface1:
+            return generate_surface1(id, name, parameters);
 
         default:
             assert(false);

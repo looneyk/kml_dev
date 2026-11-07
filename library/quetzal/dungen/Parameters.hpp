@@ -81,6 +81,10 @@ namespace quetzal::dungen
         math::Interval<size_t> staircase_down_count {1, 1};
         math::Interval<size_t> staircase_up_count {1, 1};
 
+        // The region spec of the worldspace each staircase leading down leads to, the kth of them named <region spec>_<k>
+        // from 1, and level -1 there. Each leads one level down in its own worldspace if unassigned
+        std::optional<std::string> staircase_down_region_spec;
+
         Maze1Parameters maze1;
         Grid1Parameters grid1;
         Cave1Parameters cave1;

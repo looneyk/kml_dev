@@ -3,7 +3,7 @@
   "version": "0.6",
   "generator": {
     "name": "catagen",
-    "parameters": { "density": "0.7", "extent": "24,16", "loop": "0.3", "scale": "3-6", "seed": "42", "spacing": "1-3", "stairs_down": "1-1", "stairs_up": "1-1" }
+    "parameters": { "algorithm": "partition1", "density": "0.7", "extent": "24,16", "loop": "0.3", "scale": "3-6", "seed": "42", "spacing": "1-3", "stairs_down": "1-1", "stairs_up": "1-1" }
   },
   "layout": {
     "components": { "access_points": [ { "entity": 55 }, { "entity": 56 } ], "name": "Ossuary Level 2", "display_name": "Ossuary Level 2" }

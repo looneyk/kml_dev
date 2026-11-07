@@ -168,7 +168,7 @@ bool quetzal::stratum_format::on_grid(const Cells& cells, const discrete_point_t
 //------------------------------------------------------------------------------
 bool quetzal::stratum_format::floor_cell(const Cells& cells, const discrete_point_type& cell_position)
 {
-    return cell_glyph(cells, cell_position) == '.';
+    return cell_glyph(cells, cell_position) == '.' || (cells.notation == Notation::Block && stair_cell(cells, cell_position));
 }
 
 //------------------------------------------------------------------------------
@@ -201,7 +201,7 @@ bool quetzal::stratum_format::has_wall(const Cells& cells, const discrete_point_
 
     // Between a doorway block and floor, the wall is on the floor's side alone
     char glyph = cell_glyph(cells, neighbor);
-    return glyph == '#' || stair_cell(cells, neighbor) || (glyph == '+' && cell_glyph(cells, cell_position) != '+');
+    return glyph == '#' || (glyph == '+' && cell_glyph(cells, cell_position) != '+');
 }
 
 //------------------------------------------------------------------------------

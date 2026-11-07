@@ -54,11 +54,12 @@ namespace quetzal::stratum_sim
         RandomStream::seed_type world_seed() const;
         void set_world_seed(RandomStream::seed_type seed);
 
-        // Create a new game's starting worldspace from the registered region spec of that name, generates the zone at the
-        // position of the spec's zone keys, and returns the zone's entry point for the spec's entry_access
-        // Throws std::runtime_error if the region spec is not registered, entry_access
-        // is not a registered access point type and a level offset, or the zone has no such entry point
-        flecs::entity create(std::string_view region_spec_name, const std::filesystem::path& game_directory);
+        // Creates a new game's starting worldspace from the registered region spec of that name, and returns the zone at
+        // start_zone, generated: center_start for the zone at the centroid of the worldspace's extent, each coordinate
+        // rounded toward the lower bound, or a zone position written x,y,z
+        // Throws std::runtime_error if the region spec is not registered, start_zone is neither, or the worldspace has no
+        // zone there, and passes on what the zone generator throws
+        flecs::entity create(std::string_view region_spec_name, std::string_view start_zone, const std::filesystem::path& game_directory);
 
         // Read world.json from the game directory, which zones are saved into until clear: each worldspace, each region, and its
         // zones, and the world index. Loads no zone. Requires a cleared world
@@ -134,7 +135,8 @@ namespace quetzal::stratum_sim
         // Returns the access point at which an actor arrives through the access point, whose unbound target is a relative or
         // absolute level with no position. It is the entry point of the arrival type that leads back, in the zone at the
         // target level's position, read back if it has unloaded and with its content generated if it is empty. That zone is in
-        // the access point's worldspace if the region is omitted, and otherwise in a new worldspace created from the region
+        // the access point's worldspace if the region is omitted, in the worldspace of the region's name if the access point
+        // has a region spec, created from that spec if there is none, and otherwise in a new worldspace created from the region
         // spec of that name. Throws std::runtime_error if the target has a named zone or a position, if that region spec is
         // not registered, if the worldspace has no zone at the position, if that zone cannot be read back, or if it has no
         // such entry point, after discarding a new worldspace
@@ -224,6 +226,20 @@ namespace quetzal::stratum_sim
         // cannot build it
         void fill_zone(flecs::entity zone, const stratum_format::Document& document, std::string_view source);
 
+        // Creates, for each of the zone's access points that has a region spec, the worldspace its target's region refers to,
+        // from that region spec, if the world has no worldspace of that name
+        // Throws std::runtime_error if such an access point's target is not unbound with a region, or the region spec is not
+        // registered
+        void create_target_worldspaces(flecs::entity zone);
+
+        // Returns the region of the access point's unbound target
+        // Throws std::runtime_error if the target is not unbound with a region
+        std::string target_worldspace_name(flecs::entity access_point) const;
+
+        // Returns the id of the worldspace of that name, created from the registered region spec if the world has none
+        // Throws std::runtime_error if it is created and the region spec is not registered
+        PersistentId target_worldspace(std::string_view name, std::string_view region_spec_name);
+
         // Returns the Document that the game's zone generator creates for the resolved spec, unpopulated, and passes on what
         // the zone generator throws
         stratum_format::Document generate_zone(const ZoneSpec& zone_spec);
@@ -297,6 +313,15 @@ namespace quetzal::stratum_sim
 
     // Returns true if the zone's content has not been generated or loaded
     bool empty_zone(flecs::entity zone);
+
+    // The start setting value for the center of the starting worldspace's extent or of the starting zone's layout
+    inline constexpr std::string_view center_start = "center";
+
+    // Returns the placement of an actor starting in the zone at start_cell, facing -y: center_start for the cell nearest
+    // the center of the zone's layout that an actor can occupy, the first in row order of those as near, or a cell
+    // position written i,j
+    // Throws std::runtime_error if start_cell is neither, or the zone has no such cell an actor can occupy
+    placement_type start_placement(flecs::entity zone, std::string_view start_cell);
 
     // Sets the zone's layout, and the empty placement index the layout creates
     void set_layout(flecs::entity zone, std::unique_ptr<Layout> layout);

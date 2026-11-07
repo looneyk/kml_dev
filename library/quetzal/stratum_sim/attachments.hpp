@@ -92,6 +92,9 @@ namespace quetzal::stratum_sim
 
         std::uint64_t order = 0;
         std::optional<target_type> target;
+
+        // The region spec that the worldspace the target refers to is created from, when the zone is made
+        std::optional<std::string> region_spec;
     };
 
     //--------------------------------------------------------------------------

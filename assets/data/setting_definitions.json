@@ -23,7 +23,11 @@
     { "key": "world.zone_size.x", "type": "integer", "default": "40", "scope": "game", "minimum": "1",
       "display_name": "Zone size x", "description": "The size of a zone in cells in the x direction", "category": "world" },
     { "key": "world.zone_size.y", "type": "integer", "default": "20", "scope": "game", "minimum": "1",
-      "display_name": "Zone size y", "description": "The size of a zone in cells in the y direction", "category": "world" }
+      "display_name": "Zone size y", "description": "The size of a zone in cells in the y direction", "category": "world" },
+    { "key": "world.start_zone", "type": "text", "default": "center", "scope": "game",
+      "display_name": "Start zone", "description": "The zone of the starting worldspace a new game starts in: center, or a zone position x,y,z", "category": "world" },
+    { "key": "world.start_cell", "type": "text", "default": "center", "scope": "game",
+      "display_name": "Start cell", "description": "The cell of the starting zone a new game starts at: center, or a cell position i,j", "category": "world" }
   ],
   "groups": [
     { "key": "gameplay.difficulty", "scope": "game", "modifiable": true, "default_preset": "normal", "display_name": "Difficulty", "category": "difficulty",

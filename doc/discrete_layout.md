@@ -262,13 +262,14 @@ not list. The entity's `type` does not make it an access point. An access point 
 its site's `orientation`; an access point on a wall uses the wall's normal (`### Staircases and access points`).
 
 The JSON defines a zone's access points; the stair glyphs `<` and `>` are visual aids. The reader warns
-if they disagree --- a stair cell with no access point on the walls around it, or a second one, or
+if they disagree --- a stair cell with no access point on its floor in the block notation or on the walls around it in
+the wall notation, or a second one, or
 an access point on a wall that is neither a stair cell's open side nor a door's wall --- and reads the file as written. Warnings are written to the process-wide log.
 
 A door facing may be an access point, and then leads to another zone. A door between two zones is two doors, one in
 each, their access points bound to each other.
 
-An `access_point` component has three members:
+An `access_point` component has four members:
 
 - **`type`,** what the access point is, a name the world registers: `staircase`, `door`, `portal`, `waypoint`, or one
   a mod adds; whether it goes up, down, or across is its `target`. The type is normally the entity's `type`, or for a
@@ -277,9 +278,13 @@ An `access_point` component has three members:
   are ordered from 0, without a gap, so a zone's staircases share one sequence, up and down alike.
 - **`target`,** where going through it leads (`### An access point's target`). It is optional: an access point with
   no target is arrival only, such as the far end of a one-way portal.
+- **`region_spec`,** the registered region spec that the worldspace its target's region refers to is created from. It
+  is optional, and with it the target's region is the name of a worldspace, which the world creates when the zone is
+  made if it has none of that name.
 
 ```json
 "access_point": { "type": "staircase", "target": "+1", "order": 0 }
+"access_point": { "type": "staircase", "target": "dungeon_1/-1", "order": 0, "region_spec": "dungeon" }
 ```
 
 An actor arriving at an access point is placed by its site. On a wall, the actor is in the wall's cell, facing away
@@ -357,9 +362,9 @@ A wall is a cell here, so a door is a cell too: a block of wall that an actor ma
 never share an edge in this notation, since a block always lies between them.
 
 A wall is a face of a block, on the side of the cell it faces. A floor cell has a wall toward a `#`, a
-`+`, a stair cell or the border of the grid; a door cell has one toward a `#`, a stair cell or the border
-of the grid, and none toward floor, so an actor inside a doorway meets no wall on the way out. A stair cell is
-a block and has none.
+`+` or the border of the grid; a door cell has one toward a `#` or the border of the grid, and none toward
+floor, so an actor inside a doorway meets no wall on the way out. A stair cell is floor, with a staircase
+on its floor.
 
 ### The wall notation
 
@@ -395,8 +400,9 @@ open from one side alone, or secret from one side, is components on that side's 
 
 ### Staircases and access points
 
-A stair glyph marks where a staircase is drawn: a block, with a wall toward it on every side where there
-is floor. The glyphs are visual aids. A zone's staircases are its entities, each with an
+A stair glyph marks where a staircase is drawn: in the block notation a floor cell with the staircase on
+its floor, and in the wall notation a block, with a wall toward it on every side where there is floor. The
+glyphs are visual aids. A zone's staircases are its entities, each with an
 `access_point` whose target is where it leads, sited on a surface:
 
 - **On a wall.** The wall is the staircase's open side, the side toward the room it opens into, and the
@@ -408,18 +414,15 @@ is floor. The glyphs are visual aids. A zone's staircases are its entities, each
   enters it.
 
 In the wall notation every staircase is sited on a wall, including a block staircase in the
-open space of a room; a staircase on the floor belongs to the block notation.
-
-A staircase in a flat length of wall in the wall notation is the equivalent of a staircase in a 1x1
-alcove in the block notation, the alcove's cell being the stair block. This is informational, and a guide
-to generating zones in either notation; it does not preclude a block staircase in the open space of a
-room.
+open space of a room. In the block notation every staircase written `<` or `>` is sited on the floor of its
+cell, and can be entered from any side.
 
 `<` marks more than a staircase leading up. It is the entrance glyph, the up exit or entrance point of
 any non-local transporter --- a staircase, a waypoint, a portal --- as `+` is the glyph of any threshold
 that opens and closes. The object there is the entity sited on it, whatever its `type`.
 
-A stair glyph with no access point on the walls around it, or a second one, is a warning.
+A stair glyph with no access point on its floor in the block notation, or on the walls around it in the
+wall notation, or with a second one, is a warning.
 Every door glyph requires one entity with a child sited on each wall of its doorway, and a file missing
 that is rejected.
 
@@ -435,8 +438,8 @@ A room is identified one of two ways, and specifies exactly one of them:
 | `perimeter` | A polygon in junction coordinates, within the grid, its sides horizontal or vertical and never crossing or touching one another. Each cell edge along it is a wall or a virtual wall |
 | `cell_position` | A floor cell anywhere in the room, the barriers closing it off |
 
-**By a cell in it.** `cell_position` is a cell written `.`, never a doorway, which is what a room is reached
-through, or a stair cell, which is a block. The fill spreads from there through floor cells, across
+**By a cell in it.** `cell_position` is a floor cell, never a doorway, which is what a room is reached
+through, or a wall notation stair cell, which is a block. The fill spreads from there through floor cells, across
 edges with no wall and no door, and stops at a barrier. The location alone suffices wherever a room is closed by its own walls, which is
 the ordinary generated case; barriers close what is open, an egress cell or a gap where one area
 runs into the next.
@@ -677,8 +680,8 @@ position = one or more characters other than "/" and "@"
 A relative zone is a number of levels from the access point's zone (`## layout`), and always has its sign. An absolute
 zone is a level, marked with `=`. A named zone is a zone of pregenerated content, and the position a place in it.
 An omitted region is the access point's own region, from which the
-caller's rules for moving down, up, and across apply, and a written region is a region spec, from which a new region is
-created. Region names, zone names, and positions are the caller's vocabulary, and the caller resolves neither a named
+caller's rules for moving down, up, and across apply. A written region is a region spec, from which a new region is
+created, or, if the access point has a `region_spec`, the name of a worldspace. Region names, zone names, and positions are the caller's vocabulary, and the caller resolves neither a named
 zone nor a position.
 
 Resolving one finds a zone or makes one. Traversal passes the target to whatever manages the zones, which
@@ -771,8 +774,8 @@ every check has passed, so a rejected file leaves nothing behind.
 - `layout.components.level` is not a whole number.
 - `layout.components.unpopulated` is not true or false.
 
-A stair glyph with no access point on the walls its open neighbors present to it, or with a
-second one, an access point on a wall that is neither a stair cell's open side nor a door's wall, and an access
+A stair glyph with no access point on its floor in the block notation, or on the walls its open neighbors present to it
+in the wall notation, or with a second one, an access point on a wall that is neither a stair cell's open side nor a door's wall, and an access
 point type that is neither its entity's type nor its parent's, and `unpopulated` in a file with a `zone`
 section, are warnings, not errors.
 

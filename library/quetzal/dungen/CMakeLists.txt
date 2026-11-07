@@ -9,6 +9,7 @@ add_library(quetzal_dungen STATIC
     generate_cave1.cpp
     generate_grid1.cpp
     generate_maze1.cpp
+    generate_surface1.cpp
     Parameters.cpp
     Pattern.cpp
     place_staircases.cpp
@@ -28,6 +29,7 @@ add_library(quetzal_dungen STATIC
     generate_cave1.hpp
     generate_grid1.hpp
     generate_maze1.hpp
+    generate_surface1.hpp
     Parameters.hpp
     Pattern.hpp
     place_staircases.hpp

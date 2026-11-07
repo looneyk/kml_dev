@@ -93,6 +93,11 @@ namespace
         values.insert("stairs_down", interval_token(parameters.staircase_down_count));
         values.insert("stairs_up", interval_token(parameters.staircase_up_count));
 
+        if (parameters.staircase_down_region_spec.has_value())
+        {
+            values.insert("stairs_down_region_spec", parameters.staircase_down_region_spec.value());
+        }
+
         switch (parameters.algorithm)
         {
             case Algorithm::Maze1:
@@ -105,6 +110,9 @@ namespace
 
             case Algorithm::Cave1:
                 add_cave1(values, parameters);
+                break;
+
+            case Algorithm::Surface1:
                 break;
 
             default:
@@ -140,13 +148,14 @@ namespace
     //--------------------------------------------------------------------------
     bool floor(CellType type)
     {
-        return type == CellType::Room || type == CellType::Corridor;
+        return type == CellType::Room || type == CellType::Corridor || type == CellType::Staircase;
     }
 
     //--------------------------------------------------------------------------
+    // A staircase in a room keeps the room's id
     id_type room_of(const Cell& cell)
     {
-        return cell.type() == CellType::Room ? cell.room_id() : nullid;
+        return cell.type() == CellType::Room || cell.type() == CellType::Staircase ? cell.room_id() : nullid;
     }
 
 } // namespace
@@ -249,20 +258,28 @@ quetzal::stratum_format::Document quetzal::dungen::make_document(const Zone& zon
     }
 
     size_t staircase_count = 0;
+    size_t staircase_down_count = 0;
 
     for (const auto& staircase : zone.staircases())
     {
-        // The staircase's cell is a block, and it is sited on the wall its open neighbor presents to that block
         const directed_point_type placement = staircase.placement();
-        const vector_type open_side = placement.direction();
-        stratum_format::WallAddress address {placement.position() + open_side, open_side};
+        const stratum_format::FlatCell floor_cell {stratum_format::FlatRole::Floor, placement.position()};
 
-        stratum_format::RelocatorTarget target {std::nullopt, stratum_format::RelativeZone {staircase.rise() == Rise::Down ? -1 : 1}, std::nullopt};
+        const bool leads_down = staircase.rise() == Rise::Down;
+        stratum_format::RelocatorTarget target {std::nullopt, stratum_format::RelativeZone {leads_down ? -1 : 1}, std::nullopt};
         stratum_format::AccessPoint access_point {"staircase", staircase_count++, target};
 
+        if (leads_down && parameters.staircase_down_region_spec.has_value())
+        {
+            const std::string& region_spec = parameters.staircase_down_region_spec.value();
+            target.region = std::format("{}_{}", region_spec, ++staircase_down_count);
+            access_point.target = target;
+            access_point.region_spec = region_spec;
+        }
+
         document.access_points.push_back(++id);
-        document.entities.push_back({id, "staircase", stratum_format::Site {stratum_format::Relation::On, address, nullopt, nullopt}, nullopt,
-            std::move(access_point), {}});
+        document.entities.push_back({id, "staircase", stratum_format::Site {stratum_format::Relation::On, floor_cell, nullopt, placement.direction()},
+            nullopt, std::move(access_point), {}});
     }
 
     return document;

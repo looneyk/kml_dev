@@ -41,8 +41,6 @@ struct RegionSpec
 // worldspace.*: for a top-level region, its worldspace's coordinate system: its extent and, for a grid worldspace, its
 //     zone size
 // extent: for a subregion, the positions of its parent's extent that it covers, as boxes (### Extents)
-// entry_access: the access point type and offset at which the character enters a new game's first zone, such as
-//     "staircase,1"; read by World::create only, and by no region that is not a game's starting region
 // zone.*: the pattern of the ZoneSpec of each of the region's zones, with the prefix removed, resolved for each zone
 // subregion.*: the names of the region specs of its subregions
 
@@ -126,23 +124,22 @@ void Game::create(const std::vector<std::string>& region_spec_names, const Chara
     clear();
     // reset the id allocator, reseed the random engines, empty the working directory and create the game directory there
     m_character.create(character_spec);
-    flecs::entity access_point = m_world.create(region_spec_names, game_directory);
-    m_session.start(access_point);
+    flecs::entity zone = m_world.create(region_spec_names, the world.start_zone setting, game_directory);
+    m_session.start(zone, start_placement(zone, the world.start_cell setting));
 }
 
-flecs::entity World::create(const std::vector<std::string>& region_spec_names, const std::filesystem::path& game_directory)
+flecs::entity World::create(const std::vector<std::string>& region_spec_names, start_zone, const std::filesystem::path& game_directory)
 {
     // keep game_directory, which zones are saved into
     // create the structure: a worldspace for each top-level region spec, its regions, and their zones
-    flecs::entity zone = the starting region's first zone;
+    flecs::entity zone = the starting worldspace's zone at start_zone;
     generate(zone);
-    auto [type_name, offset] = the type and offset parsed from the starting region spec's entry_access;
-    return entry_point(zone, access_type(type_name), offset);
+    return zone;
 }
 
-void Session::start(flecs::entity access_point)
+void Session::start(flecs::entity zone, const placement_type& placement)
 {
-    // enters zone_of(access_point), placing the character at the access point
+    // enters the zone, placing the character at the placement
 }
 ```
 
@@ -153,13 +150,9 @@ void Session::start(flecs::entity access_point)
   zone generator the `parameters.` keys of the resolved `ZoneSpec`.
 - **The game's top-level region specs are its worldspaces.** Each creates a worldspace with the coordinate system its
   `worldspace.` keys state, and the region and its subregions, from the region specs its `subregion.` keys refer to.
-- **The starting region's spec states the entry** in its `entry_access` key: the name of a registered access point
-  type and the offset of the target at which the character enters, separated by a comma, in one string that its
-  consumer parses. Only `World::create` reads it, so no other zone is affected. The library has no default, and the
-  generator must place a matching access point. `World::create` returns `entry_point(zone, type, offset)` and throws,
-  before the session starts, if the zone has none.
-- **A region that is not a dungeon states its own entry.** A tower entered from below states `door,0`, and a dungeon
-  level states `staircase,1`.
+- **The start settings place the character** in a new game: `world.start_zone`, the zone of the starting worldspace,
+  and `world.start_cell`, the cell in it, each `center` or a position. `World::create` and `start_placement` throw,
+  before the session starts, for a zone or a cell that does not exist or that an actor cannot occupy.
 - **`Session::start` enters the access point's zone.** `Game::open` starts the session in the zone the
   character is in instead.
 

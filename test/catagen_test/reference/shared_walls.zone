@@ -3,7 +3,7 @@
   "version": "0.6",
   "generator": {
     "name": "catagen",
-    "parameters": { "density": "1", "extent": "16,12", "loop": "0", "scale": "3-7", "seed": "1", "spacing": "0-0", "stairs_down": "1-1", "stairs_up": "1-1" }
+    "parameters": { "algorithm": "partition1", "density": "1", "extent": "16,12", "loop": "0", "scale": "3-7", "seed": "1", "spacing": "0-0", "stairs_down": "1-1", "stairs_up": "1-1" }
   },
   "layout": {
     "components": { "access_points": [ { "entity": 16 }, { "entity": 17 } ], "name": "Catacombs Level 1", "display_name": "Catacombs Level 1" }

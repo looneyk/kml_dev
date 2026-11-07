@@ -11,17 +11,34 @@
 #include "quetzal/math/Random.hpp"
 #include <optional>
 #include <string>
+#include <string_view>
 #include <cstddef>
 
 namespace quetzal::catagen
 {
 
     //--------------------------------------------------------------------------
-    // The generation parameters of one run, written into the zone file so the zone can be reproduced
+    // The layout algorithm
+    enum class Algorithm
+    {
+        Partition1, // The extent partitioned into rooms, joined by corridors and doors
+        Surface1    // Open floor inside a solid border, with its staircases
+    };
+
+    // The command line and file header spelling, lower case
+    std::string to_string(Algorithm algorithm);
+
+    // Throws std::invalid_argument quoting s when it is not an algorithm
+    Algorithm to_algorithm(std::string_view s);
+
+    //--------------------------------------------------------------------------
+    // The generation parameters of one run, written into the zone file so the zone can be reproduced. scale, spacing,
+    // density and loop are partition1's
     struct Parameters
     {
         using seed_type = math::portable_random_engine_type::result_type;
 
+        Algorithm algorithm = Algorithm::Partition1;
         vector_type extent {48, 32}; // The size of the zone, in cells
 
         // Target room size in cells. The partition splits while a room exceeds the upper bound
@@ -39,6 +56,10 @@ namespace quetzal::catagen
         // How many staircases lead down and how many up, each a count drawn from its closed range
         math::Interval<size_t> staircase_down_count {1, 1};
         math::Interval<size_t> staircase_up_count {1, 1};
+
+        // The region spec of the worldspace each staircase leading down leads to, the kth of them named <region spec>_<k>
+        // from 1, and level -1 there. Each leads one level down in its own worldspace if unassigned
+        std::optional<std::string> staircase_down_region_spec;
 
         // The zone's position in its region, written into the zone file if assigned
         std::optional<zone_position_type> position;

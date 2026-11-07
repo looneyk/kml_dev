@@ -359,7 +359,9 @@ namespace
         // A wall is only on the side toward open space: this edge has its wall on the west side, the other on the east
         CHECK_CASE("and so is solid meeting open", cells.at({12, 3}).type == stratum_view::PlaceType::Wall);
         CHECK_CASE("as is the floor's own boundary", cells.at({3, 2}).type == stratum_view::PlaceType::Wall
-            && cells.at({3, 4}).type == stratum_view::PlaceType::Wall);
+            && cells.at({5, 4}).type == stratum_view::PlaceType::Wall);
+        CHECK_CASE("and a staircase is on floor, with no wall between it and the floor beside it",
+            cells.at({3, 5}).type == stratum_view::PlaceType::StairsUp && cells.at({3, 4}).type == stratum_view::PlaceType::None);
 
         CHECK_CASE("two open cells of one area are not", cells.at({4, 3}).type == stratum_view::PlaceType::None);
 

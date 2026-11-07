@@ -7,6 +7,7 @@
 #include "quetzal/common/string_util.hpp"
 #include "quetzal/stratum_format/grid.hpp"
 #include "quetzal/stratum_format/write_zone.hpp"
+#include <format>
 #include <optional>
 #include <ostream>
 #include <sstream>
@@ -158,13 +159,24 @@ namespace
 quetzal::stratum_format::Document quetzal::catagen::make_document(const Zone& zone, const Parameters& parameters)
 {
     quetzal::KeyValueStore values;
+    values.insert("algorithm", to_string(parameters.algorithm));
     values.insert("extent", token(parameters.extent));
-    values.insert("scale", interval_token(parameters.scale));
-    values.insert("spacing", interval_token(parameters.spacing));
-    values.insert("density", token(parameters.density));
-    values.insert("loop", token(parameters.loop));
+
+    if (parameters.algorithm == Algorithm::Partition1)
+    {
+        values.insert("scale", interval_token(parameters.scale));
+        values.insert("spacing", interval_token(parameters.spacing));
+        values.insert("density", token(parameters.density));
+        values.insert("loop", token(parameters.loop));
+    }
+
     values.insert("stairs_down", interval_token(parameters.staircase_down_count));
     values.insert("stairs_up", interval_token(parameters.staircase_up_count));
+
+    if (parameters.staircase_down_region_spec.has_value())
+    {
+        values.insert("stairs_down_region_spec", parameters.staircase_down_region_spec.value());
+    }
 
     if (parameters.position.has_value())
     {
@@ -206,6 +218,7 @@ quetzal::stratum_format::Document quetzal::catagen::make_document(const Zone& zo
     }
 
     size_t staircase_count = 0;
+    size_t staircase_down_count = 0;
 
     for (const auto& staircase : zone.staircases())
     {
@@ -214,8 +227,17 @@ quetzal::stratum_format::Document quetzal::catagen::make_document(const Zone& zo
         const vector_type open_side = placement.direction();
         stratum_format::WallAddress address {placement.position() + open_side, open_side};
 
-        stratum_format::RelocatorTarget target {std::nullopt, stratum_format::RelativeZone {staircase.rise() == Rise::Down ? -1 : 1}, std::nullopt};
+        const bool leads_down = staircase.rise() == Rise::Down;
+        stratum_format::RelocatorTarget target {std::nullopt, stratum_format::RelativeZone {leads_down ? -1 : 1}, std::nullopt};
         stratum_format::AccessPoint access_point {"staircase", staircase_count++, target};
+
+        if (leads_down && parameters.staircase_down_region_spec.has_value())
+        {
+            const std::string& region_spec = parameters.staircase_down_region_spec.value();
+            target.region = std::format("{}_{}", region_spec, ++staircase_down_count);
+            access_point.target = target;
+            access_point.region_spec = region_spec;
+        }
 
         document.access_points.push_back(++id);
         document.entities.push_back({id, "staircase", stratum_format::Site {stratum_format::Relation::On, address, nullopt, nullopt}, nullopt,
