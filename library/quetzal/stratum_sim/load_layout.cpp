@@ -199,6 +199,40 @@ std::vector<flecs::entity> quetzal::stratum_sim::load_layout(flecs::entity zone,
 {
     assert(zone && zone.has<Zone>() && !zone.has<ZoneLayout>());
 
+    auto zone_document = std::make_shared<stratum_format::Document>(document);
+    zone_document->entities.clear();
+    zone_document->is_unpopulated = false;
+    zone.set<ZoneDocument>(ZoneDocument {std::move(zone_document)});
+
+    if (document.position.has_value())
+    {
+        zone.set<ZonePosition>(ZonePosition {document.position->x(), document.position->y(), document.position->z()});
+    }
+
+    flecs::world world = zone.world();
+    std::unordered_map<stratum_format::stored_entity_id_type, flecs::entity> entities; // <file_id, entity>
+
+    // A template's references are to its own entities, and a saved zone's references are already persistent ids
+    std::vector<flecs::entity> referred_to;
+    auto resolve = [&](stratum_format::stored_entity_id_type id)
+    {
+        if (document.zone_id.has_value())
+        {
+            auto i = entities.find(id);
+            return EntityReference {PersistentId {id}, i != entities.end() ? i->second : flecs::entity()};
+        }
+
+        flecs::entity e = entities.at(id);
+        referred_to.push_back(e);
+        return EntityReference {e.get<PersistentId>(), e};
+    };
+
+    if (!document.cells.has_value())
+    {
+        decode_components(zone, document.components, "layout", resolve);
+        return referred_to;
+    }
+
     const stratum_format::Cells& cells = document.cells.value();
 
     auto layout = std::make_unique<DiscreteLayout>(cells.origin, cells.scale, cells.extent);
@@ -278,19 +312,6 @@ std::vector<flecs::entity> quetzal::stratum_sim::load_layout(flecs::entity zone,
     const DiscreteLayout& zone_layout = *layout;
     set_layout(zone, std::move(layout));
 
-    auto zone_document = std::make_shared<stratum_format::Document>(document);
-    zone_document->entities.clear();
-    zone_document->is_unpopulated = false;
-    zone.set<ZoneDocument>(ZoneDocument {std::move(zone_document)});
-
-    if (document.position.has_value())
-    {
-        zone.set<ZonePosition>(ZonePosition {document.position->x(), document.position->y(), document.position->z()});
-    }
-
-    flecs::world world = zone.world();
-    std::unordered_map<stratum_format::stored_entity_id_type, flecs::entity> entities; // <file_id, entity>
-
     // Every entity is created in the zone first, in the file's order, so each has its persistent id before a parent or a
     // site refers to it
     for (const stratum_format::Entity& entity : document.entities)
@@ -335,21 +356,6 @@ std::vector<flecs::entity> quetzal::stratum_sim::load_layout(flecs::entity zone,
         set_access_point(entities.at(entity.id), access_type(world, access_point.type), access_point.order,
             access_point_target(access_point.target, entities));
     }
-
-    // A template's references are to its own entities, and a saved zone's references are already persistent ids
-    std::vector<flecs::entity> referred_to;
-    auto resolve = [&](stratum_format::stored_entity_id_type id)
-    {
-        if (document.zone_id.has_value())
-        {
-            auto i = entities.find(id);
-            return EntityReference {PersistentId {id}, i != entities.end() ? i->second : flecs::entity()};
-        }
-
-        flecs::entity e = entities.at(id);
-        referred_to.push_back(e);
-        return EntityReference {e.get<PersistentId>(), e};
-    };
 
     decode_components(zone, document.components, "layout", resolve);
 

@@ -55,8 +55,11 @@ namespace stratum_sim_test
     quetzal::stratum_sim::Generation test_generation();
 
     // Returns a region spec whose zones are made from the test zone's file, "door" or "staircase", with an extent of
-    // -10 .. 10 on each axis
+    // 0 on x and y and -10 .. 10 on z
     quetzal::stratum_sim::RegionSpec test_region_spec(const std::string& test_zone);
+
+    // The number of positions in the extent of test_region_spec, each of which has a zone
+    inline constexpr size_t test_extent_zone_count = 21;
 
     // Creates a worldspace from test_region_spec, named for the test zone, and returns its top-level region's id
     quetzal::stratum_sim::PersistentId create_test_region(quetzal::stratum_sim::World& world, const std::string& test_zone);
@@ -84,8 +87,12 @@ namespace stratum_sim_test
     {
         explicit TestWorld(quetzal::stratum_sim::IdAllocator& id_allocator, size_t zone_count_max = test_zone_count_max);
 
+        quetzal::stratum_sim::PersistentId worldspace_id;
         quetzal::stratum_sim::PersistentId region_id;
     };
+
+    // Returns the number of the world's loaded zones that are not empty
+    size_t filled_zone_count(const quetzal::stratum_sim::World& world);
 
     // Counts the walled sides of every open cell, and how many of those edges are walled from the other side too
     struct WallCounts
@@ -114,13 +121,17 @@ namespace stratum_sim_test
     // Loads a zone from a file with its doors and without denizens
     flecs::entity load_zone_unpopulated(TestWorld& world, const std::string& filepath);
 
+    // Fills the empty zone at the position in the worldspace from a zone file, with its doors and without denizens, and returns it
+    flecs::entity load_zone_unpopulated_at(quetzal::stratum_sim::World& world, quetzal::stratum_sim::PersistentId worldspace_id,
+        const quetzal::stratum_sim::ZonePosition& position, const std::string& filepath);
+
     // The access point type the test cases enter zones at, and the level offset its relocator targets: a staircase leading up
     flecs::entity test_entry_type(const quetzal::stratum_sim::Session& session);
 
     inline constexpr quetzal::stratum_sim::level_type test_entry_offset = 1;
 
-    // Loads the zone file into a region of its own, made from the region spec "staircase", and enters it at the test entry type
-    // and level offset. Creates the game's character first if the game has none
+    // Loads the zone file at level -1 of a worldspace of its own, made from the region spec "staircase", and enters it at the test
+    // entry type and level offset. Creates the game's character first if the game has none
     void enter_zone_file(quetzal::stratum_sim::Game& game, const std::string& filepath);
 
     // A zone's layout as a DiscreteLayout

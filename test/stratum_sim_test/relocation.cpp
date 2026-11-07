@@ -109,7 +109,7 @@ namespace
         flecs::entity chapel_below = world.create_zone(crypt, world.next_id());
         stratum_sim::load_layout(chapel_below, stratum_format::read_zone("data/room.zone"));
         stratum_sim::PersistentId chapel_id = chapel.get<stratum_sim::PersistentId>();
-        CHECK_CASE_EQUAL("a world counts the zones of every worldspace", world.zone_count(), 3);
+        CHECK_CASE_EQUAL("a world counts the zones of every worldspace, empty or not", world.zone_count(), 3 + 3 * test_extent_zone_count);
 
         world.unload_worldspace(crypt_worldspace);
 
@@ -117,24 +117,20 @@ namespace
             !ranges::contains(world.worldspaces(), crypt_worldspace, &stratum_sim::Worldspace::worldspace_id) && !chapel.is_alive()
             && !chapel_below.is_alive() && !monk.is_alive());
         CHECK_CASE("and leaves the other worldspaces and their zones", world.worldspaces().size() == 2 && world.worldspaces()[1].worldspace_id == surface
-            && field.is_alive() && world.zone_count() == 1);
+            && field.is_alive() && world.zone_count() == 1 + 2 * test_extent_zone_count);
         CHECK_CASE("the world index keeps the zone of an entity something refers to, as an unloaded zone's",
             world.zone_of(monk_reference.persistent_id) == chapel_id && !world.entity(monk_reference.persistent_id));
 
         // A zone's position, from its file or from the region that makes it
-        stratum_format::Document leveled_document = stratum_format::read_zone("data/door.zone");
-        leveled_document.position = stratum_format::zone_position_type {2, -5, -3};
-        flecs::entity leveled = world.create_zone(world.region_id, world.next_id());
-        stratum_sim::load_layout(leveled, leveled_document);
+        flecs::entity leveled = load_zone_unpopulated_at(world, world.worldspace_id, stratum_sim::ZonePosition {0, 0, -3}, "data/door.zone");
 
         const auto* leveled_position = leveled.try_get<stratum_sim::ZonePosition>();
-        const map<stratum_sim::ZonePosition, stratum_sim::PersistentId>& positioned_zone_ids =
-            world.worldspace(stratum_sim::worldspace_of(leveled)).zone_ids;
-        CHECK_CASE("a zone has the position its file states", leveled_position != nullptr && leveled_position->x == 2
-            && leveled_position->y == -5 && leveled_position->z == -3);
-        CHECK_CASE("and is listed in its worldspace at that position", positioned_zone_ids.size() == 1
-            && positioned_zone_ids.begin()->first == stratum_sim::ZonePosition {2, -5, -3}
-            && positioned_zone_ids.begin()->second == leveled.get<stratum_sim::PersistentId>());
+        const map<stratum_sim::ZonePosition, stratum_sim::PersistentId>& positioned_zone_ids = world.worldspace(world.worldspace_id).zone_ids;
+        CHECK_CASE("a zone loaded at a position has that position", leveled_position != nullptr && leveled_position->x == 0
+            && leveled_position->y == 0 && leveled_position->z == -3);
+        CHECK_CASE("and is listed in its worldspace at that position, with a zone at each other position of the extent",
+            positioned_zone_ids.size() == test_extent_zone_count
+            && positioned_zone_ids.at(stratum_sim::ZonePosition {0, 0, -3}) == leveled.get<stratum_sim::PersistentId>());
         CHECK_CASE("and none where its file states none", field.try_get<stratum_sim::ZonePosition>() == nullptr);
 
         stratum_format::Document named_document = stratum_format::read_zone("data/door.zone");
@@ -148,10 +144,14 @@ namespace
         CHECK_CASE("and the display name derived from it", named.try_get<stratum_sim::DisplayName>() != nullptr
             && named.get<stratum_sim::DisplayName>().name == "THE NARROW DOOR");
 
-        stratum_sim::PersistentId dungeon = create_test_region(world, "door");
-        flecs::entity made = world.create_zone(dungeon, test_zone_spec(-1));
+        stratum_sim::PersistentId dungeon_worldspace = world.create_worldspace("door", test_region_spec("door"));
+        flecs::entity empty = world.entity(world.worldspace(dungeon_worldspace).zone_ids.at(zone_position_at_level(-1)));
+        CHECK_CASE("a worldspace is created with an empty zone at each position of its extent, in its top-level region",
+            empty && stratum_sim::empty_zone(empty) && stratum_sim::region_of(empty) == top_level_region(world, dungeon_worldspace)
+            && world.region(top_level_region(world, dungeon_worldspace)).zone_ids.size() == test_extent_zone_count);
 
-        CHECK_CASE("a region makes a zone at a level from its region spec", stratum_sim::region_of(made) == dungeon
+        flecs::entity made = world.load_zone_at(dungeon_worldspace, zone_position_at_level(-1));
+        CHECK_CASE("loading the zone at a position generates its content from its region spec", made == empty
             && level_of(made) == -1 && made.has<stratum_sim::ZoneLayout>());
 
         return;
@@ -218,35 +218,27 @@ namespace
             world.worldspace(second_worldspace).name == "dungeon_1" && world.region(top_level_region(world, second_worldspace)).name == "dungeon_1"
             && world.worldspace(third_worldspace).name == "dungeon_2");
 
-        flecs::entity made = world.create_zone(dungeon, test_zone_spec(-1));
-        stratum_sim::ZoneSpec patterned_spec = test_zone_spec(-2);
-        patterned_spec.keys.insert(string(stratum_sim::name_key), "Level {z}");
-        flecs::entity patterned = world.create_zone(dungeon, patterned_spec);
+        flecs::entity empty = world.entity(world.worldspace(dungeon_worldspace).zone_ids.at(zone_position_at_level(-1)));
+        flecs::entity made = world.load_zone_at(dungeon_worldspace, zone_position_at_level(-1));
 
-        CHECK_CASE("a zone made with no name pattern has its region's name and its coordinates", name_of(made) == "dungeon_0_0_-1");
-        CHECK_CASE("and one made with a pattern has the pattern's name", name_of(patterned) == "Level -2");
-
-        stratum_sim::RegionSpec grid_spec = test_region_spec("door");
-        grid_spec.keys.insert("worldspace.zone_size.x", "40");
-        grid_spec.keys.insert("worldspace.zone_size.y", "20");
-        stratum_sim::PersistentId surface = top_level_region(world, world.create_worldspace("surface", grid_spec));
-        stratum_sim::ZoneSpec grid_zone_spec;
-        grid_zone_spec.set_position(stratum_sim::ZonePosition {1, 2, 0});
-        CHECK_CASE("and a zone of a grid worldspace has its region's name and its x and y",
-            name_of(world.create_zone(surface, grid_zone_spec)) == "surface_1_2");
+        CHECK_CASE("an empty zone has its top-level region's name and its count in worldspace position order",
+            name_of(world.entity(world.worldspace(dungeon_worldspace).zone_ids.at(zone_position_at_level(-10)))) == "dungeon_0"
+            && name_of(empty) == "dungeon_9");
+        CHECK_CASE("and keeps that name when its content is generated", made == empty && name_of(made) == "dungeon_9");
 
         // data/door.zone has no name and no position
         flecs::entity first_loaded = world.load_zone(dungeon, "data/door.zone");
         flecs::entity second_loaded = world.load_zone(dungeon, "data/door.zone");
         const stratum_sim::Region& dungeon_data = world.region(dungeon);
+        const std::string second_name = format("dungeon_{}", test_extent_zone_count);
 
         CHECK_CASE("a zone with no name and no position has its region's name", name_of(first_loaded) == "dungeon");
         CHECK_CASE("and a zone whose name another zone of the region has gets a suffix from the region's counter",
-            name_of(second_loaded) == "dungeon_1" && dungeon_data.name_counter == 1);
-        CHECK_CASE("a region lists its zones by name", dungeon_data.named_zone_ids.size() == 4
-            && dungeon_data.named_zone_ids.at("dungeon_1") == second_loaded.get<stratum_sim::PersistentId>());
+            name_of(second_loaded) == second_name && dungeon_data.name_counter == test_extent_zone_count);
+        CHECK_CASE("a region lists its zones by name", dungeon_data.named_zone_ids.size() == test_extent_zone_count + 2
+            && dungeon_data.named_zone_ids.at(second_name) == second_loaded.get<stratum_sim::PersistentId>());
 
-        CHECK_CASE("a zone's extended name is its worldspace's name and its name", world.extended_name(patterned) == "dungeon/Level -2");
+        CHECK_CASE("a zone's extended name is its worldspace's name and its name", world.extended_name(made) == "dungeon/dungeon_9");
 
         return;
     }
@@ -258,7 +250,8 @@ namespace
         stratum_sim::CountingIdAllocator id_allocator(stratum_sim::PersistentId {});
         TestWorld world(id_allocator);
 
-        stratum_sim::PersistentId second = create_test_region(world, "door");
+        stratum_sim::PersistentId second_worldspace = world.create_worldspace("door", test_region_spec("door"));
+        stratum_sim::PersistentId second = top_level_region(world, second_worldspace);
         stratum_sim::PersistentId third = create_test_region(world, "door");
         stratum_sim::RegionSpec placed_spec = test_region_spec("door");
         placed_spec.set_position(stratum_sim::RegionPosition {-4, 7});
@@ -275,7 +268,7 @@ namespace
             region_at(world.region_id, 0, 0) && region_at(second, 1, 0) && region_at(third, 2, 0));
         CHECK_CASE("a region whose spec has a seed position keeps it", region_at(placed, -4, 7) && region_at(fourth, 3, 0));
 
-        flecs::entity made = world.create_zone(second, test_zone_spec(-3));
+        flecs::entity made = world.load_zone_at(second_worldspace, zone_position_at_level(-3));
         const stratum_sim::ZonePosition& made_position = made.get<stratum_sim::ZonePosition>();
         CHECK_CASE("a zone is at the position its spec has", made_position.x == 0 && made_position.y == 0 && made_position.z == -3);
 
@@ -286,7 +279,6 @@ namespace
             && stratum_sim::ZoneSpec {}.position().z == 0);
         const stratum_sim::ZoneSpec compass_spec {KeyValueStore {{string(stratum_sim::position_x_key), "east"}}};
         CHECK_THROWS_AS(compass_spec.position(), runtime_error);
-        stratum_sim::PersistentId second_worldspace = stratum_sim::worldspace_of(made);
 
         // A worldspace's coordinate system
         stratum_sim::RegionSpec barrow_spec = test_region_spec("door");
@@ -298,7 +290,7 @@ namespace
 
         using extent_type = stratum_sim::Worldspace::extent_type;
         CHECK_CASE("a worldspace has the extent and zone size in its region spec, each interval's upper bound included",
-            barrow.extent == extent_type(extent_type::point_type(-10, -10, -10), extent_type::point_type(11, 11, 0))
+            barrow.extent == extent_type(extent_type::point_type(0, 0, -10), extent_type::point_type(1, 1, 0))
             && barrow.zone_size == stratum_sim::discrete_vector_type(64, 32));
 
         auto creation_throws = [&](string_view key, string_view value)
@@ -323,19 +315,19 @@ namespace
         unbounded_spec.keys.remove("worldspace.extent.y");
         CHECK_THROWS_AS(world.create_worldspace("unbounded", unbounded_spec), runtime_error);
 
-        stratum_sim::PersistentId barrow_region = top_level_region(world, barrow_worldspace);
-        flecs::entity deep = world.create_zone(barrow_region, test_zone_spec(-4));
+        flecs::entity deep = world.load_zone_at(barrow_worldspace, zone_position_at_level(-4));
         auto barrow_zone_ids = [&]() { return world.worldspace(barrow_worldspace).zone_ids; };
-        CHECK_CASE("a zone made at a position is listed in its worldspace at it", barrow_zone_ids().size() == 1
-            && barrow_zone_ids().at(stratum_sim::ZonePosition {0, 0, -4}) == deep.get<stratum_sim::PersistentId>());
+        CHECK_CASE("a worldspace lists each of its zones at its position", barrow_zone_ids().size() == 10
+            && barrow_zone_ids().at(zone_position_at_level(-4)) == deep.get<stratum_sim::PersistentId>());
 
         size_t zone_count = world.zone_count();
-        CHECK_THROWS_AS(world.create_zone(barrow_region, test_zone_spec(-4)), runtime_error);
-        CHECK_THROWS_AS(world.create_zone(barrow_region, test_zone_spec(0)), runtime_error);
-        CHECK_CASE("a zone at another zone's position, or outside the extent, is an error, and nothing is built",
-            world.zone_count() == zone_count && barrow_zone_ids().size() == 1);
+        size_t filled_count = filled_zone_count(world);
+        CHECK_THROWS_AS(world.load_template(barrow_worldspace, zone_position_at_level(-4), "data/door.zone", stratum_sim::ZoneSpec {}), runtime_error);
+        CHECK_THROWS_AS(world.load_zone_at(barrow_worldspace, zone_position_at_level(0)), runtime_error);
+        CHECK_CASE("a template at a zone that is not empty, or a position outside the extent, is an error, and nothing is built",
+            world.zone_count() == zone_count && filled_zone_count(world) == filled_count && barrow_zone_ids().size() == 10);
 
-        flecs::entity same_position = world.create_zone(second, test_zone_spec(-4));
+        flecs::entity same_position = world.load_zone_at(second_worldspace, zone_position_at_level(-4));
         CHECK_CASE("a zone of another worldspace may be at the same position", level_of(same_position) == -4
             && stratum_sim::worldspace_of(same_position) == second_worldspace);
 
@@ -380,25 +372,28 @@ namespace
             return document;
         };
 
-        auto generate_zone = [&generation, &region_spec](stratum_sim::RandomStream::seed_type world_seed, const stratum_sim::ZoneSpec& requested_zone_spec)
+        auto generate_zone = [&generation, &zone_spec](stratum_sim::RandomStream::seed_type world_seed, const stratum_sim::RegionSpec& requested_region_spec)
         {
             stratum_sim::CountingIdAllocator id_allocator(stratum_sim::PersistentId {});
             stratum_sim::World world(id_allocator, generation, test_zone_count_max);
             stratum_sim::register_game_types(world);
             world.set_world_seed(world_seed);
-            world.create_zone(top_level_region(world, world.create_worldspace("door", region_spec)), requested_zone_spec);
+            world.load_zone_at(world.create_worldspace("door", requested_region_spec), zone_spec.position());
             return;
         };
 
-        generate_zone(7, zone_spec);
-        generate_zone(7, zone_spec);
-        generate_zone(8, zone_spec);
-        generate_zone(7, seeded_zone_spec);
+        stratum_sim::RegionSpec zone_seeded_region_spec = region_spec;
+        zone_seeded_region_spec.keys.insert(format("{}{}", stratum_sim::zone_prefix, stratum_sim::seed_key), "12");
+
+        generate_zone(7, region_spec);
+        generate_zone(7, region_spec);
+        generate_zone(8, region_spec);
+        generate_zone(7, zone_seeded_region_spec);
         CHECK_CASE("a world's zone has the seed derived from the world seed through its region's",
             generated_seeds.size() == 4 && generated_seeds[0] == stratum_sim::zone_seed(stratum_sim::region_seed(7, region_spec), zone_spec));
         CHECK_CASE("the same for the same world seed, and differing for another", generated_seeds.size() == 4
             && generated_seeds[1] == generated_seeds[0] && generated_seeds[2] != generated_seeds[0]);
-        CHECK_CASE("and the seed its spec has, if it has one", generated_seeds.size() == 4 && generated_seeds[3] == 12);
+        CHECK_CASE("and the seed its region spec's zone keys have, if they have one", generated_seeds.size() == 4 && generated_seeds[3] == 12);
         return;
     }
 
@@ -418,22 +413,19 @@ namespace
         };
 
         // data/walls.zone has one staircase leading up and one leading down
-        auto load_at_level = [&](stratum_sim::PersistentId region, stratum_sim::level_type level)
+        auto load_at_level = [&](stratum_sim::PersistentId worldspace_id, stratum_sim::level_type level)
         {
-            stratum_format::Document document = stratum_format::read_zone("data/walls.zone");
-            document.position = document_position_at_level(level);
-            flecs::entity zone = world.create_zone(region, world.next_id());
-            stratum_sim::load_layout(zone, document);
-            return zone;
+            return load_zone_unpopulated_at(world, worldspace_id, zone_position_at_level(level), "data/walls.zone");
         };
 
         auto zone_arrived_in = [](flecs::entity arrival) { return arrival ? stratum_sim::zone_of(arrival) : flecs::entity(); };
 
-        stratum_sim::PersistentId dungeon = create_test_region(world, "staircase");
+        stratum_sim::PersistentId dungeon_worldspace = world.create_worldspace("staircase", test_region_spec("staircase"));
+        stratum_sim::PersistentId dungeon = top_level_region(world, dungeon_worldspace);
 
-        flecs::entity field = load_at_level(world.region_id, 0);
-        flecs::entity first = load_at_level(dungeon, -1);
-        flecs::entity second = load_at_level(dungeon, -2);
+        flecs::entity field = load_at_level(world.worldspace_id, 0);
+        flecs::entity first = load_at_level(dungeon_worldspace, -1);
+        flecs::entity second = load_at_level(dungeon_worldspace, -2);
         flecs::entity first_up = up_of(first);
         flecs::entity first_down = down_of(first);
         flecs::entity second_up = up_of(second);
@@ -461,10 +453,10 @@ namespace
         flecs::entity arrival = world.resolve_target(first_up);
         flecs::entity made = zone_arrived_in(arrival);
         stratum_sim::PersistentId region_made = made ? stratum_sim::region_of(made) : stratum_sim::PersistentId {};
-        CHECK_CASE("a target with a region makes a zone in a new worldspace created from the region spec of that name, and named for it, though a zone at the level has a staircase that leads back", made
+        CHECK_CASE("a target with a region generates the zone at its level in a new worldspace created from the region spec of that name, and named for it, though a zone at the level has a staircase that leads back", made
             && made != field && region_made != dungeon && region_made != world.region_id
             && zone_file_of(world.region(region_made).region_spec) == "data/walls.zone"
-            && world.region(region_made).zone_ids.size() == 1 && level_of(made) == 0
+            && world.region(region_made).zone_ids.size() == test_extent_zone_count && level_of(made) == 0
             && world.worldspace(stratum_sim::worldspace_of(made)).name == "staircase_2" && arrival == down_of(made));
 
         retarget(first_up, "unregistered/+1");
@@ -484,14 +476,14 @@ namespace
 
         arrival = world.resolve_target(down_of(second));
         made = zone_arrived_in(arrival);
-        CHECK_CASE("finding none, it makes a zone at the level in its own worldspace and arrives at its entry point", made
+        CHECK_CASE("finding the zone at the level in its own worldspace empty, it generates its content and arrives at its entry point", made
             && stratum_sim::region_of(made) == dungeon && level_of(made) == -3 && arrival == up_of(made));
-        CHECK_CASE("the placeholder places the made zone at x 0 and y 0, at its level",
+        CHECK_CASE("the placeholder finds the zone at x 0 and y 0, at its level",
             made && made.get<stratum_sim::ZonePosition>() == stratum_sim::ZonePosition {0, 0, -3});
 
         arrival = world.resolve_target(first_up);
         made = zone_arrived_in(arrival);
-        CHECK_CASE("moving up looks only in its own worldspace, so a zone at level 0 in another is not found and one is made", made
+        CHECK_CASE("moving up looks only in its own worldspace, so the zone at level 0 in another is not found", made
             && made != field && stratum_sim::region_of(made) == dungeon && level_of(made) == 0
             && arrival == down_of(made));
         bind(arrival);
@@ -521,21 +513,15 @@ namespace
             throws(first_up) && world.worldspaces().size() == worldspace_count && world.zone_count() == zone_count);
         retarget(first_up, "+1");
 
-        stratum_sim::PersistentId doors = create_test_region(world, "door");
-        flecs::entity below_doors = load_at_level(doors, -1);
+        stratum_sim::PersistentId doors_worldspace = world.create_worldspace("door", test_region_spec("door"));
+        flecs::entity below_doors = load_at_level(doors_worldspace, -1);
         worldspace_count = world.worldspaces().size();
-        zone_count = world.zone_count();
-        CHECK_CASE("a zone made in its own worldspace with no access point that leads back is an error, and only that zone is discarded",
+        size_t filled_count = filled_zone_count(world);
+        flecs::entity above_doors = world.entity(world.worldspace(doors_worldspace).zone_ids.at(zone_position_at_level(0)));
+        CHECK_CASE("a zone generated in its own worldspace with no access point that leads back is an error, and is kept",
             throws(up_of(below_doors)) && world.worldspaces().size() == worldspace_count && below_doors.is_alive()
-            && world.zone_count() == zone_count && world.worldspace(stratum_sim::worldspace_of(below_doors)).zone_ids.size() == 1
-            && world.region(doors).zone_ids.empty());
-
-        stratum_format::Document door_document = stratum_format::read_zone("data/door.zone");
-        door_document.position = document_position_at_level(0);
-        flecs::entity above_doors = world.create_zone(doors, world.next_id());
-        stratum_sim::load_layout(above_doors, door_document);
-        CHECK_CASE("a zone at the target's position with no access point that leads back is an error, and is kept",
-            throws(up_of(below_doors)) && above_doors.is_alive());
+            && above_doors.is_alive() && !stratum_sim::empty_zone(above_doors) && filled_zone_count(world) == filled_count + 1);
+        CHECK_CASE("and so is the same zone found again", throws(up_of(below_doors)) && filled_zone_count(world) == filled_count + 1);
 
         return;
     }
@@ -583,9 +569,12 @@ namespace
         // An absolute target's offset is the difference between its level and the zone's
         up_2.get_mut<stratum_sim::AccessPoint>().target = stratum_format::RelocatorTarget {nullopt, stratum_format::AbsoluteZone {-1}, nullopt};
         bool unleveled = !stratum_sim::targets_level(up_2, 1);
-        zone.set<stratum_sim::ZonePosition>(zone_position_at_level(-2));
+        flecs::entity leveled = load_zone_unpopulated_at(world, world.worldspace_id, zone_position_at_level(-2), "data/walls.zone");
+        flecs::entity leveled_up = stratum_sim::create_access_point(leveled, staircase_type,
+            stratum_sim::entry_point(leveled, staircase_type, 1).get<stratum_sim::Site>(), 2,
+            stratum_format::RelocatorTarget {nullopt, stratum_format::AbsoluteZone {-1}, nullopt});
         CHECK_CASE("an absolute target's offset is its difference from the zone's level, and a zone with no level has none",
-            unleveled && stratum_sim::targets_level(up_2, 1) && !stratum_sim::targets_level(up_2, -1));
+            unleveled && stratum_sim::targets_level(leveled_up, 1) && !stratum_sim::targets_level(leveled_up, -1));
 
         // A portal on the floor, in the middle of a room
         stratum_sim::placement_type north(stratum_sim::point_type(0.0f, 0.0f, 0.0f), stratum_sim::vector_type(0.0f, 1.0f, 0.0f));
@@ -672,19 +661,14 @@ namespace
         };
 
         // data/walls.zone has one staircase leading up and one leading down
-        auto load_at_level = [&](stratum_sim::PersistentId region, stratum_sim::level_type level)
+        stratum_sim::PersistentId dungeon_worldspace = world.create_worldspace("staircase", test_region_spec("staircase"));
+        auto load_at_level = [&](stratum_sim::level_type level)
         {
-            stratum_format::Document document = stratum_format::read_zone("data/walls.zone");
-            document.position = document_position_at_level(level);
-            flecs::entity zone = world.create_zone(region, world.next_id());
-            stratum_sim::load_layout(zone, document);
-            return zone;
+            return load_zone_unpopulated_at(world, dungeon_worldspace, zone_position_at_level(level), "data/walls.zone");
         };
 
-        stratum_sim::PersistentId dungeon = create_test_region(world, "staircase");
-
-        flecs::entity first = load_at_level(dungeon, -1);
-        flecs::entity second = load_at_level(dungeon, -2);
+        flecs::entity first = load_at_level(-1);
+        flecs::entity second = load_at_level(-2);
         flecs::entity first_down = down_of(first);
         flecs::entity second_up = up_of(second);
         stratum_sim::placement_type second_up_placement = stratum_sim::arrival_placement(second_up);
@@ -708,7 +692,7 @@ namespace
         flecs::entity second_down = down_of(second);
         arrival = world.relocate_through(actor, second_down);
         flecs::entity made = arrival ? stratum_sim::zone_of(arrival) : flecs::entity();
-        CHECK_CASE("finding none, it goes to a zone made at the target level and binds its entry point", made
+        CHECK_CASE("finding the zone at the target level empty, it goes to it with its content generated and binds its entry point", made
             && level_of(made) == -3 && stratum_sim::zone_of(actor) == made && refers_to(second_down, arrival)
             && refers_to(arrival, second_down));
 
@@ -751,13 +735,10 @@ namespace
         chute_type.set<stratum_sim::Arrival>(stratum_sim::Arrival {landing_type});
         landing_type.set<stratum_sim::Arrival>(stratum_sim::Arrival {landing_type});
 
-        auto load_at_level = [&](stratum_sim::PersistentId region, stratum_sim::level_type level)
+        stratum_sim::PersistentId dungeon_worldspace = world.create_worldspace("staircase", test_region_spec("staircase"));
+        auto load_at_level = [&](stratum_sim::level_type level)
         {
-            stratum_format::Document document = stratum_format::read_zone("data/walls.zone");
-            document.position = document_position_at_level(level);
-            flecs::entity zone = world.create_zone(region, world.next_id());
-            stratum_sim::load_layout(zone, document);
-            return zone;
+            return load_zone_unpopulated_at(world, dungeon_worldspace, zone_position_at_level(level), "data/walls.zone");
         };
 
         auto on_floor = [&](flecs::entity zone, stratum_sim::discrete_point_type cell_position)
@@ -767,9 +748,8 @@ namespace
                 stratum_sim::placement_type(stratum_sim::point_type(0.0f, 0.0f, 0.0f), stratum_sim::vector_type(1.0f, 0.0f, 0.0f))};
         };
 
-        stratum_sim::PersistentId dungeon = create_test_region(world, "staircase");
-        flecs::entity first = load_at_level(dungeon, -1);
-        flecs::entity second = load_at_level(dungeon, -2);
+        flecs::entity first = load_at_level(-1);
+        flecs::entity second = load_at_level(-2);
 
         flecs::entity chute = stratum_sim::create_access_point(first, chute_type, on_floor(first, {2, 1}), 0,
             *stratum_format::parse_relocator_target("-1"));
@@ -806,7 +786,6 @@ namespace
         enter_zone_file(game, "data/walls.zone");
         flecs::entity character = session.character().entity();
         flecs::entity first = session.zone();
-        first.set<stratum_sim::ZonePosition>(zone_position_at_level(-1));
 
         flecs::entity staircase_type = stratum_sim::access_type(world.entities(), "staircase");
         flecs::entity first_down = stratum_sim::entry_point(first, staircase_type, -1);
@@ -898,7 +877,6 @@ namespace
 
         // data/walls.zone: the character enters on cell (2, 1), facing the staircase leading down to the east
         enter_zone_file(game, "data/walls.zone");
-        session.zone().set<stratum_sim::ZonePosition>(zone_position_at_level(-1));
         flecs::entity staircase = stratum_sim::entry_point(session.zone(), stratum_sim::access_type(game.world().entities(), "staircase"), -1);
 
         game.generation() = test_generation();
@@ -914,7 +892,6 @@ namespace
         stratum_sim::Game failing(g_test_config, g_test_manifest);
         stratum_sim::Session& failing_session = failing.session();
         enter_zone_file(failing, "data/walls.zone");
-        failing_session.zone().set<stratum_sim::ZonePosition>(zone_position_at_level(-1));
         flecs::entity named = stratum_sim::entry_point(failing_session.zone(), stratum_sim::access_type(failing.world().entities(), "staircase"), -1);
         named.get_mut<stratum_sim::AccessPoint>().target = *stratum_format::parse_relocator_target("town/market");
 

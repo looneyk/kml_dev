@@ -14,6 +14,7 @@
 #include "quetzal/stratum_sim/DiscretePlacementIndex.hpp"
 #include "quetzal/stratum_sim/load_layout.hpp"
 #include "quetzal/stratum_sim/make_document.hpp"
+#include "quetzal/stratum_sim/Name.hpp"
 #include "quetzal/stratum_sim/Clock.hpp"
 #include "quetzal/stratum_sim/Scheduler.hpp"
 #include "quetzal/stratum_sim/Session.hpp"
@@ -78,13 +79,14 @@ namespace
         stratum_sim::CountingIdAllocator id_allocator(stratum_sim::PersistentId {});
         TestWorld world(id_allocator);
 
-        CHECK_CASE_EQUAL("a new world has no zones", world.zone_count(), 0);
+        CHECK_CASE("a new world has only the empty zones of its worldspace", world.zone_count() == test_extent_zone_count
+            && filled_zone_count(world) == 0);
 
         flecs::entity crypt = load_zone_unpopulated(world, "data/room.zone");
         flecs::entity moor = world.create_zone(world.region_id, make_unique<stratum_sim::DiscreteLayout>(stratum_sim::point_type(0.0f, 0.0f, 0.0f),
             1.0f, stratum_sim::discrete_vector_type(4, 4)));
 
-        CHECK_CASE_EQUAL("zones are created", world.zone_count(), 2);
+        CHECK_CASE_EQUAL("zones are created", filled_zone_count(world), 2);
         CHECK_CASE("a zone is found by its persistent id", world.entity(crypt.get<stratum_sim::PersistentId>()) == crypt);
         CHECK_CASE("each zone has its own layout", &world.layout(crypt) != &world.layout(moor));
 
@@ -148,7 +150,7 @@ namespace
         world.unload_zone(crypt);
 
         CHECK_CASE("unloading a zone destroys its contents", !monster.is_alive());
-        CHECK_CASE_EQUAL("and drops its layout", world.zone_count(), 1);
+        CHECK_CASE_EQUAL("and drops its layout", filled_zone_count(world), 1);
         CHECK_CASE("the other zone survives", moor.is_alive());
         CHECK_CASE("the game's entity in it, and what it carries, are left out of it and in no zone", wanderer.is_alive()
             && pouch.is_alive() && !stratum_sim::zone_of(wanderer) && !stratum_sim::zone_of(pouch));
@@ -172,7 +174,7 @@ namespace
                 cardinal_direction(CardinalDirection::East)));
         };
 
-        flecs::entity generated = world.create_zone(create_test_region(world, "door"), stratum_sim::ZoneSpec {});
+        flecs::entity generated = world.load_zone_at(world.create_worldspace("door", test_region_spec("door")), stratum_sim::ZonePosition {});
         stratum_sim::World::entities_type generated_pursuers = pursuers_in(generated);
 
         CHECK_CASE("a generated zone has its doors", door_east_of_start(generated).is_alive());
@@ -190,7 +192,7 @@ namespace
         CHECK_CASE("its door is of the door type, as a loaded one is", door_type_east_of_start(generated));
         CHECK_CASE("a loaded zone agrees with it", same_geometry(zone_layout(world, loaded), zone_layout(world, generated))
             && door_type_east_of_start(loaded) && pursuers_in(loaded).size() == 1);
-        CHECK_CASE_EQUAL("creating and loading unload nothing", world.zone_count(), 3);
+        CHECK_CASE_EQUAL("creating and loading unload nothing", filled_zone_count(world), 3);
 
         CHECK_CASE("a zone loaded unpopulated is written populated", !stratum_sim::make_document(loaded).is_unpopulated);
 
@@ -207,26 +209,36 @@ namespace
             && door_east_of_start(prepopulated).is_alive());
         world.unload_worldspace(stratum_sim::worldspace_of(prepopulated));
 
-        stratum_format::Document empty_document;
-        empty_document.zone_id = 700;
-        empty_document.zone_spec = KeyValueStore {{string(stratum_sim::position_z_key), "-2"}};
+        stratum_sim::PersistentId empty_worldspace = world.create_worldspace("door", test_region_spec("door"));
+        flecs::entity empty = world.entity(world.worldspace(empty_worldspace).zone_ids.at(zone_position_at_level(-2)));
+        const stratum_sim::PersistentId empty_id = empty.get<stratum_sim::PersistentId>();
+        const string empty_name = empty.get<stratum_sim::Name>().name;
         {
             ofstream empty_file("out/empty.zone", ios::binary);
-            stratum_format::write(empty_file, empty_document);
+            stratum_format::write(empty_file, stratum_sim::make_document(empty));
         }
 
-        flecs::entity generated_empty = world.load_zone(create_test_region(world, "door"), "out/empty.zone");
-        CHECK_CASE("an empty zone's file is generated from its zone spec, with its id", generated_empty
-            && generated_empty.get<stratum_sim::PersistentId>() == stratum_sim::PersistentId {700} && level_of(generated_empty) == -2
-            && door_east_of_start(generated_empty).is_alive());
-        world.unload_worldspace(stratum_sim::worldspace_of(generated_empty));
+        world.unload_zone(empty);
+        flecs::entity read_back = world.load_zone(top_level_region(world, empty_worldspace), "out/empty.zone");
+        CHECK_CASE("an empty zone is written as an empty zone's file, and read back as an empty zone with its id, position and name",
+            read_back && stratum_sim::empty_zone(read_back) && read_back.get<stratum_sim::PersistentId>() == empty_id
+            && level_of(read_back) == -2 && read_back.get<stratum_sim::Name>().name == empty_name);
+
+        flecs::entity generated_empty = world.load_zone_at(empty_worldspace, zone_position_at_level(-2));
+        CHECK_CASE("and its content is generated from its zone spec when the zone at its position is loaded, keeping its name",
+            generated_empty == read_back && door_east_of_start(generated_empty).is_alive()
+            && generated_empty.get<stratum_sim::Name>().name == empty_name);
+        world.unload_worldspace(empty_worldspace);
 
         // Zones created through the registries
-        stratum_sim::PersistentId counted = create_test_region(world, "staircase");
-        flecs::entity counted_generated = world.create_zone(counted, test_zone_spec(-1));
+        stratum_sim::PersistentId counted_worldspace = world.create_worldspace("staircase", test_region_spec("staircase"));
+        stratum_sim::PersistentId counted = top_level_region(world, counted_worldspace);
+        flecs::entity counted_generated = world.load_zone_at(counted_worldspace, zone_position_at_level(-1));
         flecs::entity counted_loaded = world.load_zone(counted, "data/door.zone");
-        CHECK_CASE("a region lists the zones created in it, generated or loaded, in order", world.region(counted).zone_ids
-            == vector<stratum_sim::PersistentId> {counted_generated.get<stratum_sim::PersistentId>(), counted_loaded.get<stratum_sim::PersistentId>()});
+        const vector<stratum_sim::PersistentId>& counted_zone_ids = world.region(counted).zone_ids;
+        CHECK_CASE("a region lists the zones created in it in order, the empty zones of its extent in worldspace position order first",
+            counted_zone_ids.size() == test_extent_zone_count + 1 && counted_zone_ids[9] == counted_generated.get<stratum_sim::PersistentId>()
+            && counted_zone_ids.back() == counted_loaded.get<stratum_sim::PersistentId>());
 
         // data/saved.zone is a saved zone, listed when it was created
         flecs::entity saved = world.load_zone(counted, "data/saved.zone");
@@ -235,7 +247,8 @@ namespace
         bool saved_unpopulated = true;
         world.entities().each([&](flecs::entity e, const stratum_sim::Pursue&) { saved_unpopulated = saved_unpopulated && stratum_sim::zone_of(e) != saved_again; });
         CHECK_CASE("a saved zone read back is not listed again, however often it is loaded after unloading", saved_again.is_alive()
-            && saved_again.get<stratum_sim::PersistentId>() == stratum_sim::PersistentId {900} && world.region(counted).zone_ids.size() == 2);
+            && saved_again.get<stratum_sim::PersistentId>() == stratum_sim::PersistentId {900}
+            && world.region(counted).zone_ids.size() == test_extent_zone_count + 1);
         CHECK_CASE("and is not populated", saved_unpopulated);
         world.unload_zone(saved_again);
 
@@ -318,16 +331,17 @@ namespace
         flecs::entity b = corridor();
         flecs::entity c = corridor();
 
-        CHECK_CASE_EQUAL("creating zones unloads none, past the maximum or not", world.zone_count(), 3);
+        CHECK_CASE_EQUAL("creating zones unloads none, past the maximum or not", filled_zone_count(world), 3);
 
         world.trim_zones(a);
-        CHECK_CASE_EQUAL("past the maximum, the zone entered and those never entered are not unloaded", world.zone_count(), 3);
+        CHECK_CASE("past the maximum, the zone entered and those never entered are not unloaded, and empty zones are not counted",
+            filled_zone_count(world) == 3 && world.zone_count() == 3 + test_extent_zone_count);
 
         world.trim_zones(b);
-        CHECK_CASE("the zone entered before is", !a.is_alive() && world.zone_count() == 2);
+        CHECK_CASE("the zone entered before is", !a.is_alive() && filled_zone_count(world) == 2);
 
         world.trim_zones(c);
-        CHECK_CASE("at the maximum, nothing is", b.is_alive() && world.zone_count() == 2);
+        CHECK_CASE("at the maximum, nothing is", b.is_alive() && filled_zone_count(world) == 2);
 
         flecs::entity d = corridor();
         world.trim_zones(d);
@@ -340,7 +354,7 @@ namespace
         world.trim_zones(e);
 
         CHECK_CASE("as many are unloaded as the maximum requires, never the zone entered",
-            !d.is_alive() && !c.is_alive() && e.is_alive() && world.zone_count() == 1);
+            !d.is_alive() && !c.is_alive() && e.is_alive() && filled_zone_count(world) == 1);
 
         // Deferred, as inside a system or an observer, an unload finishes when the deferred operations run
         flecs::entity f = corridor();
@@ -359,9 +373,15 @@ namespace
 
         CHECK_CASE("while deferred, the zones entered before stay until the deferred operations run", pending);
         CHECK_CASE("then the two trims in one deferred block unload those two and no more",
-            !e.is_alive() && !f.is_alive() && g.is_alive() && world.zone_count() == 1);
+            !e.is_alive() && !f.is_alive() && g.is_alive() && filled_zone_count(world) == 1);
         CHECK_CASE("and an entity referred to in one keeps its zone in the world index",
             world.zone_of(kept_reference.persistent_id) == e_id && !world.entity(kept_reference.persistent_id));
+
+        world.set_zone_count_max(0);
+        flecs::entity h = corridor();
+        world.trim_zones(g);
+        world.trim_zones(h);
+        CHECK_CASE("with no maximum, nothing is unloaded", g.is_alive() && h.is_alive() && filled_zone_count(world) == 2);
 
         return;
     }
@@ -558,8 +578,8 @@ namespace
             stratum_sim::Session& created = game_created.session();
             game_created.generation() = test_generation();
             game_created.character().create(stratum_sim::CharacterSpec {});
-            created.enter(game_created.world().create_zone(create_test_region(game_created.world(), "door"), stratum_sim::ZoneSpec {}),
-                test_entry_type(created), test_entry_offset);
+            created.enter(game_created.world().load_zone_at(game_created.world().create_worldspace("door", test_region_spec("door")),
+                stratum_sim::ZonePosition {}), test_entry_type(created), test_entry_offset);
 
             CHECK_CASE("a constructed zone is loaded", created.loaded());
             CHECK_CASE("with a character in it", created.character().entity().is_alive());
@@ -610,7 +630,7 @@ namespace
 
         CHECK_CASE("loading another zone moves the same character into it", &session.character() == &game.character()
             && session.character().entity() == session_character && stratum_sim::zone_of(session_character) == session.zone());
-        CHECK_CASE("and leaves the zone it left loaded", zone_left.is_alive() && game.world().zone_count() == 2);
+        CHECK_CASE("and leaves the zone it left loaded", zone_left.is_alive() && filled_zone_count(game.world()) == 2);
 
         flecs::entity zone_entered = session.zone();
         flecs::entity closed = game.world().create_zone(stratum_sim::region_of(session.zone()), make_unique<stratum_sim::DiscreteLayout>(stratum_sim::point_type(0.0f, 0.0f, 0.0f),

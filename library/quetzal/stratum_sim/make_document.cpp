@@ -306,7 +306,6 @@ quetzal::stratum_format::Document quetzal::stratum_sim::make_document(flecs::ent
     assert(zone && zone.has<Zone>() && zone.has<ZoneDocument>());
 
     flecs::world world = zone.world();
-    const DiscreteLayout& layout = layout_as<DiscreteLayout>(*zone.get<ZoneLayout>().layout);
     file_components_type file_components = stratum_sim::file_components(world);
 
     stratum_format::Document document = *zone.get<ZoneDocument>().document;
@@ -317,6 +316,13 @@ quetzal::stratum_format::Document quetzal::stratum_sim::make_document(flecs::ent
         document.position = stratum_format::zone_position_type {position->x, position->y, position->z};
     }
     document.components = encoded_components(zone, file_components);
+
+    if (!zone.has<ZoneLayout>())
+    {
+        return document;
+    }
+
+    const DiscreteLayout& layout = layout_as<DiscreteLayout>(*zone.get<ZoneLayout>().layout);
 
     for (size_t room_id = 0; room_id < document.rooms.size(); ++room_id)
     {

@@ -101,7 +101,7 @@ quetzal::stratum_sim::Config quetzal::stratum_sim::load_config(const std::filesy
     config.cache_directory = located(config.user_directory, document.cache_directory, "cache");
     config.mods_directory = located(config.user_directory, document.mods_directory, "mods");
     config.user_settings_filepath = located(config.user_directory, document.user_settings_file, "settings.json");
-    config.zone_count_max = document.zone_count_max.value_or(8);
+    config.zone_count_max = document.zone_count_max.value_or(0);
     config.log_file_count_max = document.log_file_count_max.value_or(10);
     return config;
 }

@@ -78,7 +78,7 @@ namespace
         flecs::entity carried = world.entities().entity();
         stratum_sim::set_parent(carried, character);
 
-        flecs::entity elsewhere = world.create_zone(create_test_region(world, "door"), stratum_sim::ZoneSpec {});
+        flecs::entity elsewhere = world.load_zone_at(world.create_worldspace("door", test_region_spec("door")), stratum_sim::ZonePosition {});
         world.make_reference(world.create_entity(elsewhere, stratum_sim::placement_type()));
 
         played.clear();
@@ -128,14 +128,15 @@ namespace
 
         flecs::entity second_zone = stratum_sim::zone_of(sequence_world.relocate_through(first_character,
             stratum_sim::entry_point(first_zone, staircase_type, -1)));
-        CHECK_CASE("the first game is played into a second zone", second_zone && second_zone != first_zone && sequence_world.zone_count() == 2);
+        CHECK_CASE("the first game is played into a second zone", second_zone && second_zone != first_zone
+            && filled_zone_count(sequence_world) == 2);
 
         sequence.create(region_spec_name, stratum_sim::CharacterSpec {.name = "Bran"}, g_test_manifest.notation);
         flecs::entity second_character = sequence_session.character().entity();
 
         CHECK_CASE("creating another game leaves none of the first game's worldspaces, regions, zones or character",
             !first_zone.is_alive() && !second_zone.is_alive() && !first_character.is_alive() && sequence_world.worldspaces().size() == 1
-            && sequence_world.worldspaces().front().regions.regions().size() == 1 && sequence_world.zone_count() == 1);
+            && sequence_world.worldspaces().front().regions.regions().size() == 1 && filled_zone_count(sequence_world) == 1);
         CHECK_CASE("nor its directory, as the working directory has only the game in progress",
             !filesystem::exists(g_test_config.working_directory / "Ailis") && filesystem::is_directory(g_test_config.working_directory / "Bran"));
 
@@ -295,7 +296,7 @@ namespace
         }
 
         CHECK_CASE("a zone the world unloads is saved first, as a saved zone in the game directory's zones",
-            saved_back && !saving_first.is_alive() && saving_world.zone_count() == 1);
+            saved_back && !saving_first.is_alive() && filled_zone_count(saving_world) == 1);
 
         // Back up through the staircase bound to the first zone's, which has unloaded
         stratum_sim::PersistentId saving_second_id = saving_second.get<stratum_sim::PersistentId>();
@@ -308,7 +309,7 @@ namespace
             first_again && first_again.get<stratum_sim::PersistentId>() == saving_first_id && back_up.get<stratum_sim::PersistentId>() == first_down_id
             && stratum_sim::zone_of(saving_character) == first_again);
         CHECK_CASE("a zone read back keeps its denizens and is not populated again, and its region lists it once", first_again
-            && pursuers_in(first_again) == first_pursuer_count && saving_world.region(saving_region).zone_ids.size() == 2);
+            && pursuers_in(first_again) == first_pursuer_count && saving_world.region(saving_region).zone_ids.size() == test_extent_zone_count);
 
         saving_world.trim_zones(first_again);
         flecs::entity down_again = saving_world.relocate_through(saving_character, back_up);
@@ -371,12 +372,18 @@ namespace
         {
             const stratum_format::raw_values_type& worldspace_json = world_json["world"]["worldspaces"][0];
             const stratum_format::raw_values_type& region_json = worldspace_json["region"];
+            auto listed_at = [&](stratum_sim::PersistentId zone_id, const stratum_format::raw_values_type& position)
+            {
+                return ranges::any_of(region_json["zones"], [&](const stratum_format::raw_values_type& zone_json)
+                {
+                    return zone_json["id"] == zone_id.id && zone_json["position"] == position;
+                });
+            };
+
             zones_listed = worldspace_json["id"] == saving_worldspace.id && worldspace_json["name"] == region_spec_name
-                && region_json["id"] == saving_region.id
-                && region_json["zones"].size() == 2 && region_json["zones"][0]["id"] == saving_first_id.id
-                && region_json["zones"][0]["position"] == stratum_format::raw_values_type {0, 0, -1}
-                && region_json["zones"][1]["id"] == saving_second_id.id
-                && region_json["zones"][1]["position"] == stratum_format::raw_values_type {0, 0, -2}
+                && region_json["id"] == saving_region.id && region_json["zones"].size() == test_extent_zone_count
+                && listed_at(saving_first_id, stratum_format::raw_values_type {0, 0, -1})
+                && listed_at(saving_second_id, stratum_format::raw_values_type {0, 0, -2})
                 && region_json["spec"].contains(format("{}{}", stratum_sim::zone_prefix, zone_file_key));
 
             for (const auto& zone_json : region_json["zones"])
@@ -455,17 +462,20 @@ namespace
 
         const bool region_opened = saving_world.worldspaces().size() == 1 && saving_world.worldspaces().front().regions.contains(region_id);
         CHECK_CASE("and the region, with its spec and its zone ids, the first zone not loaded", region_opened
-            && saving_world.region(region_id).zone_ids == vector {saving_first_id, saving_second_id}
+            && saving_world.region(region_id).zone_ids.size() == test_extent_zone_count
+            && saving_world.region(region_id).zone_ids[9] == saving_first_id && saving_world.region(region_id).zone_ids[8] == saving_second_id
             && zone_file_of(saving_world.region(region_id).region_spec) == "data/walls.zone"
             && !saving_world.entity(saving_first_id) && saving_world.zone_count() == 1);
 
         CHECK_CASE("and the worldspace, with its name and its zones by position, loaded or not", region_opened
             && saving_world.worldspaces().front().worldspace_id == worldspace_id && saving_world.worldspace(worldspace_id).name == region_spec_name
-            && saving_world.worldspace(worldspace_id).zone_ids == map<stratum_sim::ZonePosition, stratum_sim::PersistentId> {
-                {stratum_sim::ZonePosition {0, 0, -1}, saving_first_id}, {stratum_sim::ZonePosition {0, 0, -2}, saving_second_id}});
+            && saving_world.worldspace(worldspace_id).zone_ids.size() == test_extent_zone_count
+            && saving_world.worldspace(worldspace_id).zone_ids.at(stratum_sim::ZonePosition {0, 0, -1}) == saving_first_id
+            && saving_world.worldspace(worldspace_id).zone_ids.at(stratum_sim::ZonePosition {0, 0, -2}) == saving_second_id);
         CHECK_CASE("and the region's name and its zones by name, loaded or not", region_opened && saving_world.region(region_id).name == region_spec_name
-            && saving_world.region(region_id).named_zone_ids == map<string, stratum_sim::PersistentId> {
-                {"dungeon_0_0_-1", saving_first_id}, {"dungeon_0_0_-2", saving_second_id}});
+            && saving_world.region(region_id).named_zone_ids.size() == test_extent_zone_count
+            && saving_world.region(region_id).named_zone_ids.at("dungeon_9") == saving_first_id
+            && saving_world.region(region_id).named_zone_ids.at("dungeon_8") == saving_second_id);
         CHECK_CASE("and ids continue past every id in the game", saving_world.next_id().id > largest_id.id);
 
         flecs::entity opened_second_up = saving_world.entity(second_up_id);
@@ -715,7 +725,7 @@ namespace
             && config.saves_directory == user_directory / "saves" && config.working_directory == user_directory / "working"
             && config.logs_directory == user_directory / "logs" && config.cache_directory == user_directory / "cache"
             && config.mods_directory == user_directory / "mods" && config.user_settings_filepath == user_directory / "settings.json"
-            && config.zone_count_max == 8 && config.log_file_count_max == 10);
+            && config.zone_count_max == 0 && config.log_file_count_max == 10);
         CHECK_CASE("and nothing is written in the program directory", filesystem::is_empty(program_directory));
 
         const filesystem::path absolute_logs = filesystem::absolute("out/config_logs");

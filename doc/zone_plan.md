@@ -5,8 +5,8 @@ Date: 2026-11-01
 This plan defines the structure of the world: what a worldspace, a zone, and a region are, the specs they are created
 from, how each is identified, the metadata they have, and the access points through which an actor moves between
 zones. `## Design` is the structure, and `## Implementation` how stratum builds it. A zone's layout is in
-`sim_zone_model.md`, how regions and zones are generated in `world_generation_plan.md`, and the access point component
-in `access_point_plan.md`. The open items are in `work_plan.md` (`## Zones and regions`).
+`sim_zone_model.md`, how regions and zones are generated in `world_generation_plan.md`, templates and pregenerated
+content in `template_plan.md`, and the access point component in `access_point_plan.md`. The open items are in `work_plan.md` (`## Zones and regions`).
 
 ## Design
 
@@ -138,13 +138,6 @@ Worldspaces, zones, and regions are identified in two contexts, by a name in des
 - **The two doors are kept open, closed, or locked alike by a rule,** since each is in its own zone.
 - **A normal door has no access point,** and simply leads to the other side of its doorway.
 
-### Pregenerated content
-
-- **The game builds an index of pregenerated content when it starts.** It scans the directory of pregenerated zones, or
-  reads a pregenerated content index file instead, which is probably built in the background as the game loads.
-- **The index lists each zone's and region's extended name** with its zone data file and the names of the access
-  points in it.
-
 ### Saved for later
 
 - **Region files.** A region's metadata and generation settings, and possibly then its zones.
@@ -171,7 +164,6 @@ Worldspaces, zones, and regions are identified in two contexts, by a name in des
   on a wall of its own zone, since a wall address means something only in its own zone. Keeping their `Access` equal is
   an open rule.
 - **A door within one zone keeps its two door facings** on the walls of its doorway, with one `Access` for both sides.
-- **Pregenerated zones are in `assets/zones`.**
 
 The first pass puts the structures in place with these simplified forms, each to be refined later:
 

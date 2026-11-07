@@ -284,9 +284,8 @@ directory, which frees its resources, so a zone that is not loaded is in the gam
 
 ## Templates
 
-A template of a region is a world file with the parts specific to a game omitted: each worldspace's and region's `id`,
-and each zone reference's `id`. Its zone references refer to zone templates, whose entity ids are local (`discrete_layout.md`,
-`## zone`) and are given persistent ids when the template is made into a zone. A template of a zone is a zone file.
+A template of a zone is a zone file, whose entity ids are local (`discrete_layout.md`, `## zone`) and are given
+persistent ids when the template is made into a zone.
 
 ## The written form
 
@@ -324,7 +323,7 @@ and the most zones the world keeps loaded. It is not a saved game's file, and ha
 | `cache_directory` | `cache` | The directory of data the program can make again |
 | `mods_directory` | `mods` | The directory of the mods the user adds |
 | `user_settings_file` | `settings.json` | The user settings file, with the user's settings (`settings_plan.md`) |
-| `zone_count_max` | 8 | The most zones the world keeps loaded at once |
+| `zone_count_max` | 0 | The most zones the world keeps loaded at once; 0 for no limit |
 | `log_file_count_max` | 10 | The most log files of each host kept in the logs directory, the current run's included; 0 for no limit |
 
 Every key is optional, and a key the format does not have is an error. `assets_directory` and `user_directory` are

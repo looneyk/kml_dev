@@ -23,8 +23,8 @@ namespace quetzal::stratum_sim
     // component registered under its name or does not fit that component
     std::optional<std::string> check_buildable(const flecs::world& world, const stratum_format::Document& document);
 
-    // Fills an empty zone from a document that check_buildable accepts
-    // Returns the entities that references in component objects refer to
+    // Fills a zone that has no layout from a document that check_buildable accepts, and leaves it without one if the
+    // document is an empty zone's. Returns the entities that references in component objects refer to
     std::vector<flecs::entity> load_layout(flecs::entity zone, const stratum_format::Document& document);
 
 } // namespace quetzal::stratum_sim

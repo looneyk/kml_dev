@@ -30,13 +30,14 @@ The design behind the items is in these documents, which the items refer to by s
 - `region_spec_plan.md` defines the form of a `RegionSpec` and a `ZoneSpec`, patterns included, so that a designer can
   write one by hand and the game can generate one.
 - `sim_zone_model.md` has the model beneath the code.
+- `template_plan.md` covers templates, the data a zone's content is made from, and pregenerated content.
 - `testing_plan.md` covers how the tests are written, registered and run: doctest, CTest, and reference files that one
   option updates.
 - `world_generation_plan.md` covers how a new game's world is generated: its structure of worldspaces, regions and
   zones created whole from `RegionSpec`s before play, the registries of zone generators and region
   specs, and each zone's content generated when it is needed.
 - `zone_plan.md` defines the world's structure: worldspaces, zones, and hierarchical regions, their names, extended
-  names and persistent ids, positions and levels, access points and their targets, and pregenerated content.
+  names and persistent ids, positions and levels, and access points and their targets.
 
 `archived/` has the plans whose work is built.
 
@@ -52,10 +53,10 @@ boxes are removed at the start of the next piece of work, since the reference do
       staircase in a flat length of wall or in a 1x1 alcove, the two being equivalent across the notations, as well as
       a block staircase on floor cells in the open space of a room. In the wall notation every staircase is sited on a
       wall.
-- [ ] **Zone pattern tables** (`world_generation_plan.md`, `## Zone patterns`): the zone pattern drawing each zone's
+- [ ] **Zone pattern tables** (`template_plan.md`, `## A zone's template`): the zone pattern drawing each zone's
       template from the opening sequence and the primary and rare weighted tables in the `RegionSpec`, and the
       starting region's spec, with terrain templates, which need **Templates**.
-- [ ] **Templates** (`world_generation_plan.md`, `## Overview`): a `ZoneSpec`'s `template` read from **The pregenerated
+- [ ] **Templates** (`template_plan.md`, `## Templates`): a `ZoneSpec`'s `template` read from **The pregenerated
       content index**, and the zone generator applying the `ZoneSpec` to it.
 - [ ] **A second catagen algorithm,** and with it what the two generators have in common becoming `quetzal::procgen`.
 
@@ -108,7 +109,7 @@ boxes are removed at the start of the next piece of work, since the reference do
       is loaded with the zone the character is in.
       First pass: Zones should be created with natural or constructed barriers that surround them so this problem can be deferred.
 - [ ] **Region files.**
-- [ ] **The pregenerated content index** (`zone_plan.md`, `### Pregenerated content`): built at game start by scanning
+- [ ] **The pregenerated content index** (`template_plan.md`, `## Pregenerated content`): built at game start by scanning
       `assets/zones`, or read from an index file built in the background, listing each zone's and region's extended
       name with its zone data file and the names of the access points in it.
 - [ ] **Access point names:** a `name` on an access point, read, written, and listed in the index, for a target that
@@ -243,7 +244,7 @@ These are the open questions.
   With both zones loaded, changing one door sets its partner too. With the partner's zone unloaded, only this side changes, and the
   two are reconciled when an actor crosses or when the partner's zone loads; which change is newer needs deciding,
   such as by the simulation time of the last change stored with `Access`.
-- **What does the pregenerated content index file contain?** `zone_plan.md` (`### Pregenerated content`) describes
+- **What does the pregenerated content index file contain?** `template_plan.md` (`## Pregenerated content`) describes
   the index.
 
 ### Attachments and doors

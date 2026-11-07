@@ -4,7 +4,8 @@ Date: 2026-10-01, revised 2026-11-01
 
 This plan describes how a new game's world is generated: the world's structure of worldspaces, regions, and zones,
 created whole from specs before play starts, the registries of zone generators and region specs, and how each zone's
-content is generated when it is needed. `zone_plan.md` defines the structure. Saving and opening a game are in
+content is generated when it is needed. `zone_plan.md` defines the structure, and `template_plan.md` the templates
+that zones are made from. Saving and opening a game are in
 `session_plan.md` (`## Games`) and `game_file_spec.md`, and the open items are in `work_plan.md` (`### Generation`).
 
 ## Overview
@@ -19,8 +20,7 @@ content is generated when it is needed. `zone_plan.md` defines the structure. Sa
   position and index (`region_spec_plan.md`, `## Patterns`), are the zone's `ZoneSpec`, its template and the zone
   generator's parameters among them; weighted tables in the pattern are drawn from as it is resolved. The specs are
   resolved when the structure is created, so every zone's `ZoneSpec` is complete before play starts.
-- **A template is data,** such as fields, forest, cave1, grid1, or a landmark that is partly or wholly pre-built. The
-  zone generator applies the `ZoneSpec` to it as far as it makes sense, which is to be defined.
+- **The zone generator applies the `ZoneSpec` to its template** (`template_plan.md`).
 - **A game has one zone generator,** chosen by the game's notation, since a zone generator writes one zone format. It
   creates one zone's content, as a function from a `ZoneSpec` to a `Document`, and reads nothing from the world.
 - **The host only passes specs.** The host delegates game, world, and character creation to `Game`. It calls
@@ -305,44 +305,6 @@ void World::generate(flecs::entity zone)
 - **A zone's content is generated once,** the first time it is entered or loaded, so every zone is built in the same
   way.
 - **The generator writes the zone's position into the `Document`.**
-
-## Zone patterns
-
-### The starting region
-
-The starting region is a surface region. Its first zone is a field or a forest with few denizens, if any, and a zone
-next to it is a town. Every other zone of the region is drawn at random from fields, hills, forests and towns.
-
-None of this is special code. The starting region is a `RegionSpec` whose zone pattern has an opening sequence; any
-region may have one.
-
-### Weighted tables
-
-A region's zone pattern draws each zone's template from weighted tables: an opening sequence for its first zones, a
-primary table, and rare templates that are drawn occasionally.
-
-```cpp
-// The starting region's spec
-starting_area
-    type: surface
-    difficulty: 1
-    service_level: basic
-    opening: [{fields 1, forest 1}, {town 1}]        // weighted tables, one for each of the first zones, in order
-    primary: {fields 4, forest 4, hills 2, town 1}   // the weighted table for every zone after the opening
-    rare: {hermit_glade 0.02, ruined_shrine 0.01}    // templates, each drawn with its probability
-    entry_access: waypoint,0                         // the access point the first zone's generator places
-    zone.parameters.denizens: few
-
-// The zone's template, as the pattern resolves it for the zone at an index among the region's zones
-template = index < opening.size() ? draw from opening[index]
-         : a draw from rare selects an entry ? that entry
-         : draw from primary;
-```
-
-- **A weighted table is the mechanism that placement draws from** (`placement_plan.md`, `## A run's roles`), so
-  the zone pattern and placement share it.
-- **A zone's denizens are among its parameters,** such as the starting zone's few, for the population strategy that
-  replaces `World::populate`'s placeholder.
 
 ## Targets
 
