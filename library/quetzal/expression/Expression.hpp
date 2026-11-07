@@ -1,14 +1,14 @@
 #if !defined(QUETZAL_EXPRESSION_EXPRESSION_HPP)
 #define QUETZAL_EXPRESSION_EXPRESSION_HPP
 //------------------------------------------------------------------------------
+// expression
 // Expression.hpp
-//
 //------------------------------------------------------------------------------
 
 #include "Node.hpp"
 #include "Evaluator.hpp"
-#include "Printer.hpp"
 #include "SymbolTable.hpp"
+#include <format>
 #include <ostream>
 #include <utility>
 
@@ -16,38 +16,64 @@ namespace quetzal::expression
 {
 
     //--------------------------------------------------------------------------
-    // A copyable parsed Node tree; evaluate<T> and operator<< forward to Evaluator<T> and Printer
     class Expression
     {
     public:
 
-        explicit Expression(Node::pointer_type node) :
-            m_node(std::move(node))
-        {
-        }
+        explicit Expression(Node::pointer_type node);
 
-        const Node& node() const
-        {
-            return *m_node;
-        }
+        const Node& node() const;
 
         template<typename T>
-        T evaluate(const SymbolTable& st) const
-        {
-            return Evaluator<T>().evaluate(*m_node, st);
-        }
-
-        friend std::ostream& operator<<(std::ostream& os, const Expression& e)
-        {
-            Printer().print(os, *e.m_node);
-            return os;
-        }
+        T evaluate(const SymbolTable& st) const;
 
     private:
 
         Node::pointer_type m_node;
     };
 
+    std::ostream& operator<<(std::ostream& os, const Expression& expression);
+
 } // namespace quetzal::expression
+
+//------------------------------------------------------------------------------
+template<>
+struct std::formatter<quetzal::expression::Expression> : std::formatter<quetzal::expression::Node>
+{
+    std::format_context::iterator format(const quetzal::expression::Expression& expression, std::format_context& ctx) const;
+};
+
+//------------------------------------------------------------------------------
+inline quetzal::expression::Expression::Expression(Node::pointer_type node) :
+    m_node(std::move(node))
+{
+}
+
+//------------------------------------------------------------------------------
+inline const quetzal::expression::Node& quetzal::expression::Expression::node() const
+{
+    return *m_node;
+}
+
+//------------------------------------------------------------------------------
+template<typename T>
+T quetzal::expression::Expression::evaluate(const SymbolTable& st) const
+{
+    return Evaluator<T>().evaluate(*m_node, st);
+}
+
+//------------------------------------------------------------------------------
+inline std::ostream& quetzal::expression::operator<<(std::ostream& os, const Expression& expression)
+{
+    os << expression.node();
+    return os;
+}
+
+//------------------------------------------------------------------------------
+inline std::format_context::iterator std::formatter<quetzal::expression::Expression>::format(const quetzal::expression::Expression& expression,
+    std::format_context& ctx) const
+{
+    return std::formatter<quetzal::expression::Node>::format(expression.node(), ctx);
+}
 
 #endif // QUETZAL_EXPRESSION_EXPRESSION_HPP

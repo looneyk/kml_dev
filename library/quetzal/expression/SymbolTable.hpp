@@ -1,8 +1,8 @@
 #if !defined(QUETZAL_EXPRESSION_SYMBOLTABLE_HPP)
 #define QUETZAL_EXPRESSION_SYMBOLTABLE_HPP
 //------------------------------------------------------------------------------
+// expression
 // SymbolTable.hpp
-//
 //------------------------------------------------------------------------------
 
 #include <map>

@@ -4,7 +4,6 @@ add_library(quetzal_expression STATIC
     Expression.hpp
     Node.hpp
     Parser.hpp
-    Printer.hpp
     SymbolTable.hpp
 )
 
