@@ -45,7 +45,7 @@ namespace
             document_type::region_spec_tree_type specs;
             for (size_t j = 0; j < tree.size(); ++j)
             {
-                specs.push_back(text_values(tree[j], element_path(tree_path, j)));
+                specs.push_back(read_region_spec(tree[j], element_path(tree_path, j)));
             }
 
             document.region_specs.push_back(std::move(specs));
@@ -65,7 +65,7 @@ namespace
         std::string text = indentation(entry_indent) + "[\n";
         for (size_t i = 0; i < tree.size(); ++i)
         {
-            text += std::format("{}{}{}\n", indentation(entry_indent + 2), text_values_text(tree[i]), i + 1 == tree.size() ? "" : ",");
+            text += std::format("{}{}{}\n", indentation(entry_indent + 2), region_spec_text(tree[i]), i + 1 == tree.size() ? "" : ",");
         }
 
         return text + indentation(entry_indent) + "]";

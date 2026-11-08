@@ -5,7 +5,7 @@
 // RegionSpecsDocument.hpp
 //------------------------------------------------------------------------------
 
-#include "quetzal/common/KeyValueStore.hpp"
+#include "RegionSpec.hpp"
 #include <filesystem>
 #include <iosfwd>
 #include <map>
@@ -16,7 +16,6 @@ namespace quetzal::stratum_format
 {
 
     //--------------------------------------------------------------------------
-    // The game's region specs, each a set of keys and values
     struct RegionSpecsDocument
     {
         static constexpr std::string_view format_name = "quetzal.stratum_region_specs";
@@ -27,8 +26,7 @@ namespace quetzal::stratum_format
 
         std::string version;
 
-        // <region spec name, keys>
-        std::map<std::string, KeyValueStore> region_specs;
+        std::map<std::string, RegionSpec> region_specs; // <name, region spec>
     };
 
     // Throws std::runtime_error on error or an unsupported key, stream_name used in error messages

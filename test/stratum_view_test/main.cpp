@@ -42,8 +42,9 @@ namespace
     // No zone is generated, so nothing is registered
     stratum_sim::Generation g_test_generation;
 
-    const stratum_sim::RegionSpec view_region_spec {KeyValueStore {{"worldspace.extent.x", "0 .. 0"}, {"worldspace.extent.y", "0 .. 0"},
-        {"worldspace.extent.z", "0 .. 0"}}};
+    const stratum_sim::RegionSpec view_region_spec {.extent = stratum_format::RegionExtent {
+        .arrangement = stratum_format::RegionExtent::Arrangement::Ranges, .boxes = {{math::Interval<stratum_sim::coord_type>(0, 0),
+        math::Interval<stratum_sim::coord_type>(0, 0), math::Interval<stratum_sim::coord_type>(0, 0)}}, .positions = {}}};
 
     //--------------------------------------------------------------------------
     // A world with the game's entity types, as Game's has, and a worldspace's region for the test cases' zones

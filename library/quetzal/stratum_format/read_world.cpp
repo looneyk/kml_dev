@@ -48,7 +48,7 @@ namespace
         region.components = read_components(v, path);
         std::set<std::string> zone_names;
 
-        region.spec = text_values(required_member(v, path, "spec"), member_path(path, "spec"));
+        region.spec = read_region_spec(required_member(v, path, "spec"), member_path(path, "spec"));
 
         std::string zones_path = member_path(path, "zones");
         const raw_values_type& zones = array(required_member(v, path, "zones"), zones_path);

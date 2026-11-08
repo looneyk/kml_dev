@@ -86,13 +86,12 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Temporary, until zone patterns set every zone's extent: the worldspace's zone size is the game's
+    // Temporary, until region specs' zone keys set every zone's extent: the worldspace's zone size is the game's
     void add_temporary_zone_size(stratum_sim::RegionSpec& region_spec)
     {
-        region_spec.keys.insert(std::format("{}{}", stratum_sim::worldspace_prefix, stratum_sim::zone_size_x_key),
-            std::format("{}", settings::store().value<int64_t>("world.zone_size.x")));
-        region_spec.keys.insert(std::format("{}{}", stratum_sim::worldspace_prefix, stratum_sim::zone_size_y_key),
-            std::format("{}", settings::store().value<int64_t>("world.zone_size.y")));
+        region_spec.zone_size =stratum_sim::discrete_vector_type(
+            static_cast<stratum_sim::coord_type>(settings::store().value<int64_t>("world.zone_size.x")),
+            static_cast<stratum_sim::coord_type>(settings::store().value<int64_t>("world.zone_size.y")));
         return;
     }
 
@@ -106,21 +105,21 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Temporary, until zone patterns set every zone's extent: a zone without one has its worldspace's zone size
+    // Temporary, until region specs' zone keys set every zone's extent: a zone without one has its worldspace's zone size
     stratum_gen::ZoneRequest make_zone_request(const stratum_sim::ZoneSpec& zone_spec)
     {
-        std::optional<stratum_gen::seed_type> seed = zone_spec.keys.value<stratum_gen::seed_type>(stratum_sim::seed_key);
+        std::optional<stratum_gen::seed_type> seed = zone_spec.store.value<stratum_gen::seed_type>(stratum_sim::seed_key);
         assert(seed.has_value());
         const stratum_sim::ZonePosition position = zone_spec.position();
 
-        quetzal::KeyValueStore parameters = stratum_sim::select_prefixed(zone_spec.keys, stratum_sim::parameters_prefix);
+        quetzal::KeyValueStore parameters = stratum_sim::select_prefixed(zone_spec.store, stratum_sim::parameters_prefix);
         if (!parameters.contains("extent"))
         {
             parameters.insert("extent", std::format("{},{}", settings::store().value<int64_t>("world.zone_size.x"),
                 settings::store().value<int64_t>("world.zone_size.y")));
         }
 
-        return stratum_gen::ZoneRequest {zone_spec.keys.value_or(stratum_sim::name_key, std::string()),
+        return stratum_gen::ZoneRequest {zone_spec.store.value_or(stratum_sim::name_key, std::string()),
             stratum_gen::zone_position_type {position.x, position.y, position.z}, *seed, parameters};
     }
 

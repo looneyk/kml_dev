@@ -29,7 +29,7 @@ namespace
         const std::string region_specs_path = "region_specs";
         for (const auto& [name, region_spec] : object(required_member(v, "", region_specs_path), region_specs_path).items())
         {
-            document.region_specs.emplace(name, text_values(region_spec, member_path(region_specs_path, name)));
+            document.region_specs.emplace(name, read_region_spec(region_spec, member_path(region_specs_path, name)));
         }
 
         return document;

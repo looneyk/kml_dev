@@ -4,7 +4,6 @@
 //------------------------------------------------------------------------------
 
 #include "WorldDefinition.hpp"
-#include "Generation.hpp"
 #include "quetzal/log/Log.hpp"
 #include "quetzal/stratum_format/WorldDefinitionDocument.hpp"
 #include <algorithm>
@@ -28,7 +27,7 @@ quetzal::stratum_sim::WorldDefinition quetzal::stratum_sim::load_world_definitio
         throw std::runtime_error(message);
     };
 
-    auto unparented = [](const KeyValueStore& keys) { return !keys.contains(parent_key); };
+    auto unparented = [](const RegionSpec& region_spec) { return !region_spec.parent.has_value(); };
 
     WorldDefinition definition;
     for (size_t i = 0; i < document.region_specs.size(); ++i)
@@ -36,29 +35,28 @@ quetzal::stratum_sim::WorldDefinition quetzal::stratum_sim::load_world_definitio
         stratum_format::WorldDefinitionDocument::region_spec_tree_type& document_tree = document.region_specs[i];
         if (std::ranges::count_if(document_tree, unparented) != 1)
         {
-            fail(std::format("region spec tree {} does not have exactly one root spec, a spec with no {}", i, parent_key));
+            fail(std::format("region spec tree {} does not have exactly one root spec, a spec with no parent", i));
         }
 
         auto root = std::ranges::find_if(document_tree, unparented);
-        const std::optional<std::string> root_name = root->value(name_key);
-        if (!root_name.has_value())
+        if (!root->name.has_value())
         {
-            fail(std::format("the root spec of region spec tree {} has no {}", i, name_key));
+            fail(std::format("the root spec of region spec tree {} has no name", i));
         }
 
-        // root_name is engaged, as the check above proves
-        if (definition.region_spec_trees.contains(*root_name))
+        const std::string root_name = *root->name;
+        if (definition.region_spec_trees.contains(root_name))
         {
-            fail(std::format("two region spec trees have the root {}", *root_name));
+            fail(std::format("two region spec trees have the root {}", root_name));
         }
 
-        WorldDefinition::region_spec_tree_type& tree = definition.region_spec_trees[*root_name];
-        tree.push_back(RegionSpec {std::move(*root)});
+        WorldDefinition::region_spec_tree_type& tree = definition.region_spec_trees[root_name];
+        tree.push_back(std::move(*root));
         for (auto j = document_tree.begin(); j != document_tree.end(); ++j)
         {
             if (j != root)
             {
-                tree.push_back(RegionSpec {std::move(*j)});
+                tree.push_back(std::move(*j));
             }
         }
     }

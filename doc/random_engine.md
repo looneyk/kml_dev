@@ -144,7 +144,7 @@ type`), and a seed stored with the version of the generators that made it.
 - **A zone's seed is one of its generation parameters,** which `World::resolve_zone_spec(region_id, zone_spec)` adds
   to the `ZoneSpec`, under `seed_key`, when the empty zone is created (`world_generation_plan.md`). The generator is passed the
   level and the seed.
-- **A zone pattern's draws use a random engine seeded from the zone's seed,** since they decide what the zone is.
+- **The draws of the patterns in a zone's `ZoneSpec` use a random engine seeded from the zone's seed,** since they decide what the zone is.
 - **A zone file stores its seed** in `generator.parameters`, so a zone reproduces from its
   file alone.
 - **A retry draws a fresh sub-seed** from the run's random engine, for Phase 5's reject-and-retry.

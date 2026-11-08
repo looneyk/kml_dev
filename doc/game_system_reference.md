@@ -257,17 +257,21 @@ its subtree, in persistent id order, as its inventory, each encoded as an `Entit
 `m_zone_generators`, a zone generator for each notation. A game has one zone generator: when a game is created or opened, `Game` sets `m_zone_generator` to the
 one for the game's notation, so nothing after that reads the notation.
 `RegionSpec` (`RegionSpec.hpp`)
-and `ZoneSpec` (`ZoneSpec.hpp`) are the types of a region spec and a zone spec, and the `keys` of each, a `KeyValueStore`,
-contain the spec's keys. A `ZoneSpec`'s `position.x`, `position.y` and `position.z`, `position_x_key`, `position_y_key` and
+and `ZoneSpec` (`ZoneSpec.hpp`) are the types of a region spec and a zone spec, and the `store` of each, a `KeyValueStore`,
+contain the spec's keys. A `RegionSpec` also has members with a type of their own, each optional: `name`,
+`display_name`, `parent`, `region_spec`, `seed`, `extent`, and a top-level spec's `zone_size`. It is
+`stratum_format::RegionSpec`, which `stratum_sim` uses as it is read. A `ZoneSpec`'s `position.x`, `position.y` and `position.z`, `position_x_key`, `position_y_key` and
 `position_z_key`, are the zone's position in its worldspace, and a `RegionSpec`'s `position.x` and `position.y` the
 position the region's seed derives from.
 
-A top-level `RegionSpec`'s `worldspace.` keys, `worldspace_prefix`, state its worldspace's coordinate system:
-`worldspace.extent.x`, `.y` and `.z`, each an interval of integers written as `-10 .. -1`, and `worldspace.zone_size.x`
-and `.y`, a grid worldspace's zone size. Every axis has an extent, and a worldspace with no zone size is not a grid.
+A top-level `RegionSpec`'s `extent` and `zone_size` define its worldspace's coordinate system. An extent is a `stratum_format::RegionExtent` (`RegionExtent.hpp`): its `arrangement`, `Ranges` or `Positions`, and its
+`boxes` or its `positions`. A box has an inclusive `math::Interval` on each axis, and an absent axis spans the parent's
+whole range. A worldspace's extent is `Ranges` with a single box with every axis, and a worldspace with no zone size is
+not a grid.
 
-`RegionSpec::position()` and `ZoneSpec::position()` return a spec's position, each coordinate it does not have 0, and
-throw `std::runtime_error` for one that is not an integer; `set_position` writes one. The zone file, the generators' parameters and
+`region_position(region_spec)` and `ZoneSpec::position()` return a spec's position, each coordinate it does not have 0,
+and throw `std::runtime_error` for one that is not an integer; `set_region_position` and `ZoneSpec::set_position` write
+one. `RegionPosition` and its two functions are deprecated. The zone file, the generators' parameters and
 `ZoneRequest` state a position.
 
 `seeds.hpp` derives region and zone seeds. `derived_seed(seed, coordinates)` returns a 64-bit seed that
@@ -299,10 +303,10 @@ A worldspace is the coordinate system of its zones: the surface, a dungeon, a ca
 an `extent_type`, a half-open `geometry::DiscreteBox<coord_type, 3>`, its `zone_size` if it is a grid, `zone_ids`, the
 persistent id of each zone that has a position, by its position, loaded or not, and `regions`, its `RegionTree`.
 `contains(position)` returns true if the extent contains a zone position. `Worldspace::create(worldspace_id, name,
-region_spec, root_region)` returns a worldspace with the extent and zone size in a region spec's `worldspace.` keys, each
-inclusive interval converted to the box's half-open range, the top-level region, and no zones. It throws
-`std::runtime_error` for an axis with no extent, an extent that is not an interval of integers or whose lower bound is
-above its upper bound, and a zone size with one coordinate. `World` has its worldspaces in a vector,
+region_spec, root_region)` returns a worldspace with the region spec's worldspace extent and zone size, each
+inclusive range converted to the box's half-open range, the top-level region, and no zones. It throws
+`std::runtime_error` for a spec with no worldspace extent, or one that is not `Ranges` with a single box with a range on
+every axis. `World` has its worldspaces in a vector,
 `worldspaces()`, in the order they were created, which is id order. `worldspace(worldspace_id)` and `region(region_id)`
 return one, each a linear search, and a reference to either is valid until a worldspace is created or unloaded. An
 observer of `ZonePosition` lists a zone at its position when the position is set, so no two zones of a worldspace have
@@ -908,8 +912,8 @@ nothing. A character of the name that Windows does not allow in a file name, or 
 replaced. It requires a game in progress whose character is alive and named.
 
 `World::create(start_zone, game_directory)` creates the starting worldspace from the root spec of the world definition's
-`starting_region`. The worldspace is named for that region, and its spec is the spec's keys over those of the registered spec its `region_spec` key refers to, without `region_spec` and
-`parent`. It creates the worldspace with its region and its empty zones, and returns the zone at `start_zone` from `load_zone_at`, generated: `center`
+`starting_region`. The worldspace is named for that region, and its spec is the spec's members and keys over those of the registered spec its `region_spec` refers to, without
+`region_spec` and `parent`. It creates the worldspace with its region and its empty zones, and returns the zone at `start_zone` from `load_zone_at`, generated: `center`
 (`center_start`), the zone at the centroid of the worldspace's extent with each coordinate rounded toward the lower bound,
 or a zone position written `x,y,z`. `start_placement(zone, start_cell)` returns the placement of an actor starting in the
 zone, facing -y: `center`, the cell nearest the center of the zone's layout that an actor can occupy, the first in row
@@ -974,7 +978,7 @@ the spec's position, the `seed`, which `resolve_zone_spec` adds to every `ZoneSp
 the keys after `parameters.`, with a temporary `extent` from the game settings `world.zone_size.x` and `.y` if the spec
 has none. It registers the region specs that `load_region_specs` reads from the assets directory and the region spec
 world definition that `load_world_definition` reads, and adds to the starting region's spec the default zone size of the game
-settings as its temporary `worldspace.zone_size`. It creates the game with a temporary `CharacterSpec` with the name
+settings as its temporary `zone_size`. It creates the game with a temporary `CharacterSpec` with the name
 "Adventurer". So the character begins at the center of the surface zone at (4, 4, 0), which is `surface1`'s open
 ground, and each of its staircases leads down to the first level of a dungeon worldspace of its own, `dungeon_1` and
 on, created from the `dungeon` spec when the surface zone is generated.
@@ -1117,7 +1121,7 @@ The game, character and world files that `game_file_spec.md` specifies, format `
 settings; `CharacterDocument`, with the character's id, components, zone, placement, and inventory, whose entities are
 `Entity`s; and `WorldDocument`, with the worldspace name counter, whose worldspaces are each a `WorldDocument::Worldspace` with
 its id, its name and its top-level region, a `WorldDocument::Region` with its id, name, name counter, components, the spec it was
-created from as a `KeyValueStore`, and a `WorldDocument::Zone`, an id, a file, an optional position and an optional name, for each zone, and whose
+created from as a `stratum_format::RegionSpec`, and a `WorldDocument::Zone`, an id, a file, an optional position and an optional name, for each zone, and whose
 `entity_zones` is the world index. A `write` overload for each, in `write_game.hpp`, `write_character.hpp` and `write_world.hpp`, emits its
 written form, with an absent object written as an empty one. These writers and the zone's, `write_zone`, share the text
 of the written form through `json_util.hpp`, internal to the library in `stratum_format::detail`.
@@ -1157,10 +1161,16 @@ and `world.start_cell`, `center` by default, are where a new game starts.
 
 A region spec file has the format `quetzal.stratum_region_specs`. `RegionSpecsDocument`, in `RegionSpecsDocument.hpp`,
 has the format's name and version, the file's path, `data/region_specs.json` relative to the assets directory or a
-mod's directory, and the file's `region_specs`, each region spec's keys by its name, with every key a dotted path such
-as `worldspace.extent.x` and every value as text. `read_region_specs` requires the format, the version, and
-`region_specs`, and throws `std::runtime_error` for a key the format does not have, a region spec that is not an object,
-or a value that is not text. `stratum_sim::load_region_specs(assets_directory)`, in `RegionSpec.hpp`, returns the
+mod's directory, and the file's `region_specs`, each a `stratum_format::RegionSpec` (`RegionSpec.hpp`) by its name.
+`stratum_format::RegionSpec` is a region spec's file form: `name`, `display_name`, `parent` and `region_spec` as text, `seed`
+written as text and read as a seed, `extent`, `zone_size` as `[x, y]`, and its other keys, each a dotted path such as
+`zone.parameters.algorithm` with its value as text. An extent is an object with its `arrangement`, `ranges` with its
+`boxes` or `positions` with its `positions`; a box's axis is an integer or `[lower, upper]`, and a position is
+`[x, y, z]`. `read_region_specs` requires the format, the version, and `region_specs`, and throws
+`std::runtime_error` for a key the format does not have, a region spec that is not an object, a value that is not text,
+a seed that is not a seed, a key under `extent.` or `zone_size.`, which belongs in the member's value, an arrangement
+that is neither, a member the arrangement does not have, or a range whose lower bound is
+above its upper bound. `stratum_sim::load_region_specs(assets_directory)`, in `RegionSpec.hpp`, returns the
 `RegionSpec`s by name. The game's file is `assets/data/region_specs.json`, with two top-level region specs: `surface`,
 whose extent is x and y 0 to 9 and z 0, whose `zone_name_pattern` is `{region_name}_{x}_{y}`, and whose zones are
 generated by `surface1` with 2 to 4 staircases leading down, none leading up, and the `stairs_down_region_spec`
@@ -1169,12 +1179,12 @@ generated by `surface1` with 2 to 4 staircases leading down, none leading up, an
 A world definition file has the format `quetzal.stratum_world_definition`. `WorldDefinitionDocument`, in
 `WorldDefinitionDocument.hpp`, has the format's name and version, the file's path, `data/world_definition.json` relative
 to the assets directory or a mod's directory, the file's `starting_region`, the root region name of the tree a
-new game starts in, and its `region_specs`, a list of trees, each a list of region specs' keys, as in a region spec file.
+new game starts in, and its `region_specs`, a list of trees, each a list of region specs, as in a region spec file.
 `read_world_definition` requires the format, the version, `starting_region`, and `region_specs`, and throws
 `std::runtime_error` for a key the format does not have, a tree that is not an array, a region spec that is not an
-object, or a value that is not text. `write` writes each tree's region specs a line each. In a tree, a spec's `name` is
-its region's, its `parent` is the name of its parent region, which the root spec does not have, and its `region_spec`
-refers to the registered spec it is based on (`region_spec_key` and `parent_key` in `Generation.hpp`).
+object, or a region spec the region spec reader rejects. `write` writes each tree's region specs a line each, the members
+with a type of their own before the keys. In a tree, a spec's `name` is its region's, its `parent` is the name of its
+parent region, which the root spec does not have, and its `region_spec` refers to the registered spec it is based on.
 `stratum_sim::load_world_definition(assets_directory)`, in `WorldDefinition.hpp`, returns a `WorldDefinition`: its
 `region_spec_trees`, each tree's `RegionSpec`s by its root region's name, the root spec first, and its
 `starting_region`. It throws `std::runtime_error` for a tree without exactly one root spec, a root spec with no `name`

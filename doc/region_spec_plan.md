@@ -70,18 +70,22 @@ pattern for that zone. Every value can be an expression (`## Patterns`).
 | `name`, `display_name` | The zone's name and display name, in place of the `zone.` patterns |
 | `seed` | The zone's seed, in place of the one drawn from the region's random engine |
 | `parameters.*` | Generation parameters, merged over `zone.parameters.*` |
-| `template` | The template of the zone's content, in place of the pattern's draw (`template_plan.md`, `## A zone's template`) |
+| `template` | The template of the zone's content, in place of the `zone.template` pattern's draw (`template_plan.md`, `## A zone's template`) |
 
 ## Form
 
 - **A region spec is a structured type,** read from its object in the game's JSON file: values, nested objects such as
-  `worldspace` and `zone`, and lists such as `zones`. A member's path is written with `.`, as in `zone.name`.
+  `extent` and `zone`, and lists such as `zones`. A member's path is written with `.`, as in `zone.name`.
+- **A region spec has typed members and a `store`.** `name`, `display_name`, `parent`, `region_spec`, `seed`, `extent`,
+  a top-level spec's `zone_size`, and the listed `zones` are typed members, each optional, and are not inherited. A
+  top-level spec's `extent` is its worldspace's. The other keys, such as `zone.*`, `parameters.*`, and the metadata, are in a `KeyValueStore`
+  (`world_structure_plan.md`, `## Design`).
 - **A nested object groups the members for one part of the region,** and a member at the top level is a property of
-  the region. The `zone` object is the pattern of an ordinary `ZoneSpec`. Each reader of a spec rejects the members it
+  the region. The `zone` object has the keys of an ordinary `ZoneSpec`. Each reader of a spec rejects the members it
   does not read.
 - **Each value is a token that its reader parses,** such as `staircase` for an access point type.
-- **An override is a merge patch** (JSON Merge Patch, RFC 7386): a key adds or replaces a value, a `null` value removes
-  the key, and a list is replaced whole. A subregion's overrides and a mod's patches to types and styles
+- **An override is a merge patch** (JSON Merge Patch, RFC 7386): a key adds or replaces a value, the value `$null`
+  removes the key, and a list is replaced whole. A subregion's overrides and a mod's patches to types and styles
   (`modding_plan.md`) are one mechanism. A spec is composed as `merge(parent, merge(designed, own))`
   (`world_structure_plan.md`, `## Design`).
 
@@ -99,17 +103,17 @@ pattern for that zone. Every value can be an expression (`## Patterns`).
 | `seed` | The region's seed, which replaces the one drawn from its parent's random engine | `World` |
 | `position.x`, `.y` | The region's position, from which its seed is derived until seeds are drawn hierarchically (`## Seeds`) | `World` |
 | region name pattern | The pattern of the names of the regions created from the spec (`## Names`) | `World` |
-| metadata | The region's type (surface, dungeon, crypt, ...), terrain, competency level, difficulty, service level, and level count | The zone pattern; some become components on the region |
+| metadata | The region's type (surface, dungeon, crypt, ...), terrain, competency level, difficulty, service level, and level count | The `zone.` keys' patterns; some become components on the region |
 
-### `worldspace.`
+### The worldspace
 
-The `worldspace.` keys of a top-level region spec define its worldspace's coordinate system. The top-level region's
-extent defines the worldspace's extent.
+A top-level region spec's `extent` and `zone_size` define its worldspace's coordinate system, since the top-level
+region's extent is the worldspace's extent.
 
 | Key | Value |
 | --- | --- |
-| `worldspace.extent` | `ranges` with a single box and every axis given, such as `{"arrangement": "ranges", "boxes": [{"x": 0, "y": 0, "z": [-10, -1]}]}` |
-| `worldspace.zone_size.x`, `.y` | The size of each zone in a grid worldspace. Both are given or neither is, and a worldspace with a zone size is a grid |
+| `extent` | `ranges` with a single box and every axis given, such as `{"arrangement": "ranges", "boxes": [{"x": 0, "y": 0, "z": [-10, -1]}]}` |
+| `zone_size` | The size of each zone in a grid worldspace, `[x, y]`, and a worldspace with a zone size is a grid |
 
 ### `subregion.`
 
@@ -135,7 +139,7 @@ subregion.
 
 ### `zone.`
 
-The `zone.` keys are the pattern of the `ZoneSpec` that each of the region's zones is created from. `World` resolves it
+The `zone.` keys are the keys of the `ZoneSpec` that each of the region's zones is created from. `World` resolves them
 for each zone (`## Patterns`).
 
 | Key | Value |
@@ -147,17 +151,17 @@ for each zone (`## Patterns`).
 ### `parameters.`
 
 The `parameters.` keys are the region's generation parameters. The weighted tables `opening`, `primary`, and `rare`,
-which its zone pattern draws each zone's template from, are among them (`template_plan.md`, `### Weighted tables`).
+which its `zone.template` pattern draws each zone's template from, are among them (`template_plan.md`, `### Weighted tables`).
 
 ## Patterns
 
-- **A pattern is a spec in which a value can be an expression.** Resolving the pattern draws a value for each
-  expression and makes a resolved spec, in which every value is a literal. A spec written by hand is a pattern with no
-  expressions, so `World` reads both in the same way.
+- **A pattern is a value that is an expression.** Resolving a spec evaluates each of its patterns and makes a resolved
+  spec, in which every value is a literal. A spec with no patterns is already resolved, so `World` reads both in the
+  same way.
 - **A spec is resolved as the structure is created.** A region's spec is resolved when the region is created, and each
   zone's `ZoneSpec` when the zone is created.
 - **A region keeps its resolved spec, and a zone its resolved `ZoneSpec`.** The region and its zones are saved and
-  regenerated from them, and a later change to the pattern leaves them unchanged.
+  regenerated from them, and a later change to the spec leaves them unchanged.
 - **Resolution draws from a random engine of its own,** seeded from the region's or the zone's seed, which is separate
   from the random engine that draws the seeds of the region's zones and subregions. A change to one expression then
   changes the values drawn from it and no seed.
@@ -175,7 +179,7 @@ which its zone pattern draws each zone's template from, are among them (`templat
 - **Expressions are the implementation of patterns,** written in the language of `quetzal::expression`. A range, a
   weighted choice, and other additions are functions of that language.
 - **A leading `$` marks an expression,** and a value without it is literal text, so `primary: {fields 4, forest 4}` is
-  a weighted table that the zone pattern draws from for each zone. The `$` is not part of the expression, and a literal
+  a weighted table that the `zone.template` pattern draws from for each zone. The `$` is not part of the expression, and a literal
   that starts with `$` is written as an expression of a string literal, `$'$5'`.
 - **Arithmetic in an expression would let a value depend on the context,** such as a difficulty that rises with depth:
   `zone.parameters.difficulty: $region.difficulty - z`.
@@ -211,15 +215,15 @@ symbol such as `region.difficulty` is one identifier.
 
 ### Zones
 
-- **The `zone.` keys are the pattern of each zone's `ZoneSpec`,** resolved with the zone's position and index in the
+- **The `zone.` keys are the keys of each zone's `ZoneSpec`,** resolved with the zone's position and index in the
   context.
-- **The weighted tables are part of the zone pattern.** `opening`, `primary`, and `rare` choose each zone's template by
-  its index and a draw, which an expression on `index` could also express.
+- **The `zone.template` pattern draws each zone's template** from the weighted tables `opening`, `primary`, and `rare`,
+  by the zone's index and a draw.
 
 ### Spec generators
 
-- **A spec generator is a registered function that makes a spec,** for a pattern that expressions cannot express. It takes the parent's resolved spec, the context, and the resolution random
-  engine, and returns a pattern.
+- **A spec generator is a registered function that makes a spec,** for a spec that patterns cannot express. It takes the parent's resolved spec, the context, and the resolution random
+  engine, and returns a spec.
 - **Spec generators become script** (`modding_plan.md`), and until then each is C++ that a host
   registers.
 
@@ -246,7 +250,7 @@ symbol such as `region.difficulty` is one identifier.
 ## Connections between worldspaces
 
 - **An entrance into another worldspace has a zone's extended name as its target,** such as a staircase in a surface
-  zone that leads to `barrow/Level -1`. The zone pattern adds the target to the zone's parameters, and the generator writes
+  zone that leads to `barrow/Level -1`. A pattern in the `zone.parameters.` keys adds the target to the zone's parameters, and the generator writes
   it to the access point.
 
 ## The structure World::create builds
@@ -254,10 +258,10 @@ symbol such as `region.difficulty` is one identifier.
 For each of the game's top-level region specs, `World::create`:
 
 1. resolves the spec, its subregion entries' counts, references, and extents included, and creates the worldspace from
-   the `worldspace.` keys and its top-level region with the spec's name;
+   the spec's `extent` and `zone_size` and its top-level region with the spec's name;
 2. creates a zone at each position of the region's extent that is in no subregion's extent, in the order of
    `## Zones of a worldspace`, with its position, its seed, its `ZoneSpec` resolved from the `zone.` keys, and its name
-   from the pattern;
+   from the `zone_name_pattern` pattern;
 3. creates each subregion in the same way, from its entry's resolved spec and extent;
 
 and then generates the character's initial zone and places the character at the cell position that the game setting
@@ -289,7 +293,7 @@ specifies.
   other than boxes?**
 - **What are the keys of the region name pattern and the metadata?**
 - **What are the name and arguments of the weighted choice function?**
-- **Which metadata becomes components on the region, and which does only the zone pattern read?**
+- **Which metadata becomes components on the region, and which do only the patterns of the `zone.` keys read?**
 - **What properties does each type of region have?** Surface areas and dungeons share some properties and differ in
   others.
 - **How does difficulty progress from its starting value across a dungeon's zones?**
@@ -306,18 +310,17 @@ or `zone_plan.md`, and proposed members are in this plan alone.
 
 | Member | Contents | State | First implementation |
 | --- | --- | --- | --- |
-| `name`, `display_name` | The region's name and display name | Designed | Yes |
-| `parent` | In a region spec tree, the name of the parent region | Designed | Yes |
-| `region_spec` | The designed spec a spec in a tree is based on | Designed | Yes |
-| `extent` | A subregion's extent, `ranges` or `positions` | Designed | No |
+| `name`, `display_name` | The region's name and display name | Built | Yes |
+| `parent` | In a region spec tree, the name of the parent region | Built | Yes |
+| `region_spec` | The designed spec a spec in a tree is based on | Built | Yes |
+| `extent` | The region's extent, `ranges` or `positions`; a top-level spec's is its worldspace's, `ranges` with a single box | Built | Yes |
 | `seed` | The region's seed, in place of the drawn one | Built | Yes |
 | `position.x`, `.y` | The region's position, which its seed is derived from until seeds are drawn hierarchically | Built | No |
-| `worldspace.extent` | A top-level spec's worldspace extent, `ranges` with a single box; built as interval strings on each axis | Built | Yes |
-| `worldspace.zone_size.x`, `.y` | A grid worldspace's zone size | Built | Yes |
+| `zone_size` | A top-level spec's grid worldspace's zone size | Built | Yes |
 | `zone_name_pattern` | The pattern of each zone's name, a string expression of `region_name`, `x`, `y`, and `z` | Built | Yes |
 | `zone.display_name` | The pattern or rule for each zone's display name | Proposed | Yes |
 | `zone.parameters.*` | Generation parameters for every zone | Designed | Yes |
-| `parameters.opening`, `.primary`, `.rare` | The zone pattern's weighted tables | Designed | Yes |
+| `parameters.opening`, `.primary`, `.rare` | The weighted tables of the `zone.template` pattern | Designed | Yes |
 | metadata | Type, terrain, competency level, difficulty, service level, and level count; key names open | Designed | Yes |
 | region name pattern | The pattern of the names of regions created from the spec; key name open | Designed | No |
 | `zones` | Listed zones, each a position with overrides of the `zone` pattern and a template | Proposed | Yes |

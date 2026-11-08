@@ -40,6 +40,7 @@
 #include <fstream>
 #include <map>
 #include <memory>
+#include <optional>
 #include <set>
 #include <stdexcept>
 #include <string>
@@ -61,19 +62,19 @@ namespace
     //--------------------------------------------------------------------------
     TEST_CASE("specs")
     {
-        const stratum_sim::RegionSpec spec {quetzal::KeyValueStore {{"type", "surface"}, {"name", "The Downs"}, {"zone.position.z", "-1"},
+        const stratum_sim::RegionSpec spec {.store =quetzal::KeyValueStore {{"type", "surface"}, {"name", "The Downs"}, {"zone.position.z", "-1"},
             {"zone.parameters.denizens", "few"}, {"zones", "3"}}};
 
-        CHECK_CASE("no unknown keys when every key is known", stratum_sim::find_unknown_keys(spec.keys,
+        CHECK_CASE("no unknown keys when every key is known", stratum_sim::find_unknown_keys(spec.store,
             vector<string_view> {"type", "name", "zone.position.z", "zone.parameters.denizens", "zones", "difficulty"}).empty());
-        CHECK_CASE("the unknown keys, in key order", stratum_sim::find_unknown_keys(spec.keys, vector<string_view> {"name"})
+        CHECK_CASE("the unknown keys, in key order", stratum_sim::find_unknown_keys(spec.store, vector<string_view> {"name"})
             == vector<string> {"type", "zone.parameters.denizens", "zone.position.z", "zones"});
 
-        const KeyValueStore zone_keys = stratum_sim::select_prefixed(spec.keys, "zone.");
+        const KeyValueStore zone_keys = stratum_sim::select_prefixed(spec.store, "zone.");
         CHECK_CASE("the entries under a prefix, with the prefix removed, and not the key zones under zone.",
             zone_keys.value("position.z") == "-1" && zone_keys.value("parameters.denizens") == "few" && !zone_keys.contains("s")
             && zone_keys.size() == 2);
-        const KeyValueStore none = stratum_sim::select_prefixed(spec.keys, "region.");
+        const KeyValueStore none = stratum_sim::select_prefixed(spec.store, "region.");
         CHECK_CASE("nothing under a prefix that no key has", none.empty());
 
         return;
@@ -245,7 +246,7 @@ namespace
         };
 
         stratum_sim::RegionSpec patterned_spec = test_region_spec("door");
-        patterned_spec.keys.insert(string(stratum_sim::zone_name_pattern_key), "{region_name}_{abs(z)}");
+        patterned_spec.store.insert(string(stratum_sim::zone_name_pattern_key), "{region_name}_{abs(z)}");
         CHECK_CASE("an empty zone of a region spec with a zone name pattern has the pattern's name",
             zone_name_at(world.create_worldspace("crypt", patterned_spec), zone_position_at_level(-2)) == "crypt_2");
 
@@ -259,7 +260,7 @@ namespace
         const stratum_sim::WorldDefinition world_definition = stratum_sim::load_world_definition("../../assets");
         CHECK_CASE("the game's world definition file starts in the surface tree, its root spec based on the surface",
             world_definition.starting_region == "surface"
-            && world_definition.region_spec_trees.at("surface").front().keys.value(stratum_sim::region_spec_key) == "surface"
+            && world_definition.region_spec_trees.at("surface").front().region_spec == "surface"
             && world_definition.region_spec_trees.contains("dungeon"));
 
         auto definition_rejected = [](const string& starting_region, const string& trees)
@@ -317,13 +318,13 @@ namespace
         stratum_sim::PersistentId second = top_level_region(world, second_worldspace);
         stratum_sim::PersistentId third = create_test_region(world, "door");
         stratum_sim::RegionSpec placed_spec = test_region_spec("door");
-        placed_spec.set_position(stratum_sim::RegionPosition {-4, 7});
+        stratum_sim::set_region_position(placed_spec, stratum_sim::RegionPosition {-4, 7});
         stratum_sim::PersistentId placed = top_level_region(world, world.create_worldspace("door", placed_spec));
         stratum_sim::PersistentId fourth = create_test_region(world, "door");
 
         auto region_at = [&](stratum_sim::PersistentId region, stratum_sim::coord_type x, stratum_sim::coord_type y)
         {
-            const stratum_sim::RegionPosition position = world.region(region).region_spec.position();
+            const stratum_sim::RegionPosition position = stratum_sim::region_position(world.region(region).region_spec);
             return position.x == x && position.y == y;
         };
 
@@ -345,9 +346,8 @@ namespace
 
         // A worldspace's coordinate system
         stratum_sim::RegionSpec barrow_spec = test_region_spec("door");
-        barrow_spec.keys.insert("worldspace.extent.z", "-10 .. -1");
-        barrow_spec.keys.insert("worldspace.zone_size.x", "64");
-        barrow_spec.keys.insert("worldspace.zone_size.y", "32");
+        barrow_spec.extent = box_extent(range_type(0, 0), range_type(0, 0), range_type(-10, -1));
+        barrow_spec.zone_size = stratum_sim::discrete_vector_type(64, 32);
         stratum_sim::PersistentId barrow_worldspace = world.create_worldspace("barrow", barrow_spec);
         const stratum_sim::Worldspace barrow = world.worldspace(barrow_worldspace);
 
@@ -356,10 +356,10 @@ namespace
             barrow.extent == extent_type(extent_type::point_type(0, 0, -10), extent_type::point_type(1, 1, 0))
             && barrow.zone_size == stratum_sim::discrete_vector_type(64, 32));
 
-        auto creation_throws = [&](string_view key, string_view value)
+        auto creation_throws = [&](const optional<stratum_format::RegionExtent>& extent)
         {
             stratum_sim::RegionSpec spec = test_region_spec("door");
-            spec.keys.insert(string(key), string(value));
+            spec.extent = extent;
             try
             {
                 world.create_worldspace("malformed", spec);
@@ -371,12 +371,17 @@ namespace
             return false;
         };
 
-        CHECK_CASE("an extent that is not an interval of integers is an error", creation_throws("worldspace.extent.x", "east"));
-        CHECK_CASE("and one whose lower bound is above its upper bound", creation_throws("worldspace.extent.x", "1 .. -1"));
-        CHECK_CASE("and a zone size with one coordinate", creation_throws("worldspace.zone_size.x", "64"));
-        stratum_sim::RegionSpec unbounded_spec = test_region_spec("door");
-        unbounded_spec.keys.remove("worldspace.extent.y");
-        CHECK_THROWS_AS(world.create_worldspace("unbounded", unbounded_spec), runtime_error);
+        stratum_format::RegionExtent two_boxes = box_extent(range_type(0, 0), range_type(0, 0), range_type(-10, 10));
+        two_boxes.boxes.push_back(two_boxes.boxes.front());
+        stratum_format::RegionExtent unbounded = box_extent(range_type(0, 0), range_type(0, 0), range_type(-10, 10));
+        unbounded.boxes.front().y.reset();
+        const stratum_format::RegionExtent listed {.arrangement = stratum_format::RegionExtent::Arrangement::Positions, .boxes = {},
+            .positions = {stratum_format::zone_position_type {0, 0, 0}}};
+
+        CHECK_CASE("a worldspace with no extent is an error", creation_throws(nullopt));
+        CHECK_CASE("and one whose extent has two boxes", creation_throws(two_boxes));
+        CHECK_CASE("and one whose extent is a list of positions", creation_throws(listed));
+        CHECK_CASE("and one whose extent's box has no range on an axis", creation_throws(unbounded));
 
         flecs::entity deep = world.load_zone_at(barrow_worldspace, zone_position_at_level(-4));
         auto barrow_zone_ids = [&]() { return world.worldspace(barrow_worldspace).zone_ids; };
@@ -409,7 +414,7 @@ namespace
             && stratum_sim::derived_seed(7, array<stratum_sim::coord_type, 3> {-2, 1, 3}) != derived);
 
         stratum_sim::RegionSpec region_spec = test_region_spec("door");
-        region_spec.set_position(stratum_sim::RegionPosition {4, -5});
+        stratum_sim::set_region_position(region_spec, stratum_sim::RegionPosition {4, -5});
         CHECK_CASE("a region's seed derives from the world seed and the region's position",
             stratum_sim::region_seed(7, region_spec) == stratum_sim::derived_seed(7, array<stratum_sim::coord_type, 2> {4, -5}));
         stratum_sim::ZoneSpec zone_spec = test_zone_spec(-3);
@@ -417,9 +422,9 @@ namespace
             stratum_sim::zone_seed(7, zone_spec) == stratum_sim::derived_seed(7, array<stratum_sim::coord_type, 3> {0, 0, -3}));
 
         stratum_sim::RegionSpec seeded_region_spec = region_spec;
-        seeded_region_spec.keys.insert(string(stratum_sim::seed_key), "11");
+        seeded_region_spec.seed = 11;
         stratum_sim::ZoneSpec seeded_zone_spec = zone_spec;
-        seeded_zone_spec.keys.insert(string(stratum_sim::seed_key), "12");
+        seeded_zone_spec.store.insert(string(stratum_sim::seed_key), "12");
         CHECK_CASE("a spec's seed takes precedence", stratum_sim::region_seed(7, seeded_region_spec) == 11
             && stratum_sim::zone_seed(7, seeded_zone_spec) == 12);
 
@@ -427,7 +432,7 @@ namespace
         stratum_sim::Generation generation = test_generation();
         generation.m_zone_generator = [&generated_seeds](const stratum_sim::ZoneSpec& requested_zone_spec)
         {
-            generated_seeds.push_back(*requested_zone_spec.keys.value<stratum_sim::RandomStream::seed_type>(stratum_sim::seed_key));
+            generated_seeds.push_back(*requested_zone_spec.store.value<stratum_sim::RandomStream::seed_type>(stratum_sim::seed_key));
             stratum_format::Document document = stratum_format::read_zone("data/door.zone");
             const stratum_sim::ZonePosition position = requested_zone_spec.position();
             document.position = stratum_format::zone_position_type {position.x, position.y, position.z};
@@ -446,7 +451,7 @@ namespace
         };
 
         stratum_sim::RegionSpec zone_seeded_region_spec = region_spec;
-        zone_seeded_region_spec.keys.insert(format("{}{}", stratum_sim::zone_prefix, stratum_sim::seed_key), "12");
+        zone_seeded_region_spec.store.insert(format("{}{}", stratum_sim::zone_prefix, stratum_sim::seed_key), "12");
 
         generate_zone(7, region_spec);
         generate_zone(7, region_spec);

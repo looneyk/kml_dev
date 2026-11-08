@@ -30,12 +30,12 @@ quetzal::stratum_sim::RandomStream::seed_type quetzal::stratum_sim::derived_seed
 //------------------------------------------------------------------------------
 quetzal::stratum_sim::RandomStream::seed_type quetzal::stratum_sim::region_seed(RandomStream::seed_type world_seed, const RegionSpec& region_spec)
 {
-    if (std::optional<RandomStream::seed_type> seed = region_spec.keys.value<RandomStream::seed_type>(seed_key))
+    if (region_spec.seed.has_value())
     {
-        return *seed;
+        return region_spec.seed.value();
     }
 
-    const RegionPosition position = region_spec.position();
+    const RegionPosition position = region_position(region_spec);
     const std::array<coord_type, 2> coordinates {position.x, position.y};
     return derived_seed(world_seed, coordinates);
 }
@@ -43,7 +43,7 @@ quetzal::stratum_sim::RandomStream::seed_type quetzal::stratum_sim::region_seed(
 //------------------------------------------------------------------------------
 quetzal::stratum_sim::RandomStream::seed_type quetzal::stratum_sim::zone_seed(RandomStream::seed_type region_seed, const ZoneSpec& zone_spec)
 {
-    if (std::optional<RandomStream::seed_type> seed = zone_spec.keys.value<RandomStream::seed_type>(seed_key))
+    if (std::optional<RandomStream::seed_type> seed = zone_spec.store.value<RandomStream::seed_type>(seed_key))
     {
         return *seed;
     }

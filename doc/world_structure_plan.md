@@ -33,10 +33,14 @@ structure created whole** in `work_plan.md`.
   designed spec.
 - **A region spec is composed as it is read,** as `merge(parent, merge(designed, own))`. The designed spec that its
   `region_spec` key refers to is merged with the spec's own keys first, and the result is merged over the parent's
-  resolved spec. The parent's layer leaves out the keys a subregion does not inherit: `name`, `display_name`, `extent`,
-  `seed`, `worldspace.*`, and `zones`. A root spec has no parent's layer.
-- **A layer is a merge patch** (JSON Merge Patch, RFC 7386). A key adds or replaces a value, and a `null` value removes
-  the key. A list is replaced whole. A subregion's overrides and a mod's patches to types and styles (`modding_plan.md`)
+  resolved spec. The parent's layer has only its `store`, since a subregion does not inherit the typed members. A root
+  spec has no parent's layer.
+- **A region spec has typed members and a `store`.** The typed members, each optional, are `name`, `display_name`,
+  `parent`, `region_spec`, `seed`, `extent`, a top-level spec's `zone_size`, and the listed `zones`. The other
+  keys, such as `zone.*`, `parameters.*`, and the metadata, are in a `KeyValueStore`.
+- **A layer is a merge patch** (JSON Merge Patch, RFC 7386). A key adds or replaces a value, and the value `$null`
+  removes the key, in place of JSON's `null`. `$null` is not a pattern; its form keeps it apart from every literal. A
+  list is replaced whole. A subregion's overrides and a mod's patches to types and styles (`modding_plan.md`)
   are one mechanism.
 - **A spec's patterns are resolved once it is composed,** with draws from the spec's seed, so each spec is as
   instantiated as it can be. A parent is resolved before its subregions, so `parent.<key>` in a pattern refers to the
@@ -61,19 +65,18 @@ structure created whole** in `work_plan.md`.
 
 ## Steps
 
-3. **Region spec trees.** A spec's id is its slot in its tree's `region_spec_tree_type`. Each
+4. **Region spec trees.** A spec's id is its slot in its tree's `region_spec_tree_type`. Each
    spec's `parent` is resolved to its parent's id, and each spec's list of subregion ids is built from those. The names
    of specs with the same parent are checked to be distinct. Each spec is composed and its patterns
-   resolved as `## Design` describes, parents first. An extent is read as an object with its `arrangement`, and a root spec's
-   is checked to be `ranges` with a single box.
-4. **The region spec tree function.** It calls `World::create_worldspace` for a tree's root region spec, then adds a
+   resolved as `## Design` describes, parents first.
+5. **The region spec tree function.** It calls `World::create_worldspace` for a tree's root region spec, then adds a
    subregion to the worldspace's `RegionTree` for each spec below the root, with the spec's `name` and `display_name`.
    Each zone has the region id of the most specific region whose extent contains its position (`zone_plan.md`, `###
    Regions`). `World::create` calls it for each tree. `world.json` saves every region of a worldspace with its parent's
    id and its resolved spec, and `World::open` rebuilds the tree.
-5. **Seeds from the worldspace.** The draws in `## Design`. `RegionPosition`, `new_region_position`, and the
+6. **Seeds from the worldspace.** The draws in `## Design`. `RegionPosition`, `new_region_position`, and the
    coordinate derivation in `region_seed` and `zone_seed` go.
-6. **Access point trees.** Building a zone draws its seed pool, then calls the region spec tree function for each of its
+7. **Access point trees.** Building a zone draws its seed pool, then calls the region spec tree function for each of its
    access points' trees. Region targets and `discard_made_zone` go.
 
 ## Open questions

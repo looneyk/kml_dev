@@ -53,8 +53,8 @@ boxes are removed at the start of the next piece of work, since the reference do
       staircase in a flat length of wall or in a 1x1 alcove, the two being equivalent across the notations, as well as
       a block staircase on floor cells in the open space of a room. In the wall notation every staircase is sited on a
       wall.
-- [ ] **Zone pattern tables** (`template_plan.md`, `## A zone's template`): the zone pattern drawing each zone's
-      template from the opening sequence and the primary and rare weighted tables in the `RegionSpec`, and the
+- [ ] **Zone template tables** (`template_plan.md`, `## A zone's template`): the `zone.template` pattern drawing each
+      zone's template from the opening sequence and the primary and rare weighted tables in the `RegionSpec`, and the
       starting region's spec, with terrain templates, which need **Templates**.
 - [ ] **Templates** (`template_plan.md`, `## Templates`): a `ZoneSpec`'s `template` read from **The pregenerated
       content index**, and the zone generator applying the `ZoneSpec` to it.
@@ -84,8 +84,8 @@ boxes are removed at the start of the next piece of work, since the reference do
 - [ ] **Pattern expressions** (`region_spec_plan.md`, `### Values` and `### Context`): a `$` value in a field that
       supports patterns evaluated as an expression with the symbols its structure lists, `Parser::parse` taking a `std::string_view`, and `zone_name_pattern` an expression in place of `{...}`
       placeholders.
-- [ ] **Structured region specs** (`region_spec_plan.md`, `## Form`): `RegionSpec` a structured type read from the
-      game's JSON file of region specs, in place of a `KeyValueStore`, and written to `world.json` in the same form.
+- [ ] **Listed zones** (`region_spec_plan.md`, `### Listed zones`): a region spec's `zones` member, each zone's position
+      and the keys that override the `zone.` keys for it, read with the other typed members.
 - [ ] **The world's structure created whole** (`world_generation_plan.md`, `## Creating the structure`;
       `region_spec_plan.md`, `## Zones of a worldspace`): every worldspace, with its single region, created from the
       game's JSON object of region specs, and a zone at every position of its extent, in worldspace position order, each created by `World::create` with its spec, its name, its position and its seed, the
@@ -353,7 +353,7 @@ These are the open questions.
   rest, for now.
 - **What are the character's components?** Its description, attributes, and skills are not designed.
 - **What triggers an autosave?** Entering any zone does, for now. Entering a town may be the trigger as well or
-  instead, which depends on the zone patterns' town zones (`## Generators`).
+  instead, which depends on the town zones that the `zone.template` patterns draw (`## Generators`).
 - **Is the quickload key F8 or F9, and which save does it open?**
 
 ### Difficulty
@@ -374,7 +374,7 @@ These are the open questions.
 
 - **What are the extent's key names and syntax,** and what forms does it take besides boxes? A diagonal boundary takes
   one box for each row (`world_generation_plan.md`, `### Extents`).
-- **Which `RegionSpec` metadata becomes components on the region, and which does only the zone pattern read?**
+- **Which `RegionSpec` metadata becomes components on the region, and which do only the patterns of the `zone.` keys read?**
 
 ### Log
 

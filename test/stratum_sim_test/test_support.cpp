@@ -28,7 +28,7 @@ namespace
     // zone generator does not set
     stratum_format::Document generate_from_zone_file(const stratum_sim::ZoneSpec& zone_spec)
     {
-        stratum_format::Document document = stratum_format::read_zone(zone_spec.keys.value(stratum_sim_test::zone_file_key).value());
+        stratum_format::Document document = stratum_format::read_zone(zone_spec.store.value(stratum_sim_test::zone_file_key).value());
         const stratum_sim::ZonePosition position = zone_spec.position();
         document.position = stratum_format::zone_position_type {position.x, position.y, position.z};
         document.is_unpopulated = false;
@@ -70,22 +70,26 @@ stratum_sim::Generation stratum_sim_test::test_generation()
     generation.m_region_specs["staircase"] = test_region_spec("staircase");
     generation.m_region_specs["door"] = test_region_spec("door");
     generation.m_region_specs["dungeon"] = test_region_spec("staircase");
-    generation.m_world_definition.region_spec_trees["dungeon"] = {stratum_sim::RegionSpec {quetzal::KeyValueStore {
-        {string(stratum_sim::name_key), "dungeon"}, {string(stratum_sim::region_spec_key), "dungeon"}}}};
+    generation.m_world_definition.region_spec_trees["dungeon"] = {stratum_sim::RegionSpec {.name = "dungeon", .region_spec = "dungeon"}};
     generation.m_world_definition.starting_region = "dungeon";
 
     return generation;
 }
 
 //------------------------------------------------------------------------------
+stratum_format::RegionExtent stratum_sim_test::box_extent(const range_type& x, const range_type& y, const range_type& z)
+{
+    return stratum_format::RegionExtent {.arrangement = stratum_format::RegionExtent::Arrangement::Ranges, .boxes = {{x, y, z}}, .positions = {}};
+}
+
+//------------------------------------------------------------------------------
 stratum_sim::RegionSpec stratum_sim_test::test_region_spec(const string& test_zone)
 {
     static const map<string, string> zone_files {{"door", "data/door.zone"}, {"staircase", "data/walls.zone"}};
-    stratum_sim::RegionSpec region_spec {quetzal::KeyValueStore {{format("{}{}", stratum_sim::zone_prefix, zone_file_key), zone_files.at(test_zone)}}};
-    region_spec.keys.insert(format("{}{}", stratum_sim::worldspace_prefix, stratum_sim::extent_x_key), "0 .. 0");
-    region_spec.keys.insert(format("{}{}", stratum_sim::worldspace_prefix, stratum_sim::extent_y_key), "0 .. 0");
-    region_spec.keys.insert(format("{}{}", stratum_sim::worldspace_prefix, stratum_sim::extent_z_key), "-10 .. 10");
 
+    stratum_sim::RegionSpec region_spec;
+    region_spec.extent = box_extent(range_type(0, 0), range_type(0, 0), range_type(-10, 10));
+    region_spec.store.insert(format("{}{}", stratum_sim::zone_prefix, zone_file_key), zone_files.at(test_zone));
     return region_spec;
 }
 
@@ -98,7 +102,7 @@ stratum_sim::PersistentId stratum_sim_test::create_test_region(stratum_sim::Worl
 //------------------------------------------------------------------------------
 optional<string> stratum_sim_test::zone_file_of(const stratum_sim::RegionSpec& region_spec)
 {
-    return region_spec.keys.value(format("{}{}", stratum_sim::zone_prefix, zone_file_key));
+    return region_spec.store.value(format("{}{}", stratum_sim::zone_prefix, zone_file_key));
 }
 
 //------------------------------------------------------------------------------

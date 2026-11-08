@@ -3,20 +3,16 @@
   "version": "0.1",
   "region_specs": {
     "surface": {
+      "extent": { "arrangement": "ranges", "boxes": [ { "x": [0, 9], "y": [0, 9], "z": 0 } ] },
       "zone_name_pattern": "{region_name}_{x}_{y}",
       "zone.parameters.algorithm": "surface1",
       "zone.parameters.stairs_down": "2-4",
       "zone.parameters.stairs_up": "0-0",
-      "zone.parameters.stairs_down_region_spec": "dungeon",
-      "worldspace.extent.x": "0 .. 9",
-      "worldspace.extent.y": "0 .. 9",
-      "worldspace.extent.z": "0 .. 0"
+      "zone.parameters.stairs_down_region_spec": "dungeon"
     },
     "dungeon": {
-      "zone_name_pattern": "{region_name}_{abs(z)}",
-      "worldspace.extent.x": "0 .. 0",
-      "worldspace.extent.y": "0 .. 0",
-      "worldspace.extent.z": "-100 .. -1"
+      "extent": { "arrangement": "ranges", "boxes": [ { "x": 0, "y": 0, "z": [-100, -1] } ] },
+      "zone_name_pattern": "{region_name}_{abs(z)}"
     }
   }
 }

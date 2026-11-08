@@ -24,8 +24,8 @@ and `## Zones and regions`).
 
 ## A zone's template
 
-- **A zone's `ZoneSpec` has its template,** resolved from the region spec's zone pattern with the zone's position and
-  index (`world_generation_plan.md`, `## Overview`).
+- **A zone's `ZoneSpec` has its template,** resolved from the region spec's `zone.template` pattern with the zone's
+  position and index (`world_generation_plan.md`, `## Overview`).
 - **A listed zone's `template` replaces the pattern's draw,** so a designer can place a town or a pre-built landmark
   at a fixed position in a generated region (`region_spec_plan.md`, `### Listed zones`).
 
@@ -34,12 +34,12 @@ and `## Zones and regions`).
 The starting region is a surface region. Its first zone is a field or a forest with few denizens, if any, and a zone
 next to it is a town. Every other zone of the region is drawn at random from fields, hills, forests and towns.
 
-None of this is special code. The starting region is a `RegionSpec` whose zone pattern has an opening sequence; any
-region may have one.
+None of this is special code. The starting region is a `RegionSpec` whose weighted tables have an opening sequence;
+any region may have one.
 
 ### Weighted tables
 
-A region's zone pattern draws each zone's template from weighted tables: an opening sequence for its first zones, a
+A region spec's `zone.template` pattern draws each zone's template from weighted tables: an opening sequence for its first zones, a
 primary table, and rare templates that are drawn occasionally. The tables are among the region spec's `parameters.`
 keys (`region_spec_plan.md`, `### parameters.`).
 
@@ -53,15 +53,16 @@ starting_area
     primary: {fields 4, forest 4, hills 2, town 1}   // the weighted table for every zone after the opening
     rare: {hermit_glade 0.02, ruined_shrine 0.01}    // templates, each drawn with its probability
     zone.parameters.denizens: few
+    zone.template: $...                              // a call of the weighted choice function on the tables above
 
-// The zone's template, as the pattern resolves it for the zone at an index among the region's zones
+// The value of the zone.template pattern for the zone at an index among the region's zones
 template = index < opening.size() ? draw from opening[index]
          : a draw from rare selects an entry ? that entry
          : draw from primary;
 ```
 
 - **A weighted table is the mechanism that placement draws from** (`placement_plan.md`, `## A run's roles`), so
-  the zone pattern and placement share it.
+  the `zone.template` pattern and placement share it.
 - **A zone's denizens are among its parameters,** such as the starting zone's few, for the population strategy that
   replaces `World::populate`'s placeholder.
 

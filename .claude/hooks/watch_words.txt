@@ -72,6 +72,8 @@ hallmarks
 seam
 seams
 carried over
+engaged
+disengaged
 
 # Exclusion clauses
 nothing else

@@ -1200,14 +1200,15 @@ namespace
         surface.name = "surface";
         surface.components = stratum_format::raw_values_type::object();
         surface.components["type"] = "surface";
-        surface.spec.insert("type", "surface");
+        surface.spec.store.insert("type", "surface");
+        surface.spec.zone_size = stratum_format::discrete_vector_type(40, 30);
         surface.zones = {{5, "zones/5.zone", stratum_format::zone_position_type {0, 0, 0}, "surface_0_0"}};
 
         stratum_format::WorldDocument::Region dungeon;
         dungeon.id = 4;
         dungeon.name = "barrow";
         dungeon.name_counter = 1;
-        dungeon.spec.insert("type", "dungeon");
+        dungeon.spec.store.insert("type", "dungeon");
         dungeon.zones = {{3, "zones/3.zone", stratum_format::zone_position_type {0, 0, -1}, "Level -1"}, {6, "zones/6.zone", nullopt, "barrow"},
             {8, "zones/8.zone", nullopt, "barrow_1"}};
 
@@ -1227,7 +1228,7 @@ namespace
             "    \"worldspaces\": [\n"
             "      { \"id\": 1, \"name\": \"surface\",\n"
             "        \"region\": { \"id\": 2, \"name\": \"surface\", \"name_counter\": 0, \"components\": { \"type\": \"surface\" },\n"
-            "          \"spec\": { \"type\": \"surface\" },\n"
+            "          \"spec\": { \"zone_size\": [40, 30], \"type\": \"surface\" },\n"
             "          \"zones\": [\n"
             "            { \"id\": 5, \"name\": \"surface_0_0\", \"file\": \"zones/5.zone\", \"position\": [0, 0, 0] }\n"
             "          ] } },\n"
@@ -1647,16 +1648,33 @@ namespace
             "  \"format\": \"quetzal.stratum_region_specs\",\n"
             "  \"version\": \"0.1\",\n"
             "  \"region_specs\": {\n"
-            "    \"surface\": { \"zone_name_pattern\": \"{region_name}_{x}_{y}\", \"worldspace.extent.x\": \"0 .. 9\" },\n"
+            "    \"surface\": { \"zone_name_pattern\": \"{region_name}_{x}_{y}\", \"seed\": \"42\",\n"
+            "      \"extent\": { \"arrangement\": \"ranges\", \"boxes\": [ { \"x\": [0, 9], \"y\": [0, 9], \"z\": 0 } ] }, \"zone_size\": [64, 32] },\n"
+            "    \"islands\": { \"parent\": \"surface\", \"extent\": { \"arrangement\": \"positions\", \"positions\": [[3, 3, 0], [4, 4, 0]] } },\n"
             "    \"crypt\": {}\n"
             "  }\n"
             "}\n";
 
         istringstream is(region_specs_text);
         document_type document = stratum_format::read_region_specs(is, "region specs");
-        CHECK_CASE("a region spec file reads each region spec's keys by its name", document.region_specs.size() == 2
-            && document.region_specs.at("surface").value("zone_name_pattern") == "{region_name}_{x}_{y}"
-            && document.region_specs.at("surface").value("worldspace.extent.x") == "0 .. 9" && document.region_specs.at("crypt").empty());
+        const stratum_format::RegionSpec& surface = document.region_specs.at("surface");
+        const stratum_format::RegionSpec& islands = document.region_specs.at("islands");
+        const stratum_format::RegionSpec& crypt = document.region_specs.at("crypt");
+        auto range_is = [](const optional<math::Interval<stratum_format::coord_type>>& range, stratum_format::coord_type lower,
+            stratum_format::coord_type upper)
+        {
+            return range.has_value() && range->lower() == lower && range->upper() == upper;
+        };
+
+        CHECK_CASE("a region spec file reads each region spec by its name, its store as text", document.region_specs.size() == 3
+            && surface.store.value("zone_name_pattern") == "{region_name}_{x}_{y}" && surface.store.size() == 1);
+        CHECK_CASE("and its members with a type of their own", surface.seed == 42u && surface.extent.has_value()
+            && surface.extent->boxes.size() == 1 && range_is(surface.extent->boxes[0].x, 0, 9) && range_is(surface.extent->boxes[0].z, 0, 0)
+            && surface.zone_size == stratum_format::discrete_vector_type(64, 32) && islands.parent == "surface"
+            && islands.extent.has_value() && islands.extent->arrangement == stratum_format::RegionExtent::Arrangement::Positions
+            && islands.extent->positions.size() == 2 && islands.extent->positions[1] == stratum_format::zone_position_type {4, 4, 0});
+        CHECK_CASE("and a spec with neither", crypt.store.empty() && !crypt.name.has_value() && !crypt.extent.has_value()
+            && !crypt.zone_size.has_value());
 
         auto rejected = [&region_specs_text](const string& from, const string& to, const string& error_expected)
         {
@@ -1680,8 +1698,18 @@ namespace
 
         CHECK_CASE("a region spec file with a key the format does not have is rejected", rejected("\"region_specs\"", "\"regions\"",
             "regions: not a key of the region spec file"));
-        CHECK_CASE("and one with a value that is not text", rejected("\"0 .. 9\"", "9", "region_specs.surface.worldspace.extent.x: a string was expected"));
+        CHECK_CASE("and one with a value that is not text", rejected("\"{region_name}_{x}_{y}\"", "9",
+            "region_specs.surface.zone_name_pattern: a string was expected"));
         CHECK_CASE("and one with a region spec that is not an object", rejected("{}", "[]", "region_specs.crypt: an object was expected"));
+        CHECK_CASE("and one with a key under a member's name", rejected("\"seed\": \"42\"", "\"zone_size.x\": \"64\"",
+            "region_specs.surface.zone_size.x: a part of zone_size, written in its value"));
+        CHECK_CASE("and one with a seed that is not a seed", rejected("\"42\"", "\"forty\"", "region_specs.surface.seed: a seed was expected"));
+        CHECK_CASE("and one with an arrangement that is neither", rejected("\"positions\", \"positions\"", "\"grid\", \"positions\"",
+            "region_specs.islands.extent.arrangement: ranges or positions was expected"));
+        CHECK_CASE("and one with a member the arrangement does not have", rejected("\"boxes\"", "\"positions\"",
+            "region_specs.surface.extent.positions: not a member of a ranges extent"));
+        CHECK_CASE("and one with a range whose lower bound is above its upper bound", rejected("[0, 9], \"y\"", "[9, 0], \"y\"",
+            "region_specs.surface.extent.boxes[0].x: a range whose lower bound is above its upper bound"));
 
         document_type game = stratum_format::read_region_specs(filesystem::path("../../assets") / document_type::filepath);
         CHECK_CASE("the game's region spec file reads", game.region_specs.contains("surface") && game.region_specs.contains("dungeon"));
@@ -1700,8 +1728,10 @@ namespace
             "  \"starting_region\": \"barrow\",\n"
             "  \"region_specs\": [\n"
             "    [\n"
-            "      { \"name\": \"barrow\", \"region_spec\": \"dungeon\" },\n"
-            "      { \"name\": \"barrow_crypt\", \"parent\": \"barrow\", \"region_spec\": \"crypt\" }\n"
+            "      { \"name\": \"barrow\", \"region_spec\": \"dungeon\", \"extent\": { \"arrangement\": \"ranges\", "
+            "\"boxes\": [ { \"x\": 0, \"y\": 0, \"z\": [-10, -1] } ] }, \"zone_size\": [64, 32], \"difficulty\": \"3\" },\n"
+            "      { \"name\": \"barrow_crypt\", \"parent\": \"barrow\", \"region_spec\": \"crypt\", \"extent\": { \"arrangement\": \"positions\", "
+            "\"positions\": [[0, 0, -5], [0, 0, -6]] } }\n"
             "    ],\n"
             "    []\n"
             "  ]\n"
@@ -1711,12 +1741,13 @@ namespace
         document_type document = stratum_format::read_world_definition(is, "world definition");
         CHECK_CASE("a world definition file reads its starting region, and each tree's region specs in order",
             document.starting_region == "barrow" && document.region_specs.size() == 2
-            && document.region_specs[0].size() == 2 && document.region_specs[0][0].value("name") == "barrow"
-            && document.region_specs[0][1].value("parent") == "barrow" && document.region_specs[1].empty());
+            && document.region_specs[0].size() == 2 && document.region_specs[0][0].name == "barrow"
+            && document.region_specs[0][0].store.value("difficulty") == "3" && document.region_specs[0][1].parent == "barrow"
+            && document.region_specs[1].empty());
 
         ostringstream os;
         stratum_format::write(os, document);
-        CHECK_CASE("and writes the text it was read from", os.str() == world_definition_text);
+        CHECK_CASE("and writes the text it was read from, members with a type of their own before the store", os.str() == world_definition_text);
 
         auto rejected = [&world_definition_text](const string& from, const string& to, const string& error_expected)
         {
@@ -1743,8 +1774,7 @@ namespace
         CHECK_CASE("and one with no starting region", rejected("  \"starting_region\": \"barrow\",\n", "",
             "starting_region: required and absent"));
         CHECK_CASE("and one with a tree that is not a list", rejected("[]\n", "{}\n", "region_specs[1]: an array was expected"));
-        CHECK_CASE("and one with a region spec that is not an object", rejected("{ \"name\": \"barrow\", \"region_spec\": \"dungeon\" }", "[]",
-            "region_specs[0][0]: an object was expected"));
+        CHECK_CASE("and one with a region spec that is not an object", rejected("[]\n", "[3]\n", "region_specs[1][0]: an object was expected"));
         CHECK_CASE("and one with a value that is not text", rejected("\"crypt\"", "3", "region_specs[0][1].region_spec: a string was expected"));
 
         const filesystem::path game_filepath = filesystem::path("../../assets") / document_type::filepath;

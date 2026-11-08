@@ -5,7 +5,7 @@
 // WorldDefinitionDocument.hpp
 //------------------------------------------------------------------------------
 
-#include "quetzal/common/KeyValueStore.hpp"
+#include "RegionSpec.hpp"
 #include <filesystem>
 #include <iosfwd>
 #include <string>
@@ -16,7 +16,6 @@ namespace quetzal::stratum_format
 {
 
     //--------------------------------------------------------------------------
-    // The world a new game is created from: its region spec trees
     struct WorldDefinitionDocument
     {
         static constexpr std::string_view format_name = "quetzal.stratum_world_definition";
@@ -25,15 +24,12 @@ namespace quetzal::stratum_format
         // Relative to the assets or a mod directory
         static constexpr std::string_view filepath = "data/world_definition.json";
 
-        // The keys of each region spec in one tree
-        using region_spec_tree_type = std::vector<KeyValueStore>;
+        using region_spec_tree_type = std::vector<RegionSpec>;
 
         std::string version;
 
-        // The name of the root region of the tree a new game starts in
-        std::string starting_region;
+        std::string starting_region; // New game region name
 
-        // A tree per root region
         std::vector<region_spec_tree_type> region_specs;
     };
 

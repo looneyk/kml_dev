@@ -16,9 +16,9 @@ that zones are made from. Saving and opening a game are in
 - **A zone's content is generated when it is needed,** the first time the zone is entered or loaded, from its
   `ZoneSpec` and its seed. A zone's content is created whole: the generator returns a `stratum_format::Document`, which
   `World` builds into the zone in one pass.
-- **A region spec's zone pattern defines each zone of the region.** The `zone.` keys, resolved with the zone's
+- **A region spec's `zone.` keys define each zone of the region.** The keys, their patterns resolved with the zone's
   position and index (`region_spec_plan.md`, `## Patterns`), are the zone's `ZoneSpec`, its template and the zone
-  generator's parameters among them; weighted tables in the pattern are drawn from as it is resolved. The specs are
+  generator's parameters among them; a pattern that calls the weighted choice function draws from a weighted table. The specs are
   resolved when the structure is created, so every zone's `ZoneSpec` is complete before play starts.
 - **The zone generator applies the `ZoneSpec` to its template** (`template_plan.md`).
 - **A game has one zone generator,** chosen by the game's notation, since a zone generator writes one zone format. It
@@ -41,12 +41,11 @@ struct RegionSpec
 // A key with no prefix is the region's: its naming patterns, and its metadata: name, display_name, type (surface, dungeon, crypt, ...), competency level, difficulty, ...
 // parent: in a region spec tree, the name of the parent region, absent for a root spec
 // region_spec: the name of the registered spec it is based on, whose keys its own keys override
-// worldspace.*: for a top-level region, its worldspace's coordinate system: its extent and, for a grid worldspace, its
-//     zone size
-// extent: for a subregion, its positions in the worldspace, as ranges or positions (### Extents)
-// zone.*: the pattern of the ZoneSpec of each of the region's zones, with the prefix removed, resolved for each zone
+// extent: its positions in the worldspace, as ranges or positions (### Extents); a top-level region's is its worldspace's
+// zone_size: for a top-level region of a grid worldspace, the size of each zone
+// zone.*: the keys of the ZoneSpec of each of the region's zones, with the prefix removed, resolved for each zone
 
-// A request to create a zone. The structure sets the position, and the region spec's zone pattern the other keys
+// A request to create a zone. The structure sets the position, and the region spec's zone.* keys the other keys
 struct ZoneSpec
 {
     ZonePosition position() const;
@@ -151,7 +150,7 @@ void Session::start(flecs::entity zone, const placement_type& placement)
   (`specs.hpp`), not `KeyValueStore`'s: `World::create` reads the region spec's keys with no prefix, and the
   zone generator the `parameters.` keys of the resolved `ZoneSpec`.
 - **The root specs of the game's region spec trees are its worldspaces** (`world_structure_plan.md`, `## Design`). Each
-  creates a worldspace with the coordinate system its `worldspace.` keys define, and its top-level region. Each spec
+  creates a worldspace with the coordinate system its `extent` and `zone_size` define, and its top-level region. Each spec
   below the root creates a subregion of the region that its `parent` key refers to, and each region's list of
   subregions is built when the tree is loaded.
 - **The start settings place the character** in a new game: `world.start_zone`, the zone of the starting worldspace,
@@ -175,7 +174,7 @@ flecs::entity World::create_zone(PersistentId region_id, const ZoneSpec& zone_sp
     const Region& region = this->region(region_id);
     const RegionSpec& region_spec = region.region_spec;
 
-    // the region spec's zone pattern resolved for the zone, under the given keys, with the ZoneSpec's seed or the next
+    // the region spec's zone.* keys resolved for the zone, under the given keys, with the ZoneSpec's seed or the next
     // draw from the region's random engine under seed_key
     ZoneSpec resolved_zone_spec = resolve_zone_spec(region_spec, zone_spec);
 
@@ -189,14 +188,14 @@ flecs::entity World::create_zone(PersistentId region_id, const ZoneSpec& zone_sp
 | Value | From |
 | --- | --- |
 | The position | The structure: the region spec and the worldspace's coordinate system |
-| The template and the generator's parameters | The region spec's zone pattern, resolved with the zone's position and index |
+| The template and the generator's parameters | The region spec's `zone.` keys, their patterns resolved with the zone's position and index |
 | The seed | `World`, drawn from the region's random engine, unless the `ZoneSpec` has one (`random_engine.md`, `## Generation`) |
 | The name | The region spec's naming pattern |
 
-- **The seed is added first,** so the pattern's draws and the generator both have it. The draws use a random engine
+- **The seed is added first,** so the patterns' draws and the generator both have it. The draws use a random engine
   seeded from the zone's seed.
 - **The generator does not read the world.** Anything from the region that a generator needs, such as difficulty, is
-  in the zone pattern's parameters.
+  in the region spec's `zone.parameters.` keys.
 - **The designer decides the positions and names of a region's zones,** through the region spec's extent and naming
   patterns.
 
@@ -224,7 +223,8 @@ positions, created in worldspace position order from `(0, 0, 0)` to `(3, 2, 0)`:
 [
     {
         "name": "plains",
-        "worldspace": {"extent": {"arrangement": "ranges", "boxes": [{"x": [0, 3], "y": [0, 2], "z": 0}]}, "zone_size": [64, 64]},
+        "extent": {"arrangement": "ranges", "boxes": [{"x": [0, 3], "y": [0, 2], "z": 0}]},
+        "zone_size": [64, 64],
         "zone": {"name": "plains_{x}_{y}"}
     }
 ]
@@ -235,7 +235,7 @@ based on the registered `crypt` spec. The barrow's levels outside the crypt are 
 
 ```json
 [
-    {"name": "barrow", "worldspace": {"extent": {"arrangement": "ranges", "boxes": [{"x": 0, "y": 0, "z": [-10, -1]}]}}},
+    {"name": "barrow", "extent": {"arrangement": "ranges", "boxes": [{"x": 0, "y": 0, "z": [-10, -1]}]}},
     {"name": "barrow_crypt", "parent": "barrow", "region_spec": "crypt", "extent": {"arrangement": "ranges", "boxes": [{"z": [-6, -4]}]}}
 ]
 ```
@@ -251,7 +251,7 @@ The moor's staircase edge needs a box for each step:
 
 ```json
 [
-    {"name": "surface", "worldspace": {"extent": {"arrangement": "ranges", "boxes": [{"x": [0, 7], "y": [0, 7], "z": 0}]}, "zone_size": [64, 64]}},
+    {"name": "surface", "extent": {"arrangement": "ranges", "boxes": [{"x": [0, 7], "y": [0, 7], "z": 0}]}, "zone_size": [64, 64]},
     {
         "name": "west_moor",
         "parent": "surface",
@@ -278,7 +278,7 @@ than one zone in both dimensions. Islands in the lake are a list of positions:
 
 ```json
 [
-    {"name": "lake_country", "worldspace": {"extent": {"arrangement": "ranges", "boxes": [{"x": [0, 7], "y": [0, 7], "z": 0}]}, "zone_size": [64, 64]}},
+    {"name": "lake_country", "extent": {"arrangement": "ranges", "boxes": [{"x": [0, 7], "y": [0, 7], "z": 0}]}, "zone_size": [64, 64]},
     {
         "name": "shore",
         "parent": "lake_country",
@@ -323,7 +323,7 @@ void World::generate(flecs::entity zone)
 - **Going through an unbound target generates the zone's content if it has none,** places the arriving actor at the
   named access point or at an unbound access point of the arrival type whose target leads back, and binds both ends.
 - **An entrance into another worldspace,** such as a dungeon entrance in a fields zone, has the extended name of a zone
-  in that worldspace as its target: the zone pattern puts it into the zone's parameters, and the generator writes it into
+  in that worldspace as its target: a pattern in the region spec's `zone.parameters.` keys puts it into the zone's parameters, and the generator writes it into
   the access point's target.
 
 A new game, from the host's call through the structure, the first zone, and a descent into a dungeon:

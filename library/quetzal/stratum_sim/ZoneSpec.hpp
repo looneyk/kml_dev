@@ -22,7 +22,7 @@ namespace quetzal::stratum_sim
 
         void set_position(const ZonePosition& position);
 
-        KeyValueStore keys;
+        KeyValueStore store;
     };
 
 } // namespace quetzal::stratum_sim

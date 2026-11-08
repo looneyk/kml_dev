@@ -5,8 +5,8 @@
 // WorldDocument.hpp
 //------------------------------------------------------------------------------
 
+#include "RegionSpec.hpp"
 #include "types.hpp"
-#include "quetzal/common/KeyValueStore.hpp"
 #include <cstddef>
 #include <map>
 #include <optional>
@@ -17,8 +17,6 @@ namespace quetzal::stratum_format
 {
 
     //--------------------------------------------------------------------------
-    // The data structure analog of a world file. name_counter is the last suffix given to a worldspace's name that was
-    // taken, and entity_zones the world index: the zone of each entity that something refers to
     struct WorldDocument
     {
 
@@ -30,15 +28,13 @@ namespace quetzal::stratum_format
             std::optional<std::string> name;
         };
 
-        // spec is the region spec the region was created from, and name_counter the last suffix given to a name of its
-        // zones that was taken
         struct Region
         {
             stored_entity_id_type id = 0;
             std::string name;
             std::size_t name_counter = 0;
             raw_values_type components;
-            KeyValueStore spec;
+            RegionSpec spec;
             std::vector<Zone> zones;
         };
 

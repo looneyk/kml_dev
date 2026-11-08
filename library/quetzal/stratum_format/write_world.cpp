@@ -47,7 +47,7 @@ namespace
 
         size_t continuation_indent = indent + 2;
         std::string text = std::format("{{ {},\n", joined(opening));
-        text += std::format("{}\"spec\": {},\n", indentation(continuation_indent), text_values_text(region.spec));
+        text += std::format("{}\"spec\": {},\n", indentation(continuation_indent), region_spec_text(region.spec));
         text += std::format("{}\"zones\": [", indentation(continuation_indent));
 
         if (region.zones.empty())

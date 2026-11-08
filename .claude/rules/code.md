@@ -42,12 +42,12 @@ These rules apply to C++ throughout the repository, alongside the Conventions in
   refilled in place (`session.clear()`, `create()`, `load()`), not replaced through a `std::unique_ptr`. The existing
   uses in stratum (`Command` and `Event` over `std::any`, `ZoneLayout`'s `std::unique_ptr<Layout>`, and others) are not
   extended.
-- **No valid value is reserved as a marker.** "Unset" or "none" is `std::optional`, and validation checks that it is
-  engaged: a seed that rejects 0 as "never assigned" costs `--seed 0`. `quetzal::id_type` with `nullid` is the one
+- **No valid value is reserved as a marker.** "Unset" or "none" is `std::optional`, and validation checks that it has
+  a value: a seed that rejects 0 as "never assigned" costs `--seed 0`. `quetzal::id_type` with `nullid` is the one
   exception and is no precedent.
 - **Optional means absent, never "set later".** A member every instance receives soon after construction is a
-  constructor argument. A `std::optional` is dereferenced with `*` only where something has just proved it engaged, with
-  a comment saying so, and with `.value()` elsewhere.
+  constructor argument. A `std::optional` is dereferenced with `*` only where something has just proved it has a value, and
+  with `.value()` elsewhere.
 - **A domain invariant is an assert,** and the branch handling the excluded case is removed and never described in
   comments or docs as possible. A degenerate input is not special-cased for a tidier answer: a negative extent produces
   a negative volume, and checking is the caller's. If the assert fires, the code that produced the data is fixed.

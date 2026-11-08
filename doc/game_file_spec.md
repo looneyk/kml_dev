@@ -137,13 +137,13 @@ character named Ailis in it carrying a torch, would have the following structure
     "worldspaces": [
       { "id": 6, "name": "surface",
         "region": { "id": 2, "name": "surface", "name_counter": 0, "components": { "type": "surface" },
-          "spec": { "type": "surface", "service_level": "basic", "worldspace.zone_size.x": "40", "worldspace.zone_size.y": "30" },
+          "spec": { "extent": { "arrangement": "ranges", "boxes": [ { "x": 0, "y": 0, "z": 0 } ] }, "zone_size": [40, 30], "service_level": "basic", "type": "surface" },
           "zones": [
             { "id": 5, "name": "surface_0_0", "file": "zones/5.zone", "position": [0, 0, 0] }
           ] } },
       { "id": 7, "name": "cistern",
         "region": { "id": 4, "name": "cistern", "name_counter": 0, "components": { "type": "dungeon", "difficulty": 3 },
-          "spec": { "type": "dungeon", "difficulty": "3", "worldspace.extent.z": "-10 .. -1", "zone.name": "Level {z}" },
+          "spec": { "extent": { "arrangement": "ranges", "boxes": [ { "x": 0, "y": 0, "z": [-10, -1] } ] }, "difficulty": "3", "type": "dungeon", "zone.name": "Level {z}" },
           "zones": [
             { "id": 3, "name": "Level -1", "file": "zones/3.zone", "position": [0, 0, -1] }
           ] } }
@@ -245,8 +245,8 @@ A worldspace is the coordinate system of its zones: the surface, a dungeon, a ca
 | `name` | Its name, unique in the game: the name of the region spec its region was created from, with a suffix if another worldspace had it |
 | `region` | Its top-level region |
 
-A worldspace's coordinate system is not written separately: its region's `spec` states it in its `worldspace.` keys,
-and reading the world sets it from them.
+A worldspace's coordinate system is not written separately: its region's `spec` has it in its `extent` and
+`zone_size`, and reading the world sets it from them.
 
 ### Regions
 
@@ -258,13 +258,13 @@ A region groups zones of one worldspace: a surface area, a dungeon, a crypt, a t
 | `name` | Its name; a top-level region's is its worldspace's |
 | `name_counter` | The last suffix given to a name of its zones that another of its zones had |
 | `components` | Its type and, for a dungeon, its difficulty and the other properties a whole dungeon has |
-| `spec` | The `RegionSpec` it was created from, from which its later zones are created (`world_generation_plan.md`) |
+| `spec` | The `RegionSpec` it was created from, in the form of a region spec file's specs, from which its later zones are created (`world_generation_plan.md`) |
 | `zones` | A reference to each of its zones |
 
 A region's zones are every zone the world has made in it. Regions refer to no other region; the bound access points in
 their zones connect them.
 
-A region's list of zone ids, whose number is the zone count its zone pattern reads (`world_generation_plan.md`), is
+A region's list of zone ids, whose number is the zone count its patterns read (`world_generation_plan.md`), is
 not written separately: it is its `zones`, and reading the world sets it from them.
 
 ### Zones

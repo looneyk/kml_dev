@@ -15,7 +15,9 @@
 #include "quetzal/stratum_sim/Session.hpp"
 #include "quetzal/stratum_sim/World.hpp"
 #include "quetzal/stratum_sim/types.hpp"
+#include "quetzal/stratum_format/RegionExtent.hpp"
 #include "quetzal/stratum_format/types.hpp"
+#include "quetzal/math/Interval.hpp"
 #include <cstddef>
 #include <memory>
 #include <optional>
@@ -53,6 +55,11 @@ namespace stratum_sim_test
     // staircase leading up and one leading down. The region spec "dungeon" starts a game at level -1, at the staircase
     // leading up, in a zone made from data/walls.zone
     quetzal::stratum_sim::Generation test_generation();
+
+    using range_type = quetzal::math::Interval<quetzal::stratum_sim::coord_type>;
+
+    // Returns a ranges extent of one box
+    quetzal::stratum_format::RegionExtent box_extent(const range_type& x, const range_type& y, const range_type& z);
 
     // Returns a region spec whose zones are made from the test zone's file, "door" or "staircase", with an extent of
     // 0 on x and y and -10 .. 10 on z

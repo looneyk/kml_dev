@@ -21,13 +21,12 @@ namespace quetzal::stratum_sim
 {
 
     //--------------------------------------------------------------------------
-    // The coordinate system of its zones, and the tree of regions rooted in it
     struct Worldspace
     {
         using extent_type = geometry::DiscreteBox<coord_type, 3>;
 
-        // Returns a worldspace with the extent and zone size from a top-level region spec's worldspace keys, the top-level region, and no zones.
-        // Throws std::runtime_error on an invalid extent of interval format
+        // Returns an initialized but empty worldspace
+        // Throws std::runtime_error if the spec has no extent, or one that is not ranges with a single box with every axis
         static Worldspace create(PersistentId worldspace_id, std::string_view name, const RegionSpec& region_spec, Region root_region);
 
         bool contains(const ZonePosition& position) const;
@@ -36,7 +35,7 @@ namespace quetzal::stratum_sim
         std::string name;
         extent_type extent;
         std::optional<discrete_vector_type> zone_size; // A grid worldspace's
-        std::map<ZonePosition, PersistentId> zone_ids; // <position, zone_id>, loaded or saved
+        std::map<ZonePosition, PersistentId> zone_ids; // <position, zone_id>
         RegionTree regions;
     };
 

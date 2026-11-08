@@ -48,6 +48,7 @@ are introduced, not after.
 
 - **The default is no comment.** A comment that restates a name, paraphrases a signature, or narrates the next lines is
   a failure to name. Rename, extract a named value or function, or choose a clearer type first.
+- **No comment repeats what the code beside it already shows,** such as a check and the message it fails with.
 - **A surviving comment describes what the code is or does,** plus a genuinely unexpected caveat, at half the length of the
   first draft. It does not narrate the mechanism, the trade-off, or the debugging behind it. A predicate whose name
   cannot say it all gets "Returns true if ...", and a bool member "True if ...".
@@ -107,6 +108,9 @@ are introduced, not after.
 - **Standard terms come first.** A new concept is introduced with what other libraries, games, and engines call it, and
   who uses which: "logger" (spdlog, log4j, Rust's `log::logger()`); "key" and "section" for a setting's name (Qt, ini,
   Unreal, Godot's `ConfigFile`).
+- **A library type's state is described in the words of its interface:** an optional "has a value", from
+  `has_value()`, and a container is "empty", from `empty()`. Jargon from proposals, papers, and implementers'
+  discussions stays out, accurate or not.
 - **Settled terms:**
   - "Kind" only as a last resort, after "type" or the specific relation.
   - A test executable is one program that CMake builds, and a test suite is a doctest `TEST_SUITE`, then test case and
