@@ -8,6 +8,7 @@
 #include "Node.hpp"
 #include "Evaluator.hpp"
 #include "SymbolTable.hpp"
+#include "quetzal/common/Exception.hpp"
 #include <format>
 #include <ostream>
 #include <utility>
@@ -25,7 +26,7 @@ namespace quetzal::expression
         const Node& node() const;
 
         template<typename T>
-        T evaluate(const SymbolTable& st) const;
+        T evaluate(const SymbolTable& symbol_table) const;
 
     private:
 
@@ -57,9 +58,14 @@ inline const quetzal::expression::Node& quetzal::expression::Expression::node() 
 
 //------------------------------------------------------------------------------
 template<typename T>
-T quetzal::expression::Expression::evaluate(const SymbolTable& st) const
+T quetzal::expression::Expression::evaluate(const SymbolTable& symbol_table) const
 {
-    return Evaluator<T>().evaluate(*m_node, st);
+    if (m_node->type != Evaluator<T>::data_type)
+    {
+        throw Exception("Expression::evaluate - the expression's type differs from the requested type", __FILE__, __LINE__);
+    }
+
+    return Evaluator<T>().evaluate(*m_node, symbol_table);
 }
 
 //------------------------------------------------------------------------------

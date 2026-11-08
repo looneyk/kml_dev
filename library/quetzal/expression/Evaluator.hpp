@@ -11,8 +11,11 @@
 #include "quetzal/common/string_util.hpp"
 #include <algorithm>
 #include <cmath>
+#include <concepts>
 #include <cassert>
+#include <format>
 #include <sstream>
+#include <string>
 
 namespace quetzal::expression
 {
@@ -23,40 +26,50 @@ namespace quetzal::expression
     {
     public:
 
-        T evaluate(const Node& n, const SymbolTable& st) const;
+        static constexpr DataType data_type = std::same_as<T, std::string> ? DataType::String : DataType::Number;
+
+        T evaluate(const Node& n, const SymbolTable& symbol_table) const;
 
     private:
 
-        T lookup(const std::string& id, const SymbolTable& st) const;
+        T lookup(const Node& n, const SymbolTable& symbol_table) const;
         T apply_binary(const std::string& op, T a, T b) const;
         T apply_unary(const std::string& op, T a) const;
-        T apply_function(const Node& n, const SymbolTable& st) const;
+        T apply_function(const Node& n, const SymbolTable& symbol_table) const;
     };
 
 } // namespace quetzal::expression
 
 //------------------------------------------------------------------------------
 template<typename T>
-T quetzal::expression::Evaluator<T>::evaluate(const Node& n, const SymbolTable& st) const
+T quetzal::expression::Evaluator<T>::evaluate(const Node& n, const SymbolTable& symbol_table) const
 {
     switch (n.kind)
     {
         case NodeKind::Literal:
-            return to_type<T>(n.text);
+            assert(n.type == data_type);
+            if constexpr (std::same_as<T, std::string>)
+            {
+                return n.text;
+            }
+            else
+            {
+                return to_type<T>(n.text);
+            }
 
         case NodeKind::Identifier:
-            return lookup(n.text, st);
+            return lookup(n, symbol_table);
 
         case NodeKind::BinaryOp:
             assert(n.children.size() == 2);
-            return apply_binary(n.text, evaluate(*n.children[0], st), evaluate(*n.children[1], st));
+            return apply_binary(n.text, evaluate(*n.children[0], symbol_table), evaluate(*n.children[1], symbol_table));
 
         case NodeKind::UnaryOp:
             assert(n.children.size() == 1);
-            return apply_unary(n.text, evaluate(*n.children[0], st));
+            return apply_unary(n.text, evaluate(*n.children[0], symbol_table));
 
         case NodeKind::FunctionCall:
-            return apply_function(n, st);
+            return apply_function(n, symbol_table);
     }
 
     throw Exception("Evaluator::evaluate - unrecognized node kind", __FILE__, __LINE__);
@@ -64,16 +77,23 @@ T quetzal::expression::Evaluator<T>::evaluate(const Node& n, const SymbolTable& 
 
 //------------------------------------------------------------------------------
 template<typename T>
-T quetzal::expression::Evaluator<T>::lookup(const std::string& id, const SymbolTable& st) const
+T quetzal::expression::Evaluator<T>::lookup(const Node& n, const SymbolTable& symbol_table) const
 {
-    auto i = st.find(id);
-    if (i != st.end())
+    assert(n.type == data_type);
+
+    auto i = symbol_table.find(n.text);
+    if (i != symbol_table.end())
     {
-        return to_type<T>(i->second);
+        if (i->second.type != n.type)
+        {
+            throw Exception(("Evaluator::lookup - symbol type differs from its type when parsed " + n.text).c_str(), __FILE__, __LINE__);
+        }
+
+        return to_type<T>(i->second.value);
     }
 
     std::ostringstream oss;
-    oss << "Evaluator::lookup - identifier not found " << id;
+    oss << "Evaluator::lookup - identifier not found " << n.text;
     throw Exception(oss.str().c_str(), __FILE__, __LINE__);
 }
 
@@ -150,7 +170,7 @@ T quetzal::expression::Evaluator<T>::apply_unary(const std::string& op, T a) con
 
 //------------------------------------------------------------------------------
 template<typename T>
-T quetzal::expression::Evaluator<T>::apply_function(const Node& n, const SymbolTable& st) const
+T quetzal::expression::Evaluator<T>::apply_function(const Node& n, const SymbolTable& symbol_table) const
 {
     const std::string& name = n.text;
 
@@ -159,7 +179,7 @@ T quetzal::expression::Evaluator<T>::apply_function(const Node& n, const SymbolT
         assert(n.children.size() == 1);
         if constexpr (requires (T a) { std::abs(a); })
         {
-            return std::abs(evaluate(*n.children[0], st));
+            return std::abs(evaluate(*n.children[0], symbol_table));
         }
         else
         {
@@ -169,20 +189,19 @@ T quetzal::expression::Evaluator<T>::apply_function(const Node& n, const SymbolT
     else if (name == "min")
     {
         assert(n.children.size() == 2);
-        return std::min(evaluate(*n.children[0], st), evaluate(*n.children[1], st));
+        return std::min(evaluate(*n.children[0], symbol_table), evaluate(*n.children[1], symbol_table));
     }
     else if (name == "max")
     {
         assert(n.children.size() == 2);
-        return std::max(evaluate(*n.children[0], st), evaluate(*n.children[1], st));
+        return std::max(evaluate(*n.children[0], symbol_table), evaluate(*n.children[1], symbol_table));
     }
     else if (name == "mod")
     {
         assert(n.children.size() == 2);
-        T a = evaluate(*n.children[0], st);
-        T b = evaluate(*n.children[1], st);
+        T a = evaluate(*n.children[0], symbol_table);
+        T b = evaluate(*n.children[1], symbol_table);
 
-        // integral types use %, floating-point types use fmod
         if constexpr (requires (T x, T y) { x % y; })
         {
             return a % b;
@@ -194,6 +213,18 @@ T quetzal::expression::Evaluator<T>::apply_function(const Node& n, const SymbolT
         else
         {
             throw Exception("Evaluator::apply_function - mod not supported for this type", __FILE__, __LINE__);
+        }
+    }
+    else if (name == "str")
+    {
+        assert(n.children.size() == 1);
+        if constexpr (std::same_as<T, std::string>)
+        {
+            return std::format("{}", Evaluator<double>().evaluate(*n.children[0], symbol_table));
+        }
+        else
+        {
+            throw Exception("Evaluator::apply_function - str not supported for this type", __FILE__, __LINE__);
         }
     }
 

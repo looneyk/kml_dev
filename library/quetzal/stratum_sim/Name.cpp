@@ -70,8 +70,7 @@ std::string quetzal::stratum_sim::zone_name(std::string_view pattern, std::strin
         throw std::runtime_error(message);
     };
 
-    const expression::SymbolTable symbols {{"region_name", std::string(region_name)}, {"x", std::to_string(position.x)},
-        {"y", std::to_string(position.y)}, {"z", std::to_string(position.z)}};
+    const expression::SymbolTable symbols {{"region_name", std::string(region_name)}, {"x", position.x}, {"y", position.y}, {"z", position.z}};
     expression::Parser parser;
 
     std::string name;
@@ -88,27 +87,15 @@ std::string quetzal::stratum_sim::zone_name(std::string_view pattern, std::strin
         }
 
         const std::string placeholder(pattern.substr(open + 1, close - open - 1));
-        const std::optional<expression::Expression> parsed = parser.parse(placeholder);
+        const std::optional<expression::Expression> parsed = parser.parse(placeholder, symbols);
         if (!parsed.has_value())
         {
-            fail(std::format("has {{{}}}, which is not an expression", placeholder));
+            fail(std::format("has {{{}}}, which is not an expression of region_name, x, y, and z", placeholder));
         }
 
         // parsed was just checked
-        if (parsed->node().kind == expression::NodeKind::Identifier)
-        {
-            auto symbol = symbols.find(placeholder);
-            if (symbol == symbols.end())
-            {
-                fail(std::format("has {{{}}}, which is not region_name, x, y, or z", placeholder));
-            }
-
-            name += symbol->second;
-        }
-        else
-        {
-            name += std::to_string(parsed->evaluate<coord_type>(symbols));
-        }
+        name += parsed->node().type == expression::DataType::String ? parsed->evaluate<std::string>(symbols)
+            : std::to_string(parsed->evaluate<coord_type>(symbols));
 
         i = close + 1;
     }

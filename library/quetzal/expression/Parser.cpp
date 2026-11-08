@@ -16,7 +16,8 @@ quetzal::expression::Parser::Parser() :
     m_expression(),
     m_pos(0),
     m_token_type(TokenType::Null),
-    m_token()
+    m_token(),
+    m_quote('"')
 {
     init_functions();
 }
@@ -27,42 +28,59 @@ quetzal::expression::Parser::~Parser()
 }
 
 //------------------------------------------------------------------------------
-quetzal::expression::Parser::Function::Function() :
-    m_name(),
-    m_argument_count(0)
-{
-}
-
-//------------------------------------------------------------------------------
-quetzal::expression::Parser::Function::Function(const string& name, size_t argument_count) :
+quetzal::expression::Parser::Function::Function(const string& name, vector<DataType> argument_types, DataType return_type) :
     m_name(name),
-    m_argument_count(argument_count)
+    m_argument_types(std::move(argument_types)),
+    m_return_type(return_type)
 {
 }
 
 //------------------------------------------------------------------------------
-quetzal::expression::Node::pointer_type quetzal::expression::Parser::make_node(NodeKind kind, string text, vector<Node::pointer_type> children)
+quetzal::expression::Node::pointer_type quetzal::expression::Parser::make_node(NodeKind kind, DataType type, string text, vector<Node::pointer_type> children)
 {
     auto n = make_shared<Node>();
     n->kind = kind;
+    n->type = type;
     n->text = std::move(text);
     n->children = std::move(children);
     return n;
 }
 
 //------------------------------------------------------------------------------
+quetzal::expression::Node::pointer_type quetzal::expression::Parser::make_arithmetic_node(NodeKind kind, string op, vector<Node::pointer_type> operands) const
+{
+    for (const auto& operand : operands)
+    {
+        if (operand->type != DataType::Number)
+        {
+            ostringstream oss;
+            oss << "Parser::make_arithmetic_node - " << op << " given a string at position " << m_pos;
+            throw Exception(oss.str().c_str(), __FILE__, __LINE__);
+        }
+    }
+
+    return make_node(kind, DataType::Number, std::move(op), std::move(operands));
+}
+
+//------------------------------------------------------------------------------
 void quetzal::expression::Parser::init_functions()
 {
-    m_functions["abs"] = Function("abs", 1);
-    m_functions["min"] = Function("min", 2);
-    m_functions["max"] = Function("max", 2);
-    m_functions["mod"] = Function("mod", 2);
+    for (const auto& function : {
+        Function("abs", {DataType::Number}, DataType::Number),
+        Function("min", {DataType::Number, DataType::Number}, DataType::Number),
+        Function("max", {DataType::Number, DataType::Number}, DataType::Number),
+        Function("mod", {DataType::Number, DataType::Number}, DataType::Number),
+        Function("str", {DataType::Number}, DataType::String)
+    })
+    {
+        m_functions.emplace(function.m_name, function);
+    }
 
     return;
 }
 
 //------------------------------------------------------------------------------
-std::optional<quetzal::expression::Expression> quetzal::expression::Parser::parse(const string& str)
+std::optional<quetzal::expression::Expression> quetzal::expression::Parser::parse(const string& str, const SymbolTable& symbol_table)
 {
     try
     {
@@ -70,7 +88,7 @@ std::optional<quetzal::expression::Expression> quetzal::expression::Parser::pars
         m_pos = 0;
 
         next();
-        return Expression(expression());
+        return Expression(expression(symbol_table));
     }
     catch (...)
     {
@@ -106,20 +124,28 @@ int quetzal::expression::Parser::precedence(TokenType op)
 }
 
 //------------------------------------------------------------------------------
-quetzal::expression::Node::pointer_type quetzal::expression::Parser::expression()
+quetzal::expression::Node::pointer_type quetzal::expression::Parser::expression(const SymbolTable& symbol_table)
 {
-    Node::pointer_type node = term();
+    Node::pointer_type node = term(symbol_table);
     assert(node);
 
     while (m_token_type != TokenType::End && precedence(m_token_type) >= precedence(TokenType::OperatorAdd))
     {
         if (accept(TokenType::OperatorAdd))
         {
-            node = make_node(NodeKind::BinaryOp, "+", { node, term() });
+            Node::pointer_type rhs = term(symbol_table);
+            if (rhs->type != node->type)
+            {
+                ostringstream oss;
+                oss << "Parser::expression - + joins a number and a string at position " << m_pos;
+                throw Exception(oss.str().c_str(), __FILE__, __LINE__);
+            }
+
+            node = make_node(NodeKind::BinaryOp, node->type, "+", { node, rhs });
         }
         else if (accept(TokenType::OperatorSubtract))
         {
-            node = make_node(NodeKind::BinaryOp, "-", { node, term() });
+            node = make_arithmetic_node(NodeKind::BinaryOp, "-", { node, term(symbol_table) });
         }
         else
         {
@@ -133,20 +159,20 @@ quetzal::expression::Node::pointer_type quetzal::expression::Parser::expression(
 }
 
 //------------------------------------------------------------------------------
-quetzal::expression::Node::pointer_type quetzal::expression::Parser::term()
+quetzal::expression::Node::pointer_type quetzal::expression::Parser::term(const SymbolTable& symbol_table)
 {
-    Node::pointer_type node = factor();
+    Node::pointer_type node = factor(symbol_table);
     assert(node);
 
     while (m_token_type != TokenType::End && precedence(m_token_type) >= precedence(TokenType::OperatorMultiply))
     {
         if (accept(TokenType::OperatorMultiply))
         {
-            node = make_node(NodeKind::BinaryOp, "*", { node, factor() });
+            node = make_arithmetic_node(NodeKind::BinaryOp, "*", { node, factor(symbol_table) });
         }
         else if (accept(TokenType::OperatorDivide))
         {
-            node = make_node(NodeKind::BinaryOp, "/", { node, factor() });
+            node = make_arithmetic_node(NodeKind::BinaryOp, "/", { node, factor(symbol_table) });
         }
         else
         {
@@ -160,25 +186,40 @@ quetzal::expression::Node::pointer_type quetzal::expression::Parser::term()
 }
 
 //------------------------------------------------------------------------------
-quetzal::expression::Node::pointer_type quetzal::expression::Parser::factor()
+quetzal::expression::Node::pointer_type quetzal::expression::Parser::factor(const SymbolTable& symbol_table)
 {
     string previous_token = m_token;
+    char previous_quote = m_quote;
 
-    if (accept(TokenType::Literal))
+    if (accept(TokenType::NumberLiteral))
     {
-        return make_node(NodeKind::Literal, previous_token, {});
+        return make_node(NodeKind::Literal, DataType::Number, previous_token, {});
+    }
+    else if (accept(TokenType::StringLiteral))
+    {
+        Node::pointer_type node = make_node(NodeKind::Literal, DataType::String, previous_token, {});
+        node->quote = previous_quote;
+        return node;
     }
     else if (accept(TokenType::Identifier))
     {
-        return make_node(NodeKind::Identifier, previous_token, {});
+        auto symbol = symbol_table.find(previous_token);
+        if (symbol == symbol_table.end())
+        {
+            ostringstream oss;
+            oss << "Parser::factor - identifier not found " << previous_token << " at position " << m_pos;
+            throw Exception(oss.str().c_str(), __FILE__, __LINE__);
+        }
+
+        return make_node(NodeKind::Identifier, symbol->second.type, previous_token, {});
     }
     else if (accept(TokenType::FunctionCall))
     {
-        return function_call(previous_token);
+        return function_call(previous_token, symbol_table);
     }
     else if (accept(TokenType::LeftParen))
     {
-        Node::pointer_type node = expression();
+        Node::pointer_type node = expression(symbol_table);
         assert(node);
         node->parenthesized = true;
         expect(TokenType::RightParen);
@@ -186,7 +227,7 @@ quetzal::expression::Node::pointer_type quetzal::expression::Parser::factor()
     }
     else if (accept(TokenType::OperatorSubtract))
     {
-        return make_node(NodeKind::UnaryOp, "-", { factor() });
+        return make_arithmetic_node(NodeKind::UnaryOp, "-", { factor(symbol_table) });
     }
 
     ostringstream oss;
@@ -195,7 +236,7 @@ quetzal::expression::Node::pointer_type quetzal::expression::Parser::factor()
 }
 
 //------------------------------------------------------------------------------
-quetzal::expression::Node::pointer_type quetzal::expression::Parser::function_call(const string& name)
+quetzal::expression::Node::pointer_type quetzal::expression::Parser::function_call(const string& name, const SymbolTable& symbol_table)
 {
     auto i = m_functions.find(name);
     assert(i != m_functions.end());
@@ -209,19 +250,30 @@ quetzal::expression::Node::pointer_type quetzal::expression::Parser::function_ca
     {
         if (accept(TokenType::RightParen))
         {
-            if (arguments.size() != i->second.m_argument_count)
+            const Function& function = i->second;
+            if (arguments.size() != function.m_argument_types.size())
             {
                 ostringstream oss;
-                oss << "Parser::function_call - " << name << ", "<< arguments.size() << " arguments found, " << i->second.m_argument_count
+                oss << "Parser::function_call - " << name << ", "<< arguments.size() << " arguments found, " << function.m_argument_types.size()
                     << " arguments expected at position " << m_pos;
                 throw Exception(oss.str().c_str(), __FILE__, __LINE__);
             }
 
-            return make_node(NodeKind::FunctionCall, name, arguments);
+            for (size_t slot = 0; slot < arguments.size(); ++slot)
+            {
+                if (arguments[slot]->type != function.m_argument_types[slot])
+                {
+                    ostringstream oss;
+                    oss << "Parser::function_call - " << name << ", argument " << slot + 1 << " has the wrong type at position " << m_pos;
+                    throw Exception(oss.str().c_str(), __FILE__, __LINE__);
+                }
+            }
+
+            return make_node(NodeKind::FunctionCall, function.m_return_type, name, arguments);
         }
         else if (first)
         {
-            Node::pointer_type argument = expression();
+            Node::pointer_type argument = expression(symbol_table);
             assert(argument);
 
             arguments.push_back(argument);
@@ -230,7 +282,7 @@ quetzal::expression::Node::pointer_type quetzal::expression::Parser::function_ca
         }
         else if (accept(TokenType::Comma))
         {
-            Node::pointer_type argument = expression();
+            Node::pointer_type argument = expression(symbol_table);
             assert(argument);
 
             arguments.push_back(argument);
@@ -266,7 +318,7 @@ void quetzal::expression::Parser::next()
 
     if (isdigit(m_expression[m_pos]))
     {
-        m_token_type = TokenType::Literal;
+        m_token_type = TokenType::NumberLiteral;
         char* end = nullptr;
         strtod(&m_expression.c_str()[m_pos], &end);
         size_t length = end - &m_expression.c_str()[m_pos];
@@ -275,10 +327,40 @@ void quetzal::expression::Parser::next()
         return;
     }
 
+    // A backslash escapes the character after it, so a string literal can contain a quote or a backslash
+    if (m_expression[m_pos] == '"' || m_expression[m_pos] == '\'')
+    {
+        const size_t start = m_pos;
+        m_quote = m_expression[m_pos];
+        m_token.erase();
+
+        for (++m_pos; m_pos < m_expression.size() && m_expression[m_pos] != m_quote; ++m_pos)
+        {
+            if (m_expression[m_pos] == '\\' && m_pos + 1 < m_expression.size())
+            {
+                ++m_pos;
+            }
+
+            m_token += m_expression[m_pos];
+        }
+
+        if (m_pos == m_expression.size())
+        {
+            ostringstream oss;
+            oss << "Parser::next - unterminated string literal at position " << start;
+            throw Exception(oss.str().c_str(), __FILE__, __LINE__);
+        }
+
+        m_token_type = TokenType::StringLiteral;
+        ++m_pos;
+        return;
+    }
+
     if (isalpha(m_expression[m_pos]) || m_expression[m_pos] == '_')
     {
         size_t length = 0;
-        while (m_pos + length < m_expression.size() && (isalnum(m_expression[m_pos + length]) || m_expression[m_pos + length] == '_'))
+        while (m_pos + length < m_expression.size()
+            && (isalnum(m_expression[m_pos + length]) || m_expression[m_pos + length] == '_' || m_expression[m_pos + length] == '.'))
         {
             ++length;
         }
@@ -383,8 +465,12 @@ ostream& quetzal::expression::operator<<(ostream& os, const Parser::TokenType& t
             os << "end";
             break;
 
-        case Parser::TokenType::Literal:
-            os << "literal";
+        case Parser::TokenType::NumberLiteral:
+            os << "number literal";
+            break;
+
+        case Parser::TokenType::StringLiteral:
+            os << "string literal";
             break;
 
         case Parser::TokenType::Identifier:

@@ -154,37 +154,42 @@ which its zone pattern draws each zone's template from, are among them (`templat
 | Form | Example | Resolved to |
 | --- | --- | --- |
 | Literal | `difficulty: 3`, `primary: {fields 4, forest 4}` | The value itself |
-| Range | `difficulty: ~3 .. 6` | An integer drawn uniformly from the inclusive range |
-| Weighted choice | `subregion.vault: ~{crypt 3, ossuary 1}` | One entry, drawn in proportion to its weight |
-| Placeholder | `zone_name_pattern: {region_name}_{abs(z)}` | The value of a variable or an expression from the context (`### Context`) |
+| Expression | `zone_name_pattern: $region_name + '_' + str(abs(z))` | The expression's value, evaluated with the context's symbols (`### Context`) |
+| Range | `difficulty: $range(3, 6)` | An integer drawn uniformly from the inclusive range |
+| Weighted choice | A call of a weighted choice function | One entry, drawn in proportion to its weight |
 
-- **A leading `~` marks an expression,** because a literal can have the same form as one. `primary: {fields 4, forest
-  4}` is a weighted table that the zone pattern draws from for each zone, and `~{fields 4, forest 4}` is one draw
-  made when the spec is resolved.
-- **A placeholder is replaced in literals and expressions alike.**
+- **Expressions are the implementation of patterns,** written in the language of `quetzal::expression`. A range, a
+  weighted choice, and other additions are functions of that language.
+- **A leading `$` marks an expression,** and a value without it is literal text, so `primary: {fields 4, forest 4}` is
+  a weighted table that the zone pattern draws from for each zone. The `$` is not part of the expression, and a literal
+  that starts with `$` is written as an expression of a string literal, `$'$5'`.
 - **Arithmetic in an expression would let a value depend on the context,** such as a difficulty that rises with depth:
-  `zone.parameters.difficulty: ~{region.difficulty} - {z}`.
+  `zone.parameters.difficulty: $region.difficulty - z`.
 
 ### Context
 
-A placeholder refers to a variable of the context that the spec is resolved in.
+An expression refers to the symbols of the context that the spec is resolved in. Each structure whose fields support
+patterns, `RegionSpec` among them, lists the symbols it defines, with their types, and the fields that support
+patterns. A value in any other field is literal text. An identifier can contain `.` as it can `_`, so a qualified
+symbol such as `region.difficulty` is one identifier.
 
-| Variable | Value |
+| Symbol | Value |
 | --- | --- |
-| `{x}`, `{y}`, `{z}` | The zone's position |
-| `{index}` | The zone's index in the order in which the region's zones are created |
-| `{region.<key>}` | A key of the region's resolved spec, such as `{region.difficulty}` |
-| `{parent.<key>}` | A key of the parent region's resolved spec |
+| `x`, `y`, `z` | The zone's position |
+| `index` | The zone's index in the order in which the region's zones are created |
+| `region_name` | The name of the zone's region |
+| `region.<key>` | A key of the region's resolved spec, such as `region.difficulty` |
+| `parent.<key>` | A key of the parent region's resolved spec |
 
 ### Subregions
 
 - **A subregion entry is a reference with overrides.** `subregion.barrow_crypt: crypt` refers to the registered `crypt`
   spec, and `subregion.barrow_crypt.spec.difficulty: 4` overrides one of its keys. An entry with no reference has its
   whole spec under `.spec.`.
-- **A reference that is a weighted choice makes the spec a grammar rule.** `subregion.vault: ~{crypt 3, ossuary 1}`
-  expands the region into one of several structures when it is resolved, and a spec that can refer to itself, such as
+- **A reference that is a weighted choice makes the spec a grammar rule.** A `subregion.vault` that chooses between
+  `crypt` and `ossuary` expands the region into one of several structures when it is resolved, and a spec that can refer to itself, such as
   a cave that can contain a cave, makes the rule recursive.
-- **An entry's `count` can be a range,** such as `subregion.cave.count: ~0 .. 3`. Each subregion created from the
+- **An entry's `count` can be a range,** such as `subregion.cave.count: $range(0, 3)`. Each subregion created from the
   entry is named by the rules in `## Names`.
 - **An entry's `extent` can be an expression that places a box of a given size** at a free position of the parent's
   extent. The positions are drawn as placement draws its sites (`placement_plan.md`, `## A run's roles`), so sibling
@@ -195,7 +200,7 @@ A placeholder refers to a variable of the context that the spec is resolved in.
 - **The `zone.` keys are the pattern of each zone's `ZoneSpec`,** resolved with the zone's position and index in the
   context.
 - **The weighted tables are part of the zone pattern.** `opening`, `primary`, and `rare` choose each zone's template by
-  its index and a draw, which an expression on `{index}` could also express.
+  its index and a draw, which an expression on `index` could also express.
 
 ### Spec generators
 
@@ -209,9 +214,8 @@ A placeholder refers to a variable of the context that the spec is resolved in.
 - **A worldspace and its top-level region have the top-level region spec's name.**
 - **A name gets a numeric suffix, as in `<name>_<counter>`, only if the name is taken.** The game has a counter for
   top-level regions, and each region has one for its subregions and its zones, so every extended name is unique.
-- **A region spec's `zone_name_pattern` is the pattern of its zones' names,** such as `{region_name}_{x}_{y}` for the
-  surface and `{region_name}_{abs(z)}` for a dungeon. Each `{...}` is `region_name` or an integer expression in the
-  zone's coordinates.
+- **A region spec's `zone_name_pattern` is the pattern of its zones' names,** a string expression such as
+  `$region_name + '_' + str(x) + '_' + str(y)` for the surface and `$region_name + '_' + str(abs(z))` for a dungeon.
 - **A zone's display name, shown to players, is separate from its name.** The spec defines how the display name is
   made: from a pattern, from the name reformatted, or at random.
 - **A random name that is taken is generated again,** in place of a numeric suffix, and the spec defines how the names
@@ -271,6 +275,7 @@ specifies.
   other than boxes?**
 - **Are a subregion entry's overrides and a type's patches (`modding_plan.md`) one mechanism?**
 - **What are the keys of the region name pattern and the metadata?**
+- **What are the name and arguments of the weighted choice function?**
 - **Which metadata becomes components on the region, and which does only the zone pattern read?**
 - **What properties does each type of region have?** Surface areas and dungeons share some properties and differ in
   others.
@@ -292,7 +297,7 @@ or `zone_plan.md`, and proposed members are in this plan alone.
 | `position.x`, `.y` | The region's position, which its seed is derived from until seeds are drawn hierarchically | Built | No |
 | `worldspace.extent` | A top-level spec's worldspace extent, one box; built as interval strings on each axis | Built | Yes |
 | `worldspace.zone_size.x`, `.y` | A grid worldspace's zone size | Built | Yes |
-| `zone_name_pattern` | The pattern of each zone's name, with `{region_name}` and integer expressions in `x`, `y`, and `z`, such as `{abs(z)}` | Built | Yes |
+| `zone_name_pattern` | The pattern of each zone's name, a string expression of `region_name`, `x`, `y`, and `z` | Built | Yes |
 | `zone.display_name` | The pattern or rule for each zone's display name | Proposed | Yes |
 | `zone.parameters.*` | Generation parameters for every zone | Designed | Yes |
 | `parameters.opening`, `.primary`, `.rare` | The zone pattern's weighted tables | Designed | Yes |
@@ -301,4 +306,4 @@ or `zone_plan.md`, and proposed members are in this plan alone.
 | `zones` | Listed zones, each a position with overrides of the `zone` pattern and a template | Proposed | Yes |
 | `subregion.<name>` | The registered spec a subregion is created from | Designed | No |
 | `subregion.<name>.extent`, `.count`, `.spec.*` | The subregion's placement, its count, and overrides of its spec | Proposed | No |
-| Any value | A literal, or an expression drawn when the spec is resolved (`## Patterns`) | Proposed | No |
+| Any value | Literal text, or a `$` expression evaluated when the spec is resolved (`## Patterns`) | Proposed | No |

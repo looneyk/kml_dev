@@ -338,10 +338,11 @@ placeholder until seeds are drawn hierarchically, and returns the x one past the
 or 0 with none, and y 0. Each of these empty zones is named from the region spec's `zone_name_pattern`, such as
 `{region_name}_{x}_{y}`, with the top-level region's name and the zone's position, or else for the top-level region and
 its count in worldspace position order, from 0, as in `dungeon_9`. It keeps that name when its content is generated or
-loaded from a template. `zone_name(pattern, region_name, position)` replaces each `{...}` in the pattern: the identifier
-`region_name`, `x`, `y`, or `z` with its value, and any other expression, such as `abs(z)`, with its value as an integer,
-evaluated by `quetzal::expression` with the zone's coordinates. It throws `std::runtime_error` for a `{` with no `}`, a
-placeholder that is not an expression, or an identifier that is not one of the four. Any other zone that `World` builds or creates with a layout has a name unique in its region, suffixed from
+loaded from a template. `zone_name(pattern, region_name, position)` replaces each `{...}` in the pattern with the value of the
+expression in it, evaluated by `quetzal::expression` with the string symbol `region_name` and the number symbols `x`,
+`y`, and `z`: a string expression, such as `region_name`, as its text, and a number expression, such as `abs(z)`, as an
+integer. It throws `std::runtime_error` for a `{` with no `}`, or a placeholder that is not an expression of those
+symbols. Any other zone that `World` builds or creates with a layout has a name unique in its region, suffixed from
 the region's counter if another zone of the region has it: the file's name, or else the default pattern's name if it
 has a position, or else the region's name.
 `World::extended_name(zone)` returns a zone's worldspace's name and the zone's name, joined by `/`, such as

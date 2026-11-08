@@ -1,5 +1,7 @@
 add_library(quetzal_expression STATIC
     Parser.cpp
+    SymbolTable.cpp
+    DataType.hpp
     Evaluator.hpp
     Expression.hpp
     Node.hpp

@@ -33,7 +33,7 @@ namespace
     template<typename T>
     void check_value(Parser& parser, const SymbolTable& symbol_table, const string& text, const T& expected)
     {
-        optional<Expression> expression = parser.parse(text);
+        optional<Expression> expression = parser.parse(text, symbol_table);
         if (!expression)
         {
             CHECK_CASE(text, false, "unexpected parse error");
@@ -51,7 +51,7 @@ namespace
     template<typename T>
     void check_evaluation_fails(Parser& parser, const SymbolTable& symbol_table, const string& text)
     {
-        optional<Expression> expression = parser.parse(text);
+        optional<Expression> expression = parser.parse(text, symbol_table);
         if (!expression)
         {
             CHECK_CASE(format("{} fails to evaluate", text), false, "unexpected parse error");
@@ -75,9 +75,9 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    void check_parse_fails(Parser& parser, const string& text)
+    void check_parse_fails(Parser& parser, const string& text, const SymbolTable& symbol_table = {})
     {
-        optional<Expression> expression = parser.parse(text);
+        optional<Expression> expression = parser.parse(text, symbol_table);
         CHECK_CASE(format("\"{}\" does not parse", text), !expression.has_value(), expression ? written(*expression) : string());
         return;
     }
@@ -106,10 +106,10 @@ namespace
         check_value<value_type>(parser, st, "(0)", value_type(0));
         check_value<value_type>(parser, st, "(1)", value_type(1));
         check_value<value_type>(parser, st, "1 + 2 * 3 + (4 + 5) * 6", value_type(61));
-        check_evaluation_fails<value_type>(parser, st, "x");
-        check_evaluation_fails<value_type>(parser, st, "x + y");
-        check_evaluation_fails<value_type>(parser, st, "x + 2");
-        check_evaluation_fails<value_type>(parser, st, "2 + x");
+        check_parse_fails(parser, "x");
+        check_parse_fails(parser, "x + y");
+        check_parse_fails(parser, "x + 2");
+        check_parse_fails(parser, "2 + x");
 
         return;
     }
@@ -120,14 +120,14 @@ namespace
         Parser parser;
         SymbolTable st;
 
-        st["x"] = "160";
-        st["y"] = "120";
-        st["width"] = "640";
-        st["height"] = "480";
-        st["left"] = "100";
-        st["top"] = "80";
-        st["right"] = "612";
-        st["bottom"] = "336";
+        st["x"] = 160;
+        st["y"] = 120;
+        st["width"] = 640;
+        st["height"] = 480;
+        st["left"] = 100;
+        st["top"] = 80;
+        st["right"] = 612;
+        st["bottom"] = 336;
 
         check_parse_fails(parser, "");
         check_value<value_type>(parser, st, "0", value_type(0));
@@ -149,13 +149,13 @@ namespace
         check_value<value_type>(parser, st, "abs(-32 )", value_type(32));
         check_value<value_type>(parser, st, "-abs( - 32 )", value_type(-32));
         check_value<value_type>(parser, st, "1 + 2 * 3 + (4 + 5) * 6", value_type(61));
-        check_evaluation_fails<value_type>(parser, st, "z");
+        check_parse_fails(parser, "z", st);
         check_value<value_type>(parser, st, "x", value_type(160));
         check_value<value_type>(parser, st, "x + y", value_type(280));
         check_value<value_type>(parser, st, "x + 2", value_type(162));
         check_value<value_type>(parser, st, "2 + x", value_type(162));
-        check_evaluation_fails<value_type>(parser, st, "x + z");
-        check_evaluation_fails<value_type>(parser, st, "z + x");
+        check_parse_fails(parser, "x + z", st);
+        check_parse_fails(parser, "z + x", st);
         check_value<value_type>(parser, st, "-x", value_type(-160));
         check_value<value_type>(parser, st, "x + width", value_type(800));
         check_value<value_type>(parser, st, "(y+ height)", value_type(600));
@@ -163,10 +163,10 @@ namespace
         check_value<value_type>(parser, st, "bottom -top", value_type(256));
         check_value<value_type>(parser, st, "x - - width", value_type(800));
         check_value<value_type>(parser, st, "x -- width", value_type(800));
-        check_parse_fails(parser, "x -+ width");
+        check_parse_fails(parser, "x -+ width", st);
         check_value<value_type>(parser, st, "abs(right - left)", value_type(512));
         check_value<value_type>(parser, st, "abs(left-right)", value_type(512));
-        check_parse_fails(parser, "max(left)");
+        check_parse_fails(parser, "max(left)", st);
         check_value<value_type>(parser, st, "3*4+2048/abs(-(right-left))*min(4,width)+max(right,bottom)", value_type(640));
         check_value<value_type>(parser, st, "3*4+2048/abs(-(right-left))*min(4,width)", value_type(28));
         check_value<value_type>(parser, st, "2048/abs(-(right-left))*min(4,width)", value_type(16));
@@ -185,8 +185,8 @@ namespace
     {
         Parser parser;
         SymbolTable sti;
-        sti["x"] = "10";
-        sti["y"] = "32";
+        sti["x"] = 10;
+        sti["y"] = 32;
 
         check_value<int>(parser, sti, "min(7, 2) + max(3, abs(-9))", 11);
         check_value<int>(parser, sti, "x + y", 42);
@@ -205,7 +205,130 @@ namespace
         sts["b"] = "world";
 
         check_value<string>(parser, sts, "a + b", string("hello world"));
-        check_evaluation_fails<string>(parser, sts, "a - b");
+        check_parse_fails(parser, "a - b", sts);
+
+        return;
+    }
+
+    //--------------------------------------------------------------------------
+    TEST_CASE("string literals")
+    {
+        Parser parser;
+        SymbolTable sts;
+        sts["a"] = "hello";
+        sts["b"] = "world";
+
+        check_value<string>(parser, sts, R"("text")", string("text"));
+        check_value<string>(parser, sts, R"("")", string());
+        check_value<string>(parser, sts, R"(a + "_" + b)", string("hello_world"));
+        check_value<string>(parser, sts, R"("say \"hi\"")", string(R"(say "hi")"));
+        check_value<string>(parser, sts, R"("a\\b")", string(R"(a\b)"));
+        check_value<string>(parser, sts, R"(("1" + "2"))", string("12"));
+        check_value<string>(parser, sts, R"('text')", string("text"));
+        check_value<string>(parser, sts, R"('say "hi"')", string(R"(say "hi")"));
+        check_value<string>(parser, sts, R"("it's")", string("it's"));
+        check_value<string>(parser, sts, R"('it\'s')", string("it's"));
+        check_value<string>(parser, sts, R"('a' + "b")", string("ab"));
+        check_parse_fails(parser, R"("unterminated)");
+        check_parse_fails(parser, R"("ends in an escape\")");
+        check_parse_fails(parser, R"('mismatched")");
+        check_evaluation_fails<value_type>(parser, sts, R"("1")");
+        check_parse_fails(parser, R"("a" - "b")", sts);
+
+        for (const string& text : {R"("text")", R"(a + "_" + b)", R"("say \"hi\"")", R"("a\\b")", R"(("1" + "2"))", R"('say "hi"')",
+            R"('it\'s')", R"('a' + "b")"})
+        {
+            optional<Expression> expression = parser.parse(text, sts);
+            string printed = expression ? written(*expression) : string();
+            CHECK_CASE(format("{} prints as written", text), printed == text, printed);
+        }
+
+        return;
+    }
+
+    //--------------------------------------------------------------------------
+    TEST_CASE("node types")
+    {
+        Parser parser;
+
+        const SymbolTable symbols {{"count", 3}, {"name", "zone"}};
+        auto type_of = [&](const string& text) { return parser.parse(text, symbols).value().node().type; };
+
+        CHECK_CASE("a number literal is a number", type_of("12") == DataType::Number);
+        CHECK_CASE("a string literal is a string", type_of("'12'") == DataType::String);
+        CHECK_CASE("a sum of numbers is a number", type_of("1 + 2") == DataType::Number);
+        CHECK_CASE("a sum of strings is a string", type_of("'a' + 'b'") == DataType::String);
+        CHECK_CASE("a difference is a number", type_of("2 - 1") == DataType::Number);
+        CHECK_CASE("a number symbol is a number", type_of("count") == DataType::Number);
+        CHECK_CASE("a string symbol is a string", type_of("name") == DataType::String);
+        check_parse_fails(parser, "1 + 'a'", symbols);
+        check_parse_fails(parser, "'a' + 1", symbols);
+        check_parse_fails(parser, "count + name", symbols);
+        CHECK_CASE("a call has its function's return type", type_of("min(count, 2)") == DataType::Number);
+        check_parse_fails(parser, "abs('a')", symbols);
+        check_parse_fails(parser, "max(count, name)", symbols);
+        check_parse_fails(parser, "count - name", symbols);
+        check_parse_fails(parser, "name * 2", symbols);
+        check_parse_fails(parser, "2 / name", symbols);
+        check_parse_fails(parser, "-name", symbols);
+        check_parse_fails(parser, "str(count) * 2", symbols);
+        CHECK_CASE("a product is a number", type_of("count * 2") == DataType::Number);
+        CHECK_CASE("a negation is a number", type_of("-count") == DataType::Number);
+
+        return;
+    }
+
+    //--------------------------------------------------------------------------
+    TEST_CASE("symbol types")
+    {
+        Parser parser;
+        const SymbolTable symbols {{"count", 3}, {"ratio", 0.5}, {"name", "zone"}, {"digits", "12"}};
+
+        check_value<int>(parser, symbols, "count + 1", 4);
+        check_value<double>(parser, symbols, "ratio * 4", 2.0);
+        check_value<string>(parser, symbols, "name + '_'", string("zone_"));
+        check_value<string>(parser, symbols, "digits", string("12"));
+        check_evaluation_fails<int>(parser, symbols, "digits");
+        check_evaluation_fails<int>(parser, symbols, "name");
+
+        const SymbolTable qualified {{"region.difficulty", 4}, {"region.name", "crypt"}};
+        check_value<int>(parser, qualified, "region.difficulty - 1", 3);
+        check_value<string>(parser, qualified, "region.name + '_'", string("crypt_"));
+        check_parse_fails(parser, "region.size", qualified);
+
+        return;
+    }
+
+    //--------------------------------------------------------------------------
+    TEST_CASE("explicit conversion")
+    {
+        Parser parser;
+        const SymbolTable symbols {{"count", 3}, {"ratio", 0.5}, {"name", "zone"}};
+
+        CHECK_CASE("str is a string", parser.parse("str(count)", symbols).value().node().type == DataType::String);
+        check_value<string>(parser, symbols, "str(count)", string("3"));
+        check_value<string>(parser, symbols, "str(ratio)", string("0.5"));
+        check_value<string>(parser, symbols, "str(1 + 2) + 'a'", string("3a"));
+        check_value<string>(parser, symbols, "'a' + str(1) + str(2)", string("a12"));
+        check_value<string>(parser, symbols, "name + '_' + str(count * 2)", string("zone_6"));
+        check_parse_fails(parser, "str(name)", symbols);
+        check_evaluation_fails<int>(parser, symbols, "str(count)");
+
+        return;
+    }
+
+    //--------------------------------------------------------------------------
+    TEST_CASE("evaluation by type")
+    {
+        Parser parser;
+        const SymbolTable symbols {{"count", 3}, {"name", "zone"}};
+
+        check_evaluation_fails<string>(parser, symbols, "1 + 2");
+        check_evaluation_fails<string>(parser, symbols, "count");
+        check_evaluation_fails<int>(parser, symbols, "'a' + name");
+
+        const Expression expression = parser.parse("count + 1", symbols).value();
+        CHECK_THROWS_AS(static_cast<void>(expression.evaluate<int>({{"count", "3"}})), exception);
 
         return;
     }
@@ -214,11 +337,11 @@ namespace
     TEST_CASE("one expression evaluated as two types")
     {
         Parser parser;
-        Expression shared_expr = *parser.parse("x + y");
-
         SymbolTable st_shared;
-        st_shared["x"] = "1.5";
-        st_shared["y"] = "2.5";
+        st_shared["x"] = 1.5;
+        st_shared["y"] = 2.5;
+
+        Expression shared_expr = *parser.parse("x + y", st_shared);
 
         CHECK_CASE("evaluated as float", shared_expr.evaluate<float>(st_shared) == 4.0f);
 

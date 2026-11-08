@@ -5,6 +5,7 @@
 // Node.hpp
 //------------------------------------------------------------------------------
 
+#include "DataType.hpp"
 #include <format>
 #include <memory>
 #include <ostream>
@@ -24,15 +25,16 @@ namespace quetzal::expression
     };
 
     //--------------------------------------------------------------------------
-    // A parse tree node, independent of any value type
     struct Node
     {
         using pointer_type = std::shared_ptr<Node>;
 
         NodeKind kind;
+        DataType type;
         std::string text; // operator symbol, function/identifier name, or literal text
         std::vector<pointer_type> children;
         bool parenthesized = false;
+        char quote = '"';
     };
 
     std::ostream& operator<<(std::ostream& os, const Node& node);
@@ -58,6 +60,7 @@ inline std::format_context::iterator std::formatter<quetzal::expression::Node>::
     std::format_context& ctx) const
 {
     using quetzal::expression::NodeKind;
+    using quetzal::expression::DataType;
 
     auto out = ctx.out();
 
@@ -69,6 +72,24 @@ inline std::format_context::iterator std::formatter<quetzal::expression::Node>::
     switch (node.kind)
     {
         case NodeKind::Literal:
+            if (node.type == DataType::String)
+            {
+                *out++ = node.quote;
+                for (char c : node.text)
+                {
+                    if (c == node.quote || c == '\\')
+                    {
+                        *out++ = '\\';
+                    }
+
+                    *out++ = c;
+                }
+                *out++ = node.quote;
+                break;
+            }
+
+            [[fallthrough]];
+
         case NodeKind::Identifier:
             out = std::format_to(out, "{}", node.text);
             break;
