@@ -70,7 +70,9 @@ stratum_sim::Generation stratum_sim_test::test_generation()
     generation.m_region_specs["staircase"] = test_region_spec("staircase");
     generation.m_region_specs["door"] = test_region_spec("door");
     generation.m_region_specs["dungeon"] = test_region_spec("staircase");
-    generation.m_initial_region_spec_name = "dungeon";
+    generation.m_world_definition.region_spec_trees["dungeon"] = {stratum_sim::RegionSpec {quetzal::KeyValueStore {
+        {string(stratum_sim::name_key), "dungeon"}, {string(stratum_sim::region_spec_key), "dungeon"}}}};
+    generation.m_world_definition.starting_region = "dungeon";
 
     return generation;
 }

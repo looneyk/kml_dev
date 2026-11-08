@@ -15,6 +15,7 @@
 #include "quetzal/stratum_format/RelocatorTarget.hpp"
 #include "quetzal/stratum_format/SettingDefinitionsDocument.hpp"
 #include "quetzal/stratum_format/SettingsDocument.hpp"
+#include "quetzal/stratum_format/WorldDefinitionDocument.hpp"
 #include "quetzal/stratum_format/write_character.hpp"
 #include "quetzal/stratum_format/write_config.hpp"
 #include "quetzal/stratum_format/write_game.hpp"
@@ -1684,6 +1685,79 @@ namespace
 
         document_type game = stratum_format::read_region_specs(filesystem::path("../../assets") / document_type::filepath);
         CHECK_CASE("the game's region spec file reads", game.region_specs.contains("surface") && game.region_specs.contains("dungeon"));
+        return;
+    }
+
+    //--------------------------------------------------------------------------
+    TEST_CASE("world definition file")
+    {
+        using document_type = stratum_format::WorldDefinitionDocument;
+
+        const string world_definition_text =
+            "{\n"
+            "  \"format\": \"quetzal.stratum_world_definition\",\n"
+            "  \"version\": \"0.1\",\n"
+            "  \"starting_region\": \"barrow\",\n"
+            "  \"region_specs\": [\n"
+            "    [\n"
+            "      { \"name\": \"barrow\", \"region_spec\": \"dungeon\" },\n"
+            "      { \"name\": \"barrow_crypt\", \"parent\": \"barrow\", \"region_spec\": \"crypt\" }\n"
+            "    ],\n"
+            "    []\n"
+            "  ]\n"
+            "}\n";
+
+        istringstream is(world_definition_text);
+        document_type document = stratum_format::read_world_definition(is, "world definition");
+        CHECK_CASE("a world definition file reads its starting region, and each tree's region specs in order",
+            document.starting_region == "barrow" && document.region_specs.size() == 2
+            && document.region_specs[0].size() == 2 && document.region_specs[0][0].value("name") == "barrow"
+            && document.region_specs[0][1].value("parent") == "barrow" && document.region_specs[1].empty());
+
+        ostringstream os;
+        stratum_format::write(os, document);
+        CHECK_CASE("and writes the text it was read from", os.str() == world_definition_text);
+
+        auto rejected = [&world_definition_text](const string& from, const string& to, const string& error_expected)
+        {
+            string text = world_definition_text;
+            size_t at = text.find(from);
+            assert(at != string::npos);
+            text.replace(at, from.size(), to);
+
+            try
+            {
+                istringstream in(text);
+                stratum_format::read_world_definition(in, "world definition");
+            }
+            catch (const runtime_error& e)
+            {
+                return string(e.what()).find(error_expected) != string::npos;
+            }
+
+            return false;
+        };
+
+        CHECK_CASE("a world definition file with a key the format does not have is rejected", rejected("\"region_specs\"", "\"trees\"",
+            "trees: not a key of the world definition file"));
+        CHECK_CASE("and one with no starting region", rejected("  \"starting_region\": \"barrow\",\n", "",
+            "starting_region: required and absent"));
+        CHECK_CASE("and one with a tree that is not a list", rejected("[]\n", "{}\n", "region_specs[1]: an array was expected"));
+        CHECK_CASE("and one with a region spec that is not an object", rejected("{ \"name\": \"barrow\", \"region_spec\": \"dungeon\" }", "[]",
+            "region_specs[0][0]: an object was expected"));
+        CHECK_CASE("and one with a value that is not text", rejected("\"crypt\"", "3", "region_specs[0][1].region_spec: a string was expected"));
+
+        const filesystem::path game_filepath = filesystem::path("../../assets") / document_type::filepath;
+        document_type game = stratum_format::read_world_definition(game_filepath);
+        CHECK_CASE("the game's world definition file reads, starting in the surface", game.starting_region == "surface"
+            && !game.region_specs.empty());
+
+        ifstream game_file(game_filepath, ios::binary);
+        ostringstream game_text;
+        game_text << game_file.rdbuf();
+        ostringstream game_written;
+        stratum_format::write(game_written, game);
+        CHECK_CASE("and is in the written form", game_written.str() == game_text.str());
         return;
     }
 

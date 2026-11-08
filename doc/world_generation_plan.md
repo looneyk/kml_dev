@@ -29,7 +29,8 @@ that zones are made from. Saving and opening a game are in
 ## Data structures
 
 ```cpp
-// A request to create a region and its subregions, kept by the region it created
+// A request to create a region and its subregions. The region contains the spec once it is composed and resolved
+// (world_structure_plan.md, ## Design)
 struct RegionSpec
 {
     RegionPosition position() const;
@@ -37,12 +38,13 @@ struct RegionSpec
 
     KeyValueStore keys;
 };
-// A key with no prefix is the region's: its naming patterns, and its metadata: name, type (surface, dungeon, crypt, ...), competency level, difficulty, ...
+// A key with no prefix is the region's: its naming patterns, and its metadata: name, display_name, type (surface, dungeon, crypt, ...), competency level, difficulty, ...
+// parent: in a region spec tree, the name of the parent region, absent for a root spec
+// region_spec: the name of the registered spec it is based on, whose keys its own keys override
 // worldspace.*: for a top-level region, its worldspace's coordinate system: its extent and, for a grid worldspace, its
 //     zone size
-// extent: for a subregion, the positions of its parent's extent that it covers, as boxes (### Extents)
+// extent: for a subregion, its positions in the worldspace, as ranges or positions (### Extents)
 // zone.*: the pattern of the ZoneSpec of each of the region's zones, with the prefix removed, resolved for each zone
-// subregion.*: the names of the region specs of its subregions
 
 // A request to create a zone. The structure sets the position, and the region spec's zone pattern the other keys
 struct ZoneSpec
@@ -148,8 +150,10 @@ void Session::start(flecs::entity zone, const placement_type& placement)
   `ZoneSpec`. Each consumer checks the keys it reads with `find_unknown_keys(spec, known_keys)`. Both are stratum's
   (`specs.hpp`), not `KeyValueStore`'s: `World::create` reads the region spec's keys with no prefix, and the
   zone generator the `parameters.` keys of the resolved `ZoneSpec`.
-- **The game's top-level region specs are its worldspaces.** Each creates a worldspace with the coordinate system its
-  `worldspace.` keys state, and the region and its subregions, from the region specs its `subregion.` keys refer to.
+- **The root specs of the game's region spec trees are its worldspaces** (`world_structure_plan.md`, `## Design`). Each
+  creates a worldspace with the coordinate system its `worldspace.` keys define, and its top-level region. Each spec
+  below the root creates a subregion of the region that its `parent` key refers to, and each region's list of
+  subregions is built when the tree is loaded.
 - **The start settings place the character** in a new game: `world.start_zone`, the zone of the starting worldspace,
   and `world.start_cell`, the cell in it, each `center` or a position. `World::create` and `start_placement` throw,
   before the session starts, for a zone or a cell that does not exist or that an actor cannot occupy.
@@ -161,8 +165,8 @@ void Session::start(flecs::entity zone, const placement_type& placement)
 ```cpp
 flecs::entity World::create_region(flecs::entity worldspace, flecs::entity parent_region, const RegionSpec& region_spec)
 {
-    // Region tag, a new PersistentId, its parent region, its name from its parent's naming pattern, the RegionSpec,
-    // and the metadata components built from it
+    // Region tag, a new PersistentId, its parent region, its name and display name from the spec's name and
+    // display_name, the RegionSpec, and the metadata components built from it
     // create_zone for each of its zones, then create_region for each of its subregions
 }
 
@@ -198,40 +202,42 @@ flecs::entity World::create_zone(PersistentId region_id, const ZoneSpec& zone_sp
 
 ### Extents
 
-An extent is a list of boxes in the worldspace's coordinates, and its positions are the union of the boxes. Each axis
-of a box is an inclusive range `[a, b]`, a single integer for one position, as `"x": 3` is `[3, 3]`, or left out, which
-spans the parent's whole range on that axis. A box can be any size, so an extent can have any form made of boxes, such
-as a ring.
+An extent is an object whose `arrangement` is `ranges` or `positions`, in the worldspace's coordinates.
 
-- **A top-level region's extent is the worldspace's extent,** one box with every axis given.
+- **A `ranges` extent is a list of boxes,** and its positions are the union of the boxes. Each axis of a box is an
+  inclusive range `[a, b]`, a single integer for one position, as `"x": 3` is `[3, 3]`, or left out, which spans the
+  parent's whole range on that axis. A box can be any size, so an extent can have any form made of boxes, such as a ring.
+- **A `positions` extent is a list of zone positions,** each `[x, y, z]`.
+- **A top-level region's extent is the worldspace's extent,** `ranges` with a single box and every axis given.
 - **Boxes should not overlap.** An overlap, or a position listed twice, is logged as a warning, and the extent is the
-  union of the boxes.
+  union of the boxes or the positions.
 - **A region has a zone at each position of its extent that is in no subregion's extent** (`zone_plan.md`, `###
   Regions`).
 
-The key names below are not designed.
+The key names below are not designed. Each example is a region spec tree of the world definition file
+(`world_structure_plan.md`, `## Design`).
 
 A surface of 4x3 zones with no subregions is one box, and the top-level region has a zone at each of its twelve
 positions, created in worldspace position order from `(0, 0, 0)` to `(3, 2, 0)`:
 
 ```json
-"plains": {
-    "worldspace": {"extent": [{"x": [0, 3], "y": [0, 2], "z": 0}], "zone_size": [64, 64]},
-    "zone": {"name": "plains_{x}_{y}"}
-}
+[
+    {
+        "name": "plains",
+        "worldspace": {"extent": {"arrangement": "ranges", "boxes": [{"x": [0, 3], "y": [0, 2], "z": 0}]}, "zone_size": [64, 64]},
+        "zone": {"name": "plains_{x}_{y}"}
+    }
+]
 ```
 
-A dungeon with ten levels, one zone to each, at `(0, 0, -1)` through `(0, 0, -10)`, and a crypt at levels -4 to -6. The
-barrow's own levels are -1 to -3 and -7 to -10:
+A dungeon with ten levels, one zone to each, at `(0, 0, -1)` through `(0, 0, -10)`, and a crypt at levels -4 to -6,
+based on the registered `crypt` spec. The barrow's levels outside the crypt are -1 to -3 and -7 to -10:
 
 ```json
-"barrow": {
-    "worldspace": {"extent": [{"x": 0, "y": 0, "z": [-10, -1]}]},
-    "subregion": {"barrow_crypt": "crypt"}
-},
-"crypt": {
-    "extent": [{"z": [-6, -4]}]
-}
+[
+    {"name": "barrow", "worldspace": {"extent": {"arrangement": "ranges", "boxes": [{"x": 0, "y": 0, "z": [-10, -1]}]}}},
+    {"name": "barrow_crypt", "parent": "barrow", "region_spec": "crypt", "extent": {"arrangement": "ranges", "boxes": [{"z": [-6, -4]}]}}
+]
 ```
 
 A target of `-1` from `(0, 0, -6)` resolves to the zone at `(0, 0, -7)`, which is in the barrow: regions play no part
@@ -244,39 +250,50 @@ itself the rest.
 The moor's staircase edge needs a box for each step:
 
 ```json
-"surface": {
-    "worldspace": {"extent": [{"x": [0, 7], "y": [0, 7], "z": 0}], "zone_size": [64, 64]},
-    "subregion": {"west_moor": "moor"}
-},
-"moor": {
-    "extent": [
-        {"x": [0, 7], "y": 0},
-        {"x": [0, 6], "y": 1},
-        {"x": [0, 5], "y": 2},
-        {"x": [0, 4], "y": 3},
-        {"x": [0, 3], "y": 4},
-        {"x": [0, 2], "y": 5},
-        {"x": [0, 1], "y": 6},
-        {"x": 0, "y": 7}
-    ]
-}
+[
+    {"name": "surface", "worldspace": {"extent": {"arrangement": "ranges", "boxes": [{"x": [0, 7], "y": [0, 7], "z": 0}]}, "zone_size": [64, 64]}},
+    {
+        "name": "west_moor",
+        "parent": "surface",
+        "region_spec": "moor",
+        "extent": {
+            "arrangement": "ranges",
+            "boxes": [
+                {"x": [0, 7], "y": 0},
+                {"x": [0, 6], "y": 1},
+                {"x": [0, 5], "y": 2},
+                {"x": [0, 4], "y": 3},
+                {"x": [0, 3], "y": 4},
+                {"x": [0, 2], "y": 5},
+                {"x": [0, 1], "y": 6},
+                {"x": 0, "y": 7}
+            ]
+        }
+    }
+]
 ```
 
 A shore around a lake in the middle of another 8x8 surface is a ring of four boxes, two rows and two columns, each larger
-than one zone in both dimensions. A single position is a box with an integer on each axis it includes:
+than one zone in both dimensions. Islands in the lake are a list of positions:
 
 ```json
-"shore": {
-    "extent": [
-        {"x": [1, 6], "y": [1, 2]},
-        {"x": [1, 6], "y": [5, 6]},
-        {"x": [1, 2], "y": [3, 4]},
-        {"x": [5, 6], "y": [3, 4]}
-    ]
-},
-"islands": {
-    "extent": [{"x": 3, "y": 3}, {"x": 4, "y": 4}]
-}
+[
+    {"name": "lake_country", "worldspace": {"extent": {"arrangement": "ranges", "boxes": [{"x": [0, 7], "y": [0, 7], "z": 0}]}, "zone_size": [64, 64]}},
+    {
+        "name": "shore",
+        "parent": "lake_country",
+        "extent": {
+            "arrangement": "ranges",
+            "boxes": [
+                {"x": [1, 6], "y": [1, 2]},
+                {"x": [1, 6], "y": [5, 6]},
+                {"x": [1, 2], "y": [3, 4]},
+                {"x": [5, 6], "y": [3, 4]}
+            ]
+        }
+    },
+    {"name": "islands", "parent": "lake_country", "extent": {"arrangement": "positions", "positions": [[3, 3, 0], [4, 4, 0]]}}
+]
 ```
 
 ## Generating a zone's content

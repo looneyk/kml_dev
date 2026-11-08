@@ -34,6 +34,7 @@ add_library(quetzal_stratum_sim STATIC
     Site.cpp
     specs.cpp
     World.cpp
+    WorldDefinition.cpp
     Worldspace.cpp
     ZoneEntryIndex.cpp
     ZoneSpec.cpp
@@ -85,6 +86,7 @@ add_library(quetzal_stratum_sim STATIC
     specs.hpp
     types.hpp
     World.hpp
+    WorldDefinition.hpp
     Worldspace.hpp
     Zone.hpp
     ZoneEntryIndex.hpp

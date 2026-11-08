@@ -253,8 +253,8 @@ its subtree, in persistent id order, as its inventory, each encoded as an `Entit
 ### Generation
 
 `Generation` has the registries that `World` creates worldspaces, regions and zones from (`world_generation_plan.md`):
-`m_region_specs`, a map from a name, `m_initial_region_spec_name`, the name of the region spec a new game's starting
-worldspace is created from, and `m_zone_generators`, a zone generator for each notation. A game has one zone generator: when a game is created or opened, `Game` sets `m_zone_generator` to the
+`m_region_specs`, a map from a name, `m_world_definition`, the `WorldDefinition` a new game's world is created from, and
+`m_zone_generators`, a zone generator for each notation. A game has one zone generator: when a game is created or opened, `Game` sets `m_zone_generator` to the
 one for the game's notation, so nothing after that reads the notation.
 `RegionSpec` (`RegionSpec.hpp`)
 and `ZoneSpec` (`ZoneSpec.hpp`) are the types of a region spec and a zone spec, and the `keys` of each, a `KeyValueStore`,
@@ -874,8 +874,8 @@ the manifest's game settings, sets the game's notation, resets the id allocator 
 if none is passed, with `World::set_world_seed`. It seeds the gameplay random engine with the world seed, keeps it, and
 writes it to the log, so nothing passes from one game to the next. It empties the working directory and creates the game directory there, named by the
 character, whose name the spec must have, with each character a directory name cannot have replaced by `_`. It has the
-character created from the `CharacterSpec`, and the world's starting worldspace and its first zone from the registered
-`RegionSpec` that `Generation::m_initial_region_spec_name` refers to, with `World::create` and the game setting
+character created from the `CharacterSpec`, and the world's starting worldspace and its first zone from the root spec of
+the world definition's starting region, with `World::create` and the game setting
 `Game::start_zone_key`, `world.start_zone`, and starts the session in that zone at the `start_placement` for the game
 setting `Game::start_cell_key`, `world.start_cell`.
 If either throws, it clears again and removes the game directory before passing the exception on, so a failure leaves
@@ -907,14 +907,15 @@ nothing. A character of the name that Windows does not allow in a file name, or 
 `_`. If a save of that name exists, it waits for the next second. An earlier save is never
 replaced. It requires a game in progress whose character is alive and named.
 
-`World::create(region_spec_name, start_zone, game_directory)` creates the starting worldspace, named for the spec, with
-its region and its empty zones, and returns the zone at `start_zone` from `load_zone_at`, generated: `center`
+`World::create(start_zone, game_directory)` creates the starting worldspace from the root spec of the world definition's
+`starting_region`. The worldspace is named for that region, and its spec is the spec's keys over those of the registered spec its `region_spec` key refers to, without `region_spec` and
+`parent`. It creates the worldspace with its region and its empty zones, and returns the zone at `start_zone` from `load_zone_at`, generated: `center`
 (`center_start`), the zone at the centroid of the worldspace's extent with each coordinate rounded toward the lower bound,
 or a zone position written `x,y,z`. `start_placement(zone, start_cell)` returns the placement of an actor starting in the
 zone, facing -y: `center`, the cell nearest the center of the zone's layout that an actor can occupy, the first in row
 order of those as near, or a cell position written `i,j`. Each throws `std::runtime_error` for a value that is neither, a
-zone position with no zone in the worldspace, or a cell position an actor cannot occupy, and `World::create` for a
-region spec that is not registered.
+zone position with no zone in the worldspace, or a cell position an actor cannot occupy, and `World::create` for a start
+tree that is not one of the trees, or a `region_spec` that is not registered.
 
 `Game::clear` clears the session, the character and the world, in that order, in place. `Session::clear` ends play:
 no zone is played, and the turn order and the clock's fraction of a unit are emptied, while the driver remains.
@@ -971,8 +972,8 @@ returns, `dungen` for the block notation and `catagen` for the wall notation, in
 `Generation::zone_generator_type` that makes a `ZoneRequest` from the `ZoneSpec` and passes it on: the spec's `name`,
 the spec's position, the `seed`, which `resolve_zone_spec` adds to every `ZoneSpec`, and
 the keys after `parameters.`, with a temporary `extent` from the game settings `world.zone_size.x` and `.y` if the spec
-has none. It registers the region specs that `load_region_specs` reads from the assets directory, sets
-`m_initial_region_spec_name` to the temporary `surface`, and adds to the surface spec the default zone size of the game
+has none. It registers the region specs that `load_region_specs` reads from the assets directory and the region spec
+world definition that `load_world_definition` reads, and adds to the starting region's spec the default zone size of the game
 settings as its temporary `worldspace.zone_size`. It creates the game with a temporary `CharacterSpec` with the name
 "Adventurer". So the character begins at the center of the surface zone at (4, 4, 0), which is `surface1`'s open
 ground, and each of its staircases leads down to the first level of a dungeon worldspace of its own, `dungeon_1` and
@@ -1164,6 +1165,22 @@ or a value that is not text. `stratum_sim::load_region_specs(assets_directory)`,
 whose extent is x and y 0 to 9 and z 0, whose `zone_name_pattern` is `{region_name}_{x}_{y}`, and whose zones are
 generated by `surface1` with 2 to 4 staircases leading down, none leading up, and the `stairs_down_region_spec`
 `dungeon`; and `dungeon`, whose extent is z -100 to -1 and whose `zone_name_pattern` is `{region_name}_{abs(z)}`.
+
+A world definition file has the format `quetzal.stratum_world_definition`. `WorldDefinitionDocument`, in
+`WorldDefinitionDocument.hpp`, has the format's name and version, the file's path, `data/world_definition.json` relative
+to the assets directory or a mod's directory, the file's `starting_region`, the root region name of the tree a
+new game starts in, and its `region_specs`, a list of trees, each a list of region specs' keys, as in a region spec file.
+`read_world_definition` requires the format, the version, `starting_region`, and `region_specs`, and throws
+`std::runtime_error` for a key the format does not have, a tree that is not an array, a region spec that is not an
+object, or a value that is not text. `write` writes each tree's region specs a line each. In a tree, a spec's `name` is
+its region's, its `parent` is the name of its parent region, which the root spec does not have, and its `region_spec`
+refers to the registered spec it is based on (`region_spec_key` and `parent_key` in `Generation.hpp`).
+`stratum_sim::load_world_definition(assets_directory)`, in `WorldDefinition.hpp`, returns a `WorldDefinition`: its
+`region_spec_trees`, each tree's `RegionSpec`s by its root region's name, the root spec first, and its
+`starting_region`. It throws `std::runtime_error` for a tree without exactly one root spec, a root spec with no `name`
+or the name of another tree's root, or a starting region that is not a tree's root. The game's file is
+`assets/data/world_definition.json`, starting in `surface`, with two trees of one spec each, `surface` and `dungeon`,
+each based on the registered spec of its name.
 
 A settings file, such as the user settings file, has the format `quetzal.stratum_settings` (`game_file_spec.md`, `## The
 user settings file`). `SettingsDocument`, in `SettingsDocument.hpp`, has one scope's `settings::SettingsSnapshot`, as
@@ -1446,7 +1463,8 @@ valid file with one change made to it. It checks that references are found and t
 and writes each file through both `write` overloads and reads it back, comparing the two documents as maps. It writes
 each game file document and compares it with its written form, text for text, reads each back and writes it again
 identically, and rejects each of a set of game files with one change made to it, with the error the change raises. It
-reads the setting definition and region spec files, the game's included.
+reads the setting definition and region spec files, the game's included, and reads the world definition file, the
+game's included, writes it identically, and rejects it with one change made to it.
 
 `flecs_test` checks that the ECS supports zone partitioning, relationships, migration, unload, serialization and
 deterministic iteration.

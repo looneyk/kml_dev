@@ -61,7 +61,7 @@ content in `template_plan.md`, and the access point component in `access_point_p
   worldspace's. A subregion's extent is a part of its parent's: a set of grid zones on the surface, or a range of
   level zones in a vertical layout such as a dungeon.
 - **Every position is in the most specific region whose extent covers it.** Zones that none of a region's
-  subregions cover belong to the region itself, and are created using its region/zone spec. The set of subregions does
+  subregions cover are in the region itself, and are created using its region/zone spec. The set of subregions does
   not need to cover the entire parent region. It is an error for two sibling subregions to overlap.
 - **A region has a list of the zones it covers,**
 - **A region is created from a region spec,** which defines the region's properties, primarily to generate its zones,

@@ -54,12 +54,12 @@ namespace quetzal::stratum_sim
         RandomStream::seed_type world_seed() const;
         void set_world_seed(RandomStream::seed_type seed);
 
-        // Creates a new game's starting worldspace from the registered region spec of that name, and returns the zone at
-        // start_zone, generated: center_start for the zone at the centroid of the worldspace's extent, each coordinate
-        // rounded toward the lower bound, or a zone position written x,y,z
-        // Throws std::runtime_error if the region spec is not registered, start_zone is neither, or the worldspace has no
-        // zone there, and passes on what the zone generator throws
-        flecs::entity create(std::string_view region_spec_name, std::string_view start_zone, const std::filesystem::path& game_directory);
+        // Creates a new game's starting worldspace from the world definition's starting region
+        // Returns the starting zone
+        // Throws std::runtime_error if the starting region is not a tree's root, its spec is based on a region spec that
+        // is not registered, start_zone is neither, or the worldspace has no zone there, and passes on what the zone
+        // generator throws
+        flecs::entity create(std::string_view start_zone, const std::filesystem::path& game_directory);
 
         // Read world.json from the game directory, which zones are saved into until clear: each worldspace, each region, and its
         // zones, and the world index. Loads no zone. Requires a cleared world

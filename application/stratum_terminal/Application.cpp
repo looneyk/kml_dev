@@ -54,9 +54,6 @@ namespace
     // A digit opens a save, so the saves page lists no more than nine
     static constexpr size_t saved_games_listed_max = 9;
 
-    // Temporary, until the world definition file has the starting region spec
-    static constexpr std::string_view temporary_initial_region_spec_name = "surface";
-
     //--------------------------------------------------------------------------
     // Empty for an explicit save
     std::string_view get_save_type_label(stratum_sim::SaveType save_type)
@@ -208,8 +205,9 @@ stratum_terminal::Application::Application(const stratum_sim::Config& config, co
     }
 
     m_game.generation().m_region_specs = stratum_sim::load_region_specs(config.assets_directory);
-    m_game.generation().m_initial_region_spec_name = temporary_initial_region_spec_name;
-    add_temporary_zone_size(m_game.generation().m_region_specs.at(m_game.generation().m_initial_region_spec_name));
+    stratum_sim::WorldDefinition& world_definition = m_game.generation().m_world_definition;
+    world_definition = stratum_sim::load_world_definition(config.assets_directory);
+    add_temporary_zone_size(world_definition.region_spec_trees.at(world_definition.starting_region).front());
 }
 
 //------------------------------------------------------------------------------

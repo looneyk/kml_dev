@@ -34,9 +34,6 @@ namespace view = quetzal::stratum_view;
 namespace
 {
 
-    // Temporary, until the world definition file has the starting region spec
-    constexpr std::string_view temporary_initial_region_spec_name = "surface";
-
     //--------------------------------------------------------------------------
     // Temporary, until zone patterns set every zone's extent: the worldspace's zone size is the game's
     void add_temporary_zone_size(sim::RegionSpec& region_spec)
@@ -122,8 +119,9 @@ StratumWorld::StratumWorld() :
     }
 
     m_game.generation().m_region_specs = sim::load_region_specs(m_game.config().assets_directory);
-    m_game.generation().m_initial_region_spec_name = temporary_initial_region_spec_name;
-    add_temporary_zone_size(m_game.generation().m_region_specs.at(m_game.generation().m_initial_region_spec_name));
+    sim::WorldDefinition& world_definition = m_game.generation().m_world_definition;
+    world_definition = sim::load_world_definition(m_game.config().assets_directory);
+    add_temporary_zone_size(world_definition.region_spec_trees.at(world_definition.starting_region).front());
 }
 
 //------------------------------------------------------------------------------

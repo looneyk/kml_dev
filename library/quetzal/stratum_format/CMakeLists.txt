@@ -14,6 +14,7 @@ add_library(quetzal_stratum_format STATIC
     RelocatorTarget.cpp
     SettingDefinitionsDocument.cpp
     SettingsDocument.cpp
+    WorldDefinitionDocument.cpp
     write_character.cpp
     write_config.cpp
     write_game.cpp
@@ -27,6 +28,7 @@ add_library(quetzal_stratum_format STATIC
     GameDocument.hpp
     GameManifestDocument.hpp
     Notation.hpp
+    WorldDefinitionDocument.hpp
     WorldDocument.hpp
     grid.hpp
     json_util.hpp

@@ -64,6 +64,25 @@ namespace
     }
 
     //--------------------------------------------------------------------------
+    // The spec's keys layered over those of any registered region spec it is based on
+    quetzal::stratum_sim::RegionSpec composed_region_spec(const quetzal::stratum_sim::RegionSpec& region_spec,
+        const std::map<std::string, quetzal::stratum_sim::RegionSpec>& region_specs)
+    {
+        using namespace quetzal::stratum_sim;
+
+        RegionSpec composed;
+        if (const std::optional<std::string> designed = region_spec.keys.value(region_spec_key); designed.has_value())
+        {
+            composed = registered(region_specs, "region spec", designed.value());
+        }
+
+        composed.keys |= region_spec.keys;
+        composed.keys.remove(region_spec_key);
+        composed.keys.remove(parent_key);
+        return composed;
+    }
+
+    //--------------------------------------------------------------------------
     // The name pattern of a zone of the region when its specs state none: the region's name and the zone's coordinates,
     // x and y in a grid worldspace and all three otherwise
     std::string default_zone_name_pattern(const quetzal::stratum_sim::Worldspace& worldspace)
@@ -594,13 +613,13 @@ void quetzal::stratum_sim::World::set_world_seed(RandomStream::seed_type seed)
 }
 
 //------------------------------------------------------------------------------
-flecs::entity quetzal::stratum_sim::World::create(std::string_view region_spec_name, std::string_view start_zone,
-    const std::filesystem::path& game_directory)
+flecs::entity quetzal::stratum_sim::World::create(std::string_view start_zone, const std::filesystem::path& game_directory)
 {
     m_game_directory = game_directory;
 
-    const RegionSpec& region_spec = registered(m_generation.m_region_specs, "region spec", std::string(region_spec_name));
-    const PersistentId worldspace_id = create_worldspace(region_spec_name, region_spec);
+    const WorldDefinition& definition = m_generation.m_world_definition;
+    const WorldDefinition::region_spec_tree_type& starting_tree = registered(definition.region_spec_trees, "region spec tree", definition.starting_region);
+    const PersistentId worldspace_id = create_worldspace(definition.starting_region, composed_region_spec(starting_tree.front(), m_generation.m_region_specs));
 
     ZonePosition position;
     if (start_zone == center_start)

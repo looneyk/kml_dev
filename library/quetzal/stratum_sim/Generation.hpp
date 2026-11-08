@@ -6,6 +6,7 @@
 //------------------------------------------------------------------------------
 
 #include "RegionSpec.hpp"
+#include "WorldDefinition.hpp"
 #include "ZoneSpec.hpp"
 #include "quetzal/common/KeyValueStore.hpp"
 #include "quetzal/stratum_format/Notation.hpp"
@@ -29,7 +30,11 @@ namespace quetzal::stratum_sim
     // The prefix of a RegionSpec's keys that are the ZoneSpec of each of its zones
     inline constexpr std::string_view zone_prefix = "zone.";
 
-    // ZoneSpec keys
+    // RegionSpec keys: the registered region spec it is based on, and the name of its parent region in a region spec tree
+    inline constexpr std::string_view region_spec_key = "region_spec";
+    inline constexpr std::string_view parent_key = "parent";
+
+    // ZoneSpec and RegionSpec keys
     inline constexpr std::string_view name_key = "name";
     inline constexpr std::string_view seed_key = "seed";
 
@@ -60,8 +65,7 @@ namespace quetzal::stratum_sim
         zone_generator_type m_zone_generator;
         std::map<std::string, RegionSpec> m_region_specs;
 
-        // The name of the registered region spec that a new game's starting worldspace is created from
-        std::string m_initial_region_spec_name;
+        WorldDefinition m_world_definition;
     };
 
 } // namespace quetzal::stratum_sim

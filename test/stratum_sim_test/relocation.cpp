@@ -25,15 +25,19 @@
 #include "quetzal/stratum_sim/seeds.hpp"
 #include "quetzal/stratum_sim/specs.hpp"
 #include "quetzal/stratum_sim/World.hpp"
+#include "quetzal/stratum_sim/WorldDefinition.hpp"
 #include "quetzal/stratum_format/Document.hpp"
 #include "quetzal/stratum_format/read_zone.hpp"
 #include "quetzal/stratum_format/RelocatorTarget.hpp"
+#include "quetzal/stratum_format/WorldDefinitionDocument.hpp"
 #include "quetzal/stratum_format/write_zone.hpp"
 #include "quetzal/testing/named_checks.hpp"
 #include <doctest/doctest.h>
 #include <algorithm>
 #include <array>
 #include <filesystem>
+#include <format>
+#include <fstream>
 #include <map>
 #include <memory>
 #include <set>
@@ -251,6 +255,39 @@ namespace
             region_specs.contains("surface") && region_specs.contains("dungeon"));
         CHECK_CASE("and a surface zone is named for the surface and its x and y",
             zone_name_at(world.create_worldspace("surface", region_specs.at("surface")), stratum_sim::ZonePosition {3, 4, 0}) == "surface_3_4");
+
+        const stratum_sim::WorldDefinition world_definition = stratum_sim::load_world_definition("../../assets");
+        CHECK_CASE("the game's world definition file starts in the surface tree, its root spec based on the surface",
+            world_definition.starting_region == "surface"
+            && world_definition.region_spec_trees.at("surface").front().keys.value(stratum_sim::region_spec_key) == "surface"
+            && world_definition.region_spec_trees.contains("dungeon"));
+
+        auto definition_rejected = [](const string& starting_region, const string& trees)
+        {
+            const filesystem::path assets_directory = "out/world_definition";
+            filesystem::create_directories(assets_directory / "data");
+            ofstream(assets_directory / stratum_format::WorldDefinitionDocument::filepath, ios::binary)
+                << format("{{ \"format\": \"quetzal.stratum_world_definition\", \"version\": \"0.1\", \"starting_region\": \"{}\", "
+                    "\"region_specs\": {} }}\n", starting_region, trees);
+
+            try
+            {
+                stratum_sim::load_world_definition(assets_directory);
+            }
+            catch (const runtime_error&)
+            {
+                return true;
+            }
+
+            return false;
+        };
+
+        CHECK_CASE("a world definition whose trees are valid loads", !definition_rejected("moor", "[[{ \"name\": \"moor\" }, "
+            "{ \"name\": \"tor\", \"parent\": \"moor\" }]]"));
+        CHECK_CASE("and one with a tree of two root specs is rejected", definition_rejected("moor", "[[{ \"name\": \"moor\" }, { \"name\": \"tor\" }]]"));
+        CHECK_CASE("and one with a root spec with no name", definition_rejected("moor", "[[{ \"region_spec\": \"moor\" }]]"));
+        CHECK_CASE("and one with two trees of the same root", definition_rejected("moor", "[[{ \"name\": \"moor\" }], [{ \"name\": \"moor\" }]]"));
+        CHECK_CASE("and one whose starting region is not a tree's root", definition_rejected("fen", "[[{ \"name\": \"moor\" }]]"));
 
         // data/door.zone has no name and no position
         flecs::entity first_loaded = world.load_zone(dungeon, "data/door.zone");

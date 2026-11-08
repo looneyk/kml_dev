@@ -208,8 +208,7 @@ void quetzal::stratum_sim::Game::create(const CharacterSpec& character_spec, str
     try
     {
         m_character.create(character_spec);
-        flecs::entity start_zone = m_world.create(m_generation.m_initial_region_spec_name, settings::store().value<std::string>(start_zone_key),
-            game_directory);
+        flecs::entity start_zone = m_world.create(settings::store().value<std::string>(start_zone_key), game_directory);
         m_session.start(start_zone, start_placement(start_zone, settings::store().value<std::string>(start_cell_key)));
     }
     catch (...)
