@@ -28,21 +28,21 @@ namespace quetzal::expression
 
         static constexpr DataType data_type = std::same_as<T, std::string> ? DataType::String : DataType::Number;
 
-        T evaluate(const Node& n, const SymbolTable& symbol_table) const;
+        static T evaluate(const Node& n, const SymbolTable& symbol_table);
 
     private:
 
-        T lookup(const Node& n, const SymbolTable& symbol_table) const;
-        T apply_binary(const std::string& op, T a, T b) const;
-        T apply_unary(const std::string& op, T a) const;
-        T apply_function(const Node& n, const SymbolTable& symbol_table) const;
+        static T lookup(const Node& n, const SymbolTable& symbol_table);
+        static T apply_binary(const std::string& op, T a, T b);
+        static T apply_unary(const std::string& op, T a);
+        static T apply_function(const Node& n, const SymbolTable& symbol_table);
     };
 
 } // namespace quetzal::expression
 
 //------------------------------------------------------------------------------
 template<typename T>
-T quetzal::expression::Evaluator<T>::evaluate(const Node& n, const SymbolTable& symbol_table) const
+T quetzal::expression::Evaluator<T>::evaluate(const Node& n, const SymbolTable& symbol_table)
 {
     switch (n.kind)
     {
@@ -77,7 +77,7 @@ T quetzal::expression::Evaluator<T>::evaluate(const Node& n, const SymbolTable& 
 
 //------------------------------------------------------------------------------
 template<typename T>
-T quetzal::expression::Evaluator<T>::lookup(const Node& n, const SymbolTable& symbol_table) const
+T quetzal::expression::Evaluator<T>::lookup(const Node& n, const SymbolTable& symbol_table)
 {
     assert(n.type == data_type);
 
@@ -99,7 +99,7 @@ T quetzal::expression::Evaluator<T>::lookup(const Node& n, const SymbolTable& sy
 
 //------------------------------------------------------------------------------
 template<typename T>
-T quetzal::expression::Evaluator<T>::apply_binary(const std::string& op, T a, T b) const
+T quetzal::expression::Evaluator<T>::apply_binary(const std::string& op, T a, T b)
 {
     if (op == "+")
     {
@@ -151,7 +151,7 @@ T quetzal::expression::Evaluator<T>::apply_binary(const std::string& op, T a, T 
 
 //------------------------------------------------------------------------------
 template<typename T>
-T quetzal::expression::Evaluator<T>::apply_unary(const std::string& op, T a) const
+T quetzal::expression::Evaluator<T>::apply_unary(const std::string& op, T a)
 {
     if (op == "-")
     {
@@ -170,7 +170,7 @@ T quetzal::expression::Evaluator<T>::apply_unary(const std::string& op, T a) con
 
 //------------------------------------------------------------------------------
 template<typename T>
-T quetzal::expression::Evaluator<T>::apply_function(const Node& n, const SymbolTable& symbol_table) const
+T quetzal::expression::Evaluator<T>::apply_function(const Node& n, const SymbolTable& symbol_table)
 {
     const std::string& name = n.text;
 
@@ -220,7 +220,7 @@ T quetzal::expression::Evaluator<T>::apply_function(const Node& n, const SymbolT
         assert(n.children.size() == 1);
         if constexpr (std::same_as<T, std::string>)
         {
-            return std::format("{}", Evaluator<double>().evaluate(*n.children[0], symbol_table));
+            return std::format("{}", Evaluator<double>::evaluate(*n.children[0], symbol_table));
         }
         else
         {

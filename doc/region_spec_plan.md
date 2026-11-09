@@ -84,7 +84,7 @@ pattern for that zone. Every value can be an expression (`## Patterns`).
   the region. The `zone` object has the keys of an ordinary `ZoneSpec`. Each reader of a spec rejects the members it
   does not read.
 - **Each value is a token that its reader parses,** such as `staircase` for an access point type.
-- **An override is a merge patch** (JSON Merge Patch, RFC 7386): a key adds or replaces a value, the value `$null`
+- **An override is a merge patch** (JSON Merge Patch, RFC 7386): a key adds or replaces a value, the value `&null`
   removes the key, and a list is replaced whole. A subregion's overrides and a mod's patches to types and styles
   (`modding_plan.md`) are one mechanism. A spec is composed as `merge(parent, merge(designed, own))`
   (`world_structure_plan.md`, `## Design`).
@@ -172,17 +172,17 @@ which its `zone.template` pattern draws each zone's template from, are among the
 | Form | Example | Resolved to |
 | --- | --- | --- |
 | Literal | `difficulty: 3`, `primary: {fields 4, forest 4}` | The value itself |
-| Expression | `zone_name_pattern: $region_name + '_' + str(abs(z))` | The expression's value, evaluated with the context's symbols (`### Context`) |
-| Range | `difficulty: $range(3, 6)` | An integer drawn uniformly from the inclusive range |
+| Expression | `zone_name_pattern: &region_name + '_' + str(abs(z))` | The expression's value, evaluated with the context's symbols (`### Context`) |
+| Range | `difficulty: &range(3, 6)` | An integer drawn uniformly from the inclusive range |
 | Weighted choice | A call of a weighted choice function | One entry, drawn in proportion to its weight |
 
 - **Expressions are the implementation of patterns,** written in the language of `quetzal::expression`. A range, a
   weighted choice, and other additions are functions of that language.
-- **A leading `$` marks an expression,** and a value without it is literal text, so `primary: {fields 4, forest 4}` is
-  a weighted table that the `zone.template` pattern draws from for each zone. The `$` is not part of the expression, and a literal
-  that starts with `$` is written as an expression of a string literal, `$'$5'`.
+- **A leading `&` marks an expression,** and a value without it is literal text, so `primary: {fields 4, forest 4}` is
+  a weighted table that the `zone.template` pattern draws from for each zone. The `&` is not part of the expression, and a literal
+  that starts with `&` is written with the `&` doubled, `&&Co` for `&Co`.
 - **Arithmetic in an expression would let a value depend on the context,** such as a difficulty that rises with depth:
-  `zone.parameters.difficulty: $region.difficulty - z`.
+  `zone.parameters.difficulty: &region.difficulty - z`.
 
 ### Context
 
@@ -207,7 +207,7 @@ symbol such as `region.difficulty` is one identifier.
 - **A reference that is a weighted choice makes the spec a grammar rule.** A `subregion.vault` that chooses between
   `crypt` and `ossuary` expands the region into one of several structures when it is resolved, and a spec that can refer to itself, such as
   a cave that can contain a cave, makes the rule recursive.
-- **An entry's `count` can be a range,** such as `subregion.cave.count: $range(0, 3)`. Each subregion created from the
+- **An entry's `count` can be a range,** such as `subregion.cave.count: &range(0, 3)`. Each subregion created from the
   entry is named by the rules in `## Names`.
 - **An entry's `extent` can be an expression that places a box of a given size** at a free position of the parent's
   extent. The positions are drawn as placement draws its sites (`placement_plan.md`, `## A run's roles`), so sibling
@@ -233,7 +233,7 @@ symbol such as `region.difficulty` is one identifier.
 - **A name gets a numeric suffix, as in `<name>_<counter>`, only if the name is taken.** The game has a counter for
   top-level regions, and each region has one for its subregions and its zones, so every extended name is unique.
 - **A region spec's `zone_name_pattern` is the pattern of its zones' names,** a string expression such as
-  `$region_name + '_' + str(x) + '_' + str(y)` for the surface and `$region_name + '_' + str(abs(z))` for a dungeon.
+  `&region_name + '_' + str(x) + '_' + str(y)` for the surface and `&region_name + '_' + str(abs(z))` for a dungeon.
 - **A zone's display name, shown to players, is separate from its name.** The spec defines how the display name is
   made: from a pattern, from the name reformatted, or at random.
 - **A random name that is taken is generated again,** in place of a numeric suffix, and the spec defines how the names
@@ -326,4 +326,4 @@ or `zone_plan.md`, and proposed members are in this plan alone.
 | `zones` | Listed zones, each a position with overrides of the `zone` pattern and a template | Proposed | Yes |
 | `subregion.<name>` | The registered spec a subregion is created from | Designed | No |
 | `subregion.<name>.extent`, `.count`, `.spec.*` | The subregion's placement, its count, and overrides of its spec | Proposed | No |
-| Any value | Literal text, or a `$` expression evaluated when the spec is resolved (`## Patterns`) | Proposed | No |
+| Any value | Literal text, or a `&` expression evaluated when the spec is resolved (`## Patterns`) | Proposed | No |

@@ -65,7 +65,7 @@ T quetzal::expression::Expression::evaluate(const SymbolTable& symbol_table) con
         throw Exception("Expression::evaluate - the expression's type differs from the requested type", __FILE__, __LINE__);
     }
 
-    return Evaluator<T>().evaluate(*m_node, symbol_table);
+    return Evaluator<T>::evaluate(*m_node, symbol_table);
 }
 
 //------------------------------------------------------------------------------

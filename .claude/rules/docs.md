@@ -13,9 +13,12 @@ These rules apply to the documents in `doc/`, alongside the Documents section of
   changed, the plan is changed.
 - **A reference document describes what is built:** the architecture, data structures, and functionality. It never
   mentions the plan or its phases.
-- **Status is only in `doc/work_plan.md`:** open items as checkboxes, each with a bold name and each one commit point,
-  with an ordered `## Next` at the top. Work is referred to by its bold item name (**saved zones**), never as "step 5",
-  and a plan section as `plan.md`, `## Section`.
+- **Status is in `doc/work_plan.md`:** open items as checkboxes, each with a bold name and each one commit point,
+  with an ordered `## Next` at the top. Work is referred to by its bold item name (**saved zones**), and a plan section
+  as `plan.md`, `## Section`.
+- **A plan whose work is well defined and largely separate from other work has its own steps,** a numbered checklist
+  in its `## Steps`, and its `work_plan.md` item refers to the plan. A built step is checked off and kept, and a step is
+  referred to by the plan and its number (`world_structure_plan.md`, step 4).
 - **Bookkeeping comes with the work.** When a plan's work is designed, its items go into `work_plan.md` and its open
   questions into work_plan's Open section. When an item is built, the reference document describes it (for stratum,
   `doc/game_system_reference.md`: the directory table, a section, Tests, and Build) and the item leaves work_plan. A

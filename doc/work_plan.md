@@ -81,9 +81,8 @@ boxes are removed at the start of the next piece of work, since the reference do
       worldspace and its top-level region named for the region spec, and a zone's `DisplayName` separate from both.
 - [ ] **Region specs defined** (`region_spec_plan.md`): the keys of a `RegionSpec` and a `ZoneSpec`, the form of their
       patterns, and the open questions there answered, before the structure is created from them.
-- [ ] **Pattern expressions** (`region_spec_plan.md`, `### Values` and `### Context`): a `$` value in a field that
-      supports patterns evaluated as an expression with the symbols its structure lists, `Parser::parse` taking a `std::string_view`, and `zone_name_pattern` an expression in place of `{...}`
-      placeholders.
+- [ ] **Pattern expressions** (`pattern_resolution_plan.md`): a `&` value evaluated as an expression with the symbols
+      of its spec, and `zone_name_pattern` an expression in place of `{...}` placeholders.
 - [ ] **Listed zones** (`region_spec_plan.md`, `### Listed zones`): a region spec's `zones` member, each zone's position
       and the keys that override the `zone.` keys for it, read with the other typed members.
 - [ ] **The world's structure created whole** (`world_generation_plan.md`, `## Creating the structure`;

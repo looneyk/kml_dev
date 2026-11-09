@@ -21,6 +21,7 @@ add_library(quetzal_stratum_sim STATIC
     load_layout.cpp
     make_document.cpp
     Name.cpp
+    PatternResolver.cpp
     properties.cpp
     RandomStream.cpp
     RegionSpec.cpp
@@ -69,6 +70,7 @@ add_library(quetzal_stratum_sim STATIC
     load_layout.hpp
     make_document.hpp
     Name.hpp
+    PatternResolver.hpp
     PersistentId.hpp
     PlacementIndex.hpp
     properties.hpp

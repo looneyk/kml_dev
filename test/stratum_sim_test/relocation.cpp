@@ -13,6 +13,7 @@
 #include "quetzal/stratum_sim/DiscreteLayout.hpp"
 #include "quetzal/stratum_sim/DiscretePlacementIndex.hpp"
 #include "quetzal/stratum_sim/Name.hpp"
+#include "quetzal/stratum_sim/PatternResolver.hpp"
 #include "quetzal/stratum_sim/RegionSpec.hpp"
 #include "quetzal/stratum_sim/load_layout.hpp"
 #include "quetzal/stratum_sim/make_document.hpp"
@@ -77,6 +78,29 @@ namespace
         const KeyValueStore none = stratum_sim::select_prefixed(spec.store, "region.");
         CHECK_CASE("nothing under a prefix that no key has", none.empty());
 
+        return;
+    }
+
+    //--------------------------------------------------------------------------
+    TEST_CASE("patterns")
+    {
+        stratum_sim::PatternResolver resolver(expression::SymbolTable {{"region_name", "crypt"}, {"z", -3}, {"region.difficulty", 4}},
+            stratum_sim::PatternResolver::random_type(7));
+
+        CHECK_CASE("a string pattern resolves to its value", resolver.resolve("zone_name_pattern", "&region_name + '_' + str(abs(z))")
+            == "crypt_3");
+        CHECK_CASE("and a number pattern to its value as text", resolver.resolve("zone.parameters.difficulty", "&region.difficulty - z") == "7");
+        CHECK_CASE("a value without & is literal text", resolver.resolve("name", "$5 off") == "$5 off");
+        CHECK_CASE("and a value that starts with && is literal text that starts with &", resolver.resolve("name", "&&Co") == "&Co");
+
+        const KeyValueStore resolved = resolver.resolve(KeyValueStore {{"zone_name_pattern", "&region_name"}, {"type", "&&crypt"},
+            {"zone.parameters.difficulty", "&region.difficulty * 2"}, {"name", "Fish & Chips"}});
+        CHECK_CASE("a store resolves each entry", resolved.size() == 4 && resolved.value("zone_name_pattern") == "crypt"
+            && resolved.value("type") == "&crypt" && resolved.value("zone.parameters.difficulty") == "8"
+            && resolved.value("name") == "Fish & Chips");
+
+        CHECK_THROWS_AS(resolver.resolve("name", "&level"), runtime_error);
+        CHECK_THROWS_AS(resolver.resolve("name", "&region_name -"), runtime_error);
         return;
     }
 
