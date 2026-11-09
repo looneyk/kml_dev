@@ -8,8 +8,10 @@
 namespace quetzal::expression
 {
 
+    // Null is the type of the literal null, which has no value
     enum class DataType
     {
+        Null,
         Number,
         String
     };

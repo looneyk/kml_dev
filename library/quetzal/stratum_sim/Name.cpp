@@ -87,7 +87,7 @@ std::string quetzal::stratum_sim::zone_name(std::string_view pattern, std::strin
         }
 
         const std::string placeholder(pattern.substr(open + 1, close - open - 1));
-        const std::optional<expression::Expression> parsed = parser.parse(placeholder, symbols);
+        const expression::Parser::result_type parsed = parser.parse(placeholder, symbols);
         if (!parsed.has_value())
         {
             fail(std::format("has {{{}}}, which is not an expression of region_name, x, y, and z", placeholder));

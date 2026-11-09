@@ -92,12 +92,13 @@ namespace
         CHECK_CASE("and a number pattern to its value as text", resolver.resolve("zone.parameters.difficulty", "&region.difficulty - z") == "7");
         CHECK_CASE("a value without & is literal text", resolver.resolve("name", "$5 off") == "$5 off");
         CHECK_CASE("and a value that starts with && is literal text that starts with &", resolver.resolve("name", "&&Co") == "&Co");
+        CHECK_CASE("the pattern &null resolves to no value", !resolver.resolve("name", "&null").has_value());
 
         const KeyValueStore resolved = resolver.resolve(KeyValueStore {{"zone_name_pattern", "&region_name"}, {"type", "&&crypt"},
-            {"zone.parameters.difficulty", "&region.difficulty * 2"}, {"name", "Fish & Chips"}});
-        CHECK_CASE("a store resolves each entry", resolved.size() == 4 && resolved.value("zone_name_pattern") == "crypt"
-            && resolved.value("type") == "&crypt" && resolved.value("zone.parameters.difficulty") == "8"
-            && resolved.value("name") == "Fish & Chips");
+            {"zone.parameters.difficulty", "&region.difficulty * 2"}, {"name", "Fish & Chips"}, {"seed", "&null"}});
+        CHECK_CASE("a store resolves each entry, and leaves out one whose pattern is &null", resolved.size() == 4
+            && resolved.value("zone_name_pattern") == "crypt" && resolved.value("type") == "&crypt"
+            && resolved.value("zone.parameters.difficulty") == "8" && resolved.value("name") == "Fish & Chips" && !resolved.contains("seed"));
 
         CHECK_THROWS_AS(resolver.resolve("name", "&level"), runtime_error);
         CHECK_THROWS_AS(resolver.resolve("name", "&region_name -"), runtime_error);

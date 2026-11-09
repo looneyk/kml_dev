@@ -5,6 +5,7 @@ add_library(quetzal_expression STATIC
     Evaluator.hpp
     Expression.hpp
     Node.hpp
+    ParseError.hpp
     Parser.hpp
     SymbolTable.hpp
 )

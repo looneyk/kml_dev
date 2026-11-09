@@ -7,10 +7,11 @@
 
 #include "quetzal/expression/Node.hpp"
 #include "quetzal/expression/Expression.hpp"
+#include "quetzal/expression/ParseError.hpp"
+#include <expected>
 #include <string>
 #include <string_view>
 #include <map>
-#include <optional>
 #include <vector>
 #include <iosfwd>
 
@@ -22,11 +23,13 @@ namespace quetzal::expression
     {
     public:
 
+        using result_type = std::expected<Expression, ParseError>;
+
         Parser();
 
-        // Only the types of the values in the symbol_table are used here
-        // Returns std::nullopt on a syntax error, or for an identifier that is not one of the symbols
-        std::optional<Expression> parse(std::string_view str, const SymbolTable& symbol_table) const;
+        // Only the types of the values in the symbol_table are used here. The literal null parses only as the whole text,
+        // to an expression whose type is DataType::Null
+        result_type parse(std::string_view str, const SymbolTable& symbol_table) const;
 
         //----------------------------------------------------------------------
         enum class TokenType
@@ -70,6 +73,8 @@ namespace quetzal::expression
             std::string token;
             char quote = '"';
         };
+
+        [[noreturn]] static void fail(ParseError::Code code, std::size_t position, const std::string& message);
 
         static Node::pointer_type make_node(NodeKind kind, DataType type, std::string text, std::vector<Node::pointer_type> children);
         static Node::pointer_type make_arithmetic_node(const ParseState& state, NodeKind kind, std::string op, std::vector<Node::pointer_type> operands);

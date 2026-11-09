@@ -33,7 +33,7 @@ namespace
     template<typename T>
     void check_value(Parser& parser, const SymbolTable& symbol_table, const string& text, const T& expected)
     {
-        optional<Expression> expression = parser.parse(text, symbol_table);
+        Parser::result_type expression = parser.parse(text, symbol_table);
         if (!expression)
         {
             CHECK_CASE(text, false, "unexpected parse error");
@@ -51,7 +51,7 @@ namespace
     template<typename T>
     void check_evaluation_fails(Parser& parser, const SymbolTable& symbol_table, const string& text)
     {
-        optional<Expression> expression = parser.parse(text, symbol_table);
+        Parser::result_type expression = parser.parse(text, symbol_table);
         if (!expression)
         {
             CHECK_CASE(format("{} fails to evaluate", text), false, "unexpected parse error");
@@ -77,7 +77,7 @@ namespace
     //--------------------------------------------------------------------------
     void check_parse_fails(Parser& parser, const string& text, const SymbolTable& symbol_table = {})
     {
-        optional<Expression> expression = parser.parse(text, symbol_table);
+        Parser::result_type expression = parser.parse(text, symbol_table);
         CHECK_CASE(format("\"{}\" does not parse", text), !expression.has_value(), expression ? written(*expression) : string());
         return;
     }
@@ -238,7 +238,7 @@ namespace
         for (const string& text : {R"("text")", R"(a + "_" + b)", R"("say \"hi\"")", R"("a\\b")", R"(("1" + "2"))", R"('say "hi"')",
             R"('it\'s')", R"('a' + "b")"})
         {
-            optional<Expression> expression = parser.parse(text, sts);
+            Parser::result_type expression = parser.parse(text, sts);
             string printed = expression ? written(*expression) : string();
             CHECK_CASE(format("{} prints as written", text), printed == text, printed);
         }
@@ -330,6 +330,53 @@ namespace
         const Expression expression = parser.parse("count + 1", symbols).value();
         CHECK_THROWS_AS(static_cast<void>(expression.evaluate<int>({{"count", "3"}})), exception);
 
+        return;
+    }
+
+    //--------------------------------------------------------------------------
+    TEST_CASE("null")
+    {
+        Parser parser;
+        const SymbolTable symbols {{"count", 3}};
+
+        const Parser::result_type null_expression = parser.parse("null", symbols);
+        CHECK_CASE("null parses to an expression of type null", null_expression.has_value()
+            && null_expression->node().type == DataType::Null);
+
+        check_parse_fails(parser, "null + 1", symbols);
+        check_parse_fails(parser, "'a' + null", symbols);
+        check_parse_fails(parser, "null + null", symbols);
+        check_parse_fails(parser, "null * 2", symbols);
+        check_parse_fails(parser, "-null", symbols);
+        check_parse_fails(parser, "abs(null)", symbols);
+        return;
+    }
+
+    //--------------------------------------------------------------------------
+    TEST_CASE("parse errors")
+    {
+        Parser parser;
+        const SymbolTable symbols {{"count", 3}, {"name", "zone"}};
+
+        auto code_of = [&](const string& text)
+        {
+            const Parser::result_type parsed = parser.parse(text, symbols);
+            return parsed.has_value() ? optional<ParseError::Code>() : parsed.error().code;
+        };
+
+        CHECK_CASE("an invalid character", code_of("count # 2") == ParseError::Code::InvalidCharacter);
+        CHECK_CASE("an unterminated string", code_of("'zone") == ParseError::Code::UnterminatedString);
+        CHECK_CASE("an unexpected token", code_of("count +") == ParseError::Code::UnexpectedToken);
+        CHECK_CASE("an unknown identifier", code_of("level") == ParseError::Code::UnknownIdentifier);
+        CHECK_CASE("the wrong number of arguments", code_of("abs(1, 2)") == ParseError::Code::ArgumentCount);
+        CHECK_CASE("an argument of the wrong type", code_of("abs(name)") == ParseError::Code::ArgumentType);
+        CHECK_CASE("a number joined to a string", code_of("count + name") == ParseError::Code::MixedTypes);
+        CHECK_CASE("arithmetic on a string", code_of("name * 2") == ParseError::Code::StringOperand);
+        CHECK_CASE("null as an operand", code_of("null + null") == ParseError::Code::NullOperand);
+
+        const Parser::result_type unterminated = parser.parse("count + 'zone", symbols);
+        CHECK_CASE("an error has the position where parsing stopped and a message", !unterminated.has_value()
+            && unterminated.error().position == 8 && !unterminated.error().message.empty());
         return;
     }
 

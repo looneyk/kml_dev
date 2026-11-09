@@ -4,12 +4,19 @@
 //------------------------------------------------------------------------------
 
 #include "Parser.hpp"
-#include "quetzal/common/Exception.hpp"
 #include <charconv>
+#include <format>
 #include <sstream>
 #include <cassert>
 
 using namespace std;
+
+namespace
+{
+
+    constexpr string_view null_keyword = "null";
+
+} // namespace
 
 //------------------------------------------------------------------------------
 quetzal::expression::Parser::Parser() :
@@ -24,6 +31,12 @@ quetzal::expression::Parser::Function::Function(const string& name, vector<DataT
     m_argument_types(std::move(argument_types)),
     m_return_type(return_type)
 {
+}
+
+//------------------------------------------------------------------------------
+void quetzal::expression::Parser::fail(ParseError::Code code, size_t position, const string& message)
+{
+    throw ParseError {code, position, message};
 }
 
 //------------------------------------------------------------------------------
@@ -43,11 +56,14 @@ quetzal::expression::Node::pointer_type quetzal::expression::Parser::make_arithm
 {
     for (const auto& operand : operands)
     {
+        if (operand->type == DataType::Null)
+        {
+            fail(ParseError::Code::NullOperand, state.pos, format("{} given null at position {}", op, state.pos));
+        }
+
         if (operand->type != DataType::Number)
         {
-            ostringstream oss;
-            oss << "Parser::make_arithmetic_node - " << op << " given a string at position " << state.pos;
-            throw Exception(oss.str().c_str(), __FILE__, __LINE__);
+            fail(ParseError::Code::StringOperand, state.pos, format("{} given a string at position {}", op, state.pos));
         }
     }
 
@@ -72,7 +88,7 @@ void quetzal::expression::Parser::init_functions()
 }
 
 //------------------------------------------------------------------------------
-std::optional<quetzal::expression::Expression> quetzal::expression::Parser::parse(std::string_view str, const SymbolTable& symbol_table) const
+quetzal::expression::Parser::result_type quetzal::expression::Parser::parse(std::string_view str, const SymbolTable& symbol_table) const
 {
     try
     {
@@ -80,11 +96,10 @@ std::optional<quetzal::expression::Expression> quetzal::expression::Parser::pars
         next(state);
         return Expression(expression(state));
     }
-    catch (...)
+    catch (const ParseError& error)
     {
+        return std::unexpected(error);
     }
-
-    return std::nullopt;
 }
 
 //------------------------------------------------------------------------------
@@ -124,11 +139,14 @@ quetzal::expression::Node::pointer_type quetzal::expression::Parser::expression(
         if (accept(state, TokenType::OperatorAdd))
         {
             Node::pointer_type rhs = term(state);
+            if (node->type == DataType::Null || rhs->type == DataType::Null)
+            {
+                fail(ParseError::Code::NullOperand, state.pos, format("+ given null at position {}", state.pos));
+            }
+
             if (rhs->type != node->type)
             {
-                ostringstream oss;
-                oss << "Parser::expression - + joins a number and a string at position " << state.pos;
-                throw Exception(oss.str().c_str(), __FILE__, __LINE__);
+                fail(ParseError::Code::MixedTypes, state.pos, format("+ joins a number and a string at position {}", state.pos));
             }
 
             node = make_node(NodeKind::BinaryOp, node->type, "+", { node, rhs });
@@ -140,8 +158,8 @@ quetzal::expression::Node::pointer_type quetzal::expression::Parser::expression(
         else
         {
             ostringstream oss;
-            oss << "Parser::expression - invalid token " << state.token_type << " at position " << state.pos;
-            throw Exception(oss.str().c_str(), __FILE__, __LINE__);
+            oss << "invalid token " << state.token_type << " at position " << state.pos;
+            fail(ParseError::Code::UnexpectedToken, state.pos, oss.str());
         }
     }
 
@@ -167,8 +185,8 @@ quetzal::expression::Node::pointer_type quetzal::expression::Parser::term(ParseS
         else
         {
             ostringstream oss;
-            oss << "Parser::term - invalid token " << state.token_type << " at position " << state.pos;
-            throw Exception(oss.str().c_str(), __FILE__, __LINE__);
+            oss << "invalid token " << state.token_type << " at position " << state.pos;
+            fail(ParseError::Code::UnexpectedToken, state.pos, oss.str());
         }
     }
 
@@ -193,12 +211,15 @@ quetzal::expression::Node::pointer_type quetzal::expression::Parser::factor(Pars
     }
     else if (accept(state, TokenType::Identifier))
     {
+        if (previous_token == null_keyword)
+        {
+            return make_node(NodeKind::Literal, DataType::Null, previous_token, {});
+        }
+
         auto symbol = state.symbol_table.find(previous_token);
         if (symbol == state.symbol_table.end())
         {
-            ostringstream oss;
-            oss << "Parser::factor - identifier not found " << previous_token << " at position " << state.pos;
-            throw Exception(oss.str().c_str(), __FILE__, __LINE__);
+            fail(ParseError::Code::UnknownIdentifier, state.pos, format("identifier not found {} at position {}", previous_token, state.pos));
         }
 
         return make_node(NodeKind::Identifier, symbol->second.type, previous_token, {});
@@ -221,8 +242,8 @@ quetzal::expression::Node::pointer_type quetzal::expression::Parser::factor(Pars
     }
 
     ostringstream oss;
-    oss << "Parser::factor - invalid token " << state.token_type << " at position " << state.pos;
-    throw Exception(oss.str().c_str(), __FILE__, __LINE__);
+    oss << "invalid token " << state.token_type << " at position " << state.pos;
+    fail(ParseError::Code::UnexpectedToken, state.pos, oss.str());
 }
 
 //------------------------------------------------------------------------------
@@ -243,19 +264,21 @@ quetzal::expression::Node::pointer_type quetzal::expression::Parser::function_ca
             const Function& function = i->second;
             if (arguments.size() != function.m_argument_types.size())
             {
-                ostringstream oss;
-                oss << "Parser::function_call - " << name << ", "<< arguments.size() << " arguments found, " << function.m_argument_types.size()
-                    << " arguments expected at position " << state.pos;
-                throw Exception(oss.str().c_str(), __FILE__, __LINE__);
+                fail(ParseError::Code::ArgumentCount, state.pos, format("{}, {} arguments found, {} arguments expected at position {}", name,
+                    arguments.size(), function.m_argument_types.size(), state.pos));
             }
 
             for (size_t slot = 0; slot < arguments.size(); ++slot)
             {
+                if (arguments[slot]->type == DataType::Null)
+                {
+                    fail(ParseError::Code::NullOperand, state.pos, format("{}, argument {} is null at position {}", name, slot + 1, state.pos));
+                }
+
                 if (arguments[slot]->type != function.m_argument_types[slot])
                 {
-                    ostringstream oss;
-                    oss << "Parser::function_call - " << name << ", argument " << slot + 1 << " has the wrong type at position " << state.pos;
-                    throw Exception(oss.str().c_str(), __FILE__, __LINE__);
+                    fail(ParseError::Code::ArgumentType, state.pos, format("{}, argument {} has the wrong type at position {}", name, slot + 1,
+                        state.pos));
                 }
             }
 
@@ -284,8 +307,8 @@ quetzal::expression::Node::pointer_type quetzal::expression::Parser::function_ca
     }
 
     ostringstream oss;
-    oss << "Parser::function_call - invalid token " << state.token_type << " at position " << state.pos;
-    throw Exception(oss.str().c_str(), __FILE__, __LINE__);
+    oss << "invalid token " << state.token_type << " at position " << state.pos;
+    fail(ParseError::Code::UnexpectedToken, state.pos, oss.str());
 }
 
 //------------------------------------------------------------------------------
@@ -339,9 +362,7 @@ void quetzal::expression::Parser::next(ParseState& state) const
 
         if (pos == text.size())
         {
-            ostringstream oss;
-            oss << "Parser::next - unterminated string literal at position " << start;
-            throw Exception(oss.str().c_str(), __FILE__, __LINE__);
+            fail(ParseError::Code::UnterminatedString, start, format("unterminated string literal at position {}", start));
         }
 
         state.token_type = TokenType::StringLiteral;
@@ -414,9 +435,7 @@ void quetzal::expression::Parser::next(ParseState& state) const
             return;
     }
 
-    ostringstream oss;
-    oss << "Parser::next - invalid character encountered " << text[pos] << " at position " << pos;
-    throw Exception(oss.str().c_str(), __FILE__, __LINE__);
+    fail(ParseError::Code::InvalidCharacter, pos, format("invalid character {} at position {}", text[pos], pos));
 }
 
 //------------------------------------------------------------------------------
@@ -440,8 +459,8 @@ bool quetzal::expression::Parser::expect(ParseState& state, TokenType token_type
     }
 
     ostringstream oss;
-    oss << "Parser::expect - invalid token " << state.token_type << ", " << token_type << " expected at position " << state.pos;
-    throw Exception(oss.str().c_str(), __FILE__, __LINE__);
+    oss << "invalid token " << state.token_type << ", " << token_type << " expected at position " << state.pos;
+    fail(ParseError::Code::UnexpectedToken, state.pos, oss.str());
 }
 
 //------------------------------------------------------------------------------
