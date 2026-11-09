@@ -17,8 +17,8 @@ namespace quetzal::stratum_sim
 {
 
     //--------------------------------------------------------------------------
-    // Given key, value pairs, evaluate a pattern expression, substituting variables in the pattern expression with their values
-    // Patterns are expressions prefixed with '&', and a value prefixed with '&&' is literal text that starts with '&'
+    // Given key, value pairs, evaluate a pattern expression, substituting variables in the pattern expression with their symbol values
+    // Patterns are expressions prefixed with '&', with a prefix of "&&" indicating literal text that starts with '&'
     class PatternResolver
     {
     public:
@@ -33,15 +33,17 @@ namespace quetzal::stratum_sim
         PatternResolver& operator=(const PatternResolver&) = delete;
         PatternResolver& operator=(PatternResolver&&) = default;
 
-        // Returns the value unchanged unless it is a pattern or starts with "&&"; key is for the error message
+        // Resolve a pattern value against the given symbols or return it unchanged if value is not a pattern
+        // A prefix of "&&" represents a literal '&'
         // Returns std::nullopt for the pattern &null
+        // key is for the error message
         // Throws std::runtime_error for a pattern that is not a valid expression given the symbols
-        std::optional<std::string> resolve(std::string_view key, std::string_view value);
+        std::optional<std::string> operator()(std::string_view key, std::string_view value);
 
         // Returns a new store with each entry in store with a pattern resolved or copied unchanged
         // An entry whose pattern is &null is omitted
         // Throws std::runtime_error for a pattern that is not a valid expression given the symbols
-        KeyValueStore resolve(const KeyValueStore& store);
+        KeyValueStore operator()(const KeyValueStore& store);
 
     private:
 

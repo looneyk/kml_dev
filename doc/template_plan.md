@@ -54,8 +54,8 @@ starting_area
     rare: {hermit_glade 0.02, ruined_shrine 0.01}    // templates, each drawn with its probability
     zone.parameters.denizens: few
 
-// The value of the zone.template pattern for the zone at an index among the region's zones
-template = index < opening.size() ? draw from opening[index]
+// The value of the zone.template pattern for the zone with a zone counter
+template = zone_counter < opening.size() ? draw from opening[zone_counter]
          : a draw from rare selects an entry ? that entry
          : draw from primary;
 ```

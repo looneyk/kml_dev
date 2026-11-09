@@ -45,8 +45,8 @@ structure created whole** in `work_plan.md`.
   are one mechanism.
 - **A spec's patterns are resolved once it is composed,** with draws from the spec's seed, so each spec is as
   instantiated as it can be. A parent is resolved before its subregions, so `parent.<key>` in a pattern refers to the
-  parent's resolved value. The `zone.*` patterns and `zone_name_pattern` are resolved for each zone, since they use the
-  zone's position and index.
+  parent's resolved value. The `zone.*` patterns are resolved for each zone, since they use the
+  zone's position and zone counter.
 - **A `Region` contains its resolved spec,** and the region spec trees are discarded once the structure is created. The
   `region_spec` and `parent` keys, the spec ids, and the lists of subregion ids are only for construction, and the
   `RegionTree`'s links between persistent ids replace them. A region has no seed. `world.json` saves each region's
@@ -60,15 +60,15 @@ structure created whole** in `work_plan.md`.
 - **The start is a placeholder setting.** `world.start_zone` and `world.start_cell` default to `center`: the zone at
   the centroid of the starting worldspace's extent, and the cell nearest the center of that zone's layout that an actor
   can occupy. Any other value is a zone position or a cell position.
-- **For now, a zone is named from its root region spec's `zone_name_pattern`,** or else `<root region name>_<n>`, with n
-  counting the worldspace's zones from 0 in worldspace position order. Zone names are revisited with the region spec
+- **For now, a zone is named from its root region spec's `zone.name`,** or else `<root region name>_<zone_counter>`, with
+  zone_counter counting the zones in the worldspace from 0 in worldspace position order. Zone names are revisited with the region spec
   tree.
 
 ## Steps
 
 - [x] 1. **The structure created whole.** `World::create_worldspace` creates a worldspace, its top-level region, and an
   empty zone at every position of its extent, in worldspace position order, each named from the spec's
-  `zone_name_pattern`.
+  `zone.name`.
 - [x] 2. **The world definition file.** `stratum_format::WorldDefinitionDocument` reads and writes the file: its
   `starting_region` and its `region_specs`, a list of region spec trees. `assets/data/world_definition.json` has the
   `surface` and `dungeon` trees, and `load_world_definition` reads it into a `WorldDefinition` of trees by root region

@@ -16,8 +16,8 @@ that zones are made from. Saving and opening a game are in
 - **A zone's content is generated when it is needed,** the first time the zone is entered or loaded, from its
   `ZoneSpec` and its seed. A zone's content is created whole: the generator returns a `stratum_format::Document`, which
   `World` builds into the zone in one pass.
-- **A region spec's `zone.` keys define each zone of the region.** The keys, their patterns resolved with the zone's
-  position and index (`region_spec_plan.md`, `## Patterns`), are the zone's `ZoneSpec`, its template and the zone
+- **A region spec's `zone.` keys define each zone in the region.** The keys, their patterns resolved with the zone's
+  position and zone counter (`region_spec_plan.md`, `## Patterns`), are the zone's `ZoneSpec`, its template and the zone
   generator's parameters among them; a pattern that calls the weighted choice function draws from a weighted table. The specs are
   resolved when the structure is created, so every zone's `ZoneSpec` is complete before play starts.
 - **The zone generator applies the `ZoneSpec` to its template** (`template_plan.md`).
@@ -188,7 +188,7 @@ flecs::entity World::create_zone(PersistentId region_id, const ZoneSpec& zone_sp
 | Value | From |
 | --- | --- |
 | The position | The structure: the region spec and the worldspace's coordinate system |
-| The template and the generator's parameters | The region spec's `zone.` keys, their patterns resolved with the zone's position and index |
+| The template and the generator's parameters | The region spec's `zone.` keys, their patterns resolved with the zone's position and zone counter |
 | The seed | `World`, drawn from the region's random engine, unless the `ZoneSpec` has one (`random_engine.md`, `## Generation`) |
 | The name | The region spec's naming pattern |
 
@@ -225,7 +225,7 @@ positions, created in worldspace position order from `(0, 0, 0)` to `(3, 2, 0)`:
         "name": "plains",
         "extent": {"arrangement": "ranges", "boxes": [{"x": [0, 3], "y": [0, 2], "z": 0}]},
         "zone_size": [64, 64],
-        "zone": {"name": "plains_{x}_{y}"}
+        "zone.name": "&region_name + '_' + str(x) + '_' + str(y)"
     }
 ]
 ```

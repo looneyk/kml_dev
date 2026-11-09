@@ -14,6 +14,7 @@
 #include "layout_entities.hpp"
 #include "load_layout.hpp"
 #include "make_document.hpp"
+#include "PatternResolver.hpp"
 #include "properties.hpp"
 #include "seeds.hpp"
 #include "Site.hpp"
@@ -97,17 +98,43 @@ namespace
         return composed;
     }
 
+    constexpr std::string_view default_zone_name = "&region_name + '_' + str(zone_counter)";
+
     //--------------------------------------------------------------------------
-    // The name pattern of a zone of the region when its specs state none: the region's name and the zone's coordinates,
-    // x and y in a grid worldspace and all three otherwise
-    std::string default_zone_name_pattern(const quetzal::stratum_sim::Worldspace& worldspace)
+    // The name of a zone without one: the region's name and the zone's coordinates, x and y in a grid worldspace and all
+    // three otherwise
+    std::string positional_zone_name(const quetzal::stratum_sim::Worldspace& worldspace, std::string_view region_name,
+        const quetzal::stratum_sim::ZonePosition& position)
     {
-        return worldspace.zone_size.has_value() ? "{region_name}_{x}_{y}" : "{region_name}_{x}_{y}_{z}";
+        return worldspace.zone_size.has_value() ? std::format("{}_{}_{}", region_name, position.x, position.y)
+            : std::format("{}_{}_{}_{}", region_name, position.x, position.y, position.z);
+    }
+
+    //--------------------------------------------------------------------------
+    // The symbols of a zone's patterns. A region spec entry is a number if its text is one
+    quetzal::expression::SymbolTable zone_symbols(const quetzal::stratum_sim::Region& region, const quetzal::stratum_sim::ZonePosition& position,
+        std::size_t zone_counter)
+    {
+        using quetzal::expression::DataType;
+
+        quetzal::expression::SymbolTable symbols {{"x", position.x}, {"y", position.y}, {"z", position.z}, {"zone_counter", zone_counter},
+            {"region_name", region.name}};
+
+        for (const auto& [key, value] : region.region_spec.store)
+        {
+            if (!key.starts_with(quetzal::stratum_sim::zone_prefix))
+            {
+                const DataType type = quetzal::try_type<double>(value).has_value() ? DataType::Number : DataType::String;
+                symbols.emplace(std::format("region.{}", key), quetzal::expression::Symbol(type, value));
+            }
+        }
+
+        return symbols;
     }
 
     //--------------------------------------------------------------------------
     // Returns the integers written in the text, separated by commas, or nothing if the text is not count of them
-    std::optional<std::vector<quetzal::stratum_sim::coord_type>> coordinates(std::string_view text, size_t count)
+    std::optional<std::vector<quetzal::stratum_sim::coord_type>> coordinates(std::string_view text, std::size_t dimension)
     {
         std::vector<quetzal::stratum_sim::coord_type> values;
 
@@ -122,7 +149,7 @@ namespace
             values.push_back(value.value());
         }
 
-        return values.size() == count ? std::make_optional(values) : std::nullopt;
+        return values.size() == dimension ? std::make_optional(values) : std::nullopt;
     }
 
     //--------------------------------------------------------------------------
@@ -350,7 +377,7 @@ namespace
 } // namespace
 
 //------------------------------------------------------------------------------
-quetzal::stratum_sim::World::World(IdAllocator& id_allocator, Generation& generation, size_t zone_count_max) :
+quetzal::stratum_sim::World::World(IdAllocator& id_allocator, Generation& generation, std::size_t zone_count_max) :
     m_id_allocator(id_allocator),
     m_generation(generation),
     m_loaded_entities(),
@@ -804,7 +831,7 @@ quetzal::stratum_sim::World::entities_type quetzal::stratum_sim::World::zones() 
 }
 
 //------------------------------------------------------------------------------
-size_t quetzal::stratum_sim::World::zone_count() const
+std::size_t quetzal::stratum_sim::World::zone_count() const
 {
     return zones().size();
 }
@@ -861,8 +888,7 @@ quetzal::stratum_sim::PersistentId quetzal::stratum_sim::World::create_worldspac
     const PersistentId region_id = next_id();
     const Worldspace::extent_type extent = create_worldspace(untaken, positioned_spec, worldspace_id, region_id).extent;
 
-    const std::optional<std::string> name_pattern = region_spec.store.value(zone_name_pattern_key);
-    std::size_t name_counter = 0;
+    std::size_t zone_counter = 0;
 
     for (coord_type z = extent.lower(2); z < extent.upper(2); ++z)
     {
@@ -870,10 +896,7 @@ quetzal::stratum_sim::PersistentId quetzal::stratum_sim::World::create_worldspac
         {
             for (coord_type x = extent.lower(0); x < extent.upper(0); ++x)
             {
-                const ZonePosition position {x, y, z};
-                const std::string zone_name = name_pattern.has_value() ? stratum_sim::zone_name(name_pattern.value(), untaken, position)
-                    : std::format("{}_{}", untaken, name_counter++);
-                create_zone(region_id, position, zone_name);
+                create_zone(region_id, ZonePosition {x, y, z}, zone_counter++);
             }
         }
     }
@@ -948,7 +971,7 @@ void quetzal::stratum_sim::World::name_zone(flecs::entity zone)
     }
     else if (const auto* position = zone.try_get<ZonePosition>())
     {
-        name = zone_name(default_zone_name_pattern(worldspace(worldspace_of(zone))), region_data.name, *position);
+        name = positional_zone_name(worldspace(worldspace_of(zone)), region_data.name, *position);
     }
     else
     {
@@ -1330,7 +1353,7 @@ void quetzal::stratum_sim::World::save_zone(flecs::entity zone)
 }
 
 //------------------------------------------------------------------------------
-size_t quetzal::stratum_sim::World::zone_count_max() const
+std::size_t quetzal::stratum_sim::World::zone_count_max() const
 {
     return m_zone_entry_index.zone_count_max();
 }
@@ -1499,27 +1522,42 @@ flecs::entity quetzal::stratum_sim::World::build_zone(PersistentId region_id, Pe
 }
 
 //------------------------------------------------------------------------------
-quetzal::stratum_sim::ZoneSpec quetzal::stratum_sim::World::resolve_zone_spec(PersistentId region_id, const ZoneSpec& zone_spec) const
+quetzal::stratum_sim::ZoneSpec quetzal::stratum_sim::World::resolved_zone_spec(PersistentId region_id, const ZonePosition& position,
+    std::size_t zone_counter) const
 {
-    const RegionSpec& region_spec = region(region_id).region_spec;
-    ZoneSpec resolved {select_prefixed(region_spec.store, zone_prefix) | zone_spec.store};
-    resolved.store.insert(std::string(seed_key), std::to_string(zone_seed(region_seed(m_world_seed, region_spec), resolved)));
-    return resolved;
+    const Region& zone_region = region(region_id);
+    const RegionSpec& region_spec = zone_region.region_spec;
+
+    ZoneSpec zone_spec {select_prefixed(region_spec.store, zone_prefix)};
+    if (!zone_spec.store.contains(name_key))
+    {
+        zone_spec.store.insert(std::string(name_key), std::string(default_zone_name));
+    }
+
+    zone_spec.set_position(position);
+
+    const RandomStream::seed_type seed = zone_seed(region_seed(m_world_seed, region_spec), zone_spec);
+    zone_spec.store.insert(std::string(seed_key), std::to_string(seed));
+
+    PatternResolver resolver(zone_symbols(zone_region, position, zone_counter), PatternResolver::random_type(seed));
+    return resolve_zone_spec(zone_spec, resolver);
 }
 
 //------------------------------------------------------------------------------
-flecs::entity quetzal::stratum_sim::World::create_zone(PersistentId region_id, const ZonePosition& position, std::string_view name)
+flecs::entity quetzal::stratum_sim::World::create_zone(PersistentId region_id, const ZonePosition& position, std::size_t zone_counter)
 {
-    ZoneSpec zone_spec;
-    zone_spec.set_position(position);
-    zone_spec.store.insert(std::string(name_key), std::string(name));
+    const ZoneSpec zone_spec = resolved_zone_spec(region_id, position, zone_counter);
 
     stratum_format::Document document;
     document.position = stratum_format::zone_position_type {position.x, position.y, position.z};
-    document.zone_spec = resolve_zone_spec(region_id, zone_spec).store;
-    document.components[std::string(name_component)] = std::string(name);
+    document.zone_spec = zone_spec.store;
 
-    return build_zone(region_id, next_id(), document, std::format("the empty zone {}", name));
+    if (const std::optional<std::string> name = zone_spec.store.value(name_key); name.has_value())
+    {
+        document.components[std::string(name_component)] = name.value();
+    }
+
+    return build_zone(region_id, next_id(), document, std::format("the empty zone at ({}, {}, {})", position.x, position.y, position.z));
 }
 
 //------------------------------------------------------------------------------

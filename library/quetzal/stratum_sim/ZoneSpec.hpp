@@ -5,6 +5,7 @@
 // ZoneSpec.hpp
 //------------------------------------------------------------------------------
 
+#include "PatternResolver.hpp"
 #include "quetzal/common/KeyValueStore.hpp"
 
 namespace quetzal::stratum_sim
@@ -13,10 +14,9 @@ namespace quetzal::stratum_sim
     struct ZonePosition;
 
     //--------------------------------------------------------------------------
-    // The description of a zone that World creates the zone from
     struct ZoneSpec
     {
-        // The position given by the position keys, 0 where a key is not found
+        // From the position keys
         // Throws std::runtime_error if a coordinate is not an integer
         ZonePosition position() const;
 
@@ -24,6 +24,10 @@ namespace quetzal::stratum_sim
 
         KeyValueStore store;
     };
+
+    // Returns the zone spec with the pattern values in its store entries resolved
+    // Throws std::runtime_error for a pattern that is not a valid expression given the resolver's symbols
+    ZoneSpec resolve_zone_spec(const ZoneSpec& zone_spec, PatternResolver& resolver);
 
 } // namespace quetzal::stratum_sim
 

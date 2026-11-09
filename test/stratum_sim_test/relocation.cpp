@@ -87,21 +87,42 @@ namespace
         stratum_sim::PatternResolver resolver(expression::SymbolTable {{"region_name", "crypt"}, {"z", -3}, {"region.difficulty", 4}},
             stratum_sim::PatternResolver::random_type(7));
 
-        CHECK_CASE("a string pattern resolves to its value", resolver.resolve("zone_name_pattern", "&region_name + '_' + str(abs(z))")
-            == "crypt_3");
-        CHECK_CASE("and a number pattern to its value as text", resolver.resolve("zone.parameters.difficulty", "&region.difficulty - z") == "7");
-        CHECK_CASE("a value without & is literal text", resolver.resolve("name", "$5 off") == "$5 off");
-        CHECK_CASE("and a value that starts with && is literal text that starts with &", resolver.resolve("name", "&&Co") == "&Co");
-        CHECK_CASE("the pattern &null resolves to no value", !resolver.resolve("name", "&null").has_value());
+        CHECK_CASE("a string pattern resolves to its value", resolver("zone.name", "&region_name + '_' + str(abs(z))") == "crypt_3");
+        CHECK_CASE("and a number pattern to its value as text", resolver("zone.parameters.difficulty", "&region.difficulty - z") == "7");
+        CHECK_CASE("a value without & is literal text", resolver("name", "$5 off") == "$5 off");
+        CHECK_CASE("and a value that starts with && is literal text that starts with &", resolver("name", "&&Co") == "&Co");
+        CHECK_CASE("the pattern &null resolves to no value", !resolver("name", "&null").has_value());
 
-        const KeyValueStore resolved = resolver.resolve(KeyValueStore {{"zone_name_pattern", "&region_name"}, {"type", "&&crypt"},
+        const KeyValueStore resolved = resolver(KeyValueStore {{"zone.name", "&region_name"}, {"type", "&&crypt"},
             {"zone.parameters.difficulty", "&region.difficulty * 2"}, {"name", "Fish & Chips"}, {"seed", "&null"}});
         CHECK_CASE("a store resolves each entry, and leaves out one whose pattern is &null", resolved.size() == 4
-            && resolved.value("zone_name_pattern") == "crypt" && resolved.value("type") == "&crypt"
+            && resolved.value("zone.name") == "crypt" && resolved.value("type") == "&crypt"
             && resolved.value("zone.parameters.difficulty") == "8" && resolved.value("name") == "Fish & Chips" && !resolved.contains("seed"));
 
-        CHECK_THROWS_AS(resolver.resolve("name", "&level"), runtime_error);
-        CHECK_THROWS_AS(resolver.resolve("name", "&region_name -"), runtime_error);
+        CHECK_THROWS_AS(resolver("name", "&level"), runtime_error);
+        CHECK_THROWS_AS(resolver("name", "&region_name -"), runtime_error);
+        return;
+    }
+
+    //--------------------------------------------------------------------------
+    TEST_CASE("region spec patterns")
+    {
+        stratum_sim::PatternResolver resolver(expression::SymbolTable {{"parent.name", "barrow"}, {"parent.difficulty", 3}},
+            stratum_sim::PatternResolver::random_type(7));
+
+        const stratum_sim::RegionSpec region_spec {.name = "&parent.name + '_crypt'", .display_name = "&null", .parent = "&parent.name",
+            .region_spec = "&crypt", .store = KeyValueStore {{"difficulty", "&parent.difficulty + 1"}, {"service_level", "&null"},
+            {"zone.name", "&region_name + '_' + str(abs(z))"}, {"zone.parameters.difficulty", "&region.difficulty - z"}}};
+        const stratum_sim::RegionSpec resolved = stratum_sim::resolve_region_spec(region_spec, resolver);
+
+        CHECK_CASE("a region spec's name and display name are resolved, &null leaving a member with no value",
+            resolved.name == "barrow_crypt" && !resolved.display_name.has_value());
+        CHECK_CASE("and its parent and region spec are not", resolved.parent == "&parent.name" && resolved.region_spec == "&crypt");
+        CHECK_CASE("its store entries are resolved, &null leaving an entry out", resolved.store.value("difficulty") == "4"
+            && !resolved.store.contains("service_level"));
+        CHECK_CASE("and its zone entries are not, since they are resolved for each zone",
+            resolved.store.value("zone.name") == "&region_name + '_' + str(abs(z))"
+            && resolved.store.value("zone.parameters.difficulty") == "&region.difficulty - z");
         return;
     }
 
@@ -237,15 +258,6 @@ namespace
 
         auto name_of = [](flecs::entity e) { return e.get<stratum_sim::Name>().name; };
 
-        const stratum_sim::ZonePosition named_position {3, -4, -2};
-        CHECK_CASE("a zone name pattern has the region's name and each coordinate of the zone's position in place of its identifier",
-            stratum_sim::zone_name("{region_name} {z} at {x}, {y}", "crypt", named_position) == "crypt -2 at 3, -4");
-        CHECK_CASE("and the value of an integer expression in place of the expression",
-            stratum_sim::zone_name("{region_name}_{abs(z)}_{x + y * 2}", "crypt", named_position) == "crypt_2_-5");
-        CHECK_THROWS_AS(stratum_sim::zone_name("{region_name", "crypt", named_position), runtime_error);
-        CHECK_THROWS_AS(stratum_sim::zone_name("{w}", "crypt", named_position), runtime_error);
-        CHECK_THROWS_AS(stratum_sim::zone_name("{x +}", "crypt", named_position), runtime_error);
-
         stratum_sim::PersistentId dungeon_worldspace = world.create_worldspace("dungeon", test_region_spec("door"));
         stratum_sim::PersistentId dungeon = top_level_region(world, dungeon_worldspace);
         stratum_sim::PersistentId second_worldspace = world.create_worldspace("dungeon", test_region_spec("door"));
@@ -271,9 +283,21 @@ namespace
         };
 
         stratum_sim::RegionSpec patterned_spec = test_region_spec("door");
-        patterned_spec.store.insert(string(stratum_sim::zone_name_pattern_key), "{region_name}_{abs(z)}");
-        CHECK_CASE("an empty zone of a region spec with a zone name pattern has the pattern's name",
-            zone_name_at(world.create_worldspace("crypt", patterned_spec), zone_position_at_level(-2)) == "crypt_2");
+        patterned_spec.store.insert("zone.name", "&region_name + '_' + str(abs(z) + region.difficulty)");
+        patterned_spec.store.insert("difficulty", "3");
+        CHECK_CASE("an empty zone in a region whose spec's zone.name is a pattern has the pattern's value, a region entry being a number",
+            zone_name_at(world.create_worldspace("crypt", patterned_spec), zone_position_at_level(-2)) == "crypt_5");
+
+        stratum_sim::RegionSpec literal_spec = test_region_spec("door");
+        literal_spec.store.insert("zone.name", "vault");
+        const stratum_sim::PersistentId vault_worldspace = world.create_worldspace("vault", literal_spec);
+        CHECK_CASE("and in one whose zone.name is literal has that name, with a suffix from its region's counter",
+            zone_name_at(vault_worldspace, zone_position_at_level(-10)) == "vault" && zone_name_at(vault_worldspace, zone_position_at_level(-9)) == "vault_1");
+
+        stratum_sim::RegionSpec unnamed_spec = test_region_spec("door");
+        unnamed_spec.store.insert("zone.name", "&null");
+        CHECK_CASE("and in one whose zone.name is &null has its region's name and its coordinates",
+            zone_name_at(world.create_worldspace("ossuary", unnamed_spec), zone_position_at_level(-2)) == "ossuary_0_0_-2");
 
         // The assets directory is two levels up from the test executable's directory
         const map<string, stratum_sim::RegionSpec> region_specs = stratum_sim::load_region_specs("../../assets");

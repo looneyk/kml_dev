@@ -172,7 +172,7 @@ which its `zone.template` pattern draws each zone's template from, are among the
 | Form | Example | Resolved to |
 | --- | --- | --- |
 | Literal | `difficulty: 3`, `primary: {fields 4, forest 4}` | The value itself |
-| Expression | `zone_name_pattern: &region_name + '_' + str(abs(z))` | The expression's value, evaluated with the context's symbols (`### Context`) |
+| Expression | `zone.name: &region_name + '_' + str(abs(z))` | The expression's value, evaluated with the context's symbols (`### Context`) |
 | Range | `difficulty: &range(3, 6)` | An integer drawn uniformly from the inclusive range |
 | Weighted choice | A call of a weighted choice function | One entry, drawn in proportion to its weight |
 
@@ -194,8 +194,8 @@ symbol such as `region.difficulty` is one identifier.
 | Symbol | Value |
 | --- | --- |
 | `x`, `y`, `z` | The zone's position |
-| `index` | The zone's index in the order in which the region's zones are created |
-| `region_name` | The name of the zone's region |
+| `zone_counter` | The zone's count, from 0, in the order in which zones are created |
+| `region_name` | The name of the region the zone is in |
 | `region.<key>` | A key of the region's resolved spec, such as `region.difficulty` |
 | `parent.<key>` | A key of the parent region's resolved spec |
 
@@ -215,10 +215,10 @@ symbol such as `region.difficulty` is one identifier.
 
 ### Zones
 
-- **The `zone.` keys are the keys of each zone's `ZoneSpec`,** resolved with the zone's position and index in the
-  context.
+- **The `zone.` keys are the keys of each zone's `ZoneSpec`,** resolved with the zone's position and zone counter in
+  the context.
 - **The `zone.template` pattern draws each zone's template** from the weighted tables `opening`, `primary`, and `rare`,
-  by the zone's index and a draw.
+  by the zone's zone counter and a draw.
 
 ### Spec generators
 
@@ -232,7 +232,7 @@ symbol such as `region.difficulty` is one identifier.
 - **A worldspace and its top-level region have the top-level region spec's name.**
 - **A name gets a numeric suffix, as in `<name>_<counter>`, only if the name is taken.** The game has a counter for
   top-level regions, and each region has one for its subregions and its zones, so every extended name is unique.
-- **A region spec's `zone_name_pattern` is the pattern of its zones' names,** a string expression such as
+- **A region spec's `zone.name` is the name of each zone in the region,** literal text or a string pattern such as
   `&region_name + '_' + str(x) + '_' + str(y)` for the surface and `&region_name + '_' + str(abs(z))` for a dungeon.
 - **A zone's display name, shown to players, is separate from its name.** The spec defines how the display name is
   made: from a pattern, from the name reformatted, or at random.
@@ -260,8 +260,8 @@ For each of the game's top-level region specs, `World::create`:
 1. resolves the spec, its subregion entries' counts, references, and extents included, and creates the worldspace from
    the spec's `extent` and `zone_size` and its top-level region with the spec's name;
 2. creates a zone at each position of the region's extent that is in no subregion's extent, in the order of
-   `## Zones of a worldspace`, with its position, its seed, its `ZoneSpec` resolved from the `zone.` keys, and its name
-   from the `zone_name_pattern` pattern;
+   `## Zones of a worldspace`, with its position, its seed, and its `ZoneSpec` resolved from the `zone.` keys, its name
+   among them;
 3. creates each subregion in the same way, from its entry's resolved spec and extent;
 
 and then generates the character's initial zone and places the character at the cell position that the game setting
@@ -286,7 +286,7 @@ specifies.
 - **Are ranges written as `3 .. 6`, in dice notation, or in both?**
 - **Do expressions nest, and do they have arithmetic?**
 - **Which variables does the context have?**
-- **Do the weighted tables become `zone.` expressions on `{index}`?**
+- **Do the weighted tables become `zone.` expressions on `zone_counter`?**
 - **What does a spec generator take and return?**
 - **Is a subregion's extent always smaller than its parent's, so that every recursive rule ends?**
 - **What are the key names and syntax of an extent and of an expression that places one, and can an extent take forms
@@ -317,7 +317,7 @@ or `zone_plan.md`, and proposed members are in this plan alone.
 | `seed` | The region's seed, in place of the drawn one | Built | Yes |
 | `position.x`, `.y` | The region's position, which its seed is derived from until seeds are drawn hierarchically | Built | No |
 | `zone_size` | A top-level spec's grid worldspace's zone size | Built | Yes |
-| `zone_name_pattern` | The pattern of each zone's name, a string expression of `region_name`, `x`, `y`, and `z` | Built | Yes |
+| `zone.name` | Each zone's name, resolved with the zone's symbols | Built | Yes |
 | `zone.display_name` | The pattern or rule for each zone's display name | Proposed | Yes |
 | `zone.parameters.*` | Generation parameters for every zone | Designed | Yes |
 | `parameters.opening`, `.primary`, `.rare` | The weighted tables of the `zone.template` pattern | Designed | Yes |

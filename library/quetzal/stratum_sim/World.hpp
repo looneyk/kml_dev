@@ -40,7 +40,7 @@ namespace quetzal::stratum_sim
         using entities_type = std::vector<flecs::entity>;
         using worldspaces_type = std::vector<Worldspace>;
 
-        World(IdAllocator& id_allocator, Generation& generation, size_t zone_count_max);
+        World(IdAllocator& id_allocator, Generation& generation, std::size_t zone_count_max);
         World(const World&) = delete;
         World(World&&) = delete;
         ~World() = default;
@@ -155,8 +155,8 @@ namespace quetzal::stratum_sim
         // Never unloads zone_entered, and does nothing if zone_count_max is 0
         void trim_zones(flecs::entity zone_entered);
 
-        size_t zone_count_max() const;
-        void set_zone_count_max(size_t zone_count_max);
+        std::size_t zone_count_max() const;
+        void set_zone_count_max(std::size_t zone_count_max);
 
         // The layout's queries, run from the entity's zone and placement. A wall is crossable or not as the entity
         // perceives what is on it. In move, every Blocking entity other than e blocks the way
@@ -210,12 +210,15 @@ namespace quetzal::stratum_sim
         // another zone's position in its worldspace
         flecs::entity build_zone(PersistentId region_id, PersistentId zone_id, const stratum_format::Document& document, std::string_view source);
 
-        // Returns the region spec's zone. keys, replaced by the spec's keys where both have one, with the zone's seed added
-        ZoneSpec resolve_zone_spec(PersistentId region_id, const ZoneSpec& zone_spec) const;
+        // Returns the spec of the zone at the position in the region: the region spec's zone. keys, with a default name, the
+        // zone's position, and its seed, its patterns resolved with the zone's symbols. The zone counter counts the zones
+        // from 0 in the order in which they are created
+        // Throws std::runtime_error for a pattern that is not a valid expression given the zone's symbols
+        ZoneSpec resolved_zone_spec(PersistentId region_id, const ZonePosition& position, std::size_t zone_counter) const;
 
-        // Creates an empty zone with the name at the position in the region, with its spec resolved from the position
+        // Creates an empty zone at the position in the region, with its resolved spec
         // Throws std::runtime_error if the position is outside the worldspace's extent or is another zone's position in it
-        flecs::entity create_zone(PersistentId region_id, const ZonePosition& position, std::string_view name);
+        flecs::entity create_zone(PersistentId region_id, const ZonePosition& position, std::size_t zone_counter);
 
         // Returns the zone at the position in the worldspace, read back if it has unloaded
         // Throws std::runtime_error if the worldspace has no zone at the position or that zone cannot be read back

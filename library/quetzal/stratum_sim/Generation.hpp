@@ -23,10 +23,6 @@ namespace quetzal::stratum_format
 namespace quetzal::stratum_sim
 {
 
-    // The RegionSpec key of the pattern of its zones' names, in which each {...} is replaced: {region_name} by the region's
-    // name, and any other by the value of an integer expression in the zone's coordinates x, y, and z, such as {abs(z)}
-    inline constexpr std::string_view zone_name_pattern_key = "zone_name_pattern";
-
     // The prefix of a RegionSpec's keys that are the ZoneSpec of each of its zones
     inline constexpr std::string_view zone_prefix = "zone.";
 

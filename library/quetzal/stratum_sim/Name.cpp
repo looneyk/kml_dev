@@ -4,13 +4,10 @@
 //------------------------------------------------------------------------------
 
 #include "Name.hpp"
-#include "quetzal/expression/Parser.hpp"
-#include "quetzal/log/Log.hpp"
 #include <algorithm>
 #include <cctype>
-#include <optional>
-#include <stdexcept>
 #include <string>
+#include <utility>
 
 namespace
 {
@@ -58,48 +55,4 @@ void quetzal::stratum_sim::register_names(flecs::world& entities)
         });
 
     return;
-}
-
-//------------------------------------------------------------------------------
-std::string quetzal::stratum_sim::zone_name(std::string_view pattern, std::string_view region_name, const ZonePosition& position)
-{
-    auto fail = [pattern](std::string_view reason)
-    {
-        const std::string message = std::format("the zone name pattern '{}' {}", pattern, reason);
-        log::logger().error("stratum_sim", "{}", message);
-        throw std::runtime_error(message);
-    };
-
-    const expression::SymbolTable symbols {{"region_name", std::string(region_name)}, {"x", position.x}, {"y", position.y}, {"z", position.z}};
-    expression::Parser parser;
-
-    std::string name;
-    size_t i = 0;
-
-    for (size_t open = pattern.find('{'); open != std::string_view::npos; open = pattern.find('{', i))
-    {
-        name += pattern.substr(i, open - i);
-
-        const size_t close = pattern.find('}', open);
-        if (close == std::string_view::npos)
-        {
-            fail("has a { with no }");
-        }
-
-        const std::string placeholder(pattern.substr(open + 1, close - open - 1));
-        const expression::Parser::result_type parsed = parser.parse(placeholder, symbols);
-        if (!parsed.has_value())
-        {
-            fail(std::format("has {{{}}}, which is not an expression of region_name, x, y, and z", placeholder));
-        }
-
-        // parsed was just checked
-        name += parsed->node().type == expression::DataType::String ? parsed->evaluate<std::string>(symbols)
-            : std::to_string(parsed->evaluate<coord_type>(symbols));
-
-        i = close + 1;
-    }
-
-    name += pattern.substr(i);
-    return name;
 }

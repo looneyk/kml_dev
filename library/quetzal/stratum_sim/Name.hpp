@@ -5,7 +5,6 @@
 // Name.hpp
 //------------------------------------------------------------------------------
 
-#include "Zone.hpp"
 #include <flecs.h>
 #include <concepts>
 #include <cstddef>
@@ -40,11 +39,6 @@ namespace quetzal::stratum_sim
     // Registers Name and DisplayName with their reflection as strings, so a file's "name": "..." and "display_name": "..."
     // decode into them, and an observer that gives an entity whose Name is set the placeholder DisplayName if it has none
     void register_names(flecs::world& entities);
-
-    // Returns the pattern with each {...} replaced: an identifier, region_name, x, y, or z, by its value, and any other
-    // expression by its value as an integer, evaluated with the position's coordinates
-    // Throws std::runtime_error if a { has no }, or a placeholder is not an expression or has an unknown identifier
-    std::string zone_name(std::string_view pattern, std::string_view region_name, const ZonePosition& position);
 
     // Returns the name if it is not taken, and otherwise the name with the suffix _<counter> for the first counter after
     // the given one whose name is not taken, which becomes the counter

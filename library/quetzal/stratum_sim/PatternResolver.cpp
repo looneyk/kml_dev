@@ -27,7 +27,7 @@ quetzal::stratum_sim::PatternResolver::PatternResolver(expression::SymbolTable s
 }
 
 //------------------------------------------------------------------------------
-std::optional<std::string> quetzal::stratum_sim::PatternResolver::resolve(std::string_view key, std::string_view value)
+std::optional<std::string> quetzal::stratum_sim::PatternResolver::operator()(std::string_view key, std::string_view value)
 {
     if (!value.starts_with(pattern_prefix))
     {
@@ -63,12 +63,12 @@ std::optional<std::string> quetzal::stratum_sim::PatternResolver::resolve(std::s
 }
 
 //------------------------------------------------------------------------------
-quetzal::KeyValueStore quetzal::stratum_sim::PatternResolver::resolve(const KeyValueStore& store)
+quetzal::KeyValueStore quetzal::stratum_sim::PatternResolver::operator()(const KeyValueStore& store)
 {
     KeyValueStore resolved;
     for (const auto& [key, value] : store)
     {
-        if (std::optional<std::string> resolved_value = resolve(key, value); resolved_value.has_value())
+        if (std::optional<std::string> resolved_value = (*this)(key, value); resolved_value.has_value())
         {
             resolved.insert(key, std::move(resolved_value.value()));
         }

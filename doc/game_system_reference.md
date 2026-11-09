@@ -339,16 +339,27 @@ the seed's position is saved with the spec in `world.json`. It then creates an e
 of the worldspace's extent, in worldspace position order: `z`, then `y`, then `x`, each from lowest to highest. It
 returns the worldspace's id. `new_region_position()` is a
 placeholder until seeds are drawn hierarchically, and returns the x one past the largest of the world's region specs,
-or 0 with none, and y 0. Each of these empty zones is named from the region spec's `zone_name_pattern`, such as
-`{region_name}_{x}_{y}`, with the top-level region's name and the zone's position, or else for the top-level region and
-its count in worldspace position order, from 0, as in `dungeon_9`. It keeps that name when its content is generated or
-loaded from a template. `zone_name(pattern, region_name, position)` replaces each `{...}` in the pattern with the value of the
-expression in it, evaluated by `quetzal::expression` with the string symbol `region_name` and the number symbols `x`,
-`y`, and `z`: a string expression, such as `region_name`, as its text, and a number expression, such as `abs(z)`, as an
-integer. It throws `std::runtime_error` for a `{` with no `}`, or a placeholder that is not an expression of those
-symbols. Any other zone that `World` builds or creates with a layout has a name unique in its region, suffixed from
-the region's counter if another zone of the region has it: the file's name, or else the default pattern's name if it
-has a position, or else the region's name.
+or 0 with none, and y 0.
+
+Each of these empty zones has the spec that `resolved_zone_spec(region_id, position, zone_counter)` returns: the region
+spec's `zone.` keys, with the zone's position and seed, its patterns resolved. The zone counter counts the zones from 0
+in the order in which they are created. The name is the region spec's `zone.name`, or else
+`&region_name + '_' + str(zone_counter)`, as in `dungeon_9`. The seed is `zone_seed(region_seed(world_seed,
+region_spec), zone_spec)`. `resolve_zone_spec(zone_spec, resolver)`, in `ZoneSpec.hpp`, resolves the spec's store
+with a `PatternResolver` seeded with the zone's seed and the symbols `x`, `y`, `z`, `zone_counter`, `region_name`, and `region.<key>` for each of the region spec's
+other store entries, a number if its text is one. With the surface's `zone.name`, `&region_name + '_' + str(x) + '_' + str(y)`, the zone at (3, 4, 0) is named
+`surface_3_4`. A zone keeps its name when its content is generated or loaded from a template. Any other zone that
+`World` builds or creates with a layout has a name unique in its region, suffixed from the region's counter if another
+zone in the region has it: the file's name, or else, if it has a position, the region's name and its x and y in a grid
+worldspace and all three coordinates otherwise, or else the region's name.
+
+`PatternResolver`, in `PatternResolver.hpp`, is constructed with a symbol table and a random engine, and is a
+function object that resolves a key's value or a store. A value that starts with `&` is a pattern: the text after it is parsed by `quetzal::expression` with
+the symbols and replaced by its value, a number written as `std::format` writes a `double`. A value that starts with
+`&&` is literal text with one `&` removed, and any other value is literal text. The pattern `&null` has no value, and
+removes its entry from a store. A pattern that is not an expression of the symbols throws `std::runtime_error`.
+`resolve_region_spec(region_spec, resolver)`, in `RegionSpec.hpp`, resolves a region spec's `name`, `display_name`, and
+store entries, leaving the `zone.` keys as they are.
 `World::extended_name(zone)` returns a zone's worldspace's name and the zone's name, joined by `/`, such as
 `surface/surface_3_4`. `zone_of` returns a null entity for a zone itself.
 `unload_worldspace(worldspace_id)` unloads every zone of the worldspace, each completing in the `PersistentId` observer,
@@ -367,10 +378,7 @@ that layout and nothing else, and asserts that it is given a layout. Each zone i
 discards a zone, its contents and its layout.
 
 `World` takes the game's `Generation` by reference in its constructor (`### Generation`). `world_seed()` and
-`set_world_seed(seed)` access the world seed, which is 0 until it is set.
-`resolve_zone_spec(region_id, zone_spec)` returns the region spec's `zone.` keys, replaced by the `ZoneSpec`'s keys where
-both have one, with the `seed` `zone_seed(region_seed(world_seed, region_spec), resolved_zone_spec)`. An empty zone's
-spec is resolved from a `ZoneSpec` with its position.
+`set_world_seed(seed)` access the world seed, which is 0 until it is set, and an empty zone's seed is derived from it.
 
 `load_zone_at(worldspace_id, position)` returns the zone at the position in the worldspace, reading it back with
 `load_saved_zone` if it has unloaded. If the zone is empty, it fills it from the `Document` that `generate_zone(zone_spec)`
@@ -974,7 +982,7 @@ warnings with `push_warning`, and the rest with `print`, and its run log file. T
 Each host registers, for each notation, the generator of `stratum_gen::generators()` that `stratum_gen::generator_name`
 returns, `dungen` for the block notation and `catagen` for the wall notation, in `m_zone_generators`, as a
 `Generation::zone_generator_type` that makes a `ZoneRequest` from the `ZoneSpec` and passes it on: the spec's `name`,
-the spec's position, the `seed`, which `resolve_zone_spec` adds to every `ZoneSpec`, and
+the spec's position, the `seed`, which `resolved_zone_spec` adds to every `ZoneSpec`, and
 the keys after `parameters.`, with a temporary `extent` from the game settings `world.zone_size.x` and `.y` if the spec
 has none. It registers the region specs that `load_region_specs` reads from the assets directory and the region spec
 world definition that `load_world_definition` reads, and adds to the starting region's spec the default zone size of the game
@@ -1172,9 +1180,9 @@ a seed that is not a seed, a key under `extent.` or `zone_size.`, which belongs 
 that is neither, a member the arrangement does not have, or a range whose lower bound is
 above its upper bound. `stratum_sim::load_region_specs(assets_directory)`, in `RegionSpec.hpp`, returns the
 `RegionSpec`s by name. The game's file is `assets/data/region_specs.json`, with two top-level region specs: `surface`,
-whose extent is x and y 0 to 9 and z 0, whose `zone_name_pattern` is `{region_name}_{x}_{y}`, and whose zones are
+whose extent is x and y 0 to 9 and z 0, whose `zone.name` is `&region_name + '_' + str(x) + '_' + str(y)`, and whose zones are
 generated by `surface1` with 2 to 4 staircases leading down, none leading up, and the `stairs_down_region_spec`
-`dungeon`; and `dungeon`, whose extent is z -100 to -1 and whose `zone_name_pattern` is `{region_name}_{abs(z)}`.
+`dungeon`; and `dungeon`, whose extent is z -100 to -1 and whose `zone.name` is `&region_name + '_' + str(abs(z))`.
 
 A world definition file has the format `quetzal.stratum_world_definition`. `WorldDefinitionDocument`, in
 `WorldDefinitionDocument.hpp`, has the format's name and version, the file's path, `data/world_definition.json` relative

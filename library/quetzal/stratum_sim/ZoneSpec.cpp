@@ -22,3 +22,9 @@ void quetzal::stratum_sim::ZoneSpec::set_position(const ZonePosition& position)
     store.insert(std::string(position_z_key), std::to_string(position.z));
     return;
 }
+
+//------------------------------------------------------------------------------
+quetzal::stratum_sim::ZoneSpec quetzal::stratum_sim::resolve_zone_spec(const ZoneSpec& zone_spec, PatternResolver& resolver)
+{
+    return ZoneSpec {resolver(zone_spec.store)};
+}

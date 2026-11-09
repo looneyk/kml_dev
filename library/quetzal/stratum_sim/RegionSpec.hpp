@@ -5,6 +5,7 @@
 // RegionSpec.hpp
 //------------------------------------------------------------------------------
 
+#include "PatternResolver.hpp"
 #include "types.hpp"
 #include "quetzal/stratum_format/RegionSpec.hpp"
 #include <filesystem>
@@ -30,6 +31,11 @@ namespace quetzal::stratum_sim
 
     // Deprecated
     void set_region_position(RegionSpec& region_spec, const RegionPosition& position);
+
+    // Returns the region spec with the pattern values in its name fields and store entries resolved
+    // Zone store entries are excluded and pass through unchanged
+    // Throws std::runtime_error for a pattern that is not a valid expression given the resolver's symbols
+    RegionSpec resolve_region_spec(const RegionSpec& region_spec, PatternResolver& resolver);
 
     // Returns the region specs by name from the region spec file in the assets directory
     // Throws std::runtime_error if the file cannot be read or the reader rejects it

@@ -12,8 +12,8 @@ open items are in `work_plan.md` (`### Random engine`).
 - **The gameplay random engine is process-wide,** a `RandomStream` that `gameplay_random()` returns, though nothing
   draws from it yet. `Game` seeds it with the world seed, which `Game` is passed or draws, and writes the seed to the
   log. Reseeding on open draws a new seed for the gameplay random engine and keeps the world seed.
-- **Region and zone seeds are derived** (`## Generation`). `World::resolve_zone_spec(region_id, zone_spec)` adds the
-  zone's seed to the resolved `ZoneSpec` under `seed_key`, and the host passes it to the generator in the
+- **Region and zone seeds are derived** (`## Generation`). `World::resolved_zone_spec(region_id, position, zone_counter)`
+  adds the zone's seed to the resolved `ZoneSpec` under `seed_key`, and the host passes it to the generator in the
   `ZoneRequest`, with the zone's position.
 - **dungen and catagen each seed one `math::Random` per run** from `Parameters::seed`, and pass it by reference from
   one function to the next.
@@ -141,7 +141,7 @@ type`), and a seed stored with the version of the generators that made it.
   siblings.
 - **A seed passed takes precedence.** A `RegionSpec` or `ZoneSpec` with a seed under `seed_key` uses it in place of the
   derived one, so a region or a zone can be rebuilt alone, such as from a zone file's `generator.parameters`.
-- **A zone's seed is one of its generation parameters,** which `World::resolve_zone_spec(region_id, zone_spec)` adds
+- **A zone's seed is one of its generation parameters,** which `World::resolved_zone_spec(region_id, position, zone_counter)` adds
   to the `ZoneSpec`, under `seed_key`, when the empty zone is created (`world_generation_plan.md`). The generator is passed the
   level and the seed.
 - **The draws of the patterns in a zone's `ZoneSpec` use a random engine seeded from the zone's seed,** since they decide what the zone is.

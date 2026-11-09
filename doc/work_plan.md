@@ -82,7 +82,7 @@ boxes are removed at the start of the next piece of work, since the reference do
 - [ ] **Region specs defined** (`region_spec_plan.md`): the keys of a `RegionSpec` and a `ZoneSpec`, the form of their
       patterns, and the open questions there answered, before the structure is created from them.
 - [ ] **Pattern expressions** (`pattern_resolution_plan.md`): a `&` value evaluated as an expression with the symbols
-      of its spec, and `zone_name_pattern` an expression in place of `{...}` placeholders.
+      of its spec.
 - [ ] **Listed zones** (`region_spec_plan.md`, `### Listed zones`): a region spec's `zones` member, each zone's position
       and the keys that override the `zone.` keys for it, read with the other typed members.
 - [ ] **The world's structure created whole** (`world_generation_plan.md`, `## Creating the structure`;
