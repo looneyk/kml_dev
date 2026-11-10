@@ -5,7 +5,7 @@
         @{ Name = 'fastgltf'; Url = 'https://github.com/spnda/fastgltf.git'; Branch = 'main'; Commit = 'a31be255ff041fa1d6697e5040fef3c9b6405795' }
         @{ Name = 'flecs'; Url = 'https://github.com/SanderMertens/flecs.git'; Branch = 'master'; Commit = '6d5f6e2e99c4aa3079edc9f30bec437d0e90392c' }
         @{ Name = 'glfw'; Url = 'https://github.com/glfw/glfw.git'; Branch = 'master'; Commit = '567b1ec2442d59525e24c19e8d413df6baf02496' }
-        @{ Name = 'glm'; Url = 'https://github.com/g-truc/glm.git'; Branch = 'master'; Commit = '6f14f4792a0cde5d0cf2c910506724d61cb95834' }
+        @{ Name = 'glm'; Url = 'https://github.com/g-truc/glm.git'; Tag = '1.0.3'; Commit = '8d1fd52e5ab5590e2c81768ace50c72bae28f2ed' }
         @{ Name = 'godot-cpp'; Url = 'https://github.com/godotengine/godot-cpp.git'; Branch = 'master'; Commit = '9c8aeff0f58ad030f3d1030e8262de1322cd0ccd' }
         @{ Name = 'json'; Url = 'https://github.com/nlohmann/json.git'; Branch = 'develop'; Commit = 'a50c2537ebf639570c6bbae0a7c9543e3c44f9da' }
         @{ Name = 'KTX-Software'; Url = 'https://github.com/KhronosGroup/KTX-Software.git'; Branch = 'main'; Commit = '90967979cbb7e9401ee2401ff997f30b4b7507d6' }
