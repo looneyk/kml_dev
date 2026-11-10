@@ -34,7 +34,7 @@ namespace quetzal::stratum_sim
 
     // Returns the region spec with the pattern values in its name fields and store entries resolved
     // Zone store entries are excluded and pass through unchanged
-    // Throws std::runtime_error for a pattern that is not a valid expression given the resolver's symbols
+    // Throws std::runtime_error for a pattern that does not compile, fails, or has a table or a function as its value
     RegionSpec resolve_region_spec(const RegionSpec& region_spec, PatternResolver& resolver);
 
     // Returns the region specs by name from the region spec file in the assets directory

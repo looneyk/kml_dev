@@ -1648,7 +1648,7 @@ namespace
             "  \"format\": \"quetzal.stratum_region_specs\",\n"
             "  \"version\": \"0.1\",\n"
             "  \"region_specs\": {\n"
-            "    \"surface\": { \"zone.name\":\"&region_name + '_' + str(x) + '_' + str(y)\", \"seed\": \"42\",\n"
+            "    \"surface\": { \"zone.name\":\"&region_name .. '_' .. x .. '_' .. y\", \"seed\": \"42\",\n"
             "      \"extent\": { \"arrangement\": \"ranges\", \"boxes\": [ { \"x\": [0, 9], \"y\": [0, 9], \"z\": 0 } ] }, \"zone_size\": [64, 32] },\n"
             "    \"islands\": { \"parent\": \"surface\", \"extent\": { \"arrangement\": \"positions\", \"positions\": [[3, 3, 0], [4, 4, 0]] } },\n"
             "    \"crypt\": {}\n"
@@ -1667,7 +1667,7 @@ namespace
         };
 
         CHECK_CASE("a region spec file reads each region spec by its name, its store as text", document.region_specs.size() == 3
-            && surface.store.value("zone.name") == "&region_name + '_' + str(x) + '_' + str(y)" && surface.store.size() == 1);
+            && surface.store.value("zone.name") == "&region_name .. '_' .. x .. '_' .. y" && surface.store.size() == 1);
         CHECK_CASE("and its members with a type of their own", surface.seed == 42u && surface.extent.has_value()
             && surface.extent->boxes.size() == 1 && range_is(surface.extent->boxes[0].x, 0, 9) && range_is(surface.extent->boxes[0].z, 0, 0)
             && surface.zone_size == stratum_format::discrete_vector_type(64, 32) && islands.parent == "surface"
@@ -1698,7 +1698,7 @@ namespace
 
         CHECK_CASE("a region spec file with a key the format does not have is rejected", rejected("\"region_specs\"", "\"regions\"",
             "regions: not a key of the region spec file"));
-        CHECK_CASE("and one with a value that is not text", rejected("\"&region_name + '_' + str(x) + '_' + str(y)\"", "9",
+        CHECK_CASE("and one with a value that is not text", rejected("\"&region_name .. '_' .. x .. '_' .. y\"", "9",
             "region_specs.surface.zone.name: a string was expected"));
         CHECK_CASE("and one with a region spec that is not an object", rejected("{}", "[]", "region_specs.crypt: an object was expected"));
         CHECK_CASE("and one with a key under a member's name", rejected("\"seed\": \"42\"", "\"zone_size.x\": \"64\"",

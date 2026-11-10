@@ -26,7 +26,7 @@ namespace quetzal::stratum_sim
     };
 
     // Returns the zone spec with the pattern values in its store entries resolved
-    // Throws std::runtime_error for a pattern that is not a valid expression given the resolver's symbols
+    // Throws std::runtime_error for a pattern that does not compile, fails, or has a table or a function as its value
     ZoneSpec resolve_zone_spec(const ZoneSpec& zone_spec, PatternResolver& resolver);
 
 } // namespace quetzal::stratum_sim

@@ -12,6 +12,7 @@
 #include "properties.hpp"
 #include "RandomStream.hpp"
 #include "Region.hpp"
+#include "ScriptLimits.hpp"
 #include "Site.hpp"
 #include "Zone.hpp"
 #include "ZoneEntryIndex.hpp"
@@ -40,7 +41,7 @@ namespace quetzal::stratum_sim
         using entities_type = std::vector<flecs::entity>;
         using worldspaces_type = std::vector<Worldspace>;
 
-        World(IdAllocator& id_allocator, Generation& generation, std::size_t zone_count_max);
+        World(IdAllocator& id_allocator, Generation& generation, std::size_t zone_count_max, const ScriptLimits& script_limits);
         World(const World&) = delete;
         World(World&&) = delete;
         ~World() = default;
@@ -213,7 +214,7 @@ namespace quetzal::stratum_sim
         // Returns the spec of the zone at the position in the region: the region spec's zone. keys, with a default name, the
         // zone's position, and its seed, its patterns resolved with the zone's symbols. The zone counter counts the zones
         // from 0 in the order in which they are created
-        // Throws std::runtime_error for a pattern that is not a valid expression given the zone's symbols
+        // Throws std::runtime_error for a pattern that does not compile, fails, or has a table or a function as its value
         ZoneSpec resolved_zone_spec(PersistentId region_id, const ZonePosition& position, std::size_t zone_counter) const;
 
         // Creates an empty zone at the position in the region, with its resolved spec
@@ -296,6 +297,7 @@ namespace quetzal::stratum_sim
         std::unordered_set<PersistentId> m_zones_unloading;
 
         ZoneEntryIndex m_zone_entry_index;
+        ScriptLimits m_script_limits;
         std::optional<std::filesystem::path> m_game_directory;
         RandomStream::seed_type m_world_seed;
         std::size_t m_worldspace_name_counter; // The last suffix given to a worldspace's name that was taken

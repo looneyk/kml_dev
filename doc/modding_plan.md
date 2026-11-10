@@ -98,6 +98,8 @@ to the installation, and the user is told.
 
 ## Scripting
 
+- **Scripts are Lua 5.5** (`decision_rationale.md`, "Lua for scripts and patterns"), embedded as
+  `scripting_language_plan.md`, `## Lua 5.5 prototype`, describes.
 - **Behavior is script wherever practical:** event hooks on types (interacting, entering, or a turn passing), AI
   writing `Intent`, rules and commands, and generators and placement.
 - **Inner loops stay in C++:** movement queries, sight, pathfinding and rendering. Scripts call them.

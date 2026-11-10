@@ -140,7 +140,7 @@ stratum_sim::level_type stratum_sim_test::level_of(flecs::entity zone)
 
 //------------------------------------------------------------------------------
 stratum_sim_test::TestWorld::TestWorld(stratum_sim::IdAllocator& id_allocator, size_t zone_count_max) :
-    World(id_allocator, g_test_generation, zone_count_max),
+    World(id_allocator, g_test_generation, zone_count_max, g_test_config.pattern_limits),
     worldspace_id(create_worldspace("staircase", test_region_spec("staircase"))),
     region_id(top_level_region(*this, worldspace_id))
 {

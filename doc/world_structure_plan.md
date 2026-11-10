@@ -38,8 +38,8 @@ structure created whole** in `work_plan.md`.
 - **A region spec has typed members and a `store`.** The typed members, each optional, are `name`, `display_name`,
   `parent`, `region_spec`, `seed`, `extent`, a top-level spec's `zone_size`, and the listed `zones`. The other
   keys, such as `zone.*`, `parameters.*`, and the metadata, are in a `KeyValueStore`.
-- **A layer is a merge patch** (JSON Merge Patch, RFC 7386). A key adds or replaces a value, and the value `&null`
-  removes the key, in place of JSON's `null`. `&null` is a pattern whose value is null, and resolving the composed spec
+- **A layer is a merge patch** (JSON Merge Patch, RFC 7386). A key adds or replaces a value, and the value `&nil`
+  removes the key, in place of JSON's `null`. `&nil` is a pattern whose value is nil, and resolving the composed spec
   removes the key (`pattern_resolution_plan.md`, `## Design`). A
   list is replaced whole. A subregion's overrides and a mod's patches to types and styles (`modding_plan.md`)
   are one mechanism.

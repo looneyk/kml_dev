@@ -41,6 +41,15 @@ add_subdirectory(CDT/CDT)
 get_target_property(cdt_include_directories CDT INTERFACE_INCLUDE_DIRECTORIES)
 set_target_properties(CDT PROPERTIES INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${cdt_include_directories}")
 
+# Lua is released with a makefile and no CMake build. lua.c and luac.c are the standalone interpreter and compiler, each with a main
+file(GLOB lua_sources ${CMAKE_CURRENT_SOURCE_DIR}/lua/src/*.c)
+list(REMOVE_ITEM lua_sources ${CMAKE_CURRENT_SOURCE_DIR}/lua/src/lua.c ${CMAKE_CURRENT_SOURCE_DIR}/lua/src/luac.c)
+# Compiled as C++, so that a Lua error is a C++ exception, which runs the destructors of the C++ frames it unwinds where longjmp
+# would skip them. A client includes lua.h, lualib.h, and lauxlib.h, not lua.hpp, whose extern "C" is for Lua compiled as C
+set_source_files_properties(${lua_sources} PROPERTIES LANGUAGE CXX)
+add_library(lua_static STATIC ${lua_sources})
+target_include_directories(lua_static SYSTEM INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/lua/src)
+
 set(DOCTEST_WITH_MAIN_IN_STATIC_LIB OFF CACHE BOOL "" FORCE)
 set(DOCTEST_NO_INSTALL ON CACHE BOOL "" FORCE)
 add_subdirectory(doctest)
@@ -82,6 +91,7 @@ if(KML_DEV_GODOT)
 endif()
 
 set_property(TARGET flecs_static PROPERTY FOLDER "library3")
+set_property(TARGET lua_static PROPERTY FOLDER "library3")
 set_property(TARGET simdjson PROPERTY FOLDER "library3")
 set_property(TARGET utf8cpp PROPERTY FOLDER "library3")
 

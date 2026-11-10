@@ -344,20 +344,36 @@ or 0 with none, and y 0.
 Each of these empty zones has the spec that `resolved_zone_spec(region_id, position, zone_counter)` returns: the region
 spec's `zone.` keys, with the zone's position and seed, its patterns resolved. The zone counter counts the zones from 0
 in the order in which they are created. The name is the region spec's `zone.name`, or else
-`&region_name + '_' + str(zone_counter)`, as in `dungeon_9`. The seed is `zone_seed(region_seed(world_seed,
+`&region_name .. '_' .. zone_counter`, as in `dungeon_9`. The seed is `zone_seed(region_seed(world_seed,
 region_spec), zone_spec)`. `resolve_zone_spec(zone_spec, resolver)`, in `ZoneSpec.hpp`, resolves the spec's store
 with a `PatternResolver` seeded with the zone's seed and the symbols `x`, `y`, `z`, `zone_counter`, `region_name`, and `region.<key>` for each of the region spec's
-other store entries, a number if its text is one. With the surface's `zone.name`, `&region_name + '_' + str(x) + '_' + str(y)`, the zone at (3, 4, 0) is named
+other store entries. With the surface's `zone.name`, `&region_name .. '_' .. x .. '_' .. y`, the zone at (3, 4, 0) is named
 `surface_3_4`. A zone keeps its name when its content is generated or loaded from a template. Any other zone that
 `World` builds or creates with a layout has a name unique in its region, suffixed from the region's counter if another
 zone in the region has it: the file's name, or else, if it has a position, the region's name and its x and y in a grid
 worldspace and all three coordinates otherwise, or else the region's name.
 
-`PatternResolver`, in `PatternResolver.hpp`, is constructed with a symbol table and a random engine, and is a
-function object that resolves a key's value or a store. A value that starts with `&` is a pattern: the text after it is parsed by `quetzal::expression` with
-the symbols and replaced by its value, a number written as `std::format` writes a `double`. A value that starts with
-`&&` is literal text with one `&` removed, and any other value is literal text. The pattern `&null` has no value, and
-removes its entry from a store. A pattern that is not an expression of the symbols throws `std::runtime_error`.
+`PatternResolver`, in `PatternResolver.hpp`, is a function object that resolves a key's value or a store. It is
+constructed with its symbols, a `KeyValueStore`, its random engine, the world seed, and the `ScriptLimits` that `World`
+is passed from `Config::pattern_limits`, and evaluates its patterns in a `ScriptSandbox` of its own with the symbols as
+the sandbox's globals. A value that starts with `&` is a pattern, the Lua code after the `&`. A value that starts with
+`&&` is literal text with one `&` removed, and any other value is literal text. The pattern `&nil` has no value, and
+removes its entry from a store.
+
+`ScriptSandbox`, in `ScriptSandbox.hpp`, is a Lua 5.5 state that evaluates code with its globals, within the
+`ScriptLimits` in `ScriptLimits.hpp`: the most memory its code allocates and the most Lua instructions one evaluation
+runs. Its string hashes are seeded from the world seed and its collector is stopped, so its memory is freed when it is
+destroyed. `evaluate(name, code)` compiles the code as `return <code>`, or as a sequence of statements if it is not an
+expression, in load mode `"t"`, and runs it in an environment of the globals: a global whose name has `.` is an entry of
+a table, as `region.difficulty` is of `region`, and a global's text is an integer, a float, or a string, whichever it
+reads as. A name the environment does not have is looked up in the sandbox's library: the base library's safe
+functions, read-only copies of `math` without `random` and `randomseed`, `string` without `dump`, `table`, and `utf8`,
+and `random`, with the interface of `math.random`, drawing from the sandbox's random engine. A name the library does not
+have either is an error, and a table's absent entry is nil.
+
+The code's value is returned as text: a boolean as `true` or `false`, an integer as an integer, and a float as
+`std::format` writes a `double`, or `std::nullopt` for nil. Code that does not compile, fails, exceeds a limit, or has a
+value that is not a boolean, a number, a string, or nil throws `std::runtime_error`.
 `resolve_region_spec(region_spec, resolver)`, in `RegionSpec.hpp`, resolves a region spec's `name`, `display_name`, and
 store entries, leaving the `zone.` keys as they are.
 `World::extended_name(zone)` returns a zone's worldspace's name and the zone's name, joined by `/`, such as
@@ -1180,9 +1196,9 @@ a seed that is not a seed, a key under `extent.` or `zone_size.`, which belongs 
 that is neither, a member the arrangement does not have, or a range whose lower bound is
 above its upper bound. `stratum_sim::load_region_specs(assets_directory)`, in `RegionSpec.hpp`, returns the
 `RegionSpec`s by name. The game's file is `assets/data/region_specs.json`, with two top-level region specs: `surface`,
-whose extent is x and y 0 to 9 and z 0, whose `zone.name` is `&region_name + '_' + str(x) + '_' + str(y)`, and whose zones are
+whose extent is x and y 0 to 9 and z 0, whose `zone.name` is `&region_name .. '_' .. x .. '_' .. y`, and whose zones are
 generated by `surface1` with 2 to 4 staircases leading down, none leading up, and the `stairs_down_region_spec`
-`dungeon`; and `dungeon`, whose extent is z -100 to -1 and whose `zone.name` is `&region_name + '_' + str(abs(z))`.
+`dungeon`; and `dungeon`, whose extent is z -100 to -1 and whose `zone.name` is `&region_name .. '_' .. math.abs(z)`.
 
 A world definition file has the format `quetzal.stratum_world_definition`. `WorldDefinitionDocument`, in
 `WorldDefinitionDocument.hpp`, has the format's name and version, the file's path, `data/world_definition.json` relative
@@ -1518,12 +1534,14 @@ back, and the Godot host by its two headless invocations.
 
 The build is CMake, with the solution at `build/kml_dev.slnx`. `/std:c++latest /bigobj /W4` is used throughout, with
 third-party sources at `/W1` and flecs and godot-cpp included as SYSTEM. `quetzal_stratum_sim` links `quetzal_common`,
-`quetzal_settings`, `quetzal_stratum_format` and `flecs_static`, and privately `quetzal_log`; `quetzal_stratum_view` links `quetzal_stratum_sim`; `quetzal_settings`
+`quetzal_settings`, `quetzal_stratum_format` and `flecs_static`, and privately `lua_static` and `quetzal_log`; `quetzal_stratum_view` links `quetzal_stratum_sim`; `quetzal_settings`
 links `quetzal_common`;
 `quetzal_stratum_gen` links `quetzal_catagen`, `quetzal_common`, `quetzal_dungen` and `quetzal_stratum_format`; both hosts link `quetzal_log`,
 `quetzal_stratum_gen` and `quetzal_stratum_view`. `quetzal_dungen` links `quetzal_log`. `quetzal_stratum_format`
 links `quetzal_common`, `quetzal_log`, `quetzal_settings` and `nlohmann_json`, vendored at
 `library3/json` with its headers SYSTEM.
+`lua_static` is Lua 5.5.1, from `library3/lua` without its standalone interpreter and compiler, compiled as C++ so that a
+Lua error unwinds C++ frames. Its clients include `lua.h`, `lualib.h`, and `lauxlib.h`, not `lua.hpp`.
 
 `KML_DEV_GODOT` governs the Godot targets and defaults on. When it is configured off, godot-cpp is not processed and
 neither `quetzal_godot` nor `stratum_godot` exists. `KML_DEV_VULKAN` governs the Vulkan applications and their

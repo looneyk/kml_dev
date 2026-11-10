@@ -29,6 +29,7 @@ add_library(quetzal_stratum_sim STATIC
     SavedGameDetails.cpp
     seeds.cpp
     Scheduler.cpp
+    ScriptSandbox.cpp
     Session.cpp
     PersistentSettings.cpp
     setting_definitions.cpp
@@ -81,6 +82,8 @@ add_library(quetzal_stratum_sim STATIC
     SavedGameDetails.hpp
     seeds.hpp
     Scheduler.hpp
+    ScriptLimits.hpp
+    ScriptSandbox.hpp
     Session.hpp
     PersistentSettings.hpp
     setting_definitions.hpp
@@ -103,4 +106,4 @@ target_include_directories(quetzal_stratum_sim PUBLIC
 
 # Not flecs::flecs_static, as library3 is added after library/ and a namespaced target must already exist
 target_link_libraries(quetzal_stratum_sim PUBLIC quetzal_common quetzal_settings quetzal_stratum_format flecs_static)
-target_link_libraries(quetzal_stratum_sim PRIVATE quetzal_expression quetzal_log)
+target_link_libraries(quetzal_stratum_sim PRIVATE lua_static quetzal_log)

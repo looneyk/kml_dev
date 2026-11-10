@@ -62,7 +62,7 @@ The game spec includes the starting region spec, the zone position in that world
 ### Listed zones
 
 A region spec's `zones` list defines individual zones, each by its position and the keys that override the `zone.`
-pattern for that zone. Every value can be an expression (`## Patterns`).
+pattern for that zone. Every value can be a pattern (`## Patterns`).
 
 | Key | Value |
 | --- | --- |
@@ -84,7 +84,7 @@ pattern for that zone. Every value can be an expression (`## Patterns`).
   the region. The `zone` object has the keys of an ordinary `ZoneSpec`. Each reader of a spec rejects the members it
   does not read.
 - **Each value is a token that its reader parses,** such as `staircase` for an access point type.
-- **An override is a merge patch** (JSON Merge Patch, RFC 7386): a key adds or replaces a value, the value `&null`
+- **An override is a merge patch** (JSON Merge Patch, RFC 7386): a key adds or replaces a value, the value `&nil`
   removes the key, and a list is replaced whole. A subregion's overrides and a mod's patches to types and styles
   (`modding_plan.md`) are one mechanism. A spec is composed as `merge(parent, merge(designed, own))`
   (`world_structure_plan.md`, `## Design`).
@@ -155,7 +155,7 @@ which its `zone.template` pattern draws each zone's template from, are among the
 
 ## Patterns
 
-- **A pattern is a value that is an expression.** Resolving a spec evaluates each of its patterns and makes a resolved
+- **A pattern is a value that is Lua code** (`pattern_resolution_plan.md`). Resolving a spec evaluates each of its patterns and makes a resolved
   spec, in which every value is a literal. A spec with no patterns is already resolved, so `World` reads both in the
   same way.
 - **A spec is resolved as the structure is created.** A region's spec is resolved when the region is created, and each
@@ -163,7 +163,7 @@ which its `zone.template` pattern draws each zone's template from, are among the
 - **A region keeps its resolved spec, and a zone its resolved `ZoneSpec`.** The region and its zones are saved and
   regenerated from them, and a later change to the spec leaves them unchanged.
 - **Resolution draws from a random engine of its own,** seeded from the region's or the zone's seed, which is separate
-  from the random engine that draws the seeds of the region's zones and subregions. A change to one expression then
+  from the random engine that draws the seeds of the region's zones and subregions. A change to one pattern then
   changes the values drawn from it and no seed.
 - **A `seed` key is always a literal,** since resolution is seeded from it.
 
@@ -172,32 +172,22 @@ which its `zone.template` pattern draws each zone's template from, are among the
 | Form | Example | Resolved to |
 | --- | --- | --- |
 | Literal | `difficulty: 3`, `primary: {fields 4, forest 4}` | The value itself |
-| Expression | `zone.name: &region_name + '_' + str(abs(z))` | The expression's value, evaluated with the context's symbols (`### Context`) |
-| Range | `difficulty: &range(3, 6)` | An integer drawn uniformly from the inclusive range |
+| Computed | `zone.name: &region_name .. '_' .. math.abs(z)` | The pattern's value, with the context's symbols (`### Context`) |
+| Range | `difficulty: &random(3, 6)` | An integer drawn uniformly from the inclusive range |
 | Weighted choice | A call of a weighted choice function | One entry, drawn in proportion to its weight |
 
-- **Expressions are the implementation of patterns,** written in the language of `quetzal::expression`. A range, a
-  weighted choice, and other additions are functions of that language.
-- **A leading `&` marks an expression,** and a value without it is literal text, so `primary: {fields 4, forest 4}` is
-  a weighted table that the `zone.template` pattern draws from for each zone. The `&` is not part of the expression, and a literal
+- **A range, a weighted choice, and other additions are functions** that patterns call.
+- **A leading `&` marks a pattern,** and a value without it is literal text, so `primary: {fields 4, forest 4}` is
+  a weighted table that the `zone.template` pattern draws from for each zone. The `&` is not part of the code, and a literal
   that starts with `&` is written with the `&` doubled, `&&Co` for `&Co`.
-- **Arithmetic in an expression would let a value depend on the context,** such as a difficulty that rises with depth:
+- **Arithmetic lets a value depend on the context,** such as a difficulty that rises with depth:
   `zone.parameters.difficulty: &region.difficulty - z`.
 
 ### Context
 
-An expression refers to the symbols of the context that the spec is resolved in. Each structure whose fields support
-patterns, `RegionSpec` among them, lists the symbols it defines, with their types, and the fields that support
-patterns. A value in any other field is literal text. An identifier can contain `.` as it can `_`, so a qualified
-symbol such as `region.difficulty` is one identifier.
-
-| Symbol | Value |
-| --- | --- |
-| `x`, `y`, `z` | The zone's position |
-| `zone_counter` | The zone's count, from 0, in the order in which zones are created |
-| `region_name` | The name of the region the zone is in |
-| `region.<key>` | A key of the region's resolved spec, such as `region.difficulty` |
-| `parent.<key>` | A key of the parent region's resolved spec |
+A pattern refers to the symbols of the context that the spec is resolved in (`pattern_resolution_plan.md`,
+`### Symbols`). Each structure whose fields support patterns, `RegionSpec` among them, lists the fields that support
+patterns, and a value in any other field is literal text.
 
 ### Subregions
 
@@ -207,9 +197,9 @@ symbol such as `region.difficulty` is one identifier.
 - **A reference that is a weighted choice makes the spec a grammar rule.** A `subregion.vault` that chooses between
   `crypt` and `ossuary` expands the region into one of several structures when it is resolved, and a spec that can refer to itself, such as
   a cave that can contain a cave, makes the rule recursive.
-- **An entry's `count` can be a range,** such as `subregion.cave.count: &range(0, 3)`. Each subregion created from the
+- **An entry's `count` can be drawn from a range,** such as `subregion.cave.count: &random(0, 3)`. Each subregion created from the
   entry is named by the rules in `## Names`.
-- **An entry's `extent` can be an expression that places a box of a given size** at a free position of the parent's
+- **An entry's `extent` can be a pattern that places a box of a given size** at a free position of the parent's
   extent. The positions are drawn as placement draws its sites (`placement_plan.md`, `## A run's roles`), so sibling
   subregions never overlap.
 
@@ -233,7 +223,7 @@ symbol such as `region.difficulty` is one identifier.
 - **A name gets a numeric suffix, as in `<name>_<counter>`, only if the name is taken.** The game has a counter for
   top-level regions, and each region has one for its subregions and its zones, so every extended name is unique.
 - **A region spec's `zone.name` is the name of each zone in the region,** literal text or a string pattern such as
-  `&region_name + '_' + str(x) + '_' + str(y)` for the surface and `&region_name + '_' + str(abs(z))` for a dungeon.
+  `&region_name .. '_' .. x .. '_' .. y` for the surface and `&region_name .. '_' .. math.abs(z)` for a dungeon.
 - **A zone's display name, shown to players, is separate from its name.** The spec defines how the display name is
   made: from a pattern, from the name reformatted, or at random.
 - **A random name that is taken is generated again,** in place of a numeric suffix, and the spec defines how the names
@@ -281,15 +271,13 @@ specifies.
 
 ## Open questions
 
-- **Is an expression marked by `~`, or does a schema of each reader's keys define which values are drawn?** A schema
-  would also let the game generate a field that no expression is written for, from the key's type and range.
-- **Are ranges written as `3 .. 6`, in dice notation, or in both?**
-- **Do expressions nest, and do they have arithmetic?**
+- **Does a schema of each reader's keys define which values are drawn?** A schema would also let the game generate a
+  field that no pattern is written for, from the key's type and range.
 - **Which variables does the context have?**
-- **Do the weighted tables become `zone.` expressions on `zone_counter`?**
+- **Do the weighted tables become `zone.` patterns on `zone_counter`?**
 - **What does a spec generator take and return?**
 - **Is a subregion's extent always smaller than its parent's, so that every recursive rule ends?**
-- **What are the key names and syntax of an extent and of an expression that places one, and can an extent take forms
+- **What are the key names and syntax of an extent and of a pattern that places one, and can an extent take forms
   other than boxes?**
 - **What are the keys of the region name pattern and the metadata?**
 - **What are the name and arguments of the weighted choice function?**
@@ -326,4 +314,4 @@ or `zone_plan.md`, and proposed members are in this plan alone.
 | `zones` | Listed zones, each a position with overrides of the `zone` pattern and a template | Proposed | Yes |
 | `subregion.<name>` | The registered spec a subregion is created from | Designed | No |
 | `subregion.<name>.extent`, `.count`, `.spec.*` | The subregion's placement, its count, and overrides of its spec | Proposed | No |
-| Any value | Literal text, or a `&` expression evaluated when the spec is resolved (`## Patterns`) | Proposed | No |
+| Any value | Literal text, or a `&` pattern evaluated when the spec is resolved (`## Patterns`) | Proposed | No |

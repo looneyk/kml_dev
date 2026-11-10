@@ -154,7 +154,7 @@ quetzal::stratum_sim::Game::Game(const Config& config, const stratum_format::Gam
     m_manifest(manifest),
     m_counting_id_allocator(PersistentId {}),
     m_generation(),
-    m_world(m_counting_id_allocator, m_generation, m_config.zone_count_max),
+    m_world(m_counting_id_allocator, m_generation, m_config.zone_count_max, m_config.pattern_limits),
     m_character(m_world),
     m_session(m_world, m_character),
     m_game_directory(),

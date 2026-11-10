@@ -472,6 +472,19 @@ is what keeps generation reproducible.
 
 **The limit.** A new type of layout is a `Layout` subclass in C++. Every data-driven game places the engine line there.
 
+## Lua for scripts and patterns
+
+Lua 5.5 is the language of the game's and mods' scripts and of patterns (`scripting_language_plan.md`). It is the
+genre's language (Factorio, Legend of Grimrock, DCSS, Noita), so mod authors already know it. Its sandbox is built from
+what it has: an environment for each script, a count hook, and the allocator. A hash seed derived from the world seed
+and a `random` that draws from the simulation's random engine make it deterministic. Its tables give patterns arrays
+and structures without adding them to `quetzal::expression`, and one userdata type binds any component registered at
+runtime through the meta cursor. Compiled as C++, a Lua error unwinds C++ frames. A distinct pattern costs about 3 us
+to compile and call, against 1.8 us to parse and evaluate one with `quetzal::expression`.
+
+Luau's sandbox is built in, but its type checker and tooling need an integration of their own outside Roblox.
+AngelScript is C++-like and reference-counted, with thin developer tooling.
+
 ## Entity locations in other tools
 
 Tiled (a general 2D map editor, TMX or JSON) places objects by position in object layers and refers between them by

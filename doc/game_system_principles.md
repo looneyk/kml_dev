@@ -166,7 +166,7 @@ The reasoning for each is in `decision_rationale.md`.
   field: the object's own value, then its type's, then that of the room that contains it, then the layout's. A field the type sets
   is the object's, so only what neither states comes from the room or the layout.
 - **Data describes what exists; behavior is script wherever practical,** C++ keeping the inner loops that scripts call.
-  The scripting language is chosen before it is needed.
+  Scripts are Lua.
 - **Compiled extensions register at compile time**, through static libraries with registration functions; dynamic C++
   plugins are not supported. **Everything a mod adds registers at runtime from data**: component schemas as flecs
   runtime components, types as prefabs, styles and scripts.
@@ -275,7 +275,6 @@ or vendored.
 - **Godot binding location.** `library/quetzal/godot`, or under `application/`.
 - **Front end configuration.** A is the plan; the Phase 3 boundary is the last cheap point to choose B instead.
 - **Save format.** JSON initially for debuggability; binary later if load time requires it.
-- **Scripting language,** chosen before Phase 4.
 
 ## Risks
 
@@ -291,8 +290,8 @@ solution's `/MTd`, so `CMAKE_MSVC_RUNTIME_LIBRARY` is set in the cache before go
 **Authoring gap.** Until the editor-export plugin exists, zone authoring is hand-written files. Acceptable while procgen
 supplies most content, but real unbuilt work.
 
-**Data-driven drift.** Content formats grow conditionals and become bad programming languages. Mitigated by choosing
-the scripting language before it is needed.
+**Data-driven drift.** Content formats grow conditionals and become bad programming languages. Mitigated by Lua scripts for
+what data cannot express.
 
 **Mod compatibility.** Once mods exist, component names and fields, type names and the script API are a public
 interface, and renaming one breaks every mod that uses it.

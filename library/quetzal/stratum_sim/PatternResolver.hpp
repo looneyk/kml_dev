@@ -5,10 +5,10 @@
 // PatternResolver.hpp
 //------------------------------------------------------------------------------
 
+#include "ScriptLimits.hpp"
+#include "ScriptSandbox.hpp"
 #include "quetzal/common/KeyValueStore.hpp"
-#include "quetzal/expression/Parser.hpp"
-#include "quetzal/expression/SymbolTable.hpp"
-#include "quetzal/math/Random.hpp"
+#include <cstdint>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -23,33 +23,27 @@ namespace quetzal::stratum_sim
     {
     public:
 
-        using random_type = math::Random<math::portable_random_engine_type>;
+        using random_type = ScriptSandbox::random_type;
 
-        PatternResolver(expression::SymbolTable symbol_table, random_type random);
-        PatternResolver(const PatternResolver&) = delete;
-        PatternResolver(PatternResolver&&) = default;
-        ~PatternResolver() = default;
-
-        PatternResolver& operator=(const PatternResolver&) = delete;
-        PatternResolver& operator=(PatternResolver&&) = default;
+        // The symbols are the globals of the sandbox the patterns are evaluated in
+        // Throws std::runtime_error if a symbol is an entry of another symbol that is not a table
+        PatternResolver(const KeyValueStore& symbols, random_type random, std::uint64_t world_seed, const ScriptLimits& limits);
 
         // Resolve a pattern value against the given symbols or return it unchanged if value is not a pattern
         // A prefix of "&&" represents a literal '&'
-        // Returns std::nullopt for the pattern &null
+        // Returns std::nullopt for a pattern with a value of nil
         // key is for the error message
-        // Throws std::runtime_error for a pattern that is not a valid expression given the symbols
+        // Throws std::runtime_error for a pattern that does not compile, fails, or has a table or a function as its value
         std::optional<std::string> operator()(std::string_view key, std::string_view value);
 
         // Returns a new store with each entry in store with a pattern resolved or copied unchanged
-        // An entry whose pattern is &null is omitted
-        // Throws std::runtime_error for a pattern that is not a valid expression given the symbols
+        // An entry whose pattern's value is nil is omitted
+        // Throws std::runtime_error as a single value's resolution does
         KeyValueStore operator()(const KeyValueStore& store);
 
     private:
 
-        expression::Parser m_parser;
-        expression::SymbolTable m_symbol_table;
-        random_type m_random;
+        ScriptSandbox m_sandbox;
     };
 
 } // namespace quetzal::stratum_sim

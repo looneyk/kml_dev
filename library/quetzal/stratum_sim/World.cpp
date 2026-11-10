@@ -98,7 +98,7 @@ namespace
         return composed;
     }
 
-    constexpr std::string_view default_zone_name = "&region_name + '_' + str(zone_counter)";
+    constexpr std::string_view default_zone_name = "&region_name .. '_' .. zone_counter";
 
     //--------------------------------------------------------------------------
     // The name of a zone without one: the region's name and the zone's coordinates, x and y in a grid worldspace and all
@@ -111,21 +111,18 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // The symbols of a zone's patterns. A region spec entry is a number if its text is one
-    quetzal::expression::SymbolTable zone_symbols(const quetzal::stratum_sim::Region& region, const quetzal::stratum_sim::ZonePosition& position,
+    // A zone's symbol table
+    quetzal::KeyValueStore zone_symbols(const quetzal::stratum_sim::Region& region, const quetzal::stratum_sim::ZonePosition& position,
         std::size_t zone_counter)
     {
-        using quetzal::expression::DataType;
-
-        quetzal::expression::SymbolTable symbols {{"x", position.x}, {"y", position.y}, {"z", position.z}, {"zone_counter", zone_counter},
-            {"region_name", region.name}};
+        quetzal::KeyValueStore symbols {{"x", std::to_string(position.x)}, {"y", std::to_string(position.y)}, {"z", std::to_string(position.z)},
+            {"zone_counter", std::to_string(zone_counter)}, {"region_name", region.name}};
 
         for (const auto& [key, value] : region.region_spec.store)
         {
             if (!key.starts_with(quetzal::stratum_sim::zone_prefix))
             {
-                const DataType type = quetzal::try_type<double>(value).has_value() ? DataType::Number : DataType::String;
-                symbols.emplace(std::format("region.{}", key), quetzal::expression::Symbol(type, value));
+                symbols.insert(std::format("region.{}", key), value);
             }
         }
 
@@ -133,7 +130,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Returns the integers written in the text, separated by commas, or nothing if the text is not count of them
+    // Parse the comma separated coordinate values from the text, return nullopt if the count does not match the dimension
     std::optional<std::vector<quetzal::stratum_sim::coord_type>> coordinates(std::string_view text, std::size_t dimension)
     {
         std::vector<quetzal::stratum_sim::coord_type> values;
@@ -377,13 +374,14 @@ namespace
 } // namespace
 
 //------------------------------------------------------------------------------
-quetzal::stratum_sim::World::World(IdAllocator& id_allocator, Generation& generation, std::size_t zone_count_max) :
+quetzal::stratum_sim::World::World(IdAllocator& id_allocator, Generation& generation, std::size_t zone_count_max, const ScriptLimits& script_limits) :
     m_id_allocator(id_allocator),
     m_generation(generation),
     m_loaded_entities(),
     m_entity_zones(),
     m_zones_unloading(),
     m_zone_entry_index(zone_count_max),
+    m_script_limits(script_limits),
     m_game_directory(),
     m_world_seed(0),
     m_worldspace_name_counter(0),
@@ -1539,7 +1537,7 @@ quetzal::stratum_sim::ZoneSpec quetzal::stratum_sim::World::resolved_zone_spec(P
     const RandomStream::seed_type seed = zone_seed(region_seed(m_world_seed, region_spec), zone_spec);
     zone_spec.store.insert(std::string(seed_key), std::to_string(seed));
 
-    PatternResolver resolver(zone_symbols(zone_region, position, zone_counter), PatternResolver::random_type(seed));
+    PatternResolver resolver(zone_symbols(zone_region, position, zone_counter), PatternResolver::random_type(seed), m_world_seed, m_script_limits);
     return resolve_zone_spec(zone_spec, resolver);
 }
 

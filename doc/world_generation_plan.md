@@ -225,7 +225,7 @@ positions, created in worldspace position order from `(0, 0, 0)` to `(3, 2, 0)`:
         "name": "plains",
         "extent": {"arrangement": "ranges", "boxes": [{"x": [0, 3], "y": [0, 2], "z": 0}]},
         "zone_size": [64, 64],
-        "zone.name": "&region_name + '_' + str(x) + '_' + str(y)"
+        "zone.name": "&region_name .. '_' .. x .. '_' .. y"
     }
 ]
 ```
