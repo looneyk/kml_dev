@@ -10,7 +10,18 @@
 #include "quetzal/geometry/Point.hpp"
 #include "quetzal/math/CartesianTraits.hpp"
 #include "quetzal/math/DiscreteVector.hpp"
+
+// nlohmann/json 3.12.0's binary_reader has code after an if constexpr that returns, which MSVC reports as C4702 whatever
+// the external warning level, since the warning comes from code generation
+#if defined(_MSC_VER)
+#pragma warning(push)
+#pragma warning(disable: 4702)
+#endif
 #include <nlohmann/json.hpp>
+#if defined(_MSC_VER)
+#pragma warning(pop)
+#endif
+
 #include <array>
 #include <string_view>
 #include <cstdint>

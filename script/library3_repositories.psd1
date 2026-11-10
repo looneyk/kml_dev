@@ -7,7 +7,7 @@
         @{ Name = 'glfw'; Url = 'https://github.com/glfw/glfw.git'; Branch = 'master'; Commit = '567b1ec2442d59525e24c19e8d413df6baf02496' }
         @{ Name = 'glm'; Url = 'https://github.com/g-truc/glm.git'; Tag = '1.0.3'; Commit = '8d1fd52e5ab5590e2c81768ace50c72bae28f2ed' }
         @{ Name = 'godot-cpp'; Url = 'https://github.com/godotengine/godot-cpp.git'; Branch = 'master'; Commit = '9c8aeff0f58ad030f3d1030e8262de1322cd0ccd' }
-        @{ Name = 'json'; Url = 'https://github.com/nlohmann/json.git'; Branch = 'develop'; Commit = 'a50c2537ebf639570c6bbae0a7c9543e3c44f9da' }
+        @{ Name = 'json'; Url = 'https://github.com/nlohmann/json.git'; Tag = 'v3.12.0'; Commit = '55f93686c01528224f448c19128836e7df245f72' }
         @{ Name = 'KTX-Software'; Url = 'https://github.com/KhronosGroup/KTX-Software.git'; Branch = 'main'; Commit = '90967979cbb7e9401ee2401ff997f30b4b7507d6' }
         @{ Name = 'simdjson'; Url = 'https://github.com/simdjson/simdjson.git'; Branch = 'master'; Commit = '9b33047a878264250c5361f865d0b2da86217d14' }
         @{ Name = 'stb'; Url = 'https://github.com/nothings/stb.git'; Branch = 'master'; Commit = '31c1ad37456438565541f4919958214b6e762fb4' }
