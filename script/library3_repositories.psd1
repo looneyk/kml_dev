@@ -1,6 +1,6 @@
 @{
     Repositories = @(
-        @{ Name = 'CDT'; Url = 'https://github.com/artem-ogre/CDT.git'; Branch = 'master'; Commit = '15c15405329e50303481df8f33e1bb6764e30f74' }
+        @{ Name = 'CDT'; Url = 'https://github.com/artem-ogre/CDT.git'; Tag = '2.0.2'; Commit = 'b4413ee44affb489099ed4d6ec65e94788cb6708' }
         @{ Name = 'doctest'; Url = 'https://github.com/doctest/doctest.git'; Branch = 'master'; Commit = 'd44d4f6e66232d716af82f00a063759e9d0e50d6' }
         @{ Name = 'fastgltf'; Url = 'https://github.com/spnda/fastgltf.git'; Branch = 'main'; Commit = 'a31be255ff041fa1d6697e5040fef3c9b6405795' }
         @{ Name = 'flecs'; Url = 'https://github.com/SanderMertens/flecs.git'; Branch = 'master'; Commit = '6d5f6e2e99c4aa3079edc9f30bec437d0e90392c' }
