@@ -41,14 +41,15 @@ add_subdirectory(CDT/CDT)
 get_target_property(cdt_include_directories CDT INTERFACE_INCLUDE_DIRECTORIES)
 set_target_properties(CDT PROPERTIES INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${cdt_include_directories}")
 
-# Lua is released with a makefile and no CMake build. lua.c and luac.c are the standalone interpreter and compiler, each with a main
-file(GLOB lua_sources ${CMAKE_CURRENT_SOURCE_DIR}/lua/src/*.c)
-list(REMOVE_ITEM lua_sources ${CMAKE_CURRENT_SOURCE_DIR}/lua/src/lua.c ${CMAKE_CURRENT_SOURCE_DIR}/lua/src/luac.c)
+# Lua has a makefile and no CMake build. Of the sources beside the library's, lua.c is the standalone interpreter, with a main,
+# onelua.c is the whole of Lua as one file, and ltests.c is the Lua team's internal test support
+file(GLOB lua_sources ${CMAKE_CURRENT_SOURCE_DIR}/lua/*.c)
+list(REMOVE_ITEM lua_sources ${CMAKE_CURRENT_SOURCE_DIR}/lua/lua.c ${CMAKE_CURRENT_SOURCE_DIR}/lua/onelua.c ${CMAKE_CURRENT_SOURCE_DIR}/lua/ltests.c)
 # Compiled as C++, so that a Lua error is a C++ exception, which runs the destructors of the C++ frames it unwinds where longjmp
-# would skip them. A client includes lua.h, lualib.h, and lauxlib.h, not lua.hpp, whose extern "C" is for Lua compiled as C
+# would skip them. A client includes lua.h, lualib.h, and lauxlib.h
 set_source_files_properties(${lua_sources} PROPERTIES LANGUAGE CXX)
 add_library(lua_static STATIC ${lua_sources})
-target_include_directories(lua_static SYSTEM INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/lua/src)
+target_include_directories(lua_static SYSTEM INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/lua)
 
 set(DOCTEST_WITH_MAIN_IN_STATIC_LIB OFF CACHE BOOL "" FORCE)
 set(DOCTEST_NO_INSTALL ON CACHE BOOL "" FORCE)

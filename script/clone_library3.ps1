@@ -52,7 +52,7 @@ foreach ($repository in $repositories) {
         continue
     }
     elseif ($repository.Tag) {
-        git clone --quiet --branch $repository.Tag $repository.Url $directory
+        git -c advice.detachedHead=false clone --quiet --branch $repository.Tag $repository.Url $directory
     }
     else {
         # Cloning the branch and then resetting it keeps the branch tracking its remote, so a later pull updates it

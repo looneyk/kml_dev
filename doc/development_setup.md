@@ -23,10 +23,11 @@ KTX-Software in `library3/`, which only they use.
 
 ## Third-party repositories
 
-The build uses fourteen repositories cloned into `library3/`, which the root repository does not track.
-`script/library3_repositories.psd1` lists each one's URL and its pin: a release tag and the commit it points to, or for
-a repository that publishes no releases, its branch and a commit on it. A repository whose code the tree uses is in no
-stable release yet is pinned to its newest pre-release tag.
+The build uses fifteen repositories cloned into `library3/`, which the root repository does not track.
+`script/library3_repositories.psd1` lists each one's URL and its pin: a release tag and the commit it points to, or a
+branch and a commit on it. A repository whose code the tree uses is in no stable release yet is pinned to its newest
+pre-release tag, or, where that tag lacks what the tree relies on, to the commit on its branch that the tree is built
+against.
 
 - **`script/clone_library3.ps1`** clones each that is not cloned yet, at its pin. A clone that exists is left as it is,
   and reported if it is not at its pin; `-Checkout` checks out the pin in it. `-DryRun` lists what it would do.

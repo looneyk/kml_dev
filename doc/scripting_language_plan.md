@@ -74,8 +74,8 @@ against the requirements below, and the selection and its reasons go in `decisio
 and its limits, check determinism, and read and write a component registered at runtime through the meta cursor.
 
 - **Lua is compiled as C++,** so a Lua error is a C++ exception and unwinds C++ frames with their destructors. A Lua
-  error raised by `longjmp` in a C build skips them. A client includes `lua.h`, `lualib.h`, and `lauxlib.h`, not
-  `lua.hpp`, and the library builds warning-free in Debug and Release.
+  error raised by `longjmp` in a C build skips them. A client includes `lua.h`, `lualib.h`, and `lauxlib.h`, and
+  the library builds warning-free in Debug and Release.
 - **A pattern is compiled as `return <text>`,** and as a sequence of statements if that fails, in load mode `"t"`, so
   a binary chunk is rejected. Its environment's globals fall through a metatable to a sandbox with the safe functions of
   the base library, read-only copies of `math` (without `random` and `randomseed`), `string` (without `dump`), `table`,

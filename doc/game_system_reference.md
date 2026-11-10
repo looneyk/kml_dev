@@ -1540,8 +1540,8 @@ links `quetzal_common`;
 `quetzal_stratum_gen` and `quetzal_stratum_view`. `quetzal_dungen` links `quetzal_log`. `quetzal_stratum_format`
 links `quetzal_common`, `quetzal_log`, `quetzal_settings` and `nlohmann_json`, vendored at
 `library3/json` with its headers SYSTEM.
-`lua_static` is Lua 5.5.1, from `library3/lua` without its standalone interpreter and compiler, compiled as C++ so that a
-Lua error unwinds C++ frames. Its clients include `lua.h`, `lualib.h`, and `lauxlib.h`, not `lua.hpp`.
+`lua_static` is Lua 5.5.1, from `library3/lua` without its standalone interpreter, `onelua.c`, and `ltests.c`, compiled as C++ so that a
+Lua error unwinds C++ frames. Its clients include `lua.h`, `lualib.h`, and `lauxlib.h`.
 
 `KML_DEV_GODOT` governs the Godot targets and defaults on. When it is configured off, godot-cpp is not processed and
 neither `quetzal_godot` nor `stratum_godot` exists. `KML_DEV_VULKAN` governs the Vulkan applications and their
