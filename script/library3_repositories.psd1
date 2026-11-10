@@ -8,7 +8,7 @@
         @{ Name = 'glm'; Url = 'https://github.com/g-truc/glm.git'; Tag = '1.0.3'; Commit = '8d1fd52e5ab5590e2c81768ace50c72bae28f2ed' }
         @{ Name = 'godot-cpp'; Url = 'https://github.com/godotengine/godot-cpp.git'; Tag = '10.0.0-stable'; Commit = '507ed9d840c01a3c5b2a39af8bb4000bfac30bf5' }
         @{ Name = 'json'; Url = 'https://github.com/nlohmann/json.git'; Tag = 'v3.12.0'; Commit = '55f93686c01528224f448c19128836e7df245f72' }
-        @{ Name = 'KTX-Software'; Url = 'https://github.com/KhronosGroup/KTX-Software.git'; Branch = 'main'; Commit = '90967979cbb7e9401ee2401ff997f30b4b7507d6' }
+        @{ Name = 'KTX-Software'; Url = 'https://github.com/KhronosGroup/KTX-Software.git'; Tag = 'v5.0.0-rc2'; Commit = '16059fa93d834242a0aaed9bb54952d76b143fac' }
         @{ Name = 'simdjson'; Url = 'https://github.com/simdjson/simdjson.git'; Tag = 'v5.1.1'; Commit = '40a686ab89dc5ee58ec10d0514dd5c99abbc472b' }
         @{ Name = 'stb'; Url = 'https://github.com/nothings/stb.git'; Branch = 'master'; Commit = '31c1ad37456438565541f4919958214b6e762fb4' }
         @{ Name = 'tinyobjloader'; Url = 'https://github.com/tinyobjloader/tinyobjloader.git'; Branch = 'release'; Commit = '45636bdcef1a4fec140346b90c0b50bf0bc3e23b' }
