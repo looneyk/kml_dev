@@ -24,13 +24,17 @@ KTX-Software in `library3/`, which only they use.
 ## Third-party repositories
 
 The build uses fourteen repositories cloned into `library3/`, which the root repository does not track.
-`script/library3_repositories.psd1` lists each one's URL, branch and the commit the tree is built against.
+`script/library3_repositories.psd1` lists each one's URL and its pin: a release tag and the commit it points to, or for
+a repository that publishes no releases, its branch and a commit on it. A repository whose code the tree uses is in no
+stable release yet is pinned to its newest pre-release tag.
 
-- **`script/clone_library3.ps1`** clones each that is not cloned yet, on its branch and reset to its commit. A clone that
-  exists is left as it is, and reported if its commit differs. `-DryRun` lists what it would clone.
-- **`script/update_library3.ps1`** pulls each, fast-forward only, and writes each one's new commit into
-  `library3_repositories.psd1`, so the change appears in that file's diff. `-DryRun` fetches and reports how many
-  commits each is behind, without pulling.
+- **`script/clone_library3.ps1`** clones each that is not cloned yet, at its pin. A clone that exists is left as it is,
+  and reported if it is not at its pin; `-Checkout` checks out the pin in it. `-DryRun` lists what it would do.
+- **`script/update_library3.ps1`** reports, for each, the releases newer than its pin, and for a repository pinned to a
+  pre-release the newer pre-releases too. `-Name <name>` moves that repository's pin to its newest release, or to
+  `-Tag <tag>`, writes the pin into `library3_repositories.psd1`, so the change appears in that file's diff, and checks it
+  out. A repository pinned to a commit on its branch moves to the branch's head. One dependency is moved at a time, with
+  the build and the tests run before the next.
 
 ## Building
 

@@ -1,10 +1,13 @@
-# Clones the third-party repositories that the CMake build uses into library3, each at its commit in
-# library3_repositories.psd1, as on a new machine. A repository already cloned is left as it is, and reported if its
-# commit differs.
+# Clones the third-party repositories that the CMake build uses into library3, each at its pin in library3_repositories.psd1,
+# as on a new machine: a release tag, or a commit on its branch for a repository that publishes no releases. A repository
+# already cloned is left as it is, and reported if it is not at its pin, unless -Checkout is given.
 
 param (
-    # Lists what would be cloned without cloning it
-    [switch]$DryRun
+    # Lists what would be cloned or checked out without doing it
+    [switch]$DryRun,
+
+    # Checks out its pin in a repository already cloned that is not at it
+    [switch]$Checkout
 )
 
 $library3_directory = Join-Path $PSScriptRoot '../library3'
@@ -15,42 +18,57 @@ $failure_count = 0
 foreach ($repository in $repositories) {
     $name = $repository.Name
     $directory = Join-Path $library3_directory $name
+    $pin = if ($repository.Tag) { $repository.Tag } else { $repository.Commit }
 
     if (Test-Path (Join-Path $directory '.git')) {
         $commit = git -C $directory rev-parse HEAD
         if ($commit -eq $repository.Commit) {
-            Write-Output "$name`: cloned at its commit"
+            Write-Output "$name`: cloned at $pin"
+            continue
         }
-        else {
-            Write-Output "$name`: cloned at $commit, the tree is built against $($repository.Commit)"
-        }
-        continue
-    }
 
-    if (Test-Path $directory) {
+        if (-not $Checkout) {
+            Write-Output "$name`: cloned at $commit, the tree is built against $pin"
+            continue
+        }
+
+        if ($DryRun) {
+            Write-Output "$name`: would check out $pin"
+            continue
+        }
+
+        git -C $directory fetch --quiet --tags
+        if ($LASTEXITCODE -eq 0) {
+            git -C $directory checkout --quiet $pin
+        }
+    }
+    elseif (Test-Path $directory) {
         Write-Output "$name`: $directory exists and is not a clone"
         $failure_count++
         continue
     }
-
-    if ($DryRun) {
-        Write-Output "$name`: would clone $($repository.Url) at $($repository.Commit)"
+    elseif ($DryRun) {
+        Write-Output "$name`: would clone $($repository.Url) at $pin"
         continue
     }
-
-    # Cloning the branch and then resetting it keeps the branch tracking its remote, so a later pull updates it
-    git clone --branch $repository.Branch $repository.Url $directory
-    if ($LASTEXITCODE -eq 0) {
-        git -C $directory reset --hard $repository.Commit
+    elseif ($repository.Tag) {
+        git clone --quiet --branch $repository.Tag $repository.Url $directory
+    }
+    else {
+        # Cloning the branch and then resetting it keeps the branch tracking its remote, so a later pull updates it
+        git clone --quiet --branch $repository.Branch $repository.Url $directory
+        if ($LASTEXITCODE -eq 0) {
+            git -C $directory reset --quiet --hard $repository.Commit
+        }
     }
 
-    if ($LASTEXITCODE -ne 0) {
-        Write-Output "$name`: failed"
+    if ($LASTEXITCODE -ne 0 -or (git -C $directory rev-parse HEAD) -ne $repository.Commit) {
+        Write-Output "$name`: failed, or $pin is not commit $($repository.Commit)"
         $failure_count++
         continue
     }
 
-    Write-Output "$name`: cloned"
+    Write-Output "$name`: at $pin"
 }
 
 if ($failure_count -gt 0) {
