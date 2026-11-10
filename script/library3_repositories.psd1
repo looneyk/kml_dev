@@ -13,6 +13,6 @@
         @{ Name = 'stb'; Url = 'https://github.com/nothings/stb.git'; Branch = 'master'; Commit = '31c1ad37456438565541f4919958214b6e762fb4' }
         @{ Name = 'tinyobjloader'; Url = 'https://github.com/tinyobjloader/tinyobjloader.git'; Branch = 'release'; Commit = '45636bdcef1a4fec140346b90c0b50bf0bc3e23b' }
         @{ Name = 'utfcpp'; Url = 'https://github.com/nemtrif/utfcpp.git'; Tag = 'v4.2.1'; Commit = '3d1ff6dbf54e471c846dff55dda6c8ee10c0ee5c' }
-        @{ Name = 'VulkanMemoryAllocator'; Url = 'https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator.git'; Branch = 'master'; Commit = '3aa921224c154a0d2c43912bc88e1c42ce1f7607' }
+        @{ Name = 'VulkanMemoryAllocator'; Url = 'https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator.git'; Tag = 'v3.5.0'; Commit = '0f1a757da579831283413295cc7f3b47eb521c77' }
     )
 }
