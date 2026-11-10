@@ -338,6 +338,10 @@ namespace quetzal::stratum_sim
     // Sets only the parent for an entity that has no site
     void set_parent(flecs::entity e, flecs::entity parent);
 
+    // An observer is given handles that use its stage, so a handle that outlasts the observer must be converted to one that uses the world
+    // Returns that handle
+    flecs::entity world_handle(flecs::entity e);
+
     //--------------------------------------------------------------------------
     // Creates an entity type, which is a prefab. An entity IsA its type, and the type's components are the entity's defaults
     // The caller sets the type's components

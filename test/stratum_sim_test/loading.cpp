@@ -870,11 +870,17 @@ namespace
         CHECK_CASE("deleting a flat cell's entity leaves what was on it unsited", lever.is_alive() && !lever.has<stratum_sim::Site>());
         CHECK_CASE("and the cell with none", !stratum_sim::flat_cell_entity(zone, floor_id, stratum_sim::discrete_point_type {1, 1}));
 
-        world.entities().defer_begin();
-        flecs::entity sconce = sited(stratum_sim::WallAddress {north_wall});
-        flecs::entity hook = sited(stratum_sim::WallAddress {north_wall});
-        world.entities().defer_end();
-        CHECK_CASE("entities sited while deferred are all listed", attached_to(stratum_sim::wall_entity(zone, north_wall)) == vector<flecs::entity> {sconce, hook});
+        // In readonly mode, as inside a system, a stage queues the operations until it is merged
+        world.entities().readonly_begin();
+        flecs::world stage = world.entities().get_stage(0);
+        flecs::entity sconce = stage.entity();
+        flecs::entity hook = stage.entity();
+        stratum_sim::reparent(sconce, zone, stratum_sim::Site {stratum_sim::Relation::On, stratum_sim::WallAddress {north_wall}, {}});
+        stratum_sim::reparent(hook, zone, stratum_sim::Site {stratum_sim::Relation::On, stratum_sim::WallAddress {north_wall}, {}});
+        const bool pending = !stratum_sim::wall_entity(zone, north_wall);
+        world.entities().readonly_end();
+        CHECK_CASE("entities sited through a stage are sited when it is merged", pending);
+        CHECK_CASE("and all are listed", attached_to(stratum_sim::wall_entity(zone, north_wall)) == vector<flecs::entity> {sconce, hook});
 
         wall = stratum_sim::wall_entity(zone, north_wall);
         world.unload_zone(zone);

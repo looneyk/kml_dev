@@ -356,7 +356,6 @@ namespace
         CHECK_CASE("as many are unloaded as the maximum requires, never the zone entered",
             !d.is_alive() && !c.is_alive() && e.is_alive() && filled_zone_count(world) == 1);
 
-        // Deferred, as inside a system or an observer, an unload finishes when the deferred operations run
         flecs::entity f = corridor();
         flecs::entity g = corridor();
 
@@ -365,17 +364,22 @@ namespace
         stratum_sim::EntityReference kept_reference = world.make_reference(kept);
         stratum_sim::PersistentId e_id = e.get<stratum_sim::PersistentId>();
 
-        world.entities().defer_begin();
         world.trim_zones(f);
         world.trim_zones(g);
-        bool pending = e.is_alive() && f.is_alive();
-        world.entities().defer_end();
-
-        CHECK_CASE("while deferred, the zones entered before stay until the deferred operations run", pending);
-        CHECK_CASE("then the two trims in one deferred block unload those two and no more",
+        CHECK_CASE("two trims in a row unload the two zones entered before and no more",
             !e.is_alive() && !f.is_alive() && g.is_alive() && filled_zone_count(world) == 1);
         CHECK_CASE("and an entity referred to in one keeps its zone in the world index",
             world.zone_of(kept_reference.persistent_id) == e_id && !world.entity(kept_reference.persistent_id));
+
+        // In readonly mode, as inside a system, a stage queues the deletion, and the unload finishes when the stage is merged
+        flecs::entity staged = corridor();
+        const std::size_t zone_count = world.zone_count();
+        world.entities().readonly_begin();
+        world.unload_zone(world.entities().get_stage(0).entity(staged.id()));
+        const bool pending = staged.is_alive() && world.zone_count() == zone_count - 1;
+        world.entities().readonly_end();
+        CHECK_CASE("a zone whose deletion is queued stays until the stage is merged, and is not counted", pending);
+        CHECK_CASE("then it is unloaded", !staged.is_alive() && world.zone_count() == zone_count - 1);
 
         world.set_zone_count_max(0);
         flecs::entity h = corridor();

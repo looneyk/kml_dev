@@ -468,7 +468,7 @@ game directory's `zones/<persistent id>.zone`, into the region whose `zone_ids` 
 `Speed` is the rate at which an actor gains energy in the turn order.
 
 `zones()` returns the world's zones in id order, queried on each call, and `zone_count` returns how many there are. A
-zone that has begun unloading is excluded, even if flecs has deferred its deletion.
+zone that has begun unloading is excluded, even if its deletion is queued on a stage.
 
 `trim_zones(zone_entered)` has the world's `ZoneEntryIndex` mark `zone_entered` as the most recently entered zone and
 choose the zones to unload among the zones that are not empty, then saves each, if the world has a game directory, and
@@ -492,8 +492,8 @@ the region with its persistent id, its name, its name counter, its region spec a
 each zone that has a position and the region each zone that has a name; and the world index. It loads no zone; each loads when it is entered.
 
 `unload_zone(zone)` begins an unload: it adds the zone's id to the zones unloading and deletes the entity. Flecs deletes
-a zone's subtree before the zone itself, and if it is deferring, it runs the whole deletion when the deferred
-operations run. The unload is complete in the `PersistentId` observer on the zone's own removal, which takes the zone
+a zone's subtree before the zone itself, and if the deletion is queued on a stage, as it is in readonly mode, it runs
+the whole deletion when the stage is merged. The unload is complete in the `PersistentId` observer on the zone's own removal, which takes the zone
 out of the zones unloading. An unload is therefore correct whether the deletion runs at once or later.
 
 An entity with no parent is owned by the game rather than a zone; the character is one. The exclusive `(InZone, zone)`
@@ -510,7 +510,9 @@ it between zones are all this one operation. `relocate(e, zone, placement)` is `
 for an entity that has a parent; for an entity owned by the game, it sets its `InZone` and site, so it stays the
 game's. The entity's children move with it and its id is kept, so references to it stay valid, and the zone it left
 can unload without it. Both assert that nothing below an entity moving to another zone is sited on a wall or a flat
-cell, since those addresses belong to the zone it left. `set_parent(e, parent)` sets only the parent, for an entity that has no site. A zone contains
+cell, since those addresses belong to the zone it left. `set_parent(e, parent)` sets only the parent, for an entity that has no site. `world_handle(e)` returns a
+handle whose operations run on the world: flecs passes an observer handles that use its stage, so the handles that
+`World`'s entity index, a zone's layout entity index, and `AttachedEntities` keep use the world. A zone contains
 its entities through `ChildOf`, and an entity contains its children through flecs' non-fragmenting `Parent`.
 `parent()`, `children()` and a `ChildOf` query term work with both, and `has(ChildOf, ...)` is true for a `Parent`
 child as well.
@@ -593,7 +595,7 @@ more than `zone_count_max`. It keeps a map from its count of entries to the pers
 count. `select_unloads(zones, zone_entered)` drops the earlier entry of `zone_entered` and the entries of any zone no
 longer among `zones`, adds one for `zone_entered` under the next count, and then returns zones from the first entry on
 until the count left is within the maximum. It never chooses `zone_entered`, whose entry is the last, or a zone that
-was never entered, which has no entry, and two trims in one deferred block choose no more than the excess. `clear`
+was never entered, which has no entry, and two trims whose deletions are queued together choose no more than the excess. `clear`
 forgets every entry and keeps the maximum.
 
 ### Persistent ids

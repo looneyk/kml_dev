@@ -412,7 +412,7 @@ quetzal::stratum_sim::World::World(IdAllocator& id_allocator, Generation& genera
         .event(flecs::OnSet)
         .each([this](flecs::entity e, const PersistentId& persistent_id)
         {
-            [[maybe_unused]] auto [i, inserted] = m_loaded_entities.emplace(persistent_id, e);
+            [[maybe_unused]] auto [i, inserted] = m_loaded_entities.emplace(persistent_id, world_handle(e));
             assert(inserted || i->second == e);
         });
 
@@ -503,7 +503,7 @@ quetzal::stratum_sim::World::World(IdAllocator& id_allocator, Generation& genera
                 std::vector<flecs::entity>& attached = ensure_layout_entity(zone, address).template ensure<AttachedEntities>().entities;
                 if (std::find(attached.begin(), attached.end(), e) == attached.end())
                 {
-                    attached.push_back(e);
+                    attached.push_back(world_handle(e));
                 }
             }, *site.address);
         });
@@ -1912,6 +1912,12 @@ void quetzal::stratum_sim::set_parent(flecs::entity e, flecs::entity parent)
     }
 
     return;
+}
+
+//------------------------------------------------------------------------------
+flecs::entity quetzal::stratum_sim::world_handle(flecs::entity e)
+{
+    return flecs::entity(e.world().get_world().c_ptr(), e.id());
 }
 
 //------------------------------------------------------------------------------

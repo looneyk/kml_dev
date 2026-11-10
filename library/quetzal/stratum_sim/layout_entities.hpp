@@ -80,7 +80,7 @@ flecs::entity quetzal::stratum_sim::ensure_layout_entity(flecs::entity zone, con
 
     flecs::entity e = zone.world().entity().add<LayoutEntity>().set<Address>(address);
     set_parent(e, detail::layout_parent(zone, address));
-    zone.ensure<AddressIndex<Address>>().entities.emplace(address, e);
+    zone.ensure<AddressIndex<Address>>().entities.emplace(address, world_handle(e));
 
     return e;
 }

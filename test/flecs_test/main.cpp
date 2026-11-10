@@ -10,7 +10,18 @@
 
 #include "quetzal/testing/named_checks.hpp"
 #include <doctest/doctest.h>
+
+// flecs 4.2.0's has_component returns false after an if constexpr that returns, which MSVC reports as C4702 whatever the
+// external warning level, since the warning comes from code generation
+#if defined(_MSC_VER)
+#pragma warning(push)
+#pragma warning(disable: 4702)
+#endif
 #include <flecs.h>
+#if defined(_MSC_VER)
+#pragma warning(pop)
+#endif
+
 #include <format>
 #include <string>
 
