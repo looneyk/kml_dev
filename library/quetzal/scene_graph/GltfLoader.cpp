@@ -73,7 +73,7 @@ vulkan::TextureHandle load_image(vulkan::IRenderer& renderer,
         [](auto&) -> vulkan::TextureHandle { return {}; },
         [&](const fastgltf::sources::URI& uri) -> vulkan::TextureHandle
         {
-            auto path = gltf_dir / uri.uri.fspath();
+            auto path = gltf_dir / uri.uri->fspath();
             int w, h, ch;
             stbi_uc* pixels = stbi_load(path.string().c_str(), &w, &h, &ch, STBI_rgb_alpha);
             if (!pixels)
@@ -116,7 +116,7 @@ void load_primitive(Scene& scene,
 
     using V = vulkan::VertexPositionNormalTexcoord;
 
-    auto* pos_it = prim.findAttribute("POSITION");
+    auto pos_it = prim.findAttribute("POSITION");
     if (pos_it == prim.attributes.end())
         return;
 
@@ -129,7 +129,7 @@ void load_primitive(Scene& scene,
             vertices[i].position = {v.x(), -v.z(), v.y()};
         });
 
-    if (auto* n = prim.findAttribute("NORMAL"); n != prim.attributes.end())
+    if (auto n = prim.findAttribute("NORMAL"); n != prim.attributes.end())
     {
         fastgltf::iterateAccessorWithIndex<fastgltf::math::fvec3>(asset,
             asset.accessors[n->accessorIndex],
@@ -139,7 +139,7 @@ void load_primitive(Scene& scene,
             });
     }
 
-    if (auto* tc = prim.findAttribute("TEXCOORD_0"); tc != prim.attributes.end())
+    if (auto tc = prim.findAttribute("TEXCOORD_0"); tc != prim.attributes.end())
     {
         fastgltf::iterateAccessorWithIndex<fastgltf::math::fvec2>(asset,
             asset.accessors[tc->accessorIndex],

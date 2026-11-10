@@ -2,7 +2,7 @@
     Repositories = @(
         @{ Name = 'CDT'; Url = 'https://github.com/artem-ogre/CDT.git'; Tag = '2.0.2'; Commit = 'b4413ee44affb489099ed4d6ec65e94788cb6708' }
         @{ Name = 'doctest'; Url = 'https://github.com/doctest/doctest.git'; Tag = 'v2.5.3'; Commit = '2d0a9359a60c51affe2a9bebb1be1dca47868151' }
-        @{ Name = 'fastgltf'; Url = 'https://github.com/spnda/fastgltf.git'; Branch = 'main'; Commit = 'a31be255ff041fa1d6697e5040fef3c9b6405795' }
+        @{ Name = 'fastgltf'; Url = 'https://github.com/spnda/fastgltf.git'; Tag = 'v1.0.1'; Commit = '87cfbceeeda127ccc9092694279437b700046119' }
         @{ Name = 'flecs'; Url = 'https://github.com/SanderMertens/flecs.git'; Branch = 'master'; Commit = '6d5f6e2e99c4aa3079edc9f30bec437d0e90392c' }
         @{ Name = 'glfw'; Url = 'https://github.com/glfw/glfw.git'; Tag = '3.5.1'; Commit = 'd9d6f0f1f967807ffade6598ea9a631ebaf37a56' }
         @{ Name = 'glm'; Url = 'https://github.com/g-truc/glm.git'; Tag = '1.0.3'; Commit = '8d1fd52e5ab5590e2c81768ace50c72bae28f2ed' }

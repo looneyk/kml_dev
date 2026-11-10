@@ -65,6 +65,10 @@ if(KML_DEV_VULKAN)
     set(FASTGLTF_ENABLE_INSTALL OFF CACHE BOOL "" FORCE)
     add_subdirectory(fastgltf)
 
+    # Same treatment as flecs above: fastgltf's containers are templates in its headers, which compile at /W4 in quetzal_scene_graph
+    get_target_property(fastgltf_include_directories fastgltf INTERFACE_INCLUDE_DIRECTORIES)
+    set_target_properties(fastgltf PROPERTIES INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${fastgltf_include_directories}")
+
     # basis_universal's SSE kernel does not compile with this MSVC: cppspmd_sse.h returns a temporary as a non-const reference. KTX only enables it on x86_64, so it is off here
     set(BASISU_SSE FALSE)
 
