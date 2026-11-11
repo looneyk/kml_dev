@@ -4,18 +4,17 @@
 //------------------------------------------------------------------------------
 
 #include "ScriptSandbox.hpp"
+#include "quetzal/common/string_util.hpp"
 #include "quetzal/log/Log.hpp"
 #include <lauxlib.h>
 #include <lua.h>
 #include <lualib.h>
 #include <algorithm>
-#include <charconv>
 #include <cstdlib>
 #include <format>
 #include <initializer_list>
 #include <optional>
 #include <stdexcept>
-#include <system_error>
 #include <utility>
 
 namespace
@@ -93,27 +92,13 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    template<typename T>
-    std::optional<T> parsed(std::string_view text)
-    {
-        T value {};
-        const auto [end, error] = std::from_chars(text.data(), text.data() + text.size(), value);
-        if (error != std::errc() || end != text.data() + text.size())
-        {
-            return std::nullopt;
-        }
-
-        return value;
-    }
-
-    //--------------------------------------------------------------------------
     void push_global_value(lua_State* state, std::string_view text)
     {
-        if (const std::optional<lua_Integer> integer = parsed<lua_Integer>(text); integer.has_value())
+        if (const std::optional<lua_Integer> integer = quetzal::try_type<lua_Integer>(text); integer.has_value())
         {
             lua_pushinteger(state, integer.value());
         }
-        else if (const std::optional<double> number = parsed<double>(text); number.has_value())
+        else if (const std::optional<double> number = quetzal::try_type<double>(text); number.has_value())
         {
             lua_pushnumber(state, number.value());
         }

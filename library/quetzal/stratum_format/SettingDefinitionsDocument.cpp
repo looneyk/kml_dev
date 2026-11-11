@@ -8,7 +8,6 @@
 #include <array>
 #include <format>
 #include <functional>
-#include <optional>
 #include <span>
 #include <string_view>
 
@@ -39,13 +38,6 @@ namespace
     std::string required_string(const raw_values_type& v, const std::string& path, std::string_view key)
     {
         return string_value(required_member(v, path, key), member_path(path, key));
-    }
-
-    //--------------------------------------------------------------------------
-    std::optional<std::string> optional_string(const raw_values_type& v, const std::string& path, std::string_view key)
-    {
-        const raw_values_type* p = member(v, key);
-        return p != nullptr ? std::make_optional(string_value(*p, member_path(path, key))) : std::nullopt;
     }
 
     //--------------------------------------------------------------------------
@@ -133,11 +125,11 @@ namespace
         setting.scope = read_scope(v, path);
         setting.restart_required = optional_boolean(v, path, "restart_required");
         setting.modifiable = optional_boolean(v, path, "modifiable");
-        setting.display_name = optional_string(v, path, "display_name").value_or("");
-        setting.description = optional_string(v, path, "description").value_or("");
-        setting.category = optional_string(v, path, "category").value_or("");
-        setting.minimum = optional_string(v, path, "minimum");
-        setting.maximum = optional_string(v, path, "maximum");
+        setting.display_name = optional_string(v, "display_name", path).value_or("");
+        setting.description = optional_string(v, "description", path).value_or("");
+        setting.category = optional_string(v, "category", path).value_or("");
+        setting.minimum = optional_string(v, "minimum", path);
+        setting.maximum = optional_string(v, "maximum", path);
         return setting;
     }
 
@@ -148,7 +140,7 @@ namespace
 
         document_type::Preset preset;
         preset.name = required_string(v, path, "name");
-        preset.display_name = optional_string(v, path, "display_name").value_or("");
+        preset.display_name = optional_string(v, "display_name", path).value_or("");
         preset.modifiable = optional_boolean(v, path, "modifiable");
 
         if (const raw_values_type* p = member(v, "values"); p != nullptr)
@@ -169,8 +161,8 @@ namespace
         group.scope = read_scope(v, path);
         group.modifiable = optional_boolean(v, path, "modifiable");
         group.default_preset_name = required_string(v, path, "default_preset");
-        group.display_name = optional_string(v, path, "display_name").value_or("");
-        group.category = optional_string(v, path, "category").value_or("");
+        group.display_name = optional_string(v, "display_name", path).value_or("");
+        group.category = optional_string(v, "category", path).value_or("");
         group.member_keys = required_strings(v, path, "members");
 
         required_member(v, path, "presets");

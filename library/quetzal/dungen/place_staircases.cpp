@@ -21,13 +21,6 @@ namespace
     using quetzal::nullid;
 
     //--------------------------------------------------------------------------
-    // A range of one value draws nothing, so a fixed count leaves every later draw unchanged
-    size_t draw_count(const quetzal::math::Interval<size_t>& count, random_type& random)
-    {
-        return count.length() == 0 ? count.lower() : random.random_closed(count.lower(), count.upper());
-    }
-
-    //--------------------------------------------------------------------------
     bool floor_staircase(CellType type)
     {
         return type == CellType::Room || type == CellType::Corridor || type == CellType::Staircase;
@@ -125,8 +118,8 @@ namespace
 void quetzal::dungen::place_staircases(Zone& zone, vector<point_type> candidates, const math::Interval<size_t>& up_interval,
     const math::Interval<size_t>& down_interval, random_type& random)
 {
-    size_t down_count = draw_count(down_interval, random);
-    size_t up_count = draw_count(up_interval, random);
+    size_t down_count = random.random_closed(down_interval.lower(), down_interval.upper());
+    size_t up_count = random.random_closed(up_interval.lower(), up_interval.upper());
     const size_t down_requested = down_count;
     const size_t up_requested = up_count;
 

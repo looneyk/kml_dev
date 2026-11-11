@@ -90,6 +90,7 @@ add_library(quetzal_stratum_sim STATIC
     setting_definitions.hpp
     Site.hpp
     specs.hpp
+    stratum_sim_util.hpp
     types.hpp
     World.hpp
     WorldDefinition.hpp

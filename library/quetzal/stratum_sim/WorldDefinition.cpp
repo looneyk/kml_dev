@@ -7,6 +7,7 @@
 #include "Generation.hpp"
 #include "PatternResolver.hpp"
 #include "seeds.hpp"
+#include "stratum_sim_util.hpp"
 #include "quetzal/common/KeyValueStore.hpp"
 #include "quetzal/log/Log.hpp"
 #include "quetzal/stratum_format/WorldDefinitionDocument.hpp"
@@ -31,15 +32,7 @@ namespace
         RegionSpec composed;
         if (region_spec.region_spec.has_value())
         {
-            auto designed = region_specs.find(region_spec.region_spec.value());
-            if (designed == region_specs.end())
-            {
-                const std::string message = std::format("no region spec is registered as {}", region_spec.region_spec.value());
-                quetzal::log::logger().error("stratum_sim", "{}", message);
-                throw std::runtime_error(message);
-            }
-
-            composed = designed->second;
+            composed = value_at(region_specs, region_spec.region_spec.value(), "region spec");
         }
 
         auto layer = []<typename T>(std::optional<T>& member, const std::optional<T>& over)

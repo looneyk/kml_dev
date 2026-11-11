@@ -7,6 +7,7 @@
 #include "attachments.hpp"
 #include "DiscreteLayout.hpp"
 #include "Name.hpp"
+#include "quetzal/common/file_util.hpp"
 #include "quetzal/log/Log.hpp"
 #include "setting_definitions.hpp"
 #include "quetzal/settings/Settings.hpp"
@@ -33,8 +34,7 @@ namespace
 
     constexpr std::string_view gameplay_random_engine_key = "gameplay";
 
-    // Windows' reserved characters, so a name that one platform accepts every platform accepts
-    constexpr std::string_view reserved_path_characters = "<>:\"/\\|?*";
+    constexpr char path_character_replacement = '_';
 
     //--------------------------------------------------------------------------
     // The time in ISO 8601 basic format, local to the player
@@ -76,19 +76,6 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // The name with each character that cannot be in a directory name, reserved or a control character, replaced by '_'
-    std::string replace_reserved_characters(std::string_view name)
-    {
-        std::string directory_name(name);
-        std::ranges::replace_if(directory_name, [](char c)
-        {
-            return reserved_path_characters.find(c) != std::string_view::npos || static_cast<unsigned char>(c) < 0x20;
-        }, '_');
-
-        return directory_name;
-    }
-
-    //--------------------------------------------------------------------------
     // The working directory has only the game in progress
     void clear_working_directory(const quetzal::stratum_sim::Config& config)
     {
@@ -100,7 +87,7 @@ namespace
     // Creates the game directory in the working directory, named by the character, and returns it
     std::filesystem::path create_game_directory(const quetzal::stratum_sim::Config& config, std::string_view character_name)
     {
-        std::filesystem::path game_directory = config.working_directory / replace_reserved_characters(character_name);
+        std::filesystem::path game_directory = config.working_directory / quetzal::replace_reserved_path_characters(character_name, path_character_replacement);
         std::filesystem::create_directories(game_directory);
 
         return game_directory;
@@ -347,7 +334,7 @@ std::string quetzal::stratum_sim::Game::save(SaveType save_type)
 
     const auto* name = m_character.entity().try_get<Name>();
     assert(name != nullptr && !name->name.empty());
-    std::string character_name = replace_reserved_characters(name->name);
+    std::string character_name = replace_reserved_path_characters(name->name, path_character_replacement);
 
     stratum_format::GameDocument document;
     document.version = std::string(stratum_format::saved_game_format_version);

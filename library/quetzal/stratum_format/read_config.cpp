@@ -9,7 +9,6 @@
 #include <array>
 #include <algorithm>
 #include <format>
-#include <optional>
 #include <string_view>
 
 namespace
@@ -21,13 +20,6 @@ namespace
     constexpr std::array<std::string_view, 12> config_keys {"format", "version", "assets_directory", "user_directory", "saves_directory",
         "working_directory", "logs_directory", "cache_directory", "mods_directory", "user_settings_file", "zone_count_max",
         "log_file_count_max"};
-
-    //--------------------------------------------------------------------------
-    std::optional<std::string> optional_string(const raw_values_type& v, std::string_view key)
-    {
-        const raw_values_type* p = member(v, key);
-        return p != nullptr ? std::make_optional(string_value(*p, std::string(key))) : std::nullopt;
-    }
 
     //--------------------------------------------------------------------------
     ConfigDocument read_config_document(const raw_values_type& v)

@@ -83,6 +83,13 @@ std::string quetzal::stratum_format::detail::string_value(const raw_values_type&
 }
 
 //------------------------------------------------------------------------------
+std::optional<std::string> quetzal::stratum_format::detail::optional_string(const raw_values_type& v, std::string_view key, const std::string& path)
+{
+    const raw_values_type* p = member(v, key);
+    return p != nullptr ? std::make_optional(string_value(*p, member_path(path, key))) : std::nullopt;
+}
+
+//------------------------------------------------------------------------------
 quetzal::KeyValueStore quetzal::stratum_format::detail::text_values(const raw_values_type& v, const std::string& path)
 {
     KeyValueStore values;

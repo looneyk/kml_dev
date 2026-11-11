@@ -9,18 +9,6 @@
 #include "Site.hpp"
 #include <vector>
 
-namespace
-{
-
-    //--------------------------------------------------------------------------
-    quetzal::stratum_sim::value_type distance2(const quetzal::stratum_sim::point_type& a, const quetzal::stratum_sim::point_type& b)
-    {
-        auto [dx, dy, dz] = (b - a).rep();
-        return dx * dx + dy * dy + dz * dz;
-    }
-
-} // namespace
-
 //------------------------------------------------------------------------------
 void quetzal::stratum_sim::register_ai_components(flecs::world& entities)
 {
@@ -95,11 +83,11 @@ void quetzal::stratum_sim::think(World& world, id_type actor_controlled)
         // The reachable neighbor nearest the goal. Neighbors are in a fixed order, so ties break the same way every run
         bool found = false;
         vector_type direction;
-        value_type nearest = distance2(pplacement->position(), pursue.position_last_seen);
+        value_type nearest = (pursue.position_last_seen - pplacement->position()).norm_squared();
 
         for (const placement_type& neighbor : world.neighbors(e))
         {
-            value_type d = distance2(neighbor.position(), pursue.position_last_seen);
+            value_type d = (pursue.position_last_seen - neighbor.position()).norm_squared();
             if (d < nearest)
             {
                 nearest = d;

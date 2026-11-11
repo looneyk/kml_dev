@@ -4,6 +4,7 @@
 //------------------------------------------------------------------------------
 
 #include "file_util.hpp"
+#include <algorithm>
 #include <stdexcept>
 #include <vector>
 #include <cstdio>
@@ -22,6 +23,13 @@
 #endif
 
 using namespace std;
+
+namespace
+{
+
+    constexpr string_view reserved_path_characters = "<>:\"/\\|?*";
+
+} // namespace
 
 //------------------------------------------------------------------------------
 filesystem::path quetzal::executable_directory()
@@ -47,6 +55,18 @@ filesystem::path quetzal::executable_directory()
 #else
     throw runtime_error("the executable's directory is not implemented on this platform");
 #endif
+}
+
+//------------------------------------------------------------------------------
+string quetzal::replace_reserved_path_characters(string_view name, char replacement)
+{
+    string replaced(name);
+    ranges::replace_if(replaced, [](char c)
+    {
+        return reserved_path_characters.find(c) != string_view::npos || static_cast<unsigned char>(c) < 0x20;
+    }, replacement);
+
+    return replaced;
 }
 
 //------------------------------------------------------------------------------

@@ -13,6 +13,7 @@
 #include <format>
 #include <fstream>
 #include <functional>
+#include <optional>
 #include <span>
 #include <stdexcept>
 #include <string>
@@ -36,6 +37,9 @@ namespace quetzal::stratum_format::detail
     const raw_values_type& object(const raw_values_type& v, const std::string& path);
     const raw_values_type& array(const raw_values_type& v, const std::string& path);
     std::string string_value(const raw_values_type& v, const std::string& path);
+
+    // Returns std::nullopt if the key is absent or null
+    std::optional<std::string> optional_string(const raw_values_type& v, std::string_view key, const std::string& path = {});
 
     // An object whose every value is text
     KeyValueStore text_values(const raw_values_type& v, const std::string& path);

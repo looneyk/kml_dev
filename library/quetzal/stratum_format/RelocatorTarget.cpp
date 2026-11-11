@@ -4,10 +4,9 @@
 //------------------------------------------------------------------------------
 
 #include "RelocatorTarget.hpp"
+#include "quetzal/common/string_util.hpp"
 #include <algorithm>
-#include <charconv>
 #include <format>
-#include <system_error>
 #include <utility>
 #include <cctype>
 
@@ -25,38 +24,18 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Returns the level written as digits with an optional leading '-', or nothing if the text is not that or is out of range
-    std::optional<level_type> parse_level(std::string_view text)
-    {
-        std::string_view digits = text.starts_with('-') ? text.substr(1) : text;
-        if (digits.empty() || !std::ranges::all_of(digits, [](char c) { return c >= '0' && c <= '9'; }))
-        {
-            return std::nullopt;
-        }
-
-        level_type level = 0;
-        auto [end, error] = std::from_chars(text.data(), text.data() + text.size(), level);
-        if (error != std::errc {} || end != text.data() + text.size())
-        {
-            return std::nullopt;
-        }
-
-        return level;
-    }
-
-    //--------------------------------------------------------------------------
     std::optional<std::variant<RelativeZone, AbsoluteZone, std::string>> parse_zone(std::string_view text)
     {
         if (text.starts_with('='))
         {
-            if (std::optional<level_type> level = parse_level(text.substr(1)); level.has_value())
+            if (std::optional<level_type> level = quetzal::try_type<level_type>(text.substr(1)); level.has_value())
             {
                 return AbsoluteZone {*level};
             }
         }
         else if (text.starts_with('-') || (text.starts_with('+') && !text.substr(1).starts_with('-')))
         {
-            if (std::optional<level_type> offset = parse_level(text.starts_with('+') ? text.substr(1) : text); offset.has_value())
+            if (std::optional<level_type> offset = quetzal::try_type<level_type>(text.starts_with('+') ? text.substr(1) : text); offset.has_value())
             {
                 return RelativeZone {*offset};
             }

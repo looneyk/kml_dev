@@ -19,6 +19,7 @@
 #include "seeds.hpp"
 #include "Site.hpp"
 #include "specs.hpp"
+#include "stratum_sim_util.hpp"
 #include "quetzal/log/Log.hpp"
 #include "quetzal/stratum_format/Document.hpp"
 #include "quetzal/stratum_format/read_world.hpp"
@@ -33,7 +34,6 @@
 #include <map>
 #include <numeric>
 #include <optional>
-#include <ranges>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -46,25 +46,10 @@ namespace
 
     static constexpr int denizen_speed = 100;
 
-    //--------------------------------------------------------------------------
-    // Returns the registered value, or throws std::runtime_error, describing it as the registration type, if none is
-    // registered under the name
-    template<typename T>
-    const T& registered(const std::map<std::string, T>& registry, std::string_view registration_type, const std::string& name)
-    {
-        auto i = registry.find(name);
-
-        if (i == registry.end())
-        {
-            const std::string message = std::format("no {} is registered as {}", registration_type, name);
-            quetzal::log::logger().error("stratum_sim", "{}", message);
-            throw std::runtime_error(message);
-        }
-
-        return i->second;
-    }
-
     constexpr std::string_view default_zone_name = "&region_name .. '_' .. zone_counter";
+
+    const quetzal::FormatSpec comma_separated {.separator = ","};
+
 
     //--------------------------------------------------------------------------
     // The name of a zone without one: the region's name and the zone's coordinates, x and y in a grid worldspace and all
@@ -93,26 +78,6 @@ namespace
         }
 
         return symbols;
-    }
-
-    //--------------------------------------------------------------------------
-    // Parse the comma separated coordinate values from the text, return nullopt if the count does not match the dimension
-    std::optional<std::vector<quetzal::stratum_sim::coord_type>> coordinates(std::string_view text, std::size_t dimension)
-    {
-        std::vector<quetzal::stratum_sim::coord_type> values;
-
-        for (const auto& part : std::views::split(text, ','))
-        {
-            std::optional<quetzal::stratum_sim::coord_type> value = quetzal::try_type<quetzal::stratum_sim::coord_type>(std::string(part.begin(), part.end()));
-            if (!value.has_value())
-            {
-                return std::nullopt;
-            }
-
-            values.push_back(value.value());
-        }
-
-        return values.size() == dimension ? std::make_optional(values) : std::nullopt;
     }
 
     //--------------------------------------------------------------------------
@@ -625,19 +590,18 @@ flecs::entity quetzal::stratum_sim::World::create(std::string_view start_zone, c
 
     const WorldDefinition& definition = m_generation.m_world_definition;
     const WorldDefinition::region_spec_tree_type starting_tree = resolve_region_spec_tree(
-        registered(definition.region_spec_trees, "region spec tree", definition.starting_region), m_generation.m_region_specs, m_world_seed, m_script_limits);
+        value_at(definition.region_spec_trees, definition.starting_region, "region spec tree"), m_generation.m_region_specs, m_world_seed, m_script_limits);
     const PersistentId worldspace_id = create_worldspace(definition.starting_region, starting_tree.front().region_spec);
 
     ZonePosition position;
     if (start_zone == center_start)
     {
         const Worldspace::extent_type& extent = worldspace(worldspace_id).extent;
-        position = {std::midpoint(extent.lower(0), extent.upper(0) - 1), std::midpoint(extent.lower(1), extent.upper(1) - 1),
-            std::midpoint(extent.lower(2), extent.upper(2) - 1)};
+        position = {std::midpoint(extent.lower(0), extent.upper(0) - 1), std::midpoint(extent.lower(1), extent.upper(1) - 1), std::midpoint(extent.lower(2), extent.upper(2) - 1)};
     }
-    else if (std::optional<std::vector<coord_type>> written = coordinates(start_zone, 3); written.has_value())
+    else if (std::optional<geometry::DiscretePoint<coord_type, 3>> written = try_type<geometry::DiscretePoint<coord_type, 3>>(start_zone, comma_separated); written.has_value())
     {
-        position = {written->at(0), written->at(1), written->at(2)};
+        position = {written->x(), written->y(), written->z()};
     }
     else
     {
@@ -1208,7 +1172,7 @@ flecs::entity quetzal::stratum_sim::World::resolve_target(flecs::entity access_p
 
     if (target.region.has_value() && !region_spec_name.has_value())
     {
-        const PersistentId made = create_worldspace(*target.region, registered(m_generation.m_region_specs, "region spec", *target.region));
+        const PersistentId made = create_worldspace(*target.region, value_at(m_generation.m_region_specs, *target.region, "region spec"));
         return require_entry_point(access_point, load_zone_at(made, new_zone_position(made, level)), arrival_type, -offset);
     }
 
@@ -1627,7 +1591,7 @@ quetzal::stratum_sim::PersistentId quetzal::stratum_sim::World::target_worldspac
         return named->worldspace_id;
     }
 
-    return create_worldspace(name, registered(m_generation.m_region_specs, "region spec", std::string(region_spec_name)));
+    return create_worldspace(name, value_at(m_generation.m_region_specs, std::string(region_spec_name), "region spec"));
 }
 
 //------------------------------------------------------------------------------
@@ -1814,9 +1778,9 @@ quetzal::stratum_sim::placement_type quetzal::stratum_sim::start_placement(flecs
             }
         }
     }
-    else if (std::optional<std::vector<coord_type>> written = coordinates(start_cell, 2); written.has_value())
+    else if (std::optional<discrete_point_type> written = try_type<discrete_point_type>(start_cell, comma_separated); written.has_value())
     {
-        const discrete_point_type position {written->at(0), written->at(1)};
+        const discrete_point_type& position = *written;
         if (position.x() >= 0 && position.y() >= 0 && position.x() < grid_extent.x() && position.y() < grid_extent.y() && zone_layout.open(position))
         {
             cell_position = position;

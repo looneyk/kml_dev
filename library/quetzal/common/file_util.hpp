@@ -10,6 +10,7 @@
 #include <iostream>
 #include <istream>
 #include <string>
+#include <string_view>
 
 namespace quetzal
 {
@@ -18,6 +19,9 @@ namespace quetzal
     // Throws std::runtime_error on error
     // Implemented for Windows only
     std::filesystem::path executable_directory();
+
+    // Returns the path with each Windows reserved character replaced. Windows is the most restrictive, so this works cross-platform.
+    std::string replace_reserved_path_characters(std::string_view name, char replacement);
 
     //--------------------------------------------------------------------------
     // Reads a line, dropping a trailing cr, so a file with crlf endings reads the same on every platform

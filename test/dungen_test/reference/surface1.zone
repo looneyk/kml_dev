@@ -19,18 +19,18 @@
       "#......................................#",
       "#......................................#",
       "#......................................#",
-      "#........>.............................#",
+      "#.....................>................#",
       "#......................................#",
       "#......................................#",
       "#......................................#",
       "#......................................#",
       "#......................................#",
-      "#...................>..................#",
       "#......................................#",
-      "#........>.............................#",
-      "#...........................>..........#",
+      "#....................>.................#",
+      "#.............................>........#",
       "#......................................#",
       "#......................................#",
+      "#.................>....................#",
       "#......................................#",
       "#......................................#",
       "########################################"
@@ -40,9 +40,9 @@
     { "cell_position": [1, 1] }
   ],
   "entities": [
-    { "id": 1, "type": "staircase", "components": { "site": { "relation": "on", "flat": "floor", "cell_position": [28, 5], "orientation": [0, 1] }, "access_point": { "type": "staircase", "target": "dungeon_1/-1", "order": 0, "region_spec": "dungeon" } } },
-    { "id": 2, "type": "staircase", "components": { "site": { "relation": "on", "flat": "floor", "cell_position": [9, 6], "orientation": [1, 0] }, "access_point": { "type": "staircase", "target": "dungeon_2/-1", "order": 1, "region_spec": "dungeon" } } },
-    { "id": 3, "type": "staircase", "components": { "site": { "relation": "on", "flat": "floor", "cell_position": [9, 14], "orientation": [1, 0] }, "access_point": { "type": "staircase", "target": "dungeon_3/-1", "order": 2, "region_spec": "dungeon" } } },
-    { "id": 4, "type": "staircase", "components": { "site": { "relation": "on", "flat": "floor", "cell_position": [20, 8], "orientation": [1, 0] }, "access_point": { "type": "staircase", "target": "dungeon_4/-1", "order": 3, "region_spec": "dungeon" } } }
+    { "id": 1, "type": "staircase", "components": { "site": { "relation": "on", "flat": "floor", "cell_position": [30, 6], "orientation": [1, 0] }, "access_point": { "type": "staircase", "target": "dungeon_1/-1", "order": 0, "region_spec": "dungeon" } } },
+    { "id": 2, "type": "staircase", "components": { "site": { "relation": "on", "flat": "floor", "cell_position": [22, 14], "orientation": [1, 0] }, "access_point": { "type": "staircase", "target": "dungeon_2/-1", "order": 1, "region_spec": "dungeon" } } },
+    { "id": 3, "type": "staircase", "components": { "site": { "relation": "on", "flat": "floor", "cell_position": [18, 3], "orientation": [1, 0] }, "access_point": { "type": "staircase", "target": "dungeon_3/-1", "order": 2, "region_spec": "dungeon" } } },
+    { "id": 4, "type": "staircase", "components": { "site": { "relation": "on", "flat": "floor", "cell_position": [21, 7], "orientation": [0, -1] }, "access_point": { "type": "staircase", "target": "dungeon_4/-1", "order": 3, "region_spec": "dungeon" } } }
   ]
 }
