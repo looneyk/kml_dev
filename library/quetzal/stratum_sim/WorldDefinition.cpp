@@ -4,6 +4,10 @@
 //------------------------------------------------------------------------------
 
 #include "WorldDefinition.hpp"
+#include "Generation.hpp"
+#include "PatternResolver.hpp"
+#include "seeds.hpp"
+#include "quetzal/common/KeyValueStore.hpp"
 #include "quetzal/log/Log.hpp"
 #include "quetzal/stratum_format/WorldDefinitionDocument.hpp"
 #include <algorithm>
@@ -13,6 +17,79 @@
 #include <string>
 #include <string_view>
 #include <utility>
+
+namespace
+{
+
+    //--------------------------------------------------------------------------
+    // The spec's keys layered over those of any registered region spec it is based on
+    quetzal::stratum_sim::RegionSpec composed_region_spec(const quetzal::stratum_sim::RegionSpec& region_spec,
+        const std::map<std::string, quetzal::stratum_sim::RegionSpec>& region_specs)
+    {
+        using namespace quetzal::stratum_sim;
+
+        RegionSpec composed;
+        if (region_spec.region_spec.has_value())
+        {
+            auto designed = region_specs.find(region_spec.region_spec.value());
+            if (designed == region_specs.end())
+            {
+                const std::string message = std::format("no region spec is registered as {}", region_spec.region_spec.value());
+                quetzal::log::logger().error("stratum_sim", "{}", message);
+                throw std::runtime_error(message);
+            }
+
+            composed = designed->second;
+        }
+
+        auto layer = []<typename T>(std::optional<T>& member, const std::optional<T>& over)
+        {
+            if (over.has_value())
+            {
+                member = over;
+            }
+
+            return;
+        };
+
+        layer(composed.name, region_spec.name);
+        layer(composed.display_name, region_spec.display_name);
+        layer(composed.seed, region_spec.seed);
+        layer(composed.extent, region_spec.extent);
+        layer(composed.zone_size, region_spec.zone_size);
+        composed.store |= region_spec.store;
+        composed.region_spec.reset();
+        composed.parent.reset();
+        return composed;
+    }
+
+    //--------------------------------------------------------------------------
+    // Returns the parent's resolved fields and store entries excluding zone entries
+    quetzal::KeyValueStore parent_symbols(const quetzal::stratum_sim::RegionSpec& parent)
+    {
+        quetzal::KeyValueStore symbols;
+        if (parent.name.has_value())
+        {
+            symbols.insert("parent.name", parent.name.value());
+        }
+
+        if (parent.display_name.has_value())
+        {
+            symbols.insert("parent.display_name", parent.display_name.value());
+        }
+
+        for (const auto& [key, value] : parent.store)
+        {
+            if (!key.starts_with(quetzal::stratum_sim::zone_prefix))
+            {
+                symbols.insert(std::format("parent.{}", key), value);
+            }
+        }
+
+        return symbols;
+    }
+
+} // namespace
 
 //------------------------------------------------------------------------------
 quetzal::stratum_sim::WorldDefinition quetzal::stratum_sim::load_world_definition(const std::filesystem::path& assets_directory)
@@ -32,32 +109,63 @@ quetzal::stratum_sim::WorldDefinition quetzal::stratum_sim::load_world_definitio
     WorldDefinition definition;
     for (size_t i = 0; i < document.region_specs.size(); ++i)
     {
-        stratum_format::WorldDefinitionDocument::region_spec_tree_type& document_tree = document.region_specs[i];
+        const stratum_format::WorldDefinitionDocument::region_spec_tree_type& document_tree = document.region_specs[i];
         if (std::ranges::count_if(document_tree, unparented) != 1)
         {
             fail(std::format("region spec tree {} does not have exactly one root spec, a spec with no parent", i));
         }
 
-        auto root = std::ranges::find_if(document_tree, unparented);
-        if (!root->name.has_value())
+        for (size_t j = 0; j < document_tree.size(); ++j)
         {
-            fail(std::format("the root spec of region spec tree {} has no name", i));
+            if (!document_tree[j].name.has_value())
+            {
+                fail(std::format("region spec {} of region spec tree {} has no name", j, i));
+            }
         }
 
-        const std::string root_name = *root->name;
+        for (const RegionSpec& region_spec : document_tree)
+        {
+            if (region_spec.parent.has_value() && std::ranges::count(document_tree, region_spec.parent, &RegionSpec::name) != 1)
+            {
+                fail(std::format("the parent {} of region spec {} is not the name of exactly one spec of its tree", region_spec.parent.value(),
+                    region_spec.name.value()));
+            }
+
+            auto sibling_namesake = [&region_spec](const RegionSpec& other)
+            {
+                return other.parent == region_spec.parent && other.name == region_spec.name;
+            };
+
+            if (std::ranges::count_if(document_tree, sibling_namesake) != 1)
+            {
+                fail(std::format("two region specs with the parent {} have the name {}", region_spec.parent.value(), region_spec.name.value()));
+            }
+        }
+
+        const RegionSpec& root = *std::ranges::find_if(document_tree, unparented);
+        const std::string& root_name = root.name.value();
         if (definition.region_spec_trees.contains(root_name))
         {
             fail(std::format("two region spec trees have the root {}", root_name));
         }
 
         WorldDefinition::region_spec_tree_type& tree = definition.region_spec_trees[root_name];
-        tree.push_back(std::move(*root));
-        for (auto j = document_tree.begin(); j != document_tree.end(); ++j)
+        tree.push_back({.region_spec = root});
+        for (id_type parent_id = 0; parent_id < tree.size(); ++parent_id)
         {
-            if (j != root)
+            for (const RegionSpec& region_spec : document_tree)
             {
-                tree.push_back(std::move(*j));
+                if (region_spec.parent == tree[parent_id].region_spec.name)
+                {
+                    tree[parent_id].subregion_ids.push_back(tree.size());
+                    tree.push_back({.region_spec = region_spec, .parent_id = parent_id});
+                }
             }
+        }
+
+        if (tree.size() != document_tree.size())
+        {
+            fail(std::format("region spec tree {} has a spec that is not below its root", root_name));
         }
     }
 
@@ -68,4 +176,28 @@ quetzal::stratum_sim::WorldDefinition quetzal::stratum_sim::load_world_definitio
 
     definition.starting_region = std::move(document.starting_region);
     return definition;
+}
+
+//------------------------------------------------------------------------------
+quetzal::stratum_sim::WorldDefinition::region_spec_tree_type quetzal::stratum_sim::resolve_region_spec_tree(
+    const WorldDefinition::region_spec_tree_type& tree, const std::map<std::string, RegionSpec>& region_specs, RandomStream::seed_type world_seed,
+    const ScriptLimits& script_limits)
+{
+    WorldDefinition::region_spec_tree_type resolved = tree;
+    for (RegionSpecNode& node : resolved)
+    {
+        RegionSpec composed = composed_region_spec(node.region_spec, region_specs);
+        KeyValueStore symbols;
+        if (node.parent_id != nullid)
+        {
+            const RegionSpec& parent = resolved[node.parent_id].region_spec;
+            composed.store = parent.store | composed.store;
+            symbols = parent_symbols(parent);
+        }
+
+        PatternResolver resolver(symbols, PatternResolver::random_type(region_seed(world_seed, composed)), world_seed, script_limits);
+        node.region_spec = resolve_region_spec(composed, resolver);
+    }
+
+    return resolved;
 }

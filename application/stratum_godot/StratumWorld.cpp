@@ -120,7 +120,7 @@ StratumWorld::StratumWorld() :
     m_game.generation().m_region_specs = sim::load_region_specs(m_game.config().assets_directory);
     sim::WorldDefinition& world_definition = m_game.generation().m_world_definition;
     world_definition = sim::load_world_definition(m_game.config().assets_directory);
-    add_temporary_zone_size(world_definition.region_spec_trees.at(world_definition.starting_region).front());
+    add_temporary_zone_size(world_definition.region_spec_trees.at(world_definition.starting_region).front().region_spec);
 }
 
 //------------------------------------------------------------------------------

@@ -78,6 +78,7 @@ add_library(quetzal_stratum_sim STATIC
     RandomStream.hpp
     Region.hpp
     RegionSpec.hpp
+    RegionSpecNode.hpp
     RegionTree.hpp
     SavedGameDetails.hpp
     seeds.hpp

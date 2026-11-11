@@ -81,8 +81,6 @@ boxes are removed at the start of the next piece of work, since the reference do
       worldspace and its top-level region named for the region spec, and a zone's `DisplayName` separate from both.
 - [ ] **Region specs defined** (`region_spec_plan.md`): the keys of a `RegionSpec` and a `ZoneSpec`, the form of their
       patterns, and the open questions there answered, before the structure is created from them.
-- [ ] **Pattern expressions** (`pattern_resolution_plan.md`): a `&` value evaluated as Lua with the symbols of its
-      spec.
 - [ ] **Listed zones** (`region_spec_plan.md`, `### Listed zones`): a region spec's `zones` member, each zone's position
       and the keys that override the `zone.` keys for it, read with the other typed members.
 - [ ] **The world's structure created whole** (`world_generation_plan.md`, `## Creating the structure`;
@@ -174,7 +172,7 @@ These are Phase 4 (`modding_plan.md`):
 - [ ] **Types as prefabs from data**, doors among them, with inheritance and patches.
 - [ ] **Component schemas from data**, as flecs runtime components.
 - [ ] **Styles:** the asset, the parameter map, inheritance by name, and a view that resolves them.
-- [ ] **Lua embedded** (`scripting_language_plan.md`), with hooks on types and bindings through reflection.
+- [ ] **Lua embedded** (`archived/scripting_language_plan.md`), with hooks on types and bindings through reflection.
 - [ ] **Mods** (`modding_plan.md`): the directory, the manifest, the mod list, load order, patches, and a missing mod:
       skipping what it declares, telling deliberate removal from damage, and the user's choice when a game used it.
 - [ ] **Mods' settings** (`settings_plan.md`, `### Mods' settings`), after **Mods**: each mod's definitions read after
@@ -234,7 +232,7 @@ These are the open questions.
 ### Zones and regions
 
 - **Can a `RegionSpec`'s `extent` and `zone_size` be patterns?** Their values are not text
-  (`pattern_resolution_plan.md`).
+  (`archived/pattern_resolution_plan.md`).
 - **What type does a store entry have as a pattern's symbol?** The stub makes it a number when its text parses as
   one, and a string otherwise.
 - **Which symbols does a region spec's own resolution have?**
@@ -289,7 +287,7 @@ These are the open questions.
 ### Modding
 
 - **Can a script suspend?** A coroutine has state between calls, which saving does not cover
-  (`scripting_language_plan.md`).
+  (`archived/scripting_language_plan.md`).
 - **Is one Lua state shared by the game,** with an environment for each script and spec, or is there one for each mod?
 - **What are the load order and the patch rules?** They decide how mods are ordered, what a patch may add, replace or
   remove, and how two mods that patch one type combine.

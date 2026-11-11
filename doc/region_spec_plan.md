@@ -155,7 +155,7 @@ which its `zone.template` pattern draws each zone's template from, are among the
 
 ## Patterns
 
-- **A pattern is a value that is Lua code** (`pattern_resolution_plan.md`). Resolving a spec evaluates each of its patterns and makes a resolved
+- **A pattern is a value that is Lua code** (`archived/pattern_resolution_plan.md`). Resolving a spec evaluates each of its patterns and makes a resolved
   spec, in which every value is a literal. A spec with no patterns is already resolved, so `World` reads both in the
   same way.
 - **A spec is resolved as the structure is created.** A region's spec is resolved when the region is created, and each
@@ -185,7 +185,7 @@ which its `zone.template` pattern draws each zone's template from, are among the
 
 ### Context
 
-A pattern refers to the symbols of the context that the spec is resolved in (`pattern_resolution_plan.md`,
+A pattern refers to the symbols of the context that the spec is resolved in (`archived/pattern_resolution_plan.md`,
 `### Symbols`). Each structure whose fields support patterns, `RegionSpec` among them, lists the fields that support
 patterns, and a value in any other field is literal text.
 

@@ -70,7 +70,7 @@ stratum_sim::Generation stratum_sim_test::test_generation()
     generation.m_region_specs["staircase"] = test_region_spec("staircase");
     generation.m_region_specs["door"] = test_region_spec("door");
     generation.m_region_specs["dungeon"] = test_region_spec("staircase");
-    generation.m_world_definition.region_spec_trees["dungeon"] = {stratum_sim::RegionSpec {.name = "dungeon", .region_spec = "dungeon"}};
+    generation.m_world_definition.region_spec_trees["dungeon"] = {{.region_spec = stratum_sim::RegionSpec {.name = "dungeon", .region_spec = "dungeon"}}};
     generation.m_world_definition.starting_region = "dungeon";
 
     return generation;

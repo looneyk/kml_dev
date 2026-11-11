@@ -40,7 +40,7 @@ structure created whole** in `work_plan.md`.
   keys, such as `zone.*`, `parameters.*`, and the metadata, are in a `KeyValueStore`.
 - **A layer is a merge patch** (JSON Merge Patch, RFC 7386). A key adds or replaces a value, and the value `&nil`
   removes the key, in place of JSON's `null`. `&nil` is a pattern whose value is nil, and resolving the composed spec
-  removes the key (`pattern_resolution_plan.md`, `## Design`). A
+  removes the key (`archived/pattern_resolution_plan.md`, `## Design`). A
   list is replaced whole. A subregion's overrides and a mod's patches to types and styles (`modding_plan.md`)
   are one mechanism.
 - **A spec's patterns are resolved once it is composed,** with draws from the spec's seed, so each spec is as
@@ -76,10 +76,10 @@ structure created whole** in `work_plan.md`.
 - [x] 3. **Structured region specs.** `RegionSpec`, one type in `stratum_format`, has the typed members and the `store`
   of `## Design`, read from `region_specs.json`, the world definition file, and `world.json`. An extent is an object
   with its `arrangement`, and a top-level spec's extent is its worldspace's, checked to be `ranges` with a single box.
-- [ ] 4. **Region spec trees.** A spec's id is its slot in its tree's `region_spec_tree_type`. Each spec's `parent` is
+- [x] 4. **Region spec trees.** A spec's id is its slot in its tree's `region_spec_tree_type`. Each spec's `parent` is
   resolved to its parent's id, and each spec's list of subregion ids is built from those. The names of specs with the
   same parent are checked to be distinct. Each spec is composed and its patterns resolved as `## Design` describes,
-  parents first (`pattern_resolution_plan.md`, step 2).
+  parents first (`archived/pattern_resolution_plan.md`, step 2).
 - [ ] 5. **The region spec tree function.** It calls `World::create_worldspace` for a tree's root region spec, then adds
   a subregion to the worldspace's `RegionTree` for each spec below the root, with the spec's `name` and `display_name`.
   Each zone has the region id of the most specific region whose extent contains its position (`zone_plan.md`, `###

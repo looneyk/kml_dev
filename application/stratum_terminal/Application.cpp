@@ -206,7 +206,7 @@ stratum_terminal::Application::Application(const stratum_sim::Config& config, co
     m_game.generation().m_region_specs = stratum_sim::load_region_specs(config.assets_directory);
     stratum_sim::WorldDefinition& world_definition = m_game.generation().m_world_definition;
     world_definition = stratum_sim::load_world_definition(config.assets_directory);
-    add_temporary_zone_size(world_definition.region_spec_trees.at(world_definition.starting_region).front());
+    add_temporary_zone_size(world_definition.region_spec_trees.at(world_definition.starting_region).front().region_spec);
 }
 
 //------------------------------------------------------------------------------

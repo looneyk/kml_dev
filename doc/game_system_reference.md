@@ -938,8 +938,8 @@ nothing. A character of the name that Windows does not allow in a file name, or 
 replaced. It requires a game in progress whose character is alive and named.
 
 `World::create(start_zone, game_directory)` creates the starting worldspace from the root spec of the world definition's
-`starting_region`. The worldspace is named for that region, and its spec is the spec's members and keys over those of the registered spec its `region_spec` refers to, without
-`region_spec` and `parent`. It creates the worldspace with its region and its empty zones, and returns the zone at `start_zone` from `load_zone_at`, generated: `center`
+`starting_region`. The worldspace is named for that region, and its spec is the root spec of the tree that
+`resolve_region_spec_tree` returns. It creates the worldspace with its region and its empty zones, and returns the zone at `start_zone` from `load_zone_at`, generated: `center`
 (`center_start`), the zone at the centroid of the worldspace's extent with each coordinate rounded toward the lower bound,
 or a zone position written `x,y,z`. `start_placement(zone, start_cell)` returns the placement of an actor starting in the
 zone, facing -y: `center`, the cell nearest the center of the zone's layout that an actor can occupy, the first in row
@@ -1212,9 +1212,18 @@ object, or a region spec the region spec reader rejects. `write` writes each tre
 with a type of their own before the keys. In a tree, a spec's `name` is its region's, its `parent` is the name of its
 parent region, which the root spec does not have, and its `region_spec` refers to the registered spec it is based on.
 `stratum_sim::load_world_definition(assets_directory)`, in `WorldDefinition.hpp`, returns a `WorldDefinition`: its
-`region_spec_trees`, each tree's `RegionSpec`s by its root region's name, the root spec first, and its
-`starting_region`. It throws `std::runtime_error` for a tree without exactly one root spec, a root spec with no `name`
-or the name of another tree's root, or a starting region that is not a tree's root. The game's file is
+`region_spec_trees`, each tree by its root region's name, and its `starting_region`. A tree is a vector of
+`RegionSpecNode`s (`RegionSpecNode.hpp`), the root spec first and each spec before its subregions. A spec's id is its
+slot, and each `RegionSpecNode` has its `RegionSpec`, its parent's id, `nullid` for the root, and its subregions' ids.
+It throws `std::runtime_error` for a tree without exactly one root spec, a spec with no `name`, a `parent` that is not
+the name of exactly one spec of the tree, two specs with the same parent and name, a spec that is not below the root, a
+root spec with the name of another tree's root, or a starting region that is not a tree's root.
+`resolve_region_spec_tree(tree, region_specs, world_seed, script_limits)` returns the tree with each spec composed and
+resolved, parents first. A spec's members and keys are layered over those of the registered spec its `region_spec`
+refers to, and a subregion's result over its parent's resolved store, since a subregion does not inherit the typed
+members. The composed spec is without `region_spec` and `parent`, and `resolve_region_spec` resolves it with a resolver
+seeded by `region_seed`, whose symbols for a subregion are the parent's `name`, `display_name`, and store entries
+other than the `zone.` keys, each under `parent.`. The game's file is
 `assets/data/world_definition.json`, starting in `surface`, with two trees of one spec each, `surface` and `dungeon`,
 each based on the registered spec of its name.
 
@@ -1456,7 +1465,7 @@ must not already have the project open, or the library is locked and the build f
 `stratum_sim_test` covers the layout hierarchy, layout structure, rooms, the grid, the placement index and each zone's,
 flats, blocking, the scheduler, the
 clock, movement, adjacency and sight, loading, doors, the world, persistent ids, access points, residency, commands,
-occupancy, zone names and their patterns, the game's region specs, and the game's setting definitions inserted into a store. It and `stratum_view_test` each check that every zone file in their `data/` has one `door` entity per door
+occupancy, zone names and their patterns, the game's region specs, region spec trees and their composition, and the game's setting definitions inserted into a store. It and `stratum_view_test` each check that every zone file in their `data/` has one `door` entity per door
 glyph, with a `door_facing` child on each wall that `stratum_format::door_walls` finds for that glyph and no door
 facing anywhere else.
 

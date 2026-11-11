@@ -323,20 +323,24 @@ namespace
         const stratum_sim::WorldDefinition world_definition = stratum_sim::load_world_definition("../../assets");
         CHECK_CASE("the game's world definition file starts in the surface tree, its root spec based on the surface",
             world_definition.starting_region == "surface"
-            && world_definition.region_spec_trees.at("surface").front().region_spec == "surface"
+            && world_definition.region_spec_trees.at("surface").front().region_spec.region_spec == "surface"
             && world_definition.region_spec_trees.contains("dungeon"));
 
-        auto definition_rejected = [](const string& starting_region, const string& trees)
+        auto loaded_definition = [](const string& starting_region, const string& trees)
         {
             const filesystem::path assets_directory = "out/world_definition";
             filesystem::create_directories(assets_directory / "data");
             ofstream(assets_directory / stratum_format::WorldDefinitionDocument::filepath, ios::binary)
                 << format("{{ \"format\": \"quetzal.stratum_world_definition\", \"version\": \"0.1\", \"starting_region\": \"{}\", "
                     "\"region_specs\": {} }}\n", starting_region, trees);
+            return stratum_sim::load_world_definition(assets_directory);
+        };
 
+        auto definition_rejected = [&loaded_definition](const string& starting_region, const string& trees)
+        {
             try
             {
-                stratum_sim::load_world_definition(assets_directory);
+                loaded_definition(starting_region, trees);
             }
             catch (const runtime_error&)
             {
@@ -352,6 +356,42 @@ namespace
         CHECK_CASE("and one with a root spec with no name", definition_rejected("moor", "[[{ \"region_spec\": \"moor\" }]]"));
         CHECK_CASE("and one with two trees of the same root", definition_rejected("moor", "[[{ \"name\": \"moor\" }], [{ \"name\": \"moor\" }]]"));
         CHECK_CASE("and one whose starting region is not a tree's root", definition_rejected("fen", "[[{ \"name\": \"moor\" }]]"));
+        CHECK_CASE("and one with a spec with no name", definition_rejected("moor", R"([[{ "name": "moor" }, { "parent": "moor" }]])"));
+        CHECK_CASE("and one with a parent that is not in the tree", definition_rejected("moor",
+            R"([[{ "name": "moor" }, { "name": "tor", "parent": "fen" }]])"));
+        CHECK_CASE("and one with a parent that two specs of the tree have as their name", definition_rejected("moor",
+            R"([[{ "name": "moor" }, { "name": "tor", "parent": "moor" }, { "name": "barrow", "parent": "moor" },
+            { "name": "cellar", "parent": "tor" }, { "name": "cellar", "parent": "barrow" }, { "name": "vault", "parent": "cellar" }]])"));
+        CHECK_CASE("and one with two specs of the same name and parent", definition_rejected("moor",
+            R"([[{ "name": "moor" }, { "name": "tor", "parent": "moor" }, { "name": "tor", "parent": "moor" }]])"));
+        CHECK_CASE("and one with specs that are not below the root", definition_rejected("moor",
+            R"([[{ "name": "moor" }, { "name": "tor", "parent": "cairn" }, { "name": "cairn", "parent": "tor" }]])"));
+
+        const stratum_sim::WorldDefinition::region_spec_tree_type tree = loaded_definition("moor", R"([[{ "name": "tor", "parent": "moor" },
+            { "name": "moor" }, { "name": "cairn", "parent": "tor" }, { "name": "barrow", "parent": "moor" }]])").region_spec_trees.at("moor");
+        auto node_is = [&tree](id_type id, const string& name, id_type parent_id, const vector<id_type>& subregion_ids)
+        {
+            return tree.at(id).region_spec.name == name && tree.at(id).parent_id == parent_id && tree.at(id).subregion_ids == subregion_ids;
+        };
+
+        CHECK_CASE("a region spec tree is ordered with each spec before its subregions, each spec linked to its parent and subregions by slot",
+            tree.size() == 4 && node_is(0, "moor", nullid, {1, 2}) && node_is(1, "tor", 0, {3}) && node_is(2, "barrow", 0, {})
+            && node_is(3, "cairn", 1, {}));
+
+        const map<string, stratum_sim::RegionSpec> designed_specs {{"barrow", stratum_sim::RegionSpec {.display_name = "Barrow",
+            .store = KeyValueStore {{"difficulty", "2"}, {"lore", "old"}}}}};
+        const stratum_sim::WorldDefinition::region_spec_tree_type resolved = stratum_sim::resolve_region_spec_tree(loaded_definition("moor",
+            R"([[{ "name": "moor", "difficulty": "3", "zone.name": "&region_name" },
+            { "name": "tor", "parent": "moor", "region_spec": "barrow", "difficulty": "&parent.difficulty + 1" },
+            { "name": "cairn", "parent": "tor", "lore": "&nil" }]])").region_spec_trees.at("moor"), designed_specs, 1, g_test_config.pattern_limits);
+        const stratum_sim::RegionSpec& tor = resolved.at(1).region_spec;
+        const stratum_sim::RegionSpec& cairn = resolved.at(2).region_spec;
+
+        CHECK_CASE("a subregion spec is its own keys over its designed spec over its parent's store, resolved with its parent's values",
+            tor.store.value("difficulty") == "4" && tor.store.value("lore") == "old" && tor.display_name == "Barrow" && !tor.region_spec.has_value());
+        CHECK_CASE("and inherits its parent's store but not its typed members, &nil removing an inherited entry",
+            cairn.store.value("difficulty") == "4" && !cairn.store.contains("lore") && !cairn.display_name.has_value());
+        CHECK_CASE("and inherits zone entries unresolved", cairn.store.value("zone.name") == "&region_name");
 
         // data/door.zone has no name and no position
         flecs::entity first_loaded = world.load_zone(dungeon, "data/door.zone");

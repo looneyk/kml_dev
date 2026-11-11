@@ -474,7 +474,7 @@ is what keeps generation reproducible.
 
 ## Lua for scripts and patterns
 
-Lua 5.5 is the language of the game's and mods' scripts and of patterns (`scripting_language_plan.md`). It is the
+Lua 5.5 is the language of the game's and mods' scripts and of patterns (`archived/scripting_language_plan.md`). It is the
 genre's language (Factorio, Legend of Grimrock, DCSS, Noita), so mod authors already know it. Its sandbox is built from
 what it has: an environment for each script, a count hook, and the allocator. A hash seed derived from the world seed
 and a `random` that draws from the simulation's random engine make it deterministic. Its tables give patterns arrays
