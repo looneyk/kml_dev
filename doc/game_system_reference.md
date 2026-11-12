@@ -686,7 +686,7 @@ offset)`. `entry_point(zone, type, offset)` returns the zone's lowest-ordered ac
 arrival from the level `offset` levels away, or a null entity if the zone has none. A staircase leading up is `entry_point(zone, staircase, 1)`, and an actor arriving from another level
 passes the offset that leads back. A door facing may be an access point.
 
-`way_through(zone, wall_id)` returns an entity sited on the wall that has access, found through the wall's entity and
+`find_access_attachment(zone, wall_id)` returns an entity sited on the wall that has access, found through the wall's entity and
 its attached entities, or a null entity if there is none. `crossable(zone, wall_id, actor)` returns true if the actor
 can get through the wall: an entity sited on it has open access, and the actor does not find it concealed. A wall with
 no such entity is solid. `World::move`, `neighbors` and `visible` bind it to the entity moving or looking, so each

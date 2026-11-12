@@ -170,7 +170,7 @@ namespace
 
         auto door_east_of_start = [&](flecs::entity zone)
         {
-            return stratum_sim::way_through(zone, zone_layout(world, zone).wall_toward(stratum_sim::discrete_point_type {1, 1},
+            return stratum_sim::find_access_attachment(zone, zone_layout(world, zone).wall_toward(stratum_sim::discrete_point_type {1, 1},
                 cardinal_direction(CardinalDirection::East)));
         };
 
@@ -437,7 +437,7 @@ namespace
         TestWorld world(id_allocator);
         flecs::entity zone = world.load_zone(world.region_id, "data/door.zone");
 
-        flecs::entity door = stratum_sim::access_entity(stratum_sim::way_through(zone,
+        flecs::entity door = stratum_sim::access_entity(stratum_sim::find_access_attachment(zone,
             zone_layout(world, zone).wall_toward(stratum_sim::discrete_point_type {1, 1}, cardinal_direction(CardinalDirection::East))));
         door.set<stratum_sim::Access>(stratum_sim::Access {stratum_sim::AccessState::Open});
         stratum_sim::PersistentId door_id = door.get<stratum_sim::PersistentId>();
@@ -590,7 +590,7 @@ namespace
 
             // A door on the doorway shows the reported walls were built
             CHECK_CASE("its doors are attached to the walls the generator reported",
-                stratum_sim::way_through(created.zone(), stratum_sim::layout_as<stratum_sim::DiscreteLayout>(
+                stratum_sim::find_access_attachment(created.zone(), stratum_sim::layout_as<stratum_sim::DiscreteLayout>(
                     created.layout()).wall_toward(stratum_sim::discrete_point_type {1, 1}, cardinal_direction(CardinalDirection::East))).is_alive());
 
             // Reading the same geometry from a file produces the same zone

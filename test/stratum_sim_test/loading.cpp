@@ -19,6 +19,7 @@
 #include "quetzal/stratum_sim/Session.hpp"
 #include "quetzal/stratum_sim/Game.hpp"
 #include "quetzal/stratum_sim/PersistentSettings.hpp"
+#include "quetzal/stratum_sim/AccessPoint.hpp"
 #include "quetzal/stratum_sim/actors.hpp"
 #include "quetzal/stratum_sim/attachments.hpp"
 #include "quetzal/stratum_sim/file_components.hpp"
@@ -336,10 +337,11 @@ namespace
             && file_door_walls.contains(wall_b));
 
         // The queries for the entity on a wall and the entity whose access applies to it
-        CHECK_CASE("a wall's way through is the facing on it", stratum_sim::way_through(zone, wall_a) == facings[0]
-            || stratum_sim::way_through(zone, wall_a) == facings[1]);
+        CHECK_CASE("a wall's way through is the facing on it", stratum_sim::find_access_attachment(zone, wall_a) == facings[0]
+            || stratum_sim::find_access_attachment(zone, wall_a) == facings[1]);
         CHECK_CASE("a wall with nothing on it has none",
-            !stratum_sim::way_through(zone, layout.wall_toward(stratum_sim::discrete_point_type {1, 2}, cardinal_direction(CardinalDirection::North))));
+            !stratum_sim::find_access_attachment(zone, layout.wall_toward(stratum_sim::discrete_point_type {1, 2},
+                cardinal_direction(CardinalDirection::North))));
         CHECK_CASE("a facing has its door's access", stratum_sim::access_entity(facings[0]) == door
             && stratum_sim::access_entity(facings[1]) == door);
 
@@ -631,7 +633,7 @@ namespace
         flecs::entity zone = world.create_zone(world.region_id, world.next_id());
         vector<flecs::entity> referred_to = stratum_sim::load_layout(zone, document);
 
-        flecs::entity door = stratum_sim::access_entity(stratum_sim::way_through(zone,
+        flecs::entity door = stratum_sim::access_entity(stratum_sim::find_access_attachment(zone,
             zone_layout(world, zone).wall_toward(stratum_sim::discrete_point_type {3, 1}, cardinal_direction(CardinalDirection::West))));
         flecs::entity staircase = stratum_sim::entry_point(zone, stratum_sim::access_type(entities, "staircase"), 1);
 

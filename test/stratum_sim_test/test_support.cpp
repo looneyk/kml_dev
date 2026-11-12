@@ -7,6 +7,7 @@
 #include "quetzal/settings/Settings.hpp"
 #include "quetzal/stratum_format/Document.hpp"
 #include "quetzal/stratum_format/read_zone.hpp"
+#include "quetzal/stratum_sim/AccessPoint.hpp"
 #include "quetzal/stratum_sim/attachments.hpp"
 #include "quetzal/stratum_sim/load_layout.hpp"
 #include "quetzal/stratum_sim/PersistentId.hpp"
@@ -190,7 +191,7 @@ stratum_sim_test::OpenZone::OpenZone(const string& filepath) :
     zone(world.create_zone(world.region_id, world.next_id()))
 {
     stratum_sim::load_layout(zone, stratum_format::read_zone(filepath));
-    crossable = [open_zone = zone](id_type wall_id) { return static_cast<bool>(stratum_sim::way_through(open_zone, wall_id)); };
+    crossable = [open_zone = zone](id_type wall_id) { return static_cast<bool>(stratum_sim::find_access_attachment(open_zone, wall_id)); };
 }
 
 //------------------------------------------------------------------------------

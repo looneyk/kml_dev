@@ -26,7 +26,7 @@
 #include "quetzal/stratum_sim/ai.hpp"
 #include "quetzal/stratum_sim/PersistentSettings.hpp"
 #include "quetzal/stratum_sim/setting_definitions.hpp"
-#include "quetzal/stratum_sim/attachments.hpp"
+#include "quetzal/stratum_sim/AccessPoint.hpp"
 #include "quetzal/stratum_sim/file_components.hpp"
 #include "quetzal/stratum_sim/World.hpp"
 #include "quetzal/stratum_format/Document.hpp"

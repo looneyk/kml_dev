@@ -4,7 +4,7 @@
 //------------------------------------------------------------------------------
 
 #include "load_layout.hpp"
-#include "attachments.hpp"
+#include "AccessPoint.hpp"
 #include "decode_components.hpp"
 #include "DiscreteLayout.hpp"
 #include "file_components.hpp"

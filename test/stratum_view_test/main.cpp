@@ -6,6 +6,7 @@
 #include "quetzal/stratum_format/grid.hpp"
 #include "quetzal/stratum_format/read_zone.hpp"
 #include "quetzal/stratum_format/RelocatorTarget.hpp"
+#include "quetzal/stratum_sim/AccessPoint.hpp"
 #include "quetzal/stratum_sim/attachments.hpp"
 #include "quetzal/stratum_sim/commands.hpp"
 #include "quetzal/stratum_sim/DiscreteLayout.hpp"
@@ -326,7 +327,7 @@ namespace
 
         // The door is concealed, then found by one actor. The view shows what the viewer perceives
         const stratum_sim::DiscreteLayout& walls_layout = stratum_sim::layout_as<stratum_sim::DiscreteLayout>(world.layout(zone));
-        flecs::entity door = stratum_sim::access_entity(stratum_sim::way_through(zone,
+        flecs::entity door = stratum_sim::access_entity(stratum_sim::find_access_attachment(zone,
             walls_layout.wall_toward(stratum_sim::discrete_point_type {1, 2}, stratum_sim::cardinal_direction(stratum_sim::CardinalDirection::East))));
         flecs::entity finder = world.create_entity(zone, stratum_sim::placement_type(walls_layout.position(stratum_sim::discrete_point_type {1, 2}),
             stratum_sim::vector_type(1.0f, 0.0f, 0.0f)));

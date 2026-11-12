@@ -4,6 +4,7 @@
 //------------------------------------------------------------------------------
 
 #include "commands.hpp"
+#include "AccessPoint.hpp"
 #include "actors.hpp"
 #include "attachments.hpp"
 #include "DiscreteLayout.hpp"
@@ -137,7 +138,7 @@ int quetzal::stratum_sim::apply(World& world, const Command& command, EventQueue
         }
 
         Interaction interaction = Interaction::Nothing;
-        flecs::entity way = way_through(zone, wall_id);
+        flecs::entity way = find_access_attachment(zone, wall_id);
 
         // A locked way through stays as it is
         if (flecs::entity holder = access_entity(way); holder && holder.get<Access>().state != AccessState::Locked)

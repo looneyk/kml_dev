@@ -514,7 +514,7 @@ namespace
         CHECK_CASE("a command the character submits waits on it", character_door.entity().has<stratum_sim::PendingCommand>());
 
         session_door.advance(session_events);
-        flecs::entity door = stratum_sim::access_entity(stratum_sim::way_through(session_door.zone(),
+        flecs::entity door = stratum_sim::access_entity(stratum_sim::find_access_attachment(session_door.zone(),
             stratum_sim::layout_as<stratum_sim::DiscreteLayout>(session_door.layout()).wall_toward(stratum_sim::discrete_point_type {1, 1},
                 cardinal_direction(CardinalDirection::East))));
         CHECK_CASE("and is taken the next time the character is ready", stratum_sim::access(door) == stratum_sim::AccessState::Open

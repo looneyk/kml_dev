@@ -4,46 +4,12 @@
 //------------------------------------------------------------------------------
 
 #include "attachments.hpp"
-#include "DiscreteLayout.hpp"
 #include "file_components.hpp"
 #include "layout_entities.hpp"
 #include "properties.hpp"
-#include "World.hpp"
+#include "Site.hpp"
+#include "Zone.hpp"
 #include <algorithm>
-#include <format>
-#include <string>
-#include <utility>
-#include <variant>
-#include <cassert>
-
-namespace
-{
-
-    //--------------------------------------------------------------------------
-    // Access point types are named entities in their own scope, separate from everything else in the world
-    std::string access_type_path(std::string_view name)
-    {
-        return std::format("access_types::{}", name);
-    }
-
-    //--------------------------------------------------------------------------
-    template<typename Address>
-    flecs::entity find_attached_access_point(flecs::entity zone, const Address& address)
-    {
-        flecs::entity sited_on = quetzal::stratum_sim::layout_entity(zone, address);
-        const auto* attached = sited_on ? sited_on.try_get<quetzal::stratum_sim::AttachedEntities>() : nullptr;
-
-        if (attached == nullptr)
-        {
-            return flecs::entity();
-        }
-
-        auto i = std::find_if(attached->entities.begin(), attached->entities.end(),
-            [](flecs::entity e) { return e.has<quetzal::stratum_sim::AccessPoint>(); });
-        return i != attached->entities.end() ? *i : flecs::entity();
-    }
-
-} // namespace
 
 //------------------------------------------------------------------------------
 void quetzal::stratum_sim::register_attachment_components(flecs::world& entities)
@@ -59,112 +25,6 @@ void quetzal::stratum_sim::register_attachment_components(flecs::world& entities
     register_file_component<Detection>(entities, "detection");
 
     return;
-}
-
-//------------------------------------------------------------------------------
-flecs::entity quetzal::stratum_sim::create_access_type(flecs::world& entities, std::string_view name)
-{
-    assert(!access_type(entities, name));
-    return entities.entity(access_type_path(name).c_str());
-}
-
-//------------------------------------------------------------------------------
-flecs::entity quetzal::stratum_sim::access_type(const flecs::world& entities, std::string_view name)
-{
-    return entities.lookup(access_type_path(name).c_str());
-}
-
-//------------------------------------------------------------------------------
-bool quetzal::stratum_sim::targets_level(flecs::entity e, level_type offset)
-{
-    const auto* access_point = e.try_get<AccessPoint>();
-    const auto* target = access_point != nullptr && access_point->target.has_value()
-        ? std::get_if<stratum_format::RelocatorTarget>(&*access_point->target) : nullptr;
-
-    if (target == nullptr)
-    {
-        return false;
-    }
-
-    if (const auto* relative = std::get_if<stratum_format::RelativeZone>(&target->zone))
-    {
-        return relative->offset == offset;
-    }
-
-    const auto* absolute = std::get_if<stratum_format::AbsoluteZone>(&target->zone);
-    const auto* zone_position = absolute != nullptr ? zone_of(e).try_get<ZonePosition>() : nullptr;
-
-    return zone_position != nullptr && absolute->level == zone_position->z + offset;
-}
-
-//------------------------------------------------------------------------------
-bool quetzal::stratum_sim::accepts_arrival(flecs::entity e, level_type offset)
-{
-    const auto* access_point = e.try_get<AccessPoint>();
-    return access_point != nullptr && (!access_point->target.has_value() || targets_level(e, offset));
-}
-
-//------------------------------------------------------------------------------
-std::string quetzal::stratum_sim::access_type_name(flecs::entity e)
-{
-    flecs::entity type = e.target<AccessType>();
-    return type ? std::string(type.name().c_str()) : std::string();
-}
-
-//------------------------------------------------------------------------------
-void quetzal::stratum_sim::set_access_point(flecs::entity e, flecs::entity access_type, std::uint64_t order,
-    std::optional<AccessPoint::target_type> target)
-{
-    assert(access_type);
-    assert(e.has<Site>() && e.get<Site>().relation == Relation::On && e.get<Site>().address.has_value());
-
-    e.add<AccessType>(access_type).set<AccessPoint>(AccessPoint {order, std::move(target)});
-    return;
-}
-
-//------------------------------------------------------------------------------
-flecs::entity quetzal::stratum_sim::create_access_point(flecs::entity zone, flecs::entity access_type, const Site& site, std::uint64_t order,
-    std::optional<AccessPoint::target_type> target)
-{
-    assert(zone && zone.has<Zone>());
-
-    flecs::entity e = zone.world().entity();
-    reparent(e, zone, site);
-    set_access_point(e, access_type, order, std::move(target));
-
-    return e;
-}
-
-//------------------------------------------------------------------------------
-quetzal::stratum_sim::placement_type quetzal::stratum_sim::arrival_placement(flecs::entity access_point)
-{
-    assert(access_point.has<AccessPoint>());
-    return layout_as<DiscreteLayout>(*zone_of(access_point).get<ZoneLayout>().layout).arrival_placement(access_point.get<Site>());
-}
-
-//------------------------------------------------------------------------------
-flecs::entity quetzal::stratum_sim::entry_point(flecs::entity zone, flecs::entity access_type, level_type offset)
-{
-    assert(zone && zone.has<Zone>());
-    assert(access_type);
-
-    flecs::entity found;
-    std::uint64_t order_found = 0;
-
-    zone.world().query_builder<const AccessPoint>()
-        .with(flecs::ChildOf, zone)
-        .with<AccessType>(access_type)
-        .build()
-        .each([&](flecs::entity e, const AccessPoint& access_point)
-        {
-            if (accepts_arrival(e, offset) && (!found || access_point.order < order_found))
-            {
-                found = e;
-                order_found = access_point.order;
-            }
-        });
-
-    return found;
 }
 
 //------------------------------------------------------------------------------
@@ -212,27 +72,7 @@ quetzal::stratum_sim::DetectionState quetzal::stratum_sim::detection(flecs::enti
 }
 
 //------------------------------------------------------------------------------
-flecs::entity quetzal::stratum_sim::find_access_point(flecs::entity zone, const WallAddress& address)
-{
-    return find_attached_access_point(zone, address);
-}
-
-//------------------------------------------------------------------------------
-flecs::entity quetzal::stratum_sim::find_access_point(flecs::entity zone, const FlatCellAddress& address)
-{
-    return find_attached_access_point(zone, address);
-}
-
-//------------------------------------------------------------------------------
-bool quetzal::stratum_sim::can_enter(flecs::entity access_point, flecs::entity actor)
-{
-    std::optional<AccessState> state = access(access_point);
-    return access_point.get<AccessPoint>().target.has_value() && (!state.has_value() || *state == AccessState::Open)
-        && detection(access_point, actor) != DetectionState::Concealed;
-}
-
-//------------------------------------------------------------------------------
-flecs::entity quetzal::stratum_sim::way_through(flecs::entity zone, id_type wall_id)
+flecs::entity quetzal::stratum_sim::find_access_attachment(flecs::entity zone, id_type wall_id)
 {
     flecs::entity wall = wall_entity(zone, wall_id);
     const auto* attached = wall ? wall.try_get<AttachedEntities>() : nullptr;

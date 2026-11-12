@@ -4,7 +4,7 @@
 //------------------------------------------------------------------------------
 
 #include "make_document.hpp"
-#include "attachments.hpp"
+#include "AccessPoint.hpp"
 #include "DiscreteLayout.hpp"
 #include "Name.hpp"
 #include "file_components.hpp"

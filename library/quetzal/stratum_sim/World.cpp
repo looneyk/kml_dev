@@ -4,6 +4,7 @@
 //------------------------------------------------------------------------------
 
 #include "World.hpp"
+#include "AccessPoint.hpp"
 #include "actors.hpp"
 #include "ai.hpp"
 #include "attachments.hpp"

@@ -4,6 +4,7 @@
 //------------------------------------------------------------------------------
 
 #include "cells.hpp"
+#include "quetzal/stratum_sim/AccessPoint.hpp"
 #include "quetzal/stratum_sim/attachments.hpp"
 #include "quetzal/stratum_sim/DiscreteLayout.hpp"
 #include "quetzal/stratum_sim/Site.hpp"
@@ -32,9 +33,9 @@ namespace
     //--------------------------------------------------------------------------
     // Returns the way through on the wall as the viewer perceives it: a null entity if there is none or the viewer finds it
     // concealed
-    flecs::entity seen_way_through(flecs::entity zone, quetzal::id_type wall_id, flecs::entity viewer)
+    flecs::entity visible_access_attachment(flecs::entity zone, quetzal::id_type wall_id, flecs::entity viewer)
     {
-        flecs::entity way = sim::way_through(zone, wall_id);
+        flecs::entity way = sim::find_access_attachment(zone, wall_id);
         return way && sim::detection(way, viewer) != sim::DetectionState::Concealed ? way : flecs::entity();
     }
 
@@ -89,7 +90,7 @@ namespace
                 for (const sim::discrete_vector_type& direction : directions)
                 {
                     quetzal::id_type wall_id = layout.wall_toward(cell_position, direction);
-                    flecs::entity way = wall_id != quetzal::nullid ? seen_way_through(zone, wall_id, viewer) : flecs::entity();
+                    flecs::entity way = wall_id != quetzal::nullid ? visible_access_attachment(zone, wall_id, viewer) : flecs::entity();
 
                     sim::discrete_point_type beyond = cell_position + direction;
 
@@ -278,7 +279,7 @@ quetzal::stratum_view::Lattice quetzal::stratum_view::lattice(const sim::World& 
                     continue;
                 }
 
-                flecs::entity way = seen_way_through(zone, wall_id, viewer);
+                flecs::entity way = visible_access_attachment(zone, wall_id, viewer);
 
                 if (!way)
                 {

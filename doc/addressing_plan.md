@@ -195,7 +195,7 @@ namespace quetzal::stratum_sim
   way through.
 
 Built (`game_system_reference.md`, `### Sites and doors`). `detection` returns `Visible` if nothing in the chain has a
-`Detection`, `access_entity` returns the entity whose `Access` applies, and `way_through` returns the entity on a wall
+`Detection`, `access_entity` returns the entity whose `Access` applies, and `find_access_attachment` returns the entity on a wall
 that has access. A staircase has no `Access`; entering one is `session_plan.md`, `## Entering an access point`.
 
 ### Queries

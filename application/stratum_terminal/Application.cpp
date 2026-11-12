@@ -10,7 +10,7 @@
 #include "quetzal/log/timestamped_files.hpp"
 #include "quetzal/settings/Settings.hpp"
 #include "quetzal/stratum_gen/generators.hpp"
-#include "quetzal/stratum_sim/attachments.hpp"
+#include "quetzal/stratum_sim/AccessPoint.hpp"
 #include "quetzal/stratum_sim/DiscreteLayout.hpp"
 #include "quetzal/stratum_sim/commands.hpp"
 #include "quetzal/stratum_sim/Name.hpp"
