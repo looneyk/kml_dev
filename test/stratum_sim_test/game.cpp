@@ -78,7 +78,7 @@ namespace
         flecs::entity carried = world.entities().entity();
         stratum_sim::set_parent(carried, character);
 
-        flecs::entity elsewhere = world.load_zone_at(world.create_worldspace("door", test_region_spec("door")), stratum_sim::ZonePosition {});
+        flecs::entity elsewhere = world.load_zone_at(world.create_worldspace("door", {{.region_spec = test_region_spec("door")}}), stratum_sim::ZonePosition {});
         world.make_reference(world.create_entity(elsewhere, stratum_sim::placement_type()));
 
         played.clear();
@@ -383,7 +383,8 @@ namespace
         if (zones_listed)
         {
             const stratum_format::raw_values_type& worldspace_json = world_json["world"]["worldspaces"][0];
-            const stratum_format::raw_values_type& region_json = worldspace_json["region"];
+            zones_listed = worldspace_json["regions"].size() == 1;
+            const stratum_format::raw_values_type& region_json = worldspace_json["regions"][0];
             auto listed_at = [&](stratum_sim::PersistentId zone_id, const stratum_format::raw_values_type& position)
             {
                 return ranges::any_of(region_json["zones"], [&](const stratum_format::raw_values_type& zone_json)
@@ -392,7 +393,7 @@ namespace
                 });
             };
 
-            zones_listed = worldspace_json["id"] == saving_worldspace.id && worldspace_json["name"] == region_spec_name
+            zones_listed = zones_listed && worldspace_json["id"] == saving_worldspace.id && worldspace_json["name"] == region_spec_name
                 && region_json["id"] == saving_region.id && region_json["zones"].size() == test_extent_zone_count
                 && listed_at(saving_first_id, stratum_format::raw_values_type {0, 0, -1})
                 && listed_at(saving_second_id, stratum_format::raw_values_type {0, 0, -2})

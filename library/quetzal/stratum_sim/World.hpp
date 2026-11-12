@@ -16,6 +16,7 @@
 #include "Site.hpp"
 #include "Zone.hpp"
 #include "ZoneEntryIndex.hpp"
+#include "WorldDefinition.hpp"
 #include "Worldspace.hpp"
 #include "types.hpp"
 #include <flecs.h>
@@ -87,10 +88,12 @@ namespace quetzal::stratum_sim
         Region& region(PersistentId region_id);
         const Region& region(PersistentId region_id) const;
 
-        // Creates a worldspace with the coordinate system from the region spec, its top-level region from the spec, and an
-        // empty zone at each position of its extent, in worldspace position order
-        // Throws std::runtime_error if the worldspace keys are not valid
-        PersistentId create_worldspace(std::string_view name, const RegionSpec& region_spec);
+        // Creates a worldspace from the region spec tree with the extent from its root spec, an empty zone at each
+        // position of its extent, in worldspace position order, a region for each region spec, and each zone's zone spec
+        // Throws std::runtime_error, creating nothing, if the worldspace keys are not valid, a spec is based on a region spec
+        // that is not registered, a pattern fails, a subregion spec has no extent, or a subregion's extent reaches outside the
+        // worldspace, is outside its parent's extent, or overlaps a sibling's
+        PersistentId create_worldspace(std::string_view name, const WorldDefinition::region_spec_tree_type& tree);
 
         // Unloads the worldspace's zones, discarding them without saving, and removes the worldspace and its regions
         void unload_worldspace(PersistentId worldspace_id);
@@ -211,15 +214,23 @@ namespace quetzal::stratum_sim
         // another zone's position in its worldspace
         flecs::entity build_zone(PersistentId region_id, PersistentId zone_id, const stratum_format::Document& document, std::string_view source);
 
-        // Returns the spec of the zone at the position in the region: the region spec's zone. keys, with a default name, the
-        // zone's position, and its seed, its patterns resolved with the zone's symbols. The zone counter counts the zones
-        // from 0 in the order in which they are created
+        // Returns the spec of a zone in the region: the region spec's zone. keys, with a default name, the position of the
+        // empty zone's spec, and its seed unless the zone. keys have one, its patterns resolved with the zone's symbols. The
+        // zone counter counts the zones of the worldspace from 0 in worldspace position order
         // Throws std::runtime_error for a pattern that does not compile, fails, or has a table or a function as its value
-        ZoneSpec resolved_zone_spec(PersistentId region_id, const ZonePosition& position, std::size_t zone_counter) const;
+        ZoneSpec resolved_zone_spec(PersistentId region_id, const ZoneSpec& empty_zone_spec, std::size_t zone_counter) const;
 
-        // Creates an empty zone at the position in the region, with its resolved spec
+        // Create an empty zone with only a position, seed, and a placeholder name
         // Throws std::runtime_error if the position is outside the worldspace's extent or is another zone's position in it
         flecs::entity create_zone(PersistentId region_id, const ZonePosition& position, std::size_t zone_counter);
+
+        // Create a region tree from the region spec tree
+        // Throws std::runtime_error if a subregion spec has no extent, or a subregion's extent reaches outside the worldspace,
+        // is outside its parent's extent, or overlaps a sibling's
+        void create_regions(PersistentId worldspace_id, const WorldDefinition::region_spec_tree_type& resolved_tree);
+
+        // Replace the empty zone's spec and its placeholder name with those resolved from its region's spec, and add it to its region
+        void set_zone_spec(flecs::entity zone, std::size_t zone_counter);
 
         // Returns the zone at the position in the worldspace, read back if it has unloaded
         // Throws std::runtime_error if the worldspace has no zone at the position or that zone cannot be read back

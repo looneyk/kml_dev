@@ -313,7 +313,8 @@ observer of `ZonePosition` lists a zone at its position when the position is set
 one position; zones of different worldspaces may.
 
 A region groups zones of one worldspace: a dungeon, a crypt, a tower or a house. `Region` (`Region.hpp`) is a value too:
-its `region_id`, its `parent_id` if it is a subregion, its `subregion_ids`, its name, its `RegionSpec`, `zone_ids`, the
+its `region_id`, its `parent_id` if it is a subregion, its `subregion_ids`, its name, its `display_name` if its spec has
+one, its resolved `RegionSpec`, `zone_ids`, the
 persistent id of each zone created in it, in the order they were created, loaded or not, so its size is the region's
 zone count, `named_zone_ids`, the persistent id of each of its zones by its name, and `name_counter`, the last suffix
 given to a name of its zones that was taken. A zone is listed when it is generated, loaded from a template, or created
@@ -324,28 +325,42 @@ finds the region to read an unloaded zone back into.
 with. `regions()` has the top-level region first and each region before its subregions; `root()`,
 `region(region_id)` and `contains(region_id)` find one; `add_subregion(parent_id, subregion)` adds one, setting its
 parent and listing it in the parent's `subregion_ids`; and `extended_name(region_id)` returns the name of each region
-from the top-level region down to the region, joined by `/`. `World` creates only top-level regions, and `save` asserts
-that each worldspace has one region.
+from the top-level region down to the region, joined by `/`.
 
 A zone has no parent. Its `ZoneWorldspace` and `ZoneRegion` components have the ids of the worldspace and the region it
 is in, which `worldspace_of(zone)` and `region_of(zone)` return.
 
 A name has a numeric suffix only if it is taken (`zone_plan.md`, `## Implementation`): `untaken_name(name, counter,
 taken)` returns the name, or else `<name>_<counter>` for the first counter after the given one whose name is not taken,
-and keeps that counter. `create_worldspace(name, region_spec)` makes a worldspace with the name, suffixed from the
-world's counter if another worldspace has it, and the coordinate system the spec states, and its top-level region with
-the same name and the spec, writing `new_region_position()` into a copy of the spec if it has neither position key, so
-the seed's position is saved with the spec in `world.json`. It then creates an empty zone in the region at each position
-of the worldspace's extent, in worldspace position order: `z`, then `y`, then `x`, each from lowest to highest. It
-returns the worldspace's id. `new_region_position()` is a
-placeholder until seeds are drawn hierarchically, and returns the x one past the largest of the world's region specs,
-or 0 with none, and y 0.
+and keeps that counter. `create_worldspace(name, tree)` makes a worldspace from a region spec tree, in four passes:
 
-Each of these empty zones has the spec that `resolved_zone_spec(region_id, position, zone_counter)` returns: the region
-spec's `zone.` keys, with the zone's position and seed, its patterns resolved. The zone counter counts the zones from 0
-in the order in which they are created. The name is the region spec's `zone.name`, or else
-`&region_name .. '_' .. zone_counter`, as in `dungeon_9`. The seed is `zone_seed(region_seed(world_seed,
-region_spec), zone_spec)`. `resolve_zone_spec(zone_spec, resolver)`, in `ZoneSpec.hpp`, resolves the spec's store
+1. The worldspace, with the name, suffixed from the world's counter if another worldspace has it, and the coordinate
+   system of the root spec composed with its template by `composed_region_spec`, and its top-level region with the same
+   name. `new_region_position()` is written into the root spec if it has neither position key, so the seed's position is
+   saved with the spec in `world.json`.
+2. An empty zone in the top-level region at each position of the worldspace's extent, in worldspace position order:
+   `z`, then `y`, then `x`, each from lowest to highest. Its spec has only its position and its seed,
+   `zone_seed(region_seed(world_seed, root_spec), zone_spec)`, and its name is the placeholder
+   `<region name>_<zone counter>`.
+3. The tree resolved by `resolve_region_spec_tree`, the top-level region given the root's resolved spec and display
+   name, and a subregion for each spec below the root, with its spec's name, display name and resolved spec. Each
+   subregion sets the region of the zone at each position of its extent, an absent axis of a box spanning its parent's
+   bounding box on that axis. A subregion is created after its parent, so each zone ends in the most specific region
+   whose extent contains its position.
+4. Each zone, in worldspace position order, with its spec and its name replaced by those resolved from its region's
+   spec, and listed in its region.
+
+It returns the worldspace's id. It throws `std::runtime_error`, after unloading what it created, for a subregion spec
+with no extent, or a subregion whose extent's bounding box reaches outside the worldspace's extent, or that claims a zone
+that is not in its parent region, which is outside its parent's extent or in a sibling's. `new_region_position()` is a placeholder
+until seeds are drawn hierarchically, and returns the x one past the largest of the world's region specs, or 0 with
+none, and y 0.
+
+A zone's spec is the one that `resolved_zone_spec(region_id, empty_zone_spec, zone_counter)` returns: the region spec's
+`zone.` keys, with the empty zone's position, and its seed unless the `zone.` keys have one, its patterns resolved. The
+zone counter counts the zones of the worldspace from 0 in worldspace position order. The name is the region spec's
+`zone.name`, or else `&region_name .. '_' .. zone_counter`, as in `dungeon_9`. `resolve_zone_spec(zone_spec, resolver)`,
+in `ZoneSpec.hpp`, resolves the spec's store
 with a `PatternResolver` seeded with the zone's seed and the symbols `x`, `y`, `z`, `zone_counter`, `region_name`, and `region.<key>` for each of the region spec's
 other store entries. With the surface's `zone.name`, `&region_name .. '_' .. x .. '_' .. y`, the zone at (3, 4, 0) is named
 `surface_3_4`. A zone keeps its name when its content is generated or loaded from a template. Any other zone that
@@ -419,7 +434,8 @@ or *n*, which is *k* levels from *L*.
 
 The target's position is `new_zone_position(worldspace_id, level)` for the target level, a placeholder that returns
 `(0, 0, level)` until the world's layout is designed. A target with a region creates a new worldspace with
-`create_worldspace`, from the region spec of that name, and the zone is the one at the position there. If the access
+`create_worldspace`, from a tree of the one registered region spec of that name, and the zone is the one at the position
+there. If the access
 point has a `region_spec`, the region is instead the name of a worldspace, created from that spec if the world has
 none, and the zone is the one at the position there. With the region
 omitted, the zone is the one at the position in the access point's worldspace. A region spec that is not registered
@@ -484,12 +500,14 @@ requires a game directory and a zone built from a document. Leaving a
 zone does not save it, and neither does `unload_zone` nor `unload_worldspace`, which discard what they unload, as clearing a
 game does (`game_file_spec.md`, `## A saved game's files`). `save()` saves every loaded zone and then writes
 `world.json` into the game directory: the worldspace name counter; each worldspace in persistent id order, with its id,
-its name and its top-level region, the region with its id, its name, its name counter, its region spec, and a reference
-to each zone its `zone_ids` lists, whose file is `zones/<persistent id>.zone`, with the zone's name and position if it
-has them, whether or not the zone is loaded; and the world index. `open(game_directory)`, on a cleared world, reads
-`world.json` back: the worldspace name counter; each worldspace, made with its persistent id, its name and its region,
-the region with its persistent id, its name, its name counter, its region spec and its zone ids, the worldspace listing
-each zone that has a position and the region each zone that has a name; and the world index. It loads no zone; each loads when it is entered.
+its name and its regions in the order of `regions()`, each with its id, its parent's id if it is a subregion, its name,
+its display name if it has one, its name counter, its region spec, and a reference to each zone its `zone_ids` lists,
+whose file is `zones/<persistent id>.zone`, with the zone's name and position if it has them, whether or not the zone
+is loaded; and the world index. `open(game_directory)`, on a cleared world, reads `world.json` back: the worldspace name
+counter; each worldspace, made with its persistent id, its name and its top-level region, each later region added as a
+subregion of its parent, each region with its persistent id, its name, its display name, its name counter, its region
+spec and its zone ids, the worldspace listing each zone that has a position and the region each zone that has a name;
+and the world index. It loads no zone; each loads when it is entered.
 
 `unload_zone(zone)` begins an unload: it adds the zone's id to the zones unloading and deletes the entity. Flecs deletes
 a zone's subtree before the zone itself, and if the deletion is queued on a stage, as it is in readonly mode, it runs
@@ -937,9 +955,9 @@ nothing. A character of the name that Windows does not allow in a file name, or 
 `_`. If a save of that name exists, it waits for the next second. An earlier save is never
 replaced. It requires a game in progress whose character is alive and named.
 
-`World::create(start_zone, game_directory)` creates the starting worldspace from the root spec of the world definition's
-`starting_region`. The worldspace is named for that region, and its spec is the root spec of the tree that
-`resolve_region_spec_tree` returns. It creates the worldspace with its region and its empty zones, and returns the zone at `start_zone` from `load_zone_at`, generated: `center`
+`World::create(start_zone, game_directory)` creates the starting worldspace with `create_worldspace` from the tree of the
+world definition's `starting_region`, named for that region, and returns the zone at `start_zone` from `load_zone_at`,
+generated: `center`
 (`center_start`), the zone at the centroid of the worldspace's extent with each coordinate rounded toward the lower bound,
 or a zone position written `x,y,z`. `start_placement(zone, start_cell)` returns the placement of an actor starting in the
 zone, facing -y: `center`, the cell nearest the center of the zone's layout that an actor can occupy, the first in row
@@ -1218,12 +1236,14 @@ slot, and each `RegionSpecNode` has its `RegionSpec`, its parent's id, `nullid` 
 It throws `std::runtime_error` for a tree without exactly one root spec, a spec with no `name`, a `parent` that is not
 the name of exactly one spec of the tree, two specs with the same parent and name, a spec that is not below the root, a
 root spec with the name of another tree's root, or a starting region that is not a tree's root.
-`resolve_region_spec_tree(tree, region_specs, world_seed, script_limits)` returns the tree with each spec composed and
-resolved, parents first. A spec's members and keys are layered over those of the registered spec its `region_spec`
-refers to, and a subregion's result over its parent's resolved store, since a subregion does not inherit the typed
-members. The composed spec is without `region_spec` and `parent`, and `resolve_region_spec` resolves it with a resolver
-seeded by `region_seed`, whose symbols for a subregion are the parent's `name`, `display_name`, and store entries
-other than the `zone.` keys, each under `parent.`. The game's file is
+`resolve_region_spec_tree(tree, region_specs, world_seed, script_limits)` returns the tree with each spec resolved and
+composed, parents first. `composed_region_spec(region_spec, region_specs)`, in `RegionSpec.hpp`, layers a spec's members
+and keys over those of the registered spec its `region_spec` refers to, without `region_spec` and `parent`, and
+`resolve_region_spec` resolves the result with a resolver seeded by
+`region_seed`, whose symbols for a subregion are the parent's `name`, `display_name`, and store entries other than the
+`zone.` keys, each under `parent.`. A subregion's resolved store is then layered over its parent's resolved store, less
+the keys whose patterns resolved to nil, since a subregion does not inherit the typed members. A parent's values are
+resolved once, so an inherited literal that starts with `&` stays literal. The game's file is
 `assets/data/world_definition.json`, starting in `surface`, with two trees of one spec each, `surface` and `dungeon`,
 each based on the registered spec of its name.
 

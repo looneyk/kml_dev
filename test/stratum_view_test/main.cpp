@@ -52,7 +52,7 @@ namespace
     {
         explicit TestWorld(stratum_sim::IdAllocator& id_allocator) :
             World(id_allocator, g_test_generation, test_zone_count_max, stratum_sim::Config().pattern_limits),
-            region_id(worldspace(create_worldspace("view", view_region_spec)).regions.root().region_id)
+            region_id(worldspace(create_worldspace("view", {{.region_spec = view_region_spec}})).regions.root().region_id)
         {
             stratum_sim::register_game_types(*this);
         }

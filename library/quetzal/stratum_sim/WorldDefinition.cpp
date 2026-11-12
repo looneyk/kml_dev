@@ -23,40 +23,6 @@ namespace
 {
 
     //--------------------------------------------------------------------------
-    // The spec's keys layered over those of any registered region spec it is based on
-    quetzal::stratum_sim::RegionSpec composed_region_spec(const quetzal::stratum_sim::RegionSpec& region_spec,
-        const std::map<std::string, quetzal::stratum_sim::RegionSpec>& region_specs)
-    {
-        using namespace quetzal::stratum_sim;
-
-        RegionSpec composed;
-        if (region_spec.region_spec.has_value())
-        {
-            composed = value_at(region_specs, region_spec.region_spec.value(), "region spec");
-        }
-
-        auto layer = []<typename T>(std::optional<T>& member, const std::optional<T>& over)
-        {
-            if (over.has_value())
-            {
-                member = over;
-            }
-
-            return;
-        };
-
-        layer(composed.name, region_spec.name);
-        layer(composed.display_name, region_spec.display_name);
-        layer(composed.seed, region_spec.seed);
-        layer(composed.extent, region_spec.extent);
-        layer(composed.zone_size, region_spec.zone_size);
-        composed.store |= region_spec.store;
-        composed.region_spec.reset();
-        composed.parent.reset();
-        return composed;
-    }
-
-    //--------------------------------------------------------------------------
     // Returns the parent's resolved fields and store entries excluding zone entries
     quetzal::KeyValueStore parent_symbols(const quetzal::stratum_sim::RegionSpec& parent)
     {
@@ -179,17 +145,26 @@ quetzal::stratum_sim::WorldDefinition::region_spec_tree_type quetzal::stratum_si
     WorldDefinition::region_spec_tree_type resolved = tree;
     for (RegionSpecNode& node : resolved)
     {
-        RegionSpec composed = composed_region_spec(node.region_spec, region_specs);
-        KeyValueStore symbols;
-        if (node.parent_id != nullid)
-        {
-            const RegionSpec& parent = resolved[node.parent_id].region_spec;
-            composed.store = parent.store | composed.store;
-            symbols = parent_symbols(parent);
-        }
+        const RegionSpec composed = composed_region_spec(node.region_spec, region_specs);
+        const KeyValueStore symbols = node.parent_id != nullid ? parent_symbols(resolved[node.parent_id].region_spec) : KeyValueStore {};
 
         PatternResolver resolver(symbols, PatternResolver::random_type(region_seed(world_seed, composed)), world_seed, script_limits);
-        node.region_spec = resolve_region_spec(composed, resolver);
+        RegionSpec resolved_spec = resolve_region_spec(composed, resolver);
+        if (node.parent_id != nullid)
+        {
+            KeyValueStore inherited = resolved[node.parent_id].region_spec.store;
+            for (const auto& [key, value] : composed.store)
+            {
+                if (!resolved_spec.store.contains(key))
+                {
+                    inherited.remove(key);
+                }
+            }
+
+            resolved_spec.store = inherited | resolved_spec.store;
+        }
+
+        node.region_spec = std::move(resolved_spec);
     }
 
     return resolved;

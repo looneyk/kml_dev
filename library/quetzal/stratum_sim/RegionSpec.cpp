@@ -5,6 +5,7 @@
 
 #include "RegionSpec.hpp"
 #include "Generation.hpp"
+#include "stratum_sim_util.hpp"
 #include "quetzal/stratum_format/RegionSpecsDocument.hpp"
 #include <optional>
 #include <string>
@@ -30,6 +31,37 @@ void quetzal::stratum_sim::set_region_position(RegionSpec& region_spec, const Re
     region_spec.store.insert(std::string(position_x_key), std::to_string(position.x));
     region_spec.store.insert(std::string(position_y_key), std::to_string(position.y));
     return;
+}
+
+//------------------------------------------------------------------------------
+quetzal::stratum_sim::RegionSpec quetzal::stratum_sim::composed_region_spec(const RegionSpec& region_spec,
+    const std::map<std::string, RegionSpec>& region_specs)
+{
+    RegionSpec composed;
+    if (region_spec.region_spec.has_value())
+    {
+        composed = value_at(region_specs, region_spec.region_spec.value(), "region spec");
+    }
+
+    auto layer = []<typename T>(std::optional<T>& member, const std::optional<T>& over)
+    {
+        if (over.has_value())
+        {
+            member = over;
+        }
+
+        return;
+    };
+
+    layer(composed.name, region_spec.name);
+    layer(composed.display_name, region_spec.display_name);
+    layer(composed.seed, region_spec.seed);
+    layer(composed.extent, region_spec.extent);
+    layer(composed.zone_size, region_spec.zone_size);
+    composed.store |= region_spec.store;
+    composed.region_spec.reset();
+    composed.parent.reset();
+    return composed;
 }
 
 //------------------------------------------------------------------------------

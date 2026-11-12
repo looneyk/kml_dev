@@ -174,7 +174,7 @@ namespace
                 cardinal_direction(CardinalDirection::East)));
         };
 
-        flecs::entity generated = world.load_zone_at(world.create_worldspace("door", test_region_spec("door")), stratum_sim::ZonePosition {});
+        flecs::entity generated = world.load_zone_at(world.create_worldspace("door", {{.region_spec = test_region_spec("door")}}), stratum_sim::ZonePosition {});
         stratum_sim::World::entities_type generated_denizens = denizens_in(generated);
 
         CHECK_CASE("a generated zone has its doors", door_east_of_start(generated).is_alive());
@@ -209,7 +209,7 @@ namespace
             && door_east_of_start(prepopulated).is_alive());
         world.unload_worldspace(stratum_sim::worldspace_of(prepopulated));
 
-        stratum_sim::PersistentId empty_worldspace = world.create_worldspace("door", test_region_spec("door"));
+        stratum_sim::PersistentId empty_worldspace = world.create_worldspace("door", {{.region_spec = test_region_spec("door")}});
         flecs::entity empty = world.entity(world.worldspace(empty_worldspace).zone_ids.at(zone_position_at_level(-2)));
         const stratum_sim::PersistentId empty_id = empty.get<stratum_sim::PersistentId>();
         const string empty_name = empty.get<stratum_sim::Name>().name;
@@ -231,7 +231,7 @@ namespace
         world.unload_worldspace(empty_worldspace);
 
         // Zones created through the registries
-        stratum_sim::PersistentId counted_worldspace = world.create_worldspace("staircase", test_region_spec("staircase"));
+        stratum_sim::PersistentId counted_worldspace = world.create_worldspace("staircase", {{.region_spec = test_region_spec("staircase")}});
         stratum_sim::PersistentId counted = top_level_region(world, counted_worldspace);
         flecs::entity counted_generated = world.load_zone_at(counted_worldspace, zone_position_at_level(-1));
         flecs::entity counted_loaded = world.load_zone(counted, "data/door.zone");
@@ -582,7 +582,7 @@ namespace
             stratum_sim::Session& created = game_created.session();
             game_created.generation() = test_generation();
             game_created.character().create(stratum_sim::CharacterSpec {});
-            created.enter(game_created.world().load_zone_at(game_created.world().create_worldspace("door", test_region_spec("door")),
+            created.enter(game_created.world().load_zone_at(game_created.world().create_worldspace("door", {{.region_spec = test_region_spec("door")}}),
                 stratum_sim::ZonePosition {}), test_entry_type(created), test_entry_offset);
 
             CHECK_CASE("a constructed zone is loaded", created.loaded());

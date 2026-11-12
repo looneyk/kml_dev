@@ -1134,7 +1134,7 @@ namespace
         report_written("a game file has the game, the settings and the presets each on a line of its own", written(game),
             "{\n"
             "  \"format\": \"quetzal.stratum_game\",\n"
-            "  \"version\": \"0.3\",\n"
+            "  \"version\": \"0.4\",\n"
             "  \"game\": { \"notation\": \"wall\", \"next_id\": 21, \"seed\": \"20260928\", \"random_engines\": { \"gameplay\": \"1 2 3\", \"generation\": \"4 5 6\" } },\n"
             "  \"settings\": { \"gameplay.difficulty\": \"custom\" },\n"
             "  \"presets\": { \"gameplay.difficulty\": { \"custom\": { \"gameplay.difficulty.denizen_count_multiplier\": \"2\" } } }\n"
@@ -1161,7 +1161,7 @@ namespace
         report_written("a character file has its name third, and with no inventory has an empty one", written(character),
             "{\n"
             "  \"format\": \"quetzal.stratum_game\",\n"
-            "  \"version\": \"0.3\",\n"
+            "  \"version\": \"0.4\",\n"
             "  \"name\": \"Ailis\",\n"
             "  \"character\": {\n"
             "    \"id\": 1,\n"
@@ -1182,7 +1182,7 @@ namespace
         report_written("a character file has each entity of its inventory on a line of its own", written(character),
             "{\n"
             "  \"format\": \"quetzal.stratum_game\",\n"
-            "  \"version\": \"0.3\",\n"
+            "  \"version\": \"0.4\",\n"
             "  \"name\": \"Ailis\",\n"
             "  \"character\": {\n"
             "    \"id\": 1,\n"
@@ -1212,34 +1212,52 @@ namespace
         dungeon.zones = {{3, "zones/3.zone", stratum_format::zone_position_type {0, 0, -1}, "Level -1"}, {6, "zones/6.zone", nullopt, "barrow"},
             {8, "zones/8.zone", nullopt, "barrow_1"}};
 
+        stratum_format::WorldDocument::Region crypt;
+        crypt.id = 9;
+        crypt.parent_id = 4;
+        crypt.name = "crypt";
+        crypt.display_name = "The Crypt";
+        crypt.spec.store.insert("type", "crypt");
+        crypt.zones = {{11, "zones/11.zone", stratum_format::zone_position_type {0, 0, -2}, "crypt_1"}};
+
         stratum_format::WorldDocument world;
         world.name_counter = 2;
-        world.worldspaces = {{1, "surface", surface}, {7, "barrow", dungeon}};
+        world.worldspaces = {{1, "surface", {surface}}, {7, "barrow", {dungeon, crypt}}};
         world.entity_zones = {{10, 5}, {12, 3}};
 
-        report_written("a world file has its name counter, then opens each worldspace with its id and name, then its region, which "
-            "opens with its id, name, name counter and components, then its spec, then a line per zone, and has a line per entry of the world index",
+        report_written("a world file has its name counter, then opens each worldspace with its id and name, then a line per region, which "
+            "opens with its id, parent, name, display name, name counter and components, then its spec, then a line per zone, and has a line per "
+            "entry of the world index",
             written(world),
             "{\n"
             "  \"format\": \"quetzal.stratum_game\",\n"
-            "  \"version\": \"0.3\",\n"
+            "  \"version\": \"0.4\",\n"
             "  \"world\": {\n"
             "    \"name_counter\": 2,\n"
             "    \"worldspaces\": [\n"
             "      { \"id\": 1, \"name\": \"surface\",\n"
-            "        \"region\": { \"id\": 2, \"name\": \"surface\", \"name_counter\": 0, \"components\": { \"type\": \"surface\" },\n"
-            "          \"spec\": { \"zone_size\": [40, 30], \"type\": \"surface\" },\n"
-            "          \"zones\": [\n"
-            "            { \"id\": 5, \"name\": \"surface_0_0\", \"file\": \"zones/5.zone\", \"position\": [0, 0, 0] }\n"
-            "          ] } },\n"
+            "        \"regions\": [\n"
+            "          { \"id\": 2, \"name\": \"surface\", \"name_counter\": 0, \"components\": { \"type\": \"surface\" },\n"
+            "            \"spec\": { \"zone_size\": [40, 30], \"type\": \"surface\" },\n"
+            "            \"zones\": [\n"
+            "              { \"id\": 5, \"name\": \"surface_0_0\", \"file\": \"zones/5.zone\", \"position\": [0, 0, 0] }\n"
+            "            ] }\n"
+            "        ] },\n"
             "      { \"id\": 7, \"name\": \"barrow\",\n"
-            "        \"region\": { \"id\": 4, \"name\": \"barrow\", \"name_counter\": 1,\n"
-            "          \"spec\": { \"type\": \"dungeon\" },\n"
-            "          \"zones\": [\n"
-            "            { \"id\": 3, \"name\": \"Level -1\", \"file\": \"zones/3.zone\", \"position\": [0, 0, -1] },\n"
-            "            { \"id\": 6, \"name\": \"barrow\", \"file\": \"zones/6.zone\" },\n"
-            "            { \"id\": 8, \"name\": \"barrow_1\", \"file\": \"zones/8.zone\" }\n"
-            "          ] } }\n"
+            "        \"regions\": [\n"
+            "          { \"id\": 4, \"name\": \"barrow\", \"name_counter\": 1,\n"
+            "            \"spec\": { \"type\": \"dungeon\" },\n"
+            "            \"zones\": [\n"
+            "              { \"id\": 3, \"name\": \"Level -1\", \"file\": \"zones/3.zone\", \"position\": [0, 0, -1] },\n"
+            "              { \"id\": 6, \"name\": \"barrow\", \"file\": \"zones/6.zone\" },\n"
+            "              { \"id\": 8, \"name\": \"barrow_1\", \"file\": \"zones/8.zone\" }\n"
+            "            ] },\n"
+            "          { \"id\": 9, \"parent\": 4, \"name\": \"crypt\", \"display_name\": \"The Crypt\", \"name_counter\": 0,\n"
+            "            \"spec\": { \"type\": \"crypt\" },\n"
+            "            \"zones\": [\n"
+            "              { \"id\": 11, \"name\": \"crypt_1\", \"file\": \"zones/11.zone\", \"position\": [0, 0, -2] }\n"
+            "            ] }\n"
+            "        ] }\n"
             "    ],\n"
             "    \"entity_zones\": [\n"
             "      [10, 5],\n"
@@ -1310,8 +1328,8 @@ namespace
 
         CHECK_CASE("a game file of another format is rejected", rejected(read_game, changed(game_text, "quetzal.stratum_game",
             "quetzal.discrete_layout"), "format: 'quetzal.discrete_layout' is not this format"));
-        CHECK_CASE("and one of another version", rejected(read_game, changed(game_text, "\"0.3\"", "\"0.2\""),
-            "version: '0.2' is not a version this reads"));
+        CHECK_CASE("and one of another version", rejected(read_game, changed(game_text, "\"0.4\"", "\"0.3\""),
+            "version: '0.3' is not a version this reads"));
         CHECK_CASE("a game file whose notation is not a notation is rejected", rejected(read_game, changed(game_text, "\"wall\"", "\"hex\""),
             "game.notation: 'hex' is not a notation"));
         CHECK_CASE("a game file with no next id is rejected", rejected(read_game, changed(game_text, "\"next_id\": 21, ", ""),
@@ -1363,6 +1381,10 @@ namespace
             "[12, 4]"), "zone 4 is in no region"));
         CHECK_CASE("and one whose world index has an entity twice", rejected(read_world, changed(world_text, "[12, 3]", "[10, 3]"),
             "a second entry for entity 10"));
+        CHECK_CASE("and one whose top-level region has a parent", rejected(read_world, changed(world_text, "{ \"id\": 4, ",
+            "{ \"id\": 4, \"parent\": 2, "), "a top-level region with a parent"));
+        CHECK_CASE("and one with a subregion whose parent is not an earlier region of its worldspace", rejected(read_world,
+            changed(world_text, "\"parent\": 4", "\"parent\": 2"), "a subregion whose parent is not an earlier region of the worldspace"));
 
         return;
     }

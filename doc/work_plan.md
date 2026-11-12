@@ -83,11 +83,9 @@ boxes are removed at the start of the next piece of work, since the reference do
       patterns, and the open questions there answered, before the structure is created from them.
 - [ ] **Listed zones** (`region_spec_plan.md`, `### Listed zones`): a region spec's `zones` member, each zone's position
       and the keys that override the `zone.` keys for it, read with the other typed members.
-- [ ] **The world's structure created whole** (`world_generation_plan.md`, `## Creating the structure`;
-      `region_spec_plan.md`, `## Zones of a worldspace`): every worldspace, with its single region, created from the
-      game's JSON object of region specs, and a zone at every position of its extent, in worldspace position order, each created by `World::create` with its spec, its name, its position and its seed, the
-      seeds drawn hierarchically (`random_engine.md`, `## Generation`), and a zone's content generated the first time it
-      is entered or loaded. `RegionPosition`, which a region's seed derives from, goes.
+- [ ] **The world's structure created whole** (`world_structure_plan.md`): each worldspace created whole from a region
+      spec tree, with its region tree and an empty zone at every position of its extent, the starting worldspace with
+      the game and each other worldspace when the zone of an access point that leads to it is generated.
 - [ ] **Targets resolved by extended name and by position** (`zone_plan.md`, `### Targets`): the `{zone, position}`
       target in place of `RelocatorTarget` (`zone_plan.md`, `## Implementation`), and an unbound target resolved to the
       zone of an extended name or a persistent id, or at a position relative to the access point's zone or absolute in a

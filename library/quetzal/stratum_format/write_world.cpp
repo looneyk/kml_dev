@@ -38,8 +38,19 @@ namespace
     // The first line has no indentation, as it follows the member name
     std::string region_text(const WorldDocument::Region& region, size_t indent)
     {
-        std::vector<std::string> opening {std::format("\"id\": {}", region.id), std::format("\"name\": {}", string_text(region.name)),
-            std::format("\"name_counter\": {}", region.name_counter)};
+        std::vector<std::string> opening {std::format("\"id\": {}", region.id)};
+        if (region.parent_id.has_value())
+        {
+            opening.push_back(std::format("\"parent\": {}", region.parent_id.value()));
+        }
+
+        opening.push_back(std::format("\"name\": {}", string_text(region.name)));
+        if (region.display_name.has_value())
+        {
+            opening.push_back(std::format("\"display_name\": {}", string_text(region.display_name.value())));
+        }
+
+        opening.push_back(std::format("\"name_counter\": {}", region.name_counter));
         if (!region.components.is_null())
         {
             opening.push_back(std::format("\"components\": {}", inline_text(region.components)));
@@ -70,8 +81,15 @@ namespace
     {
         size_t continuation_indent = indent + 2;
         std::string text = std::format("{}{{ \"id\": {}, \"name\": {},\n", indentation(indent), worldspace.id, string_text(worldspace.name));
-        text += std::format("{}\"region\": {} }}", indentation(continuation_indent), region_text(worldspace.region, continuation_indent));
-        return text;
+        text += std::format("{}\"regions\": [\n", indentation(continuation_indent));
+
+        for (size_t i = 0; i < worldspace.regions.size(); ++i)
+        {
+            text += std::format("{}{}{}\n", indentation(continuation_indent + 2), region_text(worldspace.regions[i], continuation_indent + 2),
+                i + 1 == worldspace.regions.size() ? "" : ",");
+        }
+
+        return text + indentation(continuation_indent) + "] }";
     }
 
     //--------------------------------------------------------------------------

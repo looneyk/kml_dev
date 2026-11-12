@@ -31,7 +31,9 @@ namespace quetzal::stratum_format
         struct Region
         {
             stored_entity_id_type id = 0;
+            std::optional<stored_entity_id_type> parent_id;
             std::string name;
+            std::optional<std::string> display_name;
             std::size_t name_counter = 0;
             raw_values_type components;
             RegionSpec spec;
@@ -42,7 +44,7 @@ namespace quetzal::stratum_format
         {
             stored_entity_id_type id = 0;
             std::string name;
-            Region region;
+            std::vector<Region> regions; // The top-level region first, and each region before its subregions
         };
 
         std::string version;

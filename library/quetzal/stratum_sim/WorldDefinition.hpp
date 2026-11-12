@@ -38,7 +38,7 @@ namespace quetzal::stratum_sim
     // is not a tree's root
     WorldDefinition load_world_definition(const std::filesystem::path& assets_directory);
 
-    // Returns the tree with each spec composed over its parent's resolved spec and its patterns resolved, parents first
+    // Returns the tree with each spec's patterns resolved and the result composed over its parent's resolved spec, starting from the root
     // Throws std::runtime_error if a spec is based on a region spec that is not registered, or for a pattern that does not
     // compile, fails, or has a table or a function as its value
     WorldDefinition::region_spec_tree_type resolve_region_spec_tree(const WorldDefinition::region_spec_tree_type& tree,

@@ -24,6 +24,7 @@ namespace quetzal::stratum_sim
         std::optional<PersistentId> parent_id;
         std::vector<PersistentId> subregion_ids;
         std::string name;
+        std::optional<std::string> display_name;
         RegionSpec region_spec;
         std::vector<PersistentId> zone_ids; // The zones that make up this region
         std::map<std::string, PersistentId> named_zone_ids; // <name, zone_id>

@@ -100,7 +100,7 @@ character named Ailis in it carrying a torch, would have the following structure
 ```json
 {
   "format": "quetzal.stratum_game",
-  "version": "0.3",
+  "version": "0.4",
   "game": { "notation": "block", "next_id": 21, "seed": "20260928", "random_engines": { "gameplay": "..." } },
   "settings": { "gameplay.difficulty": "custom" },
   "presets": { "gameplay.difficulty": { "custom": { "gameplay.difficulty.denizen_count_multiplier": "1", "gameplay.difficulty.denizen_speed_multiplier": "1", "gameplay.difficulty.detection_range_multiplier": "2" } } }
@@ -112,7 +112,7 @@ character named Ailis in it carrying a torch, would have the following structure
 ```json
 {
   "format": "quetzal.stratum_game",
-  "version": "0.3",
+  "version": "0.4",
   "name": "Ailis",
   "character": {
     "id": 1,
@@ -131,22 +131,31 @@ character named Ailis in it carrying a torch, would have the following structure
 ```json
 {
   "format": "quetzal.stratum_game",
-  "version": "0.3",
+  "version": "0.4",
   "world": {
     "name_counter": 0,
     "worldspaces": [
       { "id": 6, "name": "surface",
-        "region": { "id": 2, "name": "surface", "name_counter": 0, "components": { "type": "surface" },
-          "spec": { "extent": { "arrangement": "ranges", "boxes": [ { "x": 0, "y": 0, "z": 0 } ] }, "zone_size": [40, 30], "service_level": "basic", "type": "surface" },
-          "zones": [
-            { "id": 5, "name": "surface_0_0", "file": "zones/5.zone", "position": [0, 0, 0] }
-          ] } },
+        "regions": [
+          { "id": 2, "name": "surface", "name_counter": 0, "components": { "type": "surface" },
+            "spec": { "extent": { "arrangement": "ranges", "boxes": [ { "x": 0, "y": 0, "z": 0 } ] }, "zone_size": [40, 30], "service_level": "basic", "type": "surface" },
+            "zones": [
+              { "id": 5, "name": "surface_0_0", "file": "zones/5.zone", "position": [0, 0, 0] }
+            ] }
+        ] },
       { "id": 7, "name": "cistern",
-        "region": { "id": 4, "name": "cistern", "name_counter": 0, "components": { "type": "dungeon", "difficulty": 3 },
-          "spec": { "extent": { "arrangement": "ranges", "boxes": [ { "x": 0, "y": 0, "z": [-10, -1] } ] }, "difficulty": "3", "type": "dungeon", "zone.name": "Level {z}" },
-          "zones": [
-            { "id": 3, "name": "Level -1", "file": "zones/3.zone", "position": [0, 0, -1] }
-          ] } }
+        "regions": [
+          { "id": 4, "name": "cistern", "name_counter": 0, "components": { "type": "dungeon", "difficulty": 3 },
+            "spec": { "extent": { "arrangement": "ranges", "boxes": [ { "x": 0, "y": 0, "z": [-10, -1] } ] }, "difficulty": "3", "type": "dungeon", "zone.name": "Level {z}" },
+            "zones": [
+              { "id": 3, "name": "Level -1", "file": "zones/3.zone", "position": [0, 0, -1] }
+            ] },
+          { "id": 9, "parent": 4, "name": "vault", "display_name": "The Vault", "name_counter": 0,
+            "spec": { "extent": { "arrangement": "ranges", "boxes": [ { "z": -2 } ] }, "difficulty": "4", "type": "dungeon", "zone.name": "Level {z}" },
+            "zones": [
+              { "id": 10, "name": "Level -2", "file": "zones/10.zone", "position": [0, 0, -2] }
+            ] }
+        ] }
     ],
     "entity_zones": [
       [1, 3],
@@ -167,7 +176,7 @@ A file's header is its leading keys, which a reader can take without parsing the
 the character file `name` after them.
 
 `format` is `"quetzal.stratum_game"`. The version is a label that a reader matches, not a number it compares. It is
-`0.3`, and the leading zero marks it as pre-release: no older file is kept readable. A reader given a version it does
+`0.4`, and the leading zero marks it as pre-release: no older file is kept readable. A reader given a version it does
 not know rejects the file. A zone file has the zone file format's own `format` and `version`.
 
 ## game
@@ -228,7 +237,7 @@ The world's worldspaces, and the world index:
 | Key | |
 | --- | --- |
 | `name_counter` | The last suffix given to a worldspace's name that another worldspace had (`zone_plan.md`, `## Implementation`) |
-| `worldspaces` | Every worldspace, with its top-level region |
+| `worldspaces` | Every worldspace, with its regions |
 | `entity_zones` | The world index: for each entity that something refers to, its persistent id and its zone's, as a pair |
 
 The world index is how a reference finds the zone its entity is in when that zone is not loaded, such as a bound
@@ -243,10 +252,11 @@ A worldspace is the coordinate system of its zones: the surface, a dungeon, a ca
 | --- | --- |
 | `id` | The worldspace's persistent id |
 | `name` | Its name, unique in the game: the name of the region spec its region was created from, with a suffix if another worldspace had it |
-| `region` | Its top-level region |
+| `regions` | Its regions: the top-level region first, and each region before its subregions |
 
-A worldspace's coordinate system is not written separately: its region's `spec` has it in its `extent` and
-`zone_size`, and reading the world sets it from them.
+A worldspace's coordinate system is not written separately: its top-level region's `spec` has it in its `extent` and
+`zone_size`, and reading the world sets it from them. A worldspace has at least one region, its top-level region, which
+has no parent, and the parent of each later region is an earlier region of the worldspace.
 
 ### Regions
 
@@ -255,14 +265,16 @@ A region groups zones of one worldspace: a surface area, a dungeon, a crypt, a t
 | Key | |
 | --- | --- |
 | `id` | The region's persistent id |
+| `parent` | Its parent region's persistent id, which a top-level region does not have |
 | `name` | Its name; a top-level region's is its worldspace's |
+| `display_name` | Its name as the player sees it, if its spec has one |
 | `name_counter` | The last suffix given to a name of its zones that another of its zones had |
 | `components` | Its type and, for a dungeon, its difficulty and the other properties a whole dungeon has |
 | `spec` | The `RegionSpec` it was created from, in the form of a region spec file's specs, from which its later zones are created (`world_generation_plan.md`) |
 | `zones` | A reference to each of its zones |
 
-A region's zones are every zone the world has made in it. Regions refer to no other region; the bound access points in
-their zones connect them.
+A region's zones are every zone the world has made in it. A region refers to no region but its parent; the bound access
+points in their zones connect worldspaces.
 
 A region's list of zone ids, whose number is the zone count its patterns read (`world_generation_plan.md`), is
 not written separately: it is its `zones`, and reading the world sets it from them.
@@ -386,3 +398,8 @@ its directory if needed.
 ## Open
 
 The open items are tracked in `work_plan.md`, under `### Game file`.
+
+## Appendix: changes from 0.3
+
+- A worldspace in `world.json` has `regions`, a list of its regions, each with its `parent` and its `display_name`, in
+  place of `region`.

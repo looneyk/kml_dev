@@ -43,7 +43,19 @@ namespace
         WorldDocument::Region region;
         region.id = id_value(required_member(v, path, "id"), member_path(path, "id"));
         add_entity_id(entity_ids, region.id, member_path(path, "id"));
+
+        if (const raw_values_type* p = member(v, "parent"); p != nullptr)
+        {
+            region.parent_id = id_value(*p, member_path(path, "parent"));
+        }
+
         region.name = string_value(required_member(v, path, "name"), member_path(path, "name"));
+
+        if (const raw_values_type* p = member(v, "display_name"); p != nullptr)
+        {
+            region.display_name = string_value(*p, member_path(path, "display_name"));
+        }
+
         region.name_counter = count_value(required_member(v, path, "name_counter"), member_path(path, "name_counter"));
         region.components = read_components(v, path);
         std::set<std::string> zone_names;
@@ -101,8 +113,10 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Reads a worldspace and its region. entity_ids has the id of every worldspace, region and zone read so far in the file,
-    // and zone_ids the id of every zone. The worldspace, its region and its zones are added to them
+    // Reads a worldspace and its regions. entity_ids has the id of every worldspace, region and zone read so far in the file,
+    // and zone_ids the id of every zone. The worldspace, its regions and their zones are added to them. A worldspace without a
+    // region, a top-level region with a parent, or a later region whose parent is not an earlier region of the worldspace is
+    // an error
     WorldDocument::Worldspace read_worldspace(const raw_values_type& v, const std::string& path, std::set<stored_entity_id_type>& entity_ids,
         std::set<stored_entity_id_type>& zone_ids)
     {
@@ -113,8 +127,33 @@ namespace
         add_entity_id(entity_ids, worldspace.id, member_path(path, "id"));
         worldspace.name = string_value(required_member(v, path, "name"), member_path(path, "name"));
 
+        const std::string regions_path = member_path(path, "regions");
+        const raw_values_type& regions = array(required_member(v, path, "regions"), regions_path);
+        if (regions.empty())
+        {
+            fail(regions_path, "a worldspace with no regions");
+        }
+
         std::set<std::array<coord_type, 3>> zone_positions;
-        worldspace.region = read_region(required_member(v, path, "region"), member_path(path, "region"), entity_ids, zone_ids, zone_positions);
+        std::set<stored_entity_id_type> region_ids;
+        for (size_t i = 0; i < regions.size(); ++i)
+        {
+            const std::string region_path = element_path(regions_path, i);
+            WorldDocument::Region region = read_region(regions[i], region_path, entity_ids, zone_ids, zone_positions);
+
+            if (i == 0 && region.parent_id.has_value())
+            {
+                fail(member_path(region_path, "parent"), "a top-level region with a parent");
+            }
+
+            if (i != 0 && (!region.parent_id.has_value() || !region_ids.contains(region.parent_id.value())))
+            {
+                fail(region_path, "a subregion whose parent is not an earlier region of the worldspace");
+            }
+
+            region_ids.insert(region.id);
+            worldspace.regions.push_back(std::move(region));
+        }
 
         return worldspace;
     }
